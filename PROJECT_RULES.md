@@ -136,6 +136,7 @@ UI 美化优先级较低。
 2. 阅读 ROADMAP.md
 3. 阅读 TASKS.md
 4. 阅读 AI_HANDOFF.md
+5. 阅读 Prompt.md
 
 ---
 
@@ -144,6 +145,7 @@ UI 美化优先级较低。
 1. 更新 TASKS.md
 2. 更新 AI_HANDOFF.md
 3. 保持代码结构稳定
+4. 按照Prompt.md做
 
 ---
 
