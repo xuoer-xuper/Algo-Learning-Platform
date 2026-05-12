@@ -18,12 +18,12 @@ Phase 1：桌面端 MVP
 
 ## 基础工程
 
-- [ ] 初始化 Electron
-- [ ] 初始化 React
-- [ ] 初始化 TypeScript
+- [x] 初始化 Electron
+- [x] 初始化 React
+- [x] 初始化 TypeScript
 - [ ] 初始化 TailwindCSS
-- [ ] 初始化 Vite
-- [ ] 建立基础目录结构
+- [x] 初始化 Vite
+- [x] 建立基础目录结构
 
 ---
 
@@ -39,16 +39,16 @@ Phase 1：桌面端 MVP
 
 ## 主窗口
 
-- [ ] 创建 Electron 主窗口
-- [ ] 支持窗口刷新
-- [ ] 支持开发模式启动
+- [x] 创建 Electron 主窗口
+- [x] 支持窗口刷新
+- [x] 支持开发模式启动
 
 ---
 
 ## Electron 与 React 通信
 
-- [ ] preload 初始化
-- [ ] IPC 基础通信
+- [x] preload 初始化
+- [x] IPC 基础通信
 
 ---
 
@@ -56,16 +56,16 @@ Phase 1：桌面端 MVP
 
 ## BrowserView
 
-- [ ] 创建 BrowserView
-- [ ] 支持打开网页
-- [ ] 支持页面刷新
-- [ ] 支持 URL 获取
+- [x] 创建 BrowserView
+- [x] 支持打开网页
+- [x] 支持页面刷新
+- [x] 支持 URL 获取
 
 ---
 
 ## 支持的网站
 
-- [ ] Codeforces
+- [x] Codeforces
 - [ ] AcWing
 - [ ] 牛客
 - [ ] VJudge
@@ -83,8 +83,8 @@ Phase 1：桌面端 MVP
 
 ## URL 监听
 
-- [ ] 监听网页 URL 变化
-- [ ] 获取当前 URL
+- [x] 监听网页 URL 变化
+- [x] 获取当前 URL
 
 ---
 

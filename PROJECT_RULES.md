@@ -137,6 +137,8 @@ UI 美化优先级较低。
 3. 阅读 TASKS.md
 4. 阅读 AI_HANDOFF.md
 5. 阅读 Prompt.md
+6. 分析任务，告知预计用时
+7. 等用户确认后再开始编码
 
 ---
 
@@ -146,6 +148,7 @@ UI 美化优先级较低。
 2. 更新 AI_HANDOFF.md
 3. 保持代码结构稳定
 4. 按照Prompt.md做
+5. 告诉用户建议的 git commit 名称
 
 ---
 
@@ -175,3 +178,4 @@ feat: 添加 BrowserView
 fix: 修复 URL 监听
 docs: 更新任务列表
 chore: 初始化 electron
+```

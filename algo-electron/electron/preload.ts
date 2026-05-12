@@ -1,6 +1,5 @@
 import { ipcRenderer, contextBridge } from 'electron'
 
-// --------- Expose some API to the Renderer process ---------
 contextBridge.exposeInMainWorld('ipcRenderer', {
   on(...args: Parameters<typeof ipcRenderer.on>) {
     const [channel, listener] = args
@@ -18,7 +17,14 @@ contextBridge.exposeInMainWorld('ipcRenderer', {
     const [channel, ...omit] = args
     return ipcRenderer.invoke(channel, ...omit)
   },
+})
 
-  // You can expose other APTs you need here.
-  // ...
+contextBridge.exposeInMainWorld('electronAPI', {
+  navigate: (url: string) => ipcRenderer.send('browser:navigate', url),
+  goBack: () => ipcRenderer.send('browser:go-back'),
+  goForward: () => ipcRenderer.send('browser:go-forward'),
+  reload: () => ipcRenderer.send('browser:reload'),
+  onUrlChanged: (callback: (url: string) => void) => {
+    ipcRenderer.on('browser:url-changed', (_event, url) => callback(url))
+  },
 })
