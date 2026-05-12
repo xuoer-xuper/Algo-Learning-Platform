@@ -1,2 +1,2 @@
-\# Algo Learning Platform
+# Algo Learning Platform
 
