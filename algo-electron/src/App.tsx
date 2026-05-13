@@ -5,9 +5,10 @@ function App() {
   const [url, setUrl] = useState('https://codeforces.com')
 
   useEffect(() => {
-    window.electronAPI.onUrlChanged((newUrl: string) => {
+    const unsubscribe = window.electronAPI.onUrlChanged((newUrl: string) => {
       setUrl(newUrl)
     })
+    return unsubscribe
   }, [])
 
   const handleNavigate = () => {

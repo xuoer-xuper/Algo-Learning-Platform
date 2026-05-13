@@ -12,10 +12,9 @@ interface ElectronAPI {
   goBack: () => void
   goForward: () => void
   reload: () => void
-  onUrlChanged: (callback: (url: string) => void) => void
+  onUrlChanged: (callback: (url: string) => void) => () => void
 }
 
 interface Window {
-  ipcRenderer: import('electron').IpcRenderer
   electronAPI: ElectronAPI
 }

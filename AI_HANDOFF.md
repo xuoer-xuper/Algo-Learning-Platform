@@ -12,16 +12,13 @@ Phase 0 文档与架构基线已完成。项目已经具备“AI 可接手的项
 
 - 项目目录：`algo-electron/`
 - Electron + React + TypeScript + Vite 已初始化。
-- 当前 `electron/main.ts` 中存在旧的 `BrowserView` 实现。
-- 当前已有基础导航、后退、前进、刷新、URL 变化通知。
-- 当前 Preload 暴露了通用 `ipcRenderer`，这不符合长期安全规则。
-- TailwindCSS、SQLite、CookieVault、站点注册表、学习行为追踪尚未实现。
-
-重要决策：
-
-- 后续不得继续在 `BrowserView` 上新增功能。
-- 下一步代码任务必须迁移到 `WebContentsView`。
-- 下一步安全任务必须移除通用 `ipcRenderer` 暴露，只保留白名单 API。
+- TailwindCSS 已初始化（tailwindcss@3 + postcss + autoprefixer）。
+- 默认模板 UI 已清理，index.html 标题已更新。
+- 已迁移到 `WebContentsView`，旧 `BrowserView` 已移除。
+- `BrowserHost` 模块已创建（`electron/browser/BrowserHost.ts`），统一管理浏览器视图。
+- Preload 已收紧，只暴露白名单 API（`electronAPI`），不再暴露通用 `ipcRenderer`。
+- 远程 OJ 页面使用安全默认值：nodeIntegration: false, contextIsolation: true, sandbox: true。
+- SQLite、CookieVault、站点注册表、学习行为追踪尚未实现。
 
 ## 3. 当前文档状态
 
@@ -44,18 +41,18 @@ Phase 0 文档与架构基线已完成。项目已经具备“AI 可接手的项
 
 下一位 Agent 推荐从以下任务开始：
 
-1. `P1-001`：初始化 TailwindCSS。
-2. `P1-002`：清理默认模板 UI 和无关资源。
-3. `P1-003`：迁移 `BrowserView` 到 `WebContentsView`。
-4. `P1-004`：抽离 `BrowserHost`。
-5. `P1-009`：实现 `persist:oj-main` 持久 session。
+1. `P1-004`：抽离 `BrowserHost`（当前 BrowserHost 已创建但需进一步完善）。
+2. `P1-009`：实现 `persist:oj-main` 持久 session。
+3. `P1-014`：建立 CookieVault。
+4. `P1-017`：建立站点注册表。
+5. `P1-024`：初始化 SQLite 与学习行为记录。
 
-如果只做一个任务，优先做 `P1-003`。
+如果只做一个任务，优先做 `P1-009`。
 
 ## 5. 高风险区域
 
-- `electron/main.ts` 容易继续膨胀，必须尽快拆出 `electron/browser/BrowserHost`。
-- Preload 当前暴露通用 `ipcRenderer`，必须收紧。
+- `electron/main.ts` 已精简，`BrowserHost` 已独立，但后续仍需完善多标签页预留。
+- Preload 已收紧为白名单 API，后续新增 API 必须保持白名单模式。
 - Cookie 是敏感本地数据，不能写入普通日志。
 - 数据库 schema 一旦开始实现，必须同步更新 `DATABASE_SCHEMA.md`。
 - 多 Agent 不应同时修改浏览器核心、数据库迁移和 IPC 边界。
