@@ -1,126 +1,93 @@
-# AI 开发交接（AI HANDOFF）
+# AI 开发交接（AI_HANDOFF）
 
----
+## 1. 当前阶段
 
-# 当前阶段
+当前处于 Phase 1 起点：桌面 MVP 基础。
 
-Phase 1：桌面端 MVP
+Phase 0 文档与架构基线已完成。项目已经具备“AI 可接手的项目操作系统”：后续 Cursor、Claude、GPT、Codex 应按同一套规则、任务编号和验收标准开发。
 
----
+## 2. 当前代码状态
 
-# 当前目标
+已知现状：
 
-开发一个可真正用于刷题的 Electron 桌面应用。
+- 项目目录：`algo-electron/`
+- Electron + React + TypeScript + Vite 已初始化。
+- 当前 `electron/main.ts` 中存在旧的 `BrowserView` 实现。
+- 当前已有基础导航、后退、前进、刷新、URL 变化通知。
+- 当前 Preload 暴露了通用 `ipcRenderer`，这不符合长期安全规则。
+- TailwindCSS、SQLite、CookieVault、站点注册表、学习行为追踪尚未实现。
 
-当前 MVP：
+重要决策：
 
-1. 内嵌浏览器
-2. 自动识别题目
-3. 本地题库系统
-4. VJudge 支持
+- 后续不得继续在 `BrowserView` 上新增功能。
+- 下一步代码任务必须迁移到 `WebContentsView`。
+- 下一步安全任务必须移除通用 `ipcRenderer` 暴露，只保留白名单 API。
 
----
+## 3. 当前文档状态
 
-# 当前已完成
+已建立或更新的长期文档：
 
-## 工程初始化
+- `PROJECT_RULES.md`
+- `ROADMAP.md`
+- `TASKS.md`
+- `AI_HANDOFF.md`
+- `ARCHITECTURE.md`
+- `DATABASE_SCHEMA.md`
+- `AI_WORKFLOW.md`
+- `COMMIT_RULES.md`
+- `SITE_ADAPTER_GUIDE.md`
+- `docs/adr/0001-use-webcontentsview.md`
+- `docs/adr/0002-cookie-vault.md`
+- `docs/adr/0003-event-log-and-analytics.md`
 
-- 已创建项目目录
-- 已初始化 Git
-- 已创建 README.md
-- 已创建 ROADMAP.md
-- 已初始化 Electron（electron-vite 模板）
-- 已初始化 React + TypeScript
-- 已初始化 Vite
-- 已建立基础目录结构
+## 4. 下一步推荐任务
 
-## Electron 主窗口
+下一位 Agent 推荐从以下任务开始：
 
-- 已创建主窗口（1280x800）
-- 支持开发模式启动（npm run dev）
-- preload 已初始化
-- IPC 基础通信已建立
+1. `P1-001`：初始化 TailwindCSS。
+2. `P1-002`：清理默认模板 UI 和无关资源。
+3. `P1-003`：迁移 `BrowserView` 到 `WebContentsView`。
+4. `P1-004`：抽离 `BrowserHost`。
+5. `P1-009`：实现 `persist:oj-main` 持久 session。
 
-## 内嵌浏览器（BrowserView）
+如果只做一个任务，优先做 `P1-003`。
 
-- 已创建 BrowserView（嵌入主窗口，默认加载 codeforces.com）
-- 支持打开网页（URL 栏输入 + 前往按钮）
-- 支持页面刷新（刷新按钮）
-- 支持 URL 获取（页面导航时自动同步到导航栏）
-- 支持后退/前进
-- BrowserView 尺寸跟随主窗口变化（resize 自适应）
-- Codeforces 已支持
+## 5. 高风险区域
 
----
+- `electron/main.ts` 容易继续膨胀，必须尽快拆出 `electron/browser/BrowserHost`。
+- Preload 当前暴露通用 `ipcRenderer`，必须收紧。
+- Cookie 是敏感本地数据，不能写入普通日志。
+- 数据库 schema 一旦开始实现，必须同步更新 `DATABASE_SCHEMA.md`。
+- 多 Agent 不应同时修改浏览器核心、数据库迁移和 IPC 边界。
 
-# 当前未完成
+## 6. Agent 开发前检查清单
 
-- TailwindCSS 初始化
-- Cookie 持久化 / 登录状态保存
-- AcWing / 牛客 / VJudge 支持
-- 平台 URL 识别
-- 题号解析
-- SQLite 初始化
-- Problem 表创建
-- 题库侧边栏
+每次开始前：
 
----
+- 已阅读 `PROJECT_RULES.md`。
+- 已阅读 `ROADMAP.md`。
+- 已阅读 `TASKS.md`。
+- 已阅读 `ARCHITECTURE.md`。
+- 已阅读 `DATABASE_SCHEMA.md`。
+- 已阅读 `AI_WORKFLOW.md`。
+- 已确认本次任务编号。
+- 已确认是否涉及数据库、IPC、Cookie、站点适配。
 
-# 当前开发原则
+每次完成后：
 
-- 小步开发
-- 不允许大规模重构
-- 优先稳定方案
-- 本地优先
+- 更新 `TASKS.md`。
+- 更新 `AI_HANDOFF.md`。
+- 如果涉及架构，更新 `ARCHITECTURE.md`。
+- 如果涉及数据库，更新 `DATABASE_SCHEMA.md`。
+- 如果涉及站点，更新 `SITE_ADAPTER_GUIDE.md`。
+- 给出中文提交信息建议。
 
----
+## 7. 中文提交示例
 
-# 当前技术栈
-
-- Electron（v30）
-- React（v18）
-- TypeScript
-- Vite
-- TailwindCSS（待安装）
-- SQLite（待引入）
-
----
-
-# 当前 UI 风格
-
-- 简洁
-- 深色主题（Catppuccin Mocha 色系）
-- 蓝色主色调（#89b4fa）
-
----
-
-# 下一步
-
-下一步任务：
-
-1. 安装 TailwindCSS
-2. Cookie 持久化 / 登录状态保存
-3. 监听 URL 变化，识别题目页面
-4. 初始化 SQLite + Problem 表
-
----
-
-# AI 修改要求
-
-AI 修改项目前必须：
-
-1. 阅读 PROJECT_RULES.md
-2. 阅读 ROADMAP.md
-3. 阅读 TASKS.md
-4. 阅读 AI_HANDOFF.md
-5. 分析任务，告知预计用时
-6. 等用户确认后再开始编码
-
----
-
-# AI 修改后必须
-
-1. 更新 TASKS.md
-2. 更新 AI_HANDOFF.md
-3. 保持目录结构稳定
-4. 告诉用户建议的 git commit 名称
+```bash
+feat: 迁移到 WebContentsView
+feat: 添加 CookieVault 基础接口
+docs: 完善全周期任务规划
+fix: 修复 VJudge URL 识别
+test: 添加 Codeforces URL 解析测试
+```

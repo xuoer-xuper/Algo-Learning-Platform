@@ -1,181 +1,156 @@
-# 项目规则（PROJECT RULES）
+# 项目规则（PROJECT_RULES）
 
----
+## 1. 项目定位
 
-# 项目名称
+项目名称：Algo Learning Platform
 
-Algo Learning Platform
+项目定位：本地优先的个人算法学习平台。
 
----
+核心目标不是做一个简单题库，而是长期记录、分析和沉淀用户的算法学习行为。项目未来会由 Cursor、Claude、GPT、Codex 等多个 AI Agent 协作开发，因此所有代码和文档必须以长期维护、边界清晰、可交接为第一原则。
 
-# 项目目标
+## 2. 固定技术栈
 
-这是一个本地优先的个人算法学习平台。
+除非用户明确要求并更新架构文档，否则不得更换以下技术栈：
 
-核心目标：
+- 桌面端：Electron
+- 浏览器内核承载：`WebContentsView`
+- 前端：React + TypeScript
+- 样式：TailwindCSS
+- 数据库：SQLite
+- SQLite 访问库：`better-sqlite3`
+- 状态管理：Zustand
+- 构建工具：Vite
 
-- 内嵌刷题网站
-- 自动记录题目
-- 本地题库系统
-- 长期学习记录
-- AI 协作开发
-- 后续支持多端同步
+## 3. 不可变架构原则
 
----
+### 3.1 本地优先
 
-# 当前 MVP 目标
+- 核心数据默认保存在本机。
+- 数据库、Cookie、学习事件、题目记录、提交记录、Rating 历史都以本地数据为准。
+- 未来可以支持同步，但同步必须建立在本地数据模型之上。
+- Cookie 默认不参与同步、导出和日志记录。
 
-当前第一阶段（MVP）重点：
+### 3.2 WebContentsView 是唯一浏览器方案
 
-1. 内嵌浏览器
-2. 自动识别题目
-3. 本地题库系统
-4. VJudge 支持
+- 项目初期即使用 `WebContentsView` 奠定长期基础。
+- 禁止继续在 `BrowserView` 上新增功能。
+- 当前代码中如存在 `BrowserView`，下一步任务必须迁移到 `WebContentsView`。
+- 所有浏览器视图生命周期必须由 `BrowserHost` 或同等职责模块统一管理。
 
----
+### 3.3 Cookie 是正式能力
 
-# 技术栈（固定）
+- Cookie 不视为临时 hack，而是项目的一等本地能力。
+- Electron 持久 session 负责正常登录状态。
+- `CookieVault` 负责按站点提取、保存、查询 Cookie。
+- Cookie 可用于 VJudge 提交、提交记录同步、平台数据同步。
+- Cookie 值不得写入普通日志，不得在 UI 中默认明文展示。
+- Cookie 默认只留在本地，不进入未来同步队列。
 
-## 桌面端
+### 3.4 Renderer 不直接接触本地能力
 
-- Electron
+- Renderer 只负责 UI、交互状态和展示。
+- Renderer 禁止直接访问 SQLite、文件系统、Cookie、Electron session。
+- 所有本地能力必须通过 Preload 暴露的白名单 API 调用。
+- 禁止在 Preload 中暴露通用 `ipcRenderer`。
 
----
+### 3.5 数据库必须可迁移
 
-## 前端
+- 所有数据库结构变化必须有 migration。
+- 所有 schema 变化必须同步更新 `DATABASE_SCHEMA.md`。
+- 禁止直接在业务代码里散落 `CREATE TABLE`。
+- 禁止修改数据库结构而不说明兼容影响。
 
-- React
-- TypeScript
-- TailwindCSS
+## 4. 模块边界
 
----
+Main Process 负责：
 
-## 数据库
+- `browser`：`WebContentsView`、导航、窗口布局、多标签页预留。
+- `ipc`：typed IPC 注册和参数校验。
+- `db`：SQLite 连接、迁移、repository。
+- `parsers`：URL 识别、题目身份解析、页面元数据提取。
+- `tracking`：学习行为事件、页面停留、活跃时长。
+- `sites`：站点注册表、站点配置、扩展适配。
+- `cookies`：CookieVault、Cookie 查询、Cookie 本地保存策略。
+- `analytics`：统计聚合和只读分析。
 
-- SQLite
+Renderer 负责：
 
-推荐库：
+- `features/browser`：导航栏、标签页 UI、当前 URL 展示。
+- `features/problems`：题库侧栏、题目列表、题目详情。
+- `features/submissions`：提交记录列表和详情。
+- `features/analytics`：学习统计 Dashboard。
+- `features/settings`：站点、Cookie、默认首页等设置。
+- `stores`：UI 状态和 IPC 返回数据缓存。
+- `components`：通用 UI 组件。
 
-- better-sqlite3
+## 5. AI Agent 开发规则
 
----
+任何 AI Agent 在修改项目前必须阅读：
 
-## 状态管理
+1. `PROJECT_RULES.md`
+2. `ROADMAP.md`
+3. `TASKS.md`
+4. `AI_HANDOFF.md`
+5. `ARCHITECTURE.md`
+6. `DATABASE_SCHEMA.md`
+7. `AI_WORKFLOW.md`
+8. `COMMIT_RULES.md`
+9. 需要新增站点时阅读 `SITE_ADAPTER_GUIDE.md`
 
-- Zustand
+开始编码前必须说明：
 
----
+- 本次任务编号。
+- 本次只修改哪些模块。
+- 是否涉及数据库 schema。
+- 是否涉及 IPC 或 Preload API。
+- 是否涉及 Cookie。
 
-## 构建工具
+完成后必须更新：
 
-- Vite
+- `TASKS.md`：标记任务状态，补充新增任务。
+- `AI_HANDOFF.md`：写明完成内容、风险、下一步。
+- 涉及架构则更新 `ARCHITECTURE.md`。
+- 涉及数据库则更新 `DATABASE_SCHEMA.md`。
+- 涉及站点适配则更新 `SITE_ADAPTER_GUIDE.md`。
 
----
+## 6. 任务执行规则
 
-# 开发原则
+- 每次只做一个明确任务或一个小任务组。
+- 不允许一次性大规模重构。
+- 不允许跨模块随意移动文件。
+- 不允许为了当前小功能引入未来复杂架构。
+- 不允许在没有文档说明的情况下改变数据结构。
+- 不允许删除核心文档。
+- 不允许修改无关代码。
 
-## 1. 本地优先
+## 7. Git 规则
 
-所有核心数据优先存储在本地。
+- 提交信息使用中文。
+- 每个提交只完成一个清晰任务。
+- 推荐格式：`类型: 中文说明`。
 
-不依赖云端。
-
----
-
-## 2. 小步开发
-
-禁止一次性大规模生成整个项目。
-
-每次只完成一个小功能。
-
----
-
-## 3. 功能优先
-
-优先保证：
-
-- 能运行
-- 能使用
-- 能维护
-
-UI 美化优先级较低。
-
----
-
-## 4. 不允许随意重构
-
-未经明确说明：
-
-- 不允许大规模重构
-- 不允许修改无关模块
-- 不允许擅自更换技术栈
-
----
-
-## 5. 优先稳定方案
-
-优先：
-
-- 成熟生态
-- AI 易生成
-- 长期可维护
-
-避免：
-
-- 过新技术
-- 冷门框架
-- AI 不熟悉方案
-
----
-
-# AI 协作规则
-
-## AI 在修改项目前必须：
-
-1. 阅读 PROJECT_RULES.md
-2. 阅读 ROADMAP.md
-3. 阅读 TASKS.md
-4. 阅读 AI_HANDOFF.md
-5. 阅读 Prompt.md
-6. 分析任务，告知预计用时
-7. 等用户确认后再开始编码
-
----
-
-## AI 修改后必须：
-
-1. 更新 TASKS.md
-2. 更新 AI_HANDOFF.md
-3. 保持代码结构稳定
-4. 按照Prompt.md做
-5. 告诉用户建议的 git commit 名称
-
----
-
-## AI 不允许：
-
-- 删除核心文件
-- 大规模移动目录
-- 修改数据库结构而不说明
-- 修改无关代码
-
----
-
-# Git 规范
-
-## 提交原则
-
-- 小步提交
-- 一个功能一个 commit
-- 提交信息清晰
-
----
-
-## Commit 示例
+示例：
 
 ```bash
-feat: 添加 BrowserView
-fix: 修复 URL 监听
-docs: 更新任务列表
-chore: 初始化 electron
+feat: 迁移到 WebContentsView
+feat: 添加 CookieVault 基础接口
+docs: 完善数据库设计文档
+fix: 修复 Codeforces URL 解析
+chore: 初始化 TailwindCSS
+test: 添加站点解析规则测试
 ```
+
+详细规则见 `COMMIT_RULES.md`。
+
+## 8. 禁止事项
+
+- 禁止继续扩展 `BrowserView`。
+- 禁止 Renderer 直连数据库。
+- 禁止 Renderer 直接读取 Cookie。
+- 禁止暴露通用 `ipcRenderer`。
+- 禁止在远程 OJ 页面启用 Node 能力。
+- 禁止 Cookie 明文写日志。
+- 禁止未经说明修改数据库结构。
+- 禁止 AI Agent 跳过文档直接写代码。
+- 禁止多个 Agent 同时修改数据库 schema、浏览器核心和全局 IPC 边界。
+
