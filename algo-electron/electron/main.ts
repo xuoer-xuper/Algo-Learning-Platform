@@ -2,6 +2,8 @@ import { app, BrowserWindow, ipcMain } from 'electron'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import { BrowserHost } from './browser/BrowserHost'
+import { initDb, closeDb } from './db/connection'
+import { SiteRegistry } from './sites/siteRegistry'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -15,6 +17,7 @@ process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL ? path.join(process.env.APP_ROOT, 
 
 let win: BrowserWindow | null
 let browserHost: BrowserHost | null
+let siteRegistry: SiteRegistry | null
 
 function createWindow() {
   win = new BrowserWindow({
@@ -75,6 +78,7 @@ ipcMain.on('browser:reload', () => {
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
+    closeDb()
     app.quit()
   }
 })
@@ -85,4 +89,8 @@ app.on('activate', () => {
   }
 })
 
-app.whenReady().then(createWindow)
+app.whenReady().then(() => {
+  initDb()
+  siteRegistry = new SiteRegistry()
+  createWindow()
+})

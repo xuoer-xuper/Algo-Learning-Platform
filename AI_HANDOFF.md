@@ -19,7 +19,9 @@ Phase 0 文档与架构基线已完成。项目已经具备“AI 可接手的项
 - Preload 已收紧，只暴露白名单 API（`electronAPI`），不再暴露通用 `ipcRenderer`。
 - 远程 OJ 页面使用安全默认值：nodeIntegration: false, contextIsolation: true, sandbox: true。
 - WebContentsView 使用持久 session（`persist:oj-main`），重启后登录状态保留。
-- SQLite、CookieVault、站点注册表、学习行为追踪尚未实现。
+- 站点注册表已建立（`electron/sites/siteRegistry.ts`），内置 Codeforces、AcWing、牛客、VJudge。
+- SQLite 已初始化（`electron/db/connection.ts`），使用 better-sqlite3，WAL 模式。
+- CookieVault、学习行为追踪尚未实现。
 
 ## 3. 当前文档状态
 
@@ -45,8 +47,9 @@ Phase 0 文档与架构基线已完成。项目已经具备“AI 可接手的项
 
 1. `P1-010` 到 `P1-013`：验证 Codeforces、AcWing、牛客、VJudge 登录状态。
 2. `P1-014`：建立 CookieVault。
-3. `P1-017`：建立站点注册表。
-4. `P1-024`：初始化 SQLite 与学习行为记录。
+3. `P1-025`：建立 schema_migrations 表。
+4. `P1-022`：定义统一 ProblemIdentity。
+5. `P1-018` 到 `P1-021`：实现四个平台 URL 识别。
 
 如果只做一个任务，优先做 `P1-010`（Codeforces 登录验证）。
 
