@@ -16,6 +16,7 @@ export class BrowserHost {
         nodeIntegration: false,
         contextIsolation: true,
         sandbox: true,
+        partition: 'persist:oj-main',
       },
     })
 

@@ -18,6 +18,7 @@ Phase 0 文档与架构基线已完成。项目已经具备“AI 可接手的项
 - `BrowserHost` 模块已创建（`electron/browser/BrowserHost.ts`），统一管理浏览器视图。
 - Preload 已收紧，只暴露白名单 API（`electronAPI`），不再暴露通用 `ipcRenderer`。
 - 远程 OJ 页面使用安全默认值：nodeIntegration: false, contextIsolation: true, sandbox: true。
+- WebContentsView 使用持久 session（`persist:oj-main`），重启后登录状态保留。
 - SQLite、CookieVault、站点注册表、学习行为追踪尚未实现。
 
 ## 3. 当前文档状态
@@ -42,13 +43,12 @@ Phase 0 文档与架构基线已完成。项目已经具备“AI 可接手的项
 
 下一位 Agent 推荐从以下任务开始：
 
-1. `P1-009`：实现 `persist:oj-main` 持久 session。
-2. `P1-010` 到 `P1-013`：验证 Codeforces、AcWing、牛客、VJudge 登录状态。
-3. `P1-014`：建立 CookieVault。
-4. `P1-017`：建立站点注册表。
-5. `P1-024`：初始化 SQLite 与学习行为记录。
+1. `P1-010` 到 `P1-013`：验证 Codeforces、AcWing、牛客、VJudge 登录状态。
+2. `P1-014`：建立 CookieVault。
+3. `P1-017`：建立站点注册表。
+4. `P1-024`：初始化 SQLite 与学习行为记录。
 
-如果只做一个任务，优先做 `P1-009`。
+如果只做一个任务，优先做 `P1-010`（Codeforces 登录验证）。
 
 ## 5. 高风险区域
 
