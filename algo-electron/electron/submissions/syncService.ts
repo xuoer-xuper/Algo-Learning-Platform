@@ -30,7 +30,21 @@ export class SyncService {
     }
   }
 
-  // AcWing/牛客/VJudge 从当前页面 DOM 抓取
+  // VJudge 从当前页面 DOM 抓取（需要在 vjudge.net/status 页面）
+  async syncVjudge(): Promise<SyncResult> {
+    if (!this.browserHost) return { platform: 'vjudge', fetched: 0, inserted: 0, error: 'BrowserHost not ready' }
+    try {
+      const submissions = await scrapeCurrentPage(this.browserHost)
+      if (!submissions || submissions.length === 0) {
+        return { platform: 'vjudge', fetched: 0, inserted: 0, error: '当前页面无提交记录，请先打开 vjudge.net/status' }
+      }
+      return this.writeSubmissions('vjudge', submissions)
+    } catch (e: any) {
+      return { platform: 'vjudge', fetched: 0, inserted: 0, error: e.message }
+    }
+  }
+
+  // AcWing/牛客 从当前页面 DOM 抓取
   async syncCurrentPage(): Promise<SyncResult> {
     if (!this.browserHost) return { platform: 'unknown', fetched: 0, inserted: 0, error: 'BrowserHost not ready' }
 

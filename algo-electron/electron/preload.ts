@@ -29,7 +29,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // 提交同步
   syncCodeforces: (handle: string) => ipcRenderer.invoke('submissions:syncCodeforces', handle),
+  syncVjudge: () => ipcRenderer.invoke('submissions:syncVjudge'),
   syncCurrentPage: () => ipcRenderer.invoke('submissions:syncCurrentPage'),
+  debugPageStructure: () => ipcRenderer.invoke('debug:pageStructure'),
 
   // 统计
   getOverviewStats: () => ipcRenderer.invoke('stats:getOverview'),

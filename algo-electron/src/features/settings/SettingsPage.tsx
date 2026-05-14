@@ -100,12 +100,13 @@ export function SettingsPage({ onClose }: { onClose: () => void }) {
         </div>
 
         <div className="settings-section">
-          <h3 className="settings-section-title">Codeforces 同步</h3>
+          <h3 className="settings-section-title">提交同步</h3>
           <div className="sync-row">
             <input className="settings-input" type="text" value={cfHandle} onChange={(e) => setCfHandle(e.target.value)} placeholder="Codeforces Handle" />
-            <button className="settings-save-btn" onClick={handleSyncCF}>同步</button>
+            <button className="settings-save-btn" onClick={handleSyncCF}>同步 CF</button>
           </div>
           {syncStatus.cf && <div className="sync-status">{syncStatus.cf}</div>}
+          <div className="sync-hint">AcWing / 牛客 / VJudge：在浏览器打开提交页面后点工具栏 ↗ 抓取</div>
         </div>
 
         <div className="settings-section">

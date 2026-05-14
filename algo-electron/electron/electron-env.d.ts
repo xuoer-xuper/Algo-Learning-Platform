@@ -43,7 +43,9 @@ interface ElectronAPI {
   listRecentProblems: (limit?: number) => Promise<ProblemRecord[]>
   onProblemsUpdated: (callback: () => void) => () => void
   syncCodeforces: (handle: string) => Promise<SyncResult>
+  syncVjudge: () => Promise<SyncResult>
   syncCurrentPage: () => Promise<SyncResult>
+  debugPageStructure: () => Promise<any>
   getOverviewStats: () => Promise<OverviewStats>
   getDefaultHomeUrl: () => Promise<string>
   setDefaultHomeUrl: (url: string) => void

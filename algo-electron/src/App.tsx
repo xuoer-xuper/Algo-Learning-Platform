@@ -7,6 +7,7 @@ function App() {
   const [url, setUrl] = useState('')
   const [showSettings, setShowSettings] = useState(false)
   const [syncMsg, setSyncMsg] = useState('')
+  const [debugInfo, setDebugInfo] = useState('')
 
   useEffect(() => {
     const unsubscribe = window.electronAPI.onUrlChanged((newUrl: string) => {
@@ -36,6 +37,12 @@ function App() {
     setTimeout(() => setSyncMsg(''), 4000)
   }
 
+  const handleDebug = async () => {
+    window.electronAPI.hideBrowserView()
+    const data = await window.electronAPI.debugPageStructure()
+    setDebugInfo(JSON.stringify(data, null, 2))
+  }
+
   return (
     <div className="app-layout">
       <div className="toolbar">
@@ -62,6 +69,9 @@ function App() {
         <button className="sync-btn" onClick={handleSyncPage} title="抓取当前页面提交记录">
           ↗
         </button>
+        <button className="debug-btn" onClick={handleDebug} title="调试页面结构">
+          🔍
+        </button>
         {syncMsg && <span className="sync-msg">{syncMsg}</span>}
         <button className="settings-btn" onClick={() => setShowSettings(true)} title="设置">
           ⚙
@@ -71,6 +81,18 @@ function App() {
         <ProblemSidebar />
       </div>
       {showSettings && <SettingsPage onClose={() => setShowSettings(false)} />}
+      {debugInfo && (
+        <div className="settings-overlay" onClick={() => { setDebugInfo(''); window.electronAPI.showBrowserView() }}>
+          <div className="debug-panel" onClick={(e) => e.stopPropagation()}>
+            <div className="settings-header">
+              <span className="settings-title">页面结构调试</span>
+              <button className="settings-close" onClick={() => { setDebugInfo(''); window.electronAPI.showBrowserView() }}>✕</button>
+            </div>
+            <textarea className="debug-textarea" value={debugInfo} readOnly onClick={(e) => (e.target as HTMLTextAreaElement).select()} />
+            <div className="debug-hint">点击文本框可全选复制</div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

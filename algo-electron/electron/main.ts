@@ -133,9 +133,37 @@ ipcMain.handle('submissions:syncCodeforces', async (_event, handle: string) => {
   return syncService.syncCodeforces(handle)
 })
 
+ipcMain.handle('submissions:syncVjudge', async () => {
+  if (!syncService) return { platform: 'vjudge', fetched: 0, inserted: 0, error: 'SyncService not ready' }
+  return syncService.syncVjudge()
+})
+
 ipcMain.handle('submissions:syncCurrentPage', async () => {
   if (!syncService) return { platform: 'unknown', fetched: 0, inserted: 0, error: 'SyncService not ready' }
   return syncService.syncCurrentPage()
+})
+
+ipcMain.handle('debug:pageStructure', async () => {
+  if (!browserHost) return { error: 'no browser' }
+  return browserHost.executeScript(`
+    (() => {
+      const tables = document.querySelectorAll('table')
+      const result = []
+      for (const t of tables) {
+        const headers = Array.from(t.querySelectorAll('thead th, thead td')).map(c => c.textContent.trim())
+        const rowCount = t.querySelectorAll('tbody tr').length
+        result.push({ headers, rowCount })
+      }
+      // 找翻页元素
+      const paginationEls = document.querySelectorAll('[class*="pagination"], [class*="pager"], [class*="page"]')
+      const pagination = Array.from(paginationEls).slice(0, 5).map(el => ({
+        tag: el.tagName,
+        cls: el.className.slice(0, 100),
+        text: el.textContent.trim().slice(0, 60)
+      }))
+      return { url: location.href, tables: result, pagination }
+    })()
+  `)
 })
 
 // --- App 生命周期 ---
@@ -159,6 +187,6 @@ app.whenReady().then(() => {
   siteRegistry = new SiteRegistry()
   cookieVault = new CookieVault()
   trackingService = new TrackingService()
-  syncService = new SyncService(cookieVault!)
+  syncService = new SyncService()
   createWindow()
 })
