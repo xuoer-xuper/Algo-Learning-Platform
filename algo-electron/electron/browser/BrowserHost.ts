@@ -9,6 +9,7 @@ export class BrowserHost {
   private leftOffset = 0
   private onUrlChange: ((url: string) => void) | null = null
   private onNavigate: ((url: string) => void) | null = null
+  private onTitleChange: ((title: string, url: string) => void) | null = null
 
   constructor(window: BrowserWindow, defaultUrl: string) {
     this.window = window
@@ -56,6 +57,12 @@ export class BrowserHost {
         })
       }
       newWin.close()
+    })
+
+    // 监听页面标题变化
+    this.view.webContents.on('page-title-updated', (_event, title) => {
+      const url = this.view.webContents.getURL()
+      this.onTitleChange?.(title, url)
     })
 
     this.window.on('resize', () => {
@@ -107,6 +114,10 @@ export class BrowserHost {
 
   setNavigateCallback(callback: (url: string) => void) {
     this.onNavigate = callback
+  }
+
+  setTitleChangeCallback(callback: (title: string, url: string) => void) {
+    this.onTitleChange = callback
   }
 
   hideView() {

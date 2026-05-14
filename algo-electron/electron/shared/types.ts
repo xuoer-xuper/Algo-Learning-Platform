@@ -9,3 +9,31 @@ export interface ProblemIdentity {
   sourceProblemId?: string
   confidence: 'url' | 'content' | 'manual'
 }
+
+// 统一提交结果
+export type Verdict =
+  | 'AC'
+  | 'WA'
+  | 'TLE'
+  | 'MLE'
+  | 'RE'
+  | 'CE'
+  | 'PE'
+  | 'OLE'
+  | 'SKIPPED'
+  | 'TESTING'
+  | 'UNKNOWN'
+
+export interface SubmissionData {
+  platform: string
+  platformSubmissionId: string
+  problemId?: string
+  verdict: Verdict
+  rawVerdict?: string
+  language?: string
+  submittedAt: string
+  runtimeMs?: number
+  memoryKb?: number
+  sourceUrl?: string
+  rawJson?: string
+}

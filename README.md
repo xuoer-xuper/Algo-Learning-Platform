@@ -6,14 +6,21 @@
 
 ## 当前状态
 
-Phase 0 文档与架构基线已完成。Phase 1 的浏览器基础已有初步实现，下一步进入登录状态、Cookie、站点识别和本地数据库能力。
+Phase 1 桌面 MVP 基础已完成（v0.1.0）。
 
-默认下一步：
+已实现：
 
-1. `P1-009` 建立 `persist:oj-main` 持久 session。
-2. `P1-010` 到 `P1-013` 验证四个平台登录状态。
-3. `P1-014` 建立 CookieVault。
-4. `P1-017` 建立站点注册表。
+- Electron + React + TypeScript + TailwindCSS + Vite 技术栈
+- WebContentsView 内嵌浏览器，持久 session 登录保留
+- 四平台支持：Codeforces、AcWing、牛客、VJudge
+- 题目 URL 自动识别与本地数据库记录
+- 题库侧边栏（最近访问、点击跳转）
+- 页面标题自动抓取
+- 学习统计（总题数、今日访问、平台分布、最近活跃）
+- 基础设置页（默认首页配置）
+- SQLite 本地数据库（problems、problem_visits、activity_events、study_sessions、submissions）
+
+下一步进入 Phase 2：题目元数据与提交记录同步。
 
 ## 必读文档
 

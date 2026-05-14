@@ -34,6 +34,15 @@ export function upsertProblem(identity: ProblemIdentity): void {
   }
 }
 
+export function updateProblemTitleByUrl(url: string, title: string): void {
+  const db = getDb()
+  const now = nowBeijing()
+  db.prepare(`
+    UPDATE problems SET title = ?, updated_at = ?
+    WHERE canonical_url = ? AND (title IS NULL OR title = '')
+  `).run(title, now, url)
+}
+
 export function getRecentProblems(limit = 50): any[] {
   const db = getDb()
   return db.prepare(`

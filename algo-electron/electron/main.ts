@@ -7,7 +7,7 @@ import { SiteRegistry } from './sites/siteRegistry'
 import { CookieVault } from './cookies/CookieVault'
 import { TrackingService } from './tracking/TrackingService'
 import { getDefaultHomeUrl, saveConfig } from './app/config'
-import { getRecentProblems, getOverviewStats } from './db/repositories/problemRepository'
+import { getRecentProblems, getOverviewStats, updateProblemTitleByUrl } from './db/repositories/problemRepository'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -45,6 +45,14 @@ function createWindow() {
     const identity = trackingService?.handleNavigation(url)
     if (identity) {
       win?.webContents.send('problem:detected', identity)
+      win?.webContents.send('problems:updated')
+    }
+  })
+
+  // 页面标题变化时更新题目标题
+  browserHost.setTitleChangeCallback((title, url) => {
+    if (title && url) {
+      updateProblemTitleByUrl(url, title)
       win?.webContents.send('problems:updated')
     }
   })

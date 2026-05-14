@@ -4,6 +4,7 @@ import path from 'node:path'
 import fs from 'node:fs'
 import { runMigrations } from './migrate'
 import { migration001 } from './migrations/001_initial'
+import { migration002 } from './migrations/002_submissions'
 
 let db: Database.Database | null = null
 
@@ -29,7 +30,7 @@ export function initDb(): Database.Database {
   db.pragma('foreign_keys = ON')
   db.pragma('busy_timeout = 5000')
 
-  runMigrations(db, [migration001])
+  runMigrations(db, [migration001, migration002])
 
   return db
 }
