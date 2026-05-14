@@ -128,20 +128,14 @@ ipcMain.on('config:setDefaultHomeUrl', (_event, url: string) => {
   saveConfig({ defaultHomeUrl: url })
 })
 
-ipcMain.handle('submissions:sync', async (_event, platform: string, options?: { handle?: string; username?: string }) => {
-  if (!syncService) return { platform, fetched: 0, inserted: 0, error: 'SyncService not ready' }
-  switch (platform) {
-    case 'codeforces':
-      return syncService.syncCodeforces(options?.handle ?? '')
-    case 'acwing':
-      return syncService.syncAcwing()
-    case 'nowcoder':
-      return syncService.syncNowcoder()
-    case 'vjudge':
-      return syncService.syncVjudge()
-    default:
-      return { platform, fetched: 0, inserted: 0, error: `Unknown platform: ${platform}` }
-  }
+ipcMain.handle('submissions:syncCodeforces', async (_event, handle: string) => {
+  if (!syncService) return { platform: 'codeforces', fetched: 0, inserted: 0, error: 'SyncService not ready' }
+  return syncService.syncCodeforces(handle)
+})
+
+ipcMain.handle('submissions:syncCurrentPage', async () => {
+  if (!syncService) return { platform: 'unknown', fetched: 0, inserted: 0, error: 'SyncService not ready' }
+  return syncService.syncCurrentPage()
 })
 
 // --- App 生命周期 ---

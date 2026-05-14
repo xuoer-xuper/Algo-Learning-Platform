@@ -42,7 +42,8 @@ interface ElectronAPI {
   onUrlChanged: (callback: (url: string) => void) => () => void
   listRecentProblems: (limit?: number) => Promise<ProblemRecord[]>
   onProblemsUpdated: (callback: () => void) => () => void
-  syncSubmissions: (platform: string, options?: { handle?: string; username?: string }) => Promise<SyncResult>
+  syncCodeforces: (handle: string) => Promise<SyncResult>
+  syncCurrentPage: () => Promise<SyncResult>
   getOverviewStats: () => Promise<OverviewStats>
   getDefaultHomeUrl: () => Promise<string>
   setDefaultHomeUrl: (url: string) => void

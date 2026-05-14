@@ -19,7 +19,6 @@ export function SettingsPage({ onClose }: { onClose: () => void }) {
   const [homeUrl, setHomeUrl] = useState('')
   const [saved, setSaved] = useState(false)
   const [cfHandle, setCfHandle] = useState('')
-  const [vjUsername, setVjUsername] = useState('')
   const [syncStatus, setSyncStatus] = useState<Record<string, string>>({})
 
   useEffect(() => {
@@ -31,22 +30,14 @@ export function SettingsPage({ onClose }: { onClose: () => void }) {
     }
   }, [])
 
-  const handleSync = async (platform: string) => {
-    setSyncStatus((s) => ({ ...s, [platform]: '同步中...' }))
+  const handleSyncCF = async () => {
+    if (!cfHandle.trim()) { setSyncStatus((s) => ({ ...s, cf: '请输入 Handle' })); return }
+    setSyncStatus((s) => ({ ...s, cf: '同步中...' }))
     try {
-      const result = await window.electronAPI.syncSubmissions(platform, {
-        handle: platform === 'codeforces' ? cfHandle : undefined,
-        username: platform === 'vjudge' ? vjUsername : undefined,
-      })
-      if (result.error) {
-        setSyncStatus((s) => ({ ...s, [platform]: `失败: ${result.error}` }))
-      } else {
-        setSyncStatus((s) => ({ ...s, [platform]: `成功: 获取 ${result.fetched} 条，新增 ${result.inserted} 条` }))
-        window.electronAPI.getOverviewStats().then(setStats)
-      }
-    } catch (e: any) {
-      setSyncStatus((s) => ({ ...s, [platform]: `错误: ${e.message}` }))
-    }
+      const result = await window.electronAPI.syncCodeforces(cfHandle.trim())
+      if (result.error) setSyncStatus((s) => ({ ...s, cf: `失败: ${result.error}` }))
+      else { setSyncStatus((s) => ({ ...s, cf: `成功: ${result.fetched} 条，新增 ${result.inserted} 条` })); window.electronAPI.getOverviewStats().then(setStats) }
+    } catch (e: any) { setSyncStatus((s) => ({ ...s, cf: `错误: ${e.message}` })) }
   }
 
   const handleSave = () => {
@@ -109,25 +100,12 @@ export function SettingsPage({ onClose }: { onClose: () => void }) {
         </div>
 
         <div className="settings-section">
-          <h3 className="settings-section-title">提交记录同步</h3>
+          <h3 className="settings-section-title">Codeforces 同步</h3>
           <div className="sync-row">
             <input className="settings-input" type="text" value={cfHandle} onChange={(e) => setCfHandle(e.target.value)} placeholder="Codeforces Handle" />
-            <button className="settings-save-btn" onClick={() => handleSync('codeforces')}>同步 CF</button>
+            <button className="settings-save-btn" onClick={handleSyncCF}>同步</button>
           </div>
-          {syncStatus.codeforces && <div className="sync-status">{syncStatus.codeforces}</div>}
-          <div className="sync-row">
-            <button className="settings-save-btn sync-full-btn" onClick={() => handleSync('acwing')}>同步 AcWing</button>
-          </div>
-          {syncStatus.acwing && <div className="sync-status">{syncStatus.acwing}</div>}
-          <div className="sync-row">
-            <button className="settings-save-btn sync-full-btn" onClick={() => handleSync('nowcoder')}>同步牛客</button>
-          </div>
-          {syncStatus.nowcoder && <div className="sync-status">{syncStatus.nowcoder}</div>}
-          <div className="sync-row">
-            <input className="settings-input" type="text" value={vjUsername} onChange={(e) => setVjUsername(e.target.value)} placeholder="VJudge 用户名" />
-            <button className="settings-save-btn" onClick={() => handleSync('vjudge')}>同步 VJ</button>
-          </div>
-          {syncStatus.vjudge && <div className="sync-status">{syncStatus.vjudge}</div>}
+          {syncStatus.cf && <div className="sync-status">{syncStatus.cf}</div>}
         </div>
 
         <div className="settings-section">

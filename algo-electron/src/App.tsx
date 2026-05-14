@@ -6,6 +6,7 @@ import './App.css'
 function App() {
   const [url, setUrl] = useState('')
   const [showSettings, setShowSettings] = useState(false)
+  const [syncMsg, setSyncMsg] = useState('')
 
   useEffect(() => {
     const unsubscribe = window.electronAPI.onUrlChanged((newUrl: string) => {
@@ -25,6 +26,14 @@ function App() {
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') handleNavigate()
+  }
+
+  const handleSyncPage = async () => {
+    setSyncMsg('同步中...')
+    const result = await window.electronAPI.syncCurrentPage()
+    if (result.error) setSyncMsg(result.error)
+    else setSyncMsg(`已同步 ${result.inserted} 条`)
+    setTimeout(() => setSyncMsg(''), 4000)
   }
 
   return (
@@ -50,6 +59,10 @@ function App() {
         <button className="go-btn" onClick={handleNavigate}>
           前往
         </button>
+        <button className="sync-btn" onClick={handleSyncPage} title="抓取当前页面提交记录">
+          ↗
+        </button>
+        {syncMsg && <span className="sync-msg">{syncMsg}</span>}
         <button className="settings-btn" onClick={() => setShowSettings(true)} title="设置">
           ⚙
         </button>

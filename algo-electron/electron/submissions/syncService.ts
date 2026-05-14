@@ -1,5 +1,6 @@
 import { upsertSubmission, updateFirstAc } from '../db/repositories/submissionRepository'
 import { syncCodeforcesSubmissions } from './syncers/codeforces'
+import { scrapeCurrentPage } from './scrapers/domScraper'
 import { getDb } from '../db/connection'
 import { BrowserHost } from '../browser/BrowserHost'
 import type { SubmissionData } from '../shared/types'
@@ -18,6 +19,7 @@ export class SyncService {
     this.browserHost = host
   }
 
+  // Codeforces 使用公开 API
   async syncCodeforces(handle: string): Promise<SyncResult> {
     if (!handle) return { platform: 'codeforces', fetched: 0, inserted: 0, error: '请输入 Codeforces Handle' }
     try {
@@ -28,120 +30,20 @@ export class SyncService {
     }
   }
 
-  async syncAcwing(): Promise<SyncResult> {
-    return this.syncViaRenderer('acwing', 'https://www.acwing.com')
-  }
-
-  async syncNowcoder(): Promise<SyncResult> {
-    return this.syncViaRenderer('nowcoder', 'https://ac.nowcoder.com')
-  }
-
-  async syncVjudge(): Promise<SyncResult> {
-    return this.syncViaRenderer('vjudge', 'https://vjudge.net')
-  }
-
-  // 通过 Renderer 进程的 webContents 执行 fetch（自带 Cookie 登录态）
-  private async syncViaRenderer(platform: string, baseUrl: string): Promise<SyncResult> {
-    if (!this.browserHost) return { platform, fetched: 0, inserted: 0, error: 'BrowserHost not ready' }
+  // AcWing/牛客/VJudge 从当前页面 DOM 抓取
+  async syncCurrentPage(): Promise<SyncResult> {
+    if (!this.browserHost) return { platform: 'unknown', fetched: 0, inserted: 0, error: 'BrowserHost not ready' }
 
     try {
-      const result = await this.browserHost.executeScript(`
-        (async () => {
-          try {
-            const resp = await fetch('${this.getApiUrl(platform)}', {
-              method: '${this.getApiMethod(platform)}',
-              headers: { 'Content-Type': 'application/json' },
-              ${this.getApiBody(platform) ? `body: JSON.stringify(${this.getApiBody(platform)}),` : ''}
-              credentials: 'include',
-            })
-            if (!resp.ok) return { error: 'HTTP ' + resp.status }
-            const text = await resp.text()
-            try { return JSON.parse(text) } catch { return { error: 'Not JSON response' } }
-          } catch (e) { return { error: e.message } }
-        })()
-      `)
-
-      if (result?.error) {
-        return { platform, fetched: 0, inserted: 0, error: result.error }
+      const submissions = await scrapeCurrentPage(this.browserHost)
+      if (!submissions || submissions.length === 0) {
+        const url = this.browserHost.getUrl()
+        return { platform: 'unknown', fetched: 0, inserted: 0, error: `当前页面无提交记录 (${url})` }
       }
-
-      const submissions = this.parseResponse(platform, result)
-      return this.writeSubmissions(platform, submissions)
+      return this.writeSubmissions(submissions[0]?.platform ?? 'unknown', submissions)
     } catch (e: any) {
-      return { platform, fetched: 0, inserted: 0, error: e.message }
+      return { platform: 'unknown', fetched: 0, inserted: 0, error: e.message }
     }
-  }
-
-  private getApiUrl(platform: string): string {
-    switch (platform) {
-      case 'acwing': return '/api/problem/submission_list/'
-      case 'nowcoder': return '/acm/contest/my-submission?pageSize=100'
-      case 'vjudge': return '/solution/data?pageSize=100'
-      default: return ''
-    }
-  }
-
-  private getApiMethod(platform: string): string {
-    return platform === 'acwing' ? 'POST' : 'GET'
-  }
-
-  private getApiBody(platform: string): string | null {
-    return platform === 'acwing' ? '{ page: 1, count: 100 }' : null
-  }
-
-  private parseResponse(platform: string, data: any): SubmissionData[] {
-    if (!data) return []
-
-    switch (platform) {
-      case 'acwing': {
-        const list = data.data?.submission_list ?? []
-        return list.map((s: any) => ({
-          platform: 'acwing',
-          platformSubmissionId: `ac-${s.id}`,
-          verdict: this.mapVerdict(s.status ?? ''),
-          rawVerdict: s.status ?? '',
-          language: s.language ?? '',
-          submittedAt: s.submit_time ? new Date(s.submit_time).toISOString() : new Date().toISOString(),
-          sourceUrl: `https://www.acwing.com/problem/submission/${s.id}/`,
-        }))
-      }
-      case 'nowcoder': {
-        const list = data.data ?? []
-        return list.map((s: any) => ({
-          platform: 'nowcoder',
-          platformSubmissionId: `nc-${s.submissionId ?? s.id}`,
-          verdict: this.mapVerdict(s.statusDesc ?? ''),
-          rawVerdict: s.statusDesc ?? '',
-          language: s.language ?? '',
-          submittedAt: s.submitTime ? new Date(s.submitTime).toISOString() : new Date().toISOString(),
-        }))
-      }
-      case 'vjudge': {
-        const list = data.data ?? []
-        return list.map((s: any) => ({
-          platform: 'vjudge',
-          platformSubmissionId: `vj-${s.id}`,
-          verdict: this.mapVerdict(s.result ?? ''),
-          rawVerdict: s.result ?? '',
-          language: s.language ?? '',
-          submittedAt: s.submitTime ? new Date(s.submitTime).toISOString() : new Date().toISOString(),
-          sourceUrl: `https://vjudge.net/solution/${s.id}`,
-        }))
-      }
-      default: return []
-    }
-  }
-
-  private mapVerdict(result: string): import('../shared/types').Verdict {
-    const r = result.toUpperCase()
-    if (r.includes('ACCEPTED') || r === 'AC' || r.includes('OK')) return 'AC'
-    if (r.includes('WRONG') || r === 'WA') return 'WA'
-    if (r.includes('TIME LIMIT') || r === 'TLE') return 'TLE'
-    if (r.includes('MEMORY LIMIT') || r === 'MLE') return 'MLE'
-    if (r.includes('RUNTIME') || r === 'RE') return 'RE'
-    if (r.includes('COMPILE') || r.includes('COMPILATION') || r === 'CE') return 'CE'
-    if (r.includes('PRESENTATION') || r === 'PE') return 'PE'
-    return 'UNKNOWN'
   }
 
   private writeSubmissions(platform: string, submissions: SubmissionData[]): SyncResult {

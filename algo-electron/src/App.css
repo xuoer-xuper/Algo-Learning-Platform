@@ -219,6 +219,32 @@
   font-size: 11px;
 }
 
+/* 同步按钮 */
+.sync-btn {
+  -webkit-app-region: no-drag;
+  width: 32px;
+  height: 28px;
+  border: none;
+  border-radius: 4px;
+  background-color: transparent;
+  color: #a6e3a1;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.sync-btn:hover {
+  background-color: #313244;
+}
+
+.sync-msg {
+  color: #a6adc8;
+  font-size: 11px;
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* 设置按钮 */
 .settings-btn {
   -webkit-app-region: no-drag;
