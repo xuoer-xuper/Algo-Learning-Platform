@@ -402,3 +402,21 @@
   font-size: 13px;
   font-weight: 600;
 }
+
+/* 同步 */
+.sync-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.sync-full-btn {
+  flex: 1;
+}
+
+.sync-status {
+  color: #a6adc8;
+  font-size: 11px;
+  margin-bottom: 8px;
+  padding-left: 4px;
+}
