@@ -120,6 +120,10 @@ export class BrowserHost {
     this.onTitleChange = callback
   }
 
+  async executeScript(code: string): Promise<any> {
+    return this.view.webContents.executeJavaScript(code)
+  }
+
   hideView() {
     try {
       this.window.contentView.removeChildView(this.view)

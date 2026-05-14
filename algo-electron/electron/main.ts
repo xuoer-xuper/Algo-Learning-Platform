@@ -38,6 +38,7 @@ function createWindow() {
   })
 
   browserHost = new BrowserHost(win, getDefaultHomeUrl())
+  syncService?.setBrowserHost(browserHost)
 
   browserHost.setUrlChangeCallback((url) => {
     win?.webContents.send('browser:urlChanged', url)
@@ -137,7 +138,7 @@ ipcMain.handle('submissions:sync', async (_event, platform: string, options?: { 
     case 'nowcoder':
       return syncService.syncNowcoder()
     case 'vjudge':
-      return syncService.syncVjudge(options?.username ?? '')
+      return syncService.syncVjudge()
     default:
       return { platform, fetched: 0, inserted: 0, error: `Unknown platform: ${platform}` }
   }
