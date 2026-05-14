@@ -4,12 +4,14 @@ import type { ProblemIdentity } from '../../shared/types'
 // nowcoder.com/practice/uuid
 // nowcoder.com/questionTerminal/uuid
 // ac.nowcoder.com/acm/problem/id
+// ac.nowcoder.com/acm/contest/132048/A
 const PATTERNS = [
   { host: 'www.nowcoder.com', pattern: /^\/practice\/([a-f0-9-]+)/ },
   { host: 'www.nowcoder.com', pattern: /^\/questionTerminal\/([a-f0-9-]+)/ },
   { host: 'nowcoder.com', pattern: /^\/practice\/([a-f0-9-]+)/ },
   { host: 'nowcoder.com', pattern: /^\/questionTerminal\/([a-f0-9-]+)/ },
   { host: 'ac.nowcoder.com', pattern: /^\/acm\/problem\/(\d+)/ },
+  { host: 'ac.nowcoder.com', pattern: /^\/acm\/contest\/(\d+)\/([A-Za-z]\d*)/ },
 ]
 
 export const nowcoderParser: SiteParser = {
@@ -31,10 +33,22 @@ export const nowcoderParser: SiteParser = {
         if (u.hostname !== host) continue
         const m = u.pathname.match(pattern)
         if (m) {
-          const id = m[1]
+          if (m.length === 3) {
+            // contest 格式: /acm/contest/{contestId}/{index}
+            const contestId = m[1]
+            const index = m[2]
+            return {
+              platform: 'nowcoder',
+              platformProblemId: `contest-${contestId}-${index}`,
+              canonicalUrl: u.origin + u.pathname,
+              contestId,
+              problemIndex: index,
+              confidence: 'url',
+            }
+          }
           return {
             platform: 'nowcoder',
-            platformProblemId: id,
+            platformProblemId: m[1],
             canonicalUrl: u.origin + u.pathname,
             confidence: 'url',
           }
