@@ -21,7 +21,13 @@ Phase 0 文档与架构基线已完成。项目已经具备“AI 可接手的项
 - WebContentsView 使用持久 session（`persist:oj-main`），重启后登录状态保留。
 - 站点注册表已建立（`electron/sites/siteRegistry.ts`），内置 Codeforces、AcWing、牛客、VJudge。
 - SQLite 已初始化（`electron/db/connection.ts`），使用 better-sqlite3，WAL 模式。
-- CookieVault、学习行为追踪尚未实现。
+- 数据库已建表：schema_migrations、problems、problem_visits、activity_events、study_sessions。
+- 统一 ProblemIdentity 类型已定义（`electron/shared/types.ts`）。
+- 四平台 URL 识别已实现（`electron/parsers/sites/`），导航到题目页自动写入 problems 表。
+- problem:detected 事件已实现，URL 变化时自动触发识别和写入。
+- CookieVault 基础模块已建立（`electron/cookies/CookieVault.ts`），使用 persist:oj-main session。
+- 新窗口请求已处理：target="_blank" 和 window.open 在当前视图中打开（BrowserHost.ts）。
+- 学习行为追踪（停留时间、活跃时间）尚未实现。
 
 ## 3. 当前文档状态
 
@@ -45,13 +51,13 @@ Phase 0 文档与架构基线已完成。项目已经具备“AI 可接手的项
 
 下一位 Agent 推荐从以下任务开始：
 
-1. `P1-010` 到 `P1-013`：验证 Codeforces、AcWing、牛客、VJudge 登录状态。
-2. `P1-014`：建立 CookieVault。
-3. `P1-025`：建立 schema_migrations 表。
-4. `P1-022`：定义统一 ProblemIdentity。
-5. `P1-018` 到 `P1-021`：实现四个平台 URL 识别。
+1. `P1-010` 到 `P1-013`：验证四个平台登录状态。
+2. `P1-030`：实现 Problem upsert（当前已内置在 main.ts 中，可抽为独立 repository）。
+3. `P1-031`：实现最近访问列表（Renderer 侧边栏）。
+4. `P1-005`：实现默认首页加载。
+5. `P1-035`：结算单题停留时间。
 
-如果只做一个任务，优先做 `P1-010`（Codeforces 登录验证）。
+如果只做一个任务，优先做 `P1-030`（Problem repository 抽离）。
 
 ## 5. 高风险区域
 

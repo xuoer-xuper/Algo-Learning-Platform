@@ -30,6 +30,29 @@ export class BrowserHost {
       this.onUrlChange?.(url)
     })
 
+    // 处理新窗口请求（target="_blank"、window.open 等）
+    // 在当前视图中打开，而不是新建窗口
+    this.view.webContents.setWindowOpenHandler(({ url }) => {
+      if (url && url !== 'about:blank') {
+        this.view.webContents.loadURL(url)
+      }
+      return { action: 'deny' }
+    })
+
+    // 兜底：如果新窗口被意外创建，获取 URL 后在当前视图打开并关闭新窗口
+    this.view.webContents.on('did-create-window', (newWin) => {
+      const newUrl = newWin.webContents.getURL()
+      if (newUrl && newUrl !== 'about:blank') {
+        this.view.webContents.loadURL(newUrl)
+      } else {
+        // 空白窗口等待导航完成后获取 URL
+        newWin.webContents.once('did-navigate', (_e, url) => {
+          this.view.webContents.loadURL(url)
+        })
+      }
+      newWin.close()
+    })
+
     this.window.on('resize', () => {
       this.updateBounds()
     })

@@ -2,6 +2,8 @@ import Database from 'better-sqlite3'
 import { app } from 'electron'
 import path from 'node:path'
 import fs from 'node:fs'
+import { runMigrations } from './migrate'
+import { migration001 } from './migrations/001_initial'
 
 let db: Database.Database | null = null
 
@@ -26,6 +28,8 @@ export function initDb(): Database.Database {
   db.pragma('journal_mode = WAL')
   db.pragma('foreign_keys = ON')
   db.pragma('busy_timeout = 5000')
+
+  runMigrations(db, [migration001])
 
   return db
 }
