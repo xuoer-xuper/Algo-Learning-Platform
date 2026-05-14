@@ -8,6 +8,7 @@ import { CookieVault } from './cookies/CookieVault'
 import { TrackingService } from './tracking/TrackingService'
 import { getDefaultHomeUrl, saveConfig } from './app/config'
 import { getRecentProblems, getOverviewStats, updateProblemTitleByUrl } from './db/repositories/problemRepository'
+import { SyncService } from './submissions/syncService'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -24,6 +25,7 @@ let browserHost: BrowserHost | null
 let siteRegistry: SiteRegistry | null
 let cookieVault: CookieVault | null
 let trackingService: TrackingService | null
+let syncService: SyncService | null
 
 function createWindow() {
   win = new BrowserWindow({
@@ -125,6 +127,22 @@ ipcMain.on('config:setDefaultHomeUrl', (_event, url: string) => {
   saveConfig({ defaultHomeUrl: url })
 })
 
+ipcMain.handle('submissions:sync', async (_event, platform: string, options?: { handle?: string; username?: string }) => {
+  if (!syncService) return { platform, fetched: 0, inserted: 0, error: 'SyncService not ready' }
+  switch (platform) {
+    case 'codeforces':
+      return syncService.syncCodeforces(options?.handle ?? '')
+    case 'acwing':
+      return syncService.syncAcwing()
+    case 'nowcoder':
+      return syncService.syncNowcoder()
+    case 'vjudge':
+      return syncService.syncVjudge(options?.username ?? '')
+    default:
+      return { platform, fetched: 0, inserted: 0, error: `Unknown platform: ${platform}` }
+  }
+})
+
 // --- App 生命周期 ---
 
 app.on('window-all-closed', () => {
@@ -146,5 +164,6 @@ app.whenReady().then(() => {
   siteRegistry = new SiteRegistry()
   cookieVault = new CookieVault()
   trackingService = new TrackingService()
+  syncService = new SyncService(cookieVault!)
   createWindow()
 })

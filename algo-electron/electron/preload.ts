@@ -27,6 +27,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
     }
   },
 
+  // 提交同步
+  syncSubmissions: (platform: string, options?: { handle?: string; username?: string }) =>
+    ipcRenderer.invoke('submissions:sync', platform, options),
+
   // 统计
   getOverviewStats: () => ipcRenderer.invoke('stats:getOverview'),
 

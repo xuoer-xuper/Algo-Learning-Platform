@@ -17,6 +17,13 @@ interface ProblemRecord {
   last_visited_at: string | null
 }
 
+interface SyncResult {
+  platform: string
+  fetched: number
+  inserted: number
+  error?: string
+}
+
 interface OverviewStats {
   totalProblems: number
   todayVisited: number
@@ -35,6 +42,7 @@ interface ElectronAPI {
   onUrlChanged: (callback: (url: string) => void) => () => void
   listRecentProblems: (limit?: number) => Promise<ProblemRecord[]>
   onProblemsUpdated: (callback: () => void) => () => void
+  syncSubmissions: (platform: string, options?: { handle?: string; username?: string }) => Promise<SyncResult>
   getOverviewStats: () => Promise<OverviewStats>
   getDefaultHomeUrl: () => Promise<string>
   setDefaultHomeUrl: (url: string) => void
