@@ -89,6 +89,10 @@ ipcMain.on('browser:reload', () => {
   browserHost?.reload()
 })
 
+ipcMain.on('browser:setSidebarWidth', (_event, width: number) => {
+  browserHost?.setLeftOffset(width)
+})
+
 ipcMain.handle('problem:listRecent', (_event, limit?: number) => {
   return getRecentProblems(limit)
 })

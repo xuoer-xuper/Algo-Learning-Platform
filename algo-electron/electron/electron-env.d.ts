@@ -22,6 +22,7 @@ interface ElectronAPI {
   goBack: () => void
   goForward: () => void
   reload: () => void
+  setSidebarWidth: (width: number) => void
   onUrlChanged: (callback: (url: string) => void) => () => void
   listRecentProblems: (limit?: number) => Promise<ProblemRecord[]>
   onProblemsUpdated: (callback: () => void) => () => void

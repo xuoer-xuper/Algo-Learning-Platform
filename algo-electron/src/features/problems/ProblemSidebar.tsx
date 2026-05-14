@@ -31,6 +31,11 @@ export function ProblemSidebar() {
   const [page, setPage] = useState(1)
   const [collapsed, setCollapsed] = useState(false)
 
+  // 通知 Main 进程侧边栏宽度，调整 WebContentsView 布局
+  useEffect(() => {
+    window.electronAPI.setSidebarWidth(collapsed ? 28 : 220)
+  }, [collapsed])
+
   const loadProblems = useCallback(async () => {
     const list = await window.electronAPI.listRecentProblems(200)
     setProblems(list)

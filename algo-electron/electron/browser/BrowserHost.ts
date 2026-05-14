@@ -6,6 +6,7 @@ export class BrowserHost {
   private view: WebContentsView
   private window: BrowserWindow
   private defaultUrl: string
+  private leftOffset = 0
   private onUrlChange: ((url: string) => void) | null = null
   private onNavigate: ((url: string) => void) | null = null
 
@@ -64,7 +65,12 @@ export class BrowserHost {
 
   private updateBounds() {
     const [width, height] = this.window.getContentSize()
-    this.view.setBounds({ x: 0, y: TOOLBAR_HEIGHT, width, height: height - TOOLBAR_HEIGHT })
+    this.view.setBounds({ x: this.leftOffset, y: TOOLBAR_HEIGHT, width: width - this.leftOffset, height: height - TOOLBAR_HEIGHT })
+  }
+
+  setLeftOffset(offset: number) {
+    this.leftOffset = offset
+    this.updateBounds()
   }
 
   loadDefaultUrl() {
