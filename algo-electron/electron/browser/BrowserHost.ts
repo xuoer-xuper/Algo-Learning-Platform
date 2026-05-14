@@ -109,6 +109,19 @@ export class BrowserHost {
     this.onNavigate = callback
   }
 
+  hideView() {
+    try {
+      this.window.contentView.removeChildView(this.view)
+    } catch { /* already removed */ }
+  }
+
+  showView() {
+    try {
+      this.window.contentView.addChildView(this.view)
+      this.updateBounds()
+    } catch { /* already added */ }
+  }
+
   destroy() {
     try {
       if (!this.view.webContents.isDestroyed()) {

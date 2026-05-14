@@ -20,8 +20,12 @@ export function SettingsPage({ onClose }: { onClose: () => void }) {
   const [saved, setSaved] = useState(false)
 
   useEffect(() => {
+    window.electronAPI.hideBrowserView()
     window.electronAPI.getOverviewStats().then(setStats)
     window.electronAPI.getDefaultHomeUrl().then(setHomeUrl)
+    return () => {
+      window.electronAPI.showBrowserView()
+    }
   }, [])
 
   const handleSave = () => {

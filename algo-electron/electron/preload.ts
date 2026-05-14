@@ -7,6 +7,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   goForward: () => ipcRenderer.send('browser:goForward'),
   reload: () => ipcRenderer.send('browser:reload'),
   setSidebarWidth: (width: number) => ipcRenderer.send('browser:setSidebarWidth', width),
+  hideBrowserView: () => ipcRenderer.send('browser:hideView'),
+  showBrowserView: () => ipcRenderer.send('browser:showView'),
   onUrlChanged: (callback: (url: string) => void) => {
     const handler = (_event: Electron.IpcRendererEvent, url: string) => callback(url)
     ipcRenderer.on('browser:urlChanged', handler)

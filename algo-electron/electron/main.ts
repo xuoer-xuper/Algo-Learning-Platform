@@ -93,6 +93,14 @@ ipcMain.on('browser:setSidebarWidth', (_event, width: number) => {
   browserHost?.setLeftOffset(width)
 })
 
+ipcMain.on('browser:hideView', () => {
+  browserHost?.hideView()
+})
+
+ipcMain.on('browser:showView', () => {
+  browserHost?.showView()
+})
+
 ipcMain.handle('problem:listRecent', (_event, limit?: number) => {
   return getRecentProblems(limit)
 })
