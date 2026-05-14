@@ -17,6 +17,13 @@ interface ProblemRecord {
   last_visited_at: string | null
 }
 
+interface OverviewStats {
+  totalProblems: number
+  todayVisited: number
+  platformDistribution: { platform: string; count: number }[]
+  lastActiveTime: string | null
+}
+
 interface ElectronAPI {
   navigate: (url: string) => void
   goBack: () => void
@@ -26,6 +33,9 @@ interface ElectronAPI {
   onUrlChanged: (callback: (url: string) => void) => () => void
   listRecentProblems: (limit?: number) => Promise<ProblemRecord[]>
   onProblemsUpdated: (callback: () => void) => () => void
+  getOverviewStats: () => Promise<OverviewStats>
+  getDefaultHomeUrl: () => Promise<string>
+  setDefaultHomeUrl: (url: string) => void
 }
 
 interface Window {

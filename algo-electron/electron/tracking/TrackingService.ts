@@ -29,10 +29,19 @@ export class TrackingService {
 
     if (problem) {
       const now = nowBeijing()
+      const today = now.slice(0, 10)
+
+      // 写入访问记录
       db.prepare(`
         INSERT INTO problem_visits (id, problem_id, platform, url, entered_at, created_at, updated_at)
         VALUES (?, ?, ?, ?, ?, ?, ?)
       `).run(crypto.randomUUID(), problem.id, identity.platform, identity.canonicalUrl, now, now, now)
+
+      // 写入活跃事件
+      db.prepare(`
+        INSERT INTO activity_events (id, event_type, occurred_at, local_day, problem_id, platform, url, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(crypto.randomUUID(), 'visit_start', now, today, problem.id, identity.platform, identity.canonicalUrl, now)
 
       this.currentVisit = { problemId: problem.id, enteredAt: Date.now() }
     }

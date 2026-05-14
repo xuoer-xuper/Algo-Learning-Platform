@@ -6,8 +6,8 @@ import { initDb, closeDb } from './db/connection'
 import { SiteRegistry } from './sites/siteRegistry'
 import { CookieVault } from './cookies/CookieVault'
 import { TrackingService } from './tracking/TrackingService'
-import { getDefaultHomeUrl } from './app/config'
-import { getRecentProblems } from './db/repositories/problemRepository'
+import { getDefaultHomeUrl, saveConfig } from './app/config'
+import { getRecentProblems, getOverviewStats } from './db/repositories/problemRepository'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -95,6 +95,18 @@ ipcMain.on('browser:setSidebarWidth', (_event, width: number) => {
 
 ipcMain.handle('problem:listRecent', (_event, limit?: number) => {
   return getRecentProblems(limit)
+})
+
+ipcMain.handle('stats:getOverview', () => {
+  return getOverviewStats()
+})
+
+ipcMain.handle('config:getDefaultHomeUrl', () => {
+  return getDefaultHomeUrl()
+})
+
+ipcMain.on('config:setDefaultHomeUrl', (_event, url: string) => {
+  saveConfig({ defaultHomeUrl: url })
 })
 
 // --- App 生命周期 ---

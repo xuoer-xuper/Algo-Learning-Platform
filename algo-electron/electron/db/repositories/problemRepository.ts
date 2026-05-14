@@ -1,7 +1,7 @@
 import crypto from 'node:crypto'
 import { getDb } from '../connection'
 import type { ProblemIdentity } from '../../shared/types'
-import { nowBeijing } from '../../shared/time'
+import { nowBeijing, todayBeijing } from '../../shared/time'
 
 export function upsertProblem(identity: ProblemIdentity): void {
   const db = getDb()
@@ -49,4 +49,51 @@ export function getProblemCount(): number {
   const db = getDb()
   const row = db.prepare('SELECT COUNT(*) as count FROM problems WHERE deleted_at IS NULL').get() as { count: number }
   return row.count
+}
+
+// 平台分布统计
+export function getPlatformDistribution(): { platform: string; count: number }[] {
+  const db = getDb()
+  return db.prepare(`
+    SELECT platform, COUNT(*) as count
+    FROM problems WHERE deleted_at IS NULL
+    GROUP BY platform ORDER BY count DESC
+  `).all() as { platform: string; count: number }[]
+}
+
+// 今日刷题数量
+export function getTodayVisitedCount(): number {
+  const db = getDb()
+  const today = todayBeijing()
+  const row = db.prepare(`
+    SELECT COUNT(DISTINCT problem_id) as count
+    FROM problem_visits
+    WHERE entered_at LIKE ?
+  `).get(today + '%') as { count: number }
+  return row.count
+}
+
+// 最近活跃时间
+export function getLastActiveTime(): string | null {
+  const db = getDb()
+  const row = db.prepare(`
+    SELECT occurred_at FROM activity_events
+    ORDER BY occurred_at DESC LIMIT 1
+  `).get() as { occurred_at: string } | undefined
+  return row?.occurred_at ?? null
+}
+
+// 总览统计
+export function getOverviewStats(): {
+  totalProblems: number
+  todayVisited: number
+  platformDistribution: { platform: string; count: number }[]
+  lastActiveTime: string | null
+} {
+  return {
+    totalProblems: getProblemCount(),
+    todayVisited: getTodayVisitedCount(),
+    platformDistribution: getPlatformDistribution(),
+    lastActiveTime: getLastActiveTime(),
+  }
 }

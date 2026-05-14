@@ -24,4 +24,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
       ipcRenderer.off('problems:updated', handler)
     }
   },
+
+  // 统计
+  getOverviewStats: () => ipcRenderer.invoke('stats:getOverview'),
+
+  // 配置
+  getDefaultHomeUrl: () => ipcRenderer.invoke('config:getDefaultHomeUrl'),
+  setDefaultHomeUrl: (url: string) => ipcRenderer.send('config:setDefaultHomeUrl', url),
 })

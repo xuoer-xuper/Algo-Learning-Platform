@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react'
 import { ProblemSidebar } from './features/problems/ProblemSidebar'
+import { SettingsPage } from './features/settings/SettingsPage'
 import './App.css'
 
 function App() {
   const [url, setUrl] = useState('')
+  const [showSettings, setShowSettings] = useState(false)
 
   useEffect(() => {
     const unsubscribe = window.electronAPI.onUrlChanged((newUrl: string) => {
@@ -48,10 +50,14 @@ function App() {
         <button className="go-btn" onClick={handleNavigate}>
           前往
         </button>
+        <button className="settings-btn" onClick={() => setShowSettings(true)} title="设置">
+          ⚙
+        </button>
       </div>
       <div className="content-area">
         <ProblemSidebar />
       </div>
+      {showSettings && <SettingsPage onClose={() => setShowSettings(false)} />}
     </div>
   )
 }
