@@ -1,10 +1,11 @@
 import crypto from 'node:crypto'
 import { getDb } from '../connection'
 import type { ProblemIdentity } from '../../shared/types'
+import { nowBeijing } from '../../shared/time'
 
 export function upsertProblem(identity: ProblemIdentity): void {
   const db = getDb()
-  const now = new Date().toISOString()
+  const now = nowBeijing()
 
   const existing = db.prepare(
     'SELECT id FROM problems WHERE platform = ? AND platform_problem_id = ?'

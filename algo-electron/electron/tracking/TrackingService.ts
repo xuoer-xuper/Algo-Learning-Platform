@@ -3,6 +3,7 @@ import { getDb } from '../db/connection'
 import { parseUrl } from '../parsers/registry'
 import { upsertProblem } from '../db/repositories/problemRepository'
 import type { ProblemIdentity } from '../shared/types'
+import { nowBeijing } from '../shared/time'
 
 export class TrackingService {
   private currentVisit: { problemId: string; enteredAt: number } | null = null
@@ -27,7 +28,7 @@ export class TrackingService {
     ).get(identity.platform, identity.platformProblemId) as { id: string } | undefined
 
     if (problem) {
-      const now = new Date().toISOString()
+      const now = nowBeijing()
       db.prepare(`
         INSERT INTO problem_visits (id, problem_id, platform, url, entered_at, created_at, updated_at)
         VALUES (?, ?, ?, ?, ?, ?, ?)
@@ -44,10 +45,11 @@ export class TrackingService {
     const db = getDb()
     const now = Date.now()
     const duration = Math.floor((now - this.currentVisit.enteredAt) / 1000)
+    const nowStr = nowBeijing()
     db.prepare(`
       UPDATE problem_visits SET left_at = ?, duration_seconds = ?, updated_at = ?
       WHERE problem_id = ? AND left_at IS NULL
-    `).run(new Date(now).toISOString(), duration, new Date(now).toISOString(), this.currentVisit.problemId)
+    `).run(nowStr, duration, nowStr, this.currentVisit.problemId)
     this.currentVisit = null
   }
 }

@@ -1,4 +1,5 @@
 import type Database from 'better-sqlite3'
+import { nowBeijing } from '../shared/time'
 
 interface Migration {
   version: number
@@ -28,7 +29,7 @@ export function runMigrations(db: Database.Database, migrations: Migration[]): v
 
     db.transaction(() => {
       migration.up(db)
-      insertMigration.run(migration.version, migration.name, new Date().toISOString())
+      insertMigration.run(migration.version, migration.name, nowBeijing())
     })()
   }
 }
