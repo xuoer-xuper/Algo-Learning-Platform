@@ -96,6 +96,7 @@ Renderer 负责：
 7. `AI_WORKFLOW.md`
 8. `COMMIT_RULES.md`
 9. 需要新增站点时阅读 `SITE_ADAPTER_GUIDE.md`
+10. 做架构审查或代码审查时阅读 `PROMPT.md`
 
 开始编码前必须说明：
 
@@ -153,4 +154,3 @@ test: 添加站点解析规则测试
 - 禁止未经说明修改数据库结构。
 - 禁止 AI Agent 跳过文档直接写代码。
 - 禁止多个 Agent 同时修改数据库 schema、浏览器核心和全局 IPC 边界。
-

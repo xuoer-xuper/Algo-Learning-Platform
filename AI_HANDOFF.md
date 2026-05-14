@@ -33,6 +33,7 @@ Phase 0 文档与架构基线已完成。项目已经具备“AI 可接手的项
 - `AI_WORKFLOW.md`
 - `COMMIT_RULES.md`
 - `SITE_ADAPTER_GUIDE.md`
+- `PROMPT.md`
 - `docs/adr/0001-use-webcontentsview.md`
 - `docs/adr/0002-cookie-vault.md`
 - `docs/adr/0003-event-log-and-analytics.md`
@@ -41,8 +42,8 @@ Phase 0 文档与架构基线已完成。项目已经具备“AI 可接手的项
 
 下一位 Agent 推荐从以下任务开始：
 
-1. `P1-004`：抽离 `BrowserHost`（当前 BrowserHost 已创建但需进一步完善）。
-2. `P1-009`：实现 `persist:oj-main` 持久 session。
+1. `P1-009`：实现 `persist:oj-main` 持久 session。
+2. `P1-010` 到 `P1-013`：验证 Codeforces、AcWing、牛客、VJudge 登录状态。
 3. `P1-014`：建立 CookieVault。
 4. `P1-017`：建立站点注册表。
 5. `P1-024`：初始化 SQLite 与学习行为记录。
@@ -67,6 +68,7 @@ Phase 0 文档与架构基线已完成。项目已经具备“AI 可接手的项
 - 已阅读 `ARCHITECTURE.md`。
 - 已阅读 `DATABASE_SCHEMA.md`。
 - 已阅读 `AI_WORKFLOW.md`。
+- 如本次是审查任务，已阅读 `PROMPT.md`。
 - 已确认本次任务编号。
 - 已确认是否涉及数据库、IPC、Cookie、站点适配。
 

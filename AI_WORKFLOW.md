@@ -25,6 +25,7 @@
 7. `COMMIT_RULES.md`
 8. 如涉及站点，阅读 `SITE_ADAPTER_GUIDE.md`
 9. 如涉及关键架构决策，阅读 `docs/adr/`
+10. 如本次任务是审查、评审或验收，阅读 `PROMPT.md`
 
 未读完这些文档，不允许开始编码。
 
@@ -72,6 +73,16 @@ Cookie 影响：无 / 有，说明用途和保护方式
 - 用户指定任务时，以用户指定为准。
 - 如果任务前置未完成，先停止并说明缺少哪个前置任务。
 - 如果发现任务拆分不够细，可以新增子任务，但不得删除原任务。
+
+## 4.1 实现指导文档选择
+
+不同任务读取不同指导文档，不要混用职责：
+
+- 系统结构、目录、进程边界、BrowserHost、Preload、IPC、CookieVault、Tracking、Analytics：以 `ARCHITECTURE.md` 为准。
+- SQLite 表、字段、索引、迁移、数据约束：以 `DATABASE_SCHEMA.md` 为准。
+- 任务顺序、任务状态、前置条件、验收标准：以 `TASKS.md` 为准。
+- 当前代码现场和下一步交接：以 `AI_HANDOFF.md` 为准。
+- 关键决策原因：查看 `docs/adr/`，ADR 不替代任务清单和实现文档。
 
 ## 5. 修改范围规则
 
@@ -204,9 +215,9 @@ Cookie 影响：无 / 有，说明用途和保护方式
 
 如果用户没有指定任务，当前默认下一步是：
 
-1. `P1-001` 初始化 TailwindCSS。
-2. `P1-002` 清理默认模板 UI。
-3. `P1-003` 迁移 `BrowserView` 到 `WebContentsView`。
-4. `P1-004` 抽离 `BrowserHost`。
+1. `P1-009` 建立 `persist:oj-main` 持久 session。
+2. `P1-010` 到 `P1-013` 验证四个平台登录状态。
+3. `P1-014` 建立 CookieVault。
+4. `P1-017` 建立站点注册表。
 
 禁止在完成 `P1-003` 前继续给旧 `BrowserView` 添加功能。

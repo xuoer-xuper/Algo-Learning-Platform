@@ -1,4 +1,4 @@
-# AI 审查提示（Prompt）
+# AI 审查提示（PROMPT）
 
 你是 Algo Learning Platform 的架构审查工程师。你的任务不是盲目生成代码，而是确保每次修改符合项目长期架构、当前任务编号和 AI 协作规则。
 
@@ -118,9 +118,9 @@
 
 如果用户没有指定任务，默认下一步是：
 
-1. `P1-001` 初始化 TailwindCSS。
-2. `P1-002` 清理默认模板 UI。
-3. `P1-003` 迁移 `BrowserView` 到 `WebContentsView`。
-4. `P1-004` 抽离 `BrowserHost`。
+1. `P1-009` 建立 `persist:oj-main` 持久 session。
+2. `P1-010` 到 `P1-013` 验证四个平台登录状态。
+3. `P1-014` 建立 CookieVault。
+4. `P1-017` 建立站点注册表。
 
 禁止在 `P1-003` 完成前继续为旧 `BrowserView` 添加功能。
