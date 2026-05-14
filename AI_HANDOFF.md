@@ -27,7 +27,14 @@ Phase 0 文档与架构基线已完成。项目已经具备“AI 可接手的项
 - problem:detected 事件已实现，URL 变化时自动触发识别和写入。
 - CookieVault 基础模块已建立（`electron/cookies/CookieVault.ts`），使用 persist:oj-main session。
 - 新窗口请求已处理：target="_blank" 和 window.open 在当前视图中打开（BrowserHost.ts）。
-- 学习行为追踪（停留时间、活跃时间）尚未实现。
+- 默认首页可配置（`electron/app/config.ts`），首次默认 Codeforces，用户可通过 config.json 修改。
+- Problem repository 已抽离（`electron/db/repositories/problemRepository.ts`）。
+- 首次访问记录 first_seen_at，后续访问更新 last_visited_at。
+- 单题停留时间已结算：进入题目页开始计时，离开或切换题目时结束写入 problem_visits。
+- 题库侧边栏已实现（`src/features/problems/ProblemSidebar.tsx`），显示最近访问题目，点击可跳转。
+- 侧边栏可收起/展开，支持分页（每页 30 条）。
+- visit 追踪逻辑已抽到 `electron/tracking/TrackingService.ts`，main.ts 不再堆业务逻辑。
+- 学习行为追踪（活跃时间、每日统计）尚未实现。
 
 ## 3. 当前文档状态
 
@@ -52,12 +59,12 @@ Phase 0 文档与架构基线已完成。项目已经具备“AI 可接手的项
 下一位 Agent 推荐从以下任务开始：
 
 1. `P1-010` 到 `P1-013`：验证四个平台登录状态。
-2. `P1-030`：实现 Problem upsert（当前已内置在 main.ts 中，可抽为独立 repository）。
-3. `P1-031`：实现最近访问列表（Renderer 侧边栏）。
-4. `P1-005`：实现默认首页加载。
-5. `P1-035`：结算单题停留时间。
+2. `P1-036`：记录最近活跃时间。
+3. `P1-037`：基础平台分布统计。
+4. `P1-038`：今日刷题数量统计。
+5. `P1-039`：基础设置页。
 
-如果只做一个任务，优先做 `P1-030`（Problem repository 抽离）。
+如果只做一个任务，优先做 `P1-010`（Codeforces 登录验证）。
 
 ## 5. 高风险区域
 

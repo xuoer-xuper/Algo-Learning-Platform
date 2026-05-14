@@ -1,12 +1,13 @@
 import { app, BrowserWindow, ipcMain } from 'electron'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
-import crypto from 'node:crypto'
 import { BrowserHost } from './browser/BrowserHost'
-import { initDb, closeDb, getDb } from './db/connection'
+import { initDb, closeDb } from './db/connection'
 import { SiteRegistry } from './sites/siteRegistry'
-import { parseUrl } from './parsers/registry'
 import { CookieVault } from './cookies/CookieVault'
+import { TrackingService } from './tracking/TrackingService'
+import { getDefaultHomeUrl } from './app/config'
+import { getRecentProblems } from './db/repositories/problemRepository'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -22,6 +23,7 @@ let win: BrowserWindow | null
 let browserHost: BrowserHost | null
 let siteRegistry: SiteRegistry | null
 let cookieVault: CookieVault | null
+let trackingService: TrackingService | null
 
 function createWindow() {
   win = new BrowserWindow({
@@ -33,33 +35,17 @@ function createWindow() {
     },
   })
 
-  browserHost = new BrowserHost(win)
+  browserHost = new BrowserHost(win, getDefaultHomeUrl())
 
   browserHost.setUrlChangeCallback((url) => {
     win?.webContents.send('browser:urlChanged', url)
+  })
 
-    // 解析 URL，识别题目
-    const identity = parseUrl(url)
+  browserHost.setNavigateCallback((url) => {
+    const identity = trackingService?.handleNavigation(url)
     if (identity) {
-      const now = new Date().toISOString()
-      const db = getDb()
-
-      // upsert problem
-      db.prepare(`
-        INSERT INTO problems (id, platform, platform_problem_id, canonical_url, status, first_seen_at, last_visited_at, created_at, updated_at)
-        VALUES (?, ?, ?, ?, 'visited', ?, ?, ?, ?)
-        ON CONFLICT(platform, platform_problem_id) DO UPDATE SET
-          last_visited_at = excluded.last_visited_at,
-          updated_at = excluded.updated_at
-      `).run(
-        crypto.randomUUID(),
-        identity.platform,
-        identity.platformProblemId,
-        identity.canonicalUrl,
-        now, now, now, now,
-      )
-
       win?.webContents.send('problem:detected', identity)
+      win?.webContents.send('problems:updated')
     }
   })
 
@@ -78,6 +64,7 @@ function createWindow() {
   }
 
   win.on('closed', () => {
+    trackingService?.endCurrentVisit()
     browserHost?.destroy()
     browserHost = null
     win = null
@@ -102,10 +89,15 @@ ipcMain.on('browser:reload', () => {
   browserHost?.reload()
 })
 
+ipcMain.handle('problem:listRecent', (_event, limit?: number) => {
+  return getRecentProblems(limit)
+})
+
 // --- App 生命周期 ---
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
+    trackingService?.endCurrentVisit()
     closeDb()
     app.quit()
   }
@@ -121,5 +113,6 @@ app.whenReady().then(() => {
   initDb()
   siteRegistry = new SiteRegistry()
   cookieVault = new CookieVault()
+  trackingService = new TrackingService()
   createWindow()
 })

@@ -1,15 +1,17 @@
 import { WebContentsView, BrowserWindow } from 'electron'
 
 const TOOLBAR_HEIGHT = 42
-const DEFAULT_URL = 'https://codeforces.com'
 
 export class BrowserHost {
   private view: WebContentsView
   private window: BrowserWindow
+  private defaultUrl: string
   private onUrlChange: ((url: string) => void) | null = null
+  private onNavigate: ((url: string) => void) | null = null
 
-  constructor(window: BrowserWindow) {
+  constructor(window: BrowserWindow, defaultUrl: string) {
     this.window = window
+    this.defaultUrl = defaultUrl
 
     this.view = new WebContentsView({
       webPreferences: {
@@ -25,9 +27,11 @@ export class BrowserHost {
 
     this.view.webContents.on('did-navigate', (_event, url) => {
       this.onUrlChange?.(url)
+      this.onNavigate?.(url)
     })
     this.view.webContents.on('did-navigate-in-page', (_event, url) => {
       this.onUrlChange?.(url)
+      this.onNavigate?.(url)
     })
 
     // 处理新窗口请求（target="_blank"、window.open 等）
@@ -64,7 +68,7 @@ export class BrowserHost {
   }
 
   loadDefaultUrl() {
-    this.view.webContents.loadURL(DEFAULT_URL)
+    this.view.webContents.loadURL(this.defaultUrl)
   }
 
   navigate(url: string) {
@@ -93,6 +97,10 @@ export class BrowserHost {
 
   setUrlChangeCallback(callback: (url: string) => void) {
     this.onUrlChange = callback
+  }
+
+  setNavigateCallback(callback: (url: string) => void) {
+    this.onNavigate = callback
   }
 
   destroy() {

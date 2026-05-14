@@ -7,12 +7,24 @@ declare namespace NodeJS {
   }
 }
 
+interface ProblemRecord {
+  id: string
+  platform: string
+  platform_problem_id: string
+  canonical_url: string
+  title: string | null
+  status: string
+  last_visited_at: string | null
+}
+
 interface ElectronAPI {
   navigate: (url: string) => void
   goBack: () => void
   goForward: () => void
   reload: () => void
   onUrlChanged: (callback: (url: string) => void) => () => void
+  listRecentProblems: (limit?: number) => Promise<ProblemRecord[]>
+  onProblemsUpdated: (callback: () => void) => () => void
 }
 
 interface Window {
