@@ -40,17 +40,18 @@ export const vjudgeParser: SiteParser = {
 
       // /contest/809557#problem/A
       const cm = u.pathname.match(CONTEST_PATTERN)
-      if (cm) {
+      if (cm && u.hash && u.hash.includes('#problem/')) {
         const contestId = cm[1]
-        const hash = u.hash // #problem/A
-        const problemLetter = hash.match(/#problem\/([A-Za-z0-9]+)/)?.[1] || ''
-        return {
-          platform: 'vjudge',
-          platformProblemId: problemLetter ? `contest-${contestId}-${problemLetter}` : `contest-${contestId}`,
-          canonicalUrl: url,
-          contestId,
-          problemIndex: problemLetter || undefined,
-          confidence: 'url',
+        const problemLetter = u.hash.match(/#problem\/([A-Za-z0-9]+)/)?.[1] || ''
+        if (problemLetter) {
+          return {
+            platform: 'vjudge',
+            platformProblemId: `contest-${contestId}-${problemLetter}`,
+            canonicalUrl: `https://vjudge.net/contest/${contestId}#problem/${problemLetter}`,
+            contestId,
+            problemIndex: problemLetter,
+            confidence: 'url',
+          }
         }
       }
     } catch {

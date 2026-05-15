@@ -46,10 +46,16 @@ export function updateProblemTitleByUrl(url: string, title: string): void {
 export function getRecentProblems(limit = 50): any[] {
   const db = getDb()
   return db.prepare(`
-    SELECT id, platform, platform_problem_id, canonical_url, title, status, last_visited_at
-    FROM problems
-    WHERE deleted_at IS NULL
-    ORDER BY last_visited_at DESC
+    SELECT
+      p.id, p.platform, p.platform_problem_id, p.canonical_url, p.title, p.last_visited_at,
+      CASE
+        WHEN EXISTS (SELECT 1 FROM submissions s WHERE s.problem_id = p.id AND s.verdict = 'AC') THEN 'solved'
+        WHEN EXISTS (SELECT 1 FROM submissions s WHERE s.problem_id = p.id) THEN 'attempted'
+        ELSE p.status
+      END as status
+    FROM problems p
+    WHERE p.deleted_at IS NULL
+    ORDER BY p.last_visited_at DESC
     LIMIT ?
   `).all(limit)
 }

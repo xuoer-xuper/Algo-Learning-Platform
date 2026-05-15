@@ -3,8 +3,9 @@ import type { ProblemIdentity } from '../../shared/types'
 
 // /problem/content/123/
 // /problem/content/description/123/
+// /problem/content/submission/123/
 const PATTERNS = [
-  /^\/problem\/content\/(?:description\/)?(\d+)\/?/,
+  /^\/problem\/content\/(?:description\/|submission\/)?(\d+)\/?/,
 ]
 
 export const acwingParser: SiteParser = {

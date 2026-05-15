@@ -1,6 +1,11 @@
 import { BrowserHost } from '../../browser/BrowserHost'
 import type { SubmissionData, Verdict } from '../../shared/types'
 
+export interface ScrapeResult {
+  submissions: SubmissionData[]
+  problemIds: Map<number, string> // 行索引 → 平台题号
+}
+
 export async function scrapeCurrentPage(browserHost: BrowserHost): Promise<SubmissionData[] | null> {
   const url = browserHost.getUrl()
   if (url.includes('acwing.com')) return scrapeAcwing(browserHost)
@@ -13,19 +18,18 @@ function mapVerdict(result: string): Verdict {
   const r = result.trim().toLowerCase()
   if (r.includes('答案正确') || r.includes('通过') || r.includes('accepted')) return 'AC'
   if (r.includes('答案错误') || r.includes('wrong answer') || r.includes('wrong')) return 'WA'
-  if (r.includes('时间超限') || r.includes('超出时间限制') || r.includes('time limit')) return 'TLE'
+  if (r.includes('时间超限') || r.includes('超出时间限制') || r.includes('运行超时') || r.includes('time limit')) return 'TLE'
   if (r.includes('内存超限') || r.includes('超出内存限制') || r.includes('memory limit')) return 'MLE'
   if (r.includes('超出输出限制') || r.includes('output limit')) return 'OLE'
   if (r.includes('运行错误') || r.includes('运行时错误') || r.includes('段错误') || r.includes('runtime error')) return 'RE'
   if (r.includes('编译错误') || r.includes('compile error') || r.includes('compilation error')) return 'CE'
   if (r.includes('格式错误') || r.includes('presentation error')) return 'PE'
   if (r.includes('排队中') || r.includes('评测中') || r.includes('testing')) return 'TESTING'
-  if (r.includes('judge') || r.includes('评测失败') || r.includes('remote')) return 'UNKNOWN'
   return 'UNKNOWN'
 }
 
 function findColumnIndex(headers: string[], keywords: string[]): number {
-  return headers.findIndex(h => keywords.some(k => h.includes(k)))
+  return headers.findIndex(h => keywords.some(k => h.toLowerCase().includes(k.toLowerCase())))
 }
 
 function extractStableId(links: string[], prefix: string, fallbackIndex: number): string {
@@ -44,13 +48,17 @@ async function scrapeAcwing(browserHost: BrowserHost): Promise<SubmissionData[]>
     (() => {
       const table = document.querySelector('table')
       if (!table) return { error: 'no table' }
-      const headers = Array.from(table.querySelectorAll('thead th, thead td')).map(c => c.textContent.trim())
+      const headers = Array.from(table.querySelectorAll('thead th, thead td')).map(c => {
+        const clone = c.cloneNode(true); clone.querySelectorAll('script,style,noscript').forEach(s => s.remove()); return clone.textContent.trim()
+      })
       const rows = []
       for (const row of table.querySelectorAll('tbody tr')) {
         const cells = row.querySelectorAll('td')
         if (cells.length < 2) continue
         rows.push({
-          texts: Array.from(cells).map(c => c.textContent.trim()),
+          texts: Array.from(cells).map(c => {
+            const clone = c.cloneNode(true); clone.querySelectorAll('script,style,noscript').forEach(s => s.remove()); return clone.textContent.trim()
+          }),
           links: Array.from(cells).map(c => { const a = c.querySelector('a'); return a ? a.href : '' })
         })
       }
@@ -79,173 +87,129 @@ async function scrapeAcwing(browserHost: BrowserHost): Promise<SubmissionData[]>
   })
 }
 
-// --- 牛客（自动翻页） ---
+// --- 牛客（单页） ---
 
 async function scrapeNowcoder(browserHost: BrowserHost): Promise<SubmissionData[]> {
-  const allRows: any[] = []
-  let headers: string[] = []
+  const data = await browserHost.executeScript(`
+    (() => {
+      const table = document.querySelector('table')
+      if (!table) return { error: 'no table' }
+      const headers = Array.from(table.querySelectorAll('thead th, thead td')).map(c => {
+        const clone = c.cloneNode(true); clone.querySelectorAll('script,style,noscript').forEach(s => s.remove()); return clone.textContent.trim()
+      })
+      const rows = []
+      for (const row of table.querySelectorAll('tbody tr')) {
+        const cells = row.querySelectorAll('td')
+        if (cells.length < 2) continue
+        rows.push({
+          texts: Array.from(cells).map(c => {
+            const clone = c.cloneNode(true); clone.querySelectorAll('script,style,noscript').forEach(s => s.remove()); return clone.textContent.trim()
+          }),
+          links: Array.from(cells).map(c => { const a = c.querySelector('a'); return a ? a.href : '' })
+        })
+      }
+      return { headers, rows }
+    })()
+  `)
 
-  for (let page = 0; page < 200; page++) {
-    const data = await browserHost.executeScript(`
-      (() => {
-        const table = document.querySelector('table')
-        if (!table) return { error: 'no table' }
-        const headers = Array.from(table.querySelectorAll('thead th, thead td')).map(c => c.textContent.trim())
-        const rows = []
-        for (const row of table.querySelectorAll('tbody tr')) {
-          const cells = row.querySelectorAll('td')
-          if (cells.length < 2) continue
-          rows.push({
-            texts: Array.from(cells).map(c => c.textContent.trim()),
-            links: Array.from(cells).map(c => { const a = c.querySelector('a'); return a ? a.href : '' })
-          })
-        }
-        // 牛客翻页：找当前激活页的下一个兄弟
-        const activePage = document.querySelector('li[class*="pager"][class*="active"], li.active[class*="pager"]')
-        const nextPage = activePage ? activePage.nextElementSibling : null
-        const hasNext = nextPage && nextPage.className.includes('pager') && !nextPage.className.includes('disabled') && !nextPage.textContent.includes('下一页')
-        return { headers, rows, hasMore: hasNext }
-      })()
-    `)
+  if (!data || data.error || !data.rows?.length) return []
 
-    if (!data || data.error || !data.rows?.length) break
-    if (page === 0) headers = data.headers || []
-    allRows.push(...data.rows)
-    if (!data.hasMore) break
+  const h = data.headers || []
+  const idIdx = findColumnIndex(h, ['运行ID'])
+  const probIdx = findColumnIndex(h, ['题号'])
+  const verdictIdx = findColumnIndex(h, ['运行结果'])
+  const langIdx = findColumnIndex(h, ['使用语言'])
+  const runtimeIdx = findColumnIndex(h, ['运行时间'])
+  const memoryIdx = findColumnIndex(h, ['使用内存'])
 
-    // 记录当前第一行内容，用于检测翻页是否生效
-    const firstRowId = allRows[allRows.length - data.rows.length]?.texts?.[0] || ''
-
-    // 点击下一页
-    await browserHost.executeScript(`
-      (() => {
-        const activePage = document.querySelector('li[class*="pager"][class*="active"], li.active[class*="pager"]')
-        const nextPage = activePage ? activePage.nextElementSibling : null
-        if (nextPage && nextPage.className.includes('pager') && !nextPage.className.includes('disabled')) {
-          const link = nextPage.querySelector('a') || nextPage
-          link.click()
-        }
-      })()
-    `)
-    await new Promise(r => setTimeout(r, 3000))
-  }
-
-  if (!allRows.length) return []
-
-  const idIdx = findColumnIndex(headers, ['运行ID'])
-  const vIdx = findColumnIndex(headers, ['运行结果'])
-  const lIdx = findColumnIndex(headers, ['使用语言'])
-  const rtIdx = findColumnIndex(headers, ['运行时间'])
-  const memIdx = findColumnIndex(headers, ['使用内存'])
-
-  return allRows.map((item: any, i: number) => {
+  return data.rows.map((item: any, i: number) => {
     const c = item.texts || []
     const l = item.links || []
     return {
       platform: 'nowcoder',
       platformSubmissionId: (idIdx >= 0 && c[idIdx]) ? `nc-${c[idIdx]}` : extractStableId(l, 'nc', i),
-      verdict: mapVerdict(vIdx >= 0 ? c[vIdx] : ''),
-      rawVerdict: vIdx >= 0 ? c[vIdx] : '',
-      language: lIdx >= 0 ? c[lIdx] : '',
-      runtimeMs: rtIdx >= 0 ? parseInt(c[rtIdx]) || undefined : undefined,
-      memoryKb: memIdx >= 0 ? parseInt(c[memIdx]) || undefined : undefined,
+      verdict: mapVerdict(verdictIdx >= 0 ? c[verdictIdx] : ''),
+      rawVerdict: verdictIdx >= 0 ? c[verdictIdx] : '',
+      language: langIdx >= 0 ? c[langIdx] : '',
+      runtimeMs: runtimeIdx >= 0 ? parseInt(c[runtimeIdx]) || undefined : undefined,
+      memoryKb: memoryIdx >= 0 ? parseInt(c[memoryIdx]) || undefined : undefined,
       submittedAt: new Date().toISOString(),
       sourceUrl: l.find((x: string) => x) || '',
-    }
+      _ncProbLetter: probIdx >= 0 ? c[probIdx] : undefined,
+    } as any
   })
 }
 
-// --- VJudge ---
+// --- VJudge（单页） ---
 
 async function scrapeVjudge(browserHost: BrowserHost): Promise<SubmissionData[]> {
-  const allRows: any[] = []
-  let lastFirstRowKey = ''
-
-  for (let page = 0; page < 200; page++) {
-    const data = await browserHost.executeScript(`
-      (() => {
-        const table = document.querySelector('table')
-        if (!table) return { error: 'no table' }
-
-        // 提取表头（只取第一个文本节点，去掉下拉菜单内容）
-        const headerCells = table.querySelectorAll('thead th, thead td')
-        const headers = Array.from(headerCells).map(c => {
-          // 取第一个直接文本节点
-          const firstText = Array.from(c.childNodes).find(n => n.nodeType === 3)
-          return (firstText?.textContent?.trim() || c.textContent?.trim().split('\\n')[0]?.trim() || '')
-        })
-
-        const rows = []
-        for (const row of table.querySelectorAll('tbody tr')) {
-          const cells = row.querySelectorAll('td')
-          if (cells.length < 3) continue
-          rows.push({
-            texts: Array.from(cells).map(c => c.textContent.trim()),
-            links: Array.from(cells).map(c => { const a = c.querySelector('a'); return a ? a.href : '' }),
-            rowId: row.id || row.getAttribute('data-id') || row.getAttribute('data-runid') || ''
-          })
+  const data = await browserHost.executeScript(`
+    (() => {
+      const tables = document.querySelectorAll('table')
+      if (!tables.length) return { error: 'no table' }
+      // 找到提交记录表：表头包含提交相关列的那个
+      let targetTable = null
+      for (const t of tables) {
+        const ths = Array.from(t.querySelectorAll('thead th')).map(th => th.textContent.trim().toLowerCase())
+        const hasId = ths.some(t => t === 'id' || t === 'run id' || t.includes('run'))
+        const hasResult = ths.some(t => t.includes('result') || t.includes('评测结果') || t.includes('verdict'))
+        if (hasId && hasResult) {
+          targetTable = t
+          break
         }
+      }
+      if (!targetTable) {
+        // 兜底：找行数最多的 table
+        let maxRows = 0
+        for (const t of tables) {
+          const rowCount = t.querySelectorAll('tbody tr').length
+          if (rowCount > maxRows) { maxRows = rowCount; targetTable = t }
+        }
+      }
+      if (!targetTable) return { error: 'no submission table' }
+      const headerCells = targetTable.querySelectorAll('thead th, thead td')
+      const headers = Array.from(headerCells).map(c => {
+        const firstText = Array.from(c.childNodes).find(n => n.nodeType === 3)
+        return (firstText && firstText.textContent ? firstText.textContent.trim() : '').split('\\n')[0].trim() || c.textContent.trim().split('\\n')[0].trim()
+      })
+      const rows = []
+      for (const row of targetTable.querySelectorAll('tbody tr')) {
+        const cells = row.querySelectorAll('td')
+        if (cells.length < 3) continue
+        rows.push({
+          texts: Array.from(cells).map(c => {
+            const clone = c.cloneNode(true); clone.querySelectorAll('script,style,noscript').forEach(s => s.remove()); return clone.textContent.trim()
+          }),
+          links: Array.from(cells).map(c => { const a = c.querySelector('a'); return a ? a.href : '' }),
+          rowId: row.id || row.getAttribute('data-id') || row.getAttribute('data-runid') || ''
+        })
+      }
+      return { headers, rows }
+    })()
+  `)
 
-        // VJudge DataTables 翻页
-        const nextBtn = document.querySelector('.dt-paging-button.page-item:not(.disabled) a, li.dt-paging-button.page-item:not(.disabled)')
-        return { headers, rows, hasMore: !!nextBtn }
-      })()
-    `)
+  if (!data || data.error || !data.rows?.length) return []
 
-    if (!data || data.error || !data.rows?.length) break
+  // 按列头名匹配列序
+  const h = data.headers || []
+  const idIdx = findColumnIndex(h, ['ID'])
+  const vIdx = findColumnIndex(h, ['评测结果', 'Result'])
+  const lIdx = findColumnIndex(h, ['语言', 'Language'])
+  const rtIdx = findColumnIndex(h, ['耗时', 'Time'])
+  const memIdx = findColumnIndex(h, ['内存', 'Memory'])
 
-    // 检测是否有新数据（对比第一行）
-    const firstRowKey = data.rows[0]?.texts?.slice(0, 5)?.join('|') || ''
-    if (page > 0 && firstRowKey === lastFirstRowKey) break
-    lastFirstRowKey = firstRowKey
-
-    allRows.push(...data.rows)
-    if (!data.hasMore) break
-
-    // 点击下一页
-    await browserHost.executeScript(`
-      (() => {
-        const btn = document.querySelector('.dt-paging-button.page-item:not(.disabled) a, li.dt-paging-button.page-item:not(.disabled)')
-        if (btn) btn.click()
-      })()
-    `)
-    await new Promise(r => setTimeout(r, 2500))
-  }
-
-  if (!allRows.length) return []
-
-  // VJudge 固定列顺序：用户名(0), OJ(1), 题号(2), _(3), 结果(4), 耗时(5), 内存(6), 代码长度(7), 语言(8), 提交时间(9)
-  // 去重：用 OJ + 题号 + 结果 + 语言 + 提交时间作为唯一键
   const seen = new Set<string>()
   const results: SubmissionData[] = []
 
-  for (let i = 0; i < allRows.length; i++) {
-    const c = allRows[i].texts || []
-    const l = allRows[i].links || []
-    const oj = c[1] || ''
-    const prob = c[2] || ''
-    const verdict = c[4] || ''
-    const lang = c[8] || ''
-    const time = c[9] || ''
-
-    // 用 OJ+题号+语言+时间 去重
-    const key = `${oj}-${prob}-${lang}-${time}`
+  for (let i = 0; i < data.rows.length; i++) {
+    const c = data.rows[i].texts || []
+    const l = data.rows[i].links || []
+    const subId = (idIdx >= 0 && c[idIdx]) ? `vj-${c[idIdx]}` : extractStableId(l, 'vj', i)
+    const lang = lIdx >= 0 ? c[lIdx] || '' : ''
+    const verdict = vIdx >= 0 ? c[vIdx] || '' : ''
+    const key = `${subId}-${verdict}-${lang}`
     if (seen.has(key)) continue
     seen.add(key)
-
-    // 从行属性或链接中提取提交 ID
-    const rowId = allRows[i].rowId || ''
-    let subId = ''
-    if (rowId) {
-      subId = `vj-${rowId}`
-    } else {
-      for (const link of l) {
-        if (!link) continue
-        const m = link.match(/\/solution\/(\d+)/)
-        if (m) { subId = `vj-${m[1]}`; break }
-      }
-    }
-    if (!subId) subId = extractStableId(l, 'vj', i)
 
     results.push({
       platform: 'vjudge',
@@ -253,8 +217,8 @@ async function scrapeVjudge(browserHost: BrowserHost): Promise<SubmissionData[]>
       verdict: mapVerdict(verdict),
       rawVerdict: verdict,
       language: lang,
-      runtimeMs: c[5] ? parseInt(c[5]) || undefined : undefined,
-      memoryKb: c[6] ? Math.round(parseFloat(c[6]) * 1024) || undefined : undefined,
+      runtimeMs: rtIdx >= 0 ? parseInt(c[rtIdx]) || undefined : undefined,
+      memoryKb: memIdx >= 0 ? Math.round(parseFloat(c[memIdx]) * 1024) || undefined : undefined,
       submittedAt: new Date().toISOString(),
       sourceUrl: l.find((x: string) => x) || '',
     })
