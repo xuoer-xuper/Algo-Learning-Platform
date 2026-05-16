@@ -1,5 +1,6 @@
 import { BrowserHost } from '../../browser/BrowserHost'
 import type { SubmissionData, Verdict } from '../../shared/types'
+import { nowBeijing } from '../../shared/time'
 
 export interface ScrapeResult {
   submissions: SubmissionData[]
@@ -81,7 +82,7 @@ async function scrapeAcwing(browserHost: BrowserHost): Promise<SubmissionData[]>
       verdict: mapVerdict(vIdx >= 0 ? c[vIdx] : c[0]),
       rawVerdict: vIdx >= 0 ? c[vIdx] : c[0],
       language: lIdx >= 0 ? c[lIdx] : '',
-      submittedAt: new Date().toISOString(),
+      submittedAt: nowBeijing(),
       sourceUrl: l.find((x: string) => x) || '',
     }
   })
@@ -133,7 +134,7 @@ async function scrapeNowcoder(browserHost: BrowserHost): Promise<SubmissionData[
       language: langIdx >= 0 ? c[langIdx] : '',
       runtimeMs: runtimeIdx >= 0 ? parseInt(c[runtimeIdx]) || undefined : undefined,
       memoryKb: memoryIdx >= 0 ? parseInt(c[memoryIdx]) || undefined : undefined,
-      submittedAt: new Date().toISOString(),
+      submittedAt: nowBeijing(),
       sourceUrl: l.find((x: string) => x) || '',
       _ncProbLetter: probIdx >= 0 ? c[probIdx] : undefined,
     } as any
@@ -219,7 +220,7 @@ async function scrapeVjudge(browserHost: BrowserHost): Promise<SubmissionData[]>
       language: lang,
       runtimeMs: rtIdx >= 0 ? parseInt(c[rtIdx]) || undefined : undefined,
       memoryKb: memIdx >= 0 ? Math.round(parseFloat(c[memIdx]) * 1024) || undefined : undefined,
-      submittedAt: new Date().toISOString(),
+      submittedAt: nowBeijing(),
       sourceUrl: l.find((x: string) => x) || '',
     })
   }

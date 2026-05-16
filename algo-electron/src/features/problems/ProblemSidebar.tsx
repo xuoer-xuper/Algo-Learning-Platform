@@ -96,7 +96,8 @@ export function ProblemSidebar({ onSelectProblem }: Props) {
             <div
               key={p.id}
               className="sidebar-item"
-              onClick={() => onSelectProblem(p.id)}
+              onClick={() => window.electronAPI.navigate(p.canonical_url)}
+              onDoubleClick={() => onSelectProblem(p.id)}
             >
               <span
                 className="sidebar-item-dot"

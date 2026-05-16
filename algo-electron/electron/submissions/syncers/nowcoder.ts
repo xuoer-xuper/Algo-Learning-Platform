@@ -1,4 +1,5 @@
 import type { SubmissionData, Verdict } from '../../shared/types'
+import { toBeijing, nowBeijing } from '../../shared/time'
 
 function mapVerdict(result: string): Verdict {
   const r = result.toLowerCase()
@@ -33,7 +34,7 @@ export async function syncNowcoderSubmissions(cookies: string): Promise<Submissi
     verdict: mapVerdict(s.statusDesc ?? s.result ?? ''),
     rawVerdict: s.statusDesc ?? s.result ?? '',
     language: s.language ?? '',
-    submittedAt: s.submitTime ? new Date(s.submitTime).toISOString().replace('Z', '+08:00') : new Date().toISOString().replace('Z', '+08:00'),
+    submittedAt: s.submitTime ? toBeijing(new Date(s.submitTime)) : nowBeijing(),
     sourceUrl: `https://ac.nowcoder.com/acm/contest/view-submission/${s.submissionId ?? s.id}`,
     rawJson: JSON.stringify(s),
   }))

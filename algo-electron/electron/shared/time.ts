@@ -15,3 +15,15 @@ export function nowBeijing(): string {
 export function todayBeijing(): string {
   return nowBeijing().slice(0, 10)
 }
+
+// 将 Date 对象转为北京时间字符串
+export function toBeijing(date: Date): string {
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  const h = String(date.getHours()).padStart(2, '0')
+  const min = String(date.getMinutes()).padStart(2, '0')
+  const s = String(date.getSeconds()).padStart(2, '0')
+  const ms = String(date.getMilliseconds()).padStart(3, '0')
+  return `${y}-${m}-${day}T${h}:${min}:${s}.${ms}`
+}

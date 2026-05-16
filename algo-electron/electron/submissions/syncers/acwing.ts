@@ -1,4 +1,5 @@
 import type { SubmissionData, Verdict } from '../../shared/types'
+import { toBeijing, nowBeijing } from '../../shared/time'
 
 function mapVerdict(result: string): Verdict {
   const r = result.toLowerCase()
@@ -35,7 +36,7 @@ export async function syncAcwingSubmissions(cookies: string): Promise<Submission
     verdict: mapVerdict(s.status ?? s.result ?? ''),
     rawVerdict: s.status ?? s.result ?? '',
     language: s.language ?? '',
-    submittedAt: s.submit_time ? new Date(s.submit_time).toISOString().replace('Z', '+08:00') : new Date().toISOString().replace('Z', '+08:00'),
+    submittedAt: s.submit_time ? toBeijing(new Date(s.submit_time)) : nowBeijing(),
     sourceUrl: `https://www.acwing.com/problem/submission/${s.id}/`,
     rawJson: JSON.stringify(s),
   }))

@@ -1,4 +1,5 @@
 import type { SubmissionData, Verdict } from '../../shared/types'
+import { toBeijing } from '../../shared/time'
 
 interface CFSubmission {
   id: number
@@ -45,7 +46,7 @@ export async function syncCodeforcesSubmissions(handle: string): Promise<Submiss
     verdict: mapVerdict(s.verdict),
     rawVerdict: s.verdict,
     language: s.programmingLanguage,
-    submittedAt: new Date(s.creationTimeSeconds * 1000).toISOString().replace('Z', '+08:00'),
+    submittedAt: toBeijing(new Date(s.creationTimeSeconds * 1000)),
     runtimeMs: s.timeConsumedMillis,
     memoryKb: Math.round(s.memoryConsumedBytes / 1024),
     sourceUrl: `https://codeforces.com/contest/${s.contestId}/submission/${s.id}`,
