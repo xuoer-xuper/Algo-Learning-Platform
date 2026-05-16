@@ -40,7 +40,8 @@ interface ElectronAPI {
   hideBrowserView: () => void
   showBrowserView: () => void
   onUrlChanged: (callback: (url: string) => void) => () => void
-  listRecentProblems: (limit?: number) => Promise<ProblemRecord[]>
+  listRecentProblems: (limit?: number, platform?: string, status?: string) => Promise<ProblemRecord[]>
+  getProblemDetail: (problemId: string) => Promise<any>
   onProblemsUpdated: (callback: () => void) => () => void
   syncCodeforces: (handle: string) => Promise<SyncResult>
   syncVjudge: () => Promise<SyncResult>

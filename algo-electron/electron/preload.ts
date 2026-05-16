@@ -18,7 +18,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
 
   // 题目
-  listRecentProblems: (limit?: number) => ipcRenderer.invoke('problem:listRecent', limit),
+  listRecentProblems: (limit?: number, platform?: string, status?: string) =>
+    ipcRenderer.invoke('problem:listRecent', limit, platform, status),
+  getProblemDetail: (problemId: string) => ipcRenderer.invoke('problem:getDetail', problemId),
   onProblemsUpdated: (callback: () => void) => {
     const handler = () => callback()
     ipcRenderer.on('problems:updated', handler)

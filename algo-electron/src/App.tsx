@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { ProblemSidebar } from './features/problems/ProblemSidebar'
+import { ProblemDetail } from './features/problems/ProblemDetail'
 import { SettingsPage } from './features/settings/SettingsPage'
 import './App.css'
 
@@ -8,6 +9,7 @@ function App() {
   const [showSettings, setShowSettings] = useState(false)
   const [syncMsg, setSyncMsg] = useState('')
   const [debugInfo, setDebugInfo] = useState('')
+  const [selectedProblemId, setSelectedProblemId] = useState<string | null>(null)
 
   useEffect(() => {
     const unsubscribe = window.electronAPI.onUrlChanged((newUrl: string) => {
@@ -78,9 +80,10 @@ function App() {
         </button>
       </div>
       <div className="content-area">
-        <ProblemSidebar />
+        <ProblemSidebar onSelectProblem={setSelectedProblemId} />
       </div>
       {showSettings && <SettingsPage onClose={() => setShowSettings(false)} />}
+      {selectedProblemId && <ProblemDetail problemId={selectedProblemId} onClose={() => setSelectedProblemId(null)} />}
       {debugInfo && (
         <div className="settings-overlay" onClick={() => { setDebugInfo(''); window.electronAPI.showBrowserView() }}>
           <div className="debug-panel" onClick={(e) => e.stopPropagation()}>

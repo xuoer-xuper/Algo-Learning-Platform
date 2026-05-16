@@ -7,7 +7,7 @@ import { SiteRegistry } from './sites/siteRegistry'
 import { CookieVault } from './cookies/CookieVault'
 import { TrackingService } from './tracking/TrackingService'
 import { getDefaultHomeUrl, saveConfig } from './app/config'
-import { getRecentProblems, getOverviewStats, updateProblemTitleByUrl } from './db/repositories/problemRepository'
+import { getRecentProblems, getOverviewStats, updateProblemTitleByUrl, getProblemDetail } from './db/repositories/problemRepository'
 import { SyncService } from './submissions/syncService'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -112,8 +112,12 @@ ipcMain.on('browser:showView', () => {
   browserHost?.showView()
 })
 
-ipcMain.handle('problem:listRecent', (_event, limit?: number) => {
-  return getRecentProblems(limit)
+ipcMain.handle('problem:listRecent', (_event, limit?: number, platform?: string, status?: string) => {
+  return getRecentProblems(limit, platform, status)
+})
+
+ipcMain.handle('problem:getDetail', (_event, problemId: string) => {
+  return getProblemDetail(problemId)
 })
 
 ipcMain.handle('stats:getOverview', () => {

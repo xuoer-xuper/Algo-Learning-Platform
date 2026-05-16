@@ -8,6 +8,7 @@ interface ProblemRecord {
   title: string | null
   status: string
   last_visited_at: string | null
+  submission_count?: number
 }
 
 const PLATFORM_LABELS: Record<string, string> = {
@@ -26,28 +27,32 @@ const STATUS_COLORS: Record<string, string> = {
 
 const PAGE_SIZE = 30
 
-export function ProblemSidebar() {
+interface Props {
+  onSelectProblem: (problemId: string) => void
+}
+
+export function ProblemSidebar({ onSelectProblem }: Props) {
   const [problems, setProblems] = useState<ProblemRecord[]>([])
   const [page, setPage] = useState(1)
   const [collapsed, setCollapsed] = useState(false)
-
-  // 通知 Main 进程侧边栏宽度，调整 WebContentsView 布局
-  useEffect(() => {
-    window.electronAPI.setSidebarWidth(collapsed ? 28 : 220)
-  }, [collapsed])
+  const [filterPlatform, setFilterPlatform] = useState<string>('')
+  const [filterStatus, setFilterStatus] = useState<string>('')
 
   const loadProblems = useCallback(async () => {
-    const list = await window.electronAPI.listRecentProblems(200)
+    const list = await window.electronAPI.listRecentProblems(200, filterPlatform || undefined, filterStatus || undefined)
     setProblems(list)
-  }, [])
+    setPage(1)
+  }, [filterPlatform, filterStatus])
 
   useEffect(() => {
     loadProblems()
-    const unsubscribe = window.electronAPI.onProblemsUpdated(() => {
-      loadProblems()
-    })
+    const unsubscribe = window.electronAPI.onProblemsUpdated(() => { loadProblems() })
     return unsubscribe
   }, [loadProblems])
+
+  useEffect(() => {
+    window.electronAPI.setSidebarWidth(collapsed ? 28 : 220)
+  }, [collapsed])
 
   const totalPages = Math.max(1, Math.ceil(problems.length / PAGE_SIZE))
   const paged = problems.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
@@ -63,20 +68,35 @@ export function ProblemSidebar() {
   return (
     <div className="sidebar">
       <div className="sidebar-header">
-        <span className="sidebar-title">最近访问</span>
-        <button className="sidebar-collapse-btn" onClick={() => setCollapsed(true)}>
-          ‹
-        </button>
+        <span className="sidebar-title">题库 ({problems.length})</span>
+        <button className="sidebar-collapse-btn" onClick={() => setCollapsed(true)}>‹</button>
       </div>
+
+      <div className="sidebar-filters">
+        <select className="sidebar-select" value={filterPlatform} onChange={e => setFilterPlatform(e.target.value)}>
+          <option value="">全部平台</option>
+          <option value="codeforces">Codeforces</option>
+          <option value="acwing">AcWing</option>
+          <option value="nowcoder">牛客</option>
+          <option value="vjudge">VJudge</option>
+        </select>
+        <select className="sidebar-select" value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
+          <option value="">全部状态</option>
+          <option value="solved">已通过</option>
+          <option value="attempted">尝试中</option>
+          <option value="visited">已访问</option>
+        </select>
+      </div>
+
       <div className="sidebar-list">
-        {problems.length === 0 ? (
+        {paged.length === 0 ? (
           <div className="sidebar-empty">暂无记录</div>
         ) : (
           paged.map((p) => (
             <div
               key={p.id}
               className="sidebar-item"
-              onClick={() => window.electronAPI.navigate(p.canonical_url)}
+              onClick={() => onSelectProblem(p.id)}
             >
               <span
                 className="sidebar-item-dot"
@@ -88,27 +108,19 @@ export function ProblemSidebar() {
               <span className="sidebar-item-id">
                 {p.title || p.platform_problem_id}
               </span>
+              {p.submission_count ? (
+                <span className="sidebar-item-count">{p.submission_count}</span>
+              ) : null}
             </div>
           ))
         )}
       </div>
+
       {totalPages > 1 && (
         <div className="sidebar-pagination">
-          <button
-            className="sidebar-page-btn"
-            disabled={page <= 1}
-            onClick={() => setPage(page - 1)}
-          >
-            ‹
-          </button>
+          <button className="sidebar-page-btn" disabled={page <= 1} onClick={() => setPage(page - 1)}>‹</button>
           <span className="sidebar-page-info">{page}/{totalPages}</span>
-          <button
-            className="sidebar-page-btn"
-            disabled={page >= totalPages}
-            onClick={() => setPage(page + 1)}
-          >
-            ›
-          </button>
+          <button className="sidebar-page-btn" disabled={page >= totalPages} onClick={() => setPage(page + 1)}>›</button>
         </div>
       )}
     </div>
