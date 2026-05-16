@@ -52,15 +52,38 @@ function createWindow() {
     }
   })
 
-  // 页面标题变化时更新题目标题
-  browserHost.setTitleChangeCallback((title, url) => {
-    if (title && url) {
-      updateProblemTitleByUrl(url, title)
-      win?.webContents.send('problems:updated')
-    }
+  // 页面加载完成后从 DOM 抓取题目标题
+  browserHost.setTitleChangeCallback((_title, url) => {
+    if (!url) return
+    // 延迟执行，等页面 DOM 渲染完成
+    setTimeout(() => {
+      browserHost?.executeScript(`
+        (() => {
+          // Codeforces: .title 是题目标题
+          const cfTitle = document.querySelector('.title')
+          if (cfTitle) return cfTitle.textContent.trim()
+          // AcWing: .problem-title
+          const acTitle = document.querySelector('.problem-title')
+          if (acTitle) return acTitle.textContent.trim()
+          // 牛客: .subject-name 或 h1
+          const ncTitle = document.querySelector('.subject-name, h1')
+          if (ncTitle) return ncTitle.textContent.trim()
+          // 通用: h1 或 title 标签
+          const h1 = document.querySelector('h1')
+          if (h1 && h1.textContent.length < 200) return h1.textContent.trim()
+          return null
+        })()
+      `).then((domTitle: string | null) => {
+        if (domTitle && domTitle.length > 0 && domTitle.length < 200) {
+          updateProblemTitleByUrl(url, domTitle)
+          win?.webContents.send('problems:updated')
+        }
+      }).catch(() => { /* ignore */ })
+    }, 2000)
   })
 
-  browserHost.loadDefaultUrl()
+  // 不自动加载 URL，显示 React 首页
+  // browserHost.loadDefaultUrl()
 
   win.webContents.on('did-finish-load', () => {
     if (browserHost) {

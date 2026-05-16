@@ -21,11 +21,26 @@ export class SyncService {
     this.browserHost = host
   }
 
-  // Codeforces 使用公开 API
+  private async withRetry<T>(fn: () => Promise<T>, maxRetries = 2): Promise<T> {
+    let lastError: Error | null = null
+    for (let i = 0; i <= maxRetries; i++) {
+      try {
+        return await fn()
+      } catch (e: any) {
+        lastError = e
+        if (i < maxRetries) await new Promise(r => setTimeout(r, 1000 * (i + 1)))
+      }
+    }
+    throw lastError
+  }
+    this.browserHost = host
+  }
+
+  // Codeforces 使用公开 API（带重试）
   async syncCodeforces(handle: string): Promise<SyncResult> {
     if (!handle) return { platform: 'codeforces', fetched: 0, inserted: 0, error: '请输入 Codeforces Handle' }
     try {
-      const submissions = await syncCodeforcesSubmissions(handle)
+      const submissions = await this.withRetry(() => syncCodeforcesSubmissions(handle))
       return this.writeSubmissions('codeforces', submissions)
     } catch (e: any) {
       return { platform: 'codeforces', fetched: 0, inserted: 0, error: e.message }
@@ -133,10 +148,21 @@ export class SyncService {
     let inserted = 0
     const db = getDb()
 
-    // 如果当前页面是题目页，找到对应的 problem_id
+    // 如果当前页面是题目页，找到对应的 problem_id（不存在则自动创建）
     let pageProblemDbId: string | null = null
     if (pageProblemId) {
-      const problem = db.prepare('SELECT id FROM problems WHERE platform = ? AND platform_problem_id = ?').get(platform, pageProblemId) as { id: string } | undefined
+      let problem = db.prepare('SELECT id FROM problems WHERE platform = ? AND platform_problem_id = ?').get(platform, pageProblemId) as { id: string } | undefined
+      if (!problem) {
+        // 自动创建题目
+        const identity = {
+          platform,
+          platformProblemId: pageProblemId,
+          canonicalUrl: this.browserHost?.getUrl() || '',
+          confidence: 'url' as const,
+        }
+        upsertProblem(identity)
+        problem = db.prepare('SELECT id FROM problems WHERE platform = ? AND platform_problem_id = ?').get(platform, pageProblemId) as { id: string } | undefined
+      }
       if (problem) pageProblemDbId = problem.id
     }
 
@@ -147,7 +173,21 @@ export class SyncService {
           const raw = JSON.parse(sub.rawJson || '{}')
           if (raw.problem?.contestId && raw.problem?.index) {
             const pid = `${raw.problem.contestId}${raw.problem.index}`
-            const problem = db.prepare('SELECT id FROM problems WHERE platform = ? AND platform_problem_id = ?').get('codeforces', pid) as { id: string } | undefined
+            let problem = db.prepare('SELECT id FROM problems WHERE platform = ? AND platform_problem_id = ?').get('codeforces', pid) as { id: string } | undefined
+            // 题目不存在时自动创建
+            if (!problem) {
+              const { ProblemIdentity } = {} as any
+              const identity = {
+                platform: 'codeforces',
+                platformProblemId: pid,
+                canonicalUrl: `https://codeforces.com/contest/${raw.problem.contestId}/problem/${raw.problem.index}`,
+                contestId: String(raw.problem.contestId),
+                problemIndex: raw.problem.index,
+                confidence: 'url' as const,
+              }
+              upsertProblem(identity)
+              problem = db.prepare('SELECT id FROM problems WHERE platform = ? AND platform_problem_id = ?').get('codeforces', pid) as { id: string } | undefined
+            }
             if (problem) sub.problemId = problem.id
           }
         } catch { /* ignore */ }

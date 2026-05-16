@@ -22,12 +22,8 @@ export function SettingsPage({ onClose }: { onClose: () => void }) {
   const [syncStatus, setSyncStatus] = useState<Record<string, string>>({})
 
   useEffect(() => {
-    window.electronAPI.hideBrowserView()
     window.electronAPI.getOverviewStats().then(setStats)
     window.electronAPI.getDefaultHomeUrl().then(setHomeUrl)
-    return () => {
-      window.electronAPI.showBrowserView()
-    }
   }, [])
 
   const handleSyncCF = async () => {
@@ -52,7 +48,6 @@ export function SettingsPage({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <div className="settings-overlay">
       <div className="settings-page">
         <div className="settings-header">
           <h2 className="settings-title">设置</h2>
@@ -125,6 +120,5 @@ export function SettingsPage({ onClose }: { onClose: () => void }) {
           )}
         </div>
       </div>
-    </div>
   )
 }

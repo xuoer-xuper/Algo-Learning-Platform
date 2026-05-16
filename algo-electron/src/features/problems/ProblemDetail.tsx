@@ -41,27 +41,22 @@ export function ProblemDetail({ problemId, onClose }: Props) {
   const [detail, setDetail] = useState<any>(null)
 
   useEffect(() => {
-    window.electronAPI.hideBrowserView()
     window.electronAPI.getProblemDetail(problemId).then(setDetail)
-    return () => { window.electronAPI.showBrowserView() }
   }, [problemId])
 
   if (!detail) {
     return (
-      <div className="settings-overlay" onClick={onClose}>
-        <div className="settings-page" onClick={e => e.stopPropagation()}>
-          <div className="settings-header">
-            <span className="settings-title">加载中...</span>
-            <button className="settings-close" onClick={onClose}>✕</button>
-          </div>
+      <div className="settings-page">
+        <div className="settings-header">
+          <span className="settings-title">加载中...</span>
+          <button className="settings-close" onClick={onClose}>✕</button>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="settings-overlay" onClick={onClose}>
-      <div className="detail-page" onClick={e => e.stopPropagation()}>
+      <div className="detail-page">
         <div className="settings-header">
           <span className="settings-title">{detail.title || detail.platform_problem_id}</span>
           <button className="settings-close" onClick={onClose}>✕</button>
@@ -120,6 +115,5 @@ export function ProblemDetail({ problemId, onClose }: Props) {
           </div>
         )}
       </div>
-    </div>
   )
 }
