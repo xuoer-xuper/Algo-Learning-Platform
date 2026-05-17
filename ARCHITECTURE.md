@@ -59,36 +59,56 @@ Main Process 是本地能力和系统边界的中心，负责：
 ```text
 algo-electron/electron/
   main.ts
+  preload.ts
+  electron-env.d.ts
   app/
-    createMainWindow.ts
-    paths.ts
+    config.ts
   browser/
     BrowserHost.ts
-    BrowserTab.ts
-    browserEvents.ts
-  ipc/
-    channels.ts
-    registerIpcHandlers.ts
   db/
     connection.ts
     migrate.ts
     migrations/
+      001_initial.ts
+      002_submissions.ts
+      003_fix_codeforces_canonical_urls.ts
+      004_fix_codeforces_gym_page_urls.ts
     repositories/
+      problemRepository.ts
+      submissionRepository.ts
   sites/
     siteRegistry.ts
+    types.ts
     builtins/
+      codeforces.ts
+      acwing.ts
+      nowcoder.ts
+      vjudge.ts
   parsers/
     types.ts
     registry.ts
+    navigateUrl.ts
+    titleValidation.ts
+    extractProblemTitleScript.ts
     sites/
+      codeforces.ts
+      codeforcesUrls.ts
+      acwing.ts
+      nowcoder.ts
+      vjudge.ts
   cookies/
     CookieVault.ts
   tracking/
     TrackingService.ts
-  analytics/
-    AnalyticsService.ts
+  submissions/
+    syncService.ts
+    syncers/
+      codeforces.ts
+    scrapers/
+      domScraper.ts
   shared/
     types.ts
+    time.ts
 ```
 
 ## 4. WebContentsView 浏览器系统
@@ -246,19 +266,20 @@ Renderer 只负责界面。
 
 ```text
 algo-electron/src/
-  app/
-    App.tsx
-    routes.tsx
-  features/
-    browser/
-    problems/
-    submissions/
-    analytics/
-    settings/
-    contests/
-  stores/
+  App.tsx
+  App.css
+  main.tsx
   components/
-  lib/
+    ModalLayer.tsx
+    WindowControls.tsx
+  features/
+    home/
+      HomePage.tsx
+    problems/
+      ProblemSidebar.tsx
+      ProblemDetail.tsx
+    settings/
+      SettingsPage.tsx
 ```
 
 Renderer 状态原则：
