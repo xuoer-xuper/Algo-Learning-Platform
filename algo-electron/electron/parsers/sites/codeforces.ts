@@ -1,13 +1,11 @@
 import type { SiteParser } from '../types'
 import type { ProblemIdentity } from '../../shared/types'
+import { buildCodeforcesProblemUrl, type CodeforcesUrlKind } from './codeforcesUrls'
 
-// /problemset/problem/123/A
-// /contest/123/problem/A
-// /gym/123/problem/A
-const PATTERNS = [
-  /^\/problemset\/problem\/(\d+)\/([A-Za-z]\d*)/,
-  /^\/contest\/(\d+)\/problem\/([A-Za-z]\d*)/,
-  /^\/gym\/(\d+)\/problem\/([A-Za-z]\d*)/,
+const PATTERNS: { pattern: RegExp; kind: CodeforcesUrlKind }[] = [
+  { pattern: /^\/problemset\/problem\/(\d+)\/([A-Za-z]\d*)/, kind: 'problemset' },
+  { pattern: /^\/contest\/(\d+)\/problem\/([A-Za-z]\d*)/, kind: 'contest' },
+  { pattern: /^\/gym\/(\d+)\/problem\/([A-Za-z]\d*)/, kind: 'gym' },
 ]
 
 export const codeforcesParser: SiteParser = {
@@ -25,7 +23,7 @@ export const codeforcesParser: SiteParser = {
   parse(url: string): ProblemIdentity | null {
     try {
       const u = new URL(url)
-      for (const pattern of PATTERNS) {
+      for (const { pattern, kind } of PATTERNS) {
         const m = u.pathname.match(pattern)
         if (m) {
           const contestId = m[1]
@@ -33,7 +31,7 @@ export const codeforcesParser: SiteParser = {
           return {
             platform: 'codeforces',
             platformProblemId: `${contestId}${index}`,
-            canonicalUrl: `https://codeforces.com/contest/${contestId}/problem/${index}`,
+            canonicalUrl: buildCodeforcesProblemUrl(contestId, index, kind),
             contestId,
             problemIndex: index,
             confidence: 'url',

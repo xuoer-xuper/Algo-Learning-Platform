@@ -2,10 +2,13 @@ import crypto from 'node:crypto'
 import { getDb } from '../connection'
 import type { ProblemIdentity } from '../../shared/types'
 import { nowBeijing, todayBeijing } from '../../shared/time'
+import { isBadScrapedTitle, isValidScrapedTitle } from '../../parsers/titleValidation'
+import { resolveNavigateUrl } from '../../parsers/navigateUrl'
 
 export function upsertProblem(identity: ProblemIdentity): void {
   const db = getDb()
   const now = nowBeijing()
+  const canonicalUrl = resolveNavigateUrl(identity.canonicalUrl)
 
   const existing = db.prepare(
     'SELECT id FROM problems WHERE platform = ? AND platform_problem_id = ?'
@@ -14,10 +17,21 @@ export function upsertProblem(identity: ProblemIdentity): void {
   if (existing) {
     db.prepare(`
       UPDATE problems SET
+        canonical_url = ?,
+        contest_id = COALESCE(?, contest_id),
+        problem_index = COALESCE(?, problem_index),
         last_visited_at = ?,
-        updated_at = ?
+        updated_at = ?,
+        deleted_at = NULL
       WHERE id = ?
-    `).run(now, now, existing.id)
+    `).run(
+      canonicalUrl,
+      identity.contestId ?? null,
+      identity.problemIndex ?? null,
+      now,
+      now,
+      existing.id,
+    )
   } else {
     db.prepare(`
       INSERT INTO problems (id, platform, platform_problem_id, canonical_url, status, source_platform, source_problem_id, first_seen_at, last_visited_at, created_at, updated_at)
@@ -26,7 +40,7 @@ export function upsertProblem(identity: ProblemIdentity): void {
       crypto.randomUUID(),
       identity.platform,
       identity.platformProblemId,
-      identity.canonicalUrl,
+      canonicalUrl,
       identity.sourcePlatform ?? null,
       identity.sourceProblemId ?? null,
       now, now, now, now,
@@ -35,12 +49,25 @@ export function upsertProblem(identity: ProblemIdentity): void {
 }
 
 export function updateProblemTitleByUrl(url: string, title: string): void {
+  if (!isValidScrapedTitle(title)) return
+
   const db = getDb()
   const now = nowBeijing()
+  const row = db.prepare(
+    'SELECT title FROM problems WHERE canonical_url = ?'
+  ).get(url) as { title: string | null } | undefined
+
+  if (!row) return
+
+  const shouldUpdate =
+    !row.title?.trim() || isBadScrapedTitle(row.title)
+
+  if (!shouldUpdate) return
+
   db.prepare(`
     UPDATE problems SET title = ?, updated_at = ?
-    WHERE canonical_url = ? AND (title IS NULL OR title = '')
-  `).run(title, now, url)
+    WHERE canonical_url = ?
+  `).run(title.trim(), now, url)
 }
 
 export function getRecentProblems(limit = 50, platform?: string, status?: string): any[] {
@@ -74,6 +101,16 @@ export function getRecentProblems(limit = 50, platform?: string, status?: string
     return rows.filter(r => r.status === status)
   }
   return rows
+}
+
+export function deleteProblem(problemId: string): boolean {
+  const db = getDb()
+  const now = nowBeijing()
+  const result = db.prepare(`
+    UPDATE problems SET deleted_at = ?, updated_at = ?
+    WHERE id = ? AND deleted_at IS NULL
+  `).run(now, now, problemId)
+  return result.changes > 0
 }
 
 export function getProblemDetail(problemId: string): any | null {

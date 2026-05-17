@@ -45,7 +45,11 @@ const STATUS_COLORS: Record<string, string> = {
   unknown: '#585b70',
 }
 
-export function HomePage() {
+interface Props {
+  onNavigate: (url: string) => void
+}
+
+export function HomePage({ onNavigate }: Props) {
   const [stats, setStats] = useState<OverviewStats | null>(null)
   const [recent, setRecent] = useState<ProblemRecord[]>([])
 
@@ -74,7 +78,7 @@ export function HomePage() {
               key={key}
               className="home-site-btn"
               style={{ borderColor: PLATFORM_COLORS[key] }}
-              onClick={() => window.electronAPI.navigate(url)}
+              onClick={() => onNavigate(url)}
             >
               <span className="home-site-name" style={{ color: PLATFORM_COLORS[key] }}>
                 {PLATFORM_NAMES[key]}
@@ -115,7 +119,7 @@ export function HomePage() {
               <div
                 key={p.id}
                 className="home-recent-item"
-                onClick={() => window.electronAPI.navigate(p.canonical_url)}
+                onClick={() => onNavigate(p.canonical_url)}
               >
                 <span
                   className="home-recent-dot"

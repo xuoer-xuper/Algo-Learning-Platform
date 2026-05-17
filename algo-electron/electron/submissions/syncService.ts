@@ -5,6 +5,7 @@ import { scrapeCurrentPage } from './scrapers/domScraper'
 import { getDb } from '../db/connection'
 import { BrowserHost } from '../browser/BrowserHost'
 import { parseUrl } from '../parsers/registry'
+import { buildCodeforcesProblemUrlFromApi } from '../parsers/sites/codeforcesUrls'
 import type { SubmissionData } from '../shared/types'
 
 export interface SyncResult {
@@ -32,8 +33,6 @@ export class SyncService {
       }
     }
     throw lastError
-  }
-    this.browserHost = host
   }
 
   // Codeforces 使用公开 API（带重试）
@@ -176,11 +175,10 @@ export class SyncService {
             let problem = db.prepare('SELECT id FROM problems WHERE platform = ? AND platform_problem_id = ?').get('codeforces', pid) as { id: string } | undefined
             // 题目不存在时自动创建
             if (!problem) {
-              const { ProblemIdentity } = {} as any
               const identity = {
                 platform: 'codeforces',
                 platformProblemId: pid,
-                canonicalUrl: `https://codeforces.com/contest/${raw.problem.contestId}/problem/${raw.problem.index}`,
+                canonicalUrl: buildCodeforcesProblemUrlFromApi(raw.problem.contestId, raw.problem.index),
                 contestId: String(raw.problem.contestId),
                 problemIndex: raw.problem.index,
                 confidence: 'url' as const,

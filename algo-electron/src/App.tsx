@@ -1,8 +1,10 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { HomePage } from './features/home/HomePage'
 import { ProblemSidebar } from './features/problems/ProblemSidebar'
 import { ProblemDetail } from './features/problems/ProblemDetail'
 import { SettingsPage } from './features/settings/SettingsPage'
+import { WindowControls } from './components/WindowControls'
+import { ModalLayer } from './components/ModalLayer'
 import './App.css'
 
 function App() {
@@ -10,14 +12,21 @@ function App() {
   const [showSettings, setShowSettings] = useState(false)
   const [selectedProblemId, setSelectedProblemId] = useState<string | null>(null)
   const [syncMsg, setSyncMsg] = useState('')
-  const [debugInfo, setDebugInfo] = useState('')
+  const [sidebarWidth, setSidebarWidth] = useState(220)
+  const [isHome, setIsHome] = useState(true)
+  const [modalBackdrop, setModalBackdrop] = useState<string | null>(null)
 
   useEffect(() => {
     const unsubscribe = window.electronAPI.onUrlChanged((newUrl: string) => {
       setUrl(newUrl)
+      setIsHome(!newUrl || newUrl === 'about:blank')
     })
     return unsubscribe
   }, [])
+
+  useEffect(() => {
+    window.electronAPI.setSidebarWidth(sidebarWidth)
+  }, [sidebarWidth])
 
   const handleNavigate = () => {
     let target = url.trim()
@@ -26,6 +35,7 @@ function App() {
       target = 'https://' + target
     }
     window.electronAPI.navigate(target)
+    setIsHome(false)
   }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -40,16 +50,37 @@ function App() {
     setTimeout(() => setSyncMsg(''), 4000)
   }
 
-  const handleDebug = async () => {
-    const data = await window.electronAPI.debugPageStructure()
-    setDebugInfo(JSON.stringify(data, null, 2))
+  const openModal = useCallback(async () => {
+    if (!isHome) {
+      const preview = await window.electronAPI.captureBrowserPreview()
+      setModalBackdrop(preview)
+      window.electronAPI.hideBrowserView()
+    } else {
+      setModalBackdrop(null)
+    }
+  }, [isHome])
+
+  const closeModal = useCallback(() => {
+    setModalBackdrop(null)
+    if (!isHome) {
+      window.electronAPI.showBrowserView()
+    }
+  }, [isHome])
+
+  const closeSettings = () => {
+    closeModal()
+    setShowSettings(false)
   }
 
-  const hasUrl = url && url !== 'about:blank'
+  const closeProblemDetail = () => {
+    closeModal()
+    setSelectedProblemId(null)
+  }
 
   return (
     <div className="app-layout">
-      <div className="toolbar">
+      <div className="toolbar toolbar-drag">
+        <button className="nav-btn" onClick={() => { window.electronAPI.goHome(); setUrl(''); setIsHome(true) }} title="首页">⌂</button>
         <button className="nav-btn" onClick={() => window.electronAPI.goBack()} title="后退">←</button>
         <button className="nav-btn" onClick={() => window.electronAPI.goForward()} title="前进">→</button>
         <button className="nav-btn" onClick={() => window.electronAPI.reload()} title="刷新">↻</button>
@@ -63,43 +94,30 @@ function App() {
         />
         <button className="go-btn" onClick={handleNavigate}>前往</button>
         <button className="sync-btn" onClick={handleSyncPage} title="抓取当前页面提交记录">↗</button>
-        <button className="debug-btn" onClick={handleDebug} title="调试页面结构">🔍</button>
         {syncMsg && <span className="sync-msg">{syncMsg}</span>}
-        <button className="settings-btn" onClick={() => setShowSettings(true)} title="设置">⚙</button>
+        <button className="settings-btn" onClick={async () => { await openModal(); setShowSettings(true) }} title="设置">⚙</button>
+        <WindowControls />
       </div>
       <div className="content-area">
-        <ProblemSidebar onSelectProblem={setSelectedProblemId} />
+        <ProblemSidebar
+          onNavigate={(targetUrl) => { window.electronAPI.navigate(targetUrl); setIsHome(false) }}
+          onShowDetail={async (id) => { await openModal(); setSelectedProblemId(id) }}
+          onWidthChange={setSidebarWidth}
+        />
         <div className="main-area">
-          {!hasUrl && <HomePage />}
+          {isHome && <HomePage onNavigate={(targetUrl) => { window.electronAPI.navigate(targetUrl); setIsHome(false) }} />}
         </div>
       </div>
 
-      {/* 浮窗弹层 */}
       {showSettings && (
-        <div className="modal-backdrop" onClick={() => setShowSettings(false)}>
-          <div className="modal-panel" onClick={e => e.stopPropagation()}>
-            <SettingsPage onClose={() => setShowSettings(false)} />
-          </div>
-        </div>
+        <ModalLayer backdrop={modalBackdrop} sidebarWidth={sidebarWidth} onClose={closeSettings}>
+          <SettingsPage onClose={closeSettings} />
+        </ModalLayer>
       )}
       {selectedProblemId && (
-        <div className="modal-backdrop" onClick={() => setSelectedProblemId(null)}>
-          <div className="modal-panel" onClick={e => e.stopPropagation()}>
-            <ProblemDetail problemId={selectedProblemId} onClose={() => setSelectedProblemId(null)} />
-          </div>
-        </div>
-      )}
-      {debugInfo && (
-        <div className="modal-backdrop" onClick={() => setDebugInfo('')}>
-          <div className="modal-panel modal-wide" onClick={e => e.stopPropagation()}>
-            <div className="settings-header">
-              <span className="settings-title">页面结构调试</span>
-              <button className="settings-close" onClick={() => setDebugInfo('')}>✕</button>
-            </div>
-            <textarea className="debug-textarea" value={debugInfo} readOnly onClick={e => (e.target as HTMLTextAreaElement).select()} />
-            <div className="debug-hint">点击文本框可全选复制</div>
-          </div>
-        </div>
+        <ModalLayer backdrop={modalBackdrop} sidebarWidth={sidebarWidth} onClose={closeProblemDetail}>
+          <ProblemDetail problemId={selectedProblemId} onClose={closeProblemDetail} />
+        </ModalLayer>
       )}
     </div>
   )

@@ -3,12 +3,19 @@
 @tailwind utilities;
 
 :root {
+  --bg: #f0f4f8;
+  --bg-card: #ffffff;
+  --text: #1a202c;
+  --text-secondary: #64748b;
+  --border: #e2e8f0;
+  --primary: #3b82f6;
+  --primary-hover: #2563eb;
   font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;
   font-weight: 400;
-  color-scheme: dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #1e1e2e;
+  color-scheme: light;
+  color: var(--text);
+  background-color: var(--bg);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -25,4 +32,13 @@ html, body, #root {
   width: 100%;
   height: 100%;
   overflow: hidden;
+}
+
+button {
+  cursor: pointer;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
 }

@@ -36,17 +36,24 @@ interface ElectronAPI {
   goBack: () => void
   goForward: () => void
   reload: () => void
+  goHome: () => void
   setSidebarWidth: (width: number) => void
   hideBrowserView: () => void
   showBrowserView: () => void
+  captureBrowserPreview: () => Promise<string | null>
+  minimizeWindow: () => void
+  maximizeWindow: () => void
+  closeWindow: () => void
+  isWindowMaximized: () => Promise<boolean>
+  onWindowMaximized: (callback: (maximized: boolean) => void) => () => void
   onUrlChanged: (callback: (url: string) => void) => () => void
   listRecentProblems: (limit?: number, platform?: string, status?: string) => Promise<ProblemRecord[]>
   getProblemDetail: (problemId: string) => Promise<any>
+  deleteProblem: (problemId: string) => Promise<boolean>
   onProblemsUpdated: (callback: () => void) => () => void
   syncCodeforces: (handle: string) => Promise<SyncResult>
   syncVjudge: () => Promise<SyncResult>
   syncCurrentPage: () => Promise<SyncResult>
-  debugPageStructure: () => Promise<any>
   getOverviewStats: () => Promise<OverviewStats>
   getDefaultHomeUrl: () => Promise<string>
   setDefaultHomeUrl: (url: string) => void

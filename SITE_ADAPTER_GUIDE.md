@@ -94,6 +94,16 @@ type ProblemIdentity = {
 {contestId}{index}
 ```
 
+canonical URL 必须保留路径类型，禁止全部写成 `/contest/`：
+
+- problemset：`https://codeforces.com/problemset/problem/{contestId}/{index}`
+- 正式比赛：`https://codeforces.com/contest/{contestId}/problem/{index}`
+- gym：`https://codeforces.com/gym/{contestId}/problem/{index}`
+
+gym 或 API 同步题目若误用 `/contest/` 会触发 Codeforces 页面报错 `Illegal contest ID`。API 导入默认使用 problemset 链接。
+
+附件页、提交页等非单题路径（如 `/gym/{id}/attachments`）导航时应解析为 gym/contest 主页：`https://codeforces.com/gym/{id}`。
+
 ### 5.2 AcWing
 
 需要支持：

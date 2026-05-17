@@ -28,10 +28,12 @@ const STATUS_COLORS: Record<string, string> = {
 const PAGE_SIZE = 30
 
 interface Props {
-  onSelectProblem: (problemId: string) => void
+  onNavigate: (url: string) => void
+  onShowDetail: (problemId: string) => void
+  onWidthChange?: (width: number) => void
 }
 
-export function ProblemSidebar({ onSelectProblem }: Props) {
+export function ProblemSidebar({ onNavigate, onShowDetail, onWidthChange }: Props) {
   const [problems, setProblems] = useState<ProblemRecord[]>([])
   const [page, setPage] = useState(1)
   const [collapsed, setCollapsed] = useState(false)
@@ -51,8 +53,10 @@ export function ProblemSidebar({ onSelectProblem }: Props) {
   }, [loadProblems])
 
   useEffect(() => {
-    window.electronAPI.setSidebarWidth(collapsed ? 28 : 220)
-  }, [collapsed])
+    const width = collapsed ? 28 : 220
+    window.electronAPI.setSidebarWidth(width)
+    onWidthChange?.(width)
+  }, [collapsed, onWidthChange])
 
   const totalPages = Math.max(1, Math.ceil(problems.length / PAGE_SIZE))
   const paged = problems.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
@@ -96,8 +100,7 @@ export function ProblemSidebar({ onSelectProblem }: Props) {
             <div
               key={p.id}
               className="sidebar-item"
-              onClick={() => window.electronAPI.navigate(p.canonical_url)}
-              onDoubleClick={() => onSelectProblem(p.id)}
+              onClick={() => onNavigate(p.canonical_url)}
             >
               <span
                 className="sidebar-item-dot"
@@ -112,6 +115,13 @@ export function ProblemSidebar({ onSelectProblem }: Props) {
               {p.submission_count ? (
                 <span className="sidebar-item-count">{p.submission_count}</span>
               ) : null}
+              <button
+                className="sidebar-item-detail"
+                onClick={e => { e.stopPropagation(); onShowDetail(p.id) }}
+                title="查看详情"
+              >
+                ⋯
+              </button>
             </div>
           ))
         )}

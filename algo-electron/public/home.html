@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Algo Learning Platform</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #f0f4f8;
+      color: #1a202c;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 60px 20px;
+    }
+    h1 { color: #3b82f6; font-size: 32px; margin-bottom: 8px; }
+    .subtitle { color: #94a3b8; font-size: 14px; margin-bottom: 40px; }
+    .sites {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 16px;
+      max-width: 500px;
+      width: 100%;
+      margin-bottom: 40px;
+    }
+    .site-card {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      padding: 24px;
+      background: #fff;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-decoration: none;
+    }
+    .site-card:hover {
+      border-color: #3b82f6;
+      box-shadow: 0 4px 16px rgba(59,130,246,0.15);
+      transform: translateY(-2px);
+    }
+    .site-name { font-size: 18px; font-weight: 600; }
+    .site-url { color: #94a3b8; font-size: 12px; }
+    .cf .site-name { color: #1da1f2; }
+    .ac .site-name { color: #00a0e9; }
+    .nc .site-name { color: #ff6a00; }
+    .vj .site-name { color: #4caf50; }
+    .footer {
+      color: #94a3b8;
+      font-size: 12px;
+      margin-top: auto;
+      padding-top: 40px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Algo Learning Platform</h1>
+  <p class="subtitle">本地优先的算法学习记录平台</p>
+  <div class="sites">
+    <a class="site-card cf" href="https://codeforces.com">
+      <span class="site-name">Codeforces</span>
+      <span class="site-url">codeforces.com</span>
+    </a>
+    <a class="site-card ac" href="https://www.acwing.com">
+      <span class="site-name">AcWing</span>
+      <span class="site-url">acwing.com</span>
+    </a>
+    <a class="site-card nc" href="https://ac.nowcoder.com">
+      <span class="site-name">牛客</span>
+      <span class="site-url">ac.nowcoder.com</span>
+    </a>
+    <a class="site-card vj" href="https://vjudge.net">
+      <span class="site-name">VJudge</span>
+      <span class="site-url">vjudge.net</span>
+    </a>
+  </div>
+  <p class="footer">点击上方卡片开始刷题</p>
+</body>
+</html>

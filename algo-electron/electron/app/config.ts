@@ -34,7 +34,7 @@ export function loadConfig(): AppConfig {
   } else {
     config = { ...DEFAULT_CONFIG }
   }
-  return config
+  return config as AppConfig
 }
 
 export function saveConfig(partial: Partial<AppConfig>): void {

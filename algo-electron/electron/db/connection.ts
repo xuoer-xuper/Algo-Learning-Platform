@@ -5,6 +5,8 @@ import fs from 'node:fs'
 import { runMigrations } from './migrate'
 import { migration001 } from './migrations/001_initial'
 import { migration002 } from './migrations/002_submissions'
+import { migration003 } from './migrations/003_fix_codeforces_canonical_urls'
+import { migration004 } from './migrations/004_fix_codeforces_gym_page_urls'
 
 let db: Database.Database | null = null
 
@@ -30,7 +32,7 @@ export function initDb(): Database.Database {
   db.pragma('foreign_keys = ON')
   db.pragma('busy_timeout = 5000')
 
-  runMigrations(db, [migration001, migration002])
+  runMigrations(db, [migration001, migration002, migration003, migration004])
 
   return db
 }
