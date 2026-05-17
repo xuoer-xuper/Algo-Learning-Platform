@@ -76,8 +76,18 @@ function createWindow() {
     }
   })
 
-  browserHost.setTitleChangeCallback((_title, url) => {
+  browserHost.setTitleChangeCallback((title, url) => {
     if (!url) return
+
+    // CF Gym 题目页会显示 "Illegal contest ID"，自动跳 attachments
+    if (title.includes('Illegal contest ID') && url.includes('codeforces.com')) {
+      const match = url.match(/codeforces\.com\/(?:gym|problemset\/problem|contest)\/(\d+)/)
+      if (match) {
+        browserHost?.navigate(`https://codeforces.com/gym/${match[1]}/attachments`)
+        return
+      }
+    }
+
     scheduleTitleExtraction(url)
   })
 

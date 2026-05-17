@@ -21,8 +21,7 @@ export function upsertProblem(identity: ProblemIdentity): void {
         contest_id = COALESCE(?, contest_id),
         problem_index = COALESCE(?, problem_index),
         last_visited_at = ?,
-        updated_at = ?,
-        deleted_at = NULL
+        updated_at = ?
       WHERE id = ?
     `).run(
       canonicalUrl,
@@ -105,11 +104,14 @@ export function getRecentProblems(limit = 50, platform?: string, status?: string
 
 export function deleteProblem(problemId: string): boolean {
   const db = getDb()
-  const now = nowBeijing()
-  const result = db.prepare(`
-    UPDATE problems SET deleted_at = ?, updated_at = ?
-    WHERE id = ? AND deleted_at IS NULL
-  `).run(now, now, problemId)
+
+  // 级联删除所有关联数据
+  db.prepare('DELETE FROM submissions WHERE problem_id = ?').run(problemId)
+  db.prepare('DELETE FROM problem_visits WHERE problem_id = ?').run(problemId)
+  db.prepare('DELETE FROM activity_events WHERE problem_id = ?').run(problemId)
+
+  // 硬删题目
+  const result = db.prepare('DELETE FROM problems WHERE id = ?').run(problemId)
   return result.changes > 0
 }
 
