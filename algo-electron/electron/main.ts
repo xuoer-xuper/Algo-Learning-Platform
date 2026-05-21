@@ -8,6 +8,7 @@ import { CookieVault } from './cookies/CookieVault'
 import { TrackingService } from './tracking/TrackingService'
 import { getDefaultHomeUrl, saveConfig } from './app/config'
 import { getRecentProblems, getOverviewStats, updateProblemTitleByUrl, getProblemDetail, deleteProblem } from './db/repositories/problemRepository'
+import { getDailyActiveStats, getVisitedTrend, getAcTrend, getSubmissionTrend, getPlatformDistribution, getProblemVisitStats, getTimeline, getLastActiveTime, getRevisitStats, recomputeDailyStats } from './db/repositories/statsRepository'
 import { resolveNavigateUrl } from './parsers/navigateUrl'
 import { SyncService } from './submissions/syncService'
 import { EXTRACT_PROBLEM_TITLE_SCRIPT } from './parsers/extractProblemTitleScript'
@@ -197,6 +198,47 @@ ipcMain.handle('problem:delete', (_event, problemId: string) => {
 
 ipcMain.handle('stats:getOverview', () => {
   return getOverviewStats()
+})
+
+ipcMain.handle('stats:getDailyActive', (_event, days?: number) => {
+  return getDailyActiveStats(days)
+})
+
+ipcMain.handle('stats:getVisitedTrend', (_event, days?: number) => {
+  return getVisitedTrend(days)
+})
+
+ipcMain.handle('stats:getAcTrend', (_event, days?: number) => {
+  return getAcTrend(days)
+})
+
+ipcMain.handle('stats:getSubmissionTrend', (_event, days?: number) => {
+  return getSubmissionTrend(days)
+})
+
+ipcMain.handle('stats:getPlatformDistribution', () => {
+  return getPlatformDistribution()
+})
+
+ipcMain.handle('stats:getProblemVisitStats', (_event, problemId: string) => {
+  return getProblemVisitStats(problemId)
+})
+
+ipcMain.handle('stats:getTimeline', (_event, limit?: number) => {
+  return getTimeline(limit)
+})
+
+ipcMain.handle('stats:getLastActiveTime', () => {
+  return getLastActiveTime()
+})
+
+ipcMain.handle('stats:getRevisitStats', (_event, limit?: number) => {
+  return getRevisitStats(limit)
+})
+
+ipcMain.handle('stats:recomputeDaily', (_event, date?: string) => {
+  recomputeDailyStats(date)
+  return true
 })
 
 ipcMain.handle('config:getDefaultHomeUrl', () => {

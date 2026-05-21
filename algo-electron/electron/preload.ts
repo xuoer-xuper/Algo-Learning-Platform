@@ -50,6 +50,16 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // 统计
   getOverviewStats: () => ipcRenderer.invoke('stats:getOverview'),
+  getDailyActiveStats: (days?: number) => ipcRenderer.invoke('stats:getDailyActive', days),
+  getVisitedTrend: (days?: number) => ipcRenderer.invoke('stats:getVisitedTrend', days),
+  getAcTrend: (days?: number) => ipcRenderer.invoke('stats:getAcTrend', days),
+  getSubmissionTrend: (days?: number) => ipcRenderer.invoke('stats:getSubmissionTrend', days),
+  getPlatformDistribution: () => ipcRenderer.invoke('stats:getPlatformDistribution'),
+  getProblemVisitStats: (problemId: string) => ipcRenderer.invoke('stats:getProblemVisitStats', problemId),
+  getTimeline: (limit?: number) => ipcRenderer.invoke('stats:getTimeline', limit),
+  getLastActiveTime: () => ipcRenderer.invoke('stats:getLastActiveTime'),
+  getRevisitStats: (limit?: number) => ipcRenderer.invoke('stats:getRevisitStats', limit),
+  recomputeDailyStats: (date?: string) => ipcRenderer.invoke('stats:recomputeDaily', date),
 
   // 配置
   getDefaultHomeUrl: () => ipcRenderer.invoke('config:getDefaultHomeUrl'),

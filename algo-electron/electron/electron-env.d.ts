@@ -55,6 +55,16 @@ interface ElectronAPI {
   syncVjudge: () => Promise<SyncResult>
   syncCurrentPage: () => Promise<SyncResult>
   getOverviewStats: () => Promise<OverviewStats>
+  getDailyActiveStats: (days?: number) => Promise<any[]>
+  getVisitedTrend: (days?: number) => Promise<any[]>
+  getAcTrend: (days?: number) => Promise<any[]>
+  getSubmissionTrend: (days?: number) => Promise<any[]>
+  getPlatformDistribution: () => Promise<{ platform: string; count: number }[]>
+  getProblemVisitStats: (problemId: string) => Promise<any>
+  getTimeline: (limit?: number) => Promise<any[]>
+  getLastActiveTime: () => Promise<string | null>
+  getRevisitStats: (limit?: number) => Promise<any[]>
+  recomputeDailyStats: (date?: string) => Promise<boolean>
   getDefaultHomeUrl: () => Promise<string>
   setDefaultHomeUrl: (url: string) => void
 }
