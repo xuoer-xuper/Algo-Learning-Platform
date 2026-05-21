@@ -24,6 +24,8 @@ export function Dashboard({ onClose }: { onClose: () => void }) {
   const [streak, setStreak] = useState<Streak>({ current: 0, longest: 0 })
   const [wrongProblems, setWrongProblems] = useState<any[]>([])
   const [unreviewed, setUnreviewed] = useState<any[]>([])
+  const [timeline, setTimeline] = useState<any[]>([])
+  const [revisits, setRevisits] = useState<any[]>([])
   const [recomputing, setRecomputing] = useState(false)
 
   useEffect(() => {
@@ -33,16 +35,20 @@ export function Dashboard({ onClose }: { onClose: () => void }) {
   }, [])
 
   const loadAll = async () => {
-    const [s, st, wp, ur] = await Promise.all([
+    const [s, st, wp, ur, tl, rv] = await Promise.all([
       window.electronAPI.getOverviewStats(),
       window.electronAPI.getStreakDays(),
       window.electronAPI.getWrongProblems(10),
       window.electronAPI.getUnreviewedProblems(30, 10),
+      window.electronAPI.getTimeline(20),
+      window.electronAPI.getRevisitStats(10),
     ])
     setStats(s)
     setStreak(st)
     setWrongProblems(wp)
     setUnreviewed(ur)
+    setTimeline(tl)
+    setRevisits(rv)
   }
 
   const handleRecompute = async () => {
@@ -120,6 +126,38 @@ export function Dashboard({ onClose }: { onClose: () => void }) {
                 <span className="dashboard-item-platform">{PLATFORM_NAMES[p.platform] || p.platform}</span>
                 <span className="dashboard-item-title">{p.title || p.platform_problem_id}</span>
                 <span className="dashboard-item-count">{p.days_since} 天前</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* 复访次数 */}
+      {revisits.length > 0 && (
+        <div className="settings-section">
+          <h3 className="settings-section-title">复访最多</h3>
+          <div className="dashboard-list">
+            {revisits.map((p: any) => (
+              <div key={p.problem_id} className="dashboard-list-item">
+                <span className="dashboard-item-platform">{PLATFORM_NAMES[p.platform] || p.platform}</span>
+                <span className="dashboard-item-title">{p.title || p.platform_problem_id}</span>
+                <span className="dashboard-item-count">{p.visit_count} 次</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* 学习轨迹 */}
+      {timeline.length > 0 && (
+        <div className="settings-section">
+          <h3 className="settings-section-title">学习轨迹</h3>
+          <div className="dashboard-list">
+            {timeline.map((e: any) => (
+              <div key={e.id} className="dashboard-list-item">
+                <span className="dashboard-item-platform">{e.event_type}</span>
+                <span className="dashboard-item-title">{e.platform || ''}</span>
+                <span className="dashboard-item-count">{e.occurred_at?.replace('T', ' ').slice(0, 19)}</span>
               </div>
             ))}
           </div>

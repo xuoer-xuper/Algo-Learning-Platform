@@ -2,9 +2,9 @@
 
 ## 1. 当前阶段
 
-Phase 3 基本完成。
+Phase 3 已完成。
 
-Phase 2 已完成。Phase 3 统计计算层和 Dashboard UI 已完成。剩余 P3-017 回归测试。
+Phase 2 已完成。Phase 3 统计计算层、Dashboard UI、连续活跃天数、错题列表、未复习题目、重算工具均已完成并通过回归测试。
 
 ## 2. 当前代码状态
 
@@ -67,12 +67,14 @@ Phase 2 已完成。Phase 3 统计计算层和 Dashboard UI 已完成。剩余 P
 
 ## 4. 下一步推荐任务
 
-Phase 3 基本完成，仅剩 P3-017 回归测试。
+Phase 3 已完成，进入 Phase 4：Rating 与竞赛。
 
-1. `P3-017`：Phase 3 统计准确性测试（用户手动验收）。
-2. 进入 Phase 4：Rating 与竞赛。
+1. `P4-001`：建立 platform_accounts 表。
+2. `P4-002`：建立 rating_history 表。
+3. `P4-004`：支持 Codeforces handle 绑定。
+4. `P4-005`：同步 Codeforces 当前 Rating。
 
-如果只做一个任务，优先做 `P3-017`。
+如果只做一个任务，优先做 `P4-001`。
 
 ## 5. 高风险区域
 

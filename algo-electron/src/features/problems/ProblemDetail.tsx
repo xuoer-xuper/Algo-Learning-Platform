@@ -47,7 +47,12 @@ export function ProblemDetail({ problemId, onClose }: Props) {
   const [deleting, setDeleting] = useState(false)
 
   useEffect(() => {
-    window.electronAPI.getProblemDetail(problemId).then(setDetail)
+    Promise.all([
+      window.electronAPI.getProblemDetail(problemId),
+      window.electronAPI.getProblemVisitStats(problemId),
+    ]).then(([d, vs]) => {
+      setDetail({ ...d, visitStats: vs })
+    })
   }, [problemId])
 
   const handleDelete = async () => {
@@ -109,6 +114,15 @@ export function ProblemDetail({ problemId, onClose }: Props) {
           <span className="detail-label">提交</span>
           <span className="detail-value">{detail.submission_count} 次（AC {detail.ac_count} 次）</span>
         </div>
+        {detail.visitStats && detail.visitStats.total_visits > 0 && (
+          <div className="detail-row">
+            <span className="detail-label">停留</span>
+            <span className="detail-value">
+              {detail.visitStats.total_visits} 次访问，
+              累计 {Math.round(detail.visitStats.total_duration / 60)} 分钟
+            </span>
+          </div>
+        )}
         <div className="detail-row">
           <span className="detail-label">首次访问</span>
           <span className="detail-value">{detail.first_seen_at?.replace('T', ' ').slice(0, 19)}</span>

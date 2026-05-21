@@ -199,6 +199,7 @@ export function getStreakDays(): { current: number; longest: number } {
 
   if (rows.length === 0) return { current: 0, longest: 0 }
 
+  // 从最近一天开始往回数连续天数
   let current = 1
   let longest = 1
   let streak = 1
@@ -211,13 +212,18 @@ export function getStreakDays(): { current: number; longest: number } {
     if (diff === 1) {
       streak++
     } else {
-      if (i === 1) current = streak
+      // 第一次断开时记录 current streak
+      if (current === 1 && i === 1) current = streak
+      longest = Math.max(longest, streak)
       streak = 1
     }
-    longest = Math.max(longest, streak)
   }
 
-  if (rows.length > 1) current = streak
+  // 循环结束时更新
+  longest = Math.max(longest, streak)
+  // 如果从未断开，current = streak
+  if (current === 1 && rows.length > 1) current = streak
+
   return { current, longest }
 }
 
