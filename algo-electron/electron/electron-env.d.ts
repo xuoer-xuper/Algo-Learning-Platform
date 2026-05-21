@@ -65,6 +65,10 @@ interface ElectronAPI {
   getLastActiveTime: () => Promise<string | null>
   getRevisitStats: (limit?: number) => Promise<any[]>
   recomputeDailyStats: (date?: string) => Promise<boolean>
+  getStreakDays: () => Promise<{ current: number; longest: number }>
+  getWrongProblems: (limit?: number) => Promise<any[]>
+  getUnreviewedProblems: (days?: number, limit?: number) => Promise<any[]>
+  recomputeAllDailyStats: () => Promise<number>
   getDefaultHomeUrl: () => Promise<string>
   setDefaultHomeUrl: (url: string) => void
 }

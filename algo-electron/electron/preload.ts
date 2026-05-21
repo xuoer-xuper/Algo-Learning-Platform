@@ -60,6 +60,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getLastActiveTime: () => ipcRenderer.invoke('stats:getLastActiveTime'),
   getRevisitStats: (limit?: number) => ipcRenderer.invoke('stats:getRevisitStats', limit),
   recomputeDailyStats: (date?: string) => ipcRenderer.invoke('stats:recomputeDaily', date),
+  getStreakDays: () => ipcRenderer.invoke('stats:getStreakDays'),
+  getWrongProblems: (limit?: number) => ipcRenderer.invoke('stats:getWrongProblems', limit),
+  getUnreviewedProblems: (days?: number, limit?: number) => ipcRenderer.invoke('stats:getUnreviewed', days, limit),
+  recomputeAllDailyStats: () => ipcRenderer.invoke('stats:recomputeAll'),
 
   // 配置
   getDefaultHomeUrl: () => ipcRenderer.invoke('config:getDefaultHomeUrl'),

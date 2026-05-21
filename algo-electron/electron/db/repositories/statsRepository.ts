@@ -187,3 +187,114 @@ export function recomputeDailyStats(date?: string): void {
       updated_at = excluded.updated_at
   `).run(targetDate, visits.active, visits.duration, visits.visited, solved.count, subs.total, subs.ac, platformDist, now, now, now)
 }
+
+// --- P3-009: 连续活跃天数 ---
+export function getStreakDays(): { current: number; longest: number } {
+  const db = getDb()
+  const rows = db.prepare(`
+    SELECT local_day FROM user_daily_stats
+    WHERE active_seconds >= 300 OR submission_count > 0 OR solved_problem_count > 0
+    ORDER BY local_day DESC
+  `).all() as { local_day: string }[]
+
+  if (rows.length === 0) return { current: 0, longest: 0 }
+
+  let current = 1
+  let longest = 1
+  let streak = 1
+
+  for (let i = 1; i < rows.length; i++) {
+    const prev = new Date(rows[i - 1].local_day)
+    const curr = new Date(rows[i].local_day)
+    const diff = (prev.getTime() - curr.getTime()) / (1000 * 60 * 60 * 24)
+
+    if (diff === 1) {
+      streak++
+    } else {
+      if (i === 1) current = streak
+      streak = 1
+    }
+    longest = Math.max(longest, streak)
+  }
+
+  if (rows.length > 1) current = streak
+  return { current, longest }
+}
+
+// --- P3-013: 错题列表 ---
+export function getWrongProblems(limit = 50): {
+  id: string
+  platform: string
+  platform_problem_id: string
+  title: string | null
+  wrong_count: number
+  last_attempt: string
+}[] {
+  const db = getDb()
+  return db.prepare(`
+    SELECT
+      p.id,
+      p.platform,
+      p.platform_problem_id,
+      p.title,
+      COUNT(s.id) as wrong_count,
+      MAX(s.submitted_at) as last_attempt
+    FROM problems p
+    JOIN submissions s ON s.problem_id = p.id
+    WHERE p.deleted_at IS NULL
+      AND s.verdict != 'AC'
+      AND NOT EXISTS (
+        SELECT 1 FROM submissions s2
+        WHERE s2.problem_id = p.id AND s2.verdict = 'AC'
+      )
+    GROUP BY p.id
+    ORDER BY last_attempt DESC
+    LIMIT ?
+  `).all(limit) as any[]
+}
+
+// --- P3-014: 长期未复习题目 ---
+export function getUnreviewedProblems(days = 30, limit = 50): {
+  id: string
+  platform: string
+  platform_problem_id: string
+  title: string | null
+  last_visited_at: string
+  days_since: number
+}[] {
+  const db = getDb()
+  const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
+  return db.prepare(`
+    SELECT
+      id,
+      platform,
+      platform_problem_id,
+      title,
+      last_visited_at,
+      CAST(julianday('now') - julianday(last_visited_at) AS INTEGER) as days_since
+    FROM problems
+    WHERE deleted_at IS NULL
+      AND last_visited_at < ?
+      AND status != 'visited'
+    ORDER BY last_visited_at ASC
+    LIMIT ?
+  `).all(cutoff, limit) as any[]
+}
+
+// --- P3-016: 批量重算 ---
+export function recomputeAllDailyStats(): number {
+  const db = getDb()
+  const rows = db.prepare(`
+    SELECT DISTINCT substr(entered_at, 1, 10) as day FROM problem_visits
+    UNION
+    SELECT DISTINCT substr(submitted_at, 1, 10) as day FROM submissions
+    UNION
+    SELECT DISTINCT substr(occurred_at, 1, 10) as day FROM activity_events
+  `).all() as { day: string }[]
+
+  for (const row of rows) {
+    if (row.day) recomputeDailyStats(row.day)
+  }
+
+  return rows.length
+}

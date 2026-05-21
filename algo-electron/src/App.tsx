@@ -3,6 +3,7 @@ import { HomePage } from './features/home/HomePage'
 import { ProblemSidebar } from './features/problems/ProblemSidebar'
 import { ProblemDetail } from './features/problems/ProblemDetail'
 import { SettingsPage } from './features/settings/SettingsPage'
+import { Dashboard } from './features/analytics/Dashboard'
 import { WindowControls } from './components/WindowControls'
 import { ModalLayer } from './components/ModalLayer'
 import './App.css'
@@ -10,6 +11,7 @@ import './App.css'
 function App() {
   const [url, setUrl] = useState('')
   const [showSettings, setShowSettings] = useState(false)
+  const [showDashboard, setShowDashboard] = useState(false)
   const [selectedProblemId, setSelectedProblemId] = useState<string | null>(null)
   const [syncMsg, setSyncMsg] = useState('')
   const [sidebarWidth, setSidebarWidth] = useState(220)
@@ -77,6 +79,11 @@ function App() {
     setSelectedProblemId(null)
   }
 
+  const closeDashboard = () => {
+    closeModal()
+    setShowDashboard(false)
+  }
+
   return (
     <div className="app-layout">
       <div className="toolbar toolbar-drag">
@@ -95,6 +102,7 @@ function App() {
         <button className="go-btn" onClick={handleNavigate}>前往</button>
         <button className="sync-btn" onClick={handleSyncPage} title="抓取当前页面提交记录">↗</button>
         {syncMsg && <span className="sync-msg">{syncMsg}</span>}
+        <button className="settings-btn" onClick={async () => { await openModal(); setShowDashboard(true) }} title="统计">📊</button>
         <button className="settings-btn" onClick={async () => { await openModal(); setShowSettings(true) }} title="设置">⚙</button>
         <WindowControls />
       </div>
@@ -112,6 +120,11 @@ function App() {
       {showSettings && (
         <ModalLayer backdrop={modalBackdrop} sidebarWidth={sidebarWidth} onClose={closeSettings}>
           <SettingsPage onClose={closeSettings} />
+        </ModalLayer>
+      )}
+      {showDashboard && (
+        <ModalLayer backdrop={modalBackdrop} sidebarWidth={sidebarWidth} onClose={closeDashboard}>
+          <Dashboard onClose={closeDashboard} />
         </ModalLayer>
       )}
       {selectedProblemId && (

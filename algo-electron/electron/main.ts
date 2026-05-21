@@ -8,7 +8,7 @@ import { CookieVault } from './cookies/CookieVault'
 import { TrackingService } from './tracking/TrackingService'
 import { getDefaultHomeUrl, saveConfig } from './app/config'
 import { getRecentProblems, getOverviewStats, updateProblemTitleByUrl, getProblemDetail, deleteProblem } from './db/repositories/problemRepository'
-import { getDailyActiveStats, getVisitedTrend, getAcTrend, getSubmissionTrend, getPlatformDistribution, getProblemVisitStats, getTimeline, getLastActiveTime, getRevisitStats, recomputeDailyStats } from './db/repositories/statsRepository'
+import { getDailyActiveStats, getVisitedTrend, getAcTrend, getSubmissionTrend, getPlatformDistribution, getProblemVisitStats, getTimeline, getLastActiveTime, getRevisitStats, recomputeDailyStats, getStreakDays, getWrongProblems, getUnreviewedProblems, recomputeAllDailyStats } from './db/repositories/statsRepository'
 import { resolveNavigateUrl } from './parsers/navigateUrl'
 import { SyncService } from './submissions/syncService'
 import { EXTRACT_PROBLEM_TITLE_SCRIPT } from './parsers/extractProblemTitleScript'
@@ -239,6 +239,22 @@ ipcMain.handle('stats:getRevisitStats', (_event, limit?: number) => {
 ipcMain.handle('stats:recomputeDaily', (_event, date?: string) => {
   recomputeDailyStats(date)
   return true
+})
+
+ipcMain.handle('stats:getStreakDays', () => {
+  return getStreakDays()
+})
+
+ipcMain.handle('stats:getWrongProblems', (_event, limit?: number) => {
+  return getWrongProblems(limit)
+})
+
+ipcMain.handle('stats:getUnreviewed', (_event, days?: number, limit?: number) => {
+  return getUnreviewedProblems(days, limit)
+})
+
+ipcMain.handle('stats:recomputeAll', () => {
+  return recomputeAllDailyStats()
 })
 
 ipcMain.handle('config:getDefaultHomeUrl', () => {
