@@ -4,7 +4,7 @@
 
 Phase 3 已完成。
 
-Phase 2 已完成。Phase 3 统计计算层、Dashboard UI、连续活跃天数、错题列表、未复习题目、重算工具均已完成并通过回归测试。
+Phase 3 全部 17 个任务已完成并通过回归测试。Dashboard 包含图表（饼图、柱状图、折线图）、时间线、错题列表、未复习题目、复访统计，支持日期范围切换。
 
 ## 2. 当前代码状态
 
@@ -71,8 +71,9 @@ Phase 3 已完成，进入 Phase 4：Rating 与竞赛。
 
 1. `P4-001`：建立 platform_accounts 表。
 2. `P4-002`：建立 rating_history 表。
-3. `P4-004`：支持 Codeforces handle 绑定。
-4. `P4-005`：同步 Codeforces 当前 Rating。
+3. `P4-003`：建立 contest_results 表。
+4. `P4-004`：支持 Codeforces handle 绑定。
+5. `P4-005`：同步 Codeforces 当前 Rating。
 
 如果只做一个任务，优先做 `P4-001`。
 

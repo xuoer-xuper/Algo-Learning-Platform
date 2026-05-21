@@ -37,14 +37,14 @@
 
 ## 1. 当前最高优先级
 
-Phase 1 和 Phase 2 已完成。下一步进入 Phase 3：学习行为分析。
+Phase 1、Phase 2、Phase 3 已完成。下一步进入 Phase 4：Rating 与竞赛。
 
 下一步固定顺序：
 
-1. 执行 `P3-001` 建立 user_daily_stats 聚合表。
-2. 执行 `P3-002` 实现每日活跃时长统计。
-3. 执行 `P3-009` 计算连续活跃天数。
-4. 执行 `P3-015` 统计页 Dashboard。
+1. 执行 `P4-001` 建立 platform_accounts 表。
+2. 执行 `P4-002` 建立 rating_history 表。
+3. 执行 `P4-004` 支持 Codeforces handle 绑定。
+4. 执行 `P4-005` 同步 Codeforces 当前 Rating。
 
 禁止继续在 `BrowserView` 上新增功能。
 
