@@ -13,25 +13,41 @@ export function getDailyActiveStats(days = 30): { local_day: string; active_seco
 }
 
 // --- P3-003: 刷题数量趋势 ---
-export function getVisitedTrend(days = 30): { local_day: string; count: number }[] {
+export function getVisitedTrend(days?: number): { local_day: string; count: number }[] {
   const db = getDb()
+  if (days) {
+    const cutoff = new Date(Date.now() - days * 86400000).toISOString().slice(0, 10)
+    return db.prepare(`
+      SELECT local_day, visited_problem_count as count
+      FROM user_daily_stats
+      WHERE local_day >= ?
+      ORDER BY local_day ASC
+    `).all(cutoff) as any[]
+  }
   return db.prepare(`
     SELECT local_day, visited_problem_count as count
     FROM user_daily_stats
-    ORDER BY local_day DESC
-    LIMIT ?
-  `).all(days) as any[]
+    ORDER BY local_day ASC
+  `).all() as any[]
 }
 
 // --- P3-004: AC 数量趋势 ---
-export function getAcTrend(days = 30): { local_day: string; count: number }[] {
+export function getAcTrend(days?: number): { local_day: string; count: number }[] {
   const db = getDb()
+  if (days) {
+    const cutoff = new Date(Date.now() - days * 86400000).toISOString().slice(0, 10)
+    return db.prepare(`
+      SELECT local_day, solved_problem_count as count
+      FROM user_daily_stats
+      WHERE local_day >= ?
+      ORDER BY local_day ASC
+    `).all(cutoff) as any[]
+  }
   return db.prepare(`
     SELECT local_day, solved_problem_count as count
     FROM user_daily_stats
-    ORDER BY local_day DESC
-    LIMIT ?
-  `).all(days) as any[]
+    ORDER BY local_day ASC
+  `).all() as any[]
 }
 
 // --- P3-005: 提交数量趋势 ---
@@ -149,8 +165,8 @@ export function recomputeDailyStats(date?: string): void {
   // 从 submissions 统计
   const subs = db.prepare(`
     SELECT
-      COUNT(*) as total,
-      SUM(CASE WHEN verdict = 'AC' THEN 1 ELSE 0 END) as ac
+      COALESCE(COUNT(*), 0) as total,
+      COALESCE(SUM(CASE WHEN verdict = 'AC' THEN 1 ELSE 0 END), 0) as ac
     FROM submissions
     WHERE submitted_at LIKE ?
   `).get(targetDate + '%') as any
