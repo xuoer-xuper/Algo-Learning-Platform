@@ -317,6 +317,18 @@ ipcMain.handle('rating:getHistory', (_event, accountId: string) => {
   return getRatingHistory(accountId)
 })
 
+ipcMain.handle('rating:getCodeforcesAccount', async () => {
+  const accounts = getAccountsByPlatform('codeforces')
+  return accounts.length > 0 ? accounts[0] : null
+})
+
+ipcMain.handle('rating:getContestResults', (_event, accountId: string) => {
+  const db = getDb()
+  return db.prepare(`
+    SELECT * FROM contest_results WHERE account_id = ? ORDER BY contest_at DESC LIMIT 20
+  `).all(accountId) as any[]
+})
+
 ipcMain.handle('submissions:syncCodeforces', async (_event, handle: string) => {
   if (!syncService) return { platform: 'codeforces', fetched: 0, inserted: 0, error: 'SyncService not ready' }
   return syncService.syncCodeforces(handle)

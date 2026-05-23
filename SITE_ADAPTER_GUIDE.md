@@ -225,3 +225,23 @@ PTA 初期适配策略：
 - 把 Cookie 明文写入调试日志。
 - 抓取失败就删除题目。
 
+## 11. VJudge Contest 映射说明
+
+VJudge 的比赛（contest）与原始 OJ 题目存在映射关系：
+
+- VJudge 题目 ID 格式：`{OJ}-{problemId}`（如 `Codeforces-123A`）
+- VJudge contest 题目 URL：`vjudge.net/contest/{contestId}#problem/{letter}`
+- VJudge contest 提交页：`vjudge.net/contest/{contestId}#status/{username}/{letter}/{result}`
+
+当前实现：
+
+- VJudge 题目 URL 识别为 `contest-{contestId}-{letter}` 格式。
+- VJudge 提交页从 URL hash 提取题号字母。
+- VJudge 全局状态页从 hash 提取 OJ 和题号。
+
+未来扩展：
+
+- contest_results 表可用于记录 VJudge 比赛结果。
+- rating_history 表可用于记录 VJudge Rating 变化（如果 VJudge 有 Rating 系统）。
+- VJudge contest 与原始 OJ 比赛的映射可通过 contest_id + source_platform 建立。
+

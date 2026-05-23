@@ -1059,6 +1059,70 @@
   padding: 12px 0;
 }
 
+/* Rating */
+.rating-badges {
+  display: flex;
+  gap: 8px;
+}
+
+.rating-badge {
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.rating-current {
+  background: var(--primary);
+  color: white;
+}
+
+.rating-peak {
+  background: var(--warning);
+  color: white;
+}
+
+.dashboard-contest-list {
+  margin-top: 12px;
+}
+
+.dashboard-contest-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--border-light);
+  font-size: 12px;
+}
+
+.dashboard-contest-name {
+  flex: 1;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dashboard-contest-delta {
+  font-weight: 600;
+  min-width: 40px;
+  text-align: right;
+}
+
+.dashboard-contest-delta.positive {
+  color: var(--success);
+}
+
+.dashboard-contest-delta.negative {
+  color: var(--error);
+}
+
+.dashboard-contest-rating {
+  color: var(--text-secondary);
+  min-width: 36px;
+  text-align: right;
+}
+
 /* 学习轨迹时间线 */
 .dashboard-timeline {
   display: flex;

@@ -6,7 +6,7 @@
 
 ## 当前状态
 
-Phase 3 学习行为分析已完成（v0.3.0）。
+Phase 4 Rating 与竞赛已完成（v0.4.0）。
 
 已实现：
 
@@ -14,19 +14,21 @@ Phase 3 学习行为分析已完成（v0.3.0）。
 - WebContentsView 内嵌浏览器，持久 session 登录保留
 - 四平台支持：Codeforces、AcWing、牛客、VJudge
 - 题目 URL 自动识别与本地数据库记录
-- 页面标题自动抓取（Codeforces、AcWing、牛客、VJudge）
-- 四平台提交记录同步（CF API、AcWing/牛客 DOM 抓取、VJudge DOM 抓取）
+- 页面标题自动抓取
+- 四平台提交记录同步（CF API、AcWing/牛客/VJudge DOM 抓取）
 - 题库侧边栏（筛选、分页、详情、点击跳转）
 - 题目详情页（提交历史、停留时间、删除）
 - 学习统计 Dashboard（Recharts 图表：饼图、柱状图、折线图、时间线）
 - 连续活跃天数、错题列表、未复习题目、复访统计
 - 趋势图支持 7天/30天/全部 切换
+- Codeforces Rating 同步（handle 绑定、rating history、peak rating、趋势图）
+- 比赛记录列表（delta 显示）
 - Gym 题目自动跳转 attachments 页
 - 自定义首页（快捷入口、学习概览、最近访问）
-- 基础设置页（默认首页配置、CF 提交同步）
-- SQLite 本地数据库（problems、submissions、problem_visits、activity_events、study_sessions、user_daily_stats）
+- 基础设置页（默认首页、CF Rating 同步、CF 提交同步）
+- SQLite 本地数据库（problems、submissions、problem_visits、activity_events、study_sessions、user_daily_stats、platform_accounts、rating_history、contest_results）
 
-下一步进入 Phase 4：Rating 与竞赛。
+下一步进入 Phase 5：站点扩展系统。
 
 ## 必读文档
 

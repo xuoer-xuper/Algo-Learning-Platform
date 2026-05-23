@@ -71,6 +71,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getAccounts: (platform: string) => ipcRenderer.invoke('rating:getAccounts', platform),
   syncCodeforcesRating: (handle: string) => ipcRenderer.invoke('rating:syncCodeforces', handle),
   getRatingHistory: (accountId: string) => ipcRenderer.invoke('rating:getHistory', accountId),
+  getCodeforcesAccount: () => ipcRenderer.invoke('rating:getCodeforcesAccount'),
+  getContestResults: (accountId: string) => ipcRenderer.invoke('rating:getContestResults', accountId),
 
   // 配置
   getDefaultHomeUrl: () => ipcRenderer.invoke('config:getDefaultHomeUrl'),

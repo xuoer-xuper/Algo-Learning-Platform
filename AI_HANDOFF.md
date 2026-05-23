@@ -2,9 +2,9 @@
 
 ## 1. 当前阶段
 
-Phase 4 进行中。
+Phase 4 已完成。
 
-Phase 3 已完成。Phase 4 Rating 核心功能已完成：CF handle 绑定、Rating 同步、rating history、peak rating、contest delta。
+Phase 4 全部 12 个任务已完成并通过回归测试。CF handle 绑定、Rating 同步、rating history、peak rating、contest delta、Rating 趋势图、比赛记录列表均已实现。
 
 ## 2. 当前代码状态
 
@@ -67,13 +67,14 @@ Phase 3 已完成。Phase 4 Rating 核心功能已完成：CF handle 绑定、Ra
 
 ## 4. 下一步推荐任务
 
-Phase 4 进行中。
+Phase 4 已完成，进入 Phase 5：站点扩展系统。
 
-1. `P4-009`：Rating 趋势图（Dashboard 集成）。
-2. `P4-010`：比赛记录列表。
-3. `P4-012`：Phase 4 数据校验。
+1. `P5-001`：实现站点管理页。
+2. `P5-002`：支持手动新增网站配置。
+3. `P5-003`：支持编辑站点 URL 规则。
+4. `P5-008`：提供 adapter 扩展接口。
 
-如果只做一个任务，优先做 `P4-009`。
+如果只做一个任务，优先做 `P5-001`。
 
 ## 5. 高风险区域
 

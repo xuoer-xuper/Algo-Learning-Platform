@@ -74,6 +74,8 @@ interface ElectronAPI {
   getAccounts: (platform: string) => Promise<any[]>
   syncCodeforcesRating: (handle: string) => Promise<{ success: boolean; historyCount?: number; inserted?: number; peak?: number; error?: string }>
   getRatingHistory: (accountId: string) => Promise<any[]>
+  getCodeforcesAccount: () => Promise<any>
+  getContestResults: (accountId: string) => Promise<any[]>
   getDefaultHomeUrl: () => Promise<string>
   setDefaultHomeUrl: (url: string) => void
 }
