@@ -157,14 +157,31 @@ VJudge 特别规则：
 
 ### 5.5 PTA
 
-Phase 5 开始支持。
+Phase 5 已完成基础适配。
 
-PTA 初期适配策略：
+PTA 适配策略：
 
-- 先通过配置匹配常见题目 URL。
-- 能识别题目 ID 即可。
+- URL 识别：支持练习题目页和考试题目页。
+- 标题抓取：多策略降级（专用选择器 → h3 → document.title），Angular SPA 需要更长等待时间（7s 额外延迟）。
+- 提交同步：DOM 表格抓取，支持评测结果、编译器、耗时、内存、分数列。
 - 不强制抓取全部元数据。
 - 文档记录无法适配的页面类型。
+
+已支持的 URL 模式：
+
+- `https://pintia.cn/problem-sets/{setId}/problems/{problemId}` — 练习题目页
+- `https://pintia.cn/problem-sets/{setId}/exam/problems/{problemId}` — 考试题目页
+- `https://pintia.cn/problem-sets/{setId}/exam/problems/type/7?problemSetProblemId={id}` — 考试题目页（带类型参数）
+
+ID 格式：`{setId}-{problemId}`
+
+PTA 适配限制：
+
+- PTA 题目 URL 需要登录才能查看内容，标题抓取依赖登录态。
+- PTA 题集（problem-sets）列表页和 dashboard 不是单题页面，不应识别为题目。
+- PTA 是 Angular SPA，DOM 渲染延迟较大，标题抓取需要 7s 额外延迟。
+- PTA 考试页面（exam-problems）结构与练习页面不同，已分别适配。
+- PTA 提交记录通过 DOM 表格抓取，需要在提交记录页面操作。
 
 ## 6. 新增站点流程
 

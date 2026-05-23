@@ -22,6 +22,7 @@ const PLATFORM_NAMES: Record<string, string> = {
   acwing: 'AcWing',
   nowcoder: '牛客',
   vjudge: 'VJudge',
+  pta: 'PTA',
 }
 
 const PLATFORM_URLS: Record<string, string> = {
@@ -29,6 +30,7 @@ const PLATFORM_URLS: Record<string, string> = {
   acwing: 'https://www.acwing.com',
   nowcoder: 'https://ac.nowcoder.com',
   vjudge: 'https://vjudge.net',
+  pta: 'https://pintia.cn',
 }
 
 const PLATFORM_COLORS: Record<string, string> = {
@@ -36,6 +38,7 @@ const PLATFORM_COLORS: Record<string, string> = {
   acwing: '#00a0e9',
   nowcoder: '#ff6a00',
   vjudge: '#4caf50',
+  pta: '#8e24aa',
 }
 
 const STATUS_COLORS: Record<string, string> = {

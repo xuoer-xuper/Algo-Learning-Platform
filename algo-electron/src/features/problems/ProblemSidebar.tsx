@@ -16,6 +16,7 @@ const PLATFORM_LABELS: Record<string, string> = {
   acwing: 'AcW',
   nowcoder: 'NC',
   vjudge: 'VJ',
+  pta: 'PTA',
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -83,6 +84,7 @@ export function ProblemSidebar({ onNavigate, onShowDetail, onWidthChange }: Prop
           <option value="acwing">AcWing</option>
           <option value="nowcoder">牛客</option>
           <option value="vjudge">VJudge</option>
+          <option value="pta">PTA</option>
         </select>
         <select className="sidebar-select" value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
           <option value="">全部状态</option>

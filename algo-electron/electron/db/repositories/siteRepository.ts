@@ -118,6 +118,7 @@ export function seedBuiltinSites(): void {
     { id: 'acwing', name: 'AcWing', domains: ['acwing.com', 'www.acwing.com'], homeUrl: 'https://www.acwing.com' },
     { id: 'nowcoder', name: '牛客', domains: ['nowcoder.com', 'www.nowcoder.com', 'ac.nowcoder.com'], homeUrl: 'https://ac.nowcoder.com' },
     { id: 'vjudge', name: 'VJudge', domains: ['vjudge.net', 'www.vjudge.net'], homeUrl: 'https://vjudge.net' },
+    { id: 'pta', name: 'PTA', domains: ['pintia.cn'], homeUrl: 'https://pintia.cn' },
   ]
 
   const insert = db.prepare(`
@@ -143,4 +144,107 @@ function rowToSite(row: any): SiteConfigData {
     adapter: row.adapter,
     isBuiltin: row.is_builtin === 1,
   }
+}
+
+export interface SitesExportData {
+  version: number
+  exportedAt: string
+  sites: SiteConfigData[]
+}
+
+export function exportSitesConfig(): SitesExportData {
+  const sites = getAllSites()
+  return {
+    version: 1,
+    exportedAt: nowBeijing(),
+    sites,
+  }
+}
+
+export interface ImportConflict {
+  id: string
+  name: string
+  existing: SiteConfigData
+  incoming: SiteConfigData
+}
+
+export interface ImportPreview {
+  newSites: SiteConfigData[]
+  conflicts: ImportConflict[]
+  builtinSkipped: SiteConfigData[]
+}
+
+export function previewImportSites(data: any): { valid: boolean; preview?: ImportPreview; error?: string } {
+  if (!data || typeof data !== 'object') {
+    return { valid: false, error: '无效的配置数据' }
+  }
+
+  if (data.version !== 1) {
+    return { valid: false, error: `不支持的配置版本: ${data.version}` }
+  }
+
+  if (!Array.isArray(data.sites)) {
+    return { valid: false, error: '配置数据缺少 sites 字段' }
+  }
+
+  const newSites: SiteConfigData[] = []
+  const conflicts: ImportConflict[] = []
+  const builtinSkipped: SiteConfigData[] = []
+
+  for (const s of data.sites) {
+    if (!s.id || !s.name || !Array.isArray(s.domains) || !s.homeUrl) {
+      continue
+    }
+
+    const site: SiteConfigData = {
+      id: s.id,
+      name: s.name,
+      domains: s.domains,
+      homeUrl: s.homeUrl,
+      enabled: s.enabled !== false,
+      problemUrlPatterns: s.problemUrlPatterns,
+      submitUrlPatterns: s.submitUrlPatterns,
+      cookiePolicy: s.cookiePolicy,
+      adapter: s.adapter,
+      isBuiltin: false,
+    }
+
+    const existing = getSiteById(s.id)
+    if (existing) {
+      if (existing.isBuiltin) {
+        builtinSkipped.push(site)
+      } else {
+        conflicts.push({ id: s.id, name: s.name, existing, incoming: site })
+      }
+    } else {
+      newSites.push(site)
+    }
+  }
+
+  return {
+    valid: true,
+    preview: { newSites, conflicts, builtinSkipped },
+  }
+}
+
+export function confirmImportSites(sites: SiteConfigData[], overwriteIds: string[]): { imported: number; overwritten: number } {
+  let imported = 0
+  let overwritten = 0
+
+  for (const site of sites) {
+    const isOverwrite = overwriteIds.includes(site.id)
+    if (isOverwrite) {
+      const ok = updateSite(site.id, site)
+      if (ok) overwritten++
+    } else {
+      try {
+        createSite(site)
+        imported++
+      } catch {
+        // skip duplicate
+      }
+    }
+  }
+
+  return { imported, overwritten }
 }

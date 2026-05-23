@@ -5,6 +5,7 @@ const PLATFORM_NAMES: Record<string, string> = {
   acwing: 'AcWing',
   nowcoder: '牛客',
   vjudge: 'VJudge',
+  pta: 'PTA',
 }
 
 const STATUS_LABELS: Record<string, string> = {

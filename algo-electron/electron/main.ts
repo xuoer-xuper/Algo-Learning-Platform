@@ -1,6 +1,7 @@
-import { app, BrowserWindow, ipcMain, Menu } from 'electron'
+import { app, BrowserWindow, ipcMain, Menu, dialog } from 'electron'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
+import fs from 'node:fs'
 import { BrowserHost } from './browser/BrowserHost'
 import { initDb, closeDb } from './db/connection'
 import { SiteRegistry } from './sites/siteRegistry'
@@ -8,7 +9,7 @@ import { CookieVault } from './cookies/CookieVault'
 import { TrackingService } from './tracking/TrackingService'
 import { getDefaultHomeUrl, saveConfig } from './app/config'
 import { getRecentProblems, getOverviewStats, updateProblemTitleByUrl, getProblemDetail, deleteProblem } from './db/repositories/problemRepository'
-import { getAllSites, getSiteById, createSite, updateSite, toggleSite, deleteSite, seedBuiltinSites } from './db/repositories/siteRepository'
+import { getAllSites, getSiteById, createSite, updateSite, toggleSite, deleteSite, seedBuiltinSites, exportSitesConfig, previewImportSites, confirmImportSites } from './db/repositories/siteRepository'
 import { upsertAccount, updateCurrentRating, updatePeakRating, getAccount, getAccountsByPlatform, getAccountById, upsertRatingHistory, getRatingHistory, computePeakRating } from './db/repositories/accountRepository'
 import { getDailyActiveStats, getVisitedTrend, getAcTrend, getSubmissionTrend, getPlatformDistribution, getProblemVisitStats, getTimeline, getLastActiveTime, getRevisitStats, recomputeDailyStats, getStreakDays, getWrongProblems, getUnreviewedProblems, recomputeAllDailyStats } from './db/repositories/statsRepository'
 import { fetchCFCurrentRating, fetchCFRatingHistory, formatCFRatingHistory } from './rating/codeforces'
@@ -69,6 +70,12 @@ function createWindow() {
     }
     setTimeout(extract, 2000)
     setTimeout(extract, 4500)
+    if (url.includes('pintia.cn')) {
+      setTimeout(extract, 7000)
+    }
+    if (url.includes('vjudge.net/contest')) {
+      setTimeout(extract, 7000)
+    }
   }
 
   browserHost.setNavigateCallback((url) => {
@@ -354,6 +361,51 @@ ipcMain.handle('sites:toggle', (_event, id: string, enabled: boolean) => {
 
 ipcMain.handle('sites:delete', (_event, id: string) => {
   return deleteSite(id)
+})
+
+ipcMain.handle('sites:exportConfig', async () => {
+  try {
+    const result = await dialog.showSaveDialog(win!, {
+      title: '导出站点配置',
+      defaultPath: 'algo-sites-config.json',
+      filters: [{ name: 'JSON', extensions: ['json'] }],
+    })
+    if (result.canceled || !result.filePath) return { success: false, error: '取消导出' }
+
+    const data = exportSitesConfig()
+    fs.writeFileSync(result.filePath, JSON.stringify(data, null, 2), 'utf-8')
+    return { success: true, path: result.filePath, count: data.sites.length }
+  } catch (e: any) {
+    return { success: false, error: e.message }
+  }
+})
+
+ipcMain.handle('sites:importConfig', async () => {
+  try {
+    const result = await dialog.showOpenDialog(win!, {
+      title: '导入站点配置',
+      filters: [{ name: 'JSON', extensions: ['json'] }],
+      properties: ['openFile'],
+    })
+    if (result.canceled || result.filePaths.length === 0) return { success: false, error: '取消导入' }
+
+    const raw = fs.readFileSync(result.filePaths[0], 'utf-8')
+    const data = JSON.parse(raw)
+    const preview = previewImportSites(data)
+    return { success: true, preview }
+  } catch (e: any) {
+    return { success: false, error: e.message }
+  }
+})
+
+ipcMain.handle('sites:confirmImport', (_event, sites: any[], overwriteIds: string[]) => {
+  try {
+    const result = confirmImportSites(sites, overwriteIds)
+    win?.webContents.send('problems:updated')
+    return { success: true, ...result }
+  } catch (e: any) {
+    return { success: false, error: e.message }
+  }
 })
 
 ipcMain.handle('submissions:syncCodeforces', async (_event, handle: string) => {

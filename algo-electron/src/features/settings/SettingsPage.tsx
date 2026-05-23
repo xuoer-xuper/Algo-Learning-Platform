@@ -5,6 +5,7 @@ const PLATFORM_NAMES: Record<string, string> = {
   acwing: 'AcWing',
   nowcoder: '牛客',
   vjudge: 'VJudge',
+  pta: 'PTA',
 }
 
 interface OverviewStats {
@@ -24,6 +25,10 @@ export function SettingsPage({ onClose }: { onClose: () => void }) {
   const [ratingStatus, setRatingStatus] = useState('')
   const [syncStatus, setSyncStatus] = useState<Record<string, string>>({})
   const [sites, setSites] = useState<any[]>([])
+  const [exportStatus, setExportStatus] = useState('')
+  const [importPreview, setImportPreview] = useState<any>(null)
+  const [importOverwriteIds, setImportOverwriteIds] = useState<string[]>([])
+  const [importStatus, setImportStatus] = useState('')
 
   const loadSites = () => {
     window.electronAPI.getAllSites().then(setSites)
@@ -79,6 +84,66 @@ export function SettingsPage({ onClose }: { onClose: () => void }) {
     if (!confirm('确定删除该站点？')) return
     await window.electronAPI.deleteSite(id)
     loadSites()
+  }
+
+  const handleExport = async () => {
+    setExportStatus('导出中...')
+    try {
+      const result = await window.electronAPI.exportSitesConfig()
+      if (result.success) {
+        setExportStatus(`已导出 ${result.count} 个站点`)
+      } else {
+        setExportStatus(result.error || '导出失败')
+      }
+    } catch (e: any) {
+      setExportStatus(`错误: ${e.message}`)
+    }
+    setTimeout(() => setExportStatus(''), 3000)
+  }
+
+  const handleImport = async () => {
+    setImportStatus('选择文件...')
+    try {
+      const result = await window.electronAPI.importSitesConfig()
+      if (!result.success) {
+        setImportStatus(result.error || '导入取消')
+        setTimeout(() => setImportStatus(''), 3000)
+        return
+      }
+      if (result.preview) {
+        setImportPreview(result.preview)
+        setImportOverwriteIds([])
+        setImportStatus('')
+      }
+    } catch (e: any) {
+      setImportStatus(`错误: ${e.message}`)
+      setTimeout(() => setImportStatus(''), 3000)
+    }
+  }
+
+  const handleConfirmImport = async () => {
+    if (!importPreview) return
+    const allSites = [...importPreview.newSites, ...importPreview.conflicts.map((c: any) => c.incoming)]
+    try {
+      const result = await window.electronAPI.confirmImportSites(allSites, importOverwriteIds)
+      if (result.success) {
+        setImportStatus(`导入完成: 新增 ${result.imported}，覆盖 ${result.overwritten}`)
+        setImportPreview(null)
+        setImportOverwriteIds([])
+        loadSites()
+      } else {
+        setImportStatus(result.error || '导入失败')
+      }
+    } catch (e: any) {
+      setImportStatus(`错误: ${e.message}`)
+    }
+    setTimeout(() => setImportStatus(''), 3000)
+  }
+
+  const toggleOverwrite = (id: string) => {
+    setImportOverwriteIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    )
   }
 
   const handleSave = () => {
@@ -166,6 +231,69 @@ export function SettingsPage({ onClose }: { onClose: () => void }) {
 
         <div className="settings-section">
           <h3 className="settings-section-title">站点管理</h3>
+          <div className="site-actions-bar">
+            <button className="settings-save-btn" onClick={handleExport}>
+              导出配置
+            </button>
+            <button className="settings-save-btn" onClick={handleImport}>
+              导入配置
+            </button>
+          </div>
+          {exportStatus && <div className="sync-status">{exportStatus}</div>}
+          {importStatus && <div className="sync-status">{importStatus}</div>}
+          {importPreview && (
+            <div className="import-preview">
+              <h4 className="import-preview-title">导入预览</h4>
+              {importPreview.newSites.length > 0 && (
+                <div className="import-group">
+                  <div className="import-group-label">新增站点 ({importPreview.newSites.length})</div>
+                  {importPreview.newSites.map((s: any) => (
+                    <div key={s.id} className="import-item">
+                      <span className="site-name">{s.name}</span>
+                      <span className="site-domains">{s.domains.join(', ')}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {importPreview.conflicts.length > 0 && (
+                <div className="import-group">
+                  <div className="import-group-label">冲突站点 (勾选覆盖)</div>
+                  {importPreview.conflicts.map((c: any) => (
+                    <div key={c.id} className="import-item import-conflict">
+                      <label className="import-checkbox-label">
+                        <input
+                          type="checkbox"
+                          checked={importOverwriteIds.includes(c.id)}
+                          onChange={() => toggleOverwrite(c.id)}
+                        />
+                        <span className="site-name">{c.name}</span>
+                        <span className="site-domains">{c.domains.join(', ')}</span>
+                      </label>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {importPreview.builtinSkipped.length > 0 && (
+                <div className="import-group">
+                  <div className="import-group-label">内置站点 (跳过)</div>
+                  {importPreview.builtinSkipped.map((s: any) => (
+                    <div key={s.id} className="import-item import-skipped">
+                      <span className="site-name">{s.name}</span>
+                      <span className="site-domains">{s.domains.join(', ')}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div className="import-actions">
+                <button className="settings-save-btn" onClick={handleConfirmImport}>
+                  确认导入
+                </button>
+                <button className="settings-close" onClick={() => { setImportPreview(null); setImportOverwriteIds([]) }}>
+                  取消
+                </button>
+              </div>
+            </div>
+          )}
           <div className="site-list">
             {sites.map((s) => (
               <div key={s.id} className="site-item">

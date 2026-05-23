@@ -3,8 +3,9 @@ import { codeforces } from './builtins/codeforces'
 import { acwing } from './builtins/acwing'
 import { nowcoder } from './builtins/nowcoder'
 import { vjudge } from './builtins/vjudge'
+import { pta } from './builtins/pta'
 
-const builtins: SiteConfig[] = [codeforces, acwing, nowcoder, vjudge]
+const builtins: SiteConfig[] = [codeforces, acwing, nowcoder, vjudge, pta]
 
 export class SiteRegistry {
   private sites: Map<string, SiteConfig>

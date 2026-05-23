@@ -4,12 +4,14 @@ import { codeforcesParser } from './sites/codeforces'
 import { acwingParser } from './sites/acwing'
 import { nowcoderParser } from './sites/nowcoder'
 import { vjudgeParser } from './sites/vjudge'
+import { ptaParser } from './sites/pta'
 
 const parsers: SiteParser[] = [
   codeforcesParser,
   acwingParser,
   nowcoderParser,
   vjudgeParser,
+  ptaParser,
 ]
 
 export function parseUrl(url: string): ProblemIdentity | null {

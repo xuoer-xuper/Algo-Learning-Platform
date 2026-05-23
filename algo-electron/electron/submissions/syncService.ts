@@ -116,7 +116,6 @@ export class SyncService {
             const u = new URL(url)
             const search = u.searchParams.get('search')
             if (search && /^\d+$/.test(search)) {
-              // 用内部题号查数据库
               const db = getDb()
               const problem = db.prepare(
                 "SELECT platform_problem_id FROM problems WHERE platform = 'nowcoder' AND platform_problem_id LIKE ?"
@@ -124,9 +123,20 @@ export class SyncService {
               if (problem) {
                 pageProblemId = problem.platform_problem_id
               } else {
-                // 数据库没有，用 search 作为临时 ID
                 pageProblemId = `nc-${search}`
               }
+            }
+          } catch { /* ignore */ }
+        }
+      }
+
+      // PTA 特殊处理：从提交行的题目链接中提取 platformProblemId
+      if (!pageProblemId && url.includes('pintia.cn')) {
+        for (const sub of submissions) {
+          try {
+            const raw = JSON.parse(sub.rawJson || '{}')
+            if (raw._ptaProblemId) {
+              (sub as any)._ptaProblemId = raw._ptaProblemId
             }
           } catch { /* ignore */ }
         }
@@ -191,6 +201,44 @@ export class SyncService {
         } catch { /* ignore */ }
       } else if (pageProblemDbId) {
         sub.problemId = pageProblemDbId
+      }
+
+      // PTA 逐行关联：每条提交可能对应不同题目
+      if (!sub.problemId && sub.platform === 'pta') {
+        try {
+          const ptaPid = (sub as any)._ptaProblemId
+          if (ptaPid) {
+            let problem = db.prepare('SELECT id FROM problems WHERE platform = ? AND platform_problem_id = ?').get('pta', ptaPid) as { id: string } | undefined
+            if (!problem) {
+              const parts = ptaPid.split('-')
+              const identity = {
+                platform: 'pta' as const,
+                platformProblemId: ptaPid,
+                canonicalUrl: parts.length >= 2
+                  ? `https://pintia.cn/problem-sets/${parts[0]}/exam/problems/type/7?problemSetProblemId=${parts[1]}`
+                  : `https://pintia.cn/problem-sets/${ptaPid}`,
+                contestId: parts[0],
+                problemIndex: parts.length >= 2 ? parts[1] : undefined,
+                confidence: 'url' as const,
+              }
+              upsertProblem(identity)
+              problem = db.prepare('SELECT id FROM problems WHERE platform = ? AND platform_problem_id = ?').get('pta', ptaPid) as { id: string } | undefined
+            }
+            if (problem) sub.problemId = problem.id
+          }
+        } catch { /* ignore */ }
+      }
+
+      // PTA 降级：如果仍然没有关联题目，尝试用提交记录中的 URL 匹配
+      if (!sub.problemId && sub.platform === 'pta' && sub.sourceUrl) {
+        try {
+          const sourceIdentity = parseUrl(sub.sourceUrl)
+          if (sourceIdentity) {
+            upsertProblem(sourceIdentity)
+            const problem = db.prepare('SELECT id FROM problems WHERE platform = ? AND platform_problem_id = ?').get('pta', sourceIdentity.platformProblemId) as { id: string } | undefined
+            if (problem) sub.problemId = problem.id
+          }
+        } catch { /* ignore */ }
       }
 
       const isNew = upsertSubmission(sub)

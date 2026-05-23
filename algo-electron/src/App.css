@@ -1195,6 +1195,72 @@
   color: white;
 }
 
+.site-actions-bar {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.import-preview {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 8px;
+}
+
+.import-preview-title {
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+  margin: 0 0 8px 0;
+}
+
+.import-group {
+  margin-bottom: 8px;
+}
+
+.import-group-label {
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.import-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+.import-conflict {
+  background: rgba(245, 158, 11, 0.08);
+}
+
+.import-skipped {
+  opacity: 0.5;
+}
+
+.import-checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.import-checkbox-label input[type="checkbox"] {
+  accent-color: var(--primary);
+}
+
+.import-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
 /* 学习轨迹时间线 */
 .dashboard-timeline {
   display: flex;

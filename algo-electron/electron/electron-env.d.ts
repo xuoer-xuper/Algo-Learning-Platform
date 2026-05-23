@@ -82,6 +82,9 @@ interface ElectronAPI {
   updateSite: (id: string, data: any) => Promise<boolean>
   toggleSite: (id: string, enabled: boolean) => Promise<boolean>
   deleteSite: (id: string) => Promise<boolean>
+  exportSitesConfig: () => Promise<{ success: boolean; path?: string; count?: number; error?: string }>
+  importSitesConfig: () => Promise<{ success: boolean; preview?: any; error?: string }>
+  confirmImportSites: (sites: any[], overwriteIds: string[]) => Promise<{ success: boolean; imported?: number; overwritten?: number; error?: string }>
   getDefaultHomeUrl: () => Promise<string>
   setDefaultHomeUrl: (url: string) => void
 }

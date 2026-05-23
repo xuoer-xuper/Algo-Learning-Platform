@@ -81,6 +81,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   updateSite: (id: string, data: any) => ipcRenderer.invoke('sites:update', id, data),
   toggleSite: (id: string, enabled: boolean) => ipcRenderer.invoke('sites:toggle', id, enabled),
   deleteSite: (id: string) => ipcRenderer.invoke('sites:delete', id),
+  exportSitesConfig: () => ipcRenderer.invoke('sites:exportConfig') as Promise<{ success: boolean; path?: string; count?: number; error?: string }>,
+  importSitesConfig: () => ipcRenderer.invoke('sites:importConfig') as Promise<{ success: boolean; preview?: any; error?: string }>,
+  confirmImportSites: (sites: any[], overwriteIds: string[]) => ipcRenderer.invoke('sites:confirmImport', sites, overwriteIds) as Promise<{ success: boolean; imported?: number; overwritten?: number; error?: string }>,
 
   // 配置
   getDefaultHomeUrl: () => ipcRenderer.invoke('config:getDefaultHomeUrl'),
