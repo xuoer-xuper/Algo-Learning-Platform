@@ -506,6 +506,23 @@
   margin-top: 4px;
 }
 
+.rating-info {
+  display: flex;
+  gap: 16px;
+  margin-top: 8px;
+  font-size: 14px;
+}
+
+.rating-current {
+  color: var(--primary);
+  font-weight: 600;
+}
+
+.rating-peak {
+  color: var(--warning);
+  font-weight: 600;
+}
+
 /* 统计卡片 */
 .stats-grid {
   display: grid;

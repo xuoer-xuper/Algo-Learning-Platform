@@ -65,6 +65,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getUnreviewedProblems: (days?: number, limit?: number) => ipcRenderer.invoke('stats:getUnreviewed', days, limit),
   recomputeAllDailyStats: () => ipcRenderer.invoke('stats:recomputeAll'),
 
+  // Rating
+  bindHandle: (platform: string, handle: string) => ipcRenderer.invoke('rating:bindHandle', platform, handle),
+  getAccount: (platform: string, handle: string) => ipcRenderer.invoke('rating:getAccount', platform, handle),
+  getAccounts: (platform: string) => ipcRenderer.invoke('rating:getAccounts', platform),
+  syncCodeforcesRating: (handle: string) => ipcRenderer.invoke('rating:syncCodeforces', handle),
+  getRatingHistory: (accountId: string) => ipcRenderer.invoke('rating:getHistory', accountId),
+
   // 配置
   getDefaultHomeUrl: () => ipcRenderer.invoke('config:getDefaultHomeUrl'),
   setDefaultHomeUrl: (url: string) => ipcRenderer.send('config:setDefaultHomeUrl', url),

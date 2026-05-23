@@ -19,11 +19,22 @@ export function SettingsPage({ onClose }: { onClose: () => void }) {
   const [homeUrl, setHomeUrl] = useState('')
   const [saved, setSaved] = useState(false)
   const [cfHandle, setCfHandle] = useState('')
+  const [ratingHandle, setRatingHandle] = useState('')
+  const [ratingInfo, setRatingInfo] = useState<any>(null)
+  const [ratingStatus, setRatingStatus] = useState('')
   const [syncStatus, setSyncStatus] = useState<Record<string, string>>({})
 
   useEffect(() => {
     window.electronAPI.getOverviewStats().then(setStats)
     window.electronAPI.getDefaultHomeUrl().then(setHomeUrl)
+    // 加载已绑定的 CF 账号
+    window.electronAPI.getAccounts('codeforces').then((accounts: any[]) => {
+      if (accounts.length > 0) {
+        const acc = accounts[0]
+        setRatingHandle(acc.handle)
+        setRatingInfo(acc)
+      }
+    })
   }, [])
 
   const handleSyncCF = async () => {
@@ -34,6 +45,24 @@ export function SettingsPage({ onClose }: { onClose: () => void }) {
       if (result.error) setSyncStatus((s) => ({ ...s, cf: `失败: ${result.error}` }))
       else { setSyncStatus((s) => ({ ...s, cf: `成功: ${result.fetched} 条，新增 ${result.inserted} 条` })); window.electronAPI.getOverviewStats().then(setStats) }
     } catch (e: any) { setSyncStatus((s) => ({ ...s, cf: `错误: ${e.message}` })) }
+  }
+
+  const handleSyncRating = async () => {
+    if (!ratingHandle.trim()) { setRatingStatus('请输入 Handle'); return }
+    setRatingStatus('同步中...')
+    try {
+      await window.electronAPI.bindHandle('codeforces', ratingHandle.trim())
+      const result = await window.electronAPI.syncCodeforcesRating(ratingHandle.trim())
+      if (result.success) {
+        setRatingStatus(`同步成功，peak: ${result.peak}`)
+        const acc = await window.electronAPI.getAccount('codeforces', ratingHandle.trim())
+        setRatingInfo(acc)
+      } else {
+        setRatingStatus(`失败: ${result.error}`)
+      }
+    } catch (e: any) {
+      setRatingStatus(`错误: ${e.message}`)
+    }
   }
 
   const handleSave = () => {
@@ -91,6 +120,21 @@ export function SettingsPage({ onClose }: { onClose: () => void }) {
             </div>
           ) : (
             <div className="settings-empty">加载中...</div>
+          )}
+        </div>
+
+        <div className="settings-section">
+          <h3 className="settings-section-title">Codeforces Rating</h3>
+          <div className="sync-row">
+            <input className="settings-input" type="text" value={ratingHandle} onChange={(e) => setRatingHandle(e.target.value)} placeholder="Codeforces Handle" />
+            <button className="settings-save-btn" onClick={handleSyncRating}>同步 Rating</button>
+          </div>
+          {ratingStatus && <div className="sync-status">{ratingStatus}</div>}
+          {ratingInfo && (
+            <div className="rating-info">
+              <span className="rating-current">当前: {ratingInfo.current_rating ?? '-'}</span>
+              <span className="rating-peak">最高: {ratingInfo.peak_rating ?? '-'}</span>
+            </div>
           )}
         </div>
 

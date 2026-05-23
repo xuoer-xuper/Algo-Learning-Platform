@@ -69,6 +69,11 @@ interface ElectronAPI {
   getWrongProblems: (limit?: number) => Promise<any[]>
   getUnreviewedProblems: (days?: number, limit?: number) => Promise<any[]>
   recomputeAllDailyStats: () => Promise<number>
+  bindHandle: (platform: string, handle: string) => Promise<{ id: string; handle: string }>
+  getAccount: (platform: string, handle: string) => Promise<any>
+  getAccounts: (platform: string) => Promise<any[]>
+  syncCodeforcesRating: (handle: string) => Promise<{ success: boolean; historyCount?: number; inserted?: number; peak?: number; error?: string }>
+  getRatingHistory: (accountId: string) => Promise<any[]>
   getDefaultHomeUrl: () => Promise<string>
   setDefaultHomeUrl: (url: string) => void
 }

@@ -4,7 +4,7 @@
 
 Phase 4 进行中。
 
-Phase 3 已完成。Phase 4 数据库基础已建立：platform_accounts、rating_history、contest_results 三张表已创建。
+Phase 3 已完成。Phase 4 Rating 核心功能已完成：CF handle 绑定、Rating 同步、rating history、peak rating、contest delta。
 
 ## 2. 当前代码状态
 
@@ -69,12 +69,11 @@ Phase 3 已完成。Phase 4 数据库基础已建立：platform_accounts、ratin
 
 Phase 4 进行中。
 
-1. `P4-004`：支持 Codeforces handle 绑定。
-2. `P4-005`：同步 Codeforces 当前 Rating。
-3. `P4-006`：同步 Codeforces rating history。
-4. `P4-007`：计算 peak rating。
+1. `P4-009`：Rating 趋势图（Dashboard 集成）。
+2. `P4-010`：比赛记录列表。
+3. `P4-012`：Phase 4 数据校验。
 
-如果只做一个任务，优先做 `P4-004`。
+如果只做一个任务，优先做 `P4-009`。
 
 ## 5. 高风险区域
 

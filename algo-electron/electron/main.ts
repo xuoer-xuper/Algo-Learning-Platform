@@ -8,7 +8,9 @@ import { CookieVault } from './cookies/CookieVault'
 import { TrackingService } from './tracking/TrackingService'
 import { getDefaultHomeUrl, saveConfig } from './app/config'
 import { getRecentProblems, getOverviewStats, updateProblemTitleByUrl, getProblemDetail, deleteProblem } from './db/repositories/problemRepository'
+import { upsertAccount, updateCurrentRating, updatePeakRating, getAccount, getAccountsByPlatform, getAccountById, upsertRatingHistory, getRatingHistory, computePeakRating } from './db/repositories/accountRepository'
 import { getDailyActiveStats, getVisitedTrend, getAcTrend, getSubmissionTrend, getPlatformDistribution, getProblemVisitStats, getTimeline, getLastActiveTime, getRevisitStats, recomputeDailyStats, getStreakDays, getWrongProblems, getUnreviewedProblems, recomputeAllDailyStats } from './db/repositories/statsRepository'
+import { fetchCFCurrentRating, fetchCFRatingHistory, formatCFRatingHistory } from './rating/codeforces'
 import { resolveNavigateUrl } from './parsers/navigateUrl'
 import { SyncService } from './submissions/syncService'
 import { EXTRACT_PROBLEM_TITLE_SCRIPT } from './parsers/extractProblemTitleScript'
@@ -263,6 +265,56 @@ ipcMain.handle('config:getDefaultHomeUrl', () => {
 
 ipcMain.on('config:setDefaultHomeUrl', (_event, url: string) => {
   saveConfig({ defaultHomeUrl: url })
+})
+
+// --- Rating ---
+
+ipcMain.handle('rating:bindHandle', (_event, platform: string, handle: string) => {
+  const id = upsertAccount(platform, handle)
+  return { id, handle }
+})
+
+ipcMain.handle('rating:getAccount', (_event, platform: string, handle: string) => {
+  return getAccount(platform, handle)
+})
+
+ipcMain.handle('rating:getAccounts', (_event, platform: string) => {
+  return getAccountsByPlatform(platform)
+})
+
+ipcMain.handle('rating:syncCodeforces', async (_event, handle: string) => {
+  try {
+    // 确保账号存在
+    const accountId = upsertAccount('codeforces', handle)
+
+    // 同步当前 Rating
+    const info = await fetchCFCurrentRating(handle)
+    if (info) {
+      updateCurrentRating(accountId, info.rating)
+    }
+
+    // 同步 Rating 历史
+    const history = await fetchCFRatingHistory(handle)
+    const formatted = formatCFRatingHistory(history)
+    let inserted = 0
+    for (const h of formatted) {
+      const isNew = upsertRatingHistory({ accountId, platform: 'codeforces', ...h })
+      if (isNew) inserted++
+    }
+
+    // 计算 peak rating
+    const peak = computePeakRating(accountId)
+    if (peak) updatePeakRating(accountId, peak)
+
+    return { success: true, historyCount: history.length, inserted, peak }
+  } catch (e: any) {
+    return { success: false, error: e.message }
+  }
+})
+
+ipcMain.handle('rating:getHistory', (_event, accountId: string) => {
+  if (!getAccountById(accountId)) return []
+  return getRatingHistory(accountId)
 })
 
 ipcMain.handle('submissions:syncCodeforces', async (_event, handle: string) => {
