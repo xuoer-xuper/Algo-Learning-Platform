@@ -8,6 +8,7 @@ import { CookieVault } from './cookies/CookieVault'
 import { TrackingService } from './tracking/TrackingService'
 import { getDefaultHomeUrl, saveConfig } from './app/config'
 import { getRecentProblems, getOverviewStats, updateProblemTitleByUrl, getProblemDetail, deleteProblem } from './db/repositories/problemRepository'
+import { getAllSites, getSiteById, createSite, updateSite, toggleSite, deleteSite, seedBuiltinSites } from './db/repositories/siteRepository'
 import { upsertAccount, updateCurrentRating, updatePeakRating, getAccount, getAccountsByPlatform, getAccountById, upsertRatingHistory, getRatingHistory, computePeakRating } from './db/repositories/accountRepository'
 import { getDailyActiveStats, getVisitedTrend, getAcTrend, getSubmissionTrend, getPlatformDistribution, getProblemVisitStats, getTimeline, getLastActiveTime, getRevisitStats, recomputeDailyStats, getStreakDays, getWrongProblems, getUnreviewedProblems, recomputeAllDailyStats } from './db/repositories/statsRepository'
 import { fetchCFCurrentRating, fetchCFRatingHistory, formatCFRatingHistory } from './rating/codeforces'
@@ -329,6 +330,32 @@ ipcMain.handle('rating:getContestResults', (_event, accountId: string) => {
   `).all(accountId) as any[]
 })
 
+// --- 站点管理 ---
+
+ipcMain.handle('sites:getAll', () => {
+  return getAllSites()
+})
+
+ipcMain.handle('sites:getById', (_event, id: string) => {
+  return getSiteById(id)
+})
+
+ipcMain.handle('sites:create', (_event, data: any) => {
+  return createSite(data)
+})
+
+ipcMain.handle('sites:update', (_event, id: string, data: any) => {
+  return updateSite(id, data)
+})
+
+ipcMain.handle('sites:toggle', (_event, id: string, enabled: boolean) => {
+  return toggleSite(id, enabled)
+})
+
+ipcMain.handle('sites:delete', (_event, id: string) => {
+  return deleteSite(id)
+})
+
 ipcMain.handle('submissions:syncCodeforces', async (_event, handle: string) => {
   if (!syncService) return { platform: 'codeforces', fetched: 0, inserted: 0, error: 'SyncService not ready' }
   return syncService.syncCodeforces(handle)
@@ -362,6 +389,7 @@ app.on('activate', () => {
 
 app.whenReady().then(() => {
   initDb()
+  seedBuiltinSites()
   new SiteRegistry()
   new CookieVault()
   trackingService = new TrackingService()

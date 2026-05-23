@@ -2,9 +2,11 @@
 
 ## 1. 当前阶段
 
-Phase 4 已完成。
+Phase 5 进行中。
 
-Phase 4 全部 12 个任务已完成并通过回归测试。CF handle 绑定、Rating 同步、rating history、peak rating、contest delta、Rating 趋势图、比赛记录列表均已实现。
+Phase 4 已完成。Phase 5 站点管理基础已完成：站点管理页、新增站点、编辑站点、启用/禁用站点、site_configs 表和 migration。
+
+P5-004 修复：之前禁用站点只更新了数据库 enabled 字段，但 URL 识别流程未检查该字段。已在 TrackingService.handleNavigation() 中增加 getSiteById 检查，禁用站点的题目不再触发识别和写入。
 
 ## 2. 当前代码状态
 
@@ -46,6 +48,7 @@ Phase 4 全部 12 个任务已完成并通过回归测试。CF handle 绑定、R
 - 侧边栏支持按平台/状态筛选，显示提交次数。
 - 题目详情页已实现：点击题目查看提交历史。
 - 题目状态从 submissions 表实时计算。
+- 站点禁用功能已真正生效：TrackingService.handleNavigation() 在识别题目后检查 site_configs.enabled，禁用站点不再触发 URL 识别和写入。
 
 ## 3. 当前文档状态
 
@@ -67,14 +70,14 @@ Phase 4 全部 12 个任务已完成并通过回归测试。CF handle 绑定、R
 
 ## 4. 下一步推荐任务
 
-Phase 4 已完成，进入 Phase 5：站点扩展系统。
+Phase 5 进行中。
 
-1. `P5-001`：实现站点管理页。
-2. `P5-002`：支持手动新增网站配置。
-3. `P5-003`：支持编辑站点 URL 规则。
-4. `P5-008`：提供 adapter 扩展接口。
+1. `P5-005`：支持导入导出站点配置。
+2. `P5-006`：新增 PTA 默认站点配置。
+3. `P5-008`：提供 adapter 扩展接口。
+4. `P5-009`：建立站点规则测试样例。
 
-如果只做一个任务，优先做 `P5-001`。
+如果只做一个任务，优先做 `P5-006`。
 
 ## 5. 高风险区域
 

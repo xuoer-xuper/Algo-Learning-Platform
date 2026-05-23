@@ -74,6 +74,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getCodeforcesAccount: () => ipcRenderer.invoke('rating:getCodeforcesAccount'),
   getContestResults: (accountId: string) => ipcRenderer.invoke('rating:getContestResults', accountId),
 
+  // 站点管理
+  getAllSites: () => ipcRenderer.invoke('sites:getAll'),
+  getSiteById: (id: string) => ipcRenderer.invoke('sites:getById', id),
+  createSite: (data: any) => ipcRenderer.invoke('sites:create', data),
+  updateSite: (id: string, data: any) => ipcRenderer.invoke('sites:update', id, data),
+  toggleSite: (id: string, enabled: boolean) => ipcRenderer.invoke('sites:toggle', id, enabled),
+  deleteSite: (id: string) => ipcRenderer.invoke('sites:delete', id),
+
   // 配置
   getDefaultHomeUrl: () => ipcRenderer.invoke('config:getDefaultHomeUrl'),
   setDefaultHomeUrl: (url: string) => ipcRenderer.send('config:setDefaultHomeUrl', url),

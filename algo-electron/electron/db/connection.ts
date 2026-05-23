@@ -9,6 +9,7 @@ import { migration003 } from './migrations/003_fix_codeforces_canonical_urls'
 import { migration004 } from './migrations/004_fix_codeforces_gym_page_urls'
 import { migration005 } from './migrations/005_daily_stats'
 import { migration006 } from './migrations/006_rating'
+import { migration007 } from './migrations/007_site_configs'
 
 let db: Database.Database | null = null
 
@@ -34,7 +35,7 @@ export function initDb(): Database.Database {
   db.pragma('foreign_keys = ON')
   db.pragma('busy_timeout = 5000')
 
-  runMigrations(db, [migration001, migration002, migration003, migration004, migration005, migration006])
+  runMigrations(db, [migration001, migration002, migration003, migration004, migration005, migration006, migration007])
 
   return db
 }

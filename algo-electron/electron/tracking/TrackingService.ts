@@ -2,6 +2,7 @@ import crypto from 'node:crypto'
 import { getDb } from '../db/connection'
 import { parseUrl } from '../parsers/registry'
 import { upsertProblem } from '../db/repositories/problemRepository'
+import { getSiteById } from '../db/repositories/siteRepository'
 import type { ProblemIdentity } from '../shared/types'
 import { nowBeijing } from '../shared/time'
 
@@ -16,6 +17,9 @@ export class TrackingService {
   handleNavigation(url: string): ProblemIdentity | null {
     const identity = parseUrl(url)
     if (!identity) return null
+
+    const site = getSiteById(identity.platform)
+    if (!site || !site.enabled) return null
 
     upsertProblem(identity)
     this.onProblemDetected?.(identity)

@@ -76,6 +76,12 @@ interface ElectronAPI {
   getRatingHistory: (accountId: string) => Promise<any[]>
   getCodeforcesAccount: () => Promise<any>
   getContestResults: (accountId: string) => Promise<any[]>
+  getAllSites: () => Promise<any[]>
+  getSiteById: (id: string) => Promise<any>
+  createSite: (data: any) => Promise<string>
+  updateSite: (id: string, data: any) => Promise<boolean>
+  toggleSite: (id: string, enabled: boolean) => Promise<boolean>
+  deleteSite: (id: string) => Promise<boolean>
   getDefaultHomeUrl: () => Promise<string>
   setDefaultHomeUrl: (url: string) => void
 }

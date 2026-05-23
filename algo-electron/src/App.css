@@ -419,6 +419,8 @@
 .settings-page {
   padding: 20px;
   min-width: 380px;
+  max-height: 90vh;
+  overflow-y: auto;
 }
 
 .settings-header {
@@ -1121,6 +1123,76 @@
   color: var(--text-secondary);
   min-width: 36px;
   text-align: right;
+}
+
+/* 站点管理 */
+.site-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.site-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  background: var(--bg);
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+}
+
+.site-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.site-name {
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.site-domains {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.site-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.site-toggle {
+  padding: 3px 10px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.site-toggle.enabled {
+  background: var(--success);
+  color: white;
+  border-color: var(--success);
+}
+
+.site-delete {
+  padding: 3px 10px;
+  border: 1px solid var(--error);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--error);
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.site-delete:hover {
+  background: var(--error);
+  color: white;
 }
 
 /* 学习轨迹时间线 */

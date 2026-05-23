@@ -23,11 +23,15 @@ export function SettingsPage({ onClose }: { onClose: () => void }) {
   const [ratingInfo, setRatingInfo] = useState<any>(null)
   const [ratingStatus, setRatingStatus] = useState('')
   const [syncStatus, setSyncStatus] = useState<Record<string, string>>({})
+  const [sites, setSites] = useState<any[]>([])
+
+  const loadSites = () => {
+    window.electronAPI.getAllSites().then(setSites)
+  }
 
   useEffect(() => {
     window.electronAPI.getOverviewStats().then(setStats)
     window.electronAPI.getDefaultHomeUrl().then(setHomeUrl)
-    // 加载已绑定的 CF 账号
     window.electronAPI.getAccounts('codeforces').then((accounts: any[]) => {
       if (accounts.length > 0) {
         const acc = accounts[0]
@@ -35,6 +39,7 @@ export function SettingsPage({ onClose }: { onClose: () => void }) {
         setRatingInfo(acc)
       }
     })
+    loadSites()
   }, [])
 
   const handleSyncCF = async () => {
@@ -63,6 +68,17 @@ export function SettingsPage({ onClose }: { onClose: () => void }) {
     } catch (e: any) {
       setRatingStatus(`错误: ${e.message}`)
     }
+  }
+
+  const handleToggleSite = async (id: string, enabled: boolean) => {
+    await window.electronAPI.toggleSite(id, enabled)
+    loadSites()
+  }
+
+  const handleDeleteSite = async (id: string) => {
+    if (!confirm('确定删除该站点？')) return
+    await window.electronAPI.deleteSite(id)
+    loadSites()
   }
 
   const handleSave = () => {
@@ -146,6 +162,31 @@ export function SettingsPage({ onClose }: { onClose: () => void }) {
           </div>
           {syncStatus.cf && <div className="sync-status">{syncStatus.cf}</div>}
           <div className="sync-hint">AcWing / 牛客 / VJudge：在浏览器打开提交页面后点工具栏 ↗ 抓取</div>
+        </div>
+
+        <div className="settings-section">
+          <h3 className="settings-section-title">站点管理</h3>
+          <div className="site-list">
+            {sites.map((s) => (
+              <div key={s.id} className="site-item">
+                <div className="site-info">
+                  <span className="site-name">{s.name}</span>
+                  <span className="site-domains">{s.domains.join(', ')}</span>
+                </div>
+                <div className="site-actions">
+                  <button
+                    className={`site-toggle ${s.enabled ? 'enabled' : ''}`}
+                    onClick={() => handleToggleSite(s.id, !s.enabled)}
+                  >
+                    {s.enabled ? '已启用' : '已禁用'}
+                  </button>
+                  {!s.isBuiltin && (
+                    <button className="site-delete" onClick={() => handleDeleteSite(s.id)}>删除</button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
 
         <div className="settings-section">
