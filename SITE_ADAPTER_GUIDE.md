@@ -194,6 +194,53 @@ PTA 适配限制：
 7. 更新本文档。
 8. 更新 `TASKS.md` 和 `AI_HANDOFF.md`。
 
+### 6.1 新增 SiteAdapter 适配器步骤
+
+对于使用简单配置（`problemUrlPatterns`）无法解决的复杂平台，可以通过实现代码级 `SiteAdapter` 接口进行扩展：
+
+1. **定义 Adapter 接口实现**：
+   在 `electron/parsers/types.ts` 中已定义 `SiteAdapter` 接口：
+   ```ts
+   export interface SiteAdapter {
+     id: string
+     match?(url: string): boolean
+     parse?(url: string): ProblemIdentity | null
+     extractTitleScript?(): string
+   }
+   ```
+
+2. **编写 Adapter 逻辑**：
+   创建一个独立的适配器实现，例如：
+   ```ts
+   // electron/parsers/sites/mycustom.ts
+   import type { SiteAdapter } from '../types'
+   
+   export const myCustomAdapter: SiteAdapter = {
+     id: 'mycustom',
+     match(url) {
+       return url.includes('mycustom.com/problem')
+     },
+     parse(url) {
+       // 自定义复杂解析逻辑
+       return { platform: 'mycustom', ... }
+     },
+     extractTitleScript() {
+       return `(() => document.querySelector('.custom-title')?.textContent)()`
+     }
+   }
+   ```
+
+3. **注册 Adapter**：
+   在 `electron/parsers/registry.ts` 中引入并注册：
+   ```ts
+   import { myCustomAdapter } from './sites/mycustom'
+   registerAdapter(myCustomAdapter)
+   ```
+
+4. **配置站点关联**：
+   在内置站点配置或用户自定义配置中，指定 `adapter` 字段为该适配器的 `id`（例如：`adapter: 'mycustom'`）。
+   当用户访问匹配域名的 URL 时，系统会自动调用该 Adapter 的解析和标题抓取逻辑。
+
 ## 7. 测试要求
 
 每个站点至少测试：

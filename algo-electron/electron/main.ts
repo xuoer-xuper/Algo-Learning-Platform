@@ -3,17 +3,18 @@ import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import fs from 'node:fs'
 import { BrowserHost } from './browser/BrowserHost'
-import { initDb, closeDb } from './db/connection'
+import { initDb, closeDb, getDb } from './db/connection'
 import { SiteRegistry } from './sites/siteRegistry'
 import { CookieVault } from './cookies/CookieVault'
 import { TrackingService } from './tracking/TrackingService'
 import { getDefaultHomeUrl, saveConfig } from './app/config'
 import { getRecentProblems, getOverviewStats, updateProblemTitleByUrl, getProblemDetail, deleteProblem } from './db/repositories/problemRepository'
-import { getAllSites, getSiteById, createSite, updateSite, toggleSite, deleteSite, seedBuiltinSites, exportSitesConfig, previewImportSites, confirmImportSites } from './db/repositories/siteRepository'
+import { getAllSites, getSiteById, createSite, updateSite, toggleSite, deleteSite, seedBuiltinSites, exportSitesConfig, previewImportSites, confirmImportSites, getEnabledSites } from './db/repositories/siteRepository'
 import { upsertAccount, updateCurrentRating, updatePeakRating, getAccount, getAccountsByPlatform, getAccountById, upsertRatingHistory, getRatingHistory, computePeakRating } from './db/repositories/accountRepository'
 import { getDailyActiveStats, getVisitedTrend, getAcTrend, getSubmissionTrend, getPlatformDistribution, getProblemVisitStats, getTimeline, getLastActiveTime, getRevisitStats, recomputeDailyStats, getStreakDays, getWrongProblems, getUnreviewedProblems, recomputeAllDailyStats } from './db/repositories/statsRepository'
 import { fetchCFCurrentRating, fetchCFRatingHistory, formatCFRatingHistory } from './rating/codeforces'
 import { resolveNavigateUrl } from './parsers/navigateUrl'
+import { getAdapterForUrl, setEnabledSitesFetcher } from './parsers/registry'
 import { SyncService } from './submissions/syncService'
 import { EXTRACT_PROBLEM_TITLE_SCRIPT } from './parsers/extractProblemTitleScript'
 import { isValidScrapedTitle } from './parsers/titleValidation'
@@ -59,7 +60,12 @@ function createWindow() {
   const scheduleTitleExtraction = (url: string) => {
     if (!url || url === 'about:blank') return
     const extract = () => {
-      browserHost?.executeScript(EXTRACT_PROBLEM_TITLE_SCRIPT)
+      const adapter = getAdapterForUrl(url)
+      const script = (adapter && adapter.extractTitleScript)
+        ? adapter.extractTitleScript()
+        : EXTRACT_PROBLEM_TITLE_SCRIPT
+
+      browserHost?.executeScript(script)
         .then((domTitle: string | null) => {
           if (isValidScrapedTitle(domTitle)) {
             updateProblemTitleByUrl(url, domTitle!)
@@ -442,6 +448,7 @@ app.on('activate', () => {
 app.whenReady().then(() => {
   initDb()
   seedBuiltinSites()
+  setEnabledSitesFetcher(getEnabledSites)
   new SiteRegistry()
   new CookieVault()
   trackingService = new TrackingService()

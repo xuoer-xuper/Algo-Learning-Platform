@@ -5,3 +5,10 @@ export interface SiteParser {
   match(url: string): boolean
   parse(url: string): ProblemIdentity | null
 }
+
+export interface SiteAdapter {
+  id: string
+  match?(url: string): boolean
+  parse?(url: string): ProblemIdentity | null
+  extractTitleScript?(): string
+}

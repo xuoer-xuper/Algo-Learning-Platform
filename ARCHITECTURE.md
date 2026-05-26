@@ -344,6 +344,10 @@ type ProblemIdentity = {
 - 不确定时不写入核心题目表。
 - VJudge 需要保留 VJudge 身份和原始 OJ 身份。
 - 新站点优先通过配置解决，配置无法解决再写 adapter。
+- 引入 `SiteAdapter` 作为代码级适配器扩展点，支持 URL 匹配 (`match`)、题目身份解析 (`parse`)、网页标题/元数据抓取脚本 (`extractTitleScript`)。
+- 适配器由 `electron/parsers/registry.ts` 统一注册和管理。
+- 匹配流程：对于每个启用的站点，如果该站点指定了 `adapter`（默认为站点 `id`），则优先调用对应的代码级适配器；若无适配器，则回退为通用的 `problemUrlPatterns` 配置模式解析。
+- 标题抓取流程：主进程的标题抓取任务会根据当前 URL 获取关联的适配器，若适配器定义了 `extractTitleScript`，则执行其自定义的抓取脚本，否则执行通用的 `EXTRACT_PROBLEM_TITLE_SCRIPT`。
 
 ## 9. 数据库访问层
 
