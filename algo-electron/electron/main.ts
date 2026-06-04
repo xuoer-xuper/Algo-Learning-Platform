@@ -1,8 +1,8 @@
-import { app, BrowserWindow, ipcMain, Menu, dialog } from 'electron'
+import { app, BrowserWindow, ipcMain, Menu, dialog, session } from 'electron'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import fs from 'node:fs'
-import { BrowserHost } from './browser/BrowserHost'
+import { TabManager } from './browser/TabManager'
 import { initDb, closeDb, getDb } from './db/connection'
 import { SiteRegistry } from './sites/siteRegistry'
 import { CookieVault } from './cookies/CookieVault'
@@ -16,8 +16,13 @@ import { fetchCFCurrentRating, fetchCFRatingHistory, formatCFRatingHistory } fro
 import { resolveNavigateUrl } from './parsers/navigateUrl'
 import { getAdapterForUrl, setEnabledSitesFetcher } from './parsers/registry'
 import { SyncService } from './submissions/syncService'
+import { UserScriptService } from './scripts/UserScriptService'
 import { EXTRACT_PROBLEM_TITLE_SCRIPT } from './parsers/extractProblemTitleScript'
 import { isValidScrapedTitle } from './parsers/titleValidation'
+
+// 禁用 Chromium 124+ 默认启用的 PostQuantumKyber，以防止部分本地代理或防火墙导致 SSL 握手失败 (ERR_CONNECTION_CLOSED)
+app.commandLine.appendSwitch('disable-features', 'PostQuantumKyber,TLS13KeyExchangeMLKEM')
+app.commandLine.appendSwitch('ignore-certificate-errors')
 
 // 删除默认菜单栏
 Menu.setApplicationMenu(null)
@@ -33,9 +38,10 @@ export const RENDERER_DIST = path.join(process.env.APP_ROOT, 'dist')
 process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL ? path.join(process.env.APP_ROOT, 'public') : RENDERER_DIST
 
 let win: BrowserWindow | null
-let browserHost: BrowserHost | null
+let tabManager: TabManager | null
 let trackingService: TrackingService | null
 let syncService: SyncService | null
+let userScriptService: UserScriptService | null
 
 function createWindow() {
   win = new BrowserWindow({
@@ -49,42 +55,57 @@ function createWindow() {
     },
   })
 
-  // 创建浏览器宿主（不自动加载任何页面，显示 React 首页）
-  browserHost = new BrowserHost(win)
-  syncService?.setBrowserHost(browserHost)
+  // 创建多标签页宿主
+  tabManager = new TabManager(win)
+  syncService?.setBrowserHost(tabManager as any) // Temporary cast if SyncService expects BrowserHost, though it probably just needs executeScript/getUrl
 
-  browserHost.setUrlChangeCallback((url) => {
+  tabManager.setUrlChangeCallback((url) => {
     win?.webContents.send('browser:urlChanged', url)
   })
 
+  // 标题抓取防抖与去重
+  const extractionTimers = new Map<string, NodeJS.Timeout[]>()
+  const successfulExtractions = new Set<string>()
+
   const scheduleTitleExtraction = (url: string) => {
     if (!url || url === 'about:blank') return
+    if (successfulExtractions.has(url)) return // 已经抓取成功过，跳过
+
+    // 清除该 URL 之前的定时器
+    if (extractionTimers.has(url)) {
+      extractionTimers.get(url)?.forEach(clearTimeout)
+    }
+    const timers: NodeJS.Timeout[] = []
+
     const extract = () => {
       const adapter = getAdapterForUrl(url)
       const script = (adapter && adapter.extractTitleScript)
         ? adapter.extractTitleScript()
         : EXTRACT_PROBLEM_TITLE_SCRIPT
 
-      browserHost?.executeScript(script)
+      tabManager?.executeScriptOnUrl(url, script)
         .then((domTitle: string | null) => {
           if (isValidScrapedTitle(domTitle)) {
+            successfulExtractions.add(url)
             updateProblemTitleByUrl(url, domTitle!)
             win?.webContents.send('problems:updated')
+            // 成功后清除剩余定时器
+            timers.forEach(clearTimeout)
+            extractionTimers.delete(url)
           }
         })
         .catch(() => { /* ignore */ })
     }
-    setTimeout(extract, 2000)
-    setTimeout(extract, 4500)
-    if (url.includes('pintia.cn')) {
-      setTimeout(extract, 7000)
+
+    timers.push(setTimeout(extract, 2000))
+    timers.push(setTimeout(extract, 5000)) // 减少一次调用，改为 5s
+    if (url.includes('pintia.cn') || url.includes('vjudge.net/contest')) {
+      timers.push(setTimeout(extract, 8000))
     }
-    if (url.includes('vjudge.net/contest')) {
-      setTimeout(extract, 7000)
-    }
+    extractionTimers.set(url, timers)
   }
 
-  browserHost.setNavigateCallback((url) => {
+  tabManager.setNavigateCallback((url) => {
     const identity = trackingService?.handleNavigation(url)
     if (identity) {
       win?.webContents.send('problem:detected', identity)
@@ -93,14 +114,14 @@ function createWindow() {
     }
   })
 
-  browserHost.setTitleChangeCallback((title, url) => {
+  tabManager.setTitleChangeCallback((title, url) => {
     if (!url) return
 
     // CF Gym 题目页会显示 "Illegal contest ID"，自动跳 attachments
     if (title.includes('Illegal contest ID') && url.includes('codeforces.com')) {
       const match = url.match(/codeforces\.com\/(?:gym|problemset\/problem|contest)\/(\d+)/)
       if (match) {
-        browserHost?.navigate(`https://codeforces.com/gym/${match[1]}/attachments`)
+        tabManager?.navigate(`https://codeforces.com/gym/${match[1]}/attachments`)
         return
       }
     }
@@ -108,9 +129,149 @@ function createWindow() {
     scheduleTitleExtraction(url)
   })
 
+  tabManager.setTabListChangedCallback((tabs) => {
+    win?.webContents.send('tab:listChanged', tabs)
+  })
+
+  tabManager.setPageLoadedCallback(async (url) => {
+    console.log('[UserScript] Page loaded:', url)
+    if (!userScriptService || !tabManager) {
+      console.log('[UserScript] SKIP: service or host is null')
+      return
+    }
+    const entries = userScriptService.getMatchingScriptsWithMeta(url)
+    console.log('[UserScript] Matching scripts:', entries.length)
+
+    for (const { script, requires, resources } of entries) {
+      console.log('[UserScript] Injecting:', script.name, 'requires:', requires.length, 'resources:', resources.length, 'code length:', script.code?.length ?? 0)
+      try {
+        // Step 1: Inject GM_* polyfills + resource data onto window
+        const resourceMap: Record<string, string> = {}
+        for (const res of resources) {
+          resourceMap[res.name] = res.url
+        }
+
+        const polyfills = `
+          window.unsafeWindow = window;
+          window.GM_addStyle = (css) => {
+            const style = document.createElement('style');
+            style.textContent = css;
+            (document.head || document.documentElement).appendChild(style);
+          };
+          window.GM_info = {
+            script: {
+              name: ${JSON.stringify(script.name)},
+              version: ${JSON.stringify(script.version || '1.0')}
+            }
+          };
+          window.GM_getValue = (key, def) => {
+            try {
+              const val = localStorage.getItem('GM_' + key);
+              return val !== null ? JSON.parse(val) : def;
+            } catch { return def; }
+          };
+          window.GM_setValue = (key, val) => {
+            localStorage.setItem('GM_' + key, JSON.stringify(val));
+          };
+          window.GM_deleteValue = (key) => {
+            localStorage.removeItem('GM_' + key);
+          };
+          window.GM_listValues = () => {
+            const keys = [];
+            for(let i = 0; i < localStorage.length; i++){
+              const key = localStorage.key(i);
+              if(key && key.startsWith('GM_')) keys.push(key.substring(3));
+            }
+            return keys;
+          };
+          window.GM_xmlhttpRequest = (details) => {
+            const controller = new AbortController();
+            fetch(details.url, {
+              method: details.method || 'GET',
+              headers: details.headers,
+              body: details.data,
+              signal: controller.signal
+            }).then(async r => {
+              const text = await r.text();
+              const resp = { status: r.status, statusText: r.statusText, responseText: text, responseHeaders: '' };
+              if(details.onload) details.onload(resp);
+            }).catch(e => {
+              if(details.onerror) details.onerror(e);
+            });
+            return { abort: () => controller.abort() };
+          };
+          window.GM_setClipboard = (text) => {
+            navigator.clipboard && navigator.clipboard.writeText(text);
+          };
+          window.__GM_RESOURCE_URLS__ = ${JSON.stringify(resourceMap)};
+          window.__GM_RESOURCE_CACHE__ = window.__GM_RESOURCE_CACHE__ || {};
+          window.GM_getResourceText = (name) => {
+            if(window.__GM_RESOURCE_CACHE__[name] !== undefined) return window.__GM_RESOURCE_CACHE__[name];
+            return '';
+          };
+          window.GM_getResourceURL = (name) => {
+            return window.__GM_RESOURCE_URLS__[name] || '';
+          };
+          void 0;
+        `
+        await tabManager.executeScript(polyfills)
+        console.log('[UserScript] Polyfills injected for:', script.name)
+
+        // Step 2: Pre-fetch @resource data so GM_getResourceText works
+        if (resources.length > 0) {
+          const fetchResourcesCode = `
+            (async () => {
+              const urls = window.__GM_RESOURCE_URLS__;
+              for (const [name, url] of Object.entries(urls)) {
+                try {
+                  const resp = await fetch(url);
+                  window.__GM_RESOURCE_CACHE__[name] = await resp.text();
+                } catch(e) {
+                  console.warn('[UserScript] Failed to fetch resource:', name, e);
+                  window.__GM_RESOURCE_CACHE__[name] = '';
+                }
+              }
+              return void 0;
+            })()
+          `
+          await tabManager.executeScript(fetchResourcesCode)
+          console.log('[UserScript] Resources fetched for:', script.name)
+        }
+
+        // Step 3: Load @require libraries sequentially via <script> tags
+        if (requires.length > 0) {
+          const loadRequiresCode = `
+            (async () => {
+              const urls = ${JSON.stringify(requires)};
+              for (const url of urls) {
+                await new Promise((resolve, reject) => {
+                  const s = document.createElement('script');
+                  s.src = url;
+                  s.onload = resolve;
+                  s.onerror = (e) => { console.warn('[UserScript] Failed to load require:', url, e); resolve(e); };
+                  (document.head || document.documentElement).appendChild(s);
+                });
+              }
+              return void 0;
+            })()
+          `
+          await tabManager.executeScript(loadRequiresCode)
+          console.log('[UserScript] Requires loaded for:', script.name)
+        }
+
+        // Step 4: Execute the actual user script
+        await tabManager.executeScript(script.code + '\n; void 0;')
+        console.log('[UserScript] Script executed OK:', script.name)
+
+      } catch (e: any) {
+        console.error('[UserScript Failed]', script.name, e?.message ?? e)
+      }
+    }
+  })
+
   win.webContents.on('did-finish-load', () => {
-    if (browserHost) {
-      win?.webContents.send('browser:urlChanged', browserHost.getUrl())
+    if (tabManager) {
+      win?.webContents.send('browser:urlChanged', tabManager.getUrl())
     }
   })
 
@@ -122,6 +283,7 @@ function createWindow() {
 
   win.once('ready-to-show', () => {
     win?.show()
+    tabManager?.warmup()
   })
 
   win.on('maximize', () => {
@@ -134,48 +296,77 @@ function createWindow() {
 
   win.on('closed', () => {
     trackingService?.endCurrentVisit()
-    browserHost?.destroy()
-    browserHost = null
+    tabManager?.destroy()
+    tabManager = null
     win = null
   })
 }
 
 // --- IPC ---
 
+ipcMain.handle('tab:create', (_event, url?: string) => {
+  return tabManager?.createTab(url) ?? null
+})
+
+ipcMain.on('tab:close', (_event, tabId: string) => {
+  tabManager?.closeTab(tabId)
+})
+
+ipcMain.on('tab:switch', (_event, tabId: string) => {
+  tabManager?.switchTab(tabId)
+})
+
+ipcMain.on('tab:detach', (_event, tabId: string) => {
+  tabManager?.detachTab(tabId)
+})
+
+ipcMain.handle('tab:getList', () => {
+  return tabManager?.getTabList() ?? []
+})
+
 ipcMain.on('browser:navigate', (_event, url: string) => {
-  browserHost?.navigate(resolveNavigateUrl(url))
+  const resolvedUrl = resolveNavigateUrl(url)
+  // 如果链接被重定向（如教练题跳附件页），确保原链接仍被记录访问时间
+  if (resolvedUrl !== url) {
+    const identity = trackingService?.handleNavigation(url)
+    if (identity) {
+      win?.webContents.send('problem:detected', identity)
+      win?.webContents.send('problems:updated')
+    }
+  }
+  tabManager?.navigate(resolvedUrl)
 })
 
 ipcMain.on('browser:goBack', () => {
-  browserHost?.goBack()
+  tabManager?.goBack()
 })
 
 ipcMain.on('browser:goForward', () => {
-  browserHost?.goForward()
+  tabManager?.goForward()
 })
 
 ipcMain.on('browser:reload', () => {
-  browserHost?.reload()
+  tabManager?.reload()
 })
 
 ipcMain.on('browser:goHome', () => {
-  browserHost?.hideView()
+  tabManager?.hideView()
 })
 
 ipcMain.on('browser:hideView', () => {
-  browserHost?.hideView()
+  tabManager?.hideView()
 })
 
 ipcMain.on('browser:showView', () => {
-  browserHost?.showView()
+  tabManager?.showView()
 })
 
 ipcMain.on('browser:setSidebarWidth', (_event, width: number) => {
-  browserHost?.setLeftOffset(width)
+  tabManager?.setLeftOffset(width)
 })
 
 ipcMain.handle('browser:capturePreview', async () => {
-  return browserHost?.capturePreview() ?? null
+  return tabManager?.capturePreview() ?? null
 })
 
 ipcMain.on('window:minimize', () => {
@@ -453,5 +644,19 @@ app.whenReady().then(() => {
   new CookieVault()
   trackingService = new TrackingService()
   syncService = new SyncService()
+  userScriptService = new UserScriptService()
+  
+  // DNS 预解析加速首次导航
+  const urlsToPreconnect = [
+    'https://codeforces.com',
+    'https://www.acwing.com',
+    'https://vjudge.net',
+    'https://pintia.cn',
+    'https://nowcoder.com'
+  ]
+  urlsToPreconnect.forEach(url => {
+    session.defaultSession.preconnect({ url, numSockets: 2 })
+  })
+
   createWindow()
 })

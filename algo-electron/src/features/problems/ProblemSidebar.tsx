@@ -26,7 +26,7 @@ const STATUS_COLORS: Record<string, string> = {
   solved: '#a6e3a1',
 }
 
-const PAGE_SIZE = 30
+
 
 interface Props {
   onNavigate: (url: string) => void
@@ -36,7 +36,6 @@ interface Props {
 
 export function ProblemSidebar({ onNavigate, onShowDetail, onWidthChange }: Props) {
   const [problems, setProblems] = useState<ProblemRecord[]>([])
-  const [page, setPage] = useState(1)
   const [collapsed, setCollapsed] = useState(false)
   const [filterPlatform, setFilterPlatform] = useState<string>('')
   const [filterStatus, setFilterStatus] = useState<string>('')
@@ -44,7 +43,6 @@ export function ProblemSidebar({ onNavigate, onShowDetail, onWidthChange }: Prop
   const loadProblems = useCallback(async () => {
     const list = await window.electronAPI.listRecentProblems(200, filterPlatform || undefined, filterStatus || undefined)
     setProblems(list)
-    setPage(1)
   }, [filterPlatform, filterStatus])
 
   useEffect(() => {
@@ -59,8 +57,7 @@ export function ProblemSidebar({ onNavigate, onShowDetail, onWidthChange }: Prop
     onWidthChange?.(width)
   }, [collapsed, onWidthChange])
 
-  const totalPages = Math.max(1, Math.ceil(problems.length / PAGE_SIZE))
-  const paged = problems.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+
 
   if (collapsed) {
     return (
@@ -95,10 +92,10 @@ export function ProblemSidebar({ onNavigate, onShowDetail, onWidthChange }: Prop
       </div>
 
       <div className="sidebar-list">
-        {paged.length === 0 ? (
+        {problems.length === 0 ? (
           <div className="sidebar-empty">暂无记录</div>
         ) : (
-          paged.map((p) => (
+          problems.map((p) => (
             <div
               key={p.id}
               className="sidebar-item"
@@ -129,13 +126,7 @@ export function ProblemSidebar({ onNavigate, onShowDetail, onWidthChange }: Prop
         )}
       </div>
 
-      {totalPages > 1 && (
-        <div className="sidebar-pagination">
-          <button className="sidebar-page-btn" disabled={page <= 1} onClick={() => setPage(page - 1)}>‹</button>
-          <span className="sidebar-page-info">{page}/{totalPages}</span>
-          <button className="sidebar-page-btn" disabled={page >= totalPages} onClick={() => setPage(page + 1)}>›</button>
-        </div>
-      )}
+
     </div>
   )
 }

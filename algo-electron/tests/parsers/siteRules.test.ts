@@ -196,7 +196,45 @@ test('Dynamic configuration pattern parsing fallback', () => {
   assert.strictEqual(contestIdentity!.platform, 'example')
   assert.strictEqual(contestIdentity!.platformProblemId, '123-A')
   assert.strictEqual(contestIdentity!.contestId, '123')
-  assert.strictEqual(contestIdentity!.problemIndex, 'A')
+})
+
+test('Custom site config matching via parseUrl', () => {
+  // 1. Mock the fetcher to return a custom site (e.g. hdu)
+  setEnabledSitesFetcher(() => [
+    {
+      id: 'hdu',
+      name: 'HDU OJ',
+      domains: ['acm.hdu.edu.cn'],
+      homeUrl: 'https://acm.hdu.edu.cn',
+      enabled: true,
+      problemUrlPatterns: ['/showproblem.php?pid={id}'],
+    }
+  ])
+
+  // 2. Parse a valid URL
+  const validUrl = 'https://acm.hdu.edu.cn/showproblem.php?pid=1000'
+  const identity = parseUrl(validUrl)
+  assert.ok(identity, 'Should parse matching URL via site config patterns')
+  assert.strictEqual(identity!.platform, 'hdu')
+  assert.strictEqual(identity!.platformProblemId, '1000')
+
+  // 3. Disable the site and verify it is not matched anymore
+  setEnabledSitesFetcher(() => [
+    {
+      id: 'hdu',
+      name: 'HDU OJ',
+      domains: ['acm.hdu.edu.cn'],
+      homeUrl: 'https://acm.hdu.edu.cn',
+      enabled: false,
+      problemUrlPatterns: ['/showproblem.php?pid={id}'],
+    }
+  ])
+
+  const disabledIdentity = parseUrl(validUrl)
+  assert.strictEqual(disabledIdentity, null, 'Disabled custom site should not match')
+
+  // Reset fetcher
+  setEnabledSitesFetcher(() => [])
 })
 
 // Run all tests

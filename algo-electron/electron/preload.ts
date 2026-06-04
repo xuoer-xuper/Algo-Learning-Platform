@@ -8,8 +8,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   reload: () => ipcRenderer.send('browser:reload'),
   goHome: () => ipcRenderer.send('browser:goHome'),
   setSidebarWidth: (width: number) => ipcRenderer.send('browser:setSidebarWidth', width),
-  hideBrowserView: () => ipcRenderer.send('browser:hideView'),
-  showBrowserView: () => ipcRenderer.send('browser:showView'),
+  hideView: () => ipcRenderer.send('browser:hideView'),
+  showView: () => ipcRenderer.send('browser:showView'),
   captureBrowserPreview: () => ipcRenderer.invoke('browser:capturePreview') as Promise<string | null>,
   minimizeWindow: () => ipcRenderer.send('window:minimize'),
   maximizeWindow: () => ipcRenderer.send('window:maximize'),
@@ -85,7 +85,29 @@ contextBridge.exposeInMainWorld('electronAPI', {
   importSitesConfig: () => ipcRenderer.invoke('sites:importConfig') as Promise<{ success: boolean; preview?: any; error?: string }>,
   confirmImportSites: (sites: any[], overwriteIds: string[]) => ipcRenderer.invoke('sites:confirmImport', sites, overwriteIds) as Promise<{ success: boolean; imported?: number; overwritten?: number; error?: string }>,
 
+  // Scripts
+  scriptsGetAll: () => ipcRenderer.invoke('scripts:getAll'),
+  scriptsSave: (id: string | null, data: any) => ipcRenderer.invoke('scripts:save', id, data),
+  scriptsImportFile: () => ipcRenderer.invoke('scripts:importFile'),
+  scriptsOpenFolder: () => ipcRenderer.invoke('scripts:openFolder'),
+  scriptsToggle: (id: string, enabled: boolean) => ipcRenderer.invoke('scripts:toggle', id, enabled),
+  scriptsDelete: (id: string) => ipcRenderer.invoke('scripts:delete', id),
+
   // 配置
   getDefaultHomeUrl: () => ipcRenderer.invoke('config:getDefaultHomeUrl'),
   setDefaultHomeUrl: (url: string) => ipcRenderer.send('config:setDefaultHomeUrl', url),
+
+  // 标签页管理
+  createTab: (url?: string) => ipcRenderer.invoke('tab:create', url) as Promise<string>,
+  closeTab: (tabId: string) => ipcRenderer.send('tab:close', tabId),
+  switchTab: (tabId: string) => ipcRenderer.send('tab:switch', tabId),
+  detachTab: (tabId: string) => ipcRenderer.send('tab:detach', tabId),
+  getTabList: () => ipcRenderer.invoke('tab:getList'),
+  onTabListChanged: (callback: (tabs: any[]) => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, tabs: any[]) => callback(tabs)
+    ipcRenderer.on('tab:listChanged', handler)
+    return () => {
+      ipcRenderer.off('tab:listChanged', handler)
+    }
+  },
 })

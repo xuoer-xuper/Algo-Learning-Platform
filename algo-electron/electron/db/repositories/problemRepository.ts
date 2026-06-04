@@ -3,12 +3,11 @@ import { getDb } from '../connection'
 import type { ProblemIdentity } from '../../shared/types'
 import { nowBeijing, todayBeijing } from '../../shared/time'
 import { isBadScrapedTitle, isValidScrapedTitle } from '../../parsers/titleValidation'
-import { resolveNavigateUrl } from '../../parsers/navigateUrl'
 
 export function upsertProblem(identity: ProblemIdentity): void {
   const db = getDb()
   const now = nowBeijing()
-  const canonicalUrl = resolveNavigateUrl(identity.canonicalUrl)
+  const canonicalUrl = identity.canonicalUrl
 
   const existing = db.prepare(
     'SELECT id FROM problems WHERE platform = ? AND platform_problem_id = ?'

@@ -1,0 +1,134 @@
+/* 标签栏 */
+.tab-bar {
+  display: flex;
+  align-items: stretch;
+  height: 100%;
+  flex: 1;
+  background: transparent;
+  -webkit-app-region: drag;
+  overflow: hidden;
+  padding-top: 4px;
+}
+
+.tab-bar-tabs {
+  display: flex;
+  align-items: stretch;
+  flex: 0 1 auto;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+}
+
+.tab-bar-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+/* 单个标签 */
+.tab-item {
+  -webkit-app-region: no-drag;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 80px;
+  max-width: 180px;
+  height: 100%;
+  padding: 0 12px;
+  border: none;
+  border-right: 1px solid var(--border-light);
+  background: transparent;
+  cursor: pointer;
+  position: relative;
+  transition: background-color 0.15s;
+  box-sizing: border-box;
+  border-radius: 8px 8px 0 0;
+  margin-left: 2px;
+  margin-right: 2px;
+}
+
+.tab-item:first-child {
+  margin-left: 8px;
+}
+
+.tab-item:hover {
+  background-color: rgba(255, 255, 255, 0.5);
+}
+
+/* 活动标签 */
+.tab-item-active {
+  background-color: var(--bg-card);
+  border-right: none;
+  z-index: 2;
+}
+
+.tab-item-active:hover {
+  background-color: var(--bg-card);
+}
+
+.tab-item-active::after {
+  display: none;
+}
+
+/* 标签文字 */
+.tab-item-title {
+  flex: 1;
+  font-size: 12px;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: left;
+  line-height: 32px;
+}
+
+/* 关闭按钮 */
+.tab-item-close {
+  -webkit-app-region: no-drag;
+  width: 16px;
+  height: 16px;
+  border: none;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  flex-shrink: 0;
+  opacity: 0;
+  transition: opacity 0.15s, background-color 0.15s, color 0.15s;
+}
+
+.tab-item:hover .tab-item-close {
+  opacity: 1;
+}
+
+.tab-item-close:hover {
+  background-color: var(--bg-surface);
+  color: var(--text);
+}
+
+/* 新建标签按钮 */
+.tab-bar-new {
+  -webkit-app-region: no-drag;
+  width: 28px;
+  flex-shrink: 0;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  margin: 2px 4px;
+  transition: background-color 0.15s, color 0.15s;
+}
+
+.tab-bar-new:hover {
+  background-color: rgba(255, 255, 255, 0.6);
+  color: var(--text);
+}

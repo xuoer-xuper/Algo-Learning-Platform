@@ -22,6 +22,16 @@
   height: 100%;
 }
 
+.titlebar-layer {
+  display: flex;
+  align-items: center;
+  height: 36px;
+  background-color: var(--bg-surface);
+  -webkit-app-region: drag;
+  flex-shrink: 0;
+  width: 100%;
+}
+
 .toolbar {
   display: flex;
   align-items: center;
@@ -30,7 +40,6 @@
   padding: 0 8px;
   background-color: var(--bg-card);
   border-bottom: 1px solid var(--border);
-  -webkit-app-region: drag;
   flex-shrink: 0;
 }
 
@@ -225,6 +234,7 @@
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
   min-width: 400px;
   max-width: min(900px, calc(100vw - 48px));
+  overflow: hidden;
 }
 
 /* 侧边栏 */
@@ -421,6 +431,21 @@
   min-width: 380px;
   max-height: 90vh;
   overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+.settings-page::-webkit-scrollbar {
+  width: 6px;
+}
+
+.settings-page::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.settings-page::-webkit-scrollbar-thumb {
+  background-color: var(--border);
+  border-radius: 3px;
 }
 
 .settings-header {

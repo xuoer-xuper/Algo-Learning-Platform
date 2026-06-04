@@ -430,6 +430,24 @@ UNIQUE(entity_type, entity_id, operation, created_at)
 - 本地绝对文件路径中的敏感部分。
 - 普通日志。
 
+### 8.2 user_scripts
+
+本地用户脚本（类似油猴脚本）。
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| id | TEXT PRIMARY KEY | 脚本 ID |
+| name | TEXT NOT NULL | 脚本名称 |
+| description | TEXT | 脚本描述 |
+| version | TEXT | 脚本版本 |
+| match_urls_json | TEXT NOT NULL | 匹配的 URL 正则或通配符规则数组 |
+| code | TEXT NOT NULL | 脚本源码（兼容旧版，新版可能为空） |
+| file_path | TEXT | 脚本本地存储路径 |
+| site_ids_json | TEXT | 关联的作用站点 ID 列表 |
+| enabled | INTEGER NOT NULL DEFAULT 1 | 是否启用 |
+| created_at | TEXT NOT NULL | 创建时间 |
+| updated_at | TEXT NOT NULL | 更新时间 |
+
 ## 9. Verdict 枚举
 
 统一 verdict 建议：

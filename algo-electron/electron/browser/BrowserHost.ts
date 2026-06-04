@@ -10,6 +10,7 @@ export class BrowserHost {
   private onUrlChange: ((url: string) => void) | null = null
   private onNavigate: ((url: string) => void) | null = null
   private onTitleChange: ((title: string, url: string) => void) | null = null
+  private onPageLoaded: ((url: string) => void) | null = null
 
   constructor(window: BrowserWindow) {
     this.window = window
@@ -24,6 +25,7 @@ export class BrowserHost {
         nodeIntegration: false,
         contextIsolation: true,
         sandbox: true,
+        webSecurity: false, // 允许脚本进行跨域请求 (GM_xmlhttpRequest)
         partition: 'persist:oj-main',
       },
     })
@@ -61,6 +63,11 @@ export class BrowserHost {
       this.onTitleChange?.(title, url)
     })
 
+    this.view.webContents.on('did-finish-load', () => {
+      const url = this.view!.webContents.getURL()
+      this.onPageLoaded?.(url)
+    })
+
     return this.view
   }
 
@@ -88,14 +95,14 @@ export class BrowserHost {
   }
 
   goBack() {
-    if (this.view?.webContents.canGoBack()) {
-      this.view.webContents.goBack()
+    if (this.view?.webContents.navigationHistory.canGoBack()) {
+      this.view.webContents.navigationHistory.goBack()
     }
   }
 
   goForward() {
-    if (this.view?.webContents.canGoForward()) {
-      this.view.webContents.goForward()
+    if (this.view?.webContents.navigationHistory.canGoForward()) {
+      this.view.webContents.navigationHistory.goForward()
     }
   }
 
@@ -148,6 +155,10 @@ export class BrowserHost {
 
   setTitleChangeCallback(callback: (title: string, url: string) => void) {
     this.onTitleChange = callback
+  }
+
+  setPageLoadedCallback(callback: (url: string) => void) {
+    this.onPageLoaded = callback
   }
 
   async executeScript(code: string): Promise<any> {

@@ -30,6 +30,14 @@ export function SettingsPage({ onClose }: { onClose: () => void }) {
   const [importOverwriteIds, setImportOverwriteIds] = useState<string[]>([])
   const [importStatus, setImportStatus] = useState('')
 
+  const [showAddModal, setShowAddModal] = useState(false)
+  const [newSiteId, setNewSiteId] = useState('')
+  const [newSiteName, setNewSiteName] = useState('')
+  const [newSiteDomains, setNewSiteDomains] = useState('')
+  const [newSiteHomeUrl, setNewSiteHomeUrl] = useState('')
+  const [newSitePatterns, setNewSitePatterns] = useState('')
+  const [newSiteError, setNewSiteError] = useState('')
+
   const loadSites = () => {
     window.electronAPI.getAllSites().then(setSites)
   }
@@ -146,6 +154,55 @@ export function SettingsPage({ onClose }: { onClose: () => void }) {
     )
   }
 
+  const handleAddSite = async () => {
+    setNewSiteError('')
+    const id = newSiteId.trim().toLowerCase()
+    const name = newSiteName.trim()
+    const domainsStr = newSiteDomains.trim()
+    const homeUrlStr = newSiteHomeUrl.trim()
+    const patternsStr = newSitePatterns.trim()
+
+    if (!id || !name || !domainsStr || !homeUrlStr) {
+      setNewSiteError('请填写所有必填字段')
+      return
+    }
+
+    if (!/^[a-z0-9_-]+$/.test(id)) {
+      setNewSiteError('站点 ID 只能包含小写字母、数字、下划线和连字符')
+      return
+    }
+
+    const domains = domainsStr.split(',').map((d) => d.trim()).filter(Boolean)
+    const problemUrlPatterns = patternsStr.split(',').map((p) => p.trim()).filter(Boolean)
+
+    try {
+      const existing = await window.electronAPI.getSiteById(id)
+      if (existing) {
+        setNewSiteError('站点 ID 已存在')
+        return
+      }
+
+      await window.electronAPI.createSite({
+        id,
+        name,
+        domains,
+        homeUrl: homeUrlStr,
+        enabled: true,
+        problemUrlPatterns,
+      })
+
+      setNewSiteId('')
+      setNewSiteName('')
+      setNewSiteDomains('')
+      setNewSiteHomeUrl('')
+      setNewSitePatterns('')
+      setShowAddModal(false)
+      loadSites()
+    } catch (e: any) {
+      setNewSiteError(`保存失败: ${e.message}`)
+    }
+  }
+
   const handleSave = () => {
     let url = homeUrl.trim()
     if (!url.startsWith('http://') && !url.startsWith('https://')) {
@@ -238,9 +295,80 @@ export function SettingsPage({ onClose }: { onClose: () => void }) {
             <button className="settings-save-btn" onClick={handleImport}>
               导入配置
             </button>
+            <button className="settings-save-btn" onClick={() => setShowAddModal(true)}>
+              添加站点
+            </button>
           </div>
           {exportStatus && <div className="sync-status">{exportStatus}</div>}
           {importStatus && <div className="sync-status">{importStatus}</div>}
+          {showAddModal && (
+            <div className="import-preview" style={{ marginBottom: '8px' }}>
+              <h4 className="import-preview-title" style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text)', marginBottom: '10px' }}>
+                添加自定义站点
+              </h4>
+              <div className="import-group" style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '10px' }}>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <input
+                    type="text"
+                    className="settings-input"
+                    placeholder="站点 ID (必填, 例: hdu)"
+                    value={newSiteId}
+                    onChange={(e) => setNewSiteId(e.target.value)}
+                    style={{ flex: 1 }}
+                  />
+                  <input
+                    type="text"
+                    className="settings-input"
+                    placeholder="站点名称 (必填, 例: HDU OJ)"
+                    value={newSiteName}
+                    onChange={(e) => setNewSiteName(e.target.value)}
+                    style={{ flex: 1.5 }}
+                  />
+                </div>
+                <input
+                  type="text"
+                  className="settings-input"
+                  placeholder="首页 URL (必填, 例: https://acm.hdu.edu.cn)"
+                  value={newSiteHomeUrl}
+                  onChange={(e) => setNewSiteHomeUrl(e.target.value)}
+                />
+                <input
+                  type="text"
+                  className="settings-input"
+                  placeholder="匹配域名 (必填, 多个以逗号分隔, 例: acm.hdu.edu.cn)"
+                  value={newSiteDomains}
+                  onChange={(e) => setNewSiteDomains(e.target.value)}
+                />
+                <input
+                  type="text"
+                  className="settings-input"
+                  placeholder="题目 URL 识别规则 (可选, 多个以逗号分隔, 例: /showproblem.php?pid={id})"
+                  value={newSitePatterns}
+                  onChange={(e) => setNewSitePatterns(e.target.value)}
+                />
+                {newSiteError && (
+                  <div style={{ color: 'var(--error)', fontSize: '11px', paddingLeft: '4px' }}>
+                    {newSiteError}
+                  </div>
+                )}
+              </div>
+              <div className="import-actions" style={{ display: 'flex', gap: '8px' }}>
+                <button className="settings-save-btn" onClick={handleAddSite}>
+                  确定保存
+                </button>
+                <button
+                  className="site-toggle"
+                  style={{ height: '32px', padding: '0 16px', fontSize: '13px' }}
+                  onClick={() => {
+                    setShowAddModal(false)
+                    setNewSiteError('')
+                  }}
+                >
+                  取消
+                </button>
+              </div>
+            </div>
+          )}
           {importPreview && (
             <div className="import-preview">
               <h4 className="import-preview-title">导入预览</h4>

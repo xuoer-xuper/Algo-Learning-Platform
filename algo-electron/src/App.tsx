@@ -4,14 +4,18 @@ import { ProblemSidebar } from './features/problems/ProblemSidebar'
 import { ProblemDetail } from './features/problems/ProblemDetail'
 import { SettingsPage } from './features/settings/SettingsPage'
 import { Dashboard } from './features/analytics/Dashboard'
+import { UserScriptManager } from './features/scripts/UserScriptManager'
+import { ErrorBoundary } from './components/ErrorBoundary'
 import { WindowControls } from './components/WindowControls'
 import { ModalLayer } from './components/ModalLayer'
+import { TabBar } from './components/TabBar'
 import './App.css'
 
 function App() {
   const [url, setUrl] = useState('')
   const [showSettings, setShowSettings] = useState(false)
   const [showDashboard, setShowDashboard] = useState(false)
+  const [showScripts, setShowScripts] = useState(false)
   const [selectedProblemId, setSelectedProblemId] = useState<string | null>(null)
   const [syncMsg, setSyncMsg] = useState('')
   const [sidebarWidth, setSidebarWidth] = useState(220)
@@ -25,6 +29,14 @@ function App() {
     })
     return unsubscribe
   }, [])
+
+  useEffect(() => {
+    if (isHome) {
+      window.electronAPI.hideView()
+    } else if (!modalBackdrop) {
+      window.electronAPI.showView()
+    }
+  }, [isHome, modalBackdrop])
 
   useEffect(() => {
     window.electronAPI.setSidebarWidth(sidebarWidth)
@@ -56,7 +68,7 @@ function App() {
     if (!isHome) {
       const preview = await window.electronAPI.captureBrowserPreview()
       setModalBackdrop(preview)
-      window.electronAPI.hideBrowserView()
+      window.electronAPI.hideView()
     } else {
       setModalBackdrop(null)
     }
@@ -65,7 +77,7 @@ function App() {
   const closeModal = useCallback(() => {
     setModalBackdrop(null)
     if (!isHome) {
-      window.electronAPI.showBrowserView()
+      window.electronAPI.showView()
     }
   }, [isHome])
 
@@ -84,9 +96,19 @@ function App() {
     setShowDashboard(false)
   }
 
+  const closeScripts = () => {
+    closeModal()
+    setShowScripts(false)
+  }
+
   return (
-    <div className="app-layout">
-      <div className="toolbar toolbar-drag">
+    <ErrorBoundary>
+      <div className="app-layout">
+      <div className="titlebar-layer">
+        <TabBar onTabUrlChange={(newUrl) => { setUrl(newUrl); setIsHome(!newUrl || newUrl === 'about:blank') }} />
+        <WindowControls />
+      </div>
+      <div className="toolbar">
         <button className="nav-btn" onClick={() => { window.electronAPI.goHome(); setUrl(''); setIsHome(true) }} title="首页">⌂</button>
         <button className="nav-btn" onClick={() => window.electronAPI.goBack()} title="后退">←</button>
         <button className="nav-btn" onClick={() => window.electronAPI.goForward()} title="前进">→</button>
@@ -103,8 +125,10 @@ function App() {
         <button className="sync-btn" onClick={handleSyncPage} title="抓取当前页面提交记录">↗</button>
         {syncMsg && <span className="sync-msg">{syncMsg}</span>}
         <button className="settings-btn" onClick={async () => { await openModal(); setShowDashboard(true) }} title="统计">📊</button>
+        <button className="settings-btn flex justify-center items-center" onClick={async () => { await openModal(); setShowScripts(true) }} title="脚本管理">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>
+        </button>
         <button className="settings-btn" onClick={async () => { await openModal(); setShowSettings(true) }} title="设置">⚙</button>
-        <WindowControls />
       </div>
       <div className="content-area">
         <ProblemSidebar
@@ -112,9 +136,9 @@ function App() {
           onShowDetail={async (id) => { await openModal(); setSelectedProblemId(id) }}
           onWidthChange={setSidebarWidth}
         />
-        <div className="main-area">
+        <main className="flex-1 overflow-auto bg-white p-4">
           {isHome && <HomePage onNavigate={(targetUrl) => { window.electronAPI.navigate(targetUrl); setIsHome(false) }} />}
-        </div>
+        </main>
       </div>
 
       {showSettings && (
@@ -127,12 +151,18 @@ function App() {
           <Dashboard onClose={closeDashboard} />
         </ModalLayer>
       )}
+      {showScripts && (
+        <ModalLayer backdrop={modalBackdrop} sidebarWidth={sidebarWidth} onClose={closeScripts}>
+          <UserScriptManager onClose={closeScripts} />
+        </ModalLayer>
+      )}
       {selectedProblemId && (
         <ModalLayer backdrop={modalBackdrop} sidebarWidth={sidebarWidth} onClose={closeProblemDetail}>
           <ProblemDetail problemId={selectedProblemId} onClose={closeProblemDetail} />
         </ModalLayer>
       )}
     </div>
+    </ErrorBoundary>
   )
 }
 

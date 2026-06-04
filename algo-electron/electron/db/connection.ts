@@ -10,6 +10,8 @@ import { migration004 } from './migrations/004_fix_codeforces_gym_page_urls'
 import { migration005 } from './migrations/005_daily_stats'
 import { migration006 } from './migrations/006_rating'
 import { migration007 } from './migrations/007_site_configs'
+import { migration008 } from './migrations/008_user_scripts'
+import { migration009 } from './migrations/009_user_scripts_file'
 
 let db: Database.Database | null = null
 
@@ -35,7 +37,11 @@ export function initDb(): Database.Database {
   db.pragma('foreign_keys = ON')
   db.pragma('busy_timeout = 5000')
 
-  runMigrations(db, [migration001, migration002, migration003, migration004, migration005, migration006, migration007])
+  runMigrations(db, [
+    migration001, migration002, migration003, migration004, 
+    migration005, migration006, migration007, migration008, 
+    migration009
+  ])
 
   return db
 }

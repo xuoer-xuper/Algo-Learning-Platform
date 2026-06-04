@@ -6,13 +6,15 @@
 
 ## 当前状态
 
-Phase 4 Rating 与竞赛已完成（v0.4.0）。
+Phase 5 站点扩展系统与多标签页重构已完成（v0.5.0）。
 
 已实现：
 
-- Electron + React + TypeScript + TailwindCSS + Vite 技术栈
+- Electron 42.2.0 (Chromium 148) + React + TypeScript + TailwindCSS + Vite 技术栈
+- 多标签页系统 (Chrome-like TabBar) 与独立窗口剥离支持
 - WebContentsView 内嵌浏览器，持久 session 登录保留
 - 四平台支持：Codeforces、AcWing、牛客、VJudge
+- 内置油猴脚本（Tampermonkey/UserScript）引擎，支持动态注入增强脚本
 - 题目 URL 自动识别与本地数据库记录
 - 页面标题自动抓取
 - 四平台提交记录同步（CF API、AcWing/牛客/VJudge DOM 抓取）
@@ -25,10 +27,11 @@ Phase 4 Rating 与竞赛已完成（v0.4.0）。
 - 比赛记录列表（delta 显示）
 - Gym 题目自动跳转 attachments 页
 - 自定义首页（快捷入口、学习概览、最近访问）
+- 站点管理系统（支持导入导出、配置化题目匹配规则、自定义 Adapter）
 - 基础设置页（默认首页、CF Rating 同步、CF 提交同步）
 - SQLite 本地数据库（problems、submissions、problem_visits、activity_events、study_sessions、user_daily_stats、platform_accounts、rating_history、contest_results）
 
-下一步进入 Phase 5：站点扩展系统。
+下一步进入 Phase 6：AI 辅助学习任务。
 
 ## 必读文档
 

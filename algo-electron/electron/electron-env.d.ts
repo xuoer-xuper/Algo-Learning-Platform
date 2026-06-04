@@ -31,6 +31,13 @@ interface OverviewStats {
   lastActiveTime: string | null
 }
 
+interface TabInfo {
+  id: string
+  url: string
+  title: string
+  isActive: boolean
+}
+
 interface ElectronAPI {
   navigate: (url: string) => void
   goBack: () => void
@@ -38,8 +45,8 @@ interface ElectronAPI {
   reload: () => void
   goHome: () => void
   setSidebarWidth: (width: number) => void
-  hideBrowserView: () => void
-  showBrowserView: () => void
+  hideView: () => void
+  showView: () => void
   captureBrowserPreview: () => Promise<string | null>
   minimizeWindow: () => void
   maximizeWindow: () => void
@@ -85,8 +92,25 @@ interface ElectronAPI {
   exportSitesConfig: () => Promise<{ success: boolean; path?: string; count?: number; error?: string }>
   importSitesConfig: () => Promise<{ success: boolean; preview?: any; error?: string }>
   confirmImportSites: (sites: any[], overwriteIds: string[]) => Promise<{ success: boolean; imported?: number; overwritten?: number; error?: string }>
+
+  // Scripts
+  scriptsGetAll: () => Promise<any[]>
+  scriptsSave: (id: string | null, data: any) => Promise<string>
+  scriptsImportFile: () => Promise<string | null>
+  scriptsOpenFolder: () => Promise<void>
+  scriptsToggle: (id: string, enabled: boolean) => Promise<boolean>
+  scriptsDelete: (id: string) => Promise<boolean>
+
   getDefaultHomeUrl: () => Promise<string>
   setDefaultHomeUrl: (url: string) => void
+
+  // 标签页管理
+  createTab: (url?: string) => Promise<string>
+  closeTab: (tabId: string) => void
+  switchTab: (tabId: string) => void
+  detachTab: (tabId: string) => void
+  getTabList: () => Promise<TabInfo[]>
+  onTabListChanged: (callback: (tabs: TabInfo[]) => void) => () => void
 }
 
 interface Window {

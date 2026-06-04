@@ -37,9 +37,9 @@ export function Dashboard({ onClose }: { onClose: () => void }) {
   const [trendRange, setTrendRange] = useState<number | undefined>(30)
 
   useEffect(() => {
-    window.electronAPI.hideBrowserView()
+    window.electronAPI.hideView()
     loadAll()
-    return () => { window.electronAPI.showBrowserView() }
+    return () => { window.electronAPI.showView() }
   }, [])
 
   useEffect(() => { loadTrends() }, [trendRange])
@@ -243,7 +243,7 @@ export function Dashboard({ onClose }: { onClose: () => void }) {
                   <div className="dashboard-timeline-content">
                     <span className="dashboard-timeline-type">{e.event_type}</span>
                     {e.platform && <span className="dashboard-timeline-platform">{e.platform}</span>}
-                    <span className="dashboard-timeline-time">{e.occurred_at?.replace('T', ' ').slice(0, 19)}</span>
+                    <span className="dashboard-timeline-time">{typeof e.occurred_at === 'string' ? e.occurred_at.replace('T', ' ').slice(0, 19) : ''}</span>
                   </div>
                 </div>
               ))}
@@ -299,7 +299,7 @@ export function Dashboard({ onClose }: { onClose: () => void }) {
 
       {stats?.lastActiveTime && (
         <div className="dashboard-footer">
-          最近活跃：{stats.lastActiveTime.replace('T', ' ').slice(0, 19)}
+          最近活跃：{typeof stats.lastActiveTime === 'string' ? stats.lastActiveTime.replace('T', ' ').slice(0, 19) : ''}
         </div>
       )}
     </div>

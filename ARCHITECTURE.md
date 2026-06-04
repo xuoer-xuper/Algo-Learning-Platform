@@ -146,21 +146,14 @@ Renderer 不直接操作 `webContents`。
 - 默认拒绝摄像头、麦克风等无关权限。
 - 弹窗和新窗口由 Browser System 统一处理。
 
-### 4.4 多标签页预留
+### 4.4 多标签页系统 (Phase 5 完成)
 
-Phase 1 只实现单视图。未来多标签页使用：
+Phase 5 已重构为基于 `TabManager` 和 `DetachedWindow` 的完整多标签页架构：
 
-```ts
-type BrowserTab = {
-  id: string
-  siteId?: string
-  url: string
-  title?: string
-  lastActiveAt: number
-}
-```
-
-不要在 Phase 1 过早实现完整多标签页，但 `BrowserHost` 不应写死无法扩展的全局变量结构。
+- **TabManager**：管理内部的 `tabs` 映射，控制当前 `activeTabId`，并负责动态调用 `addChildView` / `removeChildView` 来切换显示的 `WebContentsView`。
+- **UI 呈现**：在 Renderer 侧通过 `TabBar.tsx` 组件渲染多标签 UI。支持增加标签页、关闭标签页。
+- **剥离独立窗口**：支持将现有的标签页直接拖拽/双击，剥离为原生的 `BrowserWindow` (`DetachedWindow`)，适合多屏或并行阅读场景。
+- **性能优化**：通过预创建和 `isViewHidden` 等标志，解决快速切换标签页时的点击穿透 Bug。
 
 ## 5. Session 与 CookieVault
 
