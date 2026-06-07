@@ -71,6 +71,9 @@ P5-013 完成：多标签页重构与 Chrome 级 UI。引入 `TabManager`、`Det
 - PTA URL 识别已实现：parsers/sites/pta.ts 支持练习题目页、考试题目页、带类型参数的考试题目页。
 - PTA 标题抓取已实现：extractProblemTitleScript.ts 中添加 PTA 适配逻辑，优先使用 document.title，过滤"输入格式"等小节标题，Angular SPA 额外 7s 延迟。
 - PTA 提交同步已实现：domScraper.ts 中添加 scrapePta 函数，支持评测结果、编译器、耗时、内存、分数列。提交记录页从每行题目链接提取 platformProblemId，自动关联/创建题目。
+- 洛谷已添加为内置站点：前端 5 个文件已补充 `luogu` 平台映射，`siteRegistry.ts` 中已包含洛谷（luogu.com.cn）。
+- 洛谷 URL 识别与标题抓取已实现：`parsers/sites/luogu.ts` 支持题目页 URL 匹配，并使用正则剥离了题目标题的前缀与标签。
+- 洛谷提交同步已实现：`domScraper.ts` 中添加了针对 Vue SPA 机制的抓取逻辑，通过追加 `?_contentOnly=1` 参数成功获取提交列表最新数据。
 
 ## 3. 当前文档状态
 

@@ -132,6 +132,32 @@ test('PTA URL parsing', () => {
   }
 })
 
+test('Luogu URL parsing', () => {
+  const validUrls = [
+    'https://www.luogu.com.cn/problem/P1001',
+    'https://www.luogu.com.cn/problem/B2005',
+    'https://www.luogu.com.cn/problem/CF1A',
+    'https://luogu.com.cn/problem/AT_abc214_a?contestId=123',
+  ]
+
+  for (const url of validUrls) {
+    const identity = parseUrl(url)
+    assert.ok(identity, `Should parse valid URL: ${url}`)
+    assert.strictEqual(identity!.platform, 'luogu')
+  }
+
+  const invalidUrls = [
+    'https://www.luogu.com.cn',
+    'https://www.luogu.com.cn/record/list',
+    'https://www.luogu.com.cn/problem/list',
+  ]
+
+  for (const url of invalidUrls) {
+    const identity = parseUrl(url)
+    assert.strictEqual(identity, null, `Should not parse invalid URL: ${url}`)
+  }
+})
+
 // 2. Custom adapter registration tests
 test('Custom adapter registration', () => {
   const hduAdapter: SiteAdapter = {

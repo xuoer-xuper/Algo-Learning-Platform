@@ -119,6 +119,7 @@ export function seedBuiltinSites(): void {
     { id: 'nowcoder', name: '牛客', domains: ['nowcoder.com', 'www.nowcoder.com', 'ac.nowcoder.com'], homeUrl: 'https://ac.nowcoder.com' },
     { id: 'vjudge', name: 'VJudge', domains: ['vjudge.net', 'www.vjudge.net'], homeUrl: 'https://vjudge.net' },
     { id: 'pta', name: 'PTA', domains: ['pintia.cn'], homeUrl: 'https://pintia.cn' },
+    { id: 'luogu', name: '洛谷', domains: ['luogu.com.cn', 'www.luogu.com.cn'], homeUrl: 'https://www.luogu.com.cn' },
   ]
 
   const insert = db.prepare(`

@@ -5,9 +5,9 @@ import {
 } from 'recharts'
 
 const PLATFORM_NAMES: Record<string, string> = {
-  codeforces: 'Codeforces', acwing: 'AcWing', nowcoder: '牛客', vjudge: 'VJudge', pta: 'PTA',
+  codeforces: 'Codeforces', acwing: 'AcWing', nowcoder: '牛客', vjudge: 'VJudge', pta: 'PTA', luogu: '洛谷',
 }
-const COLORS = ['#3b82f6', '#22c55e', '#f59e0b', '#ef4444', '#8b5cf6']
+const COLORS = ['#3b82f6', '#22c55e', '#f59e0b', '#ef4444', '#8b5cf6', '#3498db']
 
 function fillMissingDays(data: { local_day: string; count: number }[], days: number): { local_day: string; count: number }[] {
   const map = new Map(data.map(d => [d.local_day, d.count]))

@@ -5,6 +5,7 @@ import { acwingParser } from './sites/acwing'
 import { nowcoderParser } from './sites/nowcoder'
 import { vjudgeParser } from './sites/vjudge'
 import { ptaParser } from './sites/pta'
+import { luoguParser } from './sites/luogu'
 
 const adapterRegistry = new Map<string, SiteAdapter>()
 let enabledSitesFetcher: (() => any[]) | null = null
@@ -20,6 +21,7 @@ const builtinConfigs = [
   { id: 'nowcoder', domains: ['nowcoder.com', 'www.nowcoder.com', 'ac.nowcoder.com'], enabled: true, problemUrlPatterns: [] },
   { id: 'vjudge', domains: ['vjudge.net', 'www.vjudge.net'], enabled: true, problemUrlPatterns: [] },
   { id: 'pta', domains: ['pintia.cn'], enabled: true, problemUrlPatterns: [] },
+  { id: 'luogu', domains: ['luogu.com.cn', 'www.luogu.com.cn'], enabled: true, problemUrlPatterns: [] },
 ]
 
 // Adapt built-in parsers to SiteAdapter
@@ -54,6 +56,7 @@ adapterRegistry.set('acwing', acwingAdapter)
 adapterRegistry.set('nowcoder', nowcoderAdapter)
 adapterRegistry.set('vjudge', vjudgeAdapter)
 adapterRegistry.set('pta', ptaAdapter)
+adapterRegistry.set('luogu', luoguParser)
 
 export function registerAdapter(adapter: SiteAdapter): void {
   adapterRegistry.set(adapter.id, adapter)

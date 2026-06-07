@@ -13,6 +13,7 @@ export async function scrapeCurrentPage(browserHost: BrowserHost): Promise<Submi
   if (url.includes('nowcoder.com')) return scrapeNowcoder(browserHost)
   if (url.includes('vjudge.net')) return scrapeVjudge(browserHost)
   if (url.includes('pintia.cn')) return scrapePta(browserHost)
+  if (url.includes('luogu.com.cn')) return scrapeLuogu(browserHost)
   return null
 }
 
@@ -408,6 +409,124 @@ async function scrapePta(browserHost: BrowserHost): Promise<SubmissionData[]> {
       sourceUrl: l.find((x: string) => x) || '',
       rawJson: ptaProblemId ? JSON.stringify({ _ptaProblemId: ptaProblemId }) : undefined,
     } as any)
+  }
+
+  return results
+}
+
+// --- Luogu ---
+async function scrapeLuogu(browserHost: BrowserHost): Promise<SubmissionData[]> {
+  const data = await browserHost.executeScript(`
+    (async () => {
+      // 1. Try to fetch fresh data for the current URL to avoid stale SPA state
+      try {
+        const u = new URL(location.href);
+        u.searchParams.set('_contentOnly', '1');
+        const res = await fetch(u.toString(), {
+          headers: {
+            'x-luogu-type': 'content-only',
+            'x-requested-with': 'XMLHttpRequest'
+          }
+        });
+        if (res.ok) {
+          const json = await res.json();
+          const result = json?.currentData?.records?.result;
+          if (result && Array.isArray(result)) {
+            return { fromInjection: true, records: result };
+          }
+        }
+      } catch(e) {}
+
+      // 2. Try to get data from Vue injected state (may be stale if routed via SPA)
+      try {
+        const result = window._feInjection?.currentData?.records?.result;
+        if (result && Array.isArray(result)) {
+          return { fromInjection: true, records: result };
+        }
+      } catch(e) {}
+      
+      // 3. Fallback: DOM scraping (very basic, Luogu uses div rows)
+      const rows = [];
+      const rowElements = document.querySelectorAll('div.record-list > div, .row[data-v]');
+      for (const row of rowElements) {
+        rows.push({
+          text: row.textContent,
+          links: Array.from(row.querySelectorAll('a')).map(a => a.href)
+        });
+      }
+      return { fromInjection: false, rows };
+    })()
+  `)
+
+  if (!data) return []
+
+  const results: SubmissionData[] = []
+  
+  if (data.fromInjection) {
+    const records = data.records || []
+    for (const r of records) {
+      let verdict: Verdict = 'UNKNOWN'
+      const s = r.status
+      if (s === 12) verdict = 'AC'
+      else if (s === 6 || s === 14) verdict = 'WA'
+      else if (s === 5) verdict = 'TLE'
+      else if (s === 4) verdict = 'MLE'
+      else if (s === 3) verdict = 'OLE'
+      else if (s === 7) verdict = 'RE'
+      else if (s === 2) verdict = 'CE'
+      else if (s === 0 || s === 1) verdict = 'TESTING'
+      
+      results.push({
+        platform: 'luogu',
+        platformSubmissionId: r.id.toString(),
+        verdict,
+        rawVerdict: s.toString(),
+        language: r.language ? r.language.toString() : '',
+        runtimeMs: r.time,
+        memoryKb: r.memory,
+        submittedAt: r.submitTime ? r.submitTime * 1000 : nowBeijing(),
+        sourceUrl: `https://www.luogu.com.cn/record/${r.id}`,
+        rawJson: r.problem && r.problem.pid ? JSON.stringify({ _luoguProblemId: r.problem.pid }) : undefined,
+      } as any)
+    }
+  } else {
+    const rows = data.rows || []
+    for (const row of rows) {
+      const text = (row.text || '').toLowerCase()
+      const links = row.links || []
+      
+      let verdictStr = ''
+      if (text.includes('accepted') || text.includes('ac')) verdictStr = 'AC'
+      else if (text.includes('wrong answer') || text.includes('wa')) verdictStr = 'WA'
+      else if (text.includes('time limit') || text.includes('tle')) verdictStr = 'TLE'
+      else if (text.includes('memory limit') || text.includes('mle')) verdictStr = 'MLE'
+      else if (text.includes('compile error') || text.includes('ce')) verdictStr = 'CE'
+      
+      let probId = ''
+      for (const l of links) {
+        const pm = l.match(/problem\/([A-Za-z0-9_]+)/)
+        if (pm) probId = pm[1]
+      }
+      
+      let subId = ''
+      for (const l of links) {
+        const sm = l.match(/record\/(\d+)/)
+        if (sm) subId = sm[1]
+      }
+      
+      if (verdictStr && subId) {
+        results.push({
+          platform: 'luogu',
+          platformSubmissionId: subId,
+          verdict: mapVerdict(verdictStr),
+          rawVerdict: verdictStr,
+          language: '',
+          submittedAt: nowBeijing(),
+          sourceUrl: `https://www.luogu.com.cn/record/${subId}`,
+          rawJson: probId ? JSON.stringify({ _luoguProblemId: probId }) : undefined,
+        } as any)
+      }
+    }
   }
 
   return results

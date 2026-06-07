@@ -23,6 +23,7 @@ const PLATFORM_NAMES: Record<string, string> = {
   nowcoder: '牛客',
   vjudge: 'VJudge',
   pta: 'PTA',
+  luogu: '洛谷',
 }
 
 const PLATFORM_URLS: Record<string, string> = {
@@ -31,6 +32,7 @@ const PLATFORM_URLS: Record<string, string> = {
   nowcoder: 'https://ac.nowcoder.com',
   vjudge: 'https://vjudge.net',
   pta: 'https://pintia.cn',
+  luogu: 'https://www.luogu.com.cn',
 }
 
 const PLATFORM_COLORS: Record<string, string> = {
@@ -39,6 +41,7 @@ const PLATFORM_COLORS: Record<string, string> = {
   nowcoder: '#ff6a00',
   vjudge: '#4caf50',
   pta: '#8e24aa',
+  luogu: '#3498db',
 }
 
 const STATUS_COLORS: Record<string, string> = {

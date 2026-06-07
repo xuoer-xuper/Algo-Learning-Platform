@@ -6,6 +6,7 @@ const PLATFORM_NAMES: Record<string, string> = {
   nowcoder: '牛客',
   vjudge: 'VJudge',
   pta: 'PTA',
+  luogu: '洛谷',
 }
 
 interface OverviewStats {
@@ -283,7 +284,7 @@ export function SettingsPage({ onClose }: { onClose: () => void }) {
             <button className="settings-save-btn" onClick={handleSyncCF}>同步 CF</button>
           </div>
           {syncStatus.cf && <div className="sync-status">{syncStatus.cf}</div>}
-          <div className="sync-hint">AcWing / 牛客 / VJudge：在浏览器打开提交页面后点工具栏 ↗ 抓取</div>
+          <div className="sync-hint">AcWing / 牛客 / VJudge / 洛谷：在浏览器打开提交页面后点工具栏 ↗ 抓取</div>
         </div>
 
         <div className="settings-section">

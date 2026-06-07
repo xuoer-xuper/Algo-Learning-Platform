@@ -142,6 +142,18 @@ export class SyncService {
         }
       }
 
+      // Luogu 特殊处理：从提交行的题目提取 platformProblemId
+      if (!pageProblemId && url.includes('luogu.com.cn')) {
+        for (const sub of submissions) {
+          try {
+            const raw = JSON.parse(sub.rawJson || '{}')
+            if (raw._luoguProblemId) {
+              (sub as any)._luoguProblemId = raw._luoguProblemId
+            }
+          } catch { /* ignore */ }
+        }
+      }
+
       // 如果当前页面是题目页，确保题目存在于数据库中
       if (identity) {
         upsertProblem(identity)
@@ -223,6 +235,27 @@ export class SyncService {
               }
               upsertProblem(identity)
               problem = db.prepare('SELECT id FROM problems WHERE platform = ? AND platform_problem_id = ?').get('pta', ptaPid) as { id: string } | undefined
+            }
+            if (problem) sub.problemId = problem.id
+          }
+        } catch { /* ignore */ }
+      }
+
+      // Luogu 逐行关联
+      if (!sub.problemId && sub.platform === 'luogu') {
+        try {
+          const lgPid = (sub as any)._luoguProblemId
+          if (lgPid) {
+            let problem = db.prepare('SELECT id FROM problems WHERE platform = ? AND platform_problem_id = ?').get('luogu', lgPid) as { id: string } | undefined
+            if (!problem) {
+              const identity = {
+                platform: 'luogu' as const,
+                platformProblemId: lgPid,
+                canonicalUrl: `https://www.luogu.com.cn/problem/${lgPid}`,
+                confidence: 'url' as const,
+              }
+              upsertProblem(identity)
+              problem = db.prepare('SELECT id FROM problems WHERE platform = ? AND platform_problem_id = ?').get('luogu', lgPid) as { id: string } | undefined
             }
             if (problem) sub.problemId = problem.id
           }

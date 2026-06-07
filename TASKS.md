@@ -2186,6 +2186,23 @@ Phase 1、Phase 2、Phase 3、Phase 4、Phase 5 已完成。下一步进入 Phas
 
 建议提交：`test: 完成 AI 建议可追溯性测试`
 
+### P6-012 接入洛谷默认站点配置与识别逻辑
+
+状态：已完成  
+优先级：P1  
+阶段：Phase 6  
+前置任务：P5-013  
+涉及模块：sites/builtins、parsers/sites/luogu、submissions/scrapers、SITE_ADAPTER_GUIDE.md  
+目标：为洛谷添加默认站点配置、URL识别及抓取逻辑。  
+验收标准：
+
+- 洛谷出现在内置站点列表并正确展示颜色和标签。
+- 识别洛谷题目页面 URL，正确剥离标题前缀和标签。
+- 支持洛谷提交记录 DOM 抓取，适应 Vue SPA 的 `_contentOnly=1` 数据刷新机制。
+- 更新 SITE_ADAPTER_GUIDE.md 文档。
+
+建议提交：`feat: 接入洛谷站点配置与适配逻辑`
+
 ## 10. Phase 7：同步、备份与多端预留任务
 
 ### P7-001 建立 sync_queue 表
