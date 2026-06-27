@@ -7,9 +7,10 @@ interface ModalLayerProps {
   sidebarWidth: number
   onClose: () => void
   children: ReactNode
+  size?: 'default' | 'large' | 'full'
 }
 
-export function ModalLayer({ backdrop, sidebarWidth, onClose, children }: ModalLayerProps) {
+export function ModalLayer({ backdrop, sidebarWidth, onClose, children, size = 'default' }: ModalLayerProps) {
   const previewStyle = {
     left: sidebarWidth,
     top: TOOLBAR_HEIGHT,
@@ -17,13 +18,19 @@ export function ModalLayer({ backdrop, sidebarWidth, onClose, children }: ModalL
     height: `calc(100% - ${TOOLBAR_HEIGHT}px)`,
   }
 
+  const panelClass = size === 'full'
+    ? 'modal-panel modal-panel-full'
+    : size === 'large'
+      ? 'modal-panel modal-panel-large'
+      : 'modal-panel'
+
   return (
     <div className="modal-backdrop" onClick={onClose}>
       {backdrop ? (
         <img className="modal-preview" src={backdrop} alt="" style={previewStyle} />
       ) : null}
       <div className="modal-overlay" />
-      <div className="modal-panel" onClick={(e) => e.stopPropagation()}>
+      <div className={panelClass} onClick={(e) => e.stopPropagation()}>
         {children}
       </div>
     </div>

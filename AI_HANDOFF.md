@@ -2,7 +2,7 @@
 
 ## 1. 当前阶段
 
-Phase 6 准备就绪。
+Phase 6 进行中。P6-001 本地题解 Markdown 系统、P6-002 笔记独立浮层已完成。
 
 Phase 5 站点管理与多标签页重构已完成。
 
@@ -25,6 +25,10 @@ P5-011 完成：升级 Electron 到最新稳定浏览器基线（42.2.0，Chromi
 P5-012 完成：实现内置 Tampermonkey/UserScript 脚本引擎。添加了 `user_scripts` 表、主进程服务 `UserScriptService` 及注入机制，支持自动解析 `@match` / `@include` 并于 `did-finish-load` 时注入脚本代码（包含基础 `GM_addStyle` 支持）。在前端 React 端添加了油猴图标入口与管理面板 `UserScriptManager`。
 
 P5-013 完成：多标签页重构与 Chrome 级 UI。引入 `TabManager`、`DetachedWindow` 以及 React `TabBar` 组件，支持多个独立 WebContentsView 标签页，并可双击剥离为原生独立窗口。同时修复了由于路由重定向（如 Codeforces 教练题跳转 `/attachments`）导致持久化到数据库的 `canonical_url` 被错误污染的底层 Bug。
+
+P6-001 完成：建立本地题解 Markdown 系统。新增 `notes` 表（migration 010），实现 `electron/notes/NoteService.ts` 整合 DB repository 与 Markdown 文件存储。笔记文件存储在 `{userData}/notes/{problemId}/{noteId}.md`，支持三种类型：题解（solution）、复习笔记（review）、总结（summary）。新增 IPC：notes:listByProblem、notes:get、notes:create、notes:updateTitle/Content/Type、notes:delete、notes:getForDelete、notes:deleteByProblem、notes:openDir。删除题目时若有关联笔记会询问是否一并删除笔记文件（默认保留）。
+
+P6-002 完成：笔记入口重构 + 所见即所得编辑器。笔记入口从题目详情页内嵌改为**独立浮层**——题目列表每行「⋯」详情按钮左侧新增「✎」笔记按钮，点击打开独立弹窗 `NotePanelModal`（经 `ModalLayer` 渲染）。编辑器弃用 textarea，改用 **@milkdown/crepe** 所见即所得 Markdown 编辑器（封装于 `MilkdownEditor.tsx`），输入 `## ` 自动渲染为二级标题，内置工具栏/代码块/表格/链接。notes 表新增 `content`/`word_count` 缓存字段（migration 011），实现**文件+DB 双存**：文件存 `.md` 供外部编辑器使用，DB 缓存正文用于快速预览和字数统计。编辑器 onChange 400ms 防抖自动保存。已删除旧 `NotePanel.tsx`（详情页内嵌版本）。tsc 与 vite build 均通过，milkdown（含 vue/codemirror 依赖）成功打包进 renderer bundle。
 
 ## 2. 当前代码状态
 
@@ -95,9 +99,10 @@ P5-013 完成：多标签页重构与 Chrome 级 UI。引入 `TabManager`、`Det
 
 ## 4. 下一步推荐任务
 
-Phase 6 准备就绪。
+Phase 6 进行中。P6-001、P6-002 已完成。
 
-1. `P6-001`：建立本地题解 Markdown 系统。
+1. `P6-003`：提交记录关联代码片段或文件路径。
+2. `P6-004`：建立 AI 上下文导出层。
 
 ## 5. 高风险区域
 

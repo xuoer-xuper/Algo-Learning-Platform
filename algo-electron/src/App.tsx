@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { HomePage } from './features/home/HomePage'
 import { ProblemSidebar } from './features/problems/ProblemSidebar'
 import { ProblemDetail } from './features/problems/ProblemDetail'
+import { NotePanelModal } from './features/problems/NotePanelModal'
 import { SettingsPage } from './features/settings/SettingsPage'
 import { Dashboard } from './features/analytics/Dashboard'
 import { UserScriptManager } from './features/scripts/UserScriptManager'
@@ -17,6 +18,7 @@ function App() {
   const [showDashboard, setShowDashboard] = useState(false)
   const [showScripts, setShowScripts] = useState(false)
   const [selectedProblemId, setSelectedProblemId] = useState<string | null>(null)
+  const [notesProblemId, setNotesProblemId] = useState<string | null>(null)
   const [syncMsg, setSyncMsg] = useState('')
   const [sidebarWidth, setSidebarWidth] = useState(220)
   const [isHome, setIsHome] = useState(true)
@@ -91,6 +93,11 @@ function App() {
     setSelectedProblemId(null)
   }
 
+  const closeNotes = () => {
+    closeModal()
+    setNotesProblemId(null)
+  }
+
   const closeDashboard = () => {
     closeModal()
     setShowDashboard(false)
@@ -134,6 +141,7 @@ function App() {
         <ProblemSidebar
           onNavigate={(targetUrl) => { window.electronAPI.navigate(targetUrl); setIsHome(false) }}
           onShowDetail={async (id) => { await openModal(); setSelectedProblemId(id) }}
+          onShowNotes={async (id) => { await openModal(); setNotesProblemId(id) }}
           onWidthChange={setSidebarWidth}
         />
         <main className="flex-1 overflow-auto bg-white p-4">
@@ -159,6 +167,11 @@ function App() {
       {selectedProblemId && (
         <ModalLayer backdrop={modalBackdrop} sidebarWidth={sidebarWidth} onClose={closeProblemDetail}>
           <ProblemDetail problemId={selectedProblemId} onClose={closeProblemDetail} />
+        </ModalLayer>
+      )}
+      {notesProblemId && (
+        <ModalLayer backdrop={modalBackdrop} sidebarWidth={sidebarWidth} onClose={closeNotes} size="large">
+          <NotePanelModal problemId={notesProblemId} onClose={closeNotes} />
         </ModalLayer>
       )}
     </div>

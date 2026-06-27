@@ -59,8 +59,23 @@ export function ProblemDetail({ problemId, onClose }: Props) {
 
   const handleDelete = async () => {
     if (!confirm('确定删除这道题的本地记录吗？')) return
+
+    // 检查是否有关联笔记，若有则询问是否一并删除笔记文件
+    let deleteNotes = false
+    try {
+      const notes = await window.electronAPI.getNotesForDelete(problemId)
+      if (notes.length > 0) {
+        deleteNotes = confirm(
+          `该题目关联了 ${notes.length} 条笔记。\n\n点击「确定」将同时删除这些笔记文件（不可恢复）；\n点击「取消」仅删除题目记录，保留笔记文件。`
+        )
+      }
+    } catch { /* 忽略查询失败 */ }
+
     setDeleting(true)
     try {
+      if (deleteNotes) {
+        await window.electronAPI.deleteNotesByProblem(problemId)
+      }
       const ok = await window.electronAPI.deleteProblem(problemId)
       if (ok) onClose()
     } finally {

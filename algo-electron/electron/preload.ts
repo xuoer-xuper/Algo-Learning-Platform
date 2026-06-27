@@ -110,4 +110,17 @@ contextBridge.exposeInMainWorld('electronAPI', {
       ipcRenderer.off('tab:listChanged', handler)
     }
   },
+
+  // 笔记（本地题解 Markdown）
+  listNotesByProblem: (problemId: string) => ipcRenderer.invoke('notes:listByProblem', problemId) as Promise<any[]>,
+  getNote: (noteId: string) => ipcRenderer.invoke('notes:get', noteId) as Promise<any>,
+  createNote: (problemId: string | null, title: string, content: string | null, noteType: string) => ipcRenderer.invoke('notes:create', problemId, title, content, noteType) as Promise<any>,
+  updateNoteTitle: (noteId: string, title: string) => ipcRenderer.invoke('notes:updateTitle', noteId, title) as Promise<boolean>,
+  updateNoteContent: (noteId: string, content: string) => ipcRenderer.invoke('notes:updateContent', noteId, content) as Promise<boolean>,
+  saveNoteImage: (noteId: string, fileName: string, mimeType: string, data: ArrayBuffer) => ipcRenderer.invoke('notes:saveImage', noteId, fileName, mimeType, data) as Promise<any>,
+  updateNoteType: (noteId: string, noteType: string) => ipcRenderer.invoke('notes:updateType', noteId, noteType) as Promise<boolean>,
+  deleteNote: (noteId: string) => ipcRenderer.invoke('notes:delete', noteId) as Promise<boolean>,
+  getNotesForDelete: (problemId: string) => ipcRenderer.invoke('notes:getForDelete', problemId) as Promise<any[]>,
+  deleteNotesByProblem: (problemId: string) => ipcRenderer.invoke('notes:deleteByProblem', problemId) as Promise<number>,
+  openNotesDir: () => ipcRenderer.invoke('notes:openDir'),
 })

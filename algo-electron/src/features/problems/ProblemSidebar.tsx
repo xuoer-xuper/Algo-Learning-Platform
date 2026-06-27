@@ -32,10 +32,11 @@ const STATUS_COLORS: Record<string, string> = {
 interface Props {
   onNavigate: (url: string) => void
   onShowDetail: (problemId: string) => void
+  onShowNotes: (problemId: string) => void
   onWidthChange?: (width: number) => void
 }
 
-export function ProblemSidebar({ onNavigate, onShowDetail, onWidthChange }: Props) {
+export function ProblemSidebar({ onNavigate, onShowDetail, onShowNotes, onWidthChange }: Props) {
   const [problems, setProblems] = useState<ProblemRecord[]>([])
   const [collapsed, setCollapsed] = useState(false)
   const [filterPlatform, setFilterPlatform] = useState<string>('')
@@ -116,6 +117,13 @@ export function ProblemSidebar({ onNavigate, onShowDetail, onWidthChange }: Prop
               {p.submission_count ? (
                 <span className="sidebar-item-count">{p.submission_count}</span>
               ) : null}
+              <button
+                className="sidebar-item-notes"
+                onClick={e => { e.stopPropagation(); onShowNotes(p.id) }}
+                title="本地笔记"
+              >
+                ✎
+              </button>
               <button
                 className="sidebar-item-detail"
                 onClick={e => { e.stopPropagation(); onShowDetail(p.id) }}

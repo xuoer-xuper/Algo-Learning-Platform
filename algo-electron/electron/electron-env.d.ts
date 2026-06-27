@@ -38,6 +38,10 @@ interface TabInfo {
   isActive: boolean
 }
 
+interface SaveNoteImageResult {
+  markdownUrl: string
+}
+
 interface ElectronAPI {
   navigate: (url: string) => void
   goBack: () => void
@@ -111,6 +115,19 @@ interface ElectronAPI {
   detachTab: (tabId: string) => void
   getTabList: () => Promise<TabInfo[]>
   onTabListChanged: (callback: (tabs: TabInfo[]) => void) => () => void
+
+  // 笔记（本地题解 Markdown）
+  listNotesByProblem: (problemId: string) => Promise<any[]>
+  getNote: (noteId: string) => Promise<any>
+  createNote: (problemId: string | null, title: string, content: string | null, noteType: string) => Promise<any>
+  updateNoteTitle: (noteId: string, title: string) => Promise<boolean>
+  updateNoteContent: (noteId: string, content: string) => Promise<boolean>
+  saveNoteImage: (noteId: string, fileName: string, mimeType: string, data: ArrayBuffer) => Promise<SaveNoteImageResult>
+  updateNoteType: (noteId: string, noteType: string) => Promise<boolean>
+  deleteNote: (noteId: string) => Promise<boolean>
+  getNotesForDelete: (problemId: string) => Promise<any[]>
+  deleteNotesByProblem: (problemId: string) => Promise<number>
+  openNotesDir: () => Promise<void>
 }
 
 interface Window {

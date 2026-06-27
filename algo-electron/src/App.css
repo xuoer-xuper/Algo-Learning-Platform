@@ -3,6 +3,7 @@
   --bg: #f0f4f8;
   --bg-surface: #e2e8f0;
   --bg-card: #ffffff;
+  --hover-bg: #f8fafc;
   --border: #cbd5e1;
   --border-light: #e2e8f0;
   --text: #1a202c;
@@ -237,6 +238,23 @@
   overflow: hidden;
 }
 
+.modal-panel-large {
+  max-width: min(1400px, calc(100vw - 48px));
+  max-height: min(800px, calc(100vh - 48px));
+  width: min(1400px, calc(100vw - 48px));
+  height: min(800px, calc(100vh - 48px));
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.modal-panel-full {
+  max-width: calc(100vw - 32px);
+  max-height: calc(100vh - 32px);
+  width: calc(100vw - 32px);
+  height: calc(100vh - 32px);
+}
+
 /* 侧边栏 */
 .sidebar {
   width: 220px;
@@ -389,6 +407,26 @@
 
 .sidebar-item-detail:hover {
   color: var(--text);
+}
+
+.sidebar-item-notes {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 13px;
+  cursor: pointer;
+  padding: 0 3px;
+  flex-shrink: 0;
+  opacity: 0;
+  transition: opacity 0.15s, color 0.15s;
+}
+
+.sidebar-item:hover .sidebar-item-notes {
+  opacity: 1;
+}
+
+.sidebar-item-notes:hover {
+  color: var(--primary, #89b4fa);
 }
 
 .sidebar-pagination {
@@ -1350,4 +1388,454 @@
   font-size: 12px;
   padding-top: 8px;
   border-top: 1px solid var(--border-light);
+}
+
+/* 笔记浮层（独立弹窗） */
+.notes-modal {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+  background: var(--bg-card);
+  overflow: hidden;
+}
+
+.notes-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--border-light);
+  background: var(--bg);
+  flex-shrink: 0;
+}
+
+.notes-modal-title {
+  color: var(--text);
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.notes-modal-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.notes-modal-btn {
+  height: 30px;
+  padding: 0 14px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  font-size: 13px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.15s;
+}
+
+.notes-modal-btn:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.notes-modal-btn-primary {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: white;
+}
+
+.notes-modal-btn-primary:hover {
+  background: var(--primary-hover);
+  border-color: var(--primary-hover);
+  color: white;
+}
+
+.notes-modal-btn-icon {
+  width: 30px;
+  padding: 0;
+  justify-content: center;
+  font-size: 14px;
+}
+
+.notes-modal-close {
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--border-light);
+  border-radius: 6px;
+  background: var(--bg-card);
+  color: var(--text-muted);
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+}
+
+.notes-modal-close:hover {
+  background: var(--error);
+  color: #fff;
+  border-color: var(--error);
+}
+
+.notes-modal-body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* 笔记列表侧边栏 */
+.notes-sidebar {
+  width: 240px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--border-light);
+  background: var(--bg);
+}
+
+.notes-sidebar-header {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border-light);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.notes-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.notes-empty {
+  color: var(--text-muted);
+  font-size: 13px;
+  padding: 32px 16px;
+  text-align: center;
+  line-height: 1.6;
+}
+
+.note-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  border: 1px solid transparent;
+  background: var(--bg-card);
+  transition: all 0.15s ease;
+}
+
+.note-item:hover {
+  border-color: var(--border);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.note-item.active {
+  border-color: var(--primary);
+  background: #eff6ff;
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.1);
+}
+
+.note-item-main {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.note-item-type {
+  font-size: 10px;
+  font-weight: 600;
+  flex-shrink: 0;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+.note-item-title {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+
+.note-item-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 6px;
+}
+
+.note-item-time {
+  font-size: 11px;
+  color: var(--text-muted);
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.note-item-words {
+  font-size: 11px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.note-item-del {
+  width: 20px;
+  height: 20px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 12px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: all 0.15s;
+  opacity: 0;
+}
+
+.note-item:hover .note-item-del {
+  opacity: 1;
+}
+
+.note-item-del:hover {
+  background: var(--error);
+  color: #fff;
+}
+
+/* 编辑区 */
+.note-editor-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  background: var(--bg-card);
+}
+
+.note-editor-header {
+  display: flex;
+  gap: 12px;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--border-light);
+  background: var(--bg);
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.note-editor-title {
+  flex: 1;
+  height: 36px;
+  padding: 0 14px;
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  background: var(--bg-card);
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 600;
+  transition: border-color 0.15s;
+}
+
+.note-editor-title:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.note-editor-type {
+  height: 36px;
+  padding: 0 12px;
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  background: var(--bg-card);
+  color: var(--text);
+  font-size: 13px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.note-editor-type:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+
+.note-save-status {
+  font-size: 12px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+  min-width: 72px;
+  text-align: right;
+}
+
+.note-editor-container {
+  flex: 1;
+  min-height: 0;
+  overflow: visible;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+.note-editor-placeholder {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  font-size: 14px;
+  gap: 8px;
+}
+
+.note-editor-placeholder-icon {
+  font-size: 48px;
+  opacity: 0.3;
+}
+
+/* ========== Milkdown Crepe 编辑器适配 ========== */
+/* 原则：只覆盖 CSS 变量和颜色，不动 Crepe 内部布局；
+   所有 absolute 浮层（dropdown / toolbar / link-tooltip）
+   依赖 .milkdown 作为定位上下文，因此外层容器绝不可加 overflow:hidden */
+
+/* 外层 flex 容器：撑满剩余空间，不创建新的裁剪边界 */
+.milkdown-wrapper {
+  flex: 1;
+  min-height: 0;
+  overflow: visible;
+  position: relative;
+}
+
+/* 仅覆盖主题变量，让 Crepe 使用自己的默认布局 */
+.milkdown-wrapper .milkdown {
+  --crepe-color-background: var(--bg-card);
+  --crepe-color-on-background: var(--text);
+  --crepe-color-surface: var(--bg);
+  --crepe-color-surface-low: var(--hover-bg);
+  --crepe-color-on-surface: var(--text);
+  --crepe-color-on-surface-variant: var(--text-secondary);
+  --crepe-color-outline: var(--text-muted);
+  --crepe-color-primary: var(--primary);
+  --crepe-color-secondary: #dbeafe;
+  --crepe-color-on-secondary: var(--primary);
+  --crepe-color-hover: var(--hover-bg);
+  --crepe-color-selected: #dbeafe;
+  --crepe-color-inline-code: var(--accent);
+  --crepe-color-inline-area: var(--bg-code);
+  --crepe-font-default: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+  --crepe-font-title: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+  --crepe-font-code: 'JetBrains Mono', Consolas, Monaco, 'Courier New', monospace;
+  --crepe-shadow-1: 0 2px 8px rgba(0, 0, 0, 0.08);
+  --crepe-shadow-2: 0 8px 24px rgba(0, 0, 0, 0.12);
+
+  /* 让编辑器在可用空间内撑满并自己负责滚动；
+     position:relative 使其成为内部 absolute 浮层的定位上下文 */
+  height: 100%;
+  overflow-y: auto;
+  position: relative;
+}
+
+/* Crepe 默认正文区左右 120px padding，弹窗内会形成大块空白 */
+.milkdown-wrapper .milkdown .ProseMirror {
+  width: 100%;
+  max-width: none;
+  padding: 16px 20px 40px;
+}
+
+/* 图片按编辑器可用宽度显示，不额外居中留白 */
+.milkdown-wrapper .milkdown .milkdown-image-block > .image-wrapper {
+  max-width: 100%;
+  margin: 0;
+}
+
+.milkdown-wrapper .milkdown .milkdown-image-block > .image-wrapper img {
+  max-width: 100%;
+  height: auto;
+  object-fit: contain;
+}
+
+.milkdown-wrapper .milkdown .milkdown-image-block > .image-edit {
+  width: 100%;
+}
+
+.milkdown-wrapper .milkdown .milkdown-image-block > .caption-input {
+  text-align: left;
+}
+
+/* 代码块编辑器深色背景（主题偏好） */
+.milkdown-wrapper .milkdown .milkdown-code-block .cm-editor {
+  background: #1e293b;
+}
+
+.milkdown-wrapper .milkdown .milkdown-code-block .cm-gutters {
+  background: #1e293b;
+  border-right: 1px solid #334155;
+}
+
+.milkdown-wrapper .milkdown .milkdown-code-block .cm-content {
+  color: #e2e8f0;
+}
+
+/* 列表 marker 颜色 */
+.milkdown-wrapper .milkdown .ProseMirror li::marker {
+  color: var(--primary);
+}
+
+/* 选中文本背景 */
+.milkdown-wrapper .milkdown .ProseMirror ::selection {
+  background: #dbeafe;
+}
+
+/* 编辑器滚动条美化 */
+.milkdown-wrapper .milkdown::-webkit-scrollbar {
+  width: 8px;
+}
+
+.milkdown-wrapper .milkdown::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.milkdown-wrapper .milkdown::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 4px;
+}
+
+.milkdown-wrapper .milkdown::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
+/* 笔记列表滚动条 */
+.notes-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.notes-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.notes-list::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 3px;
+}
+
+.notes-list::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
 }

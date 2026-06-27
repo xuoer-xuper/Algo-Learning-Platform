@@ -1,5 +1,5 @@
-import { app, BrowserWindow, ipcMain, Menu, dialog, session } from 'electron'
-import { fileURLToPath } from 'node:url'
+import { app, BrowserWindow, ipcMain, Menu, dialog, net, protocol, session } from 'electron'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import path from 'node:path'
 import fs from 'node:fs'
 import { TabManager } from './browser/TabManager'
@@ -19,10 +19,28 @@ import { SyncService } from './submissions/syncService'
 import { UserScriptService } from './scripts/UserScriptService'
 import { EXTRACT_PROBLEM_TITLE_SCRIPT } from './parsers/extractProblemTitleScript'
 import { isValidScrapedTitle } from './parsers/titleValidation'
+import {
+  createNote, getNotesByProblem, getNoteWithContent, updateNoteTitle,
+  updateNoteContent, updateNoteType, deleteNote, getNotesByProblemForDelete,
+  deleteNotesByProblem, openNotesDir, resolveNoteAssetPath, saveNoteImage, type NoteType
+} from './notes/NoteService'
 
 // 禁用 Chromium 124+ 默认启用的 PostQuantumKyber，以防止部分本地代理或防火墙导致 SSL 握手失败 (ERR_CONNECTION_CLOSED)
 app.commandLine.appendSwitch('disable-features', 'PostQuantumKyber,TLS13KeyExchangeMLKEM')
 app.commandLine.appendSwitch('ignore-certificate-errors')
+
+const NOTE_ASSET_SCHEME = 'note-asset'
+
+protocol.registerSchemesAsPrivileged([
+  {
+    scheme: NOTE_ASSET_SCHEME,
+    privileges: {
+      standard: true,
+      secure: true,
+      stream: true,
+    },
+  },
+])
 
 // 删除默认菜单栏
 Menu.setApplicationMenu(null)
@@ -42,6 +60,33 @@ let tabManager: TabManager | null
 let trackingService: TrackingService | null
 let syncService: SyncService | null
 let userScriptService: UserScriptService | null
+
+function registerNoteAssetProtocol() {
+  protocol.handle(NOTE_ASSET_SCHEME, async (request) => {
+    try {
+      const url = new URL(request.url)
+      const segments = url.pathname
+        .split('/')
+        .filter(Boolean)
+        .map((segment) => decodeURIComponent(segment))
+      const [noteId, ...relativeParts] = segments
+
+      if (url.hostname !== 'local' || !noteId || relativeParts.length === 0) {
+        return new Response(null, { status: 400 })
+      }
+
+      const assetPath = resolveNoteAssetPath(noteId, relativeParts.join('/'))
+      if (!assetPath || !fs.existsSync(assetPath)) {
+        return new Response(null, { status: 404 })
+      }
+
+      return net.fetch(pathToFileURL(assetPath).toString())
+    } catch (error) {
+      console.warn('[Notes] 读取图片附件失败:', error)
+      return new Response(null, { status: 404 })
+    }
+  })
+}
 
 function createWindow() {
   win = new BrowserWindow({
@@ -403,6 +448,58 @@ ipcMain.handle('problem:delete', (_event, problemId: string) => {
   return ok
 })
 
+// --- 笔记（本地题解 Markdown） ---
+
+ipcMain.handle('notes:listByProblem', (_event, problemId: string) => {
+  return getNotesByProblem(problemId)
+})
+
+ipcMain.handle('notes:get', (_event, noteId: string) => {
+  return getNoteWithContent(noteId)
+})
+
+ipcMain.handle('notes:create', (_event, problemId: string | null, title: string, content: string | null, noteType: NoteType) => {
+  const note = createNote({ problem_id: problemId, title, content: content ?? undefined, note_type: noteType })
+  win?.webContents.send('problems:updated')
+  return note
+})
+
+ipcMain.handle('notes:updateTitle', (_event, noteId: string, title: string) => {
+  return updateNoteTitle(noteId, title)
+})
+
+ipcMain.handle('notes:updateContent', (_event, noteId: string, content: string) => {
+  return updateNoteContent(noteId, content)
+})
+
+ipcMain.handle('notes:saveImage', (_event, noteId: string, fileName: string, mimeType: string, data: ArrayBuffer | Uint8Array) => {
+  return saveNoteImage(noteId, fileName, mimeType, data)
+})
+
+ipcMain.handle('notes:updateType', (_event, noteId: string, noteType: NoteType) => {
+  return updateNoteType(noteId, noteType)
+})
+
+ipcMain.handle('notes:delete', (_event, noteId: string) => {
+  return deleteNote(noteId)
+})
+
+ipcMain.handle('notes:getForDelete', (_event, problemId: string) => {
+  // 删除题目前获取关联笔记列表，供前端确认
+  return getNotesByProblemForDelete(problemId)
+})
+
+ipcMain.handle('notes:deleteByProblem', (_event, problemId: string) => {
+  // 用户确认后删除题目关联的所有笔记文件
+  return deleteNotesByProblem(problemId)
+})
+
+ipcMain.handle('notes:openDir', async () => {
+  const dir = openNotesDir()
+  const { shell } = await import('electron')
+  shell.openPath(dir)
+})
+
 ipcMain.handle('stats:getOverview', () => {
   return getOverviewStats()
 })
@@ -637,6 +734,7 @@ app.on('activate', () => {
 })
 
 app.whenReady().then(() => {
+  registerNoteAssetProtocol()
   initDb()
   seedBuiltinSites()
   setEnabledSitesFetcher(getEnabledSites)
