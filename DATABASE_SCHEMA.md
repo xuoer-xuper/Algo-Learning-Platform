@@ -404,20 +404,25 @@ UNIQUE INDEX snapshots_date_unique(snapshot_date)
 
 ### 7.3 ai_outputs
 
-AI 输出独立保存，不污染核心事实表。（P6-009 建表，设计预留）
+AI 输出独立保存，不污染核心事实表。migration 015 建表。
 
 > 已移除：原 7.2 `submission_code_snippets`（P6-003）已下线，migration 013 物理删除该表。原因：手动维护成本高，AI 模块不依赖此表（contextExporter 直接读取原始 submissions 表）。
 
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
 | id | TEXT PRIMARY KEY | 输出 ID |
-| output_type | TEXT NOT NULL | review_plan、weakness、summary |
+| output_type | TEXT NOT NULL | review_recommendation、review_plan、period_summary、weakness_analysis |
 | title | TEXT | 标题 |
-| content | TEXT NOT NULL | 输出内容 |
-| input_summary_json | TEXT | 输入摘要 |
+| content | TEXT NOT NULL | 结构化 JSON 内容 |
+| content_markdown | TEXT | Markdown 渲染（可选） |
+| input_summary_json | TEXT | 输入摘要（来源快照、参数等） |
 | source_refs_json | TEXT | 题目、提交、统计引用 |
-| model_info_json | TEXT | 模型信息 |
-| created_at | TEXT NOT NULL | 创建时间 |
+| model_info_json | TEXT | 模型信息（本地规则引擎版本等） |
+| created_at | TEXT NOT NULL | 创建时间（本地时间） |
+| updated_at | TEXT NOT NULL | 更新时间（本地时间） |
+
+INDEX ai_outputs_type_idx(output_type)
+INDEX ai_outputs_created_idx(created_at DESC)
 
 ## 8. Phase 7 表
 

@@ -17,6 +17,7 @@ import { migration011 } from './migrations/011_notes_content'
 import { migration012 } from './migrations/012_submission_code_snippets'
 import { migration013 } from './migrations/013_drop_submission_code_snippets'
 import { migration014 } from './migrations/014_ai_context_snapshots'
+import { migration015 } from './migrations/015_ai_outputs'
 
 let db: Database.Database | null = null
 
@@ -46,7 +47,7 @@ export function initDb(): Database.Database {
     migration001, migration002, migration003, migration004,
     migration005, migration006, migration007, migration008,
     migration009, migration010, migration011, migration012, migration013,
-    migration014
+    migration014, migration015
   ])
 
   return db

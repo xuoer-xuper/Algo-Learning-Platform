@@ -48,8 +48,12 @@ Phase 1、Phase 2、Phase 3、Phase 4、Phase 5 已完成。下一步进入 Phas
 5. 执行 `P6-005` 实现错题复习建议。✅
 6. 执行 `P6-006` 实现薄弱标签分析。✅
 7. 执行 `P6-010` 限制 AI 修改核心数据。✅
+8. 执行 `P6-007` 实现阶段学习总结。✅
+9. 执行 `P6-008` 实现复习计划生成。✅
+10. 执行 `P6-009` 实现 AI 输出本地保存。✅
+11. 执行 `P6-011` Phase 6 AI 建议可追溯性测试。✅
 
-下一批待办（按依赖顺序）：`P6-007` 阶段学习总结 → `P6-008` 复习计划生成 → `P6-009` AI 输出本地保存（建 `ai_outputs` 表）→ `P6-011` 可追溯性测试。
+Phase 6 全部任务完成。
 
 禁止继续在 `BrowserView` 上新增功能。
 
@@ -2128,7 +2132,7 @@ Phase 1、Phase 2、Phase 3、Phase 4、Phase 5 已完成。下一步进入 Phas
 
 ### P6-007 实现阶段学习总结
 
-状态：未开始  
+状态：已完成  
 优先级：P1  
 阶段：Phase 6  
 前置任务：P3-015、P6-004  
@@ -2139,11 +2143,13 @@ Phase 1、Phase 2、Phase 3、Phase 4、Phase 5 已完成。下一步进入 Phas
 - 总结包含学习量、平台分布、AC、薄弱点。
 - 用户可保存总结。
 
+实现：`electron/ai/summary/periodSummary.ts` 基于 `ai_context_snapshots` 快照聚合周期统计，支持周/月/自定义日期范围，含与上一周期对比和可追溯依据。IPC: `ai:getPeriodSummary`、`ai:getPeriodSummaryMarkdown`。
+
 建议提交：`feat: 生成阶段学习总结`
 
 ### P6-008 实现复习计划生成
 
-状态：未开始  
+状态：已完成  
 优先级：P1  
 阶段：Phase 6  
 前置任务：P6-005、P6-006、P6-007  
@@ -2154,11 +2160,13 @@ Phase 1、Phase 2、Phase 3、Phase 4、Phase 5 已完成。下一步进入 Phas
 - 计划能关联具体题目和标签。
 - 用户可接受、忽略或调整计划。
 
+实现：`electron/ai/recommendations/reviewPlanner.ts` 融合复习建议（P6-005）+ 薄弱标签（P6-006）生成短期复习计划，按优先级排序，含预估时间和可追溯依据。IPC: `ai:getReviewPlan`、`ai:getReviewPlanMarkdown`。
+
 建议提交：`feat: 生成算法复习计划`
 
 ### P6-009 实现 AI 输出本地保存
 
-状态：未开始  
+状态：已完成  
 优先级：P1  
 阶段：Phase 6  
 前置任务：P6-005、P6-007、P6-008  
@@ -2168,6 +2176,8 @@ Phase 1、Phase 2、Phase 3、Phase 4、Phase 5 已完成。下一步进入 Phas
 
 - AI 输出和核心数据分表或分目录存储。
 - 每条 AI 输出保留生成时间、输入摘要和版本。
+
+实现：migration 015 建 `ai_outputs` 表（与核心表完全隔离）；`electron/db/repositories/aiOutputRepository.ts` 提供 CRUD；IPC: `ai:saveOutput`、`ai:getOutput`、`ai:listOutputs`、`ai:deleteOutput`、`ai:updateOutput`。每条输出含 `output_type`、`content`、`content_markdown`、`input_summary_json`、`source_refs_json`、`model_info_json`。
 
 建议提交：`feat: 保存 AI 学习建议`
 

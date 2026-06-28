@@ -131,4 +131,27 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // P6-005 / P6-006: AI 建议与薄弱分析（本地规则引擎）
   getReviewRecommendations: (limit?: number) => ipcRenderer.invoke('ai:getReviewRecommendations', limit),
   getWeaknessAnalysis: (limit?: number) => ipcRenderer.invoke('ai:getWeaknessAnalysis', limit),
+
+  // P6-007: 阶段学习总结（本地规则引擎）
+  getPeriodSummary: (startDate: string, endDate: string) => ipcRenderer.invoke('ai:getPeriodSummary', startDate, endDate),
+  getPeriodSummaryMarkdown: (startDate: string, endDate: string) => ipcRenderer.invoke('ai:getPeriodSummaryMarkdown', startDate, endDate),
+
+  // P6-008: 复习计划生成（本地规则引擎）
+  getReviewPlan: (planDays?: number) => ipcRenderer.invoke('ai:getReviewPlan', planDays),
+  getReviewPlanMarkdown: (planDays?: number) => ipcRenderer.invoke('ai:getReviewPlanMarkdown', planDays),
+
+  // P6-009: AI 输出本地保存
+  saveAIOutput: (input: {
+    output_type: string
+    title: string
+    content: string
+    content_markdown?: string
+    input_summary?: Record<string, any>
+    source_refs?: Record<string, any>
+    model_info?: Record<string, any>
+  }) => ipcRenderer.invoke('ai:saveOutput', input),
+  getAIOutput: (id: string) => ipcRenderer.invoke('ai:getOutput', id),
+  listAIOutputs: (outputType?: string, limit?: number) => ipcRenderer.invoke('ai:listOutputs', outputType, limit),
+  deleteAIOutput: (id: string) => ipcRenderer.invoke('ai:deleteOutput', id),
+  updateAIOutput: (id: string, updates: { title?: string; content?: string; content_markdown?: string }) => ipcRenderer.invoke('ai:updateOutput', id, updates),
 })

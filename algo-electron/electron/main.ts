@@ -27,7 +27,13 @@ import {
 import { exportAIContext, renderContextAsMarkdown } from './ai/contextExporter'
 import { getReviewRecommendations } from './ai/recommendations/reviewRecommender'
 import { getWeaknessAnalysis } from './ai/recommendations/weaknessAnalyzer'
+import { getReviewPlan, renderPlanAsMarkdown } from './ai/recommendations/reviewPlanner'
+import { getPeriodSummary, renderSummaryAsMarkdown } from './ai/summary/periodSummary'
 import { ensureTodaySnapshot } from './db/repositories/aiContextSnapshotRepository'
+import {
+  saveAIOutput, getAIOutput, listAIOutputs, deleteAIOutput, updateAIOutput,
+  type AIOutputType
+} from './db/repositories/aiOutputRepository'
 import { STEALTH_SCRIPT } from './browser/stealthScript'
 
 // Chromium 启动开关配置
@@ -119,6 +125,17 @@ function createWindow() {
   // 创建多标签页宿主
   tabManager = new TabManager(win)
   syncService?.setBrowserHost(tabManager as any) // Temporary cast if SyncService expects BrowserHost, though it probably just needs executeScript/getUrl
+
+  // 注册 DevTools 快捷键（Ctrl+Shift+I / F12）
+  win.webContents.on('before-input-event', (_event, input) => {
+    if (input.type !== 'keyDown') return
+    const isShift = input.shift
+    const keyCode = input.key
+    // Ctrl+Shift+I 或 F12 打开/关闭 DevTools
+    if ((input.control && isShift && keyCode === 'I') || keyCode === 'F12') {
+      win?.webContents.toggleDevTools()
+    }
+  })
 
   tabManager.setUrlChangeCallback((url) => {
     win?.webContents.send('browser:urlChanged', url)
@@ -538,6 +555,59 @@ ipcMain.handle('ai:getWeaknessAnalysis', (_event, limit?: number) => {
   return getWeaknessAnalysis(limit ?? 10)
 })
 
+// --- P6-007: 阶段学习总结（本地规则引擎） ---
+ipcMain.handle('ai:getPeriodSummary', (_event, startDate: string, endDate: string) => {
+  return getPeriodSummary({ start_date: startDate, end_date: endDate })
+})
+
+ipcMain.handle('ai:getPeriodSummaryMarkdown', (_event, startDate: string, endDate: string) => {
+  const summary = getPeriodSummary({ start_date: startDate, end_date: endDate })
+  return renderSummaryAsMarkdown(summary)
+})
+
+// --- P6-008: 复习计划生成（本地规则引擎） ---
+ipcMain.handle('ai:getReviewPlan', (_event, planDays?: number) => {
+  return getReviewPlan(planDays ?? 7)
+})
+
+ipcMain.handle('ai:getReviewPlanMarkdown', (_event, planDays?: number) => {
+  const plan = getReviewPlan(planDays ?? 7)
+  return renderPlanAsMarkdown(plan)
+})
+
+// --- P6-009: AI 输出本地保存 ---
+ipcMain.handle('ai:saveOutput', (_event, input: {
+  output_type: AIOutputType
+  title: string
+  content: string
+  content_markdown?: string
+  input_summary?: Record<string, any>
+  source_refs?: Record<string, any>
+  model_info?: Record<string, any>
+}) => {
+  return saveAIOutput(input)
+})
+
+ipcMain.handle('ai:getOutput', (_event, id: string) => {
+  return getAIOutput(id)
+})
+
+ipcMain.handle('ai:listOutputs', (_event, outputType?: AIOutputType, limit?: number) => {
+  return listAIOutputs(outputType, limit ?? 20)
+})
+
+ipcMain.handle('ai:deleteOutput', (_event, id: string) => {
+  return deleteAIOutput(id)
+})
+
+ipcMain.handle('ai:updateOutput', (_event, id: string, updates: {
+  title?: string
+  content?: string
+  content_markdown?: string
+}) => {
+  return updateAIOutput(id, updates)
+})
+
 ipcMain.handle('stats:getOverview', () => {
   return getOverviewStats()
 })
@@ -787,14 +857,64 @@ app.whenReady().then(() => {
 
   // 通过 webRequest 拦截 HTML 响应，在 <head> 最前面注入反检测脚本
   // 确保脚本在 Cloudflare / Turnstile 之前执行（比 did-finish-load 早得多）
-  const stealthInlineScript = `<script>${STEALTH_SCRIPT.replace(/<\/script>/g, '\\x3c/script>')}</script>`
+
+  // 添加 CORS 头，使用户脚本的 GM_xmlhttpRequest (fetch) 不受跨域限制
+  // 模拟油猴扩展的跨域权限，同时保持 webSecurity=true（不破坏 Cloudflare 验证）
+  // 注意：必须先移除服务器已有的 CORS 头，否则会出现重复头导致浏览器报错
+  const corsHeadersToAdd = {
+    'access-control-allow-origin': ['*'],
+    'access-control-allow-methods': ['GET, POST, PUT, DELETE, OPTIONS, PATCH'],
+    'access-control-allow-headers': ['*'],
+    'access-control-expose-headers': ['*'],
+    'access-control-max-age': ['86400'],
+  }
+
   ojSession.webRequest.onHeadersReceived((details, callback) => {
-    const contentType = details.responseHeaders?.['content-type']?.[0] || details.responseHeaders?.['Content-Type']?.[0]
-    if (details.resourceType === 'mainFrame' && contentType && contentType.includes('text/html')) {
-      // 标记该响应需要修改，在后续 onResponse 中处理
-      ;(details as any)._needsStealth = true
+    // mainFrame HTML 请求：标记需要注入 stealth script（供 onResponseStarted 使用）
+    if (details.resourceType === 'mainFrame') {
+      const ct = details.responseHeaders?.['content-type']?.[0] || details.responseHeaders?.['Content-Type']?.[0]
+      if (ct && ct.includes('text/html')) {
+        ;(details as any)._needsStealth = true
+      }
+      // 主帧导航不涉及 CORS，不修改响应头，避免破坏 Content-Type 等头导致下载窗口
+      callback({})
+      return
     }
-    callback({ responseHeaders: details.responseHeaders })
+
+    // 只对 XHR/fetch 请求和 OPTIONS 预检请求添加 CORS 头
+    // 其他资源请求（script/stylesheet/image/font 等）不修改响应头
+    if (details.resourceType !== 'xhr' && details.method !== 'OPTIONS') {
+      callback({})
+      return
+    }
+
+    // 如果服务器已返回 access-control-allow-credentials: true，
+    // 说明该请求需要 cookie 认证（如 PTA API），保留服务器原始 CORS 头不动
+    // 避免移除 credentials 后导致认证失败
+    const hasCredentials = Object.entries(details.responseHeaders || {}).some(
+      ([key, value]) => key.toLowerCase() === 'access-control-allow-credentials' && value[0] === 'true'
+    )
+    if (hasCredentials) {
+      callback({})
+      return
+    }
+
+    // 复制原始响应头，移除已有的 CORS 头（不区分大小写），避免重复
+    const headers: Record<string, string[]> = {}
+    const corsKeys = ['access-control-allow-origin', 'access-control-allow-methods', 'access-control-allow-headers', 'access-control-expose-headers', 'access-control-max-age']
+    for (const [key, value] of Object.entries(details.responseHeaders || {})) {
+      if (!corsKeys.includes(key.toLowerCase())) {
+        headers[key] = value as string[]
+      }
+    }
+    Object.assign(headers, corsHeadersToAdd)
+
+    if (details.method === 'OPTIONS') {
+      callback({ responseHeaders: headers, statusLine: 'HTTP/1.1 204 No Content' })
+      return
+    }
+
+    callback({ responseHeaders: headers })
   })
   ojSession.webRequest.onResponseStarted((details) => {
     if ((details as any)._needsStealth) {
@@ -810,7 +930,7 @@ app.whenReady().then(() => {
           })()
         }
       `
-      const wc = webContents.fromId(details.webContentsId)
+      const wc = details.webContentsId ? webContents.fromId(details.webContentsId) : undefined
       wc?.executeJavaScript(earlyScript, true).catch(() => {})
     }
   })
