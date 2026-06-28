@@ -16,13 +16,15 @@ function fillMissingDays(data: { local_day: string; count: number }[], days: num
   for (let i = days - 1; i >= 0; i--) {
     const d = new Date(now)
     d.setDate(d.getDate() - i)
-    const key = d.toISOString().slice(0, 10)
+    // 使用本地日期（与数据库 local_day 由 todayBeijing 生成的方式一致），
+    // 不能用 toISOString() 否则 UTC+8 凌晨会偏移到前一天
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
     result.push({ local_day: key, count: map.get(key) ?? 0 })
   }
   return result
 }
 
-export function Dashboard({ onClose }: { onClose: () => void }) {
+export function Dashboard({ onClose, onNavigate }: { onClose: () => void; onNavigate: (url: string) => void }) {
   const [stats, setStats] = useState<any>(null)
   const [streak, setStreak] = useState({ current: 0, longest: 0 })
   const [wrongProblems, setWrongProblems] = useState<any[]>([])
@@ -35,6 +37,9 @@ export function Dashboard({ onClose }: { onClose: () => void }) {
   const [cfAccount, setCfAccount] = useState<any>(null)
   const [recomputing, setRecomputing] = useState(false)
   const [trendRange, setTrendRange] = useState<number | undefined>(30)
+  const [recommendations, setRecommendations] = useState<any[]>([])
+  const [weaknesses, setWeaknesses] = useState<any[]>([])
+  const [weaknessNote, setWeaknessNote] = useState('')
 
   useEffect(() => {
     window.electronAPI.hideView()
@@ -55,6 +60,7 @@ export function Dashboard({ onClose }: { onClose: () => void }) {
   }
 
   const loadAll = async () => {
+    // 修复：核心统计与 AI 建议分离，AI 模块异常不影响 Dashboard 主功能
     const [s, st, wp, ur, tl, rv, acc] = await Promise.all([
       window.electronAPI.getOverviewStats(),
       window.electronAPI.getStreakDays(),
@@ -67,6 +73,23 @@ export function Dashboard({ onClose }: { onClose: () => void }) {
     setStats(s); setStreak(st); setWrongProblems(wp)
     setUnreviewed(ur); setTimeline(tl); setRevisits(rv)
     setCfAccount(acc)
+
+    // AI 建议单独加载，失败时降级为空列表，不阻塞 Dashboard
+    try {
+      const [rec, weak] = await Promise.all([
+        window.electronAPI.getReviewRecommendations(5),
+        window.electronAPI.getWeaknessAnalysis(8),
+      ])
+      setRecommendations(rec?.recommendations ?? [])
+      setWeaknesses(weak?.weaknesses ?? [])
+      setWeaknessNote(weak?.data_note ?? '')
+    } catch (err) {
+      console.error('[Dashboard] AI 建议加载失败，已降级显示', err)
+      setRecommendations([])
+      setWeaknesses([])
+      setWeaknessNote('AI 建议暂时不可用')
+    }
+
     if (acc) {
       const history = await window.electronAPI.getRatingHistory(acc.id)
       setRatingHistory(history)
@@ -115,6 +138,51 @@ export function Dashboard({ onClose }: { onClose: () => void }) {
           <div className="dashboard-card-value">{streak.longest}<span className="dashboard-card-unit">天</span></div>
           <div className="dashboard-card-label">最长连续</div>
         </div>
+      </div>
+
+      {/* AI 学习建议（本地规则引擎） */}
+      <div className="ai-suggest-section">
+        <div className="ai-suggest-grid">
+          <div className="ai-suggest-card">
+            <h3 className="ai-suggest-title">复习建议</h3>
+            {recommendations.length === 0 ? (
+              <div className="dashboard-empty">暂无错题数据</div>
+            ) : (
+              recommendations.map((r: any) => (
+                <div key={r.problem_id} className="ai-rec-item" onClick={() => onNavigate(r.canonical_url)}>
+                  <div className="ai-rec-head">
+                    <span className="ai-rec-platform">{PLATFORM_NAMES[r.platform] || r.platform}</span>
+                    <span className="ai-rec-title">{r.title || r.platform_problem_id}</span>
+                  </div>
+                  <div className="ai-rec-reason">{r.reason}</div>
+                  <div className="ai-rec-evidence">
+                    {r.source.wrong_count} 次错误 · {r.source.days_since_attempt} 天前 · 访问 {r.source.visit_count} 次
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+          <div className="ai-suggest-card">
+            <h3 className="ai-suggest-title">薄弱标签</h3>
+            {weaknesses.length === 0 ? (
+              <div className="dashboard-empty">{weaknessNote || '暂无标签数据'}</div>
+            ) : (
+              weaknesses.map((w: any) => (
+                <div key={w.tag} className="ai-weak-item">
+                  <div className="ai-weak-head">
+                    <span className="ai-weak-tag">{w.tag}</span>
+                    <span className="ai-weak-acrate">{w.ac_rate}% AC</span>
+                  </div>
+                  <div className="ai-weak-evidence">{w.evidence}</div>
+                  <div className="ai-weak-bar">
+                    <div className="ai-weak-bar-fill" style={{ width: `${Math.min(w.weakness_score, 100)}%` }} />
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+        <div className="ai-suggest-note">基于本地统计规则生成，不修改任何题目状态</div>
       </div>
 
       {/* 平台分布 */}
@@ -257,7 +325,7 @@ export function Dashboard({ onClose }: { onClose: () => void }) {
             <div className="dashboard-empty">暂无数据</div>
           ) : (
             wrongProblems.map((p: any) => (
-              <div key={p.id} className="dashboard-list-item">
+              <div key={p.id} className="dashboard-list-item" onClick={() => onNavigate(p.canonical_url)}>
                 <span className="dashboard-list-platform">{PLATFORM_NAMES[p.platform] || p.platform}</span>
                 <span className="dashboard-list-title">{p.title || p.platform_problem_id}</span>
                 <span className="dashboard-list-count">{p.wrong_count} 次</span>
@@ -272,7 +340,7 @@ export function Dashboard({ onClose }: { onClose: () => void }) {
             <div className="dashboard-empty">暂无数据</div>
           ) : (
             unreviewed.map((p: any) => (
-              <div key={p.id} className="dashboard-list-item">
+              <div key={p.id} className="dashboard-list-item" onClick={() => onNavigate(p.canonical_url)}>
                 <span className="dashboard-list-platform">{PLATFORM_NAMES[p.platform] || p.platform}</span>
                 <span className="dashboard-list-title">{p.title || p.platform_problem_id}</span>
                 <span className="dashboard-list-count">{p.days_since} 天前</span>
@@ -287,7 +355,7 @@ export function Dashboard({ onClose }: { onClose: () => void }) {
             <div className="dashboard-empty">暂无数据</div>
           ) : (
             revisits.map((p: any) => (
-              <div key={p.problem_id} className="dashboard-list-item">
+              <div key={p.problem_id} className="dashboard-list-item" onClick={() => onNavigate(p.canonical_url)}>
                 <span className="dashboard-list-platform">{PLATFORM_NAMES[p.platform] || p.platform}</span>
                 <span className="dashboard-list-title">{p.title || p.platform_problem_id}</span>
                 <span className="dashboard-list-count">{p.visit_count} 次</span>

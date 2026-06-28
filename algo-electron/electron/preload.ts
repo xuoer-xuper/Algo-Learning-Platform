@@ -123,4 +123,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getNotesForDelete: (problemId: string) => ipcRenderer.invoke('notes:getForDelete', problemId) as Promise<any[]>,
   deleteNotesByProblem: (problemId: string) => ipcRenderer.invoke('notes:deleteByProblem', problemId) as Promise<number>,
   openNotesDir: () => ipcRenderer.invoke('notes:openDir'),
+
+  // P6-004: AI 上下文导出
+  exportAIContext: () => ipcRenderer.invoke('ai:exportContext'),
+  exportAIContextMarkdown: () => ipcRenderer.invoke('ai:exportContextMarkdown'),
+
+  // P6-005 / P6-006: AI 建议与薄弱分析（本地规则引擎）
+  getReviewRecommendations: (limit?: number) => ipcRenderer.invoke('ai:getReviewRecommendations', limit),
+  getWeaknessAnalysis: (limit?: number) => ipcRenderer.invoke('ai:getWeaknessAnalysis', limit),
 })

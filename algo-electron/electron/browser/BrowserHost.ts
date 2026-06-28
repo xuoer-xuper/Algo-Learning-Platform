@@ -1,4 +1,5 @@
 import { WebContentsView, BrowserWindow } from 'electron'
+import { STEALTH_SCRIPT } from './stealthScript'
 
 const TOOLBAR_HEIGHT = 42
 
@@ -59,6 +60,11 @@ export class BrowserHost {
     this.view.webContents.on('page-title-updated', (_event, title) => {
       const url = this.view!.webContents.getURL()
       this.onTitleChange?.(title, url)
+    })
+
+    // 注入反检测脚本到主世界（绕过 contextIsolation）
+    this.view.webContents.on('did-finish-load', () => {
+      this.view?.webContents.executeJavaScript(STEALTH_SCRIPT).catch(() => {})
     })
 
     return this.view

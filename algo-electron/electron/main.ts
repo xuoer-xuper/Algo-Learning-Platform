@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, Menu, dialog, net, protocol, session } from 'electron'
+import { app, BrowserWindow, ipcMain, Menu, dialog, net, protocol, session, webContents } from 'electron'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import path from 'node:path'
 import fs from 'node:fs'
@@ -24,10 +24,26 @@ import {
   updateNoteContent, updateNoteType, deleteNote, getNotesByProblemForDelete,
   deleteNotesByProblem, openNotesDir, resolveNoteAssetPath, saveNoteImage, type NoteType
 } from './notes/NoteService'
+import { exportAIContext, renderContextAsMarkdown } from './ai/contextExporter'
+import { getReviewRecommendations } from './ai/recommendations/reviewRecommender'
+import { getWeaknessAnalysis } from './ai/recommendations/weaknessAnalyzer'
+import { ensureTodaySnapshot } from './db/repositories/aiContextSnapshotRepository'
+import { STEALTH_SCRIPT } from './browser/stealthScript'
 
-// 禁用 Chromium 124+ 默认启用的 PostQuantumKyber，以防止部分本地代理或防火墙导致 SSL 握手失败 (ERR_CONNECTION_CLOSED)
+// Chromium 启动开关配置
+// 注意：以下开关必须在 app.whenReady() 之前设置
+
+// 1. 禁用 Chromium 124+ 默认启用的 PostQuantumKyber，以防止部分本地代理或防火墙导致 SSL 握手失败 (ERR_CONNECTION_CLOSED)
 app.commandLine.appendSwitch('disable-features', 'PostQuantumKyber,TLS13KeyExchangeMLKEM')
-app.commandLine.appendSwitch('ignore-certificate-errors')
+
+// 2. Cloudflare / Turnstile 反检测
+// Electron 默认会暴露 navigator.webdriver 等自动化标志，Cloudflare 在页面加载极早期检测这些标志。
+// disable-blink-features=AutomationControlled 从 C++ 层面阻止该标志暴露。
+app.commandLine.appendSwitch('disable-blink-features', 'AutomationControlled')
+
+// 3. 不要启用 ignore-certificate-errors
+// 全局禁用证书验证会被 Cloudflare 识别为自动化工具，导致验证通过后仍被退回验证页。
+// 如需访问自签名证书站点，请改用 session.setCertificateVerifyProc 针对特定域名处理。
 
 const NOTE_ASSET_SCHEME = 'note-asset'
 
@@ -500,6 +516,28 @@ ipcMain.handle('notes:openDir', async () => {
   shell.openPath(dir)
 })
 
+// --- P6-004: AI 上下文导出层 ---
+
+ipcMain.handle('ai:exportContext', () => {
+  return exportAIContext()
+})
+
+ipcMain.handle('ai:exportContextMarkdown', () => {
+  return renderContextAsMarkdown(exportAIContext())
+})
+
+// --- P6-005: 错题复习建议（本地规则引擎） ---
+
+ipcMain.handle('ai:getReviewRecommendations', (_event, limit?: number) => {
+  return getReviewRecommendations(limit ?? 10)
+})
+
+// --- P6-006: 薄弱标签分析（本地规则引擎） ---
+
+ipcMain.handle('ai:getWeaknessAnalysis', (_event, limit?: number) => {
+  return getWeaknessAnalysis(limit ?? 10)
+})
+
 ipcMain.handle('stats:getOverview', () => {
   return getOverviewStats()
 })
@@ -721,10 +759,14 @@ ipcMain.handle('submissions:syncCurrentPage', async () => {
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
-    trackingService?.endCurrentVisit()
-    closeDb()
     app.quit()
   }
+})
+
+// 在应用真正退出前清理资源，覆盖 macOS 关窗不退出、直关窗口等场景
+app.on('before-quit', () => {
+  try { trackingService?.endCurrentVisit() } catch { /* ignore */ }
+  try { closeDb() } catch { /* ignore */ }
 })
 
 app.on('activate', () => {
@@ -734,6 +776,45 @@ app.on('activate', () => {
 })
 
 app.whenReady().then(() => {
+  // 设置真实 Chrome User-Agent，去除 Electron 标识
+  // 修复 Cloudflare 等反爬验证将 Electron 识别为自动化工具的问题
+  const chromeVersion = process.versions.chrome
+  const realUA = `Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${chromeVersion} Safari/537.36`
+  app.userAgentFallback = realUA
+  session.defaultSession.setUserAgent(realUA)
+  const ojSession = session.fromPartition('persist:oj-main')
+  ojSession.setUserAgent(realUA)
+
+  // 通过 webRequest 拦截 HTML 响应，在 <head> 最前面注入反检测脚本
+  // 确保脚本在 Cloudflare / Turnstile 之前执行（比 did-finish-load 早得多）
+  const stealthInlineScript = `<script>${STEALTH_SCRIPT.replace(/<\/script>/g, '\\x3c/script>')}</script>`
+  ojSession.webRequest.onHeadersReceived((details, callback) => {
+    const contentType = details.responseHeaders?.['content-type']?.[0] || details.responseHeaders?.['Content-Type']?.[0]
+    if (details.resourceType === 'mainFrame' && contentType && contentType.includes('text/html')) {
+      // 标记该响应需要修改，在后续 onResponse 中处理
+      ;(details as any)._needsStealth = true
+    }
+    callback({ responseHeaders: details.responseHeaders })
+  })
+  ojSession.webRequest.onResponseStarted((details) => {
+    if ((details as any)._needsStealth) {
+      // 通过 executeJavaScript 在页面开始加载时立即注入（比在 did-finish-load 早）
+      // 注意：此时页面可能还没创建 window 对象，需要用 requestAnimationFrame 等待
+      const earlyScript = `
+        if (typeof navigator !== 'undefined') {
+          ${STEALTH_SCRIPT}
+        } else {
+          (function wait() {
+            if (typeof navigator !== 'undefined') { ${STEALTH_SCRIPT} }
+            else { requestAnimationFrame(wait) }
+          })()
+        }
+      `
+      const wc = webContents.fromId(details.webContentsId)
+      wc?.executeJavaScript(earlyScript, true).catch(() => {})
+    }
+  })
+
   registerNoteAssetProtocol()
   initDb()
   seedBuiltinSites()
@@ -744,17 +825,39 @@ app.whenReady().then(() => {
   syncService = new SyncService()
   userScriptService = new UserScriptService()
   
-  // DNS 预解析加速首次导航
-  const urlsToPreconnect = [
-    'https://codeforces.com',
-    'https://www.acwing.com',
-    'https://vjudge.net',
-    'https://pintia.cn',
-    'https://nowcoder.com'
-  ]
-  urlsToPreconnect.forEach(url => {
-    session.defaultSession.preconnect({ url, numSockets: 2 })
-  })
+  // 智能预连接：基于最近 7 天访问记录，只预连接用户实际使用的站点
+  // 避免盲目预连不可达站点（如部分网络环境下的 acwing）导致超时和错误日志
+  try {
+    const db = getDb()
+    const cutoffDate = new Date(Date.now() - 7 * 86400000)
+    const cutoff = `${cutoffDate.getFullYear()}-${String(cutoffDate.getMonth() + 1).padStart(2, '0')}-${String(cutoffDate.getDate()).padStart(2, '0')}`
+    const recentPlatforms = db.prepare(`
+      SELECT platform, COUNT(*) as cnt
+      FROM problem_visits
+      WHERE entered_at >= ?
+      GROUP BY platform
+      ORDER BY cnt DESC
+      LIMIT 3
+    `).all(cutoff) as { platform: string; cnt: number }[]
+
+    for (const { platform } of recentPlatforms) {
+      const site = getSiteById(platform)
+      if (site?.enabled && site.homeUrl) {
+        try {
+          const origin = new URL(site.homeUrl).origin
+          session.defaultSession.preconnect({ url: origin, numSockets: 1 })
+        } catch { /* invalid url */ }
+      }
+    }
+  } catch { /* ignore */ }
 
   createWindow()
+
+  // 每日首次启动时生成 AI 上下文快照存库（供阶段总结/复习计划等 AI 模块消费）
+  // 失败不阻塞启动，仅记录日志
+  try {
+    ensureTodaySnapshot()
+  } catch (err) {
+    console.error('[AI] 每日快照生成失败:', err)
+  }
 })

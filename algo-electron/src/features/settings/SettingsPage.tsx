@@ -222,244 +222,252 @@ export function SettingsPage({ onClose }: { onClose: () => void }) {
           <button className="settings-close" onClick={onClose}>✕</button>
         </div>
 
-        <div className="settings-section">
-          <h3 className="settings-section-title">默认首页</h3>
-          <div className="settings-row">
-            <input
-              className="settings-input"
-              type="text"
-              value={homeUrl}
-              onChange={(e) => setHomeUrl(e.target.value)}
-              placeholder="https://codeforces.com"
-            />
-            <button className="settings-save-btn" onClick={handleSave}>
-              {saved ? '已保存' : '保存'}
-            </button>
-          </div>
-        </div>
-
-        <div className="settings-section">
-          <h3 className="settings-section-title">学习概览</h3>
-          {stats ? (
-            <div className="stats-grid">
-              <div className="stats-card">
-                <div className="stats-value">{stats.totalProblems}</div>
-                <div className="stats-label">总题数</div>
-              </div>
-              <div className="stats-card">
-                <div className="stats-value">{stats.todayVisited}</div>
-                <div className="stats-label">今日访问</div>
-              </div>
-              <div className="stats-card stats-card-wide">
-                <div className="stats-label">最近活跃</div>
-                <div className="stats-value stats-value-sm">
-                  {stats.lastActiveTime ? stats.lastActiveTime.replace('T', ' ').slice(0, 19) : '暂无'}
-                </div>
+        <div className="settings-cols">
+          {/* 左栏：配置类设置 */}
+          <div className="settings-col">
+            <div className="settings-section">
+              <h3 className="settings-section-title">默认首页</h3>
+              <div className="settings-row">
+                <input
+                  className="settings-input"
+                  type="text"
+                  value={homeUrl}
+                  onChange={(e) => setHomeUrl(e.target.value)}
+                  placeholder="https://codeforces.com"
+                />
+                <button className="settings-save-btn" onClick={handleSave}>
+                  {saved ? '已保存' : '保存'}
+                </button>
               </div>
             </div>
-          ) : (
-            <div className="settings-empty">加载中...</div>
-          )}
-        </div>
 
-        <div className="settings-section">
-          <h3 className="settings-section-title">Codeforces Rating</h3>
-          <div className="sync-row">
-            <input className="settings-input" type="text" value={ratingHandle} onChange={(e) => setRatingHandle(e.target.value)} placeholder="Codeforces Handle" />
-            <button className="settings-save-btn" onClick={handleSyncRating}>同步 Rating</button>
-          </div>
-          {ratingStatus && <div className="sync-status">{ratingStatus}</div>}
-          {ratingInfo && (
-            <div className="rating-info">
-              <span className="rating-current">当前: {ratingInfo.current_rating ?? '-'}</span>
-              <span className="rating-peak">最高: {ratingInfo.peak_rating ?? '-'}</span>
-            </div>
-          )}
-        </div>
-
-        <div className="settings-section">
-          <h3 className="settings-section-title">提交同步</h3>
-          <div className="sync-row">
-            <input className="settings-input" type="text" value={cfHandle} onChange={(e) => setCfHandle(e.target.value)} placeholder="Codeforces Handle" />
-            <button className="settings-save-btn" onClick={handleSyncCF}>同步 CF</button>
-          </div>
-          {syncStatus.cf && <div className="sync-status">{syncStatus.cf}</div>}
-          <div className="sync-hint">AcWing / 牛客 / VJudge / 洛谷：在浏览器打开提交页面后点工具栏 ↗ 抓取</div>
-        </div>
-
-        <div className="settings-section">
-          <h3 className="settings-section-title">站点管理</h3>
-          <div className="site-actions-bar">
-            <button className="settings-save-btn" onClick={handleExport}>
-              导出配置
-            </button>
-            <button className="settings-save-btn" onClick={handleImport}>
-              导入配置
-            </button>
-            <button className="settings-save-btn" onClick={() => setShowAddModal(true)}>
-              添加站点
-            </button>
-          </div>
-          {exportStatus && <div className="sync-status">{exportStatus}</div>}
-          {importStatus && <div className="sync-status">{importStatus}</div>}
-          {showAddModal && (
-            <div className="import-preview" style={{ marginBottom: '8px' }}>
-              <h4 className="import-preview-title" style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text)', marginBottom: '10px' }}>
-                添加自定义站点
-              </h4>
-              <div className="import-group" style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '10px' }}>
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  <input
-                    type="text"
-                    className="settings-input"
-                    placeholder="站点 ID (必填, 例: hdu)"
-                    value={newSiteId}
-                    onChange={(e) => setNewSiteId(e.target.value)}
-                    style={{ flex: 1 }}
-                  />
-                  <input
-                    type="text"
-                    className="settings-input"
-                    placeholder="站点名称 (必填, 例: HDU OJ)"
-                    value={newSiteName}
-                    onChange={(e) => setNewSiteName(e.target.value)}
-                    style={{ flex: 1.5 }}
-                  />
-                </div>
-                <input
-                  type="text"
-                  className="settings-input"
-                  placeholder="首页 URL (必填, 例: https://acm.hdu.edu.cn)"
-                  value={newSiteHomeUrl}
-                  onChange={(e) => setNewSiteHomeUrl(e.target.value)}
-                />
-                <input
-                  type="text"
-                  className="settings-input"
-                  placeholder="匹配域名 (必填, 多个以逗号分隔, 例: acm.hdu.edu.cn)"
-                  value={newSiteDomains}
-                  onChange={(e) => setNewSiteDomains(e.target.value)}
-                />
-                <input
-                  type="text"
-                  className="settings-input"
-                  placeholder="题目 URL 识别规则 (可选, 多个以逗号分隔, 例: /showproblem.php?pid={id})"
-                  value={newSitePatterns}
-                  onChange={(e) => setNewSitePatterns(e.target.value)}
-                />
-                {newSiteError && (
-                  <div style={{ color: 'var(--error)', fontSize: '11px', paddingLeft: '4px' }}>
-                    {newSiteError}
+            <div className="settings-section">
+              <h3 className="settings-section-title">学习概览</h3>
+              {stats ? (
+                <div className="stats-grid">
+                  <div className="stats-card">
+                    <div className="stats-value">{stats.totalProblems}</div>
+                    <div className="stats-label">总题数</div>
                   </div>
-                )}
-              </div>
-              <div className="import-actions" style={{ display: 'flex', gap: '8px' }}>
-                <button className="settings-save-btn" onClick={handleAddSite}>
-                  确定保存
-                </button>
-                <button
-                  className="site-toggle"
-                  style={{ height: '32px', padding: '0 16px', fontSize: '13px' }}
-                  onClick={() => {
-                    setShowAddModal(false)
-                    setNewSiteError('')
-                  }}
-                >
-                  取消
-                </button>
-              </div>
+                  <div className="stats-card">
+                    <div className="stats-value">{stats.todayVisited}</div>
+                    <div className="stats-label">今日访问</div>
+                  </div>
+                  <div className="stats-card stats-card-wide">
+                    <div className="stats-label">最近活跃</div>
+                    <div className="stats-value stats-value-sm">
+                      {stats.lastActiveTime ? stats.lastActiveTime.replace('T', ' ').slice(0, 19) : '暂无'}
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="settings-empty">加载中...</div>
+              )}
             </div>
-          )}
-          {importPreview && (
-            <div className="import-preview">
-              <h4 className="import-preview-title">导入预览</h4>
-              {importPreview.newSites.length > 0 && (
-                <div className="import-group">
-                  <div className="import-group-label">新增站点 ({importPreview.newSites.length})</div>
-                  {importPreview.newSites.map((s: any) => (
-                    <div key={s.id} className="import-item">
-                      <span className="site-name">{s.name}</span>
-                      <span className="site-domains">{s.domains.join(', ')}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-              {importPreview.conflicts.length > 0 && (
-                <div className="import-group">
-                  <div className="import-group-label">冲突站点 (勾选覆盖)</div>
-                  {importPreview.conflicts.map((c: any) => (
-                    <div key={c.id} className="import-item import-conflict">
-                      <label className="import-checkbox-label">
-                        <input
-                          type="checkbox"
-                          checked={importOverwriteIds.includes(c.id)}
-                          onChange={() => toggleOverwrite(c.id)}
-                        />
-                        <span className="site-name">{c.name}</span>
-                        <span className="site-domains">{c.domains.join(', ')}</span>
-                      </label>
-                    </div>
-                  ))}
-                </div>
-              )}
-              {importPreview.builtinSkipped.length > 0 && (
-                <div className="import-group">
-                  <div className="import-group-label">内置站点 (跳过)</div>
-                  {importPreview.builtinSkipped.map((s: any) => (
-                    <div key={s.id} className="import-item import-skipped">
-                      <span className="site-name">{s.name}</span>
-                      <span className="site-domains">{s.domains.join(', ')}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-              <div className="import-actions">
-                <button className="settings-save-btn" onClick={handleConfirmImport}>
-                  确认导入
-                </button>
-                <button className="settings-close" onClick={() => { setImportPreview(null); setImportOverwriteIds([]) }}>
-                  取消
-                </button>
-              </div>
-            </div>
-          )}
-          <div className="site-list">
-            {sites.map((s) => (
-              <div key={s.id} className="site-item">
-                <div className="site-info">
-                  <span className="site-name">{s.name}</span>
-                  <span className="site-domains">{s.domains.join(', ')}</span>
-                </div>
-                <div className="site-actions">
-                  <button
-                    className={`site-toggle ${s.enabled ? 'enabled' : ''}`}
-                    onClick={() => handleToggleSite(s.id, !s.enabled)}
-                  >
-                    {s.enabled ? '已启用' : '已禁用'}
-                  </button>
-                  {!s.isBuiltin && (
-                    <button className="site-delete" onClick={() => handleDeleteSite(s.id)}>删除</button>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
 
-        <div className="settings-section">
-          <h3 className="settings-section-title">平台分布</h3>
-          {stats && stats.platformDistribution.length > 0 ? (
-            <div className="platform-list">
-              {stats.platformDistribution.map((p) => (
-                <div key={p.platform} className="platform-item">
-                  <span className="platform-name">{PLATFORM_NAMES[p.platform] || p.platform}</span>
-                  <span className="platform-count">{p.count} 题</span>
+            <div className="settings-section">
+              <h3 className="settings-section-title">Codeforces Rating</h3>
+              <div className="sync-row">
+                <input className="settings-input" type="text" value={ratingHandle} onChange={(e) => setRatingHandle(e.target.value)} placeholder="Codeforces Handle" />
+                <button className="settings-save-btn" onClick={handleSyncRating}>同步 Rating</button>
+              </div>
+              {ratingStatus && <div className="sync-status">{ratingStatus}</div>}
+              {ratingInfo && (
+                <div className="rating-info">
+                  <span className="rating-current">当前: {ratingInfo.current_rating ?? '-'}</span>
+                  <span className="rating-peak">最高: {ratingInfo.peak_rating ?? '-'}</span>
                 </div>
-              ))}
+              )}
             </div>
-          ) : (
-            <div className="settings-empty">暂无数据</div>
-          )}
+
+            <div className="settings-section">
+              <h3 className="settings-section-title">提交同步</h3>
+              <div className="sync-row">
+                <input className="settings-input" type="text" value={cfHandle} onChange={(e) => setCfHandle(e.target.value)} placeholder="Codeforces Handle" />
+                <button className="settings-save-btn" onClick={handleSyncCF}>同步 CF</button>
+              </div>
+              {syncStatus.cf && <div className="sync-status">{syncStatus.cf}</div>}
+              <div className="sync-hint">AcWing / 牛客 / VJudge / 洛谷：在浏览器打开提交页面后点工具栏 ↗ 抓取</div>
+            </div>
+
+            <div className="settings-section">
+              <h3 className="settings-section-title">平台分布</h3>
+              {stats && stats.platformDistribution.length > 0 ? (
+                <div className="platform-list">
+                  {stats.platformDistribution.map((p) => (
+                    <div key={p.platform} className="platform-item">
+                      <span className="platform-name">{PLATFORM_NAMES[p.platform] || p.platform}</span>
+                      <span className="platform-count">{p.count} 题</span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="settings-empty">暂无数据</div>
+              )}
+            </div>
+          </div>
+
+          {/* 右栏：站点管理（内容较多，独占一栏） */}
+          <div className="settings-col">
+            <div className="settings-section">
+              <h3 className="settings-section-title">站点管理</h3>
+              <div className="site-actions-bar">
+                <button className="settings-save-btn" onClick={handleExport}>
+                  导出配置
+                </button>
+                <button className="settings-save-btn" onClick={handleImport}>
+                  导入配置
+                </button>
+                <button className="settings-save-btn" onClick={() => setShowAddModal(true)}>
+                  添加站点
+                </button>
+              </div>
+              {exportStatus && <div className="sync-status">{exportStatus}</div>}
+              {importStatus && <div className="sync-status">{importStatus}</div>}
+              {showAddModal && (
+                <div className="import-preview" style={{ marginBottom: '8px' }}>
+                  <h4 className="import-preview-title" style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text)', marginBottom: '10px' }}>
+                    添加自定义站点
+                  </h4>
+                  <div className="import-group" style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '10px' }}>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <input
+                        type="text"
+                        className="settings-input"
+                        placeholder="站点 ID (必填, 例: hdu)"
+                        value={newSiteId}
+                        onChange={(e) => setNewSiteId(e.target.value)}
+                        style={{ flex: 1 }}
+                      />
+                      <input
+                        type="text"
+                        className="settings-input"
+                        placeholder="站点名称 (必填, 例: HDU OJ)"
+                        value={newSiteName}
+                        onChange={(e) => setNewSiteName(e.target.value)}
+                        style={{ flex: 1.5 }}
+                      />
+                    </div>
+                    <input
+                      type="text"
+                      className="settings-input"
+                      placeholder="首页 URL (必填, 例: https://acm.hdu.edu.cn)"
+                      value={newSiteHomeUrl}
+                      onChange={(e) => setNewSiteHomeUrl(e.target.value)}
+                    />
+                    <input
+                      type="text"
+                      className="settings-input"
+                      placeholder="匹配域名 (必填, 多个以逗号分隔, 例: acm.hdu.edu.cn)"
+                      value={newSiteDomains}
+                      onChange={(e) => setNewSiteDomains(e.target.value)}
+                    />
+                    <input
+                      type="text"
+                      className="settings-input"
+                      placeholder="题目 URL 识别规则 (可选, 多个以逗号分隔, 例: /showproblem.php?pid={id})"
+                      value={newSitePatterns}
+                      onChange={(e) => setNewSitePatterns(e.target.value)}
+                    />
+                    {newSiteError && (
+                      <div style={{ color: 'var(--error)', fontSize: '11px', paddingLeft: '4px' }}>
+                        {newSiteError}
+                      </div>
+                    )}
+                  </div>
+                  <div className="import-actions" style={{ display: 'flex', gap: '8px' }}>
+                    <button className="settings-save-btn" onClick={handleAddSite}>
+                      确定保存
+                    </button>
+                    <button
+                      className="site-toggle"
+                      style={{ height: '32px', padding: '0 16px', fontSize: '13px' }}
+                      onClick={() => {
+                        setShowAddModal(false)
+                        setNewSiteError('')
+                      }}
+                    >
+                      取消
+                    </button>
+                  </div>
+                </div>
+              )}
+              {importPreview && (
+                <div className="import-preview">
+                  <h4 className="import-preview-title">导入预览</h4>
+                  {importPreview.newSites.length > 0 && (
+                    <div className="import-group">
+                      <div className="import-group-label">新增站点 ({importPreview.newSites.length})</div>
+                      {importPreview.newSites.map((s: any) => (
+                        <div key={s.id} className="import-item">
+                          <span className="site-name">{s.name}</span>
+                          <span className="site-domains">{s.domains.join(', ')}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {importPreview.conflicts.length > 0 && (
+                    <div className="import-group">
+                      <div className="import-group-label">冲突站点 (勾选覆盖)</div>
+                      {importPreview.conflicts.map((c: any) => (
+                        <div key={c.id} className="import-item import-conflict">
+                          <label className="import-checkbox-label">
+                            <input
+                              type="checkbox"
+                              checked={importOverwriteIds.includes(c.id)}
+                              onChange={() => toggleOverwrite(c.id)}
+                            />
+                            <span className="site-name">{c.name}</span>
+                            <span className="site-domains">{c.domains.join(', ')}</span>
+                          </label>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {importPreview.builtinSkipped.length > 0 && (
+                    <div className="import-group">
+                      <div className="import-group-label">内置站点 (跳过)</div>
+                      {importPreview.builtinSkipped.map((s: any) => (
+                        <div key={s.id} className="import-item import-skipped">
+                          <span className="site-name">{s.name}</span>
+                          <span className="site-domains">{s.domains.join(', ')}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <div className="import-actions">
+                    <button className="settings-save-btn" onClick={handleConfirmImport}>
+                      确认导入
+                    </button>
+                    <button className="settings-close" onClick={() => { setImportPreview(null); setImportOverwriteIds([]) }}>
+                      取消
+                    </button>
+                  </div>
+                </div>
+              )}
+              <div className="site-list">
+                {sites.map((s) => (
+                  <div key={s.id} className="site-item">
+                    <div className="site-info">
+                      <span className="site-name">{s.name}</span>
+                      <span className="site-domains">{s.domains.join(', ')}</span>
+                    </div>
+                    <div className="site-actions">
+                      <button
+                        className={`site-toggle ${s.enabled ? 'enabled' : ''}`}
+                        onClick={() => handleToggleSite(s.id, !s.enabled)}
+                      >
+                        {s.enabled ? '已启用' : '已禁用'}
+                      </button>
+                      {!s.isBuiltin && (
+                        <button className="site-delete" onClick={() => handleDeleteSite(s.id)}>删除</button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
         </div>
       </div>
   )

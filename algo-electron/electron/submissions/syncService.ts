@@ -6,6 +6,7 @@ import { getDb } from '../db/connection'
 import { BrowserHost } from '../browser/BrowserHost'
 import { parseUrl } from '../parsers/registry'
 import { buildCodeforcesProblemUrlFromApi } from '../parsers/sites/codeforcesUrls'
+import { recomputeAllDailyStats } from '../db/repositories/statsRepository'
 import type { SubmissionData } from '../shared/types'
 
 export interface SyncResult {
@@ -279,6 +280,11 @@ export class SyncService {
       if (isNew && sub.verdict === 'AC' && sub.problemId) {
         updateFirstAc(sub.problemId)
       }
+    }
+
+    // 有新提交时重算每日统计，保证趋势图/连续天数/AI 上下文与提交记录同步
+    if (inserted > 0) {
+      try { recomputeAllDailyStats() } catch { /* ignore */ }
     }
 
     return { platform, fetched: submissions.length, inserted }

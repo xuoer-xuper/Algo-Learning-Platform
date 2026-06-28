@@ -1,6 +1,7 @@
 import { WebContentsView, BrowserWindow } from 'electron'
 import { randomUUID } from 'node:crypto'
 import { DetachedWindow } from './DetachedWindow'
+import { STEALTH_SCRIPT } from './stealthScript'
 
 export interface TabInfo {
   id: string
@@ -36,7 +37,6 @@ export class TabManager {
         nodeIntegration: false,
         contextIsolation: true,
         sandbox: true,
-        webSecurity: false,
         partition: 'persist:oj-main',
       },
     })
@@ -100,6 +100,8 @@ export class TabManager {
         const url = view.webContents.getURL()
         this.onPageLoaded?.(url)
       }
+      // 注入反检测脚本到主世界（绕过 contextIsolation），每个页面及 iframe 加载后执行
+      view.webContents.executeJavaScript(STEALTH_SCRIPT).catch(() => {})
     })
 
     return view

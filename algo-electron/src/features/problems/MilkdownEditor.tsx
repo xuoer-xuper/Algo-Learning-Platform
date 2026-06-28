@@ -28,6 +28,9 @@ export function MilkdownEditor({ noteId, initialValue, onChange, placeholder }: 
   const containerRef = useRef<HTMLDivElement>(null)
   const crepeRef = useRef<Crepe | null>(null)
   const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // 记录最新 markdown 与是否有未 flush 的修改，组件卸载时用于同步保存
+  const latestMarkdownRef = useRef(initialValue)
+  const pendingRef = useRef(false)
   const onChangeRef = useRef(onChange)
   onChangeRef.current = onChange
 
@@ -73,8 +76,12 @@ export function MilkdownEditor({ noteId, initialValue, onChange, placeholder }: 
     crepe.on((listener) => {
       listener.markdownUpdated((_ctx, markdown, prevMarkdown) => {
         if (markdown === prevMarkdown) return
+        latestMarkdownRef.current = markdown
+        pendingRef.current = true
         if (debounceTimer.current) clearTimeout(debounceTimer.current)
         debounceTimer.current = setTimeout(() => {
+          pendingRef.current = false
+          debounceTimer.current = null
           onChangeRef.current(markdown)
         }, 400)
       })
@@ -87,7 +94,17 @@ export function MilkdownEditor({ noteId, initialValue, onChange, placeholder }: 
     crepeRef.current = crepe
 
     return () => {
-      if (debounceTimer.current) clearTimeout(debounceTimer.current)
+      if (debounceTimer.current) {
+        clearTimeout(debounceTimer.current)
+        debounceTimer.current = null
+      }
+      // 卸载前 flush 未保存的修改，避免关闭/切换笔记时丢失最近 400ms 内的编辑
+      if (pendingRef.current) {
+        pendingRef.current = false
+        try {
+          onChangeRef.current(latestMarkdownRef.current)
+        } catch { /* ignore */ }
+      }
       crepe.destroy().catch(() => {})
       crepeRef.current = null
     }

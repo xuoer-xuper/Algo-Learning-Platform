@@ -3,8 +3,9 @@ import { getDb } from '../db/connection'
 import { parseUrl } from '../parsers/registry'
 import { upsertProblem } from '../db/repositories/problemRepository'
 import { getSiteById } from '../db/repositories/siteRepository'
+import { recomputeDailyStats } from '../db/repositories/statsRepository'
 import type { ProblemIdentity } from '../shared/types'
-import { nowBeijing } from '../shared/time'
+import { nowBeijing, todayBeijing } from '../shared/time'
 
 export class TrackingService {
   private currentVisit: { problemId: string; enteredAt: number } | null = null
@@ -48,6 +49,9 @@ export class TrackingService {
       `).run(crypto.randomUUID(), 'visit_start', now, today, problem.id, identity.platform, identity.canonicalUrl, now)
 
       this.currentVisit = { problemId: problem.id, enteredAt: Date.now() }
+
+      // 实时重算当日统计，保证趋势图/连续天数/AI 上下文与访问记录同步
+      try { recomputeDailyStats(today) } catch { /* ignore */ }
     }
 
     return identity
@@ -64,5 +68,8 @@ export class TrackingService {
       WHERE problem_id = ? AND left_at IS NULL
     `).run(nowStr, duration, nowStr, this.currentVisit.problemId)
     this.currentVisit = null
+
+    // 停留时长更新后重算当日统计（duration_seconds/active_seconds 可能变化）
+    try { recomputeDailyStats(todayBeijing()) } catch { /* ignore */ }
   }
 }

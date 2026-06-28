@@ -17,6 +17,21 @@ interface ProblemRecord {
   last_visited_at: string | null
 }
 
+interface Recommendation {
+  problem_id: string
+  platform: string
+  platform_problem_id: string
+  title: string | null
+  canonical_url: string
+  reason: string
+  source: {
+    wrong_count: number
+    last_attempt: string
+    days_since_attempt: number
+    visit_count: number
+  }
+}
+
 const PLATFORM_NAMES: Record<string, string> = {
   codeforces: 'Codeforces',
   acwing: 'AcWing',
@@ -58,13 +73,21 @@ interface Props {
 export function HomePage({ onNavigate }: Props) {
   const [stats, setStats] = useState<OverviewStats | null>(null)
   const [recent, setRecent] = useState<ProblemRecord[]>([])
+  const [recommendations, setRecommendations] = useState<Recommendation[]>([])
 
   useEffect(() => {
     window.electronAPI.getOverviewStats().then(setStats)
     window.electronAPI.listRecentProblems(8).then(setRecent)
+    // 复习建议：失败时降级为空列表，不阻塞首页
+    window.electronAPI.getReviewRecommendations(5).then((res: any) => {
+      setRecommendations(res?.recommendations ?? [])
+    }).catch(() => setRecommendations([]))
     const unsubscribe = window.electronAPI.onProblemsUpdated(() => {
       window.electronAPI.getOverviewStats().then(setStats)
       window.electronAPI.listRecentProblems(8).then(setRecent)
+      window.electronAPI.getReviewRecommendations(5).then((res: any) => {
+        setRecommendations(res?.recommendations ?? [])
+      }).catch(() => {})
     })
     return unsubscribe
   }, [])
@@ -111,6 +134,31 @@ export function HomePage({ onNavigate }: Props) {
               <div key={p.platform} className="home-stat-card">
                 <div className="home-stat-value">{p.count}</div>
                 <div className="home-stat-label">{PLATFORM_NAMES[p.platform] || p.platform}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {recommendations.length > 0 && (
+        <div className="home-section">
+          <h2 className="home-section-title">今日复习建议</h2>
+          <div className="home-recommendations">
+            {recommendations.map((r) => (
+              <div
+                key={r.problem_id}
+                className="home-rec-item"
+                onClick={() => onNavigate(r.canonical_url)}
+              >
+                <div className="home-rec-head">
+                  <span className="home-rec-platform" style={{ color: PLATFORM_COLORS[r.platform] || '#585b70' }}>
+                    {PLATFORM_NAMES[r.platform] || r.platform}
+                  </span>
+                  <span className="home-rec-title">{r.title || r.platform_problem_id}</span>
+                </div>
+                <div className="home-rec-evidence">
+                  {r.source.wrong_count} 次错误 · {r.source.days_since_attempt} 天未复习
+                </div>
               </div>
             ))}
           </div>

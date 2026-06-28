@@ -128,6 +128,14 @@ interface ElectronAPI {
   getNotesForDelete: (problemId: string) => Promise<any[]>
   deleteNotesByProblem: (problemId: string) => Promise<number>
   openNotesDir: () => Promise<void>
+
+  // P6-004: AI 上下文导出
+  exportAIContext: () => Promise<any>
+  exportAIContextMarkdown: () => Promise<string>
+
+  // P6-005 / P6-006: AI 建议与薄弱分析（本地规则引擎）
+  getReviewRecommendations: (limit?: number) => Promise<any>
+  getWeaknessAnalysis: (limit?: number) => Promise<any>
 }
 
 interface Window {

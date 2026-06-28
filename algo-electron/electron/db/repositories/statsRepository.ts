@@ -2,10 +2,25 @@ import { getDb } from '../connection'
 import { nowBeijing, todayBeijing } from '../../shared/time'
 
 // --- P3-002: 每日活跃时长 ---
-export function getDailyActiveStats(days = 30): { local_day: string; active_seconds: number; duration_seconds: number }[] {
+export function getDailyActiveStats(days = 30): {
+  local_day: string
+  active_seconds: number
+  duration_seconds: number
+  visited: number
+  solved: number
+  submissions: number
+  ac: number
+}[] {
   const db = getDb()
   return db.prepare(`
-    SELECT local_day, active_seconds, duration_seconds
+    SELECT
+      local_day,
+      active_seconds,
+      duration_seconds,
+      visited_problem_count as visited,
+      solved_problem_count as solved,
+      submission_count as submissions,
+      ac_submission_count as ac
     FROM user_daily_stats
     ORDER BY local_day DESC
     LIMIT ?
@@ -16,7 +31,9 @@ export function getDailyActiveStats(days = 30): { local_day: string; active_seco
 export function getVisitedTrend(days?: number): { local_day: string; count: number }[] {
   const db = getDb()
   if (days) {
-    const cutoff = new Date(Date.now() - days * 86400000).toISOString().slice(0, 10)
+    // 使用本地日期作为 cutoff，与 local_day 存储格式（todayBeijing）一致
+    const d = new Date(Date.now() - days * 86400000)
+    const cutoff = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
     return db.prepare(`
       SELECT local_day, visited_problem_count as count
       FROM user_daily_stats
@@ -35,7 +52,8 @@ export function getVisitedTrend(days?: number): { local_day: string; count: numb
 export function getAcTrend(days?: number): { local_day: string; count: number }[] {
   const db = getDb()
   if (days) {
-    const cutoff = new Date(Date.now() - days * 86400000).toISOString().slice(0, 10)
+    const d = new Date(Date.now() - days * 86400000)
+    const cutoff = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
     return db.prepare(`
       SELECT local_day, solved_problem_count as count
       FROM user_daily_stats
@@ -124,6 +142,7 @@ export function getRevisitStats(limit = 50): {
   platform: string
   platform_problem_id: string
   title: string | null
+  canonical_url: string
   visit_count: number
   last_visit: string
 }[] {
@@ -134,6 +153,7 @@ export function getRevisitStats(limit = 50): {
       p.platform,
       p.platform_problem_id,
       p.title,
+      p.canonical_url,
       COUNT(pv.id) as visit_count,
       MAX(pv.entered_at) as last_visit
     FROM problems p
@@ -205,6 +225,8 @@ export function recomputeDailyStats(date?: string): void {
 }
 
 // --- P3-009: 连续活跃天数 ---
+// current: 从今天往前数连续活跃的天数（今天未活跃则返回 0）
+// longest: 历史最长连续活跃天数
 export function getStreakDays(): { current: number; longest: number } {
   const db = getDb()
   const rows = db.prepare(`
@@ -215,30 +237,41 @@ export function getStreakDays(): { current: number; longest: number } {
 
   if (rows.length === 0) return { current: 0, longest: 0 }
 
-  // 从最近一天开始往回数连续天数
-  let current = 1
+  // 计算相邻两天的天数差（用 round 避免夏令时/时区解析导致的浮点误差）
+  const dayDiff = (a: string, b: string): number => {
+    const ta = new Date(a + 'T00:00:00').getTime()
+    const tb = new Date(b + 'T00:00:00').getTime()
+    return Math.round((ta - tb) / 86400000)
+  }
+
+  // 最长连续：遍历全部活跃日（DESC 序），相邻 diff===1 则延续，否则重置
   let longest = 1
   let streak = 1
-
   for (let i = 1; i < rows.length; i++) {
-    const prev = new Date(rows[i - 1].local_day)
-    const curr = new Date(rows[i].local_day)
-    const diff = (prev.getTime() - curr.getTime()) / (1000 * 60 * 60 * 24)
-
-    if (diff === 1) {
+    // rows[i-1] 比 rows[i] 更晚（DESC）
+    if (dayDiff(rows[i - 1].local_day, rows[i].local_day) === 1) {
       streak++
     } else {
-      // 第一次断开时记录 current streak
-      if (current === 1 && i === 1) current = streak
-      longest = Math.max(longest, streak)
+      if (streak > longest) longest = streak
       streak = 1
     }
   }
+  if (streak > longest) longest = streak
 
-  // 循环结束时更新
-  longest = Math.max(longest, streak)
-  // 如果从未断开，current = streak
-  if (current === 1 && rows.length > 1) current = streak
+  // 当前连续：仅当今天活跃时才计算，否则视为 0
+  const today = todayBeijing()
+  if (rows[0].local_day !== today) {
+    return { current: 0, longest }
+  }
+
+  let current = 1
+  for (let i = 1; i < rows.length; i++) {
+    if (dayDiff(rows[i - 1].local_day, rows[i].local_day) === 1) {
+      current++
+    } else {
+      break
+    }
+  }
 
   return { current, longest }
 }
@@ -249,6 +282,7 @@ export function getWrongProblems(limit = 50): {
   platform: string
   platform_problem_id: string
   title: string | null
+  canonical_url: string
   wrong_count: number
   last_attempt: string
 }[] {
@@ -259,6 +293,7 @@ export function getWrongProblems(limit = 50): {
       p.platform,
       p.platform_problem_id,
       p.title,
+      p.canonical_url,
       COUNT(s.id) as wrong_count,
       MAX(s.submitted_at) as last_attempt
     FROM problems p
@@ -281,17 +316,22 @@ export function getUnreviewedProblems(days = 30, limit = 50): {
   platform: string
   platform_problem_id: string
   title: string | null
+  canonical_url: string
   last_visited_at: string
   days_since: number
 }[] {
   const db = getDb()
-  const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
+  // 修复：使用本地时间（北京）计算 cutoff，与 last_visited_at 存储格式（nowBeijing）一致
+  // 原实现用 toISOString() 返回 UTC 日期，与本地时间字符串比较会多算/少算 1 天
+  const cutoffDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000)
+  const cutoff = `${cutoffDate.getFullYear()}-${String(cutoffDate.getMonth() + 1).padStart(2, '0')}-${String(cutoffDate.getDate()).padStart(2, '0')}`
   return db.prepare(`
     SELECT
       id,
       platform,
       platform_problem_id,
       title,
+      canonical_url,
       last_visited_at,
       CAST(julianday('now') - julianday(last_visited_at) AS INTEGER) as days_since
     FROM problems

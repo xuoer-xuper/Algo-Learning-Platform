@@ -60,6 +60,17 @@
 - 禁止直接在业务代码里散落 `CREATE TABLE`。
 - 禁止修改数据库结构而不说明兼容影响。
 
+### 3.6 AI 数据写入边界（P6-010）
+
+AI 辅助学习功能（Phase 6）严格区分「只读分析」与「核心数据写入」：
+
+- **AI 只读区**：`ai/contextExporter.ts`、`ai/recommendations/*` 仅查询本地数据生成建议，绝不写库。
+- **核心数据禁写**：AI 建议不得直接修改 `problems.status`、`submissions`、`notes`、`problem_visits` 等核心表。
+- **AI 输出区**：AI 产物（复习计划、阶段总结等）必须写入独立表 `ai_outputs`（P6-009 建表），与核心数据物理隔离，用户可一键清除。
+- **敏感信息隔离**：AI 上下文导出严禁包含 Cookie、绝对文件路径、日志内容、用户私有代码正文。
+- **本地优先**：复习建议、薄弱分析优先使用本地规则引擎，不强制调用大模型 API（最小化 token 消耗）。
+- **可追溯**：所有 AI 建议必须携带 `source` 字段，可追溯到具体题目/提交/统计依据。
+
 ## 4. 模块边界
 
 Main Process 负责：
@@ -72,6 +83,7 @@ Main Process 负责：
 - `sites`：站点注册表、站点配置、扩展适配。
 - `cookies`：CookieVault、Cookie 查询、Cookie 本地保存策略。
 - `analytics`：统计聚合和只读分析。
+- `ai`：AI 上下文导出、本地规则引擎建议（只读分析，产物隔离）。
 
 Renderer 负责：
 

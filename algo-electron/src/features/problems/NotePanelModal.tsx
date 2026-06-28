@@ -37,6 +37,8 @@ export function NotePanelModal({ problemId, onClose }: Props) {
   const [dirty, setDirty] = useState(false)
   // 标题防抖保存
   const titleTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // 记录待 flush 的标题修改，组件卸载或切换笔记时用于同步保存
+  const pendingTitleRef = useRef<{ noteId: string; title: string } | null>(null)
   const titleRef = useRef('')
   titleRef.current = editorTitle
 
@@ -49,26 +51,50 @@ export function NotePanelModal({ problemId, onClose }: Props) {
     loadNotes()
   }, [loadNotes])
 
+  // 立即 flush 未保存的标题；reload 控制是否刷新列表（卸载时不刷新避免 setState on unmounted）
+  const flushPendingTitle = useCallback(async (reload: boolean) => {
+    if (titleTimer.current) {
+      clearTimeout(titleTimer.current)
+      titleTimer.current = null
+    }
+    const pending = pendingTitleRef.current
+    pendingTitleRef.current = null
+    if (!pending) return
+    const finalTitle = pending.title.trim() || '未命名笔记'
+    try {
+      await window.electronAPI.updateNoteTitle(pending.noteId, finalTitle)
+      if (reload) await loadNotes()
+    } catch { /* ignore */ }
+  }, [loadNotes])
+
+  // 组件卸载时 flush 未保存的标题，避免关闭模态框时丢失最近 600ms 内的标题修改
+  useEffect(() => {
+    return () => { flushPendingTitle(false) }
+  }, [flushPendingTitle])
+
   // 防抖保存标题
   const scheduleSaveTitle = useCallback((noteId: string, title: string) => {
+    pendingTitleRef.current = { noteId, title }
     if (titleTimer.current) clearTimeout(titleTimer.current)
-    titleTimer.current = setTimeout(async () => {
-      const finalTitle = title.trim() || '未命名笔记'
-      await window.electronAPI.updateNoteTitle(noteId, finalTitle)
-      await loadNotes()
+    titleTimer.current = setTimeout(() => {
+      flushPendingTitle(true)
     }, 600)
-  }, [loadNotes])
+  }, [flushPendingTitle])
 
   const handleNewNote = async () => {
     if (dirty && activeNoteId) {
       if (!confirm('当前笔记未保存，是否放弃修改？')) return
     }
+    // 切换前先 flush 当前笔记的未保存标题
+    await flushPendingTitle(true)
     const note = await window.electronAPI.createNote(problemId, '未命名笔记', '', 'solution')
     await loadNotes()
     await openNote(note.id, '')
   }
 
   const openNote = async (noteId: string, fallbackContent?: string) => {
+    // 切换笔记前 flush 当前笔记的未保存标题，避免丢失
+    await flushPendingTitle(true)
     const note = await window.electronAPI.getNote(noteId)
     if (!note) return
     // milkdown 是非受控编辑器，切换笔记需重置状态
@@ -107,6 +133,14 @@ export function NotePanelModal({ problemId, onClose }: Props) {
 
   const handleDelete = async (noteId: string) => {
     if (!confirm('确定删除这条笔记吗？笔记文件将被永久删除。')) return
+    // 若删除的是当前笔记，清除其待保存标题
+    if (pendingTitleRef.current && pendingTitleRef.current.noteId === noteId) {
+      pendingTitleRef.current = null
+      if (titleTimer.current) {
+        clearTimeout(titleTimer.current)
+        titleTimer.current = null
+      }
+    }
     await window.electronAPI.deleteNote(noteId)
     if (activeNoteId === noteId) {
       setActiveNoteId(null)

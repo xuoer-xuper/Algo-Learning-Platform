@@ -381,12 +381,32 @@ UNIQUE(platform, contest_id, account_id)
 | title | TEXT NOT NULL | 标题 |
 | file_path | TEXT NOT NULL | 本地 Markdown 路径 |
 | note_type | TEXT NOT NULL | solution、review、summary |
+| content | TEXT NOT NULL DEFAULT '' | Markdown 正文缓存（migration 011，用于快速预览/搜索） |
+| word_count | INTEGER NOT NULL DEFAULT 0 | 字数估算（中英文混排，migration 011） |
 | created_at | TEXT NOT NULL | 创建时间 |
 | updated_at | TEXT NOT NULL | 更新时间 |
 
-### 7.2 ai_outputs
+INDEX notes_updated_at(updated_at)
 
-AI 输出独立保存，不污染核心事实表。
+### 7.2 ai_context_snapshots（P6-004 扩展，migration 014）
+
+每日 AI 上下文快照。应用启动时（首次当日打开）自动调用 `ensureTodaySnapshot()` 生成一份当日快照，存库供 AI 模块（阶段总结、复习计划等）按需消费。避免每次调用都重新聚合统计，同时沉淀历史轨迹。
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| id | TEXT PRIMARY KEY | 快照 ID |
+| snapshot_date | TEXT NOT NULL UNIQUE | 快照日期（YYYY-MM-DD，本地日期） |
+| context_json | TEXT NOT NULL | 完整 AI 上下文 JSON（schema_version=1） |
+| schema_version | INTEGER NOT NULL | 上下文版本号 |
+| created_at | TEXT NOT NULL | 生成时间（本地时间） |
+
+UNIQUE INDEX snapshots_date_unique(snapshot_date)
+
+### 7.3 ai_outputs
+
+AI 输出独立保存，不污染核心事实表。（P6-009 建表，设计预留）
+
+> 已移除：原 7.2 `submission_code_snippets`（P6-003）已下线，migration 013 物理删除该表。原因：手动维护成本高，AI 模块不依赖此表（contextExporter 直接读取原始 submissions 表）。
 
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |

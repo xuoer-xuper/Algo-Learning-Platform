@@ -106,6 +106,15 @@ algo-electron/electron/
       codeforces.ts
     scrapers/
       domScraper.ts
+  notes/
+    NoteService.ts
+  scripts/
+    UserScriptService.ts
+  ai/
+    contextExporter.ts
+    recommendations/
+      reviewRecommender.ts
+      weaknessAnalyzer.ts
   shared/
     types.ts
     time.ts
@@ -437,23 +446,37 @@ Analytics 只读或重算统计，不直接改变浏览器状态。
 
 ## 13. AI System 边界
 
-AI 功能在 Phase 6 后实现。
+AI 功能在 Phase 6 后实现。核心原则：**只读分析 + 产物隔离 + 本地优先**。
 
-AI 可以：
+### 13.1 模块结构
 
-- 读取本地学习数据摘要。
-- 生成复习建议。
-- 生成阶段总结。
-- 生成复习计划。
-- 保存 AI 输出。
+```
+ai/
+  contextExporter.ts          # P6-004 上下文导出层（脱敏聚合，可导出 JSON/Markdown）
+  recommendations/
+    reviewRecommender.ts      # P6-005 错题复习建议（本地规则引擎）
+    weaknessAnalyzer.ts      # P6-006 薄弱标签分析（本地规则引擎）
+```
 
-AI 不可以：
+### 13.2 AI 可以
 
-- 直接修改题目状态。
-- 直接修改提交记录。
-- 直接修改 Rating。
-- 读取或导出 Cookie。
-- 把建议混入核心事实数据表。
+- 读取本地学习数据摘要（通过 `contextExporter`，已脱敏）。
+- 生成复习建议（`reviewRecommender`，纯只读查询）。
+- 生成薄弱标签分析（`weaknessAnalyzer`，纯只读查询）。
+- 生成阶段总结、复习计划（P6-007/008，待实现）。
+- 保存 AI 输出到独立表 `ai_outputs`（P6-009，待实现）。
+
+### 13.3 AI 不可以
+
+- 直接修改 `problems.status`、`submissions`、`notes`、`problem_visits` 等核心事实数据。
+- 直接修改 Rating、账户、Cookie 等核心数据。
+- 读取或导出 Cookie、绝对文件路径、日志内容、用户私有代码正文。
+- 把建议混入核心事实数据表（AI 产物只能进 `ai_outputs`）。
+- 强制调用大模型 API（本地规则引擎优先，最小化 token 消耗）。
+
+### 13.4 可追溯性
+
+所有 AI 建议结果必须携带 `source` 字段，记录本地统计依据（题目 ID、提交次数、停留时长、AC 率等），便于用户核对与审计。
 
 ## 14. 数据流
 

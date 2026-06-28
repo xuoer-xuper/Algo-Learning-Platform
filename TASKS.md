@@ -41,10 +41,15 @@ Phase 1、Phase 2、Phase 3、Phase 4、Phase 5 已完成。下一步进入 Phas
 
 下一步固定顺序：
 
-1. 执行 `P6-001` 建立本地题解 Markdown 系统。
-2. 执行 `P6-002` 题目详情页关联本地笔记。
-3. 执行 `P6-003` 提交记录关联代码片段或文件路径。
-4. 执行 `P6-004` 设计本地学习数据摘要格式。
+1. 执行 `P6-001` 建立本地题解 Markdown 系统。✅
+2. 执行 `P6-002` 题目详情页关联本地笔记。✅
+3. 执行 `P6-003` 提交记录关联代码片段或文件路径。✅ → 已撤销（migration 013 删表）
+4. 执行 `P6-004` 设计本地学习数据摘要格式。✅
+5. 执行 `P6-005` 实现错题复习建议。✅
+6. 执行 `P6-006` 实现薄弱标签分析。✅
+7. 执行 `P6-010` 限制 AI 修改核心数据。✅
+
+下一批待办（按依赖顺序）：`P6-007` 阶段学习总结 → `P6-008` 复习计划生成 → `P6-009` AI 输出本地保存（建 `ai_outputs` 表）→ `P6-011` 可追溯性测试。
 
 禁止继续在 `BrowserView` 上新增功能。
 
@@ -2051,7 +2056,7 @@ Phase 1、Phase 2、Phase 3、Phase 4、Phase 5 已完成。下一步进入 Phas
 
 ### P6-003 提交记录关联代码片段或文件路径
 
-状态：未开始  
+状态：已撤销（用户反馈手动维护成本高，AI 模块不依赖此表）  
 优先级：P2  
 阶段：Phase 6  
 前置任务：P2-018、P6-001  
@@ -2063,11 +2068,13 @@ Phase 1、Phase 2、Phase 3、Phase 4、Phase 5 已完成。下一步进入 Phas
 - 不强制复制用户本地代码。
 - 路径失效时有明确提示。
 
-建议提交：`feat: 支持提交记录关联代码`
+撤销说明：原 migration 012 建表 `submission_code_snippets` 已由 migration 013 物理删除。`codeSnippetRepository.ts`、IPC（snippets:*）、ProblemDetail 代码片段 UI、preload/electron-env.d.ts 接口、App.css 中 `.snippet-*` 样式均已移除。AI 上下文导出层（P6-004）直接读取原始 submissions 表，不受影响。
+
+建议提交：`chore: 移除 P6-003 代码片段管理功能`
 
 ### P6-004 建立 AI 上下文导出层
 
-状态：未开始  
+状态：已完成  
 优先级：P0  
 阶段：Phase 6  
 前置任务：P3-015、P6-001  
@@ -2079,11 +2086,15 @@ Phase 1、Phase 2、Phase 3、Phase 4、Phase 5 已完成。下一步进入 Phas
 - 默认不导出 Cookie、敏感路径和无关日志。
 - 导出结构有版本号。
 
-建议提交：`feat: 添加 AI 上下文导出层`
+实现：`ai/contextExporter.ts` 聚合概览/趋势/错题/待复习/标签维度/活动，schema_version=1，严格剥离 Cookie/绝对路径/日志；提供 JSON 与 Markdown 双格式导出。
+
+扩展（每日快照，migration 014）：新增 `ai_context_snapshots` 表，应用启动时自动调用 `ensureTodaySnapshot()` 生成当日快照存库，供 AI 模块按需消费历史轨迹。日期键使用 `todayBeijing()` 保证时区一致。repository：`aiContextSnapshotRepository.ts`，提供 ensureTodaySnapshot/getSnapshotByDate/listSnapshots。
+
+建议提交：`feat: 添加 AI 上下文导出层 + 每日快照`
 
 ### P6-005 实现错题复习建议
 
-状态：未开始  
+状态：已完成  
 优先级：P1  
 阶段：Phase 6  
 前置任务：P3-013、P6-004  
@@ -2094,11 +2105,13 @@ Phase 1、Phase 2、Phase 3、Phase 4、Phase 5 已完成。下一步进入 Phas
 - 推荐结果可追溯到具体题目和提交。
 - AI 建议不直接修改题目状态。
 
+实现：`ai/recommendations/reviewRecommender.ts` 本地规则引擎，评分维度=错误次数×8 + 遗忘风险(0.5/天上限25) + 访问重视(5/次上限15)；结果携带 `source` 字段（wrong_count/last_attempt/days_since/visit_count），纯只读不写库；Dashboard 渲染复习建议卡片。
+
 建议提交：`feat: 生成错题复习建议`
 
 ### P6-006 实现薄弱标签分析
 
-状态：未开始  
+状态：已完成  
 优先级：P1  
 阶段：Phase 6  
 前置任务：P2-006、P3-015、P6-004  
@@ -2108,6 +2121,8 @@ Phase 1、Phase 2、Phase 3、Phase 4、Phase 5 已完成。下一步进入 Phas
 
 - 结合 AC 率、错误次数、停留时长。
 - 结果解释使用本地统计依据。
+
+实现：`ai/recommendations/weaknessAnalyzer.ts` 本地规则引擎，评分维度=(100-AC率)×0.5 + 错误提交×0.5(上限25) + 停留时长×0.01(上限25)；仅统计题量≥2 的标签；无标签数据时降级提示；Dashboard 渲染薄弱标签卡片。
 
 建议提交：`feat: 分析薄弱算法标签`
 
@@ -2158,7 +2173,7 @@ Phase 1、Phase 2、Phase 3、Phase 4、Phase 5 已完成。下一步进入 Phas
 
 ### P6-010 限制 AI 修改核心数据
 
-状态：未开始  
+状态：已完成  
 优先级：P0  
 阶段：Phase 6  
 前置任务：P6-004  
@@ -2169,6 +2184,8 @@ Phase 1、Phase 2、Phase 3、Phase 4、Phase 5 已完成。下一步进入 Phas
 - AI 输出必须写入独立区域。
 - 修改题目状态、提交记录、Rating 必须由用户操作或确定性同步逻辑完成。
 - 文档明确该边界。
+
+实现：PROJECT_RULES.md 新增 3.6「AI 数据写入边界」条款（只读区/核心禁写/输出区/敏感隔离/本地优先/可追溯）；ARCHITECTURE.md 第 13 节扩展为模块结构 + 可以/不可以 + 可追溯性三小节，列出具体模块路径与禁止表。
 
 建议提交：`docs: 明确 AI 数据写入边界`
 

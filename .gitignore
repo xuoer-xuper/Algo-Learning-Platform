@@ -45,3 +45,6 @@ desktop.ini
 
 # === 本地配置 ===
 *.local
+
+# === TypeScript 构建信息 ===
+*.tsbuildinfo

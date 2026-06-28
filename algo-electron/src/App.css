@@ -466,8 +466,9 @@
 /* 设置页 */
 .settings-page {
   padding: 20px;
-  min-width: 380px;
-  max-height: 90vh;
+  /* 宽度随内容自适应，上限受 modal-panel 的 max-width 约束 */
+  width: min(760px, calc(100vw - 48px));
+  max-height: min(86vh, 760px);
   overflow-y: auto;
   scrollbar-width: thin;
   scrollbar-color: var(--border) transparent;
@@ -484,6 +485,32 @@
 .settings-page::-webkit-scrollbar-thumb {
   background-color: var(--border);
   border-radius: 3px;
+}
+
+/* 两栏布局：左栏配置类，右栏站点管理（内容多） */
+.settings-cols {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  align-items: start;
+}
+
+.settings-col {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0; /* 允许 flex 子项收缩，防止 input 溢出 */
+}
+
+.settings-col .settings-section {
+  margin-bottom: 0; /* gap 已控制间距，避免双重 margin */
+}
+
+/* 窄屏回退为单栏，避免内容挤压 */
+@media (max-width: 720px) {
+  .settings-cols {
+    grid-template-columns: 1fr;
+  }
 }
 
 .settings-header {
@@ -773,6 +800,57 @@
   margin-top: 4px;
 }
 
+/* 首页复习建议 */
+.home-recommendations {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.home-rec-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  background-color: var(--bg-card);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--primary);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+
+.home-rec-item:hover {
+  border-color: var(--primary);
+  border-left-color: var(--primary);
+}
+
+.home-rec-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.home-rec-platform {
+  font-size: 12px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.home-rec-title {
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.home-rec-evidence {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
 .home-recent {
   display: flex;
   flex-direction: column;
@@ -819,7 +897,24 @@
 /* 题目详情页 */
 .detail-page {
   padding: 20px;
-  min-width: 450px;
+  width: min(760px, calc(100vw - 48px));
+  max-height: min(86vh, 760px);
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+.detail-page::-webkit-scrollbar {
+  width: 6px;
+}
+
+.detail-page::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.detail-page::-webkit-scrollbar-thumb {
+  background-color: var(--border);
+  border-radius: 3px;
 }
 
 .detail-info {
@@ -1000,6 +1095,135 @@
   margin-top: 4px;
 }
 
+/* P6-005 / P6-006: AI 学习建议区 */
+.ai-suggest-section {
+  margin-bottom: 16px;
+}
+
+.ai-suggest-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.ai-suggest-card {
+  background: var(--bg);
+  border: 1px solid var(--border-light);
+  border-radius: 10px;
+  padding: 14px;
+}
+
+.ai-suggest-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  margin: 0 0 10px 0;
+}
+
+.ai-rec-item {
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border-light);
+  cursor: pointer;
+}
+
+.ai-rec-item:hover {
+  background: var(--bg-surface);
+}
+
+.ai-rec-item:last-child {
+  border-bottom: none;
+}
+
+.ai-rec-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 3px;
+}
+
+.ai-rec-platform {
+  font-size: 10px;
+  color: var(--accent);
+  background: rgba(59, 130, 246, 0.1);
+  padding: 1px 6px;
+  border-radius: 3px;
+}
+
+.ai-rec-title {
+  font-size: 12px;
+  color: var(--text);
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ai-rec-reason {
+  font-size: 11px;
+  color: var(--text);
+  margin-bottom: 2px;
+}
+
+.ai-rec-evidence {
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+.ai-weak-item {
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.ai-weak-item:last-child {
+  border-bottom: none;
+}
+
+.ai-weak-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 3px;
+}
+
+.ai-weak-tag {
+  font-size: 12px;
+  color: var(--text);
+  font-weight: 500;
+}
+
+.ai-weak-acrate {
+  font-size: 11px;
+  color: #f38ba8;
+  font-weight: 600;
+}
+
+.ai-weak-evidence {
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-bottom: 5px;
+}
+
+.ai-weak-bar {
+  height: 4px;
+  background: var(--border-light);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.ai-weak-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #f9e2af, #f38ba8);
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+
+.ai-suggest-note {
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-top: 8px;
+  text-align: right;
+}
+
 /* 图表区域 */
 .dashboard-charts {
   display: flex;
@@ -1094,6 +1318,11 @@
   padding: 5px 0;
   border-bottom: 1px solid var(--border-light);
   font-size: 12px;
+  cursor: pointer;
+}
+
+.dashboard-list-item:hover {
+  background: var(--bg-surface);
 }
 
 .dashboard-list-platform {

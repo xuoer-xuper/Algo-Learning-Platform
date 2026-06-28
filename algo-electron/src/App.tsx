@@ -156,7 +156,10 @@ function App() {
       )}
       {showDashboard && (
         <ModalLayer backdrop={modalBackdrop} sidebarWidth={sidebarWidth} onClose={closeDashboard}>
-          <Dashboard onClose={closeDashboard} />
+          <Dashboard
+            onClose={closeDashboard}
+            onNavigate={(targetUrl) => { closeDashboard(); window.electronAPI.navigate(targetUrl); setIsHome(false) }}
+          />
         </ModalLayer>
       )}
       {showScripts && (

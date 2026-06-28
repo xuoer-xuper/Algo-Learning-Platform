@@ -2,7 +2,21 @@
 
 ## 1. 当前阶段
 
-Phase 6 进行中。P6-001 本地题解 Markdown 系统、P6-002 笔记独立浮层已完成。
+Phase 6 进行中。已完成：P6-001 本地题解 Markdown 系统、P6-002 笔记独立浮层、P6-004 AI 上下文导出层、P6-005 错题复习建议（本地规则引擎）、P6-006 薄弱标签分析（本地规则引擎）、P6-010 限制 AI 修改核心数据。P6-003 代码片段管理已撤销（用户反馈手动维护成本高，AI 模块不依赖此表）。
+
+下一批待办：P6-007 阶段学习总结 → P6-008 复习计划生成 → P6-009 AI 输出本地保存（建 `ai_outputs` 表）→ P6-011 可追溯性测试。
+
+P6-003 撤销：原 `submission_code_snippets` 表（migration 012）已由 migration 013 物理删除。已移除 `codeSnippetRepository.ts`、IPC（snippets:*）、ProblemDetail 代码片段 UI、preload/electron-env.d.ts 接口、App.css 中 `.snippet-*` 样式。AI 上下文导出层（P6-004）直接读取原始 submissions 表，不受影响。
+
+P6-004 完成：建立 `electron/ai/contextExporter.ts`，聚合概览（题量/提交/连续天数/平台）、趋势、错题、待复习、标签维度统计、最近活动，schema_version=1。严格剥离 Cookie、绝对文件路径、日志内容、用户私有代码正文。提供 JSON 与 Markdown 双格式导出（`renderContextAsMarkdown`）。IPC：ai:exportContext、ai:exportContextMarkdown。
+
+P6-004 扩展（每日快照，migration 014）：新增 `ai_context_snapshots` 表，应用启动时（app.whenReady）调用 `ensureTodaySnapshot()` 自动生成当日快照存库（若不存在）。日期键使用 `todayBeijing()`（本地日期），与 daily_stats 保持一致。快照供阶段总结、复习计划等 AI 模块按需消费，避免每次重新聚合统计。失败不阻塞启动（try-catch 包裹）。repository：`aiContextSnapshotRepository.ts`，提供 ensureTodaySnapshot/getSnapshotByDate/listSnapshots。
+
+P6-005 完成：`electron/ai/recommendations/reviewRecommender.ts` 本地规则引擎，纯只读查询不写库。评分维度：错误次数×8（上限40）+ 遗忘风险 0.5/天（上限25）+ 访问重视 5/次（上限15）。仅推荐从未 AC 的题。结果携带 `source` 字段（wrong_count/last_attempt/days_since_attempt/visit_count）可追溯。Dashboard 概览卡片下方渲染复习建议卡片。IPC：ai:getReviewRecommendations。
+
+P6-006 完成：`electron/ai/recommendations/weaknessAnalyzer.ts` 本地规则引擎。评分维度：(100-AC率)×0.5 + 错误提交×0.5（上限25）+ 停留时长×0.01（上限25）。仅统计题量≥2 的标签保证统计意义；无标签数据时降级提示。结果携带 `evidence` 字段（本地统计依据）。Dashboard 渲染薄弱标签卡片（含进度条）。IPC：ai:getWeaknessAnalysis。
+
+P6-010 完成：PROJECT_RULES.md 新增 3.6「AI 数据写入边界」条款（只读区/核心禁写/输出区/敏感隔离/本地优先/可追溯）；ARCHITECTURE.md 第 13 节扩展为模块结构 + 可以/不可以 + 可追溯性三小节，列出具体模块路径与禁止表；模块边界新增 `ai` 模块声明。
 
 Phase 5 站点管理与多标签页重构已完成。
 

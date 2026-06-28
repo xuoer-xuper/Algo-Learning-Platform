@@ -217,8 +217,11 @@ export class UserScriptService {
         const meta = this.parseScriptMetadata(script.code)
         console.log('[UserScript Match] MATCHED (DB):', script.name)
         results.push({ script, requires: meta.requires, resources: meta.resources })
+      } else if (matched) {
+        // 匹配成功但无可用代码（file_path 不存在且 code 为空）
+        console.log('[UserScript Match] MATCHED BUT NO CODE:', script.name, 'file_path=', script.file_path)
       } else {
-        console.log('[UserScript Match] NOT MATCHED:', script.name, 'matched=', matched)
+        console.log('[UserScript Match] NOT MATCHED:', script.name)
       }
     }
 
