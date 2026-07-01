@@ -24,6 +24,34 @@ interface SyncResult {
   error?: string
 }
 
+interface RealtimeSubmissionStatus {
+  ipcRegistered: boolean
+  supportedAdapterIds: string[]
+  lastPage?: {
+    url: string
+    realtimeAdapterId?: string
+    realtimeSupported: boolean
+    at: string
+  }
+  lastHook?: {
+    adapterId: string
+    url: string
+    status: 'success' | 'failed' | 'skipped'
+    reason?: string
+    error?: string
+    at: string
+  }
+  lastDetection?: {
+    senderUrl?: string
+    inserted: boolean
+    error?: string
+    platform?: string
+    verdict?: string
+    problemId?: string
+    at: string
+  }
+}
+
 interface OverviewStats {
   totalProblems: number
   todayVisited: number
@@ -65,6 +93,7 @@ interface ElectronAPI {
   syncCodeforces: (handle: string) => Promise<SyncResult>
   syncVjudge: () => Promise<SyncResult>
   syncCurrentPage: () => Promise<SyncResult>
+  getRealtimeSubmissionStatus: () => Promise<RealtimeSubmissionStatus | null>
   getOverviewStats: () => Promise<OverviewStats>
   getDailyActiveStats: (days?: number) => Promise<any[]>
   getVisitedTrend: (days?: number) => Promise<any[]>

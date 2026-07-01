@@ -1,0 +1,1287 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AlgoCoach — 你的个人 AI 算法教练</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,400&family=JetBrains+Mono:wght@400;500&family=Noto+Serif+SC:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink-0: #0c1016;
+    --ink-1: #141b26;
+    --ink-2: #1d2636;
+    --ink-3: #2a3649;
+    --paper: #f5f0e6;
+    --paper-dim: #e8e0d0;
+    --amber: #e8a44c;
+    --amber-glow: #f3b96a;
+    --teal: #5a9a8f;
+    --teal-glow: #7cbfb4;
+    --rose: #c97b7b;
+    --text: #1a2432;
+    --text-dim: #5a6a7a;
+    --text-pale: #8a9aa8;
+    --line: rgba(12, 16, 22, 0.12);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    font-family: 'Noto Serif SC', 'Fraunces', Georgia, serif;
+    background: var(--paper);
+    color: var(--text);
+    line-height: 1.7;
+    overflow-x: hidden;
+    position: relative;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence baseFrequency='0.9' numOctaves='2' seed='3'/><feColorMatrix values='0 0 0 0 0.05 0 0 0 0 0.06 0 0 0 0 0.08 0 0 0 0.15 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+    opacity: 0.5;
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  .container { position: relative; z-index: 2; }
+
+  /* =============== 顶部导航 =============== */
+  .nav {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    padding: 1.5rem 3rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    z-index: 100;
+    background: rgba(245, 240, 230, 0.85);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--line);
+  }
+
+  .nav-brand {
+    font-family: 'Fraunces', serif;
+    font-weight: 500;
+    font-size: 1.15rem;
+    letter-spacing: 0.02em;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+  }
+
+  .nav-logo {
+    width: 32px;
+    height: 32px;
+    background: var(--ink-0);
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--amber);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.8rem;
+    font-weight: 500;
+  }
+
+  .nav-meta {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem;
+    color: var(--text-dim);
+    display: flex;
+    gap: 1.5rem;
+  }
+
+  .nav-meta span {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+  }
+
+  .nav-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--teal);
+    display: inline-block;
+  }
+
+  /* =============== Hero =============== */
+  .hero {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 6rem 3rem 4rem;
+    max-width: 1400px;
+    margin: 0 auto;
+    position: relative;
+  }
+
+  .hero-eyebrow {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.78rem;
+    color: var(--teal);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    margin-bottom: 2rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .hero-eyebrow::before {
+    content: '';
+    width: 24px;
+    height: 1px;
+    background: var(--teal);
+  }
+
+  .hero-title {
+    font-family: 'Fraunces', serif;
+    font-size: clamp(3rem, 8vw, 7rem);
+    font-weight: 400;
+    line-height: 1.05;
+    letter-spacing: -0.02em;
+    color: var(--ink-0);
+    margin-bottom: 1.5rem;
+  }
+
+  .hero-title .accent {
+    font-style: italic;
+    color: var(--amber);
+    font-weight: 500;
+    position: relative;
+  }
+
+  .hero-title .accent::after {
+    content: '';
+    position: absolute;
+    bottom: 0.08em;
+    left: 0;
+    right: 0;
+    height: 0.08em;
+    background: var(--amber);
+    opacity: 0.25;
+    transform: skewX(-8deg);
+  }
+
+  .hero-subtitle {
+    font-size: 1.35rem;
+    color: var(--text-dim);
+    font-weight: 400;
+    max-width: 640px;
+    margin-bottom: 3rem;
+    line-height: 1.6;
+  }
+
+  .hero-subtitle strong {
+    color: var(--ink-0);
+    font-weight: 500;
+  }
+
+  .hero-metrics {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 2rem;
+    padding-top: 3rem;
+    border-top: 1px solid var(--line);
+    max-width: 800px;
+  }
+
+  .metric-value {
+    font-family: 'Fraunces', serif;
+    font-size: 2.5rem;
+    font-weight: 300;
+    color: var(--ink-0);
+    line-height: 1;
+    margin-bottom: 0.5rem;
+  }
+
+  .metric-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.72rem;
+    color: var(--text-dim);
+    letter-spacing: 0.05em;
+  }
+
+  /* =============== 章节标题 =============== */
+  section {
+    padding: 6rem 3rem;
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+
+  .section-head {
+    display: grid;
+    grid-template-columns: 200px 1fr;
+    gap: 3rem;
+    margin-bottom: 4rem;
+    align-items: start;
+  }
+
+  .section-num {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem;
+    color: var(--amber);
+    letter-spacing: 0.2em;
+    padding-top: 0.5rem;
+  }
+
+  .section-title {
+    font-family: 'Fraunces', serif;
+    font-size: clamp(2rem, 4vw, 3.5rem);
+    font-weight: 400;
+    line-height: 1.15;
+    color: var(--ink-0);
+    letter-spacing: -0.01em;
+  }
+
+  .section-title em {
+    color: var(--amber);
+    font-style: italic;
+    font-weight: 500;
+  }
+
+  .section-lede {
+    font-size: 1.15rem;
+    color: var(--text-dim);
+    max-width: 700px;
+    margin-top: 1.5rem;
+    line-height: 1.7;
+  }
+
+  /* =============== 对比章节 =============== */
+  .compare-section {
+    background: var(--ink-0);
+    color: var(--paper);
+    margin: 0;
+    max-width: none;
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  .compare-inner {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 6rem 3rem;
+  }
+
+  .compare-section .section-title {
+    color: var(--paper);
+  }
+
+  .compare-section .section-title em {
+    color: var(--amber-glow);
+  }
+
+  .compare-section .section-num {
+    color: var(--amber-glow);
+  }
+
+  .compare-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2rem;
+    margin-top: 4rem;
+  }
+
+  .compare-card {
+    padding: 3rem 2.5rem;
+    border-radius: 4px;
+    position: relative;
+  }
+
+  .compare-card.old {
+    background: var(--ink-1);
+    border: 1px solid rgba(245, 240, 230, 0.08);
+  }
+
+  .compare-card.new {
+    background: linear-gradient(145deg, var(--ink-2), var(--ink-1));
+    border: 1px solid var(--amber);
+    box-shadow: 0 0 60px rgba(232, 164, 76, 0.12);
+  }
+
+  .compare-tag {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    margin-bottom: 1.5rem;
+    display: inline-block;
+    padding: 0.35rem 0.85rem;
+    border-radius: 2px;
+  }
+
+  .compare-card.old .compare-tag {
+    background: rgba(245, 240, 230, 0.08);
+    color: var(--text-pale);
+  }
+
+  .compare-card.new .compare-tag {
+    background: rgba(232, 164, 76, 0.15);
+    color: var(--amber-glow);
+  }
+
+  .compare-heading {
+    font-family: 'Fraunces', serif;
+    font-size: 1.8rem;
+    font-weight: 400;
+    margin-bottom: 1rem;
+    color: var(--paper);
+  }
+
+  .compare-desc {
+    color: rgba(245, 240, 230, 0.7);
+    font-size: 1rem;
+    margin-bottom: 2rem;
+    line-height: 1.7;
+  }
+
+  .compare-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+  }
+
+  .compare-list li {
+    padding-left: 1.5rem;
+    position: relative;
+    font-size: 0.95rem;
+    color: rgba(245, 240, 230, 0.85);
+  }
+
+  .compare-list li::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0.7em;
+    width: 10px;
+    height: 1px;
+  }
+
+  .compare-card.old .compare-list li::before {
+    background: var(--text-pale);
+  }
+
+  .compare-card.new .compare-list li::before {
+    background: var(--amber-glow);
+  }
+
+  /* =============== 核心能力 =============== */
+  .features-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0;
+    border: 1px solid var(--line);
+    border-radius: 2px;
+  }
+
+  .feature-card {
+    padding: 3rem 2.5rem;
+    border-right: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+    transition: background 0.3s ease;
+    cursor: default;
+    position: relative;
+  }
+
+  .feature-card:nth-child(2n) { border-right: none; }
+  .feature-card:nth-last-child(-n+2) { border-bottom: none; }
+
+  .feature-card:hover {
+    background: rgba(232, 164, 76, 0.04);
+  }
+
+  .feature-num {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.72rem;
+    color: var(--amber);
+    letter-spacing: 0.15em;
+    margin-bottom: 1.5rem;
+  }
+
+  .feature-icon {
+    width: 48px;
+    height: 48px;
+    margin-bottom: 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--teal);
+  }
+
+  .feature-title {
+    font-family: 'Fraunces', serif;
+    font-size: 1.65rem;
+    font-weight: 500;
+    color: var(--ink-0);
+    margin-bottom: 0.75rem;
+    line-height: 1.25;
+  }
+
+  .feature-desc {
+    color: var(--text-dim);
+    font-size: 1rem;
+    line-height: 1.7;
+  }
+
+  /* =============== 记忆时间线 =============== */
+  .memory-section {
+    background: var(--ink-0);
+    color: var(--paper);
+    max-width: none;
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  .memory-inner {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 6rem 3rem;
+  }
+
+  .memory-section .section-title { color: var(--paper); }
+  .memory-section .section-title em { color: var(--amber-glow); }
+  .memory-section .section-num { color: var(--amber-glow); }
+  .memory-section .section-lede { color: rgba(245, 240, 230, 0.65); }
+
+  .timeline {
+    margin-top: 5rem;
+    position: relative;
+    padding-left: 4rem;
+  }
+
+  .timeline::before {
+    content: '';
+    position: absolute;
+    left: 1rem;
+    top: 0;
+    bottom: 0;
+    width: 1px;
+    background: linear-gradient(to bottom,
+      transparent,
+      rgba(232, 164, 76, 0.3) 5%,
+      rgba(232, 164, 76, 0.5) 50%,
+      rgba(122, 191, 180, 0.5) 95%,
+      transparent
+    );
+  }
+
+  .timeline-item {
+    position: relative;
+    padding-bottom: 3.5rem;
+    padding-left: 2rem;
+  }
+
+  .timeline-item::before {
+    content: '';
+    position: absolute;
+    left: -3rem;
+    top: 0.5rem;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--ink-0);
+    border: 2px solid var(--amber-glow);
+    z-index: 2;
+  }
+
+  .timeline-item.teal::before {
+    border-color: var(--teal-glow);
+  }
+
+  .timeline-date {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.78rem;
+    color: var(--amber-glow);
+    letter-spacing: 0.05em;
+    margin-bottom: 0.5rem;
+  }
+
+  .timeline-item.teal .timeline-date { color: var(--teal-glow); }
+
+  .timeline-heading {
+    font-family: 'Fraunces', serif;
+    font-size: 1.3rem;
+    color: var(--paper);
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+  }
+
+  .timeline-text {
+    color: rgba(245, 240, 230, 0.7);
+    font-size: 0.95rem;
+    line-height: 1.7;
+    max-width: 600px;
+  }
+
+  .timeline-detail {
+    margin-top: 1rem;
+    padding: 1rem 1.25rem;
+    background: var(--ink-1);
+    border-left: 2px solid var(--amber-glow);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.85rem;
+    color: rgba(245, 240, 230, 0.85);
+    border-radius: 2px;
+  }
+
+  .timeline-item.teal .timeline-detail { border-left-color: var(--teal-glow); }
+
+  /* =============== 对话示例 =============== */
+  .chat-section {
+    padding-top: 4rem;
+  }
+
+  .chat-wrapper {
+    max-width: 900px;
+    margin: 4rem auto 0;
+    background: var(--paper-dim);
+    border-radius: 8px;
+    border: 1px solid var(--line);
+    overflow: hidden;
+    box-shadow: 0 20px 60px rgba(12, 16, 22, 0.08);
+  }
+
+  .chat-header {
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid var(--line);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: rgba(245, 240, 230, 0.6);
+  }
+
+  .chat-header-left {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .chat-avatar {
+    width: 32px;
+    height: 32px;
+    background: var(--ink-0);
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--amber);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem;
+    font-weight: 500;
+  }
+
+  .chat-title {
+    font-family: 'Fraunces', serif;
+    font-weight: 500;
+    color: var(--ink-0);
+  }
+
+  .chat-status {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+    color: var(--teal);
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+
+  .chat-status::before {
+    content: '';
+    width: 6px;
+    height: 6px;
+    background: var(--teal);
+    border-radius: 50%;
+    animation: pulse 2s infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  .chat-body {
+    padding: 2rem 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+
+  .chat-msg {
+    max-width: 85%;
+    padding: 1rem 1.25rem;
+    border-radius: 8px;
+    font-size: 0.95rem;
+    line-height: 1.7;
+  }
+
+  .chat-msg.user {
+    align-self: flex-end;
+    background: var(--ink-0);
+    color: var(--paper);
+    border-bottom-right-radius: 2px;
+  }
+
+  .chat-msg.ai {
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-bottom-left-radius: 2px;
+  }
+
+  .chat-msg-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.65rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-bottom: 0.5rem;
+    opacity: 0.6;
+  }
+
+  .chat-msg.ai .chat-msg-label { color: var(--amber); }
+  .chat-msg.user .chat-msg-label { color: var(--amber-glow); }
+
+  .chat-msg p { margin-bottom: 0.5rem; }
+  .chat-msg p:last-child { margin-bottom: 0; }
+
+  .chat-msg .tool-call {
+    margin-top: 0.75rem;
+    padding: 0.75rem 1rem;
+    background: rgba(90, 154, 143, 0.1);
+    border-left: 2px solid var(--teal);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.82rem;
+    color: var(--text-dim);
+  }
+
+  .chat-msg .memory-hint {
+    margin-top: 0.75rem;
+    padding: 0.75rem 1rem;
+    background: rgba(232, 164, 76, 0.1);
+    border-left: 2px solid var(--amber);
+    font-size: 0.88rem;
+    color: var(--text-dim);
+    font-style: italic;
+  }
+
+  /* =============== 架构可视化 =============== */
+  .arch-section {
+    padding-top: 2rem;
+  }
+
+  .arch-diagram {
+    margin-top: 4rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+
+  .arch-layer {
+    display: grid;
+    grid-template-columns: 140px 1fr;
+    gap: 2rem;
+    align-items: center;
+  }
+
+  .arch-layer-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem;
+    color: var(--amber);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    text-align: right;
+    padding-right: 1.5rem;
+    border-right: 2px solid var(--amber);
+  }
+
+  .arch-layer-items {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+
+  .arch-chip {
+    padding: 0.75rem 1.25rem;
+    background: var(--paper-dim);
+    border: 1px solid var(--line);
+    border-radius: 3px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.88rem;
+    color: var(--ink-0);
+    transition: all 0.2s ease;
+  }
+
+  .arch-chip:hover {
+    background: var(--amber);
+    color: var(--ink-0);
+    border-color: var(--amber);
+    transform: translateY(-2px);
+  }
+
+  .arch-chip .chip-num {
+    display: inline-block;
+    width: 20px;
+    color: var(--amber);
+    font-size: 0.75rem;
+  }
+
+  .arch-chip:hover .chip-num { color: var(--ink-0); }
+
+  /* =============== 价值主张 =============== */
+  .value-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0;
+    margin-top: 4rem;
+    border: 1px solid var(--line);
+    border-radius: 2px;
+  }
+
+  .value-card {
+    padding: 3rem 2rem;
+    text-align: center;
+    border-right: 1px solid var(--line);
+    position: relative;
+  }
+
+  .value-card:last-child { border-right: none; }
+
+  .value-num {
+    font-family: 'Fraunces', serif;
+    font-size: 4rem;
+    font-weight: 300;
+    color: var(--amber);
+    line-height: 1;
+    margin-bottom: 1rem;
+  }
+
+  .value-heading {
+    font-family: 'Fraunces', serif;
+    font-size: 1.4rem;
+    font-weight: 500;
+    color: var(--ink-0);
+    margin-bottom: 0.75rem;
+  }
+
+  .value-text {
+    color: var(--text-dim);
+    font-size: 0.95rem;
+    line-height: 1.7;
+  }
+
+  /* =============== 页脚 =============== */
+  .footer {
+    padding: 4rem 3rem 3rem;
+    text-align: center;
+    border-top: 1px solid var(--line);
+    max-width: 1400px;
+    margin: 4rem auto 0;
+  }
+
+  .footer-title {
+    font-family: 'Fraunces', serif;
+    font-size: 2.5rem;
+    font-weight: 400;
+    color: var(--ink-0);
+    font-style: italic;
+    margin-bottom: 1rem;
+  }
+
+  .footer-text {
+    color: var(--text-dim);
+    margin-bottom: 2rem;
+  }
+
+  .footer-meta {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem;
+    color: var(--text-pale);
+    letter-spacing: 0.05em;
+    display: flex;
+    justify-content: center;
+    gap: 2rem;
+    flex-wrap: wrap;
+  }
+
+  /* =============== 滚动动画 =============== */
+  .reveal {
+    opacity: 0;
+    transform: translateY(30px);
+    transition: opacity 0.8s ease, transform 0.8s ease;
+  }
+
+  .reveal.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  /* =============== 响应式 =============== */
+  @media (max-width: 900px) {
+    .nav { padding: 1rem 1.5rem; }
+    .nav-meta { display: none; }
+    .hero { padding: 6rem 1.5rem 3rem; }
+    section { padding: 4rem 1.5rem; }
+    .compare-inner, .memory-inner { padding: 4rem 1.5rem; }
+    .section-head { grid-template-columns: 1fr; gap: 1rem; }
+    .hero-metrics { grid-template-columns: repeat(2, 1fr); gap: 1.5rem; }
+    .compare-grid { grid-template-columns: 1fr; }
+    .features-grid { grid-template-columns: 1fr; }
+    .feature-card { border-right: none !important; border-bottom: 1px solid var(--line) !important; }
+    .feature-card:last-child { border-bottom: none !important; }
+    .value-grid { grid-template-columns: 1fr; }
+    .value-card { border-right: none; border-bottom: 1px solid var(--line); }
+    .arch-layer { grid-template-columns: 1fr; gap: 0.75rem; }
+    .arch-layer-label { text-align: left; border-right: none; border-left: 2px solid var(--amber); padding-left: 1rem; padding-right: 0; }
+    .timeline { padding-left: 2rem; }
+    .timeline-item::before { left: -1.5rem; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- 顶部导航 -->
+  <nav class="nav">
+    <div class="nav-brand">
+      <div class="nav-logo">AC</div>
+      <span>AlgoCoach</span>
+    </div>
+    <div class="nav-meta">
+      <span><span class="nav-dot"></span>TRAE AI 创造力大赛</span>
+      <span>学习工作赛道</span>
+      <span>v0.1 · 2026</span>
+    </div>
+  </nav>
+
+  <!-- Hero -->
+  <section class="hero">
+    <div class="hero-eyebrow reveal">Personal AI Agent · 陪伴式算法教练</div>
+    <h1 class="hero-title reveal">
+      不只是帮你解题，<br>
+      陪你 <span class="accent">一起成长</span>。
+    </h1>
+    <p class="hero-subtitle reveal">
+      AlgoCoach 是一个会 <strong>记住你</strong>、<strong>理解你</strong>、<strong>陪伴你</strong> 的 AI 算法教练。
+      它记录你的每一次 WA、每一次突破、每一场比赛，
+      在算法学习的漫漫长路上，成为你的专属成长伙伴。
+    </p>
+
+    <div class="hero-metrics reveal">
+      <div>
+        <div class="metric-value">∞</div>
+        <div class="metric-label">长期记忆</div>
+      </div>
+      <div>
+        <div class="metric-value">6+</div>
+        <div class="metric-label">OJ 平台集成</div>
+      </div>
+      <div>
+        <div class="metric-value">5</div>
+        <div class="metric-label">核心能力模块</div>
+      </div>
+      <div>
+        <div class="metric-value">↓</div>
+        <div class="metric-label">更低 Token 消耗</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 对比章节 -->
+  <section class="compare-section">
+    <div class="compare-inner">
+      <div class="section-head reveal">
+        <div class="section-num">— 01 / 问题</div>
+        <div>
+          <h2 class="section-title">为什么刷题 <em>不能</em> 只靠 AI 搜答案？</h2>
+          <p class="section-lede">现有的算法 AI 都在做同一件事——把题解直接喂给你。它们不记得你是谁、你昨天卡在哪、你擅长什么、你真正缺什么。于是你从独立思考，变成了被动阅读。</p>
+        </div>
+      </div>
+
+      <div class="compare-grid">
+        <div class="compare-card old reveal">
+          <span class="compare-tag">传统 AI 刷题助手</span>
+          <h3 class="compare-heading">逐题解答，即问即走</h3>
+          <p class="compare-desc">像一本会说话的题解集，每次对话从零开始。</p>
+          <ul class="compare-list">
+            <li>没有记忆，每次对话相互独立</li>
+            <li>直接给出完整答案，跳过思考过程</li>
+            <li>无法识别用户真实的知识盲区</li>
+            <li>Token 浪费在背诵固定知识上</li>
+            <li>用户被动接受，缺乏主动训练</li>
+          </ul>
+        </div>
+
+        <div class="compare-card new reveal">
+          <span class="compare-tag">AlgoCoach</span>
+          <h3 class="compare-heading">记住你，引导你，陪你变强</h3>
+          <p class="compare-desc">像一位了解你的算法教练，关注的是你这个人，而不是这道题。</p>
+          <ul class="compare-list">
+            <li>长期记忆系统，记录完整成长轨迹</li>
+            <li>分层引导策略，帮助你自己想出答案</li>
+            <li>主动分析错误模式，发现薄弱环节</li>
+            <li>调用外部工具库，节省 Token 同时提升质量</li>
+            <li>根据能力动态调整训练计划</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 核心能力 -->
+  <section>
+    <div class="section-head reveal">
+      <div class="section-num">— 02 / 能力</div>
+      <div>
+        <h2 class="section-title">五个核心模块，<br>构成一位 <em>完整</em> 的算法教练</h2>
+        <p class="section-lede">从记忆到推理，从分析到行动，每一个模块都为了同一个目标——让你成为更好的算法选手。</p>
+      </div>
+    </div>
+
+    <div class="features-grid">
+      <div class="feature-card reveal">
+        <div class="feature-num">MOD · 01</div>
+        <svg class="feature-icon" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.5">
+          <rect x="6" y="8" width="36" height="32" rx="2"/>
+          <line x1="12" y1="16" x2="24" y2="16"/>
+          <line x1="12" y1="22" x2="36" y2="22"/>
+          <line x1="12" y1="28" x2="30" y2="28"/>
+          <line x1="12" y1="34" x2="20" y2="34"/>
+          <circle cx="36" cy="34" r="4" fill="none"/>
+        </svg>
+        <h3 class="feature-title">长期记忆系统</h3>
+        <p class="feature-desc">持续学习你的刷题记录、代码风格、常见错误、知识掌握程度，形成可进化的个人档案。越用越懂你。</p>
+      </div>
+
+      <div class="feature-card reveal">
+        <div class="feature-num">MOD · 02</div>
+        <svg class="feature-icon" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.5">
+          <circle cx="24" cy="20" r="10"/>
+          <line x1="24" y1="30" x2="24" y2="40"/>
+          <line x1="18" y1="36" x2="30" y2="36"/>
+          <line x1="20" y1="18" x2="22" y2="18"/>
+          <line x1="26" y1="18" x2="28" y2="18"/>
+          <path d="M20 24 Q24 28 28 24"/>
+        </svg>
+        <h3 class="feature-title">动态引导策略</h3>
+        <p class="feature-desc">根据你的历史数据，动态决定最适合当前能力的回应方式。新手给更多提示，熟练时让你独立思考。</p>
+      </div>
+
+      <div class="feature-card reveal">
+        <div class="feature-num">MOD · 03</div>
+        <svg class="feature-icon" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.5">
+          <rect x="8" y="12" width="22" height="16" rx="2"/>
+          <rect x="18" y="20" width="22" height="16" rx="2"/>
+          <line x1="14" y1="18" x2="24" y2="18"/>
+          <line x1="14" y1="22" x2="20" y2="22"/>
+          <line x1="24" y1="26" x2="34" y2="26"/>
+          <line x1="24" y1="30" x2="30" y2="30"/>
+        </svg>
+        <h3 class="feature-title">外部工具集成</h3>
+        <p class="feature-desc">调用模板库、笔记库、代码库。让 AI 不背诵答案，而是使用工具，降低 Token 消耗并提升回答质量。</p>
+      </div>
+
+      <div class="feature-card reveal">
+        <div class="feature-num">MOD · 04</div>
+        <svg class="feature-icon" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.5">
+          <circle cx="24" cy="24" r="18"/>
+          <line x1="24" y1="6" x2="24" y2="24"/>
+          <line x1="24" y1="24" x2="38" y2="24"/>
+          <circle cx="24" cy="24" r="3" fill="currentColor"/>
+          <text x="8" y="16" font-size="6" fill="currentColor" stroke="none">WA</text>
+          <text x="36" y="16" font-size="6" fill="currentColor" stroke="none">TLE</text>
+          <text x="32" y="40" font-size="6" fill="currentColor" stroke="none">MLE</text>
+        </svg>
+        <h3 class="feature-title">错误模式分析</h3>
+        <p class="feature-desc">主动发现你的薄弱点，关联历史错题，推荐针对性训练。让每一次 WA 都成为进步的阶梯。</p>
+      </div>
+
+      <div class="feature-card reveal">
+        <div class="feature-num">MOD · 05</div>
+        <svg class="feature-icon" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.5">
+          <polyline points="8,36 16,28 24,32 32,20 40,24"/>
+          <circle cx="8" cy="36" r="2" fill="currentColor"/>
+          <circle cx="16" cy="28" r="2" fill="currentColor"/>
+          <circle cx="24" cy="32" r="2" fill="currentColor"/>
+          <circle cx="32" cy="20" r="2" fill="currentColor"/>
+          <circle cx="40" cy="24" r="2" fill="currentColor"/>
+          <line x1="8" y1="40" x2="40" y2="40" stroke-dasharray="2,2"/>
+        </svg>
+        <h3 class="feature-title">成长可视化</h3>
+        <p class="feature-desc">能力雷达、知识图谱、错题追踪、比赛复盘。让进步看得见，让努力有方向。</p>
+      </div>
+
+      <div class="feature-card reveal">
+        <div class="feature-num">MOD · 06</div>
+        <svg class="feature-icon" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M12 12 L12 36 L36 36 L36 12 Z"/>
+          <line x1="12" y1="20" x2="36" y2="20"/>
+          <line x1="20" y1="20" x2="20" y2="36"/>
+          <circle cx="16" cy="14" r="1.5" fill="currentColor"/>
+          <circle cx="24" cy="14" r="1.5" fill="currentColor"/>
+          <circle cx="32" cy="14" r="1.5" fill="currentColor"/>
+          <rect x="24" y="24" width="6" height="8" fill="currentColor" opacity="0.3"/>
+          <rect x="14" y="28" width="4" height="4" fill="currentColor" opacity="0.3"/>
+        </svg>
+        <h3 class="feature-title">知识图谱</h3>
+        <p class="feature-desc">自动构建你的算法知识地图，识别已掌握、正在学习、尚未接触的领域，让训练更有章法。</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 记忆时间线 -->
+  <section class="memory-section">
+    <div class="memory-inner">
+      <div class="section-head reveal">
+        <div class="section-num">— 03 / 记忆</div>
+        <div>
+          <h2 class="section-title">它 <em>记得</em> 你走过的每一步</h2>
+          <p class="section-lede">想象一位教练，他记得你三个月前在动态规划上犯过什么错，记得你上周刚学会了单调队列，记得你在 CF Round 920 的表现如何。AlgoCoach 就是这样一位教练。</p>
+        </div>
+      </div>
+
+      <div class="timeline">
+        <div class="timeline-item reveal">
+          <div class="timeline-date">Day 001 · 初次对话</div>
+          <h3 class="timeline-heading">建立个人档案</h3>
+          <p class="timeline-text">从已有的 Algo-Learning-Platform 数据同步刷题历史，初步评估算法能力分布。</p>
+          <div class="timeline-detail">已掌握：模拟、贪心、基础排序 · 已刷题：203 道 · 最近 30 天活跃</div>
+        </div>
+
+        <div class="timeline-item reveal">
+          <div class="timeline-date">Day 014 · 两周后</div>
+          <h3 class="timeline-heading">识别薄弱环节</h3>
+          <p class="timeline-text">通过分析两周内的 WA 记录，发现你在"区间 DP 的状态定义"上反复出错，主动推荐针对性训练。</p>
+          <div class="timeline-detail">→ 薄弱点：区间 DP (状态定义错误率 42%) · 推荐 5 道渐进式训练题</div>
+        </div>
+
+        <div class="timeline-item teal reveal">
+          <div class="timeline-date">Day 045 · 比赛日</div>
+          <h3 class="timeline-heading">Codeforces Round 952 复盘</h3>
+          <p class="timeline-text">比赛结束后，Agent 自动获取你的提交记录，分析每一题的思考过程，并与历史表现对比。</p>
+          <div class="timeline-detail">
+            → B 题：思路正确，但边界处理失误（历史上此类错误已有 7 次）→ 建议：加强边界测试习惯训练<br>
+            → D 题：想到了正确方向但卡在实现 → 建议：复习离线处理与数据结构选型
+          </div>
+        </div>
+
+        <div class="timeline-item reveal">
+          <div class="timeline-date">Day 090 · 三个月后</div>
+          <h3 class="timeline-heading">成长评估与计划调整</h3>
+          <p class="timeline-text">能力评估完成，区间 DP 从薄弱项变为强项。新的薄弱点被识别为"网络流建模"，开始新一轮训练。</p>
+          <div class="timeline-detail">能力变化：DP (+45%)、图论 (+28%)、数据结构 (+18%) · 总 AC 数：487 → 下一步：网络流专题</div>
+        </div>
+
+        <div class="timeline-item teal reveal">
+          <div class="timeline-date">Day ∞ · 持续陪伴</div>
+          <h3 class="timeline-heading">陪你走到 AC</h3>
+          <p class="timeline-text">随着时间推移，你的记忆档案越来越丰富，Agent 对你的了解越来越深。它不是在回答问题，而是在陪伴成长。</p>
+          <div class="timeline-detail">Personal AI Coach · 不只是 AI，是你的算法成长伙伴</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 对话示例 -->
+  <section class="chat-section">
+    <div class="section-head reveal">
+      <div class="section-num">— 04 / 对话</div>
+      <div>
+        <h2 class="section-title">看它 <em>如何</em> 引导你思考</h2>
+        <p class="section-lede">不是直接给出答案，而是根据你的历史表现，选择最适合的引导方式。</p>
+      </div>
+    </div>
+
+    <div class="chat-wrapper reveal">
+      <div class="chat-header">
+        <div class="chat-header-left">
+          <div class="chat-avatar">AI</div>
+          <div>
+            <div class="chat-title">AlgoCoach · 引导模式</div>
+            <div style="font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; color: var(--text-dim);">已记忆你 87 天的训练数据 · 当前评估：中级选手</div>
+          </div>
+        </div>
+        <div class="chat-status">在线 · 正在观察</div>
+      </div>
+
+      <div class="chat-body">
+        <div class="chat-msg user">
+          <div class="chat-msg-label">你</div>
+          <p>这道题我想了 30 分钟还没想出来，能给我讲讲吗？</p>
+          <p style="font-size: 0.85rem; opacity: 0.8;">题目：Luogu P3366 · 最小生成树</p>
+        </div>
+
+        <div class="chat-msg ai">
+          <div class="chat-msg-label">AlgoCoach</div>
+          <p>我注意到你最近在「图论基础」专题，已经 AC 了 12 道简单图论题，但在涉及「并查集优化」的题目上反复 WA。我们先不急着看答案，来一起分析一下。</p>
+          <p>你现在脑海中对最小生成树有什么思路？先说说你已经想到了什么。</p>
+          <div class="memory-hint">→ 从长期记忆中检索：你上次遇到类似题目时，在「路径压缩」实现上出现了 bug。是否需要先复习这个部分？</div>
+        </div>
+
+        <div class="chat-msg user">
+          <div class="chat-msg-label">你</div>
+          <p>我觉得应该用 Kruskal，但并查集这块老是写错...让我想想怎么优化。</p>
+        </div>
+
+        <div class="chat-msg ai">
+          <div class="chat-msg-label">AlgoCoach</div>
+          <p>很好。你已经识别了问题所在。让我给你一个「分阶段提示」，每次只给你一部分，看看你能推进到哪里：</p>
+          <p><strong>提示 1：</strong>Kruskal 的核心是「按边权排序 + 并查集维护连通性」。你之前写的并查集 find 函数缺少了一个关键优化...</p>
+          <div class="tool-call">工具调用 → 从模板库检索：并查集标准实现 → 匹配到: dsu/standard.ts</div>
+        </div>
+
+        <div class="chat-msg user">
+          <div class="chat-msg-label">你</div>
+          <p>哦！路径压缩！我之前 find 函数忘了写路径压缩...让我重新写一下。</p>
+        </div>
+
+        <div class="chat-msg ai">
+          <div class="chat-msg-label">AlgoCoach</div>
+          <p>👍 对！就是路径压缩。你刚才自己想到了，这很关键。现在试着完整实现一下，遇到问题再来问我。</p>
+          <p>如果你完成了，记得把代码提交——我会对比你之前的实现，看看这次是否真正解决了问题。</p>
+          <div class="memory-hint">→ 将记录到长期记忆：用户已理解并查集路径压缩 · 错误模式更新：路径压缩缺失 → 已修复</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 架构可视化 -->
+  <section class="arch-section">
+    <div class="section-head reveal">
+      <div class="section-num">— 05 / 架构</div>
+      <div>
+        <h2 class="section-title">如何 <em>构建</em> 这样一位教练？</h2>
+        <p class="section-lede">基于现有 Algo-Learning-Platform 的数据基础，新增 Personal AI Agent 层，让大模型做推理，让工具系统做知识管理。</p>
+      </div>
+    </div>
+
+    <div class="arch-diagram reveal">
+      <div class="arch-layer">
+        <div class="arch-layer-label">用户界面</div>
+        <div class="arch-layer-items">
+          <span class="arch-chip"><span class="chip-num">01</span>桌面客户端 (Electron)</span>
+          <span class="arch-chip"><span class="chip-num">02</span>对话式交互</span>
+          <span class="arch-chip"><span class="chip-num">03</span>成长仪表盘</span>
+        </div>
+      </div>
+
+      <div class="arch-layer">
+        <div class="arch-layer-label">Agent 层</div>
+        <div class="arch-layer-items">
+          <span class="arch-chip"><span class="chip-num">04</span>LLM 推理引擎</span>
+          <span class="arch-chip"><span class="chip-num">05</span>引导策略引擎</span>
+          <span class="arch-chip"><span class="chip-num">06</span>记忆检索系统</span>
+        </div>
+      </div>
+
+      <div class="arch-layer">
+        <div class="arch-layer-label">长期记忆</div>
+        <div class="arch-layer-items">
+          <span class="arch-chip"><span class="chip-num">07</span>刷题记录索引</span>
+          <span class="arch-chip"><span class="chip-num">08</span>代码风格分析</span>
+          <span class="arch-chip"><span class="chip-num">09</span>错误模式图谱</span>
+          <span class="arch-chip"><span class="chip-num">10</span>能力评估档案</span>
+        </div>
+      </div>
+
+      <div class="arch-layer">
+        <div class="arch-layer-label">外部工具</div>
+        <div class="arch-layer-items">
+          <span class="arch-chip"><span class="chip-num">11</span>算法模板库</span>
+          <span class="arch-chip"><span class="chip-num">12</span>个人笔记库</span>
+          <span class="arch-chip"><span class="chip-num">13</span>代码片段库</span>
+          <span class="arch-chip"><span class="chip-num">14</span>题解数据库</span>
+        </div>
+      </div>
+
+      <div class="arch-layer">
+        <div class="arch-layer-label">数据来源</div>
+        <div class="arch-layer-items">
+          <span class="arch-chip"><span class="chip-num">15</span>Codeforces</span>
+          <span class="arch-chip"><span class="chip-num">16</span>Luogu / 洛谷</span>
+          <span class="arch-chip"><span class="chip-num">17</span>AcWing</span>
+          <span class="arch-chip"><span class="chip-num">18</span>NowCoder</span>
+          <span class="arch-chip"><span class="chip-num">19</span>PTA</span>
+          <span class="arch-chip"><span class="chip-num">20</span>vJudge</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 价值主张 -->
+  <section>
+    <div class="section-head reveal">
+      <div class="section-num">— 06 / 价值</div>
+      <div>
+        <h2 class="section-title">为什么这 <em>值得</em> 被创造？</h2>
+        <p class="section-lede">在算法学习这件事上，每一个人都值得被认真对待。</p>
+      </div>
+    </div>
+
+    <div class="value-grid">
+      <div class="value-card reveal">
+        <div class="value-num">01</div>
+        <h3 class="value-heading">效率提升</h3>
+        <p class="value-text">将固定知识交给外部工具库，让大模型专注于推理与分析。显著降低 Token 消耗，同时提供更有深度的个性化指导。</p>
+      </div>
+
+      <div class="value-card reveal">
+        <div class="value-num">02</div>
+        <h3 class="value-heading">因材施教</h3>
+        <p class="value-text">不再是千人一面的标准答案。Agent 根据你的成长轨迹动态调整策略，新手给更多引导，高手给更多挑战。</p>
+      </div>
+
+      <div class="value-card reveal">
+        <div class="value-num">03</div>
+        <h3 class="value-heading">社会价值</h3>
+        <p class="value-text">算法学习门槛高，让很多人半途而废。AlgoCoach 让每一位算法学习者都能拥有专属教练，降低学习门槛，陪伴更多人成长。</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 页脚 -->
+  <footer class="footer">
+    <h2 class="footer-title">不只是解答一道题。</h2>
+    <p class="footer-text">而是陪你，从 WA 到 AC，从新手到高手。</p>
+    <div class="footer-meta">
+      <span>AlgoCoach · Personal AI Algorithm Coach</span>
+      <span>基于 Algo-Learning-Platform 构建</span>
+      <span>TRAE AI 创造力大赛 · 学习工作赛道</span>
+    </div>
+  </footer>
+
+</div>
+
+<script>
+  // 滚动显现动画
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach((entry, index) => {
+      if (entry.isIntersecting) {
+        setTimeout(() => {
+          entry.target.classList.add('visible');
+        }, index * 40);
+      }
+    });
+  }, { threshold: 0.1, rootMargin: '0px 0px -50px 0px' });
+
+  document.querySelectorAll('.reveal').forEach((el) => {
+    observer.observe(el);
+  });
+
+  // 页面加载时立即显示顶部内容
+  document.querySelectorAll('.hero .reveal').forEach((el, i) => {
+    setTimeout(() => el.classList.add('visible'), 100 + i * 150);
+  });
+</script>
+
+</body>
+</html>

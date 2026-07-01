@@ -7,6 +7,7 @@ const PLATFORM_NAMES: Record<string, string> = {
   vjudge: 'VJudge',
   pta: 'PTA',
   luogu: '洛谷',
+  'leetcode-cn': 'LeetCode',
 }
 
 const STATUS_LABELS: Record<string, string> = {

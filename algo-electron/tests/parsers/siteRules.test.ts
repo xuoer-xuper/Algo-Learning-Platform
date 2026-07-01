@@ -1,6 +1,5 @@
 import assert from 'node:assert'
-import { parseUrl, registerAdapter, parseConfigUrl, setEnabledSitesFetcher } from '../../electron/parsers/registry'
-import type { SiteAdapter } from '../../electron/parsers/types'
+import { parseUrl, registerAdapter, parseConfigUrl, setEnabledSitesFetcher, type ProblemParserAdapter } from '../../electron/parsers/registry'
 
 // Simple test runner helper
 const tests: { name: string; fn: () => void }[] = []
@@ -67,6 +66,7 @@ test('Nowcoder URL parsing', () => {
   const validUrls = [
     'https://www.nowcoder.com/practice/a1b2c3d4e5f67890',
     'https://ac.nowcoder.com/acm/problem/1000',
+    'https://ac.nowcoder.com/acm/contest/132048/A',
   ]
 
   for (const url of validUrls) {
@@ -78,6 +78,7 @@ test('Nowcoder URL parsing', () => {
   const invalidUrls = [
     'https://www.nowcoder.com',
     'https://ac.nowcoder.com',
+    'https://ac.nowcoder.com/acm/contest/132048/status',
   ]
 
   for (const url of invalidUrls) {
@@ -113,6 +114,8 @@ test('PTA URL parsing', () => {
   const validUrls = [
     'https://pintia.cn/problem-sets/123/problems/456',
     'https://pintia.cn/problem-sets/123/exam/problems/456',
+    'https://pintia.cn/problem-sets/123/exam-problems/456',
+    'https://pintia.cn/problem-sets/123/problems/type/7?problemId=456',
   ]
 
   for (const url of validUrls) {
@@ -160,7 +163,7 @@ test('Luogu URL parsing', () => {
 
 // 2. Custom adapter registration tests
 test('Custom adapter registration', () => {
-  const hduAdapter: SiteAdapter = {
+  const hduAdapter: ProblemParserAdapter = {
     id: 'hdu',
     match: (url) => url.includes('acm.hdu.edu.cn/showproblem.php'),
     parse: (url) => {

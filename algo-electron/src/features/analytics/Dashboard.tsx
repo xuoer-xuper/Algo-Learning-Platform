@@ -5,7 +5,7 @@ import {
 } from 'recharts'
 
 const PLATFORM_NAMES: Record<string, string> = {
-  codeforces: 'Codeforces', acwing: 'AcWing', nowcoder: '牛客', vjudge: 'VJudge', pta: 'PTA', luogu: '洛谷',
+  codeforces: 'Codeforces', acwing: 'AcWing', nowcoder: '牛客', vjudge: 'VJudge', pta: 'PTA', luogu: '洛谷', 'leetcode-cn': 'LeetCode',
 }
 const COLORS = ['#3b82f6', '#22c55e', '#f59e0b', '#ef4444', '#8b5cf6', '#3498db']
 

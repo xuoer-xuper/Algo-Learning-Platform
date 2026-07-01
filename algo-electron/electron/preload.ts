@@ -47,6 +47,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   syncCodeforces: (handle: string) => ipcRenderer.invoke('submissions:syncCodeforces', handle),
   syncVjudge: () => ipcRenderer.invoke('submissions:syncVjudge'),
   syncCurrentPage: () => ipcRenderer.invoke('submissions:syncCurrentPage'),
+  getRealtimeSubmissionStatus: () => ipcRenderer.invoke('realtimeSubmission:getStatus'),
 
   // 统计
   getOverviewStats: () => ipcRenderer.invoke('stats:getOverview'),

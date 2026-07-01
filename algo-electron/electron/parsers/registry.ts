@@ -1,228 +1,215 @@
-import type { SiteAdapter } from './types'
 import type { ProblemIdentity } from '../shared/types'
-import { codeforcesParser } from './sites/codeforces'
-import { acwingParser } from './sites/acwing'
-import { nowcoderParser } from './sites/nowcoder'
-import { vjudgeParser } from './sites/vjudge'
-import { ptaParser } from './sites/pta'
-import { luoguParser } from './sites/luogu'
+import {
+  getAdapter as getRuntimeAdapter,
+  getAdapterForUrl as getRuntimeAdapterForUrl,
+} from '../adapters/registry'
 
-const adapterRegistry = new Map<string, SiteAdapter>()
-let enabledSitesFetcher: (() => any[]) | null = null
+interface EnabledSiteConfig {
+  id: string
+  domains: string[]
+  enabled: boolean
+  adapter?: string
+  problemUrlPatterns?: string[]
+}
 
-export function setEnabledSitesFetcher(fetcher: () => any[]): void {
+export interface ProblemParserAdapter {
+  id: string
+  match?: (url: string) => boolean
+  parse?: (url: string) => ProblemIdentity | null
+}
+
+const customParserAdapters = new Map<string, ProblemParserAdapter>()
+let enabledSitesFetcher: (() => EnabledSiteConfig[]) | null = null
+
+const builtinConfigs: EnabledSiteConfig[] = [
+  { id: 'codeforces', domains: ['codeforces.com', 'www.codeforces.com'], enabled: true },
+  { id: 'acwing', domains: ['acwing.com', 'www.acwing.com'], enabled: true },
+  { id: 'nowcoder', domains: ['nowcoder.com', 'www.nowcoder.com', 'ac.nowcoder.com'], enabled: true },
+  { id: 'vjudge', domains: ['vjudge.net', 'www.vjudge.net'], enabled: true },
+  { id: 'pta', domains: ['pintia.cn', 'www.pintia.cn'], enabled: true },
+  { id: 'luogu', domains: ['luogu.com.cn', 'www.luogu.com.cn'], enabled: true },
+  { id: 'leetcode-cn', domains: ['leetcode.cn', 'www.leetcode.cn'], enabled: true },
+]
+
+export function setEnabledSitesFetcher(fetcher: () => EnabledSiteConfig[]): void {
   enabledSitesFetcher = fetcher
 }
 
-// Builtin configs fallback for testing/non-initialized database
-const builtinConfigs = [
-  { id: 'codeforces', domains: ['codeforces.com', 'www.codeforces.com'], enabled: true, problemUrlPatterns: [] },
-  { id: 'acwing', domains: ['acwing.com', 'www.acwing.com'], enabled: true, problemUrlPatterns: [] },
-  { id: 'nowcoder', domains: ['nowcoder.com', 'www.nowcoder.com', 'ac.nowcoder.com'], enabled: true, problemUrlPatterns: [] },
-  { id: 'vjudge', domains: ['vjudge.net', 'www.vjudge.net'], enabled: true, problemUrlPatterns: [] },
-  { id: 'pta', domains: ['pintia.cn'], enabled: true, problemUrlPatterns: [] },
-  { id: 'luogu', domains: ['luogu.com.cn', 'www.luogu.com.cn'], enabled: true, problemUrlPatterns: [] },
-]
-
-// Adapt built-in parsers to SiteAdapter
-const cfAdapter: SiteAdapter = {
-  id: 'codeforces',
-  match: (url) => codeforcesParser.match(url),
-  parse: (url) => codeforcesParser.parse(url),
-}
-const acwingAdapter: SiteAdapter = {
-  id: 'acwing',
-  match: (url) => acwingParser.match(url),
-  parse: (url) => acwingParser.parse(url),
-}
-const nowcoderAdapter: SiteAdapter = {
-  id: 'nowcoder',
-  match: (url) => nowcoderParser.match(url),
-  parse: (url) => nowcoderParser.parse(url),
-}
-const vjudgeAdapter: SiteAdapter = {
-  id: 'vjudge',
-  match: (url) => vjudgeParser.match(url),
-  parse: (url) => vjudgeParser.parse(url),
-}
-const ptaAdapter: SiteAdapter = {
-  id: 'pta',
-  match: (url) => ptaParser.match(url),
-  parse: (url) => ptaParser.parse(url),
+export function registerAdapter(adapter: ProblemParserAdapter): void {
+  customParserAdapters.set(adapter.id, adapter)
 }
 
-adapterRegistry.set('codeforces', cfAdapter)
-adapterRegistry.set('acwing', acwingAdapter)
-adapterRegistry.set('nowcoder', nowcoderAdapter)
-adapterRegistry.set('vjudge', vjudgeAdapter)
-adapterRegistry.set('pta', ptaAdapter)
-adapterRegistry.set('luogu', luoguParser)
+export function getAdapter(id: string): ProblemParserAdapter | undefined {
+  const customAdapter = customParserAdapters.get(id)
+  if (customAdapter) return customAdapter
 
-export function registerAdapter(adapter: SiteAdapter): void {
-  adapterRegistry.set(adapter.id, adapter)
+  const runtimeAdapter = getRuntimeAdapter(id)
+  if (!runtimeAdapter) return undefined
+
+  return {
+    id: runtimeAdapter.id,
+    match: (url) => runtimeAdapter.matchProblem(url),
+    parse: (url) => {
+      const identity = runtimeAdapter.parseProblem(url, { url })
+      return identity instanceof Promise ? null : identity
+    },
+  }
 }
 
-export function getAdapter(id: string): SiteAdapter | undefined {
-  return adapterRegistry.get(id)
-}
+export function getAdapterForUrl(url: string): ProblemParserAdapter | null {
+  const site = findMatchingEnabledSite(url)
+  if (!site) return null
 
-export function getAdapterForUrl(url: string): SiteAdapter | null {
-  let enabledSites: any[] = []
-  if (enabledSitesFetcher) {
-    try {
-      enabledSites = enabledSitesFetcher()
-    } catch {
-      enabledSites = builtinConfigs
-    }
-  } else {
-    enabledSites = builtinConfigs
+  const adapterId = site.adapter || site.id
+  const customAdapter = customParserAdapters.get(adapterId)
+  if (customAdapter && (!customAdapter.match || customAdapter.match(url))) {
+    return customAdapter
   }
 
-  try {
-    const u = new URL(url)
-    const domain = u.hostname
+  const runtimeAdapter = getRuntimeAdapter(adapterId) ?? getRuntimeAdapterForUrl(url)
+  if (!runtimeAdapter?.matchProblem(url)) return null
 
-    for (const site of enabledSites) {
-      if (!site.enabled) continue
-
-      const isDomainMatch = site.domains.some(
-        (d: string) => domain === d || domain.endsWith('.' + d)
-      )
-      if (!isDomainMatch) continue
-
-      const adapterId = site.adapter || site.id
-      const adapter = adapterRegistry.get(adapterId)
-      if (adapter) {
-        const matched = adapter.match ? adapter.match(url) : true
-        if (matched) {
-          return adapter
-        }
-      }
-    }
-  } catch {
-    // Ignore invalid URL
+  return {
+    id: runtimeAdapter.id,
+    match: (candidateUrl) => runtimeAdapter.matchProblem(candidateUrl),
+    parse: (candidateUrl) => {
+      const identity = runtimeAdapter.parseProblem(candidateUrl, { url: candidateUrl })
+      return identity instanceof Promise ? null : identity
+    },
   }
-  return null
 }
 
 export function parseConfigUrl(
   url: string,
   siteId: string,
   domains: string[],
-  patterns: string[]
+  patterns: string[],
 ): ProblemIdentity | null {
   try {
-    const u = new URL(url)
-    const domain = u.hostname
-    const isDomainMatch = domains.some(
-      (d) => domain === d || domain.endsWith('.' + d)
-    )
-    if (!isDomainMatch) return null
+    const parsed = new URL(url)
+    if (!domains.some(domain => parsed.hostname === domain || parsed.hostname.endsWith(`.${domain}`))) {
+      return null
+    }
 
     for (const pattern of patterns) {
-      // Escape regex special characters, except for the placeholders in curly braces
-      let escaped = pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-      // Convert {placeholder} to capturing group
-      const regexStr = escaped.replace(/\\\{([A-Za-z0-9_]+)\\\}/g, '([^/?#]+)')
-      
-      const patternPath = regexStr.startsWith('/') ? regexStr : '/' + regexStr
-      const regex = new RegExp(`^${patternPath}(?:\\/)?$`)
-      
-      const m = u.pathname.match(regex)
-      if (m) {
-        const paramNames: string[] = []
-        const paramRegex = /\{([A-Za-z0-9_]+)\}/g
-        let match
-        while ((match = paramRegex.exec(pattern)) !== null) {
-          paramNames.push(match[1])
-        }
-
-        const params: Record<string, string> = {}
-        for (let i = 0; i < paramNames.length; i++) {
-          if (m[i + 1]) {
-            params[paramNames[i]] = decodeURIComponent(m[i + 1])
-          }
-        }
-
-        let platformProblemId = ''
-        if (params.problemId) {
-          platformProblemId = params.problemId
-        } else if (params.id) {
-          platformProblemId = params.id
-        } else if (params.uuid) {
-          platformProblemId = params.uuid
-        } else if (params.contestId && (params.problemIndex || params.index)) {
-          platformProblemId = `${params.contestId}-${params.problemIndex || params.index}`
-        } else if (paramNames.length > 0) {
-          platformProblemId = paramNames.map(name => params[name]).filter(Boolean).join('-')
-        } else {
-          platformProblemId = u.pathname.replace(/^\/|\/$/g, '').replace(/\//g, '-')
-        }
-
-        const canonicalUrl = u.origin + u.pathname
-
-        return {
-          platform: siteId,
-          platformProblemId,
-          canonicalUrl,
-          contestId: params.contestId || params.setId || undefined,
-          problemIndex: params.problemIndex || params.index || params.problemId || params.id || undefined,
-          confidence: 'url',
-        }
-      }
+      const identity = parsePatternUrl(parsed, siteId, pattern)
+      if (identity) return identity
     }
   } catch {
-    // Ignore error
+    return null
   }
   return null
 }
 
 export function parseUrl(url: string): ProblemIdentity | null {
-  let enabledSites: any[] = []
-  if (enabledSitesFetcher) {
-    try {
-      enabledSites = enabledSitesFetcher()
-    } catch {
-      enabledSites = builtinConfigs
-    }
-  } else {
-    enabledSites = builtinConfigs
+  const site = findMatchingEnabledSite(url)
+  if (!site) return null
+
+  const adapterId = site.adapter || site.id
+  const customAdapter = customParserAdapters.get(adapterId)
+  if (customAdapter && (!customAdapter.match || customAdapter.match(url)) && customAdapter.parse) {
+    const identity = customAdapter.parse(url)
+    if (identity) return identity
   }
+
+  const runtimeAdapter = getRuntimeAdapter(adapterId) ?? getRuntimeAdapterForUrl(url)
+  if (runtimeAdapter?.matchProblem(url)) {
+    const identity = runtimeAdapter.parseProblem(url, { url })
+    if (!(identity instanceof Promise) && identity) return identity
+  }
+
+  if (site.problemUrlPatterns?.length) {
+    return parseConfigUrl(url, site.id, site.domains, site.problemUrlPatterns)
+  }
+
+  return null
+}
+
+function getEnabledSites(): EnabledSiteConfig[] {
+  if (!enabledSitesFetcher) return builtinConfigs
 
   try {
-    const u = new URL(url)
-    const domain = u.hostname
-
-    for (const site of enabledSites) {
-      if (!site.enabled) continue
-
-      const isDomainMatch = site.domains.some(
-        (d: string) => domain === d || domain.endsWith('.' + d)
-      )
-      if (!isDomainMatch) continue
-
-      const adapterId = site.adapter || site.id
-      const adapter = adapterRegistry.get(adapterId)
-
-      if (adapter) {
-        const matched = adapter.match ? adapter.match(url) : true
-        if (matched && adapter.parse) {
-          const identity = adapter.parse(url)
-          if (identity) {
-            return identity
-          }
-        }
-      }
-
-      if (site.problemUrlPatterns && site.problemUrlPatterns.length > 0) {
-        const identity = parseConfigUrl(url, site.id, site.domains, site.problemUrlPatterns)
-        if (identity) {
-          return identity
-        }
-      }
-    }
+    return enabledSitesFetcher()
   } catch {
-    // Ignore invalid URL
+    return builtinConfigs
   }
-  return null
+}
+
+function findMatchingEnabledSite(url: string): EnabledSiteConfig | null {
+  try {
+    const parsed = new URL(url)
+    return getEnabledSites().find(site => {
+      if (!site.enabled) return false
+      return site.domains.some(domain => parsed.hostname === domain || parsed.hostname.endsWith(`.${domain}`))
+    }) ?? null
+  } catch {
+    return null
+  }
+}
+
+function parsePatternUrl(parsed: URL, siteId: string, pattern: string): ProblemIdentity | null {
+  const normalizedPattern = pattern.startsWith('/') ? pattern : `/${pattern}`
+  const queryStart = normalizedPattern.indexOf('?')
+  const pathPattern = queryStart >= 0 ? normalizedPattern.slice(0, queryStart) : normalizedPattern
+  const queryPattern = queryStart >= 0 ? normalizedPattern.slice(queryStart + 1) : ''
+
+  const pathRegex = buildPlaceholderRegex(pathPattern)
+  const pathMatch = parsed.pathname.match(pathRegex)
+  if (!pathMatch) return null
+
+  const paramNames = [...extractPlaceholderNames(pathPattern)]
+  const params: Record<string, string> = {}
+  for (let index = 0; index < paramNames.length; index++) {
+    const value = pathMatch[index + 1]
+    if (value) params[paramNames[index]] = decodeURIComponent(value)
+  }
+
+  for (const [key, expected] of new URLSearchParams(queryPattern).entries()) {
+    const placeholder = expected.match(/^\{([A-Za-z0-9_]+)\}$/)?.[1]
+    const actualValue = parsed.searchParams.get(key)
+    if (placeholder) {
+      if (!actualValue) return null
+      params[placeholder] = actualValue
+    } else if (actualValue !== expected) {
+      return null
+    }
+  }
+
+  const platformProblemId = buildPlatformProblemId(params, paramNames)
+  if (!platformProblemId) return null
+
+  return {
+    platform: siteId,
+    platformProblemId,
+    canonicalUrl: parsed.origin + parsed.pathname + parsed.search,
+    contestId: params.contestId || params.setId || undefined,
+    problemIndex: params.problemIndex || params.index || params.problemId || params.id || undefined,
+    confidence: 'url',
+  }
+}
+
+function buildPlaceholderRegex(pattern: string): RegExp {
+  const escaped = pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const regexSource = escaped.replace(/\\\{([A-Za-z0-9_]+)\\\}/g, '([^/?#]+)')
+  return new RegExp(`^${regexSource}(?:\\/)?$`)
+}
+
+function* extractPlaceholderNames(pattern: string): Generator<string> {
+  const regex = /\{([A-Za-z0-9_]+)\}/g
+  let match: RegExpExecArray | null
+  while ((match = regex.exec(pattern)) !== null) {
+    yield match[1]
+  }
+}
+
+function buildPlatformProblemId(params: Record<string, string>, paramNames: string[]): string {
+  if (params.problemId) return params.problemId
+  if (params.id) return params.id
+  if (params.uuid) return params.uuid
+  if (params.contestId && (params.problemIndex || params.index)) {
+    return `${params.contestId}-${params.problemIndex || params.index}`
+  }
+
+  const values = paramNames.map(name => params[name]).filter(Boolean)
+  return values.length > 0 ? values.join('-') : ''
 }

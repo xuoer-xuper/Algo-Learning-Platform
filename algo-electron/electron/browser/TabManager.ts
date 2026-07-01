@@ -1,5 +1,7 @@
 import { WebContentsView, BrowserWindow } from 'electron'
 import { randomUUID } from 'node:crypto'
+import { fileURLToPath } from 'node:url'
+import path from 'node:path'
 import { DetachedWindow } from './DetachedWindow'
 import { STEALTH_SCRIPT } from './stealthScript'
 
@@ -13,6 +15,7 @@ export interface TabInfo {
 const MAX_TABS = 8
 const TOOLBAR_HEIGHT = 42
 const TABBAR_HEIGHT = 36
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 export class TabManager {
   private tabs = new Map<string, { id: string, view: WebContentsView, url: string, title: string }>()
@@ -22,8 +25,12 @@ export class TabManager {
   private onUrlChange: ((url: string) => void) | null = null
   private onNavigate: ((url: string) => void) | null = null
   private onTitleChange: ((title: string, url: string) => void) | null = null
+  private onDomReady: ((url: string) => void) | null = null
   private onPageLoaded: ((url: string) => void) | null = null
   private onTabListChanged: ((tabs: TabInfo[]) => void) | null = null
+  private navigateListeners = new Set<(url: string) => void>()
+  private domReadyListeners = new Set<(url: string) => void>()
+  private activeTabChangeListeners = new Set<(url: string) => void>()
   private isViewHidden = false
 
   constructor(window: BrowserWindow) {
@@ -37,6 +44,7 @@ export class TabManager {
         nodeIntegration: false,
         contextIsolation: true,
         sandbox: true,
+        preload: path.join(__dirname, 'ojPreload.mjs'),
         partition: 'persist:oj-main',
       },
     })
@@ -47,7 +55,7 @@ export class TabManager {
         tab.url = url
         if (tab.id === this.activeTabId) {
           this.onUrlChange?.(url)
-          this.onNavigate?.(url)
+          this.emitNavigate(url)
         }
       }
     })
@@ -58,7 +66,7 @@ export class TabManager {
         tab.url = url
         if (tab.id === this.activeTabId) {
           this.onUrlChange?.(url)
-          this.onNavigate?.(url)
+          this.emitNavigate(url)
         }
       }
     })
@@ -94,6 +102,23 @@ export class TabManager {
       }
     })
 
+    view.webContents.on('dom-ready', () => {
+      const tab = this.findTabByView(view)
+      if (tab) {
+        tab.url = view.webContents.getURL()
+        this.emitDomReady(tab.url)
+      }
+    })
+
+    view.webContents.on('did-frame-finish-load', (_event, isMainFrame) => {
+      if (isMainFrame) return
+      const tab = this.findTabByView(view)
+      if (tab && tab.id === this.activeTabId) {
+        tab.url = view.webContents.getURL()
+        this.emitDomReady(tab.url)
+      }
+    })
+
     view.webContents.on('did-finish-load', () => {
       const tab = this.findTabByView(view)
       if (tab && tab.id === this.activeTabId) {
@@ -102,6 +127,15 @@ export class TabManager {
       }
       // 注入反检测脚本到主世界（绕过 contextIsolation），每个页面及 iframe 加载后执行
       view.webContents.executeJavaScript(STEALTH_SCRIPT).catch(() => {})
+    })
+
+    view.webContents.on('login', (event, details, authInfo, callback) => {
+      const url = details.url || ''
+      const host = authInfo.host || ''
+      if (url.includes('luogu.com.cn') || host.includes('luogu.com.cn')) {
+        event.preventDefault()
+        callback()
+      }
     })
 
     return view
@@ -185,6 +219,7 @@ export class TabManager {
     }
 
     this.onUrlChange?.(newTab.url)
+    this.emitActiveTabChange(newTab.url)
     this.onTabListChanged?.(this.getTabList())
   }
 
@@ -243,6 +278,16 @@ export class TabManager {
   getUrl(): string {
     const tab = this.activeTabId ? this.tabs.get(this.activeTabId) : null
     return tab?.view.webContents.getURL() ?? ''
+  }
+
+  getTitleForUrl(url: string): string | undefined {
+    for (const tab of this.tabs.values()) {
+      const currentUrl = tab.view.webContents.getURL()
+      if (tab.url === url || currentUrl === url || samePageUrl(tab.url, url) || samePageUrl(currentUrl, url)) {
+        return tab.title || tab.view.webContents.getTitle()
+      }
+    }
+    return undefined
   }
 
   getActiveTabId(): string | null {
@@ -325,11 +370,30 @@ export class TabManager {
 
   async executeScriptOnUrl(url: string, code: string): Promise<any> {
     for (const tab of this.tabs.values()) {
-      if (tab.url === url) {
-        return tab.view.webContents.executeJavaScript(code)
+      const currentUrl = tab.view.webContents.getURL()
+      if (tab.url === url || currentUrl === url || samePageUrl(tab.url, url) || samePageUrl(currentUrl, url)) {
+        return this.executeScriptAcrossFrames(tab, url, code)
       }
     }
     return Promise.reject(new Error('Tab not found'))
+  }
+
+  private async executeScriptAcrossFrames(
+    tab: { view: WebContentsView },
+    topPageUrl: string,
+    code: string,
+  ): Promise<any> {
+    const wrappedCode = `try { window.__ALGO_TOP_PAGE_URL = ${JSON.stringify(topPageUrl)}; } catch (_) {}\n${code}`
+    const result = await tab.view.webContents.executeJavaScript(wrappedCode)
+    const frames = tab.view.webContents.mainFrame?.framesInSubtree ?? []
+    await Promise.all(frames.map(async (frame) => {
+      try {
+        if (frame.isDestroyed()) return
+        if (frame === tab.view.webContents.mainFrame) return
+        await frame.executeJavaScript(wrappedCode)
+      } catch { /* ignore subframe injection failures */ }
+    }))
+    return result
   }
 
   warmup() {
@@ -344,8 +408,33 @@ export class TabManager {
     this.onNavigate = callback
   }
 
+  addNavigateListener(callback: (url: string) => void): () => void {
+    this.navigateListeners.add(callback)
+    return () => {
+      this.navigateListeners.delete(callback)
+    }
+  }
+
   setTitleChangeCallback(callback: (title: string, url: string) => void) {
     this.onTitleChange = callback
+  }
+
+  setDomReadyCallback(callback: (url: string) => void) {
+    this.onDomReady = callback
+  }
+
+  addDomReadyListener(callback: (url: string) => void): () => void {
+    this.domReadyListeners.add(callback)
+    return () => {
+      this.domReadyListeners.delete(callback)
+    }
+  }
+
+  addActiveTabChangeListener(callback: (url: string) => void): () => void {
+    this.activeTabChangeListeners.add(callback)
+    return () => {
+      this.activeTabChangeListeners.delete(callback)
+    }
   }
 
   setPageLoadedCallback(callback: (url: string) => void) {
@@ -354,6 +443,26 @@ export class TabManager {
 
   setTabListChangedCallback(callback: (tabs: TabInfo[]) => void) {
     this.onTabListChanged = callback
+  }
+
+  private emitNavigate(url: string): void {
+    this.onNavigate?.(url)
+    for (const listener of this.navigateListeners) {
+      listener(url)
+    }
+  }
+
+  private emitDomReady(url: string): void {
+    this.onDomReady?.(url)
+    for (const listener of this.domReadyListeners) {
+      listener(url)
+    }
+  }
+
+  private emitActiveTabChange(url: string): void {
+    for (const listener of this.activeTabChangeListeners) {
+      listener(url)
+    }
   }
 
   destroy() {
@@ -367,5 +476,15 @@ export class TabManager {
     }
     this.tabs.clear()
     this.activeTabId = null
+  }
+}
+
+function samePageUrl(a: string, b: string): boolean {
+  try {
+    const left = new URL(a)
+    const right = new URL(b)
+    return left.origin === right.origin && left.pathname.replace(/\/+$/, '') === right.pathname.replace(/\/+$/, '')
+  } catch {
+    return false
   }
 }

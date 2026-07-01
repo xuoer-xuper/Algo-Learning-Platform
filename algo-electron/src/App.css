@@ -212,7 +212,7 @@
 
 .modal-preview {
   position: absolute;
-  object-fit: cover;
+  object-fit: fill;
   object-position: top left;
   pointer-events: none;
   user-select: none;
@@ -550,6 +550,18 @@
   margin: 0 0 8px 0;
 }
 
+.settings-section-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.settings-section-header-row .settings-section-title {
+  margin-bottom: 0;
+}
+
 .settings-row {
   display: flex;
   gap: 8px;
@@ -695,6 +707,44 @@
   font-size: 11px;
   margin-bottom: 8px;
   padding-left: 4px;
+}
+
+.realtime-status-card {
+  background: var(--bg);
+  border: 1px solid var(--border-light);
+  border-radius: 6px;
+  padding: 10px;
+}
+
+.realtime-status-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.realtime-status-label {
+  color: var(--text-muted);
+  flex: 0 0 auto;
+}
+
+.realtime-status-ok {
+  color: var(--success);
+  text-align: right;
+}
+
+.realtime-status-muted {
+  color: var(--text-secondary);
+  text-align: right;
+}
+
+.realtime-status-detail {
+  color: var(--text-muted);
+  font-size: 11px;
+  line-height: 1.5;
+  margin: 2px 0 8px;
+  overflow-wrap: anywhere;
 }
 
 /* 首页 */

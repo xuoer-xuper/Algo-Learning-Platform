@@ -120,6 +120,7 @@ export function seedBuiltinSites(): void {
     { id: 'vjudge', name: 'VJudge', domains: ['vjudge.net', 'www.vjudge.net'], homeUrl: 'https://vjudge.net' },
     { id: 'pta', name: 'PTA', domains: ['pintia.cn'], homeUrl: 'https://pintia.cn' },
     { id: 'luogu', name: '洛谷', domains: ['luogu.com.cn', 'www.luogu.com.cn'], homeUrl: 'https://www.luogu.com.cn' },
+    { id: 'leetcode-cn', name: 'LeetCode.cn', domains: ['leetcode.cn', 'www.leetcode.cn'], homeUrl: 'https://leetcode.cn/problemset/' },
   ]
 
   const insert = db.prepare(`

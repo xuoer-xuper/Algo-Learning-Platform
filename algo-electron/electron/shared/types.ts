@@ -3,6 +3,7 @@ export interface ProblemIdentity {
   platform: string
   platformProblemId: string
   canonicalUrl: string
+  title?: string
   contestId?: string
   problemIndex?: string
   sourcePlatform?: string

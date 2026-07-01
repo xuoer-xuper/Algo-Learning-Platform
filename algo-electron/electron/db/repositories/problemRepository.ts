@@ -2,7 +2,7 @@ import crypto from 'node:crypto'
 import { getDb } from '../connection'
 import type { ProblemIdentity } from '../../shared/types'
 import { nowBeijing, todayBeijing } from '../../shared/time'
-import { isBadScrapedTitle, isValidScrapedTitle } from '../../parsers/titleValidation'
+import { isValidScrapedTitle, shouldReplaceScrapedTitle } from '../../parsers/titleValidation'
 
 export function upsertProblem(identity: ProblemIdentity): void {
   const db = getDb()
@@ -10,15 +10,19 @@ export function upsertProblem(identity: ProblemIdentity): void {
   const canonicalUrl = identity.canonicalUrl
 
   const existing = db.prepare(
-    'SELECT id FROM problems WHERE platform = ? AND platform_problem_id = ?'
-  ).get(identity.platform, identity.platformProblemId) as { id: string } | undefined
+    'SELECT id, title FROM problems WHERE platform = ? AND platform_problem_id = ?'
+  ).get(identity.platform, identity.platformProblemId) as { id: string; title: string | null } | undefined
+
+  const title = isValidScrapedTitle(identity.title) ? identity.title!.trim() : null
 
   if (existing) {
+    const shouldUpdateTitle = shouldReplaceScrapedTitle(existing.title, title)
     db.prepare(`
       UPDATE problems SET
         canonical_url = ?,
         contest_id = COALESCE(?, contest_id),
         problem_index = COALESCE(?, problem_index),
+        title = CASE WHEN ? THEN ? ELSE title END,
         last_visited_at = ?,
         updated_at = ?
       WHERE id = ?
@@ -26,46 +30,29 @@ export function upsertProblem(identity: ProblemIdentity): void {
       canonicalUrl,
       identity.contestId ?? null,
       identity.problemIndex ?? null,
+      shouldUpdateTitle ? 1 : 0,
+      title,
       now,
       now,
       existing.id,
     )
   } else {
     db.prepare(`
-      INSERT INTO problems (id, platform, platform_problem_id, canonical_url, status, source_platform, source_problem_id, first_seen_at, last_visited_at, created_at, updated_at)
-      VALUES (?, ?, ?, ?, 'visited', ?, ?, ?, ?, ?, ?)
+      INSERT INTO problems (id, platform, platform_problem_id, canonical_url, title, status, contest_id, problem_index, source_platform, source_problem_id, first_seen_at, last_visited_at, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, 'visited', ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       crypto.randomUUID(),
       identity.platform,
       identity.platformProblemId,
       canonicalUrl,
+      title,
+      identity.contestId ?? null,
+      identity.problemIndex ?? null,
       identity.sourcePlatform ?? null,
       identity.sourceProblemId ?? null,
       now, now, now, now,
     )
   }
-}
-
-export function updateProblemTitleByUrl(url: string, title: string): void {
-  if (!isValidScrapedTitle(title)) return
-
-  const db = getDb()
-  const now = nowBeijing()
-  const row = db.prepare(
-    'SELECT title FROM problems WHERE canonical_url = ?'
-  ).get(url) as { title: string | null } | undefined
-
-  if (!row) return
-
-  const shouldUpdate =
-    !row.title?.trim() || isBadScrapedTitle(row.title)
-
-  if (!shouldUpdate) return
-
-  db.prepare(`
-    UPDATE problems SET title = ?, updated_at = ?
-    WHERE canonical_url = ?
-  `).run(title.trim(), now, url)
 }
 
 export function getRecentProblems(limit = 50, platform?: string, status?: string): any[] {

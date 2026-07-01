@@ -6,6 +6,7 @@ dist/
 dist-ssr/
 dist-electron/
 release/
+tmp/
 *.asar
 
 # === 数据库（本地数据不上传）===

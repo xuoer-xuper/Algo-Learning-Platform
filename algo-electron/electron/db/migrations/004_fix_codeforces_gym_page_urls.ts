@@ -1,6 +1,6 @@
 import type Database from 'better-sqlite3'
 import { nowBeijing } from '../../shared/time'
-import { resolveCodeforcesNavigateUrl } from '../../parsers/sites/codeforcesUrls'
+import { resolveCodeforcesNavigateUrl } from '../../adapters/codeforcesUrls'
 
 /** 修正 gym 附件页等非单题 canonical_url */
 export const migration004 = {

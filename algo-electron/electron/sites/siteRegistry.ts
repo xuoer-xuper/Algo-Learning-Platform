@@ -5,8 +5,9 @@ import { nowcoder } from './builtins/nowcoder'
 import { vjudge } from './builtins/vjudge'
 import { pta } from './builtins/pta'
 import { luogu } from './builtins/luogu'
+import { leetcode } from './builtins/leetcode'
 
-const builtins: SiteConfig[] = [codeforces, acwing, nowcoder, vjudge, pta, luogu]
+const builtins: SiteConfig[] = [codeforces, acwing, nowcoder, vjudge, pta, luogu, leetcode]
 
 export class SiteRegistry {
   private sites: Map<string, SiteConfig>

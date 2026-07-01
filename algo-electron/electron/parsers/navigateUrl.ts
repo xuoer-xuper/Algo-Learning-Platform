@@ -1,4 +1,4 @@
-import { resolveCodeforcesNavigateUrl } from './sites/codeforcesUrls'
+import { resolveCodeforcesNavigateUrl } from '../adapters/codeforcesUrls'
 
 /** 浏览器导航前统一解析 URL（各平台特殊规则） */
 export function resolveNavigateUrl(url: string): string {

@@ -18,6 +18,7 @@ const PLATFORM_LABELS: Record<string, string> = {
   vjudge: 'VJ',
   pta: 'PTA',
   luogu: 'LG',
+  'leetcode-cn': 'LC',
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -85,6 +86,7 @@ export function ProblemSidebar({ onNavigate, onShowDetail, onShowNotes, onWidthC
           <option value="vjudge">VJudge</option>
           <option value="pta">PTA</option>
           <option value="luogu">洛谷</option>
+          <option value="leetcode-cn">LeetCode</option>
         </select>
         <select className="sidebar-select" value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
           <option value="">全部状态</option>

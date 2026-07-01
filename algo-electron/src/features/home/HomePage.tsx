@@ -39,6 +39,7 @@ const PLATFORM_NAMES: Record<string, string> = {
   vjudge: 'VJudge',
   pta: 'PTA',
   luogu: '洛谷',
+  'leetcode-cn': 'LeetCode',
 }
 
 const PLATFORM_URLS: Record<string, string> = {
@@ -48,6 +49,7 @@ const PLATFORM_URLS: Record<string, string> = {
   vjudge: 'https://vjudge.net',
   pta: 'https://pintia.cn',
   luogu: 'https://www.luogu.com.cn',
+  'leetcode-cn': 'https://leetcode.cn/problemset/',
 }
 
 const PLATFORM_COLORS: Record<string, string> = {
@@ -57,6 +59,7 @@ const PLATFORM_COLORS: Record<string, string> = {
   vjudge: '#4caf50',
   pta: '#8e24aa',
   luogu: '#3498db',
+  'leetcode-cn': '#ffa116',
 }
 
 const STATUS_COLORS: Record<string, string> = {

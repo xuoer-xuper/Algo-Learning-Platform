@@ -19,7 +19,19 @@ export default defineConfig({
         },
       },
       preload: {
-        input: path.join(__dirname, 'electron/preload.ts'),
+        input: {
+          preload: path.join(__dirname, 'electron/preload.ts'),
+          ojPreload: path.join(__dirname, 'electron/browser/ojPreload.ts'),
+        },
+        vite: {
+          build: {
+            rollupOptions: {
+              output: {
+                inlineDynamicImports: false,
+              },
+            },
+          },
+        },
       },
       renderer: process.env.NODE_ENV === 'test'
         ? undefined

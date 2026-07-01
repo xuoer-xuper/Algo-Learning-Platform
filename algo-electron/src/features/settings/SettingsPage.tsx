@@ -7,6 +7,7 @@ const PLATFORM_NAMES: Record<string, string> = {
   vjudge: 'VJudge',
   pta: 'PTA',
   luogu: '洛谷',
+  'leetcode-cn': 'LeetCode',
 }
 
 interface OverviewStats {
@@ -14,6 +15,58 @@ interface OverviewStats {
   todayVisited: number
   platformDistribution: { platform: string; count: number }[]
   lastActiveTime: string | null
+}
+
+interface RealtimeSubmissionStatus {
+  ipcRegistered: boolean
+  supportedAdapterIds: string[]
+  lastPage?: {
+    url: string
+    realtimeAdapterId?: string
+    realtimeSupported: boolean
+    at: string
+  }
+  lastHook?: {
+    adapterId: string
+    url: string
+    status: 'success' | 'failed' | 'skipped'
+    reason?: string
+    error?: string
+    at: string
+  }
+  lastDetection?: {
+    senderUrl?: string
+    inserted: boolean
+    error?: string
+    platform?: string
+    verdict?: string
+    problemId?: string
+    at: string
+  }
+}
+
+function formatStatusTime(value?: string) {
+  if (!value) return '暂无'
+  return value.replace('T', ' ').slice(0, 19)
+}
+
+function hookStatusLabel(status?: RealtimeSubmissionStatus['lastHook']) {
+  if (!status) return '尚未注入'
+  if (status.status === 'success') return '已注入'
+  if (status.status === 'skipped') return `已跳过：${status.reason ?? '未知原因'}`
+  return `失败：${status.error ?? '未知错误'}`
+}
+
+function detectionStatusLabel(status?: RealtimeSubmissionStatus['lastDetection']) {
+  if (!status) return '尚未检测到提交'
+  if (status.inserted) return '已写入提交记录'
+  return status.error ? `未写入：${status.error}` : '未写入：重复或无有效结果'
+}
+
+function pageStatusLabel(status?: RealtimeSubmissionStatus['lastPage']) {
+  if (!status) return '尚未看到页面'
+  if (status.realtimeSupported) return `已识别：${status.realtimeAdapterId}`
+  return '当前页面不支持实时监听'
 }
 
 export function SettingsPage({ onClose }: { onClose: () => void }) {
@@ -30,6 +83,8 @@ export function SettingsPage({ onClose }: { onClose: () => void }) {
   const [importPreview, setImportPreview] = useState<any>(null)
   const [importOverwriteIds, setImportOverwriteIds] = useState<string[]>([])
   const [importStatus, setImportStatus] = useState('')
+  const [realtimeStatus, setRealtimeStatus] = useState<RealtimeSubmissionStatus | null>(null)
+  const [realtimeStatusText, setRealtimeStatusText] = useState('')
 
   const [showAddModal, setShowAddModal] = useState(false)
   const [newSiteId, setNewSiteId] = useState('')
@@ -43,6 +98,17 @@ export function SettingsPage({ onClose }: { onClose: () => void }) {
     window.electronAPI.getAllSites().then(setSites)
   }
 
+  const loadRealtimeStatus = async () => {
+    setRealtimeStatusText('刷新中...')
+    try {
+      const status = await window.electronAPI.getRealtimeSubmissionStatus()
+      setRealtimeStatus(status)
+      setRealtimeStatusText(status ? '' : '实时监听服务未就绪')
+    } catch (e: any) {
+      setRealtimeStatusText(`读取失败: ${e.message}`)
+    }
+  }
+
   useEffect(() => {
     window.electronAPI.getOverviewStats().then(setStats)
     window.electronAPI.getDefaultHomeUrl().then(setHomeUrl)
@@ -54,6 +120,7 @@ export function SettingsPage({ onClose }: { onClose: () => void }) {
       }
     })
     loadSites()
+    loadRealtimeStatus()
   }, [])
 
   const handleSyncCF = async () => {
@@ -288,6 +355,75 @@ export function SettingsPage({ onClose }: { onClose: () => void }) {
               </div>
               {syncStatus.cf && <div className="sync-status">{syncStatus.cf}</div>}
               <div className="sync-hint">AcWing / 牛客 / VJudge / 洛谷：在浏览器打开提交页面后点工具栏 ↗ 抓取</div>
+            </div>
+
+            <div className="settings-section">
+              <div className="settings-section-header-row">
+                <h3 className="settings-section-title">实时监听诊断</h3>
+                <button className="site-toggle" onClick={loadRealtimeStatus}>刷新</button>
+              </div>
+              <div className="realtime-status-card">
+                <div className="realtime-status-row">
+                  <span className="realtime-status-label">IPC</span>
+                  <span className={realtimeStatus?.ipcRegistered ? 'realtime-status-ok' : 'realtime-status-muted'}>
+                    {realtimeStatus?.ipcRegistered ? '已注册' : '未注册'}
+                  </span>
+                </div>
+                <div className="realtime-status-row">
+                  <span className="realtime-status-label">页面</span>
+                  <span className={realtimeStatus?.lastPage?.realtimeSupported ? 'realtime-status-ok' : 'realtime-status-muted'}>
+                    {pageStatusLabel(realtimeStatus?.lastPage)}
+                  </span>
+                </div>
+                {realtimeStatus?.lastPage && (
+                  <div className="realtime-status-detail">
+                    {formatStatusTime(realtimeStatus.lastPage.at)}
+                    <br />
+                    {realtimeStatus.lastPage.url}
+                  </div>
+                )}
+                <div className="realtime-status-row">
+                  <span className="realtime-status-label">Hook</span>
+                  <span className={realtimeStatus?.lastHook?.status === 'success' ? 'realtime-status-ok' : 'realtime-status-muted'}>
+                    {hookStatusLabel(realtimeStatus?.lastHook)}
+                  </span>
+                </div>
+                {realtimeStatus?.lastHook && (
+                  <div className="realtime-status-detail">
+                    {realtimeStatus.lastHook.adapterId} · {formatStatusTime(realtimeStatus.lastHook.at)}
+                    <br />
+                    {realtimeStatus.lastHook.url}
+                  </div>
+                )}
+                <div className="realtime-status-row">
+                  <span className="realtime-status-label">提交</span>
+                  <span className={realtimeStatus?.lastDetection?.inserted ? 'realtime-status-ok' : 'realtime-status-muted'}>
+                    {detectionStatusLabel(realtimeStatus?.lastDetection)}
+                  </span>
+                </div>
+                {realtimeStatus?.lastDetection && (
+                  <div className="realtime-status-detail">
+                    {formatStatusTime(realtimeStatus.lastDetection.at)}
+                    {realtimeStatus.lastDetection.senderUrl ? ` · ${realtimeStatus.lastDetection.senderUrl}` : ''}
+                    {(realtimeStatus.lastDetection.platform || realtimeStatus.lastDetection.verdict || realtimeStatus.lastDetection.problemId) && (
+                      <>
+                        <br />
+                        {[realtimeStatus.lastDetection.platform, realtimeStatus.lastDetection.verdict, realtimeStatus.lastDetection.problemId]
+                          .filter(Boolean)
+                          .join(' · ')}
+                      </>
+                    )}
+                  </div>
+                )}
+                {realtimeStatusText && <div className="sync-status">{realtimeStatusText}</div>}
+                <div className="sync-hint">
+                  支持站点：
+                  {(realtimeStatus?.supportedAdapterIds || [])
+                    .map(id => PLATFORM_NAMES[id] || id)
+                    .join(' / ') || '暂无'}
+                </div>
+                <div className="sync-hint">验收实时监听：打开任一支持站点题目页提交一次，等待最终评测后点刷新。</div>
+              </div>
             </div>
 
             <div className="settings-section">

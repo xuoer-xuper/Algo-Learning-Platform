@@ -8,17 +8,19 @@ import { SiteRegistry } from './sites/siteRegistry'
 import { CookieVault } from './cookies/CookieVault'
 import { TrackingService } from './tracking/TrackingService'
 import { getDefaultHomeUrl, saveConfig } from './app/config'
-import { getRecentProblems, getOverviewStats, updateProblemTitleByUrl, getProblemDetail, deleteProblem } from './db/repositories/problemRepository'
+import { getRecentProblems, getOverviewStats, upsertProblem, getProblemDetail, deleteProblem } from './db/repositories/problemRepository'
 import { getAllSites, getSiteById, createSite, updateSite, toggleSite, deleteSite, seedBuiltinSites, exportSitesConfig, previewImportSites, confirmImportSites, getEnabledSites } from './db/repositories/siteRepository'
 import { upsertAccount, updateCurrentRating, updatePeakRating, getAccount, getAccountsByPlatform, getAccountById, upsertRatingHistory, getRatingHistory, computePeakRating } from './db/repositories/accountRepository'
 import { getDailyActiveStats, getVisitedTrend, getAcTrend, getSubmissionTrend, getPlatformDistribution, getProblemVisitStats, getTimeline, getLastActiveTime, getRevisitStats, recomputeDailyStats, getStreakDays, getWrongProblems, getUnreviewedProblems, recomputeAllDailyStats } from './db/repositories/statsRepository'
 import { fetchCFCurrentRating, fetchCFRatingHistory, formatCFRatingHistory } from './rating/codeforces'
 import { resolveNavigateUrl } from './parsers/navigateUrl'
-import { getAdapterForUrl, setEnabledSitesFetcher } from './parsers/registry'
+import { parseUrl, setEnabledSitesFetcher } from './parsers/registry'
 import { SyncService } from './submissions/syncService'
+import { createDefaultSubmissionBatchWriter } from './submissions/createDefaultSubmissionBatchWriter'
+import { RealtimeSubmissionService } from './submissions/RealtimeSubmissionService'
 import { UserScriptService } from './scripts/UserScriptService'
-import { EXTRACT_PROBLEM_TITLE_SCRIPT } from './parsers/extractProblemTitleScript'
-import { isValidScrapedTitle } from './parsers/titleValidation'
+import { resolveBrowserTitleProblemIdentity } from './parsers/browserTitle'
+import { createProblemTitleFallbackScript } from './parsers/problemTitleFallback'
 import {
   createNote, getNotesByProblem, getNoteWithContent, updateNoteTitle,
   updateNoteContent, updateNoteType, deleteNote, getNotesByProblemForDelete,
@@ -81,6 +83,7 @@ let win: BrowserWindow | null
 let tabManager: TabManager | null
 let trackingService: TrackingService | null
 let syncService: SyncService | null
+let realtimeSubmissionService: RealtimeSubmissionService | null
 let userScriptService: UserScriptService | null
 
 function registerNoteAssetProtocol() {
@@ -124,7 +127,8 @@ function createWindow() {
 
   // 创建多标签页宿主
   tabManager = new TabManager(win)
-  syncService?.setBrowserHost(tabManager as any) // Temporary cast if SyncService expects BrowserHost, though it probably just needs executeScript/getUrl
+  syncService?.setBrowserHost(tabManager)
+  realtimeSubmissionService?.attachTabManager(tabManager)
 
   // 注册 DevTools 快捷键（Ctrl+Shift+I / F12）
   win.webContents.on('before-input-event', (_event, input) => {
@@ -145,6 +149,29 @@ function createWindow() {
   const extractionTimers = new Map<string, NodeJS.Timeout[]>()
   const successfulExtractions = new Set<string>()
 
+  const isCodeforcesUrl = (url: string): boolean => {
+    try {
+      const parsed = new URL(url)
+      return parsed.hostname === 'codeforces.com' || parsed.hostname === 'www.codeforces.com'
+    } catch {
+      return false
+    }
+  }
+
+  const updateProblemTitle = (
+    url: string,
+    title: string | null | undefined,
+    source: 'browser-title' | 'dom-fallback',
+  ): boolean => {
+    if (source === 'browser-title' && isCodeforcesUrl(url)) return false
+    const identity = resolveBrowserTitleProblemIdentity(url, title, parseUrl)
+    if (!identity) return false
+    successfulExtractions.add(url)
+    upsertProblem(identity)
+    win?.webContents.send('problems:updated')
+    return true
+  }
+
   const scheduleTitleExtraction = (url: string) => {
     if (!url || url === 'about:blank') return
     if (successfulExtractions.has(url)) return // 已经抓取成功过，跳过
@@ -156,23 +183,23 @@ function createWindow() {
     const timers: NodeJS.Timeout[] = []
 
     const extract = () => {
-      const adapter = getAdapterForUrl(url)
-      const script = (adapter && adapter.extractTitleScript)
-        ? adapter.extractTitleScript()
-        : EXTRACT_PROBLEM_TITLE_SCRIPT
+      const title = tabManager?.getTitleForUrl(url)
+      if (updateProblemTitle(url, title, 'browser-title')) {
+        timers.forEach(clearTimeout)
+        extractionTimers.delete(url)
+        return
+      }
 
+      const script = createProblemTitleFallbackScript(url)
+      if (!script) return
       tabManager?.executeScriptOnUrl(url, script)
-        .then((domTitle: string | null) => {
-          if (isValidScrapedTitle(domTitle)) {
-            successfulExtractions.add(url)
-            updateProblemTitleByUrl(url, domTitle!)
-            win?.webContents.send('problems:updated')
-            // 成功后清除剩余定时器
+        .then((fallbackTitle) => {
+          if (updateProblemTitle(url, typeof fallbackTitle === 'string' ? fallbackTitle : null, 'dom-fallback')) {
             timers.forEach(clearTimeout)
             extractionTimers.delete(url)
           }
         })
-        .catch(() => { /* ignore */ })
+        .catch(() => {})
     }
 
     timers.push(setTimeout(extract, 2000))
@@ -204,6 +231,15 @@ function createWindow() {
       }
     }
 
+    if (updateProblemTitle(url, title, 'browser-title')) return
+
+    scheduleTitleExtraction(url)
+  })
+
+  tabManager.addActiveTabChangeListener((url) => {
+    if (!url || url === 'about:blank') return
+    const title = tabManager?.getTitleForUrl(url)
+    if (updateProblemTitle(url, title, 'browser-title')) return
     scheduleTitleExtraction(url)
   })
 
@@ -942,7 +978,17 @@ app.whenReady().then(() => {
   new SiteRegistry()
   new CookieVault()
   trackingService = new TrackingService()
-  syncService = new SyncService()
+  syncService = new SyncService({
+    batchWriter: createDefaultSubmissionBatchWriter(),
+    findNowcoderProblemBySearch: (search) => {
+      const problem = getDb().prepare(
+        "SELECT platform_problem_id FROM problems WHERE platform = 'nowcoder' AND platform_problem_id LIKE ?"
+      ).get(`%${search}%`) as { platform_problem_id: string } | undefined
+      return problem?.platform_problem_id
+    },
+  })
+  realtimeSubmissionService = new RealtimeSubmissionService(() => win)
+  realtimeSubmissionService.registerIpc()
   userScriptService = new UserScriptService()
   
   // 智能预连接：基于最近 7 天访问记录，只预连接用户实际使用的站点
