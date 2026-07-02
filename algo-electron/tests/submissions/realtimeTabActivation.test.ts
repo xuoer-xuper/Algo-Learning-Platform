@@ -3,6 +3,7 @@ import fs from 'node:fs'
 
 const tabManagerSource = fs.readFileSync('electron/browser/TabManager.ts', 'utf-8')
 const realtimeServiceSource = fs.readFileSync('electron/submissions/RealtimeSubmissionService.ts', 'utf-8')
+const mainSource = fs.readFileSync('electron/main.ts', 'utf-8')
 
 assert.ok(
   tabManagerSource.includes('activeTabChangeListeners'),
@@ -27,4 +28,12 @@ assert.ok(
 assert.ok(
   !realtimeServiceSource.includes('this.emitNavigate(newTab.url)'),
   'Realtime hook reinjection should not reuse navigation events that drive visit tracking',
+)
+assert.ok(
+  mainSource.includes('getRealtimeAdapterForUrl(details.url)'),
+  'Main process should early-inject realtime hooks on supported main-frame OJ pages',
+)
+assert.ok(
+  mainSource.includes('__ALGO_TOP_PAGE_URL'),
+  'Early realtime injection should preserve the top page URL for adapter gating',
 )

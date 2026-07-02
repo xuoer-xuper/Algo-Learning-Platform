@@ -94,6 +94,32 @@ const pendingSubmission = leetcodeAdapter.parseSubmissionResult({
 })
 assert(pendingSubmission === null, 'Non-success LeetCode check responses should be ignored until final result')
 
+const pendingWithoutStateSubmission = leetcodeAdapter.parseSubmissionResult({
+  adapterId: 'leetcode-cn',
+  pageUrl: 'https://leetcode.cn/problems/two-sum/',
+  requestUrl: 'https://leetcode.cn/submissions/detail/223346/check/',
+  response: {
+    status_msg: 'Pending',
+    title_slug: 'two-sum',
+  },
+})
+assert(pendingWithoutStateSubmission === null, 'Pending LeetCode verdict text should not be inserted even without state fields')
+
+const nestedPendingSubmission = leetcodeAdapter.parseSubmissionResult({
+  adapterId: 'leetcode-cn',
+  pageUrl: 'https://leetcode.cn/problems/two-sum/',
+  requestUrl: 'https://leetcode.cn/submissions/detail/223347/check/',
+  response: {
+    state: 'SUCCESS',
+    status_msg: 'Accepted',
+    title_slug: 'two-sum',
+    judge: {
+      state: 'STARTED',
+    },
+  },
+})
+assert(nestedPendingSubmission === null, 'Nested pending LeetCode judge fields should block early insertion')
+
 assert(leetcodeAdapter.resolveProblemIdentity, 'LeetCode adapter should resolve problem identity from submission metadata')
 const identity = leetcodeAdapter.resolveProblemIdentity(submission, {
   adapterId: 'leetcode-cn',
@@ -205,6 +231,30 @@ await fakeWindow.fetch('https://leetcode.cn/problems/two-sum/interpret_solution/
 await fakeWindow.fetch('https://leetcode.cn/submissions/detail/333444/check/')
 await new Promise((resolve) => setTimeout(resolve, 0))
 assert(hookReports.length === 0, 'Hooked fetch should ignore LeetCode run-code/self-test results')
+
+const pendingHookReports: any[] = []
+const pendingHookWindow: any = {
+  __algo_submission_v1: {
+    reportSubmission(payload: unknown) {
+      pendingHookReports.push(payload)
+    },
+  },
+  fetch: async (input: string) => {
+    const url = String(input)
+    if (url.includes('/submit/')) return createJsonResponse({ submission_id: '223347' })
+    return createJsonResponse({
+      state: 'SUCCESS',
+      status_msg: 'Accepted',
+      judge: { state: 'STARTED' },
+      title_slug: 'two-sum',
+    })
+  },
+}
+new Function('window', 'location', hook!)(pendingHookWindow, fakeLocation)
+await pendingHookWindow.fetch('https://leetcode.cn/problems/two-sum/submit/')
+await pendingHookWindow.fetch('https://leetcode.cn/submissions/detail/223347/check/')
+await new Promise((resolve) => setTimeout(resolve, 0))
+assert(pendingHookReports.length === 0, 'Hooked fetch should ignore nested pending LeetCode check payloads')
 
 await fakeWindow.fetch('https://leetcode.cn/problems/two-sum/submit/')
 const wrappedResponse = await fakeWindow.fetch('https://leetcode.cn/submissions/detail/123456/check/')
@@ -350,6 +400,29 @@ assert(pageReports[0].requestUrl.includes('/submissions/733343549/'), 'Submissio
 assert(pageReports[0].response.id === '733343549', 'Submission page fallback should extract submission id from URL')
 assert(pageReports[0].response.title_slug === 'number-of-strings-that-appear-as-substrings-in-word', 'Submission page fallback should extract title slug from URL')
 assert(pageReports[0].response.status_msg === 'Accepted', 'Submission page fallback should extract verdict from visible page text')
+
+const judgingPageReports: any[] = []
+const judgingPageWindow: any = {
+  __algo_submission_v1: {
+    reportSubmission(payload: unknown) {
+      judgingPageReports.push(payload)
+    },
+  },
+}
+const judgingPageDocument = {
+  body: {
+    innerText: 'Accepted Runtime 36 ms Memory 16.8 MB 正在判题',
+    textContent: 'Accepted Runtime 36 ms Memory 16.8 MB 正在判题',
+  },
+  title: '1. 两数之和 - 力扣（LeetCode）',
+}
+
+new Function('window', 'location', 'document', hook!)(judgingPageWindow, {
+  href: 'https://leetcode.cn/problems/two-sum/submissions/223347/',
+  pathname: '/problems/two-sum/submissions/223347/',
+}, judgingPageDocument)
+await new Promise((resolve) => setTimeout(resolve, 10))
+assert(judgingPageReports.length === 0, 'Submission page fallback should wait while LeetCode visible text still says judging')
 
 const spaReinjectReports: any[] = []
 const spaWindow: any = {

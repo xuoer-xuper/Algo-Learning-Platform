@@ -37,6 +37,7 @@ import {
   type AIOutputType
 } from './db/repositories/aiOutputRepository'
 import { STEALTH_SCRIPT } from './browser/stealthScript'
+import { getRealtimeAdapterForUrl } from './adapters/registry'
 
 // Chromium 启动开关配置
 // 注意：以下开关必须在 app.whenReady() 之前设置
@@ -953,6 +954,19 @@ app.whenReady().then(() => {
     callback({ responseHeaders: headers })
   })
   ojSession.webRequest.onResponseStarted((details) => {
+    const wc = details.webContentsId ? webContents.fromId(details.webContentsId) : undefined
+    if (details.resourceType === 'mainFrame') {
+      const adapter = getRealtimeAdapterForUrl(details.url)
+      const site = adapter ? getSiteById(adapter.id) : null
+      const hookScript = adapter && (!site || site.enabled) ? adapter.injectHookScript?.() : undefined
+      if (hookScript) {
+        // Some OJ editors cache fetch/XMLHttpRequest during module startup. Injecting
+        // here lets realtime hooks wrap request APIs before those editor bundles run.
+        const earlyRealtimeScript = `try { window.__ALGO_TOP_PAGE_URL = ${JSON.stringify(details.url)}; } catch (_) {}\n${hookScript}`
+        wc?.executeJavaScript(earlyRealtimeScript, true).catch(() => {})
+      }
+    }
+
     if ((details as any)._needsStealth) {
       // 通过 executeJavaScript 在页面开始加载时立即注入（比在 did-finish-load 早）
       // 注意：此时页面可能还没创建 window 对象，需要用 requestAnimationFrame 等待
@@ -966,7 +980,6 @@ app.whenReady().then(() => {
           })()
         }
       `
-      const wc = details.webContentsId ? webContents.fromId(details.webContentsId) : undefined
       wc?.executeJavaScript(earlyScript, true).catch(() => {})
     }
   })

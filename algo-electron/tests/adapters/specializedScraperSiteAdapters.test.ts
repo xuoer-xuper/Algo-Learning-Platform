@@ -74,6 +74,7 @@ assert.strictEqual(realtimePtaSubmission.verdict, 'AC')
 assert.ok(ptaAdapter.injectHookScript!().includes('pta'), 'PTA should expose realtime hook script')
 assert.ok(ptaAdapter.injectHookScript!().includes('__ALGO_SUBMIT_INTENT_pta'), 'PTA realtime hook should be submit-intent gated')
 assert.ok(ptaAdapter.injectHookScript!().includes('__ALGO_BLOCKED_SUBMIT_INTENT_pta'), 'PTA should block view/test controls from creating network submit intents')
+assert.ok(ptaAdapter.injectHookScript!().includes('sessionStorage.removeItem(INTENT_KEY)'), 'PTA blocked view controls should clear stale submit intent')
 assert.ok(ptaAdapter.injectHookScript!().includes('createSubmitIntentId'), 'PTA submit intent should include a stable id for popup submissions')
 assert.ok(ptaAdapter.injectHookScript!().includes('id: reuseExistingId ? intent.id : createSubmitIntentId()'), 'PTA should create a new intent id for each new submit action')
 assert.ok(ptaAdapter.injectHookScript!().includes('const shouldScan = () => hasRecentSubmitIntent()'), 'PTA single submission pages should still require submit intent')
@@ -225,6 +226,7 @@ assert.strictEqual(luoguSubmissions.length, 1)
 assert.strictEqual(luoguSubmissions[0].platform, 'luogu')
 assert.strictEqual(luoguSubmissions[0].platformSubmissionId, '246810')
 assert.strictEqual(luoguSubmissions[0].verdict, 'AC')
+assert.strictEqual(luoguSubmissions[0].language, 'C++14')
 assert.strictEqual(luoguSubmissions[0].runtimeMs, 52)
 assert.strictEqual(luoguSubmissions[0].memoryKb, 2048)
 assert.strictEqual(typeof luoguSubmissions[0].submittedAt, 'string')
@@ -262,7 +264,94 @@ const realtimeLuoguSubmission = luoguAdapter.parseSubmissionResult!({
 assert.ok(realtimeLuoguSubmission)
 assert.strictEqual(realtimeLuoguSubmission.platformSubmissionId, '246810')
 assert.strictEqual(realtimeLuoguSubmission.verdict, 'AC')
+assert.strictEqual(realtimeLuoguSubmission.language, 'C++14')
 assert.ok(luoguAdapter.injectHookScript!().includes('luogu'), 'Luogu should expose realtime hook script')
+assert.ok(luoguAdapter.injectHookScript!().includes('shouldReportExtracted'), 'Luogu realtime hook should gate reports until extracted data is final')
+
+const realtimeLuoguUrlProblemSubmission = luoguAdapter.parseSubmissionResult!({
+  adapterId: 'luogu',
+  pageUrl: 'https://www.luogu.com.cn/record/246814',
+  response: {
+    fromInjection: true,
+    record: {
+      id: 246814,
+      status: 12,
+      language: 28,
+      time: 46,
+      memory: 1024,
+      submitTime: 1760000040,
+      problem: {
+        id: 998244353,
+        title: 'P1001 A+B Problem',
+        url: '/problem/P1001',
+      },
+      detail: {
+        testCases: [{ status: 12 }],
+      },
+    },
+  },
+})
+assert.ok(realtimeLuoguUrlProblemSubmission)
+assert.strictEqual(realtimeLuoguUrlProblemSubmission.language, 'C++14 (GCC 9)')
+assert.deepStrictEqual(JSON.parse(realtimeLuoguUrlProblemSubmission.rawJson || '{}'), {
+  _luoguProblemId: 'P1001',
+  _luoguProblemTitle: 'A+B Problem',
+})
+
+const realtimeLuoguCpp23Submission = luoguAdapter.parseSubmissionResult!({
+  adapterId: 'luogu',
+  pageUrl: 'https://www.luogu.com.cn/record/246815',
+  response: {
+    fromInjection: true,
+    languageMap: {
+      34: { name: 'C++23' },
+    },
+    record: {
+      id: 246815,
+      status: 12,
+      language: 34,
+      time: 31,
+      memory: 1024,
+      submitTime: 1760000050,
+      problem: { pid: 'P1001', title: 'A+B Problem' },
+      detail: {
+        testCases: [{ status: 12 }],
+      },
+    },
+  },
+})
+assert.ok(realtimeLuoguCpp23Submission)
+assert.strictEqual(realtimeLuoguCpp23Submission.language, 'C++23')
+
+const realtimeLuoguUnknownLanguageSubmission = luoguAdapter.parseSubmissionResult!({
+  adapterId: 'luogu',
+  pageUrl: 'https://www.luogu.com.cn/record/246816',
+  response: {
+    fromInjection: true,
+    record: {
+      id: 246816,
+      status: 12,
+      language: 9999,
+      time: 31,
+      memory: 1024,
+      submitTime: 1760000060,
+      problem: { pid: 'P1001', title: 'A+B Problem' },
+      detail: {
+        testCases: [{ status: 12 }],
+      },
+    },
+  },
+})
+assert.ok(realtimeLuoguUnknownLanguageSubmission)
+assert.strictEqual(realtimeLuoguUnknownLanguageSubmission.language, '', 'Unknown Luogu numeric language ids should not be shown as raw numbers')
+
+const realtimeLuoguUrlProblemIdentity = luoguAdapter.resolveProblemIdentity!(realtimeLuoguUrlProblemSubmission, {
+  pageUrl: 'https://www.luogu.com.cn/record/246814',
+  response: {},
+})
+assert.ok(realtimeLuoguUrlProblemIdentity)
+assert.strictEqual(realtimeLuoguUrlProblemIdentity.platformProblemId, 'P1001')
+assert.strictEqual(realtimeLuoguUrlProblemIdentity.title, 'A+B Problem')
 
 const realtimeLuoguAggregateOnlySubmission = luoguAdapter.parseSubmissionResult!({
   adapterId: 'luogu',

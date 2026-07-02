@@ -31,6 +31,11 @@ assert.strictEqual(
   'Codeforces adapter should match contest my-submissions pages',
 )
 assert.strictEqual(
+  codeforcesAdapter.matchSubmissionResult!('https://codeforces.com/contest/1900/status/A'),
+  true,
+  'Codeforces adapter should match contest problem status pages after submission redirects',
+)
+assert.strictEqual(
   codeforcesAdapter.matchSubmissionResult!('https://codeforces.com/submissions/tourist'),
   true,
   'Codeforces adapter should match user submissions pages',
@@ -63,9 +68,12 @@ assert.ok(realtimeSubmission)
 assert.strictEqual(realtimeSubmission.platform, 'codeforces')
 assert.strictEqual(realtimeSubmission.platformSubmissionId, 'cf-234567')
 assert.strictEqual(realtimeSubmission.verdict, 'AC')
+assert.strictEqual(realtimeSubmission.language, 'GNU C++17')
 assert.strictEqual(realtimeSubmission.runtimeMs, 46)
 assert.ok(codeforcesAdapter.injectHookScript!().includes('codeforces'), 'Codeforces should use generic realtime hook')
 assert.ok(codeforcesAdapter.injectHookScript!().includes('__ALGO_SUBMIT_INTENT_codeforces'), 'Codeforces hook should be submit-intent gated')
+assert.ok(codeforcesAdapter.injectHookScript!().includes('scheduleReloadForPending'), 'Codeforces hook should refresh old pending result pages')
+assert.ok(codeforcesAdapter.injectHookScript!().includes('filterTablesForIntent'), 'Codeforces hook should prefer current-user rows on contest status pages')
 
 const judgingLatestSubmission = codeforcesAdapter.parseSubmissionResult!({
   adapterId: 'codeforces',
@@ -99,6 +107,52 @@ const judgingLatestSubmission = codeforcesAdapter.parseSubmissionResult!({
   },
 })
 assert.strictEqual(judgingLatestSubmission, null, 'Codeforces realtime should not fall back to older final rows while latest is judging')
+
+const apiEnrichedRealtimeSubmission = codeforcesAdapter.parseSubmissionResult!({
+  adapterId: 'codeforces',
+  pageUrl: 'https://codeforces.com/contest/1900/status/A',
+  response: {
+    tables: [
+      {
+        headers: ['#', 'When', 'Who', 'Problem', 'Lang', 'Verdict', 'Time', 'Memory'],
+        rows: [
+          {
+            texts: ['234569', 'now', 'tourist', '1900A - Cover in Water', 'GNU C++17', 'Accepted', '46 ms', '1024 KB'],
+            links: ['https://codeforces.com/contest/1900/submission/234569', '', '', 'https://codeforces.com/contest/1900/problem/A'],
+          },
+        ],
+      },
+    ],
+    apiSubmission: {
+      id: 234569,
+      contestId: 1900,
+      problem: {
+        contestId: 1900,
+        index: 'A',
+        name: 'Cover in Water',
+      },
+      verdict: 'WRONG_ANSWER',
+      programmingLanguage: 'GNU C++20 (64)',
+      timeConsumedMillis: 31,
+      memoryConsumedBytes: 262144,
+      creationTimeSeconds: 1760000200,
+    },
+  },
+})
+assert.ok(apiEnrichedRealtimeSubmission)
+assert.strictEqual(apiEnrichedRealtimeSubmission.platformSubmissionId, 'cf-234569')
+assert.strictEqual(apiEnrichedRealtimeSubmission.verdict, 'WA')
+assert.strictEqual(apiEnrichedRealtimeSubmission.language, 'GNU C++20 (64)')
+assert.strictEqual(apiEnrichedRealtimeSubmission.memoryKb, 256)
+
+const apiEnrichedIdentity = codeforcesAdapter.resolveProblemIdentity!(apiEnrichedRealtimeSubmission, {
+  adapterId: 'codeforces',
+  pageUrl: 'https://codeforces.com/contest/1900/status/A',
+  response: {},
+})
+assert.ok(apiEnrichedIdentity)
+assert.strictEqual(apiEnrichedIdentity.platformProblemId, '1900A')
+assert.strictEqual(apiEnrichedIdentity.title, 'Cover in Water')
 
 const contestMySubmission = codeforcesAdapter.parseSubmissionResult!({
   adapterId: 'codeforces',

@@ -30,11 +30,19 @@ const verdictMap: Record<string, Verdict> = {
   'pending': 'TESTING',
   'running': 'TESTING',
   'judging': 'TESTING',
+  'testing': 'TESTING',
+  'queued': 'TESTING',
+  'in queue': 'TESTING',
+  'queueing': 'TESTING',
+  'compiling': 'TESTING',
 }
 
 export function normalizeVerdict(raw: unknown): Verdict {
   if (typeof raw !== 'string') return 'UNKNOWN'
   const key = raw.trim().toLowerCase()
   if (!key) return 'UNKNOWN'
+  if (key.includes('waiting') || key.includes('queue') || key.includes('judging') || key.includes('running') || key.includes('testing') || key.includes('compiling')) {
+    return 'TESTING'
+  }
   return verdictMap[key] ?? 'UNKNOWN'
 }

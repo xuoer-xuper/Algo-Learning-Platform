@@ -1,8 +1,11 @@
 import type { SiteAdapter } from './types'
-import { codeforcesAdapter } from './codeforces'
-import { acwingAdapter, nowcoderAdapter, vjudgeAdapter } from './genericTableSites'
-import { leetcodeAdapter } from './leetcode'
-import { luoguAdapter, ptaAdapter } from './specializedScraperSites'
+import { acwingAdapter } from './sites/acwing'
+import { codeforcesAdapter } from './sites/codeforces'
+import { leetcodeAdapter } from './sites/leetcode'
+import { luoguAdapter } from './sites/luogu'
+import { nowcoderAdapter } from './sites/nowcoder'
+import { ptaAdapter } from './sites/pta'
+import { vjudgeAdapter } from './sites/vjudge'
 
 const adapters = new Map<string, SiteAdapter>()
 

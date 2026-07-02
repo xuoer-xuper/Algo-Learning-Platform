@@ -1,4 +1,8 @@
-export function createScriptedRealtimeHookScript(adapterId: string, extractExpression: string): string {
+export function createScriptedRealtimeHookScript(
+  adapterId: string,
+  extractExpression: string,
+  shouldReportExpression = '() => true',
+): string {
   return `(() => {
     const CHANNEL = '__algo_submission_v1';
     const ADAPTER_ID = ${JSON.stringify(adapterId)};
@@ -11,10 +15,15 @@ export function createScriptedRealtimeHookScript(adapterId: string, extractExpre
     window[INSTALLED_KEY][ADAPTER_ID] = state;
 
     const extract = async () => (${extractExpression});
+    const shouldReportExtracted = ${shouldReportExpression};
+    // Adapters supply shouldReportExtracted when the source page exposes pending
+    // records before testcase details settle. The hook only transports data that
+    // passes that site-specific readiness gate.
     const report = async () => {
       try {
         const response = await extract();
         if (!response) return;
+        if (!shouldReportExtracted(response)) return;
         const payload = {
           adapterId: ADAPTER_ID,
           pageUrl: location.href,

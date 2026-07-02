@@ -60,6 +60,9 @@ export class SubmissionWatcherCore {
 
       const parsedSubmission = adapter.parseSubmissionResult(raw)
       if (!parsedSubmission) return { inserted: false, error: 'No final submission parsed' }
+      if (parsedSubmission.verdict === 'TESTING' || parsedSubmission.verdict === 'UNKNOWN') {
+        return { inserted: false, error: 'No final submission parsed' }
+      }
 
       const key = `${parsedSubmission.platform}:${parsedSubmission.platformSubmissionId}`
       if (this.seen.has(key)) return { inserted: false }

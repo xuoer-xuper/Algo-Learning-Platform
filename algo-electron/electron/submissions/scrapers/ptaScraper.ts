@@ -189,6 +189,7 @@ export function createPtaRealtimeHookScript(adapterId = 'pta'): string {
     const markBlockedIntent = (source) => {
       try {
         sessionStorage.setItem(BLOCKED_INTENT_KEY, JSON.stringify({ at: now(), source }));
+        sessionStorage.removeItem(INTENT_KEY);
       } catch (_) {}
     };
     const hasRecentBlockedIntent = () => {
@@ -225,7 +226,9 @@ export function createPtaRealtimeHookScript(adapterId = 'pta'): string {
     };
     const hasRecentSubmitIntent = () => {
       const intent = readIntent();
-      return typeof intent.at === 'number' && now() - intent.at < 3 * 60 * 1000;
+      return !hasRecentBlockedIntent()
+        && typeof intent.at === 'number'
+        && now() - intent.at < 3 * 60 * 1000;
     };
     const maybeSubmitUrl = (requestUrl, method) => {
       const url = String(requestUrl || '').toLowerCase();

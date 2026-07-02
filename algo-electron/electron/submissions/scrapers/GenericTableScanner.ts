@@ -26,7 +26,7 @@ const ID_KEYWORDS = [
 ]
 
 const LANGUAGE_KEYWORDS = [
-  'language', '语言', '使用语言', '编译器', 'compiler',
+  'language', 'lang', '语言', '使用语言', '编译器', 'compiler',
 ]
 
 const TIME_KEYWORDS = [
@@ -60,7 +60,18 @@ function normalizeVerdict(raw: string): Verdict {
   if (value.includes('编译错误') || value.includes('compile error') || value.includes('compilation error') || value === 'ce') return 'CE'
   if (value.includes('格式错误') || value.includes('presentation error') || value === 'pe') return 'PE'
   if (value.includes('输出超限') || value.includes('output limit') || value === 'ole') return 'OLE'
-  if (value.includes('等待评测') || value.includes('正在评测') || value.includes('pending') || value.includes('judging') || value.includes('running')) return 'TESTING'
+  if (
+    value.includes('等待评测')
+    || value.includes('正在评测')
+    || value.includes('评测中')
+    || value.includes('排队')
+    || value.includes('pending')
+    || value.includes('judging')
+    || value.includes('running')
+    || value.includes('testing')
+    || value.includes('queue')
+    || value.includes('compiling')
+  ) return 'TESTING'
   if (value.includes('已被覆盖') || value.includes('skipped')) return 'SKIPPED'
   return 'UNKNOWN'
 }
