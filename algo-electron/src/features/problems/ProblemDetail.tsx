@@ -1,39 +1,5 @@
 import { useState, useEffect } from 'react'
-
-const PLATFORM_NAMES: Record<string, string> = {
-  codeforces: 'Codeforces',
-  acwing: 'AcWing',
-  nowcoder: '牛客',
-  vjudge: 'VJudge',
-  pta: 'PTA',
-  luogu: '洛谷',
-  'leetcode-cn': 'LeetCode',
-}
-
-const STATUS_LABELS: Record<string, string> = {
-  solved: '已通过',
-  attempted: '尝试中',
-  visited: '已访问',
-  unknown: '未知',
-}
-
-const STATUS_COLORS: Record<string, string> = {
-  solved: '#a6e3a1',
-  attempted: '#f9e2af',
-  visited: '#89b4fa',
-  unknown: '#585b70',
-}
-
-const VERDICT_COLORS: Record<string, string> = {
-  AC: '#a6e3a1',
-  WA: '#f38ba8',
-  TLE: '#fab387',
-  MLE: '#fab387',
-  RE: '#f38ba8',
-  CE: '#f9e2af',
-  PE: '#f9e2af',
-  UNKNOWN: '#585b70',
-}
+import { PLATFORM_NAMES, STATUS_COLORS, STATUS_LABELS, VERDICT_COLORS } from '../../shared/display'
 
 interface Props {
   problemId: string

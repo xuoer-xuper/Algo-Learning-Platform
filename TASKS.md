@@ -221,6 +221,42 @@ Phase 6 全部任务完成。
 
 建议提交：`docs: 添加架构决策记录`
 
+### DOC-011 新增提交监测设计文档
+
+状态：已完成
+优先级：P0
+阶段：Phase 8
+前置任务：P5-013、P6-012
+涉及模块：文档、adapters、submissions
+目标：为七站提交监测建立长期设计说明，明确实时 hook、submit intent、站点差异、adapter 分层和手测流程。
+验收标准：
+
+- 存在 `docs/submission-monitoring-design.md`。
+- `docs/README.md` 已把该文档加入索引和阅读规则。
+- `SITE_ADAPTER_GUIDE.md` 已指向该文档。
+- 文档说明不改变数据库 schema、IPC/Preload API、Cookie 策略。
+
+建议提交：`docs: 添加提交监测设计说明`
+
+### DOC-012 完善文档总索引
+
+状态：已完成
+优先级：P0
+阶段：Phase 8
+前置任务：DOC-011、P8-015
+涉及模块：文档
+目标：把根目录、`docs/`、主进程模块、Renderer、测试和辅助历史材料统一收敛到 `docs/README.md`，让新 Agent 能从一个入口判断权威来源、阅读顺序和维护边界。
+验收标准：
+
+- `docs/README.md` 覆盖契约、任务、交接、设计、模块 README、调研、ADR、辅助与历史材料。
+- 漏索引检查不再发现未归类的根目录 Markdown 文档。
+- 根 `README.md` 指向 `docs/README.md`，不再维护第二份研发阶段状态。
+- `AI_HANDOFF.md` 同步记录文档索引现状和后续维护规则。
+
+完成记录：已补齐 `spec.md`、`checklist.md`、`release_notes.md`、`PROMPT.md`、`debug-cloudflare-turnstile-loop.md` 的索引分类；辅助和历史材料已明确不能覆盖 `PROJECT_RULES.md`、`TASKS.md`、`AI_HANDOFF.md`、设计文档或 ADR。
+
+建议提交：`docs: 完善文档总索引`
+
 ## 3. Phase 0：架构基线任务
 
 ### P0-001 确认唯一浏览器方案
@@ -2571,7 +2607,7 @@ Phase 6 全部任务完成。
 状态：未开始  
 优先级：P0  
 阶段：Phase 8  
-前置任务：P8-001 到 P8-011  
+前置任务：P8-001 到 P8-011、P8-013、P8-014、P8-015、P8-016、P8-017、P8-018、P8-019、P8-020、P8-021、P8-022、P8-023、P8-024、P8-025、P8-026、P8-027、P8-028
 涉及模块：全项目、文档  
 目标：完成 v1.0 发布前总验收。  
 验收标准：
@@ -2582,6 +2618,332 @@ Phase 6 全部任务完成。
 - 文档和交接文件完整。
 
 建议提交：`chore: 完成 v1.0 发布验收`
+
+### P8-013 提交监测与站点 adapter 标准化
+
+状态：已完成
+优先级：P0
+阶段：Phase 8
+前置任务：DOC-011、P5-013、P6-012
+涉及模块：adapters、submissions、tests、文档
+目标：把七站提交监测从零散站点逻辑整理为可测试、可交接、按职责拆分的 adapter 结构，并保留已手测通过的实时监测行为。
+验收标准：
+
+- `electron/adapters/registry.ts` 只负责注册和查找，不承载站点细节。
+- 内置站点按 `adapters/sites/{site}/` 拆分 `index.ts`、`problem.ts`、必要的 `submissions.ts`/`tables.ts`/`urls.ts`。
+- Nowcoder、VJudge 等高风险站点不依赖通用 DOM 文本作为实时入库来源。
+- 提交监测行为变化有 adapter、submission core 或 scraper 测试。
+- `docs/submission-monitoring-design.md`、`SITE_ADAPTER_GUIDE.md`、`AI_HANDOFF.md` 同步更新。
+
+完成记录：registry 已改为消费 `builtinSiteAdapters`；Codeforces、AcWing、Nowcoder、VJudge、PTA、洛谷、LeetCode 已完成第一轮目录拆分；AcWing、PTA、VJudge 与洛谷提交解析已拆到 `submissions.ts`；Codeforces、Nowcoder、VJudge 与 LeetCode 实时 hook 已拆到 `hook.ts`；已新增 `electron/adapters/README.md`、`electron/submissions/README.md` 模块文档；七站已按手测通过收口，自动验证已覆盖 TypeScript、adapter 测试、submissions 测试和 diff 检查。
+
+建议提交：`refactor: 标准化提交监测 adapter 结构`
+
+### P8-014 主进程模块文档与边界标准化
+
+状态：已完成
+优先级：P0
+阶段：Phase 8
+前置任务：P8-013
+涉及模块：electron 主进程模块、文档
+目标：为主进程核心模块补齐模块级 README，说明职责边界、当前实现程度、关键封装函数、测试入口和禁止跨越的架构边界。
+验收标准：
+
+- `electron/adapters/README.md` 说明站点 adapter 职责、目录模型、实现程度、共享 helper 和测试入口。
+- `electron/submissions/README.md` 说明提交采集写入链路、实时监听、手动同步、scraper、写入规则和测试入口。
+- `electron/browser/README.md` 说明 TabManager、WebContentsView、preload 提交桥、反检测脚本和 BrowserHost 状态。
+- `electron/db/README.md` 说明 SQLite 连接、迁移系统、repository 分层、写入规则和测试入口。
+- `electron/ai/README.md`、`electron/tracking/README.md`、`electron/notes/README.md`、`electron/sites/README.md`、`electron/parsers/README.md`、`electron/rating/README.md`、`electron/cookies/README.md`、`electron/scripts/README.md`、`electron/app/README.md`、`electron/shared/README.md` 覆盖对应模块职责和边界。
+- `docs/README.md` 索引所有模块级文档。
+- `AI_HANDOFF.md` 同步当前模块文档覆盖范围和剩余缺口。
+
+完成记录：主进程 `electron/` 下核心目录已补模块 README，并加入 `docs/README.md` 索引；覆盖 `adapters`、`ai`、`app`、`browser`、`cookies`、`db`、`notes`、`parsers`、`rating`、`scripts`、`shared`、`sites`、`submissions`、`tracking`。
+
+建议提交：`docs: 补齐主进程核心模块说明`
+
+### P8-015 Renderer、测试与构建层文档标准化
+
+状态：已完成
+优先级：P0
+阶段：Phase 8
+前置任务：P8-014
+涉及模块：src、tests、构建脚本、文档
+目标：继续补齐非主进程区域的模块级文档，说明 renderer 页面/组件分层、测试目录职责、构建脚本入口和验证命令。
+验收标准：
+
+- Renderer 主要目录有 README，说明页面、组件、状态、API 调用边界。
+- `tests/` 有 README，说明 adapter、browser、db、integration、parsers、submissions 测试覆盖范围和运行方式。
+- 构建/脚本相关目录或配置有文档入口，说明开发、测试、打包命令。
+- `docs/README.md` 和 `AI_HANDOFF.md` 同步索引与剩余缺口。
+
+完成记录：已补 `algo-electron/README.md`、`src/README.md`、`src/components/README.md`、`src/features/README.md`、`tests/README.md`，并加入 `docs/README.md` 索引。构建入口、renderer IPC 边界、组件/feature 分层、测试目录覆盖和运行方式已文档化。
+
+建议提交：`docs: 补齐 renderer 和测试层说明`
+
+### P8-016 Renderer 结构分离审计与后续重构
+
+状态：已完成
+优先级：P0
+阶段：Phase 8
+前置任务：P8-015
+涉及模块：src、electron/preload、electron/electron-env.d.ts、文档
+目标：在文档覆盖完成后，对 renderer 结构做实际分离审计，收敛 `App.tsx`、大型 feature 组件、重复平台常量和 IPC 类型散落问题。
+验收标准：
+
+- 输出 renderer 结构审计结论，列出需要拆分的组件、hooks、常量和 API helper。
+- 对低风险项完成实际拆分，避免继续膨胀 `App.tsx` 和单个大型 feature。
+- 抽出的 hooks/helper 有明确文件归属和 README 更新。
+- TypeScript 和相关测试通过。
+
+完成记录：已新增 `docs/renderer-structure-audit.md` 输出 renderer 结构审计结论；已抽取 `src/shared/display.ts` 和 `src/shared/README.md`，集中平台名称、短标签、首页 URL、颜色、状态文案、verdict 颜色和图表颜色；已替换 HomePage、Dashboard、SettingsPage、ProblemDetail、ProblemSidebar 中的重复展示常量；已同步 `src/README.md`、`src/features/README.md`、`docs/README.md`。
+
+建议提交：`refactor: 梳理 renderer 模块结构`
+
+### P8-017 Renderer 大型 feature 组件拆分
+
+状态：已完成
+优先级：P0
+阶段：Phase 8
+前置任务：P8-016
+涉及模块：src/features、src/components、src/shared、文档
+目标：按 `docs/renderer-structure-audit.md` 的顺序继续拆分大型 renderer feature，降低 `SettingsPage.tsx`、`Dashboard.tsx`、`NotePanelModal.tsx` 等文件复杂度。
+验收标准：
+
+- `SettingsPage.tsx` 至少拆出实时提交诊断、站点管理或同步面板之一。
+- `Dashboard.tsx` 至少拆出趋势图、AI 建议、Rating 面板或列表面板之一。
+- 抽出的组件只接收 props，不直接复制大段业务状态。
+- README 和审计文档同步更新完成进展。
+- TypeScript 通过，相关页面手测入口明确。
+
+完成记录：已从 `SettingsPage.tsx` 抽出 `RealtimeSubmissionPanel.tsx`，设置页只保留实时诊断状态加载和刷新函数；已从 `Dashboard.tsx` 抽出 `TrendPanel.tsx`，统计页只保留趋势数据加载和范围状态。新增组件只通过 props 接收数据与回调，不引入新的 IPC/Preload API，不触碰数据库、Cookie 或提交监测逻辑。已同步 `src/features/README.md` 与 `docs/renderer-structure-audit.md`，后续可继续拆 `SiteManagementPanel`、AI 建议卡片、Rating 面板和笔记弹层。
+
+建议提交：`refactor: 拆分 renderer 大型 feature`
+
+### P8-018 Renderer 大型 feature 二轮拆分
+
+状态：已完成
+优先级：P0
+阶段：Phase 8
+前置任务：P8-017
+涉及模块：src/features/analytics、文档
+目标：继续降低 `Dashboard.tsx` 的展示复杂度，把 AI 建议展示区从统计页主容器中分离出来，为后续 Rating、平台分布和列表面板拆分留下清晰路径。
+验收标准：
+
+- `Dashboard.tsx` 不再内联复习建议和薄弱标签两组展示 JSX。
+- 新组件只接收已加载数据和导航回调，不直接调用 `window.electronAPI`。
+- README、renderer 审计文档和 `AI_HANDOFF.md` 同步记录拆分范围。
+- TypeScript 通过，相关页面手测入口明确。
+
+完成记录：已新增 `src/features/analytics/AiSuggestionsPanel.tsx`，承接复习建议和薄弱标签展示；`Dashboard.tsx` 继续负责调用 AI 本地规则 IPC、失败降级和状态管理。组件边界保持为 props 输入，不改变 AI 规则、数据库、IPC/Preload API 或提交监测逻辑。
+
+建议提交：`refactor: 拆分 Dashboard AI 建议面板`
+
+### P8-019 Settings 站点管理面板拆分
+
+状态：已完成
+优先级：P0
+阶段：Phase 8
+前置任务：P8-017
+涉及模块：src/features/settings、文档
+目标：继续降低 `SettingsPage.tsx` 的职责密度，把站点启停、删除、导入导出和自定义站点表单收敛到独立 settings 面板。
+验收标准：
+
+- `SettingsPage.tsx` 不再持有站点列表、导入预览、自定义站点表单等状态。
+- `SiteManagementPanel.tsx` 独立负责站点管理 UI 和现有 sites IPC 调用。
+- 不新增 IPC/Preload API，不改变站点配置导入导出格式。
+- README、renderer 审计文档和 `AI_HANDOFF.md` 同步记录拆分范围。
+- TypeScript 通过，设置页手测入口明确。
+
+完成记录：已新增 `src/features/settings/SiteManagementPanel.tsx`，承接站点列表加载、启停、删除、导入导出、自定义站点创建和导入冲突勾选；`SettingsPage.tsx` 只保留默认首页、学习概览、Codeforces 同步、rating 同步、实时监听诊断和平台分布。组件复用现有 `window.electronAPI` sites 能力，不触碰数据库 schema、IPC/Preload API、Cookie 或提交监测逻辑。
+
+建议提交：`refactor: 拆分设置页站点管理面板`
+
+### P8-020 用户脚本管理器组件拆分
+
+状态：已完成
+优先级：P0
+阶段：Phase 8
+前置任务：P8-016
+涉及模块：src/features/scripts、文档
+目标：降低 `UserScriptManager.tsx` 复杂度，把脚本列表、脚本编辑表单和本 feature 内部类型拆分到独立文件，保持用户脚本导入、启停、站点绑定和删除行为不变。
+验收标准：
+
+- `UserScriptManager.tsx` 只负责加载数据、调用现有 scripts IPC 和维护当前编辑状态。
+- `UserScriptEditor.tsx` 负责脚本名称、路径和站点绑定编辑 UI。
+- `UserScriptList.tsx` 负责脚本列表、启停、配置、删除和空状态展示。
+- `types.ts` 收敛脚本和站点展示类型，减少 `Record<string, unknown>` 在 JSX 中散落。
+- 不新增 IPC/Preload API，不改变脚本文件存储、导入、注入或站点匹配策略。
+- TypeScript 通过，脚本管理入口手测范围明确。
+
+完成记录：已新增 `src/features/scripts/types.ts`、`UserScriptEditor.tsx`、`UserScriptList.tsx`；`UserScriptManager.tsx` 保留 `scriptsGetAll`、`scriptsImportFile`、`scriptsSave`、`scriptsToggle`、`scriptsDelete`、`scriptsOpenFolder` 调用和编辑状态编排，子组件只通过 props 接收数据与回调。
+
+建议提交：`refactor: 拆分用户脚本管理器`
+
+### P8-021 笔记弹层组件拆分
+
+状态：已完成
+优先级：P0
+阶段：Phase 8
+前置任务：P8-016
+涉及模块：src/features/problems、文档
+目标：降低 `NotePanelModal.tsx` 复杂度，把笔记列表、编辑区和笔记展示常量拆分到独立文件，保持 Markdown 编辑、图片上传、标题防抖保存和笔记文件策略不变。
+验收标准：
+
+- `NotePanelModal.tsx` 只负责 notes IPC 调用、当前笔记状态、标题 flush、内容保存、类型更新、删除和打开目录编排。
+- `NoteList.tsx` 负责笔记列表、空状态、选中状态、类型标签和删除按钮展示。
+- `NoteEditorPane.tsx` 负责标题输入、类型选择、保存状态和 `MilkdownEditor` 承载。
+- `notesTypes.ts` 收敛 `NoteItem` 类型和笔记类型展示常量。
+- 不新增 IPC/Preload API，不改变 notes 表、Markdown 文件保存、图片上传或防抖保存策略。
+- TypeScript 通过，笔记弹层手测范围明确。
+
+完成记录：已新增 `src/features/problems/notesTypes.ts`、`NoteList.tsx`、`NoteEditorPane.tsx`；`NotePanelModal.tsx` 保留数据加载、标题防抖 flush、内容保存、类型切换、删除和打开目录逻辑，子组件只通过 props 接收数据与回调。
+
+建议提交：`refactor: 拆分笔记弹层组件`
+
+### P8-022 Dashboard 图表面板拆分
+
+状态：已完成
+优先级：P0
+阶段：Phase 8
+前置任务：P8-018
+涉及模块：src/features/analytics、文档
+目标：继续降低 `Dashboard.tsx` 的图表展示复杂度，把平台分布图和 Codeforces Rating 面板拆分成独立展示组件。
+验收标准：
+
+- `Dashboard.tsx` 不再直接引入 Recharts 图表组件。
+- `PlatformDistributionPanel.tsx` 负责平台分布饼图、柱状图和平台展示映射。
+- `RatingPanel.tsx` 负责 Codeforces rating badges、rating 曲线和最近比赛列表。
+- `Dashboard.tsx` 继续负责统计、rating 数据加载和页面级状态编排。
+- 不新增 IPC/Preload API，不改变统计或 rating 数据口径。
+- TypeScript 通过，统计页手测范围明确。
+
+完成记录：已新增 `src/features/analytics/PlatformDistributionPanel.tsx` 和 `RatingPanel.tsx`；`Dashboard.tsx` 移除 Recharts 直接依赖，只把 `stats.platformDistribution`、`cfAccount` 和 `ratingHistory` 传给展示面板。
+
+建议提交：`refactor: 拆分 Dashboard 图表面板`
+
+### P8-023 站点管理面板内部拆分
+
+状态：已完成
+优先级：P0
+阶段：Phase 8
+前置任务：P8-019
+涉及模块：src/features/settings、文档
+目标：继续降低 `SiteManagementPanel.tsx` 的职责密度，把自定义站点添加表单、导入预览和站点管理展示类型拆分到独立文件。
+验收标准：
+
+- `SiteManagementPanel.tsx` 不再内联自定义站点添加表单 JSX。
+- `SiteManagementPanel.tsx` 不再内联导入预览 JSX。
+- `AddSiteForm.tsx` 只负责自定义站点表单展示和字段变更回调。
+- `ImportPreviewPanel.tsx` 只负责导入预览、冲突覆盖勾选和确认/取消回调。
+- `siteManagementTypes.ts` 收敛站点列表、导入预览和新站点草稿类型。
+- 不新增 IPC/Preload API，不改变站点配置导入导出格式或站点启停/删除行为。
+- TypeScript 通过，设置页站点管理手测范围明确。
+
+完成记录：已新增 `src/features/settings/AddSiteForm.tsx`、`ImportPreviewPanel.tsx` 和 `siteManagementTypes.ts`；`SiteManagementPanel.tsx` 保留 sites IPC 调用、导入导出流程、站点创建校验、站点刷新和启停/删除编排。
+
+建议提交：`refactor: 拆分站点管理内部面板`
+
+### P8-024 Dashboard 列表面板拆分
+
+状态：已完成
+优先级：P0
+阶段：Phase 8
+前置任务：P8-022
+涉及模块：src/features/analytics、文档
+目标：继续降低 `Dashboard.tsx` 的展示复杂度，把学习轨迹、错题、未复习和复访最多四组列表抽成独立展示面板，并收敛列表项展示类型。
+验收标准：
+
+- `Dashboard.tsx` 不再内联学习轨迹、错题、未复习和复访最多列表 JSX。
+- `DashboardListsPanel.tsx` 负责四组列表展示、时间格式化、平台名称映射和空状态。
+- 列表数据类型在 analytics feature 内部收敛，减少 `any` 在 Dashboard 列表 JSX 中散落。
+- 不新增 IPC/Preload API，不改变统计、复习、错题或复访数据口径。
+- TypeScript 通过，统计页手测范围明确。
+
+完成记录：已新增 `src/features/analytics/DashboardListsPanel.tsx`；`Dashboard.tsx` 保留 `getTimeline`、`getWrongProblems`、`getUnreviewedProblems`、`getRevisitStats` 数据加载和页面级状态编排，只向列表面板传递 props。
+
+建议提交：`refactor: 拆分 Dashboard 列表面板`
+
+### P8-025 设置页首页与同步面板拆分
+
+状态：已完成
+优先级：P0
+阶段：Phase 8
+前置任务：P8-019、P8-023
+涉及模块：src/features/settings、文档
+目标：继续降低 `SettingsPage.tsx` 的职责密度，把默认首页、学习概览、平台分布、Codeforces 提交同步和 Rating 同步从设置页主容器中拆出。
+验收标准：
+
+- `SettingsPage.tsx` 不再内联默认首页保存表单、学习概览卡片、平台分布列表、Codeforces Rating 同步和 Codeforces 提交同步 JSX。
+- `DefaultHomePanel.tsx` 独立负责默认首页读取、保存和保存提示状态。
+- `LearningOverviewPanel.tsx` 和 `PlatformDistributionSummary.tsx` 只负责统计展示和空状态。
+- `CodeforcesSyncPanel.tsx` 独立负责 Codeforces 提交同步、Rating 同步、账号读取和同步状态提示。
+- 不新增 IPC/Preload API，不改变默认首页配置、提交同步、rating 同步或统计数据口径。
+- TypeScript 通过，设置页手测范围明确。
+
+完成记录：已新增 `src/features/settings/DefaultHomePanel.tsx`、`LearningOverviewPanel.tsx`、`PlatformDistributionSummary.tsx` 和 `CodeforcesSyncPanel.tsx`；`SettingsPage.tsx` 保留页面布局、`getOverviewStats` 刷新和实时监听诊断刷新。
+
+建议提交：`refactor: 拆分设置页同步面板`
+
+### P8-026 笔记标题保存 hook 拆分
+
+状态：已完成
+优先级：P0
+阶段：Phase 8
+前置任务：P8-021
+涉及模块：src/features/problems、文档
+目标：继续降低 `NotePanelModal.tsx` 的状态机复杂度，把标题防抖保存、切换前 flush、卸载 flush 和删除时清理 pending 标题的逻辑抽成 feature 内部 hook。
+验收标准：
+
+- `NotePanelModal.tsx` 不再直接维护标题保存 timer、pending title ref 或卸载 flush effect。
+- `useDebouncedNoteTitleSave.ts` 负责标题 600ms 防抖保存、手动 flush、卸载 flush 和按笔记清理 pending 标题。
+- 保留关闭弹层、切换笔记、新建笔记时不丢失最近标题修改的行为。
+- 不新增 IPC/Preload API，不改变 notes 表、Markdown 文件保存、内容保存或图片上传策略。
+- TypeScript 通过，笔记弹层手测范围明确。
+
+完成记录：已新增 `src/features/problems/useDebouncedNoteTitleSave.ts`；`NotePanelModal.tsx` 保留 notes IPC 调用、当前笔记状态、内容保存、类型更新、删除和打开目录编排，标题保存状态机由 hook 封装。
+
+建议提交：`refactor: 抽出笔记标题保存 hook`
+
+### P8-027 App 浏览器工具栏拆分
+
+状态：已完成
+优先级：P0
+阶段：Phase 8
+前置任务：P8-016、P8-026
+涉及模块：src/App.tsx、src/components、文档
+目标：降低 `App.tsx` 壳层 JSX 密度，把顶部浏览器工具栏抽成共享 UI 组件，让 App 只保留 URL 状态、导航回调、当前页同步和全局面板打开编排。
+验收标准：
+
+- `App.tsx` 不再内联浏览器工具栏 JSX。
+- `BrowserToolbar.tsx` 负责首页、前进后退、刷新、地址栏、当前页提交抓取和设置/统计/脚本入口展示。
+- `BrowserToolbar.tsx` 通过 props 接收所有回调，不直接查询题目、提交、统计、Cookie 或数据库。
+- 不新增 IPC/Preload API，不改变导航、当前页提交抓取、设置/统计/脚本入口行为。
+- TypeScript 通过，浏览器工具栏手测范围明确。
+
+完成记录：已新增 `src/components/BrowserToolbar.tsx`；`App.tsx` 保留 `url`、`syncMsg`、导航/同步函数、modal 打开函数和 `WebContentsView` 显隐编排。
+
+建议提交：`refactor: 拆分 App 浏览器工具栏`
+
+### P8-028 App modal 状态 hook 拆分
+
+状态：已完成
+优先级：P0
+阶段：Phase 8
+前置任务：P8-027
+涉及模块：src/App.tsx、src/hooks、文档
+目标：继续降低 `App.tsx` 壳层状态复杂度，把设置、统计、脚本、题目详情、笔记弹层的开关状态和浏览器预览背景管理抽成应用级 hook。
+验收标准：
+
+- `App.tsx` 不再直接维护 `showSettings`、`showDashboard`、`showScripts`、`selectedProblemId`、`notesProblemId` 和 `modalBackdrop` 状态。
+- `useAppModalState.ts` 负责打开 modal 前捕获浏览器预览、隐藏真实 `WebContentsView`、关闭 modal 时清理背景并恢复 view。
+- 保持设置、统计、脚本、题目详情、笔记弹层打开/关闭行为不变。
+- `src/hooks/README.md` 说明 hooks 目录职责、当前实现和边界。
+- 不新增 IPC/Preload API，不改变导航、modal 内容、提交同步、题目详情或笔记行为。
+- TypeScript 通过，modal 与浏览器 view 显隐手测范围明确。
+
+完成记录：已新增 `src/hooks/useAppModalState.ts` 和 `src/hooks/README.md`；`App.tsx` 保留 URL、首页状态、当前页同步、侧栏宽度和 modal 渲染接线。
+
+建议提交：`refactor: 抽出 App modal 状态 hook`
 
 ## 12. 状态维护规则
 

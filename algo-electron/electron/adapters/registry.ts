@@ -1,11 +1,5 @@
 import type { SiteAdapter } from './types'
-import { acwingAdapter } from './sites/acwing'
-import { codeforcesAdapter } from './sites/codeforces'
-import { leetcodeAdapter } from './sites/leetcode'
-import { luoguAdapter } from './sites/luogu'
-import { nowcoderAdapter } from './sites/nowcoder'
-import { ptaAdapter } from './sites/pta'
-import { vjudgeAdapter } from './sites/vjudge'
+import { builtinSiteAdapters } from './sites'
 
 const adapters = new Map<string, SiteAdapter>()
 
@@ -47,10 +41,6 @@ export function getRealtimeAdapterIds(): string[] {
     .map(adapter => adapter.id)
 }
 
-registerAdapter(codeforcesAdapter)
-registerAdapter(acwingAdapter)
-registerAdapter(nowcoderAdapter)
-registerAdapter(vjudgeAdapter)
-registerAdapter(ptaAdapter)
-registerAdapter(luoguAdapter)
-registerAdapter(leetcodeAdapter)
+// Registry owns lookup only. Site-specific URL, realtime, and parser behavior
+// must stay under adapters/sites so adding a platform does not grow this file.
+builtinSiteAdapters.forEach(registerAdapter)

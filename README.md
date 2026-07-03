@@ -84,18 +84,13 @@ npm run build
 
 ## 🤖 AI Agent 必读架构文档 (开发者指引)
 
-本项目拥有极度严格的开发契约与文档职责分离地图。这使得多阶段、多 AI 协作开发成为可能。**任何接手本项目的开发者或 AI Agent，必须在阅读以下核心文档后方可开工修改代码**：
+本项目有严格的开发契约与文档职责分离地图。**任何接手本项目的开发者或 AI Agent，先从 [`docs/README.md`](docs/README.md) 进入文档体系，再按任务类型阅读对应设计、模块 README 和测试说明。**
 
-- `PROJECT_RULES.md`：**项目最高规则**。规定了技术栈禁令、架构边界约束、Cookie 隐匿原则和 AI 开发硬纪律。
-- `ROADMAP.md`：**长期路线图**。说明从 Phase 0 到 Phase 8 的远景里程碑规划。
-- `TASKS.md`：**主任务清单**。所有开发必须按任务编号单线推进，每次开发完成必须更新其状态。
-- `AI_HANDOFF.md`：**代码交接现场**。记录当前现有代码的存量状态、已知高风险区域和下一步推进建议。
-- `ARCHITECTURE.md`：**系统架构设计**。涵盖 IPC 通信规范、多标签页(TabManager)、CookieVault、Tracking 系统的核心工作流。
-- `DATABASE_SCHEMA.md`：**数据库设计契约**。定义一切 SQLite 表结构、索引与迁移 (Migration) 规则。
-- `AI_WORKFLOW.md`：**AI 协作流程**。规范 Agent 任务声明格式与交接要求。
-- `COMMIT_RULES.md`：严格的中文 Git 提交规范 (Conventional Commits)。
-- `SITE_ADAPTER_GUIDE.md`：**站点适配指南**。说明如何编写和注册新的目标站点适配器（Parser Adapter）。
+最小必读入口：
 
-> **ℹ️ 研发进度同步：**  
-> 当前版本开发状态：**Phase 5 (站点扩展系统与多标签架构) 已正式完成 (v0.5.0)**。  
-> 下一步即将进入：**Phase 6 (AI 辅助学习系统)**。
+- [`docs/README.md`](docs/README.md)：文档总索引、阅读顺序和维护规则。
+- [`PROJECT_RULES.md`](PROJECT_RULES.md)：项目最高规则。
+- [`TASKS.md`](TASKS.md)：唯一任务状态源。
+- [`AI_HANDOFF.md`](AI_HANDOFF.md)：当前交接现场和风险提示。
+
+研发进度不要在 README 中维护第二份状态；以 [`TASKS.md`](TASKS.md) 和 [`AI_HANDOFF.md`](AI_HANDOFF.md) 为准。

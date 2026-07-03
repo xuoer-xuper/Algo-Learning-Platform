@@ -1,26 +1,8 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
-import { MilkdownEditor } from './MilkdownEditor'
-
-const NOTE_TYPE_LABELS: Record<string, string> = {
-  solution: '题解',
-  review: '复习笔记',
-  summary: '总结',
-}
-
-const NOTE_TYPE_COLORS: Record<string, string> = {
-  solution: '#a6e3a1',
-  review: '#f9e2af',
-  summary: '#89b4fa',
-}
-
-interface NoteItem {
-  id: string
-  title: string
-  note_type: string
-  content: string
-  word_count: number
-  updated_at: string
-}
+import { useState, useEffect, useCallback } from 'react'
+import { NoteEditorPane } from './NoteEditorPane'
+import { NoteList } from './NoteList'
+import type { NoteItem } from './notesTypes'
+import { useDebouncedNoteTitleSave } from './useDebouncedNoteTitleSave'
 
 interface Props {
   problemId: string
@@ -35,12 +17,6 @@ export function NotePanelModal({ problemId, onClose }: Props) {
   const [editorInitial, setEditorInitial] = useState('')
   const [saving, setSaving] = useState(false)
   const [dirty, setDirty] = useState(false)
-  // 标题防抖保存
-  const titleTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
-  // 记录待 flush 的标题修改，组件卸载或切换笔记时用于同步保存
-  const pendingTitleRef = useRef<{ noteId: string; title: string } | null>(null)
-  const titleRef = useRef('')
-  titleRef.current = editorTitle
 
   const loadNotes = useCallback(async () => {
     const list = await window.electronAPI.listNotesByProblem(problemId)
@@ -51,35 +27,11 @@ export function NotePanelModal({ problemId, onClose }: Props) {
     loadNotes()
   }, [loadNotes])
 
-  // 立即 flush 未保存的标题；reload 控制是否刷新列表（卸载时不刷新避免 setState on unmounted）
-  const flushPendingTitle = useCallback(async (reload: boolean) => {
-    if (titleTimer.current) {
-      clearTimeout(titleTimer.current)
-      titleTimer.current = null
-    }
-    const pending = pendingTitleRef.current
-    pendingTitleRef.current = null
-    if (!pending) return
-    const finalTitle = pending.title.trim() || '未命名笔记'
-    try {
-      await window.electronAPI.updateNoteTitle(pending.noteId, finalTitle)
-      if (reload) await loadNotes()
-    } catch { /* ignore */ }
-  }, [loadNotes])
-
-  // 组件卸载时 flush 未保存的标题，避免关闭模态框时丢失最近 600ms 内的标题修改
-  useEffect(() => {
-    return () => { flushPendingTitle(false) }
-  }, [flushPendingTitle])
-
-  // 防抖保存标题
-  const scheduleSaveTitle = useCallback((noteId: string, title: string) => {
-    pendingTitleRef.current = { noteId, title }
-    if (titleTimer.current) clearTimeout(titleTimer.current)
-    titleTimer.current = setTimeout(() => {
-      flushPendingTitle(true)
-    }, 600)
-  }, [flushPendingTitle])
+  const {
+    flushPendingTitle,
+    scheduleSaveTitle,
+    clearPendingTitleForNote,
+  } = useDebouncedNoteTitleSave({ onSaved: loadNotes })
 
   const handleNewNote = async () => {
     if (dirty && activeNoteId) {
@@ -133,14 +85,7 @@ export function NotePanelModal({ problemId, onClose }: Props) {
 
   const handleDelete = async (noteId: string) => {
     if (!confirm('确定删除这条笔记吗？笔记文件将被永久删除。')) return
-    // 若删除的是当前笔记，清除其待保存标题
-    if (pendingTitleRef.current && pendingTitleRef.current.noteId === noteId) {
-      pendingTitleRef.current = null
-      if (titleTimer.current) {
-        clearTimeout(titleTimer.current)
-        titleTimer.current = null
-      }
-    }
+    clearPendingTitleForNote(noteId)
     await window.electronAPI.deleteNote(noteId)
     if (activeNoteId === noteId) {
       setActiveNoteId(null)
@@ -186,97 +131,24 @@ export function NotePanelModal({ problemId, onClose }: Props) {
       </div>
 
       <div className="notes-modal-body">
-        <div className="notes-sidebar">
-          <div className="notes-sidebar-header">
-            笔记列表 ({notes.length})
-          </div>
-          <div className="notes-list">
-            {notes.length === 0 ? (
-              <div className="notes-empty">
-                暂无笔记<br />
-                点击「新建笔记」创建
-              </div>
-            ) : (
-              notes.map((n) => (
-                <div
-                  key={n.id}
-                  className={`note-item ${activeNoteId === n.id ? 'active' : ''}`}
-                  onClick={() => openNote(n.id)}
-                >
-                  <div className="note-item-main">
-                    <span
-                      className="note-item-type"
-                      style={{
-                        backgroundColor: `${NOTE_TYPE_COLORS[n.note_type] || '#585b70'}20`,
-                        color: NOTE_TYPE_COLORS[n.note_type] || '#585b70',
-                      }}
-                    >
-                      {NOTE_TYPE_LABELS[n.note_type] || n.note_type}
-                    </span>
-                    <span className="note-item-title">{n.title}</span>
-                  </div>
-                  <div className="note-item-meta">
-                    <span className="note-item-time">
-                      {n.updated_at?.replace('T', ' ').slice(0, 16)}
-                    </span>
-                    <span className="note-item-words">
-                      {n.word_count > 0 ? `${n.word_count} 字` : ''}
-                    </span>
-                    <button
-                      type="button"
-                      className="note-item-del"
-                      onClick={(e) => { e.stopPropagation(); handleDelete(n.id) }}
-                      title="删除笔记"
-                    >
-                      ✕
-                    </button>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
+        <NoteList
+          notes={notes}
+          activeNoteId={activeNoteId}
+          onOpenNote={openNote}
+          onDeleteNote={handleDelete}
+        />
 
-        <div className="note-editor-area">
-          {activeNoteId ? (
-            <>
-              <div className="note-editor-header">
-                <input
-                  className="note-editor-title"
-                  value={editorTitle}
-                  onChange={(e) => handleTitleChange(e.target.value)}
-                  placeholder="笔记标题"
-                />
-                <select
-                  className="note-editor-type"
-                  value={editorType}
-                  onChange={(e) => handleTypeChange(e.target.value)}
-                >
-                  <option value="solution">题解</option>
-                  <option value="review">复习笔记</option>
-                  <option value="summary">总结</option>
-                </select>
-                <span className="note-save-status">
-                  {saving ? '保存中…' : dirty ? '编辑中 *' : '已保存'}
-                </span>
-              </div>
-              <div className="note-editor-container">
-                <MilkdownEditor
-                  key={activeNoteId}
-                  noteId={activeNoteId}
-                  initialValue={editorInitial}
-                  onChange={handleEditorChange}
-                  placeholder="开始编写题解…（输入 ## 自动生成标题）"
-                />
-              </div>
-            </>
-          ) : (
-            <div className="note-editor-placeholder">
-              <div className="note-editor-placeholder-icon">📝</div>
-              <div>选择左侧笔记查看，或点击「新建笔记」创建</div>
-            </div>
-          )}
-        </div>
+        <NoteEditorPane
+          activeNoteId={activeNoteId}
+          editorTitle={editorTitle}
+          editorType={editorType}
+          editorInitial={editorInitial}
+          saving={saving}
+          dirty={dirty}
+          onTitleChange={handleTitleChange}
+          onTypeChange={handleTypeChange}
+          onEditorChange={handleEditorChange}
+        />
       </div>
     </div>
   )

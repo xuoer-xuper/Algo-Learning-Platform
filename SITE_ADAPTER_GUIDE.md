@@ -23,6 +23,23 @@
 
 不要为了一个简单 URL 规则直接写复杂 adapter。
 
+### 2.1 现行 adapter 目录模型
+
+新的站点适配主线位于 `algo-electron/electron/adapters/sites/{site}/`，用于统一题目识别、提交表格解析、实时提交监测和题目关联。旧的 `electron/parsers/sites/` 仍可作为历史 URL parser 参考，但新增提交监测能力必须优先放到 `electron/adapters/sites/`。
+
+每个站点目录按职责拆分：
+
+- `index.ts`：只组装并导出 `SiteAdapter`，不堆站点细节。
+- `problem.ts`：题目 URL 解析、提交结果页匹配、题目身份辅助函数。
+- `submissions.ts`：提交接口、实时 payload、结果详情 payload 到 `SubmissionData` 的转换。
+- `tables.ts`：提交记录表格解析。
+- `hook.ts`：站点实时 hook 注入脚本，尤其是较长的浏览器注入代码。
+- `urls.ts`：复杂 URL 规范化和构造。
+
+`electron/adapters/registry.ts` 只负责注册和查找 adapter。站点特殊规则不能写进 registry。
+
+实时提交监测的详细数据流和验收规则见 `docs/submission-monitoring-design.md`。
+
 ## 3. SiteConfig 字段
 
 ```ts
@@ -259,63 +276,94 @@ ID 格式：`{pid}`（如 P1014、B2005）
 
 ### 7.1 接口定义
 
+当前提交监测主线使用 `electron/adapters/types.ts` 中的 `SiteAdapter`：
+
 ```ts
 export interface SiteAdapter {
   id: string
-  match?(url: string): boolean
-  parse?(url: string): ProblemIdentity | null
-  extractTitleScript?(): string
+  name: string
+  domains: string[]
+  homeUrl: string
+  isSpa?: boolean
+  injectOnProblemPage?: boolean
+
+  matchProblem(url: string): boolean
+  parseProblem(url: string, ctx: ParseContext): Promise<ProblemIdentity | null> | ProblemIdentity | null
+
+  matchSubmissionResult?(url: string): boolean
+  injectHookScript?(): string
+  parseSubmissionResult?(raw: SubmissionDetectionPayload): SubmissionData | null
+  resolveProblemIdentity?(submission: SubmissionData, raw: SubmissionDetectionPayload): ProblemIdentity | null
+  parseSubmissionTables?(tables: GenericTableData[], ctx: TableParseContext): SubmissionData[]
+  scrapeSubmissions?(ctx: SubmissionScrapeContext): Promise<SubmissionData[]>
+  syncSubmissions?(ctx: SyncContext): Promise<SubmissionData[]>
 }
 ```
 
 ### 7.2 编写 Adapter 逻辑
 
-创建独立的适配器文件：
+创建站点目录并让 `index.ts` 只负责组装：
 
 ```ts
-// electron/parsers/sites/{id}.ts
-import type { SiteAdapter } from '../types'
-import type { ProblemIdentity } from '../../shared/types'
+// electron/adapters/sites/mysite/index.ts
+import type { SiteAdapter } from '../../types'
+import { matchMysiteProblem, parseMysiteProblem } from './problem'
+import { parseMysiteRealtimeSubmission } from './submissions'
 
 export const myAdapter: SiteAdapter = {
   id: 'mysite',
+  name: 'MySite',
+  domains: ['mysite.com', 'www.mysite.com'],
+  homeUrl: 'https://mysite.com',
+  injectOnProblemPage: true,
 
-  match(url) {
-    try {
-      const u = new URL(url)
-      return u.hostname === 'mysite.com' || u.hostname === 'www.mysite.com'
-    } catch { return false }
+  matchProblem(url) {
+    return matchMysiteProblem(url)
   },
 
-  parse(url) {
-    // 解析出题号，构建 ProblemIdentity
-    return { platform: 'mysite', platformProblemId: '...', canonicalUrl: '...', confidence: 'url' }
+  parseProblem(url) {
+    return parseMysiteProblem(url)
   },
 
-  extractTitleScript() {
-    // 注意：这段代码在浏览器 executeScript 中运行
-    // 模板字符串 ` 和 ${} 是原生 JS 语法，不要加反斜杠
-    return `(() => {
-      return document.querySelector('h1')?.textContent?.trim() || document.title;
-    })()`
+  parseSubmissionResult(raw) {
+    return parseMysiteRealtimeSubmission(raw)
   }
 }
 ```
 
+`problem.ts`、`submissions.ts`、`tables.ts` 中的函数应保持纯解析，方便单元测试覆盖。
+
 ### 7.3 注册 Adapter
 
-在 `electron/parsers/registry.ts` 中引入并注册：
+在 `electron/adapters/sites/index.ts` 导出并加入 `builtinSiteAdapters`：
 
 ```ts
-import { myAdapter } from './sites/mysite'
-registerAdapter(myAdapter)
+import { myAdapter } from './mysite'
+
+export const builtinSiteAdapters: SiteAdapter[] = [
+  // ...
+  myAdapter,
+]
 ```
+
+`electron/adapters/registry.ts` 不直接引入站点细节，只消费 `builtinSiteAdapters`。
 
 ### 7.4 配置站点关联
 
-在 `electron/sites/builtins/{id}.ts` 中，指定 `adapter` 字段为该适配器的 `id`。
+如果该站点也需要出现在设置页或用户站点配置中，仍需在 `electron/sites/builtins/{id}.ts` 中补充 `SiteConfig`，并同步 Renderer 的平台显示常量。
 
 ## 8. 提交抓取器编写规范
+
+实时提交监测必须默认 fail closed：
+
+- `TESTING`、`UNKNOWN`、排队、判题中、运行中不入库。
+- 没有最近正式提交 intent 的结果不入库。
+- 自测、调试、样例测试、run code、custom test 不入库。
+- 查看提交记录、打开提交详情、刷新历史页不应生成新提交。
+- 站点网络接口能提供结果时，优先用网络 payload；DOM 文本只能作为有明确身份关联的兜底。
+- 任何提交监测行为变化必须补 adapter、submission core 或 scraper 测试。
+
+七个内置站点的实时策略以 `docs/submission-monitoring-design.md` 为准。
 
 ### 8.1 SPA 站点的数据获取陷阱
 

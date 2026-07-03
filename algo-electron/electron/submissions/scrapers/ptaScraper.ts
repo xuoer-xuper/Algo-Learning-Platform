@@ -188,6 +188,9 @@ export function createPtaRealtimeHookScript(adapterId = 'pta'): string {
     };
     const markBlockedIntent = (source) => {
       try {
+        // PTA exposes "view last submission" and self-test controls near the
+        // formal submit flow. A blocked intent clears stale submit state so a
+        // later result-page scan cannot be attributed to the wrong action.
         sessionStorage.setItem(BLOCKED_INTENT_KEY, JSON.stringify({ at: now(), source }));
         sessionStorage.removeItem(INTENT_KEY);
       } catch (_) {}
@@ -324,6 +327,9 @@ export function createPtaRealtimeHookScript(adapterId = 'pta'): string {
     };
     const reportFrontendVerdict = (candidate, text, verdictText) => {
       try {
+        // PTA sometimes returns the final result only in a popup before the
+        // submissions table refreshes. This path is still submit-intent gated
+        // and emits a typed frontend payload for the PTA parser only.
         if (!hasRecentSubmitIntent()) return;
         const intent = readIntent();
         if (!intent.id) return;

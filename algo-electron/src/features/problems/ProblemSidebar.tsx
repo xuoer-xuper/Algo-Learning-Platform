@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { PLATFORM_LABELS, STATUS_COLORS } from '../../shared/display'
 
 interface ProblemRecord {
   id: string
@@ -10,25 +11,6 @@ interface ProblemRecord {
   last_visited_at: string | null
   submission_count?: number
 }
-
-const PLATFORM_LABELS: Record<string, string> = {
-  codeforces: 'CF',
-  acwing: 'AcW',
-  nowcoder: 'NC',
-  vjudge: 'VJ',
-  pta: 'PTA',
-  luogu: 'LG',
-  'leetcode-cn': 'LC',
-}
-
-const STATUS_COLORS: Record<string, string> = {
-  unknown: '#585b70',
-  visited: '#89b4fa',
-  attempted: '#f9e2af',
-  solved: '#a6e3a1',
-}
-
-
 
 interface Props {
   onNavigate: (url: string) => void

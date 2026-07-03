@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { PLATFORM_COLORS, PLATFORM_NAMES, PLATFORM_URLS, STATUS_COLORS } from '../../shared/display'
 
 interface OverviewStats {
   totalProblems: number
@@ -30,43 +31,6 @@ interface Recommendation {
     days_since_attempt: number
     visit_count: number
   }
-}
-
-const PLATFORM_NAMES: Record<string, string> = {
-  codeforces: 'Codeforces',
-  acwing: 'AcWing',
-  nowcoder: '牛客',
-  vjudge: 'VJudge',
-  pta: 'PTA',
-  luogu: '洛谷',
-  'leetcode-cn': 'LeetCode',
-}
-
-const PLATFORM_URLS: Record<string, string> = {
-  codeforces: 'https://codeforces.com',
-  acwing: 'https://www.acwing.com',
-  nowcoder: 'https://ac.nowcoder.com',
-  vjudge: 'https://vjudge.net',
-  pta: 'https://pintia.cn',
-  luogu: 'https://www.luogu.com.cn',
-  'leetcode-cn': 'https://leetcode.cn/problemset/',
-}
-
-const PLATFORM_COLORS: Record<string, string> = {
-  codeforces: '#1da1f2',
-  acwing: '#00a0e9',
-  nowcoder: '#ff6a00',
-  vjudge: '#4caf50',
-  pta: '#8e24aa',
-  luogu: '#3498db',
-  'leetcode-cn': '#ffa116',
-}
-
-const STATUS_COLORS: Record<string, string> = {
-  solved: '#a6e3a1',
-  attempted: '#f9e2af',
-  visited: '#89b4fa',
-  unknown: '#585b70',
 }
 
 interface Props {

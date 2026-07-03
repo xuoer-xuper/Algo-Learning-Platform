@@ -1,0 +1,121 @@
+# DB 模块说明
+
+## 1. 职责
+
+`electron/db/` 是本地 SQLite 持久化边界，负责数据库连接、迁移和 repository 查询/写入函数。
+
+本模块不抓取网页、不解析 OJ 页面、不注册 IPC。业务服务应通过 repository 或明确的写入封装访问数据库，schema 变更必须通过 migration 和 `DATABASE_SCHEMA.md` 同步。
+
+## 2. 当前实现程度
+
+- 数据库引擎：`better-sqlite3`。
+- 数据库位置：`app.getPath('userData')/data/algo-learning.sqlite`。
+- 连接配置：启用 WAL、foreign keys、`busy_timeout = 5000`。
+- 迁移系统：`schema_migrations` 表记录已执行版本；迁移在事务内执行。
+- 当前迁移版本：001 到 018。
+- Repository 覆盖：账号/rating、AI 上下文快照、AI 输出、题目、站点配置、统计、提交、用户脚本。
+
+数据库结构的权威契约仍是根目录 `DATABASE_SCHEMA.md`。
+
+## 3. 文件职责
+
+- `connection.ts`：数据库生命周期。
+- `migrate.ts`：迁移执行器。
+- `migrations/`：按版本追加的 schema/data migration。
+- `repositories/`：按业务域拆分的数据库访问函数。
+
+## 4. 连接封装
+
+`connection.ts`：
+
+- `initDb()`：创建数据目录，打开 SQLite，设置 pragma，按顺序运行迁移。
+- `getDb()`：返回已初始化连接；未初始化时抛错。
+- `closeDb()`：关闭连接并清空模块内单例。
+
+使用规则：
+
+- 应用启动阶段先调用 `initDb()`。
+- 业务代码不要自己 new `Database`。
+- 长生命周期服务通过 repository 或明确封装访问数据库。
+- 退出阶段调用 `closeDb()`。
+
+## 5. 迁移封装
+
+`migrate.ts`：
+
+- `runMigrations(db, migrations)`：创建 `schema_migrations`，跳过已执行版本，对每个新 migration 开事务运行 `up()`，成功后写入版本记录。
+
+Migration 文件约定：
+
+- 文件名使用三位版本前缀，例如 `018_normalize_codeforces_submission_ids.ts`。
+- 每个 migration 导出对应常量，例如 `migration018`。
+- `version` 必须唯一且递增。
+- `name` 应描述实际动作。
+- `up(db)` 必须可在事务中执行。
+- 新增 migration 后必须加入 `connection.ts` 的迁移列表，并同步 `DATABASE_SCHEMA.md`。
+
+## 6. Repository 分层
+
+- `accountRepository.ts`
+  - `upsertAccount(platform, handle, displayName?)`
+  - `updateCurrentRating(accountId, rating)`
+  - `updatePeakRating(accountId, peak)`
+  - `getAccount(...)` / `getAccountById(...)` / `getAccountsByPlatform(...)`
+  - `upsertRatingHistory(data)`
+  - `getRatingHistory(accountId)`
+  - `computePeakRating(accountId)`
+- `problemRepository.ts`
+  - `upsertProblem(identity)`
+  - `getRecentProblems(limit, platform?, status?)`
+  - `deleteProblem(problemId)`
+  - `getProblemDetail(problemId)`
+  - `getProblemCount()`
+  - `getPlatformDistribution()`
+  - `getTodayVisitedCount()`
+  - `getLastActiveTime()`
+  - `getOverviewStats()`
+- `submissionRepository.ts`
+  - `upsertSubmission(data)`
+  - `getSubmissionsByProblem(problemId)`
+  - `getSubmissionsByPlatform(platform, limit?)`
+  - `updateFirstAc(problemId)`
+- `statsRepository.ts`
+  - 趋势、平台分布、时间线、复习、错题和连续天数查询。
+  - `recomputeDailyStats(date?)`
+  - `recomputeAllDailyStats()`
+- `siteRepository.ts`
+  - 站点配置 CRUD。
+  - `seedBuiltinSites()`
+  - 站点配置导入导出和冲突预览。
+- `userScriptRepository.ts`
+  - 用户脚本 CRUD 和启用状态切换。
+- `aiContextSnapshotRepository.ts`
+  - 每日 AI 上下文快照创建、读取、列表。
+- `aiOutputRepository.ts`
+  - AI 输出保存、读取、列表、删除、更新。
+
+## 7. 写入规则
+
+- Schema 变化必须走 migration，不能在 repository 中临时 `ALTER TABLE`。
+- Repository 不应执行网络请求或浏览器脚本。
+- 提交写入应优先走 `SubmissionBatchWriter`，由它统一处理题目关联、首次 AC 和统计刷新。
+- Cookie 和用户源码不得写入普通日志；数据库字段写入必须符合既有 schema 和隐私边界。
+- 统计类 repository 可以读多表，但写事实数据的逻辑应留在对应业务写入入口。
+
+## 8. 测试入口
+
+DB 相关行为目前分布在 submissions、AI、统计等测试中。修改 repository 或 migration 后至少运行：
+
+```powershell
+cd algo-electron
+node node_modules\typescript\bin\tsc --noEmit
+```
+
+提交写入相关回归：
+
+```powershell
+node node_modules\esbuild\bin\esbuild tests\submissions\submissionBatchWriter.test.ts --bundle --platform=node --format=esm --outfile=tmp\submissions-submissionBatchWriter.test.mjs
+node tmp\submissions-submissionBatchWriter.test.mjs
+```
+
+若变更 schema，还必须人工核对根目录 `DATABASE_SCHEMA.md` 与 migration 列表一致。

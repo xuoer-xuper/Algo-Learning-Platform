@@ -60,6 +60,8 @@ export class SubmissionWatcherCore {
 
       const parsedSubmission = adapter.parseSubmissionResult(raw)
       if (!parsedSubmission) return { inserted: false, error: 'No final submission parsed' }
+      // Core stays fail-closed: adapters may see queue/running states, but only
+      // final verdicts are allowed to reach persistence.
       if (parsedSubmission.verdict === 'TESTING' || parsedSubmission.verdict === 'UNKNOWN') {
         return { inserted: false, error: 'No final submission parsed' }
       }

@@ -39,6 +39,8 @@ export class RealtimeHookInjector {
 
   private async executeWithRetry(host: RealtimeHookHost, url: string, code: string): Promise<unknown> {
     let lastError: unknown
+    // Remote OJ pages often finish SPA navigation before their frames are ready.
+    // Retry only the injection step; the injected adapter still owns readiness.
     for (const delayMs of [0, 250, 1000]) {
       if (delayMs > 0) {
         await new Promise(resolve => setTimeout(resolve, delayMs))
