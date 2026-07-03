@@ -3,34 +3,9 @@
 // 推荐结果可追溯到具体题目和提交（source 字段）
 import { getDb } from '../../db/connection'
 import { nowBeijing } from '../../shared/time'
-
-export interface ReviewRecommendation {
-  problem_id: string
-  platform: string
-  platform_problem_id: string
-  title: string | null
-  canonical_url: string
-  // 推荐理由（本地统计依据）
-  reason: string
-  // 规则评分，用于排序
-  score: number
-  // 可追溯依据
-  source: {
-    wrong_count: number
-    last_attempt: string
-    days_since_attempt: number
-    visit_count: number
-    has_ac: boolean
-  }
-}
-
-export interface ReviewRecommendationResult {
-  generated_at: string
-  rule_version: number
-  recommendations: ReviewRecommendation[]
-}
-
-const RULE_VERSION = 1
+import { buildReviewReason, daysSince, REVIEW_RECOMMENDATION_RULE_VERSION, scoreReviewCandidate } from './rules'
+import type { ReviewRecommendation, ReviewRecommendationResult } from './types'
+export type { ReviewRecommendation, ReviewRecommendationResult } from './types'
 
 // 单题评分规则（纯本地统计，可解释）：
 // 1. 错误次数越多，越需复习（权重 40）
@@ -41,8 +16,7 @@ export function getReviewRecommendations(limit = 10): ReviewRecommendationResult
   const db = getDb()
   const now = Date.now()
 
-  // 修复：在 SQL WHERE 中直接过滤"从未 AC"的题目，
-  // 避免 LIMIT 100 配额被已 AC 题目占用导致推荐数量不足
+  // SQL 先过滤从未 AC 的题目，避免 LIMIT 配额被已解决题目占用。
   const rows = db.prepare(`
     SELECT
       p.id, p.platform, p.platform_problem_id, p.title, p.canonical_url,
@@ -73,22 +47,9 @@ export function getReviewRecommendations(limit = 10): ReviewRecommendationResult
 
   const recommendations: ReviewRecommendation[] = rows
     .map(r => {
-      const lastMs = r.last_attempt ? new Date(r.last_attempt).getTime() : 0
-      const daysSince = Math.max(0, Math.floor((now - lastMs) / 86400000))
-
-      const wrongScore = Math.min(r.wrong_count, 5) * 8 // 0~40
-      const forgetScore = Math.min(daysSince * 0.5, 25) // 0~25
-      const visitScore = Math.min(r.visit_count, 3) * 5 // 0~15
-      const score = wrongScore + forgetScore + visitScore
-
-      const reasonParts: string[] = []
-      if (r.wrong_count >= 3) reasonParts.push(`已错误 ${r.wrong_count} 次`)
-      else if (r.wrong_count >= 1) reasonParts.push(`错误 ${r.wrong_count} 次`)
-      if (daysSince >= 7) reasonParts.push(`${daysSince} 天未复习`)
-      else if (daysSince >= 1) reasonParts.push(`${daysSince} 天前尝试`)
-      if (r.visit_count >= 2) reasonParts.push(`访问 ${r.visit_count} 次仍未通过`)
-
-      const reason = reasonParts.length > 0 ? reasonParts.join('，') + '，建议复习' : '建议复习'
+      const daysSinceAttempt = daysSince(r.last_attempt, now)
+      const score = scoreReviewCandidate(r.wrong_count, daysSinceAttempt, r.visit_count)
+      const reason = buildReviewReason(r.wrong_count, daysSinceAttempt, r.visit_count)
 
       return {
         problem_id: r.id,
@@ -101,7 +62,7 @@ export function getReviewRecommendations(limit = 10): ReviewRecommendationResult
         source: {
           wrong_count: r.wrong_count,
           last_attempt: r.last_attempt,
-          days_since_attempt: daysSince,
+          days_since_attempt: daysSinceAttempt,
           visit_count: r.visit_count,
           has_ac: false,
         },
@@ -112,7 +73,7 @@ export function getReviewRecommendations(limit = 10): ReviewRecommendationResult
 
   return {
     generated_at: nowBeijing(),
-    rule_version: RULE_VERSION,
+    rule_version: REVIEW_RECOMMENDATION_RULE_VERSION,
     recommendations,
   }
 }

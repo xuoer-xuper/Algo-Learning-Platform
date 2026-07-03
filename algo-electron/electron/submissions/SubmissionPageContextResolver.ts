@@ -79,7 +79,7 @@ function resolveNowcoderProblemId(
 
     for (const submission of submissions) {
       if ((submission as any)._ncProbLetter) {
-        ;(submission as any)._ncContestId = contestId
+        (submission as any)._ncContestId = contestId
       }
     }
 
@@ -104,7 +104,7 @@ function hydrateRawProblemId(submissions: SubmissionData[], field: '_ptaProblemI
     try {
       const raw = JSON.parse(submission.rawJson || '{}')
       if (raw[field]) {
-        ;(submission as any)[field] = raw[field]
+        (submission as any)[field] = raw[field]
       }
     } catch { /* ignore */ }
   }

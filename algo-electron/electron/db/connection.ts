@@ -1,7 +1,7 @@
 import Database from 'better-sqlite3'
-import { app } from 'electron'
 import path from 'node:path'
 import fs from 'node:fs'
+import { createRequire } from 'node:module'
 import { runMigrations } from './migrate'
 import { migration001 } from './migrations/001_initial'
 import { migration002 } from './migrations/002_submissions'
@@ -23,6 +23,14 @@ import { migration017 } from './migrations/017_backfill_problem_context'
 import { migration018 } from './migrations/018_normalize_codeforces_submission_ids'
 
 let db: Database.Database | null = null
+const require = createRequire(import.meta.url)
+
+const allMigrations = [
+  migration001, migration002, migration003, migration004,
+  migration005, migration006, migration007, migration008,
+  migration009, migration010, migration011, migration012, migration013,
+  migration014, migration015, migration016, migration017, migration018,
+]
 
 export function getDb(): Database.Database {
   if (!db) {
@@ -34,24 +42,30 @@ export function getDb(): Database.Database {
 export function initDb(): Database.Database {
   if (db) return db
 
-  const dataDir = path.join(app.getPath('userData'), 'data')
+  const electron = require('electron') as { app?: { getPath: (name: string) => string } }
+  if (!electron.app) {
+    throw new Error('Electron app is not available. Use initDbAtPath() in Node tests.')
+  }
+
+  const dataDir = path.join(electron.app.getPath('userData'), 'data')
+  const dbPath = path.join(dataDir, 'algo-learning.sqlite')
+  return initDbAtPath(dbPath)
+}
+
+export function initDbAtPath(dbPath: string): Database.Database {
+  if (db) return db
+
+  const dataDir = path.dirname(dbPath)
   if (!fs.existsSync(dataDir)) {
     fs.mkdirSync(dataDir, { recursive: true })
   }
 
-  const dbPath = path.join(dataDir, 'algo-learning.sqlite')
   db = new Database(dbPath)
-
   db.pragma('journal_mode = WAL')
   db.pragma('foreign_keys = ON')
   db.pragma('busy_timeout = 5000')
 
-  runMigrations(db, [
-    migration001, migration002, migration003, migration004,
-    migration005, migration006, migration007, migration008,
-    migration009, migration010, migration011, migration012, migration013,
-    migration014, migration015, migration016, migration017, migration018
-  ])
+  runMigrations(db, allMigrations)
 
   return db
 }

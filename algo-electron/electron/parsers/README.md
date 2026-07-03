@@ -23,6 +23,13 @@
   - `getAdapterForUrl(url)`：按 URL 找启用站点 parser。
   - `parseConfigUrl(url, siteId, domains, patterns)`：按站点配置 pattern 解析。
   - `parseUrl(url)`：统一题目 URL 解析入口。
+- `enabledSites.ts`
+  - `setEnabledSitesFetcher(fetcher)` / `getEnabledSites()`：管理启用站点配置来源和内置兜底。
+  - `findMatchingEnabledSite(url)`：按 URL 域名和启用状态找站点。
+  - `isHostInDomain(hostname, domain)`：域名匹配 helper。
+- `configPattern.ts`
+  - `parseConfigUrl(url, siteId, domains, patterns)`：按用户配置 pattern 解析题目身份。
+  - 内部处理路径占位符、查询占位符和 `platformProblemId` 组装。
 - `browserTitle.ts`
   - `cleanBrowserProblemTitle(title, options)`：清理浏览器标题中的站点品牌、题号和噪声。
   - `resolveBrowserTitleProblemIdentity(url, title, parseUrl)`：用 URL 身份加标题补全题目。
@@ -57,6 +64,8 @@
 
 - 新站点提交监测不要放回 `parsers/`，应放到 `adapters/sites/{site}/`。
 - `parseUrl()` 必须尊重站点启用状态。
+- 启用站点来源统一通过 `enabledSites.ts`，不要在调用方复制内置域名兜底。
+- 用户配置 pattern 解析统一通过 `configPattern.ts`，不要在 registry 或 renderer 中重复占位符解析。
 - 标题清洗不能覆盖有效人工标题，覆盖逻辑以 `shouldReplaceScrapedTitle()` 为准。
 - 页面内兜底脚本只能读取标题文本，不应读取源码、Cookie 或提交内容。
 

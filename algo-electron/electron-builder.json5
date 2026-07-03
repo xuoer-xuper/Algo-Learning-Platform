@@ -5,11 +5,28 @@
   "asar": true,
   "productName": "AlgoLearningPlatform",
   "directories": {
+    "buildResources": "build",
     "output": "release/${version}"
   },
+  "extraMetadata": {
+    "main": "dist-electron/main.js"
+  },
   "files": [
-    "dist",
-    "dist-electron"
+    "dist/**",
+    "dist-electron/**",
+    "package.json",
+    "!**/*.log",
+    "!**/*.local",
+    "!**/*.db",
+    "!**/*.sqlite",
+    "!**/*.sqlite3",
+    "!tmp/**",
+    "!tests/**",
+    "!release/**"
+  ],
+  "asarUnpack": [
+    "node_modules/better-sqlite3/build/Release/*.node",
+    "node_modules/better-sqlite3/bin/**/*.node"
   ],
   "mac": {
     "target": [
@@ -18,6 +35,7 @@
     "artifactName": "${productName}-Mac-${version}-Installer.${ext}"
   },
   "win": {
+    "icon": "build/icon.ico",
     "target": [
       {
         "target": "nsis",
@@ -26,13 +44,15 @@
         ]
       }
     ],
-    "artifactName": "${productName}-Windows-${version}-Setup.${ext}"
+    "artifactName": "${productName}-Windows-${version}-${arch}-Setup.${ext}"
   },
   "nsis": {
     "oneClick": false,
     "perMachine": false,
     "allowToChangeInstallationDirectory": true,
-    "deleteAppDataOnUninstall": false
+    "deleteAppDataOnUninstall": false,
+    "shortcutName": "${productName}",
+    "uninstallDisplayName": "${productName}"
   },
   "linux": {
     "target": [

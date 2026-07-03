@@ -4,7 +4,9 @@
 
 `electron/rating/` 负责平台 rating 数据抓取和格式化。当前只实现 Codeforces rating。
 
-本模块不直接写数据库。账号、rating history 持久化由 `electron/db/repositories/accountRepository.ts` 和主进程 IPC 流程负责。
+本模块不直接写数据库。账号、rating history 持久化由 `electron/db/repositories/accountRepository.ts` 和 `electron/ipc/registerRatingIpc.ts` 负责。
+
+Renderer 访问 rating 能力的 IPC 注册在 `electron/ipc/registerRatingIpc.ts`。Rating 模块只提供平台抓取和格式化函数，不直接注册 IPC。
 
 ## 2. 当前实现程度
 

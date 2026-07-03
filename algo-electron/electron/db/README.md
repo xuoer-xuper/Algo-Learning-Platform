@@ -23,18 +23,27 @@
 - `migrate.ts`：迁移执行器。
 - `migrations/`：按版本追加的 schema/data migration。
 - `repositories/`：按业务域拆分的数据库访问函数。
+- `repositories/aiContextSnapshot/`：每日 AI 上下文快照创建、读取、列表和 JSON context 解析实现。
+- `repositories/aiOutput/`：AI 输出保存、读取、列表、更新、删除和元信息序列化实现。
+- `repositories/account/`：平台账号、当前 rating、peak rating 和 rating history 实现。
+- `repositories/problem/`：题目 upsert、删除、详情、列表和概览统计实现。
+- `repositories/site/`：站点配置 CRUD、内置 seed、导入导出和导入预览实现。
+- `repositories/stats/`：统计 repository 的趋势、洞察、日期 helper 和日统计重算实现。
+- `repositories/userScript/`：用户脚本元信息、启用状态、匹配规则和本地文件路径实现。
 
 ## 4. 连接封装
 
 `connection.ts`：
 
 - `initDb()`：创建数据目录，打开 SQLite，设置 pragma，按顺序运行迁移。
+- `initDbAtPath(dbPath)`：打开指定 SQLite 文件并运行同一组迁移，供临时数据库测试使用。
 - `getDb()`：返回已初始化连接；未初始化时抛错。
 - `closeDb()`：关闭连接并清空模块内单例。
 
 使用规则：
 
 - 应用启动阶段先调用 `initDb()`。
+- 自动测试必须使用 `initDbAtPath(dbPath)` 指向临时目录，不能写入用户真实 `userData`。
 - 业务代码不要自己 new `Database`。
 - 长生命周期服务通过 repository 或明确封装访问数据库。
 - 退出阶段调用 `closeDb()`。
@@ -57,6 +66,7 @@ Migration 文件约定：
 ## 6. Repository 分层
 
 - `accountRepository.ts`
+  - 兼容导出口；内部实现位于 `repositories/account/`。
   - `upsertAccount(platform, handle, displayName?)`
   - `updateCurrentRating(accountId, rating)`
   - `updatePeakRating(accountId, peak)`
@@ -65,6 +75,7 @@ Migration 文件约定：
   - `getRatingHistory(accountId)`
   - `computePeakRating(accountId)`
 - `problemRepository.ts`
+  - 兼容导出口；内部实现位于 `repositories/problem/`。
   - `upsertProblem(identity)`
   - `getRecentProblems(limit, platform?, status?)`
   - `deleteProblem(problemId)`
@@ -80,18 +91,23 @@ Migration 文件约定：
   - `getSubmissionsByPlatform(platform, limit?)`
   - `updateFirstAc(problemId)`
 - `statsRepository.ts`
+  - 兼容导出口；内部实现位于 `repositories/stats/`。
   - 趋势、平台分布、时间线、复习、错题和连续天数查询。
   - `recomputeDailyStats(date?)`
   - `recomputeAllDailyStats()`
 - `siteRepository.ts`
+  - 兼容导出口；内部实现位于 `repositories/site/`。
   - 站点配置 CRUD。
   - `seedBuiltinSites()`
   - 站点配置导入导出和冲突预览。
 - `userScriptRepository.ts`
+  - 兼容导出口；内部实现位于 `repositories/userScript/`。
   - 用户脚本 CRUD 和启用状态切换。
 - `aiContextSnapshotRepository.ts`
+  - 兼容导出口；内部实现位于 `repositories/aiContextSnapshot/`。
   - 每日 AI 上下文快照创建、读取、列表。
 - `aiOutputRepository.ts`
+  - 兼容导出口；内部实现位于 `repositories/aiOutput/`。
   - AI 输出保存、读取、列表、删除、更新。
 
 ## 7. 写入规则
@@ -110,6 +126,15 @@ DB 相关行为目前分布在 submissions、AI、统计等测试中。修改 re
 cd algo-electron
 node node_modules\typescript\bin\tsc --noEmit
 ```
+
+Repository 临时数据库测试：
+
+```powershell
+node node_modules\esbuild\bin\esbuild tests\db\repositories.test.ts --bundle --platform=node --format=esm --external:better-sqlite3 --external:electron --outfile=tmp\db-repositories.test.mjs
+$env:ELECTRON_RUN_AS_NODE='1'; node_modules\.bin\electron.cmd tmp\db-repositories.test.mjs
+```
+
+说明：`better-sqlite3` 当前按 Electron ABI 编译，真实 SQLite 测试需要用 Electron 自带 Node 运行；普通 `node`/`tsx` 会因 native module ABI 不匹配失败。
 
 提交写入相关回归：
 

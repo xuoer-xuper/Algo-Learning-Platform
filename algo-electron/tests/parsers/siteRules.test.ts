@@ -1,10 +1,27 @@
 import assert from 'node:assert'
 import { parseUrl, registerAdapter, parseConfigUrl, setEnabledSitesFetcher, type ProblemParserAdapter } from '../../electron/parsers/registry'
+import type { ProblemIdentity } from '../../electron/shared/types'
 
 // Simple test runner helper
 const tests: { name: string; fn: () => void }[] = []
 function test(name: string, fn: () => void) {
   tests.push({ name, fn })
+}
+
+type ExpectedIdentity = Pick<ProblemIdentity, 'platform' | 'platformProblemId'> & Partial<ProblemIdentity>
+
+function assertProblemIdentity(url: string, expected: ExpectedIdentity): ProblemIdentity {
+  const identity = parseUrl(url)
+  assert.ok(identity, `Should parse problem URL: ${url}`)
+  assert.strictEqual(identity.platform, expected.platform, `${url} platform`)
+  assert.strictEqual(identity.platformProblemId, expected.platformProblemId, `${url} platformProblemId`)
+  if (expected.canonicalUrl !== undefined) assert.strictEqual(identity.canonicalUrl, expected.canonicalUrl, `${url} canonicalUrl`)
+  if (expected.contestId !== undefined) assert.strictEqual(identity.contestId, expected.contestId, `${url} contestId`)
+  if (expected.problemIndex !== undefined) assert.strictEqual(identity.problemIndex, expected.problemIndex, `${url} problemIndex`)
+  if (expected.sourcePlatform !== undefined) assert.strictEqual(identity.sourcePlatform, expected.sourcePlatform, `${url} sourcePlatform`)
+  if (expected.sourceProblemId !== undefined) assert.strictEqual(identity.sourceProblemId, expected.sourceProblemId, `${url} sourceProblemId`)
+  if (expected.confidence !== undefined) assert.strictEqual(identity.confidence, expected.confidence, `${url} confidence`)
+  return identity
 }
 
 // 1. Built-in parsers tests
@@ -23,6 +40,15 @@ test('Codeforces URL parsing', () => {
     assert.strictEqual(identity!.platform, 'codeforces')
     assert.strictEqual(identity!.confidence, 'url')
   }
+
+  assertProblemIdentity('https://codeforces.com/contest/456/problem/B', {
+    platform: 'codeforces',
+    platformProblemId: '456B',
+    canonicalUrl: 'https://codeforces.com/contest/456/problem/B',
+    contestId: '456',
+    problemIndex: 'B',
+    confidence: 'url',
+  })
 
   const invalidUrls = [
     'https://codeforces.com',
@@ -51,6 +77,13 @@ test('AcWing URL parsing', () => {
     assert.strictEqual(identity!.platformProblemId, '123')
   }
 
+  assertProblemIdentity('https://www.acwing.com/problem/content/description/123/', {
+    platform: 'acwing',
+    platformProblemId: '123',
+    canonicalUrl: 'https://www.acwing.com/problem/content/123/',
+    confidence: 'url',
+  })
+
   const invalidUrls = [
     'https://www.acwing.com/problem/content/',
     'https://www.acwing.com/about/',
@@ -75,6 +108,15 @@ test('Nowcoder URL parsing', () => {
     assert.strictEqual(identity!.platform, 'nowcoder')
   }
 
+  assertProblemIdentity('https://ac.nowcoder.com/acm/contest/132048/A', {
+    platform: 'nowcoder',
+    platformProblemId: 'contest-132048-A',
+    canonicalUrl: 'https://ac.nowcoder.com/acm/contest/132048/A',
+    contestId: '132048',
+    problemIndex: 'A',
+    confidence: 'url',
+  })
+
   const invalidUrls = [
     'https://www.nowcoder.com',
     'https://ac.nowcoder.com',
@@ -91,6 +133,7 @@ test('VJudge URL parsing', () => {
   const validUrls = [
     'https://vjudge.net/problem/POJ-1000',
     'http://www.vjudge.net/problem/Codeforces-123A',
+    'https://vjudge.net/contest/132048#problem/A',
   ]
 
   for (const url of validUrls) {
@@ -98,6 +141,24 @@ test('VJudge URL parsing', () => {
     assert.ok(identity, `Should parse valid URL: ${url}`)
     assert.strictEqual(identity!.platform, 'vjudge')
   }
+
+  assertProblemIdentity('https://vjudge.net/problem/POJ-1000', {
+    platform: 'vjudge',
+    platformProblemId: 'POJ-1000',
+    canonicalUrl: 'https://vjudge.net/problem/POJ-1000',
+    sourcePlatform: 'POJ',
+    sourceProblemId: '1000',
+    confidence: 'url',
+  })
+
+  assertProblemIdentity('https://vjudge.net/contest/132048#problem/A', {
+    platform: 'vjudge',
+    platformProblemId: 'contest-132048-A',
+    canonicalUrl: 'https://vjudge.net/contest/132048#problem/A',
+    contestId: '132048',
+    problemIndex: 'A',
+    confidence: 'url',
+  })
 
   const invalidUrls = [
     'https://vjudge.net',
@@ -124,6 +185,15 @@ test('PTA URL parsing', () => {
     assert.strictEqual(identity!.platform, 'pta')
   }
 
+  assertProblemIdentity('https://pintia.cn/problem-sets/123/problems/type/7?problemId=456', {
+    platform: 'pta',
+    platformProblemId: '123-456',
+    canonicalUrl: 'https://pintia.cn/problem-sets/123/exam/problems/type/7?problemSetProblemId=456',
+    contestId: '123',
+    problemIndex: '456',
+    confidence: 'url',
+  })
+
   const invalidUrls = [
     'https://pintia.cn',
     'https://pintia.cn/problem-sets/123',
@@ -149,10 +219,49 @@ test('Luogu URL parsing', () => {
     assert.strictEqual(identity!.platform, 'luogu')
   }
 
+  assertProblemIdentity('https://www.luogu.com.cn/problem/CF1A', {
+    platform: 'luogu',
+    platformProblemId: 'CF1A',
+    canonicalUrl: 'https://www.luogu.com.cn/problem/CF1A',
+    confidence: 'url',
+  })
+
   const invalidUrls = [
     'https://www.luogu.com.cn',
     'https://www.luogu.com.cn/record/list',
     'https://www.luogu.com.cn/problem/list',
+  ]
+
+  for (const url of invalidUrls) {
+    const identity = parseUrl(url)
+    assert.strictEqual(identity, null, `Should not parse invalid URL: ${url}`)
+  }
+})
+
+test('LeetCode CN URL parsing', () => {
+  const validUrls = [
+    'https://leetcode.cn/problems/two-sum/',
+    'https://www.leetcode.cn/problems/add-two-numbers',
+  ]
+
+  for (const url of validUrls) {
+    const identity = parseUrl(url)
+    assert.ok(identity, `Should parse valid URL: ${url}`)
+    assert.strictEqual(identity!.platform, 'leetcode-cn')
+  }
+
+  assertProblemIdentity('https://leetcode.cn/problems/two-sum/', {
+    platform: 'leetcode-cn',
+    platformProblemId: 'two-sum',
+    canonicalUrl: 'https://leetcode.cn/problems/two-sum/',
+    confidence: 'url',
+  })
+
+  const invalidUrls = [
+    'https://leetcode.cn',
+    'https://leetcode.cn/problems',
+    'https://leetcode.cn/problems/two-sum/submissions/',
+    'https://leetcode.com/problems/two-sum/',
   ]
 
   for (const url of invalidUrls) {
@@ -178,7 +287,7 @@ test('Custom adapter registration', () => {
             confidence: 'url',
           }
         }
-      } catch {}
+      } catch { /* ignore invalid HDU URLs in this test adapter */ }
       return null
     }
   }

@@ -77,6 +77,7 @@
 - `browserTitleIdentity.ts`
   - `resolveProblemIdentityFromBrowserTitle(adapter, raw)`：用浏览器标题作为题目身份兜底。
 - `shared/genericSubmission.ts`
+  - 兼容导出入口，实际实现已拆到 `shared/text.ts`、`shared/tables.ts`、`shared/frontendVerdictPayload.ts`、`shared/frontendVerdictHook.ts`。
   - `stripHtml(value)`：移除 HTML 并压缩空白。
   - `parseRuntimeMs(raw)` / `parseMemoryKb(raw)`：解析耗时和内存。
   - `extractLanguage(raw)`：从文本中提取语言。

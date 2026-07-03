@@ -570,7 +570,7 @@ export function parsePtaSubmissionData(currentUrl: string, data: any): Submissio
     }
   }
 
-  const typeLinkPattern = /problemSetProblemId[=\/](\d+)/
+  const typeLinkPattern = /problemSetProblemId[=/](\d+)/
   const problemLinkPattern = /\/problem-sets\/(\d+)\/(?:problems|exam\/problems|exam-problems)\/(\d+)/
   const problemIdAttrPattern = /data-problem-id="(\d+)"/
   const setIdAttrPattern = /data-set-id="(\d+)"/

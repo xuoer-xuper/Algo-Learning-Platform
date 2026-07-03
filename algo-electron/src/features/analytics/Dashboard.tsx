@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { AiSuggestionsPanel } from './AiSuggestionsPanel'
 import {
   loadDashboardAiSuggestions,
@@ -41,21 +41,13 @@ export function Dashboard({ onClose, onNavigate }: { onClose: () => void; onNavi
   const [weaknesses, setWeaknesses] = useState<WeaknessItem[]>([])
   const [weaknessNote, setWeaknessNote] = useState('')
 
-  useEffect(() => {
-    hideDashboardBrowserView()
-    loadAll()
-    return () => { showDashboardBrowserView() }
-  }, [])
-
-  useEffect(() => { loadTrends() }, [trendRange])
-
-  const loadTrends = async () => {
+  const loadTrends = useCallback(async () => {
     const trends = await loadDashboardTrends(trendRange)
     setVisitedTrend(trends.visitedTrend)
     setAcTrend(trends.acTrend)
-  }
+  }, [trendRange])
 
-  const loadAll = async () => {
+  const loadAll = useCallback(async () => {
     const coreData = await loadDashboardCoreData()
     setStats(coreData.stats)
     setStreak(coreData.streak)
@@ -71,8 +63,15 @@ export function Dashboard({ onClose, onNavigate }: { onClose: () => void; onNavi
     setWeaknessNote(aiSuggestions.weaknessNote)
 
     setRatingHistory(await loadRatingHistory(coreData.cfAccount))
-    loadTrends()
-  }
+  }, [])
+
+  useEffect(() => {
+    hideDashboardBrowserView()
+    loadAll()
+    return () => { showDashboardBrowserView() }
+  }, [loadAll])
+
+  useEffect(() => { loadTrends() }, [loadTrends])
 
   const handleRecompute = async () => {
     setRecomputing(true)

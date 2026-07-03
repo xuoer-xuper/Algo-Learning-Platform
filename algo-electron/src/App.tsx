@@ -80,7 +80,7 @@ function App() {
           onShowNotes={openNotes}
           onWidthChange={setSidebarWidth}
         />
-        <main className="flex-1 overflow-auto bg-white p-4">
+        <main className="main-content">
           {isHome && <HomePage onNavigate={navigateTo} />}
         </main>
       </div>

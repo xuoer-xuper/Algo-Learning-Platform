@@ -12,6 +12,7 @@
 - 手动提交同步：保留 Codeforces API 同步和当前页面 DOM/表格同步。
 - 写入路径：统一经过 `SubmissionBatchWriter`，负责题目关联、提交 upsert、首次 AC 和统计刷新。
 - 诊断路径：`RealtimeSubmissionDiagnostics` 记录 IPC、页面识别、hook 注入、检测结果，供验收面板查看。
+- 手动同步 IPC：`electron/ipc/registerSubmissionsIpc.ts` 注册 `submissions:*` channel；实时提交 IPC 仍由 `RealtimeSubmissionService.registerIpc()` 管理。
 
 七站手测已通过；后续变更仍需要重新运行 adapter/submissions 测试，并按站点复测高风险路径。
 
@@ -69,12 +70,17 @@ SyncService
   - 纯核心状态机，负责校验、fail-closed、去重、题目身份解析和调用写入。
 - `SubmissionBatchWriter`
   - `write(options)`：批量写入入口。
-  - `attachProblem(...)`：按当前页面、sourceUrl、rawJson 中的站点上下文补 `problemId`。
+- `SubmissionProblemAttacher`
+  - `attachProblem(submission, platform, pageProblemDbId?)`：按当前页面、sourceUrl、rawJson 中的站点上下文补 `problemId`。
   - `ensureProblem(identity)`：缺题目时先 upsert problem 再关联提交。
+  - 站点专用关联规则：Codeforces、PTA、Luogu、Nowcoder、VJudge。
 - `SyncService`
   - `syncCodeforces(handle)`：Codeforces API 同步。
   - `syncVjudge()`：VJudge 当前页面同步。
   - `syncCurrentPage()`：通用当前页面提交同步。
+- `registerSubmissionsIpc(options)`
+  - `getSyncService()`：延迟获取 `SyncService` 实例，避免 IPC 模块直接持有启动期尚未初始化的服务。
+  - 注册 `submissions:syncCodeforces`、`submissions:syncVjudge`、`submissions:syncCurrentPage`。
 - `SubmissionPageContextResolver`
   - `resolveSubmissionPageContext(url, submissions, deps)`：从当前提交页 URL 和提交 raw 信息推断页面题目。
 - `realtimeSubmissionFilter`
@@ -94,7 +100,8 @@ SyncService
 ## 7. 写入规则
 
 - 所有持久化提交必须经过 `SubmissionBatchWriter`。
-- `SubmissionBatchWriter` 只消费 `SubmissionData` 和 `ProblemIdentity`，不抓网页、不发请求。
+- `SubmissionBatchWriter` 只负责编排批量写入、首次 AC 和统计刷新。
+- `SubmissionProblemAttacher` 只消费 `SubmissionData` 和 `ProblemIdentity`，不抓网页、不发请求。
 - 新提交写入后才刷新首次 AC 和统计。
 - 题目关联优先级：当前页面身份 > 提交 rawJson/sourceUrl > 站点专用上下文字段。
 - 不写入 Cookie、用户源码或完整请求体。

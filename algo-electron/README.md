@@ -35,13 +35,31 @@ node node_modules\typescript\bin\tsc --noEmit
 npm run lint
 ```
 
-执行 ESLint。当前历史代码可能仍有未清理问题，改动 lint 规则前先确认任务范围。
+执行 ESLint。当前 lint 门槛要求零 warning；规则允许 DB row、网络 payload、测试 mock 等动态边界保留显式 `any`，收窄这些类型时应按模块逐步推进。
+
+```powershell
+npx --yes tsx tests\electron\startupSmoke.test.ts
+```
+
+执行 Electron 启动 smoke test。该测试使用临时 `userData`，验证主窗口、默认 URL 标签和基础 preload IPC。
+
+```powershell
+npx --yes tsx tests\ui\rendererScreenshots.test.ts
+```
+
+执行 renderer 关键页面截图验收。截图输出到 `tmp/ui-screenshots/`，覆盖题库侧栏、统计页和设置页，并检查关键容器越界与统计图表实际绘制。
 
 ```powershell
 npm run build
 ```
 
 执行 `tsc && vite build && electron-builder`，生成发行包。
+
+```powershell
+npm run build:win
+```
+
+显式执行 Windows NSIS x64 打包，输出到 `release/${version}`。
 
 ```powershell
 npm run preview
@@ -60,7 +78,9 @@ npm run preview
 - `electron-builder.json5`
   - `appId`: `com.algo.learning`。
   - `productName`: `AlgoLearningPlatform`。
-  - 打包输入：`dist`、`dist-electron`。
+  - 构建资源：`build/`，当前包含 Windows 图标 `icon.ico`。
+  - 打包输入白名单：`dist`、`dist-electron`、`package.json` 和生产依赖；排除日志、本地数据库、`tmp/`、`tests/`、`release/`。
+  - `better-sqlite3` 原生 `.node` 文件通过 `asarUnpack` 解包，避免安装包运行时加载失败。
   - 输出目录：`release/${version}`。
   - Windows 目标：NSIS x64。
   - macOS 目标：DMG。

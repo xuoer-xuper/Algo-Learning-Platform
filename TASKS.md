@@ -61,7 +61,7 @@ Phase 6 全部任务完成。
 
 ### DOC-001 重写 PROJECT_RULES.md
 
-状态：已完成  
+状态：已完成
 优先级：P0  
 阶段：Phase 0  
 前置任务：无  
@@ -2433,7 +2433,7 @@ Phase 6 全部任务完成。
 
 ### P8-001 完善 ESLint 和 TypeScript 检查
 
-状态：未开始  
+状态：已完成
 优先级：P0  
 阶段：Phase 8  
 前置任务：P1-001  
@@ -2445,11 +2445,13 @@ Phase 6 全部任务完成。
 - TypeScript strict 不被关闭。
 - 规则不与项目技术栈冲突。
 
+完成记录：`npm run lint` 已可稳定运行；`tsconfig.json` 继续保持 `strict`、`noUnusedLocals`、`noUnusedParameters`；ESLint 保留 recommended、React hooks 和 `--max-warnings 0`，但对历史 DB row、网络 payload、测试 mock 等动态边界关闭 `@typescript-eslint/no-explicit-any`，避免规则与现有技术栈冲突。
+
 建议提交：`chore: 完善代码检查配置`
 
 ### P8-002 增加 parser 单元测试
 
-状态：未开始  
+状态：已完成
 优先级：P0  
 阶段：Phase 8  
 前置任务：P1-018、P1-019、P1-020、P1-021、P5-007  
@@ -2461,11 +2463,13 @@ Phase 6 全部任务完成。
 - 测试不依赖网络。
 - 失败信息能定位站点规则。
 
+完成记录：`tests/parsers/siteRules.test.ts` 已覆盖 Codeforces、AcWing、牛客、VJudge、PTA、洛谷、LeetCode CN 的有效/无效 URL 样例；每站补充关键 `platformProblemId`、`canonicalUrl`、`contestId`、`problemIndex` 或来源题号断言。
+
 建议提交：`test: 添加 URL 解析单元测试`
 
 ### P8-003 增加数据库 repository 测试
 
-状态：未开始  
+状态：已完成
 优先级：P0  
 阶段：Phase 8  
 前置任务：P1-030、P2-007、P3-001  
@@ -2477,11 +2481,13 @@ Phase 6 全部任务完成。
 - 覆盖重复题目、重复提交、聚合表写入。
 - 不污染用户真实数据。
 
+完成记录：新增 `tests/db/repositories.test.ts`，通过 `initDbAtPath()` 为每个用例创建独立临时 SQLite 数据库，覆盖迁移落库、题目 upsert 去重、提交 upsert 去重、唯一约束、首次 AC 更新和 `user_daily_stats` 聚合写入。由于 `better-sqlite3` 按 Electron ABI 编译，真实 DB 测试需 bundle 后用 `ELECTRON_RUN_AS_NODE=1` 的 Electron Node 执行。
+
 建议提交：`test: 添加数据库仓储测试`
 
 ### P8-004 增加 IPC contract 测试
 
-状态：未开始  
+状态：已完成
 优先级：P1  
 阶段：Phase 8  
 前置任务：P0-005、P1-023、P1-031  
@@ -2492,11 +2498,13 @@ Phase 6 全部任务完成。
 - 覆盖 browser、problem、tracking、settings 核心 channel。
 - Renderer 无法调用未暴露 channel。
 
+完成记录：新增 `tests/ipc/ipcContracts.test.ts`，静态验证 preload 核心 browser/problem/tracking/settings 方法到固定 channel 的映射、所有公开 send/invoke channel 均有主进程 handler、事件订阅 channel 有主进程发送源，并确认 preload 不暴露通用 `ipcRenderer`、不使用动态 channel、不给 renderer 暴露内部 `problem:detected` / `submissions:detected` / `oj-submission:detected` channel。
+
 建议提交：`test: 添加 IPC 契约测试`
 
 ### P8-005 增加 Electron 启动 smoke test
 
-状态：未开始  
+状态：已完成
 优先级：P1  
 阶段：Phase 8  
 前置任务：P1-003、P1-004  
@@ -2508,11 +2516,13 @@ Phase 6 全部任务完成。
 - WebContentsView 加载默认 URL。
 - 基础 IPC 可用。
 
+完成记录：新增 `tests/electron/startupSmoke.test.ts`，测试脚本 bundle 真实 `electron/main.ts`、renderer preload 和 OJ preload，使用临时 `userData` 启动 Electron。Smoke 模式验证主窗口存在、preload `electronAPI` 可用、`getDefaultHomeUrl` 基础 IPC 返回临时默认 URL，并通过 `createTab(defaultUrl)` 让 WebContentsView 加载默认 URL 页面。生产启动行为不变，smoke 专用逻辑仅由 `ALGO_ELECTRON_SMOKE=1` 触发。
+
 建议提交：`test: 添加 Electron 启动冒烟测试`
 
 ### P8-006 增加关键页面截图验收
 
-状态：未开始  
+状态：已完成
 优先级：P2  
 阶段：Phase 8  
 前置任务：P1-032、P3-015、P5-001  
@@ -2522,12 +2532,15 @@ Phase 6 全部任务完成。
 
 - 覆盖题库侧栏、统计页、设置页。
 - 截图不包含敏感 Cookie。
+- 断言关键容器不横向越界，统计页平台分布图表必须实际渲染图形。
+
+完成记录：新增 `tests/ui/rendererScreenshotHarness.tsx` 和 `tests/ui/rendererScreenshots.test.ts`。测试 bundle 真实 renderer 组件和 CSS，注入 mock `window.electronAPI`，用 Electron 捕获题库侧栏、统计页、设置页三张截图到 `tmp/ui-screenshots/`；截图前扫描页面文本，拒绝 `Cookie`、`Set-Cookie`、`sessionid`、`csrf`、`token` 等敏感字段，并校验图片尺寸、大小、关键容器横向边界和统计页平台分布 SVG 图形，避免空白图、裁切图或图表未绘制误通过。
 
 建议提交：`test: 添加关键页面截图验收`
 
 ### P8-007 建立 changelog
 
-状态：未开始  
+状态：进行中
 优先级：P1  
 阶段：Phase 8  
 前置任务：无  
@@ -2539,11 +2552,13 @@ Phase 6 全部任务完成。
 - 按版本记录新增、修复、变更。
 - 提交信息仍使用中文。
 
+当前进展：已新增根目录 `CHANGELOG.md`，按“未发布 / 0.6.0 / 0.5.0”记录新增、变更和修复；`docs/README.md` 已加入正式 changelog 入口，并将 `release_notes.md` 标为历史版本说明草稿。该任务作为后续新增产物的持续标准，暂不标记为完成。
+
 建议提交：`docs: 添加更新日志`
 
 ### P8-008 配置 electron-builder 打包
 
-状态：未开始  
+状态：进行中
 优先级：P0  
 阶段：Phase 8  
 前置任务：P8-001、P8-005  
@@ -2554,6 +2569,8 @@ Phase 6 全部任务完成。
 - 能生成 Windows 安装包。
 - 应用图标、名称、输出目录合理。
 - 打包不包含开发缓存和敏感数据。
+
+当前进展：`electron-builder.json5` 已显式配置 `buildResources`、Windows `icon.ico`、NSIS x64 artifact 名称、输入白名单和 `better-sqlite3` 原生模块 `asarUnpack`；新增 `build/icon.ico`、`build/icon.png` 和 `npm run build:win`。已运行 `npm run build:win` 生成 `release/0.6.0/AlgoLearningPlatform-Windows-0.6.0-x64-Setup.exe`，并检查 asar 不包含 `tests/`、`tmp/`、`release/`、本地数据库或 `.env`。该任务作为后续新增构建产物的持续标准，暂不标记为完成。
 
 建议提交：`chore: 配置 Windows 应用打包`
 
@@ -3163,6 +3180,432 @@ Phase 6 全部任务完成。
 完成记录：已细化 `electron/electron-env.d.ts` 和 `electron/preload.ts`；移除 home/scripts/problems/settings helper 中不必要的类型断言；修正 AI 推荐 `problem_id`、推荐标题、脚本站点 `homeUrl`、站点导入冲突 `incoming.domains` 等被旧 `any` 掩盖的类型问题。
 
 建议提交：`refactor: 细化 renderer preload 类型`
+
+### P8-040 主进程入口职责收口
+
+状态：已完成
+优先级：P0
+阶段：Phase 8
+前置任务：P8-004、P8-014、P8-039
+涉及模块：electron/main.ts、electron/app、electron/browser、electron/ipc、electron/notes、electron/scripts、electron/tracking、文档
+目标：继续降低 `electron/main.ts` 职责密度，把启动开关、服务初始化、OJ session、笔记附件协议、用户脚本注入、题目标题追踪和 IPC 组合注册拆到对应模块。
+验收标准：
+
+- `main.ts` 保留应用装配、窗口创建和生命周期接线，不再内联业务 IPC、OJ session webRequest、用户脚本注入、笔记附件协议或题目标题兜底抓取细节。
+- 新增模块均有所属 README 说明职责、实现程度、封装函数和边界。
+- 不新增 IPC/Preload API，不改变数据库 schema、Cookie 策略或提交监测入库规则。
+- TypeScript、IPC contract、Electron startup smoke 和 lint 通过。
+
+完成记录：已新增 `electron/app/chromiumFlags.ts`、`mainServices.ts`、`recentSitePreconnect.ts`、`electron/browser/ojSession.ts`、`electron/ipc/registerMainIpc.ts`、`electron/notes/noteAssetProtocol.ts`、`electron/scripts/userScriptInjector.ts`、`electron/tracking/problemTitleTracking.ts`；`main.ts` 已降到约 187 行，作为应用装配入口。
+
+建议提交：`refactor: 收口主进程入口职责`
+
+### P8-041 测试子目录文档覆盖
+
+状态：已完成
+优先级：P1
+阶段：Phase 8
+前置任务：P8-015
+涉及模块：tests、docs、文档
+目标：为 `tests/` 下各测试域补齐子目录 README，让新增测试能明确归属、运行方式和安全边界。
+验收标准：
+
+- `tests/adapters`、`browser`、`db`、`electron`、`integration`、`ipc`、`parsers`、`submissions`、`ui` 均有 README。
+- `docs/README.md` 索引测试子目录文档。
+- README 说明当前覆盖文件、运行方式、新增规则和敏感数据边界。
+
+完成记录：已补齐九个测试子目录 README，并同步 `docs/README.md` 与 `AI_HANDOFF.md`。文档覆盖审计命令对 `electron`、`src`、`tests` 子目录返回空。
+
+建议提交：`docs: 补齐测试子目录说明`
+
+### P8-042 统计页平台分布布局修正
+
+状态：已完成
+优先级：P1
+阶段：Phase 8
+前置任务：P8-006、P8-022
+涉及模块：src/features/analytics、src/App.css、tests/ui、文档
+目标：修复统计页平台分布视觉不稳定问题，恢复清晰的饼图 + 柱图布局，并避免小窗口下图表和文本错位。
+验收标准：
+
+- `PlatformDistributionPanel.tsx` 同时渲染饼图、图例和柱图。
+- 饼图不依赖外圈 label，避免被裁剪或挤偏。
+- Dashboard 图表区域有稳定 grid 尺寸和移动端降级规则。
+- Renderer 截图测试通过，并实际检查平台分布图形绘制。
+
+完成记录：平台分布改为左侧饼图和图例、右侧柱图的稳定网格；`tests/ui/rendererScreenshots.test.ts` 已通过，dashboard 截图中饼图和柱图均正常显示。
+
+建议提交：`fix: 修正统计页平台分布布局`
+
+### P8-043 Browser TabManager 类型与配置拆分
+
+状态：已完成
+优先级：P1
+阶段：Phase 8
+前置任务：P8-040
+涉及模块：electron/browser、文档
+目标：继续收口 Browser 模块，把 `TabManager.ts` 中的类型、布局配置、OJ preload 路径和 URL 同页匹配 helper 拆到独立文件。
+验收标准：
+
+- `TabManager.ts` 保留多标签生命周期、事件绑定和视图管理。
+- `tabManagerTypes.ts` 提供 `TabInfo` 和内部 tab 结构类型，并保持 `TabManager.ts` 对 `TabInfo` 的兼容导出。
+- `tabManagerConfig.ts` 收敛最大标签数、toolbar/tabbar 高度和 OJ preload 路径。
+- `urlMatching.ts` 收敛同页 URL 判断。
+- TypeScript 通过，实时 tab 激活回归通过。
+
+完成记录：已新增 `electron/browser/tabManagerTypes.ts`、`tabManagerConfig.ts`、`urlMatching.ts`，并同步 `electron/browser/README.md`。
+
+建议提交：`refactor: 拆分 TabManager 基础 helper`
+
+### P8-044 用户脚本 IPC 与 metadata 拆分
+
+状态：已完成
+优先级：P0
+阶段：Phase 8
+前置任务：P8-040
+涉及模块：electron/scripts、electron/ipc、tests/scripts、文档
+目标：移除 `UserScriptService` 构造时注册 IPC 的副作用，把用户脚本管理型 IPC 统一迁入 `electron/ipc/`，并把 userscript metadata 解析抽成纯 helper。
+验收标准：
+
+- `UserScriptService` 只负责启用脚本匹配和读取 metadata，不注册 IPC。
+- `registerScriptsIpc.ts` 注册 `scripts:*` channel，并由 `registerMainIpc.ts` 组合调用。
+- `userScriptMetadata.ts` 提供 `parseScriptMetadata` 和 `matchRuleToRegExp`。
+- 新增 `tests/scripts/userScriptMetadata.test.ts` 覆盖 metadata 解析和 `*://*.domain/*` 匹配。
+- TypeScript、IPC contract、lint 和新脚本测试通过。
+
+完成记录：已新增 `electron/ipc/registerScriptsIpc.ts`、`electron/scripts/userScriptMetadata.ts`、`tests/scripts/` README 和测试；`scripts` 与 `ipc` README、`tests/README.md`、`docs/README.md` 已同步。
+
+建议提交：`refactor: 拆分用户脚本 IPC 和 metadata`
+
+### P8-045 统计 repository 内部职责拆分
+
+状态：已完成
+优先级：P1
+阶段：Phase 8
+前置任务：P8-003
+涉及模块：electron/db/repositories、docs、文档
+目标：降低 `statsRepository.ts` 职责密度，把统计类型、日期 helper、趋势查询、洞察查询和日统计重算拆到独立子模块，同时保持对外导入路径稳定。
+验收标准：
+
+- `statsRepository.ts` 只作为兼容导出口，不再承载 SQL 细节。
+- `electron/db/repositories/stats/` 按 `types`、`date`、`trends`、`insights`、`recompute` 拆分统计实现。
+- 新增子目录 README，说明职责、实现程度、封装函数、边界和验证入口。
+- 不改变数据库 schema、IPC/Preload API、统计口径或 renderer 调用方式。
+- TypeScript、lint 和 repository 临时数据库测试通过。
+
+完成记录：已新增 `electron/db/repositories/stats/` 子目录并拆分实现；`statsRepository.ts` 保持原导出函数兼容。`electron/db/README.md`、`electron/db/repositories/README.md`、`docs/README.md` 和 `AI_HANDOFF.md` 已同步。
+
+建议提交：`refactor: 拆分统计仓库职责`
+
+### P8-046 Notes 文件存储边界拆分
+
+状态：已完成
+优先级：P1
+阶段：Phase 8
+前置任务：P8-040
+涉及模块：electron/notes、文档
+目标：降低 `NoteService.ts` 职责密度，把 Markdown 文件、图片附件、路径解析和字数估算从 DB 编排服务中拆出。
+验收标准：
+
+- `NoteService.ts` 保留 notes DB 查询/写入和服务编排，不再直接拼接附件路径或操作图片文件。
+- `noteStorage.ts` 负责笔记根目录、Markdown 文件读写、图片附件保存、附件路径解析和文件清理。
+- `noteText.ts` 负责笔记字数估算。
+- `electron/notes/README.md` 说明新文件职责、封装函数、安全边界和验证入口。
+- 不改变数据库 schema、IPC/Preload API、`note-asset://` 协议格式或 renderer 调用方式。
+- TypeScript 和 lint 通过。
+
+完成记录：已新增 `electron/notes/noteStorage.ts` 和 `electron/notes/noteText.ts`，`NoteService.ts` 改为调用 helper；`electron/notes/README.md` 与 `AI_HANDOFF.md` 已同步。
+
+建议提交：`refactor: 拆分笔记文件存储边界`
+
+### P8-047 AI 周期总结内部职责拆分
+
+状态：已完成
+优先级：P1
+阶段：Phase 8
+前置任务：P8-040
+涉及模块：electron/ai/summary、文档
+目标：降低 `periodSummary.ts` 职责密度，把周期总结类型、日期计算、快照聚合和 Markdown 渲染拆成独立 helper。
+验收标准：
+
+- `periodSummary.ts` 保持 `getPeriodSummary`、`PeriodSummary`、`PeriodSummaryInput` 和 `renderSummaryAsMarkdown` 对外入口稳定。
+- `periodSummaryTypes.ts` 承接输入、输出和聚合类型。
+- `periodSummaryDates.ts` 承接本地日期、上一周期和周期类型计算。
+- `periodSummaryAggregation.ts` 承接快照筛选和聚合。
+- `periodSummaryMarkdown.ts` 承接 Markdown 输出。
+- 不改变数据库 schema、IPC/Preload API、AI 输出保存方式或总结口径。
+- TypeScript、lint 和 AI IPC contract 通过。
+
+完成记录：已新增 `periodSummaryTypes.ts`、`periodSummaryDates.ts`、`periodSummaryAggregation.ts`、`periodSummaryMarkdown.ts`，`periodSummary.ts` 保留稳定入口；`electron/ai/summary/README.md` 与 `AI_HANDOFF.md` 已同步。
+
+建议提交：`refactor: 拆分 AI 周期总结实现`
+
+### P8-048 AI 建议规则内部职责拆分
+
+状态：已完成
+优先级：P1
+阶段：Phase 8
+前置任务：P8-047
+涉及模块：electron/ai/recommendations、tests/ai、文档
+目标：降低复习建议、薄弱标签和复习计划文件职责密度，把公共类型、评分规则、标签解析和 Markdown 渲染拆到独立 helper。
+验收标准：
+
+- `reviewRecommender.ts`、`weaknessAnalyzer.ts`、`reviewPlanner.ts` 保持原导出函数稳定。
+- `types.ts` 承接复习建议、薄弱标签、复习计划和内部聚合类型。
+- `rules.ts` 承接评分、阈值、优先级、预估时间和计划天数归一化。
+- `tagParsing.ts` 承接 `tags_json` 安全解析。
+- `reviewPlanMarkdown.ts` 承接复习计划 Markdown 渲染。
+- 新增 `tests/ai/recommendationRules.test.ts` 和 `tests/ai/README.md`，覆盖纯规则 helper。
+- 不改变数据库 schema、IPC/Preload API、AI 输出保存方式或建议口径。
+- TypeScript、lint、AI 规则测试和 IPC contract 通过。
+
+完成记录：已新增 recommendations 的 `types.ts`、`rules.ts`、`tagParsing.ts`、`reviewPlanMarkdown.ts`，旧入口文件保持函数导出兼容；新增 `tests/ai/` 纯规则测试，并同步文档索引、测试 README、AI recommendations README 和 `AI_HANDOFF.md`。
+
+建议提交：`refactor: 拆分 AI 建议规则实现`
+
+### P8-049 AI 上下文导出边界拆分
+
+状态：已完成
+优先级：P1
+阶段：Phase 8
+前置任务：P8-048
+涉及模块：electron/ai、文档
+目标：降低 `contextExporter.ts` 职责密度，把 AI 上下文类型、标签统计聚合和 Markdown 渲染拆到独立 helper，同时保持原导出入口稳定。
+验收标准：
+
+- `contextExporter.ts` 保持 `AI_CONTEXT_VERSION`、`exportAIContext`、`AIContextExport` 和 `renderContextAsMarkdown` 对外入口稳定。
+- `contextTypes.ts` 承接脱敏上下文 schema 和标签统计类型。
+- `contextTagStats.ts` 承接标签维度聚合，复用统一标签解析 helper。
+- `contextMarkdown.ts` 承接上下文 Markdown 渲染。
+- 不改变数据库 schema、IPC/Preload API、AI 快照 schema version、AI 输出保存方式或上下文脱敏口径。
+- TypeScript、lint 和 AI IPC contract 通过。
+
+完成记录：已新增 `contextTypes.ts`、`contextTagStats.ts`、`contextMarkdown.ts`，`contextExporter.ts` 保留稳定入口并只负责上下文编排；`electron/ai/README.md` 与 `AI_HANDOFF.md` 已同步。
+
+建议提交：`refactor: 拆分 AI 上下文导出边界`
+
+### P8-050 站点配置 repository 内部职责拆分
+
+状态：已完成
+优先级：P1
+阶段：Phase 8
+前置任务：P8-003
+涉及模块：electron/db/repositories、tests/db、文档
+目标：降低 `siteRepository.ts` 职责密度，把站点配置类型/row 映射、CRUD、内置 seed、导入导出预览拆到独立子模块，同时保持对外导入路径稳定。
+验收标准：
+
+- `siteRepository.ts` 只作为兼容导出口，不再承载 SQL 或导入预览细节。
+- `electron/db/repositories/site/types.ts` 承接站点配置类型、SQLite row 映射和导入 payload 清理。
+- `site/crud.ts` 承接站点列表、查询、创建、更新、启停和删除非内置站点。
+- `site/builtins.ts` 承接内置站点 seed，且不覆盖用户启停状态。
+- `site/importExport.ts` 承接配置导出、导入预览、冲突识别和确认导入。
+- 新增子目录 README，并补充 repository 临时数据库测试覆盖 seed、内置保护、导入预览和覆盖导入。
+- 不改变数据库 schema、IPC/Preload API、Cookie 策略或站点配置导入导出口径。
+- TypeScript、lint、repository 临时数据库测试和 IPC contract 通过。
+
+完成记录：已新增 `electron/db/repositories/site/` 子目录并拆分实现；`siteRepository.ts` 保持原导出函数兼容。`tests/db/repositories.test.ts` 已补站点配置测试；`electron/db/README.md`、`electron/db/repositories/README.md`、`docs/README.md`、`tests/db/README.md` 和 `AI_HANDOFF.md` 已同步。
+
+建议提交：`refactor: 拆分站点配置仓库`
+
+### P8-051 Parser registry 内部职责拆分
+
+状态：已完成
+优先级：P1
+阶段：Phase 8
+前置任务：P8-013
+涉及模块：electron/parsers、tests/parsers、文档
+目标：降低 `registry.ts` 职责密度，把启用站点来源/域名匹配和用户配置 pattern URL 解析拆到独立 helper，同时保持 parser registry 对外 API 稳定。
+验收标准：
+
+- `registry.ts` 保持 `setEnabledSitesFetcher`、`registerAdapter`、`getAdapter`、`getAdapterForUrl`、`parseConfigUrl` 和 `parseUrl` 对外入口稳定。
+- `enabledSites.ts` 承接内置兜底站点、启用站点 fetcher、域名匹配和按 URL 找站点。
+- `configPattern.ts` 承接 `problemUrlPatterns` 的路径/查询占位符解析和题目标识组装。
+- `electron/parsers/README.md` 说明新 helper 职责、边界和测试入口。
+- 不改变数据库 schema、IPC/Preload API、提交监测逻辑或 URL 解析口径。
+- TypeScript、lint 和 parser 测试通过。
+
+完成记录：已新增 `electron/parsers/enabledSites.ts` 和 `electron/parsers/configPattern.ts`，`registry.ts` 继续作为兼容入口；`electron/parsers/README.md` 与 `AI_HANDOFF.md` 已同步。
+
+建议提交：`refactor: 拆分 parser registry helper`
+
+### P8-052 TabManager 布局与跨 frame 执行 helper 拆分
+
+状态：已完成
+优先级：P1
+阶段：Phase 8
+前置任务：P8-043
+涉及模块：electron/browser、tests/submissions、文档
+目标：继续降低 `TabManager.ts` 职责密度，把 view bounds/安全移除/关闭和跨 frame 脚本执行拆到独立 helper，同时保持多标签公开 API 和实时提交事件行为稳定。
+验收标准：
+
+- `TabManager.ts` 保持标签生命周期、导航、事件绑定和公开方法稳定。
+- `tabViewLayout.ts` 承接 view bounds 计算、安全移除和 webContents 安全关闭。
+- `tabScriptExecution.ts` 承接主 frame + 子 frame 脚本执行，并继续写入 `window.__ALGO_TOP_PAGE_URL`。
+- `createView()` 中的导航、iframe、DOM ready、title、stealth 注入事件绑定不迁移，避免影响实时提交源码回归。
+- 不改变数据库 schema、IPC/Preload API、提交监测逻辑、Cookie 策略或 TabManager 公开 API。
+- TypeScript、lint、实时 tab 激活回归和 Electron startup smoke 通过。
+
+完成记录：已新增 `electron/browser/tabViewLayout.ts` 和 `electron/browser/tabScriptExecution.ts`，`TabManager.ts` 改为调用 helper；`electron/browser/README.md` 与 `AI_HANDOFF.md` 已同步。
+
+建议提交：`refactor: 拆分 TabManager 视图 helper`
+
+### P8-053 SubmissionBatchWriter 题目关联职责拆分
+
+状态：已完成
+优先级：P0
+阶段：Phase 8
+前置任务：P8-013
+涉及模块：electron/submissions、tests/submissions、文档
+目标：降低 `SubmissionBatchWriter.ts` 职责密度，把提交写入编排和站点题目关联规则拆开，同时保持写入行为和对外 API 稳定。
+验收标准：
+
+- `SubmissionBatchWriter.ts` 保持 `write(options)`、依赖接口和返回结构稳定。
+- `SubmissionBatchWriter` 只负责编排批量写入、首次 AC 更新和统计刷新。
+- `SubmissionProblemAttacher.ts` 承接当前页面、rawJson、sourceUrl 和站点专用上下文字段到 `problemId` 的关联规则。
+- Codeforces、PTA、Luogu、Nowcoder、VJudge 既有关联逻辑不改变。
+- `electron/submissions/README.md` 说明新文件职责、封装函数和边界。
+- 不改变数据库 schema、IPC/Preload API、Cookie 策略、提交监测 hook 或写入口径。
+- TypeScript、lint 和 `submissionBatchWriter` 回归通过。
+
+完成记录：已新增 `electron/submissions/SubmissionProblemAttacher.ts`，`SubmissionBatchWriter.ts` 改为调用 attacher；`electron/submissions/README.md` 与 `AI_HANDOFF.md` 已同步。
+
+建议提交：`refactor: 拆分提交题目关联逻辑`
+
+### P8-054 题目 repository 内部职责拆分
+
+状态：已完成
+优先级：P1
+阶段：Phase 8
+前置任务：P8-003
+涉及模块：electron/db/repositories、tests/db、文档
+目标：降低 `problemRepository.ts` 职责密度，把题目类型、写入、查询和概览统计拆到独立子模块，同时保持对外导入路径稳定。
+验收标准：
+
+- `problemRepository.ts` 只作为兼容导出口，不再承载 SQL 细节。
+- `problem/types.ts` 承接最近题目、题目详情、提交行、平台分布和概览返回类型。
+- `problem/mutations.ts` 承接 `upsertProblem` 和 `deleteProblem`。
+- `problem/queries.ts` 承接 `getRecentProblems` 和 `getProblemDetail`。
+- `problem/overview.ts` 承接题目总数、今日访问、平台分布、最近活跃和概览聚合。
+- 新增子目录 README，并保持 repository 临时数据库测试通过。
+- 不改变数据库 schema、IPC/Preload API、题目状态计算口径或提交写入链路。
+- TypeScript、lint、repository 临时数据库测试和 IPC contract 通过。
+
+完成记录：已新增 `electron/db/repositories/problem/` 子目录并拆分实现；`problemRepository.ts` 保持原导出函数兼容。`electron/db/README.md`、`electron/db/repositories/README.md`、`docs/README.md` 和 `AI_HANDOFF.md` 已同步。
+
+建议提交：`refactor: 拆分题目仓库职责`
+
+### P8-055 通用提交表格扫描器内部职责拆分
+
+状态：已完成
+优先级：P1
+阶段：Phase 8
+前置任务：P8-013
+涉及模块：electron/submissions/scrapers、tests/submissions、文档
+目标：降低 `GenericTableScanner.ts` 职责密度，把通用表格类型、列识别、提交 ID 提取和字段归一化拆到独立 helper，同时保持扫描入口稳定。
+验收标准：
+
+- `GenericTableScanner.ts` 保持 `hasSubmissionLikeTable`、`selectBestSubmissionTable`、`scanGenericSubmissionTable` 和类型导出兼容。
+- `genericTableTypes.ts` 承接通用表格、行和扫描选项类型。
+- `genericTableColumns.ts` 承接列关键字、verdict 列推断和最佳表评分。
+- `genericTableIds.ts` 承接提交 ID 提取。
+- `genericTableValueParsers.ts` 承接 verdict、运行时间、内存和文本归一化。
+- 不改变数据库 schema、IPC/Preload API、提交监测 hook 或通用表格扫描口径。
+- TypeScript、lint、`genericTableScanner` 和当前页面 DOM 同步回归通过。
+
+完成记录：已新增 `genericTableTypes.ts`、`genericTableColumns.ts`、`genericTableIds.ts`、`genericTableValueParsers.ts`，`GenericTableScanner.ts` 保持兼容入口；`electron/submissions/scrapers/README.md` 与 `AI_HANDOFF.md` 已同步。
+
+建议提交：`refactor: 拆分通用提交表扫描器`
+
+### P8-056 账号 repository 内部职责拆分
+
+状态：已完成
+优先级：P1
+阶段：Phase 8
+前置任务：P8-003
+涉及模块：electron/db/repositories、tests/db、文档
+目标：降低 `accountRepository.ts` 职责密度，把账号资料、rating history 和类型拆到独立子模块，同时保持对外导入路径稳定。
+验收标准：
+
+- `accountRepository.ts` 只作为兼容导出口，不再承载 SQL 细节。
+- `account/types.ts` 承接平台账号行、rating history 输入和 rating history 行类型。
+- `account/accounts.ts` 承接账号 upsert、账号查询、当前 rating 和 peak rating 更新。
+- `account/ratingHistory.ts` 承接 rating history 去重写入、历史查询和 peak rating 计算。
+- 新增子目录 README，并保持 repository 临时数据库测试通过。
+- 不改变数据库 schema、IPC/Preload API、rating 同步口径或提交监测逻辑。
+- TypeScript、lint、repository 临时数据库测试和 IPC contract 通过。
+
+完成记录：已新增 `electron/db/repositories/account/` 子目录并拆分实现；`accountRepository.ts` 保持原导出函数兼容。`tests/db/repositories.test.ts` 已补账号 upsert、rating 更新、history 去重和 peak 计算覆盖；`electron/db/README.md`、`electron/db/repositories/README.md`、`docs/README.md` 和 `AI_HANDOFF.md` 已同步。
+
+建议提交：`refactor: 拆分账号仓库职责`
+
+### P8-057 用户脚本 repository 内部职责拆分
+
+状态：已完成
+优先级：P1
+阶段：Phase 8
+前置任务：P8-003
+涉及模块：electron/db/repositories、electron/scripts、tests/db、文档
+目标：降低 `userScriptRepository.ts` 职责密度，把用户脚本类型、数据库行映射、查询和写入拆到独立子模块，同时保持对外导入路径稳定。
+验收标准：
+
+- `userScriptRepository.ts` 只作为兼容导出口，不再承载 SQL 细节。
+- `userScript/types.ts` 承接用户脚本对外记录、数据库行和写入/更新输入类型。
+- `userScript/rowMapper.ts` 承接 SQLite `enabled` 0/1 到布尔值的归一化。
+- `userScript/queries.ts` 承接脚本列表、启用脚本列表和按 ID 查询。
+- `userScript/mutations.ts` 承接脚本创建、部分更新、启停和删除。
+- 新增子目录 README，并保持 scripts IPC、UserScriptService 和 repository 临时数据库测试通过。
+- 不改变数据库 schema、IPC/Preload API、用户脚本导入/注入策略或提交监测逻辑。
+- TypeScript、lint、scripts metadata 测试、repository 临时数据库测试和 IPC contract 通过。
+
+完成记录：已新增 `electron/db/repositories/userScript/` 子目录并拆分实现；`userScriptRepository.ts` 保持原导出函数和类型兼容。`tests/db/repositories.test.ts` 已补用户脚本 CRUD、启停、删除和 `enabled` 布尔归一化覆盖；`electron/db/README.md`、`electron/db/repositories/README.md`、`electron/scripts/README.md`、`docs/README.md` 和 `AI_HANDOFF.md` 已同步。
+
+建议提交：`refactor: 拆分用户脚本仓库职责`
+
+### P8-058 AI 输出 repository 内部职责拆分
+
+状态：已完成
+优先级：P1
+阶段：Phase 8
+前置任务：P8-003
+涉及模块：electron/db/repositories、electron/ai、tests/db、文档
+目标：降低 `aiOutputRepository.ts` 职责密度，把 AI 输出类型、元信息序列化、查询和写入拆到独立子模块，同时保持对外导入路径稳定。
+验收标准：
+
+- `aiOutputRepository.ts` 只作为兼容导出口，不再承载 SQL 细节。
+- `aiOutput/types.ts` 承接 AI 输出类型、保存输入、元信息对象和更新输入类型。
+- `aiOutput/serialization.ts` 承接 `input_summary`、`source_refs`、`model_info` 到 JSON 字段的序列化。
+- `aiOutput/queries.ts` 承接按 ID 读取和按类型/数量列出输出。
+- `aiOutput/mutations.ts` 承接保存、更新和删除 AI 输出。
+- 新增子目录 README，并保持 AI IPC 和 repository 临时数据库测试通过。
+- 不改变数据库 schema、IPC/Preload API、AI 输出保存口径、AI 规则引擎或提交监测逻辑。
+- TypeScript、lint、AI 规则测试、repository 临时数据库测试和 IPC contract 通过。
+
+完成记录：已新增 `electron/db/repositories/aiOutput/` 子目录并拆分实现；`aiOutputRepository.ts` 保持原导出函数和类型兼容。`tests/db/repositories.test.ts` 已补 AI 输出保存、元信息 JSON 序列化、按类型列表、更新和删除覆盖；`electron/db/README.md`、`electron/db/repositories/README.md`、`electron/ai/README.md`、`docs/README.md` 和 `AI_HANDOFF.md` 已同步。
+
+建议提交：`refactor: 拆分 AI 输出仓库职责`
+
+### P8-059 AI 上下文快照 repository 内部职责拆分
+
+状态：已完成
+优先级：P1
+阶段：Phase 8
+前置任务：P8-003
+涉及模块：electron/db/repositories、electron/ai、tests/db、文档
+目标：降低 `aiContextSnapshotRepository.ts` 职责密度，把快照类型、JSON context 序列化/解析、查询和幂等写入拆到独立子模块，同时保持对外导入路径稳定。
+验收标准：
+
+- `aiContextSnapshotRepository.ts` 只作为兼容导出口，不再承载 SQL 细节。
+- `aiContextSnapshot/types.ts` 承接快照原始行、快照元数据和解析后快照类型。
+- `aiContextSnapshot/serialization.ts` 承接 `AIContextExport` 到 `context_json` 的序列化和快照 context 解析。
+- `aiContextSnapshot/queries.ts` 承接按日期读取原始行、按日期读取解析后快照和列表查询。
+- `aiContextSnapshot/mutations.ts` 承接 `ensureTodaySnapshot()` 的幂等创建。
+- 新增子目录 README，并保持 main 启动路径、阶段总结和 repository 临时数据库测试通过。
+- 不改变数据库 schema、IPC/Preload API、AI context schema version、阶段总结口径或提交监测逻辑。
+- TypeScript、lint、AI 规则测试、repository 临时数据库测试、启动 smoke 和 IPC contract 通过。
+
+完成记录：已新增 `electron/db/repositories/aiContextSnapshot/` 子目录并拆分实现；`aiContextSnapshotRepository.ts` 保持原导出函数和类型兼容。`tests/db/repositories.test.ts` 已补当日快照幂等创建、解析后 context 和列表元数据覆盖；`electron/db/README.md`、`electron/db/repositories/README.md`、`electron/ai/README.md`、`docs/README.md` 和 `AI_HANDOFF.md` 已同步。
+
+建议提交：`refactor: 拆分 AI 快照仓库职责`
 
 ## 12. 状态维护规则
 

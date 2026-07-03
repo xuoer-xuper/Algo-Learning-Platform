@@ -61,6 +61,7 @@
 | [ROADMAP.md](../ROADMAP.md) | 长期阶段规划。 |
 | [TASKS.md](../TASKS.md) | 任务编号、状态、前置关系、验收标准和建议提交。 |
 | [AI_HANDOFF.md](../AI_HANDOFF.md) | 当前交接现场、风险点和最近完成事项。 |
+| [CHANGELOG.md](../CHANGELOG.md) | 面向用户和维护者的版本变更日志。 |
 | [AI_WORKFLOW.md](../AI_WORKFLOW.md) | AI 协作流程、开发前后检查和交接模板。 |
 | [COMMIT_RULES.md](../COMMIT_RULES.md) | 中文 Conventional Commits 规范。 |
 | [ARCHITECTURE.md](../ARCHITECTURE.md) | 系统结构、进程边界、IPC、浏览器、追踪、AI 边界。 |
@@ -87,6 +88,7 @@
 | browser | [electron/browser/README.md](../algo-electron/electron/browser/README.md) | BrowserHost、TabManager、WebContentsView、远程页面 preload。 |
 | cookies | [electron/cookies/README.md](../algo-electron/electron/cookies/README.md) | CookieVault、持久 session、敏感信息边界。 |
 | db | [electron/db/README.md](../algo-electron/electron/db/README.md) | SQLite 连接、migration、repository、写入规则。 |
+| ipc | [electron/ipc/README.md](../algo-electron/electron/ipc/README.md) | 主进程 IPC 注册拆分、channel 稳定性和验证入口。 |
 | notes | [electron/notes/README.md](../algo-electron/electron/notes/README.md) | Markdown 笔记、图片附件、DB 缓存和路径安全。 |
 | parsers | [electron/parsers/README.md](../algo-electron/electron/parsers/README.md) | 题目 URL 识别、标题清洗、自定义 pattern 和旧 parser 兼容层。 |
 | rating | [electron/rating/README.md](../algo-electron/electron/rating/README.md) | Codeforces rating 抓取和格式化边界。 |
@@ -95,6 +97,35 @@
 | sites | [electron/sites/README.md](../algo-electron/electron/sites/README.md) | SiteConfig、内置站点清单、SiteRegistry。 |
 | submissions | [electron/submissions/README.md](../algo-electron/electron/submissions/README.md) | 提交采集写入链路、实时监听、手动同步、scraper。 |
 | tracking | [electron/tracking/README.md](../algo-electron/electron/tracking/README.md) | 题目访问追踪、停留时长、activity events、daily stats。 |
+
+关键子目录文档：
+
+| 子目录 | 文档 | 重点 |
+|---|---|---|
+| adapter 共享 helper | [electron/adapters/shared/README.md](../algo-electron/electron/adapters/shared/README.md) | 通用提交文本、表格和 verdict helper 边界。 |
+| 内置 adapter 列表 | [electron/adapters/sites/README.md](../algo-electron/electron/adapters/sites/README.md) | 七站 adapter 目录约定、实时提交规则和测试入口。 |
+| Codeforces adapter | [electron/adapters/sites/codeforces/README.md](../algo-electron/electron/adapters/sites/codeforces/README.md) | Codeforces/Gym 题目、API、表格和实时 hook。 |
+| AcWing adapter | [electron/adapters/sites/acwing/README.md](../algo-electron/electron/adapters/sites/acwing/README.md) | AcWing 题目识别、提交表格和实时结果。 |
+| Nowcoder adapter | [electron/adapters/sites/nowcoder/README.md](../algo-electron/electron/adapters/sites/nowcoder/README.md) | 牛客正式提交网络结果、自测隔离和提交表格。 |
+| VJudge adapter | [electron/adapters/sites/vjudge/README.md](../algo-electron/electron/adapters/sites/vjudge/README.md) | VJudge 弹窗提交、状态接口、solution 详情和强关联规则。 |
+| PTA adapter | [electron/adapters/sites/pta/README.md](../algo-electron/electron/adapters/sites/pta/README.md) | PTA 题集题目识别、实时结果和专用 scraper 边界。 |
+| Luogu adapter | [electron/adapters/sites/luogu/README.md](../algo-electron/electron/adapters/sites/luogu/README.md) | 洛谷题目识别、实时结果和题目上下文补全。 |
+| LeetCode adapter | [electron/adapters/sites/leetcode/README.md](../algo-electron/electron/adapters/sites/leetcode/README.md) | LeetCode CN slug、submit check 结果和身份补全。 |
+| AI recommendations | [electron/ai/recommendations/README.md](../algo-electron/electron/ai/recommendations/README.md) | 本地复习建议、复习计划和薄弱标签规则。 |
+| AI summary | [electron/ai/summary/README.md](../algo-electron/electron/ai/summary/README.md) | 周期学习总结和 Markdown 渲染。 |
+| DB migrations | [electron/db/migrations/README.md](../algo-electron/electron/db/migrations/README.md) | migration 编写、版本追加和 schema 同步规则。 |
+| DB repositories | [electron/db/repositories/README.md](../algo-electron/electron/db/repositories/README.md) | repository 分层、读写边界和 SQLite 测试入口。 |
+| DB AI context snapshots | [electron/db/repositories/aiContextSnapshot/README.md](../algo-electron/electron/db/repositories/aiContextSnapshot/README.md) | 每日 AI 上下文快照、JSON context 解析和列表边界。 |
+| DB AI output repository | [electron/db/repositories/aiOutput/README.md](../algo-electron/electron/db/repositories/aiOutput/README.md) | AI 输出保存、元信息序列化、查询、更新和删除边界。 |
+| DB account repository | [electron/db/repositories/account/README.md](../algo-electron/electron/db/repositories/account/README.md) | 平台账号、当前 rating、peak rating 和 rating history 边界。 |
+| DB problem repository | [electron/db/repositories/problem/README.md](../algo-electron/electron/db/repositories/problem/README.md) | 题目 upsert、详情、列表、删除和概览统计边界。 |
+| DB site repository | [electron/db/repositories/site/README.md](../algo-electron/electron/db/repositories/site/README.md) | 站点配置 CRUD、内置 seed、导入导出和冲突预览边界。 |
+| DB stats repository | [electron/db/repositories/stats/README.md](../algo-electron/electron/db/repositories/stats/README.md) | 统计查询、趋势、洞察和 `user_daily_stats` 重算边界。 |
+| DB user script repository | [electron/db/repositories/userScript/README.md](../algo-electron/electron/db/repositories/userScript/README.md) | 用户脚本元信息、启用状态、匹配规则和文件路径边界。 |
+| parser site extensions | [electron/parsers/sites/README.md](../algo-electron/electron/parsers/sites/README.md) | 旧 parser 站点扩展预留边界。 |
+| builtin site configs | [electron/sites/builtins/README.md](../algo-electron/electron/sites/builtins/README.md) | 内置站点配置、seed 和 pattern 规则。 |
+| submission scrapers | [electron/submissions/scrapers/README.md](../algo-electron/electron/submissions/scrapers/README.md) | 当前页面手动同步、通用表格扫描和专用 scraper。 |
+| submission syncers | [electron/submissions/syncers/README.md](../algo-electron/electron/submissions/syncers/README.md) | 同步器预留目录和未来拆分边界。 |
 
 ## 6. Renderer、测试与构建文档
 
@@ -105,7 +136,33 @@
 | 业务功能 | [src/features/README.md](../algo-electron/src/features/README.md) | home、analytics、problems、scripts、settings 的职责和 API 调用边界。 |
 | 应用 hooks | [src/hooks/README.md](../algo-electron/src/hooks/README.md) | 应用壳和跨 feature 的轻量 React hook。 |
 | renderer shared | [src/shared/README.md](../algo-electron/src/shared/README.md) | 跨 feature 展示常量和轻量 helper。 |
-| 测试 | [tests/README.md](../algo-electron/tests/README.md) | adapter、browser、db、integration、parsers、submissions 测试覆盖范围和运行方式。 |
+| 测试 | [tests/README.md](../algo-electron/tests/README.md) | adapter、browser、db、electron、integration、ipc、parsers、scripts、submissions、ui 测试覆盖范围和运行方式。 |
+
+测试子目录文档：
+
+| 测试域 | 文档 | 重点 |
+|---|---|---|
+| adapters | [tests/adapters/README.md](../algo-electron/tests/adapters/README.md) | 站点 adapter、registry、提交表格和实时结果解析。 |
+| ai | [tests/ai/README.md](../algo-electron/tests/ai/README.md) | 本地 AI 建议规则、评分 helper 和标签解析。 |
+| browser | [tests/browser/README.md](../algo-electron/tests/browser/README.md) | OJ preload bridge 和 postMessage 转发。 |
+| db | [tests/db/README.md](../algo-electron/tests/db/README.md) | migration、repository 和 Electron ABI SQLite 测试。 |
+| electron | [tests/electron/README.md](../algo-electron/tests/electron/README.md) | 真实 Electron 启动 smoke。 |
+| integration | [tests/integration/README.md](../algo-electron/tests/integration/README.md) | 跨模块 wiring 和数据流。 |
+| ipc | [tests/ipc/README.md](../algo-electron/tests/ipc/README.md) | Preload 白名单和主进程 handler 契约。 |
+| parsers | [tests/parsers/README.md](../algo-electron/tests/parsers/README.md) | URL 识别、标题清洗和兜底脚本。 |
+| scripts | [tests/scripts/README.md](../algo-electron/tests/scripts/README.md) | 用户脚本 metadata 和匹配规则。 |
+| submissions | [tests/submissions/README.md](../algo-electron/tests/submissions/README.md) | 提交同步、实时监听、写入和诊断。 |
+| ui | [tests/ui/README.md](../algo-electron/tests/ui/README.md) | renderer 截图、布局边界和敏感文本检查。 |
+
+Renderer feature 子目录文档：
+
+| Feature | 文档 | 重点 |
+|---|---|---|
+| analytics | [src/features/analytics/README.md](../algo-electron/src/features/analytics/README.md) | 统计弹层、图表、AI 建议展示和 analytics API helper。 |
+| home | [src/features/home/README.md](../algo-electron/src/features/home/README.md) | 首页概览、最近题目、复习建议和题目更新订阅。 |
+| problems | [src/features/problems/README.md](../algo-electron/src/features/problems/README.md) | 题目侧栏、详情、提交记录、笔记和图片上传边界。 |
+| scripts | [src/features/scripts/README.md](../algo-electron/src/features/scripts/README.md) | 用户脚本导入、启停、绑定站点和文件操作入口。 |
+| settings | [src/features/settings/README.md](../algo-electron/src/features/settings/README.md) | 首页设置、CF 同步、实时诊断、站点管理和导入导出。 |
 
 ## 7. 调研记录
 
@@ -122,7 +179,7 @@
 |---|---|---|
 | [spec.md](../spec.md) | AI Coach 早期方案草稿和需求背景。 | 已落地状态以 [TASKS.md](../TASKS.md)、[AI_HANDOFF.md](../AI_HANDOFF.md) 和当前实现为准。 |
 | [checklist.md](../checklist.md) | AI Coach 早期验收清单草稿。 | 不作为当前任务完成标准；当前验收以 [TASKS.md](../TASKS.md) 为准。 |
-| [release_notes.md](../release_notes.md) | 历史版本说明草稿。 | 正式 changelog 任务仍见 `P8-007`；不要在这里维护任务状态。 |
+| [release_notes.md](../release_notes.md) | 历史版本说明草稿。 | 正式变更日志以 [CHANGELOG.md](../CHANGELOG.md) 为准；不要在这里维护任务状态。 |
 | [debug-cloudflare-turnstile-loop.md](../debug-cloudflare-turnstile-loop.md) | Cloudflare Turnstile 调试记录。 | 只作为故障排查背景，不代表当前浏览器架构契约。 |
 
 辅助与历史材料可以帮助理解背景，但不得用于推翻当前契约、设计或任务状态。涉及 AI Coach 的旧草稿尤其要先和当前代码、migration、`TASKS.md` 对齐。
@@ -140,7 +197,7 @@
 ## 10. 文档维护规则
 
 - 新增长期文档后，把它加入本索引，并说明它属于契约、设计、模块、调研还是 ADR。
-- 新增一级模块 README 后，把它加入第 5 或第 6 节。
+- 新增一级模块或关键子目录 README 后，把它加入第 5 或第 6 节。
 - 新增草稿、调试记录或历史材料后，把它加入第 8 节，并写清楚不能覆盖哪些权威文档。
 - 任务状态只改 [TASKS.md](../TASKS.md)，不要在设计文档里维护第二份任务状态。
 - 当前工作现场只改 [AI_HANDOFF.md](../AI_HANDOFF.md)，不要在索引里写临时进度。

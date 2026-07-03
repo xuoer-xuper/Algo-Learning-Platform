@@ -1,24 +1,17 @@
 import { WebContentsView, BrowserWindow } from 'electron'
 import { randomUUID } from 'node:crypto'
-import { fileURLToPath } from 'node:url'
-import path from 'node:path'
 import { DetachedWindow } from './DetachedWindow'
 import { STEALTH_SCRIPT } from './stealthScript'
+import { MAX_TABS, OJ_PRELOAD_PATH } from './tabManagerConfig'
+import type { ManagedTab, TabInfo } from './tabManagerTypes'
+import { executeScriptAcrossFrames } from './tabScriptExecution'
+import { safeCloseWebContents, safeRemoveChildView, setTabViewBounds } from './tabViewLayout'
+import { samePageUrl } from './urlMatching'
 
-export interface TabInfo {
-  id: string
-  url: string
-  title: string
-  isActive: boolean
-}
-
-const MAX_TABS = 8
-const TOOLBAR_HEIGHT = 42
-const TABBAR_HEIGHT = 36
-const __dirname = path.dirname(fileURLToPath(import.meta.url))
+export type { TabInfo } from './tabManagerTypes'
 
 export class TabManager {
-  private tabs = new Map<string, { id: string, view: WebContentsView, url: string, title: string }>()
+  private tabs = new Map<string, ManagedTab>()
   private activeTabId: string | null = null
   private window: BrowserWindow
   private leftOffset = 0
@@ -44,7 +37,7 @@ export class TabManager {
         nodeIntegration: false,
         contextIsolation: true,
         sandbox: true,
-        preload: path.join(__dirname, 'ojPreload.mjs'),
+        preload: OJ_PRELOAD_PATH,
         partition: 'persist:oj-main',
       },
     })
@@ -141,7 +134,7 @@ export class TabManager {
     return view
   }
 
-  private findTabByView(view: WebContentsView) {
+  private findTabByView(view: WebContentsView): ManagedTab | null {
     for (const tab of this.tabs.values()) {
       if (tab.view === view) return tab
     }
@@ -176,16 +169,10 @@ export class TabManager {
     const wasActive = tabId === this.activeTabId
 
     if (wasActive) {
-      try {
-        this.window.contentView.removeChildView(tab.view)
-      } catch { /* ignore */ }
+      safeRemoveChildView(this.window, tab.view)
     }
 
-    try {
-      if (!tab.view.webContents.isDestroyed()) {
-        tab.view.webContents.close()
-      }
-    } catch { /* ignore */ }
+    safeCloseWebContents(tab.view)
 
     this.tabs.delete(tabId)
 
@@ -206,9 +193,7 @@ export class TabManager {
     if (this.activeTabId) {
       const currentTab = this.tabs.get(this.activeTabId)
       if (currentTab) {
-        try {
-          this.window.contentView.removeChildView(currentTab.view)
-        } catch { /* ignore */ }
+        safeRemoveChildView(this.window, currentTab.view)
       }
     }
 
@@ -234,9 +219,7 @@ export class TabManager {
     this.tabs.delete(tabId)
 
     if (tabId === this.activeTabId) {
-      try {
-        this.window.contentView.removeChildView(tab.view)
-      } catch { /* ignore */ }
+      safeRemoveChildView(this.window, tab.view)
       this.activeTabId = null
       const nextKey = Array.from(this.tabs.keys()).pop()!
       this.switchTab(nextKey)
@@ -322,12 +305,7 @@ export class TabManager {
     const tab = this.tabs.get(this.activeTabId)
     if (!tab) return
     const [width, height] = this.window.getContentSize()
-    tab.view.setBounds({
-      x: this.leftOffset,
-      y: TOOLBAR_HEIGHT + TABBAR_HEIGHT,
-      width: width - this.leftOffset,
-      height: height - TOOLBAR_HEIGHT - TABBAR_HEIGHT,
-    })
+    setTabViewBounds(tab.view, { width, height }, this.leftOffset)
   }
 
   hideView() {
@@ -335,9 +313,7 @@ export class TabManager {
     if (!this.activeTabId) return
     const tab = this.tabs.get(this.activeTabId)
     if (!tab) return
-    try {
-      this.window.contentView.removeChildView(tab.view)
-    } catch { /* ignore */ }
+    safeRemoveChildView(this.window, tab.view)
   }
 
   showView() {
@@ -372,28 +348,10 @@ export class TabManager {
     for (const tab of this.tabs.values()) {
       const currentUrl = tab.view.webContents.getURL()
       if (tab.url === url || currentUrl === url || samePageUrl(tab.url, url) || samePageUrl(currentUrl, url)) {
-        return this.executeScriptAcrossFrames(tab, url, code)
+        return executeScriptAcrossFrames(tab, url, code)
       }
     }
     return Promise.reject(new Error('Tab not found'))
-  }
-
-  private async executeScriptAcrossFrames(
-    tab: { view: WebContentsView },
-    topPageUrl: string,
-    code: string,
-  ): Promise<any> {
-    const wrappedCode = `try { window.__ALGO_TOP_PAGE_URL = ${JSON.stringify(topPageUrl)}; } catch (_) {}\n${code}`
-    const result = await tab.view.webContents.executeJavaScript(wrappedCode)
-    const frames = tab.view.webContents.mainFrame?.framesInSubtree ?? []
-    await Promise.all(frames.map(async (frame) => {
-      try {
-        if (frame.isDestroyed()) return
-        if (frame === tab.view.webContents.mainFrame) return
-        await frame.executeJavaScript(wrappedCode)
-      } catch { /* ignore subframe injection failures */ }
-    }))
-    return result
   }
 
   warmup() {
@@ -469,22 +427,12 @@ export class TabManager {
     for (const tab of this.tabs.values()) {
       try {
         if (!tab.view.webContents.isDestroyed()) {
-          this.window.contentView.removeChildView(tab.view)
-          tab.view.webContents.close()
+          safeRemoveChildView(this.window, tab.view)
+          safeCloseWebContents(tab.view)
         }
       } catch { /* ignore */ }
     }
     this.tabs.clear()
     this.activeTabId = null
-  }
-}
-
-function samePageUrl(a: string, b: string): boolean {
-  try {
-    const left = new URL(a)
-    const right = new URL(b)
-    return left.origin === right.origin && left.pathname.replace(/\/+$/, '') === right.pathname.replace(/\/+$/, '')
-  } catch {
-    return false
   }
 }

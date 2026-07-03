@@ -6,6 +6,8 @@
 
 本模块不实现题目解析、提交解析或实时 hook。代码级解析能力在 `electron/adapters/` 和 `electron/parsers/`。
 
+Renderer 访问站点配置的 IPC 注册在 `electron/ipc/registerSitesIpc.ts`。站点模块只提供配置模型和内置清单，不直接注册 IPC。
+
 ## 2. 当前实现程度
 
 已内置站点：

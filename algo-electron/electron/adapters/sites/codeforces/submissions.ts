@@ -150,7 +150,7 @@ function parseContestContext(url: string): { contestId: string; kind: Codeforces
 }
 
 function stripProblemTitlePrefix(problemText: string, identity: ProblemIdentity): string | undefined {
-  let title = normalizeCell(problemText)
+  const title = normalizeCell(problemText)
   if (!title) return undefined
 
   const tokens = [
