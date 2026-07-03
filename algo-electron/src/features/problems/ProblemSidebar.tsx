@@ -1,16 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { PLATFORM_LABELS, STATUS_COLORS } from '../../shared/display'
-
-interface ProblemRecord {
-  id: string
-  platform: string
-  platform_problem_id: string
-  canonical_url: string
-  title: string | null
-  status: string
-  last_visited_at: string | null
-  submission_count?: number
-}
+import { loadRecentProblems, setProblemSidebarWidth, subscribeProblemsUpdated } from './problemsApi'
+import type { SidebarProblemRecord } from './problemTypes'
 
 interface Props {
   onNavigate: (url: string) => void
@@ -20,25 +11,25 @@ interface Props {
 }
 
 export function ProblemSidebar({ onNavigate, onShowDetail, onShowNotes, onWidthChange }: Props) {
-  const [problems, setProblems] = useState<ProblemRecord[]>([])
+  const [problems, setProblems] = useState<SidebarProblemRecord[]>([])
   const [collapsed, setCollapsed] = useState(false)
   const [filterPlatform, setFilterPlatform] = useState<string>('')
   const [filterStatus, setFilterStatus] = useState<string>('')
 
   const loadProblems = useCallback(async () => {
-    const list = await window.electronAPI.listRecentProblems(200, filterPlatform || undefined, filterStatus || undefined)
+    const list = await loadRecentProblems(200, filterPlatform || undefined, filterStatus || undefined)
     setProblems(list)
   }, [filterPlatform, filterStatus])
 
   useEffect(() => {
     loadProblems()
-    const unsubscribe = window.electronAPI.onProblemsUpdated(() => { loadProblems() })
+    const unsubscribe = subscribeProblemsUpdated(() => { loadProblems() })
     return unsubscribe
   }, [loadProblems])
 
   useEffect(() => {
     const width = collapsed ? 28 : 220
-    window.electronAPI.setSidebarWidth(width)
+    setProblemSidebarWidth(width)
     onWidthChange?.(width)
   }, [collapsed, onWidthChange])
 

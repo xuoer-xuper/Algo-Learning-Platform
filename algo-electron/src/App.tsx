@@ -1,4 +1,3 @@
-import { useState, useEffect } from 'react'
 import { HomePage } from './features/home/HomePage'
 import { ProblemSidebar } from './features/problems/ProblemSidebar'
 import { ProblemDetail } from './features/problems/ProblemDetail'
@@ -12,13 +11,27 @@ import { ModalLayer } from './components/ModalLayer'
 import { TabBar } from './components/TabBar'
 import { BrowserToolbar } from './components/BrowserToolbar'
 import { useAppModalState } from './hooks/useAppModalState'
+import { useBrowserNavigation } from './hooks/useBrowserNavigation'
+import { useBrowserViewVisibility } from './hooks/useBrowserViewVisibility'
 import './App.css'
 
 function App() {
-  const [url, setUrl] = useState('')
-  const [syncMsg, setSyncMsg] = useState('')
-  const [sidebarWidth, setSidebarWidth] = useState(220)
-  const [isHome, setIsHome] = useState(true)
+  const {
+    url,
+    syncMsg,
+    sidebarWidth,
+    isHome,
+    setUrl,
+    setSidebarWidth,
+    applyUrlState,
+    navigateFromInput,
+    navigateTo,
+    goHome,
+    goBack,
+    goForward,
+    reload,
+    syncCurrentPage,
+  } = useBrowserNavigation()
   const {
     showSettings,
     showDashboard,
@@ -37,75 +50,38 @@ function App() {
     openNotes,
     closeNotes,
   } = useAppModalState({ isHome })
-
-  useEffect(() => {
-    const unsubscribe = window.electronAPI.onUrlChanged((newUrl: string) => {
-      setUrl(newUrl)
-      setIsHome(!newUrl || newUrl === 'about:blank')
-    })
-    return unsubscribe
-  }, [])
-
-  useEffect(() => {
-    if (isHome) {
-      window.electronAPI.hideView()
-    } else if (!modalBackdrop) {
-      window.electronAPI.showView()
-    }
-  }, [isHome, modalBackdrop])
-
-  useEffect(() => {
-    window.electronAPI.setSidebarWidth(sidebarWidth)
-  }, [sidebarWidth])
-
-  const handleNavigate = () => {
-    let target = url.trim()
-    if (!target) return
-    if (!target.startsWith('http://') && !target.startsWith('https://')) {
-      target = 'https://' + target
-    }
-    window.electronAPI.navigate(target)
-    setIsHome(false)
-  }
-
-  const handleSyncPage = async () => {
-    setSyncMsg('同步中...')
-    const result = await window.electronAPI.syncCurrentPage()
-    if (result.error) setSyncMsg(result.error)
-    else setSyncMsg(`已同步 ${result.inserted} 条`)
-    setTimeout(() => setSyncMsg(''), 4000)
-  }
+  useBrowserViewVisibility({ isHome, modalBackdrop })
 
   return (
     <ErrorBoundary>
       <div className="app-layout">
       <div className="titlebar-layer">
-        <TabBar onTabUrlChange={(newUrl) => { setUrl(newUrl); setIsHome(!newUrl || newUrl === 'about:blank') }} />
+        <TabBar onTabUrlChange={applyUrlState} />
         <WindowControls />
       </div>
       <BrowserToolbar
         url={url}
         syncMsg={syncMsg}
         onUrlChange={setUrl}
-        onNavigate={handleNavigate}
-        onHome={() => { window.electronAPI.goHome(); setUrl(''); setIsHome(true) }}
-        onBack={() => window.electronAPI.goBack()}
-        onForward={() => window.electronAPI.goForward()}
-        onReload={() => window.electronAPI.reload()}
-        onSyncPage={handleSyncPage}
+        onNavigate={navigateFromInput}
+        onHome={goHome}
+        onBack={goBack}
+        onForward={goForward}
+        onReload={reload}
+        onSyncPage={syncCurrentPage}
         onOpenDashboard={openDashboard}
         onOpenScripts={openScripts}
         onOpenSettings={openSettings}
       />
       <div className="content-area">
         <ProblemSidebar
-          onNavigate={(targetUrl) => { window.electronAPI.navigate(targetUrl); setIsHome(false) }}
+          onNavigate={navigateTo}
           onShowDetail={openProblemDetail}
           onShowNotes={openNotes}
           onWidthChange={setSidebarWidth}
         />
         <main className="flex-1 overflow-auto bg-white p-4">
-          {isHome && <HomePage onNavigate={(targetUrl) => { window.electronAPI.navigate(targetUrl); setIsHome(false) }} />}
+          {isHome && <HomePage onNavigate={navigateTo} />}
         </main>
       </div>
 
@@ -118,7 +94,7 @@ function App() {
         <ModalLayer backdrop={modalBackdrop} sidebarWidth={sidebarWidth} onClose={closeDashboard}>
           <Dashboard
             onClose={closeDashboard}
-            onNavigate={(targetUrl) => { closeDashboard(); window.electronAPI.navigate(targetUrl); setIsHome(false) }}
+            onNavigate={(targetUrl) => { closeDashboard(); navigateTo(targetUrl) }}
           />
         </ModalLayer>
       )}

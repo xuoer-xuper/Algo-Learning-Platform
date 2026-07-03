@@ -2,6 +2,15 @@ import { useState, useEffect, useCallback } from 'react'
 import { NoteEditorPane } from './NoteEditorPane'
 import { NoteList } from './NoteList'
 import type { NoteItem } from './notesTypes'
+import {
+  createProblemNote,
+  deleteNote,
+  listNotesByProblem,
+  loadNote,
+  openNotesDirectory,
+  updateNoteContent,
+  updateNoteType,
+} from './problemsApi'
 import { useDebouncedNoteTitleSave } from './useDebouncedNoteTitleSave'
 
 interface Props {
@@ -19,7 +28,7 @@ export function NotePanelModal({ problemId, onClose }: Props) {
   const [dirty, setDirty] = useState(false)
 
   const loadNotes = useCallback(async () => {
-    const list = await window.electronAPI.listNotesByProblem(problemId)
+    const list = await listNotesByProblem(problemId)
     setNotes(list)
   }, [problemId])
 
@@ -39,7 +48,7 @@ export function NotePanelModal({ problemId, onClose }: Props) {
     }
     // 切换前先 flush 当前笔记的未保存标题
     await flushPendingTitle(true)
-    const note = await window.electronAPI.createNote(problemId, '未命名笔记', '', 'solution')
+    const note = await createProblemNote(problemId)
     await loadNotes()
     await openNote(note.id, '')
   }
@@ -47,7 +56,7 @@ export function NotePanelModal({ problemId, onClose }: Props) {
   const openNote = async (noteId: string, fallbackContent?: string) => {
     // 切换笔记前 flush 当前笔记的未保存标题，避免丢失
     await flushPendingTitle(true)
-    const note = await window.electronAPI.getNote(noteId)
+    const note = await loadNote(noteId)
     if (!note) return
     // milkdown 是非受控编辑器，切换笔记需重置状态
     setActiveNoteId(noteId)
@@ -61,7 +70,7 @@ export function NotePanelModal({ problemId, onClose }: Props) {
     if (!activeNoteId) return
     setSaving(true)
     try {
-      await window.electronAPI.updateNoteContent(activeNoteId, markdown)
+      await updateNoteContent(activeNoteId, markdown)
       setDirty(false)
       await loadNotes()
     } finally {
@@ -72,7 +81,7 @@ export function NotePanelModal({ problemId, onClose }: Props) {
   const handleTypeChange = async (noteType: string) => {
     setEditorType(noteType)
     if (activeNoteId) {
-      await window.electronAPI.updateNoteType(activeNoteId, noteType)
+      await updateNoteType(activeNoteId, noteType)
       await loadNotes()
     }
   }
@@ -86,7 +95,7 @@ export function NotePanelModal({ problemId, onClose }: Props) {
   const handleDelete = async (noteId: string) => {
     if (!confirm('确定删除这条笔记吗？笔记文件将被永久删除。')) return
     clearPendingTitleForNote(noteId)
-    await window.electronAPI.deleteNote(noteId)
+    await deleteNote(noteId)
     if (activeNoteId === noteId) {
       setActiveNoteId(null)
       setEditorTitle('')
@@ -96,7 +105,7 @@ export function NotePanelModal({ problemId, onClose }: Props) {
   }
 
   const handleOpenDir = () => {
-    window.electronAPI.openNotesDir()
+    openNotesDirectory()
   }
 
   return (

@@ -1,5 +1,13 @@
 import { useState, useEffect } from 'react'
 import { PLATFORM_NAMES, STATUS_COLORS, STATUS_LABELS, VERDICT_COLORS } from '../../shared/display'
+import {
+  deleteNotesByProblem,
+  deleteProblemRecord,
+  loadNotesForDelete,
+  loadProblemDetail,
+  navigateToProblemUrl,
+} from './problemsApi'
+import type { ProblemDetailRecord, SubmissionRecord } from './problemTypes'
 
 interface Props {
   problemId: string
@@ -12,16 +20,11 @@ function isContestPageLink(url: string): boolean {
 }
 
 export function ProblemDetail({ problemId, onClose }: Props) {
-  const [detail, setDetail] = useState<any>(null)
+  const [detail, setDetail] = useState<ProblemDetailRecord | null>(null)
   const [deleting, setDeleting] = useState(false)
 
   useEffect(() => {
-    Promise.all([
-      window.electronAPI.getProblemDetail(problemId),
-      window.electronAPI.getProblemVisitStats(problemId),
-    ]).then(([d, vs]) => {
-      setDetail({ ...d, visitStats: vs })
-    })
+    loadProblemDetail(problemId).then(setDetail)
   }, [problemId])
 
   const handleDelete = async () => {
@@ -30,7 +33,7 @@ export function ProblemDetail({ problemId, onClose }: Props) {
     // 检查是否有关联笔记，若有则询问是否一并删除笔记文件
     let deleteNotes = false
     try {
-      const notes = await window.electronAPI.getNotesForDelete(problemId)
+      const notes = await loadNotesForDelete(problemId)
       if (notes.length > 0) {
         deleteNotes = confirm(
           `该题目关联了 ${notes.length} 条笔记。\n\n点击「确定」将同时删除这些笔记文件（不可恢复）；\n点击「取消」仅删除题目记录，保留笔记文件。`
@@ -41,9 +44,9 @@ export function ProblemDetail({ problemId, onClose }: Props) {
     setDeleting(true)
     try {
       if (deleteNotes) {
-        await window.electronAPI.deleteNotesByProblem(problemId)
+        await deleteNotesByProblem(problemId)
       }
-      const ok = await window.electronAPI.deleteProblem(problemId)
+      const ok = await deleteProblemRecord(problemId)
       if (ok) onClose()
     } finally {
       setDeleting(false)
@@ -123,7 +126,7 @@ export function ProblemDetail({ problemId, onClose }: Props) {
             href="#"
             onClick={(e) => {
               e.preventDefault()
-              window.electronAPI.navigate(detail.canonical_url)
+              navigateToProblemUrl(detail.canonical_url)
               onClose()
             }}
           >
@@ -132,11 +135,11 @@ export function ProblemDetail({ problemId, onClose }: Props) {
         </div>
       </div>
 
-      {detail.submissions?.length > 0 && (
+      {(detail.submissions?.length ?? 0) > 0 && (
         <div className="detail-submissions">
           <h3 className="settings-section-title">提交记录</h3>
           <div className="submissions-list">
-            {detail.submissions.map((s: any) => (
+            {(detail.submissions ?? []).map((s: SubmissionRecord) => (
               <div key={s.id} className="submission-item">
                 <span className="submission-verdict" style={{ color: VERDICT_COLORS[s.verdict] || '#585b70' }}>
                   {s.verdict}

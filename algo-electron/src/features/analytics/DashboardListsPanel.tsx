@@ -1,30 +1,5 @@
 import { PLATFORM_NAMES } from '../../shared/display'
-
-export interface DashboardTimelineEvent {
-  id?: string | number
-  event_type: string
-  platform?: string | null
-  occurred_at?: string | null
-}
-
-export interface DashboardProblemListItem {
-  id: string | number
-  platform: string
-  title?: string | null
-  platform_problem_id?: string | null
-  canonical_url: string
-  wrong_count?: number
-  days_since?: number
-}
-
-export interface DashboardRevisitItem {
-  problem_id: string | number
-  platform: string
-  title?: string | null
-  platform_problem_id?: string | null
-  canonical_url: string
-  visit_count: number
-}
+import type { DashboardProblemListItem, DashboardRevisitItem, DashboardTimelineEvent } from './types'
 
 interface DashboardListsPanelProps {
   timeline: DashboardTimelineEvent[]

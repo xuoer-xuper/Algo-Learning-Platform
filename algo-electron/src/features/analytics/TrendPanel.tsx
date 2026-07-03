@@ -7,11 +7,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts'
-
-interface TrendPoint {
-  local_day: string
-  count: number
-}
+import type { TrendPoint } from './types'
 
 interface TrendPanelProps {
   visitedTrend: TrendPoint[]

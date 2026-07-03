@@ -1,6 +1,14 @@
 import { useState, useEffect } from 'react'
 import { UserScriptEditor } from './UserScriptEditor'
 import { UserScriptList } from './UserScriptList'
+import {
+  deleteUserScript,
+  importUserScriptFile,
+  loadUserScriptManagerData,
+  openUserScriptsFolder,
+  saveUserScriptSites,
+  toggleUserScript,
+} from './scriptsApi'
 import type { ScriptSite, UserScriptRecord } from './types'
 
 export function UserScriptManager({ onClose }: { onClose: () => void }) {
@@ -12,12 +20,10 @@ export function UserScriptManager({ onClose }: { onClose: () => void }) {
   const [errorMsg, setErrorMsg] = useState('')
 
   const loadScripts = async () => {
-    const [list, siteList] = await Promise.all([
-      window.electronAPI.scriptsGetAll(),
-      window.electronAPI.getAllSites()
-    ])
-    setScripts(list as UserScriptRecord[])
-    setSites(siteList as ScriptSite[])
+    const data = await loadUserScriptManagerData()
+    setScripts(data.scripts)
+    setSites(data.sites)
+    return data
   }
 
   useEffect(() => {
@@ -37,10 +43,10 @@ export function UserScriptManager({ onClose }: { onClose: () => void }) {
 
   const handleImport = async () => {
     try {
-      const id = await window.electronAPI.scriptsImportFile()
+      const id = await importUserScriptFile()
       if (id) {
-        await loadScripts()
-        const newScript = ((await window.electronAPI.scriptsGetAll()) as UserScriptRecord[]).find((s) => s.id === id)
+        const data = await loadScripts()
+        const newScript = data.scripts.find((s) => s.id === id)
         if (newScript) {
           handleEdit(newScript)
         }
@@ -54,10 +60,7 @@ export function UserScriptManager({ onClose }: { onClose: () => void }) {
   const handleSave = async () => {
     try {
       if (!editingScript) return
-      await window.electronAPI.scriptsSave(editingScript.id, {
-        name: editName,
-        site_ids_json: JSON.stringify(selectedSiteIds)
-      })
+      await saveUserScriptSites(editingScript.id, editName, selectedSiteIds)
       setEditingScript(null)
       loadScripts()
     } catch (e: unknown) {
@@ -67,13 +70,13 @@ export function UserScriptManager({ onClose }: { onClose: () => void }) {
   }
 
   const handleToggle = async (id: string, enabled: boolean) => {
-    await window.electronAPI.scriptsToggle(id, enabled)
+    await toggleUserScript(id, enabled)
     loadScripts()
   }
 
   const handleDelete = async (id: string) => {
     if (confirm('确定删除该脚本吗？（不会删除本地源文件）')) {
-      await window.electronAPI.scriptsDelete(id)
+      await deleteUserScript(id)
       loadScripts()
     }
   }
@@ -105,7 +108,7 @@ export function UserScriptManager({ onClose }: { onClose: () => void }) {
           onToggleSite={toggleSiteSelection}
           onCancel={() => setEditingScript(null)}
           onSave={handleSave}
-          onOpenFolder={() => window.electronAPI.scriptsOpenFolder()}
+          onOpenFolder={openUserScriptsFolder}
         />
       ) : (
         <UserScriptList
@@ -113,7 +116,7 @@ export function UserScriptManager({ onClose }: { onClose: () => void }) {
           sites={sites}
           errorMsg={errorMsg}
           onImport={handleImport}
-          onOpenFolder={() => window.electronAPI.scriptsOpenFolder()}
+          onOpenFolder={openUserScriptsFolder}
           onToggle={handleToggle}
           onEdit={handleEdit}
           onDelete={handleDelete}

@@ -1,11 +1,10 @@
 import { useEffect, useState } from 'react'
-
-interface CodeforcesAccount {
-  id?: string
-  handle: string
-  current_rating?: number | null
-  peak_rating?: number | null
-}
+import {
+  loadPrimaryCodeforcesAccount,
+  syncCodeforcesRatingProfile,
+  syncCodeforcesSubmissions,
+} from './settingsApi'
+import type { CodeforcesAccount } from './settingsTypes'
 
 interface CodeforcesSyncPanelProps {
   onStatsRefresh: () => void | Promise<void>
@@ -19,9 +18,8 @@ export function CodeforcesSyncPanel({ onStatsRefresh }: CodeforcesSyncPanelProps
   const [submissionSyncStatus, setSubmissionSyncStatus] = useState('')
 
   useEffect(() => {
-    window.electronAPI.getAccounts('codeforces').then((accounts: CodeforcesAccount[]) => {
-      if (accounts.length > 0) {
-        const account = accounts[0]
+    loadPrimaryCodeforcesAccount().then((account) => {
+      if (account) {
         setRatingHandle(account.handle)
         setRatingInfo(account)
       }
@@ -36,15 +34,16 @@ export function CodeforcesSyncPanel({ onStatsRefresh }: CodeforcesSyncPanelProps
 
     setSubmissionSyncStatus('同步中...')
     try {
-      const result = await window.electronAPI.syncCodeforces(cfHandle.trim())
+      const result = await syncCodeforcesSubmissions(cfHandle.trim())
       if (result.error) {
         setSubmissionSyncStatus(`失败: ${result.error}`)
       } else {
         setSubmissionSyncStatus(`成功: ${result.fetched} 条，新增 ${result.inserted} 条`)
         await onStatsRefresh()
       }
-    } catch (e: any) {
-      setSubmissionSyncStatus(`错误: ${e.message}`)
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : String(e)
+      setSubmissionSyncStatus(`错误: ${message}`)
     }
   }
 
@@ -56,17 +55,16 @@ export function CodeforcesSyncPanel({ onStatsRefresh }: CodeforcesSyncPanelProps
 
     setRatingStatus('同步中...')
     try {
-      await window.electronAPI.bindHandle('codeforces', ratingHandle.trim())
-      const result = await window.electronAPI.syncCodeforcesRating(ratingHandle.trim())
+      const { result, account } = await syncCodeforcesRatingProfile(ratingHandle.trim())
       if (result.success) {
         setRatingStatus(`同步成功，peak: ${result.peak}`)
-        const account = await window.electronAPI.getAccount('codeforces', ratingHandle.trim())
         setRatingInfo(account)
       } else {
         setRatingStatus(`失败: ${result.error}`)
       }
-    } catch (e: any) {
-      setRatingStatus(`错误: ${e.message}`)
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : String(e)
+      setRatingStatus(`错误: ${message}`)
     }
   }
 

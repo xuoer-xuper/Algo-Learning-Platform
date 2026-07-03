@@ -79,7 +79,7 @@ export function UserScriptEditor({
                 />
                 <div className="flex flex-col">
                   <span className="font-medium text-sm">{site.name || site.id}</span>
-                  <span className="text-xs text-gray-500 truncate max-w-[120px]">{site.home_url}</span>
+                  <span className="text-xs text-gray-500 truncate max-w-[120px]">{site.homeUrl}</span>
                 </div>
               </label>
             ))}

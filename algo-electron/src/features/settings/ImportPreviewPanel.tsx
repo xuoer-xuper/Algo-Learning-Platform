@@ -41,7 +41,7 @@ export function ImportPreviewPanel({
                   onChange={() => onToggleOverwrite(conflict.id)}
                 />
                 <span className="site-name">{conflict.name}</span>
-                <span className="site-domains">{conflict.domains.join(', ')}</span>
+                <span className="site-domains">{conflict.incoming.domains.join(', ')}</span>
               </label>
             </div>
           ))}

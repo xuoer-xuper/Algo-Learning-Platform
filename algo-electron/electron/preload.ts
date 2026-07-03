@@ -78,17 +78,17 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // 站点管理
   getAllSites: () => ipcRenderer.invoke('sites:getAll'),
   getSiteById: (id: string) => ipcRenderer.invoke('sites:getById', id),
-  createSite: (data: any) => ipcRenderer.invoke('sites:create', data),
-  updateSite: (id: string, data: any) => ipcRenderer.invoke('sites:update', id, data),
+  createSite: (data: SiteConfigCreateInput) => ipcRenderer.invoke('sites:create', data),
+  updateSite: (id: string, data: SiteConfigUpdateInput) => ipcRenderer.invoke('sites:update', id, data),
   toggleSite: (id: string, enabled: boolean) => ipcRenderer.invoke('sites:toggle', id, enabled),
   deleteSite: (id: string) => ipcRenderer.invoke('sites:delete', id),
   exportSitesConfig: () => ipcRenderer.invoke('sites:exportConfig') as Promise<{ success: boolean; path?: string; count?: number; error?: string }>,
-  importSitesConfig: () => ipcRenderer.invoke('sites:importConfig') as Promise<{ success: boolean; preview?: any; error?: string }>,
-  confirmImportSites: (sites: any[], overwriteIds: string[]) => ipcRenderer.invoke('sites:confirmImport', sites, overwriteIds) as Promise<{ success: boolean; imported?: number; overwritten?: number; error?: string }>,
+  importSitesConfig: () => ipcRenderer.invoke('sites:importConfig') as Promise<SiteImportResult>,
+  confirmImportSites: (sites: SiteConfigRecord[], overwriteIds: string[]) => ipcRenderer.invoke('sites:confirmImport', sites, overwriteIds) as Promise<SiteConfirmImportResult>,
 
   // Scripts
   scriptsGetAll: () => ipcRenderer.invoke('scripts:getAll'),
-  scriptsSave: (id: string | null, data: any) => ipcRenderer.invoke('scripts:save', id, data),
+  scriptsSave: (id: string | null, data: UserScriptSaveInput) => ipcRenderer.invoke('scripts:save', id, data),
   scriptsImportFile: () => ipcRenderer.invoke('scripts:importFile'),
   scriptsOpenFolder: () => ipcRenderer.invoke('scripts:openFolder'),
   scriptsToggle: (id: string, enabled: boolean) => ipcRenderer.invoke('scripts:toggle', id, enabled),
@@ -104,8 +104,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   switchTab: (tabId: string) => ipcRenderer.send('tab:switch', tabId),
   detachTab: (tabId: string) => ipcRenderer.send('tab:detach', tabId),
   getTabList: () => ipcRenderer.invoke('tab:getList'),
-  onTabListChanged: (callback: (tabs: any[]) => void) => {
-    const handler = (_event: Electron.IpcRendererEvent, tabs: any[]) => callback(tabs)
+  onTabListChanged: (callback: (tabs: TabInfo[]) => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, tabs: TabInfo[]) => callback(tabs)
     ipcRenderer.on('tab:listChanged', handler)
     return () => {
       ipcRenderer.off('tab:listChanged', handler)
@@ -113,15 +113,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
 
   // 笔记（本地题解 Markdown）
-  listNotesByProblem: (problemId: string) => ipcRenderer.invoke('notes:listByProblem', problemId) as Promise<any[]>,
-  getNote: (noteId: string) => ipcRenderer.invoke('notes:get', noteId) as Promise<any>,
-  createNote: (problemId: string | null, title: string, content: string | null, noteType: string) => ipcRenderer.invoke('notes:create', problemId, title, content, noteType) as Promise<any>,
+  listNotesByProblem: (problemId: string) => ipcRenderer.invoke('notes:listByProblem', problemId) as Promise<NoteRecord[]>,
+  getNote: (noteId: string) => ipcRenderer.invoke('notes:get', noteId) as Promise<NoteRecord | null>,
+  createNote: (problemId: string | null, title: string, content: string | null, noteType: string) => ipcRenderer.invoke('notes:create', problemId, title, content, noteType) as Promise<NoteRecord>,
   updateNoteTitle: (noteId: string, title: string) => ipcRenderer.invoke('notes:updateTitle', noteId, title) as Promise<boolean>,
   updateNoteContent: (noteId: string, content: string) => ipcRenderer.invoke('notes:updateContent', noteId, content) as Promise<boolean>,
-  saveNoteImage: (noteId: string, fileName: string, mimeType: string, data: ArrayBuffer) => ipcRenderer.invoke('notes:saveImage', noteId, fileName, mimeType, data) as Promise<any>,
+  saveNoteImage: (noteId: string, fileName: string, mimeType: string, data: ArrayBuffer) => ipcRenderer.invoke('notes:saveImage', noteId, fileName, mimeType, data) as Promise<SaveNoteImageResult>,
   updateNoteType: (noteId: string, noteType: string) => ipcRenderer.invoke('notes:updateType', noteId, noteType) as Promise<boolean>,
   deleteNote: (noteId: string) => ipcRenderer.invoke('notes:delete', noteId) as Promise<boolean>,
-  getNotesForDelete: (problemId: string) => ipcRenderer.invoke('notes:getForDelete', problemId) as Promise<any[]>,
+  getNotesForDelete: (problemId: string) => ipcRenderer.invoke('notes:getForDelete', problemId) as Promise<NoteRecord[]>,
   deleteNotesByProblem: (problemId: string) => ipcRenderer.invoke('notes:deleteByProblem', problemId) as Promise<number>,
   openNotesDir: () => ipcRenderer.invoke('notes:openDir'),
 
@@ -142,17 +142,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getReviewPlanMarkdown: (planDays?: number) => ipcRenderer.invoke('ai:getReviewPlanMarkdown', planDays),
 
   // P6-009: AI 输出本地保存
-  saveAIOutput: (input: {
-    output_type: string
-    title: string
-    content: string
-    content_markdown?: string
-    input_summary?: Record<string, any>
-    source_refs?: Record<string, any>
-    model_info?: Record<string, any>
-  }) => ipcRenderer.invoke('ai:saveOutput', input),
+  saveAIOutput: (input: AIOutputSaveInput) => ipcRenderer.invoke('ai:saveOutput', input),
   getAIOutput: (id: string) => ipcRenderer.invoke('ai:getOutput', id),
   listAIOutputs: (outputType?: string, limit?: number) => ipcRenderer.invoke('ai:listOutputs', outputType, limit),
   deleteAIOutput: (id: string) => ipcRenderer.invoke('ai:deleteOutput', id),
-  updateAIOutput: (id: string, updates: { title?: string; content?: string; content_markdown?: string }) => ipcRenderer.invoke('ai:updateOutput', id, updates),
+  updateAIOutput: (id: string, updates: Partial<Pick<AIOutputSaveInput, 'title' | 'content' | 'content_markdown'>>) => ipcRenderer.invoke('ai:updateOutput', id, updates),
 })

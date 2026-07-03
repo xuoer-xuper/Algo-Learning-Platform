@@ -1,4 +1,5 @@
 import { useCallback, useState } from 'react'
+import { captureBrowserPreview, hideBrowserView, showBrowserView } from './browserShellApi'
 
 interface UseAppModalStateOptions {
   isHome: boolean
@@ -14,9 +15,9 @@ export function useAppModalState({ isHome }: UseAppModalStateOptions) {
 
   const prepareModal = useCallback(async () => {
     if (!isHome) {
-      const preview = await window.electronAPI.captureBrowserPreview()
+      const preview = await captureBrowserPreview()
       setModalBackdrop(preview)
-      window.electronAPI.hideView()
+      hideBrowserView()
       return
     }
 
@@ -26,7 +27,7 @@ export function useAppModalState({ isHome }: UseAppModalStateOptions) {
   const closeModalBackdrop = useCallback(() => {
     setModalBackdrop(null)
     if (!isHome) {
-      window.electronAPI.showView()
+      showBrowserView()
     }
   }, [isHome])
 

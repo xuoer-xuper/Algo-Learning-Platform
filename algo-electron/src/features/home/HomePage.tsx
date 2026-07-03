@@ -1,60 +1,31 @@
 import { useState, useEffect } from 'react'
 import { PLATFORM_COLORS, PLATFORM_NAMES, PLATFORM_URLS, STATUS_COLORS } from '../../shared/display'
-
-interface OverviewStats {
-  totalProblems: number
-  todayVisited: number
-  platformDistribution: { platform: string; count: number }[]
-  lastActiveTime: string | null
-}
-
-interface ProblemRecord {
-  id: string
-  platform: string
-  platform_problem_id: string
-  canonical_url: string
-  title: string | null
-  status: string
-  last_visited_at: string | null
-}
-
-interface Recommendation {
-  problem_id: string
-  platform: string
-  platform_problem_id: string
-  title: string | null
-  canonical_url: string
-  reason: string
-  source: {
-    wrong_count: number
-    last_attempt: string
-    days_since_attempt: number
-    visit_count: number
-  }
-}
+import {
+  loadHomeOverviewStats,
+  loadHomeRecentProblems,
+  loadHomeRecommendations,
+  subscribeHomeProblemsUpdated,
+} from './homeApi'
+import type { HomeOverviewStats, HomeProblemRecord, HomeRecommendation } from './homeTypes'
 
 interface Props {
   onNavigate: (url: string) => void
 }
 
 export function HomePage({ onNavigate }: Props) {
-  const [stats, setStats] = useState<OverviewStats | null>(null)
-  const [recent, setRecent] = useState<ProblemRecord[]>([])
-  const [recommendations, setRecommendations] = useState<Recommendation[]>([])
+  const [stats, setStats] = useState<HomeOverviewStats | null>(null)
+  const [recent, setRecent] = useState<HomeProblemRecord[]>([])
+  const [recommendations, setRecommendations] = useState<HomeRecommendation[]>([])
 
   useEffect(() => {
-    window.electronAPI.getOverviewStats().then(setStats)
-    window.electronAPI.listRecentProblems(8).then(setRecent)
+    loadHomeOverviewStats().then(setStats)
+    loadHomeRecentProblems(8).then(setRecent)
     // 复习建议：失败时降级为空列表，不阻塞首页
-    window.electronAPI.getReviewRecommendations(5).then((res: any) => {
-      setRecommendations(res?.recommendations ?? [])
-    }).catch(() => setRecommendations([]))
-    const unsubscribe = window.electronAPI.onProblemsUpdated(() => {
-      window.electronAPI.getOverviewStats().then(setStats)
-      window.electronAPI.listRecentProblems(8).then(setRecent)
-      window.electronAPI.getReviewRecommendations(5).then((res: any) => {
-        setRecommendations(res?.recommendations ?? [])
-      }).catch(() => {})
+    loadHomeRecommendations(5).then(setRecommendations).catch(() => setRecommendations([]))
+    const unsubscribe = subscribeHomeProblemsUpdated(() => {
+      loadHomeOverviewStats().then(setStats)
+      loadHomeRecentProblems(8).then(setRecent)
+      loadHomeRecommendations(5).then(setRecommendations).catch(() => {})
     })
     return unsubscribe
   }, [])

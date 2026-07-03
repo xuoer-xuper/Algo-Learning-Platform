@@ -10,11 +10,7 @@ import {
   YAxis,
 } from 'recharts'
 import { CHART_COLORS, PLATFORM_NAMES } from '../../shared/display'
-
-interface PlatformDistributionItem {
-  platform: string
-  count: number
-}
+import type { PlatformDistributionItem } from './types'
 
 interface PlatformChartItem {
   name: string
@@ -22,8 +18,17 @@ interface PlatformChartItem {
   color: string
 }
 
+interface PieLabelProps {
+  name?: string
+  value?: number
+}
+
 interface PlatformDistributionPanelProps {
   distribution: PlatformDistributionItem[]
+}
+
+function formatPieLabel({ name, value }: PieLabelProps): string {
+  return `${name ?? ''} ${value ?? 0}`
 }
 
 export function PlatformDistributionPanel({ distribution }: PlatformDistributionPanelProps) {
@@ -43,7 +48,7 @@ export function PlatformDistributionPanel({ distribution }: PlatformDistribution
           <ResponsiveContainer width="100%" height={220}>
             <PieChart margin={{ top: 5, right: 5, bottom: 5, left: 5 }}>
               <Pie data={platformData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={65}
-                label={({ name, value }: any) => `${name} ${value}`}
+                label={formatPieLabel}
                 labelLine={{ strokeWidth: 1 }}>
                 {platformData.map((entry, index) => <Cell key={index} fill={entry.color} />)}
               </Pie>

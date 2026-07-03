@@ -11,13 +11,17 @@
 - `analytics/`
   - `Dashboard.tsx`
   - `AiSuggestionsPanel.tsx`
+  - `analyticsApi.ts`
   - `DashboardListsPanel.tsx`
   - `PlatformDistributionPanel.tsx`
   - `RatingPanel.tsx`
   - `TrendPanel.tsx`
+  - `types.ts`
   - 学习统计、趋势、Codeforces rating、复习建议、薄弱标签、错题和复访列表。
 - `home/`
   - `HomePage.tsx`
+  - `homeApi.ts`
+  - `homeTypes.ts`
   - 首页快捷入口、学习概览、复习建议、最近访问。
 - `problems/`
   - `ProblemSidebar.tsx`
@@ -27,12 +31,15 @@
   - `NoteEditorPane.tsx`
   - `MilkdownEditor.tsx`
   - `notesTypes.ts`
+  - `problemTypes.ts`
+  - `problemsApi.ts`
   - `useDebouncedNoteTitleSave.ts`
   - 题目列表、题目详情、提交记录展示、Markdown 笔记和图片上传。
 - `scripts/`
   - `UserScriptManager.tsx`
   - `UserScriptEditor.tsx`
   - `UserScriptList.tsx`
+  - `scriptsApi.ts`
   - `types.ts`
   - 用户脚本导入、启用、站点绑定和管理。
 - `settings/`
@@ -45,12 +52,14 @@
   - `PlatformDistributionSummary.tsx`
   - `RealtimeSubmissionPanel.tsx`
   - `SiteManagementPanel.tsx`
+  - `settingsApi.ts`
+  - `settingsTypes.ts`
   - `siteManagementTypes.ts`
   - 首页设置、Codeforces 同步、rating 同步、实时提交诊断、站点配置导入导出和自定义站点。
 
 ## 3. API 调用边界
 
-Feature 只能通过 `window.electronAPI` 调主进程。常见分组：
+Feature 只能通过已有 preload 白名单能力调主进程。业务组件应优先调用本 feature 的 `*Api.ts` helper，helper 内部再使用 `window.electronAPI`。常见分组：
 
 - `home`：overview、recent problems、review recommendations。
 - `analytics`：stats、rating、AI rules、navigation。
@@ -58,7 +67,7 @@ Feature 只能通过 `window.electronAPI` 调主进程。常见分组：
 - `scripts`：scripts IPC、sites list。
 - `settings`：config、sites、rating、submission sync、realtime diagnostics。
 
-新增 feature 时，先确认主进程是否已有 service/repository 能力；不要在 renderer 中复制持久化逻辑。
+新增 feature 时，先确认主进程是否已有 service/repository 能力；不要在 renderer 中复制持久化逻辑，也不要从业务组件直接散落新的 `window.electronAPI` 调用。
 
 跨 feature 共享的平台名称、颜色、状态文案等纯展示映射应使用 `src/shared/display.ts`。
 
@@ -68,6 +77,7 @@ Feature 只能通过 `window.electronAPI` 调主进程。常见分组：
 - 跨 feature 的持久事实数据来自主进程和数据库，不在 renderer 做长期缓存。
 - 主进程发出的 `problems:updated`、`tab:listChanged` 等事件必须在 effect cleanup 中取消订阅。
 - Dashboard/Home 的 AI 建议失败应降级为空或提示，不阻塞核心统计展示。
+- feature 内部数据 helper 只能封装已有 `window.electronAPI` 调用和轻量数据规整，不能新增持久化规则或改变主进程数据口径。
 
 ## 5. UI 规则
 

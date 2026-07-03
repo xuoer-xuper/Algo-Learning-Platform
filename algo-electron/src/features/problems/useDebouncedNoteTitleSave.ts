@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef } from 'react'
+import { updateNoteTitle } from './problemsApi'
 
 interface PendingTitleUpdate {
   noteId: string
@@ -33,7 +34,7 @@ export function useDebouncedNoteTitleSave({
 
     const finalTitle = pending.title.trim() || '未命名笔记'
     try {
-      await window.electronAPI.updateNoteTitle(pending.noteId, finalTitle)
+      await updateNoteTitle(pending.noteId, finalTitle)
       if (reload) await onSaved()
     } catch {
       // 标题自动保存失败不阻塞编辑器关闭；用户后续内容保存仍可继续。

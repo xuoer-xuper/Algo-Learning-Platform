@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { loadDefaultHomeUrl, normalizeHomeUrl, saveDefaultHomeUrl } from './settingsApi'
 
 export function DefaultHomePanel() {
   const [homeUrl, setHomeUrl] = useState('')
@@ -6,18 +7,15 @@ export function DefaultHomePanel() {
   const savedTimerRef = useRef<number | undefined>()
 
   useEffect(() => {
-    window.electronAPI.getDefaultHomeUrl().then(setHomeUrl)
+    loadDefaultHomeUrl().then(setHomeUrl)
     return () => {
       if (savedTimerRef.current) window.clearTimeout(savedTimerRef.current)
     }
   }, [])
 
   const handleSave = () => {
-    let url = homeUrl.trim()
-    if (!url.startsWith('http://') && !url.startsWith('https://')) {
-      url = 'https://' + url
-    }
-    window.electronAPI.setDefaultHomeUrl(url)
+    const url = normalizeHomeUrl(homeUrl)
+    saveDefaultHomeUrl(url)
     setHomeUrl(url)
     setSaved(true)
 

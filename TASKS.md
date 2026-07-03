@@ -2607,7 +2607,7 @@ Phase 6 全部任务完成。
 状态：未开始  
 优先级：P0  
 阶段：Phase 8  
-前置任务：P8-001 到 P8-011、P8-013、P8-014、P8-015、P8-016、P8-017、P8-018、P8-019、P8-020、P8-021、P8-022、P8-023、P8-024、P8-025、P8-026、P8-027、P8-028
+前置任务：P8-001 到 P8-011、P8-013、P8-014、P8-015、P8-016、P8-017、P8-018、P8-019、P8-020、P8-021、P8-022、P8-023、P8-024、P8-025、P8-026、P8-027、P8-028、P8-029、P8-030、P8-031、P8-032、P8-033、P8-034、P8-035、P8-036、P8-037、P8-038、P8-039
 涉及模块：全项目、文档  
 目标：完成 v1.0 发布前总验收。  
 验收标准：
@@ -2944,6 +2944,225 @@ Phase 6 全部任务完成。
 完成记录：已新增 `src/hooks/useAppModalState.ts` 和 `src/hooks/README.md`；`App.tsx` 保留 URL、首页状态、当前页同步、侧栏宽度和 modal 渲染接线。
 
 建议提交：`refactor: 抽出 App modal 状态 hook`
+
+### P8-029 App 浏览器视图显隐 hook 拆分
+
+状态：已完成
+优先级：P0
+阶段：Phase 8
+前置任务：P8-028
+涉及模块：src/App.tsx、src/hooks、文档
+目标：继续降低 `App.tsx` 壳层副作用密度，把首页状态和 modal 预览背景驱动的 `WebContentsView` 显隐逻辑抽成应用级 hook。
+验收标准：
+
+- `App.tsx` 不再直接维护 `hideView` / `showView` 的 `useEffect`。
+- `useBrowserViewVisibility.ts` 负责首页隐藏浏览器 view、非首页且没有 modal 背景时恢复浏览器 view。
+- 保持首页、普通网页、打开 modal、关闭 modal 的浏览器 view 显隐行为不变。
+- `src/hooks/README.md` 说明该 hook 的职责和边界。
+- 不新增 IPC/Preload API，不改变导航、modal 内容、提交同步、题目详情或笔记行为。
+- TypeScript 通过，首页/网页/modal view 显隐手测范围明确。
+
+完成记录：已新增 `src/hooks/useBrowserViewVisibility.ts`；`App.tsx` 保留 `isHome` 与 `modalBackdrop` 状态接线，但显隐副作用由 hook 封装。
+
+建议提交：`refactor: 抽出浏览器视图显隐 hook`
+
+### P8-030 App 浏览器导航 hook 拆分
+
+状态：已完成
+优先级：P0
+阶段：Phase 8
+前置任务：P8-027、P8-029
+涉及模块：src/App.tsx、src/hooks、文档
+目标：继续降低 `App.tsx` 壳层状态和 IPC 调用密度，把 URL 监听、地址栏跳转、首页/前进/后退/刷新、侧栏宽度同步和当前页提交抓取封装为应用级 hook。
+验收标准：
+
+- `App.tsx` 不再直接维护 `url`、`syncMsg`、`sidebarWidth`、`isHome` 状态或浏览器导航相关 effect。
+- `useBrowserNavigation.ts` 负责 URL 状态、首页判断、URL 变化监听、侧栏宽度同步、导航按钮和当前页提交抓取提示。
+- 保持首页、地址栏跳转、侧栏跳转、统计页跳转、当前页提交抓取和工具栏按钮行为不变。
+- `src/hooks/README.md` 说明该 hook 的职责和边界。
+- 不新增 IPC/Preload API，不改变导航、modal 内容、提交同步、题目详情或笔记行为。
+- TypeScript 通过，浏览器导航与当前页同步手测范围明确。
+
+完成记录：已新增 `src/hooks/useBrowserNavigation.ts`；`App.tsx` 保留布局、各 feature 面板渲染和 hook 接线。
+
+建议提交：`refactor: 抽出 App 浏览器导航 hook`
+
+### P8-031 Analytics 数据 helper 与类型收敛
+
+状态：已完成
+优先级：P0
+阶段：Phase 8
+前置任务：P8-024、P8-030
+涉及模块：src/features/analytics、文档
+目标：在 Dashboard 展示组件拆分完成后，把统计页的数据读取、趋势补零和内部展示类型收敛到 analytics feature 内部 helper，降低 `Dashboard.tsx` 对 `window.electronAPI` 与散落 `any` 类型的直接依赖。
+验收标准：
+
+- `Dashboard.tsx` 不再直接调用统计、AI 建议、rating 历史和重算相关 IPC。
+- `analyticsApi.ts` 只封装已有 `window.electronAPI` 能力，不新增 IPC/Preload API，不改变统计、rating 或 AI 建议数据口径。
+- `types.ts` 收敛趋势、列表、AI 建议、rating 和平台分布展示类型，展示组件不再彼此导出数据类型。
+- 保留 AI 建议失败时降级为空列表/提示的行为。
+- TypeScript 通过，统计页手测范围明确。
+
+完成记录：已新增 `src/features/analytics/analyticsApi.ts` 和 `src/features/analytics/types.ts`；`Dashboard.tsx` 只保留页面级 state、加载编排和渲染接线，趋势补零、核心统计读取、AI 建议降级、rating 历史读取和重算调用由 analytics helper 封装。
+
+建议提交：`refactor: 抽出 Dashboard 数据 helper`
+
+### P8-032 用户脚本管理数据 helper 收敛
+
+状态：已完成
+优先级：P0
+阶段：Phase 8
+前置任务：P8-020、P8-031
+涉及模块：src/features/scripts、文档
+目标：在用户脚本管理 UI 拆分完成后，把脚本列表、站点列表、导入、保存、启停、删除和打开目录的 renderer IPC 调用收敛到 scripts feature 内部 helper，降低 `UserScriptManager.tsx` 对 `window.electronAPI` 的直接依赖。
+验收标准：
+
+- `UserScriptManager.tsx` 不再直接调用 scripts/sites 相关 `window.electronAPI`。
+- `scriptsApi.ts` 只封装已有 scripts/sites IPC，不新增 IPC/Preload API，不改变脚本导入、保存、启停、删除、注入或站点绑定策略。
+- `UserScriptManager.tsx` 继续负责编辑状态、错误提示、删除确认和站点勾选状态。
+- TypeScript 通过，脚本管理入口手测范围明确。
+
+完成记录：已新增 `src/features/scripts/scriptsApi.ts`；`UserScriptManager.tsx` 只保留脚本管理页面状态和 UI 编排，数据读取与脚本操作调用由 scripts helper 封装。
+
+建议提交：`refactor: 抽出脚本管理数据 helper`
+
+### P8-033 设置页数据 helper 与类型收敛
+
+状态：已完成
+优先级：P0
+阶段：Phase 8
+前置任务：P8-019、P8-025、P8-032
+涉及模块：src/features/settings、文档
+目标：在设置页面板拆分完成后，把默认首页、学习概览、实时监听诊断、Codeforces 同步、Rating 同步和站点管理的 renderer IPC 调用收敛到 settings feature 内部 helper，并把跨设置面板的展示类型收敛到独立类型文件。
+验收标准：
+
+- settings feature 中除 `settingsApi.ts` 外不再直接调用 `window.electronAPI`。
+- `settingsApi.ts` 只封装已有 config、stats、realtime diagnostics、Codeforces、sites IPC，不新增 IPC/Preload API，不改变默认首页、同步、导入导出或站点增删改策略。
+- `settingsTypes.ts` 收敛学习概览、实时监听诊断和 Codeforces 账号展示类型，展示组件不再导出跨组件数据类型。
+- `SettingsPage.tsx`、`DefaultHomePanel.tsx`、`CodeforcesSyncPanel.tsx`、`SiteManagementPanel.tsx` 继续只负责 UI 状态、错误提示、确认动作和面板编排。
+- TypeScript 通过，设置页手测范围明确。
+
+完成记录：已新增 `src/features/settings/settingsApi.ts` 和 `src/features/settings/settingsTypes.ts`；设置页各面板改为通过 helper 读取和写入已有主进程能力，未改 preload、数据库、Cookie、提交监测或站点 adapter。
+
+建议提交：`refactor: 抽出设置页数据 helper`
+
+### P8-034 Problems 数据 helper 与类型收敛
+
+状态：已完成
+优先级：P0
+阶段：Phase 8
+前置任务：P8-021、P8-026、P8-033
+涉及模块：src/features/problems、文档
+目标：在题目详情、侧边栏和笔记弹层拆分完成后，把题目列表、题目详情、访问统计、删除、导航、笔记 CRUD、笔记图片上传等 renderer IPC 调用收敛到 problems feature 内部 helper，并补齐题目详情与提交展示类型。
+验收标准：
+
+- problems feature 中除 `problemsApi.ts` 外不再直接调用 `window.electronAPI`。
+- `problemsApi.ts` 只封装已有 problem、stats、notes、browser navigation IPC，不新增 IPC/Preload API，不改变题目删除、笔记保存、图片上传、侧栏刷新或导航行为。
+- `problemTypes.ts` 收敛侧栏题目、题目详情、访问统计和提交展示类型，减少 `any` 在题目详情 JSX 中散落。
+- `ProblemSidebar.tsx`、`ProblemDetail.tsx`、`NotePanelModal.tsx`、`MilkdownEditor.tsx` 和 `useDebouncedNoteTitleSave.ts` 继续负责 UI 状态、确认动作、编辑器生命周期和防抖状态机。
+- TypeScript 通过，题目侧栏、详情弹层和笔记弹层手测范围明确。
+
+完成记录：已新增 `src/features/problems/problemsApi.ts` 和 `src/features/problems/problemTypes.ts`；题目侧栏、详情、笔记弹层、Milkdown 图片上传和标题防抖保存均改为调用 problems helper，未改 preload、数据库、Cookie、提交监测或站点 adapter。
+
+建议提交：`refactor: 抽出题目与笔记数据 helper`
+
+### P8-035 首页数据 helper 与类型收敛
+
+状态：已完成
+优先级：P0
+阶段：Phase 8
+前置任务：P8-031、P8-034
+涉及模块：src/features/home、文档
+目标：把首页学习概览、最近访问、复习建议和题目更新订阅的 renderer IPC 调用收敛到 home feature 内部 helper，并补齐首页展示类型。
+验收标准：
+
+- `HomePage.tsx` 不再直接调用 `window.electronAPI`。
+- `homeApi.ts` 只封装已有 overview、recent problems、review recommendations、problems updated 订阅 IPC，不新增 IPC/Preload API，不改变首页数据口径或复习建议失败降级行为。
+- `homeTypes.ts` 收敛首页概览、最近题目和复习建议展示类型，移除首页中的散落 `any`。
+- `HomePage.tsx` 继续负责 UI 状态和导航回调。
+- TypeScript 通过，首页手测范围明确。
+
+完成记录：已新增 `src/features/home/homeApi.ts` 和 `src/features/home/homeTypes.ts`；首页学习概览、最近访问、复习建议和题目更新订阅改为通过 home helper 获取。
+
+建议提交：`refactor: 抽出首页数据 helper`
+
+### P8-036 Renderer 业务 feature IPC helper 收口
+
+状态：已完成
+优先级：P0
+阶段：Phase 8
+前置任务：P8-031、P8-032、P8-033、P8-034、P8-035
+涉及模块：src/features、文档
+目标：在各业务 feature helper 抽取完成后，检查并收口 `src/features` 下非 helper 组件直接调用 `window.electronAPI` 的遗留点，明确后续 renderer feature 的 IPC 调用边界。
+验收标准：
+
+- `src/features` 下业务组件不再直接调用 `window.electronAPI`，调用集中在各 feature 的 `*Api.ts` helper。
+- Dashboard 的浏览器 view 显隐调用也收敛到 `analyticsApi.ts`。
+- `src/features/README.md` 明确新增 feature 应优先使用本域 helper 封装已有 preload 能力。
+- TypeScript 通过，`rg "window\.electronAPI" algo-electron/src/features -n` 只显示 README 说明和 feature helper 文件。
+
+完成记录：已把 `Dashboard.tsx` 中的 `hideView/showView` 包到 `analyticsApi.ts`；home、analytics、settings、scripts、problems 五个业务 feature 的直接 IPC 调用均集中在本域 helper。
+
+建议提交：`refactor: 收口 renderer feature IPC helper`
+
+### P8-037 共享组件窗口/标签 helper 收敛
+
+状态：已完成
+优先级：P0
+阶段：Phase 8
+前置任务：P8-027、P8-036
+涉及模块：src/components、文档
+目标：把共享组件中的窗口控制和标签管理 preload 调用收敛到 components 层 helper，让 `TabBar.tsx` 和 `WindowControls.tsx` 只负责 UI 状态与交互。
+验收标准：
+
+- `TabBar.tsx` 不再直接调用 `window.electronAPI`，标签订阅、创建、关闭、切换和剥离由 `tabApi.ts` 封装。
+- `WindowControls.tsx` 不再直接调用 `window.electronAPI`，窗口最大化状态订阅和最小化/最大化/关闭由 `windowApi.ts` 封装。
+- 不新增 IPC/Preload API，不改变多标签、剥离窗口或窗口控制行为。
+- `src/components/README.md` 说明共享组件 helper 边界和当前封装函数。
+- TypeScript 通过，标签栏和窗口控制手测范围明确。
+
+完成记录：已新增 `src/components/tabApi.ts` 和 `src/components/windowApi.ts`；`TabBar.tsx`、`WindowControls.tsx` 改为通过组件层 helper 访问已有 preload 能力。
+
+建议提交：`refactor: 抽出窗口和标签组件 helper`
+
+### P8-038 应用壳 hooks 浏览器 helper 收敛
+
+状态：已完成
+优先级：P0
+阶段：Phase 8
+前置任务：P8-028、P8-029、P8-030、P8-037
+涉及模块：src/hooks、文档
+目标：把应用壳 hooks 中的浏览器预览、WebContentsView 显隐、URL 监听、导航、侧栏宽度和当前页提交抓取 preload 调用收敛到 hooks 层 helper，让 hooks 保持状态机和 UI 编排职责。
+验收标准：
+
+- `useAppModalState.ts`、`useBrowserNavigation.ts`、`useBrowserViewVisibility.ts` 不再直接调用 `window.electronAPI`。
+- `browserShellApi.ts` 只封装已有浏览器壳层 preload 能力，不新增 IPC/Preload API，不改变导航、modal 预览、view 显隐、侧栏宽度或当前页提交抓取行为。
+- `src/hooks/README.md` 说明 `browserShellApi.ts` 的封装函数和边界。
+- TypeScript 通过，首页/网页/modal/导航/当前页同步手测范围明确。
+
+完成记录：已新增 `src/hooks/browserShellApi.ts`；应用壳 modal、浏览器导航和 view 显隐 hook 均改为通过该 helper 访问已有 preload 能力。
+
+建议提交：`refactor: 抽出应用壳浏览器 helper`
+
+### P8-039 Renderer preload 类型细化
+
+状态：已完成
+优先级：P0
+阶段：Phase 8
+前置任务：P8-036、P8-037、P8-038
+涉及模块：electron/electron-env.d.ts、electron/preload.ts、src、文档
+目标：在 renderer preload 调用收敛到 helper 后，细化 `electron-env.d.ts` 的主要 IPC 返回类型，减少 renderer helper 内部断言和显式 `any`。
+验收标准：
+
+- `electron-env.d.ts` 覆盖题目、统计、rating、站点、脚本、笔记、AI 建议和 AI 输出的主要 preload 类型。
+- `preload.ts` 中站点、脚本、标签、笔记、AI 输出相关参数和返回 cast 不再使用显式 `any`。
+- renderer helper 中不再依赖旧的 preload `Promise<any>` 断言。
+- 修正站点导入预览 renderer 类型与主进程真实 payload 的差异。
+- TypeScript 通过，`rg "Promise<any|: any|any\\[\\]|Record<string, any>|preview\\?: any|data: any" electron-env/preload/src` 不再命中代码中的显式 any。
+
+完成记录：已细化 `electron/electron-env.d.ts` 和 `electron/preload.ts`；移除 home/scripts/problems/settings helper 中不必要的类型断言；修正 AI 推荐 `problem_id`、推荐标题、脚本站点 `homeUrl`、站点导入冲突 `incoming.domains` 等被旧 `any` 掩盖的类型问题。
+
+建议提交：`refactor: 细化 renderer preload 类型`
 
 ## 12. 状态维护规则
 

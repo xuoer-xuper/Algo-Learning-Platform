@@ -1,16 +1,12 @@
 import { useState, useEffect } from 'react'
 import { CodeforcesSyncPanel } from './CodeforcesSyncPanel'
 import { DefaultHomePanel } from './DefaultHomePanel'
-import {
-  LearningOverviewPanel,
-  type SettingsOverviewStats,
-} from './LearningOverviewPanel'
+import { LearningOverviewPanel } from './LearningOverviewPanel'
 import { PlatformDistributionSummary } from './PlatformDistributionSummary'
-import {
-  RealtimeSubmissionPanel,
-  type RealtimeSubmissionStatus,
-} from './RealtimeSubmissionPanel'
+import { RealtimeSubmissionPanel } from './RealtimeSubmissionPanel'
 import { SiteManagementPanel } from './SiteManagementPanel'
+import { loadRealtimeSubmissionStatus, loadSettingsOverviewStats } from './settingsApi'
+import type { RealtimeSubmissionStatus, SettingsOverviewStats } from './settingsTypes'
 
 export function SettingsPage({ onClose }: { onClose: () => void }) {
   const [stats, setStats] = useState<SettingsOverviewStats | null>(null)
@@ -18,18 +14,19 @@ export function SettingsPage({ onClose }: { onClose: () => void }) {
   const [realtimeStatusText, setRealtimeStatusText] = useState('')
 
   const loadOverviewStats = async () => {
-    const overview = await window.electronAPI.getOverviewStats()
+    const overview = await loadSettingsOverviewStats()
     setStats(overview)
   }
 
   const loadRealtimeStatus = async () => {
     setRealtimeStatusText('刷新中...')
     try {
-      const status = await window.electronAPI.getRealtimeSubmissionStatus()
+      const status = await loadRealtimeSubmissionStatus()
       setRealtimeStatus(status)
       setRealtimeStatusText(status ? '' : '实时监听服务未就绪')
-    } catch (e: any) {
-      setRealtimeStatusText(`读取失败: ${e.message}`)
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : String(e)
+      setRealtimeStatusText(`读取失败: ${message}`)
     }
   }
 

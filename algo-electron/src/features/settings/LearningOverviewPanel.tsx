@@ -1,9 +1,4 @@
-export interface SettingsOverviewStats {
-  totalProblems: number
-  todayVisited: number
-  platformDistribution: { platform: string; count: number }[]
-  lastActiveTime: string | null
-}
+import type { SettingsOverviewStats } from './settingsTypes'
 
 interface LearningOverviewPanelProps {
   stats: SettingsOverviewStats | null

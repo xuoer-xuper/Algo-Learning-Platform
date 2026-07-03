@@ -1,11 +1,18 @@
 import { useEffect, useState } from 'react'
+import {
+  closeAppWindow,
+  loadWindowMaximized,
+  minimizeAppWindow,
+  subscribeWindowMaximized,
+  toggleAppWindowMaximized,
+} from './windowApi'
 
 export function WindowControls() {
   const [maximized, setMaximized] = useState(false)
 
   useEffect(() => {
-    window.electronAPI.isWindowMaximized().then(setMaximized)
-    return window.electronAPI.onWindowMaximized(setMaximized)
+    loadWindowMaximized().then(setMaximized)
+    return subscribeWindowMaximized(setMaximized)
   }, [])
 
   return (
@@ -13,7 +20,7 @@ export function WindowControls() {
       <button
         type="button"
         className="window-control-btn"
-        onClick={() => window.electronAPI.minimizeWindow()}
+        onClick={minimizeAppWindow}
         title="最小化"
         aria-label="最小化"
       >
@@ -22,7 +29,7 @@ export function WindowControls() {
       <button
         type="button"
         className="window-control-btn"
-        onClick={() => window.electronAPI.maximizeWindow()}
+        onClick={toggleAppWindowMaximized}
         title={maximized ? '还原' : '最大化'}
         aria-label={maximized ? '还原' : '最大化'}
       >
@@ -31,7 +38,7 @@ export function WindowControls() {
       <button
         type="button"
         className="window-control-btn window-control-close"
-        onClick={() => window.electronAPI.closeWindow()}
+        onClick={closeAppWindow}
         title="关闭"
         aria-label="关闭"
       >

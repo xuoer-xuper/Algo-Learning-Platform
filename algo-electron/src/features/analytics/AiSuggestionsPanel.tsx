@@ -1,25 +1,5 @@
 import { PLATFORM_NAMES } from '../../shared/display'
-
-interface ReviewRecommendation {
-  problem_id: number
-  platform: string
-  title?: string
-  platform_problem_id: string
-  canonical_url: string
-  reason: string
-  source: {
-    wrong_count: number
-    days_since_attempt: number
-    visit_count: number
-  }
-}
-
-interface WeaknessItem {
-  tag: string
-  ac_rate: number
-  evidence: string
-  weakness_score: number
-}
+import type { ReviewRecommendation, WeaknessItem } from './types'
 
 interface AiSuggestionsPanelProps {
   recommendations: ReviewRecommendation[]

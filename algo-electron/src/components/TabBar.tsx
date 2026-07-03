@@ -1,23 +1,24 @@
 import { useEffect, useRef, useState } from 'react'
+import {
+  closeBrowserTab,
+  createBrowserTab,
+  detachBrowserTab,
+  subscribeTabListChanged,
+  switchBrowserTab,
+  type TabBarTabInfo,
+} from './tabApi'
 import './TabBar.css'
-
-interface TabInfo {
-  id: string
-  url: string
-  title: string
-  isActive: boolean
-}
 
 interface TabBarProps {
   onTabUrlChange?: (url: string) => void
 }
 
 export function TabBar({ onTabUrlChange }: TabBarProps) {
-  const [tabs, setTabs] = useState<TabInfo[]>([])
+  const [tabs, setTabs] = useState<TabBarTabInfo[]>([])
   const prevActiveIdRef = useRef<string | null>(null)
 
   useEffect(() => {
-    const unsub = window.electronAPI.onTabListChanged((newTabs: TabInfo[]) => {
+    const unsub = subscribeTabListChanged((newTabs) => {
       setTabs(newTabs)
 
       const active = newTabs.find((t) => t.isActive)
@@ -30,25 +31,25 @@ export function TabBar({ onTabUrlChange }: TabBarProps) {
   }, [onTabUrlChange])
 
   const handleSwitch = (tabId: string) => {
-    window.electronAPI.switchTab(tabId)
+    switchBrowserTab(tabId)
   }
 
   const handleClose = (e: React.MouseEvent, tabId: string) => {
     e.stopPropagation()
-    window.electronAPI.closeTab(tabId)
+    closeBrowserTab(tabId)
   }
 
   const handleDetach = (tabId: string) => {
     if (tabs.length > 1) {
       const tab = tabs.find(t => t.id === tabId)
       if (tab && tab.url && tab.url !== 'about:blank') {
-        window.electronAPI.detachTab(tabId)
+        detachBrowserTab(tabId)
       }
     }
   }
 
   const handleNewTab = () => {
-    window.electronAPI.createTab()
+    createBrowserTab()
   }
 
   return (

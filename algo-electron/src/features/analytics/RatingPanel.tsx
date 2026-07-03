@@ -7,17 +7,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts'
-
-interface CodeforcesAccount {
-  current_rating?: number | null
-  peak_rating?: number | null
-}
-
-interface RatingHistoryItem {
-  contest_name: string
-  delta: number
-  rating_after: number
-}
+import type { CodeforcesAccount, RatingHistoryItem } from './types'
 
 interface RatingPanelProps {
   account: CodeforcesAccount | null

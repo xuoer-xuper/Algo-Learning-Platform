@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react'
 import { Crepe, CrepeFeature } from '@milkdown/crepe'
 import '@milkdown/crepe/theme/common/style.css'
 import '@milkdown/crepe/theme/nord.css'
+import { saveNoteImage } from './problemsApi'
 
 interface Props {
   noteId: string
@@ -65,8 +66,7 @@ export function MilkdownEditor({ noteId, initialValue, onChange, placeholder }: 
           inlineConfirmButton: '确认',
           onUpload: async (file) => {
             const buffer = await file.arrayBuffer()
-            const result = await window.electronAPI.saveNoteImage(noteId, file.name, file.type, buffer)
-            return result.markdownUrl
+            return saveNoteImage(noteId, file.name, file.type, buffer)
           },
           proxyDomURL: (url) => toNoteAssetDomUrl(noteId, url),
         },
