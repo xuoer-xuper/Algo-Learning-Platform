@@ -50,7 +50,8 @@
 | Renderer 页面、组件拆分、UI 状态 | [renderer-structure-audit.md](renderer-structure-audit.md)、[algo-electron/src/README.md](../algo-electron/src/README.md)、[src/features/README.md](../algo-electron/src/features/README.md)、[src/components/README.md](../algo-electron/src/components/README.md)、[src/hooks/README.md](../algo-electron/src/hooks/README.md) |
 | AI 建议、复习计划、学习摘要 | [electron/ai/README.md](../algo-electron/electron/ai/README.md)、[PROJECT_RULES.md](../PROJECT_RULES.md)、[ARCHITECTURE.md](../ARCHITECTURE.md) |
 | 笔记、Markdown、附件路径 | [electron/notes/README.md](../algo-electron/electron/notes/README.md)、[src/features/README.md](../algo-electron/src/features/README.md) |
-| 测试、构建、打包 | [algo-electron/README.md](../algo-electron/README.md)、[tests/README.md](../algo-electron/tests/README.md) |
+| 测试、构建、打包 | [algo-electron/README.md](../algo-electron/README.md)、[tests/README.md](../algo-electron/tests/README.md)、[final-acceptance-checklist.md](final-acceptance-checklist.md) |
+| 故障排查、数据恢复、迁移失败 | [troubleshooting.md](troubleshooting.md)、[database-migration-rollback.md](database-migration-rollback.md)、[DATABASE_SCHEMA.md](../DATABASE_SCHEMA.md) |
 
 ## 3. 根目录契约文档
 
@@ -75,7 +76,11 @@
 | 文档 | 职责 |
 |---|---|
 | [submission-monitoring-design.md](submission-monitoring-design.md) | 提交监测数据流、submit intent、站点差异、实时 hook 安全边界、自动测试和手测流程。 |
+| [troubleshooting.md](troubleshooting.md) | 登录、提交监测、同步、数据库、笔记、用户脚本、统计和打包常见故障排查。 |
+| [database-migration-rollback.md](database-migration-rollback.md) | SQLite migration 失败识别、备份、恢复、回滚策略和验证命令。 |
 | [renderer-structure-audit.md](renderer-structure-audit.md) | Renderer 大文件、重复常量、IPC 边界和后续拆分顺序审计。 |
+| [project-hardening-audit.md](project-hardening-audit.md) | 项目结构巩固收尾审计、剩余大文件处置、自动验证和用户手测清单。 |
+| [final-acceptance-checklist.md](final-acceptance-checklist.md) | 最终手测验收清单，覆盖七站提交监测、同步、核心页面、用户脚本和打包产物。 |
 | [leetcode-realtime-verification.md](leetcode-realtime-verification.md) | LeetCode 实时提交监测验证记录。 |
 
 ## 5. 主进程模块文档
@@ -119,6 +124,7 @@
 | DB AI output repository | [electron/db/repositories/aiOutput/README.md](../algo-electron/electron/db/repositories/aiOutput/README.md) | AI 输出保存、元信息序列化、查询、更新和删除边界。 |
 | DB account repository | [electron/db/repositories/account/README.md](../algo-electron/electron/db/repositories/account/README.md) | 平台账号、当前 rating、peak rating 和 rating history 边界。 |
 | DB problem repository | [electron/db/repositories/problem/README.md](../algo-electron/electron/db/repositories/problem/README.md) | 题目 upsert、详情、列表、删除和概览统计边界。 |
+| DB submission repository | [electron/db/repositories/submission/README.md](../algo-electron/electron/db/repositories/submission/README.md) | 提交去重写入、查询和首次 AC 更新边界。 |
 | DB site repository | [electron/db/repositories/site/README.md](../algo-electron/electron/db/repositories/site/README.md) | 站点配置 CRUD、内置 seed、导入导出和冲突预览边界。 |
 | DB stats repository | [electron/db/repositories/stats/README.md](../algo-electron/electron/db/repositories/stats/README.md) | 统计查询、趋势、洞察和 `user_daily_stats` 重算边界。 |
 | DB user script repository | [electron/db/repositories/userScript/README.md](../algo-electron/electron/db/repositories/userScript/README.md) | 用户脚本元信息、启用状态、匹配规则和文件路径边界。 |

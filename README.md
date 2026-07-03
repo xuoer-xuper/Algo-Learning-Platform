@@ -16,7 +16,7 @@
 
 **Algo Learning Platform** 是一款为算法爱好者打造的**本地优先 (Local-First)** 个人学习追踪软件。通过内置独立浏览器让你直接访问各大 Online Judge (OJ) 平台，并在后台无感地记录你的刷题轨迹、提交代码、耗时以及错题分布。平台致力于帮助你建立长期的学习习惯，并提供基于你本地数据的深度图表分析。
 
-目前已原生支持 **Codeforces**、**AcWing**、**牛客网**、**VJudge**、**PTA** 等主流平台，同时提供高可扩展的站点自定义接入能力，可轻松适配各类校园及小众 OJ。
+目前已原生支持 **Codeforces**、**AcWing**、**牛客网**、**VJudge**、**PTA**、**洛谷**、**LeetCode** 等主流平台，同时提供高可扩展的站点自定义接入能力，可轻松适配各类校园及小众 OJ。
 
 ---
 
@@ -28,7 +28,7 @@
 - 📈 **个人统计大盘**：内置可视化数据仪表盘（饼图、柱状图、趋势折线图、时间线），直观呈现你的学习连续性、平台分布和弱点项。
 - 🏆 **Codeforces Rating 跟踪**：自动获取并绘制你的 Rating 变化、历史峰值和单场竞赛表现（Delta）。
 - 🧩 **高扩展的站点系统**：内置站点管理器，支持自定义导入/导出题目 URL 匹配规则，且集成了类 Tampermonkey（油猴）级别的插件脚本注入引擎。
-- 🔒 **隐私绝对安全**：一切数据（包含登录状态、Cookie 铭文和行为记录）全部保存在你电脑本地的 SQLite 数据库中，永远掌握在自己手里。
+- 🔒 **隐私绝对安全**：学习数据、登录状态摘要和行为记录都保存在本机环境中，永远掌握在自己手里。
 
 ---
 
@@ -40,7 +40,7 @@
 - **前端框架**: [React 18](https://reactjs.org/) + [Vite](https://vitejs.dev/)
 - **开发语言**: [TypeScript](https://www.typescriptlang.org/)
 - **样式方案**: [TailwindCSS](https://tailwindcss.com/)
-- **状态管理**: [Zustand](https://github.com/pmndrs/zustand)
+- **状态管理**: React 本地状态与按 feature 拆分的 hooks/API helper
 - **本地数据库**: [SQLite3](https://sqlite.org/index.html) (由 `better-sqlite3` 驱动，启用 WAL 模式实现极致读写性能)
 - **数据可视化**: [Recharts](https://recharts.org/)
 

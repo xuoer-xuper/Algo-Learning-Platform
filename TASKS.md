@@ -37,25 +37,16 @@
 
 ## 1. 当前最高优先级
 
-Phase 1、Phase 2、Phase 3、Phase 4、Phase 5 已完成。下一步进入 Phase 6：AI 辅助学习任务。
+Phase 1 到 Phase 7 已完成，Phase 8 已进入质量、文档、结构巩固和发布准备收尾。
 
-下一步固定顺序：
+当前优先顺序：
 
-1. 执行 `P6-001` 建立本地题解 Markdown 系统。✅
-2. 执行 `P6-002` 题目详情页关联本地笔记。✅
-3. 执行 `P6-003` 提交记录关联代码片段或文件路径。✅ → 已撤销（migration 013 删表）
-4. 执行 `P6-004` 设计本地学习数据摘要格式。✅
-5. 执行 `P6-005` 实现错题复习建议。✅
-6. 执行 `P6-006` 实现薄弱标签分析。✅
-7. 执行 `P6-010` 限制 AI 修改核心数据。✅
-8. 执行 `P6-007` 实现阶段学习总结。✅
-9. 执行 `P6-008` 实现复习计划生成。✅
-10. 执行 `P6-009` 实现 AI 输出本地保存。✅
-11. 执行 `P6-011` Phase 6 AI 建议可追溯性测试。✅
+1. 保持 `P8-007` changelog 作为后续新增产物的持续维护标准，暂不标完成。
+2. 保持 `P8-008` electron-builder 打包配置作为后续构建产物的持续维护标准，暂不标完成。
+3. 等用户按 `docs/final-acceptance-checklist.md` 完成统一手测；只修复实际失败项，并补最近的自动测试。
+4. 发布前再处理 `P8-009` Windows 安装包发布和 `P8-012` v1.0 总验收。
 
-Phase 6 全部任务完成。
-
-禁止继续在 `BrowserView` 上新增功能。
+禁止继续在 `BrowserView` 上新增功能；不要重新把 Nowcoder 或 VJudge 接回通用 DOM verdict observer 作为实时入库来源。
 
 ## 2. 文档体系任务
 
@@ -78,7 +69,7 @@ Phase 6 全部任务完成。
 
 ### DOC-002 重写 ROADMAP.md
 
-状态：已完成  
+状态：已完成
 优先级：P0  
 阶段：Phase 0  
 前置任务：DOC-001  
@@ -93,7 +84,7 @@ Phase 6 全部任务完成。
 
 ### DOC-003 重写 TASKS.md
 
-状态：已完成  
+状态：已完成
 优先级：P0  
 阶段：Phase 0  
 前置任务：DOC-001、DOC-002  
@@ -109,7 +100,7 @@ Phase 6 全部任务完成。
 
 ### DOC-004 重写 AI_HANDOFF.md
 
-状态：已完成  
+状态：已完成
 优先级：P0  
 阶段：Phase 0  
 前置任务：DOC-001、DOC-002  
@@ -125,7 +116,7 @@ Phase 6 全部任务完成。
 
 ### DOC-005 新增 ARCHITECTURE.md
 
-状态：已完成  
+状态：已完成
 优先级：P0  
 阶段：Phase 0  
 前置任务：DOC-001、DOC-002  
@@ -300,7 +291,7 @@ Phase 6 全部任务完成。
 验收标准：
 
 - `ARCHITECTURE.md` 有 Renderer 目录建议。
-- 明确 Zustand 只保存 UI 状态和远端返回缓存。
+- 明确 renderer 状态只保存 UI 状态和远端返回缓存，不存核心事实数据。
 
 建议提交：`docs: 定义 Renderer 模块边界`
 
@@ -2591,7 +2582,7 @@ Phase 6 全部任务完成。
 
 ### P8-010 建立故障排查文档
 
-状态：未开始  
+状态：已完成
 优先级：P1  
 阶段：Phase 8  
 前置任务：P1-040、P2-022、P3-017  
@@ -2602,11 +2593,13 @@ Phase 6 全部任务完成。
 - 新用户和 Agent 都能按文档定位常见问题。
 - 不要求用户查看源码才能恢复。
 
+完成记录：已新增 `docs/troubleshooting.md`，覆盖登录/Cookie、页面加载、提交监测、重复/错误提交、手动同步、数据库损坏、笔记图片、用户脚本、统计页和打包安装常见问题；已同步 `docs/README.md`、`AI_HANDOFF.md` 和 `docs/project-hardening-audit.md`。
+
 建议提交：`docs: 添加故障排查文档`
 
 ### P8-011 建立数据迁移回滚文档
 
-状态：未开始  
+状态：已完成
 优先级：P0  
 阶段：Phase 8  
 前置任务：P0-006、P7-003  
@@ -2616,6 +2609,8 @@ Phase 6 全部任务完成。
 
 - 明确备份、迁移、失败恢复步骤。
 - 每次 schema 变更都能挂靠该策略。
+
+完成记录：已新增 `docs/database-migration-rollback.md`，说明 SQLite 数据文件、升级前备份、迁移失败识别、用户恢复、开发者定位、已发布版本回滚策略、新 migration 编写规则、数据修复 migration 和验证命令；已同步 `docs/README.md`、`AI_HANDOFF.md` 和 `docs/project-hardening-audit.md`。
 
 建议提交：`docs: 添加数据库迁移回滚说明`
 
@@ -3607,6 +3602,50 @@ Phase 6 全部任务完成。
 
 建议提交：`refactor: 拆分 AI 快照仓库职责`
 
+### P8-060 提交 repository 内部职责拆分
+
+状态：已完成
+优先级：P1
+阶段：Phase 8
+前置任务：P8-003
+涉及模块：electron/db/repositories、electron/submissions、tests/db、文档
+目标：降低 `submissionRepository.ts` 职责密度，把提交行类型、去重写入、查询和首次 AC 更新拆到独立子模块，同时保持对外导入路径稳定。
+验收标准：
+
+- `submissionRepository.ts` 只作为兼容导出口，不再承载 SQL 细节。
+- `submission/types.ts` 承接提交行和首次 AC 查询行类型。
+- `submission/mutations.ts` 承接按 `(platform, platform_submission_id)` 去重写入提交。
+- `submission/queries.ts` 承接按题目和平台查询提交。
+- `submission/firstAc.ts` 承接最早 AC 查询和题目 `first_solved_at` 更新。
+- 新增子目录 README，并保持 `SubmissionBatchWriter` 写入链路和 repository 临时数据库测试通过。
+- 不改变数据库 schema、IPC/Preload API、提交监测 hook、提交去重口径或首次 AC 口径。
+- TypeScript、lint、repository 临时数据库测试、submissionBatchWriter 测试和 IPC contract 通过。
+
+完成记录：已新增 `electron/db/repositories/submission/` 子目录并拆分实现；`submissionRepository.ts` 保持原导出函数兼容。`tests/db/repositories.test.ts` 已补按平台查询覆盖；`electron/db/README.md`、`electron/db/repositories/README.md`、`electron/submissions/README.md`、`docs/README.md` 和 `AI_HANDOFF.md` 已同步。
+
+建议提交：`refactor: 拆分提交仓库职责`
+
+### P8-061 项目结构巩固收尾审计
+
+状态：已完成
+优先级：P1
+阶段：Phase 8
+前置任务：P8-013 到 P8-060
+涉及模块：docs、TASKS、AI_HANDOFF、electron、src、tests
+目标：对本轮项目结构标准化做收尾审计，确认 README 覆盖、已拆分模块、剩余大文件处置和最终验收清单，避免继续无限机械拆分。
+验收标准：
+
+- 新增结构巩固收尾审计文档，说明审计目标、README 覆盖命令和当前结果。
+- 记录已完成的主进程、DB repository、AI、adapter/submissions、Renderer 结构收口。
+- 对剩余大文件进行分类，明确哪些暂不继续拆分及原因。
+- 给出自动验证清单和用户最终手测清单。
+- 同步 `docs/README.md`、`TASKS.md` 和 `AI_HANDOFF.md`。
+- 不改变数据库 schema、IPC/Preload API、Cookie 策略、提交监测 hook 或业务行为。
+
+完成记录：已新增 `docs/project-hardening-audit.md`，记录 README 覆盖审计、已完成结构收口、剩余大文件分类处置、自动验证清单和用户手测清单；已新增 `docs/final-acceptance-checklist.md`，作为最终统一手测清单；`docs/README.md` 与 `AI_HANDOFF.md` 已同步。`P8-007`、`P8-008` 仍保持进行中；`P8-010`、`P8-011` 已补齐发布恢复文档；`P8-009`、`P8-012` 仍未自动完成。
+
+建议提交：`docs: 增加项目结构巩固收尾审计`
+
 ## 12. 状态维护规则
 
 - 每个任务开始时，将状态从“未开始”改为“进行中”。
@@ -3619,10 +3658,10 @@ Phase 6 全部任务完成。
 
 如果没有用户指定任务，下一位 Agent 默认从以下顺序继续：
 
-1. 检查所有文档是否存在并互相一致。
-2. 执行 `P1-009` 建立 `persist:oj-main` 持久 session。
-3. 执行 `P1-010` 到 `P1-013` 验证四个平台登录状态。
-4. 执行 `P1-014` 建立 CookieVault。
-5. 执行 `P1-017` 建立站点注册表。
+1. 先读 `docs/README.md`、`AI_HANDOFF.md`、`docs/project-hardening-audit.md` 和 `docs/final-acceptance-checklist.md`，确认当前结构巩固现场。
+2. 核对工作区是否已有用户未提交改动；不要撤回提交监测、UI 或文档的既有修复。
+3. 运行 `docs/project-hardening-audit.md` 第 6 节的自动验证基线；提交监测相关改动还必须追加 adapter/submissions 全量测试。
+4. 等用户按 `docs/final-acceptance-checklist.md` 手测后，只修复实际失败项，并补最近的自动测试。
+5. 发布前再处理 `P8-009` Windows 安装包发布和 `P8-012` v1.0 总验收；`P8-007` 和 `P8-008` 作为持续标准保持进行中。
 
-任何情况下都禁止继续在 `BrowserView` 上新增功能。
+任何情况下都禁止继续在 `BrowserView` 上新增功能，也不要重新把 Nowcoder 或 VJudge 接回通用 DOM verdict observer 作为实时入库来源。

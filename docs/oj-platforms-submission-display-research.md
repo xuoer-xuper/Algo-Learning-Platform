@@ -4,6 +4,8 @@
 > 调研对象：AcWing、Luogu、Codeforces、VJudge、PTA、LeetCode.cn、Nowcoder
 > 调研目的：为站点适配层重构提供提交结果展示机制的详细参考
 
+> 维护边界：本文是历史调研材料，不能覆盖 `submission-monitoring-design.md`、`SITE_ADAPTER_GUIDE.md` 或当前 adapter 模块 README 中的已落地设计。
+
 ---
 
 ## 一、总览对比表
@@ -477,7 +479,7 @@ query submissionList($offset: Int!, $limit: Int!, $slug: String) {
 ## 八、关键技术约束
 
 ### 8.1 IPC 桥（必须）
-所有需要注入脚本的平台（Luogu、LeetCode、VJudge），都必须通过 [preload.ts](file:///d:/Algo-Learning-Platform/algo-electron/electron/preload.ts) 的 `contextBridge.exposeInMainWorld('algoBridge', ...)` 暴露 IPC 接口，**不能在 `executeJavaScript` 里直接 `require('electron')`**。
+所有需要注入脚本的平台（Luogu、LeetCode、VJudge），都必须通过 [preload.ts](../algo-electron/electron/preload.ts) 的受控 bridge 暴露 IPC 接口，**不能在 `executeJavaScript` 里直接 `require('electron')`**。
 
 ### 8.2 注入时机
 - `dom-ready`：注入长驻 hook 脚本

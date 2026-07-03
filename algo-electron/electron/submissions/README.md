@@ -70,6 +70,9 @@ SyncService
   - 纯核心状态机，负责校验、fail-closed、去重、题目身份解析和调用写入。
 - `SubmissionBatchWriter`
   - `write(options)`：批量写入入口。
+- `submissionRepository`
+  - 兼容入口在 `electron/db/repositories/submissionRepository.ts`，内部实现和边界说明在 `electron/db/repositories/submission/README.md`。
+  - 只负责 `submissions` 表去重插入、按题目/平台查询和首次 AC 元数据刷新。
 - `SubmissionProblemAttacher`
   - `attachProblem(submission, platform, pageProblemDbId?)`：按当前页面、sourceUrl、rawJson 中的站点上下文补 `problemId`。
   - `ensureProblem(identity)`：缺题目时先 upsert problem 再关联提交。

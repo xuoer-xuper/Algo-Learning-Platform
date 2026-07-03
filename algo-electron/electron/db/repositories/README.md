@@ -14,7 +14,8 @@
 - `account/`：平台账号 CRUD、当前 rating、peak rating 和 rating history。
 - `problemRepository.ts`：题目 repository 兼容导出口；实际实现位于 `problem/`。
 - `problem/`：题目 upsert、详情、最近题目、概览统计和删除。
-- `submissionRepository.ts`：提交 upsert、按题目/平台查询、首次 AC 更新。
+- `submissionRepository.ts`：提交 repository 兼容导出口；实际实现位于 `submission/`。
+- `submission/`：提交行类型、去重写入、按题目/平台查询和首次 AC 更新。
 - `statsRepository.ts`：统计 repository 兼容导出口；实际实现位于 `stats/`。
 - `stats/`：趋势查询、平台分布、时间线、复访、错题、未复习、连续活跃和日统计重算。
 - `siteRepository.ts`：站点配置 repository 兼容导出口；实际实现位于 `site/`。
@@ -31,7 +32,7 @@
 - 事实写入函数应保持幂等或显式说明 upsert/insert 行为。
 - 查询函数可以做展示聚合，但不能修改事实数据。
 - 题目状态展示优先根据 submissions 实时计算，避免只依赖 `problems.status`。
-- 提交写入优先通过 `SubmissionBatchWriter` 进入 `submissionRepository.ts`，由 writer 统一处理题目关联、首次 AC 和统计刷新。
+- 提交写入优先通过 `SubmissionBatchWriter` 进入 `submissionRepository.ts`，由 writer 统一处理题目关联、首次 AC 和统计刷新；repository 自身只做去重插入和必要查询。
 - 统计重算入口通过 `statsRepository.ts` 导出，内部实现位于 `stats/recompute.ts`；不要在 renderer 中复制统计 SQL。
 - 站点配置导入入口通过 `siteRepository.ts` 导出，内部实现位于 `site/importExport.ts`；导入预览不能覆盖内置站点。
 - 账号 rating history 通过 `accountRepository.ts` 导出，内部实现位于 `account/ratingHistory.ts`；重复 contest 不覆盖旧记录。

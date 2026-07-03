@@ -27,6 +27,7 @@
 - `repositories/aiOutput/`：AI 输出保存、读取、列表、更新、删除和元信息序列化实现。
 - `repositories/account/`：平台账号、当前 rating、peak rating 和 rating history 实现。
 - `repositories/problem/`：题目 upsert、删除、详情、列表和概览统计实现。
+- `repositories/submission/`：提交去重写入、按题目/平台查询和首次 AC 更新实现。
 - `repositories/site/`：站点配置 CRUD、内置 seed、导入导出和导入预览实现。
 - `repositories/stats/`：统计 repository 的趋势、洞察、日期 helper 和日统计重算实现。
 - `repositories/userScript/`：用户脚本元信息、启用状态、匹配规则和本地文件路径实现。
@@ -86,6 +87,7 @@ Migration 文件约定：
   - `getLastActiveTime()`
   - `getOverviewStats()`
 - `submissionRepository.ts`
+  - 兼容导出口；内部实现位于 `repositories/submission/`。
   - `upsertSubmission(data)`
   - `getSubmissionsByProblem(problemId)`
   - `getSubmissionsByPlatform(platform, limit?)`

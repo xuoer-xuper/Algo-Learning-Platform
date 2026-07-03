@@ -501,14 +501,14 @@ UNIQUE(entity_type, entity_id, operation, created_at)
 
 该规则用于连续活跃天数。后续可配置，但必须保持历史统计可重算。
 
-## 11. 待实现时必须确认的问题
+## 11. 已确认的数据库实现约束
 
-实现数据库前必须确认：
+当前实现约束：
 
-- UTC 时间格式使用 ISO 字符串还是毫秒整数。
-- ID 使用 `crypto.randomUUID()` 还是自定义短 ID。
-- Cookie 值是否进入 SQLite，还是只从 Electron session 读取并缓存摘要。
-- tags 使用 JSON 还是独立 `problem_tags` 表。
+- 时间字段使用文本时间字符串，业务日期使用本地日期键；统计聚合必须可从原始事件重算。
+- 主键 ID 使用代码侧生成的字符串 ID，repository 负责去重和 upsert 边界。
+- Cookie 明文不进入普通导出、日志或测试快照；Cookie 策略以 Electron session 和 CookieVault 边界为准。
+- 题目 tags 当前按 JSON 文本存储；如未来要拆独立 `problem_tags` 表，必须新增 migration、同步本文档并提供回滚说明。
+- 所有 schema 变更必须追加 migration，不允许改写已发布 migration。
 
-未确认前，优先按照本文档默认字段实现，避免临时随意扩表。
-
+后续 schema 变更必须同时更新 `docs/database-migration-rollback.md` 中的验证和回滚说明。

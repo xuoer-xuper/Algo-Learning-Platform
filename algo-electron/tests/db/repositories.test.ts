@@ -10,6 +10,7 @@ import {
   upsertProblem,
 } from '../../electron/db/repositories/problemRepository.ts'
 import {
+  getSubmissionsByPlatform,
   getSubmissionsByProblem,
   updateFirstAc,
   upsertSubmission,
@@ -257,6 +258,10 @@ test('deduplicates submissions and updates first AC metadata', () => {
   assert.strictEqual(submissions.length, 2)
   assert.strictEqual(submissions[0].platform_submission_id, 'cf-2')
   assert.strictEqual(submissions[1].platform_submission_id, 'cf-1')
+
+  const platformSubmissions = getSubmissionsByPlatform('codeforces', 1)
+  assert.strictEqual(platformSubmissions.length, 1)
+  assert.strictEqual(platformSubmissions[0].platform_submission_id, 'cf-2')
 
   assert.throws(() => {
     db.prepare(`

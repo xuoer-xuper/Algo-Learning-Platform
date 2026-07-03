@@ -3,6 +3,8 @@
 > 调研时间：2026-06-27
 > 调研范围：LeetCode.cn 平台、现有 6 站点迁移清单、通用表格扫描可行性、Electron 脚本注入方案、开源解决方案
 
+> 维护边界：本文是历史调研材料，不能覆盖 `submission-monitoring-design.md`、`SITE_ADAPTER_GUIDE.md` 或当前 adapter 模块 README 中的已落地设计。
+
 ---
 
 ## 一、开源解决方案调研（核心发现）
@@ -267,7 +269,7 @@ query submissionList($offset: Int!, $limit: Int!, $slug: String) {
 
 ## 三、现有 6 站点迁移清单
 
-基于 [domScraper.ts](file:///d:/Algo-Learning-Platform/algo-electron/electron/submissions/scrapers/domScraper.ts) 和 [parsers/sites/](file:///d:/Algo-Learning-Platform/algo-electron/electron/parsers/sites/) 的实际代码分析：
+基于 [domScraper.ts](../algo-electron/electron/submissions/scrapers/domScraper.ts) 和 [parsers/sites/](../algo-electron/electron/parsers/sites/) 的实际代码分析：
 
 ### 3.1 迁移逐站分析表
 
@@ -307,7 +309,7 @@ query submissionList($offset: Int!, $limit: Int!, $slug: String) {
 3. 返回最新一条 SubmissionData
 ```
 
-**verdict 词表**（已有，直接复用 [domScraper.ts:13-26](file:///d:/Algo-Learning-Platform/algo-electron/electron/submissions/scrapers/domScraper.ts#L13-L26)）：
+**verdict 词表**（已有，直接复用 [domScraper.ts](../algo-electron/electron/submissions/scrapers/domScraper.ts)）：
 - 中文：答案正确/通过/部分正确/答案错误/时间超限/内存超限/...
 - 英文：accepted/wrong answer/time limit/memory limit/runtime error/...
 - 缩写：AC/WA/TLE/MLE/RE/CE/PE/OLE
@@ -502,7 +504,7 @@ adapter.injectHookScript()? → executeJavaScript 注入长驻脚本
 
 ### 5.3 关键技术约束（必须遵守）
 
-1. **IPC 桥**：必须在 [preload.ts](file:///d:/Algo-Learning-Platform/algo-electron/electron/preload.ts) 通过 `contextBridge.exposeInMainWorld('algoBridge', ...)` 暴露通信接口
+1. **IPC 桥**：必须在 [preload.ts](../algo-electron/electron/preload.ts) 通过受控 bridge 暴露通信接口
 2. **时间处理**：所有时间用 `nowBeijing()` / `toBeijing()`，禁止 `toISOString()`
 3. **注入时机**：`dom-ready` 注入 hook，`did-navigate-in-page` 触发 URL 路由
 4. **防重复**：watcher 要去重（同一 submissionId 不重复写入）

@@ -1,0 +1,120 @@
+# 最终手测验收清单
+
+## 1. 使用边界
+
+本清单用于结构巩固后的最终人工验收。自动测试只能证明本地纯逻辑、IPC 契约、启动 smoke、repository 和截图基线未破坏；真实 OJ 登录态、网络接口、验证码、弹窗提交和安装卸载流程仍必须手测。
+
+验收前不要记录或截图 Cookie、用户源码、完整请求体、可复用登录态或本机数据库文件内容。若某站点触发验证码、登录过期、比赛限制或接口风控，将该项记录为“待复测”，不要用旧数据强行判定通过。
+
+## 2. 验收前准备
+
+- 当前分支已包含本轮结构巩固改动。
+- 已在本机保留需要测试站点的持久登录态。
+- 已运行自动验证清单中的命令，且除 LF/CRLF 提示外无错误。
+- 手测期间打开设置页的实时提交诊断面板，用于确认站点识别、hook 注入、解析失败和写入结果。
+- 如测试打包产物，先备份用户数据目录，确认升级失败时可按 `database-migration-rollback.md` 回退。
+
+## 3. 自动验证基线
+
+在 `algo-electron/` 下执行：
+
+```powershell
+node node_modules\typescript\bin\tsc --noEmit
+npm run lint
+npx --yes tsx tests\ipc\ipcContracts.test.ts
+npx --yes tsx tests\electron\startupSmoke.test.ts
+npx --yes tsx tests\ui\rendererScreenshots.test.ts
+```
+
+提交监测或 adapter 有改动时追加：
+
+```powershell
+$tests = Get-ChildItem tests\adapters -Filter *.test.ts
+foreach ($test in $tests) {
+  $out = Join-Path 'tmp' ('adapters-' + $test.BaseName + '.mjs')
+  node node_modules\esbuild\bin\esbuild $test.FullName --bundle --platform=node --format=esm --outfile=$out | Out-Null
+  if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+  node $out
+  if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+}
+
+$tests = Get-ChildItem tests\submissions -Filter *.test.ts
+foreach ($test in $tests) {
+  $out = Join-Path 'tmp' ('submissions-' + $test.BaseName + '.mjs')
+  node node_modules\esbuild\bin\esbuild $test.FullName --bundle --platform=node --format=esm --outfile=$out | Out-Null
+  if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+  node $out
+  if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+}
+```
+
+数据库 repository 验证：
+
+```powershell
+node node_modules\esbuild\bin\esbuild tests\db\repositories.test.ts --bundle --platform=node --format=esm --external:better-sqlite3 --external:electron --outfile=tmp\db-repositories.test.mjs
+$env:ELECTRON_RUN_AS_NODE='1'; node_modules\.bin\electron.cmd tmp\db-repositories.test.mjs
+```
+
+## 4. 七站实时提交监测
+
+每站选择一道简单题，提交一次最小正确或明显错误代码。预期：判题中、排队中、自测、样例运行、公开状态行和查看历史记录都不能提前入库；最终结果只入库一次。
+
+记录字段：
+
+- 测试站点。
+- 题目 URL。
+- 是否需要登录或验证码。
+- 提交 ID 或平台记录 URL。
+- 最终 verdict。
+- 语言。
+- 是否跳转或需要刷新。
+- UI/数据库最终表现。
+
+站点验收点：
+
+- Codeforces：题库页和比赛页都能等待最终 verdict；不会抓取排队/判题中；题目、语言、提交 ID、sourceUrl 完整。
+- AcWing：最终结果写入一次，语言不缺失，查看提交记录不重复写入。
+- Nowcoder：正式提交结果写入；自测输入框、自测结果、样例测试、调试运行都不入库；WA 文案不能被 AC 文案覆盖。
+- VJudge：弹窗提交最终返回后写入；公开状态列表、非当前用户、旧记录和 pending 最新行不入库；solution 详情中的 verdict、语言、时间和远程提交 ID 可解析。
+- PTA：最终结果写入一次；查看提交记录不触发重复写入。
+- Luogu：等待最终结果后写入；题目关联完整；不会把分数字段当语言。
+- LeetCode：等待 `Accepted` 或失败最终结果；判题中不入库；题目 slug、提交 ID、语言和 sourceUrl 正确。
+
+## 5. 手动同步与题目详情
+
+- Codeforces API 同步：绑定账号后同步最近提交，已存在提交不重复，首次 AC 状态正确更新。
+- 当前页面提交记录同步：在支持站点提交记录页触发同步，只写入当前用户或可明确关联的记录。
+- 题目详情提交列表：打开题目详情，提交历史按时间倒序展示，verdict、语言、耗时、内存、sourceUrl 可读。
+- 删除题目：删除前提示关联笔记处理方式；删除后列表、详情、统计不残留异常状态。
+
+## 6. 核心页面与 UI
+
+- 题目侧栏：平台、状态、搜索、分页、展开/收起、点击跳转都正常。
+- 题目详情：基本信息、提交记录、笔记入口、删除按钮和浏览器跳转正常。
+- 笔记弹层：新建、改标题、编辑正文、切换类型、上传图片、删除和重新打开后内容一致。
+- 统计页：平台分布饼图和柱图都显示，趋势图、rating 图、AI 建议、错题/未复习列表无错位或空白。
+- 设置页：默认首页保存生效，Codeforces 账号绑定/同步可用，实时提交诊断能显示识别和 hook 状态。
+- 站点管理：新增自定义站点、禁用/启用、导入、预览冲突、确认导入和导出 JSON 正常，导出内容不含 Cookie。
+- 用户脚本：导入、编辑、启用、禁用、删除、打开目录、目标站点匹配和页面注入正常。
+
+## 7. 打包产物验收
+
+- `npm run build:win` 可生成 Windows NSIS 安装包。
+- 安装后应用名称、图标、开始菜单和卸载入口正常。
+- 首次启动能打开默认首页，基础导航、多标签、题库侧栏、设置页和统计页可用。
+- 升级安装不丢用户数据，卸载流程符合预期。
+- 打包产物不包含 `tests/`、`tmp/`、`release/`、`.env`、本地数据库、Cookie 或源码日志。
+
+## 8. 通过标准
+
+全部通过条件：
+
+- 自动验证基线全部通过。
+- 七站实时提交监测均满足“最终结果一次入库”。
+- 手动同步、题目详情、核心页面、设置页、用户脚本和打包产物无阻断问题。
+- 未发现 Cookie、用户源码、完整请求体或可复用登录态泄漏。
+
+临时通过条件：
+
+- 某站点因验证码、登录限制或比赛权限无法真提交时，记录为“待复测”，并用最近已有提交加自动测试临时覆盖。
+- 临时通过项必须写入 `AI_HANDOFF.md`，不能当作正式发布通过。
