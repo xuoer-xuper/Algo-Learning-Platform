@@ -27,6 +27,7 @@
 | 2026-07-04 当前基线：`npm run test:all` | 通过 | 由结构巩固收口阶段记录；最终验收前建议按当前分支重新运行。 |
 | `npm run typecheck` | 通过 / 失败 / 未运行 |  |
 | `npm run test:core` | 通过 / 失败 / 未运行 |  |
+| `npm run test:ai` | 通过 / 失败 / 未运行 |  |
 | `npm run test:architecture` | 通过 / 失败 / 未运行 |  |
 | `npm run test:security` | 通过 / 失败 / 未运行 |  |
 | `npm run test:docs` | 通过 / 失败 / 未运行 |  |

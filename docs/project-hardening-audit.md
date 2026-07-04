@@ -171,7 +171,7 @@ git diff --check
 
 最近一次验证记录：
 
-- 2026-07-04：`npm run test:all` 通过，覆盖 typecheck、lint、架构红线、敏感文件、IPC、AI、用户脚本、browser、parser、integration、adapter、submissions、DB、docs、packaging、Electron smoke 和 UI screenshot。
+- 2026-07-04：`npm run test:all` 通过，覆盖 typecheck、lint、架构红线、敏感文件、IPC、AI 规则与可追溯性、用户脚本、browser、parser、integration、adapter、submissions、DB、docs、packaging、Electron smoke 和 UI screenshot。
 - 2026-07-04：`git diff --check` 仅报告 `algo-electron/electron-builder.json5` 与 `docs/README.md` 的 LF/CRLF 规范提示，无 trailing whitespace 或 conflict marker。
 
 ## 7. 用户手测清单

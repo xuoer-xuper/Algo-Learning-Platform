@@ -23,6 +23,7 @@
 ```powershell
 npm run typecheck
 npm run test:core
+npm run test:ai
 npm run test:architecture
 npm run test:security
 npm run test:docs

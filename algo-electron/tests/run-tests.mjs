@@ -12,6 +12,7 @@ const electronBin = process.platform === 'win32'
 
 const suites = new Set([
   'core',
+  'ai',
   'architecture',
   'security',
   'adapters',
@@ -133,10 +134,25 @@ function runCoreSuite() {
   bundleAndRunDirectory('integration', 'integration')
 }
 
+function runAiSuite() {
+  bundleAndRun(path.join('tests', 'ai', 'recommendationRules.test.ts'), 'ai')
+
+  const traceabilityBundle = path.join(tmpDir, 'ai-traceability.test.mjs')
+  bundleTest(
+    path.join('tests', 'ai', 'traceability.test.ts'),
+    traceabilityBundle,
+    ['better-sqlite3', 'electron'],
+  )
+  run(electronBin, [traceabilityBundle], { ELECTRON_RUN_AS_NODE: '1' })
+}
+
 function runSuite(suite) {
   switch (suite) {
     case 'core':
       runCoreSuite()
+      break
+    case 'ai':
+      runAiSuite()
       break
     case 'architecture':
       runArchitectureSuite()
@@ -167,6 +183,7 @@ function runSuite(suite) {
       break
     case 'all':
       runCoreSuite()
+      runAiSuite()
       bundleAndRunDirectory('adapters', 'adapters')
       bundleAndRunDirectory('submissions', 'submissions')
       runDbSuite()

@@ -44,6 +44,12 @@ npm run test:core
 执行核心验证，包括类型检查、lint、architecture guard、IPC contract、AI 规则、用户脚本 metadata、browser、parser 和 integration 测试。
 
 ```powershell
+npm run test:ai
+```
+
+执行 AI 规则和可追溯性验证，包括临时数据库中的复习建议、薄弱标签、复习计划依据检查和敏感 payload 排除。
+
+```powershell
 npm run test:architecture
 ```
 

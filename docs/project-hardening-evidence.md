@@ -31,6 +31,7 @@
 ```powershell
 npm run typecheck
 npm run test:core
+npm run test:ai
 npm run test:architecture
 npm run test:security
 npm run test:docs
@@ -48,6 +49,7 @@ npm run test:all
 | 命令 | 证明范围 | 不证明 |
 |---|---|---|
 | `npm run test:core` | 类型检查、lint、架构红线、敏感文件、IPC contract、AI 规则、用户脚本、browser、parser、integration。 | 真实 OJ 登录态和安装包。 |
+| `npm run test:ai` | AI 规则 helper、复习建议/薄弱标签/复习计划可追溯性、敏感 payload 排除。 | 外部 LLM 质量和真实用户数据分布。 |
 | `npm run test:docs` | Markdown 相对链接、README 覆盖、长期目录文档入口、`docs/README.md` 总索引覆盖、文档中 `npm run` 脚本引用是否存在，以及 README 是否说明职责、当前实现或覆盖范围、封装入口或关键文件、边界规则和验证入口。 | 每个文档的人工表达是否足够清晰，仍需代码评审判断。 |
 | `npm run test:architecture` | 不回退 `BrowserView`、renderer 不直连 `ipcRenderer`、preload 不暴露通用 IPC、Nowcoder/VJudge 不走通用 DOM verdict observer。 | 真实站点接口是否变更。 |
 | `npm run test:security` | 未忽略/待提交文件中的 `.env`、数据库、日志和高置信敏感明文模式。 | 已被系统忽略的本机私有文件内容。 |
@@ -63,7 +65,7 @@ npm run test:all
 - 日期：2026-07-04。
 - 命令：`npm run test:all`。
 - 结果：通过。
-- 覆盖：typecheck、lint、architecture guard、security guard、IPC contract、AI 规则、用户脚本 metadata、browser、parser、integration、adapter、submissions、DB repository、docs、packaging、Electron startup smoke 和 renderer screenshot。
+- 覆盖：typecheck、lint、architecture guard、security guard、IPC contract、AI 规则与可追溯性、用户脚本 metadata、browser、parser、integration、adapter、submissions、DB repository、docs、packaging、Electron startup smoke 和 renderer screenshot。
 - 仍不覆盖：真实 OJ 登录态、七站正式提交、验证码/风控、安装包真实安装升级卸载和用户最终手测。
 
 ## 4. 模块文档证据

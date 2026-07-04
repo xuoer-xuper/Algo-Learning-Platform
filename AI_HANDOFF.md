@@ -8,6 +8,8 @@
 
 2026-07-04 补充：P1-015/P1-016 已完成。新增 `019_cookie_records` migration 和 `cookieRecordRepository`，只保存 Cookie 元数据，`value_encrypted` 当前保持为空且 `sync_excluded=1`；`CookieVault` 支持 main 内部按站点读取完整 Cookie，同时新增安全摘要方法。Preload 只暴露 `getCookieSummaryForSite()`、`getCookieSummaryForDomain()`，renderer 不能读取 Cookie value。已同步 `DATABASE_SCHEMA.md`、Cookie/IPC/DB README、`docs/README.md`、IPC contract 和 DB repository 测试；验证通过 `npm run test:db`、`npm run test:core`。
 
+2026-07-04 补充：P6-011 已完成。新增 `tests/ai/traceability.test.ts`，使用临时 SQLite 数据库验证复习建议、薄弱标签和复习计划可回查本地题目、提交、访问和标签统计依据，并确认 AI context、Markdown 和建议产物不泄漏 Cookie header、源码路径或 `raw_json`。新增 `npm run test:ai`，并纳入 `npm run test:all`；已同步 AI recommendations README、tests README、`TASKS.md` 和 changelog。验证通过 `npm run test:ai`、`npm run test:docs`、`npm run test:core`。
+
 2026-07-03 补充：P8-001 已完成，`npm run lint` 现在可稳定运行；TypeScript `strict` 未关闭。ESLint 保留 recommended、React hooks 和 `--max-warnings 0`，但当前阶段允许历史 DB row、网络 payload、测试 mock 等动态边界使用显式 `any`，后续应按模块逐步收窄，而不是一次性打开全局硬门槛。
 
 2026-07-03 补充：P8-002 已完成，`tests/parsers/siteRules.test.ts` 现在覆盖 Codeforces、AcWing、牛客、VJudge、PTA、洛谷、LeetCode CN 的有效/无效 URL 样例，并对关键题目标识字段做精确断言。
@@ -62,7 +64,7 @@
 - 2026-07-03 补充：P8-010 已完成，新增 `docs/troubleshooting.md`，覆盖登录/Cookie、页面加载、提交监测、重复/错误提交、手动同步、数据库损坏、笔记图片、用户脚本、统计页和打包安装常见问题；文档明确不记录 Cookie、源码、完整请求体或可复用登录态。
 - 2026-07-03 补充：P8-011 已完成，新增 `docs/database-migration-rollback.md`，说明 SQLite 数据文件、升级前备份、迁移失败识别、用户恢复、开发者定位、已发布版本回滚策略、新 migration 编写规则、数据修复 migration 和验证命令。后续 schema 变更必须挂靠该策略。
 - 2026-07-03 补充：根文档一致性已收口。`README.md` 已同步七站支持范围并移除不存在的 Zustand 技术栈描述；`PROJECT_RULES.md` 已同步当前 renderer state/hooks/API helper 口径；`ARCHITECTURE.md` 已更新为当前 WebContentsView、多标签、adapter、repository、AI 和实时提交监测架构；`DATABASE_SCHEMA.md` 已把早期“实现前确认项”改为当前数据库实现约束；历史调研文档已移除 `file:///` 本机绝对链接并补维护边界。
-- 2026-07-04 补充：P8-062 已完成，新增 `tests/run-tests.mjs` 统一自动验证入口，并在 `package.json` 中提供 `typecheck`、`test:core`、`test:adapters`、`test:submissions`、`test:db`、`test:electron`、`test:ui`、`test:all`。后续验证优先用 npm scripts，不再手抄 esbuild 循环命令。
+- 2026-07-04 补充：P8-062 已完成，新增 `tests/run-tests.mjs` 统一自动验证入口，并在 `package.json` 中提供 `typecheck`、`test:core`、`test:ai`、`test:adapters`、`test:submissions`、`test:db`、`test:electron`、`test:ui`、`test:all`。后续验证优先用 npm scripts，不再手抄 esbuild 循环命令。
 - 2026-07-04 补充：P8-063 已完成，新增 `.github/workflows/ci.yml`，在 pull request 和 main/master push 上使用 Windows runner、Node.js 22、`npm ci` 与 `npm run test:all` 做自动验证。CI 不访问真实 OJ 登录态，不替代七站手测或安装包发布验收。
 - 2026-07-04 补充：P8-064 已完成，新增 `CONTRIBUTING.md`，提供贡献流程、本地验证、修改边界、隐私禁区和 PR 检查清单；根 README 与 `docs/README.md` 已加入入口。
 - 2026-07-04 补充：P8-065 已完成，新增 `.github/pull_request_template.md`、普通缺陷 issue 模板和提交监测专项 issue 模板；模板要求填写验证、手测、文档同步和敏感信息确认。
@@ -81,10 +83,10 @@
 - 2026-07-04 补充：P8-078 已完成，`tests/docs/check-docs.mjs` 现在还检查 `docs/README.md` 是否索引根目录长期 Markdown、`docs/` 设计/审计/验收/发布文档、`docs/adr/` ADR 和已纳入守卫的长期目录 README。当前 `docs/README.md` 已通过该总索引覆盖检查。
 - 2026-07-04 补充：P8-079 已完成，`tests/docs/check-docs.mjs` 现在扫描 Markdown 中具体 `npm run <script>` 引用，并确认脚本存在于 `algo-electron/package.json`；`npm run test:*` 这类通配说明会跳过。当前 `npm run test:docs` 已通过。
 - 2026-07-04 补充：P8-080 已完成，新增 `docs/manual-acceptance-report-template.md`，用于用户最终统一手测时记录自动验证、七站提交监测、手动同步、核心页面、打包产物、问题风险和最终结论。模板明确禁止记录 Cookie、session、csrf token、用户源码、完整请求体、本机数据库内容或可复用登录态，并可辅助判断是否允许标记 `P8-009` 和 `P8-012`。
-- 2026-07-04 补充：P8-081 已完成，结构巩固当前自动验证基线已跑通，`npm run test:all` 通过。覆盖 typecheck、lint、architecture/security/docs/packaging guard、IPC contract、AI 规则、用户脚本 metadata、browser、parser、integration、adapter、submissions、DB repository、Electron startup smoke 和 renderer screenshot。该结果仍不替代七站真实提交、登录态、验证码/风控和安装包安装升级卸载手测。
+- 2026-07-04 补充：P8-081 已完成，结构巩固当前自动验证基线已跑通，`npm run test:all` 通过。覆盖 typecheck、lint、architecture/security/docs/packaging guard、IPC contract、AI 规则与可追溯性、用户脚本 metadata、browser、parser、integration、adapter、submissions、DB repository、Electron startup smoke 和 renderer screenshot。该结果仍不替代七站真实提交、登录态、验证码/风控和安装包安装升级卸载手测。
 - 高风险：Nowcoder 和 VJudge 已改为网络结果驱动或强身份关联，避免自测/公开状态行误入库；不要重新引入通用 DOM verdict observer 作为这两站的实时入库来源。
 
-当前验证入口：优先使用 `npm run typecheck`、`npm run test:core`、`npm run test:architecture`、`npm run test:security`、`npm run test:docs`、`npm run test:packaging`、`npm run test:adapters`、`npm run test:submissions`、`npm run test:db`、`npm run test:electron`、`npm run test:ui`；发布前可运行 `npm run test:all`。`npm run test:docs` 现在同时守卫 README 覆盖、README 最低内容质量、文档总索引覆盖和文档 npm script 引用。完整站点提交监测仍必须结合七站手测。
+当前验证入口：优先使用 `npm run typecheck`、`npm run test:core`、`npm run test:ai`、`npm run test:architecture`、`npm run test:security`、`npm run test:docs`、`npm run test:packaging`、`npm run test:adapters`、`npm run test:submissions`、`npm run test:db`、`npm run test:electron`、`npm run test:ui`；发布前可运行 `npm run test:all`。`npm run test:docs` 现在同时守卫 README 覆盖、README 最低内容质量、文档总索引覆盖和文档 npm script 引用。完整站点提交监测仍必须结合七站手测。
 
 2026-07-04 本轮结构收口新增验证：`npm run test:all` 已通过；`git diff --check` 仅报告既有 LF/CRLF 提示。
 

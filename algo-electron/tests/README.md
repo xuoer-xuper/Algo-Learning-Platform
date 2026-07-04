@@ -14,7 +14,7 @@
 - `architecture/`
   - BrowserView、preload、renderer IPC、Nowcoder/VJudge 实时入库等架构红线检查。
 - `ai/`
-  - 本地 AI 建议规则、评分 helper、标签解析和 Markdown 输出纯逻辑。
+  - 本地 AI 建议规则、评分 helper、标签解析、可追溯性和敏感信息排除。
 - `browser/`
   - OJ 提交 bridge 和 postMessage 转发。
 - `db/`
@@ -67,6 +67,12 @@ npm run test:architecture
 npm run test:security
 ```
 
+AI 规则和追溯测试：
+
+```powershell
+npm run test:ai
+```
+
 Adapter 测试：
 
 ```powershell
@@ -115,7 +121,7 @@ npm run test:ui
 npm run test:all
 ```
 
-`test:core` 会运行 typecheck、lint、architecture guard、security guard、IPC contract、AI 规则、用户脚本 metadata、browser、parser 和 integration 测试。`test:all` 在此基础上追加 adapter、submissions、DB、docs、packaging、Electron smoke 和 UI screenshot 测试。
+`test:core` 会运行 typecheck、lint、architecture guard、security guard、IPC contract、AI 规则、用户脚本 metadata、browser、parser 和 integration 测试。`test:ai` 会额外运行 AI 输出可追溯性临时数据库测试。`test:all` 在此基础上追加 AI traceability、adapter、submissions、DB、docs、packaging、Electron smoke 和 UI screenshot 测试。
 
 `better-sqlite3` 按 Electron ABI 编译，真实 SQLite repository 测试必须用 `ELECTRON_RUN_AS_NODE=1` 的 Electron Node 运行；`tests/run-tests.mjs` 已封装该路径。
 
@@ -131,7 +137,7 @@ node tmp\browser-ojBridge.test.mjs
 - 行为变化必须优先补靠近变更点的测试。
 - 架构红线和禁止回归规则放 `tests/architecture/`。
 - adapter 行为放 `tests/adapters/`。
-- AI 本地规则、评分 helper 和输出格式放 `tests/ai/`。
+- AI 本地规则、评分 helper、输出格式、可追溯性和敏感信息排除放 `tests/ai/`。
 - 提交写入、实时 watcher、sync service 放 `tests/submissions/`。
 - URL 识别和标题清洗放 `tests/parsers/`。
 - 用户脚本 metadata、匹配规则和脚本管理纯逻辑放 `tests/scripts/`。

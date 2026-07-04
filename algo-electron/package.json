@@ -15,6 +15,7 @@
     "preview": "vite preview",
     "test": "node tests/run-tests.mjs core",
     "test:core": "node tests/run-tests.mjs core",
+    "test:ai": "node tests/run-tests.mjs ai",
     "test:architecture": "node tests/run-tests.mjs architecture",
     "test:security": "node tests/run-tests.mjs security",
     "test:adapters": "node tests/run-tests.mjs adapters",

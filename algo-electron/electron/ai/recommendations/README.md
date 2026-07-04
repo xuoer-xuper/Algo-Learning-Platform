@@ -31,6 +31,8 @@
 
 - 只读数据库事实数据，不写题目、提交、统计或笔记。
 - 输出是建议，不自动修改用户学习数据。
+- 每条复习建议和复习计划项必须保留可追溯的 `source` 或 evidence 字段，能回查本地题目、提交、访问或标签统计。
+- 输出不得包含 Cookie、源码路径、`raw_json`、完整请求体或可复用登录态。
 - 失败时上层应允许 renderer 降级展示，不能阻塞核心页面。
 - 需要外部 AI 能力时必须走单独设计，不在这里直接加网络调用。
 - 评分阈值集中在 `rules.ts`；修改口径时同步测试和 README。
@@ -41,7 +43,7 @@
 ```powershell
 cd algo-electron
 node node_modules\typescript\bin\tsc --noEmit
-npx --yes tsx tests\ai\recommendationRules.test.ts
+npm run test:ai
 ```
 
 涉及建议口径时补充 AI/repository 相关测试，并手测首页和统计页的降级展示。
