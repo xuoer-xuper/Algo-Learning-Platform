@@ -45,7 +45,7 @@
 - Cookie 可用于 VJudge 提交、提交记录同步、平台数据同步。
 - Cookie 值不得写入普通日志，不得在 UI 中默认明文展示。
 - Renderer 只能查看 Cookie 安全摘要或授权状态，不得获取 Cookie value。
-- Cookie 默认只留在本地，不进入未来同步队列。
+- Cookie 默认只留在本地，不进入 `sync_queue`、普通 JSON 导出或未来多端同步。
 
 ### 3.4 Renderer 不直接接触本地能力
 

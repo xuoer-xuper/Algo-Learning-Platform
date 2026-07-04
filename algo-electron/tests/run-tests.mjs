@@ -93,6 +93,14 @@ function runLint() {
 }
 
 function runDbSuite() {
+  const backupImportBundle = path.join(tmpDir, 'db-backupImport.test.mjs')
+  bundleTest(
+    path.join('tests', 'db', 'backupImport.test.ts'),
+    backupImportBundle,
+    ['better-sqlite3', 'electron'],
+  )
+  run(electronBin, [backupImportBundle], { ELECTRON_RUN_AS_NODE: '1' })
+
   bundleAndRun(path.join('tests', 'db', 'codeforcesSubmissionIdMigration.test.ts'), 'db')
   bundleAndRun(path.join('tests', 'db', 'problemContextMigration.test.ts'), 'db')
 

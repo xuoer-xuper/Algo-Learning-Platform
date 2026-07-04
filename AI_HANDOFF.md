@@ -10,6 +10,8 @@
 
 2026-07-04 补充：P6-011 已完成。新增 `tests/ai/traceability.test.ts`，使用临时 SQLite 数据库验证复习建议、薄弱标签和复习计划可回查本地题目、提交、访问和标签统计依据，并确认 AI context、Markdown 和建议产物不泄漏 Cookie header、源码路径或 `raw_json`。新增 `npm run test:ai`，并纳入 `npm run test:all`；已同步 AI recommendations README、tests README、`TASKS.md` 和 changelog。验证通过 `npm run test:ai`、`npm run test:docs`、`npm run test:core`。
 
+2026-07-04 补充：P7-001 到 P7-010 已完成。新增 `020_sync_queue` 和 `021_sync_metadata_fields` migrations；新增 `electron/backup/`，支持 SQLite backup、学习数据 JSON 导出、导入预览、确认导入和冲突检测；设置页新增 `BackupPanel`。普通 JSON 导出只包含题目、访问、提交、每日统计、账号和 rating 历史，不包含 `cookie_records`、Cookie value、`sync_queue`、`raw_json`、日志或本机绝对路径。新增 `docs/sync-compatibility.md` 与 `docs/android-readonly-data-interface.md`，并补 `tests/db/backupImport.test.ts`。验证通过 `npm run test:db`、`npm run test:core`、`npm run test:docs`。
+
 2026-07-03 补充：P8-001 已完成，`npm run lint` 现在可稳定运行；TypeScript `strict` 未关闭。ESLint 保留 recommended、React hooks 和 `--max-warnings 0`，但当前阶段允许历史 DB row、网络 payload、测试 mock 等动态边界使用显式 `any`，后续应按模块逐步收窄，而不是一次性打开全局硬门槛。
 
 2026-07-03 补充：P8-002 已完成，`tests/parsers/siteRules.test.ts` 现在覆盖 Codeforces、AcWing、牛客、VJudge、PTA、洛谷、LeetCode CN 的有效/无效 URL 样例，并对关键题目标识字段做精确断言。

@@ -8,7 +8,7 @@
 
 ## 2. 当前实现程度
 
-当前 migration 版本为 `001` 到 `019`：
+当前 migration 版本为 `001` 到 `021`：
 
 - `001_initial.ts`：初始问题、访问、事件等基础结构。
 - `002_submissions.ts`：提交记录相关结构。
@@ -23,10 +23,12 @@
 - `016`、`017`：题目上下文修正和回填。
 - `018_normalize_codeforces_submission_ids.ts`：Codeforces 提交 ID 归一化。
 - `019_cookie_records.ts`：CookieVault 本地元数据表，仅保存 Cookie 名称、domain、过期时间和安全标记，不保存明文值。
+- `020_sync_queue.ts`：未来同步队列表；当前只本地预留，不自动上传。
+- `021_sync_metadata_fields.ts`：为核心表补 `updated_at`/`deleted_at` 等同步兼容字段。
 
 ## 3. 编写规则
 
-- 文件名使用三位递增版本号，例如 `019_add_xxx.ts`。
+- 文件名使用三位递增版本号，例如 `022_add_xxx.ts`。
 - 每个文件导出 `migrationNNN`，包含 `version`、`name`、`up(db)`。
 - `version` 必须唯一且递增。
 - `up(db)` 会由迁移执行器放进事务运行，内部不要手动提交事务。

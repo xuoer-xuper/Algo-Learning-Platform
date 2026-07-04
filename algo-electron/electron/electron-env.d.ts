@@ -237,6 +237,50 @@ interface SiteConfirmImportResult {
   error?: string
 }
 
+interface LearningDataImportConflict {
+  entity_type: string
+  entity_id: string
+  reason: string
+}
+
+interface LearningDataImportPreview {
+  valid: boolean
+  schema_version?: number
+  counts: Record<string, number>
+  new_counts: Record<string, number>
+  duplicate_counts: Record<string, number>
+  conflicts: LearningDataImportConflict[]
+  error?: string
+}
+
+interface DatabaseBackupResult {
+  success: boolean
+  path?: string
+  error?: string
+}
+
+interface LearningDataExportFileResult {
+  success: boolean
+  path?: string
+  counts?: Record<string, number>
+  error?: string
+}
+
+interface LearningDataImportPreviewResult {
+  success: boolean
+  preview?: LearningDataImportPreview
+  error?: string
+}
+
+interface LearningDataImportResult {
+  success: boolean
+  inserted: Record<string, number>
+  updated: Record<string, number>
+  skipped: Record<string, number>
+  conflicts: LearningDataImportConflict[]
+  error?: string
+}
+
 interface UserScriptRecord {
   id: string
   name: string
@@ -400,6 +444,10 @@ interface ElectronAPI {
 
   getDefaultHomeUrl: () => Promise<string>
   setDefaultHomeUrl: (url: string) => void
+  createDatabaseBackup: () => Promise<DatabaseBackupResult>
+  exportLearningData: () => Promise<LearningDataExportFileResult>
+  previewLearningDataImport: () => Promise<LearningDataImportPreviewResult>
+  confirmLearningDataImport: (overwriteConflicts: boolean) => Promise<LearningDataImportResult>
 
   // 标签页管理
   createTab: (url?: string) => Promise<string>

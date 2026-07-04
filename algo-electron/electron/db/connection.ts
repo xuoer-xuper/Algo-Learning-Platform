@@ -22,8 +22,11 @@ import { migration016 } from './migrations/016_clear_codeforces_placeholder_titl
 import { migration017 } from './migrations/017_backfill_problem_context'
 import { migration018 } from './migrations/018_normalize_codeforces_submission_ids'
 import { migration019 } from './migrations/019_cookie_records'
+import { migration020 } from './migrations/020_sync_queue'
+import { migration021 } from './migrations/021_sync_metadata_fields'
 
 let db: Database.Database | null = null
+let dbFilePath: string | null = null
 const require = createRequire(import.meta.url)
 
 const allMigrations = [
@@ -31,7 +34,7 @@ const allMigrations = [
   migration005, migration006, migration007, migration008,
   migration009, migration010, migration011, migration012, migration013,
   migration014, migration015, migration016, migration017, migration018,
-  migration019,
+  migration019, migration020, migration021,
 ]
 
 export function getDb(): Database.Database {
@@ -63,6 +66,7 @@ export function initDbAtPath(dbPath: string): Database.Database {
   }
 
   db = new Database(dbPath)
+  dbFilePath = dbPath
   db.pragma('journal_mode = WAL')
   db.pragma('foreign_keys = ON')
   db.pragma('busy_timeout = 5000')
@@ -76,5 +80,13 @@ export function closeDb(): void {
   if (db) {
     db.close()
     db = null
+    dbFilePath = null
   }
+}
+
+export function getDbPath(): string {
+  if (!dbFilePath) {
+    throw new Error('Database path is not available. Call initDb() or initDbAtPath() first.')
+  }
+  return dbFilePath
 }

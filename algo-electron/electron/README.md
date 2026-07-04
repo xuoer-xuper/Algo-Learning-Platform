@@ -17,6 +17,7 @@ Renderer 不能直接访问本目录能力，只能通过 `preload.ts` 暴露的
 | 目录 | 职责 |
 |---|---|
 | `app/` | 主进程配置、Chromium flag、服务初始化、最近站点预连接和 smoke test 编排。 |
+| `backup/` | 本地 SQLite 备份、学习数据 JSON 导入导出和冲突检测。 |
 | `browser/` | `WebContentsView`、多标签、独立窗口、OJ session 和远程页面 preload bridge。 |
 | `ipc/` | 按业务域注册主进程 IPC handler，统一由 `registerMainIpc.ts` 组合。 |
 | `db/` | SQLite 连接、migration、repository 和数据库写入边界。 |
@@ -40,6 +41,7 @@ Renderer 不能直接访问本目录能力，只能通过 `preload.ts` 暴露的
 - 浏览器能力：`browser/TabManager.ts`、`browser/BrowserHost.ts`、`browser/ojPreload.ts`。
 - IPC 契约：`preload.ts`、`electron-env.d.ts`、`ipc/register*.ts`。
 - 数据写入：`db/repositories/*`、`submissions/SubmissionBatchWriter.ts`、`tracking/TrackingService.ts`。
+- 备份导入：`backup/backupService.ts`、`backup/learningDataExport.ts`。
 - 站点能力：`adapters/sites/{site}/`、`sites/builtins/`、`parsers/sites/`。
 - 提交监测：`submissions/SubmissionWatcherCore.ts`、`adapters/shared/frontendVerdictHook.ts`、站点专用 `hook.ts`。
 - AI 本地分析：`ai/contextExporter.ts`、`ai/recommendations/`、`ai/summary/`。
@@ -51,6 +53,7 @@ Renderer 不能直接访问本目录能力，只能通过 `preload.ts` 暴露的
 - WebContentsView 多标签浏览器和独立窗口剥离。
 - 持久 OJ session 和 CookieVault 基础能力。
 - SQLite migration、repository、统计聚合和本地数据写入。
+- 本地 SQLite 备份、非敏感学习数据 JSON 导出/导入和冲突预览。
 - 七站题目识别、提交同步和实时提交监测。
 - 题目访问追踪、笔记、用户脚本、Codeforces rating 和本地 AI 建议。
 - IPC contract、Electron smoke、adapter、submission、DB 和 UI screenshot 自动测试。

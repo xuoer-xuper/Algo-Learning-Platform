@@ -85,6 +85,8 @@
 | [submission-monitoring-design.md](submission-monitoring-design.md) | 提交监测数据流、submit intent、站点差异、实时 hook 安全边界、自动测试和手测流程。 |
 | [troubleshooting.md](troubleshooting.md) | 登录、提交监测、同步、数据库、笔记、用户脚本、统计和打包常见故障排查。 |
 | [database-migration-rollback.md](database-migration-rollback.md) | SQLite migration 失败识别、备份、恢复、回滚策略和验证命令。 |
+| [sync-compatibility.md](sync-compatibility.md) | Phase 7 同步队列、JSON 导入导出、冲突策略和 Cookie 不同步边界。 |
+| [android-readonly-data-interface.md](android-readonly-data-interface.md) | 未来安卓端只读数据格式、只读边界和兼容策略。 |
 | [release-process.md](release-process.md) | Windows 发布前操作流程、版本/changelog、自动验证、打包、产物检查、安装升级卸载验收和交接要求。 |
 | [renderer-structure-audit.md](renderer-structure-audit.md) | Renderer 大文件、重复常量、IPC 边界和后续拆分顺序审计。 |
 | [project-hardening-audit.md](project-hardening-audit.md) | 项目结构巩固收尾审计、剩余大文件处置、自动验证和用户手测清单。 |
@@ -101,6 +103,7 @@
 | adapters | [electron/adapters/README.md](../algo-electron/electron/adapters/README.md) | 站点 adapter 职责、目录模型、共享 helper、测试入口。 |
 | ai | [electron/ai/README.md](../algo-electron/electron/ai/README.md) | 本地 AI 上下文、复习建议、薄弱标签、阶段总结和规则边界。 |
 | app | [electron/app/README.md](../algo-electron/electron/app/README.md) | 主进程轻量配置读写边界。 |
+| backup | [electron/backup/README.md](../algo-electron/electron/backup/README.md) | SQLite 备份、学习数据 JSON 导出导入和冲突检测。 |
 | browser | [electron/browser/README.md](../algo-electron/electron/browser/README.md) | BrowserHost、TabManager、WebContentsView、远程页面 preload。 |
 | cookies | [electron/cookies/README.md](../algo-electron/electron/cookies/README.md) | CookieVault、持久 session、敏感信息边界。 |
 | db | [electron/db/README.md](../algo-electron/electron/db/README.md) | SQLite 连接、migration、repository、写入规则。 |

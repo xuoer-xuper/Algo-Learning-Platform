@@ -9,6 +9,7 @@
 ## 2. 当前实现程度
 
 - `registerAiIpc.ts`：注册 `ai:*` 上下文导出、规则建议、阶段总结、复习计划和 AI 输出持久化 handler。
+- `registerBackupIpc.ts`：注册 `backup:*` 数据库备份、学习数据导出导入和导入确认 handler。
 - `registerConfigIpc.ts`：注册 `config:*` 应用轻量配置读取和保存 handler。
 - `registerNotesIpc.ts`：注册 `notes:*` 笔记 CRUD、图片保存、批量删除和打开目录 handler。
 - `registerProblemIpc.ts`：注册 `problem:*` 最近题目、题目详情和题目删除 handler。
@@ -28,6 +29,7 @@
 ## 3. 核心封装
 
 - `registerAiIpc()`：注册 AI 相关 channel，包括上下文导出、复习建议、薄弱标签、阶段总结、复习计划、AI 输出保存和输出 CRUD。
+- `registerBackupIpc(options)`：注册备份导入导出 channel；通过 `getParentWindow` 注入文件对话框父窗口，并在主进程内暂存待确认导入数据。
 - `registerConfigIpc()`：注册应用配置 channel，包括默认首页读取和保存。
 - `registerNotesIpc(options)`：注册笔记相关 channel；通过 `notifyProblemsUpdated` 注入题目更新通知，避免模块直接依赖 `BrowserWindow`。
 - `registerProblemIpc(options)`：注册题目相关 channel；通过 `notifyProblemsUpdated` 注入删除题目后的刷新通知。
@@ -48,6 +50,7 @@
 - 具体 channel 逻辑应留在单域 `register*Ipc.ts`，不要把业务 handler 塞进 `registerMainIpc.ts`。
 - handler 内不要记录 Cookie、用户源码、完整请求体或可复用登录态信息。
 - `cookies:*` channel 不得返回 Cookie value；需要完整 Cookie 时只能由 main 进程内部 service 调用 `CookieVault`。
+- `backup:*` channel 导出的 JSON 不得包含 Cookie、`raw_json`、日志或本机绝对路径；冲突导入必须先预览再确认。
 
 ## 5. 验证入口
 

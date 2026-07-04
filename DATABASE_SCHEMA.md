@@ -427,6 +427,8 @@ AI 输出独立保存，不污染核心事实表。migration 015 建表。
 INDEX ai_outputs_type_idx(output_type)
 INDEX ai_outputs_created_idx(created_at DESC)
 
+Phase 7 追加 `deleted_at` 字段，用于未来同步和导入覆盖时表达软删除状态。
+
 ## 8. Phase 7 表
 
 ### 8.1 sync_queue
@@ -448,8 +450,8 @@ INDEX ai_outputs_created_idx(created_at DESC)
 索引：
 
 ```sql
-INDEX sync_queue_status_created(status, created_at)
-UNIQUE(entity_type, entity_id, operation, created_at)
+INDEX sync_queue_status_created_idx(status, created_at)
+UNIQUE INDEX sync_queue_entity_operation_created_idx(entity_type, entity_id, operation, created_at)
 ```
 
 禁止进入同步队列：
@@ -458,7 +460,14 @@ UNIQUE(entity_type, entity_id, operation, created_at)
 - 本地绝对文件路径中的敏感部分。
 - 普通日志。
 
-### 8.2 user_scripts
+### 8.2 同步兼容字段
+
+Phase 7 通过 migration 021 为历史核心表追加同步兼容字段，均为 nullable，避免改变既有业务行为：
+
+- `deleted_at`：追加到 `submissions`、`problem_visits`、`activity_events`、`study_sessions`、`user_daily_stats`、`platform_accounts`、`rating_history`、`contest_results`、`site_configs`、`user_scripts`、`notes`、`ai_context_snapshots`、`ai_outputs`。
+- `updated_at`：追加到早期缺少更新时间的 `activity_events`、`rating_history`、`contest_results`、`ai_context_snapshots`，历史行以 `created_at` 回填。
+
+### 8.3 user_scripts
 
 本地用户脚本（类似油猴脚本）。
 

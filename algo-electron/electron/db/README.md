@@ -12,8 +12,8 @@
 - 数据库位置：`app.getPath('userData')/data/algo-learning.sqlite`。
 - 连接配置：启用 WAL、foreign keys、`busy_timeout = 5000`。
 - 迁移系统：`schema_migrations` 表记录已执行版本；迁移在事务内执行。
-- 当前迁移版本：001 到 018。
-- Repository 覆盖：账号/rating、AI 上下文快照、AI 输出、题目、站点配置、统计、提交、用户脚本。
+- 当前迁移版本：001 到 021。
+- Repository 覆盖：账号/rating、AI 上下文快照、AI 输出、Cookie 元数据、题目、站点配置、统计、提交、用户脚本。
 
 数据库结构的权威契约仍是根目录 `DATABASE_SCHEMA.md`。
 
@@ -26,6 +26,7 @@
 - `repositories/aiContextSnapshot/`：每日 AI 上下文快照创建、读取、列表和 JSON context 解析实现。
 - `repositories/aiOutput/`：AI 输出保存、读取、列表、更新、删除和元信息序列化实现。
 - `repositories/account/`：平台账号、当前 rating、peak rating 和 rating history 实现。
+- `repositories/cookieRecord/`：Cookie 元数据保存、查询和安全摘要实现。
 - `repositories/problem/`：题目 upsert、删除、详情、列表和概览统计实现。
 - `repositories/submission/`：提交去重写入、按题目/平台查询和首次 AC 更新实现。
 - `repositories/site/`：站点配置 CRUD、内置 seed、导入导出和导入预览实现。
@@ -39,6 +40,7 @@
 - `initDb()`：创建数据目录，打开 SQLite，设置 pragma，按顺序运行迁移。
 - `initDbAtPath(dbPath)`：打开指定 SQLite 文件并运行同一组迁移，供临时数据库测试使用。
 - `getDb()`：返回已初始化连接；未初始化时抛错。
+- `getDbPath()`：返回当前 SQLite 文件路径，供备份服务使用。
 - `closeDb()`：关闭连接并清空模块内单例。
 
 使用规则：
@@ -111,6 +113,9 @@ Migration 文件约定：
 - `aiOutputRepository.ts`
   - 兼容导出口；内部实现位于 `repositories/aiOutput/`。
   - AI 输出保存、读取、列表、删除、更新。
+- `cookieRecordRepository.ts`
+  - 兼容导出口；内部实现位于 `repositories/cookieRecord/`。
+  - Cookie 元数据保存、按站点/domain 查询和安全摘要。
 
 ## 7. 写入规则
 
@@ -122,18 +127,17 @@ Migration 文件约定：
 
 ## 8. 测试入口
 
-DB 相关行为目前分布在 submissions、AI、统计等测试中。修改 repository 或 migration 后至少运行：
+DB 相关行为目前分布在 submissions、AI、统计、备份导入等测试中。修改 repository 或 migration 后至少运行：
 
 ```powershell
 cd algo-electron
 node node_modules\typescript\bin\tsc --noEmit
 ```
 
-Repository 临时数据库测试：
+Repository 和备份导入临时数据库测试：
 
 ```powershell
-node node_modules\esbuild\bin\esbuild tests\db\repositories.test.ts --bundle --platform=node --format=esm --external:better-sqlite3 --external:electron --outfile=tmp\db-repositories.test.mjs
-$env:ELECTRON_RUN_AS_NODE='1'; node_modules\.bin\electron.cmd tmp\db-repositories.test.mjs
+npm run test:db
 ```
 
 说明：`better-sqlite3` 当前按 Electron ABI 编译，真实 SQLite 测试需要用 Electron 自带 Node 运行；普通 `node`/`tsx` 会因 native module ABI 不匹配失败。

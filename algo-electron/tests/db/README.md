@@ -8,6 +8,7 @@
 
 - `codeforcesSubmissionIdMigration.test.ts`：Codeforces 提交 ID migration 兼容。
 - `problemContextMigration.test.ts`：题目上下文字段 migration 兼容。
+- `backupImport.test.ts`：SQLite 备份、学习数据 JSON 导出/导入、冲突检测和 Cookie/`raw_json` 排除。
 - `repositories.test.ts`：临时 SQLite 文件中的迁移、题目 upsert、提交 upsert、唯一约束、首次 AC、日统计聚合、站点 seed、站点导入预览和 Cookie 元数据安全边界。
 
 ## 3. 运行方式

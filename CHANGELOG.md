@@ -25,6 +25,7 @@
 - 记录结构巩固阶段 `npm run test:all` 全量自动验证通过，作为发布前手测之外的自动基线。
 - 增加 Cookie 元数据本地保存和安全摘要查询能力，renderer 只能查看授权状态摘要，不暴露 Cookie 值。
 - 增加 `npm run test:ai`，验证 AI 建议、薄弱标签和复习计划可追溯到本地数据，且不泄漏敏感 payload。
+- 增加 Phase 7 本地 SQLite 备份、学习数据 JSON 导入导出、冲突预览和同步兼容文档。
 
 ### 变更
 

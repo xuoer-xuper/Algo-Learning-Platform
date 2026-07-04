@@ -179,14 +179,18 @@ function seedCodeforcesSubmissions(problem: ProblemRow): void {
 test('runs migrations into a temporary database', () => {
   const db = getDbForTest()
   const migrations = db.prepare('SELECT COUNT(*) as count FROM schema_migrations').get() as { count: number }
-  assert.strictEqual(migrations.count, 19)
+  assert.strictEqual(migrations.count, 21)
 
   const tables = db.prepare(`
     SELECT name FROM sqlite_master
-    WHERE type = 'table' AND name IN ('cookie_records', 'problems', 'submissions', 'user_daily_stats')
+    WHERE type = 'table' AND name IN ('cookie_records', 'problems', 'submissions', 'sync_queue', 'user_daily_stats')
     ORDER BY name
   `).all() as { name: string }[]
-  assert.deepStrictEqual(tables.map(row => row.name), ['cookie_records', 'problems', 'submissions', 'user_daily_stats'])
+  assert.deepStrictEqual(tables.map(row => row.name), ['cookie_records', 'problems', 'submissions', 'sync_queue', 'user_daily_stats'])
+
+  const submissionDeletedAt = db.prepare(`PRAGMA table_info(submissions)`).all()
+    .some((column: any) => column.name === 'deleted_at')
+  assert.strictEqual(submissionDeletedAt, true)
 })
 
 test('persists cookie metadata without storing cookie values or enabling sync', () => {

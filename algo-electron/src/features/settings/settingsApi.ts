@@ -5,6 +5,10 @@ export type ExportSitesResult = Awaited<ReturnType<ElectronAPI['exportSitesConfi
 export type ImportSitesResult = Awaited<ReturnType<ElectronAPI['importSitesConfig']>>
 export type ConfirmImportSitesResult = Awaited<ReturnType<ElectronAPI['confirmImportSites']>>
 export type RatingSyncResult = Awaited<ReturnType<ElectronAPI['syncCodeforcesRating']>>
+export type DatabaseBackupResult = Awaited<ReturnType<ElectronAPI['createDatabaseBackup']>>
+export type LearningDataExportResult = Awaited<ReturnType<ElectronAPI['exportLearningData']>>
+export type LearningDataImportPreviewResult = Awaited<ReturnType<ElectronAPI['previewLearningDataImport']>>
+export type LearningDataImportResult = Awaited<ReturnType<ElectronAPI['confirmLearningDataImport']>>
 
 export function normalizeHomeUrl(rawUrl: string): string {
   const url = rawUrl.trim()
@@ -92,4 +96,20 @@ export function createSiteFromDraft(id: string, name: string, draft: NewSiteDraf
     enabled: true,
     problemUrlPatterns,
   })
+}
+
+export function createDatabaseBackup(): Promise<DatabaseBackupResult> {
+  return window.electronAPI.createDatabaseBackup()
+}
+
+export function exportLearningData(): Promise<LearningDataExportResult> {
+  return window.electronAPI.exportLearningData()
+}
+
+export function previewLearningDataImport(): Promise<LearningDataImportPreviewResult> {
+  return window.electronAPI.previewLearningDataImport()
+}
+
+export function confirmLearningDataImport(overwriteConflicts: boolean): Promise<LearningDataImportResult> {
+  return window.electronAPI.confirmLearningDataImport(overwriteConflicts)
 }

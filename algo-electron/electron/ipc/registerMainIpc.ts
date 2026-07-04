@@ -3,6 +3,7 @@ import type { TabManager } from '../browser/TabManager'
 import type { SyncService } from '../submissions/syncService'
 import type { TrackingService } from '../tracking/TrackingService'
 import { registerAiIpc } from './registerAiIpc'
+import { registerBackupIpc } from './registerBackupIpc'
 import { registerBrowserShellIpc } from './registerBrowserShellIpc'
 import { registerConfigIpc } from './registerConfigIpc'
 import { registerCookieIpc } from './registerCookieIpc'
@@ -25,6 +26,7 @@ export function registerMainIpc(options: RegisterMainIpcOptions): void {
   const notifyProblemsUpdated = () => options.getWindow()?.webContents.send('problems:updated')
 
   registerAiIpc()
+  registerBackupIpc({ getParentWindow: options.getWindow })
   registerBrowserShellIpc({
     getWindow: options.getWindow,
     getTabManager: options.getTabManager,

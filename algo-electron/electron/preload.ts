@@ -100,6 +100,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getDefaultHomeUrl: () => ipcRenderer.invoke('config:getDefaultHomeUrl'),
   setDefaultHomeUrl: (url: string) => ipcRenderer.send('config:setDefaultHomeUrl', url),
 
+  // 备份与导入导出
+  createDatabaseBackup: () => ipcRenderer.invoke('backup:createDatabaseBackup') as Promise<DatabaseBackupResult>,
+  exportLearningData: () => ipcRenderer.invoke('backup:exportLearningData') as Promise<LearningDataExportFileResult>,
+  previewLearningDataImport: () => ipcRenderer.invoke('backup:previewLearningDataImport') as Promise<LearningDataImportPreviewResult>,
+  confirmLearningDataImport: (overwriteConflicts: boolean) => ipcRenderer.invoke('backup:confirmLearningDataImport', overwriteConflicts) as Promise<LearningDataImportResult>,
+
   // 标签页管理
   createTab: (url?: string) => ipcRenderer.invoke('tab:create', url) as Promise<string>,
   closeTab: (tabId: string) => ipcRenderer.send('tab:close', tabId),

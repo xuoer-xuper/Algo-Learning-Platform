@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { BackupPanel } from './BackupPanel'
 import { CodeforcesSyncPanel } from './CodeforcesSyncPanel'
 import { DefaultHomePanel } from './DefaultHomePanel'
 import { LearningOverviewPanel } from './LearningOverviewPanel'
@@ -48,6 +49,7 @@ export function SettingsPage({ onClose }: { onClose: () => void }) {
             <DefaultHomePanel />
             <LearningOverviewPanel stats={stats} />
             <CodeforcesSyncPanel onStatsRefresh={loadOverviewStats} />
+            <BackupPanel />
             <RealtimeSubmissionPanel
               status={realtimeStatus}
               statusText={realtimeStatusText}
