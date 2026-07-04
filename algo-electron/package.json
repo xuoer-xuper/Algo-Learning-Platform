@@ -4,13 +4,27 @@
   "version": "0.6.0",
   "description": "Local-first algorithm learning tracker desktop app",
   "author": "Algo Learning Platform Contributors",
+  "license": "MIT",
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "typecheck": "tsc --noEmit",
     "build": "tsc && vite build && electron-builder",
     "build:win": "tsc && vite build && electron-builder --win nsis",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "node tests/run-tests.mjs core",
+    "test:core": "node tests/run-tests.mjs core",
+    "test:architecture": "node tests/run-tests.mjs architecture",
+    "test:security": "node tests/run-tests.mjs security",
+    "test:adapters": "node tests/run-tests.mjs adapters",
+    "test:submissions": "node tests/run-tests.mjs submissions",
+    "test:db": "node tests/run-tests.mjs db",
+    "test:docs": "node tests/run-tests.mjs docs",
+    "test:packaging": "node tests/run-tests.mjs packaging",
+    "test:electron": "node tests/run-tests.mjs electron",
+    "test:ui": "node tests/run-tests.mjs ui",
+    "test:all": "node tests/run-tests.mjs all"
   },
   "dependencies": {
     "@milkdown/crepe": "^7.21.2",

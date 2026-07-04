@@ -4,7 +4,9 @@
 
 `src/components/` 存放 renderer 共享 UI 组件。组件可以通过本目录 helper 完成窗口或标签等全局 UI 行为，但不应包含业务数据查询和复杂业务规则。
 
-## 2. 当前组件
+## 2. 当前实现程度
+
+当前共享组件已覆盖应用壳浏览器工具栏、多标签、窗口控制、modal 容器和错误降级。关键组件和 helper 如下：
 
 - `ErrorBoundary.tsx`
   - 捕获 renderer 渲染错误。

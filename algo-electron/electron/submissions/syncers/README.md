@@ -6,7 +6,11 @@
 
 当前目录暂无运行时代码，实际同步入口仍在 `electron/submissions/SyncService.ts`。
 
-## 2. 计划边界
+## 2. 当前实现程度
+
+当前状态是预留目录，没有已迁入的 syncer 文件。现有封装入口仍是 `SyncService.ts`、`SubmissionBatchWriter.ts` 和各站点 adapter 的 `syncSubmissions` / `scrapeSubmissions` 能力。
+
+## 3. 计划边界
 
 未来迁入本目录的 syncer 应只负责“从某个平台获取一批提交候选”，例如：
 
@@ -16,14 +20,14 @@
 
 题目关联、去重写入、首次 AC 和统计刷新仍由 `SubmissionBatchWriter` 负责。
 
-## 3. 边界规则
+## 4. 边界规则
 
 - syncer 不直接写数据库。
 - syncer 不注册 IPC。
 - syncer 不改变 Cookie 策略。
 - syncer 返回 `SubmissionData[]` 或明确的同步结果，由上层统一写入。
 
-## 4. 验证入口
+## 5. 验证入口
 
 ```powershell
 cd algo-electron

@@ -1,0 +1,82 @@
+name: Submission monitoring issue
+description: Report an OJ realtime submission monitor or submission sync problem.
+title: "fix: "
+labels:
+  - submission-monitoring
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Do not include Cookie values, session tokens, csrf tokens, user source code, full request bodies, or reusable login state. Minimal accepted/wrong-answer code can be described in words instead of pasted.
+  - type: dropdown
+    id: site
+    attributes:
+      label: Site
+      options:
+        - Codeforces
+        - AcWing
+        - Nowcoder
+        - VJudge
+        - PTA
+        - Luogu
+        - LeetCode
+        - Custom site
+    validations:
+      required: true
+  - type: input
+    id: page_url
+    attributes:
+      label: Problem or submissions page URL
+      description: Provide the public page URL only. Do not include private tokens.
+    validations:
+      required: true
+  - type: dropdown
+    id: action
+    attributes:
+      label: Action
+      options:
+        - Realtime submit
+        - Current page submission sync
+        - Codeforces API sync
+        - Problem detail submission list
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected result
+      description: Include expected verdict, language, submission ID behavior, and duplicate behavior.
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual result
+      description: Include safe diagnostic panel messages such as site identified, hook injected, No final submission parsed, inserted/not inserted, and final verdict.
+    validations:
+      required: true
+  - type: checkboxes
+    id: timing
+    attributes:
+      label: Timing and context
+      options:
+        - label: The result was still pending/judging when the app wrote a record.
+        - label: The result was final but no record was written.
+        - label: A self-test/sample/custom run was written as a formal submission.
+        - label: Viewing submission history created a duplicate record.
+        - label: Language, sourceUrl, problem association, or platform submission ID is missing/wrong.
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Safe evidence
+      description: Paste redacted diagnostic text or screenshots. Do not include Cookie, source code, request body, or reusable login state.
+    validations:
+      required: false
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Safety checklist
+      options:
+        - label: I did not include Cookie, session, csrf token, user source code, full request body, or reusable login state.
+          required: true

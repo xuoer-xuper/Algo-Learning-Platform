@@ -92,5 +92,7 @@ npm run build
 - [`PROJECT_RULES.md`](PROJECT_RULES.md)：项目最高规则。
 - [`TASKS.md`](TASKS.md)：唯一任务状态源。
 - [`AI_HANDOFF.md`](AI_HANDOFF.md)：当前交接现场和风险提示。
+- [`CONTRIBUTING.md`](CONTRIBUTING.md)：贡献流程、验证入口、修改边界和 PR 检查清单。
+- [`SECURITY.md`](SECURITY.md)：安全与隐私报告边界。
 
 研发进度不要在 README 中维护第二份状态；以 [`TASKS.md`](TASKS.md) 和 [`AI_HANDOFF.md`](AI_HANDOFF.md) 为准。

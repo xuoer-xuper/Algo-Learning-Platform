@@ -18,7 +18,7 @@
 - 样式：TailwindCSS
 - 数据库：SQLite
 - SQLite 访问库：`better-sqlite3`
-- 状态管理：Zustand
+- Renderer 状态：React 本地 state、按 feature 拆分的 hooks/API helper
 - 构建工具：Vite
 
 ## 3. 不可变架构原则
@@ -34,7 +34,7 @@
 
 - 项目初期即使用 `WebContentsView` 奠定长期基础。
 - 禁止继续在 `BrowserView` 上新增功能。
-- 当前代码中如存在 `BrowserView`，下一步任务必须迁移到 `WebContentsView`。
+- 当前运行时代码不得重新引入 `BrowserView` 依赖；历史文档或 ADR 中出现 `BrowserView` 只能作为背景。
 - 所有浏览器视图生命周期必须由 `BrowserHost` 或同等职责模块统一管理。
 
 ### 3.3 Cookie 是正式能力
@@ -87,13 +87,13 @@ Main Process 负责：
 
 Renderer 负责：
 
-- `features/browser`：导航栏、标签页 UI、当前 URL 展示。
+- `components` / `hooks`：导航栏、标签页 UI、当前 URL 展示和应用壳状态。
 - `features/problems`：题库侧栏、题目列表、题目详情。
-- `features/submissions`：提交记录列表和详情。
 - `features/analytics`：学习统计 Dashboard。
 - `features/settings`：站点、Cookie、默认首页等设置。
-- `stores`：UI 状态和 IPC 返回数据缓存。
-- `components`：通用 UI 组件。
+- `features/scripts`：用户脚本导入、编辑、启停和目标站点匹配。
+- `shared`：跨 feature 展示常量和轻量 helper。
+- feature 内部 `*Api.ts` / hooks：UI 状态、IPC 返回数据缓存和 preload 调用封装。
 
 ## 5. AI Agent 开发规则
 

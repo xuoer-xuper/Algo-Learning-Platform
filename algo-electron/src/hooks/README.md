@@ -4,7 +4,9 @@
 
 `src/hooks/` 存放 renderer 应用壳或跨组件复用的轻量 React hooks。Hook 可以编排 UI 状态并通过本目录 helper 调用已有 preload 能力，但不能包含数据库、Cookie、站点解析或提交监测业务规则。
 
-## 2. 当前 hook
+## 2. 当前实现程度
+
+当前应用壳 hooks 已覆盖 modal 状态、浏览器 view 显隐和浏览器导航编排。关键 hook 和 helper 如下：
 
 - `useAppModalState.ts`
   - 维护设置、统计、脚本、题目详情和笔记弹层的打开状态。

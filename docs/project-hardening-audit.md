@@ -16,11 +16,28 @@
 当前覆盖审计命令：
 
 ```powershell
-Get-ChildItem algo-electron\src,algo-electron\electron,algo-electron\tests -Directory -Recurse |
-  Where-Object { -not (Test-Path (Join-Path $_.FullName 'README.md')) }
+$targets = @('algo-electron\src','algo-electron\electron','algo-electron\tests')
+$missing = @()
+foreach ($target in $targets) {
+  if (-not (Test-Path (Join-Path $target 'README.md'))) { $missing += (Resolve-Path $target).Path }
+  $missing += Get-ChildItem $target -Directory -Recurse |
+    Where-Object { -not (Test-Path (Join-Path $_.FullName 'README.md')) } |
+    Select-Object -ExpandProperty FullName
+}
+$missing
 ```
 
-当前结果：无输出，表示 `src`、`electron`、`tests` 下现有子目录均已有 README。
+当前结果：无输出，表示 `src`、`electron`、`tests` 根目录及其现有子目录均已有 README。
+
+非源码长期维护目录也已补充 README：
+
+- `.github/`
+- `.github/ISSUE_TEMPLATE/`
+- `.github/workflows/`
+- `algo-electron/build/`
+- `algo-electron/public/`
+
+本地工具目录如 `.idea/`、`.agents/`、`.claude/` 不作为项目交付文档覆盖对象。
 
 新增关键 repository 子目录均已纳入 `docs/README.md`：
 
@@ -38,6 +55,7 @@ Get-ChildItem algo-electron\src,algo-electron\electron,algo-electron\tests -Dire
 主进程和数据层：
 
 - `electron/main.ts` 已收口到启动编排，IPC、session、服务初始化、预连接、用户脚本注入和 smoke 逻辑均已拆到对应目录。
+- `electron/README.md` 已作为主进程总览，记录根文件、子目录职责、关键封装入口、实现程度和验证入口。
 - `electron/ipc/` 已按业务域拆分 channel 注册。
 - `electron/db/repositories/` 已按业务域拆出 account、AI snapshot、AI output、problem、site、stats、submission、userScript 内部实现目录，并保留原兼容导出口。
 - `electron/ai/` 已拆分 context、recommendations、summary 的类型、规则、聚合和 Markdown 渲染。
@@ -60,6 +78,21 @@ Renderer：
 根文档：
 
 - `README.md`、`ARCHITECTURE.md`、`DATABASE_SCHEMA.md`、`TASKS.md`、`AI_HANDOFF.md` 和调研文档已完成当前状态一致性修正；历史调研只作为背景，不覆盖当前设计文档和模块 README。
+- `CONTRIBUTING.md` 已作为贡献入口，覆盖本地开发、验证入口、修改边界、隐私要求和 PR 检查清单。
+- `SECURITY.md` 已作为安全与隐私入口，集中说明敏感信息禁区、安全报告范围和验证边界。
+- `.editorconfig` 与 `.gitattributes` 已固定基础编辑器格式、默认 LF、Windows 脚本 CRLF 和二进制资源处理策略。
+- `LICENSE` 已补齐 MIT 许可证文本，`algo-electron/package.json` 已同步 `license: MIT`。
+
+测试入口：
+
+- `tests/run-tests.mjs` 已封装核心、adapter、submissions、DB、Electron smoke 和 UI screenshot 验证；`package.json` 提供 `test:*` scripts，后续文档和交接优先引用 npm 脚本。
+- `.github/workflows/ci.yml` 已接入 `npm run test:all`，覆盖 pull request 和 main/master push 的自动验证；真实 OJ 登录态、七站提交和安装卸载仍按人工验收清单执行。
+- `.github/pull_request_template.md` 与 `.github/ISSUE_TEMPLATE/` 已覆盖 PR 验证清单、普通缺陷和提交监测问题收集，并要求确认不包含敏感登录态、源码或完整请求体。
+- `.github/`、`algo-electron/build/` 和 `algo-electron/public/` 已补 README，说明协作模板、CI、打包资源、静态资源、敏感信息边界和验证入口。
+- `tests/docs/check-docs.mjs` 已把 Markdown 相对链接、README 覆盖、README 内容质量、`docs/README.md` 总索引覆盖和文档 `npm run` 脚本引用检查接入 `npm run test:docs` 与 `npm run test:all`。
+- `tests/architecture/check-architecture.mjs` 已把 BrowserView、preload、renderer IPC、Nowcoder/VJudge 实时入库等红线接入 `npm run test:architecture` 与 `npm run test:core`。
+- `tests/packaging/check-packaging.mjs` 已把 electron-builder 输入白名单、敏感排除、NSIS、asarUnpack 和 build scripts 检查接入 `npm run test:packaging` 与 `npm run test:all`。
+- `tests/security/check-sensitive-files.mjs` 已把 `.env`、本地数据库、日志文件和高置信 Cookie/header/token 明文模式检查接入 `npm run test:security` 与 `npm run test:core`。
 
 ## 4. 剩余大文件处置
 
@@ -86,6 +119,7 @@ Renderer：
 
 - README 覆盖审计无缺口。
 - `TASKS.md`、`AI_HANDOFF.md`、`docs/README.md` 对本轮拆分记录一致。
+- `docs/project-hardening-evidence.md` 能把用户目标拆到当前证据和剩余验收项。
 - 关键自动测试全部通过。
 - 剩余大文件均已分类，且行为敏感文件不再为行数冒险改动。
 - 最终给出用户手测清单，由用户按清单统一验收。
@@ -100,6 +134,13 @@ Renderer：
 
 - `P8-010`：`docs/troubleshooting.md`。
 - `P8-011`：`docs/database-migration-rollback.md`。
+- `P8-069`：`docs/release-process.md`，作为 `P8-009` 和 `P8-012` 的发布执行手册。
+- `P8-070`：`.github/`、`algo-electron/build/` 和 `algo-electron/public/` 目录 README。
+- `P8-071`：`algo-electron/electron/README.md` 主进程总览。
+- `P8-072`：文档一致性自动验证入口。
+- `P8-073`：架构红线自动验证入口。
+- `P8-074`：打包配置自动验证入口。
+- `P8-075`：敏感文件自动验证入口。
 
 ## 6. 自动验证清单
 
@@ -107,31 +148,35 @@ Renderer：
 
 ```powershell
 cd algo-electron
-node node_modules\typescript\bin\tsc --noEmit
-npm run lint
-npx --yes tsx tests\ipc\ipcContracts.test.ts
-npx --yes tsx tests\electron\startupSmoke.test.ts
-npx --yes tsx tests\ai\recommendationRules.test.ts
-npx --yes tsx tests\scripts\userScriptMetadata.test.ts
-npx --yes tsx tests\parsers\siteRules.test.ts
-npx --yes tsx tests\submissions\realtimeTabActivation.test.ts
-node node_modules\esbuild\bin\esbuild tests\db\repositories.test.ts --bundle --platform=node --format=esm --external:better-sqlite3 --external:electron --outfile=tmp\db-repositories.test.mjs
-$env:ELECTRON_RUN_AS_NODE='1'; node_modules\.bin\electron.cmd tmp\db-repositories.test.mjs
+npm run typecheck
+npm run test:core
+npm run test:architecture
+npm run test:security
+npm run test:docs
+npm run test:packaging
+npm run test:db
+npm run test:electron
+npm run test:ui
 ```
 
-提交监测相关改动还应追加 adapter/submission 全量测试和七站手测。
+提交监测相关改动还应追加 `npm run test:adapters`、`npm run test:submissions` 和七站手测。
 
-文档一致性还应检查：
+文档链接、README 覆盖、README 内容质量、总索引覆盖和 npm script 引用由 `npm run test:docs` 检查。空白和换行问题另跑：
 
 ```powershell
 git diff --check
 ```
 
-并确认 Markdown 相对链接、README 覆盖和过期入口扫描无新增缺口。
+若 `git diff --check` 只有既有 LF/CRLF 规范提示，可记录为非阻塞提示；出现 trailing whitespace 或 conflict marker 必须修复。
+
+最近一次验证记录：
+
+- 2026-07-04：`npm run test:all` 通过，覆盖 typecheck、lint、架构红线、敏感文件、IPC、AI、用户脚本、browser、parser、integration、adapter、submissions、DB、docs、packaging、Electron smoke 和 UI screenshot。
+- 2026-07-04：`git diff --check` 仅报告 `algo-electron/electron-builder.json5` 与 `docs/README.md` 的 LF/CRLF 规范提示，无 trailing whitespace 或 conflict marker。
 
 ## 7. 用户手测清单
 
-详细步骤见 [final-acceptance-checklist.md](final-acceptance-checklist.md)。最终交付前建议用户统一手测：
+详细步骤见 [final-acceptance-checklist.md](final-acceptance-checklist.md)，记录格式见 [manual-acceptance-report-template.md](manual-acceptance-report-template.md)。最终交付前建议用户统一手测：
 
 - 七站实时提交监测：Codeforces、AcWing、Nowcoder、VJudge、PTA、Luogu、LeetCode。
 - 手动同步：Codeforces API 同步、当前页面提交记录同步、题目详情提交列表。
@@ -140,3 +185,5 @@ git diff --check
 - 设置页：默认首页、Codeforces 账号绑定/同步、实时提交诊断、站点导入导出。
 - 用户脚本：导入、启用、禁用、删除、目标站点匹配。
 - 打包产物：安装、启动、数据目录、基本导航、无测试/tmp/release/.env 泄漏。
+
+发布安装包前还必须按 [release-process.md](release-process.md) 完成版本、changelog、自动验证、打包、产物检查、安装升级卸载验收和交接记录。

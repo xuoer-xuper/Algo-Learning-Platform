@@ -30,11 +30,13 @@
 |---|---|---|
 | 1 | [PROJECT_RULES.md](../PROJECT_RULES.md) | 确认最高规则、技术栈禁令、Cookie 与隐私纪律。 |
 | 2 | [AI_WORKFLOW.md](../AI_WORKFLOW.md) | 确认任务推进、验证、交接和多 Agent 协作方式。 |
-| 3 | [TASKS.md](../TASKS.md) | 确认当前任务编号、状态、验收标准和建议提交。 |
-| 4 | [AI_HANDOFF.md](../AI_HANDOFF.md) | 确认当前代码现场、已知风险和最近完成内容。 |
-| 5 | [ARCHITECTURE.md](../ARCHITECTURE.md) | 理解 Main、Preload、Renderer、IPC、浏览器容器和数据流。 |
-| 6 | [DATABASE_SCHEMA.md](../DATABASE_SCHEMA.md) | 理解 SQLite schema、migration、repository 和写入约束。 |
-| 7 | [SITE_ADAPTER_GUIDE.md](../SITE_ADAPTER_GUIDE.md) | 理解站点适配、提交监测和 parser 编写规范。 |
+| 3 | [CONTRIBUTING.md](../CONTRIBUTING.md) | 确认贡献流程、验证入口、修改边界和 PR 检查清单。 |
+| 4 | [SECURITY.md](../SECURITY.md) | 确认安全与隐私报告边界。 |
+| 5 | [TASKS.md](../TASKS.md) | 确认当前任务编号、状态、验收标准和建议提交。 |
+| 6 | [AI_HANDOFF.md](../AI_HANDOFF.md) | 确认当前代码现场、已知风险和最近完成内容。 |
+| 7 | [ARCHITECTURE.md](../ARCHITECTURE.md) | 理解 Main、Preload、Renderer、IPC、浏览器容器和数据流。 |
+| 8 | [DATABASE_SCHEMA.md](../DATABASE_SCHEMA.md) | 理解 SQLite schema、migration、repository 和写入约束。 |
+| 9 | [SITE_ADAPTER_GUIDE.md](../SITE_ADAPTER_GUIDE.md) | 理解站点适配、提交监测和 parser 编写规范。 |
 
 提交监测、站点 adapter、实时 hook 相关任务还必须阅读 [submission-monitoring-design.md](submission-monitoring-design.md)。
 
@@ -50,7 +52,7 @@
 | Renderer 页面、组件拆分、UI 状态 | [renderer-structure-audit.md](renderer-structure-audit.md)、[algo-electron/src/README.md](../algo-electron/src/README.md)、[src/features/README.md](../algo-electron/src/features/README.md)、[src/components/README.md](../algo-electron/src/components/README.md)、[src/hooks/README.md](../algo-electron/src/hooks/README.md) |
 | AI 建议、复习计划、学习摘要 | [electron/ai/README.md](../algo-electron/electron/ai/README.md)、[PROJECT_RULES.md](../PROJECT_RULES.md)、[ARCHITECTURE.md](../ARCHITECTURE.md) |
 | 笔记、Markdown、附件路径 | [electron/notes/README.md](../algo-electron/electron/notes/README.md)、[src/features/README.md](../algo-electron/src/features/README.md) |
-| 测试、构建、打包 | [algo-electron/README.md](../algo-electron/README.md)、[tests/README.md](../algo-electron/tests/README.md)、[final-acceptance-checklist.md](final-acceptance-checklist.md) |
+| 测试、构建、打包、发布、CI、协作模板 | [algo-electron/README.md](../algo-electron/README.md)、[tests/README.md](../algo-electron/tests/README.md)、[release-process.md](release-process.md)、[final-acceptance-checklist.md](final-acceptance-checklist.md)、[GitHub 协作配置](../.github/README.md)、[CI workflows](../.github/workflows/README.md)、[Issue templates](../.github/ISSUE_TEMPLATE/README.md) |
 | 故障排查、数据恢复、迁移失败 | [troubleshooting.md](troubleshooting.md)、[database-migration-rollback.md](database-migration-rollback.md)、[DATABASE_SCHEMA.md](../DATABASE_SCHEMA.md) |
 
 ## 3. 根目录契约文档
@@ -58,13 +60,18 @@
 | 文档 | 职责 |
 |---|---|
 | [README.md](../README.md) | 项目总览、功能介绍、基础安装运行说明。 |
+| [LICENSE](../LICENSE) | MIT 许可证文本。 |
 | [PROJECT_RULES.md](../PROJECT_RULES.md) | 最高规则，普通任务不能覆盖。 |
 | [ROADMAP.md](../ROADMAP.md) | 长期阶段规划。 |
 | [TASKS.md](../TASKS.md) | 任务编号、状态、前置关系、验收标准和建议提交。 |
 | [AI_HANDOFF.md](../AI_HANDOFF.md) | 当前交接现场、风险点和最近完成事项。 |
+| [CONTRIBUTING.md](../CONTRIBUTING.md) | 贡献流程、本地验证、修改边界、隐私要求和 PR 检查清单。 |
+| [SECURITY.md](../SECURITY.md) | 安全与隐私政策、敏感信息边界和安全问题报告流程。 |
 | [CHANGELOG.md](../CHANGELOG.md) | 面向用户和维护者的版本变更日志。 |
+| [.github/README.md](../.github/README.md) | GitHub workflow、PR 模板和 issue 模板的协作边界。 |
 | [AI_WORKFLOW.md](../AI_WORKFLOW.md) | AI 协作流程、开发前后检查和交接模板。 |
 | [COMMIT_RULES.md](../COMMIT_RULES.md) | 中文 Conventional Commits 规范。 |
+| [.editorconfig](../.editorconfig) / [.gitattributes](../.gitattributes) | 编辑器格式、换行和 Git 文本/二进制处理策略。 |
 | [ARCHITECTURE.md](../ARCHITECTURE.md) | 系统结构、进程边界、IPC、浏览器、追踪、AI 边界。 |
 | [DATABASE_SCHEMA.md](../DATABASE_SCHEMA.md) | SQLite schema、migration、索引和写入规则。 |
 | [SITE_ADAPTER_GUIDE.md](../SITE_ADAPTER_GUIDE.md) | 站点适配、提交抓取、parser、实时 hook 规范。 |
@@ -78,15 +85,19 @@
 | [submission-monitoring-design.md](submission-monitoring-design.md) | 提交监测数据流、submit intent、站点差异、实时 hook 安全边界、自动测试和手测流程。 |
 | [troubleshooting.md](troubleshooting.md) | 登录、提交监测、同步、数据库、笔记、用户脚本、统计和打包常见故障排查。 |
 | [database-migration-rollback.md](database-migration-rollback.md) | SQLite migration 失败识别、备份、恢复、回滚策略和验证命令。 |
+| [release-process.md](release-process.md) | Windows 发布前操作流程、版本/changelog、自动验证、打包、产物检查、安装升级卸载验收和交接要求。 |
 | [renderer-structure-audit.md](renderer-structure-audit.md) | Renderer 大文件、重复常量、IPC 边界和后续拆分顺序审计。 |
 | [project-hardening-audit.md](project-hardening-audit.md) | 项目结构巩固收尾审计、剩余大文件处置、自动验证和用户手测清单。 |
+| [project-hardening-evidence.md](project-hardening-evidence.md) | 项目巩固目标到当前证据的矩阵，说明哪些已可验收、哪些仍依赖手测或发布验收。 |
 | [final-acceptance-checklist.md](final-acceptance-checklist.md) | 最终手测验收清单，覆盖七站提交监测、同步、核心页面、用户脚本和打包产物。 |
+| [manual-acceptance-report-template.md](manual-acceptance-report-template.md) | 最终人工验收记录模板，用于填写自动验证、七站提交、核心页面、打包产物和剩余风险。 |
 | [leetcode-realtime-verification.md](leetcode-realtime-verification.md) | LeetCode 实时提交监测验证记录。 |
 
 ## 5. 主进程模块文档
 
 | 模块 | 文档 | 重点 |
 |---|---|---|
+| electron 总览 | [electron/README.md](../algo-electron/electron/README.md) | 主进程根文件、子目录职责、封装入口、实现程度和验证入口。 |
 | adapters | [electron/adapters/README.md](../algo-electron/electron/adapters/README.md) | 站点 adapter 职责、目录模型、共享 helper、测试入口。 |
 | ai | [electron/ai/README.md](../algo-electron/electron/ai/README.md) | 本地 AI 上下文、复习建议、薄弱标签、阶段总结和规则边界。 |
 | app | [electron/app/README.md](../algo-electron/electron/app/README.md) | 主进程轻量配置读写边界。 |
@@ -142,6 +153,8 @@
 | 业务功能 | [src/features/README.md](../algo-electron/src/features/README.md) | home、analytics、problems、scripts、settings 的职责和 API 调用边界。 |
 | 应用 hooks | [src/hooks/README.md](../algo-electron/src/hooks/README.md) | 应用壳和跨 feature 的轻量 React hook。 |
 | renderer shared | [src/shared/README.md](../algo-electron/src/shared/README.md) | 跨 feature 展示常量和轻量 helper。 |
+| 打包资源 | [build/README.md](../algo-electron/build/README.md) | electron-builder 图标资源、敏感文件边界和打包验证入口。 |
+| 静态资源 | [public/README.md](../algo-electron/public/README.md) | Vite public 静态文件、默认首页资源和 renderer 权限边界。 |
 | 测试 | [tests/README.md](../algo-electron/tests/README.md) | adapter、browser、db、electron、integration、ipc、parsers、scripts、submissions、ui 测试覆盖范围和运行方式。 |
 
 测试子目录文档：
@@ -149,14 +162,18 @@
 | 测试域 | 文档 | 重点 |
 |---|---|---|
 | adapters | [tests/adapters/README.md](../algo-electron/tests/adapters/README.md) | 站点 adapter、registry、提交表格和实时结果解析。 |
+| architecture | [tests/architecture/README.md](../algo-electron/tests/architecture/README.md) | BrowserView、preload、renderer IPC、Nowcoder/VJudge 实时入库等架构红线检查。 |
 | ai | [tests/ai/README.md](../algo-electron/tests/ai/README.md) | 本地 AI 建议规则、评分 helper 和标签解析。 |
 | browser | [tests/browser/README.md](../algo-electron/tests/browser/README.md) | OJ preload bridge 和 postMessage 转发。 |
 | db | [tests/db/README.md](../algo-electron/tests/db/README.md) | migration、repository 和 Electron ABI SQLite 测试。 |
+| docs | [tests/docs/README.md](../algo-electron/tests/docs/README.md) | Markdown 链接、README 覆盖和文档一致性检查。 |
 | electron | [tests/electron/README.md](../algo-electron/tests/electron/README.md) | 真实 Electron 启动 smoke。 |
 | integration | [tests/integration/README.md](../algo-electron/tests/integration/README.md) | 跨模块 wiring 和数据流。 |
 | ipc | [tests/ipc/README.md](../algo-electron/tests/ipc/README.md) | Preload 白名单和主进程 handler 契约。 |
 | parsers | [tests/parsers/README.md](../algo-electron/tests/parsers/README.md) | URL 识别、标题清洗和兜底脚本。 |
+| packaging | [tests/packaging/README.md](../algo-electron/tests/packaging/README.md) | electron-builder、NSIS、asarUnpack、打包白名单和敏感文件排除检查。 |
 | scripts | [tests/scripts/README.md](../algo-electron/tests/scripts/README.md) | 用户脚本 metadata 和匹配规则。 |
+| security | [tests/security/README.md](../algo-electron/tests/security/README.md) | 敏感文件、仓库隐私和高置信 token/header 模式检查。 |
 | submissions | [tests/submissions/README.md](../algo-electron/tests/submissions/README.md) | 提交同步、实时监听、写入和诊断。 |
 | ui | [tests/ui/README.md](../algo-electron/tests/ui/README.md) | renderer 截图、布局边界和敏感文本检查。 |
 
@@ -194,6 +211,7 @@ Renderer feature 子目录文档：
 
 | ADR | 决策 |
 |---|---|
+| [README.md](adr/README.md) | ADR 目录职责、新增规则和维护要求。 |
 | [0001-use-webcontentsview.md](adr/0001-use-webcontentsview.md) | 统一使用 `WebContentsView`，禁止继续扩展 `BrowserView`。 |
 | [0002-cookie-vault.md](adr/0002-cookie-vault.md) | CookieVault 作为本地一等能力及 Cookie 安全边界。 |
 | [0003-event-log-and-analytics.md](adr/0003-event-log-and-analytics.md) | 学习行为采用“原始事件日志 + 聚合统计表”的设计。 |
@@ -204,6 +222,9 @@ Renderer feature 子目录文档：
 
 - 新增长期文档后，把它加入本索引，并说明它属于契约、设计、模块、调研还是 ADR。
 - 新增一级模块或关键子目录 README 后，把它加入第 5 或第 6 节。
+- 新增长期目录 README 时，至少说明职责、当前实现程度、关键封装入口或函数、边界规则和验证入口；这些最低项由 `npm run test:docs` 守卫。
+- 长期 Markdown、ADR 和被覆盖目录 README 漏索引会导致 `npm run test:docs` 失败。
+- 文档中引用具体 `npm run <script>` 时，该脚本必须存在于 `algo-electron/package.json`；通配说明如 `npm run test:*` 不作为具体脚本校验。
 - 新增草稿、调试记录或历史材料后，把它加入第 8 节，并写清楚不能覆盖哪些权威文档。
 - 任务状态只改 [TASKS.md](../TASKS.md)，不要在设计文档里维护第二份任务状态。
 - 当前工作现场只改 [AI_HANDOFF.md](../AI_HANDOFF.md)，不要在索引里写临时进度。

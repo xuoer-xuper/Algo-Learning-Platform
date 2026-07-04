@@ -6,53 +6,42 @@
 
 验收前不要记录或截图 Cookie、用户源码、完整请求体、可复用登录态或本机数据库文件内容。若某站点触发验证码、登录过期、比赛限制或接口风控，将该项记录为“待复测”，不要用旧数据强行判定通过。
 
+建议使用 [manual-acceptance-report-template.md](manual-acceptance-report-template.md) 记录最终验收结果，方便后续决定是否可以标记 `P8-009` 和 `P8-012`。
+
 ## 2. 验收前准备
 
 - 当前分支已包含本轮结构巩固改动。
 - 已在本机保留需要测试站点的持久登录态。
 - 已运行自动验证清单中的命令，且除 LF/CRLF 提示外无错误。
 - 手测期间打开设置页的实时提交诊断面板，用于确认站点识别、hook 注入、解析失败和写入结果。
-- 如测试打包产物，先备份用户数据目录，确认升级失败时可按 `database-migration-rollback.md` 回退。
+- 如测试打包产物，先按 `release-process.md` 确认版本、changelog、自动验证和产物检查流程，备份用户数据目录，确认升级失败时可按 `database-migration-rollback.md` 回退。
 
 ## 3. 自动验证基线
 
 在 `algo-electron/` 下执行：
 
 ```powershell
-node node_modules\typescript\bin\tsc --noEmit
-npm run lint
-npx --yes tsx tests\ipc\ipcContracts.test.ts
-npx --yes tsx tests\electron\startupSmoke.test.ts
-npx --yes tsx tests\ui\rendererScreenshots.test.ts
+npm run typecheck
+npm run test:core
+npm run test:architecture
+npm run test:security
+npm run test:docs
+npm run test:packaging
+npm run test:electron
+npm run test:ui
 ```
 
 提交监测或 adapter 有改动时追加：
 
 ```powershell
-$tests = Get-ChildItem tests\adapters -Filter *.test.ts
-foreach ($test in $tests) {
-  $out = Join-Path 'tmp' ('adapters-' + $test.BaseName + '.mjs')
-  node node_modules\esbuild\bin\esbuild $test.FullName --bundle --platform=node --format=esm --outfile=$out | Out-Null
-  if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-  node $out
-  if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-}
-
-$tests = Get-ChildItem tests\submissions -Filter *.test.ts
-foreach ($test in $tests) {
-  $out = Join-Path 'tmp' ('submissions-' + $test.BaseName + '.mjs')
-  node node_modules\esbuild\bin\esbuild $test.FullName --bundle --platform=node --format=esm --outfile=$out | Out-Null
-  if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-  node $out
-  if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-}
+npm run test:adapters
+npm run test:submissions
 ```
 
 数据库 repository 验证：
 
 ```powershell
-node node_modules\esbuild\bin\esbuild tests\db\repositories.test.ts --bundle --platform=node --format=esm --external:better-sqlite3 --external:electron --outfile=tmp\db-repositories.test.mjs
-$env:ELECTRON_RUN_AS_NODE='1'; node_modules\.bin\electron.cmd tmp\db-repositories.test.mjs
+npm run test:db
 ```
 
 ## 4. 七站实时提交监测
@@ -99,6 +88,7 @@ $env:ELECTRON_RUN_AS_NODE='1'; node_modules\.bin\electron.cmd tmp\db-repositorie
 
 ## 7. 打包产物验收
 
+- 发布前打包流程以 `release-process.md` 为准，本节只列最终人工验收点。
 - `npm run build:win` 可生成 Windows NSIS 安装包。
 - 安装后应用名称、图标、开始菜单和卸载入口正常。
 - 首次启动能打开默认首页，基础导航、多标签、题库侧栏、设置页和统计页可用。

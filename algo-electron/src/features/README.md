@@ -6,7 +6,9 @@
 
 业务规则、数据库写入、网页解析、Cookie 读取、提交监测等逻辑不应放在 renderer feature 中。
 
-## 2. 当前功能域
+## 2. 当前实现程度
+
+当前 renderer 业务功能域均已按目录拆分，页面组件、局部 panel、feature API helper 和展示类型不再集中在单个顶层文件中。已落地的当前功能域如下：
 
 - `analytics/`
   - `Dashboard.tsx`
