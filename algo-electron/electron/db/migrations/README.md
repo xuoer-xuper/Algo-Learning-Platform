@@ -8,7 +8,7 @@
 
 ## 2. 当前实现程度
 
-当前 migration 版本为 `001` 到 `018`：
+当前 migration 版本为 `001` 到 `019`：
 
 - `001_initial.ts`：初始问题、访问、事件等基础结构。
 - `002_submissions.ts`：提交记录相关结构。
@@ -22,6 +22,7 @@
 - `014`、`015`：AI 上下文快照和 AI 输出。
 - `016`、`017`：题目上下文修正和回填。
 - `018_normalize_codeforces_submission_ids.ts`：Codeforces 提交 ID 归一化。
+- `019_cookie_records.ts`：CookieVault 本地元数据表，仅保存 Cookie 名称、domain、过期时间和安全标记，不保存明文值。
 
 ## 3. 编写规则
 

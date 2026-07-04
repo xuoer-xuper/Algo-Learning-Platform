@@ -204,6 +204,7 @@ CookieVault 的本地记录表。注意：是否保存完整 Cookie 值由实现
 | same_site | TEXT | SameSite |
 | last_seen_at | TEXT NOT NULL | 最近读取时间 |
 | purpose | TEXT | login、submit、sync |
+| sync_excluded | INTEGER NOT NULL DEFAULT 1 | 固定排除同步 |
 | created_at | TEXT NOT NULL | 创建时间 |
 | updated_at | TEXT NOT NULL | 更新时间 |
 
@@ -212,6 +213,7 @@ CookieVault 的本地记录表。注意：是否保存完整 Cookie 值由实现
 ```sql
 UNIQUE(site_id, domain, name)
 INDEX cookie_records_site(site_id)
+INDEX cookie_records_domain(domain)
 INDEX cookie_records_expires_at(expires_at)
 ```
 
@@ -220,6 +222,7 @@ INDEX cookie_records_expires_at(expires_at)
 - Cookie 不进入 `sync_queue`。
 - Cookie 不进入普通 JSON 导出。
 - Cookie 值不得写入普通日志。
+- 当前实现只保存元数据；`value_encrypted` 保持为空，完整 Cookie 值只在 Electron session 中按需读取。
 
 ## 4. Phase 2 表
 

@@ -6,6 +6,8 @@
 
 当前任务状态以 `TASKS.md` 为准：P8-013 到 P8-081 的结构化拆分、文档覆盖、收尾审计、自动验证守卫、证据矩阵、人工验收记录模板和全量自动验证基线已完成；P8-007 changelog 和 P8-008 electron-builder 打包配置作为后续新增产物的持续标准，保持进行中；P8-009 Windows 安装包发布和 P8-012 v1.0 总验收仍未开始，不应随结构巩固自动标完成。
 
+2026-07-04 补充：P1-015/P1-016 已完成。新增 `019_cookie_records` migration 和 `cookieRecordRepository`，只保存 Cookie 元数据，`value_encrypted` 当前保持为空且 `sync_excluded=1`；`CookieVault` 支持 main 内部按站点读取完整 Cookie，同时新增安全摘要方法。Preload 只暴露 `getCookieSummaryForSite()`、`getCookieSummaryForDomain()`，renderer 不能读取 Cookie value。已同步 `DATABASE_SCHEMA.md`、Cookie/IPC/DB README、`docs/README.md`、IPC contract 和 DB repository 测试；验证通过 `npm run test:db`、`npm run test:core`。
+
 2026-07-03 补充：P8-001 已完成，`npm run lint` 现在可稳定运行；TypeScript `strict` 未关闭。ESLint 保留 recommended、React hooks 和 `--max-warnings 0`，但当前阶段允许历史 DB row、网络 payload、测试 mock 等动态边界使用显式 `any`，后续应按模块逐步收窄，而不是一次性打开全局硬门槛。
 
 2026-07-03 补充：P8-002 已完成，`tests/parsers/siteRules.test.ts` 现在覆盖 Codeforces、AcWing、牛客、VJudge、PTA、洛谷、LeetCode CN 的有效/无效 URL 样例，并对关键题目标识字段做精确断言。

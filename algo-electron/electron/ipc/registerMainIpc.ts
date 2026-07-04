@@ -5,6 +5,7 @@ import type { TrackingService } from '../tracking/TrackingService'
 import { registerAiIpc } from './registerAiIpc'
 import { registerBrowserShellIpc } from './registerBrowserShellIpc'
 import { registerConfigIpc } from './registerConfigIpc'
+import { registerCookieIpc } from './registerCookieIpc'
 import { registerNotesIpc } from './registerNotesIpc'
 import { registerProblemIpc } from './registerProblemIpc'
 import { registerRatingIpc } from './registerRatingIpc'
@@ -30,6 +31,7 @@ export function registerMainIpc(options: RegisterMainIpcOptions): void {
     getTrackingService: options.getTrackingService,
   })
   registerConfigIpc()
+  registerCookieIpc()
   registerNotesIpc({ notifyProblemsUpdated })
   registerProblemIpc({ notifyProblemsUpdated })
   registerSitesIpc({

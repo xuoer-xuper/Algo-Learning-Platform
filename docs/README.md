@@ -134,6 +134,7 @@
 | DB AI context snapshots | [electron/db/repositories/aiContextSnapshot/README.md](../algo-electron/electron/db/repositories/aiContextSnapshot/README.md) | 每日 AI 上下文快照、JSON context 解析和列表边界。 |
 | DB AI output repository | [electron/db/repositories/aiOutput/README.md](../algo-electron/electron/db/repositories/aiOutput/README.md) | AI 输出保存、元信息序列化、查询、更新和删除边界。 |
 | DB account repository | [electron/db/repositories/account/README.md](../algo-electron/electron/db/repositories/account/README.md) | 平台账号、当前 rating、peak rating 和 rating history 边界。 |
+| DB cookie record repository | [electron/db/repositories/cookieRecord/README.md](../algo-electron/electron/db/repositories/cookieRecord/README.md) | Cookie 元数据、同步排除和安全摘要边界。 |
 | DB problem repository | [electron/db/repositories/problem/README.md](../algo-electron/electron/db/repositories/problem/README.md) | 题目 upsert、详情、列表、删除和概览统计边界。 |
 | DB submission repository | [electron/db/repositories/submission/README.md](../algo-electron/electron/db/repositories/submission/README.md) | 提交去重写入、查询和首次 AC 更新边界。 |
 | DB site repository | [electron/db/repositories/site/README.md](../algo-electron/electron/db/repositories/site/README.md) | 站点配置 CRUD、内置 seed、导入导出和冲突预览边界。 |

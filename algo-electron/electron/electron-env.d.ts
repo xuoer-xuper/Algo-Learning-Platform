@@ -53,6 +53,24 @@ interface RealtimeSubmissionStatus {
   }
 }
 
+interface CookieSafeDomainSummary {
+  site_id: string
+  domain: string
+  cookie_names: string[]
+  cookie_count: number
+  http_only_count: number
+  secure_count: number
+  earliest_expires_at: string | null
+  last_seen_at: string | null
+  sync_excluded: true
+}
+
+interface CookieSafeSiteSummary {
+  site_id: string
+  has_cookies: boolean
+  domains: CookieSafeDomainSummary[]
+}
+
 interface OverviewStats {
   totalProblems: number
   todayVisited: number
@@ -338,6 +356,8 @@ interface ElectronAPI {
   syncVjudge: () => Promise<SyncResult>
   syncCurrentPage: () => Promise<SyncResult>
   getRealtimeSubmissionStatus: () => Promise<RealtimeSubmissionStatus | null>
+  getCookieSummaryForSite: (siteId: string) => Promise<CookieSafeSiteSummary>
+  getCookieSummaryForDomain: (siteId: string, domain: string) => Promise<CookieSafeDomainSummary>
   getOverviewStats: () => Promise<OverviewStats>
   getDailyActiveStats: (days?: number) => Promise<DailyActiveStats[]>
   getVisitedTrend: (days?: number) => Promise<TrendPoint[]>

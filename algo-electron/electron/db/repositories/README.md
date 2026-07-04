@@ -26,6 +26,8 @@
 - `aiContextSnapshot/`：每日快照类型、JSON context 序列化/解析、查询和幂等创建。
 - `aiOutputRepository.ts`：AI 输出 repository 兼容导出口；实际实现位于 `aiOutput/`。
 - `aiOutput/`：AI 输出类型、元信息序列化、查询、保存、更新和删除。
+- `cookieRecordRepository.ts`：Cookie 元数据 repository 兼容导出口；实际实现位于 `cookieRecord/`。
+- `cookieRecord/`：Cookie 元数据类型、幂等保存、按站点/domain 查询和安全摘要。
 
 ## 3. 函数边界
 
@@ -39,13 +41,14 @@
 - 用户脚本 repository 只保存脚本元信息、匹配规则 JSON、兼容源码字段和本地文件路径；文件导入和 metadata 解析留在 scripts IPC/service。
 - AI 输出 repository 只保存独立输出和追溯元信息，不反写题目、提交、笔记等核心事实表。
 - AI context snapshot repository 只保存 `exportAIContext()` 的脱敏上下文快照；阶段总结聚合逻辑留在 `electron/ai/summary/`。
+- Cookie record repository 只保存元数据和安全摘要，不保存 Cookie value，且 `sync_excluded` 必须保持为 `1`。
 
 ## 4. 边界规则
 
 - Repository 只使用 `getDb()` 获取连接，不自己创建 `Database`。
 - Schema 变化必须先写 migration，再更新 repository。
 - 不在 repository 中发网络请求、执行浏览器脚本或读取 Electron session。
-- 不记录 Cookie、用户源码或完整请求体。
+- 不记录 Cookie 明文、用户源码或完整请求体。
 - 返回给 renderer 的对象应是普通数据，不暴露 `better-sqlite3` statement 或连接对象。
 
 ## 5. 验证入口

@@ -18,6 +18,7 @@
 - `registerStatsIpc.ts`：注册 `stats:*` 统计查询和重算 handler。
 - `registerSubmissionsIpc.ts`：注册 `submissions:*` 手动同步 handler。
 - `registerBrowserShellIpc.ts`：注册 `browser:*`、`tab:*` 和 `window:*` 浏览器壳层 handler。
+- `registerCookieIpc.ts`：注册 `cookies:*` 安全摘要 handler，不向 renderer 暴露 Cookie value。
 - `registerMainIpc.ts`：组合注册入口，集中由 `main.ts` 调用各业务域注册函数。
 
 其他 IPC 仍在 `electron/main.ts`，后续可按风险逐步迁移：
@@ -36,6 +37,7 @@
 - `registerStatsIpc()`：注册统计相关 channel，包括概览、趋势、平台分布、题目访问统计、时间线、复访、连续天数、错题、未复习和日统计重算。
 - `registerSubmissionsIpc(options)`：注册手动提交同步 channel；通过 `getSyncService` 延迟读取 `SyncService`，避免模块 import 时绑定尚未初始化的服务实例。
 - `registerBrowserShellIpc(options)`：注册浏览器壳层 channel；通过 `getWindow`、`getTabManager`、`getTrackingService` 注入运行期对象，保留 URL 重写前的题目识别通知行为。
+- `registerCookieIpc(cookieVault?)`：注册 Cookie 摘要查询 channel；完整 Cookie 仅保留在 main 内部，renderer 只拿名称、数量、过期时间和安全标记统计。
 - `registerMainIpc(options)`：主入口调用的组合函数；只负责串联各注册模块，不直接实现具体 handler。
 
 ## 4. 边界规则
@@ -45,6 +47,7 @@
 - 注册函数应由 `main.ts` 在应用初始化阶段调用，避免模块 import 时产生隐式副作用。
 - 具体 channel 逻辑应留在单域 `register*Ipc.ts`，不要把业务 handler 塞进 `registerMainIpc.ts`。
 - handler 内不要记录 Cookie、用户源码、完整请求体或可复用登录态信息。
+- `cookies:*` channel 不得返回 Cookie value；需要完整 Cookie 时只能由 main 进程内部 service 调用 `CookieVault`。
 
 ## 5. 验证入口
 

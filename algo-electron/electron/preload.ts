@@ -48,6 +48,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   syncVjudge: () => ipcRenderer.invoke('submissions:syncVjudge'),
   syncCurrentPage: () => ipcRenderer.invoke('submissions:syncCurrentPage'),
   getRealtimeSubmissionStatus: () => ipcRenderer.invoke('realtimeSubmission:getStatus'),
+  getCookieSummaryForSite: (siteId: string) => ipcRenderer.invoke('cookies:getSiteSummary', siteId) as Promise<CookieSafeSiteSummary>,
+  getCookieSummaryForDomain: (siteId: string, domain: string) => ipcRenderer.invoke('cookies:getDomainSummary', siteId, domain) as Promise<CookieSafeDomainSummary>,
 
   // 统计
   getOverviewStats: () => ipcRenderer.invoke('stats:getOverview'),

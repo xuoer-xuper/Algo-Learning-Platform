@@ -61,6 +61,13 @@ import {
   getSnapshotByDate,
   listSnapshots,
 } from '../../electron/db/repositories/aiContextSnapshotRepository.ts'
+import {
+  getCookieRecordsBySite,
+  getCookieSummaryByDomain,
+  getCookieSummaryBySite,
+  replaceCookieMetadataForDomain,
+  upsertCookieMetadata,
+} from '../../electron/db/repositories/cookieRecordRepository.ts'
 
 const tests: { name: string; fn: () => void }[] = []
 function test(name: string, fn: () => void) {
@@ -172,14 +179,82 @@ function seedCodeforcesSubmissions(problem: ProblemRow): void {
 test('runs migrations into a temporary database', () => {
   const db = getDbForTest()
   const migrations = db.prepare('SELECT COUNT(*) as count FROM schema_migrations').get() as { count: number }
-  assert.strictEqual(migrations.count, 18)
+  assert.strictEqual(migrations.count, 19)
 
   const tables = db.prepare(`
     SELECT name FROM sqlite_master
-    WHERE type = 'table' AND name IN ('problems', 'submissions', 'user_daily_stats')
+    WHERE type = 'table' AND name IN ('cookie_records', 'problems', 'submissions', 'user_daily_stats')
     ORDER BY name
   `).all() as { name: string }[]
-  assert.deepStrictEqual(tables.map(row => row.name), ['problems', 'submissions', 'user_daily_stats'])
+  assert.deepStrictEqual(tables.map(row => row.name), ['cookie_records', 'problems', 'submissions', 'user_daily_stats'])
+})
+
+test('persists cookie metadata without storing cookie values or enabling sync', () => {
+  const db = getDbForTest()
+  const first = upsertCookieMetadata({
+    siteId: 'leetcode-cn',
+    domain: 'leetcode.cn',
+    name: 'LEETCODE_SESSION',
+    expiresAt: '2026-07-10T00:00:00.000Z',
+    httpOnly: true,
+    secure: true,
+    sameSite: 'no_restriction',
+    purpose: 'login',
+  })
+
+  assert.strictEqual(first.value_encrypted, null)
+  assert.strictEqual(first.sync_excluded, 1)
+  assert.strictEqual(first.http_only, 1)
+  assert.strictEqual(first.secure, 1)
+
+  const updated = upsertCookieMetadata({
+    siteId: 'leetcode-cn',
+    domain: 'leetcode.cn',
+    name: 'LEETCODE_SESSION',
+    expiresAt: '2026-07-11T00:00:00.000Z',
+    httpOnly: true,
+    secure: true,
+    sameSite: 'lax',
+    purpose: 'login',
+  })
+
+  assert.strictEqual(updated.id, first.id)
+  assert.strictEqual(updated.expires_at, '2026-07-11T00:00:00.000Z')
+  assert.strictEqual(updated.same_site, 'lax')
+
+  replaceCookieMetadataForDomain('leetcode-cn', 'www.leetcode.cn', [
+    {
+      siteId: 'leetcode-cn',
+      domain: 'www.leetcode.cn',
+      name: 'csrftoken',
+      httpOnly: false,
+      secure: true,
+      purpose: 'login',
+    },
+  ])
+
+  const siteRecords = getCookieRecordsBySite('leetcode-cn')
+  assert.strictEqual(siteRecords.length, 2)
+  assert.ok(siteRecords.every(record => record.value_encrypted === null))
+  assert.ok(siteRecords.every(record => record.sync_excluded === 1))
+
+  const domainSummary = getCookieSummaryByDomain('leetcode-cn', 'leetcode.cn')
+  assert.deepStrictEqual(domainSummary.cookie_names, ['LEETCODE_SESSION'])
+  assert.strictEqual(domainSummary.cookie_count, 1)
+  assert.strictEqual(domainSummary.http_only_count, 1)
+  assert.strictEqual(domainSummary.secure_count, 1)
+  assert.strictEqual(domainSummary.sync_excluded, true)
+  assert.strictEqual(Object.prototype.hasOwnProperty.call(domainSummary, 'value'), false)
+
+  const siteSummary = getCookieSummaryBySite('leetcode-cn')
+  assert.strictEqual(siteSummary.has_cookies, true)
+  assert.deepStrictEqual(siteSummary.domains.map(domain => domain.domain), ['leetcode.cn', 'www.leetcode.cn'])
+
+  const leakedValues = db.prepare(`
+    SELECT COUNT(*) as count FROM cookie_records
+    WHERE value_encrypted IS NOT NULL OR sync_excluded != 1
+  `).get() as { count: number }
+  assert.strictEqual(leakedValues.count, 0)
 })
 
 test('upserts duplicate problems without creating extra rows', () => {

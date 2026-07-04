@@ -58,6 +58,8 @@ const coreContracts: PreloadContract[] = [
   { method: 'updateSite', mode: 'invoke', channel: 'sites:update' },
   { method: 'toggleSite', mode: 'invoke', channel: 'sites:toggle' },
   { method: 'deleteSite', mode: 'invoke', channel: 'sites:delete' },
+  { method: 'getCookieSummaryForSite', mode: 'invoke', channel: 'cookies:getSiteSummary' },
+  { method: 'getCookieSummaryForDomain', mode: 'invoke', channel: 'cookies:getDomainSummary' },
 ]
 
 test('preload maps core renderer methods to stable channels', () => {
