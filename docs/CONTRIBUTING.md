@@ -2,7 +2,7 @@
 
 ## 1. 开始前
 
-先从 [docs/README.md](docs/README.md) 进入文档体系，再按变更类型阅读对应文档。最低必读：
+先从 [docs/README.md](README.md) 进入文档体系，再按变更类型阅读对应文档。最低必读：
 
 - [PROJECT_RULES.md](PROJECT_RULES.md)：v1.0 稳定技术边界、技术栈和隐私纪律。
 - [ARCHITECTURE.md](ARCHITECTURE.md)：进程、模块、IPC、浏览器和数据流边界。
@@ -11,7 +11,7 @@
 - [SECURITY.md](SECURITY.md)：安全与隐私报告边界。
 - [COMMIT_RULES.md](COMMIT_RULES.md)：提交信息约定。
 
-涉及提交监测、实时 hook 或 OJ adapter 时，还必须阅读 [submission-monitoring-design.md](docs/submission-monitoring-design.md)。
+涉及提交监测、实时 hook 或 OJ adapter 时，还必须阅读 [submission-monitoring-design.md](submission-monitoring-design.md)。
 
 ## 2. 本地开发
 
@@ -38,13 +38,13 @@ npm run test:packaging
 npm run test:all
 ```
 
-`test:all` 不覆盖真实 OJ 登录态、验证码、站点风控、七站正式提交或安装包安装/卸载流程。发布安装包前按 [release-process.md](docs/release-process.md) 执行版本、changelog、打包、产物检查和人工验收。
+`test:all` 不覆盖真实 OJ 登录态、验证码、站点风控、七站正式提交或安装包安装/卸载流程。发布安装包前按 [release-process.md](release-process.md) 执行版本、changelog、打包、产物检查和人工验收。
 
 ## 3. 修改边界
 
 - 不要把业务逻辑堆回 `electron/main.ts`、renderer 大组件或通用 DOM 抓取脚本。
 - Renderer 只通过 `window.electronAPI` 访问本地能力，不直接访问 SQLite、Cookie、文件系统或 Electron session。
-- 数据库 schema 变化必须新增 migration，并同步 [DATABASE_SCHEMA.md](DATABASE_SCHEMA.md) 和 [database-migration-rollback.md](docs/database-migration-rollback.md)。
+- 数据库 schema 变化必须新增 migration，并同步 [DATABASE_SCHEMA.md](DATABASE_SCHEMA.md) 和 [database-migration-rollback.md](database-migration-rollback.md)。
 - IPC/Preload API 变化必须同步 `electron/preload.ts`、`electron/electron-env.d.ts`、renderer helper、IPC contract 测试和相关 README。
 - Nowcoder、VJudge 等高风险站点不能重新使用通用 DOM verdict observer 作为实时入库来源。
 - 不要为了行数继续机械拆分已稳定的提交监测 hook、站点 scraper 或契约型类型文件。

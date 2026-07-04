@@ -269,7 +269,7 @@ ID 格式：`{pid}`（如 P1014、B2005）
 
 ### 6.3 文档更新
 
-- 更新本文档（`SITE_ADAPTER_GUIDE.md`）：添加新站点的 URL 规则、ID 格式、适配策略和注意事项。
+- 更新本文档（`docs/SITE_ADAPTER_GUIDE.md`）：添加新站点的 URL 规则、ID 格式、适配策略和注意事项。
 - 同步相关模块 README、`docs/README.md` 和变更日志（如适用）。
 
 ## 7. SiteAdapter 接口与实现规范

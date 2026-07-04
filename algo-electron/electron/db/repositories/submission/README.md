@@ -27,7 +27,7 @@
 - `updateFirstAc()` 只在存在 AC 提交时更新题目，并保留更早的 `first_solved_at`。
 - 所有批量写入应通过 `SubmissionBatchWriter`，由它统一处理题目关联、首次 AC 和统计刷新。
 - 不记录 Cookie、用户源码、完整请求体或可复用登录态。
-- Schema 变化必须先写 migration，再同步 `DATABASE_SCHEMA.md` 和本目录 SQL。
+- Schema 变化必须先写 migration，再同步 `docs/DATABASE_SCHEMA.md` 和本目录 SQL。
 
 ## 5. 验证入口
 

@@ -16,7 +16,7 @@
 
 - migration 只向前执行，不在用户真实数据库上自动降级。
 - 每个 migration 在 `db.transaction()` 中执行；失败时该 migration 的 SQL 和版本记录一起回滚。
-- 每次 schema 变更必须同步 `DATABASE_SCHEMA.md`。
+- 每次 schema 变更必须同步 `docs/DATABASE_SCHEMA.md`。
 - 任何升级、修复或回滚前，先关闭应用并备份整个 `<userData>` 目录。
 - 恢复优先级：备份恢复 > 新 migration 修复 > 手动 SQL 修复。
 - 不要在业务代码里临时 `ALTER TABLE` 或建表。
@@ -135,7 +135,7 @@ ORDER BY version;
 4. `version` 必须唯一递增。
 5. `name` 描述真实动作。
 6. `up(db)` 必须能在事务中执行。
-7. 同步 `DATABASE_SCHEMA.md`。
+7. 同步 `docs/DATABASE_SCHEMA.md`。
 8. 如涉及 repository，补临时数据库测试。
 9. 如涉及统计口径，补重算或聚合测试。
 
@@ -190,7 +190,7 @@ npx --yes tsx tests\electron\startupSmoke.test.ts
 
 schema 变更后还要人工核对：
 
-- `DATABASE_SCHEMA.md` 和 migration 列表一致。
+- `docs/DATABASE_SCHEMA.md` 和 migration 列表一致。
 - `schema_migrations` 最高版本与 `connection.ts` 一致。
 - 新表/新字段有 repository 或明确预留说明。
 - 打包产物不包含测试库、临时库或本地真实数据库。

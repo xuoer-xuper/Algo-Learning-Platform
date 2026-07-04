@@ -11,11 +11,11 @@
 进入发布前必须满足：
 
 - 当前分支没有未解释的业务改动。
-- `CHANGELOG.md` 已记录本次用户可见变化。
+- `docs/CHANGELOG.md` 已记录本次用户可见变化。
 - `algo-electron/package.json` 和 `algo-electron/package-lock.json` 顶层版本号与计划发布版本一致。
-- 如有数据库 migration，已同步 `DATABASE_SCHEMA.md` 和 `database-migration-rollback.md`。
+- 如有数据库 migration，已同步 `docs/DATABASE_SCHEMA.md` 和 `database-migration-rollback.md`。
 - 如有 IPC/Preload API 变化，已同步类型声明、IPC contract 测试和相关 README。
-- 如有提交监测变化，已同步 `submission-monitoring-design.md`、`SITE_ADAPTER_GUIDE.md` 和 adapter/submissions 测试。
+- 如有提交监测变化，已同步 `submission-monitoring-design.md`、`docs/SITE_ADAPTER_GUIDE.md` 和 adapter/submissions 测试。
 
 禁止把 Cookie、session、csrf token、用户源码、完整请求体、本机数据库、`.env` 或可复用登录态写入 changelog、issue、PR、日志、测试快照或发布说明。
 
@@ -26,7 +26,7 @@
 1. 确认发布版本，例如 `1.0.0`。
 2. 更新 `algo-electron/package.json` 的 `version`。
 3. 同步 `algo-electron/package-lock.json` 顶层版本。
-4. 将 `CHANGELOG.md` 的“未发布”内容整理到新版本标题下。
+4. 将 `docs/CHANGELOG.md` 的“未发布”内容整理到新版本标题下。
 5. 保留新的空“未发布”段，用于后续开发继续追加。
 
 ## 4. 自动验证
@@ -125,6 +125,6 @@ npm run build:win
 - 普通 UI 或站点问题：修复后发布补丁版本。
 - 打包配置问题：修正 `electron-builder.json5` 或构建输入，重新打包并重新验收。
 - 数据迁移问题：按 `database-migration-rollback.md` 发布修复 migration，不在用户环境手工删 migration 记录。
-- 安全或隐私问题：按 `SECURITY.md` 处理，先控制敏感信息扩散，再发布修复。
+- 安全或隐私问题：按 `docs/SECURITY.md` 处理，先控制敏感信息扩散，再发布修复。
 
 不要通过修改用户本地数据库、删除用户数据或绕过站点风控来掩盖发布问题。

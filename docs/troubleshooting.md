@@ -76,7 +76,7 @@ npx --yes tsx tests\electron\startupSmoke.test.ts
 2. 在应用内点刷新，或新建标签页重新打开。
 3. 检查默认首页配置是否是有效 URL。
 4. 开发环境运行 `startupSmoke.test.ts`，确认 Electron 容器和 preload 可用。
-5. 如果只在某站失败，查看该站 README 和 `SITE_ADAPTER_GUIDE.md`，确认 URL 模式仍受支持。
+5. 如果只在某站失败，查看该站 README 和 `docs/SITE_ADAPTER_GUIDE.md`，确认 URL 模式仍受支持。
 
 ## 6. 提交监测没有记录
 

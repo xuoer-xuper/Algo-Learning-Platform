@@ -30,7 +30,7 @@
 
 ## 4. 边界规则
 
-- 新增站点时必须同步 adapter、parser/站点规则测试、`SITE_ADAPTER_GUIDE.md` 和文档索引。
+- 新增站点时必须同步 adapter、parser/站点规则测试、`docs/SITE_ADAPTER_GUIDE.md` 和文档索引。
 - 不在配置中存放 Cookie、账号、token 或用户源码。
 - 不把站点专用解析正则散落到 renderer。
 

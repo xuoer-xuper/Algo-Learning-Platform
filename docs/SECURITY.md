@@ -50,7 +50,7 @@ Algo Learning Platform 是本地优先桌面应用。安全与隐私边界重点
 - Preload 只暴露白名单 API，不暴露通用 `ipcRenderer`。
 - 远程 OJ 页面只能通过受控 bridge 上报有限 payload，不允许访问 Node、本地数据库或任意 IPC。
 - Nowcoder、VJudge 等高风险站点不能使用通用 DOM verdict observer 作为实时入库来源。
-- 数据库 schema 变化必须有 migration，并同步 `DATABASE_SCHEMA.md` 和 `docs/database-migration-rollback.md`。
+- 数据库 schema 变化必须有 migration，并同步 `docs/DATABASE_SCHEMA.md` 和 `docs/database-migration-rollback.md`。
 - Cookie、用户源码、完整请求体和可复用登录态不得进入日志、文档、测试 fixture、截图或 CI artifact。
 - 打包产物不得包含 `tests/`、`tmp/`、`release/`、`.env`、本地数据库或 Cookie。
 

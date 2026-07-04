@@ -79,18 +79,18 @@ algo-electron/release/${version}/
 ## 文档入口
 
 - [文档索引](docs/README.md)
-- [系统架构](ARCHITECTURE.md)
-- [数据库 schema](DATABASE_SCHEMA.md)
-- [站点适配接口](SITE_ADAPTER_GUIDE.md)
+- [系统架构](docs/ARCHITECTURE.md)
+- [数据库 schema](docs/DATABASE_SCHEMA.md)
+- [站点适配接口](docs/SITE_ADAPTER_GUIDE.md)
 - [同步与导入导出兼容性](docs/sync-compatibility.md)
 - [安卓只读数据接口预留](docs/android-readonly-data-interface.md)
 - [发布流程](docs/release-process.md)
 - [故障排查](docs/troubleshooting.md)
-- [更新日志](CHANGELOG.md)
+- [更新日志](docs/CHANGELOG.md)
 
 ## 安全
 
-不要提交或发布 Cookie、session、csrf token、用户源码、完整请求体、本机数据库、`.env` 或可复用登录态。安全和隐私边界见 [SECURITY.md](SECURITY.md)。
+不要提交或发布 Cookie、session、csrf token、用户源码、完整请求体、本机数据库、`.env` 或可复用登录态。安全和隐私边界见 [SECURITY.md](docs/SECURITY.md)。
 
 ## License
 

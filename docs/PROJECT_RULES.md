@@ -52,7 +52,7 @@ Algo Learning Platform 是本地优先的个人算法学习平台。核心数据
 ## 7. 数据库边界
 
 - 所有 schema 变化必须通过 migration。
-- 所有 schema 变化必须同步 `DATABASE_SCHEMA.md`。
+- 所有 schema 变化必须同步 `docs/DATABASE_SCHEMA.md`。
 - Repository 负责封装 SQLite 读写，业务层不散落 `CREATE TABLE`。
 - 已发布 migration 只能追加修复，不回写历史 migration。
 
@@ -71,7 +71,7 @@ v1.0 的 AI 能力是本地辅助学习能力，不是完整 AI Coach。
 - 新站点优先使用配置化 URL 规则。
 - 复杂站点通过 adapter 扩展。
 - 提交监测必须等待最终 verdict，不把 pending、自测、样例运行、公开状态行或非当前用户记录写入核心提交表。
-- 站点适配变更需同步 `SITE_ADAPTER_GUIDE.md` 和相关模块 README。
+- 站点适配变更需同步 `docs/SITE_ADAPTER_GUIDE.md` 和相关模块 README。
 
 ## 10. 验证入口
 

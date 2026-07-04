@@ -68,7 +68,7 @@ Renderer 不能直接访问本目录能力，只能通过 `preload.ts` 暴露的
 
 - 不把业务逻辑堆回 `main.ts`。
 - 不在 renderer 暴露通用 IPC、Node、SQLite、Cookie 或文件系统能力。
-- 数据库 schema 变化必须新增 migration，并同步 `DATABASE_SCHEMA.md` 和 `docs/database-migration-rollback.md`。
+- 数据库 schema 变化必须新增 migration，并同步 `docs/DATABASE_SCHEMA.md` 和 `docs/database-migration-rollback.md`。
 - IPC/Preload API 变化必须同步 `preload.ts`、`electron-env.d.ts`、renderer helper、IPC contract 测试和相关 README。
 - Nowcoder、VJudge 不得重新使用通用 DOM verdict observer 作为实时入库来源。
 - 不把 Cookie、用户源码、完整请求体、本机数据库或可复用登录态写入日志、文档或测试快照。

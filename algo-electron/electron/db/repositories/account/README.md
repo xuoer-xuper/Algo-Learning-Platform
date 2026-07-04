@@ -24,7 +24,7 @@
 - `upsertRatingHistory()` 以 `(platform, account_id, contest_id)` 去重，重复 contest 不覆盖旧记录。
 - `updateCurrentRating()` 同步更新 `last_synced_at`，用于表示最近一次成功同步时间。
 - `computePeakRating()` 只读取 `rating_history.rating_after`，不自行回写账号表；调用方决定是否更新 peak。
-- Schema 变化必须先写 migration，再同步 `DATABASE_SCHEMA.md` 和本目录 SQL。
+- Schema 变化必须先写 migration，再同步 `docs/DATABASE_SCHEMA.md` 和本目录 SQL。
 - 不记录 Cookie、登录态、源码、完整请求体或网络原始日志。
 
 ## 5. 验证入口

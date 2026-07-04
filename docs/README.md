@@ -7,21 +7,21 @@
 | 文档 | 内容 |
 |---|---|
 | [README.md](../README.md) | 项目总览、v1.0 状态、支持平台、功能、技术栈和运行命令。 |
-| [CHANGELOG.md](../CHANGELOG.md) | 版本变更记录。 |
-| [ROADMAP.md](../ROADMAP.md) | v1.0 完成范围和后续方向。 |
-| [PROJECT_RULES.md](../PROJECT_RULES.md) | v1.0 稳定技术边界。 |
-| [SECURITY.md](../SECURITY.md) | 安全与隐私边界。 |
-| [CONTRIBUTING.md](../CONTRIBUTING.md) | 通用贡献流程和验证入口。 |
-| [COMMIT_RULES.md](../COMMIT_RULES.md) | 提交信息约定。 |
+| [CHANGELOG.md](CHANGELOG.md) | 版本变更记录。 |
+| [ROADMAP.md](ROADMAP.md) | v1.0 完成范围和后续方向。 |
+| [PROJECT_RULES.md](PROJECT_RULES.md) | v1.0 稳定技术边界。 |
+| [SECURITY.md](SECURITY.md) | 安全与隐私边界。 |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | 通用贡献流程和验证入口。 |
+| [COMMIT_RULES.md](COMMIT_RULES.md) | 提交信息约定。 |
 | [LICENSE](../LICENSE) | MIT License。 |
 
 ## 2. 核心架构与接口
 
 | 文档 | 内容 |
 |---|---|
-| [ARCHITECTURE.md](../ARCHITECTURE.md) | Main、Preload、Renderer、IPC、浏览器容器、提交监测、AI 边界和数据流。 |
-| [DATABASE_SCHEMA.md](../DATABASE_SCHEMA.md) | SQLite schema、migration、repository、索引和写入约束。 |
-| [SITE_ADAPTER_GUIDE.md](../SITE_ADAPTER_GUIDE.md) | 站点适配、提交抓取、parser、实时 hook 和自定义站点规范。 |
+| [ARCHITECTURE.md](ARCHITECTURE.md) | Main、Preload、Renderer、IPC、浏览器容器、提交监测、AI 边界和数据流。 |
+| [DATABASE_SCHEMA.md](DATABASE_SCHEMA.md) | SQLite schema、migration、repository、索引和写入约束。 |
+| [SITE_ADAPTER_GUIDE.md](SITE_ADAPTER_GUIDE.md) | 站点适配、提交抓取、parser、实时 hook 和自定义站点规范。 |
 | [submission-monitoring-design.md](submission-monitoring-design.md) | 七站提交监测数据流、submit intent、站点差异和实时 hook 安全边界。 |
 | [sync-compatibility.md](sync-compatibility.md) | 同步队列、JSON 导入导出、冲突策略和 Cookie 不同步边界。 |
 | [android-readonly-data-interface.md](android-readonly-data-interface.md) | 未来安卓端只读数据格式、只读边界和兼容策略。 |
@@ -148,7 +148,7 @@ Renderer feature：
 - 长期 Markdown、ADR 和模块 README 应进入本索引。
 - 新增长期目录 README 时，至少说明职责、当前实现程度、关键封装入口或函数、边界规则和验证入口。
 - 文档中引用具体 `npm run <script>` 时，该脚本必须存在于 `algo-electron/package.json`。
-- 数据库 schema 变化必须同步 [DATABASE_SCHEMA.md](../DATABASE_SCHEMA.md)。
+- 数据库 schema 变化必须同步 [DATABASE_SCHEMA.md](DATABASE_SCHEMA.md)。
 - IPC/Preload API 变化必须同步 `electron/preload.ts`、`electron/electron-env.d.ts` 和相关模块 README。
-- 提交监测、站点 adapter、实时 hook 变化必须同步 [submission-monitoring-design.md](submission-monitoring-design.md) 和 [SITE_ADAPTER_GUIDE.md](../SITE_ADAPTER_GUIDE.md)。
+- 提交监测、站点 adapter、实时 hook 变化必须同步 [submission-monitoring-design.md](submission-monitoring-design.md) 和 [SITE_ADAPTER_GUIDE.md](SITE_ADAPTER_GUIDE.md)。
 - 文档和示例不得记录 Cookie、用户源码、完整请求体、本机数据库内容或可复用登录态。

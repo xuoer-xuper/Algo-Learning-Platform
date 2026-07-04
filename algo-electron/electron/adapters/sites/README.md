@@ -39,7 +39,7 @@
 - 自测、调试、run code、sample/custom test 不得触发正式提交写入。
 - Nowcoder 和 VJudge 只接受官方提交/状态接口返回的结果，不用通用 DOM verdict observer 直接写入。
 - VJudge 必须按 solution id，或当前用户+当前题目+提交时间窗口强关联；无法关联时不写入。
-- 行为变化必须同步 `docs/submission-monitoring-design.md` 和 `SITE_ADAPTER_GUIDE.md`。
+- 行为变化必须同步 `docs/submission-monitoring-design.md` 和 `docs/SITE_ADAPTER_GUIDE.md`。
 
 ## 5. 验证入口
 
