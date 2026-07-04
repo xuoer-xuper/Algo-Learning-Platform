@@ -1,7 +1,7 @@
 {
   "name": "algo-electron",
   "private": true,
-  "version": "0.6.0",
+  "version": "1.0.0",
   "description": "Local-first algorithm learning tracker desktop app",
   "author": "Algo Learning Platform Contributors",
   "license": "MIT",

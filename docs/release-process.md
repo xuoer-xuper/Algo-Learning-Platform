@@ -2,18 +2,17 @@
 
 ## 1. 职责
 
-本文档定义 Windows 发布前的操作流程、验证门槛、产物检查和交接要求。它是 `P8-009` 发布 Windows 安装包和 `P8-012` v1.0 总验收的执行手册，不代表这两个任务已经完成。
+本文定义 Algo Learning Platform Windows 安装包发布前的版本、验证、打包、产物检查、安装升级卸载和回滚流程。
 
-发布流程只处理现有 Electron 桌面应用产物。数据库 schema、IPC/Preload API、Cookie 策略、提交监测 hook 或站点 adapter 行为不应在发布打包阶段临时改动；如果必须改，先回到对应模块任务，补测试和文档后再重新进入发布流程。
+发布流程只处理现有 Electron 桌面应用产物。数据库 schema、IPC/Preload API、Cookie 策略、提交监测 hook 或站点 adapter 行为不应在发布打包阶段临时改动；如果必须改，先回到对应模块补代码、测试和文档，再重新进入发布流程。
 
 ## 2. 发布前置条件
 
 进入发布前必须满足：
 
 - 当前分支没有未解释的业务改动。
-- `TASKS.md` 和 `AI_HANDOFF.md` 已记录本轮完成内容、风险和验证结果。
-- `CHANGELOG.md` 的“未发布”内容已覆盖本次用户可见变化。
-- `algo-electron/package.json` 版本号与计划发布版本一致。
+- `CHANGELOG.md` 已记录本次用户可见变化。
+- `algo-electron/package.json` 和 `algo-electron/package-lock.json` 顶层版本号与计划发布版本一致。
 - 如有数据库 migration，已同步 `DATABASE_SCHEMA.md` 和 `database-migration-rollback.md`。
 - 如有 IPC/Preload API 变化，已同步类型声明、IPC contract 测试和相关 README。
 - 如有提交监测变化，已同步 `submission-monitoring-design.md`、`SITE_ADAPTER_GUIDE.md` 和 adapter/submissions 测试。
@@ -24,13 +23,11 @@
 
 发布前按顺序处理：
 
-1. 确认发布版本，例如 `0.6.0` 或 `1.0.0`。
+1. 确认发布版本，例如 `1.0.0`。
 2. 更新 `algo-electron/package.json` 的 `version`。
-3. 如锁文件发生变化，确认 `algo-electron/package-lock.json` 顶层版本同步。
+3. 同步 `algo-electron/package-lock.json` 顶层版本。
 4. 将 `CHANGELOG.md` 的“未发布”内容整理到新版本标题下。
 5. 保留新的空“未发布”段，用于后续开发继续追加。
-
-`P8-007` 是持续维护标准。每次新增用户可见功能、行为修复、打包配置变化或验证入口变化，都要继续维护 `CHANGELOG.md`，不要把它当作一次性任务。
 
 ## 4. 自动验证
 
@@ -46,8 +43,6 @@ npm run test:all
 git diff --check
 ```
 
-如果本轮只改文档，也仍应至少保证 Markdown 链接、README 覆盖和工作区状态可解释。提交监测、数据库、IPC 或 UI 有改动时，不要用较窄测试替代 `test:all`。
-
 文档一致性可单独运行：
 
 ```powershell
@@ -60,7 +55,7 @@ npm run test:docs
 npm run test:packaging
 ```
 
-`test:all` 不覆盖真实 OJ 登录态、验证码、站点风控、七站正式提交或安装包安装卸载，这些仍必须按 `final-acceptance-checklist.md` 手测，并可记录到 `manual-acceptance-report-template.md`。
+`test:all` 不覆盖真实 OJ 登录态、验证码、站点风控、七站正式提交或安装包安装卸载，这些仍需要人工验收。
 
 ## 5. 打包
 
@@ -79,7 +74,7 @@ npm run build:win
 - `better-sqlite3` 原生模块通过 `asarUnpack` 解包。
 - 打包输入白名单只包含 renderer 构建、主进程构建、`package.json` 和生产依赖。
 
-`P8-008` 是持续维护标准。新增构建产物、原生依赖、资源目录或打包入口后，必须重新检查 `electron-builder.json5`，避免把开发缓存或敏感数据带入安装包。
+新增构建产物、原生依赖、资源目录或打包入口后，必须重新检查 `electron-builder.json5`，避免把开发缓存或敏感数据带入安装包。
 
 ## 6. 产物检查
 
@@ -93,40 +88,24 @@ npm run build:win
 
 如果产物检查失败，先修打包配置或构建输入，再重新运行自动验证和打包；不要手工改安装包内容。
 
-## 7. 安装、升级和卸载验收
+## 7. 人工验收
 
 安装包必须在 Windows 上手测：
 
 - 全新安装：应用名称、图标、开始菜单、安装目录和卸载入口正常。
 - 首次启动：默认首页、多标签、题库侧栏、设置页和统计页可用。
+- 七站提交监测：Codeforces、AcWing、牛客、VJudge、PTA、洛谷、LeetCode CN 的正式提交最终结果只入库一次。
+- 手动同步：Codeforces API 同步和当前页面提交记录同步不重复写入。
+- 核心页面：题目侧栏、题目详情、笔记弹层、统计页、设置页、用户脚本和备份导入导出无阻断问题。
 - 数据保留：升级安装后用户题目、提交、笔记、站点配置和用户脚本仍在。
 - 卸载：卸载程序可执行；默认不删除用户数据，符合 `electron-builder.json5` 中 `deleteAppDataOnUninstall: false`。
 - 重新安装：保留数据的情况下重新启动不触发 migration 异常。
 
 升级测试前必须备份用户数据目录；如果 migration 或启动失败，按 `database-migration-rollback.md` 处理，不要直接删除用户数据来判定通过。
 
-## 8. 最终手测
+## 8. 发布记录
 
-发布前总验收按 `final-acceptance-checklist.md` 执行，验收结果可填写到 `manual-acceptance-report-template.md`。最低覆盖：
-
-- 七站实时提交监测。
-- 手动同步和题目详情提交列表。
-- 题目侧栏、题目详情、笔记弹层、统计页、设置页。
-- 用户脚本导入、启停、删除和匹配。
-- Windows 安装包安装、启动、升级、卸载和敏感文件泄漏检查。
-
-任何站点因登录、验证码、比赛权限或风控无法真提交时，只能记录为“待复测”或“临时通过”，并写入 `AI_HANDOFF.md`。临时通过不能支撑 `P8-012` 完成。
-
-## 9. 发布交接
-
-发布前后需要同步：
-
-- `TASKS.md`：只有真实发布和总验收完成后，才能更新 `P8-009` 或 `P8-012` 状态。
-- `AI_HANDOFF.md`：记录版本、产物路径、验证命令、手测结果、失败项、临时通过项和后续风险。
-- `CHANGELOG.md`：记录版本日期和用户可见变化。
-- `docs/project-hardening-audit.md`：如结构巩固标准或发布门槛变化，更新审计结论。
-
-推荐交接字段：
+发布前后建议记录：
 
 ```text
 版本：
@@ -136,11 +115,10 @@ npm run build:win
 七站手测：
 安装/升级/卸载：
 已知风险：
-是否允许标记 P8-009：
-是否允许标记 P8-012：
+发布结论：
 ```
 
-## 10. 回滚原则
+## 9. 回滚原则
 
 已发布版本发现问题时：
 

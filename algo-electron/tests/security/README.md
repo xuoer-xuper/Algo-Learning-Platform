@@ -33,4 +33,4 @@ npm run test:all
 
 - 新增敏感文件类型时，同步本检查、`SECURITY.md` 和 `.gitattributes`。
 - 不要把真实 Cookie、用户源码、完整请求体、本机数据库或可复用登录态写入测试 fixture。
-- 本检查只覆盖仓库文件；运行时日志、截图、安装包内容仍需按 `docs/final-acceptance-checklist.md` 和 `docs/release-process.md` 人工验收。
+- 本检查只覆盖仓库文件；运行时日志、截图、安装包内容仍需按 `docs/release-process.md` 人工验收。

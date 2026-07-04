@@ -371,7 +371,7 @@ INDEX contest_results_account_time(account_id, contest_at)
 UNIQUE(platform, contest_id, account_id)
 ```
 
-## 7. Phase 6 表
+## 7. 笔记与本地 AI 表
 
 ### 7.1 notes
 
@@ -391,7 +391,7 @@ UNIQUE(platform, contest_id, account_id)
 
 INDEX notes_updated_at(updated_at)
 
-### 7.2 ai_context_snapshots（P6-004 扩展，migration 014）
+### 7.2 ai_context_snapshots（migration 014）
 
 每日 AI 上下文快照。应用启动时（首次当日打开）自动调用 `ensureTodaySnapshot()` 生成一份当日快照，存库供 AI 模块（阶段总结、复习计划等）按需消费。避免每次调用都重新聚合统计，同时沉淀历史轨迹。
 
@@ -409,7 +409,7 @@ UNIQUE INDEX snapshots_date_unique(snapshot_date)
 
 AI 输出独立保存，不污染核心事实表。migration 015 建表。
 
-> 已移除：原 7.2 `submission_code_snippets`（P6-003）已下线，migration 013 物理删除该表。原因：手动维护成本高，AI 模块不依赖此表（contextExporter 直接读取原始 submissions 表）。
+> 已移除：原 `submission_code_snippets` 已下线，migration 013 物理删除该表。原因：手动维护成本高，AI 模块不依赖此表（contextExporter 直接读取原始 submissions 表）。
 
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |

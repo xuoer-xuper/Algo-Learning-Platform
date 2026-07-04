@@ -2,17 +2,16 @@
 
 ## 1. 开始前
 
-先从 [docs/README.md](docs/README.md) 进入文档体系，再按任务类型阅读对应文档。最低必读：
+先从 [docs/README.md](docs/README.md) 进入文档体系，再按变更类型阅读对应文档。最低必读：
 
-- [PROJECT_RULES.md](PROJECT_RULES.md)：最高开发规则、技术栈和隐私边界。
-- [TASKS.md](TASKS.md)：唯一任务状态源。
-- [AI_HANDOFF.md](AI_HANDOFF.md)：当前交接现场、风险和验证记录。
+- [PROJECT_RULES.md](PROJECT_RULES.md)：v1.0 稳定技术边界、技术栈和隐私纪律。
 - [ARCHITECTURE.md](ARCHITECTURE.md)：进程、模块、IPC、浏览器和数据流边界。
 - [DATABASE_SCHEMA.md](DATABASE_SCHEMA.md)：SQLite schema、migration 和数据约束。
-- [COMMIT_RULES.md](COMMIT_RULES.md)：中文提交规范。
+- [SITE_ADAPTER_GUIDE.md](SITE_ADAPTER_GUIDE.md)：站点适配、提交监测和 parser 规范。
 - [SECURITY.md](SECURITY.md)：安全与隐私报告边界。
+- [COMMIT_RULES.md](COMMIT_RULES.md)：提交信息约定。
 
-涉及站点、提交监测或实时 hook 时，还必须阅读 [SITE_ADAPTER_GUIDE.md](SITE_ADAPTER_GUIDE.md) 和 [submission-monitoring-design.md](docs/submission-monitoring-design.md)。
+涉及提交监测、实时 hook 或 OJ adapter 时，还必须阅读 [submission-monitoring-design.md](docs/submission-monitoring-design.md)。
 
 ## 2. 本地开发
 
@@ -33,13 +32,13 @@ npm run test:docs
 npm run test:packaging
 ```
 
-提交前或发布前验证：
+发布前或大范围改动后运行：
 
 ```powershell
 npm run test:all
 ```
 
-`test:all` 不覆盖真实 OJ 登录态、七站正式提交、验证码、站点风控或安装包安装/卸载流程；这些必须按 [final-acceptance-checklist.md](docs/final-acceptance-checklist.md) 手测。发布安装包前还必须按 [release-process.md](docs/release-process.md) 执行版本、changelog、打包、产物检查和交接流程。
+`test:all` 不覆盖真实 OJ 登录态、验证码、站点风控、七站正式提交或安装包安装/卸载流程。发布安装包前按 [release-process.md](docs/release-process.md) 执行版本、changelog、打包、产物检查和人工验收。
 
 ## 3. 修改边界
 
@@ -48,7 +47,7 @@ npm run test:all
 - 数据库 schema 变化必须新增 migration，并同步 [DATABASE_SCHEMA.md](DATABASE_SCHEMA.md) 和 [database-migration-rollback.md](docs/database-migration-rollback.md)。
 - IPC/Preload API 变化必须同步 `electron/preload.ts`、`electron/electron-env.d.ts`、renderer helper、IPC contract 测试和相关 README。
 - Nowcoder、VJudge 等高风险站点不能重新使用通用 DOM verdict observer 作为实时入库来源。
-- 不要为了行数继续机械拆分已手测稳定的提交监测 hook、站点 scraper 或契约型类型文件。
+- 不要为了行数继续机械拆分已稳定的提交监测 hook、站点 scraper 或契约型类型文件。
 
 ## 4. 隐私与安全
 
@@ -76,14 +75,12 @@ npm run test:all
 ## 6. PR 检查清单
 
 仓库提供 `.github/pull_request_template.md`。提交 PR 时按模板填写变更范围、边界确认、验证、手测和文档同步。
-维护 CI、PR 模板或 issue 模板前，先阅读 [.github/README.md](.github/README.md)。
 
-- 变更范围和任务编号清楚。
+- 变更范围清楚。
 - 已运行与变更相关的 `npm run test:*`。
-- 涉及提交监测时已追加 adapter/submissions 测试，并说明需要用户手测的站点。
+- 涉及提交监测时已追加 adapter/submissions 测试，并说明需要人工验证的站点。
 - 涉及 UI 时已运行 `npm run test:ui` 或说明无法运行的原因。
 - 涉及数据库、IPC、Cookie、站点 adapter、AI 输出或打包配置时，相关文档已同步。
-- `TASKS.md` 和 `AI_HANDOFF.md` 已记录完成内容、验证结果、风险和下一步。
 - 提交信息符合中文 Conventional Commits 风格。
 
 ## 7. Issue 模板

@@ -98,4 +98,4 @@ npm run test:electron
 npm run test:all
 ```
 
-真实站点和安装包验收按 `docs/final-acceptance-checklist.md` 与 `docs/release-process.md` 执行。
+真实站点和安装包验收按 `docs/release-process.md` 执行。

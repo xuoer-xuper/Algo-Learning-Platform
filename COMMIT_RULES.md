@@ -1,10 +1,8 @@
-# 提交规范（COMMIT_RULES）
+# 提交规范
 
 ## 1. 总原则
 
-本项目 Git 提交信息统一使用中文。
-
-每个提交只完成一个明确任务。不要把文档、数据库、UI、浏览器核心混在一个提交里，除非它们属于同一个任务的必要产出。
+Git 提交信息统一使用中文。每个提交应完成一个明确主题，不要把无关的文档、数据库、UI、浏览器核心和打包改动混在一起。
 
 ## 2. 推荐格式
 
@@ -15,12 +13,12 @@
 示例：
 
 ```text
-feat: 迁移到 WebContentsView
+feat: 添加新站点 adapter
 fix: 修复 Codeforces URL 识别
-docs: 完善全周期任务规划
-chore: 初始化 TailwindCSS
+docs: 更新数据库 schema 文档
+chore: 调整 Windows 打包配置
 test: 添加站点解析规则测试
-refactor: 抽离 BrowserHost
+refactor: 抽离 BrowserHost 布局 helper
 ```
 
 ## 3. 类型说明
@@ -32,20 +30,11 @@ refactor: 抽离 BrowserHost
 - `test`：测试相关。
 - `refactor`：不改变行为的结构调整。
 - `style`：样式或格式调整。
+- `ci`：CI、workflow 或仓库协作配置。
 
-## 4. 任务编号
+## 4. 禁止格式
 
-如果提交对应 `TASKS.md` 中的任务，建议在提交说明中写任务编号：
-
-```text
-feat: 完成 P1-003 迁移到 WebContentsView
-docs: 完成 DOC-005 架构文档
-test: 完成 P5-009 站点规则测试
-```
-
-## 5. 禁止格式
-
-禁止：
+禁止使用无法判断范围的提交信息：
 
 ```text
 update
@@ -56,38 +45,28 @@ misc
 临时提交
 ```
 
-## 6. 文档同步要求
+## 5. 文档同步要求
 
 以下修改必须伴随文档更新：
 
 - 数据库 schema 变更：更新 `DATABASE_SCHEMA.md`。
-- IPC / Preload API 变更：更新 `ARCHITECTURE.md` 和 `AI_HANDOFF.md`。
-- 站点适配变更：更新 `SITE_ADAPTER_GUIDE.md`。
-- Cookie 行为变更：更新 `PROJECT_RULES.md` 或 `ARCHITECTURE.md`。
-- 任务状态变更：更新 `TASKS.md`。
+- IPC / Preload API 变更：更新 `ARCHITECTURE.md`、`electron/preload.ts`、`electron/electron-env.d.ts` 和相关模块 README。
+- 站点适配变更：更新 `SITE_ADAPTER_GUIDE.md`、`docs/submission-monitoring-design.md` 和相关 adapter README。
+- Cookie 行为变更：更新 `PROJECT_RULES.md`、`ARCHITECTURE.md` 或 `algo-electron/electron/cookies/README.md`。
+- 同步、导入导出或备份变更：更新 `docs/sync-compatibility.md` 或 `algo-electron/electron/backup/README.md`。
+- 打包发布变更：更新 `docs/release-process.md`、`CHANGELOG.md` 或 `algo-electron/electron-builder.json5` 相关说明。
 
-## 7. 推荐提交粒度
+## 6. 推荐提交粒度
 
 好的粒度：
 
-- `docs: 完成 DOC-005 架构文档`
-- `feat: 完成 P1-003 迁移到 WebContentsView`
-- `feat: 完成 P1-014 添加 CookieVault 基础接口`
-- `test: 完成 P1-018 Codeforces URL 解析测试`
+- `feat: 添加 AtCoder 站点 adapter`
+- `fix: 修复 VJudge 弹窗提交结果关联`
+- `test: 覆盖学习数据导入冲突策略`
+- `docs: 同步 CookieVault 安全边界`
 
 不好的粒度：
 
-- 一次提交完成整个 Phase 1。
-- 一次提交同时改数据库、UI、Cookie、AI。
-- 无说明地大规模移动目录。
-
-## 8. AI Agent 提交建议
-
-AI Agent 完成任务后，即使不直接提交，也必须在最终回复中给出建议提交信息。
-
-示例：
-
-```text
-建议提交：docs: 完成长期协作文档基线
-```
-
+- 一次提交完成多个无关功能。
+- 一次提交同时改数据库、UI、Cookie、AI 和打包。
+- 无说明地大规模移动目录或格式化无关文件。

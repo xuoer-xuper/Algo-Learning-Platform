@@ -66,4 +66,4 @@ npm run test:all
 
 `test:security` 检查 tracked 和未忽略的新增文件中是否存在 `.env`、本地数据库、日志文件，以及高置信 Cookie/header/token 明文模式。它不能替代人工安全审查和安装包内容验收。
 
-提交监测、真实 OJ 登录态和安装包流程必须按 `docs/final-acceptance-checklist.md` 手测。CI 不访问真实站点登录态，也不替代人工安全验收。
+提交监测、真实 OJ 登录态和安装包流程必须按 `docs/release-process.md` 人工验收。CI 不访问真实站点登录态，也不替代人工安全验收。

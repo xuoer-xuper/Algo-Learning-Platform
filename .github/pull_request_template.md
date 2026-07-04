@@ -1,6 +1,5 @@
 ## 变更范围
 
-- 任务编号：
 - 变更类型：feat / fix / docs / test / refactor / chore / ci
 - 涉及模块：
 
@@ -27,13 +26,11 @@
 ## 手测
 
 - [ ] 不需要手测
-- [ ] 已按 `docs/final-acceptance-checklist.md` 完成相关手测
+- [ ] 已按 `docs/release-process.md` 或相关模块 README 完成手测
 - [ ] 需要用户后续手测，范围：
 
 ## 文档同步
 
-- [ ] `TASKS.md`
-- [ ] `AI_HANDOFF.md`
 - [ ] 模块 README / `docs/README.md`
 - [ ] 其他：
 

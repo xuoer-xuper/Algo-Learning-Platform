@@ -1,38 +1,30 @@
 # 更新日志
 
-本文件记录面向用户和维护者的可见变化。格式参考 Keep a Changelog，提交信息仍按 `COMMIT_RULES.md` 使用中文 Conventional Commits。
+本文件记录面向用户和维护者的可见变化。
 
 ## 未发布
 
+暂无。
+
+## 1.0.0 - 2026-07-04
+
 ### 新增
 
-- 增加提交监测设计文档，说明实时 hook、submit intent、站点差异和手测流程。
-- 增加 renderer、主进程模块、测试与构建入口文档索引，方便按模块接手维护。
-- 增加 lint、URL 解析、repository、IPC 契约、Electron 启动和 renderer 截图验收测试。
-- 增加 Windows NSIS x64 打包脚本、应用图标和 electron-builder 白名单配置。
-- 增加发布流程文档，明确版本、changelog、自动验证、打包、产物检查、安装升级卸载验收和交接要求。
-- 增加 GitHub 协作配置、CI workflow、issue 模板、打包资源和静态资源目录 README。
-- 增加 Electron 主进程总览 README，说明根文件、子目录职责、封装入口和验证入口。
-- 增加 `npm run test:docs` 文档一致性检查，覆盖 Markdown 链接和 README 覆盖规则。
-- 扩展 `npm run test:docs`，要求长期目录 README 说明职责、实现程度、封装入口、边界和验证入口。
-- 扩展 `npm run test:docs`，检查长期 Markdown、ADR 和模块 README 是否进入 `docs/README.md` 总索引。
-- 扩展 `npm run test:docs`，检查文档中具体 `npm run` 命令是否存在于 `package.json`。
-- 增加 `npm run test:architecture` 架构红线检查，覆盖 BrowserView、preload、renderer IPC 和 Nowcoder/VJudge 实时入库边界。
-- 增加 `npm run test:packaging` 打包配置检查，覆盖 electron-builder 白名单、敏感排除、NSIS 和原生模块解包边界。
-- 增加 `npm run test:security` 敏感文件检查，拦截 `.env`、本地数据库、日志和高置信 Cookie/header 明文模式。
-- 增加项目巩固证据矩阵，把结构拆分、模块文档、自动验证和最终手测剩余项对应到可核查证据。
-- 增加最终人工验收记录模板，便于记录自动验证、七站提交、核心页面、打包产物和剩余风险。
-- 记录结构巩固阶段 `npm run test:all` 全量自动验证通过，作为发布前手测之外的自动基线。
+- 完成 v1.0 桌面应用规划，覆盖七站刷题、题目识别、提交记录、统计分析、笔记、站点扩展、备份导入导出和 Windows 打包。
+- 增加本地 SQLite 备份、学习数据 JSON 导入导出、冲突预览和同步兼容文档。
 - 增加 Cookie 元数据本地保存和安全摘要查询能力，renderer 只能查看授权状态摘要，不暴露 Cookie 值。
-- 增加 `npm run test:ai`，验证 AI 建议、薄弱标签和复习计划可追溯到本地数据，且不泄漏敏感 payload。
-- 增加 Phase 7 本地 SQLite 备份、学习数据 JSON 导入导出、冲突预览和同步兼容文档。
+- 增加 `npm run test:all` 全量自动验证入口，覆盖 typecheck、lint、架构/安全/文档/打包守卫、IPC contract、AI、adapter、submissions、DB、Electron smoke 和 UI screenshot。
+- 增加 `npm run test:ai`，验证本地 AI 建议、薄弱标签和复习计划可追溯到本地数据，且不泄漏敏感 payload。
+- 增加 Windows NSIS x64 打包脚本、应用图标和 electron-builder 白名单配置。
+- 增加发布流程、故障排查、数据库迁移回滚、同步兼容和安卓只读数据接口文档。
 
 ### 变更
 
 - 提交监测 adapter 按站点目录整理，registry 只负责注册和查找。
-- Renderer 业务组件逐步拆分为 feature 内部组件、hook 和 API helper，减少顶层文件职责。
+- Renderer 业务组件拆分为 feature 内部组件、hook 和 API helper，减少顶层文件职责。
 - renderer 截图验收改为真实组件和 CSS bundle，并检查关键容器越界、敏感文本和统计图表绘制。
-- Windows 打包产物现在解包 `better-sqlite3` 原生模块，避免安装包运行时加载 SQLite 驱动失败。
+- Windows 打包产物解包 `better-sqlite3` 原生模块，避免安装包运行时加载 SQLite 驱动失败。
+- 项目文档从协作开发任务状态收口为 v1.0 成品文档，保留架构、接口、数据、版本、功能和运维资料。
 
 ### 修复
 
