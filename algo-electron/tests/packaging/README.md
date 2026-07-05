@@ -32,6 +32,6 @@ npm run build:win
 
 ## 4. 维护边界
 
-- 新增打包资源、原生依赖或输出目录时，同步 `electron-builder.json5`、`docs/release-process.md` 和本检查。
+- 新增打包资源、原生依赖或输出目录时，同步 `electron-builder.json5`、`docs/OPERATIONS/RELEASE_PROCESS.md` 和本检查。
 - 不把 Cookie、用户源码、完整请求体、本机数据库、`.env` 或可复用登录态纳入打包输入。
 - 本检查不能替代真实安装、升级、卸载和产物解包验收。

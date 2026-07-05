@@ -38,5 +38,5 @@
 ## 4. 修改边界
 
 - workflow 里不要打印环境变量、Cookie、请求体或本机路径中的敏感内容。
-- 需要新增发布 workflow 前，先补 `docs/release-process.md` 的自动化边界，并明确是否需要人工安装验收。
+- 需要新增发布 workflow 前，先补 `docs/OPERATIONS/RELEASE_PROCESS.md` 的自动化边界，并明确是否需要人工安装验收。
 - 不要把 `release/`、`tmp/`、本地数据库或 `.env` 上传为 artifact。

@@ -596,7 +596,7 @@ Renderer Dashboard
 ## 15. 长期风险控制
 
 - `main.ts` 回流膨胀：新业务应进入 `electron/ipc/`、`electron/browser/`、`electron/submissions/`、`electron/db/repositories/` 或对应服务目录。
-- 数据库失控：所有 schema 变更必须更新 `docs/DATABASE_SCHEMA.md`。
+- 数据库失控：所有 schema 变更必须更新 `docs/DESIGN/DATABASE_SCHEMA.md`。
 - Cookie 泄露：禁止写日志、禁止默认导出、禁止同步；文档和测试也不得记录 Cookie、用户源码、完整请求体或可复用登录态。
 - Parser 脆弱：每个站点必须有 URL 样例测试。
 - Renderer 状态膨胀：只存 UI 状态和缓存，不存核心事实。

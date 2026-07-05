@@ -2,15 +2,15 @@
 
 ## 1. 职责
 
-`docs/adr/` 存放 Architecture Decision Records，用于记录已经做出的高影响或不可逆架构决策。ADR 解释“为什么这样做”，不替代当前任务状态、交接现场或模块 README。
+`docs/ADR/` 存放 Architecture Decision Records，用于记录已经做出的高影响或不可逆架构决策。ADR 解释“为什么这样做”，不替代当前任务状态、交接现场或模块 README。
 
 ## 2. 当前 ADR
 
 当前实现程度：ADR 目录已建立索引 README，并包含以下关键决策文件：
 
-- `0001-use-webcontentsview.md`：统一使用 `WebContentsView`，禁止继续扩展旧 `BrowserView`。
-- `0002-cookie-vault.md`：CookieVault 作为本地一等能力及 Cookie 安全边界。
-- `0003-event-log-and-analytics.md`：学习行为采用“原始事件日志 + 聚合统计表”的设计。
+- `ADR_0001_USE_WEBCONTENTSVIEW.md`：统一使用 `WebContentsView`，禁止继续扩展旧 `BrowserView`。
+- `ADR_0002_COOKIE_VAULT.md`：CookieVault 作为本地一等能力及 Cookie 安全边界。
+- `ADR_0003_EVENT_LOG_AND_ANALYTICS.md`：学习行为采用“原始事件日志 + 聚合统计表”的设计。
 
 ## 3. 新增规则
 

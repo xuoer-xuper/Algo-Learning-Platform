@@ -52,13 +52,13 @@ Algo Learning Platform 是本地优先的个人算法学习平台。核心数据
 ## 7. 数据库边界
 
 - 所有 schema 变化必须通过 migration。
-- 所有 schema 变化必须同步 `docs/DATABASE_SCHEMA.md`。
+- 所有 schema 变化必须同步 `docs/DESIGN/DATABASE_SCHEMA.md`。
 - Repository 负责封装 SQLite 读写，业务层不散落 `CREATE TABLE`。
 - 已发布 migration 只能追加修复，不回写历史 migration。
 
 ## 8. AI 功能边界
 
-v1.0 的 AI 能力是本地辅助学习能力，不是完整 AI Coach。
+v1.0 的 AI 能力是本地规则型学习辅助能力。
 
 - AI 上下文导出和建议规则只读取本地学习数据。
 - AI 建议不得直接修改 `problems`、`submissions`、`notes`、`problem_visits` 等核心事实表。
@@ -71,7 +71,7 @@ v1.0 的 AI 能力是本地辅助学习能力，不是完整 AI Coach。
 - 新站点优先使用配置化 URL 规则。
 - 复杂站点通过 adapter 扩展。
 - 提交监测必须等待最终 verdict，不把 pending、自测、样例运行、公开状态行或非当前用户记录写入核心提交表。
-- 站点适配变更需同步 `docs/SITE_ADAPTER_GUIDE.md` 和相关模块 README。
+- 站点适配变更需同步 `docs/DESIGN/SITE_ADAPTER_GUIDE.md` 和相关模块 README。
 
 ## 10. 验证入口
 
@@ -84,6 +84,6 @@ npm run build:win
 
 发布、打包和数据恢复流程分别见：
 
-- `docs/release-process.md`
-- `docs/troubleshooting.md`
-- `docs/database-migration-rollback.md`
+- `docs/OPERATIONS/RELEASE_PROCESS.md`
+- `docs/OPERATIONS/TROUBLESHOOTING.md`
+- `docs/OPERATIONS/DATABASE_MIGRATION_ROLLBACK.md`

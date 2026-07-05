@@ -9,7 +9,7 @@
 ## 2. 当前实现程度
 
 - 主线浏览器容器：`TabManager`，已接入 `main.ts`。
-- 视图技术：统一使用 `WebContentsView`，遵守 `docs/adr/0001-use-webcontentsview.md`。
+- 视图技术：统一使用 `WebContentsView`，遵守 `docs/ADR/ADR_0001_USE_WEBCONTENTSVIEW.md`。
 - 会话隔离：OJ 页面使用 `partition: 'persist:oj-main'` 持久登录态。
 - 多标签：最多 8 个标签，支持创建、关闭、切换、剥离为独立窗口。
 - 壳层 IPC：browser/tab/window channel 由 `electron/ipc/registerBrowserShellIpc.ts` 注册，Browser 模块只暴露 `TabManager` 等运行期对象。

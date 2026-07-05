@@ -23,7 +23,7 @@ CI 不访问真实 OJ 登录态，不提交代码，不读取 Cookie，也不替
 - 新增 workflow 时优先复用 `algo-electron/package.json` 中的 `npm run test:*` 入口。
 - 不在 workflow、issue 或 PR 模板中要求上传 Cookie、session、csrf token、用户源码、完整请求体、本机数据库内容或可复用登录态。
 - 提交监测模板只能要求安全诊断文本、公开页面 URL 和最终表现。
-- 发布相关自动化必须继续遵守 `docs/release-process.md`，不能绕过安装、升级、卸载和敏感文件检查。
+- 发布相关自动化必须继续遵守 `docs/OPERATIONS/RELEASE_PROCESS.md`，不能绕过安装、升级、卸载和敏感文件检查。
 
 ## 5. 验证入口
 

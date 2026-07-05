@@ -24,7 +24,7 @@
 - `value_encrypted` 当前固定为 `NULL`；完整 Cookie 值只在 Electron 持久 session 中按需读取。
 - `sync_excluded` 固定为 `1`，Cookie 元数据和 Cookie 明文都不得进入 `sync_queue` 或普通 JSON 导出。
 - 返回给 renderer 的摘要只包含 Cookie 名称、数量、过期时间和安全标记统计，不包含 value。
-- Schema 变化必须先写 migration，再同步 `docs/DATABASE_SCHEMA.md` 和 CookieVault 文档。
+- Schema 变化必须先写 migration，再同步 `docs/DESIGN/DATABASE_SCHEMA.md` 和 CookieVault 文档。
 
 ## 5. 验证入口
 

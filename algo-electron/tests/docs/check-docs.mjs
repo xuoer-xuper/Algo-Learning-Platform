@@ -22,7 +22,7 @@ const readmeCoverageTargets = [
   path.join(repoRoot, '.github', 'workflows'),
   path.join(projectRoot, 'build'),
   path.join(projectRoot, 'public'),
-  path.join(repoRoot, 'docs', 'adr'),
+  path.join(repoRoot, 'docs', 'ADR'),
 ]
 
 const readmeContentRules = [
@@ -49,6 +49,7 @@ const readmeContentRules = [
 ]
 
 const docsIndexPath = path.join(repoRoot, 'docs', 'README.md')
+const docsRootPath = path.join(repoRoot, 'docs')
 const packageJsonPath = path.join(projectRoot, 'package.json')
 
 function hasExcludedPart(filePath) {
@@ -165,6 +166,40 @@ function checkDocsIndexCoverage() {
   return errors
 }
 
+function checkDocsNaming() {
+  const errors = []
+
+  if (!fs.existsSync(docsRootPath)) {
+    return [`Missing docs directory: ${path.relative(repoRoot, docsRootPath)}`]
+  }
+
+  for (const dir of walkDirectories(docsRootPath)) {
+    const relative = path.relative(docsRootPath, dir)
+    for (const part of relative.split(path.sep)) {
+      if (part && !/^[A-Z0-9_]+$/.test(part)) {
+        errors.push(`${path.relative(repoRoot, dir)}: docs directory names must use UPPER_SNAKE_CASE`)
+        break
+      }
+    }
+  }
+
+  for (const file of walkFiles(
+    docsRootPath,
+    (filePath) => filePath.toLowerCase().endsWith('.md'),
+  )) {
+    const name = path.basename(file)
+    if (name === 'README.md') {
+      continue
+    }
+
+    if (!/^[A-Z0-9_]+\.md$/.test(name)) {
+      errors.push(`${path.relative(repoRoot, file)}: docs markdown names must use UPPER_SNAKE_CASE.md`)
+    }
+  }
+
+  return errors
+}
+
 function checkNpmScriptReferences() {
   const errors = []
 
@@ -212,19 +247,13 @@ function getDocsIndexRequiredTargets() {
     }
   }
 
-  const docsDir = path.join(repoRoot, 'docs')
-  for (const file of fs.readdirSync(docsDir)) {
-    const filePath = path.join(docsDir, file)
-    if (filePath !== docsIndexPath && file.toLowerCase().endsWith('.md')) {
-      targets.add(filePath)
-    }
-  }
-
   for (const file of walkFiles(
-    path.join(repoRoot, 'docs', 'adr'),
+    docsRootPath,
     (filePath) => filePath.toLowerCase().endsWith('.md'),
   )) {
-    targets.add(file)
+    if (path.resolve(file) !== path.resolve(docsIndexPath)) {
+      targets.add(file)
+    }
   }
 
   targets.delete(docsIndexPath)
@@ -315,6 +344,7 @@ function walkDirectories(rootDir, dirs = []) {
 
 const errors = [
   ...checkMarkdownLinks(),
+  ...checkDocsNaming(),
   ...checkReadmeCoverage(),
   ...checkReadmeContentQuality(),
   ...checkDocsIndexCoverage(),

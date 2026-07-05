@@ -26,7 +26,7 @@
 - Repository 只保存调用方传入的 `match_urls_json` 和 `site_ids_json`，不解析或校验 userscript 规则。
 - `enabled` 在数据库中是整数，对外统一返回布尔值。
 - 不记录用户脚本源码、Cookie、登录态、完整请求体或可复用登录态信息。
-- Schema 变化必须先写 migration，再同步 `docs/DATABASE_SCHEMA.md` 和本目录 SQL。
+- Schema 变化必须先写 migration，再同步 `docs/DESIGN/DATABASE_SCHEMA.md` 和本目录 SQL。
 
 ## 5. 验证入口
 

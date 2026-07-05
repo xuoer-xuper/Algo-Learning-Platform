@@ -38,7 +38,7 @@
 
 `electron/adapters/registry.ts` 只负责注册和查找 adapter。站点特殊规则不能写进 registry。
 
-实时提交监测的详细数据流和验收规则见 `docs/submission-monitoring-design.md`。
+实时提交监测的详细数据流和验收规则见 `docs/DESIGN/SUBMISSION_MONITORING_DESIGN.md`。
 
 ## 3. SiteConfig 字段
 
@@ -269,7 +269,7 @@ ID 格式：`{pid}`（如 P1014、B2005）
 
 ### 6.3 文档更新
 
-- 更新本文档（`docs/SITE_ADAPTER_GUIDE.md`）：添加新站点的 URL 规则、ID 格式、适配策略和注意事项。
+- 更新本文档（`docs/DESIGN/SITE_ADAPTER_GUIDE.md`）：添加新站点的 URL 规则、ID 格式、适配策略和注意事项。
 - 同步相关模块 README、`docs/README.md` 和变更日志（如适用）。
 
 ## 7. SiteAdapter 接口与实现规范
@@ -363,7 +363,7 @@ export const builtinSiteAdapters: SiteAdapter[] = [
 - 站点网络接口能提供结果时，优先用网络 payload；DOM 文本只能作为有明确身份关联的兜底。
 - 任何提交监测行为变化必须补 adapter、submission core 或 scraper 测试。
 
-七个内置站点的实时策略以 `docs/submission-monitoring-design.md` 为准。
+七个内置站点的实时策略以 `docs/DESIGN/SUBMISSION_MONITORING_DESIGN.md` 为准。
 
 ### 8.1 SPA 站点的数据获取陷阱
 

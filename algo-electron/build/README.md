@@ -23,8 +23,8 @@ npm run build:win
 
 - 本目录只放可公开发布的应用资源。
 - 不放 Cookie、session、`.env`、本地数据库、测试截图、用户源码或临时构建缓存。
-- 替换图标后必须重新运行 `npm run build:win`，并按 `docs/release-process.md` 检查安装包图标、开始菜单和卸载入口。
-- 新增平台资源时同步 `electron-builder.json5`、`algo-electron/README.md` 和 `docs/release-process.md`。
+- 替换图标后必须重新运行 `npm run build:win`，并按 `docs/OPERATIONS/RELEASE_PROCESS.md` 检查安装包图标、开始菜单和卸载入口。
+- 新增平台资源时同步 `electron-builder.json5`、`algo-electron/README.md` 和 `docs/OPERATIONS/RELEASE_PROCESS.md`。
 
 ## 5. 验证入口
 

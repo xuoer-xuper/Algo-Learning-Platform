@@ -28,7 +28,7 @@
 
 - 同步 `.github/README.md`、`CONTRIBUTING.md` 和 `docs/README.md`。
 - 如果涉及提交监测，字段必须覆盖站点、页面 URL、动作类型、最终 verdict、语言、提交 ID、重复写入和自测误抓。
-- 如果涉及发布或安装包，字段必须能关联 `docs/release-process.md`。
+- 如果涉及发布或安装包，字段必须能关联 `docs/OPERATIONS/RELEASE_PROCESS.md`。
 
 ## 5. 验证入口
 

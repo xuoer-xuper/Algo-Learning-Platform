@@ -12,9 +12,10 @@
 - `src/`、`electron/`、`tests/` 根目录及其子目录 README 覆盖。
 - `.github/`、`.github/ISSUE_TEMPLATE/`、`.github/workflows/` README 覆盖。
 - `algo-electron/build/`、`algo-electron/public/` README 覆盖。
-- `docs/adr/` README 覆盖。
+- `docs/ADR/` README 覆盖。
 - 上述 README 的内容质量检查：至少说明职责、当前实现或覆盖范围、封装入口或关键文件、边界规则和验证入口。
-- `docs/README.md` 总索引覆盖检查：根目录长期 Markdown、`docs/` 设计/验收文档、ADR 和已纳入守卫的 README 必须能从总索引找到。
+- `docs/` 命名检查：除 `README.md` 外，文档文件和子目录必须使用大写和下划线。
+- `docs/README.md` 总索引覆盖检查：根目录长期 Markdown、`docs/` 成品文档、ADR 和已纳入守卫的 README 必须能从总索引找到。
 - Markdown 中的 `npm run <script>` 引用检查：真实脚本名必须存在于 `algo-electron/package.json`，`npm run test:*` 这类通配说明不作为具体脚本校验。
 
 检查会跳过 `node_modules/`、`tmp/`、`release/`、`dist/` 和 `dist-electron/` 等生成目录。

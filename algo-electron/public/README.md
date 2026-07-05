@@ -28,4 +28,4 @@ npm run test:ui
 npm run build
 ```
 
-发布前使用 `npm run test:all` 和 `docs/release-process.md` 的打包检查。
+发布前使用 `npm run test:all` 和 `docs/OPERATIONS/RELEASE_PROCESS.md` 的打包检查。

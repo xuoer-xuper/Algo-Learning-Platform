@@ -33,7 +33,7 @@
 - `version` 必须唯一且递增。
 - `up(db)` 会由迁移执行器放进事务运行，内部不要手动提交事务。
 - 新 migration 必须加入 `connection.ts` 的迁移列表。
-- schema 变更必须同步`docs/DATABASE_SCHEMA.md`。
+- schema 变更必须同步`docs/DESIGN/DATABASE_SCHEMA.md`。
 
 ## 4. 边界规则
 

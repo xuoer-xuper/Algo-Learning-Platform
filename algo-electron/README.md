@@ -102,7 +102,7 @@ npm run build:win
 ```
 
 显式执行 Windows NSIS x64 打包，输出到 `release/${version}`。
-发布前必须按根目录 `docs/release-process.md` 完成版本/changelog、自动验证、产物检查、安装升级卸载验收和交接记录。
+发布前必须按根目录 `docs/OPERATIONS/RELEASE_PROCESS.md` 完成版本/changelog、自动验证、产物检查、安装升级卸载验收和交接记录。
 
 ```powershell
 npm run preview

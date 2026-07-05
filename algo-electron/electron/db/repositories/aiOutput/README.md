@@ -26,7 +26,7 @@
 - `content` 保存结构化 JSON 字符串，`content_markdown` 保存渲染结果。
 - `input_summary`、`source_refs`、`model_info` 只保存摘要和引用，不能包含 Cookie、源码正文、绝对路径、完整请求体或可复用登录态。
 - Repository 不校验 AI 输出业务含义；生成逻辑留在 `electron/ai/` 的规则引擎和渲染层。
-- Schema 变化必须先写 migration，再同步 `docs/DATABASE_SCHEMA.md` 和本目录 SQL。
+- Schema 变化必须先写 migration，再同步 `docs/DESIGN/DATABASE_SCHEMA.md` 和本目录 SQL。
 
 ## 5. 验证入口
 

@@ -40,7 +40,7 @@ npx --yes tsx tests\electron\startupSmoke.test.ts
 ```
 
 4. 如果是提交监测问题，打开设置里的实时提交诊断面板，记录最新的 IPC、页面识别、hook 注入、提交检测状态。
-5. 若问题和数据库有关，先按 [database-migration-rollback.md](database-migration-rollback.md) 做备份和恢复，不要直接编辑真实数据库。
+5. 若问题和数据库有关，先按 [DATABASE_MIGRATION_ROLLBACK.md](DATABASE_MIGRATION_ROLLBACK.md) 做备份和恢复，不要直接编辑真实数据库。
 
 ## 4. 登录失败或 Cookie 失效
 
@@ -76,7 +76,7 @@ npx --yes tsx tests\electron\startupSmoke.test.ts
 2. 在应用内点刷新，或新建标签页重新打开。
 3. 检查默认首页配置是否是有效 URL。
 4. 开发环境运行 `startupSmoke.test.ts`，确认 Electron 容器和 preload 可用。
-5. 如果只在某站失败，查看该站 README 和 `docs/SITE_ADAPTER_GUIDE.md`，确认 URL 模式仍受支持。
+5. 如果只在某站失败，查看该站 README 和 `docs/DESIGN/SITE_ADAPTER_GUIDE.md`，确认 URL 模式仍受支持。
 
 ## 6. 提交监测没有记录
 
@@ -159,7 +159,7 @@ node tmp\submissions-submissionBatchWriter.test.mjs
 
 1. 关闭应用。
 2. 备份 `<userData>` 整个目录。
-3. 按 [database-migration-rollback.md](database-migration-rollback.md) 检查 `schema_migrations`、备份和恢复。
+3. 按 [DATABASE_MIGRATION_ROLLBACK.md](DATABASE_MIGRATION_ROLLBACK.md) 检查 `schema_migrations`、备份和恢复。
 4. 不要直接删除 `.sqlite`，除非已确认备份可恢复。
 5. 如果只是统计异常，优先运行统计重算功能或 `stats:recomputeAll` 对应入口，不要手改事实表。
 

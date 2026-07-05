@@ -4,7 +4,7 @@
 
 `electron/notes/` 是本地 Markdown 笔记服务，负责笔记 DB 记录、Markdown 文件、图片附件和删除清理。
 
-本模块不解析 OJ 页面，不生成 AI 内容，不直接注册 IPC。Renderer 访问笔记能力的 IPC 注册在 `electron/ipc/registerNotesIpc.ts`，数据库表结构由 `docs/DATABASE_SCHEMA.md` 和 notes migrations 管理。
+本模块不解析 OJ 页面，不生成 AI 内容，不直接注册 IPC。Renderer 访问笔记能力的 IPC 注册在 `electron/ipc/registerNotesIpc.ts`，数据库表结构由 `docs/DESIGN/DATABASE_SCHEMA.md` 和 notes migrations 管理。
 
 ## 2. 当前实现程度
 

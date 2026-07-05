@@ -4,7 +4,7 @@
 
 `electron/cookies/` 是 OJ 登录态读取边界，负责从 Electron 持久 session 中按域名或 URL 读取 Cookie，并把必要 Cookie 元数据写入本地 `cookie_records` 表。
 
-本模块不持久化 Cookie 明文副本，不打印 Cookie 值，不改变 Cookie 策略。安全边界以 `docs/adr/0002-cookie-vault.md` 为准。
+本模块不持久化 Cookie 明文副本，不打印 Cookie 值，不改变 Cookie 策略。安全边界以 `docs/ADR/ADR_0002_COOKIE_VAULT.md` 为准。
 
 ## 2. 当前实现程度
 
@@ -40,7 +40,7 @@
 - `cookie_records.sync_excluded` 固定为 `1`；Cookie 不进入同步队列或普通 JSON 导出。
 - Renderer 只能通过 `cookies:*` IPC 获取安全摘要，不得获取 Cookie value。
 - 只有明确需要登录态的同步能力才应依赖本模块。
-- 改动前先读 `docs/adr/0002-cookie-vault.md`。
+- 改动前先读 `docs/ADR/ADR_0002_COOKIE_VAULT.md`。
 
 ## 5. 测试入口
 

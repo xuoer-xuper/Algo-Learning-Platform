@@ -25,7 +25,7 @@
 | Luogu | `problem.ts`、`submissions.ts` | 已实现 | `_contentOnly=1` / 降级数据 | 已实现 |
 | LeetCode | `problem.ts`、`submissions.ts`、`hook.ts` | 已实现 | submit check 接口 | 已实现 |
 
-七站实时提交监测已按手测收口。后续修改必须继续满足 `docs/submission-monitoring-design.md` 的 fail-closed 规则。
+七站实时提交监测已按手测收口。后续修改必须继续满足 `docs/DESIGN/SUBMISSION_MONITORING_DESIGN.md` 的 fail-closed 规则。
 
 ## 3. 目录约定
 

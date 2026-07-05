@@ -49,12 +49,12 @@ misc
 
 以下修改必须伴随文档更新：
 
-- 数据库 schema 变更：更新 `docs/DATABASE_SCHEMA.md`。
-- IPC / Preload API 变更：更新 `docs/ARCHITECTURE.md`、`electron/preload.ts`、`electron/electron-env.d.ts` 和相关模块 README。
-- 站点适配变更：更新 `docs/SITE_ADAPTER_GUIDE.md`、`docs/submission-monitoring-design.md` 和相关 adapter README。
-- Cookie 行为变更：更新 `docs/PROJECT_RULES.md`、`docs/ARCHITECTURE.md` 或 `algo-electron/electron/cookies/README.md`。
-- 同步、导入导出或备份变更：更新 `docs/sync-compatibility.md` 或 `algo-electron/electron/backup/README.md`。
-- 打包发布变更：更新 `docs/release-process.md`、`docs/CHANGELOG.md` 或 `algo-electron/electron-builder.json5` 相关说明。
+- 数据库 schema 变更：更新 `docs/DESIGN/DATABASE_SCHEMA.md`。
+- IPC / Preload API 变更：更新 `docs/DESIGN/SYSTEM_ARCHITECTURE.md`、`electron/preload.ts`、`electron/electron-env.d.ts` 和相关模块 README。
+- 站点适配变更：更新 `docs/DESIGN/SITE_ADAPTER_GUIDE.md`、`docs/DESIGN/SUBMISSION_MONITORING_DESIGN.md` 和相关 adapter README。
+- Cookie 行为变更：更新 `docs/GOVERNANCE/PROJECT_RULES.md`、`docs/DESIGN/SYSTEM_ARCHITECTURE.md` 或 `algo-electron/electron/cookies/README.md`。
+- 同步、导入导出或备份变更：更新 `docs/DESIGN/DATA_EXPORT_AND_IMPORT.md` 或 `algo-electron/electron/backup/README.md`。
+- 打包发布变更：更新 `docs/OPERATIONS/RELEASE_PROCESS.md`、`docs/PRODUCT/CHANGELOG.md` 或 `algo-electron/electron-builder.json5` 相关说明。
 
 ## 6. 推荐提交粒度
 

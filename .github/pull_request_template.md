@@ -26,7 +26,7 @@
 ## 手测
 
 - [ ] 不需要手测
-- [ ] 已按 `docs/release-process.md` 或相关模块 README 完成手测
+- [ ] 已按 `docs/OPERATIONS/RELEASE_PROCESS.md` 或相关模块 README 完成手测
 - [ ] 需要用户后续手测，范围：
 
 ## 文档同步

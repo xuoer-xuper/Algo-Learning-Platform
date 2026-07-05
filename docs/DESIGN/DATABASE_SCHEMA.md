@@ -523,4 +523,4 @@ Phase 7 通过 migration 021 为历史核心表追加同步兼容字段，均为
 - 题目 tags 当前按 JSON 文本存储；如未来要拆独立 `problem_tags` 表，必须新增 migration、同步本文档并提供回滚说明。
 - 所有 schema 变更必须追加 migration，不允许改写已发布 migration。
 
-后续 schema 变更必须同时更新 `docs/database-migration-rollback.md` 中的验证和回滚说明。
+后续 schema 变更必须同时更新 `docs/OPERATIONS/DATABASE_MIGRATION_ROLLBACK.md` 中的验证和回滚说明。

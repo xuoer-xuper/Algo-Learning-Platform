@@ -84,7 +84,7 @@ node node_modules\typescript\bin\tsc --noEmit
 npx --yes tsx tests\ai\recommendationRules.test.ts
 ```
 
-修改 AI 输出或快照持久化时，需要同步检查 `docs/DATABASE_SCHEMA.md`、migration 和对应 repository。
+修改 AI 输出或快照持久化时，需要同步检查 `docs/DESIGN/DATABASE_SCHEMA.md`、migration 和对应 repository。
 AI 输出 repository 变更还应追加运行 DB 临时库测试：
 
 ```powershell

@@ -4,7 +4,7 @@
 
 `electron/db/` 是本地 SQLite 持久化边界，负责数据库连接、迁移和 repository 查询/写入函数。
 
-本模块不抓取网页、不解析 OJ 页面、不注册 IPC。业务服务应通过 repository 或明确的写入封装访问数据库，schema 变更必须通过 migration 和 `docs/DATABASE_SCHEMA.md` 同步。
+本模块不抓取网页、不解析 OJ 页面、不注册 IPC。业务服务应通过 repository 或明确的写入封装访问数据库，schema 变更必须通过 migration 和 `docs/DESIGN/DATABASE_SCHEMA.md` 同步。
 
 ## 2. 当前实现程度
 
@@ -15,7 +15,7 @@
 - 当前迁移版本：001 到 021。
 - Repository 覆盖：账号/rating、AI 上下文快照、AI 输出、Cookie 元数据、题目、站点配置、统计、提交、用户脚本。
 
-数据库结构的权威契约仍是`docs/DATABASE_SCHEMA.md`。
+数据库结构的权威契约仍是`docs/DESIGN/DATABASE_SCHEMA.md`。
 
 ## 3. 文件职责
 
@@ -64,7 +64,7 @@ Migration 文件约定：
 - `version` 必须唯一且递增。
 - `name` 应描述实际动作。
 - `up(db)` 必须可在事务中执行。
-- 新增 migration 后必须加入 `connection.ts` 的迁移列表，并同步 `docs/DATABASE_SCHEMA.md`。
+- 新增 migration 后必须加入 `connection.ts` 的迁移列表，并同步 `docs/DESIGN/DATABASE_SCHEMA.md`。
 
 ## 6. Repository 分层
 
@@ -149,4 +149,4 @@ node node_modules\esbuild\bin\esbuild tests\submissions\submissionBatchWriter.te
 node tmp\submissions-submissionBatchWriter.test.mjs
 ```
 
-若变更 schema，还必须人工核对`docs/DATABASE_SCHEMA.md` 与 migration 列表一致。
+若变更 schema，还必须人工核对`docs/DESIGN/DATABASE_SCHEMA.md` 与 migration 列表一致。
