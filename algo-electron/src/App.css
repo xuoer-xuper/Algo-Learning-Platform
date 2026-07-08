@@ -612,6 +612,57 @@
   font-size: 12px;
 }
 
+/* Coach 桌宠设置面板扩展类 */
+.settings-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.settings-label input[type="checkbox"] {
+  accent-color: var(--primary);
+}
+
+.settings-label-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.settings-label-row input[type="range"] {
+  width: 100%;
+  accent-color: var(--primary);
+}
+
+.settings-select {
+  height: 30px;
+  flex: 0 0 auto;
+  min-width: 140px;
+  padding: 0 8px;
+}
+
+.settings-saved-flag {
+  margin-left: 8px;
+  padding: 1px 6px;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--success, #10b981);
+  background: rgba(16, 185, 129, 0.1);
+  border-radius: 3px;
+}
+
+.settings-hint-text {
+  color: var(--text-muted);
+  font-size: 11px;
+  font-style: normal;
+}
+
 .sync-hint {
   color: var(--text-muted);
   font-size: 11px;

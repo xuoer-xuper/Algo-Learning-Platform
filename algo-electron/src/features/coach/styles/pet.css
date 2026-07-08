@@ -1,0 +1,238 @@
+/**
+ * Coach 桌宠样式。
+ *
+ * 设计语言：类 Codex / TRON / Cyberpunk 的科技感。
+ * - 冷感青蓝/紫主色调，避免萌系
+ * - 几何体（菱形 + 圆环 + 多边形）而非拟人卡通
+ * - 粒子环（CSS 旋转的多边形点阵）+ 发光描边（filter: drop-shadow）
+ * - 6 状态通过 CSS 变量 --pet-primary / --pet-accent / --pet-glow 切换
+ */
+
+/* === 桌宠窗口根容器 ===
+ * 窗口本身 transparent，所以 html/body 也要透明。
+ * main.tsx 中 CoachPet 入口会渲染 <div class="pet-root">。
+ */
+.pet-root {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: 24px;
+  /* CSS 变量由 [data-pet-state] 设置 */
+  --pet-primary: #22d3ee;
+  --pet-accent: #67e8f9;
+  --pet-glow: rgba(34, 211, 238, 0.45);
+  --pet-scale: 1;
+}
+
+/* 全局透明：窗口 transparent 需要根元素也透明 */
+html, body, #root {
+  background: transparent !important;
+  overflow: hidden;
+}
+
+.pet-root * {
+  box-sizing: border-box;
+}
+
+/* === 桌宠本体容器 ===
+ * 用于 hover 检测与拖拽事件绑定。
+ * 注意：透明窗口默认点击穿透，本区域 hover 时 renderer 通过 IPC 临时关闭穿透。
+ */
+.pet-body {
+  position: relative;
+  width: 180px;
+  height: 180px;
+  transform: scale(var(--pet-scale, 1));
+  transform-origin: center bottom;
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+  transition: transform 0.2s ease;
+}
+
+.pet-body.dragging {
+  cursor: grabbing;
+  transition: none;
+}
+
+.pet-body:hover .pet-svg-glow {
+  filter: drop-shadow(0 0 12px var(--pet-glow)) drop-shadow(0 0 4px var(--pet-primary));
+}
+
+/* === SVG 主体 === */
+.pet-svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+  overflow: visible;
+}
+
+.pet-svg-glow {
+  filter: drop-shadow(0 0 8px var(--pet-glow));
+  transition: filter 0.4s ease;
+}
+
+/* 主体多边形：菱形几何体 */
+.pet-core-polygon {
+  fill: var(--pet-primary);
+  fill-opacity: 0.18;
+  stroke: var(--pet-primary);
+  stroke-width: 1.5;
+  stroke-opacity: 0.9;
+  animation: var(--pet-animation, pet-idle-breathe) 3.2s ease-in-out infinite;
+  transform-origin: center;
+}
+
+/* 内部六边形核心 */
+.pet-inner-hex {
+  fill: none;
+  stroke: var(--pet-accent);
+  stroke-width: 1;
+  stroke-opacity: 0.7;
+  animation: var(--pet-animation, pet-idle-breathe) 4s ease-in-out infinite reverse;
+  transform-origin: center;
+}
+
+/* 中心眼/光点 */
+.pet-eye {
+  fill: var(--pet-accent);
+  filter: drop-shadow(0 0 4px var(--pet-accent));
+  animation: var(--pet-animation, pet-idle-breathe) 3.2s ease-in-out infinite;
+  transform-origin: center;
+}
+
+/* === 粒子环 ===
+ * 外圈粒子点阵，按 N 等分旋转。每个粒子是一个小圆点。
+ */
+.pet-particle-ring {
+  transform-origin: center;
+  animation: pet-particle-rotate var(--pet-particle-duration, 12s) linear infinite;
+}
+
+.pet-particle {
+  fill: var(--pet-accent);
+  fill-opacity: 0.85;
+  filter: drop-shadow(0 0 2px var(--pet-glow));
+}
+
+/* === 外圈描边光晕（多层 box-shadow 模拟） === */
+.pet-aura {
+  position: absolute;
+  inset: -8px;
+  border-radius: 50%;
+  pointer-events: none;
+  background: radial-gradient(
+    circle at center,
+    var(--pet-glow) 0%,
+    transparent 60%
+  );
+  opacity: 0.6;
+  animation: pet-aura-pulse 4s ease-in-out infinite;
+}
+
+/* === 状态机：通过 data-pet-state 属性切换 CSS 变量与动画 === */
+.pet-root[data-pet-state='idle'] {
+  --pet-primary: #22d3ee;
+  --pet-accent: #67e8f9;
+  --pet-glow: rgba(34, 211, 238, 0.45);
+  --pet-animation: pet-idle-breathe;
+  --pet-particle-duration: 12s;
+}
+
+.pet-root[data-pet-state='thinking'] {
+  --pet-primary: #818cf8;
+  --pet-accent: #a5b4fc;
+  --pet-glow: rgba(129, 140, 248, 0.5);
+  --pet-animation: pet-thinking-pulse;
+  --pet-particle-duration: 6s;
+}
+
+.pet-root[data-pet-state='alert'] {
+  --pet-primary: #f472b6;
+  --pet-accent: #f9a8d4;
+  --pet-glow: rgba(244, 114, 182, 0.55);
+  --pet-animation: pet-alert-shake;
+  --pet-particle-duration: 3s;
+}
+
+.pet-root[data-pet-state='celebrate'] {
+  --pet-primary: #34d399;
+  --pet-accent: #6ee7b7;
+  --pet-glow: rgba(52, 211, 153, 0.55);
+  --pet-animation: pet-celebrate-bounce;
+  --pet-particle-duration: 4s;
+}
+
+.pet-root[data-pet-state='sleep'] {
+  --pet-primary: #6366f1;
+  --pet-accent: #818cf8;
+  --pet-glow: rgba(99, 102, 241, 0.35);
+  --pet-animation: pet-sleep-drift;
+  --pet-particle-duration: 18s;
+}
+
+.pet-root[data-pet-state='focus'] {
+  --pet-primary: #06b6d4;
+  --pet-accent: #22d3ee;
+  --pet-glow: rgba(6, 182, 212, 0.5);
+  --pet-animation: pet-focus-hold;
+  --pet-particle-duration: 8s;
+}
+
+/* === Keyframes：6 状态动画 === */
+
+@keyframes pet-idle-breathe {
+  0%, 100% { transform: scale(1); opacity: 0.95; }
+  50% { transform: scale(1.04); opacity: 1; }
+}
+
+@keyframes pet-thinking-pulse {
+  0%, 100% { transform: scale(1) rotate(0deg); opacity: 0.9; }
+  25% { transform: scale(1.03) rotate(1deg); opacity: 1; }
+  50% { transform: scale(0.98) rotate(-1deg); opacity: 0.85; }
+  75% { transform: scale(1.02) rotate(0.5deg); opacity: 1; }
+}
+
+@keyframes pet-alert-shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-2px) rotate(-1deg); }
+  40% { transform: translateX(2px) rotate(1deg); }
+  60% { transform: translateX(-1.5px) rotate(-0.5deg); }
+  80% { transform: translateX(1.5px) rotate(0.5deg); }
+}
+
+@keyframes pet-celebrate-bounce {
+  0%, 100% { transform: translateY(0) scale(1); }
+  30% { transform: translateY(-6px) scale(1.05); }
+  60% { transform: translateY(0) scale(0.97); }
+}
+
+@keyframes pet-sleep-drift {
+  0%, 100% { transform: translateY(0) scale(0.96); opacity: 0.7; }
+  50% { transform: translateY(-2px) scale(0.98); opacity: 0.85; }
+}
+
+@keyframes pet-focus-hold {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.02); opacity: 0.95; }
+}
+
+@keyframes pet-particle-rotate {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes pet-aura-pulse {
+  0%, 100% { opacity: 0.4; transform: scale(0.95); }
+  50% { opacity: 0.7; transform: scale(1.05); }
+}
+
+/* === 拖拽指示器（鼠标按下时显示一个细微高亮环） === */
+.pet-body.dragging .pet-aura {
+  opacity: 0.9;
+  animation: none;
+}

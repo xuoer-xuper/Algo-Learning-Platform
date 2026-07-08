@@ -1,0 +1,217 @@
+/**
+ * Coach 气泡样式。
+ *
+ * 设计语言：与桌宠一致的科技感。
+ * - 半透明深色背景 + 青蓝描边发光
+ * - 来源标记用小标签（本地/LLM）
+ * - 按钮采用描边发光风格，非填充萌系
+ */
+
+/* === 气泡容器 ===
+ * 定位在桌宠本体上方，带尖角指向桌宠。
+ */
+.coach-bubble {
+  position: absolute;
+  bottom: 220px; /* 桌宠本体 180px + 间距 40px */
+  left: 50%;
+  transform: translateX(-50%);
+  width: 280px;
+  max-width: 90vw;
+  padding: 14px 14px 12px;
+  background: rgba(15, 23, 42, 0.92); /* slate-900 with alpha */
+  border: 1px solid var(--pet-primary, #22d3ee);
+  border-radius: 10px;
+  color: #e2e8f0; /* slate-200 */
+  font-size: 12px;
+  line-height: 1.5;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  box-shadow:
+    0 0 0 1px rgba(34, 211, 238, 0.15),
+    0 0 20px var(--pet-glow, rgba(34, 211, 238, 0.35)),
+    0 8px 24px rgba(0, 0, 0, 0.4);
+  animation: coach-bubble-enter 0.28s ease-out;
+  z-index: 10;
+}
+
+/* 气泡尖角（指向桌宠本体） */
+.coach-bubble::after {
+  content: '';
+  position: absolute;
+  bottom: -7px;
+  left: 50%;
+  transform: translateX(-50%) rotate(45deg);
+  width: 12px;
+  height: 12px;
+  background: rgba(15, 23, 42, 0.92);
+  border-right: 1px solid var(--pet-primary, #22d3ee);
+  border-bottom: 1px solid var(--pet-primary, #22d3ee);
+}
+
+/* === 头部：标题 + 来源标记 + 关闭按钮 === */
+.coach-bubble-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.coach-bubble-title {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 600;
+  color: #f1f5f9; /* slate-100 */
+  letter-spacing: 0.02em;
+}
+
+.coach-bubble-source {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 6px;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  border-radius: 3px;
+  border: 1px solid currentColor;
+}
+
+.coach-bubble-source[data-source='local'] {
+  color: #22d3ee; /* cyan-400 */
+  background: rgba(34, 211, 238, 0.08);
+}
+
+.coach-bubble-source[data-source='llm'] {
+  color: #a78bfa; /* violet-400 */
+  background: rgba(167, 139, 250, 0.08);
+}
+
+.coach-bubble-close {
+  width: 18px;
+  height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 3px;
+  color: #94a3b8; /* slate-400 */
+  font-size: 14px;
+  line-height: 1;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+
+.coach-bubble-close:hover {
+  color: #f1f5f9;
+  background: rgba(148, 163, 184, 0.15);
+}
+
+/* === 消息正文 === */
+.coach-bubble-message {
+  color: #cbd5e1; /* slate-300 */
+  font-size: 12px;
+  line-height: 1.55;
+  margin-bottom: 10px;
+  word-break: break-word;
+}
+
+/* === 等级标记（阶段 3 Socratic Ladder 用） === */
+.coach-bubble-level {
+  display: inline-block;
+  margin-bottom: 6px;
+  padding: 1px 5px;
+  font-size: 10px;
+  font-weight: 600;
+  color: #22d3ee;
+  border: 1px solid rgba(34, 211, 238, 0.4);
+  border-radius: 3px;
+  background: rgba(34, 211, 238, 0.06);
+}
+
+/* === 按钮组 === */
+.coach-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.coach-action-btn {
+  flex: 1;
+  min-width: 70px;
+  padding: 6px 8px;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  border-radius: 4px;
+  border: 1px solid;
+  background: transparent;
+  color: #e2e8f0;
+  transition: all 0.15s ease;
+  cursor: pointer;
+}
+
+.coach-action-btn:hover {
+  transform: translateY(-1px);
+}
+
+.coach-action-btn:active {
+  transform: translateY(0);
+}
+
+.coach-action-primary {
+  border-color: #22d3ee;
+  color: #22d3ee;
+  background: rgba(34, 211, 238, 0.08);
+}
+
+.coach-action-primary:hover {
+  background: rgba(34, 211, 238, 0.18);
+  box-shadow: 0 0 8px rgba(34, 211, 238, 0.4);
+}
+
+.coach-action-secondary {
+  border-color: #64748b; /* slate-500 */
+  color: #cbd5e1;
+}
+
+.coach-action-secondary:hover {
+  background: rgba(100, 116, 139, 0.15);
+  border-color: #94a3b8;
+}
+
+.coach-action-tertiary {
+  border-color: #a78bfa; /* violet-400 */
+  color: #a78bfa;
+}
+
+.coach-action-tertiary:hover {
+  background: rgba(167, 139, 250, 0.12);
+  box-shadow: 0 0 6px rgba(167, 139, 250, 0.3);
+}
+
+/* === 自动消失进度条（可选，阶段 1 静态） === */
+.coach-bubble-progress {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 2px;
+  background: var(--pet-primary, #22d3ee);
+  border-radius: 0 0 0 10px;
+  animation: coach-bubble-progress 12s linear forwards;
+  opacity: 0.6;
+}
+
+/* === 动画 === */
+@keyframes coach-bubble-enter {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(6px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0) scale(1);
+  }
+}
+
+@keyframes coach-bubble-progress {
+  from { width: 100%; }
+  to { width: 0%; }
+}

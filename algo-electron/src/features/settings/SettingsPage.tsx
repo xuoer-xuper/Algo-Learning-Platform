@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { BackupPanel } from './BackupPanel'
 import { CodeforcesSyncPanel } from './CodeforcesSyncPanel'
+import { CoachPanel } from './CoachPanel'
 import { DefaultHomePanel } from './DefaultHomePanel'
 import { LearningOverviewPanel } from './LearningOverviewPanel'
 import { PlatformDistributionSummary } from './PlatformDistributionSummary'
@@ -47,6 +48,7 @@ export function SettingsPage({ onClose }: { onClose: () => void }) {
           {/* 左栏：配置类设置 */}
           <div className="settings-col">
             <DefaultHomePanel />
+            <CoachPanel />
             <LearningOverviewPanel stats={stats} />
             <CodeforcesSyncPanel onStatsRefresh={loadOverviewStats} />
             <BackupPanel />
