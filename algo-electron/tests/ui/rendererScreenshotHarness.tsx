@@ -360,6 +360,24 @@ function createApiMock(): ElectronAPI {
     listAIOutputs: async () => [],
     deleteAIOutput: async () => true,
     updateAIOutput: async () => true,
+
+    coachGetConfig: async () => ({
+      enabled: true,
+      sound: true,
+      bubbleFrequency: 'medium' as const,
+      position: null,
+      scale: 1,
+      opacity: 1,
+    }),
+    coachSaveConfig: async () => true,
+    coachTestHint: async () => ({
+      id: 'test-hint',
+      title: '测试提示',
+      message: '这是一个测试气泡',
+      source: 'local' as const,
+      level: 1,
+    }),
+    coachResetPosition: async () => true,
   }
 }
 

@@ -103,6 +103,11 @@ test('preload event subscriptions are fixed and backed by main-process sends', (
     .sort()
   assert.deepStrictEqual(listenerChannels, [
     'browser:urlChanged',
+    'coach:configChanged',
+    'coach:contestModeChanged',
+    'coach:dismissBubble',
+    'coach:petStateChanged',
+    'coach:showBubble',
     'problems:updated',
     'tab:listChanged',
     'window:maximized',

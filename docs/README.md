@@ -94,6 +94,11 @@
 | submission scrapers | [electron/submissions/scrapers/README](../algo-electron/electron/submissions/scrapers/README.md) |
 | submission syncers | [electron/submissions/syncers/README](../algo-electron/electron/submissions/syncers/README.md) |
 | tracking | [electron/tracking/README](../algo-electron/electron/tracking/README.md) |
+| coach | [electron/coach/README](../algo-electron/electron/coach/README.md) |
+| coach hints | [electron/coach/hints/README](../algo-electron/electron/coach/hints/README.md) |
+| coach problemFacts | [electron/coach/problemFacts/README](../algo-electron/electron/coach/problemFacts/README.md) |
+| coach rules | [electron/coach/rules/README](../algo-electron/electron/coach/rules/README.md) |
+| db coach | [electron/db/repositories/coach/README](../algo-electron/electron/db/repositories/coach/README.md) |
 
 ## Renderer、测试与资源
 
@@ -107,6 +112,8 @@
 | problems | [src/features/problems/README](../algo-electron/src/features/problems/README.md) |
 | scripts | [src/features/scripts/README](../algo-electron/src/features/scripts/README.md) |
 | settings | [src/features/settings/README](../algo-electron/src/features/settings/README.md) |
+| coach | [src/features/coach/README](../algo-electron/src/features/coach/README.md) |
+| coach styles | [src/features/coach/styles/README](../algo-electron/src/features/coach/styles/README.md) |
 | hooks | [src/hooks/README](../algo-electron/src/hooks/README.md) |
 | renderer shared | [src/shared/README](../algo-electron/src/shared/README.md) |
 | build | [build/README](../algo-electron/build/README.md) |
@@ -117,6 +124,7 @@
 | test ai | [tests/ai/README](../algo-electron/tests/ai/README.md) |
 | test browser | [tests/browser/README](../algo-electron/tests/browser/README.md) |
 | test db | [tests/db/README](../algo-electron/tests/db/README.md) |
+| test coach | [tests/coach/README](../algo-electron/tests/coach/README.md) |
 | test docs | [tests/docs/README](../algo-electron/tests/docs/README.md) |
 | test electron | [tests/electron/README](../algo-electron/tests/electron/README.md) |
 | test integration | [tests/integration/README](../algo-electron/tests/integration/README.md) |
