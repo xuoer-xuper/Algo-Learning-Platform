@@ -1,5 +1,5 @@
 import { getDb } from '../../connection'
-import type { ProblemDetail, ProblemSubmissionRow, RecentProblem } from './types'
+import type { ProblemDetail, ProblemSubmissionRow, ProblemVisitRow, RecentProblem } from './types'
 
 export function getRecentProblems(limit = 50, platform?: string, status?: string): RecentProblem[] {
   const db = getDb()
@@ -53,4 +53,21 @@ export function getProblemDetail(problemId: string): ProblemDetail | null {
   `).all(problemId) as ProblemSubmissionRow[]
 
   return { ...problem, submissions }
+}
+
+/**
+ * 列出某道题的全部访问记录（按进入时间升序），供阶段 4 时间轴复盘使用。
+ * 数据全部来自现有 problem_visits 表，不新增采集。
+ */
+export function listProblemVisitsByProblem(problemId: string): ProblemVisitRow[] {
+  const db = getDb()
+  return db
+    .prepare(
+      `SELECT id, problem_id, session_id, platform, url,
+              entered_at, left_at, duration_seconds, active_seconds, leave_reason
+       FROM problem_visits
+       WHERE problem_id = ?
+       ORDER BY entered_at ASC`,
+    )
+    .all(problemId) as ProblemVisitRow[]
 }

@@ -8,6 +8,7 @@ import {
   navigateToProblemUrl,
 } from './problemsApi'
 import type { ProblemDetailRecord, SubmissionRecord } from './problemTypes'
+import { SessionTimelineView } from '../coach/SessionTimelineView'
 
 interface Props {
   problemId: string
@@ -22,10 +23,20 @@ function isContestPageLink(url: string): boolean {
 export function ProblemDetail({ problemId, onClose }: Props) {
   const [detail, setDetail] = useState<ProblemDetailRecord | null>(null)
   const [deleting, setDeleting] = useState(false)
+  const [view, setView] = useState<'detail' | 'timeline'>('detail')
 
   useEffect(() => {
     loadProblemDetail(problemId).then(setDetail)
   }, [problemId])
+
+  // 切题时重置子视图
+  useEffect(() => {
+    setView('detail')
+  }, [problemId])
+
+  if (view === 'timeline') {
+    return <SessionTimelineView problemId={problemId} onClose={() => setView('detail')} />
+  }
 
   const handleDelete = async () => {
     if (!confirm('确定删除这道题的本地记录吗？')) return
@@ -69,6 +80,14 @@ export function ProblemDetail({ problemId, onClose }: Props) {
       <div className="settings-header">
         <span className="settings-title">{detail.title || detail.platform_problem_id}</span>
         <div className="detail-header-actions">
+          <button
+            type="button"
+            className="detail-timeline-btn"
+            onClick={() => setView('timeline')}
+            title="查看本题做题时间轴与 Coach 介入点"
+          >
+            时间轴复盘
+          </button>
           <button
             type="button"
             className="detail-delete-btn"

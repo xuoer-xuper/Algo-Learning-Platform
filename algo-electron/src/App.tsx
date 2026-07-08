@@ -5,6 +5,7 @@ import { NotePanelModal } from './features/problems/NotePanelModal'
 import { SettingsPage } from './features/settings/SettingsPage'
 import { Dashboard } from './features/analytics/Dashboard'
 import { UserScriptManager } from './features/scripts/UserScriptManager'
+import { CoachMetricsView } from './features/coach/CoachMetricsView'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { WindowControls } from './components/WindowControls'
 import { ModalLayer } from './components/ModalLayer'
@@ -36,6 +37,7 @@ function App() {
     showSettings,
     showDashboard,
     showScripts,
+    showCoachMetrics,
     selectedProblemId,
     notesProblemId,
     modalBackdrop,
@@ -45,6 +47,8 @@ function App() {
     closeDashboard,
     openScripts,
     closeScripts,
+    openCoachMetrics,
+    closeCoachMetrics,
     openProblemDetail,
     closeProblemDetail,
     openNotes,
@@ -72,6 +76,7 @@ function App() {
         onOpenDashboard={openDashboard}
         onOpenScripts={openScripts}
         onOpenSettings={openSettings}
+        onOpenCoachMetrics={openCoachMetrics}
       />
       <div className="content-area">
         <ProblemSidebar
@@ -101,6 +106,11 @@ function App() {
       {showScripts && (
         <ModalLayer backdrop={modalBackdrop} sidebarWidth={sidebarWidth} onClose={closeScripts}>
           <UserScriptManager onClose={closeScripts} />
+        </ModalLayer>
+      )}
+      {showCoachMetrics && (
+        <ModalLayer backdrop={modalBackdrop} sidebarWidth={sidebarWidth} onClose={closeCoachMetrics}>
+          <CoachMetricsView onClose={closeCoachMetrics} />
         </ModalLayer>
       )}
       {selectedProblemId && (

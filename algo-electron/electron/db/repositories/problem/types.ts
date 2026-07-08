@@ -63,3 +63,20 @@ export interface OverviewStats {
   platformDistribution: PlatformDistributionRow[]
   lastActiveTime: string | null
 }
+
+/**
+ * 单次题目访问记录（problem_visits 表的内存表示）。
+ * 阶段 4 时间轴复盘只读取，不新增采集。
+ */
+export interface ProblemVisitRow {
+  id: string
+  problem_id: string
+  session_id: string | null
+  platform: string
+  url: string
+  entered_at: string
+  left_at: string | null
+  duration_seconds: number | null
+  active_seconds: number | null
+  leave_reason: string | null
+}

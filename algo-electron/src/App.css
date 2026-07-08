@@ -2276,3 +2276,344 @@
 .notes-list::-webkit-scrollbar-thumb:hover {
   background: var(--text-muted);
 }
+
+/* ===========================================================================
+   阶段 4：Coach 时间轴复盘 + 干预效果指标页
+   =========================================================================== */
+
+/* 时间轴复盘视图 */
+.coach-timeline-view {
+  width: min(900px, calc(100vw - 48px));
+  max-height: 90vh;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 24px;
+  background: var(--bg-card);
+  border-radius: 12px;
+  box-sizing: border-box;
+}
+
+.coach-timeline-loading,
+.coach-timeline-empty,
+.coach-timeline-error {
+  padding: 32px 16px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.coach-timeline-error {
+  color: #f38ba8;
+}
+
+.coach-timeline-info {
+  margin-bottom: 16px;
+  padding: 12px 14px;
+  background: var(--bg);
+  border: 1px solid var(--border-light);
+  border-radius: 10px;
+}
+
+/* 时间切分段 */
+.coach-timeline-segments {
+  margin-bottom: 16px;
+}
+
+.coach-segment-bar {
+  display: flex;
+  height: 14px;
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--bg);
+  border: 1px solid var(--border-light);
+  margin: 8px 0;
+}
+
+.coach-segment {
+  min-width: 4px;
+  transition: filter 0.15s;
+}
+
+.coach-segment.thinking {
+  background: #89b4fa;
+}
+
+.coach-segment.coding {
+  background: #a6e3a1;
+}
+
+.coach-segment:hover {
+  filter: brightness(1.1);
+}
+
+.coach-segment-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.coach-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.coach-legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.coach-legend-dot.thinking {
+  background: #89b4fa;
+}
+
+.coach-legend-dot.coding {
+  background: #a6e3a1;
+}
+
+.coach-legend-dot.active {
+  background: #cba6f7;
+}
+
+.coach-legend-hint {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.coach-timeline-chart {
+  margin-bottom: 16px;
+  padding: 12px 14px;
+  background: var(--bg);
+  border: 1px solid var(--border-light);
+  border-radius: 10px;
+}
+
+/* 垂直时间轴 */
+.coach-timeline-list {
+  margin-top: 8px;
+}
+
+.timeline-stream {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  position: relative;
+}
+
+.timeline-stream::before {
+  content: '';
+  position: absolute;
+  left: 13px;
+  top: 4px;
+  bottom: 4px;
+  width: 2px;
+  background: var(--border-light);
+}
+
+.timeline-item {
+  position: relative;
+  padding-left: 36px;
+  margin-bottom: 14px;
+}
+
+.timeline-item:last-child {
+  margin-bottom: 0;
+}
+
+.timeline-dot {
+  position: absolute;
+  left: 4px;
+  top: 0;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--bg-card);
+  border: 2px solid currentColor;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  line-height: 1;
+}
+
+.timeline-content {
+  background: var(--bg);
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+
+.timeline-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.timeline-title {
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.timeline-kind {
+  font-size: 11px;
+  color: var(--text-muted);
+  padding: 1px 6px;
+  border: 1px solid var(--border-light);
+  border-radius: 4px;
+}
+
+.timeline-time {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.timeline-subtitle {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-top: 3px;
+}
+
+.timeline-detail {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 3px;
+  padding-top: 3px;
+  border-top: 1px dashed var(--border-light);
+}
+
+/* 时间轴复盘按钮（ProblemDetail 头部） */
+.detail-timeline-btn {
+  padding: 4px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text-secondary);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.detail-timeline-btn:hover {
+  background: var(--bg-surface);
+  border-color: #89b4fa;
+  color: #89b4fa;
+}
+
+/* ===========================================================================
+   干预效果指标页
+   =========================================================================== */
+.coach-metrics-view {
+  width: min(900px, calc(100vw - 48px));
+  max-height: 90vh;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 24px;
+  background: var(--bg-card);
+  border-radius: 12px;
+  box-sizing: border-box;
+}
+
+.coach-mock-badge {
+  display: inline-block;
+  margin-left: 10px;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #1e1e2e;
+  background: #f9e2af;
+  border-radius: 4px;
+  vertical-align: middle;
+}
+
+.coach-mock-btn.active {
+  background: #f9e2af;
+  border-color: #f9e2af;
+  color: #1e1e2e;
+}
+
+.coach-metrics-window {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 12px;
+}
+
+.coach-metrics-cards {
+  grid-template-columns: repeat(5, 1fr);
+}
+
+.coach-metrics-cards .dashboard-card-value {
+  font-size: 22px;
+}
+
+.coach-metrics-cards .dashboard-card-sub {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+.coach-card-sub-hint {
+  display: block;
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+/* 答辩核对面板 */
+.coach-verify-panel {
+  margin: 12px 0;
+  padding: 12px 14px;
+  background: rgba(249, 226, 175, 0.08);
+  border: 1px dashed #f9e2af;
+  border-radius: 10px;
+}
+
+.coach-verify-list {
+  margin: 6px 0 0;
+  padding-left: 18px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.8;
+}
+
+.coach-verify-note {
+  margin: 8px 0 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: #a6e3a1;
+}
+
+/* 指标页图表行 */
+.coach-charts-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.coach-chart-half {
+  background: var(--bg);
+  border: 1px solid var(--border-light);
+  border-radius: 10px;
+  padding: 12px 14px;
+}
+
+.coach-metrics-footer {
+  margin-top: 8px;
+}
+
+@media (max-width: 860px) {
+  .coach-metrics-cards {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .coach-charts-row {
+    grid-template-columns: 1fr;
+  }
+}
+

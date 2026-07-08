@@ -3,6 +3,7 @@ export type {
   PlatformDistributionRow,
   ProblemDetail,
   ProblemRow,
+  ProblemVisitRow,
   RecentProblem,
 } from './problem/types'
 
@@ -14,6 +15,7 @@ export {
 export {
   getProblemDetail,
   getRecentProblems,
+  listProblemVisitsByProblem,
 } from './problem/queries'
 
 export {

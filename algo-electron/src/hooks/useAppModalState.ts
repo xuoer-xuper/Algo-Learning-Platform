@@ -9,6 +9,7 @@ export function useAppModalState({ isHome }: UseAppModalStateOptions) {
   const [showSettings, setShowSettings] = useState(false)
   const [showDashboard, setShowDashboard] = useState(false)
   const [showScripts, setShowScripts] = useState(false)
+  const [showCoachMetrics, setShowCoachMetrics] = useState(false)
   const [selectedProblemId, setSelectedProblemId] = useState<string | null>(null)
   const [notesProblemId, setNotesProblemId] = useState<string | null>(null)
   const [modalBackdrop, setModalBackdrop] = useState<string | null>(null)
@@ -61,6 +62,17 @@ export function useAppModalState({ isHome }: UseAppModalStateOptions) {
     setShowScripts(false)
   }, [closeModalBackdrop])
 
+  // 阶段 4：Coach 指标页
+  const openCoachMetrics = useCallback(async () => {
+    await prepareModal()
+    setShowCoachMetrics(true)
+  }, [prepareModal])
+
+  const closeCoachMetrics = useCallback(() => {
+    closeModalBackdrop()
+    setShowCoachMetrics(false)
+  }, [closeModalBackdrop])
+
   const openProblemDetail = useCallback(async (problemId: string) => {
     await prepareModal()
     setSelectedProblemId(problemId)
@@ -85,6 +97,7 @@ export function useAppModalState({ isHome }: UseAppModalStateOptions) {
     showSettings,
     showDashboard,
     showScripts,
+    showCoachMetrics,
     selectedProblemId,
     notesProblemId,
     modalBackdrop,
@@ -94,6 +107,8 @@ export function useAppModalState({ isHome }: UseAppModalStateOptions) {
     closeDashboard,
     openScripts,
     closeScripts,
+    openCoachMetrics,
+    closeCoachMetrics,
     openProblemDetail,
     closeProblemDetail,
     openNotes,

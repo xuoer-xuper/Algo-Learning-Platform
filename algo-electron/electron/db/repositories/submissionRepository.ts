@@ -8,8 +8,10 @@ export {
 } from './submission/mutations'
 
 export {
+  getFirstAcByProblemIds,
   getSubmissionsByPlatform,
   getSubmissionsByProblem,
+  getSubmissionsByProblemAsc,
 } from './submission/queries'
 
 export {
