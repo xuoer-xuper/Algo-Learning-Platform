@@ -155,4 +155,75 @@ contextBridge.exposeInMainWorld('electronAPI', {
   listAIOutputs: (outputType?: string, limit?: number) => ipcRenderer.invoke('ai:listOutputs', outputType, limit),
   deleteAIOutput: (id: string) => ipcRenderer.invoke('ai:deleteOutput', id),
   updateAIOutput: (id: string, updates: Partial<Pick<AIOutputSaveInput, 'title' | 'content' | 'content_markdown'>>) => ipcRenderer.invoke('ai:updateOutput', id, updates),
+
+  // Coach 桌宠（阶段 1 视觉壳 + 阶段 2 规则引擎预留接口）
+  coachGetPetState: () => ipcRenderer.invoke('coach:getPetState') as Promise<CoachPetState>,
+  coachSetPetState: (state: CoachPetState) => ipcRenderer.invoke('coach:setPetState', state) as Promise<boolean>,
+  coachToggleIgnoreMouseEvents: (ignore: boolean) => ipcRenderer.invoke('coach:toggleIgnoreMouseEvents', ignore) as Promise<boolean>,
+  coachStartDrag: (screenX: number, screenY: number) => ipcRenderer.invoke('coach:startDrag', screenX, screenY) as Promise<boolean>,
+  coachDragTo: (screenX: number, screenY: number) => ipcRenderer.invoke('coach:dragTo', screenX, screenY) as Promise<boolean>,
+  coachEndDrag: () => ipcRenderer.invoke('coach:endDrag') as Promise<boolean>,
+  coachResetPosition: () => ipcRenderer.invoke('coach:resetPosition') as Promise<boolean>,
+  coachGetConfig: () => ipcRenderer.invoke('coach:getConfig') as Promise<CoachConfig>,
+  coachSaveConfig: (partial: Partial<CoachConfig>) => ipcRenderer.invoke('coach:saveConfig', partial) as Promise<boolean>,
+  coachTestHint: () => ipcRenderer.invoke('coach:testHint') as Promise<CoachBubblePayload>,
+  coachShowBubble: (payload: CoachBubblePayload) => ipcRenderer.invoke('coach:showBubble', payload) as Promise<boolean>,
+  coachDismissBubble: () => ipcRenderer.invoke('coach:dismissBubble') as Promise<boolean>,
+  coachTriggerHint: (bubbleId?: string) => ipcRenderer.invoke('coach:triggerHint', bubbleId) as Promise<{ accepted: boolean; level: number; note?: string; interventionId?: string }>,
+  coachDismissHint: (bubbleId?: string) => ipcRenderer.invoke('coach:dismissHint', bubbleId) as Promise<boolean>,
+  coachFeedback: (feedback: { bubbleId?: string; interventionId?: string; type: CoachFeedbackType }) => ipcRenderer.invoke('coach:feedback', feedback) as Promise<boolean>,
+  coachGetWorkArea: () => ipcRenderer.invoke('coach:getWorkArea') as Promise<{ x: number; y: number; width: number; height: number }>,
+
+  // 阶段 2：规则引擎 + 比赛模式 + 审计日志
+  coachGetState: () => ipcRenderer.invoke('coach:getState') as Promise<CoachStateSnapshot | null>,
+  coachGetSession: () => ipcRenderer.invoke('coach:getSession') as Promise<ProblemSession | null>,
+  coachGetSessionHistory: (limit?: number) => ipcRenderer.invoke('coach:getSessionHistory', limit) as Promise<ProblemSession[]>,
+  coachGetMetrics: () => ipcRenderer.invoke('coach:getMetrics') as Promise<CoachMetricsSnapshot | null>,
+  coachListEvents: (limit?: number) => ipcRenderer.invoke('coach:listEvents', limit) as Promise<CoachEvent[]>,
+  coachListInterventions: (limit?: number) => ipcRenderer.invoke('coach:listInterventions', limit) as Promise<CoachIntervention[]>,
+  coachExportAuditLog: () => ipcRenderer.invoke('coach:exportAuditLog') as Promise<ContestAuditRecord[]>,
+  // 阶段 4：过程复盘 + 答辩数据
+  coachGetProblemTimeline: (problemId: string) => ipcRenderer.invoke('coach:getProblemTimeline', problemId) as Promise<ProblemTimelineData | null>,
+  coachGetMetricsBundle: () => ipcRenderer.invoke('coach:getMetricsBundle') as Promise<CoachMetricsBundle | null>,
+  onCoachPetStateChanged: (callback: (state: CoachPetState) => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, state: CoachPetState) => callback(state)
+    ipcRenderer.on('coach:petStateChanged', handler)
+    return () => {
+      ipcRenderer.off('coach:petStateChanged', handler)
+    }
+  },
+  onCoachConfigChanged: (callback: (config: CoachConfig) => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, config: CoachConfig) => callback(config)
+    ipcRenderer.on('coach:configChanged', handler)
+    return () => {
+      ipcRenderer.off('coach:configChanged', handler)
+    }
+  },
+  onCoachShowBubble: (callback: (payload: CoachBubblePayload) => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, payload: CoachBubblePayload) => callback(payload)
+    ipcRenderer.on('coach:showBubble', handler)
+    return () => {
+      ipcRenderer.off('coach:showBubble', handler)
+    }
+  },
+  onCoachDismissBubble: (callback: () => void) => {
+    const handler = () => callback()
+    ipcRenderer.on('coach:dismissBubble', handler)
+    return () => {
+      ipcRenderer.off('coach:dismissBubble', handler)
+    }
+  },
+  onCoachContestModeChanged: (callback: (payload: {
+    isContestMode: boolean
+    contest: { url: string; platform: string; contest_id: string; entered_at: string } | null
+  }) => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, payload: {
+      isContestMode: boolean
+      contest: { url: string; platform: string; contest_id: string; entered_at: string } | null
+    }) => callback(payload)
+    ipcRenderer.on('coach:contestModeChanged', handler)
+    return () => {
+      ipcRenderer.off('coach:contestModeChanged', handler)
+    }
+  },
 })

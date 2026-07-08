@@ -3,7 +3,7 @@ import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import { TabManager } from './browser/TabManager'
 import { closeDb } from './db/connection'
-import { getDefaultHomeUrl } from './app/config'
+import { getDefaultHomeUrl, loadCoachConfig } from './app/config'
 import { configureChromiumCommandLine } from './app/chromiumFlags'
 import { preconnectRecentSiteOrigins } from './app/recentSitePreconnect'
 import { initializeMainServices, type MainServices } from './app/mainServices'
@@ -15,6 +15,8 @@ import { ensureTodaySnapshot } from './db/repositories/aiContextSnapshotReposito
 import { configureOjSession } from './browser/ojSession'
 import { STARTUP_SMOKE_MODE, applyStartupSmokeUserDataPath, runStartupSmokeTest } from './app/startupSmoke'
 import { registerMainIpc } from './ipc/registerMainIpc'
+import { CoachPetWindow } from './coach/CoachPetWindow'
+import { CoachOrchestrator } from './coach/CoachOrchestrator'
 
 configureChromiumCommandLine()
 
@@ -38,6 +40,8 @@ process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL ? path.join(process.env.APP_ROOT, 
 let win: BrowserWindow | null
 let tabManager: TabManager | null
 let services: MainServices | null = null
+let coachPetWindow: CoachPetWindow | null = null
+let coachOrchestrator: CoachOrchestrator | null = null
 
 function createWindow() {
   win = new BrowserWindow({
@@ -118,8 +122,14 @@ function createWindow() {
 
   win.on('closed', () => {
     services?.trackingService.endCurrentVisit()
+    // 阶段 2：停止 Coach 服务（关当前会话 + 解绑监听）
+    try { coachOrchestrator?.stop() } catch { /* ignore */ }
+    coachOrchestrator = null
     tabManager?.destroy()
     tabManager = null
+    // 主窗口关闭时同步销毁桌宠窗口（生命周期绑定）
+    coachPetWindow?.destroy()
+    coachPetWindow = null
     win = null
   })
 }
@@ -129,6 +139,8 @@ registerMainIpc({
   getTabManager: () => tabManager,
   getTrackingService: () => services?.trackingService ?? null,
   getSyncService: () => services?.syncService ?? null,
+  getCoachPetWindow: () => coachPetWindow,
+  getCoachOrchestrator: () => coachOrchestrator,
 })
 
 // --- App 生命周期 ---
@@ -167,6 +179,36 @@ app.whenReady().then(() => {
     ensureTodaySnapshot()
   } catch (err) {
     console.error('[AI] 每日快照生成失败:', err)
+  }
+
+  // 初始化 Coach 桌宠窗口（仅在非 smoke 模式且配置启用时）
+  if (!STARTUP_SMOKE_MODE) {
+    try {
+      const coachCfg = loadCoachConfig()
+      if (coachCfg.enabled) {
+        coachPetWindow = new CoachPetWindow({
+          preloadPath: process.env.ALGO_ELECTRON_SMOKE_PRELOAD_PATH || path.join(__dirname, 'preload.mjs'),
+          devServerUrl: VITE_DEV_SERVER_URL ?? undefined,
+          rendererDist: RENDERER_DIST,
+        })
+        coachPetWindow.create()
+
+        // 阶段 2：初始化 Coach 编排服务（规则引擎 + 比赛模式 + 事件桥）
+        // 需要 TabManager / TrackingService / RealtimeSubmissionService 全部就绪
+        if (tabManager && services) {
+          coachOrchestrator = new CoachOrchestrator({
+            getMainWindow: () => win,
+            getTabManager: () => tabManager,
+            getTrackingService: () => services?.trackingService ?? null,
+            getRealtimeSubmissionService: () => services?.realtimeSubmissionService ?? null,
+            getCoachPetWindow: () => coachPetWindow,
+          })
+          coachOrchestrator.start()
+        }
+      }
+    } catch (err) {
+      console.error('[coach] 桌宠窗口初始化失败:', err)
+    }
   }
 
   if (STARTUP_SMOKE_MODE) {

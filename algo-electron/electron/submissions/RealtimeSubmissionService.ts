@@ -4,7 +4,8 @@ import { getRealtimeAdapterForUrl, getRealtimeAdapterIds } from '../adapters/reg
 import { getSiteById } from '../db/repositories/siteRepository'
 import { RealtimeSubmissionDiagnostics, type RealtimeSubmissionStatus } from './RealtimeSubmissionDiagnostics'
 import { RealtimeHookInjector } from './RealtimeHookInjector'
-import { SubmissionWatcher } from './SubmissionWatcher'
+import { SubmissionWatcher, SUBMISSION_WATCHER_DETECTED_EVENT } from './SubmissionWatcher'
+import type { SubmissionNotification } from './SubmissionWatcherCore'
 
 const SUBMISSION_DETECTED_CHANNEL = 'oj-submission:detected'
 const STATUS_CHANNEL = 'realtimeSubmission:getStatus'
@@ -46,6 +47,18 @@ export class RealtimeSubmissionService {
     tabManager.addActiveTabChangeListener((url) => {
       this.injectHook(tabManager, url)
     })
+  }
+
+  /**
+   * 订阅提交检测结果（阶段 2：CoachEventBridge 入口）。
+   * 与 renderer 的 webContents.send('submissions:detected') 互不影响。
+   * 返回 unsubscribe 函数，便于清理。
+   */
+  onSubmissionDetected(callback: (notification: SubmissionNotification) => void): () => void {
+    this.watcher.on(SUBMISSION_WATCHER_DETECTED_EVENT, callback)
+    return () => {
+      this.watcher.off(SUBMISSION_WATCHER_DETECTED_EVENT, callback)
+    }
   }
 
   registerIpc(): void {

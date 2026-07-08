@@ -376,6 +376,258 @@ interface AIOutputRecord extends AIOutputSaveInput {
   updated_at?: string
 }
 
+// --- Coach 桌宠类型（阶段 1 视觉壳） ---
+
+type CoachPetState = 'idle' | 'thinking' | 'alert' | 'celebrate' | 'sleep' | 'focus'
+
+type CoachHintSource = 'local' | 'llm'
+
+interface CoachBubblePayload {
+  id: string
+  title: string
+  message: string
+  source: CoachHintSource
+  problemId?: string
+  eventId?: string
+  level?: number
+}
+
+type CoachFeedbackType = 'helpful' | 'not_helpful' | 'dismiss' | 'never_today'
+
+interface CoachConfig {
+  enabled: boolean
+  sound: boolean
+  bubbleFrequency: 'low' | 'medium' | 'high'
+  position: { x: number; y: number } | null
+  scale: number
+  opacity: number
+}
+
+// --- Coach 阶段 2 类型（事件触发 + 比赛模式） ---
+
+type CoachEventType =
+  | 'idle_too_long'
+  | 'multiple_wrong'
+  | 'same_error'
+  | 'review_due'
+  | 'long_session'
+  | 'first_ac'
+  | 'boundary_suspected'
+  | 'complexity_warning'
+
+type CoachEventSeverity = 'info' | 'warn' | 'critical'
+
+type CoachScore = number
+
+type CoachInterventionLevel = 0 | 1 | 2 | 3 | 4 | 5
+
+type CoachInterventionSourceType =
+  | 'local_rule'
+  | 'local_hint'
+  | 'llm'
+  | 'contest_audit'
+
+type CoachInterventionUserAction =
+  | 'shown'
+  | 'hint_requested'
+  | 'dismissed'
+  | 'never_today'
+  | 'feedback'
+  | 'no_action'
+
+type ProblemSessionPhase = 'reading' | 'coding' | 'stuck'
+
+type StuckLevel = 0 | 1 | 2 | 3
+
+type ProblemSessionStatus = 'active' | 'suspended' | 'closed'
+
+interface CoachEventEvidence {
+  verdict?: string
+  wrong_count?: number
+  same_verdict_repeat?: number
+  active_seconds?: number
+  submit_count?: number
+  problem_rating?: number
+  contest_id?: string
+  source_url?: string
+  [key: string]: unknown
+}
+
+interface CoachEvent {
+  event_id: string
+  session_id: string | null
+  event_type: CoachEventType
+  severity: CoachEventSeverity
+  score: CoachScore
+  problem_id: string | null
+  platform: string | null
+  evidence: CoachEventEvidence
+  created_at: string
+}
+
+interface ProblemSession {
+  session_id: string
+  problem_id: string | null
+  platform: string
+  platform_problem_id: string
+  started_at: number
+  last_active_at: number
+  active_seconds: number
+  submit_count: number
+  wrong_count: number
+  current_status: ProblemSessionStatus
+  phase: ProblemSessionPhase
+  detected_stuck_level: StuckLevel
+  verdict_history: string[]
+  problem_rating: number | null
+}
+
+interface CoachIntervention {
+  intervention_id: string
+  event_id: string | null
+  trigger_reason: string
+  intervention_level: CoachInterventionLevel
+  source_type: CoachInterventionSourceType
+  message: string
+  related_tags: string[]
+  user_action: CoachInterventionUserAction
+  problem_id: string | null
+  platform: string | null
+  session_id: string | null
+  created_at: string
+  is_contest_mode: boolean
+  contest_url: string | null
+  contest_start: string | null
+  contest_end: string | null
+  zero_intervention: boolean
+}
+
+interface ContestAuditRecord {
+  audit_id: string
+  contest_url: string
+  platform: string
+  contest_id: string
+  contest_start: string
+  contest_end: string
+  duration_seconds: number
+  zero_intervention: boolean
+  had_any_intervention: boolean
+  exported_at: string
+}
+
+interface CoachStateSnapshot {
+  current_session: ProblemSession | null
+  is_contest_mode: boolean
+  contest: {
+    url: string
+    platform: string
+    contest_id: string
+    entered_at: string
+  } | null
+  pet_state: CoachPetState
+  llm_enabled: boolean
+  suppressed_types: CoachEventType[]
+  last_event_at: string | null
+}
+
+interface CoachMetricsSnapshot {
+  total_events: number
+  events_by_type: Record<CoachEventType, number>
+  total_interventions: number
+  hint_requested_count: number
+  never_today_count: number
+  contest_audit_count: number
+  contest_total_seconds: number
+  since: string
+  until: string
+}
+
+// --- Coach 阶段 4 类型（过程复盘 + 答辩数据） ---
+
+interface ProblemVisitPoint {
+  visit_id: string
+  entered_at: string
+  left_at: string | null
+  duration_seconds: number | null
+  active_seconds: number | null
+  leave_reason: string | null
+  url: string
+}
+
+interface TimelineSubmissionPoint {
+  submission_id: string
+  submitted_at: string
+  verdict: string
+  language: string | null
+  runtime_ms: number | null
+}
+
+interface TimelineEventPoint {
+  event_id: string
+  event_type: CoachEventType
+  severity: CoachEventSeverity
+  created_at: string
+  evidence: CoachEventEvidence
+}
+
+interface TimelineInterventionPoint {
+  intervention_id: string
+  created_at: string
+  intervention_level: CoachInterventionLevel
+  source_type: CoachInterventionSourceType
+  trigger_reason: string
+  message: string
+  user_action: CoachInterventionUserAction
+  is_contest_mode: boolean
+}
+
+interface ProblemTimelineData {
+  problem_id: string
+  platform: string
+  platform_problem_id: string
+  title: string | null
+  canonical_url: string
+  status: string
+  first_seen_at: string | null
+  last_visited_at: string | null
+  visits: ProblemVisitPoint[]
+  submissions: TimelineSubmissionPoint[]
+  events: TimelineEventPoint[]
+  interventions: TimelineInterventionPoint[]
+  first_ac_at: string | null
+  last_activity_at: string | null
+}
+
+interface CoachFeedbackRecord {
+  feedback_id: string
+  intervention_id: string | null
+  bubble_id: string | null
+  feedback_type: CoachFeedbackType
+  event_type: CoachEventType | null
+  problem_id: string | null
+  local_day: string
+  created_at: string
+}
+
+interface ProblemAcStatus {
+  problem_id: string
+  first_ac_at: string | null
+}
+
+interface CoachMetricsBundle {
+  since: string
+  until: string
+  events: CoachEvent[]
+  interventions: CoachIntervention[]
+  feedback: CoachFeedbackRecord[]
+  problem_ac_status: ProblemAcStatus[]
+}
+
+interface CoachContestModePayload {
+  isContestMode: boolean
+  contest: { url: string; platform: string; contest_id: string; entered_at: string } | null
+}
+
 interface ElectronAPI {
   navigate: (url: string) => void
   goBack: () => void
@@ -488,6 +740,42 @@ interface ElectronAPI {
   listAIOutputs: (outputType?: string, limit?: number) => Promise<AIOutputRecord[]>
   deleteAIOutput: (id: string) => Promise<boolean>
   updateAIOutput: (id: string, updates: Partial<Pick<AIOutputSaveInput, 'title' | 'content' | 'content_markdown'>>) => Promise<boolean>
+
+  // Coach 桌宠（阶段 1 视觉壳 + 阶段 2 规则引擎预留接口）
+  coachGetPetState: () => Promise<CoachPetState>
+  coachSetPetState: (state: CoachPetState) => Promise<boolean>
+  coachToggleIgnoreMouseEvents: (ignore: boolean) => Promise<boolean>
+  coachStartDrag: (screenX: number, screenY: number) => Promise<boolean>
+  coachDragTo: (screenX: number, screenY: number) => Promise<boolean>
+  coachEndDrag: () => Promise<boolean>
+  coachResetPosition: () => Promise<boolean>
+  coachGetConfig: () => Promise<CoachConfig>
+  coachSaveConfig: (partial: Partial<CoachConfig>) => Promise<boolean>
+  coachTestHint: () => Promise<CoachBubblePayload>
+  coachShowBubble: (payload: CoachBubblePayload) => Promise<boolean>
+  coachDismissBubble: () => Promise<boolean>
+  coachTriggerHint: (bubbleId?: string) => Promise<{ accepted: boolean; level: number; note?: string; interventionId?: string }>
+  coachDismissHint: (bubbleId?: string) => Promise<boolean>
+  coachFeedback: (feedback: { bubbleId?: string; interventionId?: string; type: CoachFeedbackType }) => Promise<boolean>
+  coachGetWorkArea: () => Promise<{ x: number; y: number; width: number; height: number }>
+
+  // 阶段 2：规则引擎 + 比赛模式 + 审计日志
+  coachGetState: () => Promise<CoachStateSnapshot | null>
+  coachGetSession: () => Promise<ProblemSession | null>
+  coachGetSessionHistory: (limit?: number) => Promise<ProblemSession[]>
+  coachGetMetrics: () => Promise<CoachMetricsSnapshot | null>
+  coachListEvents: (limit?: number) => Promise<CoachEvent[]>
+  coachListInterventions: (limit?: number) => Promise<CoachIntervention[]>
+  coachExportAuditLog: () => Promise<ContestAuditRecord[]>
+  // 阶段 4：过程复盘 + 答辩数据
+  coachGetProblemTimeline: (problemId: string) => Promise<ProblemTimelineData | null>
+  coachGetMetricsBundle: () => Promise<CoachMetricsBundle | null>
+
+  onCoachPetStateChanged: (callback: (state: CoachPetState) => void) => () => void
+  onCoachConfigChanged: (callback: (config: CoachConfig) => void) => () => void
+  onCoachShowBubble: (callback: (payload: CoachBubblePayload) => void) => () => void
+  onCoachDismissBubble: (callback: () => void) => () => void
+  onCoachContestModeChanged: (callback: (payload: CoachContestModePayload) => void) => () => void
 }
 
 interface Window {

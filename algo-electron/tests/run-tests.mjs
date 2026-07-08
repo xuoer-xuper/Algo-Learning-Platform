@@ -22,6 +22,7 @@ const suites = new Set([
   'packaging',
   'electron',
   'ui',
+  'coach',
   'all',
 ])
 
@@ -140,6 +141,7 @@ function runCoreSuite() {
   bundleAndRunDirectory('browser', 'browser')
   bundleAndRunDirectory('parsers', 'parsers')
   bundleAndRunDirectory('integration', 'integration')
+  bundleAndRunDirectory('coach', 'coach')
 }
 
 function runAiSuite() {
@@ -189,6 +191,9 @@ function runSuite(suite) {
     case 'ui':
       bundleAndRun(path.join('tests', 'ui', 'rendererScreenshots.test.ts'), 'ui')
       break
+    case 'coach':
+      bundleAndRunDirectory('coach', 'coach')
+      break
     case 'all':
       runCoreSuite()
       runAiSuite()
@@ -199,6 +204,7 @@ function runSuite(suite) {
       runPackagingSuite()
       bundleAndRun(path.join('tests', 'electron', 'startupSmoke.test.ts'), 'electron')
       bundleAndRun(path.join('tests', 'ui', 'rendererScreenshots.test.ts'), 'ui')
+      bundleAndRunDirectory('coach', 'coach')
       break
   }
 }

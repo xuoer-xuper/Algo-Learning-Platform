@@ -2,9 +2,12 @@ import type { BrowserWindow } from 'electron'
 import type { TabManager } from '../browser/TabManager'
 import type { SyncService } from '../submissions/syncService'
 import type { TrackingService } from '../tracking/TrackingService'
+import type { CoachPetWindow } from '../coach/CoachPetWindow'
+import type { CoachOrchestrator } from '../coach/CoachOrchestrator'
 import { registerAiIpc } from './registerAiIpc'
 import { registerBackupIpc } from './registerBackupIpc'
 import { registerBrowserShellIpc } from './registerBrowserShellIpc'
+import { registerCoachIpc } from './registerCoachIpc'
 import { registerConfigIpc } from './registerConfigIpc'
 import { registerCookieIpc } from './registerCookieIpc'
 import { registerNotesIpc } from './registerNotesIpc'
@@ -20,6 +23,9 @@ interface RegisterMainIpcOptions {
   getTabManager: () => TabManager | null
   getTrackingService: () => TrackingService | null
   getSyncService: () => SyncService | null
+  getCoachPetWindow?: () => CoachPetWindow | null
+  /** 阶段 2 注入：CoachOrchestrator */
+  getCoachOrchestrator?: () => CoachOrchestrator | null
 }
 
 export function registerMainIpc(options: RegisterMainIpcOptions): void {
@@ -46,4 +52,12 @@ export function registerMainIpc(options: RegisterMainIpcOptions): void {
   registerSubmissionsIpc({
     getSyncService: options.getSyncService,
   })
+
+  if (options.getCoachPetWindow) {
+    registerCoachIpc({
+      getWindow: options.getWindow,
+      getCoachPetWindow: options.getCoachPetWindow,
+      getCoachOrchestrator: options.getCoachOrchestrator,
+    })
+  }
 }

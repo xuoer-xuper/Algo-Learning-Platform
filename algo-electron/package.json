@@ -25,6 +25,7 @@
     "test:packaging": "node tests/run-tests.mjs packaging",
     "test:electron": "node tests/run-tests.mjs electron",
     "test:ui": "node tests/run-tests.mjs ui",
+    "test:coach": "node tests/run-tests.mjs coach",
     "test:all": "node tests/run-tests.mjs all"
   },
   "dependencies": {
