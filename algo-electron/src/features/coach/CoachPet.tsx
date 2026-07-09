@@ -60,23 +60,24 @@ export function CoachPet() {
     e.preventDefault()
     dragStartedRef.current = true
     setDragging(true)
+    // 拖拽期间关闭穿透，保证 mouseup 能到达本窗口
     void window.electronAPI.coachToggleIgnoreMouseEvents(false)
+    // 主进程接管：startDrag 后由主进程轮询移动窗口，renderer 无需发送 mousemove
     void window.electronAPI.coachStartDrag(e.screenX, e.screenY)
 
-    const onMove = (ev: MouseEvent) => {
-      void window.electronAPI.coachDragTo(ev.screenX, ev.screenY)
-    }
+    // mouseup 只需通知主进程停止；若 mouseup 丢失，主进程鼠标静止 500ms 自动兜底
     const onUp = () => {
       dragStartedRef.current = false
       setDragging(false)
       void window.electronAPI.coachEndDrag()
-      document.removeEventListener('mousemove', onMove)
       document.removeEventListener('mouseup', onUp)
+      document.removeEventListener('blur', onUp)
       // 拖拽结束恢复穿透；若鼠标仍在 pet-body 上，hover 状态会重新触发 mouseenter
       void window.electronAPI.coachToggleIgnoreMouseEvents(true)
     }
-    document.addEventListener('mousemove', onMove)
     document.addEventListener('mouseup', onUp)
+    // 窗口失焦兜底（Alt+Tab 等）
+    window.addEventListener('blur', onUp)
   }
 
   const handleBubbleClose = () => {

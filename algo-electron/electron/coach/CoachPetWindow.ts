@@ -36,6 +36,9 @@ export class CoachPetWindow {
   private currentState: CoachPetState = 'idle'
   private dragging = false
   private dragOffset = { x: 0, y: 0 }
+  private dragPollTimer: NodeJS.Timeout | null = null
+  private lastCursorPos = { x: 0, y: 0 }
+  private lastCursorMoveTime = 0
 
   constructor(options: CoachPetWindowOptions) {
     this.options = options
@@ -51,7 +54,16 @@ export class CoachPetWindow {
     const workArea = screen.getPrimaryDisplay().workArea
     const defaultX = workArea.x + workArea.width - PET_WINDOW_WIDTH - 24
     const defaultY = workArea.y + workArea.height - PET_WINDOW_HEIGHT - 24
-    const pos = cfg.position ?? { x: defaultX, y: defaultY }
+    const rawPos = cfg.position ?? { x: defaultX, y: defaultY }
+    // 若持久化位置在屏幕外（如之前拖拽 bug 导致 y=-1780），直接回退默认右下角
+    const isOffscreen =
+      rawPos.x < workArea.x ||
+      rawPos.x > workArea.x + workArea.width - PET_WINDOW_WIDTH ||
+      rawPos.y < workArea.y ||
+      rawPos.y > workArea.y + workArea.height - PET_WINDOW_HEIGHT
+    const pos = isOffscreen
+      ? { x: defaultX, y: defaultY }
+      : clampPosition(rawPos, workArea, PET_WINDOW_WIDTH, PET_WINDOW_HEIGHT)
 
     this.win = new BrowserWindow({
       width: PET_WINDOW_WIDTH,
@@ -70,9 +82,6 @@ export class CoachPetWindow {
       show: false,
       webPreferences: {
         preload: this.options.preloadPath,
-        contextIsolation: true,
-        nodeIntegration: false,
-        sandbox: false,
       },
     })
 
@@ -101,6 +110,14 @@ export class CoachPetWindow {
     this.win.on('closed', () => {
       this.win = null
       this.dragging = false
+      this.stopDragPoll()
+    })
+
+    // 兜底：窗口失焦（Alt+Tab 或点其他窗口）时强制结束拖拽
+    this.win.on('blur', () => {
+      if (this.dragging) {
+        this.stopDrag()
+      }
     })
   }
 
@@ -180,41 +197,93 @@ export class CoachPetWindow {
     saveCoachConfig({ position: { x, y } })
   }
 
-  // --- 拖拽支持 ---
+  // --- 拖拽支持（主进程轮询方案，彻底规避 renderer mouseup 丢失） ---
 
   /**
-   * 开始拖拽。renderer mousedown 时调用，传入屏幕坐标。
+   * 开始拖拽。renderer mousedown 时调用一次，传入屏幕坐标。
+   * 主进程启动 16ms 间隔轮询，持续读取屏幕鼠标坐标移动窗口。
+   * renderer 不再需要发送 mousemove/mouseup，彻底绕开事件丢失。
    */
   startDrag(screenX: number, screenY: number): void {
-    if (!this.win) return
+    if (!this.win || this.dragging) return
     this.dragging = true
     const bounds = this.win.getBounds()
     this.dragOffset = { x: screenX - bounds.x, y: screenY - bounds.y }
+    this.lastCursorPos = { x: screenX, y: screenY }
+    this.lastCursorMoveTime = Date.now()
+    this.stopDragPoll()
+    this.dragPollTimer = setInterval(() => this.pollDrag(), 16)
+  }
+
+  private pollDrag(): void {
+    if (!this.win || !this.dragging) {
+      this.stopDragPoll()
+      return
+    }
+    const cursor = screen.getCursorScreenPoint()
+    // 鼠标静止超过 500ms 判定为已松手（兜底 mouseup 丢失）
+    if (cursor.x !== this.lastCursorPos.x || cursor.y !== this.lastCursorPos.y) {
+      this.lastCursorPos = { x: cursor.x, y: cursor.y }
+      this.lastCursorMoveTime = Date.now()
+    } else if (Date.now() - this.lastCursorMoveTime > 500) {
+      this.stopDrag()
+      return
+    }
+    const x = Math.round(cursor.x - this.dragOffset.x)
+    const y = Math.round(cursor.y - this.dragOffset.y)
+    const workArea = screen.getPrimaryDisplay().workArea
+    const clamped = clampPosition({ x, y }, workArea, PET_WINDOW_WIDTH, PET_WINDOW_HEIGHT)
+    this.win.setPosition(clamped.x, clamped.y)
+  }
+
+  private stopDragPoll(): void {
+    if (this.dragPollTimer) {
+      clearInterval(this.dragPollTimer)
+      this.dragPollTimer = null
+    }
   }
 
   /**
-   * 拖拽中。renderer mousemove 时调用，setPosition 移动窗口。
-   */
-  dragTo(screenX: number, screenY: number): void {
-    if (!this.win || !this.dragging) return
-    const x = Math.round(screenX - this.dragOffset.x)
-    const y = Math.round(screenY - this.dragOffset.y)
-    this.win.setPosition(x, y)
-  }
-
-  /**
-   * 结束拖拽。renderer mouseup 时调用，持久化最终位置。
+   * 结束拖拽。renderer mouseup 时调用；若 mouseup 丢失，由轮询静止超时兜底。
    */
   endDrag(): void {
     if (!this.dragging) return
+    this.stopDrag()
+  }
+
+  private stopDrag(): void {
     this.dragging = false
-    if (!this.win) return
-    const bounds = this.win.getBounds()
-    saveCoachConfig({ position: { x: bounds.x, y: bounds.y } })
+    this.stopDragPoll()
+    if (this.win && !this.win.isDestroyed()) {
+      const bounds = this.win.getBounds()
+      saveCoachConfig({ position: { x: bounds.x, y: bounds.y } })
+    }
   }
 }
 
 function clamp(value: number, min: number, max: number): number {
   if (Number.isNaN(value)) return max
   return Math.min(max, Math.max(min, value))
+}
+
+/**
+ * 将窗口位置约束在屏幕工作区内，确保窗口完全可见。
+ * 若持久化位置在屏幕外（如之前拖拽 bug 导致 y=-1780），回退到默认右下角。
+ */
+function clampPosition(
+  pos: { x: number; y: number },
+  workArea: Electron.Rectangle,
+  width: number,
+  height: number,
+): { x: number; y: number } {
+  // 窗口必须完全在 workArea 内
+  const minX = workArea.x
+  const maxX = workArea.x + workArea.width - width
+  const minY = workArea.y
+  const maxY = workArea.y + workArea.height - height
+  // 若屏幕太小放不下，退回默认位置（由调用方计算）
+  if (maxX < minX || maxY < minY) {
+    return { x: workArea.x + workArea.width - width - 24, y: workArea.y + workArea.height - height - 24 }
+  }
+  return { x: Math.round(clamp(pos.x, minX, maxX)), y: Math.round(clamp(pos.y, minY, maxY)) }
 }

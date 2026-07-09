@@ -746,7 +746,6 @@ interface ElectronAPI {
   coachSetPetState: (state: CoachPetState) => Promise<boolean>
   coachToggleIgnoreMouseEvents: (ignore: boolean) => Promise<boolean>
   coachStartDrag: (screenX: number, screenY: number) => Promise<boolean>
-  coachDragTo: (screenX: number, screenY: number) => Promise<boolean>
   coachEndDrag: () => Promise<boolean>
   coachResetPosition: () => Promise<boolean>
   coachGetConfig: () => Promise<CoachConfig>

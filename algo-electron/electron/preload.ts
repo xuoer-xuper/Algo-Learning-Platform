@@ -161,7 +161,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   coachSetPetState: (state: CoachPetState) => ipcRenderer.invoke('coach:setPetState', state) as Promise<boolean>,
   coachToggleIgnoreMouseEvents: (ignore: boolean) => ipcRenderer.invoke('coach:toggleIgnoreMouseEvents', ignore) as Promise<boolean>,
   coachStartDrag: (screenX: number, screenY: number) => ipcRenderer.invoke('coach:startDrag', screenX, screenY) as Promise<boolean>,
-  coachDragTo: (screenX: number, screenY: number) => ipcRenderer.invoke('coach:dragTo', screenX, screenY) as Promise<boolean>,
   coachEndDrag: () => ipcRenderer.invoke('coach:endDrag') as Promise<boolean>,
   coachResetPosition: () => ipcRenderer.invoke('coach:resetPosition') as Promise<boolean>,
   coachGetConfig: () => ipcRenderer.invoke('coach:getConfig') as Promise<CoachConfig>,
