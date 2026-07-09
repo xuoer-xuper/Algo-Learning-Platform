@@ -119,8 +119,17 @@ export function registerCoachIpc(options: RegisterCoachIpcOptions): void {
   ipcMain.handle('coach:triggerHint', (_event, bubbleId?: string) => {
     const orchestrator = options.getCoachOrchestrator?.()
     if (!orchestrator) {
-      console.log('[coach] triggerHint (no orchestrator)', { bubbleId })
-      return { accepted: true, level: 1, note: '阶段 1 视觉壳：触发已收到，规则引擎在阶段 2 接入' }
+      // 阶段 1 演示：弹一个升级气泡，展示 Socratic Ladder 效果
+      const pet = requirePetWindow()
+      pet.setPetState('thinking')
+      pet.showBubble({
+        id: `demo-upgrade-${Date.now()}`,
+        title: '提示升级 · L2',
+        message: '检查这道题的边界条件：n=1 时是否单独处理？数据范围是否会导致溢出？',
+        source: 'local',
+        level: 2,
+      })
+      return { accepted: true, level: 2, note: '阶段 1 演示气泡' }
     }
     return orchestrator.requestHintUpgrade(bubbleId)
   })

@@ -55,28 +55,36 @@ export function CoachPet() {
   }
 
   const handleMouseDown = (e: React.MouseEvent) => {
-    // 仅左键触发拖拽
+    // 仅左键触发
     if (e.button !== 0) return
     e.preventDefault()
+    const startX = e.screenX
+    const startY = e.screenY
     dragStartedRef.current = true
     setDragging(true)
-    // 拖拽期间关闭穿透，保证 mouseup 能到达本窗口
+    // 拖拽期间关闭穿透
     void window.electronAPI.coachToggleIgnoreMouseEvents(false)
-    // 主进程接管：startDrag 后由主进程轮询移动窗口，renderer 无需发送 mousemove
+    // 主进程开始轮询移动窗口
     void window.electronAPI.coachStartDrag(e.screenX, e.screenY)
 
-    // mouseup 只需通知主进程停止；若 mouseup 丢失，主进程鼠标静止 500ms 自动兜底
-    const onUp = () => {
+    const onUp = (ev: Event) => {
       dragStartedRef.current = false
       setDragging(false)
       void window.electronAPI.coachEndDrag()
       document.removeEventListener('mouseup', onUp)
-      document.removeEventListener('blur', onUp)
-      // 拖拽结束恢复穿透；若鼠标仍在 pet-body 上，hover 状态会重新触发 mouseenter
+      window.removeEventListener('blur', onUp)
+      // 区分 click 和 drag：移动 < 4px 视为点击
+      const me = ev as MouseEvent
+      const dx = Math.abs((me.screenX ?? 0) - startX)
+      const dy = Math.abs((me.screenY ?? 0) - startY)
+      if (dx < 4 && dy < 4) {
+        // 点击桌宠 → 弹气泡
+        void window.electronAPI.coachTestHint()
+      }
+      // 恢复穿透
       void window.electronAPI.coachToggleIgnoreMouseEvents(true)
     }
     document.addEventListener('mouseup', onUp)
-    // 窗口失焦兜底（Alt+Tab 等）
     window.addEventListener('blur', onUp)
   }
 

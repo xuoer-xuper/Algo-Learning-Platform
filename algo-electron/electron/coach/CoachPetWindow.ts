@@ -231,9 +231,7 @@ export class CoachPetWindow {
     }
     const x = Math.round(cursor.x - this.dragOffset.x)
     const y = Math.round(cursor.y - this.dragOffset.y)
-    const workArea = screen.getPrimaryDisplay().workArea
-    const clamped = clampPosition({ x, y }, workArea, PET_WINDOW_WIDTH, PET_WINDOW_HEIGHT)
-    this.win.setPosition(clamped.x, clamped.y)
+    this.win.setPosition(x, y)
   }
 
   private stopDragPoll(): void {
