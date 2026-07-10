@@ -117,6 +117,7 @@ export function CoachBubble({ payload, autoDismissMs = 12000, onClose }: CoachBu
 
       <CoachActions
         bubbleId={payload.id}
+        level={payload.level}
         onTriggerHint={handleTriggerHint}
         onDismiss={handleDismiss}
         onNeverToday={handleNeverToday}

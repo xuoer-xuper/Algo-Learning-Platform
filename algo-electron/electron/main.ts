@@ -65,9 +65,15 @@ function createWindow() {
     if (input.type !== 'keyDown') return
     const isShift = input.shift
     const keyCode = input.key
-    // Ctrl+Shift+I 或 F12 打开/关闭 DevTools
+    // Ctrl+Shift+I 或 F12 打开/关闭 DevTools（undocked 独立窗口，避免被网页标签页遮挡）
     if ((input.control && isShift && keyCode === 'I') || keyCode === 'F12') {
-      win?.webContents.toggleDevTools()
+      const wc = win?.webContents
+      if (!wc) return
+      if (wc.isDevToolsOpened()) {
+        wc.closeDevTools()
+      } else {
+        wc.openDevTools({ mode: 'undocked' })
+      }
     }
   })
 

@@ -117,19 +117,49 @@ export function registerCoachIpc(options: RegisterCoachIpcOptions): void {
    * 若 orchestrator 未初始化，回退到阶段 1 行为。
    */
   ipcMain.handle('coach:triggerHint', (_event, bubbleId?: string) => {
-    const orchestrator = options.getCoachOrchestrator?.()
-    if (!orchestrator) {
-      // 阶段 1 演示：弹一个升级气泡，展示 Socratic Ladder 效果
+    // 演示/测试气泡走演示升级分支（不经过 orchestrator 规则引擎）
+    const isDemo = !bubbleId || bubbleId.startsWith('test-') || bubbleId.startsWith('demo-')
+    if (isDemo) {
+      // 从 bubbleId 解析当前等级（格式 demo-L{n}-xxx 或 test-xxx），升级到 n+1
+      const levelMatch = bubbleId?.match(/demo-L(\d+)/)
+      const currentLevel = levelMatch ? parseInt(levelMatch[1], 10) : 1
+      const nextLevel = Math.min(currentLevel + 1, 5)
+      if (nextLevel >= 5) {
+        return { accepted: false, level: 5, note: '已到最高等级' }
+      }
+      const demoHints: Record<number, { title: string; message: string }> = {
+        2: {
+          title: '提示升级 · L2',
+          message: '检查边界条件：n=1 时是否单独处理？数据范围是否会导致溢出？',
+        },
+        3: {
+          title: '提示升级 · L3',
+          message: '考虑数据结构：是否需要前缀和优化？单调栈/队列能否降低复杂度？',
+        },
+        4: {
+          title: '提示升级 · L4',
+          message: '算法方向：这题可能是二分答案/分治/贪心。尝试构造反例验证你的思路。',
+        },
+        5: {
+          title: '提示升级 · L5',
+          message: '这道题涉及【二分图匹配】概念。确认要查看吗？这可能接近题解方向。',
+        },
+      }
+      const hint = demoHints[nextLevel] ?? demoHints[2]
       const pet = requirePetWindow()
       pet.setPetState('thinking')
       pet.showBubble({
-        id: `demo-upgrade-${Date.now()}`,
-        title: '提示升级 · L2',
-        message: '检查这道题的边界条件：n=1 时是否单独处理？数据范围是否会导致溢出？',
+        id: `demo-L${nextLevel}-${Date.now()}`,
+        title: hint.title,
+        message: hint.message,
         source: 'local',
-        level: 2,
+        level: nextLevel,
       })
-      return { accepted: true, level: 2, note: '阶段 1 演示气泡' }
+      return { accepted: true, level: nextLevel, note: '演示气泡升级' }
+    }
+    const orchestrator = options.getCoachOrchestrator?.()
+    if (!orchestrator) {
+      return { accepted: false, level: 0, note: '规则引擎未初始化' }
     }
     return orchestrator.requestHintUpgrade(bubbleId)
   })

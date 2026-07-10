@@ -13,6 +13,8 @@ import './styles/bubble.css'
 export interface CoachActionsProps {
   /** 关联的气泡 id，用于反馈归因 */
   bubbleId?: string
+  /** 当前提示等级（Socratic Ladder L1-L6） */
+  level?: number
   /** "给一点提示"点击 */
   onTriggerHint: () => void
   /** "先不用"点击 */
@@ -21,15 +23,19 @@ export interface CoachActionsProps {
   onNeverToday: () => void
 }
 
-export function CoachActions({ bubbleId, onTriggerHint, onDismiss, onNeverToday }: CoachActionsProps) {
+export function CoachActions({ bubbleId, level = 1, onTriggerHint, onDismiss, onNeverToday }: CoachActionsProps) {
+  // L1 显示"给一点提示"，L2+ 显示"再给一点提示"，L5+ 显示"已是最深层级"（禁用）
+  const isMaxLevel = level >= 5
+  const triggerLabel = level <= 1 ? '给一点提示' : '再给一点提示'
   return (
     <div className="coach-actions" data-bubble-id={bubbleId ?? ''}>
       <button
         type="button"
         className="coach-action-btn coach-action-primary"
         onClick={onTriggerHint}
+        disabled={isMaxLevel}
       >
-        给一点提示
+        {isMaxLevel ? '已是最深层级' : triggerLabel}
       </button>
       <button
         type="button"

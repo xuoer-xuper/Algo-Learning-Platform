@@ -191,10 +191,14 @@ export class CoachPetWindow {
    */
   resetPosition(): void {
     const workArea = screen.getPrimaryDisplay().workArea
-    const x = workArea.x + workArea.width - PET_WINDOW_WIDTH - 24
-    const y = workArea.y + workArea.height - PET_WINDOW_HEIGHT - 24
-    this.win?.setPosition(Math.round(x), Math.round(y))
-    saveCoachConfig({ position: { x, y } })
+    const x = Math.round(workArea.x + workArea.width - PET_WINDOW_WIDTH - 24)
+    const y = Math.round(workArea.y + workArea.height - PET_WINDOW_HEIGHT - 24)
+    this.win?.setBounds({ x, y, width: PET_WINDOW_WIDTH, height: PET_WINDOW_HEIGHT })
+    // 保存实际窗口位置，避免 DPI 缩放导致计算值与实际不符
+    const actual = this.win?.getBounds()
+    if (actual) {
+      saveCoachConfig({ position: { x: actual.x, y: actual.y } })
+    }
   }
 
   // --- 拖拽支持（主进程轮询方案，彻底规避 renderer mouseup 丢失） ---
