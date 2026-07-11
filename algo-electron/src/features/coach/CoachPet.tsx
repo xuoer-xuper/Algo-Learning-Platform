@@ -64,8 +64,8 @@ export function CoachPet() {
     setDragging(true)
     // 拖拽期间关闭穿透
     void window.electronAPI.coachToggleIgnoreMouseEvents(false)
-    // 主进程开始轮询移动窗口
-    void window.electronAPI.coachStartDrag(e.screenX, e.screenY)
+    // 主进程开始轮询移动窗口（坐标由主进程 getCursorScreenPoint 统一获取，避免 DPI 偏移）
+    void window.electronAPI.coachStartDrag()
 
     const onUp = (ev: Event) => {
       dragStartedRef.current = false
@@ -116,7 +116,7 @@ export function CoachPet() {
             <circle
               cx="0"
               cy="0"
-              r="78"
+              r="65"
               fill="none"
               stroke="var(--pet-primary)"
               strokeWidth="0.5"
@@ -128,10 +128,10 @@ export function CoachPet() {
             <g className="pet-particle-ring">
               {Array.from({ length: 12 }).map((_, i) => {
                 const angle = (i / 12) * Math.PI * 2
-                const radius = 70
+                const radius = 52
                 const cx = radius * Math.cos(angle)
                 const cy = radius * Math.sin(angle)
-                const r = i % 3 === 0 ? 3 : 1.8
+                const r = i % 3 === 0 ? 2.5 : 1.5
                 return (
                   <circle
                     key={i}

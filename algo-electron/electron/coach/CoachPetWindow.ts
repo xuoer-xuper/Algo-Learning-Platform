@@ -27,15 +27,14 @@ export interface CoachPetWindowOptions {
   rendererDist: string
 }
 
-const PET_WINDOW_WIDTH = 320
-const PET_WINDOW_HEIGHT = 360
+const PET_WINDOW_WIDTH = 400
+const PET_WINDOW_HEIGHT = 480
 
 export class CoachPetWindow {
   private win: BrowserWindow | null = null
   private readonly options: CoachPetWindowOptions
   private currentState: CoachPetState = 'idle'
   private dragging = false
-  private dragOffset = { x: 0, y: 0 }
   private dragPollTimer: NodeJS.Timeout | null = null
   private lastCursorPos = { x: 0, y: 0 }
   private lastCursorMoveTime = 0
@@ -193,27 +192,30 @@ export class CoachPetWindow {
     const workArea = screen.getPrimaryDisplay().workArea
     const x = Math.round(workArea.x + workArea.width - PET_WINDOW_WIDTH - 24)
     const y = Math.round(workArea.y + workArea.height - PET_WINDOW_HEIGHT - 24)
-    this.win?.setBounds({ x, y, width: PET_WINDOW_WIDTH, height: PET_WINDOW_HEIGHT })
-    // 保存实际窗口位置，避免 DPI 缩放导致计算值与实际不符
-    const actual = this.win?.getBounds()
-    if (actual) {
-      saveCoachConfig({ position: { x: actual.x, y: actual.y } })
+    this.win?.setPosition(x, y)
+    // 用 getPosition 保存实际窗口位置，与拖拽逻辑同源
+    if (this.win && !this.win.isDestroyed()) {
+      const [px, py] = this.win.getPosition()
+      saveCoachConfig({ position: { x: px, y: py } })
     }
   }
 
-  // --- 拖拽支持（主进程轮询方案，彻底规避 renderer mouseup 丢失） ---
+  // --- 拖拽支持（主进程增量轮询方案，彻底规避 renderer mouseup 丢失 + DPI 坐标系混合问题） ---
 
   /**
-   * 开始拖拽。renderer mousedown 时调用一次，传入屏幕坐标。
-   * 主进程启动 16ms 间隔轮询，持续读取屏幕鼠标坐标移动窗口。
-   * renderer 不再需要发送 mousemove/mouseup，彻底绕开事件丢失。
+   * 开始拖拽。renderer mousedown 时调用一次。
+   *
+   * 增量移动方案：每次 pollDrag 计算鼠标 delta，用 win.getPosition() + delta + win.setPosition() 移动窗口。
+   * 这样做的好处：
+   * 1. 鼠标不动时 delta=0，窗口绝对不动（解决"长按下移/右移"）
+   * 2. getPosition 和 setPosition 同源 API，坐标系一致，不混合 getCursorScreenPoint 和 getBounds 的坐标系
+   * 3. 避免了 getBounds() 在 transparent 窗口上可能返回不准确位置的问题
    */
-  startDrag(screenX: number, screenY: number): void {
+  startDrag(): void {
     if (!this.win || this.dragging) return
     this.dragging = true
-    const bounds = this.win.getBounds()
-    this.dragOffset = { x: screenX - bounds.x, y: screenY - bounds.y }
-    this.lastCursorPos = { x: screenX, y: screenY }
+    const cursor = screen.getCursorScreenPoint()
+    this.lastCursorPos = { x: cursor.x, y: cursor.y }
     this.lastCursorMoveTime = Date.now()
     this.stopDragPoll()
     this.dragPollTimer = setInterval(() => this.pollDrag(), 16)
@@ -226,16 +228,19 @@ export class CoachPetWindow {
     }
     const cursor = screen.getCursorScreenPoint()
     // 鼠标静止超过 500ms 判定为已松手（兜底 mouseup 丢失）
-    if (cursor.x !== this.lastCursorPos.x || cursor.y !== this.lastCursorPos.y) {
-      this.lastCursorPos = { x: cursor.x, y: cursor.y }
-      this.lastCursorMoveTime = Date.now()
-    } else if (Date.now() - this.lastCursorMoveTime > 500) {
-      this.stopDrag()
+    if (cursor.x === this.lastCursorPos.x && cursor.y === this.lastCursorPos.y) {
+      if (Date.now() - this.lastCursorMoveTime > 500) {
+        this.stopDrag()
+      }
       return
     }
-    const x = Math.round(cursor.x - this.dragOffset.x)
-    const y = Math.round(cursor.y - this.dragOffset.y)
-    this.win.setPosition(x, y)
+    // 增量移动：用鼠标 delta 移动窗口，getPosition/setPosition 同源避免坐标系混合
+    const dx = cursor.x - this.lastCursorPos.x
+    const dy = cursor.y - this.lastCursorPos.y
+    const [winX, winY] = this.win.getPosition()
+    this.win.setPosition(winX + dx, winY + dy)
+    this.lastCursorPos = { x: cursor.x, y: cursor.y }
+    this.lastCursorMoveTime = Date.now()
   }
 
   private stopDragPoll(): void {
@@ -257,8 +262,9 @@ export class CoachPetWindow {
     this.dragging = false
     this.stopDragPoll()
     if (this.win && !this.win.isDestroyed()) {
-      const bounds = this.win.getBounds()
-      saveCoachConfig({ position: { x: bounds.x, y: bounds.y } })
+      // 用 getPosition 与拖拽逻辑同源，避免 getBounds 在 transparent 窗口上的偏差
+      const [x, y] = this.win.getPosition()
+      saveCoachConfig({ position: { x, y } })
     }
   }
 }

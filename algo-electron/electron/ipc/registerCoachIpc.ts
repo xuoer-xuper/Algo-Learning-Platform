@@ -50,8 +50,8 @@ export function registerCoachIpc(options: RegisterCoachIpcOptions): void {
     return true
   })
 
-  ipcMain.handle('coach:startDrag', (_event, screenX: number, screenY: number) => {
-    requirePetWindow().startDrag(screenX, screenY)
+  ipcMain.handle('coach:startDrag', () => {
+    requirePetWindow().startDrag()
     return true
   })
 

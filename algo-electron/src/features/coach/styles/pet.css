@@ -17,10 +17,6 @@
   inset: 0;
   width: 100%;
   height: 100%;
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
-  padding-bottom: 24px;
   /* CSS 变量由 [data-pet-state] 设置 */
   --pet-primary: #22d3ee;
   --pet-accent: #67e8f9;
@@ -43,10 +39,12 @@ html, body, #root {
  * 注意：透明窗口默认点击穿透，本区域 hover 时 renderer 通过 IPC 临时关闭穿透。
  */
 .pet-body {
-  position: relative;
+  position: absolute;
+  bottom: 24px;
+  left: 50%;
   width: 180px;
   height: 180px;
-  transform: scale(var(--pet-scale, 1));
+  transform: translateX(-50%) scale(var(--pet-scale, 1));
   transform-origin: center bottom;
   cursor: grab;
   user-select: none;
@@ -68,7 +66,7 @@ html, body, #root {
   width: 100%;
   height: 100%;
   display: block;
-  overflow: visible;
+  overflow: hidden;
 }
 
 .pet-svg-glow {
@@ -109,6 +107,10 @@ html, body, #root {
  * 外圈粒子点阵，按 N 等分旋转。每个粒子是一个小圆点。
  */
 .pet-particle-ring {
+  /* transform-box: fill-box 让 transform-origin: center 解析为元素自身 bounding box 中心，
+   * 而不是 SVG viewBox 中心或 (0,0) 原点。粒子环 bounding box 中心即桌宠中心 (0,0)，
+   * 确保旋转中心锁定在桌宠身上，不会偏心导致一半粒子超出窗口。 */
+  transform-box: fill-box;
   transform-origin: center;
   animation: pet-particle-rotate var(--pet-particle-duration, 12s) linear infinite;
 }

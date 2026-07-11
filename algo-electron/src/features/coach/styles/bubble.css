@@ -15,7 +15,7 @@
   bottom: 220px; /* 桌宠本体 180px + 间距 40px */
   left: 50%;
   transform: translateX(-50%);
-  width: 280px;
+  width: 340px;
   max-width: 90vw;
   padding: 14px 14px 12px;
   background: rgba(15, 23, 42, 0.92); /* slate-900 with alpha */
@@ -135,7 +135,7 @@
 
 .coach-action-btn {
   flex: 1;
-  min-width: 70px;
+  min-width: 60px;
   padding: 6px 8px;
   font-size: 11px;
   font-weight: 500;
