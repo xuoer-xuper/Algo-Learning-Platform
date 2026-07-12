@@ -1,6 +1,6 @@
+import { exportAIContext, renderContextAsMarkdown } from '../../ai/contextExporter'
 import { getProblemDetail } from '../../db/repositories/problemRepository'
 import { getSubmissionsByProblemAsc } from '../../db/repositories/submissionRepository'
-import { getLatestSnapshotWithContext } from '../../db/repositories/aiContextSnapshotRepository'
 import type { ProblemSession } from '../types'
 import type { ProblemConstraints } from '../problemFacts/ConstraintParser'
 import type { CoachEvent, CoachInterventionLevel } from '../types'
@@ -10,12 +10,15 @@ import type { LlmHintRequestContext } from './LlmHintTypes'
  * 上下文数据采集器。
  *
  * 从数据库 + 内存会话状态中聚合 LLM 需要的上下文：
- * - 题目信息（problems 表 + 当前 constraints 缓存）
+ * - 题目信息（problems 表 + 当前 constraints 缓存 + URL）
  * - 会话状态（ProblemSessionTracker）
  * - 提交历史（submissions 表，最近 10 条）
  * - 用户画像（ai_context_snapshots 最新快照）
+ * - 完整学习者画像 Markdown（exportAIContext + renderContextAsMarkdown）
+ *   含错题、待复习、标签统计、趋势、最近活动
  *
- * 采集失败时静默降级（返回部分数据），由 LlmHintService 决定是否继续调用。
+ * session 为 null 时返回默认上下文（空题目 + 用户画像 + 学习者画像），
+ * 确保 LLM 即使在未打开题目时也能正常对话。
  */
 export class ContextGatherer {
   /**
@@ -26,6 +29,7 @@ export class ContextGatherer {
    * @param constraints 当前题目约束（可能为 null）
    * @param targetLevel 目标提示等级
    * @param userExplicitAsk 用户是否主动请求更深提示
+   * @param problemUrl 当前题目 URL（可能为 null）
    */
   collect(
     event: CoachEvent,
@@ -33,9 +37,39 @@ export class ContextGatherer {
     constraints: ProblemConstraints | null,
     targetLevel: CoachInterventionLevel,
     userExplicitAsk: boolean,
-  ): LlmHintRequestContext | null {
+    problemUrl?: string | null,
+  ): LlmHintRequestContext {
+    // 采集完整学习者画像 Markdown（含错题/待复习/标签统计/趋势）
+    const learnerProfileMd = this.loadLearnerProfileMarkdown()
+
+    // session 为 null 时返回默认上下文（仍可对话）
     if (!session) {
-      return null
+      return {
+        problem: {
+          platform: '',
+          problem_id: '',
+          title: '',
+          difficulty: null,
+          statement: null,
+          constraints: null,
+          tags: [],
+          url: problemUrl ?? null,
+        },
+        session: {
+          attempt_duration_sec: 0,
+          active_seconds: 0,
+          detected_stuck_level: 'reading',
+          phase: 'idle',
+        },
+        submissions: [],
+        learner_profile_md: learnerProfileMd,
+        hint_request: {
+          target_level: targetLevel,
+          event_type: event.event_type,
+          user_explicit_ask: userExplicitAsk,
+          verdict: event.evidence.verdict,
+        },
+      }
     }
 
     // 1. 题目信息
@@ -44,10 +78,11 @@ export class ContextGatherer {
       platform: session.platform,
       problem_id: session.platform_problem_id,
       title: problem?.title ?? session.platform_problem_id,
-      difficulty: null as string | null, // ProblemDetailRecord 暂无 difficulty 字段
-      statement: null, // 题面不存储在 DB，由 LLM 根据题目 ID 自行推断或后续扩展抓取
+      difficulty: null as string | null,
+      statement: null,
       constraints,
-      tags: [] as string[], // 题目标签（如有 tags 表则查询，当前留空）
+      tags: [] as string[],
+      url: problemUrl ?? problem?.canonical_url ?? null,
     }
 
     // 2. 会话状态
@@ -70,9 +105,6 @@ export class ContextGatherer {
       }
     }
 
-    // 4. 用户画像（来自最新 AI 上下文快照）
-    const userProfile = this.loadUserProfile()
-
     return {
       problem: problemInfo,
       session: {
@@ -82,7 +114,7 @@ export class ContextGatherer {
         phase: session.phase,
       },
       submissions,
-      user_profile: userProfile,
+      learner_profile_md: learnerProfileMd,
       hint_request: {
         target_level: targetLevel,
         event_type: event.event_type,
@@ -102,48 +134,18 @@ export class ContextGatherer {
   }
 
   /**
-   * 加载用户画像（来自最新 AI 上下文快照）。
-   * 快照不存在或解析失败时返回默认值。
+   * 加载完整学习者画像 Markdown。
+   *
+   * 调用 exportAIContext() 获取完整上下文（含概览/趋势/错题/待复习/标签统计/最近活动），
+   * 再用 renderContextAsMarkdown() 渲染为 Markdown 文本。
+   * 失败时返回空字符串。
    */
-  private loadUserProfile(): LlmHintRequestContext['user_profile'] {
-    const defaultProfile = {
-      total_solved: 0,
-      total_submissions: 0,
-      ac_rate: 0,
-      weak_tags: [] as string[],
-      recent_streak_days: 0,
-    }
-
+  private loadLearnerProfileMarkdown(): string {
     try {
-      const snapshot = getLatestSnapshotWithContext()
-      if (!snapshot) return defaultProfile
-
-      const ctx = typeof snapshot.context_json === 'string'
-        ? JSON.parse(snapshot.context_json)
-        : snapshot.context_json
-
-      const overview = ctx?.overview ?? {}
-      const tagStats = ctx?.tag_stats ?? []
-      const weakTags = Array.isArray(tagStats)
-        ? tagStats
-            .filter((t: any) => {
-              const total = t.total ?? 0
-              const ac = t.ac ?? 0
-              return total > 0 && ac / total < 0.7
-            })
-            .map((t: any) => t.tag)
-            .slice(0, 10)
-        : []
-
-      return {
-        total_solved: overview.total_ac ?? overview.total_solved ?? 0,
-        total_submissions: overview.total_submissions ?? 0,
-        ac_rate: overview.ac_rate ?? 0,
-        weak_tags: weakTags,
-        recent_streak_days: overview.recent_streak_days ?? 0,
-      }
+      const ctx = exportAIContext()
+      return renderContextAsMarkdown(ctx)
     } catch {
-      return defaultProfile
+      return ''
     }
   }
 }

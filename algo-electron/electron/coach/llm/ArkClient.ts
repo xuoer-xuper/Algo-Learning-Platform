@@ -116,6 +116,45 @@ export class ArkClient {
   }
 
   /**
+   * 调用 chat completions，返回纯文本（用于自由聊天场景）。
+   */
+  async chatText(messages: ChatMessage[], options: ArkChatOptions): Promise<{
+    content: string
+    model: string
+    tokens_input: number
+    tokens_output: number
+    latency_ms: number
+  }> {
+    if (!this.client || !this.config) {
+      throw new Error('ArkClient not initialized')
+    }
+
+    const startTime = Date.now()
+    const temperature = options.temperature ?? 0.5
+    const maxTokens = options.max_tokens ?? 2048
+
+    const completion = (await this.client.chat.completions.create({
+      model: this.config.model,
+      messages,
+      temperature,
+      max_tokens: maxTokens,
+      stream: false,
+      thinking: { type: 'disabled' },
+    } as any)) as ChatCompletion
+
+    const latencyMs = Date.now() - startTime
+    const content = completion.choices[0]?.message?.content ?? ''
+
+    return {
+      content,
+      model: completion.model ?? this.config.model,
+      tokens_input: completion.usage?.prompt_tokens ?? 0,
+      tokens_output: completion.usage?.completion_tokens ?? 0,
+      latency_ms: latencyMs,
+    }
+  }
+
+  /**
    * 测试连接：发送一个最小请求验证 API Key 和模型可用。
    */
   async testConnection(config: LlmConfig): Promise<LlmConnectionTestResult> {

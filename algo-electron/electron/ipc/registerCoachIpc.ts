@@ -200,6 +200,52 @@ export function registerCoachIpc(options: RegisterCoachIpcOptions): void {
     })
   })
 
+  /** 关闭免责声明（permanent=true 永久关闭） */
+  ipcMain.handle('coach:dismissDisclaimer', (_event, permanent: boolean) => {
+    const orchestrator = options.getCoachOrchestrator?.()
+    if (!orchestrator) {
+      options.getCoachPetWindow()?.dismissBubble()
+      return true
+    }
+    orchestrator.dismissDisclaimer(permanent)
+    return true
+  })
+
+  /** 点击桌宠：返回是否应打开聊天面板 */
+  ipcMain.handle('coach:petClick', () => {
+    const o = options.getCoachOrchestrator?.()
+    if (!o) return { shouldOpenChat: false, llmEnabled: false }
+    return {
+      shouldOpenChat: o.getLlmHintService().isReady(),
+      llmEnabled: o.getLlmHintService().isReady(),
+    }
+  })
+
+  /** 自由聊天：发送用户消息，获取 LLM 回复 */
+  ipcMain.handle('coach:chat', async (_event, params: {
+    message: string
+    history?: Array<{ role: 'user' | 'assistant'; content: string }>
+  }) => {
+    const o = options.getCoachOrchestrator?.()
+    if (!o) return { reply: '', success: false, error: 'Coach 未初始化' }
+    const reply = await o.chatWithLlm(params.message, params.history)
+    if (reply === null) {
+      return { reply: '', success: false, error: 'LLM 调用失败或未启用' }
+    }
+    return { reply, success: true }
+  })
+
+  /** 请求针对当前题目的提示 */
+  ipcMain.handle('coach:requestHint', async () => {
+    const o = options.getCoachOrchestrator?.()
+    if (!o) return { message: '', success: false, error: 'Coach 未初始化' }
+    const message = await o.requestHintFromLlm()
+    if (message === null) {
+      return { message: '', success: false, error: 'LLM 调用失败或未启用' }
+    }
+    return { message, success: true }
+  })
+
   // --- 阶段 2 新增 channel ---
 
   /** 当前 Coach 服务运行时状态快照（会话/比赛模式/桌宠状态/屏蔽类型） */
@@ -311,8 +357,13 @@ export function registerCoachIpc(options: RegisterCoachIpcOptions): void {
   }) => {
     const o = options.getCoachOrchestrator?.()
     if (!o) return { success: false, message: 'Coach 未初始化' }
+    // 前端传了 Key 就用前端的，否则用已保存的
+    const apiKey = config.api_key || o.getLlmHintService().getDecryptedApiKey()
+    if (!apiKey) {
+      return { success: false, message: '未配置 API Key' }
+    }
     return o.getLlmHintService().testConnection({
-      api_key: config.api_key,
+      api_key: apiKey,
       base_url: config.base_url,
       model: config.model,
       enabled: true,

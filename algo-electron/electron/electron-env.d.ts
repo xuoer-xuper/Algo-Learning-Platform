@@ -779,6 +779,10 @@ interface ElectronAPI {
   coachTriggerHint: (bubbleId?: string) => Promise<{ accepted: boolean; level: number; note?: string; interventionId?: string }>
   coachDismissHint: (bubbleId?: string) => Promise<boolean>
   coachFeedback: (feedback: { bubbleId?: string; interventionId?: string; type: CoachFeedbackType }) => Promise<boolean>
+  coachDismissDisclaimer: (permanent: boolean) => Promise<boolean>
+  coachPetClick: () => Promise<{ shouldOpenChat: boolean; llmEnabled: boolean }>
+  coachChat: (params: { message: string; history?: Array<{ role: 'user' | 'assistant'; content: string }> }) => Promise<{ reply: string; success: boolean; error?: string }>
+  coachRequestHint: () => Promise<{ message: string; success: boolean; error?: string }>
   coachGetWorkArea: () => Promise<{ x: number; y: number; width: number; height: number }>
 
   // 阶段 2：规则引擎 + 比赛模式 + 审计日志

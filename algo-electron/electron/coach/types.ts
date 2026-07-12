@@ -44,6 +44,8 @@ export interface CoachBubblePayload {
   eventId?: string
   /** 可选的提示等级（阶段 3 Socratic Ladder 用，阶段 1 默认 1） */
   level?: number
+  /** 气泡类型：hint=提示气泡，disclaimer=免责声明气泡 */
+  bubble_type?: 'hint' | 'disclaimer'
 }
 
 /**

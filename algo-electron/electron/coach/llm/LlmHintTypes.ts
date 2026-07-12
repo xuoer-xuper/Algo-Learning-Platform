@@ -13,7 +13,7 @@ import type { ProblemConstraints } from '../problemFacts/ConstraintParser'
 
 /** 发送给 LLM 的完整上下文（脱敏后） */
 export interface LlmHintRequestContext {
-  /** 题目信息 */
+  /** 题目信息（session 为 null 时为默认空值） */
   problem: {
     platform: string
     problem_id: string
@@ -22,8 +22,10 @@ export interface LlmHintRequestContext {
     statement?: string | null
     constraints?: ProblemConstraints | null
     tags?: string[]
+    /** 题目链接 */
+    url?: string | null
   }
-  /** 当前会话状态 */
+  /** 当前会话状态（session 为 null 时为默认值） */
   session: {
     attempt_duration_sec: number
     active_seconds: number
@@ -37,14 +39,8 @@ export interface LlmHintRequestContext {
     runtime_ms?: number | null
     submitted_at: string
   }>
-  /** 用户画像（全局，来自 ai_context_snapshots） */
-  user_profile: {
-    total_solved: number
-    total_submissions: number
-    ac_rate: number
-    weak_tags: string[]
-    recent_streak_days: number
-  }
+  /** 完整学习者画像 Markdown（来自 renderContextAsMarkdown，含错题/待复习/标签统计/趋势） */
+  learner_profile_md: string
   /** 当前请求的提示等级 */
   hint_request: {
     target_level: CoachInterventionLevel

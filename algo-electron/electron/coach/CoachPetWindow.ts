@@ -28,7 +28,7 @@ export interface CoachPetWindowOptions {
 }
 
 const PET_WINDOW_WIDTH = 400
-const PET_WINDOW_HEIGHT = 480
+const PET_WINDOW_HEIGHT = 640
 
 export class CoachPetWindow {
   private win: BrowserWindow | null = null

@@ -18,6 +18,8 @@ export interface CoachConfig {
   opacity: number
   /** LLM 配置（API Key 加密存储，其余明文） */
   llm?: CoachLlmConfig
+  /** 是否永久关闭"仅供参考"免责声明 */
+  disclaimer_dismissed?: boolean
 }
 
 /** LLM 配置（存储在 config.json 的 coach.llm 字段） */

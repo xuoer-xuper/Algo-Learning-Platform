@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { CoachBubble } from './CoachBubble'
+import { CoachChatPanel } from './CoachChatPanel'
 import { PET_STATES, type PetState } from './petStates'
 import './styles/pet.css'
 
@@ -20,6 +21,7 @@ export function CoachPet() {
   const [state, setState] = useState<PetState>('idle')
   const [config, setConfig] = useState<CoachConfig | null>(null)
   const [bubble, setBubble] = useState<CoachBubblePayload | null>(null)
+  const [chatPanelOpen, setChatPanelOpen] = useState(false)
   const [dragging, setDragging] = useState(false)
   const dragStartedRef = useRef(false)
 
@@ -78,8 +80,12 @@ export function CoachPet() {
       const dx = Math.abs((me.screenX ?? 0) - startX)
       const dy = Math.abs((me.screenY ?? 0) - startY)
       if (dx < 4 && dy < 4) {
-        // 点击桌宠 → 弹气泡
-        void window.electronAPI.coachTestHint()
+        // 点击桌宠 → 如果 LLM 启用则打开聊天面板
+        void window.electronAPI.coachPetClick().then((result) => {
+          if (result.shouldOpenChat) {
+            setChatPanelOpen(true)
+          }
+        })
       }
       // 恢复穿透
       void window.electronAPI.coachToggleIgnoreMouseEvents(true)
@@ -168,7 +174,10 @@ export function CoachPet() {
         </svg>
       </div>
 
-      {bubble && (
+      {chatPanelOpen && (
+        <CoachChatPanel onClose={() => setChatPanelOpen(false)} />
+      )}
+      {!chatPanelOpen && bubble && (
         <CoachBubble
           payload={bubble}
           onClose={handleBubbleClose}

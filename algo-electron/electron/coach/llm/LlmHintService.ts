@@ -1,9 +1,11 @@
+import crypto from 'node:crypto'
 import type { CoachEvent, CoachInterventionLevel, ProblemSession } from '../types'
 import type { ProblemConstraints } from '../problemFacts/ConstraintParser'
+import { nowBeijing } from '../../shared/time'
 import { ArkClient } from './ArkClient'
 import { LlmConfigStore } from './LlmConfigStore'
 import { ContextGatherer } from './ContextGatherer'
-import { buildHintPrompt } from './PromptBuilder'
+import { buildHintPrompt, buildChatPrompt } from './PromptBuilder'
 import type { LlmHintResult, LlmConfig, LlmConnectionTestResult } from './LlmHintTypes'
 
 /**
@@ -19,13 +21,8 @@ import type { LlmHintResult, LlmConfig, LlmConnectionTestResult } from './LlmHin
  *
  * 缓存策略：
  *   同题同等级 5 分钟内复用上一次 LLM 响应，减少 80% API 调用。
- *
- * 熔断策略：
- *   连续 3 次 LLM 失败，5 分钟内直接返回 null，避免网络抖动时全程卡顿。
  */
 const CACHE_TTL_MS = 5 * 60 * 1000      // 缓存 5 分钟
-const CIRCUIT_BREAK_THRESHOLD = 3        // 连续失败 3 次熔断
-const CIRCUIT_BREAK_COOLDOWN_MS = 5 * 60 * 1000  // 熔断冷却 5 分钟
 
 interface CacheEntry {
   result: LlmHintResult
@@ -41,10 +38,6 @@ export class LlmHintService {
 
   /** 缓存：key = `${problemId}:${level}` */
   private cache = new Map<string, CacheEntry>()
-
-  /** 熔断状态 */
-  private consecutiveFailures = 0
-  private circuitBreakUntil = 0
 
   constructor() {
     this.arkClient = new ArkClient()
@@ -105,6 +98,13 @@ export class LlmHintService {
   }
 
   /**
+   * 获取明文 API Key（仅供 testConnection 使用，不暴露给渲染进程）。
+   */
+  getDecryptedApiKey(): string {
+    return this.configStore.load().api_key
+  }
+
+  /**
    * 生成 LLM 提示。
    *
    * @returns LlmHintResult 成功；null 表示未启用/采集失败/调用失败（调用方应降级到本地模板）
@@ -115,13 +115,11 @@ export class LlmHintService {
     constraints: ProblemConstraints | null
     targetLevel: CoachInterventionLevel
     userExplicitAsk: boolean
+    problemUrl?: string | null
   }): Promise<LlmHintResult | null> {
     if (!this.isReady()) return null
 
-    // 熔断检查
-    if (this.isCircuitBroken()) return null
-
-    const { event, session, constraints, targetLevel, userExplicitAsk } = params
+    const { event, session, constraints, targetLevel, userExplicitAsk, problemUrl } = params
 
     // 采集上下文
     const ctx = this.contextGatherer.collect(
@@ -130,6 +128,7 @@ export class LlmHintService {
       constraints,
       targetLevel,
       userExplicitAsk,
+      problemUrl,
     )
     if (!ctx) return null
 
@@ -170,19 +169,9 @@ export class LlmHintService {
       // 缓存结果
       this.cache.set(cacheKey, { result: hintResult, timestamp: Date.now() })
 
-      // 重置熔断计数
-      this.consecutiveFailures = 0
-
       return hintResult
     } catch (err) {
       console.warn('[llm] generateHint failed:', err)
-      this.consecutiveFailures++
-      if (this.consecutiveFailures >= CIRCUIT_BREAK_THRESHOLD) {
-        this.circuitBreakUntil = Date.now() + CIRCUIT_BREAK_COOLDOWN_MS
-        console.warn(
-          `[llm] circuit breaker activated, cooldown ${CIRCUIT_BREAK_COOLDOWN_MS / 1000}s`,
-        )
-      }
       return null
     }
   }
@@ -192,6 +181,106 @@ export class LlmHintService {
    */
   async testConnection(config: LlmConfig): Promise<LlmConnectionTestResult> {
     return this.arkClient.testConnection(config)
+  }
+
+  /**
+   * 构造 stub event（聊天/请求提示场景没有真实的 CoachEvent）。
+   */
+  private buildStubEvent(session: ProblemSession | null): CoachEvent {
+    return {
+      event_id: crypto.randomUUID(),
+      session_id: session?.session_id ?? null,
+      event_type: 'multiple_wrong',
+      severity: 'warn',
+      score: 50,
+      problem_id: session?.problem_id ?? null,
+      platform: session?.platform ?? null,
+      evidence: {},
+      created_at: nowBeijing(),
+    }
+  }
+
+  /**
+   * 自由聊天：用户输入消息，LLM 返回文本回复。
+   */
+  async chat(params: {
+    userMessage: string
+    session: ProblemSession | null
+    constraints: ProblemConstraints | null
+    history?: Array<{ role: 'user' | 'assistant'; content: string }>
+    problemUrl?: string | null
+  }): Promise<string | null> {
+    if (!this.isReady()) return null
+
+    const { userMessage, session, constraints, history, problemUrl } = params
+
+    const stubEvent = this.buildStubEvent(session)
+
+    // 采集上下文
+    const ctx = this.contextGatherer.collect(
+      stubEvent,
+      session,
+      constraints,
+      1,
+      true,
+      problemUrl,
+    )
+
+    // 构建聊天 messages
+    const messages = buildChatPrompt(ctx, userMessage, history)
+
+    try {
+      const result = await this.arkClient.chatText(messages, {
+        target_level: 1,
+        disable_thinking: true,
+        temperature: 0.5,
+        max_tokens: 2048,
+      })
+      return result.content
+    } catch (err) {
+      console.warn('[llm] chat failed:', err)
+      return null
+    }
+  }
+
+  /**
+   * 请求针对当前题目的提示（用户点击"给点提示"时调用）。
+   */
+  async requestHint(params: {
+    session: ProblemSession | null
+    constraints: ProblemConstraints | null
+    targetLevel?: CoachInterventionLevel
+    problemUrl?: string | null
+  }): Promise<string | null> {
+    if (!this.isReady()) return null
+
+    const { session, constraints, targetLevel = 1, problemUrl } = params
+
+    const stubEvent = this.buildStubEvent(session)
+
+    const ctx = this.contextGatherer.collect(
+      stubEvent,
+      session,
+      constraints,
+      targetLevel,
+      true,
+      problemUrl,
+    )
+
+    const messages = buildHintPrompt(ctx)
+
+    try {
+      const result = await this.arkClient.chat(messages, {
+        target_level: targetLevel,
+        disable_thinking: true,
+        temperature: 0.3,
+        max_tokens: 1024,
+      })
+      return result.response.message
+    } catch (err) {
+      console.warn('[llm] requestHint failed:', err)
+      return null
+    }
   }
 
   /**
@@ -208,16 +297,5 @@ export class LlmHintService {
   saveConfig(partial: Partial<Pick<LlmConfig, 'base_url' | 'model' | 'enabled'>>): void {
     this.configStore.saveConfig(partial)
     this.reloadConfig()
-  }
-
-  // --- 内部 ---
-
-  private isCircuitBroken(): boolean {
-    if (this.circuitBreakUntil === 0) return false
-    if (Date.now() < this.circuitBreakUntil) return true
-    // 冷却结束，重置
-    this.circuitBreakUntil = 0
-    this.consecutiveFailures = 0
-    return false
   }
 }

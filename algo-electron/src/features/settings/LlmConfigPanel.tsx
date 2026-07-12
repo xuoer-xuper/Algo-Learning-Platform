@@ -4,13 +4,6 @@ import { loadLlmConfig, saveLlmApiKey, saveLlmConfig, testLlmConnection } from '
 const DEFAULT_BASE_URL = 'https://ark.cn-beijing.volces.com/api/v3'
 const DEFAULT_MODEL = 'doubao-seed-1-6-flash-250715'
 
-const MODEL_OPTIONS = [
-  { value: 'doubao-seed-1-6-flash-250715', label: 'Doubao Seed 1.6 Flash（推荐，性价比最高）' },
-  { value: 'doubao-seed-1-6-250615', label: 'Doubao Seed 1.6（推理更强）' },
-  { value: 'doubao-1-5-pro-32k-250115', label: 'Doubao 1.5 Pro 32K（短上下文）' },
-  { value: 'doubao-seed-1-6-pro-250615', label: 'Doubao Seed 1.6 Pro（旗舰）' },
-]
-
 export function LlmConfigPanel() {
   const [status, setStatus] = useState<LlmConfigStatus | null>(null)
   const [apiKeyInput, setApiKeyInput] = useState('')
@@ -57,10 +50,9 @@ export function LlmConfigPanel() {
     flashSaved()
   }
 
-  const handleToggleEnabled = async () => {
-    const next = !enabled
-    setEnabled(next)
-    await handleSaveConfig({ enabled: next })
+  const handleToggleEnabled = async (checked: boolean) => {
+    setEnabled(checked)
+    await handleSaveConfig({ enabled: checked })
   }
 
   const handleTestConnection = async () => {
@@ -98,20 +90,21 @@ export function LlmConfigPanel() {
       </h3>
 
       <div className="settings-row">
-        <div className="settings-label-row">
-          <label className="settings-label">启用 LLM 提示</label>
+        <label className="settings-label">
           <input
             type="checkbox"
             checked={enabled}
-            onChange={() => void handleToggleEnabled()}
+            onChange={(e) => void handleToggleEnabled(e.target.checked)}
             disabled={!status?.has_key}
           />
-        </div>
-        <div className="settings-hint-text">
-          {status?.has_key
-            ? `当前 Key: ${status.key_masked}`
-            : '未配置 API Key，请先填写并保存'}
-        </div>
+          <span>启用 LLM 提示{!status?.has_key ? '（需先配置 API Key）' : ''}</span>
+        </label>
+      </div>
+
+      <div className="settings-row settings-hint-text">
+        {status?.has_key
+          ? `当前 Key: ${status.key_masked}`
+          : '未配置 API Key，请先填写并保存'}
       </div>
 
       <div className="settings-row">
@@ -133,21 +126,15 @@ export function LlmConfigPanel() {
       </div>
 
       <div className="settings-row">
-        <label className="settings-label">模型</label>
-        <select
-          className="settings-select"
+        <label className="settings-label">模型 ID</label>
+        <input
+          className="settings-input"
+          type="text"
           value={model}
-          onChange={(e) => {
-            setModel(e.target.value)
-            void handleSaveConfig({ model: e.target.value })
-          }}
-        >
-          {MODEL_OPTIONS.map((opt) => (
-            <option key={opt.value} value={opt.value}>
-              {opt.label}
-            </option>
-          ))}
-        </select>
+          onChange={(e) => setModel(e.target.value)}
+          onBlur={() => void handleSaveConfig({ model })}
+          placeholder="doubao-seed-1-6-flash-250715"
+        />
       </div>
 
       <div className="settings-row">
@@ -181,10 +168,9 @@ export function LlmConfigPanel() {
         )}
       </div>
 
-      <div className="settings-hint-text">
-        推荐使用火山引擎豆包大模型。新用户赠送 50 万 tokens 免费额度。
-        <br />
-        注册地址：<a href="https://console.volcengine.com/ark" target="_blank" rel="noopener noreferrer">火山方舟控制台</a>
+      <div className="settings-row settings-hint-text">
+        推荐火山引擎豆包（新用户赠 50 万 tokens）：
+        <a href="https://console.volcengine.com/ark" target="_blank" rel="noopener noreferrer">火山方舟控制台</a>
       </div>
     </div>
   )

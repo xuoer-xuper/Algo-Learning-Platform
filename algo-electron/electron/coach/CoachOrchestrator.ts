@@ -49,6 +49,7 @@ import type {
   CoachEventType,
   CoachFeedbackRecord,
   CoachIntervention,
+  CoachInterventionLevel,
   CoachMetricsBundle,
   CoachMetricsSnapshot,
   CoachStateSnapshot,
@@ -70,6 +71,7 @@ import { ConstraintParser, type ProblemConstraints } from './problemFacts/Constr
 import { CoachFeedbackStore } from './CoachFeedbackStore'
 import { createDefaultRepository } from './defaultFeedbackRepository'
 import { LlmHintService } from './llm/LlmHintService'
+import { loadCoachConfig, saveCoachConfig } from '../app/config'
 
 /**
  * CoachOrchestrator：阶段 2 服务编排。
@@ -126,8 +128,12 @@ export class CoachOrchestrator {
   private currentBubbleEventType: CoachEventType | null = null
   /** 当前 bubble id（用于关联 feedback） */
   private currentBubbleId: string | null = null
-  /** 当前 bubble 是否处于 L5 待确认状态（用于二次确认机制） */
-  private l5PendingForEventType: CoachEventType | null = null
+  /** 当前提示等级（LLM 模式下追踪 Socratic Ladder 等级） */
+  private currentHintLevel: 0 | 1 | 2 | 3 | 4 | 5 = 0
+  /** L5 二次确认标记 */
+  private l5PendingConfirmed = false
+  /** 本次会话是否已关闭免责声明 */
+  private disclaimerDismissedThisSession = false
   /** unsubscribe 句柄 */
   private detachFns: Array<() => void> = []
 
@@ -234,6 +240,64 @@ export class CoachOrchestrator {
     // TrackingService 当前是单 callback 设计，所以 ProblemSessionTracker 占用了。
     // 为避免冲突，EventBridge 在收到 submission 时会自动从 ProblemSessionTracker 拉取 sessionId，
     // 不需要单独订阅 problem:detected。
+
+    // 启动后延迟展示"仅供参考"免责声明（等桌宠窗口 React 组件就绪）
+    setTimeout(() => this.maybeShowDisclaimer(), 2000)
+  }
+
+  /** 检查并展示"仅供参考"免责声明 */
+  private maybeShowDisclaimer(): void {
+    if (this.disclaimerDismissedThisSession) return
+    const config = loadCoachConfig()
+    if (config.disclaimer_dismissed) return
+
+    const pet = this.options.getCoachPetWindow()
+    if (!pet) return
+
+    const payload: CoachBubblePayload = {
+      id: `disclaimer-${crypto.randomUUID()}`,
+      title: '仅供参考',
+      message: '本应用提供的 AI 提示和解答仅供参考，不保证完全正确。请结合自身判断使用。',
+      source: 'local',
+      bubble_type: 'disclaimer',
+    }
+    pet.showBubble(payload)
+    this.currentBubbleId = payload.id
+  }
+
+  /** 关闭免责声明 */
+  dismissDisclaimer(permanent: boolean): void {
+    this.disclaimerDismissedThisSession = true
+    if (permanent) {
+      const config = loadCoachConfig()
+      saveCoachConfig({ ...config, disclaimer_dismissed: true })
+    }
+    this.options.getCoachPetWindow()?.dismissBubble()
+    this.options.getCoachPetWindow()?.setPetState('idle')
+    this.currentBubbleId = null
+  }
+
+  /** 自由聊天 */
+  async chatWithLlm(
+    message: string,
+    history?: Array<{ role: 'user' | 'assistant'; content: string }>,
+  ): Promise<string | null> {
+    return this.llmHintService.chat({
+      userMessage: message,
+      session: this.sessionTracker.getCurrentSession(),
+      constraints: this.currentConstraints,
+      history,
+      problemUrl: this.currentProblemUrl,
+    })
+  }
+
+  /** 请求针对当前题目的提示 */
+  async requestHintFromLlm(): Promise<string | null> {
+    return this.llmHintService.requestHint({
+      session: this.sessionTracker.getCurrentSession(),
+      constraints: this.currentConstraints,
+      problemUrl: this.currentProblemUrl,
+    })
   }
 
   /**
@@ -569,12 +633,9 @@ export class CoachOrchestrator {
       this.sessionTracker.suppressToday(eventType)
       // 阶段 3：never_today 时同时重置 L5 状态
       this.hintLadder.resetL5State(eventType)
-      this.l5PendingForEventType = null
     } else if (input.feedbackType === 'dismiss' && eventType) {
       this.ruleEngine.markDismissed(eventType)
-      // dismiss 时也重置 L5 状态
       this.hintLadder.resetL5State(eventType)
-      this.l5PendingForEventType = null
     }
 
     // 关气泡 + 切回 idle
@@ -601,21 +662,48 @@ export class CoachOrchestrator {
     interventionId?: string
     needsConfirmation?: boolean
   }> {
+    void bubbleId
     if (this.contestGuard.isContestMode()) {
       return { accepted: false, level: 0, note: '比赛模式硬关闭' }
     }
-    if (!this.currentBubbleEventType) {
-      return { accepted: false, level: 0, note: '当前无活跃提示' }
+    if (!this.llmHintService.isReady()) {
+      return { accepted: false, level: 0, note: 'LLM 未启用' }
     }
-    const eventType = this.currentBubbleEventType
 
-    // 检查是否处于 L5 待确认状态
-    const isPendingL5 = this.l5PendingForEventType === eventType
-    // 拿不到原 event 了，构造一个 stub event 用于 upgrade
+    const nextLevel = Math.min(this.currentHintLevel + 1, 5) as CoachInterventionLevel
+
+    // L5 二次确认
+    if (nextLevel === 5 && !this.l5PendingConfirmed) {
+      this.l5PendingConfirmed = true
+      const confirmIntervention = buildCoachIntervention({
+        event_id: this.currentBubbleInterventionId,
+        trigger_reason: 'l5_confirmation_pending',
+        intervention_level: 5,
+        source_type: 'llm',
+        message: '该提示接近题解方向，确认查看？',
+        related_tags: [],
+        problem_id: this.sessionTracker.getCurrentSession()?.problem_id ?? null,
+        platform: this.sessionTracker.getCurrentSession()?.platform ?? null,
+        session_id: this.sessionTracker.getCurrentSession()?.session_id ?? null,
+      })
+      insertCoachIntervention(confirmIntervention)
+      this.showIntervention(confirmIntervention)
+      return {
+        accepted: false,
+        level: 5,
+        interventionId: confirmIntervention.intervention_id,
+        needsConfirmation: true,
+        note: '该提示接近题解方向，请二次点击确认',
+      }
+    }
+
+    this.l5PendingConfirmed = false
+
+    // 构造 stub event
     const stubEvent: CoachEvent = {
       event_id: this.currentBubbleInterventionId ?? crypto.randomUUID(),
       session_id: this.sessionTracker.getCurrentSession()?.session_id ?? null,
-      event_type: eventType,
+      event_type: this.currentBubbleEventType ?? 'multiple_wrong',
       severity: 'warn',
       score: 50,
       problem_id: this.sessionTracker.getCurrentSession()?.problem_id ?? null,
@@ -624,81 +712,49 @@ export class CoachOrchestrator {
       created_at: nowBeijing(),
     }
 
-    // 调用 RuleEngine（带 isConfirmation 标志）
-    const intervention = this.ruleEngine.requestHintUpgrade(
-      eventType,
-      bubbleId ?? this.currentBubbleInterventionId ?? '',
-      stubEvent,
-      isPendingL5,
-    )
-    if (!intervention) {
-      return {
-        accepted: false,
-        level: this.ruleEngine.getCurrentLevelForTest(eventType),
-        note: '升级冷却中（每级 ≥ 2 分钟或需一次新提交）',
-      }
-    }
-
-    // 检查是否是 confirmation 干预（trigger_reason 包含 'l5_confirmation_pending'）
-    const isConfirmation = intervention.trigger_reason.includes('l5_confirmation_pending')
-    if (isConfirmation) {
-      // 标记 pending 状态，等待用户二次点击
-      this.l5PendingForEventType = eventType
-      this.hintLadder.markL5Pending(eventType)
-      this.showIntervention(intervention)
-      return {
-        accepted: false,
-        level: intervention.intervention_level,
-        interventionId: intervention.intervention_id,
-        needsConfirmation: true,
-        note: '该提示接近题解方向，请二次点击确认',
-      }
-    }
-
-    // 正常升级成功
-    if (isPendingL5) {
-      // 之前是 pending，现在确认了 → 标记 confirmed
-      this.hintLadder.confirmL5(eventType)
-      this.l5PendingForEventType = null
-    }
-
-    // 阶段 5：如果 LLM 启用，尝试用 LLM 增强升级提示
-    if (this.llmHintService.isReady()) {
-      this.options.getCoachPetWindow()?.setPetState('thinking')
-      try {
-        const llmResult = await this.llmHintService.generateHint({
-          event: stubEvent,
-          session: this.sessionTracker.getCurrentSession(),
-          constraints: this.currentConstraints,
-          targetLevel: intervention.intervention_level,
-          userExplicitAsk: true,
+    // 直接调 LLM 生成更深层次的提示
+    this.options.getCoachPetWindow()?.setPetState('thinking')
+    try {
+      const llmResult = await this.llmHintService.generateHint({
+        event: stubEvent,
+        session: this.sessionTracker.getCurrentSession(),
+        constraints: this.currentConstraints,
+        targetLevel: nextLevel,
+        userExplicitAsk: true,
+      })
+      if (llmResult) {
+        this.currentHintLevel = nextLevel
+        const intervention = buildCoachIntervention({
+          event_id: stubEvent.event_id,
+          trigger_reason: stubEvent.event_type,
+          intervention_level: nextLevel,
+          source_type: 'llm',
+          message: llmResult.message,
+          related_tags: llmResult.related_tags,
+          problem_id: stubEvent.problem_id,
+          platform: stubEvent.platform,
+          session_id: stubEvent.session_id,
         })
-        if (llmResult) {
-          intervention.message = llmResult.message
-          intervention.source_type = 'llm'
-          intervention.related_tags = llmResult.related_tags
+        insertCoachIntervention(intervention)
+        this.showIntervention(intervention)
+        return {
+          accepted: true,
+          level: nextLevel,
+          interventionId: intervention.intervention_id,
         }
-      } catch (err) {
-        console.warn('[coach] LLM upgrade failed, falling back to local:', err)
       }
+    } catch (err) {
+      console.warn('[coach] LLM upgrade failed:', err)
     }
 
-    // 展示新气泡
-    this.showIntervention(intervention)
-    return {
-      accepted: true,
-      level: intervention.intervention_level,
-      interventionId: intervention.intervention_id,
-    }
+    return { accepted: false, level: this.currentHintLevel, note: '生成失败' }
   }
 
   /** 用户点"先不用" */
   dismissHint(bubbleId?: string): boolean {
     if (this.currentBubbleEventType) {
       this.ruleEngine.markDismissed(this.currentBubbleEventType)
-      // 阶段 3：dismiss 后重置 L5 状态
       this.hintLadder.resetL5State(this.currentBubbleEventType)
-      this.l5PendingForEventType = null
     }
     this.options.getCoachPetWindow()?.dismissBubble()
     this.options.getCoachPetWindow()?.setPetState('idle')
@@ -707,6 +763,8 @@ export class CoachOrchestrator {
       updateInterventionUserAction(this.currentBubbleInterventionId, 'dismissed')
     }
     void bubbleId
+    this.currentHintLevel = 0
+    this.l5PendingConfirmed = false
     this.clearCurrentBubble()
     return true
   }
@@ -715,8 +773,7 @@ export class CoachOrchestrator {
 
   private async handleCoachEvent(event: CoachEvent): Promise<void> {
     // 比赛模式硬关闭：事件仍记录到 coach_events（用于审计"零介入"事实对比），
-    // 但不触发规则引擎。CoachEventBridge 仍可产生事件——这是合规卖点：
-    // 审计日志可证明"虽然有事件，但比赛期间无任何 intervention"。
+    // 但不触发任何提示。审计日志可证明"虽然有事件，但比赛期间无任何 intervention"。
     if (this.contestGuard.isContestMode()) {
       insertCoachEvent(event)
       return
@@ -724,84 +781,46 @@ export class CoachOrchestrator {
     // 落库（事件本身）
     insertCoachEvent(event)
 
-    // 阶段 3：基于 verdict + constraints 派生靶向事件类型
-    const finalEvent = this.deriveTargetedEvent(event)
-    if (finalEvent !== event) {
-      insertCoachEvent(finalEvent)
-    }
-
-    // 阶段 3：检查 feedbackStore 是否节流
-    if (this.feedbackStore.shouldSuppress(finalEvent.event_type)) {
+    // 检查 feedbackStore 是否节流
+    if (this.feedbackStore.shouldSuppress(event.event_type)) {
       return
     }
 
-    // 派发到 RuleEngine
-    const intervention = this.ruleEngine.handleEvent(finalEvent)
-    if (intervention) {
-      // 标记已触发（用于 feedbackStore 节流计时）
-      this.feedbackStore.markTriggered(finalEvent.event_type)
-
-      // 阶段 5：如果 LLM 启用，尝试用 LLM 增强提示
-      if (this.llmHintService.isReady()) {
-        this.options.getCoachPetWindow()?.setPetState('thinking')
-        try {
-          const llmResult = await this.llmHintService.generateHint({
-            event: finalEvent,
-            session: this.sessionTracker.getCurrentSession(),
-            constraints: this.currentConstraints,
-            targetLevel: intervention.intervention_level,
-            userExplicitAsk: false,
-          })
-          if (llmResult) {
-            // LLM 成功：替换 message 和 source_type
-            intervention.message = llmResult.message
-            intervention.source_type = 'llm'
-            intervention.related_tags = llmResult.related_tags
-          }
-          // LLM 失败：保持原 intervention 不变（本地模板降级）
-        } catch (err) {
-          console.warn('[coach] LLM generateHint failed, falling back to local:', err)
-        }
-      }
-
-      this.showIntervention(intervention)
+    // 如果 LLM 未启用，不产生任何 intervention（只有桌宠陪伴）
+    if (!this.llmHintService.isReady()) {
+      return
     }
-  }
 
-  /**
-   * 阶段 3：基于 verdict + constraints 派生靶向事件类型。
-   * - TLE + n>=1e5 → complexity_warning
-   * - WA + value>=1e9 → boundary_suspected
-   * - 其他 → 原事件
-   *
-   * 派生的事件 evidence 会带上 constraints 引用，供规则匹配。
-   */
-  private deriveTargetedEvent(event: CoachEvent): CoachEvent {
-    if (!this.currentConstraints) return event
-    const derivedType = this.hintSelector.deriveEventType({
-      originalEventType: event.event_type,
-      verdict: event.evidence.verdict,
-      constraints: this.currentConstraints,
-    })
-    if (!derivedType || derivedType === event.event_type) return event
-
-    // 派生新事件：复制 + 修改 event_type + 挂载 constraints evidence
-    return {
-      ...event,
-      event_id: crypto.randomUUID(),
-      event_type: derivedType,
-      evidence: {
-        ...event.evidence,
-        constraints: {
-          nUpper: this.currentConstraints.nUpper,
-          nLower: this.currentConstraints.nLower,
-          valueUpper: this.currentConstraints.valueUpper,
-          valueLower: this.currentConstraints.valueLower,
-          timeLimitSec: this.currentConstraints.timeLimitSec,
-        },
-        n_upper: this.currentConstraints.nUpper ?? undefined,
-        value_upper: this.currentConstraints.valueUpper ?? undefined,
-      },
+    // LLM 启用：直接调 LLM 生成提示
+    this.options.getCoachPetWindow()?.setPetState('thinking')
+    try {
+      const llmResult = await this.llmHintService.generateHint({
+        event,
+        session: this.sessionTracker.getCurrentSession(),
+        constraints: this.currentConstraints,
+        targetLevel: 1,
+        userExplicitAsk: false,
+        problemUrl: this.currentProblemUrl,
+      })
+      if (llmResult) {
+        this.feedbackStore.markTriggered(event.event_type)
+        this.currentHintLevel = 1
+        const intervention = buildCoachIntervention({
+          event_id: event.event_id,
+          trigger_reason: event.event_type,
+          intervention_level: llmResult.reveals_solution ? 5 : 1,
+          source_type: 'llm',
+          message: llmResult.message,
+          related_tags: llmResult.related_tags,
+          problem_id: event.problem_id,
+          platform: event.platform,
+          session_id: event.session_id,
+        })
+        insertCoachIntervention(intervention)
+        this.showIntervention(intervention)
+      }
+    } catch (err) {
+      console.warn('[coach] LLM generateHint failed:', err)
     }
   }
 
