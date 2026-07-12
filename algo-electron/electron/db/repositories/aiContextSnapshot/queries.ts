@@ -24,3 +24,13 @@ export function listSnapshots(limit = 30): AIContextSnapshotMetadata[] {
     LIMIT ?
   `).all(limit) as AIContextSnapshotMetadata[]
 }
+
+export function getLatestSnapshotWithContext(): AIContextSnapshotWithContext | null {
+  const db = getDb()
+  const row = db.prepare(`
+    SELECT * FROM ai_context_snapshots
+    ORDER BY snapshot_date DESC
+    LIMIT 1
+  `).get() as AIContextSnapshot | undefined
+  return row ? attachParsedContext(row) : null
+}

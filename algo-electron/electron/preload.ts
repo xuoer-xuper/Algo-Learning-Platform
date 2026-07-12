@@ -184,6 +184,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // 阶段 4：过程复盘 + 答辩数据
   coachGetProblemTimeline: (problemId: string) => ipcRenderer.invoke('coach:getProblemTimeline', problemId) as Promise<ProblemTimelineData | null>,
   coachGetMetricsBundle: () => ipcRenderer.invoke('coach:getMetricsBundle') as Promise<CoachMetricsBundle | null>,
+  // 阶段 5：LLM 配置
+  coachGetLlmConfig: () => ipcRenderer.invoke('coach:getLlmConfig') as Promise<LlmConfigStatus | null>,
+  coachSaveLlmApiKey: (apiKey: string) => ipcRenderer.invoke('coach:saveLlmApiKey', apiKey) as Promise<boolean>,
+  coachSaveLlmConfig: (partial: { base_url?: string; model?: string; enabled?: boolean }) => ipcRenderer.invoke('coach:saveLlmConfig', partial) as Promise<boolean>,
+  coachTestLlmConnection: (config: { api_key: string; base_url: string; model: string }) => ipcRenderer.invoke('coach:testLlmConnection', config) as Promise<LlmConnectionTestResult>,
   onCoachPetStateChanged: (callback: (state: CoachPetState) => void) => {
     const handler = (_event: Electron.IpcRendererEvent, state: CoachPetState) => callback(state)
     ipcRenderer.on('coach:petStateChanged', handler)

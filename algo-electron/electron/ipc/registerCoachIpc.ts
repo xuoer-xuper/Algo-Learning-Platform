@@ -116,7 +116,7 @@ export function registerCoachIpc(options: RegisterCoachIpcOptions): void {
    * 阶段 2：委托给 CoachOrchestrator.requestHintUpgrade（受防 abuse 冷却限制）。
    * 若 orchestrator 未初始化，回退到阶段 1 行为。
    */
-  ipcMain.handle('coach:triggerHint', (_event, bubbleId?: string) => {
+  ipcMain.handle('coach:triggerHint', async (_event, bubbleId?: string) => {
     // 演示/测试气泡走演示升级分支（不经过 orchestrator 规则引擎）
     const isDemo = !bubbleId || bubbleId.startsWith('test-') || bubbleId.startsWith('demo-')
     if (isDemo) {
@@ -161,7 +161,7 @@ export function registerCoachIpc(options: RegisterCoachIpcOptions): void {
     if (!orchestrator) {
       return { accepted: false, level: 0, note: '规则引擎未初始化' }
     }
-    return orchestrator.requestHintUpgrade(bubbleId)
+    return await orchestrator.requestHintUpgrade(bubbleId)
   })
 
   /**
@@ -272,5 +272,50 @@ export function registerCoachIpc(options: RegisterCoachIpcOptions): void {
   ipcMain.handle('coach:getWorkArea', () => {
     const workArea = screen.getPrimaryDisplay().workArea
     return { x: workArea.x, y: workArea.y, width: workArea.width, height: workArea.height }
+  })
+
+  // --- 阶段 5：LLM 配置 ---
+
+  /** 获取 LLM 配置状态（脱敏，不返回明文 Key） */
+  ipcMain.handle('coach:getLlmConfig', () => {
+    const o = options.getCoachOrchestrator?.()
+    if (!o) return null
+    return o.getLlmHintService().getConfigStatus()
+  })
+
+  /** 保存 API Key（加密存储） */
+  ipcMain.handle('coach:saveLlmApiKey', (_event, apiKey: string) => {
+    const o = options.getCoachOrchestrator?.()
+    if (!o) return false
+    o.getLlmHintService().saveApiKey(apiKey)
+    return true
+  })
+
+  /** 保存非敏感配置（base_url / model / enabled） */
+  ipcMain.handle('coach:saveLlmConfig', (_event, partial: {
+    base_url?: string
+    model?: string
+    enabled?: boolean
+  }) => {
+    const o = options.getCoachOrchestrator?.()
+    if (!o) return false
+    o.getLlmHintService().saveConfig(partial)
+    return true
+  })
+
+  /** 测试连接 */
+  ipcMain.handle('coach:testLlmConnection', async (_event, config: {
+    api_key: string
+    base_url: string
+    model: string
+  }) => {
+    const o = options.getCoachOrchestrator?.()
+    if (!o) return { success: false, message: 'Coach 未初始化' }
+    return o.getLlmHintService().testConnection({
+      api_key: config.api_key,
+      base_url: config.base_url,
+      model: config.model,
+      enabled: true,
+    })
   })
 }

@@ -11,6 +11,9 @@ export default defineConfig({
       main: {
         entry: 'electron/main.ts',
         vite: {
+          define: {
+            'process.env.ARK_DEMO_KEY': JSON.stringify(process.env.ARK_DEMO_KEY || ''),
+          },
           build: {
             rollupOptions: {
               external: ['better-sqlite3'],

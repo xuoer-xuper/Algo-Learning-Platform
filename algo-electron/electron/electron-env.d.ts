@@ -401,6 +401,29 @@ interface CoachConfig {
   position: { x: number; y: number } | null
   scale: number
   opacity: number
+  llm?: {
+    encrypted_api_key?: string
+    base_url?: string
+    model?: string
+    enabled?: boolean
+  }
+}
+
+/** LLM 配置状态（脱敏，用于 UI 展示） */
+interface LlmConfigStatus {
+  enabled: boolean
+  has_key: boolean
+  key_masked: string
+  model: string
+  base_url: string
+}
+
+/** LLM 连接测试结果 */
+interface LlmConnectionTestResult {
+  success: boolean
+  message: string
+  latency_ms?: number
+  model?: string
 }
 
 // --- Coach 阶段 2 类型（事件触发 + 比赛模式） ---
@@ -769,6 +792,11 @@ interface ElectronAPI {
   // 阶段 4：过程复盘 + 答辩数据
   coachGetProblemTimeline: (problemId: string) => Promise<ProblemTimelineData | null>
   coachGetMetricsBundle: () => Promise<CoachMetricsBundle | null>
+  // 阶段 5：LLM 配置
+  coachGetLlmConfig: () => Promise<LlmConfigStatus | null>
+  coachSaveLlmApiKey: (apiKey: string) => Promise<boolean>
+  coachSaveLlmConfig: (partial: { base_url?: string; model?: string; enabled?: boolean }) => Promise<boolean>
+  coachTestLlmConnection: (config: { api_key: string; base_url: string; model: string }) => Promise<LlmConnectionTestResult>
 
   onCoachPetStateChanged: (callback: (state: CoachPetState) => void) => () => void
   onCoachConfigChanged: (callback: (config: CoachConfig) => void) => () => void

@@ -4,6 +4,7 @@ import { CodeforcesSyncPanel } from './CodeforcesSyncPanel'
 import { CoachPanel } from './CoachPanel'
 import { DefaultHomePanel } from './DefaultHomePanel'
 import { LearningOverviewPanel } from './LearningOverviewPanel'
+import { LlmConfigPanel } from './LlmConfigPanel'
 import { PlatformDistributionSummary } from './PlatformDistributionSummary'
 import { RealtimeSubmissionPanel } from './RealtimeSubmissionPanel'
 import { SiteManagementPanel } from './SiteManagementPanel'
@@ -49,6 +50,7 @@ export function SettingsPage({ onClose }: { onClose: () => void }) {
           <div className="settings-col">
             <DefaultHomePanel />
             <CoachPanel />
+            <LlmConfigPanel />
             <LearningOverviewPanel stats={stats} />
             <CodeforcesSyncPanel onStatsRefresh={loadOverviewStats} />
             <BackupPanel />

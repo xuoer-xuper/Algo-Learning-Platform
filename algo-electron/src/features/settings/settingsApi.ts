@@ -113,3 +113,21 @@ export function previewLearningDataImport(): Promise<LearningDataImportPreviewRe
 export function confirmLearningDataImport(overwriteConflicts: boolean): Promise<LearningDataImportResult> {
   return window.electronAPI.confirmLearningDataImport(overwriteConflicts)
 }
+
+// --- LLM 配置 ---
+
+export function loadLlmConfig(): Promise<LlmConfigStatus | null> {
+  return window.electronAPI.coachGetLlmConfig()
+}
+
+export function saveLlmApiKey(apiKey: string): Promise<boolean> {
+  return window.electronAPI.coachSaveLlmApiKey(apiKey)
+}
+
+export function saveLlmConfig(partial: { base_url?: string; model?: string; enabled?: boolean }): Promise<boolean> {
+  return window.electronAPI.coachSaveLlmConfig(partial)
+}
+
+export function testLlmConnection(config: { api_key: string; base_url: string; model: string }): Promise<LlmConnectionTestResult> {
+  return window.electronAPI.coachTestLlmConnection(config)
+}

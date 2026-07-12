@@ -7,6 +7,7 @@ export type {
 export {
   getSnapshotByDate,
   listSnapshots,
+  getLatestSnapshotWithContext,
 } from './aiContextSnapshot/queries'
 
 export {

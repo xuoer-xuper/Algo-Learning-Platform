@@ -16,6 +16,20 @@ export interface CoachConfig {
   position: { x: number; y: number } | null
   scale: number
   opacity: number
+  /** LLM 配置（API Key 加密存储，其余明文） */
+  llm?: CoachLlmConfig
+}
+
+/** LLM 配置（存储在 config.json 的 coach.llm 字段） */
+export interface CoachLlmConfig {
+  /** 加密后的 API Key（base64 编码的 safeStorage 加密数据） */
+  encrypted_api_key?: string
+  /** Base URL */
+  base_url?: string
+  /** 模型 ID */
+  model?: string
+  /** 是否启用 LLM 提示 */
+  enabled?: boolean
 }
 
 interface AppConfig {

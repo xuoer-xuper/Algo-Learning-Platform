@@ -69,6 +69,7 @@ import { HintLadder } from './hints/HintLadder'
 import { ConstraintParser, type ProblemConstraints } from './problemFacts/ConstraintParser'
 import { CoachFeedbackStore } from './CoachFeedbackStore'
 import { createDefaultRepository } from './defaultFeedbackRepository'
+import { LlmHintService } from './llm/LlmHintService'
 
 /**
  * CoachOrchestrator：阶段 2 服务编排。
@@ -108,6 +109,8 @@ export class CoachOrchestrator {
   private readonly hintLadder: HintLadder
   private readonly constraintParser: ConstraintParser
   private readonly feedbackStore: CoachFeedbackStore
+  /** LLM 提示服务（阶段 5 引入） */
+  private readonly llmHintService: LlmHintService
   /** 当前题目的 constraints 缓存（由 ConstraintParser 异步填充） */
   private currentConstraints: ProblemConstraints | null = null
   /** 当前题目标签（Demo 默认空，留 L5 概念提示接口） */
@@ -159,6 +162,14 @@ export class CoachOrchestrator {
       this.feedbackStore.loadHistoryForWarmup(30)
     } catch (err) {
       console.warn('[coach] loadHistoryForWarmup failed:', err)
+    }
+
+    // 6. LLM 提示服务
+    this.llmHintService = new LlmHintService()
+    try {
+      this.llmHintService.init()
+    } catch (err) {
+      console.warn('[coach] LlmHintService init failed:', err)
     }
 
     // 4. CoachEventBridge
@@ -310,7 +321,7 @@ export class CoachOrchestrator {
           }
         : null,
       pet_state: this.options.getCoachPetWindow()?.getPetState() ?? 'idle',
-      llm_enabled: false, // Demo 默认不接 LLM
+      llm_enabled: this.llmHintService.isReady(),
       suppressed_types: Array.from(this.loadSuppressedTypes()),
       last_event_at: getLastEventAt(),
     }
@@ -328,6 +339,16 @@ export class CoachOrchestrator {
   /** 阶段 3：当前题目的 constraints（调试 / 测试用，可能为 null） */
   getCurrentConstraints(): ProblemConstraints | null {
     return this.currentConstraints
+  }
+
+  /** 阶段 5：获取 LLM 提示服务（供 IPC 调用） */
+  getLlmHintService(): LlmHintService {
+    return this.llmHintService
+  }
+
+  /** 阶段 5：重新加载 LLM 配置（用户修改配置后调用） */
+  reloadLlmConfig(): void {
+    this.llmHintService.reloadConfig()
   }
 
   getSessionHistory(limit?: number) {
@@ -573,13 +594,13 @@ export class CoachOrchestrator {
    * - 第二次点击（pending 状态）：真正升级到 L5
    * - dismiss 后重新开始：pending 状态被清空
    */
-  requestHintUpgrade(bubbleId?: string): {
+  async requestHintUpgrade(bubbleId?: string): Promise<{
     accepted: boolean
     level: number
     note?: string
     interventionId?: string
     needsConfirmation?: boolean
-  } {
+  }> {
     if (this.contestGuard.isContestMode()) {
       return { accepted: false, level: 0, note: '比赛模式硬关闭' }
     }
@@ -641,6 +662,27 @@ export class CoachOrchestrator {
       this.l5PendingForEventType = null
     }
 
+    // 阶段 5：如果 LLM 启用，尝试用 LLM 增强升级提示
+    if (this.llmHintService.isReady()) {
+      this.options.getCoachPetWindow()?.setPetState('thinking')
+      try {
+        const llmResult = await this.llmHintService.generateHint({
+          event: stubEvent,
+          session: this.sessionTracker.getCurrentSession(),
+          constraints: this.currentConstraints,
+          targetLevel: intervention.intervention_level,
+          userExplicitAsk: true,
+        })
+        if (llmResult) {
+          intervention.message = llmResult.message
+          intervention.source_type = 'llm'
+          intervention.related_tags = llmResult.related_tags
+        }
+      } catch (err) {
+        console.warn('[coach] LLM upgrade failed, falling back to local:', err)
+      }
+    }
+
     // 展示新气泡
     this.showIntervention(intervention)
     return {
@@ -671,7 +713,7 @@ export class CoachOrchestrator {
 
   // --- 内部 ---
 
-  private handleCoachEvent(event: CoachEvent): void {
+  private async handleCoachEvent(event: CoachEvent): Promise<void> {
     // 比赛模式硬关闭：事件仍记录到 coach_events（用于审计"零介入"事实对比），
     // 但不触发规则引擎。CoachEventBridge 仍可产生事件——这是合规卖点：
     // 审计日志可证明"虽然有事件，但比赛期间无任何 intervention"。
@@ -683,11 +725,8 @@ export class CoachOrchestrator {
     insertCoachEvent(event)
 
     // 阶段 3：基于 verdict + constraints 派生靶向事件类型
-    // 例：multiple_wrong + TLE + constraints(n>=1e5) → 派生 complexity_warning
-    //     multiple_wrong + WA + constraints(value>=1e9) → 派生 boundary_suspected
     const finalEvent = this.deriveTargetedEvent(event)
     if (finalEvent !== event) {
-      // 派生事件也要落库（审计追溯）
       insertCoachEvent(finalEvent)
     }
 
@@ -701,6 +740,30 @@ export class CoachOrchestrator {
     if (intervention) {
       // 标记已触发（用于 feedbackStore 节流计时）
       this.feedbackStore.markTriggered(finalEvent.event_type)
+
+      // 阶段 5：如果 LLM 启用，尝试用 LLM 增强提示
+      if (this.llmHintService.isReady()) {
+        this.options.getCoachPetWindow()?.setPetState('thinking')
+        try {
+          const llmResult = await this.llmHintService.generateHint({
+            event: finalEvent,
+            session: this.sessionTracker.getCurrentSession(),
+            constraints: this.currentConstraints,
+            targetLevel: intervention.intervention_level,
+            userExplicitAsk: false,
+          })
+          if (llmResult) {
+            // LLM 成功：替换 message 和 source_type
+            intervention.message = llmResult.message
+            intervention.source_type = 'llm'
+            intervention.related_tags = llmResult.related_tags
+          }
+          // LLM 失败：保持原 intervention 不变（本地模板降级）
+        } catch (err) {
+          console.warn('[coach] LLM generateHint failed, falling back to local:', err)
+        }
+      }
+
       this.showIntervention(intervention)
     }
   }
@@ -765,7 +828,7 @@ export class CoachOrchestrator {
       id: intervention.intervention_id,
       title: bubbleTitleFor(intervention),
       message: intervention.message,
-      source: 'local',
+      source: intervention.source_type === 'llm' ? 'llm' : 'local',
       problemId: intervention.problem_id ?? undefined,
       eventId: intervention.event_id ?? undefined,
       level: intervention.intervention_level,
