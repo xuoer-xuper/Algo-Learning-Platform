@@ -1,0 +1,9 @@
+## v2.0.0-beta.1
+
+### Bug Fixes
+- 修复浮窗背景截图 DPI 缩放导致的"截取部分放大"问题（img object-fit 改为 div background-image）
+- 修复打包后桌宠窗口渲染错误页面的路由 bug（hash: '/coach-pet'）
+
+### Features
+- 聊天面板接入 Markdown 渲染（react-markdown + remark-gfm），LLM 回复支持代码块、表格、列表等
+- white-space:pre-wrap 仅作用于用户消息，assistant 消息由 markdown 处理换行
