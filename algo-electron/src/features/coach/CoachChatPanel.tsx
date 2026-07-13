@@ -52,23 +52,6 @@ export function CoachChatPanel({ onClose }: CoachChatPanelProps) {
     }
   }
 
-  const handleRequestHint = async () => {
-    if (loading) return
-    setLoading(true)
-
-    try {
-      const result = await window.electronAPI.coachRequestHint()
-      setMessages((prev) => [
-        ...prev,
-        { role: 'assistant', content: result.success ? result.message : (result.error ?? '调用失败') },
-      ])
-    } catch {
-      setMessages((prev) => [...prev, { role: 'assistant', content: '调用失败' }])
-    } finally {
-      setLoading(false)
-    }
-  }
-
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
@@ -91,7 +74,7 @@ export function CoachChatPanel({ onClose }: CoachChatPanelProps) {
       <div className="coach-chat-messages">
         {messages.length === 0 && !loading && (
           <div className="coach-chat-empty">
-            点击"给点提示"获取针对当前题目的提示，或直接输入问题与我交流。
+            直接输入问题与教练自由对话。{'\n'}需要分层提示请关闭面板，点击桌宠获取。
           </div>
         )}
         {messages.map((msg, i) => (
@@ -114,14 +97,6 @@ export function CoachChatPanel({ onClose }: CoachChatPanelProps) {
       </div>
 
       <div className="coach-chat-input-area">
-        <button
-          type="button"
-          className="coach-action-btn coach-action-primary"
-          onClick={() => void handleRequestHint()}
-          disabled={loading}
-        >
-          给点提示
-        </button>
         <input
           type="text"
           className="coach-chat-input"
@@ -133,7 +108,7 @@ export function CoachChatPanel({ onClose }: CoachChatPanelProps) {
         />
         <button
           type="button"
-          className="coach-action-btn coach-action-secondary"
+          className="coach-action-btn coach-action-primary"
           onClick={() => void handleSend()}
           disabled={loading || !input.trim()}
         >

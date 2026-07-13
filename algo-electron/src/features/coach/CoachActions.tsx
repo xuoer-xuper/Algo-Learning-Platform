@@ -15,15 +15,19 @@ export interface CoachActionsProps {
   bubbleId?: string
   /** 当前提示等级（Socratic Ladder L1-L6） */
   level?: number
+  /** LLM 是否启用（决定是否显示"自由对话"按钮） */
+  llmEnabled?: boolean
   /** "给一点提示"点击 */
   onTriggerHint: () => void
   /** "先不用"点击 */
   onDismiss: () => void
   /** "今天别提醒"点击 */
   onNeverToday: () => void
+  /** "自由对话"点击（打开聊天面板） */
+  onOpenChat?: () => void
 }
 
-export function CoachActions({ bubbleId, level = 1, onTriggerHint, onDismiss, onNeverToday }: CoachActionsProps) {
+export function CoachActions({ bubbleId, level = 1, llmEnabled = false, onTriggerHint, onDismiss, onNeverToday, onOpenChat }: CoachActionsProps) {
   // L1 显示"给一点提示"，L2+ 显示"再给一点提示"，L5+ 显示"已是最深层级"（禁用）
   const isMaxLevel = level >= 5
   const triggerLabel = level <= 1 ? '给一点提示' : '再给一点提示'
@@ -37,6 +41,15 @@ export function CoachActions({ bubbleId, level = 1, onTriggerHint, onDismiss, on
       >
         {isMaxLevel ? '已是最深层级' : triggerLabel}
       </button>
+      {llmEnabled && onOpenChat && (
+        <button
+          type="button"
+          className="coach-action-btn coach-action-tertiary"
+          onClick={onOpenChat}
+        >
+          自由对话
+        </button>
+      )}
       <button
         type="button"
         className="coach-action-btn coach-action-secondary"

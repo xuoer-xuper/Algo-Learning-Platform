@@ -14,7 +14,11 @@ export interface CoachBubbleProps {
   }
   /** 自动消失毫秒数，默认 12000，传 0 表示不自动消失 */
   autoDismissMs?: number
+  /** LLM 是否启用（决定是否显示"自由对话"按钮） */
+  llmEnabled?: boolean
   onClose: () => void
+  /** 打开聊天面板回调 */
+  onOpenChat?: () => void
 }
 
 const SOURCE_LABEL: Record<string, string> = {
@@ -22,7 +26,7 @@ const SOURCE_LABEL: Record<string, string> = {
   llm: 'LLM',
 }
 
-export function CoachBubble({ payload, autoDismissMs = 12000, onClose }: CoachBubbleProps) {
+export function CoachBubble({ payload, autoDismissMs = 12000, llmEnabled = false, onClose, onOpenChat }: CoachBubbleProps) {
   const [closing, setClosing] = useState(false)
   const dismissTimerRef = useRef<number | undefined>(undefined)
   const isDisclaimer = payload.bubble_type === 'disclaimer'
@@ -118,9 +122,11 @@ export function CoachBubble({ payload, autoDismissMs = 12000, onClose }: CoachBu
         <CoachActions
           bubbleId={payload.id}
           level={payload.level}
+          llmEnabled={llmEnabled}
           onTriggerHint={handleTriggerHint}
           onDismiss={handleDismiss}
           onNeverToday={handleNeverToday}
+          onOpenChat={onOpenChat}
         />
       )}
 

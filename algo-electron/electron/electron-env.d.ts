@@ -780,7 +780,7 @@ interface ElectronAPI {
   coachDismissHint: (bubbleId?: string) => Promise<boolean>
   coachFeedback: (feedback: { bubbleId?: string; interventionId?: string; type: CoachFeedbackType }) => Promise<boolean>
   coachDismissDisclaimer: (permanent: boolean) => Promise<boolean>
-  coachPetClick: () => Promise<{ shouldOpenChat: boolean; llmEnabled: boolean }>
+  coachPetClick: () => Promise<{ triggered: boolean; level: number; llmEnabled: boolean; note?: string }>
   coachChat: (params: { message: string; history?: Array<{ role: 'user' | 'assistant'; content: string }> }) => Promise<{ reply: string; success: boolean; error?: string }>
   coachRequestHint: () => Promise<{ message: string; success: boolean; error?: string }>
   coachGetWorkArea: () => Promise<{ x: number; y: number; width: number; height: number }>

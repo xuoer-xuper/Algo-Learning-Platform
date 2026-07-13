@@ -22,6 +22,7 @@ export function CoachPet() {
   const [config, setConfig] = useState<CoachConfig | null>(null)
   const [bubble, setBubble] = useState<CoachBubblePayload | null>(null)
   const [chatPanelOpen, setChatPanelOpen] = useState(false)
+  const [llmEnabled, setLlmEnabled] = useState(false)
   const [dragging, setDragging] = useState(false)
   const dragStartedRef = useRef(false)
 
@@ -80,11 +81,9 @@ export function CoachPet() {
       const dx = Math.abs((me.screenX ?? 0) - startX)
       const dy = Math.abs((me.screenY ?? 0) - startY)
       if (dx < 4 && dy < 4) {
-        // 点击桌宠 → 如果 LLM 启用则打开聊天面板
+        // 点击桌宠 → 触发提示（LLM 或本地），气泡由主进程推送
         void window.electronAPI.coachPetClick().then((result) => {
-          if (result.shouldOpenChat) {
-            setChatPanelOpen(true)
-          }
+          setLlmEnabled(result.llmEnabled)
         })
       }
       // 恢复穿透
@@ -180,7 +179,9 @@ export function CoachPet() {
       {!chatPanelOpen && bubble && (
         <CoachBubble
           payload={bubble}
+          llmEnabled={llmEnabled}
           onClose={handleBubbleClose}
+          onOpenChat={() => setChatPanelOpen(true)}
         />
       )}
     </div>

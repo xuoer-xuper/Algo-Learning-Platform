@@ -172,7 +172,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   coachDismissHint: (bubbleId?: string) => ipcRenderer.invoke('coach:dismissHint', bubbleId) as Promise<boolean>,
   coachFeedback: (feedback: { bubbleId?: string; interventionId?: string; type: CoachFeedbackType }) => ipcRenderer.invoke('coach:feedback', feedback) as Promise<boolean>,
   coachDismissDisclaimer: (permanent: boolean) => ipcRenderer.invoke('coach:dismissDisclaimer', permanent) as Promise<boolean>,
-  coachPetClick: () => ipcRenderer.invoke('coach:petClick') as Promise<{ shouldOpenChat: boolean; llmEnabled: boolean }>,
+  coachPetClick: () => ipcRenderer.invoke('coach:petClick') as Promise<{ triggered: boolean; level: number; llmEnabled: boolean; note?: string }>,
   coachChat: (params: { message: string; history?: Array<{ role: 'user' | 'assistant'; content: string }> }) => ipcRenderer.invoke('coach:chat', params) as Promise<{ reply: string; success: boolean; error?: string }>,
   coachRequestHint: () => ipcRenderer.invoke('coach:requestHint') as Promise<{ message: string; success: boolean; error?: string }>,
   coachGetWorkArea: () => ipcRenderer.invoke('coach:getWorkArea') as Promise<{ x: number; y: number; width: number; height: number }>,

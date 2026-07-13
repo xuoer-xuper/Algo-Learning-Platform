@@ -211,14 +211,11 @@ export function registerCoachIpc(options: RegisterCoachIpcOptions): void {
     return true
   })
 
-  /** 点击桌宠：返回是否应打开聊天面板 */
-  ipcMain.handle('coach:petClick', () => {
+  /** 点击桌宠：触发提示（LLM 或本地），返回触发结果与 LLM 状态 */
+  ipcMain.handle('coach:petClick', async () => {
     const o = options.getCoachOrchestrator?.()
-    if (!o) return { shouldOpenChat: false, llmEnabled: false }
-    return {
-      shouldOpenChat: o.getLlmHintService().isReady(),
-      llmEnabled: o.getLlmHintService().isReady(),
-    }
+    if (!o) return { triggered: false, level: 0, llmEnabled: false }
+    return await o.petClick()
   })
 
   /** 自由聊天：发送用户消息，获取 LLM 回复 */
