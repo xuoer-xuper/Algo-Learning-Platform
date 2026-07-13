@@ -132,6 +132,8 @@ export class CoachOrchestrator {
   private currentHintLevel: 0 | 1 | 2 | 3 | 4 | 5 = 0
   /** L5 二次确认标记 */
   private l5PendingConfirmed = false
+  /** 提示生成中标志（防止并发请求） */
+  private hintInProgress = false
   /** 本次会话是否已关闭免责声明 */
   private disclaimerDismissedThisSession = false
   /** unsubscribe 句柄 */
@@ -662,6 +664,9 @@ export class CoachOrchestrator {
     interventionId?: string
     needsConfirmation?: boolean
   }> {
+    if (this.hintInProgress) {
+      return { accepted: false, level: this.currentHintLevel, note: '正在生成提示中' }
+    }
     void bubbleId
     if (this.contestGuard.isContestMode()) {
       return { accepted: false, level: 0, note: '比赛模式硬关闭' }
@@ -696,58 +701,74 @@ export class CoachOrchestrator {
     }
 
     this.l5PendingConfirmed = false
+    this.hintInProgress = true
 
-    // LLM 启用：优先走 LLM 路径
-    if (llmReady) {
-      const stubEvent: CoachEvent = {
-        event_id: this.currentBubbleInterventionId ?? crypto.randomUUID(),
-        session_id: this.sessionTracker.getCurrentSession()?.session_id ?? null,
-        event_type: this.currentBubbleEventType ?? 'multiple_wrong',
-        severity: 'warn',
-        score: 50,
-        problem_id: this.sessionTracker.getCurrentSession()?.problem_id ?? null,
-        platform: this.sessionTracker.getCurrentSession()?.platform ?? null,
-        evidence: {},
-        created_at: nowBeijing(),
-      }
-
-      this.options.getCoachPetWindow()?.setPetState('thinking')
-      try {
-        const llmResult = await this.llmHintService.generateHint({
-          event: stubEvent,
-          session: this.sessionTracker.getCurrentSession(),
-          constraints: this.currentConstraints,
-          targetLevel: nextLevel,
-          userExplicitAsk: true,
-        })
-        if (llmResult) {
-          this.currentHintLevel = nextLevel
-          const intervention = buildCoachIntervention({
-            event_id: stubEvent.event_id,
-            trigger_reason: stubEvent.event_type,
-            intervention_level: nextLevel,
-            source_type: 'llm',
-            message: llmResult.message,
-            related_tags: llmResult.related_tags,
-            problem_id: stubEvent.problem_id,
-            platform: stubEvent.platform,
-            session_id: stubEvent.session_id,
-          })
-          insertCoachIntervention(intervention)
-          this.showIntervention(intervention)
-          return {
-            accepted: true,
-            level: nextLevel,
-            interventionId: intervention.intervention_id,
-          }
+    try {
+      // LLM 启用：优先走 LLM 路径
+      if (llmReady) {
+        const stubEvent: CoachEvent = {
+          event_id: this.currentBubbleInterventionId ?? crypto.randomUUID(),
+          session_id: this.sessionTracker.getCurrentSession()?.session_id ?? null,
+          event_type: this.currentBubbleEventType ?? 'multiple_wrong',
+          severity: 'warn',
+          score: 50,
+          problem_id: this.sessionTracker.getCurrentSession()?.problem_id ?? null,
+          platform: this.sessionTracker.getCurrentSession()?.platform ?? null,
+          evidence: {},
+          created_at: nowBeijing(),
         }
-      } catch (err) {
-        console.warn('[coach] LLM upgrade failed, falling back to local:', err)
-      }
-    }
 
-    // 本地 HintLadder 路径（LLM 未启用或 LLM 失败时降级）
-    return this.requestLocalHintUpgrade(nextLevel)
+        // 立即展示加载气泡，避免用户以为点击无效
+        const pet = this.options.getCoachPetWindow()
+        pet?.setPetState('thinking')
+        pet?.showBubble({
+          id: `loading-${Date.now()}`,
+          title: nextLevel > 1 ? `正在思考 L${nextLevel} 提示` : '正在思考',
+          message: '让我想想该怎么引导你...',
+          source: 'llm',
+          level: 0,
+          bubble_type: 'loading',
+        })
+
+        try {
+          const llmResult = await this.llmHintService.generateHint({
+            event: stubEvent,
+            session: this.sessionTracker.getCurrentSession(),
+            constraints: this.currentConstraints,
+            targetLevel: nextLevel,
+            userExplicitAsk: true,
+          })
+          if (llmResult) {
+            this.currentHintLevel = nextLevel
+            const intervention = buildCoachIntervention({
+              event_id: stubEvent.event_id,
+              trigger_reason: stubEvent.event_type,
+              intervention_level: nextLevel,
+              source_type: 'llm',
+              message: llmResult.message,
+              related_tags: llmResult.related_tags,
+              problem_id: stubEvent.problem_id,
+              platform: stubEvent.platform,
+              session_id: stubEvent.session_id,
+            })
+            insertCoachIntervention(intervention)
+            this.showIntervention(intervention)
+            return {
+              accepted: true,
+              level: nextLevel,
+              interventionId: intervention.intervention_id,
+            }
+          }
+        } catch (err) {
+          console.warn('[coach] LLM upgrade failed, falling back to local:', err)
+        }
+      }
+
+      // 本地 HintLadder 路径（LLM 未启用或 LLM 失败时降级）
+      return this.requestLocalHintUpgrade(nextLevel)
+    } finally {
+      this.hintInProgress = false
+    }
   }
 
   /**
@@ -762,6 +783,9 @@ export class CoachOrchestrator {
     llmEnabled: boolean
     note?: string
   }> {
+    if (this.hintInProgress) {
+      return { triggered: false, level: this.currentHintLevel, llmEnabled: this.llmHintService.isReady(), note: '正在生成提示中' }
+    }
     if (this.contestGuard.isContestMode()) {
       return { triggered: false, level: 0, llmEnabled: this.llmHintService.isReady(), note: '比赛模式' }
     }

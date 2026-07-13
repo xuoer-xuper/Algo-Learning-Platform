@@ -10,7 +10,7 @@ export interface CoachBubbleProps {
     problemId?: string
     eventId?: string
     level?: number
-    bubble_type?: 'hint' | 'disclaimer'
+    bubble_type?: 'hint' | 'disclaimer' | 'loading'
   }
   /** 自动消失毫秒数，默认 12000，传 0 表示不自动消失 */
   autoDismissMs?: number
@@ -30,17 +30,18 @@ export function CoachBubble({ payload, autoDismissMs = 12000, llmEnabled = false
   const [closing, setClosing] = useState(false)
   const dismissTimerRef = useRef<number | undefined>(undefined)
   const isDisclaimer = payload.bubble_type === 'disclaimer'
+  const isLoading = payload.bubble_type === 'loading'
 
   useEffect(() => {
-    // 免责声明不自动消失
-    if (isDisclaimer || autoDismissMs <= 0) return
+    // 免责声明和加载中气泡不自动消失
+    if (isDisclaimer || isLoading || autoDismissMs <= 0) return
     dismissTimerRef.current = window.setTimeout(() => {
       handleClose('auto')
     }, autoDismissMs)
     return () => {
       if (dismissTimerRef.current) window.clearTimeout(dismissTimerRef.current)
     }
-  }, [payload.id, autoDismissMs, isDisclaimer])
+  }, [payload.id, autoDismissMs, isDisclaimer, isLoading])
 
   const handleClose = (reason: 'auto' | 'manual' | 'dismiss' | 'never_today') => {
     if (closing) return
@@ -91,7 +92,7 @@ export function CoachBubble({ payload, autoDismissMs = 12000, llmEnabled = false
       onMouseEnter={handleMouseEnter} onMouseLeave={handleMouseLeave}>
       <div className="coach-bubble-header">
         <span className="coach-bubble-title">{payload.title}</span>
-        {!isDisclaimer && (
+        {!isDisclaimer && !isLoading && (
           <span className="coach-bubble-source" data-source={payload.source}
             title={`来源：${SOURCE_LABEL[payload.source] ?? payload.source}`}>
             {SOURCE_LABEL[payload.source] ?? payload.source}
@@ -101,11 +102,21 @@ export function CoachBubble({ payload, autoDismissMs = 12000, llmEnabled = false
           onClick={handleManualClose} aria-label="关闭气泡">✕</button>
       </div>
 
-      {typeof payload.level === 'number' && payload.level > 0 && !isDisclaimer && (
-        <span className="coach-bubble-level" key={payload.id}>L{payload.level}</span>
+      {isLoading ? (
+        <div className="coach-bubble-loading">
+          <span className="coach-bubble-loading-dots">
+            <span /><span /><span />
+          </span>
+          <span>{payload.message}</span>
+        </div>
+      ) : (
+        <>
+          {typeof payload.level === 'number' && payload.level > 0 && !isDisclaimer && (
+            <span className="coach-bubble-level" key={payload.id}>L{payload.level}</span>
+          )}
+          <div className="coach-bubble-message" key={payload.id}>{payload.message}</div>
+        </>
       )}
-
-      <div className="coach-bubble-message" key={payload.id}>{payload.message}</div>
 
       {isDisclaimer ? (
         <div className="coach-actions" data-bubble-id={payload.id}>
@@ -118,7 +129,7 @@ export function CoachBubble({ payload, autoDismissMs = 12000, llmEnabled = false
             永久关闭
           </button>
         </div>
-      ) : (
+      ) : isLoading ? null : (
         <CoachActions
           bubbleId={payload.id}
           level={payload.level}
@@ -130,7 +141,7 @@ export function CoachBubble({ payload, autoDismissMs = 12000, llmEnabled = false
         />
       )}
 
-      {!isDisclaimer && autoDismissMs > 0 && (
+      {!isDisclaimer && !isLoading && autoDismissMs > 0 && (
         <div className="coach-bubble-progress" />
       )}
     </div>

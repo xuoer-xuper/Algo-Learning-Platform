@@ -390,6 +390,7 @@ interface CoachBubblePayload {
   problemId?: string
   eventId?: string
   level?: number
+  bubble_type?: 'hint' | 'disclaimer' | 'loading'
 }
 
 type CoachFeedbackType = 'helpful' | 'not_helpful' | 'dismiss' | 'never_today'
