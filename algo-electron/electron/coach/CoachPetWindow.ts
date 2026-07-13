@@ -94,7 +94,7 @@ export class CoachPetWindow {
       void this.win.loadURL(`${this.options.devServerUrl}#/coach-pet`)
     } else {
       void this.win.loadFile(path.join(this.options.rendererDist, 'index.html'), {
-        hash: 'coach-pet',
+        hash: '/coach-pet',
       })
     }
 
