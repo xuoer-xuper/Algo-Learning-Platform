@@ -29,7 +29,7 @@ export function ModalLayer({ backdrop, sidebarWidth, onClose, children, size = '
   return (
     <div className="modal-backdrop" onClick={onClose}>
       {backdrop ? (
-        <img className="modal-preview" src={backdrop} alt="" style={previewStyle} />
+        <div className="modal-preview" style={{ ...previewStyle, backgroundImage: `url(${backdrop})` }} />
       ) : null}
       <div className="modal-overlay" />
       <div className={panelClass} onClick={(e) => e.stopPropagation()}>

@@ -1,4 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import './styles/bubble.css'
 
 interface ChatMessage {
@@ -95,7 +97,11 @@ export function CoachChatPanel({ onClose }: CoachChatPanelProps) {
         {messages.map((msg, i) => (
           <div key={i} className={`coach-chat-msg coach-chat-msg-${msg.role}`}>
             <span className="coach-chat-msg-role">{msg.role === 'user' ? '我' : '教练'}</span>
-            <div className="coach-chat-msg-content">{msg.content}</div>
+            <div className="coach-chat-msg-content">
+              {msg.role === 'assistant'
+                ? <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
+                : msg.content}
+            </div>
           </div>
         ))}
         {loading && (
