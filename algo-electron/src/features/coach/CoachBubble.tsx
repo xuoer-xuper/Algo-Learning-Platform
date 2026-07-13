@@ -51,8 +51,8 @@ export function CoachBubble({ payload, autoDismissMs = 12000, llmEnabled = false
   }
 
   const handleTriggerHint = () => {
+    // 不关闭气泡——主进程会推送新 payload 直接替换内容，避免闪烁
     void window.electronAPI.coachTriggerHint(payload.id)
-    handleClose('dismiss')
   }
 
   const handleDismiss = () => {
@@ -102,10 +102,10 @@ export function CoachBubble({ payload, autoDismissMs = 12000, llmEnabled = false
       </div>
 
       {typeof payload.level === 'number' && payload.level > 0 && !isDisclaimer && (
-        <span className="coach-bubble-level">L{payload.level}</span>
+        <span className="coach-bubble-level" key={payload.id}>L{payload.level}</span>
       )}
 
-      <div className="coach-bubble-message">{payload.message}</div>
+      <div className="coach-bubble-message" key={payload.id}>{payload.message}</div>
 
       {isDisclaimer ? (
         <div className="coach-actions" data-bubble-id={payload.id}>

@@ -111,6 +111,7 @@
   line-height: 1.55;
   margin-bottom: 10px;
   word-break: break-word;
+  animation: bubble-content-fade 0.3s ease-out;
 }
 
 /* === 等级标记（阶段 3 Socratic Ladder 用） === */
@@ -124,6 +125,7 @@
   border: 1px solid rgba(34, 211, 238, 0.4);
   border-radius: 3px;
   background: rgba(34, 211, 238, 0.06);
+  animation: bubble-content-fade 0.3s ease-out;
 }
 
 /* === 按钮组 === */
@@ -208,6 +210,17 @@
   to {
     opacity: 1;
     transform: translateX(-50%) translateY(0) scale(1);
+  }
+}
+
+@keyframes bubble-content-fade {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 

@@ -331,8 +331,14 @@ export class TabManager {
     const tab = this.activeTabId ? this.tabs.get(this.activeTabId) : null
     if (!tab) return null
     try {
+      const bounds = tab.view.getBounds()
       const image = await tab.view.webContents.capturePage()
-      return image.toDataURL()
+      const resized = image.resize({
+        width: bounds.width,
+        height: bounds.height,
+        quality: 'best',
+      })
+      return resized.toDataURL()
     } catch {
       return null
     }
