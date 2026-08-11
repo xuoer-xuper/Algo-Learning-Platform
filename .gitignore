@@ -29,6 +29,10 @@ pnpm-debug.log*
 # === Claude Code 内部目录 ===
 .claude/
 
+# === AI 工具与临时上传目录 ===
+.trae/
+.tmp.driveupload/
+
 # === 编辑器 ===
 .vscode/*
 !.vscode/extensions.json

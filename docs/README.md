@@ -28,6 +28,7 @@
 | [SITE_ADAPTER_GUIDE](DESIGN/SITE_ADAPTER_GUIDE.md) | 站点适配、提交抓取、parser、实时 hook 和自定义站点规范。 |
 | [SUBMISSION_MONITORING_DESIGN](DESIGN/SUBMISSION_MONITORING_DESIGN.md) | 七站提交监测数据流、submit intent、站点差异和 fail-closed 边界。 |
 | [DATA_EXPORT_AND_IMPORT](DESIGN/DATA_EXPORT_AND_IMPORT.md) | SQLite 备份、学习数据 JSON 导出导入、导入预览和冲突策略。 |
+| [AI_COACH_ARCHITECTURE](DESIGN/AI_COACH_ARCHITECTURE.md) | AI Coach 分层、数据流、合规硬边界和当前实现状态。 |
 
 ## 发布与运维
 
