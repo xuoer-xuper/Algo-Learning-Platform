@@ -378,6 +378,21 @@ function createApiMock(): ElectronAPI {
       level: 1,
     }),
     coachResetPosition: async () => true,
+    coachGetLlmConfig: async () => ({
+      enabled: false,
+      has_key: false,
+      key_masked: '',
+      base_url: 'https://ark.cn-beijing.volces.com/api/v3',
+      model: 'doubao-seed-1-6-flash-250715',
+    }),
+    coachSaveLlmApiKey: async () => true,
+    coachSaveLlmConfig: async () => true,
+    coachTestLlmConnection: async () => ({
+      success: true,
+      message: '截图测试连接成功',
+      latency_ms: 12,
+      model: 'doubao-seed-1-6-flash-250715',
+    }),
   }
 }
 

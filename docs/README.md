@@ -1,6 +1,6 @@
 # 文档索引
 
-本文是 Algo Learning Platform v1.0 成品文档入口。当前文档只保留项目介绍、协作规则、架构契约、数据结构、发布运维和长期架构决策；路线图、协作期任务清单和未规划增量不进入当前文档集。
+本文是 Algo Learning Platform `2.0.0-beta.2` 文档入口。当前文档保留项目介绍、协作规则、架构契约、数据结构、发布运维和长期架构决策。
 
 ## 项目与版本
 
@@ -95,6 +95,7 @@
 | submission syncers | [electron/submissions/syncers/README](../algo-electron/electron/submissions/syncers/README.md) |
 | tracking | [electron/tracking/README](../algo-electron/electron/tracking/README.md) |
 | coach | [electron/coach/README](../algo-electron/electron/coach/README.md) |
+| coach LLM | [electron/coach/llm/README](../algo-electron/electron/coach/llm/README.md) |
 | coach hints | [electron/coach/hints/README](../algo-electron/electron/coach/hints/README.md) |
 | coach problemFacts | [electron/coach/problemFacts/README](../algo-electron/electron/coach/problemFacts/README.md) |
 | coach rules | [electron/coach/rules/README](../algo-electron/electron/coach/rules/README.md) |

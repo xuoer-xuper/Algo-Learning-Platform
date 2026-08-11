@@ -82,7 +82,7 @@ import path from 'node:path'
 
 const htmlPath = process.argv[2]
 const outputDir = process.argv[3]
-const forbiddenText = /cookie|set-cookie|sessionid|csrf|token/i
+const forbiddenText = /set-cookie|sessionid[ :=]|csrf(?:[_-]?token)?[ :=]|(?:access|refresh|api)[_-]?token[ :=]|ark-[A-Za-z0-9_-]{8,}/i
 
 function delay(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms))

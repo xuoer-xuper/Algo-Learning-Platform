@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { CoachActions } from './CoachActions'
 
 export interface CoachBubbleProps {
@@ -32,6 +32,14 @@ export function CoachBubble({ payload, autoDismissMs = 12000, llmEnabled = false
   const isDisclaimer = payload.bubble_type === 'disclaimer'
   const isLoading = payload.bubble_type === 'loading'
 
+  const handleClose = useCallback((reason: 'auto' | 'manual' | 'dismiss' | 'never_today') => {
+    if (closing) return
+    setClosing(true)
+    if (dismissTimerRef.current) window.clearTimeout(dismissTimerRef.current)
+    onClose()
+    void reason
+  }, [closing, onClose])
+
   useEffect(() => {
     // 免责声明和加载中气泡不自动消失
     if (isDisclaimer || isLoading || autoDismissMs <= 0) return
@@ -41,15 +49,7 @@ export function CoachBubble({ payload, autoDismissMs = 12000, llmEnabled = false
     return () => {
       if (dismissTimerRef.current) window.clearTimeout(dismissTimerRef.current)
     }
-  }, [payload.id, autoDismissMs, isDisclaimer, isLoading])
-
-  const handleClose = (reason: 'auto' | 'manual' | 'dismiss' | 'never_today') => {
-    if (closing) return
-    setClosing(true)
-    if (dismissTimerRef.current) window.clearTimeout(dismissTimerRef.current)
-    onClose()
-    void reason
-  }
+  }, [payload.id, autoDismissMs, isDisclaimer, isLoading, handleClose])
 
   const handleTriggerHint = () => {
     // 不关闭气泡——主进程会推送新 payload 直接替换内容，避免闪烁
