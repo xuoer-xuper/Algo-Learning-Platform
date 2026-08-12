@@ -5,6 +5,7 @@ import { TabManager } from './browser/TabManager'
 import { closeDb } from './db/connection'
 import { getDefaultHomeUrl, loadCoachConfig } from './app/config'
 import { configureChromiumCommandLine } from './app/chromiumFlags'
+import { MAIN_WINDOW_BOUNDS } from './app/windowBounds'
 import { preconnectRecentSiteOrigins } from './app/recentSitePreconnect'
 import { initializeMainServices, type MainServices } from './app/mainServices'
 import { getSiteById } from './db/repositories/siteRepository'
@@ -54,8 +55,10 @@ function isSafeExternalUrl(value: string): boolean {
 
 function createWindow() {
   win = new BrowserWindow({
-    width: 1280,
-    height: 800,
+    width: MAIN_WINDOW_BOUNDS.defaultWidth,
+    height: MAIN_WINDOW_BOUNDS.defaultHeight,
+    minWidth: MAIN_WINDOW_BOUNDS.minWidth,
+    minHeight: MAIN_WINDOW_BOUNDS.minHeight,
     show: false,
     frame: false,
     icon: path.join(process.env.VITE_PUBLIC, 'electron-vite.svg'),

@@ -10,6 +10,7 @@
 
 - `config.ts`：轻量用户配置读写。
 - `chromiumFlags.ts`：配置必须在 `app.whenReady()` 前设置的 Chromium 启动开关。
+- `windowBounds.ts`：主窗口默认尺寸和最低支持尺寸的单一来源，供生产窗口与原生 viewport UI 测试共用。
 - `mainServices.ts`：初始化主进程运行期服务并返回服务句柄。
 - `recentSitePreconnect.ts`：启动后按最近访问站点做有限预连接。
 - `startupSmoke.ts`：`ALGO_ELECTRON_SMOKE=1` 下的 Electron 启动冒烟验收。
@@ -57,6 +58,8 @@
   - 返回默认首页 URL。
 - `configureChromiumCommandLine()`
   - 设置 Chromium 启动开关，必须在 `app.whenReady()` 前调用。
+- `MAIN_WINDOW_BOUNDS`
+  - 默认窗口为 `1280×800`，最低支持窗口为 `800×600`；修改时必须同步通过 UI screenshot 测试。
 - `initializeMainServices(getWindow)`
   - 初始化应用运行期服务；`getWindow` 延迟提供当前主窗口给实时提交服务。
 - `preconnectRecentSiteOrigins()`

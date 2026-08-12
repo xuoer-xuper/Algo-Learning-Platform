@@ -2,6 +2,7 @@ import assert from 'node:assert'
 import { spawnSync } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
+import { MAIN_WINDOW_BOUNDS } from '../../electron/app/windowBounds'
 
 const projectRoot = process.cwd()
 const tmpRoot = path.join(projectRoot, 'tmp')
@@ -12,13 +13,26 @@ const electronBin = process.platform === 'win32'
   ? path.join(projectRoot, 'node_modules', 'electron', 'dist', 'electron.exe')
   : path.join(projectRoot, 'node_modules', '.bin', 'electron')
 
-const expectedScreenshots = [
+const screenshotNames = [
   'problem-sidebar.png',
   'dashboard.png',
   'settings.png',
   'llm-settings.png',
   'coach-metrics.png',
   'note-editor.png',
+]
+
+const requestedCustomViewport = process.env.ALP_SCREENSHOT_WINDOW_WIDTH && process.env.ALP_SCREENSHOT_WINDOW_HEIGHT
+  ? [{
+      name: 'custom',
+      width: Number(process.env.ALP_SCREENSHOT_WINDOW_WIDTH),
+      height: Number(process.env.ALP_SCREENSHOT_WINDOW_HEIGHT),
+    }]
+  : null
+
+const viewportScenarios = requestedCustomViewport ?? [
+  { name: 'compact', width: 1024, height: 768 },
+  { name: 'minimum', width: MAIN_WINDOW_BOUNDS.minWidth, height: MAIN_WINDOW_BOUNDS.minHeight },
 ]
 
 function runViteBuild(): void {
@@ -48,11 +62,14 @@ import path from 'node:path'
 const htmlPath = process.argv[2]
 const outputDir = process.argv[3]
 const forbiddenText = /set-cookie|sessionid[ :=]|csrf(?:[_-]?token)?[ :=]|(?:access|refresh|api)[_-]?token[ :=]|ark-[A-Za-z0-9_-]{8,}/i
-const targetViewport = { width: 1280, height: 900 }
 const requestedWindow = {
-  width: Number(process.env.ALP_SCREENSHOT_WINDOW_WIDTH || targetViewport.width),
-  height: Number(process.env.ALP_SCREENSHOT_WINDOW_HEIGHT || targetViewport.height),
+  width: Number(process.env.ALP_SCREENSHOT_WINDOW_WIDTH || 1024),
+  height: Number(process.env.ALP_SCREENSHOT_WINDOW_HEIGHT || 768),
 }
+const supportedMinimum = ${JSON.stringify({
+  width: MAIN_WINDOW_BOUNDS.minWidth,
+  height: MAIN_WINDOW_BOUNDS.minHeight,
+})}
 
 function delay(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms))
@@ -82,35 +99,21 @@ async function clickSelector(win, selector, label) {
   }
 }
 
-async function normalizeViewport(win) {
-  const [contentWidth, contentHeight] = win.getContentSize()
-  const zoomFactor = Math.min(
-    1,
-    contentWidth / targetViewport.width,
-    contentHeight / targetViewport.height,
-  )
-
-  if (!Number.isFinite(zoomFactor) || zoomFactor <= 0) {
-    throw new Error('Invalid screenshot viewport: ' + contentWidth + 'x' + contentHeight)
-  }
-
-  win.webContents.setZoomFactor(zoomFactor)
-  await delay(100)
-
+async function assertNativeViewport(win) {
   const viewport = await win.webContents.executeJavaScript('({ width: window.innerWidth, height: window.innerHeight })')
-  if (viewport.width < targetViewport.width - 2 || viewport.height < targetViewport.height - 2) {
+  if (viewport.width < supportedMinimum.width || viewport.height < supportedMinimum.height) {
+    throw new Error('Screenshot viewport is below the supported window size: ' + viewport.width + 'x' + viewport.height)
+  }
+  if (Math.abs(viewport.width - requestedWindow.width) > 2 || Math.abs(viewport.height - requestedWindow.height) > 2) {
     throw new Error(
-      'Could not normalize screenshot viewport: content=' + contentWidth + 'x' + contentHeight
-      + ' zoom=' + zoomFactor.toFixed(3)
-      + ' viewport=' + viewport.width + 'x' + viewport.height,
+      'Screenshot viewport differs from the requested native size: requested=' + requestedWindow.width + 'x' + requestedWindow.height
+      + ' actual=' + viewport.width + 'x' + viewport.height,
     )
   }
-
-  console.log(
-    '[STEP] viewport content=' + contentWidth + 'x' + contentHeight
-    + ' zoom=' + zoomFactor.toFixed(3)
-    + ' css=' + viewport.width + 'x' + viewport.height,
-  )
+  if (Math.abs(win.webContents.getZoomFactor() - 1) > 0.001) {
+    throw new Error('Screenshot viewport must use the native zoom factor')
+  }
+  console.log('[STEP] native viewport=' + viewport.width + 'x' + viewport.height)
 }
 
 async function assertNoSensitiveText(win, label) {
@@ -127,8 +130,10 @@ async function assertLayout(win, name) {
   const checksByName = {
     'problem-sidebar.png': {
       required: ['.content-area', '.sidebar', '.main-content', '.home-page'],
-      minWidths: [['.main-content', 900]],
+      minWidthRatios: [['.main-content', 0.7]],
+      maxWidthRatios: [['.sidebar', 0.3]],
       withinViewportX: ['.content-area', '.sidebar', '.main-content', '.home-page'],
+      fillsX: [['.sidebar', '.main-content', '.content-area']],
     },
     'dashboard.png': {
       required: ['.modal-panel', '.dashboard-page', '.dashboard-cards', '.dashboard-chart-section'],
@@ -233,6 +238,36 @@ async function assertLayout(win, name) {
       }
     }
 
+    function checkMinWidthRatio(selector, minRatio) {
+      const rect = rectFor(selector)
+      if (!rect) return
+      const ratio = rect.width / window.innerWidth
+      if (ratio < minRatio) {
+        issues.push(selector + ' is too narrow for the viewport: ratio=' + ratio.toFixed(3) + ' expected>=' + minRatio)
+      }
+    }
+
+    function checkMaxWidthRatio(selector, maxRatio) {
+      const rect = rectFor(selector)
+      if (!rect) return
+      const ratio = rect.width / window.innerWidth
+      if (ratio > maxRatio) {
+        issues.push(selector + ' is too wide for the viewport: ratio=' + ratio.toFixed(3) + ' expected<=' + maxRatio)
+      }
+    }
+
+    function checkFillsX(leftSelector, rightSelector, outerSelector) {
+      const left = rectFor(leftSelector)
+      const right = rectFor(rightSelector)
+      const outer = rectFor(outerSelector)
+      if (!left || !right || !outer) return
+      if (Math.abs(left.left - outer.left) > tolerance
+        || Math.abs(left.right - right.left) > tolerance
+        || Math.abs(right.right - outer.right) > tolerance) {
+        issues.push(leftSelector + ' and ' + rightSelector + ' do not fill ' + outerSelector + ' continuously')
+      }
+    }
+
     function checkMinElements(selector, minCount) {
       const count = document.querySelectorAll(selector).length
       if (count < minCount) {
@@ -244,6 +279,9 @@ async function assertLayout(win, name) {
     for (const selector of checkConfig.withinViewportX || []) checkWithinViewportX(selector)
     for (const pair of checkConfig.withinX || []) checkWithinX(pair[0], pair[1])
     for (const pair of checkConfig.minWidths || []) checkMinWidth(pair[0], pair[1])
+    for (const pair of checkConfig.minWidthRatios || []) checkMinWidthRatio(pair[0], pair[1])
+    for (const pair of checkConfig.maxWidthRatios || []) checkMaxWidthRatio(pair[0], pair[1])
+    for (const selectors of checkConfig.fillsX || []) checkFillsX(selectors[0], selectors[1], selectors[2])
     for (const pair of checkConfig.minElements || []) checkMinElements(pair[0], pair[1])
 
     const documentOverflow = document.documentElement.scrollWidth - window.innerWidth
@@ -268,7 +306,7 @@ async function capture(win, name) {
   await assertLayout(win, name)
   const image = await win.webContents.capturePage()
   const size = image.getSize()
-  if (size.width < 900 || size.height < 600) {
+  if (size.width < requestedWindow.width - 2 || size.height < requestedWindow.height - 2) {
     throw new Error(\`\${name} screenshot too small: \${size.width}x\${size.height}\`)
   }
   const png = image.toPNG()
@@ -283,6 +321,7 @@ app.whenReady().then(async () => {
     width: requestedWindow.width,
     height: requestedWindow.height,
     useContentSize: true,
+    frame: false,
     show: false,
     webPreferences: {
       nodeIntegration: false,
@@ -301,7 +340,7 @@ app.whenReady().then(async () => {
   try {
     console.log('[STEP] load harness')
     await win.loadFile(htmlPath)
-    await normalizeViewport(win)
+    await assertNativeViewport(win)
     console.log('[STEP] wait problem sidebar')
     await waitFor(win, "Boolean(document.querySelector('.sidebar') && document.body.innerText.includes('题库'))", 'problem sidebar')
     await capture(win, 'problem-sidebar.png')
@@ -355,12 +394,17 @@ app.whenReady().then(async () => {
   )
 }
 
-function runElectronRunner(): void {
-  const result = spawnSync(electronBin, [runnerPath, harnessHtml, outputDir], {
+function runElectronRunner(scenario: { name: string, width: number, height: number }): void {
+  const scenarioOutputDir = path.join(outputDir, scenario.name)
+  fs.mkdirSync(scenarioOutputDir, { recursive: true })
+
+  const result = spawnSync(electronBin, [runnerPath, harnessHtml, scenarioOutputDir], {
     cwd: projectRoot,
     env: {
       ...process.env,
       ELECTRON_DISABLE_SECURITY_WARNINGS: 'true',
+      ALP_SCREENSHOT_WINDOW_WIDTH: String(scenario.width),
+      ALP_SCREENSHOT_WINDOW_HEIGHT: String(scenario.height),
     },
     encoding: 'utf-8',
     timeout: 60000,
@@ -375,9 +419,9 @@ function runElectronRunner(): void {
   assert.match(`${result.stdout}\n${result.stderr}`, /\[PASS\] Renderer UI screenshots/)
 }
 
-function assertScreenshotsExist(): void {
-  for (const fileName of expectedScreenshots) {
-    const filePath = path.join(outputDir, fileName)
+function assertScreenshotsExist(scenario: { name: string }): void {
+  for (const fileName of screenshotNames) {
+    const filePath = path.join(outputDir, scenario.name, fileName)
     assert.ok(fs.existsSync(filePath), `Missing screenshot ${fileName}`)
     const stat = fs.statSync(filePath)
     assert.ok(stat.size > 20000, `Screenshot ${fileName} is unexpectedly small`)
@@ -392,7 +436,10 @@ fs.mkdirSync(outputDir, { recursive: true })
 
 runViteBuild()
 writeRunner()
-runElectronRunner()
-assertScreenshotsExist()
 
-console.log(`[PASS] Renderer screenshot files: ${expectedScreenshots.join(', ')}`)
+for (const scenario of viewportScenarios) {
+  runElectronRunner(scenario)
+  assertScreenshotsExist(scenario)
+}
+
+console.log(`[PASS] Renderer screenshot viewports: ${viewportScenarios.map((scenario) => `${scenario.name}=${scenario.width}x${scenario.height}`).join(', ')}`)
