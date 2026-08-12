@@ -60,6 +60,7 @@ check('electron-builder excludes development and sensitive inputs', () => {
 
 check('native SQLite module stays unpacked from asar', () => {
   includesAll(asarUnpack, [
+    'node_modules/better-sqlite3/prebuilds/*.node',
     'node_modules/better-sqlite3/build/Release/*.node',
     'node_modules/better-sqlite3/bin/**/*.node',
   ], 'asarUnpack')
@@ -85,8 +86,10 @@ check('package scripts expose standard build commands', () => {
   assert(packageJson.scripts?.postinstall === 'npm run install:electron && npm run install:app-deps', 'postinstall must install the Electron binary before rebuilding native dependencies')
   assert(packageJson.scripts?.['install:electron'] === 'install-electron --no', 'install:electron must explicitly download the Electron binary')
   assert(packageJson.scripts?.['install:app-deps'] === 'electron-builder install-app-deps', 'install:app-deps must expose the native dependency rebuild command')
-  assert(packageJson.scripts?.build === 'tsc && vite build && electron-builder', 'build script must run tsc, vite build and electron-builder')
-  assert(packageJson.scripts?.['build:win'] === 'tsc && vite build && electron-builder --win nsis', 'build:win script must build Windows NSIS package')
+  assert(packageJson.scripts?.['test:packaged-main'] === 'node tests/packaging/checkPackagedMain.mjs', 'test:packaged-main must verify native modules stay external')
+  assert(packageJson.scripts?.['test:packaged-app'] === 'node tests/packaging/checkPackagedApp.mjs', 'test:packaged-app must smoke test the unpacked application')
+  assert(packageJson.scripts?.build === 'tsc && vite build && npm run test:packaged-main && electron-builder', 'build script must verify the main bundle before electron-builder')
+  assert(packageJson.scripts?.['build:win'] === 'tsc && vite build && npm run test:packaged-main && electron-builder --win nsis && npm run test:packaged-app', 'build:win script must verify the main bundle and smoke test Windows output')
 })
 
 let failed = 0

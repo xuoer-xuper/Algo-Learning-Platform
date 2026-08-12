@@ -27,6 +27,7 @@
     "!release/**"
   ],
   "asarUnpack": [
+    "node_modules/better-sqlite3/prebuilds/*.node",
     "node_modules/better-sqlite3/build/Release/*.node",
     "node_modules/better-sqlite3/bin/**/*.node"
   ],

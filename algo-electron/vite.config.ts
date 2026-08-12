@@ -16,7 +16,7 @@ export default defineConfig({
             'process.env.ARK_DEMO_KEY': JSON.stringify(process.env.ARK_DEMO_KEY || ''),
           },
           build: {
-            rollupOptions: {
+            rolldownOptions: {
               external: ['better-sqlite3'],
             },
           },
