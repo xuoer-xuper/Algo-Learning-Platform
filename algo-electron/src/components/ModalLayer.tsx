@@ -9,7 +9,7 @@ interface ModalLayerProps {
   sidebarWidth: number
   onClose: () => void
   children: ReactNode
-  size?: 'default' | 'large' | 'full'
+  size?: 'compact' | 'default' | 'large' | 'full'
 }
 
 export function ModalLayer({ backdrop, sidebarWidth, onClose, children, size = 'default' }: ModalLayerProps) {
@@ -20,11 +20,7 @@ export function ModalLayer({ backdrop, sidebarWidth, onClose, children, size = '
     height: `calc(100% - ${BROWSER_TOP_OFFSET}px)`,
   }
 
-  const panelClass = size === 'full'
-    ? 'modal-panel modal-panel-full'
-    : size === 'large'
-      ? 'modal-panel modal-panel-large'
-      : 'modal-panel'
+  const panelClass = `modal-panel modal-panel-${size}`
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
@@ -41,8 +37,10 @@ export function ModalLayer({ backdrop, sidebarWidth, onClose, children, size = '
         />
       ) : null}
       <div className="modal-overlay" />
-      <div className={panelClass} onClick={(e) => e.stopPropagation()}>
-        {children}
+      <div className="modal-workspace" style={previewStyle}>
+        <div className={panelClass} onClick={(e) => e.stopPropagation()}>
+          {children}
+        </div>
       </div>
     </div>
   )

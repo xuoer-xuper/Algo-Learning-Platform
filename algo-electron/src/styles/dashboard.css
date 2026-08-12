@@ -1,7 +1,7 @@
 /* Dashboard */
 .dashboard-page {
-  width: min(900px, calc(100vw - 48px));
-  max-height: 90vh;
+  width: 100%;
+  min-width: 0;
   overflow-y: auto;
   overflow-x: hidden;
   padding: 24px;
@@ -664,9 +664,8 @@
   border-top: 1px solid var(--border-light);
 }
 
-@media (max-width: 860px) {
+@container modal-panel (max-width: 820px) {
   .dashboard-page {
-    width: min(900px, calc(100vw - 48px));
     padding: 16px;
   }
 
@@ -681,7 +680,7 @@
   }
 }
 
-@media (max-width: 640px) {
+@container modal-panel (max-width: 600px) {
   .dashboard-header,
   .dashboard-section-header {
     align-items: flex-start;

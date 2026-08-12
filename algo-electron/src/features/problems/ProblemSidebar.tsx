@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { PLATFORM_LABELS, STATUS_COLORS } from '../../shared/display'
 import { loadRecentProblems, setProblemSidebarWidth, subscribeProblemsUpdated } from './problemsApi'
 import type { SidebarProblemRecord } from './problemTypes'
@@ -15,6 +15,7 @@ export function ProblemSidebar({ onNavigate, onShowDetail, onShowNotes, onWidthC
   const [collapsed, setCollapsed] = useState(false)
   const [filterPlatform, setFilterPlatform] = useState<string>('')
   const [filterStatus, setFilterStatus] = useState<string>('')
+  const sidebarRef = useRef<HTMLDivElement>(null)
 
   const loadProblems = useCallback(async () => {
     const list = await loadRecentProblems(200, filterPlatform || undefined, filterStatus || undefined)
@@ -28,23 +29,34 @@ export function ProblemSidebar({ onNavigate, onShowDetail, onShowNotes, onWidthC
   }, [loadProblems])
 
   useEffect(() => {
-    const width = collapsed ? 28 : 220
-    setProblemSidebarWidth(width)
-    onWidthChange?.(width)
+    const sidebar = sidebarRef.current
+    if (!sidebar) return
+
+    let lastWidth = -1
+    const syncWidth = () => {
+      const width = Math.round(sidebar.getBoundingClientRect().width)
+      if (width === lastWidth) return
+      lastWidth = width
+      setProblemSidebarWidth(width)
+      onWidthChange?.(width)
+    }
+
+    syncWidth()
+    const observer = new ResizeObserver(syncWidth)
+    observer.observe(sidebar)
+    return () => observer.disconnect()
   }, [collapsed, onWidthChange])
-
-
 
   if (collapsed) {
     return (
-      <div className="sidebar-collapsed" onClick={() => setCollapsed(false)}>
+      <div ref={sidebarRef} className="sidebar-collapsed" onClick={() => setCollapsed(false)}>
         <span className="sidebar-collapsed-label">题库</span>
       </div>
     )
   }
 
   return (
-    <div className="sidebar">
+    <div ref={sidebarRef} className="sidebar">
       <div className="sidebar-header">
         <span className="sidebar-title">题库 ({problems.length})</span>
         <button className="sidebar-collapse-btn" onClick={() => setCollapsed(true)}>‹</button>

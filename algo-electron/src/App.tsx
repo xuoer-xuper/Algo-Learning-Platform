@@ -97,7 +97,7 @@ function App() {
       </div>
 
       {showSettings && (
-        <ModalLayer backdrop={modalBackdrop} sidebarWidth={sidebarWidth} onClose={closeSettings}>
+        <ModalLayer backdrop={modalBackdrop} sidebarWidth={sidebarWidth} onClose={closeSettings} size="compact">
           <Suspense fallback={<ModalLoading />}>
             <SettingsPage onClose={closeSettings} />
           </Suspense>
@@ -128,7 +128,7 @@ function App() {
         </ModalLayer>
       )}
       {selectedProblemId && (
-        <ModalLayer backdrop={modalBackdrop} sidebarWidth={sidebarWidth} onClose={closeProblemDetail}>
+        <ModalLayer backdrop={modalBackdrop} sidebarWidth={sidebarWidth} onClose={closeProblemDetail} size="compact">
           <Suspense fallback={<ModalLoading />}>
             <ProblemDetail problemId={selectedProblemId} onClose={closeProblemDetail} />
           </Suspense>

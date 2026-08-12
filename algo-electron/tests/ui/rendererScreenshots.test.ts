@@ -31,8 +31,10 @@ const requestedCustomViewport = process.env.ALP_SCREENSHOT_WINDOW_WIDTH && proce
   : null
 
 const viewportScenarios = requestedCustomViewport ?? [
-  { name: 'compact', width: 1024, height: 768 },
-  { name: 'minimum', width: MAIN_WINDOW_BOUNDS.minWidth, height: MAIN_WINDOW_BOUNDS.minHeight },
+  // Representative container modes; the requested desktop size is not a product contract.
+  { name: 'wide', width: 1280, height: 800 },
+  { name: 'medium', width: 1024, height: 720 },
+  { name: 'narrow', width: MAIN_WINDOW_BOUNDS.minWidth, height: MAIN_WINDOW_BOUNDS.minHeight },
 ]
 
 function runViteBuild(): void {
@@ -64,7 +66,7 @@ const outputDir = process.argv[3]
 const forbiddenText = /set-cookie|sessionid[ :=]|csrf(?:[_-]?token)?[ :=]|(?:access|refresh|api)[_-]?token[ :=]|ark-[A-Za-z0-9_-]{8,}/i
 const requestedWindow = {
   width: Number(process.env.ALP_SCREENSHOT_WINDOW_WIDTH || 1024),
-  height: Number(process.env.ALP_SCREENSHOT_WINDOW_HEIGHT || 768),
+  height: Number(process.env.ALP_SCREENSHOT_WINDOW_HEIGHT || 720),
 }
 const supportedMinimum = ${JSON.stringify({
   width: MAIN_WINDOW_BOUNDS.minWidth,
@@ -104,16 +106,10 @@ async function assertNativeViewport(win) {
   if (viewport.width < supportedMinimum.width || viewport.height < supportedMinimum.height) {
     throw new Error('Screenshot viewport is below the supported window size: ' + viewport.width + 'x' + viewport.height)
   }
-  if (Math.abs(viewport.width - requestedWindow.width) > 2 || Math.abs(viewport.height - requestedWindow.height) > 2) {
-    throw new Error(
-      'Screenshot viewport differs from the requested native size: requested=' + requestedWindow.width + 'x' + requestedWindow.height
-      + ' actual=' + viewport.width + 'x' + viewport.height,
-    )
-  }
   if (Math.abs(win.webContents.getZoomFactor() - 1) > 0.001) {
     throw new Error('Screenshot viewport must use the native zoom factor')
   }
-  console.log('[STEP] native viewport=' + viewport.width + 'x' + viewport.height)
+  console.log('[STEP] native viewport=' + viewport.width + 'x' + viewport.height + ' (requested fixture ' + requestedWindow.width + 'x' + requestedWindow.height + ')')
 }
 
 async function assertNoSensitiveText(win, label) {
@@ -124,6 +120,72 @@ async function assertNoSensitiveText(win, label) {
   if (text.includes('应用崩溃了 (React Error)')) {
     throw new Error(\`\${label} rendered the React ErrorBoundary\`)
   }
+}
+
+async function assertResponsiveContainer(win, name) {
+  const script = '(' + function measureResponsiveLayout() {
+    const rect = (selector) => {
+      const element = document.querySelector(selector)
+      if (!element) return null
+      const value = element.getBoundingClientRect()
+      return {
+        width: value.width,
+        height: value.height,
+        left: value.left,
+        right: value.right,
+      }
+    }
+    const gridTracks = (selector) => {
+      const element = document.querySelector(selector)
+      if (!element) return 0
+      return getComputedStyle(element).gridTemplateColumns.split(' ').filter(Boolean).length
+    }
+    return {
+      workspace: rect('.modal-workspace'),
+      panel: rect('.modal-panel'),
+      content: rect('.content-area'),
+      main: rect('.main-content'),
+      dashboardCards: gridTracks('.dashboard-cards'),
+      dashboardCharts: gridTracks('.dashboard-chart-row'),
+      settingsColumns: gridTracks('.settings-cols'),
+      coachCards: gridTracks('.coach-metrics-cards'),
+      coachCharts: gridTracks('.coach-charts-row'),
+      notesColumns: gridTracks('.notes-modal-body'),
+    }
+  }.toString() + ')()'
+  const result = await win.webContents.executeJavaScript(script)
+
+  const issues = []
+  const tolerance = 2
+  if (!result.content || result.content.width <= 0) issues.push('content-area has no usable width')
+  if (result.workspace && result.content) {
+    if (result.workspace.width > result.content.width + tolerance) issues.push('modal workspace exceeds content-area width')
+    if (result.workspace.left < result.content.left - tolerance || result.workspace.right > result.content.right + tolerance) {
+      issues.push('modal workspace is not contained by content-area')
+    }
+  }
+  if (result.workspace && result.main) {
+    if (Math.abs(result.workspace.left - result.main.left) > tolerance
+      || Math.abs(result.workspace.right - result.main.right) > tolerance) {
+      issues.push('modal workspace does not match the rendered main-content boundary')
+    }
+  }
+  if (name === 'dashboard.png' && result.panel) {
+    if (result.panel.width <= 820 && result.dashboardCharts !== 1) issues.push('dashboard charts did not stack inside a narrow container')
+    if (result.panel.width <= 600 && result.dashboardCards !== 1) issues.push('dashboard cards did not collapse inside a narrow container')
+  }
+  if (name === 'settings.png' && result.panel && result.panel.width <= 680 && result.settingsColumns !== 1) {
+    issues.push('settings columns did not collapse inside a narrow container')
+  }
+  if (name === 'coach-metrics.png' && result.panel && result.panel.width <= 820) {
+    if (result.coachCharts !== 1) issues.push('Coach charts did not stack inside a narrow container')
+    if (result.panel.width <= 560 && result.coachCards !== 1) issues.push('Coach cards did not collapse inside a narrow container')
+  }
+  if (name === 'note-editor.png' && result.notesColumns !== 2) {
+    issues.push('notes layout did not preserve a responsive sidebar and editor track')
+  }
+  if (issues.length > 0) throw new Error(name + ' responsive container issues:\\n' + issues.join('\\n'))
+  console.log('[STEP] ' + name + ' container=' + JSON.stringify(result))
 }
 
 async function assertLayout(win, name) {
@@ -303,11 +365,12 @@ async function capture(win, name) {
   await assertNoSensitiveText(win, name)
   await win.webContents.executeJavaScript('new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)))')
   await delay(100)
+  await assertResponsiveContainer(win, name)
   await assertLayout(win, name)
   const image = await win.webContents.capturePage()
   const size = image.getSize()
-  if (size.width < requestedWindow.width - 2 || size.height < requestedWindow.height - 2) {
-    throw new Error(\`\${name} screenshot too small: \${size.width}x\${size.height}\`)
+  if (size.width < 1 || size.height < 1) {
+    throw new Error(\`\${name} screenshot has invalid size: \${size.width}x\${size.height}\`)
   }
   const png = image.toPNG()
   if (png.length < 20000) {

@@ -1,10 +1,10 @@
 /* 设置页 */
 .settings-page {
   padding: 20px;
-  /* 宽度随内容自适应，上限受 modal-panel 的 max-width 约束 */
-  width: min(760px, calc(100vw - 48px));
-  max-height: min(86vh, 760px);
+  width: 100%;
+  min-width: 0;
   overflow-y: auto;
+  overflow-x: hidden;
   scrollbar-width: thin;
   scrollbar-color: var(--border) transparent;
 }
@@ -39,13 +39,6 @@
 
 .settings-col .settings-section {
   margin-bottom: 0; /* gap 已控制间距，避免双重 margin */
-}
-
-/* 窄屏回退为单栏，避免内容挤压 */
-@media (max-width: 720px) {
-  .settings-cols {
-    grid-template-columns: 1fr;
-  }
 }
 
 .settings-header {
@@ -101,10 +94,12 @@
   display: flex;
   gap: 8px;
   margin-bottom: 10px;
+  min-width: 0;
 }
 
 .settings-input {
   flex: 1;
+  min-width: 0;
   height: 32px;
   padding: 0 10px;
   border: 1px solid var(--border);
@@ -336,3 +331,38 @@
   overflow-wrap: anywhere;
 }
 
+@container modal-panel (max-width: 680px) {
+  .settings-page {
+    padding: 16px;
+  }
+
+  .settings-cols {
+    grid-template-columns: 1fr;
+  }
+}
+
+@container modal-panel (max-width: 480px) {
+  .settings-row,
+  .sync-row,
+  .site-item {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .settings-save-btn,
+  .settings-select {
+    width: 100%;
+  }
+
+  .site-actions {
+    justify-content: flex-end;
+  }
+
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .stats-card-wide {
+    grid-column: auto;
+  }
+}

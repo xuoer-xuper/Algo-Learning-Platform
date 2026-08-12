@@ -1,9 +1,10 @@
 /* 题目详情页 */
 .detail-page {
   padding: 20px;
-  width: min(760px, calc(100vw - 48px));
-  max-height: min(86vh, 760px);
+  width: 100%;
+  min-width: 0;
   overflow-y: auto;
+  overflow-x: hidden;
   scrollbar-width: thin;
   scrollbar-color: var(--border) transparent;
 }
@@ -110,3 +111,20 @@
   font-size: 11px;
 }
 
+@container modal-panel (max-width: 520px) {
+  .detail-page {
+    padding: 16px;
+  }
+
+  .detail-row,
+  .submission-item {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .detail-header-actions {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+}

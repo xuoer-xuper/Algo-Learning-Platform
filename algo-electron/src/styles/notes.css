@@ -16,6 +16,7 @@
   border-bottom: 1px solid var(--border-light);
   background: var(--bg);
   flex-shrink: 0;
+  gap: 12px;
 }
 
 .notes-modal-title {
@@ -27,6 +28,7 @@
 
 .notes-modal-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   align-items: center;
 }
@@ -92,7 +94,8 @@
 }
 
 .notes-modal-body {
-  display: flex;
+  display: grid;
+  grid-template-columns: clamp(168px, 24cqi, 240px) minmax(0, 1fr);
   flex: 1;
   min-height: 0;
   overflow: hidden;
@@ -100,8 +103,8 @@
 
 /* 笔记列表侧边栏 */
 .notes-sidebar {
-  width: 240px;
-  flex-shrink: 0;
+  width: auto;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   border-right: 1px solid var(--border-light);
@@ -243,6 +246,7 @@
 
 .note-editor-header {
   display: flex;
+  flex-wrap: wrap;
   gap: 12px;
   padding: 14px 20px;
   border-bottom: 1px solid var(--border-light);
@@ -252,7 +256,8 @@
 }
 
 .note-editor-title {
-  flex: 1;
+  flex: 1 1 240px;
+  min-width: 0;
   height: 36px;
   padding: 0 14px;
   border: 1px solid var(--border-light);
@@ -293,6 +298,71 @@
   flex-shrink: 0;
   min-width: 72px;
   text-align: right;
+}
+
+@container modal-panel (max-width: 720px) {
+  .notes-modal-header,
+  .note-editor-header {
+    padding-inline: 14px;
+  }
+
+  .notes-modal-body {
+    grid-template-columns: clamp(150px, 28cqi, 180px) minmax(0, 1fr);
+  }
+
+  .notes-sidebar-header {
+    padding-inline: 10px;
+  }
+
+  .notes-list {
+    padding: 6px;
+  }
+
+  .note-item {
+    padding: 8px;
+  }
+
+  .note-editor-header {
+    gap: 8px;
+  }
+
+  .note-editor-type {
+    flex: 1 1 120px;
+    min-width: 0;
+  }
+
+  .note-save-status {
+    min-width: 64px;
+  }
+
+  .milkdown-wrapper .milkdown .ProseMirror {
+    padding-inline: 14px;
+  }
+}
+
+@container modal-panel (max-width: 520px) {
+  .notes-modal-header {
+    align-items: flex-start;
+  }
+
+  .notes-modal-actions {
+    justify-content: flex-end;
+  }
+
+  .notes-modal-body {
+    grid-template-columns: 132px minmax(0, 1fr);
+  }
+
+  .note-item-type,
+  .note-item-time,
+  .note-item-words {
+    font-size: 10px;
+  }
+
+  .note-save-status {
+    flex: 1 0 100%;
+    text-align: left;
+  }
 }
 
 .note-editor-container {
@@ -447,4 +517,3 @@
 .notes-list::-webkit-scrollbar-thumb:hover {
   background: var(--text-muted);
 }
-

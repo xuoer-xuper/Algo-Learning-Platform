@@ -4,8 +4,8 @@
 
 /* 时间轴复盘视图 */
 .coach-timeline-view {
-  width: min(900px, calc(100vw - 48px));
-  max-height: 90vh;
+  width: 100%;
+  min-width: 0;
   overflow-y: auto;
   overflow-x: hidden;
   padding: 24px;
@@ -230,8 +230,8 @@
    干预效果指标页
    =========================================================================== */
 .coach-metrics-view {
-  width: min(900px, calc(100vw - 48px));
-  max-height: 90vh;
+  width: 100%;
+  min-width: 0;
   overflow-y: auto;
   overflow-x: hidden;
   padding: 24px;
@@ -328,12 +328,23 @@
   margin-top: 8px;
 }
 
-@media (max-width: 860px) {
+@container modal-panel (max-width: 820px) {
   .coach-metrics-cards {
     grid-template-columns: repeat(2, 1fr);
   }
 
   .coach-charts-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+@container modal-panel (max-width: 560px) {
+  .coach-timeline-view,
+  .coach-metrics-view {
+    padding: 16px;
+  }
+
+  .coach-metrics-cards {
     grid-template-columns: 1fr;
   }
 }
