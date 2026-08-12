@@ -113,6 +113,8 @@ export class CoachOrchestrator {
   private readonly feedbackStore: CoachFeedbackStore
   /** LLM 提示服务（阶段 5 引入） */
   private readonly llmHintService: LlmHintService
+  /** 所有主动 LLM 请求共享同一并发门，避免聊天和手动提示互相并发。 */
+  private llmRequestInProgress = false
   /** 当前题目的 constraints 缓存（由 ConstraintParser 异步填充） */
   private currentConstraints: ProblemConstraints | null = null
   /** 当前题目标签（Demo 默认空，留 L5 概念提示接口） */
@@ -284,22 +286,34 @@ export class CoachOrchestrator {
     message: string,
     history?: Array<{ role: 'user' | 'assistant'; content: string }>,
   ): Promise<string | null> {
-    return this.llmHintService.chat({
-      userMessage: message,
-      session: this.sessionTracker.getCurrentSession(),
-      constraints: this.currentConstraints,
-      history,
-      problemUrl: this.currentProblemUrl,
-    })
+    if (this.contestGuard.isContestMode() || this.llmRequestInProgress) return null
+    this.llmRequestInProgress = true
+    try {
+      return await this.llmHintService.chat({
+        userMessage: message,
+        session: this.sessionTracker.getCurrentSession(),
+        constraints: this.currentConstraints,
+        history,
+        problemUrl: this.currentProblemUrl,
+      })
+    } finally {
+      this.llmRequestInProgress = false
+    }
   }
 
   /** 请求针对当前题目的提示 */
   async requestHintFromLlm(): Promise<string | null> {
-    return this.llmHintService.requestHint({
-      session: this.sessionTracker.getCurrentSession(),
-      constraints: this.currentConstraints,
-      problemUrl: this.currentProblemUrl,
-    })
+    if (this.contestGuard.isContestMode() || this.llmRequestInProgress) return null
+    this.llmRequestInProgress = true
+    try {
+      return await this.llmHintService.requestHint({
+        session: this.sessionTracker.getCurrentSession(),
+        constraints: this.currentConstraints,
+        problemUrl: this.currentProblemUrl,
+      })
+    } finally {
+      this.llmRequestInProgress = false
+    }
   }
 
   /**

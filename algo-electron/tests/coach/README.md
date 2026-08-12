@@ -13,6 +13,8 @@
 - `hintLadder.test.ts`：41 个测试，覆盖 6 级升级、L5 二次确认、冷却。
 - `coachFeedbackStore.test.ts`：34 个测试，覆盖反馈持久化与频率影响。
 - `constraintParser.test.ts`：62 个测试，覆盖正则解析、verdict 联动、退化、准确率。
+- `arkClient.test.ts`：OpenAI SDK transport、结构化回复、自由聊天、token、异常与超时。
+- `llmConfigStore.test.ts`：API Key 加密保存失败、成功写入和旧明文迁移/清除。
 
 ## 3. 关键文件
 

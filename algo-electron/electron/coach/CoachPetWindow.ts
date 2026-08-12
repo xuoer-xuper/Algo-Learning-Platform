@@ -81,7 +81,17 @@ export class CoachPetWindow {
       show: false,
       webPreferences: {
         preload: this.options.preloadPath,
+        nodeIntegration: false,
+        contextIsolation: true,
+        sandbox: true,
       },
+    })
+
+    this.win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
+    this.win.webContents.on('will-navigate', (event, url) => {
+      if (url !== this.win?.webContents.getURL()) {
+        event.preventDefault()
+      }
     })
 
     // 默认点击穿透；forward:true 让鼠标事件仍转发到下层窗口

@@ -130,6 +130,25 @@ function runPackagingSuite() {
   run(process.execPath, [path.join('tests', 'packaging', 'check-packaging.mjs')])
 }
 
+function runCoachSuite() {
+  const testDir = path.join(projectRoot, 'tests', 'coach')
+  const testFiles = fs
+    .readdirSync(testDir)
+    .filter((file) => file.endsWith('.test.ts'))
+    .sort()
+
+  for (const file of testFiles) {
+    const testFile = path.join('tests', 'coach', file)
+    if (file === 'llmConfigStore.test.ts') {
+      const outfile = path.join(tmpDir, 'coach-llmConfigStore.test.mjs')
+      bundleTest(testFile, outfile, ['electron'])
+      run(electronBin, [outfile])
+      continue
+    }
+    bundleAndRun(testFile, 'coach')
+  }
+}
+
 function runCoreSuite() {
   runTypecheck()
   runLint()
@@ -141,7 +160,7 @@ function runCoreSuite() {
   bundleAndRunDirectory('browser', 'browser')
   bundleAndRunDirectory('parsers', 'parsers')
   bundleAndRunDirectory('integration', 'integration')
-  bundleAndRunDirectory('coach', 'coach')
+  runCoachSuite()
 }
 
 function runAiSuite() {
@@ -192,7 +211,7 @@ function runSuite(suite) {
       bundleAndRun(path.join('tests', 'ui', 'rendererScreenshots.test.ts'), 'ui')
       break
     case 'coach':
-      bundleAndRunDirectory('coach', 'coach')
+      runCoachSuite()
       break
     case 'all':
       runCoreSuite()
@@ -204,7 +223,7 @@ function runSuite(suite) {
       runPackagingSuite()
       bundleAndRun(path.join('tests', 'electron', 'startupSmoke.test.ts'), 'electron')
       bundleAndRun(path.join('tests', 'ui', 'rendererScreenshots.test.ts'), 'ui')
-      bundleAndRunDirectory('coach', 'coach')
+      runCoachSuite()
       break
   }
 }

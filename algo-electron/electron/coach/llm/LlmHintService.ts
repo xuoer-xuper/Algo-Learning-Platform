@@ -286,9 +286,11 @@ export class LlmHintService {
   /**
    * 保存 API Key（加密存储）。
    */
-  saveApiKey(apiKey: string): void {
-    this.configStore.saveApiKey(apiKey)
+  saveApiKey(apiKey: string): boolean {
+    const saved = this.configStore.saveApiKey(apiKey)
+    if (!saved) return false
     this.reloadConfig()
+    return true
   }
 
   /**

@@ -100,10 +100,38 @@ function checkSecretPatterns(files) {
   return failures
 }
 
+function checkSecurityRegressions() {
+  const failures = []
+  const configStoreFile = 'algo-electron/electron/coach/llm/LlmConfigStore.ts'
+  const configStoreText = fs.readFileSync(path.join(repoRoot, configStoreFile), 'utf8')
+
+  if (/encrypted\s*=\s*[`'"]plain:/i.test(configStoreText) || /savePartial\([^)]*plain:/is.test(configStoreText)) {
+    failures.push(`${configStoreFile}: must not persist an API key as plaintext fallback`)
+  }
+  if (!/if \(!safeStorage\.isEncryptionAvailable\(\)\) \{\s*return false\s*\}/m.test(configStoreText)) {
+    failures.push(`${configStoreFile}: must reject API key persistence when safeStorage is unavailable`)
+  }
+  if (!configStoreText.includes("encryptedKey?.startsWith('plain:')")) {
+    failures.push(`${configStoreFile}: must migrate or clear legacy plaintext API key values`)
+  }
+
+  const orchestratorFile = 'algo-electron/electron/coach/CoachOrchestrator.ts'
+  const orchestratorText = fs.readFileSync(path.join(repoRoot, orchestratorFile), 'utf8')
+  if (!orchestratorText.includes('private llmRequestInProgress = false')) {
+    failures.push(`${orchestratorFile}: chat and manual hints must share one LLM request gate`)
+  }
+  if (/llm(?:Chat|ManualHint)InProgress/.test(orchestratorText)) {
+    failures.push(`${orchestratorFile}: separate LLM request gates allow cross-request concurrency`)
+  }
+
+  return failures
+}
+
 const files = listRepositoryFiles()
 const failures = [
   ...checkForbiddenFiles(files),
   ...checkSecretPatterns(files),
+  ...checkSecurityRegressions(),
 ]
 
 if (failures.length > 0) {

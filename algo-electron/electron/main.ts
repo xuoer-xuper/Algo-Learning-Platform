@@ -1,4 +1,4 @@
-import { app, BrowserWindow, Menu } from 'electron'
+import { app, BrowserWindow, Menu, shell } from 'electron'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import { TabManager } from './browser/TabManager'
@@ -43,6 +43,15 @@ let services: MainServices | null = null
 let coachPetWindow: CoachPetWindow | null = null
 let coachOrchestrator: CoachOrchestrator | null = null
 
+function isSafeExternalUrl(value: string): boolean {
+  try {
+    const url = new URL(value)
+    return url.protocol === 'https:' || url.protocol === 'http:'
+  } catch {
+    return false
+  }
+}
+
 function createWindow() {
   win = new BrowserWindow({
     width: 1280,
@@ -52,7 +61,25 @@ function createWindow() {
     icon: path.join(process.env.VITE_PUBLIC, 'electron-vite.svg'),
     webPreferences: {
       preload: process.env.ALGO_ELECTRON_SMOKE_PRELOAD_PATH || path.join(__dirname, 'preload.mjs'),
+      nodeIntegration: false,
+      contextIsolation: true,
+      sandbox: true,
     },
+  })
+
+  win.webContents.setWindowOpenHandler(({ url }) => {
+    if (isSafeExternalUrl(url)) {
+      void shell.openExternal(url)
+    }
+    return { action: 'deny' }
+  })
+  win.webContents.on('will-navigate', (event, url) => {
+    const currentUrl = win?.webContents.getURL()
+    if (!currentUrl || url === currentUrl) return
+    event.preventDefault()
+    if (isSafeExternalUrl(url)) {
+      void shell.openExternal(url)
+    }
   })
 
   // 创建多标签页宿主

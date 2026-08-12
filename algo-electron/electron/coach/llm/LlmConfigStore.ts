@@ -1,6 +1,18 @@
 import { safeStorage } from 'electron'
-import { loadCoachConfig, saveCoachConfig } from '../../app/config'
+import { loadCoachConfig, saveCoachConfig, type CoachLlmConfig } from '../../app/config'
 import { DEFAULT_LLM_CONFIG, type LlmConfig } from './LlmHintTypes'
+
+interface LlmConfigStoreDependencies {
+  safeStorage: Pick<typeof safeStorage, 'isEncryptionAvailable' | 'encryptString' | 'decryptString'>
+  loadCoachConfig: typeof loadCoachConfig
+  saveCoachConfig: typeof saveCoachConfig
+}
+
+const defaultDependencies: LlmConfigStoreDependencies = {
+  safeStorage,
+  loadCoachConfig,
+  saveCoachConfig,
+}
 
 /**
  * LLM 配置存储。
@@ -14,18 +26,43 @@ import { DEFAULT_LLM_CONFIG, type LlmConfig } from './LlmHintTypes'
  * 评测发行版可通过 ARK_DEMO_KEY 环境变量注入演示 Key（构建时注入，不进源码）。
  */
 export class LlmConfigStore {
+  private readonly dependencies: LlmConfigStoreDependencies
+
+  constructor(dependencies: Partial<LlmConfigStoreDependencies> = {}) {
+    this.dependencies = { ...defaultDependencies, ...dependencies }
+  }
+
   /**
    * 加载完整 LLM 配置。
    * 优先级：用户配置的 Key > 构建时注入的演示 Key > 空
    */
   load(): LlmConfig {
-    const coachConfig = loadCoachConfig()
+    const { safeStorage } = this.dependencies
+    const coachConfig = this.dependencies.loadCoachConfig()
     const llmPart = coachConfig.llm ?? {}
 
     let apiKey = ''
     // 1. 优先读用户加密存储的 Key
     const encryptedKey = llmPart.encrypted_api_key
-    if (encryptedKey && safeStorage.isEncryptionAvailable()) {
+    if (encryptedKey?.startsWith('plain:')) {
+      const legacyApiKey = encryptedKey.slice('plain:'.length)
+      try {
+        if (legacyApiKey && safeStorage.isEncryptionAvailable()) {
+          const migrated = safeStorage.encryptString(legacyApiKey).toString('base64')
+          this.savePartial({ encrypted_api_key: migrated })
+          apiKey = legacyApiKey
+        } else {
+          this.savePartial({ encrypted_api_key: '' })
+        }
+      } catch {
+        try {
+          this.savePartial({ encrypted_api_key: '' })
+        } catch {
+          // 配置目录不可写时仍允许应用启动，但绝不返回旧明文 Key。
+        }
+        apiKey = ''
+      }
+    } else if (encryptedKey && safeStorage.isEncryptionAvailable()) {
       try {
         const buf = Buffer.from(encryptedKey, 'base64')
         apiKey = safeStorage.decryptString(buf)
@@ -50,17 +87,23 @@ export class LlmConfigStore {
   /**
    * 保存 API Key（加密存储）。
    */
-  saveApiKey(apiKey: string): void {
-    let encrypted = ''
-    if (apiKey && safeStorage.isEncryptionAvailable()) {
-      const buf = safeStorage.encryptString(apiKey)
-      encrypted = buf.toString('base64')
+  saveApiKey(apiKey: string): boolean {
+    const { safeStorage } = this.dependencies
+    try {
+      if (!apiKey) {
+        this.savePartial({ encrypted_api_key: '' })
+        return true
+      }
+      if (!safeStorage.isEncryptionAvailable()) {
+        return false
+      }
+
+      const encrypted = safeStorage.encryptString(apiKey).toString('base64')
+      this.savePartial({ encrypted_api_key: encrypted })
+      return true
+    } catch {
+      return false
     }
-    // 即使加密不可用也存明文（开发环境兜底，生产环境 safeStorage 必可用）
-    if (!encrypted && apiKey) {
-      encrypted = `plain:${apiKey}`
-    }
-    this.savePartial({ encrypted_api_key: encrypted })
   }
 
   /**
@@ -90,10 +133,10 @@ export class LlmConfigStore {
 
   // --- 内部 ---
 
-  private savePartial(partial: Record<string, unknown>): void {
-    const coachConfig = loadCoachConfig()
+  private savePartial(partial: Partial<CoachLlmConfig>): void {
+    const coachConfig = this.dependencies.loadCoachConfig()
     const currentLlm = coachConfig.llm ?? {}
     const merged = { ...currentLlm, ...partial }
-    saveCoachConfig({ llm: merged } as any)
+    this.dependencies.saveCoachConfig({ llm: merged })
   }
 }

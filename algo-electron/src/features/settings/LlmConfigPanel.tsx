@@ -36,7 +36,14 @@ export function LlmConfigPanel() {
 
   const handleSaveApiKey = async () => {
     if (!apiKeyInput.trim()) return
-    await saveLlmApiKey(apiKeyInput.trim())
+    const saved = await saveLlmApiKey(apiKeyInput.trim())
+    if (!saved) {
+      setTestResult({
+        success: false,
+        message: '系统安全存储不可用，API Key 未保存',
+      })
+      return
+    }
     setApiKeyInput('')
     const s = await loadLlmConfig()
     setStatus(s)
@@ -67,7 +74,14 @@ export function LlmConfigPanel() {
       })
       setTestResult(result)
       if (result.success && key) {
-        await saveLlmApiKey(key)
+        const saved = await saveLlmApiKey(key)
+        if (!saved) {
+          setTestResult({
+            success: false,
+            message: '连接成功，但系统安全存储不可用，API Key 未保存',
+          })
+          return
+        }
         setApiKeyInput('')
         const s = await loadLlmConfig()
         setStatus(s)
@@ -83,7 +97,7 @@ export function LlmConfigPanel() {
   }
 
   return (
-    <div className="settings-section">
+    <div className="settings-section llm-config-section">
       <h3 className="settings-section-title">
         AI 大模型配置
         {savedFlag && <span className="settings-saved-flag">已保存</span>}

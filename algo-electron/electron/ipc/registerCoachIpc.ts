@@ -330,8 +330,7 @@ export function registerCoachIpc(options: RegisterCoachIpcOptions): void {
   ipcMain.handle('coach:saveLlmApiKey', (_event, apiKey: string) => {
     const o = options.getCoachOrchestrator?.()
     if (!o) return false
-    o.getLlmHintService().saveApiKey(apiKey)
-    return true
+    return o.getLlmHintService().saveApiKey(apiKey)
   })
 
   /** 保存非敏感配置（base_url / model / enabled） */
