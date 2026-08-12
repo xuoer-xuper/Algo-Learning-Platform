@@ -37,7 +37,7 @@
     "@milkdown/crepe": "7.22.0",
     "@milkdown/theme-nord": "7.22.0",
     "better-sqlite3": "13.0.3",
-    "openai": "^6.46.0",
+    "openai": "7.4.0",
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "react-is": "19.2.8",

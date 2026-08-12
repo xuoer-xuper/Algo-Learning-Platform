@@ -43,3 +43,5 @@ npm run test:all
 ```
 
 自动测试不使用真实 API Key 或真实网络请求。手动连接测试应使用测试 Key，并确认日志和导出文件中没有明文密钥。
+
+`tests/coach/arkClient.test.ts` 通过注入内存 transport 覆盖结构化回复、自由聊天、token 统计、空回复、非法 JSON、连接失败和超时，并验证方舟 `thinking` 扩展参数的构造，不会访问真实服务。
