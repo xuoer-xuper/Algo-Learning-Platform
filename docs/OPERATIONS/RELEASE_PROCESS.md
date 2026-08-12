@@ -38,7 +38,7 @@ npm ci
 npm run test:all
 ```
 
-`npm ci` 的 `postinstall` 会运行 `electron-builder install-app-deps`，确保 `better-sqlite3` 与当前 Electron ABI 匹配。Electron 或原生依赖版本变化后不得跳过该步骤。
+`npm ci` 的 `postinstall` 会先运行 `install-electron --no` 下载 Electron 二进制，再运行 `electron-builder install-app-deps`，确保 `better-sqlite3` 与当前 Electron ABI 匹配。Electron 或原生依赖版本变化后不得跳过这两个步骤。
 
 发布前建议额外确认：
 

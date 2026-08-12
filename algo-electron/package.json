@@ -11,7 +11,8 @@
   },
   "scripts": {
     "dev": "vite",
-    "postinstall": "electron-builder install-app-deps",
+    "postinstall": "npm run install:electron && npm run install:app-deps",
+    "install:electron": "install-electron --no",
     "install:app-deps": "electron-builder install-app-deps",
     "typecheck": "tsc --noEmit",
     "build": "tsc && vite build && electron-builder",
@@ -64,7 +65,7 @@
     "eslint": "10.8.1",
     "eslint-plugin-react-hooks": "7.1.1",
     "eslint-plugin-react-refresh": "0.5.4",
-    "globals": "17.9.0",
+    "globals": "17.10.0",
     "tailwindcss": "4.3.3",
     "typescript": "7.0.2",
     "vite": "8.2.1",

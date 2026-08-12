@@ -92,9 +92,10 @@ npm run test:all
 
 仓库 CI 使用 `.github/workflows/ci.yml` 在 Windows runner 上执行 `npm ci` 和 `npm run test:all`。CI 不覆盖真实 OJ 登录态、七站提交手测或安装包安装/卸载验收。
 
-`npm install` 和 `npm ci` 会通过 `postinstall` 自动运行 `electron-builder install-app-deps`，将 `better-sqlite3` 重建为当前 Electron ABI。切换 Electron 版本或原生依赖后，也可以手动运行：
+`npm install` 和 `npm ci` 会通过 `postinstall` 先显式下载 Electron 二进制，再运行 `electron-builder install-app-deps`，将 `better-sqlite3` 重建为当前 Electron ABI。切换 Electron 版本或原生依赖后，也可以手动运行：
 
 ```powershell
+npm run install:electron
 npm run install:app-deps
 ```
 
