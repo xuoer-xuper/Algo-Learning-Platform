@@ -48,6 +48,11 @@ import path from 'node:path'
 const htmlPath = process.argv[2]
 const outputDir = process.argv[3]
 const forbiddenText = /set-cookie|sessionid[ :=]|csrf(?:[_-]?token)?[ :=]|(?:access|refresh|api)[_-]?token[ :=]|ark-[A-Za-z0-9_-]{8,}/i
+const targetViewport = { width: 1280, height: 900 }
+const requestedWindow = {
+  width: Number(process.env.ALP_SCREENSHOT_WINDOW_WIDTH || targetViewport.width),
+  height: Number(process.env.ALP_SCREENSHOT_WINDOW_HEIGHT || targetViewport.height),
+}
 
 function delay(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms))
@@ -75,6 +80,37 @@ async function clickSelector(win, selector, label) {
   if (!clicked) {
     throw new Error('Could not find clickable element for ' + label + ': ' + selector)
   }
+}
+
+async function normalizeViewport(win) {
+  const [contentWidth, contentHeight] = win.getContentSize()
+  const zoomFactor = Math.min(
+    1,
+    contentWidth / targetViewport.width,
+    contentHeight / targetViewport.height,
+  )
+
+  if (!Number.isFinite(zoomFactor) || zoomFactor <= 0) {
+    throw new Error('Invalid screenshot viewport: ' + contentWidth + 'x' + contentHeight)
+  }
+
+  win.webContents.setZoomFactor(zoomFactor)
+  await delay(100)
+
+  const viewport = await win.webContents.executeJavaScript('({ width: window.innerWidth, height: window.innerHeight })')
+  if (viewport.width < targetViewport.width - 2 || viewport.height < targetViewport.height - 2) {
+    throw new Error(
+      'Could not normalize screenshot viewport: content=' + contentWidth + 'x' + contentHeight
+      + ' zoom=' + zoomFactor.toFixed(3)
+      + ' viewport=' + viewport.width + 'x' + viewport.height,
+    )
+  }
+
+  console.log(
+    '[STEP] viewport content=' + contentWidth + 'x' + contentHeight
+    + ' zoom=' + zoomFactor.toFixed(3)
+    + ' css=' + viewport.width + 'x' + viewport.height,
+  )
 }
 
 async function assertNoSensitiveText(win, label) {
@@ -244,8 +280,9 @@ async function capture(win, name) {
 
 app.whenReady().then(async () => {
   const win = new BrowserWindow({
-    width: 1280,
-    height: 900,
+    width: requestedWindow.width,
+    height: requestedWindow.height,
+    useContentSize: true,
     show: false,
     webPreferences: {
       nodeIntegration: false,
@@ -264,6 +301,7 @@ app.whenReady().then(async () => {
   try {
     console.log('[STEP] load harness')
     await win.loadFile(htmlPath)
+    await normalizeViewport(win)
     console.log('[STEP] wait problem sidebar')
     await waitFor(win, "Boolean(document.querySelector('.sidebar') && document.body.innerText.includes('题库'))", 'problem sidebar')
     await capture(win, 'problem-sidebar.png')
