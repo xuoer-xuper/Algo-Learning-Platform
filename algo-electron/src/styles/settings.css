@@ -1,0 +1,338 @@
+/* 设置页 */
+.settings-page {
+  padding: 20px;
+  /* 宽度随内容自适应，上限受 modal-panel 的 max-width 约束 */
+  width: min(760px, calc(100vw - 48px));
+  max-height: min(86vh, 760px);
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+.settings-page::-webkit-scrollbar {
+  width: 6px;
+}
+
+.settings-page::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.settings-page::-webkit-scrollbar-thumb {
+  background-color: var(--border);
+  border-radius: 3px;
+}
+
+/* 两栏布局：左栏配置类（更宽），右栏站点管理 */
+.settings-cols {
+  display: grid;
+  grid-template-columns: 3fr 2fr;
+  gap: 20px;
+  align-items: start;
+}
+
+.settings-col {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0; /* 允许 flex 子项收缩，防止 input 溢出 */
+}
+
+.settings-col .settings-section {
+  margin-bottom: 0; /* gap 已控制间距，避免双重 margin */
+}
+
+/* 窄屏回退为单栏，避免内容挤压 */
+@media (max-width: 720px) {
+  .settings-cols {
+    grid-template-columns: 1fr;
+  }
+}
+
+.settings-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.settings-title {
+  color: var(--text);
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.settings-close {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 18px;
+  cursor: pointer;
+}
+
+.settings-close:hover {
+  color: var(--text);
+}
+
+.settings-section {
+  margin-bottom: 16px;
+}
+
+.settings-section-title {
+  color: var(--primary);
+  font-size: 13px;
+  font-weight: 600;
+  margin: 0 0 8px 0;
+}
+
+.settings-section-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.settings-section-header-row .settings-section-title {
+  margin-bottom: 0;
+}
+
+.settings-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.settings-input {
+  flex: 1;
+  height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background-color: var(--bg);
+  color: var(--text);
+  font-size: 13px;
+  outline: none;
+}
+
+.settings-input:focus {
+  border-color: var(--primary);
+}
+
+.settings-save-btn {
+  height: 32px;
+  padding: 0 16px;
+  border: none;
+  border-radius: 4px;
+  background-color: var(--primary);
+  color: white;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+.settings-save-btn:hover {
+  background-color: var(--primary-hover);
+}
+
+.settings-empty {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+/* Coach 桌宠设置面板扩展类 */
+.settings-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.settings-label input[type="checkbox"] {
+  accent-color: var(--primary);
+}
+
+.settings-label-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.settings-label-row input[type="range"] {
+  width: 100%;
+  accent-color: var(--primary);
+}
+
+.settings-select {
+  height: 30px;
+  flex: 0 0 auto;
+  min-width: 140px;
+  padding: 0 8px;
+}
+
+.settings-saved-flag {
+  margin-left: 8px;
+  padding: 1px 6px;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--success, #10b981);
+  background: rgba(16, 185, 129, 0.1);
+  border-radius: 3px;
+}
+
+.settings-hint-text {
+  color: var(--text-muted);
+  font-size: 11px;
+  font-style: normal;
+}
+
+.sync-hint {
+  color: var(--text-muted);
+  font-size: 11px;
+  margin-top: 4px;
+}
+
+.rating-info {
+  display: flex;
+  gap: 16px;
+  margin-top: 8px;
+  font-size: 14px;
+}
+
+.rating-current {
+  color: var(--primary);
+  font-weight: 600;
+}
+
+.rating-peak {
+  color: var(--warning);
+  font-weight: 600;
+}
+
+/* 统计卡片 */
+.stats-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.stats-card {
+  background-color: var(--bg);
+  border: 1px solid var(--border-light);
+  border-radius: 6px;
+  padding: 10px;
+  text-align: center;
+}
+
+.stats-card-wide {
+  grid-column: span 2;
+}
+
+.stats-value {
+  color: var(--text);
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.stats-value-sm {
+  font-size: 13px;
+  font-weight: 400;
+}
+
+.stats-label {
+  color: var(--text-muted);
+  font-size: 11px;
+  margin-top: 2px;
+}
+
+/* 平台分布 */
+.platform-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.platform-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 10px;
+  background-color: var(--bg);
+  border: 1px solid var(--border-light);
+  border-radius: 4px;
+}
+
+.platform-name {
+  color: var(--text);
+  font-size: 13px;
+}
+
+.platform-count {
+  color: var(--primary);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* 同步 */
+.sync-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.sync-full-btn {
+  flex: 1;
+}
+
+.sync-status {
+  color: var(--text-secondary);
+  font-size: 11px;
+  margin-bottom: 8px;
+  padding-left: 4px;
+}
+
+.realtime-status-card {
+  background: var(--bg);
+  border: 1px solid var(--border-light);
+  border-radius: 6px;
+  padding: 10px;
+}
+
+.realtime-status-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.realtime-status-label {
+  color: var(--text-muted);
+  flex: 0 0 auto;
+}
+
+.realtime-status-ok {
+  color: var(--success);
+  text-align: right;
+}
+
+.realtime-status-muted {
+  color: var(--text-secondary);
+  text-align: right;
+}
+
+.realtime-status-detail {
+  color: var(--text-muted);
+  font-size: 11px;
+  line-height: 1.5;
+  margin: 2px 0 8px;
+  overflow-wrap: anywhere;
+}
+

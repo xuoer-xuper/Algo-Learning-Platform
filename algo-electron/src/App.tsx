@@ -1,11 +1,6 @@
+import { lazy, Suspense } from 'react'
 import { HomePage } from './features/home/HomePage'
 import { ProblemSidebar } from './features/problems/ProblemSidebar'
-import { ProblemDetail } from './features/problems/ProblemDetail'
-import { NotePanelModal } from './features/problems/NotePanelModal'
-import { SettingsPage } from './features/settings/SettingsPage'
-import { Dashboard } from './features/analytics/Dashboard'
-import { UserScriptManager } from './features/scripts/UserScriptManager'
-import { CoachMetricsView } from './features/coach/CoachMetricsView'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { WindowControls } from './components/WindowControls'
 import { ModalLayer } from './components/ModalLayer'
@@ -15,6 +10,17 @@ import { useAppModalState } from './hooks/useAppModalState'
 import { useBrowserNavigation } from './hooks/useBrowserNavigation'
 import { useBrowserViewVisibility } from './hooks/useBrowserViewVisibility'
 import './App.css'
+
+const SettingsPage = lazy(() => import('./features/settings/SettingsPage').then((module) => ({ default: module.SettingsPage })))
+const Dashboard = lazy(() => import('./features/analytics/Dashboard').then((module) => ({ default: module.Dashboard })))
+const UserScriptManager = lazy(() => import('./features/scripts/UserScriptManager').then((module) => ({ default: module.UserScriptManager })))
+const CoachMetricsView = lazy(() => import('./features/coach/CoachMetricsView').then((module) => ({ default: module.CoachMetricsView })))
+const ProblemDetail = lazy(() => import('./features/problems/ProblemDetail').then((module) => ({ default: module.ProblemDetail })))
+const NotePanelModal = lazy(() => import('./features/problems/NotePanelModal').then((module) => ({ default: module.NotePanelModal })))
+
+function ModalLoading() {
+  return <div className="modal-loading" role="status">加载中...</div>
+}
 
 function App() {
   const {
@@ -92,35 +98,47 @@ function App() {
 
       {showSettings && (
         <ModalLayer backdrop={modalBackdrop} sidebarWidth={sidebarWidth} onClose={closeSettings}>
-          <SettingsPage onClose={closeSettings} />
+          <Suspense fallback={<ModalLoading />}>
+            <SettingsPage onClose={closeSettings} />
+          </Suspense>
         </ModalLayer>
       )}
       {showDashboard && (
         <ModalLayer backdrop={modalBackdrop} sidebarWidth={sidebarWidth} onClose={closeDashboard}>
-          <Dashboard
-            onClose={closeDashboard}
-            onNavigate={(targetUrl) => { closeDashboard(); navigateTo(targetUrl) }}
-          />
+          <Suspense fallback={<ModalLoading />}>
+            <Dashboard
+              onClose={closeDashboard}
+              onNavigate={(targetUrl) => { closeDashboard(); navigateTo(targetUrl) }}
+            />
+          </Suspense>
         </ModalLayer>
       )}
       {showScripts && (
         <ModalLayer backdrop={modalBackdrop} sidebarWidth={sidebarWidth} onClose={closeScripts}>
-          <UserScriptManager onClose={closeScripts} />
+          <Suspense fallback={<ModalLoading />}>
+            <UserScriptManager onClose={closeScripts} />
+          </Suspense>
         </ModalLayer>
       )}
       {showCoachMetrics && (
         <ModalLayer backdrop={modalBackdrop} sidebarWidth={sidebarWidth} onClose={closeCoachMetrics}>
-          <CoachMetricsView onClose={closeCoachMetrics} />
+          <Suspense fallback={<ModalLoading />}>
+            <CoachMetricsView onClose={closeCoachMetrics} />
+          </Suspense>
         </ModalLayer>
       )}
       {selectedProblemId && (
         <ModalLayer backdrop={modalBackdrop} sidebarWidth={sidebarWidth} onClose={closeProblemDetail}>
-          <ProblemDetail problemId={selectedProblemId} onClose={closeProblemDetail} />
+          <Suspense fallback={<ModalLoading />}>
+            <ProblemDetail problemId={selectedProblemId} onClose={closeProblemDetail} />
+          </Suspense>
         </ModalLayer>
       )}
       {notesProblemId && (
         <ModalLayer backdrop={modalBackdrop} sidebarWidth={sidebarWidth} onClose={closeNotes} size="large">
-          <NotePanelModal problemId={notesProblemId} onClose={closeNotes} />
+          <Suspense fallback={<ModalLoading />}>
+            <NotePanelModal problemId={notesProblemId} onClose={closeNotes} />
+          </Suspense>
         </ModalLayer>
       )}
     </div>

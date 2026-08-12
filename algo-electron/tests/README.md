@@ -31,6 +31,8 @@
   - URL 解析、自定义站点 pattern、浏览器标题清洗、标题兜底脚本。
 - `packaging/`
   - electron-builder、NSIS、asarUnpack、打包输入白名单和敏感文件排除检查。
+- `performance/`
+  - Renderer 初始入口体积和重型依赖按需 chunk 检查。
 - `scripts/`
   - 用户脚本 metadata 解析和 match/include 规则。
 - `security/`
@@ -101,6 +103,12 @@ npm run test:docs
 
 ```powershell
 npm run test:packaging
+```
+
+Renderer 性能门槛：
+
+```powershell
+npm run test:performance
 ```
 
 Electron 启动 smoke test：

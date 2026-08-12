@@ -2,8 +2,19 @@ import React from 'react'
 import { createRoot } from 'react-dom/client'
 import '../../src/index.css'
 import '../../src/App.css'
+import { MOCK_METRICS_BUNDLE } from '../../src/features/coach/mockMetricsBundle'
 
 const now = '2026-07-03T10:00:00+08:00'
+
+const screenshotNote = {
+  id: 'note-1',
+  problem_id: 'problem-cf-1',
+  title: '边界条件复盘',
+  content: '## 核心思路\n\n先检查最小规模和重复元素。\n\n```cpp\nfor (int i = 0; i < n; ++i) {\n  // keep the invariant\n}\n```',
+  note_type: 'solution',
+  word_count: 42,
+  updated_at: now,
+}
 
 const problems: ProblemRecord[] = [
   {
@@ -293,17 +304,9 @@ function createApiMock(): ElectronAPI {
       return () => {}
     },
 
-    listNotesByProblem: async () => [],
-    getNote: async () => null,
-    createNote: async () => ({
-      id: 'note-1',
-      problem_id: 'problem-cf-1',
-      title: '未命名笔记',
-      content: '',
-      note_type: 'solution',
-      word_count: 0,
-      updated_at: now,
-    }),
+    listNotesByProblem: async () => [screenshotNote],
+    getNote: async () => screenshotNote,
+    createNote: async () => screenshotNote,
     updateNoteTitle: async () => true,
     updateNoteContent: async () => true,
     saveNoteImage: async () => ({ markdownUrl: 'note-asset://local/note-1/image.png' }),
@@ -378,6 +381,7 @@ function createApiMock(): ElectronAPI {
       level: 1,
     }),
     coachResetPosition: async () => true,
+    coachGetMetricsBundle: async () => MOCK_METRICS_BUNDLE,
     coachGetLlmConfig: async () => ({
       enabled: false,
       has_key: false,

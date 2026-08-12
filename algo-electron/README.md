@@ -79,9 +79,10 @@ npm run test:submissions
 npm run test:db
 npm run test:docs
 npm run test:packaging
+npm run test:performance
 ```
 
-分别执行站点 adapter、提交监测、数据库 repository、文档一致性和打包配置测试。提交监测、repository、文档索引或打包配置相关改动必须跑对应 suite。
+分别执行站点 adapter、提交监测、数据库 repository、文档一致性、打包配置和 renderer 性能门槛测试。提交监测、repository、文档索引、打包配置或 lazy chunk 相关改动必须跑对应 suite。
 
 ```powershell
 npm run test:all

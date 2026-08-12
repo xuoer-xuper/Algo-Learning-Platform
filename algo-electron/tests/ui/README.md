@@ -7,7 +7,7 @@
 ## 2. 当前覆盖
 
 - `rendererScreenshotHarness.tsx`：注入 mock `window.electronAPI` 的截图 harness。
-- `rendererScreenshots.test.ts`：用 Electron 捕获题库侧栏、统计页、设置页截图，并检查横向越界、平台分布图形和敏感字段。
+- `rendererScreenshots.test.ts`：用 Electron 捕获题库侧栏、统计页、设置页、LLM 设置、Coach 指标和笔记编辑器截图，并检查横向越界、图表/编辑器实际渲染、ErrorBoundary 和敏感字段。
 
 ## 3. 运行方式
 

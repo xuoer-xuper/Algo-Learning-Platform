@@ -10,7 +10,7 @@ Renderer 不直接访问 Node.js、SQLite、Electron session、Cookie 或文件�
 
 - 主应用壳：`App.tsx`。
 - 入口：`main.tsx`。
-- 全局样式：`index.css`、`App.css`。
+- 全局样式：`index.css`、`App.css` 及 `styles/` 中的功能样式入口。
 - 共享组件：`components/`。
 - 业务功能页面：`features/`。
 - 应用级 hook：`hooks/`。
@@ -21,7 +21,8 @@ Renderer 不直接访问 Node.js、SQLite、Electron session、Cookie 或文件�
 
 - `main.tsx`：React root 挂载。
 - `App.tsx`：renderer 顶层布局、浏览器状态接线和 modal 编排。
-- `App.css`：应用级布局、页面和功能样式。
+- `App.css`：按稳定顺序导入 `styles/` 下的应用壳和功能样式。
+- `styles/`：按应用壳、设置、首页、题目、统计、笔记和 Coach 拆分的全局样式。
 - `index.css`：Tailwind 入口和全局基础样式。
 - `vite-env.d.ts`：Vite 类型声明。
 - `components/`：可复用 UI 组件。

@@ -1,0 +1,112 @@
+/* 题目详情页 */
+.detail-page {
+  padding: 20px;
+  width: min(760px, calc(100vw - 48px));
+  max-height: min(86vh, 760px);
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+.detail-page::-webkit-scrollbar {
+  width: 6px;
+}
+
+.detail-page::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.detail-page::-webkit-scrollbar-thumb {
+  background-color: var(--border);
+  border-radius: 3px;
+}
+
+.detail-info {
+  margin-bottom: 16px;
+}
+
+.detail-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.detail-label {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.detail-value {
+  color: var(--text);
+  font-size: 12px;
+}
+
+.detail-link {
+  color: var(--primary);
+  font-size: 12px;
+  text-decoration: none;
+}
+
+.detail-link:hover {
+  text-decoration: underline;
+}
+
+.detail-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.detail-delete-btn {
+  height: 28px;
+  padding: 0 12px;
+  border: 1px solid var(--error);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--error);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.detail-delete-btn:hover:not(:disabled) {
+  background: var(--error);
+  color: #fff;
+}
+
+.detail-delete-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.submissions-list {
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.submission-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--border-light);
+  font-size: 12px;
+}
+
+.submission-verdict {
+  font-weight: 600;
+  min-width: 60px;
+}
+
+.submission-lang {
+  color: var(--text-muted);
+  min-width: 50px;
+}
+
+.submission-time {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+

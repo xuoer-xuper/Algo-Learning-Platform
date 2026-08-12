@@ -28,6 +28,7 @@
     "test:db": "node tests/run-tests.mjs db",
     "test:docs": "node tests/run-tests.mjs docs",
     "test:packaging": "node tests/run-tests.mjs packaging",
+    "test:performance": "node tests/run-tests.mjs performance",
     "test:electron": "node tests/run-tests.mjs electron",
     "test:ui": "node tests/run-tests.mjs ui",
     "test:coach": "node tests/run-tests.mjs coach",

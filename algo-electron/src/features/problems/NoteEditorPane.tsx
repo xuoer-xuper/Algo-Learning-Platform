@@ -1,4 +1,8 @@
-import { MilkdownEditor } from './MilkdownEditor'
+import { lazy, Suspense } from 'react'
+
+const MilkdownEditor = lazy(() => import('./MilkdownEditor').then((module) => ({
+  default: module.MilkdownEditor,
+})))
 
 interface NoteEditorPaneProps {
   activeNoteId: string | null
@@ -48,13 +52,15 @@ export function NoteEditorPane({
             </span>
           </div>
           <div className="note-editor-container">
-            <MilkdownEditor
-              key={activeNoteId}
-              noteId={activeNoteId}
-              initialValue={editorInitial}
-              onChange={onEditorChange}
-              placeholder="开始编写题解…（输入 ## 自动生成标题）"
-            />
+            <Suspense fallback={<div className="note-editor-placeholder">编辑器加载中...</div>}>
+              <MilkdownEditor
+                key={activeNoteId}
+                noteId={activeNoteId}
+                initialValue={editorInitial}
+                onChange={onEditorChange}
+                placeholder="开始编写题解…（输入 ## 自动生成标题）"
+              />
+            </Suspense>
           </div>
         </>
       ) : (

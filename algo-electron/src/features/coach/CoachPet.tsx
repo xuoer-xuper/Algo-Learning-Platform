@@ -1,8 +1,11 @@
-import { useEffect, useRef, useState } from 'react'
+import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import { CoachBubble } from './CoachBubble'
-import { CoachChatPanel } from './CoachChatPanel'
 import { PET_STATES, type PetState } from './petStates'
 import './styles/pet.css'
+
+const CoachChatPanel = lazy(() => import('./CoachChatPanel').then((module) => ({
+  default: module.CoachChatPanel,
+})))
 
 /**
  * Coach 桌宠主组件。
@@ -174,7 +177,9 @@ export function CoachPet() {
       </div>
 
       {chatPanelOpen && (
-        <CoachChatPanel onClose={() => setChatPanelOpen(false)} />
+        <Suspense fallback={<div className="coach-chat-loading">加载对话...</div>}>
+          <CoachChatPanel onClose={() => setChatPanelOpen(false)} />
+        </Suspense>
       )}
       {!chatPanelOpen && bubble && (
         <CoachBubble

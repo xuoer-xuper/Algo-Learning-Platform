@@ -116,6 +116,7 @@
 | settings | [src/features/settings/README](../algo-electron/src/features/settings/README.md) |
 | coach | [src/features/coach/README](../algo-electron/src/features/coach/README.md) |
 | coach styles | [src/features/coach/styles/README](../algo-electron/src/features/coach/styles/README.md) |
+| renderer global styles | [src/styles/README](../algo-electron/src/styles/README.md) |
 | hooks | [src/hooks/README](../algo-electron/src/hooks/README.md) |
 | renderer shared | [src/shared/README](../algo-electron/src/shared/README.md) |
 | build | [build/README](../algo-electron/build/README.md) |
@@ -133,6 +134,7 @@
 | test ipc | [tests/ipc/README](../algo-electron/tests/ipc/README.md) |
 | test parsers | [tests/parsers/README](../algo-electron/tests/parsers/README.md) |
 | test packaging | [tests/packaging/README](../algo-electron/tests/packaging/README.md) |
+| test performance | [tests/performance/README](../algo-electron/tests/performance/README.md) |
 | test scripts | [tests/scripts/README](../algo-electron/tests/scripts/README.md) |
 | test security | [tests/security/README](../algo-electron/tests/security/README.md) |
 | test submissions | [tests/submissions/README](../algo-electron/tests/submissions/README.md) |

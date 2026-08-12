@@ -20,6 +20,7 @@ const suites = new Set([
   'db',
   'docs',
   'packaging',
+  'performance',
   'electron',
   'ui',
   'coach',
@@ -130,6 +131,10 @@ function runPackagingSuite() {
   run(process.execPath, [path.join('tests', 'packaging', 'check-packaging.mjs')])
 }
 
+function runPerformanceSuite() {
+  run(process.execPath, [path.join('tests', 'performance', 'checkRendererBundle.mjs')])
+}
+
 function runCoachSuite() {
   const testDir = path.join(projectRoot, 'tests', 'coach')
   const testFiles = fs
@@ -204,6 +209,9 @@ function runSuite(suite) {
     case 'packaging':
       runPackagingSuite()
       break
+    case 'performance':
+      runPerformanceSuite()
+      break
     case 'electron':
       bundleAndRun(path.join('tests', 'electron', 'startupSmoke.test.ts'), 'electron')
       break
@@ -221,6 +229,7 @@ function runSuite(suite) {
       runDbSuite()
       runDocsSuite()
       runPackagingSuite()
+      runPerformanceSuite()
       bundleAndRun(path.join('tests', 'electron', 'startupSmoke.test.ts'), 'electron')
       bundleAndRun(path.join('tests', 'ui', 'rendererScreenshots.test.ts'), 'ui')
       runCoachSuite()
