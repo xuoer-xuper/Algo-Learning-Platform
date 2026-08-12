@@ -10,7 +10,7 @@
 
 - 触发条件：pull request、push 到 `main` 或 `master`。
 - 运行环境：`windows-latest`。
-- Node 版本：22。
+- Node 版本：22.23.2（项目支持范围为 `>=22.18.0 <25`）。
 - 工作目录：`algo-electron/`。
 - 安装方式：`npm ci`。
 - 验证命令：`npm run test:all`。

@@ -6,11 +6,8 @@ import path from 'node:path'
 const projectRoot = process.cwd()
 const tmpRoot = path.join(projectRoot, 'tmp')
 const outputDir = path.join(tmpRoot, 'ui-screenshots')
-const harnessJs = path.join(outputDir, 'rendererScreenshotHarness.js')
-const harnessCss = path.join(outputDir, 'rendererScreenshotHarness.css')
-const harnessHtml = path.join(outputDir, 'index.html')
+const harnessHtml = path.join(outputDir, 'rendererScreenshotHarness.html')
 const runnerPath = path.join(outputDir, 'electronScreenshotRunner.mjs')
-const esbuildBin = path.join(projectRoot, 'node_modules', 'esbuild', 'bin', 'esbuild')
 const electronBin = process.platform === 'win32'
   ? path.join(projectRoot, 'node_modules', 'electron', 'dist', 'electron.exe')
   : path.join(projectRoot, 'node_modules', '.bin', 'electron')
@@ -21,19 +18,10 @@ const expectedScreenshots = [
   'settings.png',
 ]
 
-function runEsbuild(): void {
+function runViteBuild(): void {
   const result = spawnSync(process.execPath, [
-    esbuildBin,
-    'tests/ui/rendererScreenshotHarness.tsx',
-    '--bundle',
-    '--platform=browser',
-    '--format=iife',
-    '--loader:.css=css',
-    '--loader:.woff=file',
-    '--loader:.woff2=file',
-    '--loader:.ttf=file',
-    `--outfile=${harnessJs}`,
-    '--define:process.env.NODE_ENV="test"',
+    path.join('tests', 'ui', 'buildRendererScreenshotHarness.mjs'),
+    outputDir,
   ], {
     cwd: projectRoot,
     encoding: 'utf-8',
@@ -42,35 +30,9 @@ function runEsbuild(): void {
   assert.strictEqual(
     result.status,
     0,
-    `Failed to bundle renderer screenshot harness\nSTDOUT:\n${result.stdout}\nSTDERR:\n${result.stderr}`,
+    `Failed to build renderer screenshot harness\nSTDOUT:\n${result.stdout}\nSTDERR:\n${result.stderr}`,
   )
-}
-
-function writeHarnessHtml(): void {
-  const cssLink = fs.existsSync(harnessCss)
-    ? '<link rel="stylesheet" href="./rendererScreenshotHarness.css">'
-    : ''
-
-  fs.writeFileSync(
-    harnessHtml,
-    `<!doctype html>
-<html>
-  <head>
-    <meta charset="utf-8">
-    <title>Renderer Screenshot Harness</title>
-    ${cssLink}
-    <style>
-      html, body, #root { width: 100%; height: 100%; margin: 0; }
-      body { overflow: hidden; }
-    </style>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script src="./rendererScreenshotHarness.js"></script>
-  </body>
-</html>`,
-    'utf-8',
-  )
+  assert.ok(fs.existsSync(harnessHtml), 'Vite did not emit the screenshot harness HTML')
 }
 
 function writeRunner(): void {
@@ -310,8 +272,7 @@ if (fs.existsSync(outputDir)) {
 }
 fs.mkdirSync(outputDir, { recursive: true })
 
-runEsbuild()
-writeHarnessHtml()
+runViteBuild()
 writeRunner()
 runElectronRunner()
 assertScreenshotsExist()

@@ -33,7 +33,10 @@ export function MilkdownEditor({ noteId, initialValue, onChange, placeholder }: 
   const latestMarkdownRef = useRef(initialValue)
   const pendingRef = useRef(false)
   const onChangeRef = useRef(onChange)
-  onChangeRef.current = onChange
+
+  useEffect(() => {
+    onChangeRef.current = onChange
+  }, [onChange])
 
   useEffect(() => {
     if (!containerRef.current) return
