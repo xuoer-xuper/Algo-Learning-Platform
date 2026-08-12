@@ -14,7 +14,7 @@
 - `algo-electron/build/`、`algo-electron/public/` README 覆盖。
 - `docs/ADR/` README 覆盖。
 - 上述 README 的内容质量检查：至少说明职责、当前实现或覆盖范围、封装入口或关键文件、边界规则和验证入口。
-- `docs/` 命名检查：除 `README.md` 外，文档文件和子目录必须使用大写和下划线。
+- `docs/` 命名检查：除 `README.md` 外，文档文件和子目录必须使用大写和下划线；同时检查 Git 索引中的真实大小写，避免 Windows 本地通过但全新 checkout 失败。
 - `docs/README.md` 总索引覆盖检查：根目录长期 Markdown、`docs/` 成品文档、ADR 和已纳入守卫的 README 必须能从总索引找到。
 - Markdown 中的 `npm run <script>` 引用检查：真实脚本名必须存在于 `algo-electron/package.json`，`npm run test:*` 这类通配说明不作为具体脚本校验。
 

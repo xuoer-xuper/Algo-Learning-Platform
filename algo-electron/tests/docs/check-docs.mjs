@@ -1,5 +1,6 @@
 import fs from 'node:fs'
 import path from 'node:path'
+import { execFileSync } from 'node:child_process'
 
 const projectRoot = path.resolve(process.cwd())
 const repoRoot = path.resolve(projectRoot, '..')
@@ -167,18 +168,46 @@ function checkDocsIndexCoverage() {
 }
 
 function checkDocsNaming() {
-  const errors = []
+  const invalidDirectories = new Set()
+  const invalidFiles = new Set()
 
   if (!fs.existsSync(docsRootPath)) {
     return [`Missing docs directory: ${path.relative(repoRoot, docsRootPath)}`]
   }
 
+  try {
+    const trackedDocs = execFileSync('git', ['ls-files', '--', 'docs'], {
+      cwd: repoRoot,
+      encoding: 'utf8',
+    })
+      .split(/\r?\n/)
+      .filter(Boolean)
+
+    for (const trackedPath of trackedDocs) {
+      const parts = trackedPath.split('/')
+      const fileName = parts.at(-1)
+
+      for (let index = 1; index < parts.length - 1; index += 1) {
+        if (!/^[A-Z0-9_]+$/.test(parts[index])) {
+          invalidDirectories.add(parts.slice(0, index + 1).join('/'))
+        }
+      }
+
+      if (fileName !== 'README.md' && fileName?.toLowerCase().endsWith('.md') && !/^[A-Z0-9_]+\.md$/.test(fileName)) {
+        invalidFiles.add(trackedPath)
+      }
+    }
+  } catch {
+    // Filesystem checks below still cover source archives without Git metadata.
+  }
+
   for (const dir of walkDirectories(docsRootPath)) {
     const relative = path.relative(docsRootPath, dir)
-    for (const part of relative.split(path.sep)) {
+    const parts = relative.split(path.sep)
+    for (let index = 0; index < parts.length; index += 1) {
+      const part = parts[index]
       if (part && !/^[A-Z0-9_]+$/.test(part)) {
-        errors.push(`${path.relative(repoRoot, dir)}: docs directory names must use UPPER_SNAKE_CASE`)
-        break
+        invalidDirectories.add(['docs', ...parts.slice(0, index + 1)].join('/'))
       }
     }
   }
@@ -193,11 +222,18 @@ function checkDocsNaming() {
     }
 
     if (!/^[A-Z0-9_]+\.md$/.test(name)) {
-      errors.push(`${path.relative(repoRoot, file)}: docs markdown names must use UPPER_SNAKE_CASE.md`)
+      invalidFiles.add(path.relative(repoRoot, file).split(path.sep).join('/'))
     }
   }
 
-  return errors
+  return [
+    ...Array.from(invalidDirectories).sort().map(
+      (dir) => `${dir}: docs directory names must use UPPER_SNAKE_CASE`,
+    ),
+    ...Array.from(invalidFiles).sort().map(
+      (file) => `${file}: docs markdown names must use UPPER_SNAKE_CASE.md`,
+    ),
+  ]
 }
 
 function checkNpmScriptReferences() {
