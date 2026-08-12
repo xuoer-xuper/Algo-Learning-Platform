@@ -4,7 +4,7 @@ import { loadDefaultHomeUrl, normalizeHomeUrl, saveDefaultHomeUrl } from './sett
 export function DefaultHomePanel() {
   const [homeUrl, setHomeUrl] = useState('')
   const [saved, setSaved] = useState(false)
-  const savedTimerRef = useRef<number | undefined>()
+  const savedTimerRef = useRef<number | undefined>(undefined)
 
   useEffect(() => {
     loadDefaultHomeUrl().then(setHomeUrl)
