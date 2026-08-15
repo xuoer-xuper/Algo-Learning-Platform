@@ -1,3 +1,4 @@
+import { test } from 'vitest'
 import assert from 'node:assert'
 import { builtinSiteAdapters } from '../../electron/adapters/sites/index.ts'
 import {
@@ -6,6 +7,8 @@ import {
   getRealtimeAdapterForUrl,
   getRealtimeAdapterIds,
 } from '../../electron/adapters/registry.ts'
+
+test('adapters/adapterRegistry.test.ts', async () => {
 
 const expectedBuiltinIds = [
   'codeforces',
@@ -54,3 +57,5 @@ assert.deepStrictEqual(
   expectedBuiltinIds,
   'All builtin adapters currently expose realtime submission monitoring',
 )
+
+})

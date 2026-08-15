@@ -1,7 +1,10 @@
+import { test } from 'vitest'
 import assert from 'node:assert'
 import type { ProblemIdentity, SubmissionData } from '../../electron/shared/types.ts'
 import { leetcodeAdapter } from '../../electron/adapters/leetcode.ts'
 import { SubmissionWatcherCore, type SubmissionNotification } from '../../electron/submissions/SubmissionWatcherCore.ts'
+
+test('submissions/submissionWatcherCore.test.ts', async () => {
 
 const notifications: SubmissionNotification[] = []
 const savedSubmissions: SubmissionData[] = []
@@ -148,3 +151,5 @@ const transientRetry = retryCore.handleDetected({
 assert.strictEqual(transientRetry.inserted, true, 'Watcher should retry the same submission after a failed write')
 assert.strictEqual(transientWriteAttempts, 2, 'Watcher should not mark failed writes as seen')
 assert.strictEqual(retriedSubmissions.length, 1, 'Watcher should persist the retried submission once')
+
+})

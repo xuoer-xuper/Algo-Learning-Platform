@@ -1,4 +1,5 @@
 import assert from 'node:assert'
+import { test } from 'vitest'
 import {
   CoachFeedbackStore,
   type FeedbackRepositoryAdapter,
@@ -21,11 +22,6 @@ import type { CoachEventType } from '../../electron/coach/types.ts'
  *
  * 通过 FeedbackRepositoryAdapter 注入 mock 仓库，避免依赖 better-sqlite3。
  */
-
-const tests: { name: string; fn: () => void }[] = []
-function test(name: string, fn: () => void) {
-  tests.push({ name, fn })
-}
 
 // --- Mock 仓库 ---
 
@@ -647,23 +643,3 @@ test('集成场景：never_today → 当天屏蔽 → 跨天恢复', () => {
   repo.setNeverTodayTypes(new Set())
   assert.strictEqual(store.shouldSuppress('multiple_wrong'), false)
 })
-
-// --- 运行 ---
-
-let failedCount = 0
-console.log('Running CoachFeedbackStore tests...\n')
-for (const t of tests) {
-  try {
-    t.fn()
-    console.log(`[PASS] ${t.name}`)
-  } catch (err: any) {
-    console.error(`[FAIL] ${t.name}`)
-    console.error(err.stack || err)
-    failedCount++
-  }
-}
-
-console.log(`\nCoachFeedbackStore tests finished. Failed: ${failedCount}/${tests.length}`)
-if (failedCount > 0) {
-  process.exitCode = 1
-}

@@ -45,7 +45,7 @@
 ```powershell
 cd algo-electron
 node node_modules\typescript\bin\tsc --noEmit
-npx --yes tsx tests\ui\rendererScreenshots.test.ts
+npm run test:ui
 ```
 
 涉及配置写入时启动 `npm run dev`，手测保存首页、站点启停、导入导出、Codeforces 同步和实时诊断刷新。

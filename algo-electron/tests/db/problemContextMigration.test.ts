@@ -1,5 +1,8 @@
+import { test } from 'vitest'
 import assert from 'node:assert'
 import { inferProblemContext } from '../../electron/db/migrations/017_backfill_problem_context.ts'
+
+test('db/problemContextMigration.test.ts', async () => {
 
 assert.deepStrictEqual(
   inferProblemContext('codeforces', '2224E'),
@@ -22,3 +25,5 @@ assert.deepStrictEqual(
   { contestId: '994805260223102976', problemIndex: '1478636081501847552' },
 )
 assert.strictEqual(inferProblemContext('luogu', 'P1001'), null)
+
+})

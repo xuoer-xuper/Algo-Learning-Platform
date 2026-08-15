@@ -1,6 +1,9 @@
+import { test } from 'vitest'
 import assert from 'node:assert'
 import { acwingAdapter, nowcoderAdapter, vjudgeAdapter } from '../../electron/adapters/genericTableSites.ts'
 import { getRealtimeAdapterForUrl, getRealtimeAdapterIds } from '../../electron/adapters/registry.ts'
+
+test('adapters/genericTableSiteAdapters.test.ts', async () => {
 
 const now = () => '2026-06-29 10:00:00'
 
@@ -1333,3 +1336,5 @@ assert.strictEqual(
   null,
   'VJudge realtime status should wait for the latest row to finish judging',
 )
+
+})

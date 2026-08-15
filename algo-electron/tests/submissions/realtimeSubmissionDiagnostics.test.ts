@@ -1,5 +1,8 @@
+import { test } from 'vitest'
 import assert from 'node:assert'
 import { RealtimeSubmissionDiagnostics } from '../../electron/submissions/RealtimeSubmissionDiagnostics.ts'
+
+test('submissions/realtimeSubmissionDiagnostics.test.ts', async () => {
 
 const diagnostics = new RealtimeSubmissionDiagnostics()
 
@@ -60,3 +63,5 @@ assert.strictEqual(status.lastPage?.realtimeSupported, false, 'Diagnostics shoul
 
 diagnostics.setIpcRegistered(false)
 assert.strictEqual(diagnostics.getStatus().ipcRegistered, false, 'Diagnostics should report unregistered IPC state after disposal')
+
+})

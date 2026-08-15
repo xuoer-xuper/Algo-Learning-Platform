@@ -1,9 +1,12 @@
+import { test } from 'vitest'
 import assert from 'node:assert'
 import {
   createOjSubmissionBridge,
   installOjSubmissionMessageForwarder,
   OJ_SUBMISSION_BRIDGE_CHANNEL,
 } from '../../electron/browser/ojBridge.ts'
+
+test('browser/ojBridge.test.ts', async () => {
 
 const directReports: unknown[] = []
 const bridge = createOjSubmissionBridge((payload) => directReports.push(payload))
@@ -94,3 +97,5 @@ assert.deepStrictEqual(
   [{ submissionId: '123456' }, { submissionId: 'from-child-frame' }, { submissionId: 'from-nested-frame' }],
   'OJ bridge should ignore external windows and unrelated message channels',
 )
+
+})

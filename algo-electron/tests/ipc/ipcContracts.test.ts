@@ -1,6 +1,7 @@
 import assert from 'node:assert'
 import fs from 'node:fs'
 import path from 'node:path'
+import { test } from 'vitest'
 
 type IpcMode = 'send' | 'invoke' | 'on'
 type IpcMainMode = 'on' | 'handle'
@@ -21,11 +22,6 @@ const electronRoot = path.join(projectRoot, 'electron')
 const preloadPath = path.join(electronRoot, 'preload.ts')
 const preloadSource = fs.readFileSync(preloadPath, 'utf-8')
 const electronSources = readElectronSources(electronRoot)
-
-const tests: { name: string; fn: () => void }[] = []
-function test(name: string, fn: () => void) {
-  tests.push({ name, fn })
-}
 
 const coreContracts: PreloadContract[] = [
   // Browser shell
@@ -209,22 +205,4 @@ function readElectronSources(root: string): string[] {
     }
   }
   return sources
-}
-
-let failedCount = 0
-console.log('Running IPC contract tests...\n')
-for (const t of tests) {
-  try {
-    t.fn()
-    console.log(`[PASS] ${t.name}`)
-  } catch (err: any) {
-    console.error(`[FAIL] ${t.name}`)
-    console.error(err.stack || err)
-    failedCount++
-  }
-}
-
-console.log(`\nTests finished. Failed: ${failedCount}/${tests.length}`)
-if (failedCount > 0) {
-  process.exit(1)
 }

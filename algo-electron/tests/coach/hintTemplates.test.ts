@@ -1,4 +1,5 @@
 import assert from 'node:assert'
+import { test } from 'vitest'
 import {
   HINT_TEMPLATES,
   HINT_TEMPLATES_BY_CATEGORY,
@@ -19,11 +20,6 @@ import {
  * 5. 占位符替换
  * 6. selectTemplate 按 category + tags 查询
  */
-
-const tests: { name: string; fn: () => void }[] = []
-function test(name: string, fn: () => void) {
-  tests.push({ name, fn })
-}
 
 // --- 1. 模板数量与覆盖 ---
 
@@ -270,23 +266,3 @@ test('模板不包含完整答案（Socratic 原则）', () => {
     assert.ok(!t.text.includes('解法是'), `template ${t.id} should not give direct solution: ${t.text}`)
   }
 })
-
-// --- 运行 ---
-
-let failedCount = 0
-console.log('Running hintTemplates tests...\n')
-for (const t of tests) {
-  try {
-    t.fn()
-    console.log(`[PASS] ${t.name}`)
-  } catch (err: any) {
-    console.error(`[FAIL] ${t.name}`)
-    console.error(err.stack || err)
-    failedCount++
-  }
-}
-
-console.log(`\nhintTemplates tests finished. Failed: ${failedCount}/${tests.length}`)
-if (failedCount > 0) {
-  process.exitCode = 1
-}

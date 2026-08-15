@@ -1,5 +1,8 @@
+import { test } from 'vitest'
 import assert from 'node:assert'
 import { SyncService } from '../../electron/submissions/syncService.ts'
+
+test('submissions/syncService.test.ts', async () => {
 
 const writes: any[] = []
 
@@ -174,3 +177,5 @@ assert.strictEqual(nowcoderWrites[0].submissions[0]._ncContestId, '789')
 assert.strictEqual(nowcoderWrites[0].submissions[0]._ncProbLetter, 'A')
 assert.strictEqual(nowcoderWrites[0].submissions[1]._ncContestId, '789')
 assert.strictEqual(nowcoderWrites[0].submissions[1]._ncProbLetter, 'B')
+
+})

@@ -1,3 +1,4 @@
+import { test } from 'vitest'
 import assert from 'node:assert'
 import {
   hasSubmissionLikeTable,
@@ -5,6 +6,8 @@ import {
   selectBestSubmissionTable,
   type GenericTableData,
 } from '../../electron/submissions/scrapers/GenericTableScanner.ts'
+
+test('submissions/genericTableScanner.test.ts', async () => {
 
 const fixedNow = () => '2026-06-29 20:00:00'
 
@@ -121,3 +124,5 @@ assert.deepStrictEqual(
   scanGenericSubmissionTable(unrelatedTable, { platform: 'unknown', submissionPrefix: 'u', now: fixedNow }),
   [],
 )
+
+})

@@ -1,6 +1,9 @@
+import { test } from 'vitest'
 import assert from 'node:assert'
 import { luoguAdapter, ptaAdapter } from '../../electron/adapters/specializedScraperSites.ts'
 import { getRealtimeAdapterForUrl } from '../../electron/adapters/registry.ts'
+
+test('adapters/specializedScraperSiteAdapters.test.ts', async () => {
 
 function createHost(url: string, data: unknown) {
   return {
@@ -496,3 +499,5 @@ assert.strictEqual(luoguFirstFailedCaseSubmission.rawVerdict, '5')
 
 assert.strictEqual(ptaAdapter.matchProblem('https://pintia.cn/problem-sets/994805260223102976/exam/problems/type/7?problemSetProblemId=1478636081501847552'), true)
 assert.strictEqual(luoguAdapter.matchProblem('https://www.luogu.com.cn/problem/P1001'), true)
+
+})

@@ -1,3 +1,4 @@
+import { test } from 'vitest'
 import assert from 'node:assert'
 import {
   hasCjkText,
@@ -5,6 +6,8 @@ import {
   isValidScrapedTitle,
   shouldReplaceScrapedTitle,
 } from '../../electron/parsers/titleValidation.ts'
+
+test('parsers/titleValidation.test.ts', async () => {
 
 assert.strictEqual(
   isBadScrapedTitle('number-of-strings-that-appear-as-substrings-in-word'),
@@ -52,3 +55,5 @@ assert.strictEqual(
   false,
   'English titles should not replace existing Chinese titles',
 )
+
+})

@@ -1,5 +1,8 @@
+import { test } from 'vitest'
 import assert from 'node:assert'
 import { createProblemTitleFallbackScript } from '../../electron/parsers/problemTitleFallback.ts'
+
+test('parsers/problemTitleFallback.test.ts', async () => {
 
 const codeforcesScript = createProblemTitleFallbackScript('https://codeforces.com/contest/1/problem/A')
 assert.ok(codeforcesScript, 'Codeforces problem pages should get a DOM title fallback')
@@ -16,3 +19,5 @@ assert.strictEqual(
   null,
   'Sites with reliable browser tab titles should not use DOM fallback',
 )
+
+})

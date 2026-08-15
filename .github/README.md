@@ -14,7 +14,7 @@
 
 ## 3. 实现程度
 
-当前 CI 使用 Windows runner、Node.js 22、`npm ci` 和 `npm run test:all`。它能覆盖 TypeScript、lint、IPC contract、adapter、submission、DB repository、Electron smoke 和 renderer screenshot 验证。
+当前 CI 使用 Windows runner、Node.js 22、`npm ci` 和 `npm run test:all`。它能覆盖 TypeScript、lint、Vitest 单元/集成与覆盖率门槛、IPC contract、adapter、submission、DB repository、Electron smoke 和 Playwright renderer 验证。
 
 CI 不访问真实 OJ 登录态，不提交代码，不读取 Cookie，也不替代七站实时提交手测、站点风控验证或安装包安装/卸载验收。
 

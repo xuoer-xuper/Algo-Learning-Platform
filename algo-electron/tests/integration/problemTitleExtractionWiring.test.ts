@@ -1,5 +1,8 @@
+import { test } from 'vitest'
 import assert from 'node:assert'
 import fs from 'node:fs'
+
+test('integration/problemTitleExtractionWiring.test.ts', async () => {
 
 const mainSource = fs.readFileSync('electron/main.ts', 'utf-8')
 const titleTrackingSource = fs.readFileSync('electron/tracking/problemTitleTracking.ts', 'utf-8')
@@ -28,3 +31,5 @@ assert.ok(
   titleTrackingSource.includes('scheduleTitleExtraction(url)'),
   'Active-tab title extraction should fall back to delayed DOM/title extraction when needed',
 )
+
+})

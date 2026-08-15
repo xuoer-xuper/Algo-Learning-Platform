@@ -1,6 +1,9 @@
+import { test } from 'vitest'
 import assert from 'node:assert'
 import type { ProblemIdentity, SubmissionData } from '../../electron/shared/types.ts'
 import { SubmissionBatchWriter } from '../../electron/submissions/SubmissionBatchWriter.ts'
+
+test('submissions/submissionBatchWriter.test.ts', async () => {
 
 const problems = new Map<string, string>()
 const upsertedProblems: ProblemIdentity[] = []
@@ -279,3 +282,5 @@ const duplicateResult = writer.write({
 
 assert.deepStrictEqual(duplicateResult, { platform: 'pta', fetched: 1, inserted: 0 })
 assert.strictEqual(statsRecomputeCount, 10, 'Stats should not be recomputed when no row is inserted')
+
+})

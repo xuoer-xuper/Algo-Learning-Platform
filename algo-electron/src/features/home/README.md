@@ -33,7 +33,7 @@
 ```powershell
 cd algo-electron
 node node_modules\typescript\bin\tsc --noEmit
-npx --yes tsx tests\ui\rendererScreenshots.test.ts
+npm run test:ui
 ```
 
 涉及交互时启动 `npm run dev`，手测首页加载、题目更新后刷新、空数据和导航入口。

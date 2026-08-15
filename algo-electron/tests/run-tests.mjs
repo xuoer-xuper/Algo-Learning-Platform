@@ -3,50 +3,49 @@ import fs from 'node:fs'
 import path from 'node:path'
 
 const projectRoot = process.cwd()
-const tmpDir = path.join(projectRoot, 'tmp')
+const tmpDir = path.join(projectRoot, 'tmp', 'electron-tests')
 const esbuildBin = path.join(projectRoot, 'node_modules', 'esbuild', 'bin', 'esbuild')
 const eslintBin = path.join(projectRoot, 'node_modules', 'eslint', 'bin', 'eslint.js')
+const tscBin = path.join(projectRoot, 'node_modules', 'typescript', 'bin', 'tsc')
+const vitestBin = path.join(projectRoot, 'node_modules', 'vitest', 'vitest.mjs')
 const electronBin = process.platform === 'win32'
   ? path.join(projectRoot, 'node_modules', 'electron', 'dist', 'electron.exe')
   : path.join(projectRoot, 'node_modules', '.bin', 'electron')
 
-const suites = new Set([
-  'core',
-  'ai',
-  'architecture',
-  'security',
-  'adapters',
-  'submissions',
-  'db',
-  'docs',
-  'packaging',
-  'performance',
-  'electron',
-  'ui',
-  'coach',
-  'all',
-])
+const suites = new Set(['core', 'ai', 'db', 'electron', 'coach', 'all'])
+
+const coreVitestFiles = [
+  'tests/ai/recommendationRules.test.ts',
+  'tests/browser',
+  'tests/coach',
+  'tests/integration',
+  'tests/ipc/ipcContracts.test.ts',
+  'tests/parsers',
+  'tests/scripts',
+]
+
+const dbVitestFiles = [
+  'tests/db/codeforcesSubmissionIdMigration.test.ts',
+  'tests/db/problemContextMigration.test.ts',
+]
 
 function run(command, args, env = {}) {
   console.log(`\n$ ${[command, ...args].join(' ')}`)
-
   const result = spawnSync(command, args, {
     cwd: projectRoot,
     env: { ...process.env, ...env },
     stdio: 'inherit',
   })
 
+  if (result.error) throw result.error
   if (result.status !== 0) {
-    if (result.error) {
-      console.error(result.error)
-    }
-    process.exit(result.status ?? 1)
+    throw new Error(`Command failed with status ${result.status}: ${command}`)
   }
 }
 
-function bundleTest(testFile, outfile, externals = []) {
-  fs.mkdirSync(path.dirname(outfile), { recursive: true })
-
+function bundleTest(testFile, outputName, externals = []) {
+  fs.mkdirSync(tmpDir, { recursive: true })
+  const outfile = path.join(tmpDir, `${outputName}.mjs`)
   run(process.execPath, [
     esbuildBin,
     testFile,
@@ -56,128 +55,110 @@ function bundleTest(testFile, outfile, externals = []) {
     ...externals.map((external) => `--external:${external}`),
     `--outfile=${outfile}`,
   ])
+  return outfile
 }
 
-function bundleAndRun(testFile, prefix, externals = []) {
-  const baseName = path.basename(testFile, '.test.ts')
-  const outfile = path.join(tmpDir, `${prefix}-${baseName}.test.mjs`)
-
-  bundleTest(testFile, outfile, externals)
-  run(process.execPath, [outfile])
+function runElectronNodeTest(testFile, outputName) {
+  const outfile = bundleTest(testFile, outputName, ['better-sqlite3', 'electron'])
+  run(electronBin, [outfile], { ELECTRON_RUN_AS_NODE: '1' })
 }
 
-function bundleAndRunDirectory(dir, prefix) {
-  const testDir = path.join(projectRoot, 'tests', dir)
-  const testFiles = fs
-    .readdirSync(testDir)
-    .filter((file) => file.endsWith('.test.ts'))
-    .sort()
+function runElectronAppTest(testFile, outputName) {
+  const outfile = bundleTest(testFile, outputName, ['electron'])
+  run(electronBin, [outfile])
+}
 
-  for (const file of testFiles) {
-    bundleAndRun(path.join('tests', dir, file), prefix)
-  }
+function runVitest(files = [], coverage = false) {
+  run(process.execPath, [vitestBin, 'run', ...(coverage ? ['--coverage'] : []), ...files])
 }
 
 function runTypecheck() {
-  run(process.execPath, [path.join('node_modules', 'typescript', 'bin', 'tsc'), '--noEmit'])
+  run(process.execPath, [tscBin, '--noEmit'])
 }
 
 function runLint() {
-  run(process.execPath, [
-    eslintBin,
-    '.',
-    '--ext',
-    'ts,tsx',
-    '--report-unused-disable-directives',
-    '--max-warnings',
-    '0',
-  ])
+  run(process.execPath, [eslintBin, '.', '--report-unused-disable-directives', '--max-warnings', '0'])
 }
 
-function runDbSuite() {
-  const backupImportBundle = path.join(tmpDir, 'db-backupImport.test.mjs')
-  bundleTest(
-    path.join('tests', 'db', 'backupImport.test.ts'),
-    backupImportBundle,
-    ['better-sqlite3', 'electron'],
-  )
-  run(electronBin, [backupImportBundle], { ELECTRON_RUN_AS_NODE: '1' })
-
-  bundleAndRun(path.join('tests', 'db', 'codeforcesSubmissionIdMigration.test.ts'), 'db')
-  bundleAndRun(path.join('tests', 'db', 'problemContextMigration.test.ts'), 'db')
-
-  const repositoryBundle = path.join(tmpDir, 'db-repositories.test.mjs')
-  bundleTest(
-    path.join('tests', 'db', 'repositories.test.ts'),
-    repositoryBundle,
-    ['better-sqlite3', 'electron'],
-  )
-  run(electronBin, [repositoryBundle], { ELECTRON_RUN_AS_NODE: '1' })
-}
-
-function runDocsSuite() {
-  run(process.execPath, [path.join('tests', 'docs', 'check-docs.mjs')])
-}
-
-function runArchitectureSuite() {
+function runArchitecture() {
   run(process.execPath, [path.join('tests', 'architecture', 'check-architecture.mjs')])
 }
 
-function runSecuritySuite() {
+function runSecurity() {
   run(process.execPath, [path.join('tests', 'security', 'check-sensitive-files.mjs')])
 }
 
-function runPackagingSuite() {
+function runDocs() {
+  run(process.execPath, [path.join('tests', 'docs', 'check-docs.mjs')])
+}
+
+function runPackaging() {
   run(process.execPath, [path.join('tests', 'packaging', 'check-packaging.mjs')])
 }
 
-function runPerformanceSuite() {
+function runPerformance() {
   run(process.execPath, [path.join('tests', 'performance', 'checkRendererBundle.mjs')])
 }
 
-function runCoachSuite() {
-  const testDir = path.join(projectRoot, 'tests', 'coach')
-  const testFiles = fs
-    .readdirSync(testDir)
-    .filter((file) => file.endsWith('.test.ts'))
-    .sort()
+function runAiElectronTests() {
+  runElectronNodeTest(path.join('tests', 'ai', 'traceability.test.ts'), 'ai-traceability')
+}
 
-  for (const file of testFiles) {
-    const testFile = path.join('tests', 'coach', file)
-    if (file === 'llmConfigStore.test.ts') {
-      const outfile = path.join(tmpDir, 'coach-llmConfigStore.test.mjs')
-      bundleTest(testFile, outfile, ['electron'])
-      run(electronBin, [outfile])
-      continue
-    }
-    bundleAndRun(testFile, 'coach')
-  }
+function runDbElectronTests() {
+  runElectronNodeTest(path.join('tests', 'db', 'backupImport.test.ts'), 'db-backupImport')
+  runElectronNodeTest(path.join('tests', 'db', 'repositories.test.ts'), 'db-repositories')
+}
+
+function runCoachElectronTests() {
+  runElectronAppTest(path.join('tests', 'coach', 'llmConfigStore.test.ts'), 'coach-llmConfigStore')
+}
+
+function runStartupSmoke() {
+  const outfile = bundleTest(path.join('tests', 'electron', 'startupSmoke.test.ts'), 'electron-startupSmoke')
+  run(process.execPath, [outfile])
+}
+
+function runUiTests() {
+  run(process.execPath, [path.join('tests', 'ui', 'runPlaywright.mjs')])
 }
 
 function runCoreSuite() {
   runTypecheck()
   runLint()
-  runArchitectureSuite()
-  runSecuritySuite()
-  bundleAndRun(path.join('tests', 'ipc', 'ipcContracts.test.ts'), 'ipc')
-  bundleAndRun(path.join('tests', 'ai', 'recommendationRules.test.ts'), 'ai')
-  bundleAndRun(path.join('tests', 'scripts', 'userScriptMetadata.test.ts'), 'scripts')
-  bundleAndRunDirectory('browser', 'browser')
-  bundleAndRunDirectory('parsers', 'parsers')
-  bundleAndRunDirectory('integration', 'integration')
-  runCoachSuite()
+  runArchitecture()
+  runSecurity()
+  runVitest(coreVitestFiles)
 }
 
 function runAiSuite() {
-  bundleAndRun(path.join('tests', 'ai', 'recommendationRules.test.ts'), 'ai')
+  runVitest(['tests/ai/recommendationRules.test.ts'])
+  runAiElectronTests()
+}
 
-  const traceabilityBundle = path.join(tmpDir, 'ai-traceability.test.mjs')
-  bundleTest(
-    path.join('tests', 'ai', 'traceability.test.ts'),
-    traceabilityBundle,
-    ['better-sqlite3', 'electron'],
-  )
-  run(electronBin, [traceabilityBundle], { ELECTRON_RUN_AS_NODE: '1' })
+function runDbSuite() {
+  runVitest(dbVitestFiles)
+  runDbElectronTests()
+}
+
+function runCoachSuite() {
+  runVitest(['tests/coach'])
+  runCoachElectronTests()
+}
+
+function runAllSuite() {
+  runTypecheck()
+  runLint()
+  runArchitecture()
+  runSecurity()
+  runVitest([], true)
+  runAiElectronTests()
+  runDbElectronTests()
+  runCoachElectronTests()
+  runDocs()
+  runPackaging()
+  runPerformance()
+  runStartupSmoke()
+  runUiTests()
 }
 
 function runSuite(suite) {
@@ -188,61 +169,31 @@ function runSuite(suite) {
     case 'ai':
       runAiSuite()
       break
-    case 'architecture':
-      runArchitectureSuite()
-      break
-    case 'security':
-      runSecuritySuite()
-      break
-    case 'adapters':
-      bundleAndRunDirectory('adapters', 'adapters')
-      break
-    case 'submissions':
-      bundleAndRunDirectory('submissions', 'submissions')
-      break
     case 'db':
       runDbSuite()
       break
-    case 'docs':
-      runDocsSuite()
-      break
-    case 'packaging':
-      runPackagingSuite()
-      break
-    case 'performance':
-      runPerformanceSuite()
-      break
     case 'electron':
-      bundleAndRun(path.join('tests', 'electron', 'startupSmoke.test.ts'), 'electron')
-      break
-    case 'ui':
-      bundleAndRun(path.join('tests', 'ui', 'rendererScreenshots.test.ts'), 'ui')
+      runStartupSmoke()
       break
     case 'coach':
       runCoachSuite()
       break
     case 'all':
-      runCoreSuite()
-      runAiSuite()
-      bundleAndRunDirectory('adapters', 'adapters')
-      bundleAndRunDirectory('submissions', 'submissions')
-      runDbSuite()
-      runDocsSuite()
-      runPackagingSuite()
-      runPerformanceSuite()
-      bundleAndRun(path.join('tests', 'electron', 'startupSmoke.test.ts'), 'electron')
-      bundleAndRun(path.join('tests', 'ui', 'rendererScreenshots.test.ts'), 'ui')
-      runCoachSuite()
+      runAllSuite()
       break
   }
 }
 
 const requestedSuite = process.argv[2] ?? 'core'
-
 if (!suites.has(requestedSuite)) {
-  console.error(`Unknown test suite: ${requestedSuite}`)
+  console.error(`Unknown composite test suite: ${requestedSuite}`)
   console.error(`Available suites: ${Array.from(suites).join(', ')}`)
-  process.exit(1)
+  process.exitCode = 1
+} else {
+  try {
+    runSuite(requestedSuite)
+  } catch (error) {
+    console.error(error instanceof Error ? error.message : error)
+    process.exitCode = 1
+  }
 }
-
-runSuite(requestedSuite)

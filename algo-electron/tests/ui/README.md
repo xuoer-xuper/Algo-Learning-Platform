@@ -7,7 +7,8 @@
 ## 2. 当前覆盖
 
 - `rendererScreenshotHarness.tsx`：注入 mock `window.electronAPI` 的截图 harness。
-- `rendererScreenshots.test.ts`：用与产品一致的无边框 Electron 窗口捕获题库侧栏、统计页、设置页、LLM 设置、Coach 指标和笔记编辑器截图。测试将窗口尺寸作为宽、中、窄三种代表性夹具，始终按实际测得的 `.content-area`、`.modal-workspace` 和 `.modal-panel` 容器宽度验证布局，不把任何桌面分辨率当成产品契约；同时检查横向越界、容器边界、网格折叠、图表/编辑器实际渲染、ErrorBoundary 和敏感字段。
+- `rendererScreenshots.pw.spec.ts`：由 Playwright Test 驱动与产品一致的无边框 Electron 窗口，捕获题库侧栏、统计页、设置页、LLM 设置、Coach 指标和笔记编辑器截图。宽、中、窄窗口只是代表性夹具；断言始终读取实际 `.content-area`、`.modal-workspace` 和 `.modal-panel` 容器尺寸，不把桌面分辨率当成产品契约。测试同时检查横向越界、网格折叠、图表/编辑器渲染、ErrorBoundary 和敏感字段。
+- `electronScreenshotApp.mjs`：Playwright 专用 Electron 主进程入口，不访问真实 userData、OJ 登录态或网络。
 
 ## 3. 运行方式
 
@@ -17,6 +18,8 @@ npm run test:ui
 ```
 
 截图分别输出在 `tmp/ui-screenshots/wide/`、`tmp/ui-screenshots/medium/` 和 `tmp/ui-screenshots/narrow/`，只用于本地验收，不提交。
+
+失败 trace 输出在 `tmp/playwright/`，可使用 `npx playwright show-trace <trace.zip>` 查看操作、DOM 和截图。
 
 可以同时设置 `ALP_SCREENSHOT_WINDOW_WIDTH` 和 `ALP_SCREENSHOT_WINDOW_HEIGHT` 验证其他原生窗口尺寸；测试下限直接复用主窗口的 `MAIN_WINDOW_BOUNDS`，当前为 `800×600`。
 

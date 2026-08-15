@@ -1,4 +1,5 @@
 import assert from 'node:assert'
+import { test } from 'vitest'
 import {
   HintLadder,
   LADDER_LEVEL_DESCRIPTIONS,
@@ -25,11 +26,6 @@ import type { CoachEventType } from '../../electron/coach/types.ts'
  * 9. 升级冷却与 RuleEngine 联动（不在此测试冷却，由 ruleEngine.test.ts 覆盖）
  * 10. 不直接给完整答案
  */
-
-const tests: { name: string; fn: () => void }[] = []
-function test(name: string, fn: () => void) {
-  tests.push({ name, fn })
-}
 
 function makeConstraints(overrides: Partial<ProblemConstraints> = {}): ProblemConstraints {
   return {
@@ -511,23 +507,3 @@ test('手动演练：L1 → L2 → L3 → L4 → L5(confirmation) → L5(confirm
   ladder.confirmL5(context.eventType)
   assert.strictEqual(ladder.getL5StateForTest(context.eventType), 'confirmed')
 })
-
-// --- 运行 ---
-
-let failedCount = 0
-console.log('Running HintLadder tests...\n')
-for (const t of tests) {
-  try {
-    t.fn()
-    console.log(`[PASS] ${t.name}`)
-  } catch (err: any) {
-    console.error(`[FAIL] ${t.name}`)
-    console.error(err.stack || err)
-    failedCount++
-  }
-}
-
-console.log(`\nHintLadder tests finished. Failed: ${failedCount}/${tests.length}`)
-if (failedCount > 0) {
-  process.exitCode = 1
-}

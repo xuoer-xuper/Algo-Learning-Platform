@@ -40,7 +40,7 @@
 ```powershell
 cd algo-electron
 node node_modules\typescript\bin\tsc --noEmit
-npx --yes tsx tests\ui\rendererScreenshots.test.ts
+npm run test:ui
 ```
 
 涉及统计口径时还需要运行 repository 或 submissions 相关测试，并手测统计弹层、刷新按钮、空数据和 AI 建议降级。

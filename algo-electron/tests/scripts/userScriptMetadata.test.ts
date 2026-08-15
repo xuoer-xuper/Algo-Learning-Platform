@@ -1,5 +1,8 @@
+import { test } from 'vitest'
 import assert from 'node:assert'
 import { matchRuleToRegExp, parseScriptMetadata } from '../../electron/scripts/userScriptMetadata'
+
+test('scripts/userScriptMetadata.test.ts', async () => {
 
 const code = `
 // ==UserScript==
@@ -33,3 +36,5 @@ assert.ok(!codeforcesRule.test('https://example.com/contest/1/problem/A'))
 const nowcoderRule = matchRuleToRegExp('https://ac.nowcoder.com/*')
 assert.ok(nowcoderRule.test('https://ac.nowcoder.com/acm/problem/278465'))
 assert.ok(!nowcoderRule.test('http://ac.nowcoder.com/acm/problem/278465'))
+
+})

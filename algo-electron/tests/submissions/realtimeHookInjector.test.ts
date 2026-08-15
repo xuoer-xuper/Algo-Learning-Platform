@@ -1,8 +1,11 @@
+import { test } from 'vitest'
 import assert from 'node:assert'
 import type { SiteAdapter } from '../../electron/adapters/types.ts'
 import type { SiteConfigData } from '../../electron/db/repositories/siteRepository.ts'
 import { RealtimeHookInjector, type RealtimeHookHost } from '../../electron/submissions/RealtimeHookInjector.ts'
 import { RealtimeSubmissionDiagnostics } from '../../electron/submissions/RealtimeSubmissionDiagnostics.ts'
+
+test('submissions/realtimeHookInjector.test.ts', async () => {
 
 function createAdapter(id = 'leetcode-cn'): SiteAdapter {
   return {
@@ -131,3 +134,5 @@ assert.strictEqual(ignoredExecuted, false, 'Hook injector should ignore URLs wit
 assert.strictEqual(ignoredDiagnostics.getStatus().lastHook, undefined, 'Hook injector should not record ignored URLs as hook attempts')
 assert.strictEqual(ignoredDiagnostics.getStatus().lastPage?.url, 'https://example.com/problems/two-sum/', 'Hook injector should still record ignored pages for diagnostics')
 assert.strictEqual(ignoredDiagnostics.getStatus().lastPage?.realtimeSupported, false, 'Hook injector should mark ignored pages as unsupported')
+
+})

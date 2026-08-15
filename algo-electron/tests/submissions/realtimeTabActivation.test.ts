@@ -1,5 +1,8 @@
+import { test } from 'vitest'
 import assert from 'node:assert'
 import fs from 'node:fs'
+
+test('submissions/realtimeTabActivation.test.ts', async () => {
 
 const tabManagerSource = fs.readFileSync('electron/browser/TabManager.ts', 'utf-8')
 const realtimeServiceSource = fs.readFileSync('electron/submissions/RealtimeSubmissionService.ts', 'utf-8')
@@ -37,3 +40,5 @@ assert.ok(
   ojSessionSource.includes('__ALGO_TOP_PAGE_URL'),
   'Early realtime injection should preserve the top page URL for adapter gating',
 )
+
+})

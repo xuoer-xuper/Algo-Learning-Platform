@@ -1,3 +1,4 @@
+import { test } from 'vitest'
 import assert from 'node:assert'
 import type { ProblemIdentity, SubmissionData } from '../../electron/shared/types.ts'
 import type { SiteConfigData } from '../../electron/db/repositories/siteRepository.ts'
@@ -6,6 +7,8 @@ import { createOjSubmissionBridge, installOjSubmissionMessageForwarder, OJ_SUBMI
 import { RealtimeHookInjector, type RealtimeHookHost } from '../../electron/submissions/RealtimeHookInjector.ts'
 import { RealtimeSubmissionDiagnostics, type RealtimeSubmissionStatus } from '../../electron/submissions/RealtimeSubmissionDiagnostics.ts'
 import { SubmissionWatcherCore } from '../../electron/submissions/SubmissionWatcherCore.ts'
+
+test('integration/leetcodeRealtimeFlow.test.ts', async () => {
 
 function createSite(enabled: boolean): SiteConfigData {
   return {
@@ -155,3 +158,5 @@ await fakeWindow.fetch(submissionCheckUrl)
 await flushMicrotasks()
 assert.strictEqual(detectionResults.length, 2, 'Flow should also support direct preload bridge reporting')
 assert.strictEqual(detectionResults[1].inserted, false, 'Watcher should dedupe repeated direct bridge reports')
+
+})

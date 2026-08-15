@@ -1,12 +1,7 @@
 import assert from 'node:assert'
+import { test } from 'vitest'
 import { parseUrl, registerAdapter, parseConfigUrl, setEnabledSitesFetcher, type ProblemParserAdapter } from '../../electron/parsers/registry'
 import type { ProblemIdentity } from '../../electron/shared/types'
-
-// Simple test runner helper
-const tests: { name: string; fn: () => void }[] = []
-function test(name: string, fn: () => void) {
-  tests.push({ name, fn })
-}
 
 type ExpectedIdentity = Pick<ProblemIdentity, 'platform' | 'platformProblemId'> & Partial<ProblemIdentity>
 
@@ -374,22 +369,3 @@ test('Custom site config matching via parseUrl', () => {
   // Reset fetcher
   setEnabledSitesFetcher(() => [])
 })
-
-// Run all tests
-let failedCount = 0
-console.log('Running parser and adapter site rules tests...\n')
-for (const t of tests) {
-  try {
-    t.fn()
-    console.log(`[PASS] ${t.name}`)
-  } catch (err: any) {
-    console.error(`[FAIL] ${t.name}`)
-    console.error(err.stack || err)
-    failedCount++
-  }
-}
-
-console.log(`\nTests finished. Failed: ${failedCount}/${tests.length}`)
-if (failedCount > 0) {
-  process.exit(1)
-}

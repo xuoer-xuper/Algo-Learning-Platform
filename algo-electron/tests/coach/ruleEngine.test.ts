@@ -1,4 +1,5 @@
 import assert from 'node:assert'
+import { test } from 'vitest'
 import type { CoachEvent, CoachEventType, ProblemSession } from '../../electron/coach/types.ts'
 import { RuleEngine } from '../../electron/coach/rules/RuleEngine.ts'
 import {
@@ -19,11 +20,6 @@ import {
  * 6. "今天别提醒"临时屏蔽
  * 7. 难度自适应（rating >= 1600 放宽）
  */
-
-const tests: { name: string; fn: () => void }[] = []
-function test(name: string, fn: () => void) {
-  tests.push({ name, fn })
-}
 
 // --- 测试辅助 ---
 
@@ -564,23 +560,3 @@ test('review_due / boundary_suspected / complexity_warning 阶段 2 不触发', 
   const complexityEvent = buildEvent({ event_type: 'complexity_warning', score: 90 })
   assert.strictEqual(engine.evaluate(complexityEvent), null, 'complexity_warning not implemented in stage 2')
 })
-
-// --- 运行 ---
-
-let failedCount = 0
-console.log('Running RuleEngine tests...\n')
-for (const t of tests) {
-  try {
-    t.fn()
-    console.log(`[PASS] ${t.name}`)
-  } catch (err: any) {
-    console.error(`[FAIL] ${t.name}`)
-    console.error(err.stack || err)
-    failedCount++
-  }
-}
-
-console.log(`\nRuleEngine tests finished. Failed: ${failedCount}/${tests.length}`)
-if (failedCount > 0) {
-  process.exitCode = 1
-}

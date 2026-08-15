@@ -4,7 +4,7 @@
 
 `tests/` 存放主进程核心逻辑、adapter、提交监测、parser、迁移和集成链路的 TypeScript 测试。
 
-当前测试通过 `tests/run-tests.mjs` 统一编排。runner 只封装现有验证方式：纯逻辑测试使用 esbuild bundle 后由 Node 执行，真实 SQLite repository 测试仍使用 `ELECTRON_RUN_AS_NODE=1` 的 Electron Node 执行。
+纯 Node 单元/集成测试由 Vitest 发现、隔离和报告，renderer 关键交互与截图由 Playwright Test 驱动真实 Electron。架构、安全、文档、打包和性能守卫继续使用独立脚本。`tests/run-tests.mjs` 只负责组合 suite，以及启动必须匹配 Electron ABI 或使用 `safeStorage` 的少数测试。
 
 ## 2. 目录覆盖
 
@@ -43,6 +43,17 @@
   - Renderer 关键页面截图验收 harness。
 
 ## 3. 标准验证命令
+
+纯 Node 测试、watch 和覆盖率：
+
+```powershell
+cd algo-electron
+npm run test:unit
+npm run test:watch
+npm run test:coverage
+```
+
+覆盖率只统计 `electron/` 与 `src/` 生产代码，报告写入 `tmp/coverage/`。当前全局基线为 statements 28%、branches 34%、functions 24%、lines 29%；新增测试应逐步上调门槛，不能通过把测试文件计入覆盖率来抬高数字。
 
 类型检查：
 
@@ -129,15 +140,15 @@ npm run test:ui
 npm run test:all
 ```
 
-`test:core` 会运行 typecheck、lint、architecture guard、security guard、IPC contract、AI 规则、用户脚本 metadata、browser、parser 和 integration 测试。`test:ai` 会额外运行 AI 输出可追溯性临时数据库测试。`test:all` 在此基础上追加 AI traceability、adapter、submissions、DB、docs、packaging、Electron smoke 和 UI screenshot 测试。
+`test:core` 会运行 typecheck、lint、architecture guard、security guard，以及核心 Vitest 用例。`test:ai` 会额外运行 AI 输出可追溯性临时数据库测试。`test:all` 会执行带覆盖率门槛的全部 Vitest 用例，再追加 Electron ABI、docs、packaging、performance、Electron smoke 和 Playwright UI 测试。
 
 `better-sqlite3` 按 Electron ABI 编译，真实 SQLite repository 测试必须用 `ELECTRON_RUN_AS_NODE=1` 的 Electron Node 运行；`tests/run-tests.mjs` 已封装该路径。
 
 单个测试：
 
 ```powershell
-node node_modules\esbuild\bin\esbuild tests\browser\ojBridge.test.ts --bundle --platform=node --format=esm --outfile=tmp\browser-ojBridge.test.mjs
-node tmp\browser-ojBridge.test.mjs
+npx vitest run tests\coach\arkClient.test.ts
+npx playwright test tests\ui\rendererScreenshots.pw.spec.ts --grep "narrow container"
 ```
 
 ## 4. 新增测试规则
@@ -159,8 +170,8 @@ node tmp\browser-ojBridge.test.mjs
 - preload 白名单、IPC channel 和主进程 handler 契约放 `tests/ipc/`。
 - Electron 启动、窗口和基础 preload IPC smoke 放 `tests/electron/`。
 - 跨模块数据流放 `tests/integration/`。
-- Renderer 截图验收放 `tests/ui/`，生成图片只写入 `tmp/`，不得提交。
-- 测试 bundle 输出统一写到 `tmp/`，不要提交生成产物。
+- Renderer 截图和交互验收放 `tests/ui/`，使用 Playwright Test，生成图片与 trace 只写入 `tmp/`，不得提交。
+- 只有 Electron ABI/safeStorage 测试允许保留临时 bundle，输出统一写到 `tmp/electron-tests/`，不要提交生成产物。
 
 ## 5. 当前缺口
 

@@ -1,4 +1,5 @@
 import assert from 'node:assert'
+import { test } from 'vitest'
 import {
   HintSelector,
   verdictToCategories,
@@ -25,11 +26,6 @@ import type { ProblemConstraints } from '../../electron/coach/problemFacts/Const
  * 7. selectByCategory
  * 8. pickHintForEvent 静态函数
  */
-
-const tests: { name: string; fn: () => void }[] = []
-function test(name: string, fn: () => void) {
-  tests.push({ name, fn })
-}
 
 function makeConstraints(overrides: Partial<ProblemConstraints> = {}): ProblemConstraints {
   return {
@@ -419,23 +415,3 @@ test('select: 返回的 SelectedHint 结构完整', () => {
   assert.ok(typeof r.text === 'string' && r.text.length > 0)
   assert.ok(Array.isArray(r.tags))
 })
-
-// --- 运行 ---
-
-let failedCount = 0
-console.log('Running HintSelector tests...\n')
-for (const t of tests) {
-  try {
-    t.fn()
-    console.log(`[PASS] ${t.name}`)
-  } catch (err: any) {
-    console.error(`[FAIL] ${t.name}`)
-    console.error(err.stack || err)
-    failedCount++
-  }
-}
-
-console.log(`\nHintSelector tests finished. Failed: ${failedCount}/${tests.length}`)
-if (failedCount > 0) {
-  process.exitCode = 1
-}

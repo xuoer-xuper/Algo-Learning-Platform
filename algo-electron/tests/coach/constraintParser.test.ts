@@ -1,4 +1,5 @@
 import assert from 'node:assert'
+import { test } from 'vitest'
 import {
   ConstraintParser,
   parseConstraintsStatic,
@@ -22,11 +23,6 @@ import {
  * 7. 20 道样例题面抽取准确率（目标 >= 80%）
  * 8. 解析失败静默退化
  */
-
-const tests: { name: string; fn: () => void }[] = []
-function test(name: string, fn: () => void) {
-  tests.push({ name, fn })
-}
 
 const NOW = 1700000000000
 
@@ -771,23 +767,3 @@ test('静默退化: HTML 无约束内容返回 null 或空约束', () => {
     assert.ok(result === null || result!.source === 'regex')
   }
 })
-
-// --- 运行 ---
-
-let failedCount = 0
-console.log('Running ConstraintParser tests...\n')
-for (const t of tests) {
-  try {
-    t.fn()
-    console.log(`[PASS] ${t.name}`)
-  } catch (err: any) {
-    console.error(`[FAIL] ${t.name}`)
-    console.error(err.stack || err)
-    failedCount++
-  }
-}
-
-console.log(`\nConstraintParser tests finished. Failed: ${failedCount}/${tests.length}`)
-if (failedCount > 0) {
-  process.exitCode = 1
-}

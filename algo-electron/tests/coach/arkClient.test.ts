@@ -1,4 +1,5 @@
 import assert from 'node:assert'
+import { test } from 'vitest'
 import {
   ArkClient,
   type ArkChatCompletionRequest,
@@ -42,11 +43,6 @@ function createMockClient(
     }
   }
   return { client: new ArkClient(factory), state }
-}
-
-const tests: Array<{ name: string; fn: () => Promise<void> }> = []
-function test(name: string, fn: () => Promise<void>) {
-  tests.push({ name, fn })
 }
 
 test('returns and normalizes a structured reply', async () => {
@@ -159,21 +155,3 @@ test('reports SDK timeouts as a failed connection test', async () => {
   assert.strictEqual(result.success, false)
   assert.match(result.message, /timed out after 10000ms/)
 })
-
-let failed = 0
-console.log('Running ArkClient mock tests...\n')
-for (const item of tests) {
-  try {
-    await item.fn()
-    console.log(`[PASS] ${item.name}`)
-  } catch (error: unknown) {
-    failed++
-    console.error(`[FAIL] ${item.name}`)
-    console.error(error instanceof Error ? error.stack : error)
-  }
-}
-
-console.log(`\nArkClient tests finished. Failed: ${failed}/${tests.length}`)
-if (failed > 0) {
-  process.exitCode = 1
-}

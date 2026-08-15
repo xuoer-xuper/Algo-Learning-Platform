@@ -41,7 +41,7 @@
 ```powershell
 cd algo-electron
 node node_modules\typescript\bin\tsc --noEmit
-npx --yes tsx tests\ui\rendererScreenshots.test.ts
+npm run test:ui
 ```
 
 涉及笔记时手测新建、切换、标题防抖保存、图片上传、删除和打开目录；涉及题目删除时确认提交记录和统计不异常。

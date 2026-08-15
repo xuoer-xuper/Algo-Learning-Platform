@@ -1,4 +1,5 @@
 import assert from 'node:assert'
+import { test } from 'vitest'
 import {
   detectContestFromUrl,
   isContestActive,
@@ -18,11 +19,6 @@ import {
  * 6. isContestMode() hard gate
  * 7. forceEnd 用于应用退出
  */
-
-const tests: { name: string; fn: () => void }[] = []
-function test(name: string, fn: () => void) {
-  tests.push({ name, fn })
-}
 
 // --- 1. URL 规则识别 ---
 
@@ -368,23 +364,3 @@ test('非比赛 URL 不触发 enter/end', () => {
   assert.strictEqual(endCount, 0)
   assert.strictEqual(guard.isContestMode(), false)
 })
-
-// --- 运行 ---
-
-let failedCount = 0
-console.log('Running ContestGuard tests...\n')
-for (const t of tests) {
-  try {
-    t.fn()
-    console.log(`[PASS] ${t.name}`)
-  } catch (err: any) {
-    console.error(`[FAIL] ${t.name}`)
-    console.error(err.stack || err)
-    failedCount++
-  }
-}
-
-console.log(`\nContestGuard tests finished. Failed: ${failedCount}/${tests.length}`)
-if (failedCount > 0) {
-  process.exitCode = 1
-}

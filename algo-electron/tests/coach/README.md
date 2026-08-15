@@ -18,7 +18,7 @@
 
 ## 3. 关键文件
 
-- 测试入口：`tests/run-tests.mjs` 的 `coach` suite。
+- 纯逻辑测试由 Vitest 直接发现；`tests/run-tests.mjs` 的 `coach` suite 额外启动依赖 Electron `safeStorage` 的配置存储测试。
 - 运行命令：`npm run test:coach`。
 
 ## 4. 边界规则
@@ -35,4 +35,4 @@ npm run test:coach
 npm run test:all
 ```
 
-合计 267 个单元测试（含 Coach 全部 + 其他模块）。
+当前 Coach 纯逻辑测试合计 274 个用例，另有 1 个真实 Electron 配置存储场景。

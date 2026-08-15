@@ -1,6 +1,9 @@
+import { test } from 'vitest'
 import assert from 'node:assert'
 import { cleanBrowserProblemTitle, resolveBrowserTitleProblemIdentity } from '../../electron/parsers/browserTitle.ts'
 import { parseUrl } from '../../electron/parsers/registry.ts'
+
+test('parsers/browserTitle.test.ts', async () => {
 
 assert.strictEqual(
   cleanBrowserProblemTitle('1967. 作为子字符串出现在单词中的字符串数目 - 力扣（LeetCode）', {
@@ -99,3 +102,5 @@ assert.ok(luoguIdentity)
 assert.strictEqual(luoguIdentity.platform, 'luogu')
 assert.strictEqual(luoguIdentity.platformProblemId, 'P1001')
 assert.strictEqual(luoguIdentity.title, 'A+B Problem')
+
+})

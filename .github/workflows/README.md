@@ -23,10 +23,11 @@
 - ESLint。
 - IPC contract。
 - adapter、submission、parser、browser、integration、AI 和用户脚本测试。
+- Vitest V8 覆盖率基线。
 - Electron 启动 smoke。
 - SQLite repository 测试。
 - Markdown 链接和 README 覆盖检查。
-- Renderer screenshot 验收。
+- Playwright Electron renderer 交互与 screenshot 验收。
 
 不覆盖：
 

@@ -1,5 +1,8 @@
+import { test } from 'vitest'
 import assert from 'node:assert'
 import { scrapeCurrentPage } from '../../electron/submissions/scrapers/domScraper.ts'
+
+test('submissions/domScraperGenericIntegration.test.ts', async () => {
 
 function createHost(url: string, data: unknown) {
   return {
@@ -132,3 +135,5 @@ assert.strictEqual(luoguSubmissions[0].verdict, 'AC')
 
 const unknownSubmissions = await scrapeCurrentPage(createHost('https://example.com/status', {}))
 assert.strictEqual(unknownSubmissions, null, 'Unknown sites should still be ignored by scraper fallback')
+
+})

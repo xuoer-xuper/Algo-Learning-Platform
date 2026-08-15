@@ -1,4 +1,7 @@
+import { test } from 'vitest'
 import { leetcodeAdapter } from '../../electron/adapters/leetcode.ts'
+
+test('adapters/leetcodeAdapter.test.ts', async () => {
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message)
@@ -456,3 +459,5 @@ new Function('window', 'location', 'document', hook!)(spaWindow, spaLocation, sp
 await new Promise((resolve) => setTimeout(resolve, 10))
 
 assert(spaReinjectReports.some(report => report.response?.id === '999000'), 'SPA reinjection should run submission page fallback even after network hooks are installed')
+
+})

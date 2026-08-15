@@ -1,6 +1,9 @@
+import { test } from 'vitest'
 import assert from 'node:assert'
 import type { ProblemIdentity, SubmissionData } from '../../electron/shared/types.ts'
 import { resolveSubmissionPageContext } from '../../electron/submissions/SubmissionPageContextResolver.ts'
+
+test('submissions/submissionPageContextResolver.test.ts', async () => {
 
 function createSubmission(platform: string, rawJson?: string): SubmissionData {
   return {
@@ -113,3 +116,5 @@ resolveSubmissionPageContext('https://www.luogu.com.cn/record/list', [luoguSubmi
   findNowcoderProblemBySearch: () => undefined,
 })
 assert.strictEqual((luoguSubmission as any)._luoguProblemId, 'P1001')
+
+})

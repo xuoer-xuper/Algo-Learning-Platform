@@ -1,5 +1,8 @@
+import { test } from 'vitest'
 import assert from 'node:assert'
 import { normalizeCodeforcesSubmissionIds } from '../../electron/db/migrations/018_normalize_codeforces_submission_ids.ts'
+
+test('db/codeforcesSubmissionIdMigration.test.ts', async () => {
 
 interface SubmissionRow {
   id: string
@@ -183,3 +186,5 @@ assert.strictEqual(
   rows.find(row => row.id === 'other-platform')?.platform_submission_id,
   '123456',
 )
+
+})

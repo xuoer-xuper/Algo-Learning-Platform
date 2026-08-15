@@ -1,4 +1,5 @@
 import assert from 'node:assert'
+import { test } from 'vitest'
 import {
   buildReviewReason,
   buildWeaknessEvidence,
@@ -10,11 +11,6 @@ import {
 } from '../../electron/ai/recommendations/rules.ts'
 import { parseTagsJson } from '../../electron/ai/recommendations/tagParsing.ts'
 import type { TagAggregate, TagWeakness } from '../../electron/ai/recommendations/types.ts'
-
-const tests: { name: string; fn: () => void }[] = []
-function test(name: string, fn: () => void) {
-  tests.push({ name, fn })
-}
 
 test('parses and normalizes tag json safely', () => {
   assert.deepStrictEqual(parseTagsJson('["dp", " graph ", 3, ""]'), ['dp', 'graph'])
@@ -61,21 +57,3 @@ test('normalizes review plan priority and duration', () => {
   assert.strictEqual(normalizePlanDays(-1), 7)
   assert.strictEqual(normalizePlanDays(14), 14)
 })
-
-let failedCount = 0
-console.log('Running AI recommendation rules tests...\n')
-for (const t of tests) {
-  try {
-    t.fn()
-    console.log(`[PASS] ${t.name}`)
-  } catch (err: any) {
-    console.error(`[FAIL] ${t.name}`)
-    console.error(err.stack || err)
-    failedCount++
-  }
-}
-
-console.log(`\nTests finished. Failed: ${failedCount}/${tests.length}`)
-if (failedCount > 0) {
-  process.exitCode = 1
-}

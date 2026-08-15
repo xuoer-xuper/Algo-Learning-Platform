@@ -1,5 +1,8 @@
+import { test } from 'vitest'
 import assert from 'node:assert'
 import { codeforcesAdapter } from '../../electron/adapters/codeforces.ts'
+
+test('adapters/codeforcesAdapter.test.ts', async () => {
 
 const identity = codeforcesAdapter.parseProblem('https://codeforces.com/problemset/problem/1900/A', {
   url: 'https://codeforces.com/problemset/problem/1900/A',
@@ -348,3 +351,5 @@ await assert.rejects(
   () => codeforcesAdapter.syncSubmissions!({ handle: '' }),
   /Codeforces handle is required/,
 )
+
+})

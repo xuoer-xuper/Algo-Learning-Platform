@@ -38,6 +38,14 @@ npm run lint
 执行 ESLint。当前 lint 门槛要求零 warning；规则允许 DB row、网络 payload、测试 mock 等动态边界保留显式 `any`，收窄这些类型时应按模块逐步推进。
 
 ```powershell
+npm run test:unit
+npm run test:watch
+npm run test:coverage
+```
+
+分别执行全部纯 Node Vitest 用例、开发期 watch，以及带全局门槛的 V8 覆盖率检查。覆盖率报告写入 `tmp/coverage/`。
+
+```powershell
 npm run test:core
 ```
 
@@ -71,7 +79,7 @@ npm run test:electron
 npm run test:ui
 ```
 
-执行 renderer 关键页面截图验收。截图输出到 `tmp/ui-screenshots/`，覆盖题库侧栏、统计页和设置页，并检查关键容器越界与统计图表实际绘制。
+使用 Playwright Test 驱动真实 Electron 完成 renderer 关键交互和截图验收。截图输出到 `tmp/ui-screenshots/`，覆盖题库侧栏、统计页、设置/LLM、Coach 指标和笔记编辑器，并按实际容器宽度检查响应式布局。
 
 ```powershell
 npm run test:adapters
@@ -88,7 +96,7 @@ npm run test:performance
 npm run test:all
 ```
 
-执行当前自动测试全集；包含文档一致性、打包配置、Electron smoke 和 UI screenshot，耗时比 `test:core` 更长。
+执行当前自动测试全集；包含 Vitest 覆盖率门槛、文档一致性、打包配置、Electron smoke 和 Playwright UI 验收，耗时比 `test:core` 更长。
 
 仓库 CI 使用 `.github/workflows/ci.yml` 在 Windows runner 上执行 `npm ci` 和 `npm run test:all`。CI 不覆盖真实 OJ 登录态、七站提交手测或安装包安装/卸载验收。
 
