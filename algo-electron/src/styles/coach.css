@@ -1,16 +1,23 @@
-/* ===========================================================================
-   阶段 4：Coach 时间轴复盘 + 干预效果指标页
-   =========================================================================== */
+/* ============================================================================
+   阶段 4：Coach 时间轴复盘 + 干预效果指标页（B1.5 token 化重写）
+   ----------------------------------------------------------------------------
+   规范同 dashboard.css：纸白画布 var(--bg) + 卡片（--bg-card/--border-light/
+   --radius-lg/--shadow-sm）+ 数据声线（等宽 + tabular-nums）。
+   桌宠样式在 src/features/coach/styles/（pet.css/bubble.css），本文件不涉及。
+   Playwright 契约类名（只可加类，禁删改）：
+   .coach-metrics-view / .coach-metrics-cards（面板 ≤560 折 1 列）/
+   .coach-charts-row（面板 ≤820 折 1 列）；关闭按钮沿用 .dashboard-close
+   ============================================================================ */
 
-/* 时间轴复盘视图 */
+/* ── 时间轴复盘视图 ── */
 .coach-timeline-view {
   width: 100%;
   min-width: 0;
   overflow-y: auto;
   overflow-x: hidden;
-  padding: 24px;
-  background: var(--bg-card);
-  border-radius: 12px;
+  padding: 20px 24px 24px;
+  background: var(--bg);
+  border-radius: var(--radius-xl);
   box-sizing: border-box;
 }
 
@@ -24,15 +31,16 @@
 }
 
 .coach-timeline-error {
-  color: #f38ba8;
+  color: var(--color-danger);
 }
 
 .coach-timeline-info {
   margin-bottom: 16px;
-  padding: 12px 14px;
-  background: var(--bg);
+  padding: 14px 16px;
+  background: var(--bg-card);
   border: 1px solid var(--border-light);
-  border-radius: 10px;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
 }
 
 /* 时间切分段 */
@@ -43,28 +51,29 @@
 .coach-segment-bar {
   display: flex;
   height: 14px;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   overflow: hidden;
-  background: var(--bg);
+  background: var(--color-inset);
   border: 1px solid var(--border-light);
   margin: 8px 0;
 }
 
 .coach-segment {
   min-width: 4px;
-  transition: filter 0.15s;
+  transition: filter var(--duration-fast) var(--ease-out);
 }
 
+/* 思考/实现两段与图例圆点成对出现（色不单独承义） */
 .coach-segment.thinking {
-  background: #89b4fa;
+  background: var(--color-accent);
 }
 
 .coach-segment.coding {
-  background: #a6e3a1;
+  background: var(--color-ok);
 }
 
 .coach-segment:hover {
-  filter: brightness(1.1);
+  filter: brightness(1.08);
 }
 
 .coach-segment-legend {
@@ -73,6 +82,7 @@
   gap: 16px;
   font-size: 12px;
   color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
 }
 
 .coach-legend-item {
@@ -89,15 +99,15 @@
 }
 
 .coach-legend-dot.thinking {
-  background: #89b4fa;
+  background: var(--color-accent);
 }
 
 .coach-legend-dot.coding {
-  background: #a6e3a1;
+  background: var(--color-ok);
 }
 
 .coach-legend-dot.active {
-  background: #cba6f7;
+  background: var(--color-warn);
 }
 
 .coach-legend-hint {
@@ -107,10 +117,47 @@
 
 .coach-timeline-chart {
   margin-bottom: 16px;
-  padding: 12px 14px;
-  background: var(--bg);
+  padding: 14px 16px;
+  background: var(--bg-card);
   border: 1px solid var(--border-light);
-  border-radius: 10px;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+}
+
+/* 时间轴复盘页的 recharts 规范化（该页 TSX 归属他人，仅以 CSS 对齐视觉）：
+   轴文字墨色、Tooltip 卡片化（默认内容为内联样式，需 !important） */
+.coach-timeline-chart .recharts-cartesian-axis-tick-value {
+  fill: var(--text-muted);
+}
+
+.coach-timeline-chart .recharts-cartesian-axis-line,
+.coach-timeline-chart .recharts-cartesian-axis-tick-line {
+  stroke: var(--border-light);
+}
+
+.coach-timeline-chart .recharts-default-tooltip {
+  background: var(--bg-card) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  padding: 8px 10px !important;
+}
+
+.coach-timeline-chart .recharts-tooltip-label {
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.coach-timeline-chart .recharts-tooltip-item {
+  color: var(--text-secondary) !important;
+  font-size: 12px;
+}
+
+.coach-timeline-chart .recharts-tooltip-item-value {
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
 }
 
 /* 垂直时间轴 */
@@ -162,9 +209,10 @@
 }
 
 .timeline-content {
-  background: var(--bg);
+  background: var(--bg-card);
   border: 1px solid var(--border-light);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
   padding: 8px 10px;
 }
 
@@ -185,14 +233,13 @@
   color: var(--text-muted);
   padding: 1px 6px;
   border: 1px solid var(--border-light);
-  border-radius: 4px;
+  border-radius: var(--radius-xs);
 }
 
 .timeline-time {
   margin-left: auto;
   font-size: 11px;
   color: var(--text-muted);
-  font-variant-numeric: tabular-nums;
 }
 
 .timeline-subtitle {
@@ -209,53 +256,57 @@
   border-top: 1px dashed var(--border-light);
 }
 
-/* 时间轴复盘按钮（ProblemDetail 头部） */
+/* 时间轴复盘入口按钮（ProblemDetail 头部） */
 .detail-timeline-btn {
   padding: 4px 12px;
   border: 1px solid var(--border);
-  border-radius: 6px;
-  background: var(--bg);
+  border-radius: var(--radius-sm);
+  background: var(--bg-card);
   color: var(--text-secondary);
   font-size: 12px;
   cursor: pointer;
+  transition:
+    background-color var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out);
 }
 
 .detail-timeline-btn:hover {
-  background: var(--bg-surface);
-  border-color: #89b4fa;
-  color: #89b4fa;
+  background: var(--hover-bg);
+  border-color: var(--color-accent);
+  color: var(--color-accent);
 }
 
-/* ===========================================================================
+/* ============================================================================
    干预效果指标页
-   =========================================================================== */
+   ============================================================================ */
 .coach-metrics-view {
   width: 100%;
   min-width: 0;
   overflow-y: auto;
   overflow-x: hidden;
-  padding: 24px;
-  background: var(--bg-card);
-  border-radius: 12px;
+  padding: 20px 24px 24px;
+  background: var(--bg);
+  border-radius: var(--radius-xl);
   box-sizing: border-box;
 }
 
+/* 模拟数据徽标：警示软色芯片（提醒当前非真实数据） */
 .coach-mock-badge {
   display: inline-block;
-  margin-left: 10px;
   padding: 2px 8px;
   font-size: 11px;
   font-weight: 600;
-  color: #1e1e2e;
-  background: #f9e2af;
-  border-radius: 4px;
-  vertical-align: middle;
+  color: var(--color-warn);
+  background: var(--color-warn-soft);
+  border-radius: 999px;
 }
 
+/* 模拟数据按钮激活态：叠加在 ui-btn（secondary/sm）之上 */
 .coach-mock-btn.active {
-  background: #f9e2af;
-  border-color: #f9e2af;
-  color: #1e1e2e;
+  background: var(--color-warn-soft);
+  border-color: var(--color-warn);
+  color: var(--color-warn);
 }
 
 .coach-metrics-window {
@@ -285,13 +336,13 @@
   margin-top: 2px;
 }
 
-/* 答辩核对面板 */
+/* 答辩核对面板：警示软色 + 虚线框，与正式数据卡片区分 */
 .coach-verify-panel {
-  margin: 12px 0;
-  padding: 12px 14px;
-  background: rgba(249, 226, 175, 0.08);
-  border: 1px dashed #f9e2af;
-  border-radius: 10px;
+  margin: 0 0 16px;
+  padding: 14px 16px;
+  background: var(--color-warn-soft);
+  border: 1px dashed var(--color-warn);
+  border-radius: var(--radius-lg);
 }
 
 .coach-verify-list {
@@ -300,13 +351,14 @@
   font-size: 12px;
   color: var(--text-secondary);
   line-height: 1.8;
+  font-variant-numeric: tabular-nums;
 }
 
 .coach-verify-note {
   margin: 8px 0 0;
   font-size: 12px;
   font-weight: 600;
-  color: #a6e3a1;
+  color: var(--color-ok);
 }
 
 /* 指标页图表行 */
@@ -314,20 +366,20 @@
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 12px;
-  margin-bottom: 12px;
+  margin-bottom: 16px;
 }
 
+/* 图表半宽卡片：卡片视觉继承 .dashboard-chart-section，此处只调间距 */
 .coach-chart-half {
-  background: var(--bg);
-  border: 1px solid var(--border-light);
-  border-radius: 10px;
-  padding: 12px 14px;
+  margin-bottom: 0;
+  padding: 14px 16px;
 }
 
 .coach-metrics-footer {
   margin-top: 8px;
 }
 
+/* ── 容器断点（契约：≤820 图表折 1 列，≤560 卡片折 1 列） ── */
 @container modal-panel (max-width: 820px) {
   .coach-metrics-cards {
     grid-template-columns: repeat(2, 1fr);

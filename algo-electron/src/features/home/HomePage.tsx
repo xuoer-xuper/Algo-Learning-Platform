@@ -1,5 +1,12 @@
 import { useState, useEffect } from 'react'
-import { PLATFORM_COLORS, PLATFORM_NAMES, PLATFORM_URLS, STATUS_COLORS } from '../../shared/display'
+import {
+  PLATFORM_COLORS,
+  PLATFORM_LABELS,
+  PLATFORM_NAMES,
+  PLATFORM_URLS,
+  STATUS_COLORS,
+  STATUS_LABELS,
+} from '../../shared/display'
 import {
   loadHomeOverviewStats,
   loadHomeRecentProblems,
@@ -33,8 +40,10 @@ export function HomePage({ onNavigate }: Props) {
   return (
     <div className="home-page">
       <div className="home-header">
-        <h1 className="home-title">Algo Learning Platform</h1>
-        <p className="home-subtitle">本地优先的算法学习记录平台</p>
+        {/* 品牌名降级为等宽小字肩标，主标题让位给一句克制的产品语 */}
+        <div className="home-kicker num">Algo Learning Platform</div>
+        <h1 className="home-title">今天刷点什么？</h1>
+        <p className="home-subtitle">本地优先的算法学习记录平台，数据只存在你自己的磁盘上</p>
       </div>
 
       <div className="home-section">
@@ -44,34 +53,46 @@ export function HomePage({ onNavigate }: Props) {
             <button
               key={key}
               className="home-site-btn"
-              style={{ borderColor: PLATFORM_COLORS[key] }}
               onClick={() => onNavigate(url)}
             >
-              <span className="home-site-name" style={{ color: PLATFORM_COLORS[key] }}>
-                {PLATFORM_NAMES[key]}
+              {/* 平台色圆点必须与等宽短标签成对出现（display.ts 约定） */}
+              <span className="home-site-head">
+                <span className="home-site-dot" style={{ backgroundColor: PLATFORM_COLORS[key] }} />
+                <span className="home-site-label num">{PLATFORM_LABELS[key] || key}</span>
               </span>
-              <span className="home-site-url">{url.replace('https://', '')}</span>
+              <span className="home-site-name">{PLATFORM_NAMES[key]}</span>
+              <span className="home-site-url num">{url.replace('https://', '').replace(/\/$/, '')}</span>
             </button>
           ))}
         </div>
       </div>
 
-      {stats && (
+      {stats && stats.totalProblems === 0 && (
+        <div className="home-empty">
+          <p className="home-empty-title">还没有学习记录</p>
+          <p className="home-empty-hint">从上方快捷入口打开一个站点，浏览过的题目会自动记录在这里</p>
+        </div>
+      )}
+
+      {stats && stats.totalProblems > 0 && (
         <div className="home-section">
           <h2 className="home-section-title">学习概览</h2>
           <div className="home-stats">
             <div className="home-stat-card">
-              <div className="home-stat-value">{stats.totalProblems}</div>
+              <div className="home-stat-value num">{stats.totalProblems}</div>
               <div className="home-stat-label">总题数</div>
             </div>
             <div className="home-stat-card">
-              <div className="home-stat-value">{stats.todayVisited}</div>
+              <div className="home-stat-value num">{stats.todayVisited}</div>
               <div className="home-stat-label">今日访问</div>
             </div>
             {stats.platformDistribution.map(p => (
               <div key={p.platform} className="home-stat-card">
-                <div className="home-stat-value">{p.count}</div>
-                <div className="home-stat-label">{PLATFORM_NAMES[p.platform] || p.platform}</div>
+                <div className="home-stat-value num">{p.count}</div>
+                <div className="home-stat-label">
+                  <span className="home-stat-dot" style={{ backgroundColor: PLATFORM_COLORS[p.platform] }} />
+                  <span className="num">{PLATFORM_LABELS[p.platform] || p.platform}</span>
+                </div>
               </div>
             ))}
           </div>
@@ -88,15 +109,12 @@ export function HomePage({ onNavigate }: Props) {
                 className="home-rec-item"
                 onClick={() => onNavigate(r.canonical_url)}
               >
-                <div className="home-rec-head">
-                  <span className="home-rec-platform" style={{ color: PLATFORM_COLORS[r.platform] || '#585b70' }}>
-                    {PLATFORM_NAMES[r.platform] || r.platform}
-                  </span>
-                  <span className="home-rec-title">{r.title || r.platform_problem_id}</span>
-                </div>
-                <div className="home-rec-evidence">
-                  {r.source.wrong_count} 次错误 · {r.source.days_since_attempt} 天未复习
-                </div>
+                <span className="home-rec-dot" style={{ backgroundColor: PLATFORM_COLORS[r.platform] }} />
+                <span className="home-rec-platform num">{PLATFORM_LABELS[r.platform] || r.platform}</span>
+                <span className="home-rec-title">{r.title || r.platform_problem_id}</span>
+                <span className="home-rec-evidence">
+                  <span className="num">{r.source.wrong_count}</span> 次错误 · <span className="num">{r.source.days_since_attempt}</span> 天未复习
+                </span>
               </div>
             ))}
           </div>
@@ -117,11 +135,18 @@ export function HomePage({ onNavigate }: Props) {
                   className="home-recent-dot"
                   style={{ backgroundColor: STATUS_COLORS[p.status] || STATUS_COLORS.unknown }}
                 />
-                <span className="home-recent-platform">
-                  {PLATFORM_NAMES[p.platform] || p.platform}
+                <span className="home-recent-platform num">
+                  {PLATFORM_LABELS[p.platform] || p.platform}
                 </span>
                 <span className="home-recent-title">
                   {p.title || p.platform_problem_id}
+                </span>
+                {/* 状态色圆点与文字成对出现（display.ts 约定） */}
+                <span
+                  className="home-recent-status"
+                  style={{ color: STATUS_COLORS[p.status] || STATUS_COLORS.unknown }}
+                >
+                  {STATUS_LABELS[p.status] || p.status}
                 </span>
               </div>
             ))}

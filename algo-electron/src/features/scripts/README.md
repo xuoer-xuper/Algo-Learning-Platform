@@ -8,11 +8,12 @@
 
 ## 2. 当前实现程度
 
-- `UserScriptManager.tsx`：用户脚本管理弹层入口，负责加载脚本和站点数据。
+- `UserScriptManager.tsx`：用户脚本管理弹层入口，负责加载脚本和站点数据；删除确认走 `ConfirmDialog`。
 - `UserScriptList.tsx`：脚本列表、启停、选择和删除。
 - `UserScriptEditor.tsx`：脚本名称和站点绑定编辑。
 - `scriptsApi.ts` 集中封装脚本相关 preload 调用。
 - `types.ts` 定义脚本和站点展示类型。
+- 视觉规范：复用 `src/components/ui/` 基础组件，语义样式在 `src/styles/scripts.css`，token 唯一源为 `src/index.css`。
 
 ## 3. API 封装
 

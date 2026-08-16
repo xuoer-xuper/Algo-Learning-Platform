@@ -1,0 +1,352 @@
+/* 用户脚本管理弹层（scripts 域）
+ * token 唯一源：src/index.css；本文件禁止裸 hex。
+ * 弹层外壳（白底/圆角/阴影）由 .modal-panel 提供，这里只负责内容布局。
+ */
+
+.scripts-page {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-height: 80vh;
+  padding: 20px;
+}
+
+/* ── 页头 ── */
+.scripts-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.scripts-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  color: var(--text);
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.scripts-title-icon {
+  color: var(--primary);
+  flex-shrink: 0;
+}
+
+/* 列表 / 编辑器共用内容区 */
+.scripts-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.scripts-toolbar {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.scripts-error {
+  margin-bottom: 12px;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--color-danger-soft);
+  color: var(--color-danger);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+/* ── 脚本列表 ── */
+.scripts-table-wrap {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
+}
+
+.scripts-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  font-size: 13px;
+}
+
+.scripts-table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 8px 12px;
+  background: var(--color-inset);
+  border-bottom: 1px solid var(--border-light);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.scripts-table td {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border-light);
+  vertical-align: middle;
+}
+
+.scripts-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.scripts-col-status {
+  width: 56px;
+  text-align: center;
+}
+
+.scripts-col-sites {
+  width: 200px;
+}
+
+.scripts-col-actions {
+  width: 136px;
+  text-align: right;
+}
+
+/* 行 hover 与启停状态：启用=正常+绿点，禁用=整行降透明度（hover 恢复便于操作） */
+.scripts-row {
+  transition:
+    background-color var(--duration-fast) var(--ease-out),
+    opacity var(--duration-fast) var(--ease-out);
+}
+
+.scripts-row:hover {
+  background-color: var(--hover-bg);
+}
+
+.scripts-row-off {
+  opacity: 0.55;
+}
+
+.scripts-row-off:hover {
+  opacity: 1;
+}
+
+.scripts-check {
+  width: 14px;
+  height: 14px;
+  accent-color: var(--color-accent);
+  cursor: pointer;
+}
+
+.scripts-name-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.scripts-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--color-ink-3);
+  transition:
+    background-color var(--duration-fast) var(--ease-out),
+    box-shadow var(--duration-fast) var(--ease-out);
+}
+
+.scripts-row:not(.scripts-row-off) .scripts-dot {
+  background: var(--color-ok);
+  box-shadow: 0 0 0 3px var(--color-ok-soft);
+}
+
+.scripts-name-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.scripts-name {
+  color: var(--text);
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 数据声线：脚本路径 / 站点 URL 用等宽 */
+.scripts-path {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.scripts-sites {
+  color: var(--text-secondary);
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.scripts-actions {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.scripts-actions .ui-btn,
+.scripts-actions .ui-icon-btn {
+  vertical-align: middle;
+}
+
+.scripts-actions .ui-btn {
+  margin-right: 4px;
+}
+
+.scripts-empty-title {
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.scripts-empty-hint {
+  max-width: 380px;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+/* ── 脚本编辑器 ── */
+.scripts-editor-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.scripts-editor-title {
+  margin: 0;
+  min-width: 0;
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.scripts-editor-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.scripts-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.scripts-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.scripts-label {
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.scripts-field-hint {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.scripts-path-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.scripts-path-row .ui-input {
+  flex: 1;
+  min-width: 0;
+}
+
+.scripts-path-input {
+  background: var(--color-inset);
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+/* 站点绑定网格：选中项群青描边 + 浅群青底 */
+.scripts-site-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 8px;
+}
+
+.scripts-site-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
+  cursor: pointer;
+  transition:
+    border-color var(--duration-fast) var(--ease-out),
+    background-color var(--duration-fast) var(--ease-out);
+}
+
+.scripts-site-item:hover {
+  background: var(--hover-bg);
+  border-color: var(--border);
+}
+
+.scripts-site-item-on,
+.scripts-site-item-on:hover {
+  border-color: var(--primary);
+  background: var(--color-accent-soft);
+}
+
+.scripts-site-item .scripts-check {
+  margin-top: 2px;
+}
+
+.scripts-site-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.scripts-site-name {
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.scripts-site-url {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

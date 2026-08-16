@@ -1,3 +1,4 @@
+import { Button, Input } from '../../components/ui'
 import type { ScriptSite, UserScriptRecord } from './types'
 
 interface UserScriptEditorProps {
@@ -26,61 +27,61 @@ export function UserScriptEditor({
   onOpenFolder,
 }: UserScriptEditorProps) {
   return (
-    <div className="flex-1 flex flex-col min-h-0">
-      <div className="flex justify-between items-center mb-4">
-        <h3 className="text-lg font-medium">配置脚本: {editName}</h3>
-        <div className="space-x-2">
-          <button onClick={onCancel} className="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300">取消</button>
-          <button onClick={onSave} className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600">保存设置</button>
+    <div className="scripts-body">
+      <div className="scripts-editor-head">
+        <h3 className="scripts-editor-title">配置脚本: {editName}</h3>
+        <div className="scripts-editor-actions">
+          <Button variant="ghost" onClick={onCancel}>取消</Button>
+          <Button variant="primary" icon="check" onClick={onSave}>保存设置</Button>
         </div>
       </div>
 
-      {errorMsg && <div className="text-red-500 mb-2">{errorMsg}</div>}
+      {errorMsg && <div className="scripts-error">{errorMsg}</div>}
 
-      <div className="space-y-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">脚本名称</label>
-          <input
-            className="w-full border rounded p-2"
+      <div className="scripts-form">
+        <div className="scripts-field">
+          <label className="scripts-label" htmlFor="scripts-name-input">脚本名称</label>
+          <Input
+            id="scripts-name-input"
             value={editName}
             onChange={(e) => onEditNameChange(e.target.value)}
           />
         </div>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">脚本路径</label>
-          <div className="flex items-center gap-2">
-            <input
-              className="w-full border rounded p-2 bg-gray-50 text-gray-500 text-sm"
+        <div className="scripts-field">
+          <label className="scripts-label" htmlFor="scripts-path-input">脚本路径</label>
+          <div className="scripts-path-row">
+            <Input
+              id="scripts-path-input"
+              className="scripts-path-input mono"
               value={String(script.file_path || '（旧版存库脚本，无本地路径）')}
               readOnly
             />
             {Boolean(script.file_path) && (
-              <button
-                onClick={onOpenFolder}
-                className="shrink-0 px-3 py-2 bg-gray-200 hover:bg-gray-300 rounded text-sm"
-              >
-                打开目录
-              </button>
+              <Button variant="secondary" icon="external" onClick={onOpenFolder}>打开目录</Button>
             )}
           </div>
         </div>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">选择应用该脚本的站点（勾选后将自动覆盖原始 @match 规则）</label>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+        <div className="scripts-field">
+          <span className="scripts-label">应用站点</span>
+          <span className="scripts-field-hint">勾选后将自动覆盖脚本内置的 @match 规则；不勾选则按脚本自带规则注入。</span>
+          <div className="scripts-site-grid">
             {sites.map((site) => (
-              <label key={site.id} className="flex items-center gap-2 p-3 border rounded hover:bg-gray-50 cursor-pointer">
+              <label
+                key={site.id}
+                className={selectedSiteIds.includes(site.id) ? 'scripts-site-item scripts-site-item-on' : 'scripts-site-item'}
+              >
                 <input
                   type="checkbox"
-                  className="cursor-pointer"
+                  className="scripts-check"
                   checked={selectedSiteIds.includes(site.id)}
                   onChange={() => onToggleSite(site.id)}
                 />
-                <div className="flex flex-col">
-                  <span className="font-medium text-sm">{site.name || site.id}</span>
-                  <span className="text-xs text-gray-500 truncate max-w-[120px]">{site.homeUrl}</span>
-                </div>
+                <span className="scripts-site-meta">
+                  <span className="scripts-site-name">{site.name || site.id}</span>
+                  {Boolean(site.homeUrl) && <span className="scripts-site-url">{site.homeUrl}</span>}
+                </span>
               </label>
             ))}
           </div>

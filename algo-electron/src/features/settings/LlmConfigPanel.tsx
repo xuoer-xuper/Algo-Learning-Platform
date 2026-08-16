@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { Button, Icon, Input } from '../../components/ui'
 import { loadLlmConfig, saveLlmApiKey, saveLlmConfig, testLlmConnection } from './settingsApi'
 
 const DEFAULT_BASE_URL = 'https://ark.cn-beijing.volces.com/api/v3'
@@ -117,31 +118,31 @@ export function LlmConfigPanel() {
 
       <div className="settings-row settings-hint-text">
         {status?.has_key
-          ? `当前 Key: ${status.key_masked}`
+          ? <>当前 Key: <span className="mono">{status.key_masked}</span></>
           : '未配置 API Key，请先填写并保存'}
       </div>
 
       <div className="settings-row">
         <label className="settings-label">API Key</label>
-        <input
+        <Input
           className="settings-input"
           type="password"
           value={apiKeyInput}
           onChange={(e) => setApiKeyInput(e.target.value)}
           placeholder={status?.has_key ? `已配置（${status.key_masked}），输入新 Key 覆盖` : 'ark-xxxxxxxxxxxx'}
         />
-        <button
-          className="settings-save-btn"
+        <Button
+          variant="primary"
           onClick={() => void handleSaveApiKey()}
           disabled={!apiKeyInput.trim()}
         >
           保存 Key
-        </button>
+        </Button>
       </div>
 
       <div className="settings-row">
         <label className="settings-label">模型 ID</label>
-        <input
+        <Input
           className="settings-input"
           type="text"
           value={model}
@@ -153,7 +154,7 @@ export function LlmConfigPanel() {
 
       <div className="settings-row">
         <label className="settings-label">Base URL</label>
-        <input
+        <Input
           className="settings-input"
           type="text"
           value={baseUrl}
@@ -163,21 +164,21 @@ export function LlmConfigPanel() {
       </div>
 
       <div className="settings-row">
-        <button
-          className="settings-save-btn"
+        <Button
           onClick={() => void handleTestConnection()}
           disabled={testing || (!apiKeyInput.trim() && !status?.has_key)}
         >
           {testing ? '测试中...' : '测试连接'}
-        </button>
+        </Button>
         {testResult && (
-          <span
-            className="settings-hint-text"
-            style={{ color: testResult.success ? '#22c55e' : '#ef4444' }}
-          >
-            {testResult.success && testResult.latency_ms != null
-              ? `✓ ${testResult.message}（${testResult.latency_ms}ms）`
-              : `✗ ${testResult.message}`}
+          <span className={`settings-test-result ${testResult.success ? 'settings-test-ok' : 'settings-test-err'}`}>
+            <Icon name={testResult.success ? 'check' : 'close'} size={12} />
+            <span>
+              {testResult.message}
+              {testResult.success && testResult.latency_ms != null && (
+                <span className="num">（{testResult.latency_ms}ms）</span>
+              )}
+            </span>
           </span>
         )}
       </div>

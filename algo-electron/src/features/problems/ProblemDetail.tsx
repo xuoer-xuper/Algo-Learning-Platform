@@ -9,6 +9,7 @@ import {
 } from './problemsApi'
 import type { ProblemDetailRecord, SubmissionRecord } from './problemTypes'
 import { SessionTimelineView } from '../coach/SessionTimelineView'
+import { Button, ConfirmDialog, IconButton } from '../../components/ui'
 
 interface Props {
   problemId: string
@@ -24,6 +25,10 @@ export function ProblemDetail({ problemId, onClose }: Props) {
   const [detail, setDetail] = useState<ProblemDetailRecord | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [view, setView] = useState<'detail' | 'timeline'>('detail')
+  // B1.4：删除二连问合并为单个确认对话框 + 「同时删除笔记」勾选项
+  const [confirmOpen, setConfirmOpen] = useState(false)
+  const [noteCount, setNoteCount] = useState(0)
+  const [alsoDeleteNotes, setAlsoDeleteNotes] = useState(false)
 
   useEffect(() => {
     loadProblemDetail(problemId).then(setDetail)
@@ -38,23 +43,23 @@ export function ProblemDetail({ problemId, onClose }: Props) {
     return <SessionTimelineView problemId={problemId} onClose={() => setView('detail')} />
   }
 
-  const handleDelete = async () => {
-    if (!confirm('确定删除这道题的本地记录吗？')) return
-
-    // 检查是否有关联笔记，若有则询问是否一并删除笔记文件
-    let deleteNotes = false
+  // 打开删除确认：先查询关联笔记数，决定是否展示「同时删除笔记」勾选项
+  const handleDeleteRequest = async () => {
+    let count = 0
     try {
       const notes = await loadNotesForDelete(problemId)
-      if (notes.length > 0) {
-        deleteNotes = confirm(
-          `该题目关联了 ${notes.length} 条笔记。\n\n点击「确定」将同时删除这些笔记文件（不可恢复）；\n点击「取消」仅删除题目记录，保留笔记文件。`
-        )
-      }
-    } catch { /* 忽略查询失败 */ }
+      count = notes.length
+    } catch { /* 查询失败时按无笔记处理 */ }
+    setNoteCount(count)
+    setAlsoDeleteNotes(false)
+    setConfirmOpen(true)
+  }
 
+  const handleDeleteConfirm = async () => {
+    setConfirmOpen(false)
     setDeleting(true)
     try {
-      if (deleteNotes) {
+      if (alsoDeleteNotes && noteCount > 0) {
         await deleteNotesByProblem(problemId)
       }
       const ok = await deleteProblemRecord(problemId)
@@ -66,10 +71,10 @@ export function ProblemDetail({ problemId, onClose }: Props) {
 
   if (!detail) {
     return (
-      <div className="settings-page">
-        <div className="settings-header">
-          <span className="settings-title">加载中...</span>
-          <button type="button" className="settings-close" onClick={onClose}>✕</button>
+      <div className="detail-page">
+        <div className="detail-header">
+          <span className="detail-title">加载中...</span>
+          <IconButton icon="close" title="关闭" className="detail-close" onClick={onClose} />
         </div>
       </div>
     )
@@ -77,27 +82,27 @@ export function ProblemDetail({ problemId, onClose }: Props) {
 
   return (
     <div className="detail-page">
-      <div className="settings-header">
-        <span className="settings-title">{detail.title || detail.platform_problem_id}</span>
+      <div className="detail-header">
+        <span className="detail-title">{detail.title || detail.platform_problem_id}</span>
         <div className="detail-header-actions">
-          <button
-            type="button"
-            className="detail-timeline-btn"
+          <Button
+            size="sm"
+            icon="chart"
             onClick={() => setView('timeline')}
             title="查看本题做题时间轴与 Coach 介入点"
           >
             时间轴复盘
-          </button>
-          <button
-            type="button"
-            className="detail-delete-btn"
-            onClick={handleDelete}
+          </Button>
+          <Button
+            variant="danger"
+            size="sm"
+            icon="trash"
+            onClick={handleDeleteRequest}
             disabled={deleting}
-            title="删除本地记录"
           >
             {deleting ? '删除中…' : '删除'}
-          </button>
-          <button type="button" className="settings-close" onClick={onClose}>✕</button>
+          </Button>
+          <IconButton icon="close" title="关闭" className="detail-close" onClick={onClose} />
         </div>
       </div>
 
@@ -108,7 +113,7 @@ export function ProblemDetail({ problemId, onClose }: Props) {
         </div>
         <div className="detail-row">
           <span className="detail-label">题号</span>
-          <span className="detail-value">{detail.platform_problem_id}</span>
+          <span className="detail-value num">{detail.platform_problem_id}</span>
         </div>
         <div className="detail-row">
           <span className="detail-label">状态</span>
@@ -118,12 +123,12 @@ export function ProblemDetail({ problemId, onClose }: Props) {
         </div>
         <div className="detail-row">
           <span className="detail-label">提交</span>
-          <span className="detail-value">{detail.submission_count} 次（AC {detail.ac_count} 次）</span>
+          <span className="detail-value num">{detail.submission_count} 次（AC {detail.ac_count} 次）</span>
         </div>
         {detail.visitStats && detail.visitStats.total_visits > 0 && (
           <div className="detail-row">
             <span className="detail-label">停留</span>
-            <span className="detail-value">
+            <span className="detail-value num">
               {detail.visitStats.total_visits} 次访问，
               累计 {Math.round(detail.visitStats.total_duration / 60)} 分钟
             </span>
@@ -131,12 +136,12 @@ export function ProblemDetail({ problemId, onClose }: Props) {
         )}
         <div className="detail-row">
           <span className="detail-label">首次访问</span>
-          <span className="detail-value">{detail.first_seen_at?.replace('T', ' ').slice(0, 19)}</span>
+          <span className="detail-value num">{detail.first_seen_at?.replace('T', ' ').slice(0, 19)}</span>
         </div>
         {detail.last_visited_at && (
           <div className="detail-row">
             <span className="detail-label">最近访问</span>
-            <span className="detail-value">{detail.last_visited_at?.replace('T', ' ').slice(0, 19)}</span>
+            <span className="detail-value num">{detail.last_visited_at?.replace('T', ' ').slice(0, 19)}</span>
           </div>
         )}
         <div className="detail-row">
@@ -156,20 +161,50 @@ export function ProblemDetail({ problemId, onClose }: Props) {
 
       {(detail.submissions?.length ?? 0) > 0 && (
         <div className="detail-submissions">
-          <h3 className="settings-section-title">提交记录</h3>
+          <h3 className="detail-section-title">提交记录</h3>
           <div className="submissions-list">
             {(detail.submissions ?? []).map((s: SubmissionRecord) => (
               <div key={s.id} className="submission-item">
-                <span className="submission-verdict" style={{ color: VERDICT_COLORS[s.verdict] || '#585b70' }}>
+                <span
+                  className="submission-verdict ui-chip"
+                  style={{ color: VERDICT_COLORS[s.verdict] || VERDICT_COLORS.UNKNOWN }}
+                >
+                  <span
+                    className="ui-chip-dot"
+                    style={{ background: VERDICT_COLORS[s.verdict] || VERDICT_COLORS.UNKNOWN }}
+                  />
                   {s.verdict}
                 </span>
                 <span className="submission-lang">{s.language || '-'}</span>
-                <span className="submission-time">{s.submitted_at?.replace('T', ' ').slice(0, 19)}</span>
+                <span className="submission-time num">{s.submitted_at?.replace('T', ' ').slice(0, 19)}</span>
               </div>
             ))}
           </div>
         </div>
       )}
+
+      {/* 删除题目确认：原「删记录 + 删笔记」二连问合并为一个对话框 */}
+      <ConfirmDialog
+        open={confirmOpen}
+        title="删除该题目？"
+        description="将删除本题的本地访问与提交记录，此操作不可恢复。"
+        confirmText="删除"
+        danger
+        onConfirm={handleDeleteConfirm}
+        onCancel={() => setConfirmOpen(false)}
+      >
+        {noteCount > 0 && (
+          <label>
+            <input
+              type="checkbox"
+              checked={alsoDeleteNotes}
+              onChange={(e) => setAlsoDeleteNotes(e.target.checked)}
+              style={{ accentColor: 'var(--color-accent)' }}
+            />
+            同时删除本地笔记（<span className="num">{noteCount}</span> 条，文件不可恢复）
+          </label>
+        )}
+      </ConfirmDialog>
     </div>
   )
 }

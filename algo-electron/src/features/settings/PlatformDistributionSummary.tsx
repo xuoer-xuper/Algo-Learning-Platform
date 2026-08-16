@@ -18,7 +18,7 @@ export function PlatformDistributionSummary({ distribution }: PlatformDistributi
           {distribution.map((item) => (
             <div key={item.platform} className="platform-item">
               <span className="platform-name">{PLATFORM_NAMES[item.platform] || item.platform}</span>
-              <span className="platform-count">{item.count} 题</span>
+              <span className="platform-count"><span className="num">{item.count}</span> 题</span>
             </div>
           ))}
         </div>

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { PLATFORM_LABELS, STATUS_COLORS } from '../../shared/display'
+import { Icon } from '../../components/ui'
 import { loadRecentProblems, setProblemSidebarWidth, subscribeProblemsUpdated } from './problemsApi'
 import type { SidebarProblemRecord } from './problemTypes'
 
@@ -59,7 +60,9 @@ export function ProblemSidebar({ onNavigate, onShowDetail, onShowNotes, onWidthC
     <div ref={sidebarRef} className="sidebar">
       <div className="sidebar-header">
         <span className="sidebar-title">题库 ({problems.length})</span>
-        <button className="sidebar-collapse-btn" onClick={() => setCollapsed(true)}>‹</button>
+        <button className="sidebar-collapse-btn" onClick={() => setCollapsed(true)} title="收起题库" aria-label="收起题库">
+          <Icon name="chevron-left" size={15} />
+        </button>
       </div>
 
       <div className="sidebar-filters">
@@ -109,14 +112,14 @@ export function ProblemSidebar({ onNavigate, onShowDetail, onShowNotes, onWidthC
                 onClick={e => { e.stopPropagation(); onShowNotes(p.id) }}
                 title="本地笔记"
               >
-                ✎
+                <Icon name="edit" size={13} />
               </button>
               <button
                 className="sidebar-item-detail"
                 onClick={e => { e.stopPropagation(); onShowDetail(p.id) }}
                 title="查看详情"
               >
-                ⋯
+                <Icon name="more" size={14} />
               </button>
             </div>
           ))

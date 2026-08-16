@@ -1,10 +1,24 @@
-/* 设置页 */
+/*
+ * 设置页（竞技控制台视觉，B 系列 token 化重写）
+ * ------------------------------------------------------------------
+ * 契约类名（Playwright 依赖，禁止删改）：
+ *   .settings-page / .settings-header / .settings-title / .settings-close
+ *   .settings-cols（容器 ≤680px 折叠为 1 列）/ .site-list
+ *   .llm-config-section / .llm-config-section .settings-input
+ * 跨 feature 借用（ProblemDetail、coach 视图）：.settings-page /
+ * .settings-header / .settings-title / .settings-close / .settings-section-title
+ * ——语义保持：页容器 / 头部行 / 标题 / 关闭钮 / 区块标题。
+ * 颜色一律取 src/index.css token，禁止裸 hex。
+ */
+
+/* ── 页面画布：冷调纸白，卡片浮于其上 ── */
 .settings-page {
   padding: 20px;
   width: 100%;
   min-width: 0;
   overflow-y: auto;
   overflow-x: hidden;
+  background: var(--bg);
   scrollbar-width: thin;
   scrollbar-color: var(--border) transparent;
 }
@@ -22,29 +36,12 @@
   border-radius: 3px;
 }
 
-/* 两栏布局：左栏配置类（更宽），右栏站点管理 */
-.settings-cols {
-  display: grid;
-  grid-template-columns: 3fr 2fr;
-  gap: 20px;
-  align-items: start;
-}
-
-.settings-col {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  min-width: 0; /* 允许 flex 子项收缩，防止 input 溢出 */
-}
-
-.settings-col .settings-section {
-  margin-bottom: 0; /* gap 已控制间距，避免双重 margin */
-}
-
+/* ── 头部 ── */
 .settings-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 12px;
   margin-bottom: 16px;
 }
 
@@ -52,30 +49,81 @@
   color: var(--text);
   font-size: 16px;
   font-weight: 600;
+  letter-spacing: 0.01em;
   margin: 0;
 }
 
+/* 关闭钮：与 IconButton 同一配方；借用方仍是文本 ✕ 时同样成立 */
 .settings-close {
-  background: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
   border: none;
-  color: var(--text-muted);
-  font-size: 18px;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 14px;
   cursor: pointer;
+  transition:
+    background-color var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out);
 }
 
 .settings-close:hover {
+  background: var(--hover-bg);
   color: var(--text);
 }
 
+/* ── 两栏布局：左配置（宽）右站点管理 ── */
+.settings-cols {
+  display: grid;
+  grid-template-columns: 3fr 2fr;
+  gap: 16px;
+  align-items: start;
+}
+
+.settings-col {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0; /* 允许收缩，防止 input 溢出 */
+}
+
+.settings-col .settings-section {
+  margin-bottom: 0; /* gap 已控制间距，避免双重 margin */
+}
+
+/* ── 面板卡片 ── */
 .settings-section {
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  padding: 14px 16px;
   margin-bottom: 16px;
 }
 
+/* 区块标题：13px/600 + 群青刻度条（借用方语义一致） */
 .settings-section-title {
-  color: var(--primary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text);
   font-size: 13px;
   font-weight: 600;
-  margin: 0 0 8px 0;
+  margin: 0 0 10px 0;
+}
+
+.settings-section-title::before {
+  content: '';
+  width: 3px;
+  height: 12px;
+  border-radius: 999px;
+  background: var(--primary);
+  flex-shrink: 0;
 }
 
 .settings-section-header-row {
@@ -83,53 +131,35 @@
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  margin-bottom: 8px;
+  margin-bottom: 10px;
 }
 
 .settings-section-header-row .settings-section-title {
   margin-bottom: 0;
 }
 
+/* ── 行与表单 ── */
 .settings-row {
   display: flex;
+  align-items: center;
   gap: 8px;
   margin-bottom: 10px;
   min-width: 0;
 }
 
+.settings-row:last-child {
+  margin-bottom: 0;
+}
+
+/* 视觉交给 ui Input/Select 基类，这里只保留布局职责（契约类名保留） */
 .settings-input {
   flex: 1;
   min-width: 0;
-  height: 32px;
-  padding: 0 10px;
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  background-color: var(--bg);
-  color: var(--text);
-  font-size: 13px;
-  outline: none;
 }
 
-.settings-input:focus {
-  border-color: var(--primary);
-}
-
-.settings-save-btn {
-  height: 32px;
-  padding: 0 16px;
-  border: none;
-  border-radius: 4px;
-  background-color: var(--primary);
-  color: white;
-  font-size: 13px;
-  font-weight: 600;
-  white-space: nowrap;
-  flex-shrink: 0;
-  cursor: pointer;
-}
-
-.settings-save-btn:hover {
-  background-color: var(--primary-hover);
+.settings-select {
+  flex: 0 0 auto;
+  min-width: 140px;
 }
 
 .settings-empty {
@@ -137,7 +167,7 @@
   font-size: 12px;
 }
 
-/* Coach 桌宠设置面板扩展类 */
+/* 复选/滑杆行（Coach 面板等） */
 .settings-label {
   display: flex;
   align-items: center;
@@ -147,7 +177,7 @@
   cursor: pointer;
 }
 
-.settings-label input[type="checkbox"] {
+.settings-label input[type='checkbox'] {
   accent-color: var(--primary);
 }
 
@@ -160,26 +190,27 @@
   color: var(--text-secondary);
 }
 
-.settings-label-row input[type="range"] {
+.settings-label-row input[type='range'] {
   width: 100%;
   accent-color: var(--primary);
 }
 
-.settings-select {
-  height: 30px;
-  flex: 0 0 auto;
-  min-width: 140px;
-  padding: 0 8px;
+/* LLM 面板：字段名左对齐成列（仅纯文字标签，不含复选框行） */
+.llm-config-section .settings-label:not(:has(input)) {
+  flex: 0 0 64px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  cursor: default;
 }
 
+/* 「已保存」徽标 */
 .settings-saved-flag {
-  margin-left: 8px;
-  padding: 1px 6px;
+  padding: 2px 8px;
   font-size: 10px;
   font-weight: 600;
-  color: var(--success, #10b981);
-  background: rgba(16, 185, 129, 0.1);
-  border-radius: 3px;
+  color: var(--color-ok);
+  background: var(--color-ok-soft);
+  border-radius: 999px;
 }
 
 .settings-hint-text {
@@ -188,30 +219,82 @@
   font-style: normal;
 }
 
+.settings-hint-text a {
+  color: var(--primary);
+}
+
+.settings-error-text {
+  color: var(--color-danger);
+  font-size: 12px;
+  padding-left: 2px;
+}
+
+/* 连接测试结果 */
+.settings-test-result {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  min-width: 0;
+}
+
+.settings-test-ok {
+  color: var(--color-ok);
+}
+
+.settings-test-err {
+  color: var(--color-danger);
+}
+
+/* ── 同步区 ── */
+.sync-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+  min-width: 0;
+}
+
+.sync-status {
+  color: var(--text-secondary);
+  font-size: 12px;
+  margin-bottom: 8px;
+  padding-left: 2px;
+}
+
+/* 备份导入预览内嵌按钮行与提示文字保持呼吸感 */
+.sync-status .settings-row {
+  margin-top: 8px;
+}
+
 .sync-hint {
   color: var(--text-muted);
   font-size: 11px;
-  margin-top: 4px;
+  margin-top: 6px;
+  line-height: 1.6;
 }
 
+/* Rating：数据声线（等宽 + 表格数字） */
 .rating-info {
   display: flex;
   gap: 16px;
-  margin-top: 8px;
-  font-size: 14px;
+  margin-top: 10px;
+  font-size: 13px;
+}
+
+.rating-current,
+.rating-peak {
+  font-weight: 600;
 }
 
 .rating-current {
   color: var(--primary);
-  font-weight: 600;
 }
 
 .rating-peak {
-  color: var(--warning);
-  font-weight: 600;
+  color: var(--color-warn);
 }
 
-/* 统计卡片 */
+/* ── 学习概览统计卡 ── */
 .stats-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -219,9 +302,9 @@
 }
 
 .stats-card {
-  background-color: var(--bg);
+  background: var(--color-inset);
   border: 1px solid var(--border-light);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   padding: 10px;
   text-align: center;
 }
@@ -232,13 +315,15 @@
 
 .stats-value {
   color: var(--text);
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
   font-size: 20px;
   font-weight: 700;
 }
 
 .stats-value-sm {
   font-size: 13px;
-  font-weight: 400;
+  font-weight: 500;
 }
 
 .stats-label {
@@ -247,11 +332,11 @@
   margin-top: 2px;
 }
 
-/* 平台分布 */
+/* ── 平台分布 ── */
 .platform-list {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
 }
 
 .platform-item {
@@ -259,9 +344,9 @@
   justify-content: space-between;
   align-items: center;
   padding: 6px 10px;
-  background-color: var(--bg);
+  background: var(--color-inset);
   border: 1px solid var(--border-light);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
 }
 
 .platform-name {
@@ -273,31 +358,15 @@
   color: var(--primary);
   font-size: 13px;
   font-weight: 600;
+  font-variant-numeric: tabular-nums;
 }
 
-/* 同步 */
-.sync-row {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 6px;
-}
-
-.sync-full-btn {
-  flex: 1;
-}
-
-.sync-status {
-  color: var(--text-secondary);
-  font-size: 11px;
-  margin-bottom: 8px;
-  padding-left: 4px;
-}
-
+/* ── 实时监听诊断 ── */
 .realtime-status-card {
-  background: var(--bg);
+  background: var(--color-inset);
   border: 1px solid var(--border-light);
-  border-radius: 6px;
-  padding: 10px;
+  border-radius: var(--radius-md);
+  padding: 10px 12px;
 }
 
 .realtime-status-row {
@@ -314,7 +383,7 @@
 }
 
 .realtime-status-ok {
-  color: var(--success);
+  color: var(--color-ok);
   text-align: right;
 }
 
@@ -323,14 +392,168 @@
   text-align: right;
 }
 
+/* 诊断明细：时间/URL/适配器 ID，等宽声线 */
 .realtime-status-detail {
   color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
   font-size: 11px;
   line-height: 1.5;
   margin: 2px 0 8px;
   overflow-wrap: anywhere;
 }
 
+/* ── 站点管理 ── */
+.site-actions-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.site-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.site-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
+  transition:
+    background-color var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-out);
+}
+
+.site-item:hover {
+  background: var(--hover-bg);
+  border-color: var(--border);
+}
+
+/* 禁用站点：整行降透明度（按钮文字「已禁用」即状态标注） */
+.site-item-off .site-info {
+  opacity: 0.55;
+}
+
+.site-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.site-name {
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.site-domains {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+
+.site-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+/* 启用态开关：ok 软底徽标样式（叠在 ui Button 之上） */
+.ui-btn.site-toggle.enabled {
+  background: var(--color-ok-soft);
+  border-color: transparent;
+  color: var(--color-ok);
+}
+
+.ui-btn.site-toggle.enabled:hover {
+  border-color: var(--color-ok);
+}
+
+/* ── 导入预览 / 添加站点（卡内嵌面板） ── */
+.import-preview {
+  background: var(--color-inset);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  padding: 12px;
+  margin-bottom: 10px;
+}
+
+.import-preview-title {
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+  margin: 0 0 8px 0;
+}
+
+.import-group {
+  margin-bottom: 8px;
+}
+
+.import-group-label {
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.import-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  border-radius: var(--radius-xs);
+  font-size: 12px;
+}
+
+.import-conflict {
+  background: var(--color-warn-soft);
+}
+
+.import-skipped {
+  opacity: 0.5;
+}
+
+.import-checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.import-checkbox-label input[type='checkbox'] {
+  accent-color: var(--primary);
+}
+
+.import-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.add-site-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.add-site-row {
+  display: flex;
+  gap: 8px;
+  min-width: 0;
+}
+
+/* ── 容器响应式（契约：≤680px 折叠单列） ── */
 @container modal-panel (max-width: 680px) {
   .settings-page {
     padding: 16px;
@@ -349,9 +572,14 @@
     flex-direction: column;
   }
 
-  .settings-save-btn,
+  .settings-row .ui-btn,
+  .sync-row .ui-btn,
   .settings-select {
     width: 100%;
+  }
+
+  .llm-config-section .settings-label:not(:has(input)) {
+    flex: 0 0 auto;
   }
 
   .site-actions {

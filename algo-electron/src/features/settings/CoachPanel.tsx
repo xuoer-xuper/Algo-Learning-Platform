@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Button, Select } from '../../components/ui'
 
 /**
  * Coach 桌宠设置面板。
@@ -89,7 +90,7 @@ export function CoachPanel() {
       <div className="settings-row">
         <label className="settings-label-row">
           <span>气泡频率</span>
-          <select
+          <Select
             className="settings-input settings-select"
             value={config.bubbleFrequency}
             onChange={(e) =>
@@ -99,7 +100,7 @@ export function CoachPanel() {
             <option value="low">低（少打扰）</option>
             <option value="medium">中（默认）</option>
             <option value="high">高（多提示）</option>
-          </select>
+          </Select>
         </label>
       </div>
 
@@ -132,17 +133,14 @@ export function CoachPanel() {
       </div>
 
       <div className="settings-row">
-        <button className="settings-save-btn" onClick={handleResetPosition}>
-          重置位置
-        </button>
-        <button
-          className="settings-save-btn"
+        <Button onClick={handleResetPosition}>重置位置</Button>
+        <Button
           onClick={handleTestHint}
           disabled={!config.enabled}
           title={config.enabled ? '弹一个测试气泡' : '需先启用 Coach'}
         >
           测试提示
-        </button>
+        </Button>
       </div>
 
       {testMsg && (

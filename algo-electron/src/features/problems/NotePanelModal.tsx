@@ -12,6 +12,7 @@ import {
   updateNoteType,
 } from './problemsApi'
 import { useDebouncedNoteTitleSave } from './useDebouncedNoteTitleSave'
+import { Button, ConfirmDialog, Icon, IconButton } from '../../components/ui'
 
 interface Props {
   problemId: string
@@ -26,6 +27,9 @@ export function NotePanelModal({ problemId, onClose }: Props) {
   const [editorInitial, setEditorInitial] = useState('')
   const [saving, setSaving] = useState(false)
   const [dirty, setDirty] = useState(false)
+  // B1.4：原生 confirm 改为 ConfirmDialog 的本地开关
+  const [discardOpen, setDiscardOpen] = useState(false)
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
 
   const loadNotes = useCallback(async () => {
     const list = await listNotesByProblem(problemId)
@@ -42,15 +46,22 @@ export function NotePanelModal({ problemId, onClose }: Props) {
     clearPendingTitleForNote,
   } = useDebouncedNoteTitleSave({ onSaved: loadNotes })
 
-  const handleNewNote = async () => {
-    if (dirty && activeNoteId) {
-      if (!confirm('当前笔记未保存，是否放弃修改？')) return
-    }
+  const createNewNote = async () => {
+    setDiscardOpen(false)
     // 切换前先 flush 当前笔记的未保存标题
     await flushPendingTitle(true)
     const note = await createProblemNote(problemId)
     await loadNotes()
     await openNote(note.id, '')
+  }
+
+  const handleNewNote = () => {
+    if (dirty && activeNoteId) {
+      // 有未保存修改：先经确认对话框再新建
+      setDiscardOpen(true)
+      return
+    }
+    void createNewNote()
   }
 
   const openNote = async (noteId: string, fallbackContent?: string) => {
@@ -92,8 +103,11 @@ export function NotePanelModal({ problemId, onClose }: Props) {
     if (activeNoteId) scheduleSaveTitle(activeNoteId, title)
   }
 
-  const handleDelete = async (noteId: string) => {
-    if (!confirm('确定删除这条笔记吗？笔记文件将被永久删除。')) return
+  // 删除确认后的真正删除动作（入口是列表项的删除键 → setPendingDeleteId）
+  const confirmDeleteNote = async () => {
+    const noteId = pendingDeleteId
+    setPendingDeleteId(null)
+    if (!noteId) return
     clearPendingTitleForNote(noteId)
     await deleteNote(noteId)
     if (activeNoteId === noteId) {
@@ -104,6 +118,11 @@ export function NotePanelModal({ problemId, onClose }: Props) {
     await loadNotes()
   }
 
+  const closeDialogs = () => {
+    setDiscardOpen(false)
+    setPendingDeleteId(null)
+  }
+
   const handleOpenDir = () => {
     openNotesDirectory()
   }
@@ -111,31 +130,16 @@ export function NotePanelModal({ problemId, onClose }: Props) {
   return (
     <div className="notes-modal">
       <div className="notes-modal-header">
-        <h2 className="notes-modal-title">📝 本地笔记</h2>
+        <h2 className="notes-modal-title">
+          <Icon name="note" size={16} />
+          本地笔记
+        </h2>
         <div className="notes-modal-actions">
-          <button
-            type="button"
-            className="notes-modal-btn notes-modal-btn-icon"
-            onClick={handleOpenDir}
-            title="打开笔记目录"
-          >
-            📂
-          </button>
-          <button
-            type="button"
-            className="notes-modal-btn notes-modal-btn-primary"
-            onClick={handleNewNote}
-          >
-            + 新建笔记
-          </button>
-          <button
-            type="button"
-            className="notes-modal-close"
-            onClick={onClose}
-            title="关闭"
-          >
-            ✕
-          </button>
+          <IconButton icon="external" title="打开笔记目录" onClick={handleOpenDir} />
+          <Button variant="primary" icon="plus" onClick={handleNewNote}>
+            新建笔记
+          </Button>
+          <IconButton icon="close" title="关闭" className="notes-modal-close" onClick={onClose} />
         </div>
       </div>
 
@@ -144,7 +148,7 @@ export function NotePanelModal({ problemId, onClose }: Props) {
           notes={notes}
           activeNoteId={activeNoteId}
           onOpenNote={openNote}
-          onDeleteNote={handleDelete}
+          onDeleteNote={setPendingDeleteId}
         />
 
         <NoteEditorPane
@@ -159,6 +163,28 @@ export function NotePanelModal({ problemId, onClose }: Props) {
           onEditorChange={handleEditorChange}
         />
       </div>
+
+      {/* 新建时放弃未保存修改的确认 */}
+      <ConfirmDialog
+        open={discardOpen}
+        title="放弃未保存的修改？"
+        description="当前笔记的修改尚未保存，新建笔记将放弃这些修改。"
+        confirmText="放弃并新建"
+        danger
+        onConfirm={createNewNote}
+        onCancel={closeDialogs}
+      />
+
+      {/* 删除单条笔记的确认 */}
+      <ConfirmDialog
+        open={pendingDeleteId !== null}
+        title="删除该笔记？"
+        description="笔记文件将被永久删除，不可恢复。"
+        confirmText="删除"
+        danger
+        onConfirm={confirmDeleteNote}
+        onCancel={closeDialogs}
+      />
     </div>
   )
 }

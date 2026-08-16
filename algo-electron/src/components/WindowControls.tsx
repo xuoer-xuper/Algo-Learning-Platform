@@ -6,6 +6,7 @@ import {
   subscribeWindowMaximized,
   toggleAppWindowMaximized,
 } from './windowApi'
+import { Icon } from './ui'
 
 export function WindowControls() {
   const [maximized, setMaximized] = useState(false)
@@ -24,7 +25,7 @@ export function WindowControls() {
         title="最小化"
         aria-label="最小化"
       >
-        &#8212;
+        <Icon name="minimize" size={13} strokeWidth={1.6} />
       </button>
       <button
         type="button"
@@ -33,7 +34,7 @@ export function WindowControls() {
         title={maximized ? '还原' : '最大化'}
         aria-label={maximized ? '还原' : '最大化'}
       >
-        {maximized ? '\u2750' : '\u25A1'}
+        <Icon name={maximized ? 'restore' : 'maximize'} size={12} strokeWidth={1.6} />
       </button>
       <button
         type="button"
@@ -42,7 +43,7 @@ export function WindowControls() {
         title="关闭"
         aria-label="关闭"
       >
-        &#10005;
+        <Icon name="close" size={13} strokeWidth={1.6} />
       </button>
     </div>
   )

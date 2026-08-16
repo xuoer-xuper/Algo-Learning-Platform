@@ -1,4 +1,5 @@
 import type { KeyboardEvent } from 'react'
+import { Icon } from './ui'
 
 interface BrowserToolbarProps {
   url: string
@@ -37,10 +38,18 @@ export function BrowserToolbar({
 
   return (
     <div className="toolbar">
-      <button className="nav-btn" onClick={onHome} title="首页">⌂</button>
-      <button className="nav-btn" onClick={onBack} title="后退">←</button>
-      <button className="nav-btn" onClick={onForward} title="前进">→</button>
-      <button className="nav-btn" onClick={onReload} title="刷新">↻</button>
+      <button className="nav-btn" onClick={onHome} title="首页" aria-label="首页">
+        <Icon name="home" />
+      </button>
+      <button className="nav-btn" onClick={onBack} title="后退" aria-label="后退">
+        <Icon name="arrow-left" />
+      </button>
+      <button className="nav-btn" onClick={onForward} title="前进" aria-label="前进">
+        <Icon name="arrow-right" />
+      </button>
+      <button className="nav-btn" onClick={onReload} title="刷新" aria-label="刷新">
+        <Icon name="refresh" size={15} />
+      </button>
       <input
         className="url-input"
         type="text"
@@ -50,29 +59,23 @@ export function BrowserToolbar({
         placeholder="输入网址..."
       />
       <button className="go-btn" onClick={onNavigate}>前往</button>
-      <button className="sync-btn" onClick={onSyncPage} title="抓取当前页面提交记录">↗</button>
+      <div className="toolbar-divider" />
+      <button className="sync-btn" onClick={onSyncPage} title="抓取当前页面提交记录" aria-label="抓取当前页面提交记录">
+        <Icon name="capture" size={15} />
+      </button>
       {syncMsg && <span className="sync-msg">{syncMsg}</span>}
-      <button className="settings-btn" onClick={onOpenDashboard} title="统计">📊</button>
-      <button
-        className="settings-btn flex justify-center items-center"
-        onClick={onOpenCoachMetrics}
-        title="Coach 干预效果指标"
-      >
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <rect x="4" y="7" width="16" height="12" rx="3" />
-          <circle cx="9" cy="13" r="1.2" fill="currentColor" stroke="none" />
-          <circle cx="15" cy="13" r="1.2" fill="currentColor" stroke="none" />
-          <path d="M12 3v4" />
-          <circle cx="12" cy="2.5" r="0.8" fill="currentColor" stroke="none" />
-        </svg>
+      <button className="settings-btn" onClick={onOpenDashboard} title="统计" aria-label="统计">
+        <Icon name="chart" />
       </button>
-      <button className="settings-btn flex justify-center items-center" onClick={onOpenScripts} title="脚本管理">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <polyline points="16 18 22 12 16 6" />
-          <polyline points="8 6 2 12 8 18" />
-        </svg>
+      <button className="settings-btn" onClick={onOpenCoachMetrics} title="Coach 干预效果指标" aria-label="Coach 干预效果指标">
+        <Icon name="bot" />
       </button>
-      <button className="settings-btn" onClick={onOpenSettings} title="设置">⚙</button>
+      <button className="settings-btn" onClick={onOpenScripts} title="脚本管理" aria-label="脚本管理">
+        <Icon name="code" size={15} />
+      </button>
+      <button className="settings-btn" onClick={onOpenSettings} title="设置" aria-label="设置">
+        <Icon name="settings" />
+      </button>
     </div>
   )
 }

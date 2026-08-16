@@ -9,7 +9,7 @@ import {
   YAxis,
 } from 'recharts'
 import { loadProblemTimeline } from './coachDataApi'
-import { PLATFORM_NAMES, VERDICT_COLORS } from '../../shared/display'
+import { PLATFORM_NAMES, STATUS_COLORS, VERDICT_COLORS } from '../../shared/display'
 
 /**
  * 单题时间轴复盘视图（阶段 4 Task 18）。
@@ -39,6 +39,8 @@ interface TimelinePoint {
   color: string
   icon: string
   detail?: string
+  /** 判题结果代码（AC/WA/…），存在时以等宽芯片展示 */
+  verdict?: string
 }
 
 const KIND_META: Record<TimelinePointKind, { label: string; icon: string }> = {
@@ -95,7 +97,8 @@ function fmtDuration(seconds: number): string {
 }
 
 function verdictColor(verdict: string): string {
-  return VERDICT_COLORS[verdict] || '#585b70'
+  // 判题色统一取自 display.ts 语义色表
+  return VERDICT_COLORS[verdict] || VERDICT_COLORS.UNKNOWN
 }
 
 export function SessionTimelineView({ problemId, onClose }: Props) {
@@ -139,7 +142,7 @@ export function SessionTimelineView({ problemId, onClose }: Props) {
         subtitle: v.left_at
           ? `停留 ${fmtDuration(v.duration_seconds ?? 0)}（活跃 ${fmtDuration(v.active_seconds ?? 0)}）`
           : '尚未离开',
-        color: '#89b4fa',
+        color: STATUS_COLORS.visited,
         icon: KIND_META.visit.icon,
         detail: v.url,
       })
@@ -151,7 +154,8 @@ export function SessionTimelineView({ problemId, onClose }: Props) {
         kind: isAc ? 'ac' : 'submission',
         time: s.submitted_at,
         timestamp: parseTs(s.submitted_at),
-        title: isAc ? 'AC 通过' : `提交 ${s.verdict}`,
+        title: isAc ? '通过' : '提交',
+        verdict: s.verdict,
         subtitle: [
           s.language,
           s.runtime_ms != null ? `${s.runtime_ms} ms` : null,
@@ -168,7 +172,11 @@ export function SessionTimelineView({ problemId, onClose }: Props) {
         timestamp: parseTs(e.created_at),
         title: EVENT_TYPE_LABELS[e.event_type] ?? e.event_type,
         subtitle: `severity=${e.severity}`,
-        color: e.severity === 'critical' ? '#f38ba8' : e.severity === 'warn' ? '#fab387' : '#89b4fa',
+        color: e.severity === 'critical'
+          ? 'var(--color-danger)'
+          : e.severity === 'warn'
+            ? 'var(--color-warn)'
+            : 'var(--color-accent)',
         icon: KIND_META.event.icon,
         detail: e.evidence.verdict
           ? `verdict=${e.evidence.verdict}`
@@ -187,12 +195,12 @@ export function SessionTimelineView({ problemId, onClose }: Props) {
         title: isAudit ? '比赛模式审计' : (INTERVENTION_LEVEL_LABELS[i.intervention_level] ?? 'Coach 介入'),
         subtitle: i.trigger_reason,
         color: isAudit
-          ? '#585b70'
+          ? 'var(--text-muted)'
           : i.intervention_level >= 4
-            ? '#cba6f7'
+            ? 'var(--color-accent)'
             : i.intervention_level >= 2
-              ? '#f9e2af'
-              : '#94e2d5',
+              ? 'var(--color-warn)'
+              : 'var(--color-ok)',
         icon: KIND_META.intervention.icon,
         detail: i.message,
       })
@@ -311,25 +319,25 @@ export function SessionTimelineView({ problemId, onClose }: Props) {
         </div>
         <div className="detail-row">
           <span className="detail-label">题号</span>
-          <span className="detail-value">{data.platform_problem_id}</span>
+          <span className="detail-value num">{data.platform_problem_id}</span>
         </div>
         <div className="detail-row">
           <span className="detail-label">最终状态</span>
-          <span className="detail-value" style={{ color: hasAc ? '#a6e3a1' : '#f9e2af' }}>
+          <span className="detail-value" style={{ color: hasAc ? STATUS_COLORS.solved : STATUS_COLORS.attempted }}>
             {hasAc ? `已 AC（${fmtTime(data.first_ac_at)}）` : '未通过 / 进行中'}
           </span>
         </div>
         <div className="detail-row">
           <span className="detail-label">访问次数</span>
-          <span className="detail-value">{data.visits.length} 次</span>
+          <span className="detail-value num">{data.visits.length} 次</span>
         </div>
         <div className="detail-row">
           <span className="detail-label">提交次数</span>
-          <span className="detail-value">{data.submissions.length} 次</span>
+          <span className="detail-value num">{data.submissions.length} 次</span>
         </div>
         <div className="detail-row">
           <span className="detail-label">Coach 介入</span>
-          <span className="detail-value">
+          <span className="detail-value num">
             {data.interventions.filter((i) => i.source_type !== 'contest_audit').length} 次
             {data.interventions.some((i) => i.source_type === 'contest_audit') && '（含比赛模式审计）'}
           </span>
@@ -380,7 +388,7 @@ export function SessionTimelineView({ problemId, onClose }: Props) {
             <BarChart data={verdictDist} layout="vertical" margin={{ left: 20, right: 20, top: 4, bottom: 4 }}>
               <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11 }} />
               <YAxis type="category" dataKey="verdict" tick={{ fontSize: 12 }} width={56} />
-              <Tooltip cursor={{ fill: 'rgba(0,0,0,0.05)' }} />
+              <Tooltip cursor={{ fill: 'var(--color-hover)' }} />
               <Bar dataKey="count" radius={[0, 4, 4, 0]}>
                 {verdictDist.map((entry) => (
                   <Cell key={entry.verdict} fill={entry.fill} />
@@ -404,8 +412,14 @@ export function SessionTimelineView({ problemId, onClose }: Props) {
                 <div className="timeline-content">
                   <div className="timeline-head">
                     <span className="timeline-title" style={{ color: p.color }}>{p.title}</span>
+                    {p.verdict && (
+                      <span className="ui-chip" style={{ color: p.color }}>
+                        <span className="ui-chip-dot" style={{ background: p.color }} />
+                        {p.verdict}
+                      </span>
+                    )}
                     <span className="timeline-kind">{KIND_META[p.kind].label}</span>
-                    <span className="timeline-time">{fmtTime(p.time)}</span>
+                    <span className="timeline-time num">{fmtTime(p.time)}</span>
                   </div>
                   {p.subtitle && <div className="timeline-subtitle">{p.subtitle}</div>}
                   {p.detail && <div className="timeline-detail">{p.detail}</div>}

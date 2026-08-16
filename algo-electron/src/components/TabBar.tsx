@@ -7,6 +7,7 @@ import {
   switchBrowserTab,
   type TabBarTabInfo,
 } from './tabApi'
+import { Icon } from './ui'
 import './TabBar.css'
 
 interface TabBarProps {
@@ -72,7 +73,7 @@ export function TabBar({ onTabUrlChange }: TabBarProps) {
                 onClick={(e) => handleClose(e, tab.id)}
                 title="关闭标签"
               >
-                &#10005;
+                <Icon name="close" size={11} strokeWidth={2} />
               </span>
             )}
           </button>
@@ -85,7 +86,7 @@ export function TabBar({ onTabUrlChange }: TabBarProps) {
         title="新建标签"
         aria-label="新建标签"
       >
-        +
+        <Icon name="plus" size={15} />
       </button>
     </div>
   )

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Button, Input } from '../../components/ui'
 import {
   loadPrimaryCodeforcesAccount,
   syncCodeforcesRatingProfile,
@@ -73,20 +74,20 @@ export function CodeforcesSyncPanel({ onStatsRefresh }: CodeforcesSyncPanelProps
       <div className="settings-section">
         <h3 className="settings-section-title">Codeforces Rating</h3>
         <div className="sync-row">
-          <input
+          <Input
             className="settings-input"
             type="text"
             value={ratingHandle}
             onChange={(e) => setRatingHandle(e.target.value)}
             placeholder="Codeforces Handle"
           />
-          <button className="settings-save-btn" onClick={handleSyncRating}>同步 Rating</button>
+          <Button variant="primary" onClick={handleSyncRating}>同步 Rating</Button>
         </div>
         {ratingStatus && <div className="sync-status">{ratingStatus}</div>}
         {ratingInfo && (
           <div className="rating-info">
-            <span className="rating-current">当前: {ratingInfo.current_rating ?? '-'}</span>
-            <span className="rating-peak">最高: {ratingInfo.peak_rating ?? '-'}</span>
+            <span className="rating-current">当前: <span className="num">{ratingInfo.current_rating ?? '-'}</span></span>
+            <span className="rating-peak">最高: <span className="num">{ratingInfo.peak_rating ?? '-'}</span></span>
           </div>
         )}
       </div>
@@ -94,17 +95,17 @@ export function CodeforcesSyncPanel({ onStatsRefresh }: CodeforcesSyncPanelProps
       <div className="settings-section">
         <h3 className="settings-section-title">提交同步</h3>
         <div className="sync-row">
-          <input
+          <Input
             className="settings-input"
             type="text"
             value={cfHandle}
             onChange={(e) => setCfHandle(e.target.value)}
             placeholder="Codeforces Handle"
           />
-          <button className="settings-save-btn" onClick={handleSyncCF}>同步 CF</button>
+          <Button variant="primary" onClick={handleSyncCF}>同步 CF</Button>
         </div>
         {submissionSyncStatus && <div className="sync-status">{submissionSyncStatus}</div>}
-        <div className="sync-hint">AcWing / 牛客 / VJudge / 洛谷：在浏览器打开提交页面后点工具栏 ↗ 抓取</div>
+        <div className="sync-hint">AcWing / 牛客 / VJudge / 洛谷：在浏览器打开提交页面后点工具栏抓取按钮</div>
       </div>
     </>
   )

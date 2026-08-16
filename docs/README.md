@@ -110,6 +110,7 @@
 |---|---|
 | renderer | [src/README](../algo-electron/src/README.md) |
 | components | [src/components/README](../algo-electron/src/components/README.md) |
+| ui components | [src/components/ui/README](../algo-electron/src/components/ui/README.md) |
 | features | [src/features/README](../algo-electron/src/features/README.md) |
 | analytics | [src/features/analytics/README](../algo-electron/src/features/analytics/README.md) |
 | home | [src/features/home/README](../algo-electron/src/features/home/README.md) |
@@ -130,6 +131,7 @@
 | test browser | [tests/browser/README](../algo-electron/tests/browser/README.md) |
 | test db | [tests/db/README](../algo-electron/tests/db/README.md) |
 | test coach | [tests/coach/README](../algo-electron/tests/coach/README.md) |
+| test components | [tests/components/README](../algo-electron/tests/components/README.md) |
 | test docs | [tests/docs/README](../algo-electron/tests/docs/README.md) |
 | test electron | [tests/electron/README](../algo-electron/tests/electron/README.md) |
 | test integration | [tests/integration/README](../algo-electron/tests/integration/README.md) |

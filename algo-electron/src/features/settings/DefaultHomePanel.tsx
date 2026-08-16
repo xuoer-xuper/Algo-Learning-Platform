@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { Button, Input } from '../../components/ui'
 import { loadDefaultHomeUrl, normalizeHomeUrl, saveDefaultHomeUrl } from './settingsApi'
 
 export function DefaultHomePanel() {
@@ -27,16 +28,16 @@ export function DefaultHomePanel() {
     <div className="settings-section">
       <h3 className="settings-section-title">默认首页</h3>
       <div className="settings-row">
-        <input
+        <Input
           className="settings-input"
           type="text"
           value={homeUrl}
           onChange={(e) => setHomeUrl(e.target.value)}
           placeholder="https://codeforces.com"
         />
-        <button className="settings-save-btn" onClick={handleSave}>
+        <Button variant="primary" onClick={handleSave}>
           {saved ? '已保存' : '保存'}
-        </button>
+        </Button>
       </div>
     </div>
   )

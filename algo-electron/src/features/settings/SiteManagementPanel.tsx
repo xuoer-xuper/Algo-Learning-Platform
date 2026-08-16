@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Button, ConfirmDialog, IconButton } from '../../components/ui'
 import { AddSiteForm } from './AddSiteForm'
 import { ImportPreviewPanel } from './ImportPreviewPanel'
 import {
@@ -36,6 +37,8 @@ export function SiteManagementPanel() {
   const [showAddModal, setShowAddModal] = useState(false)
   const [newSiteDraft, setNewSiteDraft] = useState<NewSiteDraft>(EMPTY_SITE_DRAFT)
   const [newSiteError, setNewSiteError] = useState('')
+  /** 待删除站点（ConfirmDialog 打开态，替代原生 confirm） */
+  const [pendingDelete, setPendingDelete] = useState<SiteConfigView | null>(null)
 
   const loadSites = () => {
     loadSiteConfigs().then(setSites)
@@ -47,12 +50,6 @@ export function SiteManagementPanel() {
 
   const handleToggleSite = async (id: string, enabled: boolean) => {
     await toggleSiteEnabled(id, enabled)
-    loadSites()
-  }
-
-  const handleDeleteSite = async (id: string) => {
-    if (!confirm('确定删除该站点？')) return
-    await deleteSiteConfig(id)
     loadSites()
   }
 
@@ -163,15 +160,11 @@ export function SiteManagementPanel() {
     <div className="settings-section">
       <h3 className="settings-section-title">站点管理</h3>
       <div className="site-actions-bar">
-        <button className="settings-save-btn" onClick={handleExport}>
-          导出配置
-        </button>
-        <button className="settings-save-btn" onClick={handleImport}>
-          导入配置
-        </button>
-        <button className="settings-save-btn" onClick={() => setShowAddModal(true)}>
+        <Button onClick={handleExport}>导出配置</Button>
+        <Button onClick={handleImport}>导入配置</Button>
+        <Button variant="primary" icon="plus" onClick={() => setShowAddModal(true)}>
           添加站点
-        </button>
+        </Button>
       </div>
       {exportStatus && <div className="sync-status">{exportStatus}</div>}
       {importStatus && <div className="sync-status">{importStatus}</div>}
@@ -201,25 +194,46 @@ export function SiteManagementPanel() {
       )}
       <div className="site-list">
         {sites.map((s) => (
-          <div key={s.id} className="site-item">
+          <div key={s.id} className={s.enabled ? 'site-item' : 'site-item site-item-off'}>
             <div className="site-info">
               <span className="site-name">{s.name}</span>
               <span className="site-domains">{s.domains.join(', ')}</span>
             </div>
             <div className="site-actions">
-              <button
-                className={`site-toggle ${s.enabled ? 'enabled' : ''}`}
+              <Button
+                size="sm"
+                className={s.enabled ? 'site-toggle enabled' : 'site-toggle'}
+                title={s.enabled ? '点击禁用该站点' : '点击启用该站点'}
                 onClick={() => handleToggleSite(s.id, !s.enabled)}
               >
                 {s.enabled ? '已启用' : '已禁用'}
-              </button>
+              </Button>
               {!s.isBuiltin && (
-                <button className="site-delete" onClick={() => handleDeleteSite(s.id)}>删除</button>
+                <IconButton
+                  icon="trash"
+                  danger
+                  title="删除站点"
+                  className="site-delete"
+                  onClick={() => setPendingDelete(s)}
+                />
               )}
             </div>
           </div>
         ))}
       </div>
+      <ConfirmDialog
+        open={pendingDelete !== null}
+        title="删除站点"
+        description={pendingDelete ? `确定删除站点「${pendingDelete.name}」？删除后需重新添加才能恢复。` : ''}
+        danger
+        confirmText="删除"
+        onConfirm={() => {
+          const target = pendingDelete
+          setPendingDelete(null)
+          if (target) void deleteSiteConfig(target.id).then(loadSites)
+        }}
+        onCancel={() => setPendingDelete(null)}
+      />
     </div>
   )
 }

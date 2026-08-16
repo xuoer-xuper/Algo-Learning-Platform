@@ -1,27 +1,56 @@
-/* Dashboard */
+/* ============================================================================
+   统计 Dashboard（B1.5 token 化重写）
+   ----------------------------------------------------------------------------
+   规范（token 唯一源 src/index.css，禁裸 hex）：
+   - 页面 = 冷调纸白画布 var(--bg)，卡片浮于其上
+   - 卡片 = var(--bg-card) + 1px var(--border-light) + var(--radius-lg) + var(--shadow-sm)
+   - 数据声线 = 数字/日期/计数 等宽 + tabular-nums（.num 或 var(--font-mono)）
+   - 动效 = var(--duration-fast) var(--ease-out)
+   Playwright 契约类名（只可加类，禁删改）：
+   .dashboard-page / .dashboard-header / .dashboard-cards（面板 ≤600 折 1 列）/
+   .dashboard-chart-section / .dashboard-chart-row（面板 ≤820 折 1 列）/
+   .dashboard-chart-pie / .dashboard-chart-bar / .ai-suggest-section / .dashboard-close
+   ============================================================================ */
+
 .dashboard-page {
   width: 100%;
   min-width: 0;
   overflow-y: auto;
   overflow-x: hidden;
-  padding: 24px;
-  background: var(--bg-card);
-  border-radius: 12px;
+  padding: 20px 24px 24px;
+  background: var(--bg);
+  border-radius: var(--radius-xl);
   box-sizing: border-box;
 }
 
+/* ── 页头 ── */
 .dashboard-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
+  gap: 12px;
+  margin-bottom: 16px;
 }
 
 .dashboard-title {
-  font-size: 20px;
-  font-weight: 700;
-  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 8px;
   margin: 0;
+  font-size: 16px;
+  font-weight: 650;
+  letter-spacing: 0.01em;
+  color: var(--text);
+}
+
+/* 竞技控制台声调：标题前的群青刻度条 */
+.dashboard-title::before {
+  content: '';
+  flex-shrink: 0;
+  width: 3px;
+  height: 14px;
+  border-radius: 999px;
+  background: var(--color-accent);
 }
 
 .dashboard-header-actions {
@@ -30,29 +59,10 @@
   align-items: center;
 }
 
-.dashboard-recompute-btn {
-  padding: 4px 12px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: var(--bg);
-  color: var(--text-secondary);
-  font-size: 12px;
-  cursor: pointer;
-}
+/* 重算/关闭按钮视觉由 ui-btn / ui-icon-btn 提供；
+   .dashboard-recompute-btn / .dashboard-close 仅作契约与语义锚点保留 */
 
-.dashboard-recompute-btn:hover {
-  background: var(--bg-surface);
-}
-
-.dashboard-close {
-  background: none;
-  border: none;
-  color: var(--text-muted);
-  font-size: 18px;
-  cursor: pointer;
-}
-
-/* 概览卡片 */
+/* ── 概览卡片 ── */
 .dashboard-cards {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -61,34 +71,35 @@
 }
 
 .dashboard-card {
-  background: var(--bg);
+  padding: 14px 16px;
+  background: var(--bg-card);
   border: 1px solid var(--border-light);
-  border-radius: 10px;
-  padding: 16px 12px;
-  text-align: center;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
 }
 
 .dashboard-card-value {
-  font-size: 28px;
-  font-weight: 700;
+  font-size: 26px;
+  font-weight: 650;
+  line-height: 1.15;
+  letter-spacing: -0.01em;
   color: var(--text);
-  line-height: 1.2;
 }
 
 .dashboard-card-unit {
-  font-size: 14px;
-  font-weight: 400;
+  margin-left: 3px;
+  font-size: 12px;
+  font-weight: 500;
   color: var(--text-muted);
-  margin-left: 2px;
 }
 
 .dashboard-card-label {
+  margin-top: 6px;
   font-size: 12px;
-  color: var(--text-muted);
-  margin-top: 4px;
+  color: var(--text-secondary);
 }
 
-/* P6-005 / P6-006: AI 学习建议区 */
+/* ── AI 学习建议区 ── */
 .ai-suggest-section {
   margin-bottom: 16px;
 }
@@ -100,31 +111,34 @@
 }
 
 .ai-suggest-card {
-  background: var(--bg);
+  padding: 14px 16px;
+  background: var(--bg-card);
   border: 1px solid var(--border-light);
-  border-radius: 10px;
-  padding: 14px;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
 }
 
 .ai-suggest-title {
-  font-size: 14px;
+  margin: 0 0 10px;
+  font-size: 13px;
   font-weight: 600;
   color: var(--text);
-  margin: 0 0 10px 0;
 }
 
 .ai-rec-item {
-  padding: 8px 0;
-  border-bottom: 1px solid var(--border-light);
+  padding: 8px;
+  margin: 0 -8px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
+  transition: background-color var(--duration-fast) var(--ease-out);
 }
 
 .ai-rec-item:hover {
-  background: var(--bg-surface);
+  background: var(--hover-bg);
 }
 
-.ai-rec-item:last-child {
-  border-bottom: none;
+.ai-rec-item + .ai-rec-item {
+  border-top: 1px solid var(--border-light);
 }
 
 .ai-rec-head {
@@ -135,40 +149,42 @@
 }
 
 .ai-rec-platform {
-  font-size: 10px;
-  color: var(--accent);
-  background: rgba(59, 130, 246, 0.1);
+  flex-shrink: 0;
   padding: 1px 6px;
-  border-radius: 3px;
+  border-radius: var(--radius-xs);
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+  font-size: 10px;
+  font-weight: 600;
 }
 
 .ai-rec-title {
   font-size: 12px;
-  color: var(--text);
   font-weight: 500;
+  color: var(--text);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .ai-rec-reason {
-  font-size: 11px;
-  color: var(--text);
   margin-bottom: 2px;
+  font-size: 12px;
+  color: var(--text-secondary);
 }
 
 .ai-rec-evidence {
-  font-size: 10px;
+  font-size: 11px;
   color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
 }
 
 .ai-weak-item {
   padding: 8px 0;
-  border-bottom: 1px solid var(--border-light);
 }
 
-.ai-weak-item:last-child {
-  border-bottom: none;
+.ai-weak-item + .ai-weak-item {
+  border-top: 1px solid var(--border-light);
 }
 
 .ai-weak-head {
@@ -180,20 +196,23 @@
 
 .ai-weak-tag {
   font-size: 12px;
-  color: var(--text);
   font-weight: 500;
+  color: var(--text);
 }
 
 .ai-weak-acrate {
   font-size: 11px;
-  color: #f38ba8;
   font-weight: 600;
+  color: var(--color-danger);
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
 }
 
 .ai-weak-evidence {
-  font-size: 10px;
-  color: var(--text-muted);
   margin-bottom: 5px;
+  font-size: 11px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
 }
 
 .ai-weak-bar {
@@ -205,19 +224,19 @@
 
 .ai-weak-bar-fill {
   height: 100%;
-  background: linear-gradient(90deg, #f9e2af, #f38ba8);
+  background: linear-gradient(90deg, var(--color-warn), var(--color-danger));
   border-radius: 2px;
-  transition: width 0.3s ease;
+  transition: width var(--duration-slow) var(--ease-out);
 }
 
 .ai-suggest-note {
-  font-size: 10px;
-  color: var(--text-muted);
   margin-top: 8px;
+  font-size: 11px;
+  color: var(--text-muted);
   text-align: right;
 }
 
-/* 图表区域 */
+/* ── 图表区域 ── */
 .dashboard-charts {
   display: flex;
   flex-direction: column;
@@ -226,24 +245,26 @@
 }
 
 .dashboard-chart-section {
-  background: var(--bg);
-  border: 1px solid var(--border-light);
-  border-radius: 10px;
-  padding: 16px;
   margin-bottom: 16px;
+  padding: 16px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
 }
 
 .dashboard-section-title {
-  font-size: 14px;
+  margin: 0 0 12px;
+  font-size: 13px;
   font-weight: 600;
   color: var(--text);
-  margin: 0 0 12px 0;
 }
 
 .dashboard-section-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 12px;
   margin-bottom: 12px;
 }
 
@@ -253,30 +274,21 @@
 
 .dashboard-range-btns {
   display: flex;
-  gap: 4px;
+  gap: 6px;
 }
 
-.dashboard-range-btn {
-  padding: 3px 10px;
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  background: var(--bg-card);
-  color: var(--text-secondary);
-  font-size: 11px;
-  cursor: pointer;
-}
-
+/* 范围按钮基于 ui-btn（secondary/sm），此处只叠加选中态 */
 .dashboard-range-btn.active {
-  background: var(--primary);
-  color: white;
-  border-color: var(--primary);
+  background: var(--color-accent-soft);
+  border-color: var(--color-accent);
+  color: var(--color-accent-strong);
 }
 
 .dashboard-sub-title {
+  margin: 14px 0 6px;
   font-size: 12px;
-  font-weight: 500;
+  font-weight: 600;
   color: var(--text-secondary);
-  margin: 12px 0 4px 0;
 }
 
 .dashboard-chart-row {
@@ -326,7 +338,7 @@
 .dashboard-platform-legend-swatch {
   width: 10px;
   height: 10px;
-  border-radius: 2px;
+  border-radius: 3px;
 }
 
 .dashboard-platform-legend-name {
@@ -338,10 +350,42 @@
 .dashboard-platform-legend-value {
   color: var(--text);
   font-weight: 600;
+}
+
+/* ── 图表通用规范（recharts，作用于本页与 Coach 指标页的 .dashboard-chart-section）──
+   Tooltip 默认内容自带内联样式，需 !important 覆盖为卡片视觉；
+   文字一律墨色 token、数值等宽，不用系列色写字（识别交给色块/图例） */
+.dashboard-chart-section .recharts-default-tooltip {
+  background: var(--bg-card) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  padding: 8px 10px !important;
+}
+
+.dashboard-chart-section .recharts-tooltip-label {
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.dashboard-chart-section .recharts-tooltip-item {
+  color: var(--text-secondary) !important;
+  font-size: 12px;
+}
+
+.dashboard-chart-section .recharts-tooltip-item-value {
+  color: var(--text);
+  font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
 }
 
-/* 列表区域 */
+.dashboard-chart-section .recharts-legend-item-text {
+  color: var(--text-secondary) !important;
+  font-size: 12px;
+}
+
+/* ── 列表区域 ── */
 .dashboard-lists {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -350,30 +394,38 @@
 }
 
 .dashboard-list-section {
-  background: var(--bg);
+  padding: 14px 16px;
+  background: var(--bg-card);
   border: 1px solid var(--border-light);
-  border-radius: 10px;
-  padding: 14px;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
 }
 
 .dashboard-list-item {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 5px 0;
-  border-bottom: 1px solid var(--border-light);
+  gap: 8px;
+  padding: 6px 8px;
+  margin: 0 -8px;
+  border-radius: var(--radius-sm);
   font-size: 12px;
   cursor: pointer;
+  transition: background-color var(--duration-fast) var(--ease-out);
 }
 
 .dashboard-list-item:hover {
-  background: var(--bg-surface);
+  background: var(--hover-bg);
+}
+
+.dashboard-list-item + .dashboard-list-item {
+  border-top: 1px solid var(--border-light);
 }
 
 .dashboard-list-platform {
+  flex-shrink: 0;
+  min-width: 28px;
   color: var(--primary);
   font-weight: 600;
-  min-width: 28px;
   font-size: 11px;
 }
 
@@ -386,39 +438,43 @@
 }
 
 .dashboard-list-count {
-  color: var(--text-muted);
   flex-shrink: 0;
+  color: var(--text-muted);
   font-size: 11px;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
 }
 
 .dashboard-empty {
+  padding: 16px 0;
   color: var(--text-muted);
   font-size: 12px;
   text-align: center;
-  padding: 12px 0;
 }
 
-/* Rating */
+/* ── Codeforces Rating ── */
 .rating-badges {
   display: flex;
-  gap: 8px;
+  gap: 6px;
 }
 
 .rating-badge {
   padding: 2px 8px;
-  border-radius: 4px;
-  font-size: 12px;
+  border-radius: 999px;
+  font-size: 11px;
   font-weight: 600;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
 }
 
 .rating-current {
-  background: var(--primary);
-  color: white;
+  background: var(--color-accent-soft);
+  color: var(--color-accent-strong);
 }
 
 .rating-peak {
-  background: var(--warning);
-  color: white;
+  background: var(--color-warn-soft);
+  color: var(--color-warn);
 }
 
 .dashboard-contest-list {
@@ -429,9 +485,12 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 4px 0;
-  border-bottom: 1px solid var(--border-light);
+  padding: 5px 0;
   font-size: 12px;
+}
+
+.dashboard-contest-item + .dashboard-contest-item {
+  border-top: 1px solid var(--border-light);
 }
 
 .dashboard-contest-name {
@@ -443,162 +502,28 @@
 }
 
 .dashboard-contest-delta {
+  min-width: 44px;
   font-weight: 600;
-  min-width: 40px;
   text-align: right;
 }
 
 .dashboard-contest-delta.positive {
-  color: var(--success);
+  color: var(--color-ok);
 }
 
 .dashboard-contest-delta.negative {
-  color: var(--error);
+  color: var(--color-danger);
 }
 
 .dashboard-contest-rating {
+  min-width: 40px;
   color: var(--text-secondary);
-  min-width: 36px;
   text-align: right;
 }
 
-/* 站点管理 */
-.site-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
+/* 站点管理样式已随设置页 token 化迁至 src/styles/settings.css（settings feature 专属类） */
 
-.site-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 10px 12px;
-  background: var(--bg);
-  border: 1px solid var(--border-light);
-  border-radius: 8px;
-}
-
-.site-info {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.site-name {
-  color: var(--text);
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.site-domains {
-  color: var(--text-muted);
-  font-size: 11px;
-}
-
-.site-actions {
-  display: flex;
-  gap: 6px;
-}
-
-.site-toggle {
-  padding: 3px 10px;
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  background: var(--bg-card);
-  color: var(--text-secondary);
-  font-size: 11px;
-  cursor: pointer;
-}
-
-.site-toggle.enabled {
-  background: var(--success);
-  color: white;
-  border-color: var(--success);
-}
-
-.site-delete {
-  padding: 3px 10px;
-  border: 1px solid var(--error);
-  border-radius: 4px;
-  background: transparent;
-  color: var(--error);
-  font-size: 11px;
-  cursor: pointer;
-}
-
-.site-delete:hover {
-  background: var(--error);
-  color: white;
-}
-
-.site-actions-bar {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 8px;
-}
-
-.import-preview {
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 12px;
-  margin-bottom: 8px;
-}
-
-.import-preview-title {
-  color: var(--text);
-  font-size: 13px;
-  font-weight: 600;
-  margin: 0 0 8px 0;
-}
-
-.import-group {
-  margin-bottom: 8px;
-}
-
-.import-group-label {
-  color: var(--text-secondary);
-  font-size: 11px;
-  font-weight: 600;
-  margin-bottom: 4px;
-}
-
-.import-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 4px 8px;
-  border-radius: 4px;
-  font-size: 12px;
-}
-
-.import-conflict {
-  background: rgba(245, 158, 11, 0.08);
-}
-
-.import-skipped {
-  opacity: 0.5;
-}
-
-.import-checkbox-label {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  cursor: pointer;
-}
-
-.import-checkbox-label input[type="checkbox"] {
-  accent-color: var(--primary);
-}
-
-.import-actions {
-  display: flex;
-  gap: 8px;
-  margin-top: 8px;
-}
-
-/* 学习轨迹时间线 */
+/* ── 学习轨迹时间线 ── */
 .dashboard-timeline {
   display: flex;
   flex-direction: column;
@@ -615,7 +540,7 @@
 .dashboard-timeline-item:not(:last-child)::before {
   content: '';
   position: absolute;
-  left: 5px;
+  left: 3px;
   top: 16px;
   bottom: -6px;
   width: 2px;
@@ -623,12 +548,12 @@
 }
 
 .dashboard-timeline-dot {
-  width: 12px;
-  height: 12px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
-  background: var(--primary);
+  background: var(--color-accent);
   flex-shrink: 0;
-  margin-top: 2px;
+  margin-top: 4px;
 }
 
 .dashboard-timeline-content {
@@ -645,25 +570,28 @@
 }
 
 .dashboard-timeline-platform {
-  color: var(--primary);
+  color: var(--color-accent);
   font-size: 11px;
 }
 
 .dashboard-timeline-time {
+  margin-left: auto;
   color: var(--text-muted);
   font-size: 11px;
-  margin-left: auto;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
 }
 
-/* 底部 */
+/* ── 底部 ── */
 .dashboard-footer {
-  text-align: center;
+  padding-top: 10px;
+  border-top: 1px solid var(--border-light);
   color: var(--text-muted);
   font-size: 12px;
-  padding-top: 8px;
-  border-top: 1px solid var(--border-light);
+  text-align: center;
 }
 
+/* ── 容器断点（契约：≤820 图表折 1 列，≤600 卡片折 1 列） ── */
 @container modal-panel (max-width: 820px) {
   .dashboard-page {
     padding: 16px;

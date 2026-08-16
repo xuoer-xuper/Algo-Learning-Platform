@@ -1,3 +1,4 @@
+import { Button } from '../../components/ui'
 import { PLATFORM_NAMES } from '../../shared/display'
 import type { RealtimeSubmissionStatus } from './settingsTypes'
 
@@ -40,7 +41,7 @@ export function RealtimeSubmissionPanel({
     <div className="settings-section">
       <div className="settings-section-header-row">
         <h3 className="settings-section-title">实时监听诊断</h3>
-        <button className="site-toggle" onClick={onRefresh}>刷新</button>
+        <Button size="sm" variant="ghost" icon="refresh" onClick={onRefresh}>刷新</Button>
       </div>
       <div className="realtime-status-card">
         <div className="realtime-status-row">

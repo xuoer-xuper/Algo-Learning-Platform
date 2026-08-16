@@ -1,144 +1,231 @@
-/* 首页 */
+/*
+ * 首页（新标签页）——「竞技控制台」第一屏
+ * 结构：肩标 + 产品语标题 → 站点快捷卡片 → 等宽大数字概览 → 复习建议 → 最近访问。
+ * 颜色/圆角/阴影/动效全部取自 src/index.css 的 token；
+ * 平台色与状态色仅经内联 style 从 display.ts 注入，且永远与文字标签成对出现。
+ */
 .home-page {
-  max-width: 700px;
+  max-width: 720px;
   margin: 0 auto;
-  padding: 40px 20px;
+  padding: 44px 28px 60px;
 }
 
+/* ── 标题区：品牌肩标（等宽）+ 一句克制的产品语 ── */
 .home-header {
-  text-align: center;
-  margin-bottom: 32px;
+  margin-bottom: 36px;
+}
+
+.home-kicker {
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  margin-bottom: 10px;
 }
 
 .home-title {
-  color: var(--primary);
-  font-size: 28px;
-  font-weight: 700;
+  color: var(--text);
+  font-size: 24px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  line-height: 1.25;
   margin: 0 0 8px 0;
 }
 
 .home-subtitle {
-  color: var(--text-muted);
-  font-size: 14px;
+  color: var(--text-secondary);
+  font-size: 13px;
   margin: 0;
 }
 
+/* ── 区块骨架：标题左置 + 发丝线延展，组间留白放大 ── */
 .home-section {
-  margin-bottom: 24px;
+  margin-bottom: 28px;
+}
+
+.home-section:last-child {
+  margin-bottom: 0;
 }
 
 .home-section-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
   color: var(--text);
-  font-size: 16px;
+  font-size: 13px;
   font-weight: 600;
   margin: 0 0 12px 0;
 }
 
+.home-section-title::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border-light);
+}
+
+/* ── 站点快捷卡片：hover 上浮 + 阴影加深的既有手法保留 ── */
 .home-sites {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
   gap: 10px;
 }
 
 .home-site-btn {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 6px;
-  padding: 20px 16px;
+  align-items: flex-start;
+  min-width: 0;
+  padding: 13px 14px;
   background-color: var(--bg-card);
-  border: 2px solid var(--border);
-  border-radius: 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  text-align: left;
   cursor: pointer;
-  transition: all 0.2s;
+  transition:
+    transform var(--duration-fast) var(--ease-out),
+    box-shadow var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-out);
   -webkit-app-region: no-drag;
 }
 
 .home-site-btn:hover {
-  border-color: var(--primary);
-  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
   transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+  border-color: var(--color-ink-3);
 }
 
 .home-site-btn:active {
   transform: translateY(0);
-  box-shadow: none;
+  box-shadow: var(--shadow-sm);
+}
+
+.home-site-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* 平台色圆点：默认灰底，仅当 display.ts 提供平台色时被内联覆盖 */
+.home-site-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.home-site-label {
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
 }
 
 .home-site-name {
-  font-size: 15px;
+  color: var(--text);
+  font-size: 14px;
   font-weight: 600;
+  margin-top: 8px;
 }
 
 .home-site-url {
+  max-width: 100%;
   color: var(--text-muted);
   font-size: 11px;
+  margin-top: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
+/* ── 学习概览：内嵌色小面板 + 等宽大数字 ── */
 .home-stats {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
   gap: 10px;
 }
 
 .home-stat-card {
-  background-color: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 12px;
-  text-align: center;
+  background-color: var(--color-inset);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
 }
 
 .home-stat-value {
   color: var(--text);
-  font-size: 24px;
-  font-weight: 700;
+  font-size: 26px;
+  font-weight: 600;
+  line-height: 1.15;
 }
 
 .home-stat-label {
-  color: var(--text-muted);
-  font-size: 11px;
-  margin-top: 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  margin-top: 6px;
 }
 
-/* 首页复习建议 */
+.home-stat-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background-color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+/* ── 今日复习建议：群青左沿 = 推荐动作的身份色 ── */
 .home-recommendations {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
 }
 
 .home-rec-item {
   display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: 10px 12px;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
   background-color: var(--bg-card);
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-light);
   border-left: 3px solid var(--primary);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
   cursor: pointer;
-  transition: border-color 0.15s;
+  transition:
+    background-color var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-out);
 }
 
 .home-rec-item:hover {
-  border-color: var(--primary);
+  background-color: var(--hover-bg);
+  border-color: var(--border);
   border-left-color: var(--primary);
 }
 
-.home-rec-head {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+.home-rec-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: var(--text-muted);
+  flex-shrink: 0;
 }
 
 .home-rec-platform {
-  font-size: 12px;
-  font-weight: 600;
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 500;
+  min-width: 3ch;
   flex-shrink: 0;
 }
 
 .home-rec-title {
+  flex: 1;
+  min-width: 0;
   color: var(--text);
   font-size: 13px;
   font-weight: 500;
@@ -150,44 +237,55 @@
 .home-rec-evidence {
   color: var(--text-muted);
   font-size: 11px;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
+/* ── 最近访问：单卡片内发丝线分行，行 hover 换底 ── */
 .home-recent {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
 }
 
 .home-recent-item {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 12px;
-  background-color: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: 4px;
+  padding: 9px 14px;
   cursor: pointer;
+  transition: background-color var(--duration-fast) var(--ease-out);
+}
+
+.home-recent-item + .home-recent-item {
+  border-top: 1px solid var(--border-light);
 }
 
 .home-recent-item:hover {
-  border-color: var(--primary);
+  background-color: var(--hover-bg);
 }
 
 .home-recent-dot {
   width: 8px;
   height: 8px;
   border-radius: 50%;
+  background-color: var(--text-muted);
   flex-shrink: 0;
 }
 
 .home-recent-platform {
-  color: var(--primary);
+  color: var(--text-muted);
   font-size: 11px;
-  font-weight: 600;
-  min-width: 40px;
+  font-weight: 500;
+  min-width: 3ch;
+  flex-shrink: 0;
 }
 
 .home-recent-title {
+  flex: 1;
+  min-width: 0;
   color: var(--text);
   font-size: 13px;
   overflow: hidden;
@@ -195,3 +293,30 @@
   white-space: nowrap;
 }
 
+.home-recent-status {
+  font-size: 11px;
+  font-weight: 500;
+  flex-shrink: 0;
+}
+
+/* ── 空态：虚线收纳框，语气友好 ── */
+.home-empty {
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-lg);
+  padding: 28px 20px;
+  text-align: center;
+  margin-bottom: 28px;
+}
+
+.home-empty-title {
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.home-empty-hint {
+  color: var(--text-muted);
+  font-size: 12px;
+  margin: 6px 0 0;
+}

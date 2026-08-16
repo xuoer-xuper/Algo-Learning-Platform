@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { ConfirmDialog, Icon, IconButton } from '../../components/ui'
 import { UserScriptEditor } from './UserScriptEditor'
 import { UserScriptList } from './UserScriptList'
 import {
@@ -18,6 +19,8 @@ export function UserScriptManager({ onClose }: { onClose: () => void }) {
   const [editName, setEditName] = useState('')
   const [selectedSiteIds, setSelectedSiteIds] = useState<string[]>([])
   const [errorMsg, setErrorMsg] = useState('')
+  /* 待删除脚本 id：仅用于驱动 ConfirmDialog（替代原生 confirm） */
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
 
   const loadScripts = async () => {
     const data = await loadUserScriptManagerData()
@@ -74,13 +77,6 @@ export function UserScriptManager({ onClose }: { onClose: () => void }) {
     loadScripts()
   }
 
-  const handleDelete = async (id: string) => {
-    if (confirm('确定删除该脚本吗？（不会删除本地源文件）')) {
-      await deleteUserScript(id)
-      loadScripts()
-    }
-  }
-
   const toggleSiteSelection = (siteId: string) => {
     if (selectedSiteIds.includes(siteId)) {
       setSelectedSiteIds(selectedSiteIds.filter(id => id !== siteId))
@@ -90,12 +86,14 @@ export function UserScriptManager({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <div className="bg-white shadow p-6 w-full mx-auto flex flex-col relative text-gray-800" style={{ borderRadius: '12px', maxWidth: '960px', maxHeight: '80vh' }}>
-      <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600" title="关闭">✕</button>
-      <h2 className="text-2xl font-bold mb-4 flex items-center gap-2">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>
-        本地脚本管理
-      </h2>
+    <div className="scripts-page">
+      <div className="scripts-header">
+        <h2 className="scripts-title">
+          <Icon name="code" size={18} className="scripts-title-icon" />
+          本地脚本管理
+        </h2>
+        <IconButton icon="close" title="关闭" onClick={onClose} />
+      </div>
 
       {editingScript ? (
         <UserScriptEditor
@@ -119,9 +117,23 @@ export function UserScriptManager({ onClose }: { onClose: () => void }) {
           onOpenFolder={openUserScriptsFolder}
           onToggle={handleToggle}
           onEdit={handleEdit}
-          onDelete={handleDelete}
+          onDelete={setPendingDeleteId}
         />
       )}
+
+      <ConfirmDialog
+        open={pendingDeleteId !== null}
+        title="删除脚本"
+        description="移除后该脚本不再注入任何站点；不会删除本地源文件。"
+        danger
+        confirmText="删除"
+        onConfirm={() => {
+          const id = pendingDeleteId
+          setPendingDeleteId(null)
+          if (id) deleteUserScript(id).then(loadScripts)
+        }}
+        onCancel={() => setPendingDeleteId(null)}
+      />
     </div>
   )
 }

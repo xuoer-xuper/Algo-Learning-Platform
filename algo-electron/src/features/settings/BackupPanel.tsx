@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Button } from '../../components/ui'
 import {
   confirmLearningDataImport,
   createDatabaseBackup,
@@ -71,29 +72,29 @@ export function BackupPanel() {
     <div className="settings-section">
       <h3 className="settings-section-title">备份与导入导出</h3>
       <div className="settings-row">
-        <button className="settings-save-btn" onClick={handleBackup}>备份数据库</button>
-        <button className="settings-save-btn" onClick={handleExport}>导出 JSON</button>
-        <button className="settings-save-btn" onClick={handlePreviewImport}>导入 JSON</button>
+        <Button onClick={handleBackup}>备份数据库</Button>
+        <Button onClick={handleExport}>导出 JSON</Button>
+        <Button onClick={handlePreviewImport}>导入 JSON</Button>
       </div>
 
       {importPreview && (
         <div className="sync-status">
           预览: 新增 {formatCounts(importPreview.new_counts) || '0'}，重复 {formatCounts(importPreview.duplicate_counts) || '0'}，冲突 {importPreview.conflicts.length}
           <div className="settings-row">
-            <button
-              className="settings-save-btn"
+            <Button
+              variant="primary"
               disabled={importing || hasConflicts}
               onClick={() => handleConfirmImport(false)}
             >
               确认导入
-            </button>
-            <button
-              className="settings-save-btn"
+            </Button>
+            <Button
+              variant="danger"
               disabled={importing || !hasConflicts}
               onClick={() => handleConfirmImport(true)}
             >
               覆盖冲突
-            </button>
+            </Button>
           </div>
         </div>
       )}

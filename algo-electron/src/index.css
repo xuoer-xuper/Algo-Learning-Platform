@@ -1,14 +1,86 @@
 @import "tailwindcss";
 
+/*
+ * 设计 token 唯一源（B1.1）
+ * ------------------------------------------------------------------
+ * 方向：「竞技控制台」——冷调纸白 + 群青主色 + 等宽数据声线。
+ * 所有颜色/圆角/阴影/动效只允许从这里取值；旧变量名（--bg/--text/…）
+ * 作为兼容别名保留，禁止再新增裸 hex（守卫见 REFACTOR_HANDOFF.md）。
+ * 深色模式：token 双值已预留（[data-theme="dark"]，B5.4 启用并验证）。
+ */
+@theme {
+  /* 画布与层次 */
+  --color-app: #eef1f6;          /* 应用底 */
+  --color-chrome: #e3e8f0;       /* 标题栏/标签带 */
+  --color-card: #ffffff;         /* 卡片/工作面 */
+  --color-inset: #f3f5fa;        /* 内嵌面板/代码底 */
+  --color-hover: #eef2f8;        /* 悬停底 */
+
+  /* 墨色 */
+  --color-ink: #171c26;
+  --color-ink-2: #4c5565;
+  --color-ink-3: #8b94a6;
+
+  /* 线 */
+  --color-line: #d4dbe6;
+  --color-line-soft: #e6eaf2;
+
+  /* 主色：群青（竞技蓝） */
+  --color-accent: #2f5fe0;
+  --color-accent-strong: #2449c4;
+  --color-accent-soft: #e7edfd;
+
+  /* 状态（浅色面上可读的 600/700 档） */
+  --color-ok: #158445;
+  --color-ok-soft: #e4f5eb;
+  --color-warn: #b45309;
+  --color-warn-soft: #fdf0e0;
+  --color-danger: #d03b3b;
+  --color-danger-soft: #fdeaea;
+
+  /* 字体：界面静音，数据用等宽发声 */
+  --font-sans: Inter, "Segoe UI", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+  --font-mono: "Cascadia Code", Consolas, "JetBrains Mono", ui-monospace, monospace;
+
+  /* 圆角 */
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 10px;
+  --radius-xl: 12px;
+
+  /* 阴影 */
+  --shadow-sm: 0 1px 2px rgba(23, 28, 38, 0.06);
+  --shadow-md: 0 4px 14px rgba(23, 28, 38, 0.08);
+  --shadow-lg: 0 18px 50px rgba(23, 28, 38, 0.20);
+
+  /* 动效 */
+  --ease-out: cubic-bezier(0.2, 0, 0, 1);
+  --duration-fast: 120ms;
+  --duration-base: 160ms;
+  --duration-slow: 240ms;
+}
+
+/* 兼容别名：既有 CSS 的公共 API，逐步迁移到语义 token */
 :root {
-  --bg: #f0f4f8;
-  --bg-card: #ffffff;
-  --text: #1a202c;
-  --text-secondary: #64748b;
-  --border: #e2e8f0;
-  --primary: #3b82f6;
-  --primary-hover: #2563eb;
-  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+  --bg: var(--color-app);
+  --bg-surface: var(--color-chrome);
+  --bg-card: var(--color-card);
+  --bg-code: var(--color-inset);
+  --hover-bg: var(--color-hover);
+  --border: var(--color-line);
+  --border-light: var(--color-line-soft);
+  --text: var(--color-ink);
+  --text-secondary: var(--color-ink-2);
+  --text-muted: var(--color-ink-3);
+  --primary: var(--color-accent);
+  --primary-hover: var(--color-accent-strong);
+  --accent: var(--color-accent);
+  --success: var(--color-ok);
+  --warning: var(--color-warn);
+  --error: var(--color-danger);
+
+  font-family: var(--font-sans);
   line-height: 1.5;
   font-weight: 400;
   color-scheme: light;
@@ -18,6 +90,21 @@
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/* 深色 token 预留（B5.4 启用：设置 data-theme="dark" 并逐值验证） */
+:root[data-theme="dark"] {
+  --bg: #14161c;
+  --bg-surface: #191d26;
+  --bg-card: #1e222c;
+  --bg-code: #232834;
+  --hover-bg: #262b38;
+  --border: #333a48;
+  --border-light: #2a3040;
+  --text: #e8ebf2;
+  --text-secondary: #a8b0c0;
+  --text-muted: #6c7585;
+  color-scheme: dark;
 }
 
 * {
@@ -39,4 +126,52 @@ button {
   background: transparent;
   color: inherit;
   font: inherit;
+}
+
+/* 键盘可达性：统一 focus ring */
+:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 1px;
+  border-radius: var(--radius-xs);
+}
+
+::selection {
+  background: var(--color-accent-soft);
+  color: var(--color-ink);
+}
+
+/* 滚动条：低存在感 */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(76, 85, 101, 0.28);
+  border-radius: 999px;
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(76, 85, 101, 0.45);
+  background-clip: content-box;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* 数据声线：等宽 + 表格数字 */
+.mono,
+.num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

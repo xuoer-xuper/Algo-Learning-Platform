@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { IconButton } from '../../components/ui'
 import { BackupPanel } from './BackupPanel'
 import { CodeforcesSyncPanel } from './CodeforcesSyncPanel'
 import { CoachPanel } from './CoachPanel'
@@ -42,7 +43,7 @@ export function SettingsPage({ onClose }: { onClose: () => void }) {
       <div className="settings-page">
         <div className="settings-header">
           <h2 className="settings-title">设置</h2>
-          <button className="settings-close" onClick={onClose}>✕</button>
+          <IconButton icon="close" title="关闭" className="settings-close" onClick={onClose} />
         </div>
 
         <div className="settings-cols">

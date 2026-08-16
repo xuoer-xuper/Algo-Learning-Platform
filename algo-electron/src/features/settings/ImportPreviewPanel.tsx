@@ -1,3 +1,4 @@
+import { Button } from '../../components/ui'
 import type { ImportPreview } from './siteManagementTypes'
 
 interface ImportPreviewPanelProps {
@@ -59,12 +60,8 @@ export function ImportPreviewPanel({
         </div>
       )}
       <div className="import-actions">
-        <button className="settings-save-btn" onClick={onConfirm}>
-          确认导入
-        </button>
-        <button className="settings-close" onClick={onCancel}>
-          取消
-        </button>
+        <Button variant="primary" onClick={onConfirm}>确认导入</Button>
+        <Button variant="ghost" onClick={onCancel}>取消</Button>
       </div>
     </div>
   )

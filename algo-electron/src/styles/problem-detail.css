@@ -1,4 +1,4 @@
-/* 题目详情页 */
+/* 题目详情页（类名已从 settings-* 迁移为 detail-*，结束跨 feature 寄生） */
 .detail-page {
   padding: 20px;
   width: 100%;
@@ -22,36 +22,26 @@
   border-radius: 3px;
 }
 
-.detail-info {
-  margin-bottom: 16px;
-}
-
-.detail-row {
+/* 页头：标题 + 操作区（关闭键为 IconButton，.detail-close 仅作定位类保留） */
+.detail-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 6px 0;
+  gap: 12px;
+  padding-bottom: 12px;
+  margin-bottom: 16px;
   border-bottom: 1px solid var(--border-light);
 }
 
-.detail-label {
-  color: var(--text-muted);
-  font-size: 12px;
-}
-
-.detail-value {
+.detail-title {
+  flex: 1;
+  min-width: 0;
   color: var(--text);
-  font-size: 12px;
-}
-
-.detail-link {
-  color: var(--primary);
-  font-size: 12px;
-  text-decoration: none;
-}
-
-.detail-link:hover {
-  text-decoration: underline;
+  font-size: 15px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .detail-header-actions {
@@ -61,54 +51,98 @@
   flex-shrink: 0;
 }
 
-.detail-delete-btn {
-  height: 28px;
-  padding: 0 12px;
-  border: 1px solid var(--error);
-  border-radius: 4px;
-  background: transparent;
-  color: var(--error);
+/* 区块标题（原 settings-section-title 的本地版本） */
+.detail-section-title {
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+  margin: 0 0 8px 0;
+}
+
+/* 信息卡：内嵌面板层次（与时间轴复盘页 coach-timeline-info 同语言） */
+.detail-info {
+  margin-bottom: 20px;
+  padding: 4px 14px;
+  background: var(--bg);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
+}
+
+.detail-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.detail-row:last-child {
+  border-bottom: none;
+}
+
+.detail-label {
+  color: var(--text-muted);
   font-size: 12px;
-  cursor: pointer;
+  flex-shrink: 0;
 }
 
-.detail-delete-btn:hover:not(:disabled) {
-  background: var(--error);
-  color: #fff;
+.detail-value {
+  color: var(--text);
+  font-size: 12px;
+  text-align: right;
 }
 
-.detail-delete-btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
+.detail-link {
+  color: var(--primary);
+  font-size: 12px;
+  text-decoration: none;
+  transition: color var(--duration-fast) var(--ease-out);
 }
 
+.detail-link:hover {
+  text-decoration: underline;
+}
+
+/* 提交记录列表 */
 .submissions-list {
   max-height: 300px;
   overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
 }
 
 .submission-item {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 4px 0;
+  padding: 6px 0;
   border-bottom: 1px solid var(--border-light);
   font-size: 12px;
 }
 
+.submission-item:last-child {
+  border-bottom: none;
+}
+
+/* verdict 芯片：基础样式来自 .ui-chip（等宽 + 圆点），这里只做列对齐微调 */
 .submission-verdict {
+  min-width: 64px;
+  justify-content: flex-start;
   font-weight: 600;
-  min-width: 60px;
 }
 
 .submission-lang {
-  color: var(--text-muted);
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: 11px;
   min-width: 50px;
 }
 
 .submission-time {
   color: var(--text-muted);
   font-size: 11px;
+  margin-left: auto;
 }
 
 @container modal-panel (max-width: 520px) {
@@ -121,6 +155,18 @@
     align-items: flex-start;
     flex-direction: column;
     gap: 4px;
+  }
+
+  .detail-value {
+    text-align: left;
+  }
+
+  .submission-time {
+    margin-left: 0;
+  }
+
+  .detail-header {
+    flex-wrap: wrap;
   }
 
   .detail-header-actions {

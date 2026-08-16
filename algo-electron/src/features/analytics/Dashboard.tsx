@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect } from 'react'
+import { Button, IconButton } from '../../components/ui'
 import { AiSuggestionsPanel } from './AiSuggestionsPanel'
 import {
   loadDashboardAiSuggestions,
@@ -85,29 +86,29 @@ export function Dashboard({ onClose, onNavigate }: { onClose: () => void; onNavi
       <div className="dashboard-header">
         <h2 className="dashboard-title">学习统计</h2>
         <div className="dashboard-header-actions">
-          <button className="dashboard-recompute-btn" onClick={handleRecompute} disabled={recomputing}>
+          <Button className="dashboard-recompute-btn" size="sm" icon="refresh" onClick={handleRecompute} disabled={recomputing}>
             {recomputing ? '重算中...' : '重算'}
-          </button>
-          <button className="dashboard-close" onClick={onClose}>✕</button>
+          </Button>
+          <IconButton className="dashboard-close" icon="close" title="关闭" onClick={onClose} />
         </div>
       </div>
 
-      {/* 概览卡片 */}
+      {/* 概览卡片（数据声线：大数字等宽 + 表格数字） */}
       <div className="dashboard-cards">
         <div className="dashboard-card">
-          <div className="dashboard-card-value">{stats?.totalProblems ?? 0}</div>
+          <div className="dashboard-card-value num">{stats?.totalProblems ?? 0}</div>
           <div className="dashboard-card-label">总题数</div>
         </div>
         <div className="dashboard-card">
-          <div className="dashboard-card-value">{stats?.todayVisited ?? 0}</div>
+          <div className="dashboard-card-value num">{stats?.todayVisited ?? 0}</div>
           <div className="dashboard-card-label">今日访问</div>
         </div>
         <div className="dashboard-card">
-          <div className="dashboard-card-value">{streak.current}<span className="dashboard-card-unit">天</span></div>
+          <div className="dashboard-card-value num">{streak.current}<span className="dashboard-card-unit">天</span></div>
           <div className="dashboard-card-label">连续活跃</div>
         </div>
         <div className="dashboard-card">
-          <div className="dashboard-card-value">{streak.longest}<span className="dashboard-card-unit">天</span></div>
+          <div className="dashboard-card-value num">{streak.longest}<span className="dashboard-card-unit">天</span></div>
           <div className="dashboard-card-label">最长连续</div>
         </div>
       </div>
@@ -140,7 +141,7 @@ export function Dashboard({ onClose, onNavigate }: { onClose: () => void; onNavi
 
       {stats?.lastActiveTime && (
         <div className="dashboard-footer">
-          最近活跃：{typeof stats.lastActiveTime === 'string' ? stats.lastActiveTime.replace('T', ' ').slice(0, 19) : ''}
+          最近活跃：<span className="num">{typeof stats.lastActiveTime === 'string' ? stats.lastActiveTime.replace('T', ' ').slice(0, 19) : ''}</span>
         </div>
       )}
     </div>
