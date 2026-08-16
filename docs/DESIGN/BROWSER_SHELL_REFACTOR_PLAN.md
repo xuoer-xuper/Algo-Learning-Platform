@@ -445,7 +445,7 @@ Renderer（同一构建产物，多窗口实例化——桌宠 hash 路由已证
 | B0.9 | [ ] | 单实例锁待实施 |
 | B0.10 | [ ] | 数据性能、迁移备份/恢复、孤儿 visit 清理待实施 |
 | B0.11 | [ ] | 025_userscript_identity 待实施 |
-| B0.12 | [ ] | app 协议、CSP、trusted sender 与安全测试待实施 |
+| B0.12 | [x] | `a004d3c`（2026-08-16）：生产壳迁移至 `app://shell` 并启用严格 CSP；普通 IPC 统一接入 shell sender/main-frame/origin/payload 校验，OJ 提交通道使用专用 HTTPS sender validator；TabManager 管理 OJ sender 生命周期；安全、架构、IPC 合约与真实 Electron startup smoke 覆盖已完成；全量验证通过；无视觉变更 |
 | B1.1 | [~] | `1190daf` 已统一主要 token；暗色双值与剩余域核对待完成 |
 | B1.2 | [~] | Button/fields/Card/ConfirmDialog 已落地；Dialog/DropdownMenu/Toast/NoticeBar 待补 |
 | B1.3 | [~] | Icon 组件已落地；全仓遗留 Unicode/emoji/内联图标核对待完成 |
@@ -482,3 +482,16 @@ Renderer（同一构建产物，多窗口实例化——桌宠 hash 路由已证
 | 视觉影响 | `无视觉变更` |
 | 文档同步 | `algo-electron/tests/README.md`、`tests/electron/README.md`、`tests/diagnostics/README.md`、`electron/diagnostics/README.md`、preload 类型与 `docs/README.md` |
 | 完成时间 | 北京时间 `2026-08-16 17:22` |
+
+### 11.6 B0.12 完成记录
+
+| 字段 | 填写内容 |
+|---|---|
+| 任务 | B0.12 壳信任边界 |
+| 状态 | `[x] 已完成` |
+| Commit | `a004d3c security: 建立 app 壳协议与 IPC 信任边界` |
+| 自动验证 | `npm run typecheck`、`npm run lint`、`npm run test:core`（19 files/302 tests）、`npm run test:coverage`（39 files/335 tests，Statements 30.35%、Branches 35.45%、Functions 25.88%、Lines 31.22%）、`npm run test:electron`、`npm run test:architecture`、`npm run test:security`、`npm run test:docs`、`npm run test:performance`；已通过 |
+| 人工验收 | Windows 单窗口生产壳启动成功，确认 `location.origin === app://shell`；壳与 OJ sender 生命周期随窗口/标签创建、关闭和销毁正确登记与注销 |
+| 视觉影响 | `无视觉变更`；未修改 TSX/CSS，保留现有前端视觉基线 |
+| 文档同步 | `electron/app/README.md`、`electron/ipc/README.md`、`tests/electron/README.md`、`tests/security/README.md` |
+| 完成时间 | 北京时间 `2026-08-16 23:55` |
