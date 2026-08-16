@@ -43,7 +43,7 @@ export class RealtimeHookInjector {
     // Retry only the injection step; the injected adapter still owns readiness.
     for (const delayMs of [0, 250, 1000]) {
       if (delayMs > 0) {
-        await new Promise(resolve => setTimeout(resolve, delayMs))
+        await new Promise(resolve => { setTimeout(resolve, delayMs) })
       }
       try {
         return await host.executeScriptOnUrl(url, code)

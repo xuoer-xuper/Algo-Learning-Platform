@@ -1,17 +1,20 @@
 import type { TabManager } from '../browser/TabManager'
+import { BrowserDiagnostics } from '../diagnostics/BrowserDiagnostics'
 import type { UserScriptService } from './UserScriptService'
 
 interface InstallUserScriptInjectionOptions {
   tabManager: TabManager
   getUserScriptService: () => UserScriptService | null
+  diagnostics?: BrowserDiagnostics
 }
 
 function getErrorMessage(error: unknown): unknown {
   return error instanceof Error ? error.message : error
 }
 
-export function installUserScriptInjection(options: InstallUserScriptInjectionOptions): void {
+export function installUserScriptInjection(options: InstallUserScriptInjectionOptions): BrowserDiagnostics {
   const { tabManager, getUserScriptService } = options
+  const diagnostics = options.diagnostics ?? new BrowserDiagnostics()
 
   tabManager.setPageLoadedCallback(async (url) => {
     console.log('[UserScript] Page loaded:', url)
@@ -19,11 +22,13 @@ export function installUserScriptInjection(options: InstallUserScriptInjectionOp
     const userScriptService = getUserScriptService()
     if (!userScriptService) {
       console.log('[UserScript] SKIP: service is null')
+      diagnostics.record('userscript', 'service-unavailable', 'skipped', { url })
       return
     }
 
     const entries = userScriptService.getMatchingScriptsWithMeta(url)
     console.log('[UserScript] Matching scripts:', entries.length)
+    if (entries.length === 0) diagnostics.record('userscript', 'match', 'skipped', { url, detail: 'No matching scripts' })
 
     for (const { script, requires, resources } of entries) {
       console.log('[UserScript] Injecting:', script.name, 'requires:', requires.length, 'resources:', resources.length, 'code length:', script.code?.length ?? 0)
@@ -143,9 +148,13 @@ export function installUserScriptInjection(options: InstallUserScriptInjectionOp
 
         await tabManager.executeScript(`${script.code}\n; void 0;`)
         console.log('[UserScript] Script executed OK:', script.name)
+        diagnostics.record('userscript', 'inject', 'success', { url, detail: script.name })
       } catch (error) {
         console.error('[UserScript Failed]', script.name, getErrorMessage(error))
+        diagnostics.record('userscript', 'inject', 'failed', { url, detail: `${script.name}: ${getErrorMessage(error)}` })
       }
     }
   })
+
+  return diagnostics
 }

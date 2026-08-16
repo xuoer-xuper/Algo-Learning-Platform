@@ -44,11 +44,22 @@ export default [
       ...reactHooks.configs.recommended.rules,
       'no-undef': 'off',
       'no-unused-vars': 'off',
+      // TypeScript 7 is ahead of typescript-eslint's type-aware parser. Keep
+      // the runtime-independent async safety checks enabled until that gap is
+      // closed and the stricter promise rules can be restored.
+      'no-async-promise-executor': 'error',
       'react-hooks/set-state-in-effect': 'off',
       'react-refresh/only-export-components': [
         'warn',
         { allowConstantExport: true },
       ],
+    },
+  },
+  {
+    files: ['electron/**/*.{ts,tsx}', 'src/**/*.{ts,tsx}'],
+    rules: {
+      'no-promise-executor-return': 'error',
+      'require-atomic-updates': 'error',
     },
   },
   {

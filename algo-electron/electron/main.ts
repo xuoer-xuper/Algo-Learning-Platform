@@ -116,6 +116,7 @@ function createWindow() {
     getTrackingService: () => services?.trackingService ?? null,
     notifyProblemDetected: (identity) => win?.webContents.send('problem:detected', identity),
     notifyProblemsUpdated: () => win?.webContents.send('problems:updated'),
+    diagnostics: services?.browserDiagnostics,
   })
 
   tabManager.setTabListChangedCallback((tabs) => {
@@ -125,6 +126,7 @@ function createWindow() {
   installUserScriptInjection({
     tabManager,
     getUserScriptService: () => services?.userScriptService ?? null,
+    diagnostics: services?.browserDiagnostics,
   })
 
   win.webContents.on('did-finish-load', () => {
@@ -170,13 +172,14 @@ function createWindow() {
   })
 }
 
-registerMainIpc({
+  registerMainIpc({
   getWindow: () => win,
   getTabManager: () => tabManager,
   getTrackingService: () => services?.trackingService ?? null,
   getSyncService: () => services?.syncService ?? null,
   getCoachPetWindow: () => coachPetWindow,
   getCoachOrchestrator: () => coachOrchestrator,
+  getBrowserDiagnostics: () => services?.browserDiagnostics ?? null,
 })
 
 // --- App 生命周期 ---

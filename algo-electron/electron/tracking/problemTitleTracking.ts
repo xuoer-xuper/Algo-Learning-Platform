@@ -1,4 +1,5 @@
 import type { TabManager } from '../browser/TabManager'
+import { BrowserDiagnostics } from '../diagnostics/BrowserDiagnostics'
 import { upsertProblem } from '../db/repositories/problemRepository'
 import { resolveBrowserTitleProblemIdentity } from '../parsers/browserTitle'
 import { createProblemTitleFallbackScript } from '../parsers/problemTitleFallback'
@@ -11,6 +12,7 @@ interface InstallProblemTitleTrackingOptions {
   getTrackingService: () => TrackingService | null
   notifyProblemDetected: (identity: ProblemIdentity) => void
   notifyProblemsUpdated: () => void
+  diagnostics?: BrowserDiagnostics
 }
 
 function isCodeforcesUrl(url: string): boolean {
@@ -22,8 +24,9 @@ function isCodeforcesUrl(url: string): boolean {
   }
 }
 
-export function installProblemTitleTracking(options: InstallProblemTitleTrackingOptions): void {
+export function installProblemTitleTracking(options: InstallProblemTitleTrackingOptions): BrowserDiagnostics {
   const { tabManager } = options
+  const diagnostics = options.diagnostics ?? new BrowserDiagnostics()
   const extractionTimers = new Map<string, NodeJS.Timeout[]>()
   const successfulExtractions = new Set<string>()
 
@@ -34,10 +37,14 @@ export function installProblemTitleTracking(options: InstallProblemTitleTracking
   ): boolean => {
     if (source === 'browser-title' && isCodeforcesUrl(url)) return false
     const identity = resolveBrowserTitleProblemIdentity(url, title, parseUrl)
-    if (!identity) return false
+    if (!identity) {
+      diagnostics.record('title', 'extract', 'skipped', { url, detail: `${source}: no valid title` })
+      return false
+    }
     successfulExtractions.add(url)
     upsertProblem(identity)
     options.notifyProblemsUpdated()
+    diagnostics.record('title', 'extract', 'success', { url, detail: source })
     return true
   }
 
@@ -67,7 +74,9 @@ export function installProblemTitleTracking(options: InstallProblemTitleTracking
             extractionTimers.delete(url)
           }
         })
-        .catch(() => {})
+        .catch((error) => {
+          diagnostics.record('title', 'fallback', 'failed', { url, detail: error })
+        })
     }
 
     timers.push(setTimeout(extract, 2000))
@@ -81,9 +90,12 @@ export function installProblemTitleTracking(options: InstallProblemTitleTracking
   tabManager.setNavigateCallback((url) => {
     const identity = options.getTrackingService()?.handleNavigation(url)
     if (identity) {
+      diagnostics.record('tracking', 'navigate', 'success', { url })
       options.notifyProblemDetected(identity)
       options.notifyProblemsUpdated()
       scheduleTitleExtraction(url)
+    } else {
+      diagnostics.record('tracking', 'navigate', 'skipped', { url, detail: 'No enabled problem identity' })
     }
   })
 
@@ -108,4 +120,6 @@ export function installProblemTitleTracking(options: InstallProblemTitleTracking
     if (updateProblemTitle(url, title, 'browser-title')) return
     scheduleTitleExtraction(url)
   })
+
+  return diagnostics
 }

@@ -29,7 +29,9 @@
 - `docs/`
   - Markdown 相对链接、README 覆盖、README 内容质量、总索引覆盖和 `npm run` 脚本引用一致性检查。
 - `electron/`
-  - Electron 应用启动 smoke test。
+  - Electron 应用启动 smoke test，以及 Vitest Electron test-double 的薄壳契约测试。
+- `diagnostics/`
+  - 浏览器导航/标题提取/用户脚本注入的可注入诊断记录；只保存状态元数据，不保存页面内容、凭据或脚本源码。
 - `integration/`
   - 跨模块链路，例如 LeetCode 实时提交和题目标题提取 wiring。
 - `ipc/`
@@ -181,6 +183,7 @@ npx playwright test tests\ui\rendererScreenshots.pw.spec.ts --grep "narrow conta
 - 跨模块数据流放 `tests/integration/`。
 - Renderer 截图和交互验收放 `tests/ui/`，使用 Playwright Test，生成图片与 trace 只写入 `tmp/`，不得提交。
 - 只有 Electron ABI/safeStorage 测试允许保留临时 bundle，输出统一写到 `tmp/electron-tests/`，不要提交生成产物。
+- Electron 绑定模块在 Vitest 中使用 `tests/electron/electronMock.ts`，但不得以 mock 测试替代真实 Electron 专项验证。
 
 ## 5. 当前缺口
 

@@ -1,6 +1,14 @@
+import { fileURLToPath } from 'node:url'
 import { defineConfig } from 'vitest/config'
 
 export default defineConfig({
+  resolve: {
+    // Electron-bound modules are exercised with the deterministic test double
+    // in Vitest; real Electron ABI checks remain in tests/verify.mjs.
+    alias: {
+      electron: fileURLToPath(new URL('./tests/electron/electronMock.ts', import.meta.url)),
+    },
+  },
   test: {
     include: ['tests/**/*.test.ts', 'tests/**/*.test.tsx'],
     exclude: [

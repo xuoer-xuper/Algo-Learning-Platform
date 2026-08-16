@@ -97,6 +97,7 @@
 | submission scrapers | [electron/submissions/scrapers/README](../algo-electron/electron/submissions/scrapers/README.md) |
 | submission syncers | [electron/submissions/syncers/README](../algo-electron/electron/submissions/syncers/README.md) |
 | tracking | [electron/tracking/README](../algo-electron/electron/tracking/README.md) |
+| diagnostics | [electron/diagnostics/README](../algo-electron/electron/diagnostics/README.md) |
 | coach | [electron/coach/README](../algo-electron/electron/coach/README.md) |
 | coach LLM | [electron/coach/llm/README](../algo-electron/electron/coach/llm/README.md) |
 | coach hints | [electron/coach/hints/README](../algo-electron/electron/coach/hints/README.md) |
@@ -134,6 +135,7 @@
 | test components | [tests/components/README](../algo-electron/tests/components/README.md) |
 | test docs | [tests/docs/README](../algo-electron/tests/docs/README.md) |
 | test electron | [tests/electron/README](../algo-electron/tests/electron/README.md) |
+| test diagnostics | [tests/diagnostics/README](../algo-electron/tests/diagnostics/README.md) |
 | test integration | [tests/integration/README](../algo-electron/tests/integration/README.md) |
 | test ipc | [tests/ipc/README](../algo-electron/tests/ipc/README.md) |
 | test parsers | [tests/parsers/README](../algo-electron/tests/parsers/README.md) |

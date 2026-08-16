@@ -53,6 +53,17 @@ interface RealtimeSubmissionStatus {
   }
 }
 
+interface BrowserDiagnosticsSnapshot {
+  entries: Array<{
+    area: 'tracking' | 'title' | 'userscript'
+    event: string
+    status: 'success' | 'failed' | 'skipped'
+    url?: string
+    detail?: string
+    at: string
+  }>
+}
+
 interface CookieSafeDomainSummary {
   site_id: string
   domain: string
@@ -662,6 +673,7 @@ interface ElectronAPI {
   hideView: () => void
   showView: () => void
   captureBrowserPreview: () => Promise<string | null>
+  getBrowserDiagnostics: () => Promise<BrowserDiagnosticsSnapshot>
   minimizeWindow: () => void
   maximizeWindow: () => void
   closeWindow: () => void

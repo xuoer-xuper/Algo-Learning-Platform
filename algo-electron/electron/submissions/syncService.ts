@@ -38,7 +38,7 @@ export class SyncService {
         return await fn()
       } catch (e: any) {
         lastError = e
-        if (i < maxRetries) await new Promise(r => setTimeout(r, 1000 * (i + 1)))
+        if (i < maxRetries) await new Promise(r => { setTimeout(r, 1000 * (i + 1)) })
       }
     }
     throw lastError

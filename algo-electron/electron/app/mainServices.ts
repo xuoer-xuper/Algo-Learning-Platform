@@ -9,12 +9,14 @@ import { RealtimeSubmissionService } from '../submissions/RealtimeSubmissionServ
 import { createDefaultSubmissionBatchWriter } from '../submissions/createDefaultSubmissionBatchWriter'
 import { SyncService } from '../submissions/syncService'
 import { TrackingService } from '../tracking/TrackingService'
+import { BrowserDiagnostics } from '../diagnostics/BrowserDiagnostics'
 
 export interface MainServices {
   trackingService: TrackingService
   syncService: SyncService
   realtimeSubmissionService: RealtimeSubmissionService
   userScriptService: UserScriptService
+  browserDiagnostics: BrowserDiagnostics
 }
 
 export function initializeMainServices(getWindow: () => BrowserWindow | null): MainServices {
@@ -37,11 +39,13 @@ export function initializeMainServices(getWindow: () => BrowserWindow | null): M
   const realtimeSubmissionService = new RealtimeSubmissionService(getWindow)
   realtimeSubmissionService.registerIpc()
   const userScriptService = new UserScriptService()
+  const browserDiagnostics = new BrowserDiagnostics()
 
   return {
     trackingService,
     syncService,
     realtimeSubmissionService,
     userScriptService,
+    browserDiagnostics,
   }
 }

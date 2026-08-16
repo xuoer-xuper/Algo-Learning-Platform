@@ -11,6 +11,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   hideView: () => ipcRenderer.send('browser:hideView'),
   showView: () => ipcRenderer.send('browser:showView'),
   captureBrowserPreview: () => ipcRenderer.invoke('browser:capturePreview') as Promise<string | null>,
+  getBrowserDiagnostics: () => ipcRenderer.invoke('browser:getDiagnostics') as Promise<BrowserDiagnosticsSnapshot>,
   minimizeWindow: () => ipcRenderer.send('window:minimize'),
   maximizeWindow: () => ipcRenderer.send('window:maximize'),
   closeWindow: () => ipcRenderer.send('window:close'),

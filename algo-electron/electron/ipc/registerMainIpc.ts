@@ -4,6 +4,7 @@ import type { SyncService } from '../submissions/syncService'
 import type { TrackingService } from '../tracking/TrackingService'
 import type { CoachPetWindow } from '../coach/CoachPetWindow'
 import type { CoachOrchestrator } from '../coach/CoachOrchestrator'
+import type { BrowserDiagnostics } from '../diagnostics/BrowserDiagnostics'
 import { registerAiIpc } from './registerAiIpc'
 import { registerBackupIpc } from './registerBackupIpc'
 import { registerBrowserShellIpc } from './registerBrowserShellIpc'
@@ -26,6 +27,7 @@ interface RegisterMainIpcOptions {
   getCoachPetWindow?: () => CoachPetWindow | null
   /** 阶段 2 注入：CoachOrchestrator */
   getCoachOrchestrator?: () => CoachOrchestrator | null
+  getBrowserDiagnostics?: () => BrowserDiagnostics | null
 }
 
 export function registerMainIpc(options: RegisterMainIpcOptions): void {
@@ -37,6 +39,7 @@ export function registerMainIpc(options: RegisterMainIpcOptions): void {
     getWindow: options.getWindow,
     getTabManager: options.getTabManager,
     getTrackingService: options.getTrackingService,
+    getBrowserDiagnostics: options.getBrowserDiagnostics,
   })
   registerConfigIpc()
   registerCookieIpc()

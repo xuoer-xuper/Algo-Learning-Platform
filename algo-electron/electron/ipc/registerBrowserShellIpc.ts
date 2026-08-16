@@ -2,11 +2,13 @@ import { ipcMain, type BrowserWindow } from 'electron'
 import type { TabManager } from '../browser/TabManager'
 import { resolveNavigateUrl } from '../parsers/navigateUrl'
 import type { TrackingService } from '../tracking/TrackingService'
+import type { BrowserDiagnostics } from '../diagnostics/BrowserDiagnostics'
 
 interface RegisterBrowserShellIpcOptions {
   getWindow: () => BrowserWindow | null
   getTabManager: () => TabManager | null
   getTrackingService: () => TrackingService | null
+  getBrowserDiagnostics?: () => BrowserDiagnostics | null
 }
 
 function notifyDetectedProblem(options: RegisterBrowserShellIpcOptions, url: string): void {
@@ -77,6 +79,10 @@ export function registerBrowserShellIpc(options: RegisterBrowserShellIpcOptions)
 
   ipcMain.handle('browser:capturePreview', async () => {
     return options.getTabManager()?.capturePreview() ?? null
+  })
+
+  ipcMain.handle('browser:getDiagnostics', () => {
+    return options.getBrowserDiagnostics?.()?.getSnapshot() ?? { entries: [] }
   })
 
   ipcMain.on('window:minimize', () => {
