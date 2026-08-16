@@ -37,6 +37,8 @@ npm run lint
 
 执行 ESLint。当前 lint 门槛要求零 warning；规则允许 DB row、网络 payload、测试 mock 等动态边界保留显式 `any`，收窄这些类型时应按模块逐步推进。
 
+测试栈按运行环境分工：Vitest 是纯 Node TypeScript 单元/集成测试 runner；Playwright Test 驱动真实 Electron 完成 renderer UI/E2E 验收；`tests/verify.mjs` 只是验证编排器，负责组合类型、lint、守卫和标准测试，并启动必须匹配 Electron ABI 或使用 `safeStorage` 的少数专项测试。新增普通测试不得扩展为自研断言或发现机制，具体规则见 `tests/README.md`。
+
 ```powershell
 npm run test:unit
 npm run test:watch

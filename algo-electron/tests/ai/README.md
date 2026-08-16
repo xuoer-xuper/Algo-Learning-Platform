@@ -21,5 +21,5 @@ npm run test:ai
 ## 4. 新增规则
 
 - 纯函数 helper 优先放这里，并注册为独立 Vitest 用例。
-- 需要真实 SQLite 的 AI 聚合测试应使用临时数据库，并通过 `tests/run-tests.mjs ai` 的 Electron Node 路径运行。
+- 需要真实 SQLite 的 AI 聚合测试应使用临时数据库，并通过 `tests/verify.mjs ai` 的 Electron Node 路径运行。
 - 修改推荐、薄弱标签、复习计划评分口径时，应同步 `electron/ai/recommendations/README.md` 和这里的测试。

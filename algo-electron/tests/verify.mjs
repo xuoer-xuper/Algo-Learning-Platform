@@ -2,6 +2,8 @@ import { spawnSync } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
 
+// Composite verification only: Vitest and Playwright remain the actual test runners.
+
 const projectRoot = process.cwd()
 const tmpDir = path.join(projectRoot, 'tmp', 'electron-tests')
 const esbuildBin = path.join(projectRoot, 'node_modules', 'esbuild', 'bin', 'esbuild')
@@ -186,7 +188,7 @@ function runSuite(suite) {
 
 const requestedSuite = process.argv[2] ?? 'core'
 if (!suites.has(requestedSuite)) {
-  console.error(`Unknown composite test suite: ${requestedSuite}`)
+  console.error(`Unknown verification suite: ${requestedSuite}`)
   console.error(`Available suites: ${Array.from(suites).join(', ')}`)
   process.exitCode = 1
 } else {

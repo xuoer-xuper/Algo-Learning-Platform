@@ -18,7 +18,7 @@
 
 ## 3. 关键文件
 
-- 纯逻辑测试由 Vitest 直接发现；`tests/run-tests.mjs` 的 `coach` suite 额外启动依赖 Electron `safeStorage` 的配置存储测试。
+- 纯逻辑测试由 Vitest 直接发现；`tests/verify.mjs` 的 `coach` suite 额外启动依赖 Electron `safeStorage` 的配置存储测试。
 - 运行命令：`npm run test:coach`。
 
 ## 4. 边界规则

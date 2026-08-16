@@ -4,7 +4,14 @@
 
 `tests/` 存放主进程核心逻辑、adapter、提交监测、parser、迁移和集成链路的 TypeScript 测试。
 
-纯 Node 单元/集成测试由 Vitest 发现、隔离和报告，renderer 关键交互与截图由 Playwright Test 驱动真实 Electron。架构、安全、文档、打包和性能守卫继续使用独立脚本。`tests/run-tests.mjs` 只负责组合 suite，以及启动必须匹配 Electron ABI 或使用 `safeStorage` 的少数测试。
+纯 Node 单元/集成测试由 Vitest 发现、隔离和报告，renderer 关键交互与截图由 Playwright Test 驱动真实 Electron。架构、安全、文档、打包和性能守卫继续使用独立脚本。`tests/verify.mjs` 是验证编排器，不实现测试发现、断言或报告；它只负责组合 suite，以及启动必须匹配 Electron ABI 或使用 `safeStorage` 的少数专项测试。
+
+测试工具边界：
+
+- Vitest 是默认测试 runner。纯函数、业务服务、adapter、parser、IPC 契约和无需 Electron 生命周期的集成测试都应直接注册为 Vitest 用例。
+- Playwright Test 是 renderer UI/E2E runner。真实窗口交互、容器响应式布局、截图、ErrorBoundary 和 preload 到 renderer 的用户路径放在 `tests/ui/`。
+- Electron 专项测试只覆盖 Node runner 无法真实证明的边界，包括 `better-sqlite3` Electron ABI、`safeStorage`、主进程启动和打包应用加载。
+- `tests/verify.mjs` 只做跨工具串行编排和 Electron 进程启动。不要在其中添加自研用例发现、断言、重试或覆盖率实现；这些能力分别交给 Vitest 和 Playwright。
 
 ## 2. 目录覆盖
 
@@ -142,7 +149,7 @@ npm run test:all
 
 `test:core` 会运行 typecheck、lint、architecture guard、security guard，以及核心 Vitest 用例。`test:ai` 会额外运行 AI 输出可追溯性临时数据库测试。`test:all` 会执行带覆盖率门槛的全部 Vitest 用例，再追加 Electron ABI、docs、packaging、performance、Electron smoke 和 Playwright UI 测试。
 
-`better-sqlite3` 按 Electron ABI 编译，真实 SQLite repository 测试必须用 `ELECTRON_RUN_AS_NODE=1` 的 Electron Node 运行；`tests/run-tests.mjs` 已封装该路径。
+`better-sqlite3` 按 Electron ABI 编译，真实 SQLite repository 测试必须用 `ELECTRON_RUN_AS_NODE=1` 的 Electron Node 运行；`tests/verify.mjs` 已封装该路径。把这类测试直接放进普通 Node Vitest 环境只能验证 Node ABI，不能替代 Electron ABI 验证。
 
 单个测试：
 
@@ -154,6 +161,8 @@ npx playwright test tests\ui\rendererScreenshots.pw.spec.ts --grep "narrow conta
 ## 4. 新增测试规则
 
 - 行为变化必须优先补靠近变更点的测试。
+- 默认先判断被测代码是否需要真实 Electron 生命周期：不需要时使用 Vitest；需要真实 renderer 用户路径时使用 Playwright；只有 ABI、`safeStorage`、启动或打包边界才增加 Electron 专项验证。
+- 不为了删除验证编排器而把纯逻辑测试搬进 Playwright，也不通过 Vitest mock 掉原生运行时后宣称 Electron ABI 已通过。
 - 架构红线和禁止回归规则放 `tests/architecture/`。
 - adapter 行为放 `tests/adapters/`。
 - AI 本地规则、评分 helper、输出格式、可追溯性和敏感信息排除放 `tests/ai/`。
