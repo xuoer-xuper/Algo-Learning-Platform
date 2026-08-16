@@ -439,7 +439,7 @@ Renderer（同一构建产物，多窗口实例化——桌宠 hash 路由已证
 | B0.3 | [ ] | 标签关闭/恢复/MAX_TABS 体验待实施 |
 | B0.4 | [ ] | ContestGuard 聚合与临时禁用旧拆分入口待实施 |
 | B0.5 | [ ] | 布局常量单源待实施 |
-| B0.6 | [~] | `1190daf` 已落地 jsdom、Testing Library、组件测试；electron test-double、async lint 与诊断仍待完成 |
+| B0.6 | [x] | `a466c30`（2026-08-16）：Electron test-double、Vitest alias、核心 async lint 守卫、tracking/title/userscript 诊断出口与 `browser:getDiagnostics` 已完成；`npm run typecheck`、`npm run lint`、`npm run test:coverage`（38 files/332 tests，29.68/34.85/25.17/30.48%）、`npm run test:architecture`、`npm run test:security`、`npm run test:docs` 通过；人工验收覆盖 test-double view 生命周期和诊断 skip/failure；无视觉变更 |
 | B0.7 | [ ] | 死资产与死 IPC 清理待实施 |
 | B0.8 | [ ] | 主进程兜底与落盘日志待实施 |
 | B0.9 | [ ] | 单实例锁待实施 |
@@ -469,3 +469,16 @@ Renderer（同一构建产物，多窗口实例化——桌宠 hash 路由已证
 | 视觉影响 | `无视觉变更`，或计划允许的变化说明 |
 | 文档同步 | 已更新的 README/ADR/schema/security 文档 |
 | 完成时间 | 北京时间 `YYYY-MM-DD HH:mm` |
+
+### 11.5 B0.6 完成记录
+
+| 字段 | 填写内容 |
+|---|---|
+| 任务 | B0.6 测试基建与诊断出口 |
+| 状态 | `[x] 已完成` |
+| Commit | `a466c30 test: 建立 Electron 测试替身与浏览器诊断出口` |
+| 自动验证 | `npm run typecheck`、`npm run lint`、`npm run test:coverage`、`npm run test:core`、`npm run test:architecture`、`npm run test:security`、`npm run test:docs`；已通过 |
+| 人工验收 | Vitest test-double 可观测窗口/视图生命周期；注入诊断对象可观察标题追踪与用户脚本服务缺失路径；结果通过 |
+| 视觉影响 | `无视觉变更` |
+| 文档同步 | `algo-electron/tests/README.md`、`tests/electron/README.md`、`tests/diagnostics/README.md`、`electron/diagnostics/README.md`、preload 类型与 `docs/README.md` |
+| 完成时间 | 北京时间 `2026-08-16 17:22` |
