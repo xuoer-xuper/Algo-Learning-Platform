@@ -1,4 +1,5 @@
-import { dialog, ipcMain, type BrowserWindow, type OpenDialogOptions, type SaveDialogOptions } from 'electron'
+import { dialog, type BrowserWindow, type OpenDialogOptions, type SaveDialogOptions } from 'electron'
+import { ipcMain } from './trustedSender'
 import fs from 'node:fs'
 import {
   confirmImportSites,

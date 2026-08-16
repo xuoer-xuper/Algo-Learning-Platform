@@ -7,6 +7,7 @@ import type { ManagedTab, TabInfo } from './tabManagerTypes'
 import { executeScriptAcrossFrames } from './tabScriptExecution'
 import { safeCloseWebContents, safeRemoveChildView, setTabViewBounds } from './tabViewLayout'
 import { samePageUrl } from './urlMatching'
+import { registerOjWebContents, unregisterOjWebContents } from '../ipc/trustedSender'
 
 export type { TabInfo } from './tabManagerTypes'
 
@@ -41,6 +42,7 @@ export class TabManager {
         partition: 'persist:oj-main',
       },
     })
+    registerOjWebContents(view.webContents)
 
     view.webContents.on('did-navigate', (_event, url) => {
       const tab = this.findTabByView(view)
@@ -172,6 +174,7 @@ export class TabManager {
       safeRemoveChildView(this.window, tab.view)
     }
 
+    unregisterOjWebContents(tab.view.webContents)
     safeCloseWebContents(tab.view)
 
     this.tabs.delete(tabId)
@@ -432,6 +435,7 @@ export class TabManager {
   destroy() {
     for (const tab of this.tabs.values()) {
       try {
+        unregisterOjWebContents(tab.view.webContents)
         if (!tab.view.webContents.isDestroyed()) {
           safeRemoveChildView(this.window, tab.view)
           safeCloseWebContents(tab.view)

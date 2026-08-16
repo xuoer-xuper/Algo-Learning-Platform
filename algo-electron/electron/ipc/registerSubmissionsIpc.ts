@@ -1,4 +1,4 @@
-import { ipcMain } from 'electron'
+import { ipcMain } from './trustedSender'
 import type { SyncResult, SyncService } from '../submissions/syncService'
 
 interface RegisterSubmissionsIpcOptions {

@@ -24,6 +24,7 @@ const coreVitestFiles = [
   'tests/ipc/ipcContracts.test.ts',
   'tests/parsers',
   'tests/scripts',
+  'tests/security/trustedSender.test.ts',
 ]
 
 const dbVitestFiles = [

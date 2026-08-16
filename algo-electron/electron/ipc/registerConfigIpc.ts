@@ -1,4 +1,4 @@
-import { ipcMain } from 'electron'
+import { ipcMain } from './trustedSender'
 import { getDefaultHomeUrl, saveConfig } from '../app/config'
 
 export function registerConfigIpc(): void {

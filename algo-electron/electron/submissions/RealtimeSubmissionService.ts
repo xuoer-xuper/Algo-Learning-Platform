@@ -6,6 +6,7 @@ import { RealtimeSubmissionDiagnostics, type RealtimeSubmissionStatus } from './
 import { RealtimeHookInjector } from './RealtimeHookInjector'
 import { SubmissionWatcher, SUBMISSION_WATCHER_DETECTED_EVENT } from './SubmissionWatcher'
 import type { SubmissionNotification } from './SubmissionWatcherCore'
+import { handleFromShell, onFromOj } from '../ipc/trustedSender'
 
 const SUBMISSION_DETECTED_CHANNEL = 'oj-submission:detected'
 const STATUS_CHANNEL = 'realtimeSubmission:getStatus'
@@ -15,6 +16,7 @@ export class RealtimeSubmissionService {
   private readonly diagnostics = new RealtimeSubmissionDiagnostics()
   private readonly hookInjector: RealtimeHookInjector
   private readonly ipcHandler: (event: IpcMainEvent, payload: unknown) => void
+  private registeredIpcHandler: ((event: IpcMainEvent, ...args: any[]) => any) | null = null
   private tabManager: TabManager | null = null
   private isIpcRegistered = false
 
@@ -63,15 +65,18 @@ export class RealtimeSubmissionService {
 
   registerIpc(): void {
     if (this.isIpcRegistered) return
-    ipcMain.on(SUBMISSION_DETECTED_CHANNEL, this.ipcHandler)
-    ipcMain.handle(STATUS_CHANNEL, () => this.getStatus())
+    this.registeredIpcHandler = onFromOj(SUBMISSION_DETECTED_CHANNEL, this.ipcHandler)
+    handleFromShell(STATUS_CHANNEL, () => this.getStatus())
     this.isIpcRegistered = true
     this.diagnostics.setIpcRegistered(true)
   }
 
   dispose(): void {
     if (!this.isIpcRegistered) return
-    ipcMain.off(SUBMISSION_DETECTED_CHANNEL, this.ipcHandler)
+    if (this.registeredIpcHandler) {
+      ipcMain.off(SUBMISSION_DETECTED_CHANNEL, this.registeredIpcHandler)
+      this.registeredIpcHandler = null
+    }
     ipcMain.removeHandler(STATUS_CHANNEL)
     this.isIpcRegistered = false
     this.diagnostics.setIpcRegistered(false)

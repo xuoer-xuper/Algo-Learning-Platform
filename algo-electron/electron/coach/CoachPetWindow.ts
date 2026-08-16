@@ -1,7 +1,8 @@
 import { BrowserWindow, screen } from 'electron'
-import path from 'node:path'
 import type { CoachBubblePayload, CoachPetState } from './types'
 import { loadCoachConfig, saveCoachConfig } from '../app/config'
+import { shellUrl } from '../app/appProtocol'
+import { registerShellWebContents, unregisterShellWebContents } from '../ipc/trustedSender'
 
 /**
  * Coach 桌宠透明悬浮窗口。
@@ -13,7 +14,7 @@ import { loadCoachConfig, saveCoachConfig } from '../app/config'
  * - 拖拽移动：renderer 监听 mousedown/mousemove/mouseup，通过 IPC 调用 startDrag/dragTo/endDrag，
  *   主进程用 setPosition 移动窗口（避免 renderer 内 setBounds 跨进程抖动）
  * - 与主窗口生命周期绑定：主窗口关闭时调用 destroy()
- * - 加载路由：dev `${devServerUrl}#/coach-pet`，prod `loadFile(index.html, { hash: 'coach-pet' })`
+ * - 加载路由：dev `${devServerUrl}#/coach-pet`，prod `app://shell/index.html#/coach-pet`
  *
  * 阶段 1 只做视觉壳；阶段 2 会扩展主进程侧规则引擎、事件桥、ContestGuard，
  * 它们会通过 setPetState / showBubble 等方法驱动本窗口。
@@ -21,9 +22,9 @@ import { loadCoachConfig, saveCoachConfig } from '../app/config'
 export interface CoachPetWindowOptions {
   /** preload 路径，与主窗口保持一致（preload.mjs） */
   preloadPath: string
-  /** dev server URL，存在时走 loadURL，否则走 loadFile */
+  /** dev server URL，存在时走 localhost loadURL，否则走 app://shell */
   devServerUrl?: string
-  /** 渲染产物目录（dist），prod 时 loadFile 使用 */
+  /** 渲染产物目录（由主进程 appProtocol handler 使用） */
   rendererDist: string
 }
 
@@ -86,6 +87,7 @@ export class CoachPetWindow {
         sandbox: true,
       },
     })
+    registerShellWebContents(this.win.webContents)
 
     this.win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
     this.win.webContents.on('will-navigate', (event, url) => {
@@ -103,9 +105,7 @@ export class CoachPetWindow {
     if (this.options.devServerUrl) {
       void this.win.loadURL(`${this.options.devServerUrl}#/coach-pet`)
     } else {
-      void this.win.loadFile(path.join(this.options.rendererDist, 'index.html'), {
-        hash: '/coach-pet',
-      })
+      void this.win.loadURL(`${shellUrl('/index.html')}#/coach-pet`)
     }
 
     this.win.once('ready-to-show', () => {
@@ -117,6 +117,7 @@ export class CoachPetWindow {
     })
 
     this.win.on('closed', () => {
+      if (this.win) unregisterShellWebContents(this.win.webContents)
       this.win = null
       this.dragging = false
       this.stopDragPoll()

@@ -14,6 +14,7 @@
 - `mainServices.ts`：初始化主进程运行期服务并返回服务句柄。
 - `recentSitePreconnect.ts`：启动后按最近访问站点做有限预连接。
 - `startupSmoke.ts`：`ALGO_ELECTRON_SMOKE=1` 下的 Electron 启动冒烟验收。
+- `appProtocol.ts`：注册生产 `app://shell` privileged scheme、静态资源 handler 和 CSP。
 
 `config.ts`：
 
@@ -25,8 +26,15 @@
 `startupSmoke.ts`：
 
 - 根据 `ALGO_ELECTRON_SMOKE_USER_DATA` 切换临时 `userData` 目录。
-- 验证主窗口、preload 白名单 API、默认首页配置、基础 browser/tab/window IPC 和 `WebContentsView` 默认页加载。
+- 验证主窗口、`app://shell` origin、preload 白名单 API、默认首页配置、基础 browser/tab/window IPC 和 `WebContentsView` 默认页加载。
 - 通过注入的 `cleanup()` 清理访问追踪和数据库连接，不直接持有业务服务。
+- smoke 结束后由 disposable Electron 进程立即退出，外层测试对 Windows 临时目录做有限重试清理。
+
+`appProtocol.ts`：
+
+- `registerShellSchemeAsPrivileged()` 必须在 `app.whenReady()` 前调用。
+- `registerShellProtocol(rendererDist)` 只服务 `app://shell` host，拒绝路径穿越，并给所有响应附加严格 CSP。
+- 开发模式仍由 Vite localhost 提供资源；生产模式不得回退到 `file://`。
 
 `chromiumFlags.ts`：
 
@@ -76,6 +84,8 @@
 - 配置 schema 如果变复杂，应补版本字段和迁移策略。
 - 与数据库 schema 无关的轻量用户偏好可以放这里；事实数据必须进 SQLite repository。
 - smoke 辅助只允许由 `ALGO_ELECTRON_SMOKE=1` 触发，不能改变生产启动路径。
+- 生产壳不得使用 `loadFile(index.html)`；必须使用 `app://shell/index.html`，以建立稳定可信 origin。
+- CSP 变化必须同步 `tests/security/trustedSender.test.ts` 和安全守卫；不得扩大到 `unsafe-eval` 或通配脚本源。
 - smoke 模块不得新增 IPC/Preload API，只能验证已有白名单能力。
 - Chromium 启动开关必须有明确兼容性或反检测原因，不能引入全局证书绕过。
 - `mainServices.ts` 只做服务构造和启动接线，不注册 browser/tab/window 壳层 IPC，不创建窗口。

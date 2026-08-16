@@ -1,4 +1,5 @@
-import { ipcMain, type BrowserWindow } from 'electron'
+import { type BrowserWindow } from 'electron'
+import { ipcMain } from './trustedSender'
 import type { TabManager } from '../browser/TabManager'
 import { resolveNavigateUrl } from '../parsers/navigateUrl'
 import type { TrackingService } from '../tracking/TrackingService'

@@ -99,6 +99,25 @@ check('preload does not expose generic ipcRenderer', () => {
   }
 })
 
+check('ordinary IPC handlers use the trusted shell sender facade', () => {
+  const ipcDir = path.join(projectRoot, 'electron', 'ipc')
+  const registerFiles = walkSourceFiles(ipcDir).filter((file) => path.basename(file).startsWith('register'))
+
+  failIfMatches(registerFiles, [
+    {
+      regex: /import\s*\{[^}]*\bipcMain\b[^}]*}\s*from\s*['"]electron['"]/,
+      reason: 'ordinary IPC must import the guarded facade from ./trustedSender',
+    },
+  ])
+
+  for (const file of registerFiles) {
+    const text = read(file)
+    if (/\bipcMain\.(?:handle|on)\(/.test(text) && !text.includes("from './trustedSender'")) {
+      throw new Error(`${relative(file)}: ipcMain registration is missing trustedSender facade`)
+    }
+  }
+})
+
 check('Nowcoder realtime path stays network-result driven', () => {
   const nowcoderDir = path.join(projectRoot, 'electron', 'adapters', 'sites', 'nowcoder')
   const files = walkSourceFiles(nowcoderDir)

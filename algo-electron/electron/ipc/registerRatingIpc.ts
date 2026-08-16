@@ -1,4 +1,4 @@
-import { ipcMain } from 'electron'
+import { ipcMain } from './trustedSender'
 import { getDb } from '../db/connection'
 import {
   computePeakRating,

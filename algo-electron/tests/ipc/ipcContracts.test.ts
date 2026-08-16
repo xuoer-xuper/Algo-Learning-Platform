@@ -181,6 +181,27 @@ function extractIpcMainHandlers(source: string): RegisteredChannel[] {
     if (channel) handlers.push({ mode: constantHandlerMatch[1] as IpcMainMode, channel })
   }
 
+  const guardedLiteralPattern = /(handleFromShell|onFromShell|onFromOj)\(\s*'([^']+)'/g
+  let guardedLiteralMatch: RegExpExecArray | null
+  while ((guardedLiteralMatch = guardedLiteralPattern.exec(source)) !== null) {
+    handlers.push({
+      mode: guardedLiteralMatch[1] === 'handleFromShell' ? 'handle' : 'on',
+      channel: guardedLiteralMatch[2],
+    })
+  }
+
+  const guardedConstantPattern = /(handleFromShell|onFromShell|onFromOj)\(\s*([A-Z0-9_]+)/g
+  let guardedConstantMatch: RegExpExecArray | null
+  while ((guardedConstantMatch = guardedConstantPattern.exec(source)) !== null) {
+    const channel = constants.get(guardedConstantMatch[2])
+    if (channel) {
+      handlers.push({
+        mode: guardedConstantMatch[1] === 'handleFromShell' ? 'handle' : 'on',
+        channel,
+      })
+    }
+  }
+
   return handlers
 }
 

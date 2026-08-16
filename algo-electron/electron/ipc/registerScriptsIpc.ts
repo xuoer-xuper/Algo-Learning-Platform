@@ -1,4 +1,5 @@
-import { app, dialog, ipcMain, shell } from 'electron'
+import { app, dialog, shell } from 'electron'
+import { ipcMain } from './trustedSender'
 import crypto from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'

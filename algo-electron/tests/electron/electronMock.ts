@@ -3,6 +3,8 @@ import { EventEmitter } from 'node:events'
 type Listener = (...args: any[]) => void
 
 export class MockWebContents extends EventEmitter {
+  private static nextId = 1
+  readonly id = MockWebContents.nextId++
   private url = ''
   private title = ''
   private destroyed = false
@@ -14,7 +16,7 @@ export class MockWebContents extends EventEmitter {
     goBack: () => undefined,
     goForward: () => undefined,
   }
-  readonly mainFrame = { framesInSubtree: [] as MockWebFrame[] }
+  readonly mainFrame = new MockWebFrame()
 
   getURL(): string { return this.url }
   getTitle(): string { return this.title }
@@ -27,6 +29,7 @@ export class MockWebContents extends EventEmitter {
   setWindowOpenHandler(_handler: (details: { url: string }) => unknown): void { /* observed by integration tests when needed */ }
   loadURL(url: string): Promise<void> {
     this.url = url
+    this.mainFrame.url = url
     this.loading = false
     queueMicrotask(() => {
       this.emit('did-navigate', {}, url)
@@ -46,6 +49,8 @@ export class MockWebContents extends EventEmitter {
 }
 
 export class MockWebFrame {
+  url = ''
+  readonly framesInSubtree: MockWebFrame[] = []
   isDestroyed(): boolean { return false }
   executeJavaScript(_code: string): Promise<unknown> { return Promise.resolve(undefined) }
 }
@@ -157,7 +162,12 @@ export const session = {
   defaultSession: { setUserAgent: (_ua: string) => undefined, webRequest: new EventEmitter() },
   fromPartition: (_partition: string) => ({ setUserAgent: (_ua: string) => undefined, webRequest: new EventEmitter() }),
 }
-export const protocol = { registerSchemesAsPrivileged: (_schemes: unknown) => undefined, handle: (_scheme: string, _handler: unknown) => undefined }
+export const protocolSchemes: unknown[] = []
+export const protocolHandlers = new Map<string, unknown>()
+export const protocol = {
+  registerSchemesAsPrivileged: (schemes: unknown) => protocolSchemes.push(schemes),
+  handle: (scheme: string, handler: unknown) => { protocolHandlers.set(scheme, handler) },
+}
 export const net = { fetch: (_url: string) => Promise.resolve(new Response()) }
 
 export function resetElectronMock(): void {
@@ -166,6 +176,8 @@ export function resetElectronMock(): void {
   ipcHandlers.clear()
   ipcMain.removeAllListeners()
   ipcRenderer.removeAllListeners()
+  protocolSchemes.length = 0
+  protocolHandlers.clear()
 }
 
 export { MockBrowserWindow as BrowserWindow, MockWebContentsView as WebContentsView }

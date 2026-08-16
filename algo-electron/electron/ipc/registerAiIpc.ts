@@ -1,4 +1,4 @@
-import { ipcMain } from 'electron'
+import { ipcMain } from './trustedSender'
 import { exportAIContext, renderContextAsMarkdown } from '../ai/contextExporter'
 import { getReviewPlan, renderPlanAsMarkdown } from '../ai/recommendations/reviewPlanner'
 import { getReviewRecommendations } from '../ai/recommendations/reviewRecommender'

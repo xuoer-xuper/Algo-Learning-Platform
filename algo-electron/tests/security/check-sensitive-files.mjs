@@ -124,6 +124,27 @@ function checkSecurityRegressions() {
     failures.push(`${orchestratorFile}: separate LLM request gates allow cross-request concurrency`)
   }
 
+  const mainFile = 'algo-electron/electron/main.ts'
+  const mainText = fs.readFileSync(path.join(repoRoot, mainFile), 'utf8')
+  if (!mainText.includes('registerShellSchemeAsPrivileged()') || !mainText.includes('registerShellProtocol(RENDERER_DIST)')) {
+    failures.push(`${mainFile}: production shell protocol must be registered before loading renderer content`)
+  }
+  if (!mainText.includes("win.loadURL(shellUrl('/index.html'))") || /win\.loadFile\(path\.join\(RENDERER_DIST/.test(mainText)) {
+    failures.push(`${mainFile}: production shell must load from app://shell instead of file://`)
+  }
+
+  const protocolFile = 'algo-electron/electron/app/appProtocol.ts'
+  const protocolText = fs.readFileSync(path.join(repoRoot, protocolFile), 'utf8')
+  for (const directive of ["default-src 'self'", "script-src 'self'", "object-src 'none'", "frame-ancestors 'none'"]) {
+    if (!protocolText.includes(directive)) failures.push(`${protocolFile}: CSP is missing ${directive}`)
+  }
+
+  const trustedSenderFile = 'algo-electron/electron/ipc/trustedSender.ts'
+  const trustedSenderText = fs.readFileSync(path.join(repoRoot, trustedSenderFile), 'utf8')
+  for (const token of ['checkShellSender', 'checkOjSender', 'checkIpcPayload', 'registerShellWebContents', 'registerOjWebContents']) {
+    if (!trustedSenderText.includes(token)) failures.push(`${trustedSenderFile}: missing ${token} trust boundary`)
+  }
+
   return failures
 }
 

@@ -1,4 +1,4 @@
-import { ipcMain } from 'electron'
+import { ipcMain } from './trustedSender'
 import { CookieVault } from '../cookies/CookieVault'
 
 export function registerCookieIpc(cookieVault = new CookieVault()): void {

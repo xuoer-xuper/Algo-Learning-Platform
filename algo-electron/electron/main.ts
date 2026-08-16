@@ -18,12 +18,15 @@ import { STARTUP_SMOKE_MODE, applyStartupSmokeUserDataPath, runStartupSmokeTest 
 import { registerMainIpc } from './ipc/registerMainIpc'
 import { CoachPetWindow } from './coach/CoachPetWindow'
 import { CoachOrchestrator } from './coach/CoachOrchestrator'
+import { registerShellProtocol, registerShellSchemeAsPrivileged, shellUrl } from './app/appProtocol'
+import { registerShellWebContents, unregisterShellWebContents } from './ipc/trustedSender'
 
 configureChromiumCommandLine()
 
 applyStartupSmokeUserDataPath()
 
 registerNoteAssetSchemeAsPrivileged()
+registerShellSchemeAsPrivileged()
 
 // 删除默认菜单栏
 Menu.setApplicationMenu(null)
@@ -34,7 +37,7 @@ process.env.APP_ROOT = path.join(__dirname, '..')
 
 export const VITE_DEV_SERVER_URL = process.env['VITE_DEV_SERVER_URL']
 export const MAIN_DIST = path.join(process.env.APP_ROOT, 'dist-electron')
-export const RENDERER_DIST = path.join(process.env.APP_ROOT, 'dist')
+export const RENDERER_DIST = process.env.ALGO_ELECTRON_SMOKE_RENDERER_DIST || path.join(process.env.APP_ROOT, 'dist')
 
 process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL ? path.join(process.env.APP_ROOT, 'public') : RENDERER_DIST
 
@@ -69,6 +72,7 @@ function createWindow() {
       sandbox: true,
     },
   })
+  registerShellWebContents(win.webContents)
 
   win.webContents.setWindowOpenHandler(({ url }) => {
     if (isSafeExternalUrl(url)) {
@@ -138,7 +142,7 @@ function createWindow() {
   if (VITE_DEV_SERVER_URL) {
     win.loadURL(VITE_DEV_SERVER_URL)
   } else {
-    win.loadFile(path.join(RENDERER_DIST, 'index.html'))
+    win.loadURL(shellUrl('/index.html'))
   }
 
   win.once('ready-to-show', () => {
@@ -159,6 +163,7 @@ function createWindow() {
   })
 
   win.on('closed', () => {
+    if (win) unregisterShellWebContents(win.webContents)
     services?.trackingService.endCurrentVisit()
     // 阶段 2：停止 Coach 服务（关当前会话 + 解绑监听）
     try { coachOrchestrator?.stop() } catch { /* ignore */ }
@@ -172,7 +177,7 @@ function createWindow() {
   })
 }
 
-  registerMainIpc({
+registerMainIpc({
   getWindow: () => win,
   getTabManager: () => tabManager,
   getTrackingService: () => services?.trackingService ?? null,
@@ -203,6 +208,9 @@ app.on('activate', () => {
 })
 
 app.whenReady().then(() => {
+  if (!VITE_DEV_SERVER_URL) {
+    registerShellProtocol(RENDERER_DIST)
+  }
   configureOjSession({ getSiteById })
 
   registerNoteAssetProtocol()

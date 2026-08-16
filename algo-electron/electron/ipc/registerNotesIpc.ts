@@ -1,4 +1,5 @@
-import { ipcMain, shell } from 'electron'
+import { shell } from 'electron'
+import { ipcMain } from './trustedSender'
 import {
   createNote,
   deleteNote,

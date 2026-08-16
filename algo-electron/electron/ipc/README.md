@@ -21,6 +21,7 @@
 - `registerBrowserShellIpc.ts`：注册 `browser:*`、`tab:*` 和 `window:*` 浏览器壳层 handler。
 - `registerCookieIpc.ts`：注册 `cookies:*` 安全摘要 handler，不向 renderer 暴露 Cookie value。
 - `registerMainIpc.ts`：组合注册入口，集中由 `main.ts` 调用各业务域注册函数。
+- `trustedSender.ts`：统一 shell/OJ sender、main frame、origin、webContents 归属和 payload 边界；普通 handler 使用 guarded `ipcMain` facade，提交 bridge 使用 `onFromOj()`。
 
 其他 IPC 仍在 `electron/main.ts`，后续可按风险逐步迁移：
 
@@ -41,6 +42,8 @@
 - `registerBrowserShellIpc(options)`：注册浏览器壳层 channel；通过 `getWindow`、`getTabManager`、`getTrackingService` 注入运行期对象，保留 URL 重写前的题目识别通知行为。
 - `registerCookieIpc(cookieVault?)`：注册 Cookie 摘要查询 channel；完整 Cookie 仅保留在 main 内部，renderer 只拿名称、数量、过期时间和安全标记统计。
 - `registerMainIpc(options)`：主入口调用的组合函数；只负责串联各注册模块，不直接实现具体 handler。
+- `handleFromShell()` / `onFromShell()`：普通壳 IPC 的统一校验入口，拒绝未知 webContents、iframe、伪造 origin 和超限/循环 payload。
+- `onFromOj()`：只允许已登记的 `persist:oj-main` WebContentsView 主 frame 发送提交 bridge 事件。
 
 ## 4. 边界规则
 
@@ -51,6 +54,8 @@
 - handler 内不要记录 Cookie、用户源码、完整请求体或可复用登录态信息。
 - `cookies:*` channel 不得返回 Cookie value；需要完整 Cookie 时只能由 main 进程内部 service 调用 `CookieVault`。
 - `backup:*` channel 导出的 JSON 不得包含 Cookie、`raw_json`、日志或本机绝对路径；冲突导入必须先预览再确认。
+- `register*.ts` 不得直接从 `electron` 导入 `ipcMain`；新增普通 channel 必须经过 `trustedSender.ts`，并同步 IPC 合约测试。
+- OJ、登录捕获和用户脚本 bootstrap 不得复用 shell sender validator；专用 validator 必须按 webContents 归属和主 frame 校验。
 
 ## 5. 验证入口
 
@@ -64,4 +69,10 @@ npx --yes tsx tests\ipc\ipcContracts.test.ts
 
 ```powershell
 npx --yes tsx tests\electron\startupSmoke.test.ts
+```
+
+信任边界和畸形 payload：
+
+```powershell
+npx vitest run tests\security\trustedSender.test.ts
 ```

@@ -26,6 +26,9 @@ function finishStartupSmoke(options: RunStartupSmokeOptions, exitCode: number, m
     if (error) console.error(error)
   }
 
+  // Smoke owns a disposable userData directory. Exit before normal Electron
+  // teardown so WebContentsView/protocol utility shutdown cannot stall CI.
+  if (STARTUP_SMOKE_MODE) process.exit(exitCode)
   try { options.cleanup() } catch { /* ignore */ }
   app.exit(exitCode)
 }
@@ -87,6 +90,14 @@ export async function runStartupSmokeTest(options: RunStartupSmokeOptions): Prom
     if (BrowserWindow.getAllWindows().length === 0) throw new Error('No BrowserWindow exists')
 
     await waitForRendererLoad(win)
+
+    const shellLocation = await win.webContents.executeJavaScript(`({
+      href: window.location.href,
+      origin: window.location.origin,
+    })`) as { href: string; origin: string }
+    if (!shellLocation.href.startsWith('app://shell/') || shellLocation.origin !== 'app://shell') {
+      throw new Error(`Unexpected shell origin: ${JSON.stringify(shellLocation)}`)
+    }
 
     const hasBasicIpc = await win.webContents.executeJavaScript(`
       Boolean(

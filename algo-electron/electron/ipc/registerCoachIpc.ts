@@ -1,4 +1,5 @@
-import { ipcMain, screen, type BrowserWindow } from 'electron'
+import { screen, type BrowserWindow } from 'electron'
+import { ipcMain } from './trustedSender'
 import type { CoachPetWindow } from '../coach/CoachPetWindow'
 import type { CoachOrchestrator } from '../coach/CoachOrchestrator'
 import type { CoachBubblePayload, CoachPetState } from '../coach/types'

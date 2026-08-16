@@ -1,4 +1,4 @@
-import { ipcMain } from 'electron'
+import { ipcMain } from './trustedSender'
 import { getOverviewStats } from '../db/repositories/problemRepository'
 import {
   getAcTrend,
