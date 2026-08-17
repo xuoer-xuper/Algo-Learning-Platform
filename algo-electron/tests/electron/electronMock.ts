@@ -10,6 +10,7 @@ export class MockWebContents extends EventEmitter {
   private destroyed = false
   private loading = false
   private devToolsOpen = false
+  private zoomFactor = 1
   readonly navigationHistory = {
     canGoBack: () => false,
     canGoForward: () => false,
@@ -23,8 +24,10 @@ export class MockWebContents extends EventEmitter {
   isDestroyed(): boolean { return this.destroyed }
   isLoadingMainFrame(): boolean { return this.loading }
   isDevToolsOpened(): boolean { return this.devToolsOpen }
-  openDevTools(): void { this.devToolsOpen = true }
+  openDevTools(_options?: unknown): void { this.devToolsOpen = true }
   closeDevTools(): void { this.devToolsOpen = false }
+  getZoomFactor(): number { return this.zoomFactor }
+  setZoomFactor(factor: number): void { this.zoomFactor = factor }
   setTitle(title: string): void { this.title = title; this.emit('page-title-updated', {}, title) }
   setWindowOpenHandler(_handler: (details: { url: string }) => unknown): void { /* observed by integration tests when needed */ }
   loadURL(url: string): Promise<void> {

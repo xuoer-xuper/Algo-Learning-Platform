@@ -30,6 +30,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
       ipcRenderer.off('browser:urlChanged', handler)
     }
   },
+  onUiCommand: (callback: (command: UiCommand) => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, command: UiCommand) => callback(command)
+    ipcRenderer.on('ui:command', handler)
+    return () => {
+      ipcRenderer.off('ui:command', handler)
+    }
+  },
 
   // 题目
   listRecentProblems: (limit?: number, platform?: string, status?: string) =>

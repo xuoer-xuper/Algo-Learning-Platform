@@ -1,4 +1,4 @@
-import { app, BrowserWindow, Menu, shell } from 'electron'
+import { app, BrowserWindow, Menu, shell, type Input, type WebContents } from 'electron'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import { TabManager } from './browser/TabManager'
@@ -20,6 +20,7 @@ import { CoachPetWindow } from './coach/CoachPetWindow'
 import { CoachOrchestrator } from './coach/CoachOrchestrator'
 import { registerShellProtocol, registerShellSchemeAsPrivileged, shellUrl } from './app/appProtocol'
 import { registerShellWebContents, unregisterShellWebContents } from './ipc/trustedSender'
+import { dispatchShortcut, resolveShortcut, type ShortcutActions } from './shortcuts/shortcutDispatcher'
 
 configureChromiumCommandLine()
 
@@ -27,9 +28,6 @@ applyStartupSmokeUserDataPath()
 
 registerNoteAssetSchemeAsPrivileged()
 registerShellSchemeAsPrivileged()
-
-// 删除默认菜单栏
-Menu.setApplicationMenu(null)
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -46,6 +44,10 @@ let tabManager: TabManager | null
 let services: MainServices | null = null
 let coachPetWindow: CoachPetWindow | null = null
 let coachOrchestrator: CoachOrchestrator | null = null
+
+// The frameless renderer owns the visible browser chrome. An explicit empty
+// native menu prevents Electron's default_app accelerators from hijacking it.
+Menu.setApplicationMenu(Menu.buildFromTemplate([]))
 
 function isSafeExternalUrl(value: string): boolean {
   try {
@@ -94,22 +96,38 @@ function createWindow() {
   services?.syncService.setBrowserHost(tabManager)
   services?.realtimeSubmissionService.attachTabManager(tabManager)
 
-  // 注册 DevTools 快捷键（Ctrl+Shift+I / F12）
-  win.webContents.on('before-input-event', (_event, input) => {
-    if (input.type !== 'keyDown') return
-    const isShift = input.shift
-    const keyCode = input.key
-    // Ctrl+Shift+I 或 F12 打开/关闭 DevTools（undocked 独立窗口，避免被网页标签页遮挡）
-    if ((input.control && isShift && keyCode === 'I') || keyCode === 'F12') {
-      const wc = win?.webContents
-      if (!wc) return
-      if (wc.isDevToolsOpened()) {
-        wc.closeDevTools()
-      } else {
-        wc.openDevTools({ mode: 'undocked' })
-      }
-    }
+  const shortcutActions: ShortcutActions = {
+    newTab: () => { tabManager?.createTab() },
+    closeTab: () => { tabManager?.closeActiveTab() },
+    nextTab: () => { tabManager?.switchRelative(1) },
+    previousTab: () => { tabManager?.switchRelative(-1) },
+    switchTab: (index) => { tabManager?.switchTabByIndex(index) },
+    focusAddressBar: () => { win?.webContents.send('ui:command', 'focus-address-bar') },
+    reload: () => { tabManager?.reload() },
+    zoomIn: () => { tabManager?.adjustZoom(0.1) },
+    zoomOut: () => { tabManager?.adjustZoom(-0.1) },
+    resetZoom: () => { tabManager?.resetZoom() },
+    back: () => { tabManager?.goBack() },
+    forward: () => { tabManager?.goForward() },
+    toggleDevTools: () => {
+      const target = win?.webContents
+      if (!target) return
+      if (target.isDevToolsOpened()) target.closeDevTools()
+      else target.openDevTools({ mode: 'undocked' })
+    },
+  }
+
+  const handleShortcut = (event: Electron.Event, input: Input, _source: WebContents): void => {
+    const command = resolveShortcut(input)
+    if (!command) return
+    event.preventDefault()
+    dispatchShortcut(command, shortcutActions)
+  }
+
+  win.webContents.on('before-input-event', (event, input) => {
+    handleShortcut(event, input, win!.webContents)
   })
+  tabManager.setShortcutHandler(handleShortcut)
 
   tabManager.setUrlChangeCallback((url) => {
     win?.webContents.send('browser:urlChanged', url)

@@ -1,4 +1,5 @@
 import type { KeyboardEvent } from 'react'
+import { useEffect, useRef } from 'react'
 import { Icon } from './ui'
 
 interface BrowserToolbarProps {
@@ -32,6 +33,16 @@ export function BrowserToolbar({
   onOpenSettings,
   onOpenCoachMetrics,
 }: BrowserToolbarProps) {
+  const addressBarRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    return window.electronAPI.onUiCommand((command) => {
+      if (command !== 'focus-address-bar') return
+      addressBarRef.current?.focus()
+      addressBarRef.current?.select()
+    })
+  }, [])
+
   const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
     if (event.key === 'Enter') onNavigate()
   }
@@ -51,6 +62,7 @@ export function BrowserToolbar({
         <Icon name="refresh" size={15} />
       </button>
       <input
+        ref={addressBarRef}
         className="url-input"
         type="text"
         value={url}

@@ -1,4 +1,4 @@
-import { WebContentsView, BrowserWindow } from 'electron'
+import { WebContentsView, BrowserWindow, type Input, type WebContents } from 'electron'
 import { randomUUID } from 'node:crypto'
 import { DetachedWindow } from './DetachedWindow'
 import { STEALTH_SCRIPT } from './stealthScript'
@@ -26,6 +26,7 @@ export class TabManager {
   private domReadyListeners = new Set<(url: string) => void>()
   private activeTabChangeListeners = new Set<(url: string) => void>()
   private isViewHidden = false
+  private shortcutHandler: ((event: Electron.Event, input: Input, source: WebContents) => void) | null = null
 
   constructor(window: BrowserWindow) {
     this.window = window
@@ -43,6 +44,10 @@ export class TabManager {
       },
     })
     registerOjWebContents(view.webContents)
+
+    view.webContents.on('before-input-event', (event, input) => {
+      this.shortcutHandler?.(event, input, view.webContents)
+    })
 
     view.webContents.on('did-navigate', (_event, url) => {
       const tab = this.findTabByView(view)
@@ -187,6 +192,10 @@ export class TabManager {
     this.onTabListChanged?.(this.getTabList())
   }
 
+  closeActiveTab(): void {
+    if (this.activeTabId) this.closeTab(this.activeTabId)
+  }
+
   switchTab(tabId: string): void {
     if (tabId === this.activeTabId) return
 
@@ -209,6 +218,20 @@ export class TabManager {
     this.onUrlChange?.(newTab.url)
     this.emitActiveTabChange(newTab.url)
     this.onTabListChanged?.(this.getTabList())
+  }
+
+  switchRelative(offset: number): void {
+    const tabIds = Array.from(this.tabs.keys())
+    if (tabIds.length === 0 || !this.activeTabId) return
+    const activeIndex = tabIds.indexOf(this.activeTabId)
+    if (activeIndex < 0) return
+    const nextIndex = (activeIndex + offset + tabIds.length) % tabIds.length
+    this.switchTab(tabIds[nextIndex])
+  }
+
+  switchTabByIndex(index: number): void {
+    const tabId = Array.from(this.tabs.keys())[index]
+    if (tabId) this.switchTab(tabId)
   }
 
   detachTab(tabId: string): BrowserWindow | null {
@@ -259,6 +282,19 @@ export class TabManager {
   reload() {
     const tab = this.activeTabId ? this.tabs.get(this.activeTabId) : null
     tab?.view.webContents.reload()
+  }
+
+  adjustZoom(delta: number): void {
+    const tab = this.activeTabId ? this.tabs.get(this.activeTabId) : null
+    if (!tab) return
+    const current = tab.view.webContents.getZoomFactor()
+    const next = Math.min(5, Math.max(0.25, Math.round((current + delta) * 100) / 100))
+    tab.view.webContents.setZoomFactor(next)
+  }
+
+  resetZoom(): void {
+    const tab = this.activeTabId ? this.tabs.get(this.activeTabId) : null
+    tab?.view.webContents.setZoomFactor(1)
   }
 
   getUrl(): string {
@@ -369,6 +405,10 @@ export class TabManager {
 
   setUrlChangeCallback(callback: (url: string) => void) {
     this.onUrlChange = callback
+  }
+
+  setShortcutHandler(handler: (event: Electron.Event, input: Input, source: WebContents) => void): void {
+    this.shortcutHandler = handler
   }
 
   setNavigateCallback(callback: (url: string) => void) {

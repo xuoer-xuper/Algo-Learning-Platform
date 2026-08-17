@@ -85,6 +85,7 @@
 | db stats | [electron/db/repositories/stats/README](../algo-electron/electron/db/repositories/stats/README.md) |
 | db user script | [electron/db/repositories/userScript/README](../algo-electron/electron/db/repositories/userScript/README.md) |
 | ipc | [electron/ipc/README](../algo-electron/electron/ipc/README.md) |
+| shortcuts | [electron/shortcuts/README](../algo-electron/electron/shortcuts/README.md) |
 | notes | [electron/notes/README](../algo-electron/electron/notes/README.md) |
 | parsers | [electron/parsers/README](../algo-electron/electron/parsers/README.md) |
 | parser sites | [electron/parsers/sites/README](../algo-electron/electron/parsers/sites/README.md) |
@@ -143,6 +144,7 @@
 | test performance | [tests/performance/README](../algo-electron/tests/performance/README.md) |
 | test scripts | [tests/scripts/README](../algo-electron/tests/scripts/README.md) |
 | test security | [tests/security/README](../algo-electron/tests/security/README.md) |
+| test shortcuts | [tests/shortcuts/README](../algo-electron/tests/shortcuts/README.md) |
 | test submissions | [tests/submissions/README](../algo-electron/tests/submissions/README.md) |
 | test ui | [tests/ui/README](../algo-electron/tests/ui/README.md) |
 | GitHub | [.github/README](../.github/README.md) |

@@ -35,6 +35,7 @@ const coreContracts: PreloadContract[] = [
   { method: 'showView', mode: 'send', channel: 'browser:showView' },
   { method: 'captureBrowserPreview', mode: 'invoke', channel: 'browser:capturePreview' },
   { method: 'onUrlChanged', mode: 'on', channel: 'browser:urlChanged' },
+  { method: 'onUiCommand', mode: 'on', channel: 'ui:command' },
 
   // Problem and tracking surface
   { method: 'listRecentProblems', mode: 'invoke', channel: 'problem:listRecent' },
@@ -106,6 +107,7 @@ test('preload event subscriptions are fixed and backed by main-process sends', (
     'coach:showBubble',
     'problems:updated',
     'tab:listChanged',
+    'ui:command',
     'window:maximized',
   ])
 

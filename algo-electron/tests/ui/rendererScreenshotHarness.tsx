@@ -136,6 +136,7 @@ function createApiMock(): ElectronAPI {
     isWindowMaximized: async () => false,
     onWindowMaximized: () => () => {},
     onUrlChanged: () => () => {},
+    onUiCommand: () => () => {},
 
     listRecentProblems: async (limit, platform, status) => filterProblems(limit, platform, status),
     getProblemDetail: async (problemId) => {

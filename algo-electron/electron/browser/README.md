@@ -11,7 +11,7 @@
 - 主线浏览器容器：`TabManager`，已接入 `main.ts`。
 - 视图技术：统一使用 `WebContentsView`，遵守 `docs/ADR/ADR_0001_USE_WEBCONTENTSVIEW.md`。
 - 会话隔离：OJ 页面使用 `partition: 'persist:oj-main'` 持久登录态。
-- 多标签：最多 8 个标签，支持创建、关闭、切换、剥离为独立窗口。
+- 多标签：最多 8 个标签，支持创建、关闭、切换、剥离为独立窗口；`TabManager` 为每个 OJ view 和壳窗口接入统一快捷键处理器。
 - 壳层 IPC：browser/tab/window channel 由 `electron/ipc/registerBrowserShellIpc.ts` 注册，Browser 模块只暴露 `TabManager` 等运行期对象。
 - OJ Session：`ojSession.ts` 配置持久 session、真实 Chrome UA、受控 CORS、早期实时提交 hook 和 stealth script。
 - 实时提交桥：`ojPreload.ts` 暴露 `__algo_submission_v1.reportSubmission()`，并转发同页面/子 frame 的 `postMessage`。
@@ -48,6 +48,8 @@
   - `goBack()`
   - `goForward()`
   - `reload()`
+  - `closeActiveTab()`、`switchRelative(offset)`、`switchTabByIndex(index)`
+  - `adjustZoom(delta)`、`resetZoom()`
 - 状态读取
   - `getUrl()`
   - `getTitleForUrl(url)`
@@ -72,6 +74,7 @@
   - `addNavigateListener(callback)`
   - `addDomReadyListener(callback)`
   - `addActiveTabChangeListener(callback)`
+  - `setShortcutHandler(handler)`：为壳和 OJ view 注册同一套 browser shortcut dispatcher。
 
 `executeScriptOnUrl()` 会先写入 `window.__ALGO_TOP_PAGE_URL`，让站点 hook 在 iframe 中仍能知道顶层题目页 URL。
 

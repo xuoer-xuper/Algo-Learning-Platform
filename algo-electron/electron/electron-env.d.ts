@@ -325,6 +325,8 @@ interface TabInfo {
   isActive: boolean
 }
 
+type UiCommand = 'focus-address-bar'
+
 interface SaveNoteImageResult {
   markdownUrl: string
 }
@@ -680,6 +682,7 @@ interface ElectronAPI {
   isWindowMaximized: () => Promise<boolean>
   onWindowMaximized: (callback: (maximized: boolean) => void) => () => void
   onUrlChanged: (callback: (url: string) => void) => () => void
+  onUiCommand: (callback: (command: UiCommand) => void) => () => void
   listRecentProblems: (limit?: number, platform?: string, status?: string) => Promise<ProblemRecord[]>
   getProblemDetail: (problemId: string) => Promise<ProblemDetailRecord | null>
   deleteProblem: (problemId: string) => Promise<boolean>
