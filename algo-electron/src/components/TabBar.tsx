@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from 'react'
 import {
   closeBrowserTab,
   createBrowserTab,
-  detachBrowserTab,
   subscribeTabListChanged,
   switchBrowserTab,
   type TabBarTabInfo,
@@ -12,9 +11,12 @@ import './TabBar.css'
 
 interface TabBarProps {
   onTabUrlChange?: (url: string) => void
+  onNotice?: (message: string) => void
 }
 
-export function TabBar({ onTabUrlChange }: TabBarProps) {
+const DETACH_UNAVAILABLE_NOTICE = '拆分窗口将在多窗口版本以更完整形态回归'
+
+export function TabBar({ onTabUrlChange, onNotice }: TabBarProps) {
   const [tabs, setTabs] = useState<TabBarTabInfo[]>([])
   const prevActiveIdRef = useRef<string | null>(null)
 
@@ -46,13 +48,8 @@ export function TabBar({ onTabUrlChange }: TabBarProps) {
     closeBrowserTab(tabId)
   }
 
-  const handleDetach = (tabId: string) => {
-    if (tabs.length > 1) {
-      const tab = tabs.find(t => t.id === tabId)
-      if (tab && tab.url && tab.url !== 'about:blank') {
-        detachBrowserTab(tabId)
-      }
-    }
+  const handleDetachUnavailable = () => {
+    onNotice?.(DETACH_UNAVAILABLE_NOTICE)
   }
 
   const handleNewTab = () => {
@@ -69,7 +66,7 @@ export function TabBar({ onTabUrlChange }: TabBarProps) {
             className={`tab-item${tab.isActive ? ' tab-item-active' : ''}`}
             onClick={() => handleSwitch(tab.id)}
             onAuxClick={(e) => handleAuxClick(e, tab.id)}
-            onDoubleClick={() => handleDetach(tab.id)}
+            onDoubleClick={handleDetachUnavailable}
             title={tab.title || '首页'}
           >
             <span className="tab-item-title">{tab.title || '首页'}</span>

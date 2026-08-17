@@ -6,7 +6,7 @@ renderer 基础 UI 组件及壳层共享组件的 jsdom 测试：渲染结构、
 
 ## 当前实现
 
-`uiComponents.test.tsx` 覆盖 Icon/Button/IconButton/Input/Select/Textarea/Card/ConfirmDialog；`tabBar.test.tsx` 覆盖中键关闭及其他辅助鼠标键忽略。文件头以 `// @vitest-environment jsdom` 声明环境，其余测试仍默认 node 环境。
+`uiComponents.test.tsx` 覆盖 Icon/Button/IconButton/Input/Select/Textarea/Card/ConfirmDialog；`tabBar.test.tsx` 覆盖中键关闭、其他辅助鼠标键忽略，以及旧双击拆分入口被通知替代且不会调用 detach API。文件头以 `// @vitest-environment jsdom` 声明环境，其余测试仍默认 node 环境。
 
 ## 封装入口
 

@@ -23,6 +23,12 @@ export interface TabManagerOptions {
   allowInsecureLocalhost?: boolean
 }
 
+export interface WebContentsUrlSnapshot {
+  webContentsId: number
+  /** A null URL means the webContents was destroyed and must be removed. */
+  url: string | null
+}
+
 type PopupWindowOptions = BrowserWindowConstructorOptions & {
   webContents?: WebContents
 }
@@ -41,6 +47,8 @@ export class TabManager {
   private navigateListeners = new Set<(url: string) => void>()
   private domReadyListeners = new Set<(url: string) => void>()
   private activeTabChangeListeners = new Set<(url: string) => void>()
+  private webContentsUrlListeners = new Set<(snapshot: WebContentsUrlSnapshot) => void>()
+  private webContentsUrls = new Map<number, string>()
   private isViewHidden = false
   private shortcutHandler: ((event: Electron.Event, input: Input, source: WebContents) => void) | null = null
   private navigationBlockedHandler: ((reason: NavigationBlockReason) => void) | null = null
@@ -72,7 +80,9 @@ export class TabManager {
           },
         })
     const contents = view.webContents
+    const contentsId = contents.id
     registerOjWebContents(contents)
+    this.updateWebContentsUrl(contentsId, contents.getURL())
 
     contents.on('before-input-event', (event, input) => {
       this.shortcutHandler?.(event, input, contents)
@@ -88,6 +98,7 @@ export class TabManager {
     contents.on('will-redirect', guardNavigation)
 
     contents.on('did-navigate', (_event, url) => {
+      this.updateWebContentsUrl(contentsId, url)
       const tab = this.findTabByView(view)
       if (tab) {
         tab.url = url
@@ -99,6 +110,7 @@ export class TabManager {
     })
 
     contents.on('did-navigate-in-page', (_event, url) => {
+      this.updateWebContentsUrl(contentsId, url)
       const tab = this.findTabByView(view)
       if (tab) {
         tab.url = url
@@ -124,6 +136,7 @@ export class TabManager {
     })
 
     contents.on('destroyed', () => {
+      this.removeWebContentsUrl(contentsId)
       this.handleViewDestroyed(view, contents)
     })
 
@@ -591,6 +604,16 @@ export class TabManager {
     }
   }
 
+  addWebContentsUrlListener(callback: (snapshot: WebContentsUrlSnapshot) => void): () => void {
+    this.webContentsUrlListeners.add(callback)
+    for (const [webContentsId, url] of this.webContentsUrls) {
+      callback({ webContentsId, url })
+    }
+    return () => {
+      this.webContentsUrlListeners.delete(callback)
+    }
+  }
+
   setPageLoadedCallback(callback: (url: string) => void) {
     this.onPageLoaded = callback
   }
@@ -616,6 +639,22 @@ export class TabManager {
   private emitActiveTabChange(url: string): void {
     for (const listener of this.activeTabChangeListeners) {
       listener(url)
+    }
+  }
+
+  private updateWebContentsUrl(webContentsId: number, url: string): void {
+    this.webContentsUrls.set(webContentsId, url)
+    this.emitWebContentsUrl({ webContentsId, url })
+  }
+
+  private removeWebContentsUrl(webContentsId: number): void {
+    if (!this.webContentsUrls.delete(webContentsId)) return
+    this.emitWebContentsUrl({ webContentsId, url: null })
+  }
+
+  private emitWebContentsUrl(snapshot: WebContentsUrlSnapshot): void {
+    for (const listener of this.webContentsUrlListeners) {
+      listener(snapshot)
     }
   }
 

@@ -42,4 +42,14 @@ describe('TabBar', () => {
     )
     expect(tabApi.closeBrowserTab).not.toHaveBeenCalled()
   })
+
+  it('replaces the legacy detach gesture with the multi-window notice', () => {
+    const onNotice = vi.fn()
+    render(<TabBar onNotice={onNotice} />)
+
+    fireEvent.doubleClick(screen.getByRole('button', { name: 'Example' }))
+
+    expect(onNotice).toHaveBeenCalledWith('拆分窗口将在多窗口版本以更完整形态回归')
+    expect(tabApi.detachBrowserTab).not.toHaveBeenCalled()
+  })
 })

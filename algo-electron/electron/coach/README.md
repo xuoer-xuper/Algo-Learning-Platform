@@ -16,6 +16,7 @@
 - `CoachEventBridge.ts`：订阅提交事件，转为 CoachEvent（multiple_wrong / same_error / first_ac）。
 - `rules/RuleEngine.ts` + `rules.ts`：规则引擎（节流、防 hint abuse、难度自适应、比赛硬关闭、never_today）。
 - `ContestGuard.ts`：比赛模式硬保障（URL 识别、时间窗、审计日志）。
+- `ContestUrlAggregator.ts`：聚合所有 `webContents` 的 URL 快照，任一 view 在比赛页即维持全局比赛模式；安装 helper 独立于 `CoachOrchestrator`。
 - `CoachOrchestrator.ts`：服务编排，黏合 tracker/bridge/ruleEngine/contestGuard/repositories/petWindow。
 
 ### 阶段 3：通用提示 + 靶向提示
@@ -35,6 +36,7 @@
 - `CoachPetWindow.setPetState()` / `showBubble()`：规则引擎驱动桌宠的主入口。
 - `CoachOrchestrator.start()` / `stop()`：服务生命周期入口，在 `main.ts` 的 `app.whenReady` 后调用。
 - `ContestGuard.isContestMode()`：比赛模式状态查询。
+- `installContestNavigationTracking()`：把 TabManager 的裸 `webContents` URL/销毁快照接入 ContestGuard，不复用活动标签导航槽。
 - IPC channel：`coach:getState` / `coach:triggerHint` / `coach:dismissHint` / `coach:feedback` / `coach:getSession` / `coach:getMetrics` / `coach:exportAuditLog` / `coach:getProblemTimeline` / `coach:getMetricsBundle`。
 
 ## 4. 边界规则

@@ -8,6 +8,7 @@
 
 - `ruleEngine.test.ts`：24 个测试，覆盖核心规则、节流、防 abuse、比赛硬关闭、never_today、难度自适应。
 - `contestGuard.test.ts`：30 个测试，覆盖 URL 识别、时间窗、生命周期、hard gate、forceEnd。
+- `contestUrlAggregator.test.ts`：2 个测试，覆盖多 view 稳定聚合、订阅回放、同标签/后台标签导航与销毁清理。
 - `hintTemplates.test.ts`：31 个测试，覆盖模板数量、分类、字段完整性。
 - `hintSelector.test.ts`：45 个测试，覆盖 verdict→类别映射、轮询选择、退化。
 - `hintLadder.test.ts`：41 个测试，覆盖 6 级升级、L5 二次确认、冷却。
@@ -35,4 +36,4 @@ npm run test:coach
 npm run test:all
 ```
 
-当前 Coach 纯逻辑测试合计 274 个用例，另有 1 个真实 Electron 配置存储场景。
+当前 Coach Vitest 测试合计 276 个用例，另有 1 个真实 Electron 配置存储场景。

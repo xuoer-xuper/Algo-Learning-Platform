@@ -122,5 +122,6 @@ export function useBrowserNavigation() {
     goForward,
     reload,
     syncCurrentPage,
+    showTransientMessage,
   }
 }

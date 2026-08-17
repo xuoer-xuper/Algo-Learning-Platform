@@ -38,6 +38,7 @@ function App() {
     goForward,
     reload,
     syncCurrentPage,
+    showTransientMessage,
   } = useBrowserNavigation()
   const {
     showSettings,
@@ -66,7 +67,7 @@ function App() {
     <ErrorBoundary>
       <div className="app-layout">
       <div className="titlebar-layer">
-        <TabBar onTabUrlChange={applyUrlState} />
+        <TabBar onTabUrlChange={applyUrlState} onNotice={showTransientMessage} />
         <WindowControls />
       </div>
       <BrowserToolbar

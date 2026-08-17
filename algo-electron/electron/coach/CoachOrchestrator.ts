@@ -64,7 +64,7 @@ import { CoachEventBridge } from './CoachEventBridge'
 import { ProblemSessionTracker } from './ProblemSessionTracker'
 import { RuleEngine } from './rules/RuleEngine'
 import { ContestGuard } from './ContestGuard'
-// 阶段 3 引入
+import { installContestNavigationTracking } from './ContestUrlAggregator'
 import { HintSelector } from './hints/HintSelector'
 import { HintLadder, type GetMessageForLevelContext } from './hints/HintLadder'
 import { ConstraintParser, type ProblemConstraints } from './problemFacts/ConstraintParser'
@@ -80,7 +80,7 @@ import { loadCoachConfig, saveCoachConfig } from '../app/config'
  * 仓库 / CoachPetWindow 黏合起来。
  *
  * 数据流：
- *   TabManager.activeTabChange → ProblemSessionTracker / ContestGuard
+ *   TabManager.webContentsUrl → ContestGuard；activeTabChange → ProblemSessionTracker / ConstraintParser
  *   TrackingService.problem:detected → ProblemSessionTracker / CoachEventBridge
  *   RealtimeSubmissionService.detected → CoachEventBridge → CoachEvent
  *     → RuleEngine.handleEvent → CoachIntervention
@@ -228,11 +228,11 @@ export class CoachOrchestrator {
       this.detachFns.push(unsubscribe)
     }
 
-    // 订阅 active tab 变化（用于 ContestGuard + 阶段 3 ConstraintParser 触发）
+    // ContestGuard 聚合所有 view；ConstraintParser 只跟随活动标签。
     const tabManager = this.options.getTabManager()
     if (tabManager) {
+      this.detachFns.push(installContestNavigationTracking(tabManager, this.contestGuard))
       const unsubscribe = tabManager.addActiveTabChangeListener((url) => {
-        this.contestGuard.handleUrlChange(url)
         // 阶段 3：切到题目页时异步触发 ConstraintParser
         this.maybeFetchConstraints(url)
       })
