@@ -37,7 +37,7 @@ export function BrowserToolbar({
 
   useEffect(() => {
     return window.electronAPI.onUiCommand((command) => {
-      if (command !== 'focus-address-bar') return
+      if (command.type !== 'focus-address-bar') return
       addressBarRef.current?.focus()
       addressBarRef.current?.select()
     })

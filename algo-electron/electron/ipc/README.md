@@ -22,7 +22,7 @@
 - `registerCookieIpc.ts`：注册 `cookies:*` 安全摘要 handler，不向 renderer 暴露 Cookie value。
 - `registerMainIpc.ts`：组合注册入口，集中由 `main.ts` 调用各业务域注册函数。
 - `trustedSender.ts`：统一 shell/OJ sender、main frame、origin、webContents 归属和 payload 边界；普通 handler 使用 guarded `ipcMain` facade，提交 bridge 使用 `onFromOj()`。
-- `ui:command`：主进程向壳 renderer 发送的受限 UI 指令，目前用于从 OJ 页面焦点恢复并聚焦地址栏；renderer 只能通过 preload 的 `onUiCommand()` 订阅。
+- `ui:command`：主进程向壳 renderer 发送的受限对象指令，目前包含聚焦地址栏和导航被安全策略阻止；renderer 只能通过 preload 的 `onUiCommand()` 订阅。
 
 其他 IPC 仍在 `electron/main.ts`，后续可按风险逐步迁移：
 
@@ -56,7 +56,7 @@
 - `cookies:*` channel 不得返回 Cookie value；需要完整 Cookie 时只能由 main 进程内部 service 调用 `CookieVault`。
 - `backup:*` channel 导出的 JSON 不得包含 Cookie、`raw_json`、日志或本机绝对路径；冲突导入必须先预览再确认。
 - `register*.ts` 不得直接从 `electron` 导入 `ipcMain`；新增普通 channel 必须经过 `trustedSender.ts`，并同步 IPC 合约测试。
-- `ui:command` 只允许受控的字面量命令，不得把任意脚本、channel 或窗口对象透传给 renderer。
+- `ui:command` 只允许受控的判别联合对象，不得把任意脚本、channel、URL 内容或窗口对象透传给 renderer；导航失败只发送枚举原因。
 - OJ、登录捕获和用户脚本 bootstrap 不得复用 shell sender validator；专用 validator 必须按 webContents 归属和主 frame 校验。
 
 ## 5. 验证入口

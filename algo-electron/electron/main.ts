@@ -1,4 +1,4 @@
-import { app, BrowserWindow, Menu, shell, type Input, type WebContents } from 'electron'
+import { app, BrowserWindow, Menu, type Input, type WebContents } from 'electron'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import { TabManager } from './browser/TabManager'
@@ -21,6 +21,7 @@ import { CoachOrchestrator } from './coach/CoachOrchestrator'
 import { registerShellProtocol, registerShellSchemeAsPrivileged, shellUrl } from './app/appProtocol'
 import { registerShellWebContents, unregisterShellWebContents } from './ipc/trustedSender'
 import { dispatchShortcut, resolveShortcut, type ShortcutActions } from './shortcuts/shortcutDispatcher'
+import { evaluateBrowserNavigation, type NavigationBlockReason } from './browser/navigationPolicy'
 
 configureChromiumCommandLine()
 
@@ -49,15 +50,6 @@ let coachOrchestrator: CoachOrchestrator | null = null
 // native menu prevents Electron's default_app accelerators from hijacking it.
 Menu.setApplicationMenu(Menu.buildFromTemplate([]))
 
-function isSafeExternalUrl(value: string): boolean {
-  try {
-    const url = new URL(value)
-    return url.protocol === 'https:' || url.protocol === 'http:'
-  } catch {
-    return false
-  }
-}
-
 function createWindow() {
   win = new BrowserWindow({
     width: MAIN_WINDOW_BOUNDS.defaultWidth,
@@ -76,23 +68,36 @@ function createWindow() {
   })
   registerShellWebContents(win.webContents)
 
-  win.webContents.setWindowOpenHandler(({ url }) => {
-    if (isSafeExternalUrl(url)) {
-      void shell.openExternal(url)
+  const allowInsecureLocalhost = Boolean(VITE_DEV_SERVER_URL || STARTUP_SMOKE_MODE)
+  const notifyNavigationBlocked = (reason: NavigationBlockReason): void => {
+    win?.webContents.send('ui:command', { type: 'navigation-blocked', reason })
+  }
+  const openInManagedTab = (url: string): void => {
+    const decision = evaluateBrowserNavigation(url, {
+      allowAboutBlank: true,
+      allowInsecureLocalhost,
+    })
+    if (!decision.allowed) {
+      notifyNavigationBlocked(decision.reason!)
+      return
     }
+    tabManager?.createTab(url)
+  }
+
+  win.webContents.setWindowOpenHandler(({ url }) => {
+    openInManagedTab(url)
     return { action: 'deny' }
   })
   win.webContents.on('will-navigate', (event, url) => {
     const currentUrl = win?.webContents.getURL()
     if (!currentUrl || url === currentUrl) return
     event.preventDefault()
-    if (isSafeExternalUrl(url)) {
-      void shell.openExternal(url)
-    }
+    openInManagedTab(url)
   })
 
   // 创建多标签页宿主
-  tabManager = new TabManager(win)
+  tabManager = new TabManager(win, { allowInsecureLocalhost })
+  tabManager.setNavigationBlockedHandler(notifyNavigationBlocked)
   services?.syncService.setBrowserHost(tabManager)
   services?.realtimeSubmissionService.attachTabManager(tabManager)
 
@@ -102,7 +107,7 @@ function createWindow() {
     nextTab: () => { tabManager?.switchRelative(1) },
     previousTab: () => { tabManager?.switchRelative(-1) },
     switchTab: (index) => { tabManager?.switchTabByIndex(index) },
-    focusAddressBar: () => { win?.webContents.send('ui:command', 'focus-address-bar') },
+    focusAddressBar: () => { win?.webContents.send('ui:command', { type: 'focus-address-bar' }) },
     reload: () => { tabManager?.reload() },
     zoomIn: () => { tabManager?.adjustZoom(0.1) },
     zoomOut: () => { tabManager?.adjustZoom(-0.1) },

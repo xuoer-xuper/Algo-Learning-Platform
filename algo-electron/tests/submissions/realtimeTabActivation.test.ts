@@ -17,7 +17,7 @@ assert.ok(
   'TabManager should emit active-tab changes when switching tabs',
 )
 assert.ok(
-  tabManagerSource.includes("view.webContents.on('did-frame-finish-load'"),
+  tabManagerSource.includes("contents.on('did-frame-finish-load'"),
   'TabManager should observe sub-frame load events for late iframe submissions',
 )
 assert.ok(

@@ -325,7 +325,9 @@ interface TabInfo {
   isActive: boolean
 }
 
-type UiCommand = 'focus-address-bar'
+type UiCommand =
+  | { type: 'focus-address-bar' }
+  | { type: 'navigation-blocked'; reason: 'invalid-url' | 'insecure-http' | 'unsupported-protocol' }
 
 interface SaveNoteImageResult {
   markdownUrl: string

@@ -14,6 +14,10 @@ export function subscribeUrlChanged(callback: (url: string) => void): () => void
   return window.electronAPI.onUrlChanged(callback)
 }
 
+export function subscribeUiCommand(callback: (command: UiCommand) => void): () => void {
+  return window.electronAPI.onUiCommand(callback)
+}
+
 export function setBrowserSidebarWidth(width: number): void {
   window.electronAPI.setSidebarWidth(width)
 }

@@ -1,6 +1,7 @@
 import { app, session, webContents, type Session } from 'electron'
 import { getRealtimeAdapterForUrl } from '../adapters/registry'
 import { STEALTH_SCRIPT } from './stealthScript'
+import { installBrowserPermissionPolicy } from './permissionPolicy'
 
 interface SiteEnableState {
   enabled: boolean
@@ -17,6 +18,8 @@ export function configureOjSession(options: ConfigureOjSessionOptions): Session 
   session.defaultSession.setUserAgent(realUA)
   const ojSession = session.fromPartition('persist:oj-main')
   ojSession.setUserAgent(realUA)
+  installBrowserPermissionPolicy(session.defaultSession)
+  installBrowserPermissionPolicy(ojSession)
 
   const corsHeadersToAdd = {
     'access-control-allow-origin': ['*'],

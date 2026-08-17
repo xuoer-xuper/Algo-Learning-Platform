@@ -1,4 +1,11 @@
-import { WebContentsView, BrowserWindow, type Input, type WebContents } from 'electron'
+import {
+  WebContentsView,
+  BrowserWindow,
+  type BrowserWindowConstructorOptions,
+  type Input,
+  type WebContents,
+  type WebPreferences,
+} from 'electron'
 import { randomUUID } from 'node:crypto'
 import { DetachedWindow } from './DetachedWindow'
 import { STEALTH_SCRIPT } from './stealthScript'
@@ -8,8 +15,17 @@ import { executeScriptAcrossFrames } from './tabScriptExecution'
 import { safeCloseWebContents, safeRemoveChildView, setTabViewBounds } from './tabViewLayout'
 import { samePageUrl } from './urlMatching'
 import { registerOjWebContents, unregisterOjWebContents } from '../ipc/trustedSender'
+import { evaluateBrowserNavigation, type NavigationBlockReason } from './navigationPolicy'
 
 export type { TabInfo } from './tabManagerTypes'
+
+export interface TabManagerOptions {
+  allowInsecureLocalhost?: boolean
+}
+
+type PopupWindowOptions = BrowserWindowConstructorOptions & {
+  webContents?: WebContents
+}
 
 export class TabManager {
   private tabs = new Map<string, ManagedTab>()
@@ -27,109 +43,127 @@ export class TabManager {
   private activeTabChangeListeners = new Set<(url: string) => void>()
   private isViewHidden = false
   private shortcutHandler: ((event: Electron.Event, input: Input, source: WebContents) => void) | null = null
+  private navigationBlockedHandler: ((reason: NavigationBlockReason) => void) | null = null
+  private readonly allowInsecureLocalhost: boolean
+  private isDestroying = false
 
-  constructor(window: BrowserWindow) {
+  constructor(window: BrowserWindow, options: TabManagerOptions = {}) {
     this.window = window
+    this.allowInsecureLocalhost = options.allowInsecureLocalhost ?? false
     this.window.on('resize', () => this.updateBounds())
   }
 
-  private createView(): WebContentsView {
-    const view = new WebContentsView({
-      webPreferences: {
-        nodeIntegration: false,
-        contextIsolation: true,
-        sandbox: true,
-        preload: OJ_PRELOAD_PATH,
-        partition: 'persist:oj-main',
-      },
-    })
-    registerOjWebContents(view.webContents)
-
-    view.webContents.on('before-input-event', (event, input) => {
-      this.shortcutHandler?.(event, input, view.webContents)
-    })
-
-    view.webContents.on('did-navigate', (_event, url) => {
-      const tab = this.findTabByView(view)
-      if (tab) {
-        tab.url = url
-        if (tab.id === this.activeTabId) {
-          this.onUrlChange?.(url)
-          this.emitNavigate(url)
-        }
-      }
-    })
-
-    view.webContents.on('did-navigate-in-page', (_event, url) => {
-      const tab = this.findTabByView(view)
-      if (tab) {
-        tab.url = url
-        if (tab.id === this.activeTabId) {
-          this.onUrlChange?.(url)
-          this.emitNavigate(url)
-        }
-      }
-    })
-
-    view.webContents.setWindowOpenHandler(({ url }) => {
-      if (url && url !== 'about:blank') {
-        view.webContents.loadURL(url)
-      }
-      return { action: 'deny' }
-    })
-
-    view.webContents.on('did-create-window', (newWin) => {
-      const newUrl = newWin.webContents.getURL()
-      if (newUrl && newUrl !== 'about:blank') {
-        view.webContents.loadURL(newUrl)
-      } else {
-        newWin.webContents.once('did-navigate', (_e, url) => {
-          view.webContents.loadURL(url)
+  private createView(
+    inheritedWebPreferences?: WebPreferences,
+    existingWebContents?: WebContents,
+  ): WebContentsView {
+    const view = existingWebContents
+      ? new WebContentsView({ webContents: existingWebContents })
+      : new WebContentsView({
+          webPreferences: {
+            ...inheritedWebPreferences,
+            nodeIntegration: false,
+            contextIsolation: true,
+            sandbox: true,
+            preload: OJ_PRELOAD_PATH,
+            partition: 'persist:oj-main',
+          },
         })
-      }
-      newWin.close()
+    const contents = view.webContents
+    registerOjWebContents(contents)
+
+    contents.on('before-input-event', (event, input) => {
+      this.shortcutHandler?.(event, input, contents)
     })
 
-    view.webContents.on('page-title-updated', (_event, title) => {
+    const guardNavigation = (event: Electron.Event, url: string): void => {
+      const decision = this.evaluateNavigation(url, true)
+      if (decision.allowed) return
+      event.preventDefault()
+      this.notifyNavigationBlocked(decision.reason!)
+    }
+    contents.on('will-navigate', guardNavigation)
+    contents.on('will-redirect', guardNavigation)
+
+    contents.on('did-navigate', (_event, url) => {
+      const tab = this.findTabByView(view)
+      if (tab) {
+        tab.url = url
+        if (tab.id === this.activeTabId) {
+          this.onUrlChange?.(url)
+          this.emitNavigate(url)
+        }
+      }
+    })
+
+    contents.on('did-navigate-in-page', (_event, url) => {
+      const tab = this.findTabByView(view)
+      if (tab) {
+        tab.url = url
+        if (tab.id === this.activeTabId) {
+          this.onUrlChange?.(url)
+          this.emitNavigate(url)
+        }
+      }
+    })
+
+    contents.setWindowOpenHandler((details) => {
+      const decision = this.evaluateNavigation(details.url, true)
+      if (!decision.allowed) {
+        this.notifyNavigationBlocked(decision.reason!)
+        return { action: 'deny' }
+      }
+
+      return {
+        action: 'allow',
+        createWindow: (options) => this.createPopupTab(options, details.url, details.disposition),
+      }
+    })
+
+    contents.on('destroyed', () => {
+      this.handleViewDestroyed(view, contents)
+    })
+
+    contents.on('page-title-updated', (_event, title) => {
       const tab = this.findTabByView(view)
       if (tab) {
         tab.title = title
         if (tab.id === this.activeTabId) {
-          const url = view.webContents.getURL()
+          const url = contents.getURL()
           this.onTitleChange?.(title, url)
         }
         this.onTabListChanged?.(this.getTabList())
       }
     })
 
-    view.webContents.on('dom-ready', () => {
+    contents.on('dom-ready', () => {
       const tab = this.findTabByView(view)
       if (tab) {
-        tab.url = view.webContents.getURL()
+        tab.url = contents.getURL()
         this.emitDomReady(tab.url)
       }
     })
 
-    view.webContents.on('did-frame-finish-load', (_event, isMainFrame) => {
+    contents.on('did-frame-finish-load', (_event, isMainFrame) => {
       if (isMainFrame) return
       const tab = this.findTabByView(view)
       if (tab && tab.id === this.activeTabId) {
-        tab.url = view.webContents.getURL()
+        tab.url = contents.getURL()
         this.emitDomReady(tab.url)
       }
     })
 
-    view.webContents.on('did-finish-load', () => {
+    contents.on('did-finish-load', () => {
       const tab = this.findTabByView(view)
       if (tab && tab.id === this.activeTabId) {
-        const url = view.webContents.getURL()
+        const url = contents.getURL()
         this.onPageLoaded?.(url)
       }
       // 注入反检测脚本到主世界（绕过 contextIsolation），每个页面及 iframe 加载后执行
-      view.webContents.executeJavaScript(STEALTH_SCRIPT).catch(() => {})
+      contents.executeJavaScript(STEALTH_SCRIPT).catch(() => {})
     })
 
-    view.webContents.on('login', (event, details, authInfo, callback) => {
+    contents.on('login', (event, details, authInfo, callback) => {
       const url = details.url || ''
       const host = authInfo.host || ''
       if (url.includes('luogu.com.cn') || host.includes('luogu.com.cn')) {
@@ -139,6 +173,64 @@ export class TabManager {
     })
 
     return view
+  }
+
+  private createPopupTab(
+    options: BrowserWindowConstructorOptions,
+    url: string,
+    disposition: Electron.HandlerDetails['disposition'],
+  ): WebContents {
+    const suppliedWebContents = (options as PopupWindowOptions).webContents
+    if (!suppliedWebContents) {
+      throw new Error('Electron did not supply popup webContents')
+    }
+
+    const popupView = this.createView(undefined, suppliedWebContents)
+    const activate = disposition !== 'background-tab'
+    this.addManagedTab(popupView, url, activate)
+    return popupView.webContents
+  }
+
+  private addManagedTab(view: WebContentsView, url: string, activate = true): string {
+    const id = randomUUID().slice(0, 8)
+    this.tabs.set(id, { id, view, url, title: '' })
+
+    if (activate || !this.activeTabId) {
+      this.switchTab(id)
+    } else {
+      this.onTabListChanged?.(this.getTabList())
+    }
+
+    return id
+  }
+
+  private evaluateNavigation(url: string, allowAboutBlank = false) {
+    return evaluateBrowserNavigation(url, {
+      allowAboutBlank,
+      allowInsecureLocalhost: this.allowInsecureLocalhost,
+    })
+  }
+
+  private notifyNavigationBlocked(reason: NavigationBlockReason): void {
+    this.navigationBlockedHandler?.(reason)
+  }
+
+  private handleViewDestroyed(view: WebContentsView, contents: WebContents): void {
+    unregisterOjWebContents(contents)
+    const tab = this.findTabByView(view)
+    if (!tab) return
+
+    const wasActive = tab.id === this.activeTabId
+    if (wasActive) safeRemoveChildView(this.window, tab.view)
+    this.tabs.delete(tab.id)
+
+    if (this.isDestroying) return
+    if (wasActive) {
+      this.activeTabId = null
+      const nextTabId = Array.from(this.tabs.keys()).pop()
+      if (nextTabId) this.switchTab(nextTabId)
+    }
+    this.onTabListChanged?.(this.getTabList())
   }
 
   private findTabByView(view: WebContentsView): ManagedTab | null {
@@ -153,17 +245,21 @@ export class TabManager {
       return this.activeTabId ?? ''
     }
 
-    const id = randomUUID().slice(0, 8)
-    const view = this.createView()
-    this.tabs.set(id, { id, view, url: url ?? '', title: '' })
-
-    this.switchTab(id)
-
     if (url) {
-      view.webContents.loadURL(url)
+      const decision = this.evaluateNavigation(url, true)
+      if (!decision.allowed) {
+        this.notifyNavigationBlocked(decision.reason!)
+        return this.activeTabId ?? ''
+      }
     }
 
-    this.onTabListChanged?.(this.getTabList())
+    const view = this.createView()
+    const id = this.addManagedTab(view, url ?? '')
+
+    if (url) {
+      void view.webContents.loadURL(url)
+    }
+
     return id
   }
 
@@ -179,12 +275,12 @@ export class TabManager {
       safeRemoveChildView(this.window, tab.view)
     }
 
+    this.tabs.delete(tabId)
     unregisterOjWebContents(tab.view.webContents)
     safeCloseWebContents(tab.view)
 
-    this.tabs.delete(tabId)
-
     if (wasActive) {
+      this.activeTabId = null
       const lastKey = Array.from(this.tabs.keys()).pop()!
       this.switchTab(lastKey)
     }
@@ -257,12 +353,17 @@ export class TabManager {
   }
 
   navigate(url: string) {
+    const decision = this.evaluateNavigation(url, true)
+    if (!decision.allowed) {
+      this.notifyNavigationBlocked(decision.reason!)
+      return
+    }
     if (!this.activeTabId || !this.tabs.has(this.activeTabId)) {
       this.createTab(url)
       return
     }
     const tab = this.tabs.get(this.activeTabId)!
-    tab.view.webContents.loadURL(url)
+    void tab.view.webContents.loadURL(url)
   }
 
   goBack() {
@@ -383,10 +484,10 @@ export class TabManager {
     }
   }
 
-  async executeScript(code: string): Promise<any> {
+  async executeScript(code: string, userGesture = false): Promise<any> {
     const tab = this.activeTabId ? this.tabs.get(this.activeTabId) : null
     if (!tab) return null
-    return tab.view.webContents.executeJavaScript(code)
+    return tab.view.webContents.executeJavaScript(code, userGesture)
   }
 
   async executeScriptOnUrl(url: string, code: string): Promise<any> {
@@ -409,6 +510,10 @@ export class TabManager {
 
   setShortcutHandler(handler: (event: Electron.Event, input: Input, source: WebContents) => void): void {
     this.shortcutHandler = handler
+  }
+
+  setNavigationBlockedHandler(handler: (reason: NavigationBlockReason) => void): void {
+    this.navigationBlockedHandler = handler
   }
 
   setNavigateCallback(callback: (url: string) => void) {
@@ -473,7 +578,11 @@ export class TabManager {
   }
 
   destroy() {
-    for (const tab of this.tabs.values()) {
+    this.isDestroying = true
+    const tabs = Array.from(this.tabs.values())
+    this.tabs.clear()
+    this.activeTabId = null
+    for (const tab of tabs) {
       try {
         unregisterOjWebContents(tab.view.webContents)
         if (!tab.view.webContents.isDestroyed()) {
@@ -482,7 +591,6 @@ export class TabManager {
         }
       } catch { /* ignore */ }
     }
-    this.tabs.clear()
-    this.activeTabId = null
+    this.isDestroying = false
   }
 }

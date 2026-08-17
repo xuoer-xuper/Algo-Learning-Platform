@@ -6,6 +6,7 @@ import {
   navigateBrowser,
   reloadBrowser,
   setBrowserSidebarWidth,
+  subscribeUiCommand,
   subscribeUrlChanged,
   syncBrowserCurrentPage,
 } from './browserShellApi'
@@ -28,6 +29,12 @@ export function useBrowserNavigation() {
   const [isHome, setIsHome] = useState(true)
   const syncMessageTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
+  const showTransientMessage = useCallback((message: string) => {
+    setSyncMsg(message)
+    if (syncMessageTimer.current) clearTimeout(syncMessageTimer.current)
+    syncMessageTimer.current = setTimeout(() => setSyncMsg(''), 4000)
+  }, [])
+
   const applyUrlState = useCallback((nextUrl: string) => {
     setUrl(nextUrl)
     setIsHome(isHomeUrl(nextUrl))
@@ -37,6 +44,18 @@ export function useBrowserNavigation() {
     const unsubscribe = subscribeUrlChanged(applyUrlState)
     return unsubscribe
   }, [applyUrlState])
+
+  useEffect(() => {
+    return subscribeUiCommand((command) => {
+      if (command.type !== 'navigation-blocked') return
+      const message = command.reason === 'insecure-http'
+        ? '已阻止不安全的 HTTP 导航'
+        : command.reason === 'invalid-url'
+          ? '链接格式无效'
+          : '已阻止不受支持的链接'
+      showTransientMessage(message)
+    })
+  }, [showTransientMessage])
 
   useEffect(() => {
     setBrowserSidebarWidth(sidebarWidth)
@@ -80,11 +99,8 @@ export function useBrowserNavigation() {
   const syncCurrentPage = useCallback(async () => {
     setSyncMsg('同步中...')
     const result = await syncBrowserCurrentPage()
-    setSyncMsg(result.error ? result.error : `已同步 ${result.inserted} 条`)
-
-    if (syncMessageTimer.current) clearTimeout(syncMessageTimer.current)
-    syncMessageTimer.current = setTimeout(() => setSyncMsg(''), 4000)
-  }, [])
+    showTransientMessage(result.error ? result.error : `已同步 ${result.inserted} 条`)
+  }, [showTransientMessage])
 
   return {
     url,

@@ -11,6 +11,7 @@ export class MockWebContents extends EventEmitter {
   private loading = false
   private devToolsOpen = false
   private zoomFactor = 1
+  private windowOpenHandler: ((details: any) => any) | null = null
   readonly navigationHistory = {
     canGoBack: () => false,
     canGoForward: () => false,
@@ -29,7 +30,19 @@ export class MockWebContents extends EventEmitter {
   getZoomFactor(): number { return this.zoomFactor }
   setZoomFactor(factor: number): void { this.zoomFactor = factor }
   setTitle(title: string): void { this.title = title; this.emit('page-title-updated', {}, title) }
-  setWindowOpenHandler(_handler: (details: { url: string }) => unknown): void { /* observed by integration tests when needed */ }
+  setWindowOpenHandler(handler: (details: any) => any): void { this.windowOpenHandler = handler }
+  simulateWindowOpen(details: any): { response: any; webContents?: MockWebContents } {
+    if (!this.windowOpenHandler) return { response: { action: 'deny' } }
+    const response = this.windowOpenHandler(details)
+    if (response.action !== 'allow' || !response.createWindow) return { response }
+    const child = new MockWebContents()
+    const returned = response.createWindow({ webPreferences: {}, webContents: child }) as MockWebContents
+    if (returned !== child) {
+      throw new Error('createWindow must return the supplied popup webContents')
+    }
+    if (details.url) void child.loadURL(details.url)
+    return { response, webContents: child }
+  }
   loadURL(url: string): Promise<void> {
     this.url = url
     this.mainFrame.url = url
@@ -59,8 +72,14 @@ export class MockWebFrame {
 }
 
 export class MockWebContentsView {
-  readonly webContents = new MockWebContents()
+  private contents: MockWebContents | undefined
   private bounds = { x: 0, y: 0, width: 0, height: 0 }
+  constructor(options: { webContents?: MockWebContents } = {}) {
+    const contents = options.webContents ?? new MockWebContents()
+    this.contents = contents
+    contents.once('destroyed', () => { this.contents = undefined })
+  }
+  get webContents(): MockWebContents { return this.contents as MockWebContents }
   setBounds(bounds: { x: number; y: number; width: number; height: number }): void { this.bounds = { ...bounds } }
   getBounds(): { x: number; y: number; width: number; height: number } { return { ...this.bounds } }
 }
@@ -161,9 +180,43 @@ export const dialog = {
 export const powerMonitor = new EventEmitter()
 export const screen = { getPrimaryDisplay: () => ({ workArea: { x: 0, y: 0, width: 1920, height: 1080 } }) }
 export const webContents = { fromId: (_id: number) => undefined }
+
+class MockWebRequest {
+  headersReceivedHandler: Listener | null = null
+  responseStartedHandler: Listener | null = null
+  onHeadersReceived(handler: Listener): void { this.headersReceivedHandler = handler }
+  onResponseStarted(handler: Listener): void { this.responseStartedHandler = handler }
+}
+
+export class MockSession {
+  readonly webRequest = new MockWebRequest()
+  userAgent = ''
+  permissionCheckHandler: Listener | null = null
+  permissionRequestHandler: Listener | null = null
+
+  setUserAgent(userAgent: string): void { this.userAgent = userAgent }
+  setPermissionCheckHandler(handler: Listener | null): void { this.permissionCheckHandler = handler }
+  setPermissionRequestHandler(handler: Listener | null): void { this.permissionRequestHandler = handler }
+  reset(): void {
+    this.userAgent = ''
+    this.permissionCheckHandler = null
+    this.permissionRequestHandler = null
+    this.webRequest.headersReceivedHandler = null
+    this.webRequest.responseStartedHandler = null
+  }
+}
+
+const defaultSession = new MockSession()
+const partitionSessions = new Map<string, MockSession>()
 export const session = {
-  defaultSession: { setUserAgent: (_ua: string) => undefined, webRequest: new EventEmitter() },
-  fromPartition: (_partition: string) => ({ setUserAgent: (_ua: string) => undefined, webRequest: new EventEmitter() }),
+  defaultSession,
+  fromPartition: (partition: string) => {
+    const existing = partitionSessions.get(partition)
+    if (existing) return existing
+    const created = new MockSession()
+    partitionSessions.set(partition, created)
+    return created
+  },
 }
 export const protocolSchemes: unknown[] = []
 export const protocolHandlers = new Map<string, unknown>()
@@ -181,6 +234,8 @@ export function resetElectronMock(): void {
   ipcRenderer.removeAllListeners()
   protocolSchemes.length = 0
   protocolHandlers.clear()
+  defaultSession.reset()
+  partitionSessions.clear()
 }
 
 export { MockBrowserWindow as BrowserWindow, MockWebContentsView as WebContentsView }

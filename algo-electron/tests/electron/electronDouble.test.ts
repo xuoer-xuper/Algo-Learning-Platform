@@ -18,10 +18,11 @@ test('Electron test double exposes observable command-line and view primitives',
   setTabViewBounds(view, { width: 1200, height: 700 }, 240)
   assert.deepStrictEqual(view.getBounds(), { x: 240, y: 78, width: 960, height: 622 })
 
+  const contents = view.webContents
   safeRemoveChildView(window, view)
   assert.strictEqual(window.contentView.children.length, 0)
   safeCloseWebContents(view)
-  assert.strictEqual(view.webContents.isDestroyed(), true)
+  assert.strictEqual(contents.isDestroyed(), true)
   assert.strictEqual(app.commandLine.appendSwitch instanceof Function, true)
   window.close()
 })
