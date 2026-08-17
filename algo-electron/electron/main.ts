@@ -101,7 +101,7 @@ function createWindow() {
   tabManager.setTabLimitReachedHandler((limit) => {
     win?.webContents.send('ui:command', { type: 'tab-limit-reached', limit })
   })
-  services?.syncService.setBrowserHost(tabManager)
+  services?.syncService.setScrapeHost(tabManager)
   services?.realtimeSubmissionService.attachTabManager(tabManager)
 
   const shortcutActions: ShortcutActions = {
@@ -145,7 +145,6 @@ function createWindow() {
   installProblemTitleTracking({
     tabManager,
     getTrackingService: () => services?.trackingService ?? null,
-    notifyProblemDetected: (identity) => win?.webContents.send('problem:detected', identity),
     notifyProblemsUpdated: () => win?.webContents.send('problems:updated'),
     diagnostics: services?.browserDiagnostics,
   })
@@ -207,7 +206,6 @@ function createWindow() {
 registerMainIpc({
   getWindow: () => win,
   getTabManager: () => tabManager,
-  getTrackingService: () => services?.trackingService ?? null,
   getSyncService: () => services?.syncService ?? null,
   getCoachPetWindow: () => coachPetWindow,
   getCoachOrchestrator: () => coachOrchestrator,

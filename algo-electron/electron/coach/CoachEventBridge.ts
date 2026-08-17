@@ -10,7 +10,7 @@ import type {
 
 /**
  * CoachEventBridge：把 SubmissionWatcher 的提交检测通知与
- * TrackingService 的 problem:detected 转换为 CoachEvent，供 RuleEngine 消费。
+ * TrackingService 的题目识别回调转换为 CoachEvent，供 RuleEngine 消费。
  *
  * 职责：
  * 1. 订阅 RealtimeSubmissionService.onSubmissionDetected
@@ -193,7 +193,7 @@ export class CoachEventBridge {
   }
 
   /**
-   * 处理 problem:detected（来自 TrackingService）。
+   * 处理题目识别回调（来自 TrackingService）。
    * 不清空 problemState：同题切换 tab 后再回来时累计仍应保留，
    * 由 problemKey 自然区分不同题。
    * identity 保留在签名中以供阶段 3 HintSelector 使用。

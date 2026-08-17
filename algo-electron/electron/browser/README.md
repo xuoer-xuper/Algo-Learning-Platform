@@ -18,7 +18,6 @@
 - OJ Session：`ojSession.ts` 配置持久 session、真实 Chrome UA、受控 CORS、早期实时提交 hook 和 stealth script；默认 session 与 OJ session 同时安装 permission check/request 双处理器，敏感权限默认拒绝。
 - 实时提交桥：`ojPreload.ts` 暴露 `__algo_submission_v1.reportSubmission()`，并转发同页面/子 frame 的 `postMessage`。
 - 反检测脚本：`STEALTH_SCRIPT` 在页面加载后注入，主线由 `TabManager` 执行。
-- 保留单视图抽象：`BrowserHost` 仍在目录中，但当前生产主线使用 `TabManager`。
 
 ## 3. 文件职责
 
@@ -31,7 +30,6 @@
 - `urlMatching.ts`：同页 URL 匹配 helper，供按 URL 找 tab 的脚本执行路径使用。
 - `navigationPolicy.ts`：HTTPS、localhost HTTP、about:blank 与未知协议的统一导航判定。
 - `permissionPolicy.ts`：默认 session 与 OJ session 共用的最小权限白名单及双处理器安装函数。
-- `BrowserHost.ts`：单视图浏览器宿主抽象，保留兼容能力。
 - `DetachedWindow.ts`：将标签页 view 剥离到原生独立窗口。
 - `ojPreload.ts`：OJ 页面 preload，暴露提交上报桥并转发 frame 消息。
 - `ojBridge.ts`：提交上报桥的纯函数和 channel 常量。
@@ -128,11 +126,7 @@ adapter hook in OJ page
 
 本模块不读取 Cookie、不写库、不解析提交结果；提交结果仍由 adapter 和 `RealtimeSubmissionService` 处理。
 
-## 7. BrowserHost 状态
-
-`BrowserHost` 是早期单视图浏览器宿主，提供 `navigate()`、`executeScript()`、`getUrl()`、`capturePreview()` 等基础能力。当前 `main.ts` 已使用 `TabManager` 作为生产主线；除非明确维护兼容路径，不应把新功能接回 `BrowserHost`。
-
-## 8. 测试入口
+## 7. 测试入口
 
 Browser 相关自动测试覆盖提交桥、导航策略、权限策略和 Chromium 弹窗接管：
 

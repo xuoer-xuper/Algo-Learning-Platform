@@ -19,6 +19,7 @@
 - `registerStatsIpc.ts`：注册 `stats:*` 统计查询和重算 handler。
 - `registerSubmissionsIpc.ts`：注册 `submissions:*` 手动同步 handler。
 - `registerBrowserShellIpc.ts`：注册 `browser:*`、`tab:*` 和 `window:*` 浏览器壳层 handler，包括 `tab:reopenClosed` 关闭标签恢复入口。
+- `registerCoachIpc.ts`：注册 Coach 桌宠、比赛模式、会话、干预和指标相关 handler。
 - `registerCookieIpc.ts`：注册 `cookies:*` 安全摘要 handler，不向 renderer 暴露 Cookie value。
 - `registerMainIpc.ts`：组合注册入口，集中由 `main.ts` 调用各业务域注册函数。
 - `trustedSender.ts`：统一 shell/OJ sender、main frame、origin、webContents 归属和 payload 边界；普通 handler 使用 guarded `ipcMain` facade，提交 bridge 使用 `onFromOj()`。
@@ -40,7 +41,7 @@
 - `registerSitesIpc(options)`：注册站点配置相关 channel；通过 `getParentWindow` 注入文件对话框父窗口，通过 `notifyProblemsUpdated` 注入导入后的刷新通知。
 - `registerStatsIpc()`：注册统计相关 channel，包括概览、趋势、平台分布、题目访问统计、时间线、复访、连续天数、错题、未复习和日统计重算。
 - `registerSubmissionsIpc(options)`：注册手动提交同步 channel；通过 `getSyncService` 延迟读取 `SyncService`，避免模块 import 时绑定尚未初始化的服务实例。
-- `registerBrowserShellIpc(options)`：注册浏览器壳层 channel；通过 `getWindow`、`getTabManager`、`getTrackingService` 注入运行期对象，保留 URL 重写前的题目识别通知行为。
+- `registerBrowserShellIpc(options)`：注册浏览器壳层 channel；通过 `getWindow`、`getTabManager` 注入运行期对象，URL 输入只负责解析与导航，题目追踪统一由 TabManager 导航链处理。
 - `registerCookieIpc(cookieVault?)`：注册 Cookie 摘要查询 channel；完整 Cookie 仅保留在 main 内部，renderer 只拿名称、数量、过期时间和安全标记统计。
 - `registerMainIpc(options)`：主入口调用的组合函数；只负责串联各注册模块，不直接实现具体 handler。
 - `handleFromShell()` / `onFromShell()`：普通壳 IPC 的统一校验入口，拒绝未知 webContents、iframe、伪造 origin 和超限/循环 payload。

@@ -40,7 +40,6 @@ test('title and userscript silent fallbacks publish injectable diagnostics', asy
   installProblemTitleTracking({
     tabManager: tabManager as never,
     getTrackingService: () => null,
-    notifyProblemDetected: () => undefined,
     notifyProblemsUpdated: () => undefined,
     diagnostics,
   })

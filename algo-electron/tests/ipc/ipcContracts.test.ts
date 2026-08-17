@@ -134,11 +134,17 @@ test('renderer cannot access arbitrary IPC channels through preload', () => {
   const rendererChannels = new Set(extractPreloadRendererChannels(preloadSource).map(channel => channel.channel))
   const internalChannels = [
     'oj-submission:detected',
-    'problem:detected',
-    'submissions:detected',
   ]
   for (const channel of internalChannels) {
     assert.ok(!rendererChannels.has(channel), `${channel} must remain internal and unavailable to renderer code`)
+  }
+})
+
+test('retired renderer notification channels have no remaining senders', () => {
+  const source = electronSources.join('\n')
+  for (const channel of ['problem:detected', 'submissions:detected']) {
+    assert.ok(!preloadSource.includes(channel), `${channel} must not remain in preload`)
+    assert.ok(!source.includes(channel), `${channel} must not remain in main-process sources`)
   }
 })
 

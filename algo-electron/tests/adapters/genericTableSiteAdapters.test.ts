@@ -1,6 +1,8 @@
 import { test } from 'vitest'
 import assert from 'node:assert'
-import { acwingAdapter, nowcoderAdapter, vjudgeAdapter } from '../../electron/adapters/genericTableSites.ts'
+import { acwingAdapter } from '../../electron/adapters/sites/acwing/index.ts'
+import { nowcoderAdapter } from '../../electron/adapters/sites/nowcoder/index.ts'
+import { vjudgeAdapter } from '../../electron/adapters/sites/vjudge/index.ts'
 import { getRealtimeAdapterForUrl, getRealtimeAdapterIds } from '../../electron/adapters/registry.ts'
 
 test('adapters/genericTableSiteAdapters.test.ts', async () => {

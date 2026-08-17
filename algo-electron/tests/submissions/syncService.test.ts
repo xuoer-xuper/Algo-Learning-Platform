@@ -22,7 +22,7 @@ const service = new SyncService({
 const currentUrl = 'https://www.acwing.com/problem/content/submission/1/'
 let executedScript = ''
 
-service.setBrowserHost({
+service.setScrapeHost({
   getUrl: () => currentUrl,
   executeScript: async (code: string) => {
     executedScript = code
@@ -70,7 +70,7 @@ const vjudgeService = new SyncService({
   },
 } as any)
 
-vjudgeService.setBrowserHost({
+vjudgeService.setScrapeHost({
   getUrl: () => 'https://vjudge.net/contest/123456#status/xuper/K/0/',
   executeScript: async () => ({
     tables: [
@@ -107,7 +107,7 @@ const vjudgeStatusService = new SyncService({
   },
 } as any)
 
-vjudgeStatusService.setBrowserHost({
+vjudgeStatusService.setScrapeHost({
   getUrl: () => 'https://vjudge.net/status',
   executeScript: async () => ({
     tables: [
@@ -144,7 +144,7 @@ const nowcoderService = new SyncService({
   },
 } as any)
 
-nowcoderService.setBrowserHost({
+nowcoderService.setScrapeHost({
   getUrl: () => 'https://ac.nowcoder.com/acm/contest/789/status',
   executeScript: async () => ({
     tables: [

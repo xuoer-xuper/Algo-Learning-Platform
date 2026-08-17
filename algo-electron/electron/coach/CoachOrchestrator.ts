@@ -81,7 +81,7 @@ import { loadCoachConfig, saveCoachConfig } from '../app/config'
  *
  * 数据流：
  *   TabManager.webContentsUrl → ContestGuard；activeTabChange → ProblemSessionTracker / ConstraintParser
- *   TrackingService.problem:detected → ProblemSessionTracker / CoachEventBridge
+ *   TrackingService.problem callback → ProblemSessionTracker / CoachEventBridge
  *   RealtimeSubmissionService.detected → CoachEventBridge → CoachEvent
  *     → RuleEngine.handleEvent → CoachIntervention
  *     → CoachPetWindow.showBubble + insertCoachIntervention + insertCoachEvent
@@ -239,11 +239,11 @@ export class CoachOrchestrator {
       this.detachFns.push(unsubscribe)
     }
 
-    // 订阅 TrackingService.problem:detected（用于 EventBridge 更新当前 identity）
+    // TrackingService 的题目识别仍由内部 callback 处理，不再发送 renderer channel。
     // 注意：ProblemSessionTracker 也订阅了它（通过 setProblemDetectedCallback）。
     // TrackingService 当前是单 callback 设计，所以 ProblemSessionTracker 占用了。
     // 为避免冲突，EventBridge 在收到 submission 时会自动从 ProblemSessionTracker 拉取 sessionId，
-    // 不需要单独订阅 problem:detected。
+    // 不需要额外的 renderer 订阅。
 
     // 启动后延迟展示"仅供参考"免责声明（等桌宠窗口 React 组件就绪）
     setTimeout(() => this.maybeShowDisclaimer(), 2000)

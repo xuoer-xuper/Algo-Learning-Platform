@@ -53,7 +53,7 @@ export class RealtimeSubmissionService {
 
   /**
    * 订阅提交检测结果（阶段 2：CoachEventBridge 入口）。
-   * 与 renderer 的 webContents.send('submissions:detected') 互不影响。
+   * 与 renderer 的题目列表更新通知互不影响。
    * 返回 unsubscribe 函数，便于清理。
    */
   onSubmissionDetected(callback: (notification: SubmissionNotification) => void): () => void {

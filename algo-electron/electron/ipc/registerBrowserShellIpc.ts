@@ -2,23 +2,12 @@ import { type BrowserWindow } from 'electron'
 import { ipcMain } from './trustedSender'
 import type { TabManager } from '../browser/TabManager'
 import { resolveNavigateUrl } from '../parsers/navigateUrl'
-import type { TrackingService } from '../tracking/TrackingService'
 import type { BrowserDiagnostics } from '../diagnostics/BrowserDiagnostics'
 
 interface RegisterBrowserShellIpcOptions {
   getWindow: () => BrowserWindow | null
   getTabManager: () => TabManager | null
-  getTrackingService: () => TrackingService | null
   getBrowserDiagnostics?: () => BrowserDiagnostics | null
-}
-
-function notifyDetectedProblem(options: RegisterBrowserShellIpcOptions, url: string): void {
-  const identity = options.getTrackingService()?.handleNavigation(url)
-  if (!identity) return
-
-  const win = options.getWindow()
-  win?.webContents.send('problem:detected', identity)
-  win?.webContents.send('problems:updated')
 }
 
 export function registerBrowserShellIpc(options: RegisterBrowserShellIpcOptions): void {
@@ -48,9 +37,6 @@ export function registerBrowserShellIpc(options: RegisterBrowserShellIpcOptions)
 
   ipcMain.on('browser:navigate', (_event, url: string) => {
     const resolvedUrl = resolveNavigateUrl(url)
-    if (resolvedUrl !== url) {
-      notifyDetectedProblem(options, url)
-    }
     options.getTabManager()?.navigate(resolvedUrl)
   })
 

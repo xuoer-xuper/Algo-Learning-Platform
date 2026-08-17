@@ -32,7 +32,7 @@ Algo Learning Platform 是本地优先的个人算法学习平台。核心数据
 
 - 运行时代码统一使用 `WebContentsView`。
 - 不在 `BrowserView` 上新增功能。
-- 浏览器视图生命周期由 `BrowserHost` / `TabManager` 等主进程模块管理。
+- 浏览器视图生命周期由 `TabManager` 等主进程模块管理。
 - 远程 OJ 页面不得启用 Node 能力。
 
 ## 5. Cookie 与登录态

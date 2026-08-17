@@ -15,7 +15,7 @@ export const SUBMISSION_WATCHER_DETECTED_EVENT = 'detected'
  * SubmissionWatcher：在 SubmissionWatcherCore 之上薄封装，提供：
  * 1. site/adapter 注入
  * 2. batchWriter 注入
- * 3. renderer 通知（webContents.send('submissions:detected')）
+ * 3. renderer 通知（题目列表更新）
  *
  * 阶段 2 扩展：继承 EventEmitter，在 notifyUpdated 中同步 emit('detected', notification)，
  * 让主进程订阅者（CoachEventBridge）无需侵入 core 即可拿到提交结果。
@@ -48,7 +48,6 @@ export class SubmissionWatcher extends EventEmitter {
       notifyUpdated: (notification) => {
         const win = getWindow()
         win?.webContents.send('problems:updated')
-        win?.webContents.send('submissions:detected', notification)
         // 阶段 2：同步通知主进程订阅者（CoachEventBridge）
         // 只在 inserted=true 时 core 才会调用 notifyUpdated，所以这里无脑 emit 即可。
         this.emit(SUBMISSION_WATCHER_DETECTED_EVENT, notification)

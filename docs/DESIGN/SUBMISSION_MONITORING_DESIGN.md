@@ -9,7 +9,7 @@
 ## 2. 实时数据流
 
 ```text
-BrowserHost / TabManager
+TabManager
   -> RealtimeHookInjector
   -> adapter registry
   -> site adapter injectHookScript()

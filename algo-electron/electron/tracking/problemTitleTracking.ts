@@ -4,13 +4,11 @@ import { upsertProblem } from '../db/repositories/problemRepository'
 import { resolveBrowserTitleProblemIdentity } from '../parsers/browserTitle'
 import { createProblemTitleFallbackScript } from '../parsers/problemTitleFallback'
 import { parseUrl } from '../parsers/registry'
-import type { ProblemIdentity } from '../shared/types'
 import type { TrackingService } from './TrackingService'
 
 interface InstallProblemTitleTrackingOptions {
   tabManager: TabManager
   getTrackingService: () => TrackingService | null
-  notifyProblemDetected: (identity: ProblemIdentity) => void
   notifyProblemsUpdated: () => void
   diagnostics?: BrowserDiagnostics
 }
@@ -91,7 +89,6 @@ export function installProblemTitleTracking(options: InstallProblemTitleTracking
     const identity = options.getTrackingService()?.handleNavigation(url)
     if (identity) {
       diagnostics.record('tracking', 'navigate', 'success', { url })
-      options.notifyProblemDetected(identity)
       options.notifyProblemsUpdated()
       scheduleTitleExtraction(url)
     } else {

@@ -1,6 +1,7 @@
 import { test } from 'vitest'
 import assert from 'node:assert'
-import { luoguAdapter, ptaAdapter } from '../../electron/adapters/specializedScraperSites.ts'
+import { luoguAdapter } from '../../electron/adapters/sites/luogu/index.ts'
+import { ptaAdapter } from '../../electron/adapters/sites/pta/index.ts'
 import { getRealtimeAdapterForUrl } from '../../electron/adapters/registry.ts'
 
 test('adapters/specializedScraperSiteAdapters.test.ts', async () => {

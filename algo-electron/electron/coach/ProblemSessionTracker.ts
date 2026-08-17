@@ -15,7 +15,7 @@ import {
  * active_seconds 只累计有效活跃，挂机不计时。
  *
  * 生命周期：
- *   - 进入题目页（problem:detected 或 active tab 切到题目 URL）→ 开 session
+ *   - 进入题目页（内部题目识别回调或 active tab 切到题目 URL）→ 开 session
  *   - 切到本地 IDE（非题目 URL，如 localhost/file://）→ 挂起保持
  *   - 回到题目页或提交 → 同一 session 继续
  *   - 切到另一道题 → 关旧 session，开新 session
@@ -132,7 +132,7 @@ export class ProblemSessionTracker {
    * 必须在 app ready 后调用。
    */
   start(): void {
-    // 1. 订阅 problem:detected（TrackingService callback）
+    // 1. 订阅 TrackingService 的内部题目识别 callback
     this.options.trackingService.setProblemDetectedCallback((identity) => {
       this.handleProblemDetected(identity)
     })
@@ -265,7 +265,7 @@ export class ProblemSessionTracker {
     // 试图解析为题目
     const identity = this.options.parseProblemUrl(url)
     if (identity) {
-      // 是题目 URL：当作 problem:detected
+      // 是题目 URL：按题目识别回调处理
       this.handleProblemDetected(identity)
       return
     }

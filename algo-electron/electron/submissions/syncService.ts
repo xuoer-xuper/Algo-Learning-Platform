@@ -18,7 +18,7 @@ export interface SyncServiceDeps {
 }
 
 export class SyncService {
-  private browserHost: SubmissionScrapeContext | null = null
+  private scrapeHost: SubmissionScrapeContext | null = null
   private readonly batchWriter: SubmissionBatchWriter
   private readonly findNowcoderProblemBySearch: (search: string) => string | undefined
 
@@ -27,8 +27,8 @@ export class SyncService {
     this.findNowcoderProblemBySearch = deps.findNowcoderProblemBySearch ?? (() => undefined)
   }
 
-  setBrowserHost(host: SubmissionScrapeContext) {
-    this.browserHost = host
+  setScrapeHost(host: SubmissionScrapeContext) {
+    this.scrapeHost = host
   }
 
   private async withRetry<T>(fn: () => Promise<T>, maxRetries = 2): Promise<T> {
@@ -61,13 +61,13 @@ export class SyncService {
 
   // VJudge 从当前页面 DOM 抓取（需要在 vjudge.net/status 页面）
   async syncVjudge(): Promise<SyncResult> {
-    if (!this.browserHost) return { platform: 'vjudge', fetched: 0, inserted: 0, error: 'BrowserHost not ready' }
+    if (!this.scrapeHost) return { platform: 'vjudge', fetched: 0, inserted: 0, error: 'Scrape host not ready' }
     try {
-      const submissions = await scrapeCurrentPage(this.browserHost)
+      const submissions = await scrapeCurrentPage(this.scrapeHost)
       if (!submissions || submissions.length === 0) {
         return { platform: 'vjudge', fetched: 0, inserted: 0, error: '当前页面无提交记录，请先打开 vjudge.net/status' }
       }
-      const url = this.browserHost.getUrl()
+      const url = this.scrapeHost.getUrl()
       const { pageProblemId, pageProblemIdentity } = resolveSubmissionPageContext(url, submissions, {
         parseUrl,
         findNowcoderProblemBySearch: this.findNowcoderProblemBySearch,
@@ -80,16 +80,16 @@ export class SyncService {
 
   // AcWing/牛客/VJudge 从当前页面 DOM 抓取
   async syncCurrentPage(): Promise<SyncResult> {
-    if (!this.browserHost) return { platform: 'unknown', fetched: 0, inserted: 0, error: 'BrowserHost not ready' }
+    if (!this.scrapeHost) return { platform: 'unknown', fetched: 0, inserted: 0, error: 'Scrape host not ready' }
 
     try {
-      const submissions = await scrapeCurrentPage(this.browserHost)
+      const submissions = await scrapeCurrentPage(this.scrapeHost)
       if (!submissions || submissions.length === 0) {
-        const url = this.browserHost.getUrl()
+        const url = this.scrapeHost.getUrl()
         return { platform: 'unknown', fetched: 0, inserted: 0, error: `当前页面无提交记录 (${url})` }
       }
 
-      const url = this.browserHost.getUrl()
+      const url = this.scrapeHost.getUrl()
       const { pageProblemId, pageProblemIdentity } = resolveSubmissionPageContext(url, submissions, {
         parseUrl,
         findNowcoderProblemBySearch: this.findNowcoderProblemBySearch,
@@ -112,7 +112,7 @@ export class SyncService {
       submissions,
       pageProblemId,
       pageProblemIdentity,
-      currentUrl: this.browserHost?.getUrl() || '',
+      currentUrl: this.scrapeHost?.getUrl() || '',
     })
   }
 }

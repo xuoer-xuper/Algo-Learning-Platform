@@ -16,7 +16,7 @@ Electron 已提供 `WebContentsView` 作为更适合长期维护的浏览器视�
 
 禁止继续在 `BrowserView` 上新增功能。当前已有 `BrowserView` 代码必须通过 `P1-003` 迁移。
 
-浏览器视图生命周期由 `BrowserHost` 管理。
+浏览器视图生命周期最初由 `BrowserHost` 承担，现由多标签 `TabManager` 统一管理；`BrowserHost` 已在 B0.7 清理。
 
 ## 影响
 
@@ -35,7 +35,6 @@ Electron 已提供 `WebContentsView` 作为更适合长期维护的浏览器视�
 ## 执行要求
 
 - `electron/main.ts` 只保留启动编排。
-- 新增 `electron/browser/BrowserHost.ts`。
+- 使用 `electron/browser/TabManager.ts` 管理受管 `WebContentsView` 标签。
 - Renderer 只能通过 Preload API 控制导航。
 - 远程页面不得启用 Node 能力。
-

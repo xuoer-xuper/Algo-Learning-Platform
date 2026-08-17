@@ -38,7 +38,7 @@ Renderer 不能直接访问本目录能力，只能通过 `preload.ts` 暴露的
 ## 4. 关键封装入口
 
 - 启动组合：`main.ts`、`app/mainServices.ts`、`ipc/registerMainIpc.ts`。
-- 浏览器能力：`browser/TabManager.ts`、`browser/BrowserHost.ts`、`browser/ojPreload.ts`。
+- 浏览器能力：`browser/TabManager.ts`、`browser/ojPreload.ts`。
 - IPC 契约：`preload.ts`、`electron-env.d.ts`、`ipc/register*.ts`。
 - 数据写入：`db/repositories/*`、`submissions/SubmissionBatchWriter.ts`、`tracking/TrackingService.ts`。
 - 备份导入：`backup/backupService.ts`、`backup/learningDataExport.ts`。

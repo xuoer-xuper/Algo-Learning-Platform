@@ -68,7 +68,6 @@ algo-electron/electron/
     recentSitePreconnect.ts
     startupSmoke.ts
   browser/
-    BrowserHost.ts
     TabManager.ts
     DetachedWindow.ts
     ojSession.ts
@@ -173,9 +172,9 @@ algo-electron/electron/
 
 禁止继续扩展旧的 `BrowserView` 实现。当前代码应只在历史文档、注释或 ADR 背景中出现 `BrowserView`，不能新增运行时代码依赖。
 
-### 4.2 BrowserHost 职责
+### 4.2 TabManager 职责
 
-`BrowserHost` 统一管理浏览器视图：
+`TabManager` 统一管理浏览器视图和标签：
 
 - 创建 `WebContentsView`。
 - 设置 bounds 和 resize。
@@ -185,7 +184,7 @@ algo-electron/electron/
 - 监听页面标题变化。
 - 绑定持久 session。
 - 将导航事件交给 Parser 和 Tracking。
-- 为未来多标签页预留 `BrowserTab`。
+- 管理标签创建、切换、关闭、恢复和受控 popup 接管。
 
 Renderer 不直接操作 `webContents`。
 
@@ -285,7 +284,6 @@ window.electronAPI = {
 - `browser:navigate`
 - `browser:urlChanged`
 - `problem:listRecent`
-- `problem:detected`
 - `tracking:getTodayStats`
 - `settings:listSites`
 - `cookies:getSiteCookieSummary`
@@ -532,7 +530,7 @@ ai/
   ↓
 WebContentsView 导航
   ↓
-BrowserHost 监听 URL
+TabManager 监听 URL
   ↓
 Site Registry 匹配站点
   ↓
