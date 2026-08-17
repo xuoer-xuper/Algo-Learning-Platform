@@ -441,7 +441,7 @@ Renderer（同一构建产物，多窗口实例化——桌宠 hash 路由已证
 | B0.5 | [x] | `019eaab`（2026-08-17）：新增纯 `electron/browser/browserLayout.ts` 作为唯一布局契约，`toolbarHeight=42`、`tabBarHeight=36`、`topOffset=78` 只定义一次；TabManager bounds、兼容 BrowserHost、ModalLayer 与 `app-shell.css` 全部改为消费契约/注入 CSS 变量，preload 通过 `electronAPI.browserLayout` 注入 renderer，截图 harness 同步模拟契约，未改变任何计算结果或视觉值。新增 `src/browserLayout.ts` 纯注入 helper 与 `tests/browser/browserLayout.test.ts`，覆盖派生关系和三个 CSS 变量；README 已同步。验证：`npm run typecheck`、`npm run lint`、`npm run test:docs`、`npm run test:all` 全部通过；全量为 47 files/356 tests，覆盖率 33.29/37.23/28.76/34.26%，真实 Electron smoke 与 Playwright 1280x800、1024x720、800x600 均通过；浏览器壳相关裸 42/36 常量已清零。视觉影响：无视觉变化，仅把原有固定值替换为同值契约变量 |
 | B0.6 | [x] | `a466c30`（2026-08-16）：Electron test-double、Vitest alias、核心 async lint 守卫、tracking/title/userscript 诊断出口与 `browser:getDiagnostics` 已完成；`npm run typecheck`、`npm run lint`、`npm run test:coverage`（38 files/332 tests，29.68/34.85/25.17/30.48%）、`npm run test:architecture`、`npm run test:security`、`npm run test:docs` 通过；人工验收覆盖 test-double view 生命周期和诊断 skip/failure；无视觉变更 |
 | B0.7 | [x] | `22c7013`（2026-08-17）：删除零运行时引用的 `BrowserHost`、`public/home.html` 与两个站点适配器转发壳，适配器测试改为直接导入真实实现；`SyncService.setBrowserHost` 收敛为 `setScrapeHost`；删除 renderer 无消费者的 `problem:detected`、`submissions:detected` 发送通道与过期 IPC wiring，同时保留 TrackingService 内部回调和 SubmissionWatcher 主进程事件语义；README、ADR、系统架构、提交监控和治理文档已同步。验证：`npm run test:all` 全部通过，47 files/357 tests，覆盖率 33.65/37.53/29.20/34.64%，真实 Electron smoke 与 Playwright 1280x800、1024x720、800x600 均通过；另执行 `npm run test:electron`、`npm run build` 和 packaged-main 检查通过，源代码扫描确认无旧运行时引用。人工验收覆盖适配器直连、同步服务命名、死 channel 合约和被保留的主进程事件链。视觉影响：无视觉变更，未修改 TSX/CSS/动画 |
-| B0.8 | [ ] | 主进程兜底与落盘日志待实施 |
+| B0.8 | [x] | `81f4c08`（2026-08-17）：主进程致命异常兜底、启动失败报告、壳 renderer 自动恢复、滚动落盘日志与关键链路诊断已完成；packaged smoke 改为异步子进程，修复同步阻塞 HTTP server 导致的假失败；全量验证通过；无视觉变更 |
 | B0.9 | [ ] | 单实例锁待实施 |
 | B0.10 | [ ] | 数据性能、迁移备份/恢复、孤儿 visit 清理待实施 |
 | B0.11 | [ ] | 025_userscript_identity 待实施 |
@@ -521,3 +521,16 @@ Renderer（同一构建产物，多窗口实例化——桌宠 hash 路由已证
 | 视觉影响 | `无视觉变更`；未修改 TSX、CSS、视觉 token 或动画 |
 | 文档同步 | `electron/README.md`、`electron/browser/README.md`、`electron/ipc/README.md`、`public/README.md`、ADR、系统架构、提交监控与项目规则 |
 | 完成时间 | 北京时间 `2026-08-17 10:26` |
+
+### 11.9 B0.8 完成记录
+
+| 字段 | 填写内容 |
+|---|---|
+| 任务 | B0.8 主进程兜底与落盘日志 |
+| 状态 | `[x] 已完成` |
+| Commit | `81f4c08 resilience: 增加主进程兜底与落盘日志` |
+| 自动验证 | `npm run typecheck`、`npm run lint`、`npm run test:all`：52 个 Vitest 测试文件、365 个测试通过，覆盖率 Statements 34.73%、Branches 38.22%、Functions 30.41%、Lines 35.69%；架构、安全、文档、打包配置、性能、Electron startup smoke、Playwright 宽/中/窄三视口均通过；`npm run build` 与 `npm run test:packaged-app` 均通过；packaged smoke 覆盖真实 `app://shell`、隔离 userData/SQLite、localhost WebContentsView、GET/POST/about:blank/OAuth popup、权限拒绝和退出清理 |
+| 人工验收 | Windows 打包应用启动后壳正常加载；模拟 renderer 崩溃/无响应具备自动 reload 与日志记录；主进程异常路径记录日志并按生产/ smoke 模式分别弹框退出或无阻塞退出；日志文件写入 `userData/logs/main.log`，敏感字段与 URL query/hash 脱敏；窗口关闭、WebContents 销毁竞态不再触发 `undefined.id` 或 `Object has been destroyed` |
+| 视觉影响 | `无视觉变更`；未修改 TSX、CSS、视觉 token、布局值或动画方向 |
+| 文档同步 | `electron/app/README.md`、`electron/shared/README.md`、`electron/db/README.md`、`tests/app/README.md`、`tests/shared/README.md`、`docs/README.md`、`.github/workflows/README.md` 与 CI 工作流 |
+| 完成时间 | 北京时间 `2026-08-17 11:48` |
