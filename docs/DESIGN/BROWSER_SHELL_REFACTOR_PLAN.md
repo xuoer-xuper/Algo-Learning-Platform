@@ -435,7 +435,7 @@ Renderer（同一构建产物，多窗口实例化——桌宠 hash 路由已证
 |---|---|---|
 | PLAN-R1 | [x] | 2026-08-16：完成联网调研、查缺补漏、决策 D15-D30、迁移编号修正、安全与验收补充 |
 | B0.1 | [x] | `fe31338`（2026-08-16）：壳与每个 OJ WebContentsView 共用纯快捷键分发器；显式空原生菜单消除 default_app Ctrl+W 关窗；接入 Ctrl/Cmd+T/W/Tab/Shift+Tab/1-8/L、F5/R、缩放、Alt 历史导航和 DevTools；新增 `ui:command` 地址栏聚焦通道；测试替身、IPC 合约、文档和 Playwright harness 已同步；全量验证通过；无视觉变更 |
-| B0.2 | [ ] | 弹窗接管、HTTPS 导航策略、permission 双处理器待实施 |
+| B0.2 | [x] | `75c8e28`（2026-08-17）：`setWindowOpenHandler({ createWindow })` 原样接管 Chromium 提供的 popup `webContents` 为受管标签，保留 about:blank、GET、POST、OAuth opener/postMessage 与前后台标签语义；销毁回调固定捕获 webContents，覆盖关闭竞态；生产仅允许 HTTPS，开发/smoke 仅额外放行 localhost/127.0.0.1/[::1] HTTP，未知协议拒绝并通过 `ui:command` 通知；默认与 `persist:oj-main` session 同时安装 permission check/request 双处理器，敏感权限默认拒绝；README、test-double、browser 单测和真实 Electron smoke 已同步。验证：`npm run typecheck`、`npm run lint`、`npm run test:coverage`（43 files/345 tests，31.95/36.48/27.28/32.85%）、`npm run test:architecture`、`npm run test:security`、`npm run test:docs`、`npm run test:performance`、`npm run test:electron`、`npm run test:ui`、`npm run test:all` 全部通过；人工验收覆盖安全协议提示、权限拒绝、about:blank、GET、POST、OAuth 与 popup 关闭恢复。视觉影响：无视觉变更（仅复用既有工具栏消息区域）` |
 | B0.3 | [ ] | 标签关闭/恢复/MAX_TABS 体验待实施 |
 | B0.4 | [ ] | ContestGuard 聚合与临时禁用旧拆分入口待实施 |
 | B0.5 | [ ] | 布局常量单源待实施 |
