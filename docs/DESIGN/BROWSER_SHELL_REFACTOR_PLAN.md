@@ -434,7 +434,7 @@ Renderer（同一构建产物，多窗口实例化——桌宠 hash 路由已证
 | 任务 | 状态 | 当前证据/剩余工作 |
 |---|---|---|
 | PLAN-R1 | [x] | 2026-08-16：完成联网调研、查缺补漏、决策 D15-D30、迁移编号修正、安全与验收补充 |
-| B0.1 | [ ] | 快捷键分发器与显式应用菜单待实施 |
+| B0.1 | [x] | `fe31338`（2026-08-16）：壳与每个 OJ WebContentsView 共用纯快捷键分发器；显式空原生菜单消除 default_app Ctrl+W 关窗；接入 Ctrl/Cmd+T/W/Tab/Shift+Tab/1-8/L、F5/R、缩放、Alt 历史导航和 DevTools；新增 `ui:command` 地址栏聚焦通道；测试替身、IPC 合约、文档和 Playwright harness 已同步；全量验证通过；无视觉变更 |
 | B0.2 | [ ] | 弹窗接管、HTTPS 导航策略、permission 双处理器待实施 |
 | B0.3 | [ ] | 标签关闭/恢复/MAX_TABS 体验待实施 |
 | B0.4 | [ ] | ContestGuard 聚合与临时禁用旧拆分入口待实施 |
@@ -495,3 +495,16 @@ Renderer（同一构建产物，多窗口实例化——桌宠 hash 路由已证
 | 视觉影响 | `无视觉变更`；未修改 TSX/CSS，保留现有前端视觉基线 |
 | 文档同步 | `electron/app/README.md`、`electron/ipc/README.md`、`tests/electron/README.md`、`tests/security/README.md` |
 | 完成时间 | 北京时间 `2026-08-16 23:55` |
+
+### 11.7 B0.1 完成记录
+
+| 字段 | 填写内容 |
+|---|---|
+| 任务 | B0.1 快捷键分发与显式应用菜单 |
+| 状态 | `[x] 已完成` |
+| Commit | `fe31338 feat: 统一浏览器快捷键分发` |
+| 自动验证 | `npm run test:all`；40 个 Vitest 测试文件、338 个测试通过；覆盖率 Statements 30.56%、Branches 35.82%、Functions 25.96%、Lines 31.34%；Electron startup smoke、架构/安全/文档/打包/性能守卫通过；Playwright 宽/中/窄三视口通过 |
+| 人工验收 | Electron 壳与 OJ view 均绑定同一快捷键处理器；Playwright 覆盖 1280x800、1024x720、800x600，地址栏聚焦链路的测试替身已同步；结果通过 |
+| 视觉影响 | `无视觉变更`；仅增加交互行为与测试替身，未修改现有 CSS/视觉 token |
+| 文档同步 | `electron/shortcuts/README.md`、`tests/shortcuts/README.md`、`electron/browser/README.md`、`electron/ipc/README.md`、`docs/README.md` |
+| 完成时间 | 北京时间 `2026-08-16 23:59` |
