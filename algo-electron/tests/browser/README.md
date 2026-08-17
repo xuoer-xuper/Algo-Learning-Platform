@@ -11,6 +11,7 @@
 - `permissionPolicy.test.ts`：敏感权限默认拒绝，以及默认/OJ session 的 permission check/request 双处理器安装。
 - `tabManagerWindowOpen.test.ts`：接管 Chromium 创建的原始 `webContents`、前后台标签、销毁竞态与不安全协议拒绝。
 - `tabManagerLifecycle.test.ts`：关闭后右邻激活、最后标签重置、URL/标题恢复关闭栈和 16 标签满额通知。
+- `browserLayout.test.ts`：验证主进程布局契约的 36/42/78 派生关系，以及 renderer CSS 变量注入。
 
 ## 3. 运行方式
 

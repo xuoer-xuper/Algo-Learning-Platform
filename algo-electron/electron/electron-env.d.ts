@@ -64,6 +64,12 @@ interface BrowserDiagnosticsSnapshot {
   }>
 }
 
+interface BrowserLayoutConfig {
+  toolbarHeight: number
+  tabBarHeight: number
+  topOffset: number
+}
+
 interface CookieSafeDomainSummary {
   site_id: string
   domain: string
@@ -669,6 +675,7 @@ interface CoachContestModePayload {
 }
 
 interface ElectronAPI {
+  browserLayout: BrowserLayoutConfig
   navigate: (url: string) => void
   goBack: () => void
   goForward: () => void

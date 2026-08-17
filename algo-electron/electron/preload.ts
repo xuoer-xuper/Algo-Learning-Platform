@@ -1,6 +1,8 @@
 import { ipcRenderer, contextBridge } from 'electron'
+import { BROWSER_LAYOUT } from './browser/browserLayout'
 
 contextBridge.exposeInMainWorld('electronAPI', {
+  browserLayout: BROWSER_LAYOUT,
   // 浏览器导航
   navigate: (url: string) => ipcRenderer.send('browser:navigate', url),
   goBack: () => ipcRenderer.send('browser:goBack'),

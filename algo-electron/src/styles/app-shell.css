@@ -11,7 +11,7 @@
 .titlebar-layer {
   display: flex;
   align-items: center;
-  height: 36px;
+  height: var(--browser-tabbar-height);
   background-color: var(--bg-surface);
   -webkit-app-region: drag;
   flex-shrink: 0;
@@ -23,7 +23,7 @@
   display: flex;
   align-items: center;
   gap: 4px;
-  height: 42px;
+  height: var(--browser-toolbar-height);
   padding: 0 8px;
   background-color: var(--bg-card);
   border-bottom: 1px solid var(--border);

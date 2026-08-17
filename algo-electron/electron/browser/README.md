@@ -25,6 +25,7 @@
 - `TabManager.ts`：多标签 `WebContentsView` 管理器，当前主线。
 - `tabManagerTypes.ts`：`TabInfo` 和内部 managed tab 类型。
 - `tabManagerConfig.ts`：标签数量、工具栏高度、tabbar 高度和 OJ preload 路径配置。
+- `browserLayout.ts`：主进程定义的标题栏/工具栏布局契约；preload 注入 renderer CSS 变量，避免 bounds、ModalLayer 与 CSS 各自维护高度副本。
 - `tabViewLayout.ts`：活动 tab view 的 bounds 计算、安全移除和 webContents 关闭 helper。
 - `tabScriptExecution.ts`：按 URL 命中的标签页中，对主 frame 和子 frame 执行脚本。
 - `urlMatching.ts`：同页 URL 匹配 helper，供按 URL 找 tab 的脚本执行路径使用。
@@ -141,4 +142,4 @@ npx vitest run tests\browser
 npm run test:electron
 ```
 
-真实 Electron smoke 使用临时 localhost 服务验证默认/ OJ session 权限拒绝，以及 about:blank、GET、POST、OAuth opener/postMessage 弹窗链路。与实时提交联动的 TabManager 约束在 `tests/submissions/realtimeTabActivation.test.ts` 中覆盖；ContestGuard 的后台标签与销毁聚合路径在 `tests/coach/contestUrlAggregator.test.ts` 中覆盖。
+真实 Electron smoke 使用临时 localhost 服务验证默认/ OJ session 权限拒绝，以及 about:blank、GET、POST、OAuth opener/postMessage 弹窗链路。布局契约在 `tests/browser/browserLayout.test.ts` 中覆盖；与实时提交联动的 TabManager 约束在 `tests/submissions/realtimeTabActivation.test.ts` 中覆盖；ContestGuard 的后台标签与销毁聚合路径在 `tests/coach/contestUrlAggregator.test.ts` 中覆盖。

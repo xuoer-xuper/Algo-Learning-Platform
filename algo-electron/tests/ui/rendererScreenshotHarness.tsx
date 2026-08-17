@@ -121,6 +121,7 @@ function createApiMock(): ElectronAPI {
   const tabs: TabInfo[] = [{ id: 'home', url: '', title: '首页', isActive: true }]
 
   return {
+    browserLayout: { toolbarHeight: 42, tabBarHeight: 36, topOffset: 78 },
     navigate: (url) => { currentUrl = url },
     goBack: () => {},
     goForward: () => {},
@@ -406,6 +407,8 @@ window.confirm = () => true
 window.electronAPI = createApiMock()
 
 async function bootstrap(): Promise<void> {
+  const { applyBrowserLayoutVariables } = await import('../../src/browserLayout')
+  applyBrowserLayoutVariables(window.electronAPI.browserLayout, document.documentElement.style)
   const { default: App } = await import('../../src/App')
   const rootEl = document.getElementById('root')
   if (!rootEl) throw new Error('Missing root element')

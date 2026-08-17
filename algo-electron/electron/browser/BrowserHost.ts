@@ -1,7 +1,6 @@
 import { WebContentsView, BrowserWindow } from 'electron'
 import { STEALTH_SCRIPT } from './stealthScript'
-
-const TOOLBAR_HEIGHT = 42
+import { TOOLBAR_HEIGHT } from './tabManagerConfig'
 
 export class BrowserHost {
   private view: WebContentsView | null = null

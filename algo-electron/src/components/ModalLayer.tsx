@@ -1,9 +1,5 @@
 import type { ReactNode } from 'react'
 
-const TOOLBAR_HEIGHT = 42
-const TABBAR_HEIGHT = 36
-const BROWSER_TOP_OFFSET = TOOLBAR_HEIGHT + TABBAR_HEIGHT
-
 interface ModalLayerProps {
   backdrop: string | null
   sidebarWidth: number
@@ -15,9 +11,9 @@ interface ModalLayerProps {
 export function ModalLayer({ backdrop, sidebarWidth, onClose, children, size = 'default' }: ModalLayerProps) {
   const previewStyle = {
     left: sidebarWidth,
-    top: BROWSER_TOP_OFFSET,
+    top: 'var(--browser-top-offset)',
     width: `calc(100% - ${sidebarWidth}px)`,
-    height: `calc(100% - ${BROWSER_TOP_OFFSET}px)`,
+    height: 'calc(100% - var(--browser-top-offset))',
   }
 
   const panelClass = `modal-panel modal-panel-${size}`

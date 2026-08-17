@@ -1,5 +1,5 @@
 import type { BrowserWindow, WebContentsView } from 'electron'
-import { TABBAR_HEIGHT, TOOLBAR_HEIGHT } from './tabManagerConfig'
+import { BROWSER_LAYOUT } from './browserLayout'
 
 export interface ContentSize {
   width: number
@@ -9,9 +9,9 @@ export interface ContentSize {
 export function setTabViewBounds(view: WebContentsView, contentSize: ContentSize, leftOffset: number): void {
   view.setBounds({
     x: leftOffset,
-    y: TOOLBAR_HEIGHT + TABBAR_HEIGHT,
+    y: BROWSER_LAYOUT.topOffset,
     width: contentSize.width - leftOffset,
-    height: contentSize.height - TOOLBAR_HEIGHT - TABBAR_HEIGHT,
+    height: contentSize.height - BROWSER_LAYOUT.topOffset,
   })
 }
 
