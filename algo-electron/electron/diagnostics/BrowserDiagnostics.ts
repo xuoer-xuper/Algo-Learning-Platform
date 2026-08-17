@@ -1,4 +1,5 @@
 import { nowBeijing } from '../shared/time'
+import { appLogger, type Logger } from '../shared/logger'
 
 export type BrowserDiagnosticArea = 'tracking' | 'title' | 'userscript'
 export type BrowserDiagnosticStatus = 'success' | 'failed' | 'skipped'
@@ -29,21 +30,34 @@ function errorMessage(error: unknown): string {
 export class BrowserDiagnostics {
   private readonly entries: BrowserDiagnosticEntry[] = []
 
+  constructor(private readonly logger: Logger = appLogger) {}
+
   record(
     area: BrowserDiagnosticArea,
     event: string,
     status: BrowserDiagnosticStatus,
     options: { url?: string; detail?: unknown } = {},
   ): void {
-    this.entries.push({
+    const entry: BrowserDiagnosticEntry = {
       area,
       event,
       status,
       url: options.url,
       detail: options.detail === undefined ? undefined : errorMessage(options.detail),
       at: nowBeijing(),
-    })
+    }
+    this.entries.push(entry)
     if (this.entries.length > MAX_ENTRIES) this.entries.splice(0, this.entries.length - MAX_ENTRIES)
+
+    const logData = {
+      area: entry.area,
+      event: entry.event,
+      status: entry.status,
+      url: entry.url,
+      detail: entry.detail,
+    }
+    if (status === 'failed') this.logger.warn('browser-diagnostics.event', logData)
+    else this.logger.debug('browser-diagnostics.event', logData)
   }
 
   getSnapshot(limit = MAX_ENTRIES): BrowserDiagnosticsSnapshot {

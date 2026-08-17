@@ -15,6 +15,7 @@
     "install:electron": "install-electron --no",
     "install:app-deps": "electron-builder install-app-deps",
     "typecheck": "tsc --noEmit",
+    "build:check": "tsc && vite build && npm run test:packaged-main",
     "build": "tsc && vite build && npm run test:packaged-main && electron-builder",
     "build:win": "tsc && vite build && npm run test:packaged-main && electron-builder --win nsis && npm run test:packaged-app",
     "lint": "eslint . --report-unused-disable-directives --max-warnings 0",

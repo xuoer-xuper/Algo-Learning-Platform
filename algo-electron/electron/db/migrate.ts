@@ -1,5 +1,6 @@
 import type Database from 'better-sqlite3'
 import { nowBeijing } from '../shared/time'
+import { appLogger, type Logger } from '../shared/logger'
 
 interface Migration {
   version: number
@@ -7,7 +8,11 @@ interface Migration {
   up: (db: Database.Database) => void
 }
 
-export function runMigrations(db: Database.Database, migrations: Migration[]): void {
+export function runMigrations(
+  db: Database.Database,
+  migrations: Migration[],
+  logger: Logger = appLogger,
+): void {
   db.exec(`
     CREATE TABLE IF NOT EXISTS schema_migrations (
       version INTEGER PRIMARY KEY,
@@ -27,9 +32,16 @@ export function runMigrations(db: Database.Database, migrations: Migration[]): v
   for (const migration of migrations) {
     if (applied.has(migration.version)) continue
 
-    db.transaction(() => {
-      migration.up(db)
-      insertMigration.run(migration.version, migration.name, nowBeijing())
-    })()
+    logger.info('db.migration-started', { version: migration.version, name: migration.name })
+    try {
+      db.transaction(() => {
+        migration.up(db)
+        insertMigration.run(migration.version, migration.name, nowBeijing())
+      })()
+      logger.info('db.migration-completed', { version: migration.version, name: migration.name })
+    } catch (error) {
+      logger.error('db.migration-failed', { version: migration.version, name: migration.name, error })
+      throw error
+    }
   }
 }

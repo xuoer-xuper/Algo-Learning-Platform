@@ -7,6 +7,7 @@ import { RealtimeHookInjector } from './RealtimeHookInjector'
 import { SubmissionWatcher, SUBMISSION_WATCHER_DETECTED_EVENT } from './SubmissionWatcher'
 import type { SubmissionNotification } from './SubmissionWatcherCore'
 import { handleFromShell, onFromOj } from '../ipc/trustedSender'
+import { appLogger, type Logger } from '../shared/logger'
 
 const SUBMISSION_DETECTED_CHANNEL = 'oj-submission:detected'
 const STATUS_CHANNEL = 'realtimeSubmission:getStatus'
@@ -20,13 +21,13 @@ export class RealtimeSubmissionService {
   private tabManager: TabManager | null = null
   private isIpcRegistered = false
 
-  constructor(getWindow: () => BrowserWindow | null) {
-    this.watcher = new SubmissionWatcher(getWindow)
+  constructor(getWindow: () => BrowserWindow | null, logger: Logger = appLogger) {
+    this.watcher = new SubmissionWatcher(getWindow, logger)
     this.hookInjector = new RealtimeHookInjector({
       getRealtimeAdapterForUrl,
       getSiteById,
       diagnostics: this.diagnostics,
-      logWarn: (message, ...args) => console.warn(message, ...args),
+      logWarn: (message, ...args) => logger.warn(message, ...args),
     })
     this.diagnostics.setSupportedAdapterIds(getRealtimeAdapterIds())
     this.ipcHandler = (event, payload) => {

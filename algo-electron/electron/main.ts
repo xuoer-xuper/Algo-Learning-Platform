@@ -1,4 +1,4 @@
-import { app, BrowserWindow, Menu, type Input, type WebContents } from 'electron'
+import { app, BrowserWindow, dialog, Menu, type Input, type WebContents } from 'electron'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import { TabManager } from './browser/TabManager'
@@ -22,10 +22,22 @@ import { registerShellProtocol, registerShellSchemeAsPrivileged, shellUrl } from
 import { registerShellWebContents, unregisterShellWebContents } from './ipc/trustedSender'
 import { dispatchShortcut, resolveShortcut, type ShortcutActions } from './shortcuts/shortcutDispatcher'
 import { evaluateBrowserNavigation, type NavigationBlockReason } from './browser/navigationPolicy'
+import { appLogger, initializeAppLogger } from './shared/logger'
+import { createFatalErrorReporter, installMainProcessErrorHandlers } from './app/mainProcessErrors'
+import { installShellRendererRecovery } from './app/shellRendererRecovery'
 
 configureChromiumCommandLine()
 
 applyStartupSmokeUserDataPath()
+
+initializeAppLogger(path.join(app.getPath('userData'), 'logs'))
+const reportFatalError = createFatalErrorReporter({
+  logger: appLogger,
+  showErrorBox: (title, content) => dialog.showErrorBox(title, content),
+  exit: (code) => app.exit(code),
+  showDialog: !STARTUP_SMOKE_MODE,
+})
+installMainProcessErrorHandlers(process, reportFatalError)
 
 registerNoteAssetSchemeAsPrivileged()
 registerShellSchemeAsPrivileged()
@@ -45,6 +57,8 @@ let tabManager: TabManager | null
 let services: MainServices | null = null
 let coachPetWindow: CoachPetWindow | null = null
 let coachOrchestrator: CoachOrchestrator | null = null
+let removeShellRendererRecovery: (() => void) | null = null
+let isQuitting = false
 
 // The frameless renderer owns the visible browser chrome. An explicit empty
 // native menu prevents Electron's default_app accelerators from hijacking it.
@@ -67,6 +81,11 @@ function createWindow() {
     },
   })
   registerShellWebContents(win.webContents)
+  const shellWebContents = win.webContents
+  removeShellRendererRecovery = installShellRendererRecovery(win.webContents, {
+    logger: appLogger,
+    shouldReload: () => !isQuitting,
+  })
 
   const allowInsecureLocalhost = Boolean(VITE_DEV_SERVER_URL || STARTUP_SMOKE_MODE)
   const notifyNavigationBlocked = (reason: NavigationBlockReason): void => {
@@ -189,17 +208,27 @@ function createWindow() {
   })
 
   win.on('closed', () => {
-    if (win) unregisterShellWebContents(win.webContents)
-    services?.trackingService.endCurrentVisit()
+    win = null
+    removeShellRendererRecovery?.()
+    removeShellRendererRecovery = null
+    unregisterShellWebContents(shellWebContents)
+    try {
+      services?.trackingService.endCurrentVisit()
+    } catch (error) {
+      appLogger.warn('tracking.window-close-failed', error)
+    }
     // 阶段 2：停止 Coach 服务（关当前会话 + 解绑监听）
-    try { coachOrchestrator?.stop() } catch { /* ignore */ }
+    try {
+      coachOrchestrator?.stop()
+    } catch (error) {
+      appLogger.warn('coach.stop-failed', error)
+    }
     coachOrchestrator = null
     tabManager?.destroy()
     tabManager = null
     // 主窗口关闭时同步销毁桌宠窗口（生命周期绑定）
     coachPetWindow?.destroy()
     coachPetWindow = null
-    win = null
   })
 }
 
@@ -222,8 +251,17 @@ app.on('window-all-closed', () => {
 
 // 在应用真正退出前清理资源，覆盖 macOS 关窗不退出、直关窗口等场景
 app.on('before-quit', () => {
-  try { services?.trackingService.endCurrentVisit() } catch { /* ignore */ }
-  try { closeDb() } catch { /* ignore */ }
+  isQuitting = true
+  try {
+    services?.trackingService.endCurrentVisit()
+  } catch (error) {
+    appLogger.warn('tracking.shutdown-failed', error)
+  }
+  try {
+    closeDb()
+  } catch (error) {
+    appLogger.warn('db.close-failed', error)
+  }
 })
 
 app.on('activate', () => {
@@ -232,7 +270,8 @@ app.on('activate', () => {
   }
 })
 
-app.whenReady().then(() => {
+void app.whenReady().then(() => {
+  appLogger.info('app.ready')
   if (!VITE_DEV_SERVER_URL) {
     registerShellProtocol(RENDERER_DIST)
   }
@@ -250,7 +289,7 @@ app.whenReady().then(() => {
   try {
     ensureTodaySnapshot()
   } catch (err) {
-    console.error('[AI] 每日快照生成失败:', err)
+    appLogger.error('ai.daily-snapshot-failed', err)
   }
 
   // 初始化 Coach 桌宠窗口（仅在非 smoke 模式且配置启用时）
@@ -279,7 +318,7 @@ app.whenReady().then(() => {
         }
       }
     } catch (err) {
-      console.error('[coach] 桌宠窗口初始化失败:', err)
+      appLogger.error('coach.startup-failed', err)
     }
   }
 
@@ -289,13 +328,21 @@ app.whenReady().then(() => {
       getTabManager: () => tabManager,
       getDefaultHomeUrl,
       cleanup: () => {
-        try { services?.trackingService.endCurrentVisit() } catch { /* ignore */ }
-        try { closeDb() } catch { /* ignore */ }
+        try {
+          services?.trackingService.endCurrentVisit()
+        } catch (error) {
+          appLogger.warn('tracking.smoke-cleanup-failed', error)
+        }
+        try {
+          closeDb()
+        } catch (error) {
+          appLogger.warn('db.smoke-cleanup-failed', error)
+        }
       },
     }).catch((error) => {
-      console.error('[startup-smoke] failed')
-      console.error(error)
-      app.exit(1)
+      reportFatalError('startup', error)
     })
   }
+}).catch((error) => {
+  reportFatalError('startup', error)
 })

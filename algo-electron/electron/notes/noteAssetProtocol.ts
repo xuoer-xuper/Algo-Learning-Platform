@@ -2,6 +2,7 @@ import { net, protocol } from 'electron'
 import fs from 'node:fs'
 import { pathToFileURL } from 'node:url'
 import { resolveNoteAssetPath } from './NoteService'
+import { appLogger } from '../shared/logger'
 
 export const NOTE_ASSET_SCHEME = 'note-asset'
 
@@ -39,7 +40,7 @@ export function registerNoteAssetProtocol(): void {
 
       return net.fetch(pathToFileURL(assetPath).toString())
     } catch (error) {
-      console.warn('[Notes] 读取图片附件失败:', error)
+      appLogger.warn('notes.asset-read-failed', error)
       return new Response(null, { status: 404 })
     }
   })

@@ -1,5 +1,6 @@
 import { ipcMain as electronIpcMain, type IpcMainEvent, type IpcMainInvokeEvent, type WebContents } from 'electron'
 import { SHELL_ORIGIN } from '../app/appProtocol'
+import { appLogger } from '../shared/logger'
 
 type ShellEvent = IpcMainEvent | IpcMainInvokeEvent
 type IpcListener<T extends ShellEvent> = (event: T, ...args: any[]) => any
@@ -10,8 +11,14 @@ const shellWebContentsIds = new Set<number>()
 const ojWebContentsIds = new Set<number>()
 
 function getWebContentsId(webContents: WebContentsIdentity): number | null {
-  if (!webContents || !Number.isInteger(webContents.id)) return null
-  return webContents.id
+  try {
+    if (!webContents) return null
+    const id = webContents.id
+    return Number.isInteger(id) ? id : null
+  } catch {
+    // Electron may throw while reading properties during WebContents teardown.
+    return null
+  }
 }
 
 function normalizeOrigin(url: string): string | null {
@@ -111,7 +118,7 @@ function rejectInvoke(check: TrustedSenderCheck): never {
 }
 
 function rejectSend(channel: string, check: TrustedSenderCheck): void {
-  console.warn(`[ipc] Rejected ${channel} (${check.reason})`)
+  appLogger.warn('ipc.send-rejected', { channel, reason: check.reason })
 }
 
 export function registerShellWebContents(webContents: RegistrableWebContents): void {

@@ -4,6 +4,7 @@ import { getAdapter, getAdapterForUrl } from '../adapters/registry'
 import { getSiteById } from '../db/repositories/siteRepository'
 import { SubmissionWatcherCore, type SubmissionWatcherOptions, type SubmissionWatcherResult } from './SubmissionWatcherCore'
 import { createDefaultSubmissionBatchWriter } from './createDefaultSubmissionBatchWriter'
+import { appLogger, type Logger } from '../shared/logger'
 
 /**
  * 提交事件名。主进程订阅者通过 `watcher.on('detected', cb)` 监听。
@@ -25,7 +26,7 @@ export const SUBMISSION_WATCHER_DETECTED_EVENT = 'detected'
 export class SubmissionWatcher extends EventEmitter {
   private readonly core: SubmissionWatcherCore
 
-  constructor(getWindow: () => BrowserWindow | null) {
+  constructor(getWindow: () => BrowserWindow | null, logger: Logger = appLogger) {
     super()
     const batchWriter = createDefaultSubmissionBatchWriter()
     this.core = new SubmissionWatcherCore({
@@ -53,7 +54,7 @@ export class SubmissionWatcher extends EventEmitter {
         this.emit(SUBMISSION_WATCHER_DETECTED_EVENT, notification)
       },
       logError: (message, error) => {
-        console.error(message, error)
+        logger.error(message, error)
       },
     })
   }

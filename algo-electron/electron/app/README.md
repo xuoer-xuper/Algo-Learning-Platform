@@ -15,6 +15,8 @@
 - `recentSitePreconnect.ts`：启动后按最近访问站点做有限预连接。
 - `startupSmoke.ts`：`ALGO_ELECTRON_SMOKE=1` 下的 Electron 启动冒烟验收。
 - `appProtocol.ts`：注册生产 `app://shell` privileged scheme、静态资源 handler 和 CSP。
+- `mainProcessErrors.ts`：统一处理 `uncaughtException`、`unhandledRejection` 与启动失败，记录致命错误并在生产环境弹框退出。
+- `shellRendererRecovery.ts`：监听壳 renderer 卡死/崩溃事件，非退出阶段自动 reload 并记录恢复过程。
 
 `config.ts`：
 
@@ -54,6 +56,8 @@
 - 创建 `SiteRegistry`、`CookieVault`、`TrackingService`、`SyncService`、`RealtimeSubmissionService` 和 `UserScriptService`。
 - 为 Nowcoder 同步提供现有题目 ID 搜索回调。
 - 返回 `MainServices`，由 `main.ts` 负责保存并注入窗口、IPC 和 smoke cleanup。
+
+`main.ts` 启动前会初始化 `electron/shared/logger.ts`，并把 `app.whenReady()` 失败、壳 renderer `render-process-gone`/`unresponsive`、数据库迁移和服务启动异常统一写入落盘日志。
 
 ## 3. 函数说明
 

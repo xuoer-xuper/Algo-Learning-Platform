@@ -6,6 +6,7 @@ import type { TrackingService } from '../tracking/TrackingService'
 import type { RealtimeSubmissionService } from '../submissions/RealtimeSubmissionService'
 import { parseUrl } from '../parsers/registry'
 import { nowBeijing, todayBeijing } from '../shared/time'
+import { appLogger } from '../shared/logger'
 import {
   insertCoachEvent,
   listCoachEvents,
@@ -171,7 +172,7 @@ export class CoachOrchestrator {
     try {
       this.feedbackStore.loadHistoryForWarmup(30)
     } catch (err) {
-      console.warn('[coach] loadHistoryForWarmup failed:', err)
+      appLogger.warn('coach.history-warmup-failed', err)
     }
 
     // 6. LLM 提示服务
@@ -179,7 +180,7 @@ export class CoachOrchestrator {
     try {
       this.llmHintService.init()
     } catch (err) {
-      console.warn('[coach] LlmHintService init failed:', err)
+      appLogger.warn('coach.llm-init-failed', err)
     }
 
     // 4. CoachEventBridge
@@ -354,7 +355,7 @@ export class CoachOrchestrator {
       try {
         return await tabManager.executeScriptOnUrl(targetUrl, code)
       } catch (err) {
-        console.warn('[coach] ConstraintParser injection failed:', err)
+        appLogger.warn('coach.constraint-injection-failed', { url: targetUrl, error: err })
         return null
       }
     }
@@ -371,7 +372,7 @@ export class CoachOrchestrator {
         this.currentConstraints = constraints
       })
       .catch((err) => {
-        console.warn('[coach] ConstraintParser fetchAndParse failed:', err)
+        appLogger.warn('coach.constraint-fetch-failed', { url, error: err })
         this.currentConstraints = null
       })
   }
@@ -774,7 +775,7 @@ export class CoachOrchestrator {
             }
           }
         } catch (err) {
-          console.warn('[coach] LLM upgrade failed, falling back to local:', err)
+          appLogger.warn('coach.llm-upgrade-failed', err)
         }
       }
 
@@ -946,7 +947,7 @@ export class CoachOrchestrator {
         this.showIntervention(intervention)
       }
     } catch (err) {
-      console.warn('[coach] LLM generateHint failed:', err)
+      appLogger.warn('coach.llm-generate-hint-failed', err)
     }
   }
 

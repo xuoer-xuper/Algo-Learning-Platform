@@ -2,6 +2,7 @@ import crypto from 'node:crypto'
 import type { CoachEvent, CoachInterventionLevel, ProblemSession } from '../types'
 import type { ProblemConstraints } from '../problemFacts/ConstraintParser'
 import { nowBeijing } from '../../shared/time'
+import { appLogger } from '../../shared/logger'
 import { ArkClient } from './ArkClient'
 import { LlmConfigStore } from './LlmConfigStore'
 import { ContextGatherer } from './ContextGatherer'
@@ -171,7 +172,7 @@ export class LlmHintService {
 
       return hintResult
     } catch (err) {
-      console.warn('[llm] generateHint failed:', err)
+      appLogger.warn('llm.generate-hint-failed', err)
       return null
     }
   }
@@ -238,7 +239,7 @@ export class LlmHintService {
       })
       return result.content
     } catch (err) {
-      console.warn('[llm] chat failed:', err)
+      appLogger.warn('llm.chat-failed', err)
       return null
     }
   }
@@ -278,7 +279,7 @@ export class LlmHintService {
       })
       return result.response.message
     } catch (err) {
-      console.warn('[llm] requestHint failed:', err)
+      appLogger.warn('llm.request-hint-failed', err)
       return null
     }
   }

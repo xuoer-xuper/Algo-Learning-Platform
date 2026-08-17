@@ -8,12 +8,13 @@
 
 `ci.yml`：
 
-- 触发条件：pull request、push 到 `main` 或 `master`。
+- 触发条件：手动运行、pull request、push 到 `main` 或 `master`；同一分支的新提交会取消旧运行。
 - 运行环境：`windows-latest`。
 - Node 版本：22.23.2（项目支持范围为 `>=22.18.0 <25`）。
 - 工作目录：`algo-electron/`。
-- 安装方式：`npm ci`。
-- 验证命令：`npm run test:all`。
+- 最小权限：仅 `contents: read`。
+- `validate`：`npm ci` + `npm run test:all`，覆盖测试、Electron smoke 和 Playwright。
+- `packaged-main`：在 `validate` 通过后重新安装依赖，运行 `npm run build:check`，确认生产 renderer/main/preload 构建和 packaged-main 外部依赖契约。
 
 ## 3. 覆盖范围
 
@@ -28,6 +29,8 @@
 - SQLite repository 测试。
 - Markdown 链接和 README 覆盖检查。
 - Playwright Electron renderer 交互与 screenshot 验收。
+
+`npm run build:check` 额外覆盖生产 renderer/main/preload 构建与 packaged-main 外部依赖检查，不生成安装包。
 
 不覆盖：
 

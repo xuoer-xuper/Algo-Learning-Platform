@@ -16,6 +16,7 @@ import { safeCloseWebContents, safeRemoveChildView, setTabViewBounds } from './t
 import { samePageUrl } from './urlMatching'
 import { registerOjWebContents, unregisterOjWebContents } from '../ipc/trustedSender'
 import { evaluateBrowserNavigation, type NavigationBlockReason } from './navigationPolicy'
+import { appLogger } from '../shared/logger'
 
 export type { TabInfo } from './tabManagerTypes'
 
@@ -137,7 +138,7 @@ export class TabManager {
 
     contents.on('destroyed', () => {
       this.removeWebContentsUrl(contentsId)
-      this.handleViewDestroyed(view, contents)
+      this.handleViewDestroyed(view, contentsId)
     })
 
     contents.on('page-title-updated', (_event, title) => {
@@ -177,6 +178,15 @@ export class TabManager {
       }
       // 注入反检测脚本到主世界（绕过 contextIsolation），每个页面及 iframe 加载后执行
       contents.executeJavaScript(STEALTH_SCRIPT).catch(() => {})
+    })
+
+    contents.on('did-fail-load', (_event, errorCode, errorDescription, validatedURL, isMainFrame) => {
+      if (!isMainFrame) return
+      appLogger.warn('browser.did-fail-load', {
+        errorCode,
+        errorDescription,
+        validatedURL,
+      })
     })
 
     contents.on('login', (event, details, authInfo, callback) => {
@@ -243,8 +253,8 @@ export class TabManager {
     if (this.closedTabs.length > MAX_CLOSED_TABS) this.closedTabs.shift()
   }
 
-  private handleViewDestroyed(view: WebContentsView, contents: WebContents): void {
-    unregisterOjWebContents(contents)
+  private handleViewDestroyed(view: WebContentsView, contentsId: number): void {
+    unregisterOjWebContents({ id: contentsId })
     const tab = this.findTabByView(view)
     if (!tab) return
 
@@ -285,7 +295,9 @@ export class TabManager {
     const id = this.addManagedTab(view, url ?? '')
 
     if (url) {
-      void view.webContents.loadURL(url)
+      void view.webContents.loadURL(url).catch((error) => {
+        appLogger.error('browser.load-url-failed', { url, error })
+      })
     }
 
     return id
@@ -414,7 +426,9 @@ export class TabManager {
       return
     }
     const tab = this.tabs.get(this.activeTabId)!
-    void tab.view.webContents.loadURL(url)
+    void tab.view.webContents.loadURL(url).catch((error) => {
+      appLogger.error('browser.navigate-failed', { url, error })
+    })
   }
 
   goBack() {

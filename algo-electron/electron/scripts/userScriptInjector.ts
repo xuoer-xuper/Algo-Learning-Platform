@@ -1,11 +1,13 @@
 import type { TabManager } from '../browser/TabManager'
 import { BrowserDiagnostics } from '../diagnostics/BrowserDiagnostics'
 import type { UserScriptService } from './UserScriptService'
+import { appLogger, type Logger } from '../shared/logger'
 
 interface InstallUserScriptInjectionOptions {
   tabManager: TabManager
   getUserScriptService: () => UserScriptService | null
   diagnostics?: BrowserDiagnostics
+  logger?: Logger
 }
 
 function getErrorMessage(error: unknown): unknown {
@@ -15,23 +17,30 @@ function getErrorMessage(error: unknown): unknown {
 export function installUserScriptInjection(options: InstallUserScriptInjectionOptions): BrowserDiagnostics {
   const { tabManager, getUserScriptService } = options
   const diagnostics = options.diagnostics ?? new BrowserDiagnostics()
+  const logger = options.logger ?? appLogger
 
   tabManager.setPageLoadedCallback(async (url) => {
-    console.log('[UserScript] Page loaded:', url)
+    logger.debug('userscript.page-loaded', { url })
 
     const userScriptService = getUserScriptService()
     if (!userScriptService) {
-      console.log('[UserScript] SKIP: service is null')
+      logger.warn('userscript.service-unavailable', { url })
       diagnostics.record('userscript', 'service-unavailable', 'skipped', { url })
       return
     }
 
     const entries = userScriptService.getMatchingScriptsWithMeta(url)
-    console.log('[UserScript] Matching scripts:', entries.length)
+    logger.debug('userscript.match-completed', { url, count: entries.length })
     if (entries.length === 0) diagnostics.record('userscript', 'match', 'skipped', { url, detail: 'No matching scripts' })
 
     for (const { script, requires, resources } of entries) {
-      console.log('[UserScript] Injecting:', script.name, 'requires:', requires.length, 'resources:', resources.length, 'code length:', script.code?.length ?? 0)
+      logger.debug('userscript.inject-started', {
+        url,
+        scriptName: script.name,
+        requires: requires.length,
+        resources: resources.length,
+        codeLength: script.code?.length ?? 0,
+      })
       try {
         const resourceMap: Record<string, string> = {}
         for (const res of resources) {
@@ -104,7 +113,7 @@ export function installUserScriptInjection(options: InstallUserScriptInjectionOp
           void 0;
         `
         await tabManager.executeScript(polyfills)
-        console.log('[UserScript] Polyfills injected for:', script.name)
+        logger.debug('userscript.polyfills-injected', { url, scriptName: script.name })
 
         if (resources.length > 0) {
           const fetchResourcesCode = `
@@ -123,7 +132,7 @@ export function installUserScriptInjection(options: InstallUserScriptInjectionOp
             })()
           `
           await tabManager.executeScript(fetchResourcesCode)
-          console.log('[UserScript] Resources fetched for:', script.name)
+          logger.debug('userscript.resources-fetched', { url, scriptName: script.name })
         }
 
         if (requires.length > 0) {
@@ -143,14 +152,14 @@ export function installUserScriptInjection(options: InstallUserScriptInjectionOp
             })()
           `
           await tabManager.executeScript(loadRequiresCode)
-          console.log('[UserScript] Requires loaded for:', script.name)
+          logger.debug('userscript.requires-loaded', { url, scriptName: script.name })
         }
 
         await tabManager.executeScript(`${script.code}\n; void 0;`)
-        console.log('[UserScript] Script executed OK:', script.name)
+        logger.info('userscript.inject-completed', { url, scriptName: script.name })
         diagnostics.record('userscript', 'inject', 'success', { url, detail: script.name })
       } catch (error) {
-        console.error('[UserScript Failed]', script.name, getErrorMessage(error))
+        logger.error('userscript.inject-failed', { url, scriptName: script.name, error: getErrorMessage(error) })
         diagnostics.record('userscript', 'inject', 'failed', { url, detail: `${script.name}: ${getErrorMessage(error)}` })
       }
     }

@@ -55,7 +55,7 @@
 
 `migrate.ts`：
 
-- `runMigrations(db, migrations)`：创建 `schema_migrations`，跳过已执行版本，对每个新 migration 开事务运行 `up()`，成功后写入版本记录。
+- `runMigrations(db, migrations)`：创建 `schema_migrations`，跳过已执行版本，对每个新 migration 开事务运行 `up()`，成功后写入版本记录；每个开始、完成和失败事件写入主进程滚动日志，失败仍原样抛回启动链。
 
 Migration 文件约定：
 

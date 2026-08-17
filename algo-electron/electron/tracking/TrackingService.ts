@@ -6,10 +6,13 @@ import { getSiteById } from '../db/repositories/siteRepository'
 import { recomputeDailyStats } from '../db/repositories/statsRepository'
 import type { ProblemIdentity } from '../shared/types'
 import { nowBeijing, todayBeijing } from '../shared/time'
+import { appLogger, type Logger } from '../shared/logger'
 
 export class TrackingService {
   private currentVisit: { problemId: string; enteredAt: number } | null = null
   private onProblemDetected: ((identity: ProblemIdentity) => void) | null = null
+
+  constructor(private readonly logger: Logger = appLogger) {}
 
   setProblemDetectedCallback(callback: (identity: ProblemIdentity) => void) {
     this.onProblemDetected = callback
@@ -51,7 +54,16 @@ export class TrackingService {
       this.currentVisit = { problemId: problem.id, enteredAt: Date.now() }
 
       // 实时重算当日统计，保证趋势图/连续天数/AI 上下文与访问记录同步
-      try { recomputeDailyStats(today) } catch { /* ignore */ }
+      try {
+        recomputeDailyStats(today)
+      } catch (error) {
+        this.logger.warn('tracking.stats-recompute-failed', { phase: 'visit-start', day: today, error })
+      }
+      this.logger.debug('tracking.visit-started', {
+        platform: identity.platform,
+        platformProblemId: identity.platformProblemId,
+        url: identity.canonicalUrl,
+      })
     }
 
     return identity
@@ -70,6 +82,12 @@ export class TrackingService {
     this.currentVisit = null
 
     // 停留时长更新后重算当日统计（duration_seconds/active_seconds 可能变化）
-    try { recomputeDailyStats(todayBeijing()) } catch { /* ignore */ }
+    const day = todayBeijing()
+    try {
+      recomputeDailyStats(day)
+    } catch (error) {
+      this.logger.warn('tracking.stats-recompute-failed', { phase: 'visit-end', day, error })
+    }
+    this.logger.debug('tracking.visit-ended', { durationSeconds: duration })
   }
 }

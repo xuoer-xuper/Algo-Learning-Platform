@@ -5,6 +5,7 @@ import type { UserScript } from '../db/repositories/userScriptRepository'
 import { getEnabledSites } from '../db/repositories/siteRepository'
 import fs from 'node:fs'
 import { matchRuleToRegExp, parseScriptMetadata } from './userScriptMetadata'
+import { appLogger } from '../shared/logger'
 
 export class UserScriptService {
   public getMatchingScripts(url: string): UserScript[] {
@@ -17,12 +18,12 @@ export class UserScriptService {
     resources: { name: string; url: string }[];
   }> {
     const enabledScripts = getEnabledScripts()
-    console.log('[UserScript Match] enabledScripts count:', enabledScripts.length)
+    appLogger.debug('userscript.enabled-loaded', { count: enabledScripts.length })
     if (enabledScripts.length === 0) return []
 
     const u = new URL(url)
     const domain = u.hostname
-    console.log('[UserScript Match] domain:', domain)
+    appLogger.debug('userscript.match-domain', { url, domain })
     const enabledSites = getEnabledSites()
 
     const results: Array<{ script: UserScript; requires: string[]; resources: { name: string; url: string }[] }> = []
@@ -45,8 +46,8 @@ export class UserScriptService {
             }
           }
         }
-      } catch (e) {
-        // ignore
+      } catch (error) {
+        appLogger.warn('userscript.site-ids-invalid', { scriptName: script.name, error })
       }
 
       // 2. Check match_urls_json fallback
@@ -60,25 +61,32 @@ export class UserScriptService {
               break
             }
           }
-        } catch {
-          // ignore
+        } catch (error) {
+          appLogger.warn('userscript.match-rules-invalid', { scriptName: script.name, error })
         }
       }
 
       if (matched && script.file_path && fs.existsSync(script.file_path)) {
         script.code = fs.readFileSync(script.file_path, 'utf-8')
         const meta = parseScriptMetadata(script.code)
-        console.log('[UserScript Match] MATCHED:', script.name, 'requires:', meta.requires.length, 'resources:', meta.resources.length)
+        appLogger.debug('userscript.matched-file', {
+          scriptName: script.name,
+          requires: meta.requires.length,
+          resources: meta.resources.length,
+        })
         results.push({ script, requires: meta.requires, resources: meta.resources })
       } else if (matched && script.code) {
         const meta = parseScriptMetadata(script.code)
-        console.log('[UserScript Match] MATCHED (DB):', script.name)
+        appLogger.debug('userscript.matched-database', { scriptName: script.name })
         results.push({ script, requires: meta.requires, resources: meta.resources })
       } else if (matched) {
         // 匹配成功但无可用代码（file_path 不存在且 code 为空）
-        console.log('[UserScript Match] MATCHED BUT NO CODE:', script.name, 'file_path=', script.file_path)
+        appLogger.warn('userscript.matched-without-code', {
+          scriptName: script.name,
+          hasFilePath: Boolean(script.file_path),
+        })
       } else {
-        console.log('[UserScript Match] NOT MATCHED:', script.name)
+        appLogger.debug('userscript.not-matched', { scriptName: script.name })
       }
     }
 

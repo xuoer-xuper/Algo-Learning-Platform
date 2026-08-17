@@ -134,6 +134,7 @@
 | test db | [tests/db/README](../algo-electron/tests/db/README.md) |
 | test coach | [tests/coach/README](../algo-electron/tests/coach/README.md) |
 | test components | [tests/components/README](../algo-electron/tests/components/README.md) |
+| test app | [tests/app/README](../algo-electron/tests/app/README.md) |
 | test docs | [tests/docs/README](../algo-electron/tests/docs/README.md) |
 | test electron | [tests/electron/README](../algo-electron/tests/electron/README.md) |
 | test diagnostics | [tests/diagnostics/README](../algo-electron/tests/diagnostics/README.md) |
@@ -144,6 +145,7 @@
 | test performance | [tests/performance/README](../algo-electron/tests/performance/README.md) |
 | test scripts | [tests/scripts/README](../algo-electron/tests/scripts/README.md) |
 | test security | [tests/security/README](../algo-electron/tests/security/README.md) |
+| test shared | [tests/shared/README](../algo-electron/tests/shared/README.md) |
 | test shortcuts | [tests/shortcuts/README](../algo-electron/tests/shortcuts/README.md) |
 | test submissions | [tests/submissions/README](../algo-electron/tests/submissions/README.md) |
 | test ui | [tests/ui/README](../algo-electron/tests/ui/README.md) |

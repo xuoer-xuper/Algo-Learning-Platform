@@ -33,17 +33,22 @@ export function installProblemTitleTracking(options: InstallProblemTitleTracking
     title: string | null | undefined,
     source: 'browser-title' | 'dom-fallback',
   ): boolean => {
-    if (source === 'browser-title' && isCodeforcesUrl(url)) return false
-    const identity = resolveBrowserTitleProblemIdentity(url, title, parseUrl)
-    if (!identity) {
-      diagnostics.record('title', 'extract', 'skipped', { url, detail: `${source}: no valid title` })
+    try {
+      if (source === 'browser-title' && isCodeforcesUrl(url)) return false
+      const identity = resolveBrowserTitleProblemIdentity(url, title, parseUrl)
+      if (!identity) {
+        diagnostics.record('title', 'extract', 'skipped', { url, detail: `${source}: no valid title` })
+        return false
+      }
+      successfulExtractions.add(url)
+      upsertProblem(identity)
+      options.notifyProblemsUpdated()
+      diagnostics.record('title', 'extract', 'success', { url, detail: source })
+      return true
+    } catch (error) {
+      diagnostics.record('title', 'extract', 'failed', { url, detail: error })
       return false
     }
-    successfulExtractions.add(url)
-    upsertProblem(identity)
-    options.notifyProblemsUpdated()
-    diagnostics.record('title', 'extract', 'success', { url, detail: source })
-    return true
   }
 
   const scheduleTitleExtraction = (url: string) => {
@@ -86,7 +91,13 @@ export function installProblemTitleTracking(options: InstallProblemTitleTracking
   }
 
   tabManager.setNavigateCallback((url) => {
-    const identity = options.getTrackingService()?.handleNavigation(url)
+    let identity
+    try {
+      identity = options.getTrackingService()?.handleNavigation(url)
+    } catch (error) {
+      diagnostics.record('tracking', 'navigate', 'failed', { url, detail: error })
+      return
+    }
     if (identity) {
       diagnostics.record('tracking', 'navigate', 'success', { url })
       options.notifyProblemsUpdated()
