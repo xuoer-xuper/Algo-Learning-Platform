@@ -17,6 +17,10 @@ export function closeBrowserTab(tabId: string): void {
   window.electronAPI.closeTab(tabId)
 }
 
+export function reopenClosedBrowserTab(): Promise<string> {
+  return window.electronAPI.reopenClosedTab()
+}
+
 export function detachBrowserTab(tabId: string): void {
   window.electronAPI.detachTab(tabId)
 }

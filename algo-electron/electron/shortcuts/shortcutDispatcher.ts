@@ -11,6 +11,7 @@ export interface ShortcutInput {
 export type ShortcutCommand =
   | { type: 'new-tab' }
   | { type: 'close-tab' }
+  | { type: 'reopen-closed-tab' }
   | { type: 'next-tab' }
   | { type: 'previous-tab' }
   | { type: 'switch-tab'; index: number }
@@ -26,6 +27,7 @@ export type ShortcutCommand =
 export interface ShortcutActions {
   newTab: () => void
   closeTab: () => void
+  reopenClosedTab: () => void
   nextTab: () => void
   previousTab: () => void
   switchTab: (index: number) => void
@@ -65,6 +67,7 @@ export function resolveShortcut(input: ShortcutInput): ShortcutCommand | null {
 
   if (!hasPrimaryModifier(input)) return null
 
+  if (input.shift && keyMatches(input, 't', 'keyt')) return { type: 'reopen-closed-tab' }
   if (input.shift && keyMatches(input, 'i', 'keyi')) return { type: 'toggle-devtools' }
   if (keyMatches(input, 't', 'keyt')) return { type: 'new-tab' }
   if (keyMatches(input, 'w', 'keyw')) return { type: 'close-tab' }
@@ -93,6 +96,9 @@ export function dispatchShortcut(command: ShortcutCommand, actions: ShortcutActi
       break
     case 'close-tab':
       actions.closeTab()
+      break
+    case 'reopen-closed-tab':
+      actions.reopenClosedTab()
       break
     case 'next-tab':
       actions.nextTab()

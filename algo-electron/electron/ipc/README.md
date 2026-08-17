@@ -18,7 +18,7 @@
 - `registerSitesIpc.ts`：注册 `sites:*` 站点 CRUD、导入导出、冲突预览确认 handler。
 - `registerStatsIpc.ts`：注册 `stats:*` 统计查询和重算 handler。
 - `registerSubmissionsIpc.ts`：注册 `submissions:*` 手动同步 handler。
-- `registerBrowserShellIpc.ts`：注册 `browser:*`、`tab:*` 和 `window:*` 浏览器壳层 handler。
+- `registerBrowserShellIpc.ts`：注册 `browser:*`、`tab:*` 和 `window:*` 浏览器壳层 handler，包括 `tab:reopenClosed` 关闭标签恢复入口。
 - `registerCookieIpc.ts`：注册 `cookies:*` 安全摘要 handler，不向 renderer 暴露 Cookie value。
 - `registerMainIpc.ts`：组合注册入口，集中由 `main.ts` 调用各业务域注册函数。
 - `trustedSender.ts`：统一 shell/OJ sender、main frame、origin、webContents 归属和 payload 边界；普通 handler 使用 guarded `ipcMain` facade，提交 bridge 使用 `onFromOj()`。

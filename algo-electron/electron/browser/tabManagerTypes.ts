@@ -13,3 +13,8 @@ export interface ManagedTab {
   url: string
   title: string
 }
+
+export interface ClosedTabSnapshot {
+  url: string
+  title: string
+}

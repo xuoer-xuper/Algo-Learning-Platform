@@ -9,8 +9,8 @@ import {
 import { randomUUID } from 'node:crypto'
 import { DetachedWindow } from './DetachedWindow'
 import { STEALTH_SCRIPT } from './stealthScript'
-import { MAX_TABS, OJ_PRELOAD_PATH } from './tabManagerConfig'
-import type { ManagedTab, TabInfo } from './tabManagerTypes'
+import { MAX_CLOSED_TABS, MAX_TABS, OJ_PRELOAD_PATH } from './tabManagerConfig'
+import type { ClosedTabSnapshot, ManagedTab, TabInfo } from './tabManagerTypes'
 import { executeScriptAcrossFrames } from './tabScriptExecution'
 import { safeCloseWebContents, safeRemoveChildView, setTabViewBounds } from './tabViewLayout'
 import { samePageUrl } from './urlMatching'
@@ -44,7 +44,9 @@ export class TabManager {
   private isViewHidden = false
   private shortcutHandler: ((event: Electron.Event, input: Input, source: WebContents) => void) | null = null
   private navigationBlockedHandler: ((reason: NavigationBlockReason) => void) | null = null
+  private tabLimitReachedHandler: ((limit: number) => void) | null = null
   private readonly allowInsecureLocalhost: boolean
+  private closedTabs: ClosedTabSnapshot[] = []
   private isDestroying = false
 
   constructor(window: BrowserWindow, options: TabManagerOptions = {}) {
@@ -113,6 +115,7 @@ export class TabManager {
         this.notifyNavigationBlocked(decision.reason!)
         return { action: 'deny' }
       }
+      if (!this.canCreateTab()) return { action: 'deny' }
 
       return {
         action: 'allow',
@@ -215,12 +218,25 @@ export class TabManager {
     this.navigationBlockedHandler?.(reason)
   }
 
+  private canCreateTab(): boolean {
+    if (this.tabs.size < MAX_TABS) return true
+    this.tabLimitReachedHandler?.(MAX_TABS)
+    return false
+  }
+
+  private rememberClosedTab(tab: ManagedTab): void {
+    if (!tab.url) return
+    this.closedTabs.push({ url: tab.url, title: tab.title })
+    if (this.closedTabs.length > MAX_CLOSED_TABS) this.closedTabs.shift()
+  }
+
   private handleViewDestroyed(view: WebContentsView, contents: WebContents): void {
     unregisterOjWebContents(contents)
     const tab = this.findTabByView(view)
     if (!tab) return
 
     const wasActive = tab.id === this.activeTabId
+    if (!this.isDestroying) this.rememberClosedTab(tab)
     if (wasActive) safeRemoveChildView(this.window, tab.view)
     this.tabs.delete(tab.id)
 
@@ -229,6 +245,7 @@ export class TabManager {
       this.activeTabId = null
       const nextTabId = Array.from(this.tabs.keys()).pop()
       if (nextTabId) this.switchTab(nextTabId)
+      else this.createTab()
     }
     this.onTabListChanged?.(this.getTabList())
   }
@@ -241,15 +258,13 @@ export class TabManager {
   }
 
   createTab(url?: string): string {
-    if (this.tabs.size >= MAX_TABS) {
-      return this.activeTabId ?? ''
-    }
+    if (!this.canCreateTab()) return ''
 
     if (url) {
       const decision = this.evaluateNavigation(url, true)
       if (!decision.allowed) {
         this.notifyNavigationBlocked(decision.reason!)
-        return this.activeTabId ?? ''
+        return ''
       }
     }
 
@@ -264,25 +279,33 @@ export class TabManager {
   }
 
   closeTab(tabId: string): void {
-    if (this.tabs.size <= 1) return
-
     const tab = this.tabs.get(tabId)
     if (!tab) return
 
+    const tabIds = Array.from(this.tabs.keys())
+    const tabIndex = tabIds.indexOf(tabId)
     const wasActive = tabId === this.activeTabId
+    const nextTabId = wasActive
+      ? tabIds[tabIndex + 1] ?? tabIds[tabIndex - 1] ?? null
+      : null
 
     if (wasActive) {
       safeRemoveChildView(this.window, tab.view)
     }
 
+    this.rememberClosedTab(tab)
     this.tabs.delete(tabId)
     unregisterOjWebContents(tab.view.webContents)
     safeCloseWebContents(tab.view)
 
     if (wasActive) {
       this.activeTabId = null
-      const lastKey = Array.from(this.tabs.keys()).pop()!
-      this.switchTab(lastKey)
+      if (nextTabId) {
+        this.switchTab(nextTabId)
+      } else {
+        this.createTab()
+      }
+      return
     }
 
     this.onTabListChanged?.(this.getTabList())
@@ -290,6 +313,21 @@ export class TabManager {
 
   closeActiveTab(): void {
     if (this.activeTabId) this.closeTab(this.activeTabId)
+  }
+
+  reopenClosedTab(): string {
+    const snapshot = this.closedTabs.at(-1)
+    if (!snapshot) return ''
+    if (!this.canCreateTab()) return ''
+    this.closedTabs.pop()
+
+    const id = this.createTab(snapshot.url)
+    const tab = this.tabs.get(id)
+    if (tab) {
+      tab.title = snapshot.title
+      this.onTabListChanged?.(this.getTabList())
+    }
+    return id
   }
 
   switchTab(tabId: string): void {
@@ -514,6 +552,10 @@ export class TabManager {
 
   setNavigationBlockedHandler(handler: (reason: NavigationBlockReason) => void): void {
     this.navigationBlockedHandler = handler
+  }
+
+  setTabLimitReachedHandler(handler: (limit: number) => void): void {
+    this.tabLimitReachedHandler = handler
   }
 
   setNavigateCallback(callback: (url: string) => void) {

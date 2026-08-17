@@ -11,6 +11,7 @@
 
 - `Ctrl/Cmd+T`: create a tab
 - `Ctrl/Cmd+W`: close the active tab
+- `Ctrl/Cmd+Shift+T`: reopen the most recently closed tab
 - `Ctrl/Cmd+Tab` and `Ctrl/Cmd+Shift+Tab`: move to the next/previous tab
 - `Ctrl/Cmd+1..8`: activate a tab by position
 - `Ctrl/Cmd+L`: focus and select the shell address bar through `ui:command`
@@ -36,6 +37,9 @@ The main process calls `event.preventDefault()` only after a command is
 resolved, so ordinary page text input remains untouched. The native menu is
 explicitly set to an empty template to prevent Electron `default_app` menu
 accelerators from closing the frameless window.
+
+Until the multi-window phase lands, closing the last tab resets it to a blank
+new tab instead of closing the shell window.
 
 ## 5. 验证入口
 

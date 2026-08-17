@@ -98,12 +98,16 @@ function createWindow() {
   // 创建多标签页宿主
   tabManager = new TabManager(win, { allowInsecureLocalhost })
   tabManager.setNavigationBlockedHandler(notifyNavigationBlocked)
+  tabManager.setTabLimitReachedHandler((limit) => {
+    win?.webContents.send('ui:command', { type: 'tab-limit-reached', limit })
+  })
   services?.syncService.setBrowserHost(tabManager)
   services?.realtimeSubmissionService.attachTabManager(tabManager)
 
   const shortcutActions: ShortcutActions = {
     newTab: () => { tabManager?.createTab() },
     closeTab: () => { tabManager?.closeActiveTab() },
+    reopenClosedTab: () => { tabManager?.reopenClosedTab() },
     nextTab: () => { tabManager?.switchRelative(1) },
     previousTab: () => { tabManager?.switchRelative(-1) },
     switchTab: (index) => { tabManager?.switchTabByIndex(index) },

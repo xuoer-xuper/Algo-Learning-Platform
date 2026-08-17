@@ -47,13 +47,18 @@ export function useBrowserNavigation() {
 
   useEffect(() => {
     return subscribeUiCommand((command) => {
-      if (command.type !== 'navigation-blocked') return
-      const message = command.reason === 'insecure-http'
-        ? '已阻止不安全的 HTTP 导航'
-        : command.reason === 'invalid-url'
-          ? '链接格式无效'
-          : '已阻止不受支持的链接'
-      showTransientMessage(message)
+      if (command.type === 'tab-limit-reached') {
+        showTransientMessage(`最多可打开 ${command.limit} 个标签`)
+        return
+      }
+      if (command.type === 'navigation-blocked') {
+        const message = command.reason === 'insecure-http'
+          ? '已阻止不安全的 HTTP 导航'
+          : command.reason === 'invalid-url'
+            ? '链接格式无效'
+            : '已阻止不受支持的链接'
+        showTransientMessage(message)
+      }
     })
   }, [showTransientMessage])
 

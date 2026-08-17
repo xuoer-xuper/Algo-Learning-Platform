@@ -21,10 +21,10 @@
   - 通过 props 接收导航、同步和打开面板回调，不直接持有业务状态。
 - `TabBar.tsx` / `TabBar.css`
   - 多标签 UI。
-  - 通过 `tabApi.ts` 创建、关闭、切换、剥离标签。
+  - 通过 `tabApi.ts` 创建、关闭、恢复、切换、剥离标签；支持中键关闭。
   - 监听 `onTabListChanged` 同步标签状态。
 - `tabApi.ts`
-  - 封装 `createTab`、`closeTab`、`switchTab`、`detachTab` 和 `onTabListChanged`。
+  - 封装 `createTab`、`closeTab`、`reopenClosedTab`、`switchTab`、`detachTab` 和 `onTabListChanged`。
   - 只处理标签 UI 所需的 preload 调用，不保存标签业务状态。
 - `WindowControls.tsx`
   - 自定义窗口最小化、最大化、关闭按钮。
@@ -49,4 +49,4 @@ cd algo-electron
 node node_modules\typescript\bin\tsc --noEmit
 ```
 
-涉及标签、窗口控制或 modal 时需要 `npm run dev` 手测。
+涉及标签、窗口控制或 modal 时追加运行对应 jsdom 测试和 `npm run test:ui`。

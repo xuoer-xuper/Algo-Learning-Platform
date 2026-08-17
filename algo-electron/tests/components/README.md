@@ -2,11 +2,11 @@
 
 ## 职责
 
-renderer 基础 UI 组件（`src/components/ui/`）的 jsdom 组件测试：渲染结构、变体类名、交互回调与可达性属性。
+renderer 基础 UI 组件及壳层共享组件的 jsdom 测试：渲染结构、变体类名、交互回调、可达性属性与浏览器手势。
 
 ## 当前实现
 
-`uiComponents.test.tsx` 覆盖 Icon/Button/IconButton/Input/Select/Textarea/Card/ConfirmDialog 的渲染与交互路径；文件头以 `// @vitest-environment jsdom` 声明环境，其余测试仍默认 node 环境。
+`uiComponents.test.tsx` 覆盖 Icon/Button/IconButton/Input/Select/Textarea/Card/ConfirmDialog；`tabBar.test.tsx` 覆盖中键关闭及其他辅助鼠标键忽略。文件头以 `// @vitest-environment jsdom` 声明环境，其余测试仍默认 node 环境。
 
 ## 封装入口
 
@@ -14,7 +14,7 @@ renderer 基础 UI 组件（`src/components/ui/`）的 jsdom 组件测试：渲�
 
 ## 边界规则
 
-- 只测 `src/components/ui/` 的展示组件；不 mock `window.electronAPI`，业务组件测试不放这里。
+- 基础组件直接测展示契约；壳层共享组件通过模块边界 mock preload helper，不在组件内复制主进程状态机。
 - 测试数据不得包含 Cookie/token 样式的敏感字符串（安全守卫扫描）。
 - 新增组件必须同步补测试，守住覆盖率门槛（functions 余量极小，见重构计划 §2.6）。
 

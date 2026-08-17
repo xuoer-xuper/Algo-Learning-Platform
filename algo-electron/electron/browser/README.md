@@ -11,7 +11,7 @@
 - 主线浏览器容器：`TabManager`，已接入 `main.ts`。
 - 视图技术：统一使用 `WebContentsView`，遵守 `docs/ADR/ADR_0001_USE_WEBCONTENTSVIEW.md`。
 - 会话隔离：OJ 页面使用 `partition: 'persist:oj-main'` 持久登录态。
-- 多标签：最多 8 个标签，支持创建、关闭、切换、剥离为独立窗口；`TabManager` 为每个 OJ view 和壳窗口接入统一快捷键处理器。
+- 多标签：最多 16 个标签，支持创建、关闭、切换、恢复关闭和剥离为独立窗口；关闭活动标签优先激活右邻，关闭最后一个标签会重置为空白新标签，满额时拒绝创建并通知壳层。
 - 弹窗接管：`window.open` / `target=_blank` 创建的 Chromium `webContents` 会被原样接管为受管标签，保留 about:blank、POST、OAuth 和 opener 语义；后台标签不会抢占活动标签。
 - 导航边界：生产环境只允许 HTTPS 和受控 about:blank；开发与 smoke 额外允许 localhost/loopback HTTP，未知协议默认拒绝并通过 `ui:command` 通知壳层。
 - 壳层 IPC：browser/tab/window channel 由 `electron/ipc/registerBrowserShellIpc.ts` 注册，Browser 模块只暴露 `TabManager` 等运行期对象。
@@ -53,6 +53,7 @@
   - `goForward()`
   - `reload()`
   - `closeActiveTab()`、`switchRelative(offset)`、`switchTabByIndex(index)`
+  - `reopenClosedTab()`：按 LIFO 恢复最近关闭标签的 URL 与标题。
   - `adjustZoom(delta)`、`resetZoom()`
 - 状态读取
   - `getUrl()`
@@ -80,6 +81,7 @@
   - `addActiveTabChangeListener(callback)`
   - `setShortcutHandler(handler)`：为壳和 OJ view 注册同一套 browser shortcut dispatcher。
   - `setNavigationBlockedHandler(handler)`：向壳层报告被导航策略拒绝的原因。
+  - `setTabLimitReachedHandler(handler)`：标签达到 16 个时向壳层报告，不再静默复用活动标签 ID。
 
 `executeScriptOnUrl()` 会先写入 `window.__ALGO_TOP_PAGE_URL`，让站点 hook 在 iframe 中仍能知道顶层题目页 URL。
 

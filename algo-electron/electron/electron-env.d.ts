@@ -328,6 +328,7 @@ interface TabInfo {
 type UiCommand =
   | { type: 'focus-address-bar' }
   | { type: 'navigation-blocked'; reason: 'invalid-url' | 'insecure-http' | 'unsupported-protocol' }
+  | { type: 'tab-limit-reached'; limit: number }
 
 interface SaveNoteImageResult {
   markdownUrl: string
@@ -745,6 +746,7 @@ interface ElectronAPI {
   // 标签页管理
   createTab: (url?: string) => Promise<string>
   closeTab: (tabId: string) => void
+  reopenClosedTab: () => Promise<string>
   switchTab: (tabId: string) => void
   detachTab: (tabId: string) => void
   getTabList: () => Promise<TabInfo[]>

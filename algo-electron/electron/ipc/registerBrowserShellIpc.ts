@@ -30,6 +30,10 @@ export function registerBrowserShellIpc(options: RegisterBrowserShellIpcOptions)
     options.getTabManager()?.closeTab(tabId)
   })
 
+  ipcMain.handle('tab:reopenClosed', () => {
+    return options.getTabManager()?.reopenClosedTab() ?? ''
+  })
+
   ipcMain.on('tab:switch', (_event, tabId: string) => {
     options.getTabManager()?.switchTab(tabId)
   })

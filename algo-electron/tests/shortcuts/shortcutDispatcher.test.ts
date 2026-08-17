@@ -23,6 +23,7 @@ function input(overrides: Partial<ShortcutInput>): ShortcutInput {
 test('resolves shell and OJ browser shortcuts consistently', () => {
   const cases: Array<[Partial<ShortcutInput>, ShortcutCommand]> = [
     [{ control: true, key: 't', code: 'KeyT' }, { type: 'new-tab' }],
+    [{ control: true, shift: true, key: 't', code: 'KeyT' }, { type: 'reopen-closed-tab' }],
     [{ control: true, key: 'w', code: 'KeyW' }, { type: 'close-tab' }],
     [{ control: true, key: 'Tab' }, { type: 'next-tab' }],
     [{ control: true, shift: true, key: 'Tab' }, { type: 'previous-tab' }],
@@ -55,6 +56,7 @@ test('dispatches commands through injected actions', () => {
   const actions: ShortcutActions = {
     newTab: () => calls.push('new'),
     closeTab: () => calls.push('close'),
+    reopenClosedTab: () => calls.push('reopen'),
     nextTab: () => calls.push('next'),
     previousTab: () => calls.push('previous'),
     switchTab: (index) => calls.push(`switch:${index}`),
@@ -69,8 +71,9 @@ test('dispatches commands through injected actions', () => {
   }
 
   dispatchShortcut({ type: 'switch-tab', index: 4 }, actions)
+  dispatchShortcut({ type: 'reopen-closed-tab' }, actions)
   dispatchShortcut({ type: 'focus-address-bar' }, actions)
   dispatchShortcut({ type: 'zoom-out' }, actions)
 
-  assert.deepStrictEqual(calls, ['switch:4', 'focus', 'zoom-out'])
+  assert.deepStrictEqual(calls, ['switch:4', 'reopen', 'focus', 'zoom-out'])
 })

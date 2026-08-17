@@ -297,6 +297,7 @@ function createApiMock(): ElectronAPI {
       return tabs[tabs.length - 1].id
     },
     closeTab: () => {},
+    reopenClosedTab: async () => '',
     switchTab: () => {},
     detachTab: () => {},
     getTabList: async () => tabs,

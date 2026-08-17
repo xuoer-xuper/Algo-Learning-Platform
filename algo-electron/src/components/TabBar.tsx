@@ -40,6 +40,12 @@ export function TabBar({ onTabUrlChange }: TabBarProps) {
     closeBrowserTab(tabId)
   }
 
+  const handleAuxClick = (e: React.MouseEvent, tabId: string) => {
+    if (e.button !== 1) return
+    e.preventDefault()
+    closeBrowserTab(tabId)
+  }
+
   const handleDetach = (tabId: string) => {
     if (tabs.length > 1) {
       const tab = tabs.find(t => t.id === tabId)
@@ -62,6 +68,7 @@ export function TabBar({ onTabUrlChange }: TabBarProps) {
             type="button"
             className={`tab-item${tab.isActive ? ' tab-item-active' : ''}`}
             onClick={() => handleSwitch(tab.id)}
+            onAuxClick={(e) => handleAuxClick(e, tab.id)}
             onDoubleClick={() => handleDetach(tab.id)}
             title={tab.title || '首页'}
           >

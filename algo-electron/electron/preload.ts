@@ -117,6 +117,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // 标签页管理
   createTab: (url?: string) => ipcRenderer.invoke('tab:create', url) as Promise<string>,
   closeTab: (tabId: string) => ipcRenderer.send('tab:close', tabId),
+  reopenClosedTab: () => ipcRenderer.invoke('tab:reopenClosed') as Promise<string>,
   switchTab: (tabId: string) => ipcRenderer.send('tab:switch', tabId),
   detachTab: (tabId: string) => ipcRenderer.send('tab:detach', tabId),
   getTabList: () => ipcRenderer.invoke('tab:getList'),
