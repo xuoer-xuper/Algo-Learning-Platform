@@ -25,6 +25,7 @@ import {
   registerOjWebContents,
   registerShellWebContents,
   resetTrustedSenderRegistry,
+  unregisterOjWebContents,
 } from '../../electron/ipc/trustedSender.ts'
 
 function eventFor(sender: MockWebContents, senderFrame: MockWebFrame = sender.mainFrame) {
@@ -117,4 +118,10 @@ test('OJ sender validator and payload guard fail closed', async () => {
   const cyclic: Record<string, unknown> = {}
   cyclic.self = cyclic
   assert.deepStrictEqual(checkIpcPayload([cyclic]), { trusted: false, reason: 'payload' })
+})
+
+test('OJ sender cleanup tolerates an already-destroyed contents reference', () => {
+  resetTrustedSenderRegistry()
+  assert.doesNotThrow(() => unregisterOjWebContents(undefined))
+  assert.doesNotThrow(() => unregisterOjWebContents(null))
 })

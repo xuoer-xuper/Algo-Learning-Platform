@@ -4,12 +4,14 @@ import { SHELL_ORIGIN } from '../app/appProtocol'
 type ShellEvent = IpcMainEvent | IpcMainInvokeEvent
 type IpcListener<T extends ShellEvent> = (event: T, ...args: any[]) => any
 type RegistrableWebContents = Pick<WebContents, 'id'> & Partial<Pick<WebContents, 'once'>>
+type WebContentsIdentity = Pick<WebContents, 'id'> | null | undefined
 
 const shellWebContentsIds = new Set<number>()
 const ojWebContentsIds = new Set<number>()
 
-function getWebContentsId(webContents: Pick<WebContents, 'id'>): number | null {
-  return Number.isInteger(webContents.id) ? webContents.id : null
+function getWebContentsId(webContents: WebContentsIdentity): number | null {
+  if (!webContents || !Number.isInteger(webContents.id)) return null
+  return webContents.id
 }
 
 function normalizeOrigin(url: string): string | null {
@@ -119,7 +121,7 @@ export function registerShellWebContents(webContents: RegistrableWebContents): v
   webContents.once?.('destroyed', () => shellWebContentsIds.delete(id))
 }
 
-export function unregisterShellWebContents(webContents: Pick<WebContents, 'id'>): void {
+export function unregisterShellWebContents(webContents: WebContentsIdentity): void {
   const id = getWebContentsId(webContents)
   if (id !== null) shellWebContentsIds.delete(id)
 }
@@ -131,7 +133,7 @@ export function registerOjWebContents(webContents: RegistrableWebContents): void
   webContents.once?.('destroyed', () => ojWebContentsIds.delete(id))
 }
 
-export function unregisterOjWebContents(webContents: Pick<WebContents, 'id'>): void {
+export function unregisterOjWebContents(webContents: WebContentsIdentity): void {
   const id = getWebContentsId(webContents)
   if (id !== null) ojWebContentsIds.delete(id)
 }
