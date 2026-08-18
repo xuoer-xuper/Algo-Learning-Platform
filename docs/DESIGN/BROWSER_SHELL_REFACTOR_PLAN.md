@@ -651,3 +651,16 @@ Renderer（同一构建产物，多窗口实例化——桌宠 hash 路由已证
 | 视觉影响 | 功能图标由字体符号等价替换为统一 24 viewBox 线性图标；不改页面配色、布局、动画或组件外观 |
 | 文档同步 | `tests/components/README.md`、B1 完成台账 |
 | 完成时间 | 北京时间 `2026-08-18` |
+
+### 11.19 GitHub CI 分层守卫记录
+
+| 字段 | 填写内容 |
+|---|---|
+| 任务 | GitHub Actions 自动快速守卫与手动集中验证分层 |
+| 状态 | `[x] 已完成` |
+| Commit | `1b4e187 ci: 拆分自动快速守卫与手动集中验证` |
+| 自动验证 | PyYAML 解析 workflow；`npm run test:docs`、`git diff --check`；推送后核对 GitHub `fast-guard` 实际运行结果 |
+| 远端策略 | PR 与 `main`/`master` push 自动运行 `test:core + test:docs`；`test:all`、生产 build 与 packaged smoke 仅 `workflow_dispatch` 集中触发 |
+| 安全边界 | `contents: read`、checkout 不保留凭据、不接收业务 secret、不上传构建产物/用户数据/登录态 |
+| 效率说明 | 每块提交不再重复触发重型构建与真实进程 smoke；需要集中验收时使用 `gh workflow run ci.yml --ref master` |
+| 完成时间 | 北京时间 `2026-08-18` |
