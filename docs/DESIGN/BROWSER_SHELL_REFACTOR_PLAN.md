@@ -455,7 +455,8 @@ Renderer（同一构建产物，多窗口实例化——桌宠 hash 路由已证
 | B2.2 | [x] | `8922c54`（2026-08-18）：完成 web/internal 混合标签、ShellRouter、内部 home、旧默认首页迁移与全部既定内部页路由归属；正常态视觉风格冻结 |
 | B2.3 | [x] | `8922c54`（2026-08-18）：删除截图替身三件套和三个旧 view 通道，`goHome` 切换内部 home；NoticeBar 与 38px view bounds 让位链路完成 |
 | B2.4 | [x] | `4112c01`（2026-08-18）：旧 TabBar 完整替换为 Chrome 风格 TabStrip；补齐 favicon/内部页图标、加载与崩溃状态、pointer 排序及 `tab:reorder` 持久化、横向溢出与边缘自动滚动、新建/关闭动效、reduced motion、中键关闭、活动标签自动滚入、ARIA 方向键/Home/End 导航；标签区保持 no-drag，右侧空白区保留窗口拖动。自动 GitHub `renderer-smoke` 纳入真实 Electron 与 Playwright；正常态颜色、排版、按钮外观和动效基调保持冻结 |
-| B2.5-B2.8 | [ ] | Omnibox、UI 测试扩展、下载/查找/缩放、右键菜单待实施 |
+| B2.5 | [x] | `a0f7d3f`（2026-08-18）：Omnibox 三分流、本地建议、搜索引擎设置、工具栏 AppMenu 与 view 聚焦摘挂完成；完整证据见 §11.26 |
+| B2.6-B2.8 | [ ] | Playwright 标签导航流程重写、下载/查找/缩放与完整右键菜单待实施 |
 | B3.1-B3.5 | [ ] | WindowManager、事件多窗口化、标签过户、服务广播、生命周期与恢复均待实施 |
 | B4.1-B4.6 | [ ] | 026_site_credentials、Vault、自动填充、账户页、登录捕获、fuses 均待实施 |
 | B5.1-B5.6 | [ ] | 仅按视觉冻结约束做结构收尾、暗色、无障碍、桌宠策略和 Latex |
@@ -775,4 +776,23 @@ Renderer（同一构建产物，多窗口实例化——桌宠 hash 路由已证
 | 视觉影响 | TabBar 实现升级为 TabStrip，但严格沿用 `0a1a1c4` 的语义 token、浅色配色、42px 壳层关系、字体、按钮形态和动效基调；未重做业务页面或整体前端风格 |
 | 文档同步 | `.github/workflows/README.md`、`electron/browser/README.md`、`electron/ipc/README.md`、`src/components/README.md`、`tests/components/README.md`、`tests/ui/README.md`、`SYSTEM_ARCHITECTURE.md` 与本台账 |
 | 剩余工作 | 下一步进入 B2.5 Omnibox + AppMenu；继续按批量策略暂缓生产构建、NSIS 与真实 packaged 双实例 smoke |
+| 完成时间 | 北京时间 `2026-08-18` |
+
+### 11.26 B2.5 Omnibox 与工具栏收敛完成记录
+
+| 字段 | 填写内容 |
+|---|---|
+| 任务 | B2.5 Omnibox 输入解析、本地建议、搜索引擎设置、工具栏收敛与原生 AppMenu |
+| 状态 | `[x] 已完成` |
+| Commit | `a0f7d3f browser: 完成 Omnibox 与工具栏收敛` |
+| 输入与导航 | 主进程统一解析内部 `algo://` 路由、显式/推断 HTTPS URL 与搜索查询；拒绝畸形内部 URL、userinfo、危险/不支持协议和生产 HTTP。内部页导航原位替换当前标签并保留标签 ID、顺序与会话位置；普通 Web 导航继续经过既有安全策略 |
+| 本地建议 | `browser:omniboxSuggest` 只读取本地 `problems` 与 `problem_visits`，固定最多 8 条，支持精确/前缀/包含、访问历史与时间排序，正确转义 LIKE `%`、`_`、反斜杠并过滤软删记录；URL 与 problem 双重去重。空查询走 `last_visited_at` 有界路径，访问历史候选固定最多读取最近 64 条 |
+| 交互与工具栏 | 地址栏草稿与活动 URL 隔离，140ms debounce、过期响应丢弃、加载态、ArrowUp/ArrowDown/Enter/Escape、IME、Ctrl/Cmd+L、ARIA combobox/listbox 和左键 pointer 提交均完成。聚焦时主进程摘除活动 WebContentsView，失焦/提交/卸载/壳重载后恢复；工具栏保留首页、后退、前进、刷新、抓取与同步消息，统计、Coach、脚本、设置收纳进原生 `Menu.popup()` 三点菜单 |
+| 搜索设置 | 默认 Bing，可选 Google、Baidu 与自定义模板；自定义模板要求 HTTPS、无 userinfo、且仅含一个 `{query}`。配置迁移、主进程规范化、写盘成功后再发布内存状态和写失败回滚均已覆盖；Renderer 始终以主进程返回配置为准 |
+| 安全收口 | 完整浏览器壳与 Coach 桌宠拆为独立 trusted sender registry；普通 browser/config/omnibox IPC 仅允许完整壳，Coach 桌宠仅保留最小白名单能力；敏感 Coach 通道保持完整壳专用，发给 Renderer 的 Coach config 会剥离 `encrypted_api_key` envelope |
+| 自动验证 | 最终 `npm run test:core`：51 files / 579 tests；`npm run test:db`：8 files / 16 tests，并通过 Electron 原生 backup/import、migration safety、daily stats performance 与 repositories 套件；`npm run test:electron`；`npm run test:ui`：4/4；`npm run test:docs`；目标 ESLint、TypeScript 与 `git diff --check`；全部通过 |
+| 性能观测 | 10 万题数据下，非空 metadata 的 leading-wildcard LIKE 常见词中位约 46.7ms、稀有词约 13.45ms；当前满足功能交付且未用“只搜最近 N 条”破坏语义。若数据规模继续增长，后续应独立引入 FTS5/专用搜索索引与 100k 性能门槛 |
+| 视觉影响 | 严格保持 `0a1a1c4` 冻结基线；复用既有地址输入、按钮、颜色、字体、间距和动画 token，仅新增文档流全内容区建议面板并删除旧“前往”及四个分散功能按钮；未重做页面风格 |
+| 文档同步 | app/browser/contextMenus/problem repository/ipc、renderer components/settings、security/app/browser/components/db/ipc/UI 测试 README、`docs/README.md` 与本台账 |
+| 剩余工作 | 下一步进入 B2.6 Playwright 标签导航流程重写；B2.7/B2.8 完成后统一执行生产构建、NSIS、真实 packaged 双实例 smoke 与 B2 全量回归 |
 | 完成时间 | 北京时间 `2026-08-18` |
