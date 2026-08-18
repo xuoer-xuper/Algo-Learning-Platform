@@ -443,7 +443,7 @@ Renderer（同一构建产物，多窗口实例化——桌宠 hash 路由已证
 | B0.7 | [x] | `22c7013`（2026-08-17）：删除零运行时引用的 `BrowserHost`、`public/home.html` 与两个站点适配器转发壳，适配器测试改为直接导入真实实现；`SyncService.setBrowserHost` 收敛为 `setScrapeHost`；删除 renderer 无消费者的 `problem:detected`、`submissions:detected` 发送通道与过期 IPC wiring，同时保留 TrackingService 内部回调和 SubmissionWatcher 主进程事件语义；README、ADR、系统架构、提交监控和治理文档已同步。验证：`npm run test:all` 全部通过，47 files/357 tests，覆盖率 33.65/37.53/29.20/34.64%，真实 Electron smoke 与 Playwright 1280x800、1024x720、800x600 均通过；另执行 `npm run test:electron`、`npm run build` 和 packaged-main 检查通过，源代码扫描确认无旧运行时引用。人工验收覆盖适配器直连、同步服务命名、死 channel 合约和被保留的主进程事件链。视觉影响：无视觉变更，未修改 TSX/CSS/动画 |
 | B0.8 | [x] | `81f4c08`（2026-08-17）：主进程致命异常兜底、启动失败报告、壳 renderer 自动恢复、滚动落盘日志与关键链路诊断已完成；packaged smoke 改为异步子进程，修复同步阻塞 HTTP server 导致的假失败；全量验证通过；无视觉变更 |
 | B0.9 | [x] | `ddeabfa` + `ed62379`（2026-08-18）：在日志文件、privileged scheme、IPC、生命周期和数据库服务注册前获取 Electron 单实例锁；失败实例立即 `app.quit()` 且不写共享日志、不打开数据库、不创建窗口；后续启动通过 `second-instance` 恢复最小化窗口并执行 `show()`/`focus()`，缺失、已销毁或聚焦失败路径均记录诊断；Electron test-double、单元测试、真实 `win-unpacked` 双进程 smoke 和 README 已同步。验证：`npm run typecheck`、`npm run lint`、聚焦 3 files/7 tests、`npm run test:all`（53 files/370 tests，覆盖率 34.87/38.31/30.48/35.84%）、`npm run build`、`npm run test:packaged-app` 全部通过；真实双开确认失败实例快速退出、主实例继续存活并聚焦且失败实例不写共享日志；无视觉变更 |
-| B0.10 | [ ] | 数据性能、迁移备份/恢复、孤儿 visit 清理待实施 |
+| B0.10 | [x] | `9de6661`（2026-08-18）：统计日期条件统一改为 `>= local_day AND < next_local_day` 范围谓词；提交批次只重算本批新增提交日期及首次 AC 变化影响的旧/新日期，不再全史逐日刷新；主服务改为等待异步数据库初始化。检测 pending migration 后使用 SQLite backup API 写入 `userData/backups` 并保留最近 3 份；迁移失败关闭连接、清理 WAL/SHM、恢复迁移前备份、原子写 failure marker，同一 pending version 下次启动直接阻断并交由主进程致命错误链退出；启动时把开放的 `problem_visits` 按 `entered_at` 封闭并标记 `startup_recovery`，正常关闭改为精确 visit id 更新。验证：`npm run test:db`、`npm run test:all`（57 files/379 tests，覆盖率 35.73/38.63/31.49/36.75%）、`npm run build`、`npm run test:packaged-app` 全部通过；两年事实数据单日重算重复实测 0.33-0.90ms，低于 50ms 门槛；无视觉变更 |
 | B0.11 | [ ] | 025_userscript_identity 待实施 |
 | B0.12 | [x] | `a004d3c`（2026-08-16）：生产壳迁移至 `app://shell` 并启用严格 CSP；普通 IPC 统一接入 shell sender/main-frame/origin/payload 校验，OJ 提交通道使用专用 HTTPS sender validator；TabManager 管理 OJ sender 生命周期；安全、架构、IPC 合约与真实 Electron startup smoke 覆盖已完成；全量验证通过；无视觉变更 |
 | B1.1 | [~] | `1190daf` 已统一主要 token；暗色双值与剩余域核对待完成 |
@@ -547,3 +547,16 @@ Renderer（同一构建产物，多窗口实例化——桌宠 hash 路由已证
 | 视觉影响 | `无视觉变更`；未修改 TSX、CSS、视觉 token、布局值或动画方向 |
 | 文档同步 | `electron/app/README.md`、`tests/app/README.md` 与 Electron test-double/启动接线守卫 |
 | 完成时间 | 北京时间 `2026-08-18 11:48` |
+
+### 11.11 B0.10 完成记录
+
+| 字段 | 填写内容 |
+|---|---|
+| 任务 | B0.10 数据性能与迁移安全 |
+| 状态 | `[x] 已完成` |
+| Commit | `9de6661 data: 加固迁移恢复与定向统计重算` |
+| 自动验证 | `npm run typecheck`、`npm run lint`、`npm run test:db`、`npm run test:docs`、`npm run test:all`、`npm run build`、`npm run test:packaged-app`；全部通过。全量为 57 个 Vitest 文件、379 个测试，覆盖率 Statements 35.73%、Branches 38.63%、Functions 31.49%、Lines 36.75%；数据库集成覆盖备份先于迁移、失败恢复、failure marker 阻断同版本重试、三份轮换、孤儿 visit 清理和定向日期重算；两年事实数据基准重复实测 0.33-0.90ms，低于 50ms 门槛；Electron startup smoke、Playwright 宽/中/窄三视口、NSIS 构建和真实 `win-unpacked` 双实例 smoke 均通过 |
+| 人工验收 | 临时 SQLite 中连续执行成功迁移后故意触发下一迁移失败，确认数据库恢复到迁移前 sentinel 状态、已提交的中间 schema 不残留、failure marker 落盘且第二次启动不再执行失败版本；确认开放 visit 被按进入时间封闭并标记恢复原因；新建隔离 userData 的打包应用可完成异步初始化并正常加载 SQLite |
+| 视觉影响 | `无视觉变更`；未修改 TSX、CSS、视觉 token、布局值或动画方向 |
+| 文档同步 | `electron/backup/README.md`、`electron/db/README.md`、`electron/submissions/README.md`、`electron/tracking/README.md`、`tests/db/README.md`、`tests/submissions/README.md`、`tests/tracking/README.md` 与 `docs/README.md` |
+| 完成时间 | 北京时间 `2026-08-18 11:59` |
