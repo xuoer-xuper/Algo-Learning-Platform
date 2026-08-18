@@ -11,6 +11,11 @@ on:
 permissions:
   contents: read
 
+env:
+  CI: "true"
+  npm_config_audit: "false"
+  npm_config_fund: "false"
+
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -27,6 +32,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
       - name: Setup Node.js
         uses: actions/setup-node@v7
@@ -34,6 +41,14 @@ jobs:
           node-version: 22.23.2
           cache: npm
           cache-dependency-path: algo-electron/package-lock.json
+
+      - name: Restore Electron downloads
+        uses: actions/cache@v6
+        with:
+          path: ~\AppData\Local\electron\Cache
+          key: ${{ runner.os }}-electron-${{ hashFiles('algo-electron/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-electron-
 
       - name: Install dependencies
         run: npm ci
@@ -41,11 +56,10 @@ jobs:
       - name: Run automated validation
         run: npm run test:all
 
-  packaged-main:
-    name: Build packaged main process
-    needs: validate
+  packaged-smoke:
+    name: Build and smoke test packaged app
     runs-on: windows-latest
-    timeout-minutes: 20
+    timeout-minutes: 35
     defaults:
       run:
         working-directory: algo-electron
@@ -53,6 +67,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
       - name: Setup Node.js
         uses: actions/setup-node@v7
@@ -61,8 +77,30 @@ jobs:
           cache: npm
           cache-dependency-path: algo-electron/package-lock.json
 
+      - name: Restore Electron downloads
+        uses: actions/cache@v6
+        with:
+          path: ~\AppData\Local\electron\Cache
+          key: ${{ runner.os }}-electron-${{ hashFiles('algo-electron/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-electron-
+
+      - name: Restore electron-builder tools
+        uses: actions/cache@v6
+        with:
+          path: ~\AppData\Local\electron-builder\Cache
+          key: ${{ runner.os }}-electron-builder-${{ hashFiles('algo-electron/package-lock.json', 'algo-electron/electron-builder.json5') }}
+          restore-keys: |
+            ${{ runner.os }}-electron-builder-
+
       - name: Install dependencies
         run: npm ci
 
       - name: Build and inspect packaged main process
         run: npm run build:check
+
+      - name: Build unpacked Windows application
+        run: npm exec electron-builder -- --win --dir
+
+      - name: Smoke test unpacked Windows application
+        run: npm run test:packaged-app

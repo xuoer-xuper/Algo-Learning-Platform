@@ -13,8 +13,12 @@
 - Node 版本：22.23.2（项目支持范围为 `>=22.18.0 <25`）。
 - 工作目录：`algo-electron/`。
 - 最小权限：仅 `contents: read`。
+- 安全边界：checkout 不保留 Git 凭据；CI 不接收业务 secret，不上传 artifact。
+- 缓存：`setup-node` 缓存 npm 下载，`actions/cache` 缓存公开的 Electron 与 electron-builder 工具下载；不缓存 `node_modules`、构建产物或用户数据。
 - `validate`：`npm ci` + `npm run test:all`，覆盖测试、Electron smoke 和 Playwright。
-- `packaged-main`：在 `validate` 通过后重新安装依赖，运行 `npm run build:check`，确认生产 renderer/main/preload 构建和 packaged-main 外部依赖契约。
+- `packaged-smoke`：与 `validate` 并行，运行生产 renderer/main/preload 构建与 packaged-main 外部依赖检查，再生成 Windows `win-unpacked` 目录并执行隔离 userData 的真实进程 smoke。
+
+两个 job 各自执行干净的 `npm ci`，不通过 artifact 传递 `node_modules`、`dist/`、`release/` 或测试临时目录。这样可以保留独立、可复现的质量门槛，同时避免过去 `packaged-main` 等待全部测试完成后才开始的串行耗时。
 
 ## 3. 覆盖范围
 
@@ -32,6 +36,8 @@
 
 `npm run build:check` 额外覆盖生产 renderer/main/preload 构建与 packaged-main 外部依赖检查，不生成安装包。
 
+`packaged-smoke` 在 `build:check` 后使用 electron-builder 的 `--dir` 模式，只生成供 CI 启动验证的 `win-unpacked`，不生成或上传 NSIS 安装包。`npm run test:packaged-app` 使用系统临时目录中的隔离 userData、本地 HTTP smoke 页面和 SQLite，结束后清理临时目录。
+
 不覆盖：
 
 - 七站真实提交。
@@ -44,3 +50,4 @@
 - workflow 里不要打印环境变量、Cookie、请求体或本机路径中的敏感内容。
 - 需要新增发布 workflow 前，先补 `docs/OPERATIONS/RELEASE_PROCESS.md` 的自动化边界，并明确是否需要人工安装验收。
 - 不要把 `release/`、`tmp/`、本地数据库或 `.env` 上传为 artifact。
+- 不要缓存 `node_modules`、`dist/`、`release/`、`tmp/`、数据库、日志或任何登录态；当前缓存 key 只依赖 lockfile，缓存内容只限公开工具下载。
