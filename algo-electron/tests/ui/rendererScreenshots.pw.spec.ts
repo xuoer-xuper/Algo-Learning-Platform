@@ -11,13 +11,18 @@ const outputDir = path.join(tmpRoot, 'ui-screenshots')
 const harnessHtml = path.join(outputDir, 'rendererScreenshotHarness.html')
 const electronAppPath = path.join(projectRoot, 'tests', 'ui', 'electronScreenshotApp.mjs')
 
-const screenshotNames = [
+const shellScreenshotNames = [
   'omnibox.png',
   'problem-sidebar.png',
+] as const
+
+const internalPageScreenshotNames = [
   'dashboard.png',
   'settings.png',
   'llm-settings.png',
+  'scripts.png',
   'coach-metrics.png',
+  'problem-detail.png',
   'note-editor.png',
 ] as const
 
@@ -44,6 +49,52 @@ interface LayoutCheckConfig {
   withinX?: Array<[string, string]>
   fillsX?: Array<[string, string, string]>
 }
+
+interface InternalPageContract {
+  page: InternalPage
+  title: string
+  url: string
+  routeSelector: string
+}
+
+const internalPages = {
+  dashboard: {
+    page: { type: 'dashboard' },
+    title: '学习统计',
+    url: 'algo://dashboard',
+    routeSelector: '.shell-route-dashboard',
+  },
+  settings: {
+    page: { type: 'settings' },
+    title: '设置',
+    url: 'algo://settings',
+    routeSelector: '.shell-route-settings',
+  },
+  scripts: {
+    page: { type: 'scripts' },
+    title: '脚本管理',
+    url: 'algo://scripts',
+    routeSelector: '.shell-route-scripts',
+  },
+  coachMetrics: {
+    page: { type: 'coach-metrics' },
+    title: 'Coach 指标',
+    url: 'algo://coach-metrics',
+    routeSelector: '.shell-route-coach-metrics',
+  },
+  problemDetail: {
+    page: { type: 'problem-detail', problemId: 'problem-cf-1' },
+    title: '题目详情',
+    url: 'algo://problem-detail?problemId=problem-cf-1',
+    routeSelector: '.shell-route-problem-detail',
+  },
+  notes: {
+    page: { type: 'notes', problemId: 'problem-cf-1' },
+    title: '本地笔记',
+    url: 'algo://problem-notes?problemId=problem-cf-1',
+    routeSelector: '.shell-route-notes',
+  },
+} as const satisfies Record<string, InternalPageContract>
 
 const layoutChecks: Record<string, LayoutCheckConfig> = {
   'omnibox.png': {
@@ -119,6 +170,28 @@ const layoutChecks: Record<string, LayoutCheckConfig> = {
       ['.milkdown-wrapper', '.note-editor-container'],
     ],
   },
+  'scripts.png': {
+    required: ['.shell-route-scripts', '.scripts-page', '.scripts-header', '.scripts-body', '.scripts-table'],
+    withinViewportX: ['.shell-route-scripts'],
+    withinX: [
+      ['.shell-route-scripts', '.main-content'],
+      ['.scripts-page', '.shell-route-scripts'],
+      ['.scripts-header', '.scripts-page'],
+      ['.scripts-body', '.scripts-page'],
+      ['.scripts-table-wrap', '.scripts-body'],
+    ],
+  },
+  'problem-detail.png': {
+    required: ['.shell-route-problem-detail', '.detail-page', '.detail-header', '.detail-info', '.detail-submissions'],
+    withinViewportX: ['.shell-route-problem-detail'],
+    withinX: [
+      ['.shell-route-problem-detail', '.main-content'],
+      ['.detail-page', '.shell-route-problem-detail'],
+      ['.detail-header', '.detail-page'],
+      ['.detail-info', '.detail-page'],
+      ['.detail-submissions', '.detail-page'],
+    ],
+  },
 }
 
 function buildRendererHarness(): void {
@@ -160,6 +233,55 @@ async function assertNativeViewport(app: ElectronApplication, page: Page): Promi
   expect(zoomFactor).toBeCloseTo(1, 3)
 }
 
+async function openInternalPageTab(
+  page: Page,
+  contract: InternalPageContract,
+): Promise<{ tabId: string, previousTabCount: number }> {
+  const tabs = page.getByRole('tab')
+  const previousTabCount = await tabs.count()
+  const tabId = await page.evaluate(
+    (target) => window.electronAPI.openInternalTab(target),
+    contract.page,
+  )
+
+  expect(tabId).not.toBe('')
+  await expect(tabs).toHaveCount(previousTabCount + 1)
+
+  const tabItem = page.locator(`.tab-item[data-tab-id="${tabId}"]`)
+  const tab = tabItem.getByRole('tab', { name: contract.title, exact: true })
+  await expect(tab).toHaveAttribute('aria-selected', 'true')
+  await expect(page.getByRole('combobox', { name: '地址和搜索栏' })).toHaveValue(contract.url)
+  await expect(page.locator(contract.routeSelector)).toBeVisible()
+  await expect(page.locator('.content-area')).toBeVisible()
+  await expect(page.locator('.main-content')).toBeVisible()
+
+  const homeTab = page.getByRole('tab', { name: '首页', exact: true })
+  await homeTab.click()
+  await expect(homeTab).toHaveAttribute('aria-selected', 'true')
+  await expect(page.getByRole('combobox', { name: '地址和搜索栏' })).toHaveValue('algo://home')
+  await expect(page.locator(contract.routeSelector)).toHaveCount(0)
+  await expect(page.locator('.shell-route-home')).toBeVisible()
+
+  await tab.click()
+  await expect(tab).toHaveAttribute('aria-selected', 'true')
+  await expect(page.getByRole('combobox', { name: '地址和搜索栏' })).toHaveValue(contract.url)
+  await expect(page.locator(contract.routeSelector)).toBeVisible()
+  return { tabId, previousTabCount }
+}
+
+async function closeInternalPageTab(
+  page: Page,
+  contract: InternalPageContract,
+  state: { tabId: string, previousTabCount: number },
+): Promise<void> {
+  await page.getByRole('button', { name: `关闭 ${contract.title}`, exact: true }).click()
+  await expect(page.locator(`.tab-item[data-tab-id="${state.tabId}"]`)).toHaveCount(0)
+  await expect(page.getByRole('tab')).toHaveCount(state.previousTabCount)
+  await expect(page.getByRole('tab', { name: '首页', exact: true })).toHaveAttribute('aria-selected', 'true')
+  await expect(page.getByRole('combobox', { name: '地址和搜索栏' })).toHaveValue('algo://home')
+  await expect(page.locator(contract.routeSelector)).toHaveCount(0)
+}
+
 async function assertNoSensitiveText(page: Page, label: string): Promise<void> {
   const text = await page.locator('body').innerText()
   const forbiddenText = /set-cookie|sessionid[ :=]|csrf(?:[_-]?token)?[ :=]|(?:access|refresh|api)[_-]?token[ :=]|ark-[A-Za-z0-9_-]{8,}/i
@@ -181,10 +303,9 @@ async function assertResponsiveContainer(page: Page, name: string): Promise<void
       return getComputedStyle(element).gridTemplateColumns.split(' ').filter(Boolean).length
     }
     return {
-      workspace: rect('.modal-workspace'),
-      panel: rect('.modal-panel'),
       content: rect('.content-area'),
       main: rect('.main-content'),
+      route: rect('.shell-route'),
       dashboardCards: gridTracks('.dashboard-cards'),
       dashboardCharts: gridTracks('.dashboard-chart-row'),
       settingsColumns: gridTracks('.settings-cols'),
@@ -199,28 +320,25 @@ async function assertResponsiveContainer(page: Page, name: string): Promise<void
   if (name !== 'omnibox.png' && (!result.content || result.content.width <= 0)) {
     issues.push('content-area has no usable width')
   }
-  if (result.workspace && result.content) {
-    if (result.workspace.width > result.content.width + tolerance) issues.push('modal workspace exceeds content-area width')
-    if (result.workspace.left < result.content.left - tolerance || result.workspace.right > result.content.right + tolerance) {
-      issues.push('modal workspace is not contained by content-area')
+  if (name !== 'omnibox.png' && (!result.route || result.route.width <= 0)) {
+    issues.push('shell-route has no usable width')
+  }
+  if (result.route && result.main) {
+    if (result.route.left < result.main.left - tolerance || result.route.right > result.main.right + tolerance) {
+      issues.push('shell-route is not contained by main-content')
     }
   }
-  if (result.workspace && result.main) {
-    if (Math.abs(result.workspace.left - result.main.left) > tolerance
-      || Math.abs(result.workspace.right - result.main.right) > tolerance) {
-      issues.push('modal workspace does not match the rendered main-content boundary')
-    }
+  const routeWidth = result.route?.width ?? 0
+  if (name === 'dashboard.png' && routeWidth > 0) {
+    if (routeWidth <= 820 && result.dashboardCharts !== 1) issues.push('dashboard charts did not stack')
+    if (routeWidth <= 600 && result.dashboardCards !== 1) issues.push('dashboard cards did not collapse')
   }
-  if (name === 'dashboard.png' && result.panel) {
-    if (result.panel.width <= 820 && result.dashboardCharts !== 1) issues.push('dashboard charts did not stack')
-    if (result.panel.width <= 600 && result.dashboardCards !== 1) issues.push('dashboard cards did not collapse')
-  }
-  if (name === 'settings.png' && result.panel && result.panel.width <= 680 && result.settingsColumns !== 1) {
+  if (name === 'settings.png' && routeWidth > 0 && routeWidth <= 680 && result.settingsColumns !== 1) {
     issues.push('settings columns did not collapse')
   }
-  if (name === 'coach-metrics.png' && result.panel && result.panel.width <= 820) {
+  if (name === 'coach-metrics.png' && routeWidth > 0 && routeWidth <= 820) {
     if (result.coachCharts !== 1) issues.push('Coach charts did not stack')
-    if (result.panel.width <= 560 && result.coachCards !== 1) issues.push('Coach cards did not collapse')
+    if (routeWidth <= 560 && result.coachCards !== 1) issues.push('Coach cards did not collapse')
   }
   if (name === 'note-editor.png' && result.notesColumns !== 2) {
     issues.push('notes layout did not preserve two responsive tracks')
@@ -315,7 +433,7 @@ test.beforeAll(() => {
 })
 
 for (const scenario of viewportScenarios) {
-  test(`${scenario.name} container ${scenario.width}x${scenario.height}`, async () => {
+  test(`${scenario.name} shell surfaces ${scenario.width}x${scenario.height}`, async () => {
     const scenarioOutputDir = path.join(outputDir, scenario.name)
     fs.mkdirSync(scenarioOutputDir, { recursive: true })
 
@@ -326,6 +444,9 @@ for (const scenario of viewportScenarios) {
 
     try {
       await assertNativeViewport(electronApp, page)
+      await expect(page.getByRole('tab')).toHaveCount(1)
+      await expect(page.getByRole('tab', { name: '首页', exact: true })).toHaveAttribute('aria-selected', 'true')
+      await expect(page.getByRole('combobox', { name: '地址和搜索栏' })).toHaveValue('algo://home')
 
       const omnibox = page.getByRole('combobox', { name: '地址和搜索栏' })
       await omnibox.focus()
@@ -343,40 +464,71 @@ for (const scenario of viewportScenarios) {
       await expect(page.locator('body')).toContainText('题库')
       await capture(page, scenario.name, 'problem-sidebar.png')
 
-      await page.evaluate(() => window.electronAPI.openInternalTab({ type: 'dashboard' }))
+      expect(pageErrors).toEqual([])
+      for (const screenshotName of shellScreenshotNames) {
+        expect(fs.statSync(path.join(scenarioOutputDir, screenshotName)).size).toBeGreaterThan(20_000)
+      }
+    } finally {
+      await electronApp.close()
+    }
+  })
+
+  test(`${scenario.name} six internal pages use tabs ${scenario.width}x${scenario.height}`, async () => {
+    const scenarioOutputDir = path.join(outputDir, scenario.name)
+    fs.mkdirSync(scenarioOutputDir, { recursive: true })
+
+    const electronApp = await launchScenario(scenario)
+    const page = await electronApp.firstWindow()
+    const pageErrors: string[] = []
+    page.on('pageerror', (error) => pageErrors.push(error.message))
+
+    try {
+      await assertNativeViewport(electronApp, page)
+
+      const dashboardTab = await openInternalPageTab(page, internalPages.dashboard)
       await expect(page.locator('.dashboard-page')).toBeVisible()
       await expect(page.locator('body')).toContainText('学习统计')
       await expect(page.locator('.dashboard-chart-pie .recharts-pie-sector path').first()).toBeVisible()
       await capture(page, scenario.name, 'dashboard.png')
+      await closeInternalPageTab(page, internalPages.dashboard, dashboardTab)
 
-      await page.locator('.dashboard-close').click()
-      await expect(page.locator('.dashboard-page')).toHaveCount(0)
-      await page.evaluate(() => window.electronAPI.openInternalTab({ type: 'settings' }))
+      const settingsTab = await openInternalPageTab(page, internalPages.settings)
       await expect(page.locator('.settings-title')).toHaveText('设置')
       await expect(page.locator('.site-list')).toBeVisible()
       await capture(page, scenario.name, 'settings.png')
 
       await page.locator('.llm-config-section').scrollIntoViewIfNeeded()
       await capture(page, scenario.name, 'llm-settings.png')
+      await closeInternalPageTab(page, internalPages.settings, settingsTab)
 
-      await page.locator('.settings-close').click()
-      await expect(page.locator('.settings-page')).toHaveCount(0)
-      await page.evaluate(() => window.electronAPI.openInternalTab({ type: 'coach-metrics' }))
+      const scriptsTab = await openInternalPageTab(page, internalPages.scripts)
+      await expect(page.locator('.scripts-title')).toContainText('本地脚本管理')
+      await expect(page.locator('.scripts-table')).toBeVisible()
+      await capture(page, scenario.name, 'scripts.png')
+      await closeInternalPageTab(page, internalPages.scripts, scriptsTab)
+
+      const coachTab = await openInternalPageTab(page, internalPages.coachMetrics)
       await expect(page.locator('.coach-metrics-view')).toBeVisible()
       await expect(page.locator('.coach-metrics-view .recharts-pie-sector path').first()).toBeVisible()
       await capture(page, scenario.name, 'coach-metrics.png')
+      await closeInternalPageTab(page, internalPages.coachMetrics, coachTab)
 
-      await page.locator('.dashboard-close').click()
-      await expect(page.locator('.coach-metrics-view')).toHaveCount(0)
-      await page.locator('.sidebar-item-notes').first().click()
+      const detailTab = await openInternalPageTab(page, internalPages.problemDetail)
+      await expect(page.locator('.detail-title')).toHaveText('A. Example Problem')
+      await expect(page.locator('.detail-submissions')).toBeVisible()
+      await capture(page, scenario.name, 'problem-detail.png')
+      await closeInternalPageTab(page, internalPages.problemDetail, detailTab)
+
+      const notesTab = await openInternalPageTab(page, internalPages.notes)
       await expect(page.locator('.notes-modal')).toBeVisible()
       await page.locator('.note-item').first().click()
       await expect(page.locator('.milkdown .ProseMirror')).toBeVisible({ timeout: 20_000 })
       await expect(page.locator('body')).toContainText('边界条件复盘')
       await capture(page, scenario.name, 'note-editor.png')
+      await closeInternalPageTab(page, internalPages.notes, notesTab)
 
       expect(pageErrors).toEqual([])
-      for (const screenshotName of screenshotNames) {
+      for (const screenshotName of internalPageScreenshotNames) {
         expect(fs.statSync(path.join(scenarioOutputDir, screenshotName)).size).toBeGreaterThan(20_000)
       }
     } finally {

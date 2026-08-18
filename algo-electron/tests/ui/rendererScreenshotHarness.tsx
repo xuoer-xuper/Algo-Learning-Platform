@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import '../../src/index.css'
 import '../../src/App.css'
 import { MOCK_METRICS_BUNDLE } from '../../src/features/coach/mockMetricsBundle'
+import { getInternalPageTitle, getInternalPageUrl } from '../../electron/browser/internalPage'
 
 const now = '2026-07-03T10:00:00+08:00'
 
@@ -164,13 +165,6 @@ function createApiMock(): ElectronAPI {
     const active = tabs.find((tab) => tab.isActive)
     currentUrl = active?.url ?? ''
     emitTabs()
-  }
-
-  const internalUrl = (page: InternalPage) => {
-    if (page.type === 'problem-detail') return `algo://problem-detail?problemId=${page.problemId}`
-    if (page.type === 'notes') return `algo://problem-notes?problemId=${page.problemId}`
-    if (page.type === 'script-install') return `algo://script-install?installId=${page.installId}`
-    return `algo://${page.type}`
   }
 
   return {
@@ -407,8 +401,8 @@ function createApiMock(): ElectronAPI {
         id,
         kind: 'internal',
         page,
-        url: internalUrl(page),
-        title: page.type,
+        url: getInternalPageUrl(page),
+        title: getInternalPageTitle(page),
         favicon: null,
         isLoading: false,
         isCrashed: false,

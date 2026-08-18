@@ -456,7 +456,8 @@ Renderer（同一构建产物，多窗口实例化——桌宠 hash 路由已证
 | B2.3 | [x] | `8922c54`（2026-08-18）：删除截图替身三件套和三个旧 view 通道，`goHome` 切换内部 home；NoticeBar 与 38px view bounds 让位链路完成 |
 | B2.4 | [x] | `4112c01`（2026-08-18）：旧 TabBar 完整替换为 Chrome 风格 TabStrip；补齐 favicon/内部页图标、加载与崩溃状态、pointer 排序及 `tab:reorder` 持久化、横向溢出与边缘自动滚动、新建/关闭动效、reduced motion、中键关闭、活动标签自动滚入、ARIA 方向键/Home/End 导航；标签区保持 no-drag，右侧空白区保留窗口拖动。自动 GitHub `renderer-smoke` 纳入真实 Electron 与 Playwright；正常态颜色、排版、按钮外观和动效基调保持冻结 |
 | B2.5 | [x] | `a0f7d3f`（2026-08-18）：Omnibox 三分流、本地建议、搜索引擎设置、工具栏 AppMenu 与 view 聚焦摘挂完成；完整证据见 §11.26 |
-| B2.6-B2.8 | [ ] | Playwright 标签导航流程重写、下载/查找/缩放与完整右键菜单待实施 |
+| B2.6 | [x] | 六个内部页面已改为真实标签创建、切换、地址同步、再次激活与标签关闭契约；实现与完成标记同提交，B2 统一验证待执行，完整记录见 §11.27 |
+| B2.7-B2.8 | [ ] | 下载/查找/缩放与完整右键菜单待实施 |
 | B3.1-B3.5 | [ ] | WindowManager、事件多窗口化、标签过户、服务广播、生命周期与恢复均待实施 |
 | B4.1-B4.6 | [ ] | 026_site_credentials、Vault、自动填充、账户页、登录捕获、fuses 均待实施 |
 | B5.1-B5.6 | [ ] | 仅按视觉冻结约束做结构收尾、暗色、无障碍、桌宠策略和 Latex |
@@ -795,4 +796,21 @@ Renderer（同一构建产物，多窗口实例化——桌宠 hash 路由已证
 | 视觉影响 | 严格保持 `0a1a1c4` 冻结基线；复用既有地址输入、按钮、颜色、字体、间距和动画 token，仅新增文档流全内容区建议面板并删除旧“前往”及四个分散功能按钮；未重做页面风格 |
 | 文档同步 | app/browser/contextMenus/problem repository/ipc、renderer components/settings、security/app/browser/components/db/ipc/UI 测试 README、`docs/README.md` 与本台账 |
 | 剩余工作 | 下一步进入 B2.6 Playwright 标签导航流程重写；B2.7/B2.8 完成后统一执行生产构建、NSIS、真实 packaged 双实例 smoke 与 B2 全量回归 |
+| 完成时间 | 北京时间 `2026-08-18` |
+
+### 11.27 B2.6 Playwright 标签导航流程完成记录
+
+| 字段 | 填写内容 |
+|---|---|
+| 任务 | B2.6 Playwright 内部页流程改写与标签容器契约 |
+| 状态 | `[x] 实现完成；B2 统一验证待执行` |
+| Commit | `test: 重写 B2.6 标签导航 UI 契约`（代码与本完成标记同提交） |
+| 标签流程 | 学习统计、设置、脚本管理、Coach 指标、题目详情、本地笔记六类内部页均验证：创建后标签数增加、活动 tab ARIA、受控 `algo://` 地址、路由容器可见、切回首页、再次激活、从标签关闭并恢复首页 |
+| 截图与布局 | 壳面 Omnibox/题库流程与六内部页标签流程拆成独立场景；新增脚本管理与题目详情截图。响应式断言只读取 `.content-area`、`.main-content`、`.shell-route-*` 的真实边界，Dashboard/设置/Coach/笔记断点按当前 route 宽度判断 |
+| 契约复用 | Screenshot harness 删除手写 internal URL/title，直接复用生产 `getInternalPageUrl()` 与 `getInternalPageTitle()`；mock 的标签列表、切换、排序、关闭和地址同步继续通过事件模型驱动 |
+| 退役清理 | `tests/ui/` 已不再引用 `.modal-panel`、`.modal-workspace`、`capturePreview`、`hideView`、`showView` 或旧页面关闭按钮导航流程；禁止重新引入截图背景与浮窗容器假设 |
+| 自动验证 | 按 2026-08-18 批处理策略，本任务不单独运行测试；将在 B2.7/B2.8 完成后统一执行 Playwright、core/Electron/DB/docs、生产构建、NSIS 与真实 packaged 双实例 smoke，并集中修复 |
+| 视觉影响 | 仅重写测试契约与补充截图场景；未修改 runtime、CSS、颜色、排版、按钮、动画或冻结视觉基线 |
+| 文档同步 | `tests/ui/README.md` 与本台账 |
+| 剩余工作 | 下一步进入 B2.7 下载、查找与按 origin 记忆缩放；B2.8 完成后统一验证整个 B2 |
 | 完成时间 | 北京时间 `2026-08-18` |
