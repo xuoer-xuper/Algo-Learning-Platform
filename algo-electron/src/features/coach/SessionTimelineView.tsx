@@ -10,6 +10,7 @@ import {
 } from 'recharts'
 import { loadProblemTimeline } from './coachDataApi'
 import { PLATFORM_NAMES, STATUS_COLORS, VERDICT_COLORS } from '../../shared/display'
+import { IconButton } from '../../components/ui'
 
 /**
  * 单题时间轴复盘视图（阶段 4 Task 18）。
@@ -270,7 +271,7 @@ export function SessionTimelineView({ problemId, onClose }: Props) {
       <div className="coach-timeline-view">
         <div className="settings-header">
           <span className="settings-title">时间轴复盘</span>
-          <button type="button" className="settings-close" onClick={onClose}>✕</button>
+          <IconButton icon="close" title="关闭" className="settings-close" onClick={onClose} />
         </div>
         <div className="coach-timeline-loading">加载中...</div>
       </div>
@@ -282,7 +283,7 @@ export function SessionTimelineView({ problemId, onClose }: Props) {
       <div className="coach-timeline-view">
         <div className="settings-header">
           <span className="settings-title">时间轴复盘</span>
-          <button type="button" className="settings-close" onClick={onClose}>✕</button>
+          <IconButton icon="close" title="关闭" className="settings-close" onClick={onClose} />
         </div>
         <div className="coach-timeline-error">{error}</div>
       </div>
@@ -294,7 +295,7 @@ export function SessionTimelineView({ problemId, onClose }: Props) {
       <div className="coach-timeline-view">
         <div className="settings-header">
           <span className="settings-title">时间轴复盘</span>
-          <button type="button" className="settings-close" onClick={onClose}>✕</button>
+          <IconButton icon="close" title="关闭" className="settings-close" onClick={onClose} />
         </div>
         <div className="coach-timeline-empty">未找到该题目的时间轴数据。</div>
       </div>
@@ -309,7 +310,7 @@ export function SessionTimelineView({ problemId, onClose }: Props) {
         <span className="settings-title">
           时间轴复盘 · {data.title || data.platform_problem_id}
         </span>
-        <button type="button" className="settings-close" onClick={onClose}>✕</button>
+        <IconButton icon="close" title="关闭" className="settings-close" onClick={onClose} />
       </div>
 
       <div className="coach-timeline-info">

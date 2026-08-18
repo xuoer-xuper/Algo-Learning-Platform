@@ -3,6 +3,7 @@ import {
   NOTE_TYPE_LABELS,
   type NoteItem,
 } from './notesTypes'
+import { IconButton } from '../../components/ui'
 
 interface NoteListProps {
   notes: NoteItem[]
@@ -54,17 +55,17 @@ export function NoteList({
                 <span className="note-item-words">
                   {note.word_count > 0 ? `${note.word_count} 字` : ''}
                 </span>
-                <button
-                  type="button"
+                <IconButton
+                  icon="trash"
+                  size={12}
+                  danger
                   className="note-item-del"
+                  title="删除笔记"
                   onClick={(event) => {
                     event.stopPropagation()
                     onDeleteNote(note.id)
                   }}
-                  title="删除笔记"
-                >
-                  ✕
-                </button>
+                />
               </div>
             </div>
           ))

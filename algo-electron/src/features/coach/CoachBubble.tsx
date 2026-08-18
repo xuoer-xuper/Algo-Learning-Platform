@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { Icon } from '../../components/ui'
 import { CoachActions } from './CoachActions'
 
 export interface CoachBubbleProps {
@@ -98,8 +99,15 @@ export function CoachBubble({ payload, autoDismissMs = 12000, llmEnabled = false
             {SOURCE_LABEL[payload.source] ?? payload.source}
           </span>
         )}
-        <button type="button" className="coach-bubble-close"
-          onClick={handleManualClose} aria-label="关闭气泡">✕</button>
+        <button
+          type="button"
+          className="coach-bubble-close"
+          onClick={handleManualClose}
+          title="关闭气泡"
+          aria-label="关闭气泡"
+        >
+          <Icon name="close" size={12} />
+        </button>
       </div>
 
       {isLoading ? (

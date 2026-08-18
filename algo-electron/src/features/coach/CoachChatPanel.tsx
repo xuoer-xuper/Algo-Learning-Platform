@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+import { Icon } from '../../components/ui'
 import './styles/bubble.css'
 
 interface ChatMessage {
@@ -68,7 +69,15 @@ export function CoachChatPanel({ onClose }: CoachChatPanelProps) {
       <div className="coach-chat-header">
         <span className="coach-chat-title">AI 教练对话</span>
         <span className="coach-chat-source" data-source="llm">LLM</span>
-        <button type="button" className="coach-bubble-close" onClick={onClose} aria-label="关闭对话">✕</button>
+        <button
+          type="button"
+          className="coach-bubble-close"
+          onClick={onClose}
+          title="关闭对话"
+          aria-label="关闭对话"
+        >
+          <Icon name="close" size={12} />
+        </button>
       </div>
 
       <div className="coach-chat-messages">
