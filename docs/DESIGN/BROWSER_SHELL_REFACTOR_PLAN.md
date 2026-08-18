@@ -444,7 +444,7 @@ Renderer（同一构建产物，多窗口实例化——桌宠 hash 路由已证
 | B0.8 | [x] | `81f4c08`（2026-08-17）：主进程致命异常兜底、启动失败报告、壳 renderer 自动恢复、滚动落盘日志与关键链路诊断已完成；packaged smoke 改为异步子进程，修复同步阻塞 HTTP server 导致的假失败；全量验证通过；无视觉变更 |
 | B0.9 | [x] | `ddeabfa` + `ed62379`（2026-08-18）：在日志文件、privileged scheme、IPC、生命周期和数据库服务注册前获取 Electron 单实例锁；失败实例立即 `app.quit()` 且不写共享日志、不打开数据库、不创建窗口；后续启动通过 `second-instance` 恢复最小化窗口并执行 `show()`/`focus()`，缺失、已销毁或聚焦失败路径均记录诊断；Electron test-double、单元测试、真实 `win-unpacked` 双进程 smoke 和 README 已同步。验证：`npm run typecheck`、`npm run lint`、聚焦 3 files/7 tests、`npm run test:all`（53 files/370 tests，覆盖率 34.87/38.31/30.48/35.84%）、`npm run build`、`npm run test:packaged-app` 全部通过；真实双开确认失败实例快速退出、主实例继续存活并聚焦且失败实例不写共享日志；无视觉变更 |
 | B0.10 | [x] | `9de6661`（2026-08-18）：统计日期条件统一改为 `>= local_day AND < next_local_day` 范围谓词；提交批次只重算本批新增提交日期及首次 AC 变化影响的旧/新日期，不再全史逐日刷新；主服务改为等待异步数据库初始化。检测 pending migration 后使用 SQLite backup API 写入 `userData/backups` 并保留最近 3 份；迁移失败关闭连接、清理 WAL/SHM、恢复迁移前备份、原子写 failure marker，同一 pending version 下次启动直接阻断并交由主进程致命错误链退出；启动时把开放的 `problem_visits` 按 `entered_at` 封闭并标记 `startup_recovery`，正常关闭改为精确 visit id 更新。验证：`npm run test:db`、`npm run test:all`（57 files/379 tests，覆盖率 35.73/38.63/31.49/36.75%）、`npm run build`、`npm run test:packaged-app` 全部通过；两年事实数据单日重算重复实测 0.33-0.90ms，低于 50ms 门槛；无视觉变更 |
-| B0.11 | [ ] | 025_userscript_identity 待实施 |
+| B0.11 | [x] | `e35212b`（2026-08-18）：migration 025 为用户脚本增加 namespace/identity_name/auto_update_enabled，并按活动身份把存量重复项确定性拆为 canonical + local copy；新导入按精确身份覆盖更新，支持版本关系确认、另存本地副本、legacy 原子认领和北京时间；内容寻址文件名、原子落盘、DB 失败清理、旧受管文件安全回收和源文件保护已完成；`scripts:save` 收窄为显示名/站点绑定白名单，父窗口原生对话框接线完成；无视觉变更 |
 | B0.12 | [x] | `a004d3c`（2026-08-16）：生产壳迁移至 `app://shell` 并启用严格 CSP；普通 IPC 统一接入 shell sender/main-frame/origin/payload 校验，OJ 提交通道使用专用 HTTPS sender validator；TabManager 管理 OJ sender 生命周期；安全、架构、IPC 合约与真实 Electron startup smoke 覆盖已完成；全量验证通过；无视觉变更 |
 | B1.1 | [~] | `1190daf` 已统一主要 token；暗色双值与剩余域核对待完成 |
 | B1.2 | [~] | Button/fields/Card/ConfirmDialog 已落地；Dialog/DropdownMenu/Toast/NoticeBar 待补 |
@@ -560,3 +560,16 @@ Renderer（同一构建产物，多窗口实例化——桌宠 hash 路由已证
 | 视觉影响 | `无视觉变更`；未修改 TSX、CSS、视觉 token、布局值或动画方向 |
 | 文档同步 | `electron/backup/README.md`、`electron/db/README.md`、`electron/submissions/README.md`、`electron/tracking/README.md`、`tests/db/README.md`、`tests/submissions/README.md`、`tests/tracking/README.md` 与 `docs/README.md` |
 | 完成时间 | 北京时间 `2026-08-18 11:59` |
+
+### 11.12 B0.11 完成记录
+
+| 字段 | 填写内容 |
+|---|---|
+| 任务 | B0.11 脚本更新止血、身份迁移与本地副本 |
+| 状态 | `[x] 已完成` |
+| Commit | `e35212b scripts: 增加用户脚本身份更新与本地副本` |
+| 自动验证 | `npm run typecheck`、`npm run test:core`、`npm run test:db`、`npm run test:unit`、`npm run test:docs`、`git diff --check` 全部通过；核心套件 27 个文件/333 个测试，完整 Vitest 62 个文件/401 个测试；数据库套件覆盖 migration 025、legacy 原子认领回滚、迁移安全、备份恢复、仓储和统计性能；IPC 聚焦覆盖 7 个用例；本块未重复执行生产构建、NSIS 和 packaged 双实例 smoke，按后续多个任务块合并验证策略执行 |
+| 人工验收 | 待用户统一回归：重复导入升级/同版/降级/未知版本、取消、另存副本、无 namespace legacy 认领、旧文件与源文件保护；自动化已覆盖上述分支和数据库状态 |
+| 视觉影响 | `无视觉变更`；未修改 TSX、CSS、颜色、布局或动画 |
+| 文档同步 | `electron/db/README.md`、`electron/db/repositories/userScript/README.md`、`electron/scripts/README.md`、`electron/ipc/README.md`、`tests/{db,ipc,scripts}/README.md`、`docs/DESIGN/DATABASE_SCHEMA.md`、`docs/OPERATIONS/DATABASE_MIGRATION_ROLLBACK.md` |
+| 完成时间 | 北京时间 `2026-08-18 12:50` |
