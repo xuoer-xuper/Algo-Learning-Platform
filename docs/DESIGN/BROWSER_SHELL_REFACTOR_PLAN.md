@@ -452,7 +452,9 @@ Renderer（同一构建产物，多窗口实例化——桌宠 hash 路由已证
 | B1.4 | [x] | `0a1a1c4`；`rg` 确认 src 中无原生 confirm；组件测试已覆盖 ConfirmDialog |
 | B1.5 | [x] | `66821d0` + `7df12ce` + `7240170`（2026-08-18）：清理零引用 `@milkdown/theme-nord`，保留 Crepe 实际 Nord CSS；Coach 原始配色、透明度、圆角与动效值集中到独立 `tokens.css`；Dashboard/Coach、首页和设置三组统计卡片真实迁移到 `Card`，治理测试防止回流；既有 feature/notes/scripts 已由 `0a1a1c4` 完成按钮/输入/确认框收编；视觉冻结不变 |
 | B2.1 | [x] | `ac5fa27` + `4f8f40f` + `8db5c27` + `8c93cd7`（2026-08-18）：有序标签模型、严格安全快照、原子存储、250ms 防抖、退出 flush、稳定 ID/顺序恢复与 renderer 首次列表同步全部完成；web renderer 崩溃后保留标签元数据并摘除坏 view，可复用或替换 view 恢复原地址，失败与迟到事件不删除/污染标签；unresponsive 使用普通文档流 NoticeBar 提供继续等待、按 tabId 重载和关闭，活动 view 同步下移 38px，responsive 后自动撤销。健康态不进入会话快照。验证：`npm run typecheck`、`npm run lint`、`npm run test:core`（40 files/484 tests）、`npm run test:ui`（3 viewports）和 `git diff --check` 全部通过；按批量验证策略暂缓生产构建、NSIS 与真实 packaged smoke。正常态视觉冻结不变，仅新增复用现有 token/组件的故障状态页和通知条 |
-| B2.2-B2.8 | [ ] | 内部页、截图机制退役、TabStrip、Omnibox、UI 测试、下载/查找/缩放、右键菜单均待实施 |
+| B2.2 | [x] | `8922c54`（2026-08-18）：完成 web/internal 混合标签、ShellRouter、内部 home、旧默认首页迁移与全部既定内部页路由归属；正常态视觉风格冻结 |
+| B2.3 | [x] | `8922c54`（2026-08-18）：删除截图替身三件套和三个旧 view 通道，`goHome` 切换内部 home；NoticeBar 与 38px view bounds 让位链路完成 |
+| B2.4-B2.8 | [ ] | TabStrip、Omnibox、UI 测试扩展、下载/查找/缩放、右键菜单待实施 |
 | B3.1-B3.5 | [ ] | WindowManager、事件多窗口化、标签过户、服务广播、生命周期与恢复均待实施 |
 | B4.1-B4.6 | [ ] | 026_site_credentials、Vault、自动填充、账户页、登录捕获、fuses 均待实施 |
 | B5.1-B5.6 | [ ] | 仅按视觉冻结约束做结构收尾、暗色、无障碍、桌宠策略和 Latex |
@@ -740,3 +742,20 @@ Renderer（同一构建产物，多窗口实例化——桌宠 hash 路由已证
 | 安全与持久化 | `isCrashed`、`isUnresponsive`、通知 dismiss 状态、favicon/loading、表单、密码和脚本源码均不写入 `TabSnapshot`；日志只记录稳定 tabId、进程退出原因/码和错误名，不记录页面 URL 或内容 |
 | 剩余工作 | B2.1 无已知代码缺口；下一步进入 B2.2 内部页标签化，生产构建、NSIS 与真实 packaged smoke 继续合并到后续集中回归 |
 | 完成时间 | 北京时间 `2026-08-18 23:10` |
+
+#### 完成记录：B2.2 + B2.3 内部页标签化与截图替身退役
+
+| 字段 | 填写内容 |
+|---|---|
+| 任务 | B2.2 内部页标签化 + B2.3 截图替身退役 |
+| 状态 | `[x] 已完成` |
+| Commit | `8922c54 browser: 完成内部页标签化并退役截图浮层` |
+| 自动验证 | `npm run test:core`（45 files/502 tests，包含 `tests/app` 配置迁移回归）、`npm run test:electron`、`npm run test:ui`（1280×800、1024×720、800×600）、`npm run test:docs` 和 `git diff --check`；全部通过 |
+| 自动验收 | `ManagedTab`/`TabInfo`/session/关闭栈支持 web/internal 混合标签；新标签、关闭最后标签和无恢复会话进入 `algo://home`；内部页导航到 HTTP/HTTPS 时保留稳定 ID 原位转 web；设置、统计、脚本、Coach 指标、题目详情、笔记入口均打开内部标签；`credentials` 与 `script-install` 已纳入严格路由判别联合和会话模型，具体业务 UI 仍按 B4/B6 交付；旧 `defaultHomeUrl` 净化、去重、拒绝 userinfo 后迁入 `homeShortcuts`，写回失败仍保留内存配置；生产壳继续由 `app://shell` 加载 |
+| 截图机制退役 | 删除 `ModalLayer`、`useAppModalState`、`useBrowserViewVisibility` 及 `browser:hideView`/`showView`/`capturePreview` 的 IPC、preload、类型、renderer helper 和测试 mock；`browser:goHome` 改为复用内部 home；截图 harness 改为真实混合标签事件模型 |
+| 人工验收 | 三档 Playwright 原生 viewport 中首页、设置、统计、LLM 设置、Coach 指标和笔记均通过容器边界、横向越界、图表/编辑器渲染与敏感文本断言；真实 Electron startup smoke 验证初始内部 home、旧配置落盘迁移、显式 web 标签、权限策略与 popup 接管。按批量策略暂缓生产构建、NSIS 和真实 packaged 双实例 smoke |
+| 视觉影响 | 仅把既有功能页从遮罩浮窗改为主内容区内部标签；保留原有颜色、字体、信息层级、组件形态、container query 与动画 token，不重做前端风格 |
+| 文档同步 | `SYSTEM_ARCHITECTURE.md`、app/browser/ipc、renderer/components/hooks/features、home/settings 与 browser/electron/UI 测试 README、故障排查文档和本台账均已同步 |
+| 安全边界 | `algo://` 仅为受控标签标识，不注册资源协议；Renderer 仍从 `app://shell` 加载。内部页 IPC 严格校验 exact-shape payload；会话不保存表单、密码、Cookie、脚本源码、favicon 或运行时健康态；旧快捷入口不接受非 HTTP(S) 或 URL userinfo |
+| 剩余工作 | 下一步进入 B2.4 TabStrip；凭据中心内容属于 B4，脚本安装确认内容属于 B6。生产构建、NSIS 与真实 packaged 双实例 smoke 继续合并到后续集中回归 |
+| 完成时间 | 北京时间 `2026-08-18 23:42` |
