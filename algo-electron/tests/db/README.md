@@ -14,6 +14,8 @@
 - `dailyStatsPerformance.test.ts`：两年事实数据下的单日统计重算基准，硬门槛 `<50ms`。
 - `statsDate.test.ts`：日期范围边界和 timestamp 日期提取。
 - `repositories.test.ts`：临时 SQLite 文件中的迁移、题目 upsert、提交 upsert、唯一约束、首次 AC、日统计聚合、站点 seed、站点导入预览和 Cookie 元数据安全边界。
+- `userScriptIdentityMigration.test.ts`：migration 025 的存量 canonical/local 分流、已删除行排序隔离和软删除部分唯一索引。
+- `userScriptIdentityRepository.test.ts`：用户脚本精确身份、显示名独立编辑、local copy 默认值、空 namespace canonical 和 legacy canonical 原子认领/回滚。
 
 ## 3. 运行方式
 
@@ -24,6 +26,12 @@ $env:ELECTRON_RUN_AS_NODE='1'; node_modules\.bin\electron.cmd tmp\db-repositorie
 ```
 
 纯 migration 辅助测试可用 `npx --yes tsx tests\db\<name>.test.ts` 运行。
+
+用户脚本身份聚焦测试：
+
+```powershell
+npm exec vitest -- run tests/db/userScriptIdentityMigration.test.ts tests/db/userScriptIdentityRepository.test.ts
+```
 
 ## 4. 新增规则
 

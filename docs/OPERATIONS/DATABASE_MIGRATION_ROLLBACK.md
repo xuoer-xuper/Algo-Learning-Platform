@@ -165,6 +165,8 @@ CREATE INDEX IF NOT EXISTS ...
 - 规范提交 ID。
 - 修复重复索引前的数据冲突。
 
+migration 025 在创建用户脚本身份唯一索引前保留全部存量行：每组活动同名脚本中最早记录保持 legacy canonical，其余活动记录改为 `local:<id>` 并关闭自动更新；已软删除记录不参与 canonical 排名。回滚到旧版本时应恢复迁移前 SQLite 备份，不要手工删除 local copy 或把 namespace 批量改回 `NULL`，否则会重新制造身份冲突。
+
 ## 10. 验证命令
 
 基础验证：

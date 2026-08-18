@@ -37,7 +37,7 @@
 - `registerNotesIpc(options)`：注册笔记相关 channel；通过 `notifyProblemsUpdated` 注入题目更新通知，避免模块直接依赖 `BrowserWindow`。
 - `registerProblemIpc(options)`：注册题目相关 channel；通过 `notifyProblemsUpdated` 注入删除题目后的刷新通知。
 - `registerRatingIpc()`：注册 rating 相关 channel，包括账号绑定、账号查询、Codeforces rating 同步、历史查询和比赛结果查询。
-- `registerScriptsIpc()`：注册用户脚本管理 channel，包括脚本列表、保存、导入、打开目录、启停和删除。
+- `registerScriptsIpc(options)`：注册用户脚本管理 channel，包括脚本列表、受控保存、身份更新导入、打开目录、启停和删除；通过 `getParentWindow` 绑定原生文件/确认对话框。
 - `registerSitesIpc(options)`：注册站点配置相关 channel；通过 `getParentWindow` 注入文件对话框父窗口，通过 `notifyProblemsUpdated` 注入导入后的刷新通知。
 - `registerStatsIpc()`：注册统计相关 channel，包括概览、趋势、平台分布、题目访问统计、时间线、复访、连续天数、错题、未复习和日统计重算。
 - `registerSubmissionsIpc(options)`：注册手动提交同步 channel；通过 `getSyncService` 延迟读取 `SyncService`，避免模块 import 时绑定尚未初始化的服务实例。
@@ -65,7 +65,7 @@
 ```powershell
 cd algo-electron
 node node_modules\typescript\bin\tsc --noEmit
-npx --yes tsx tests\ipc\ipcContracts.test.ts
+npm exec vitest -- run tests/ipc
 ```
 
 涉及启动时机或 handler 注册顺序时追加运行：

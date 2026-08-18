@@ -21,7 +21,7 @@ const coreVitestFiles = [
   'tests/browser',
   'tests/coach',
   'tests/integration',
-  'tests/ipc/ipcContracts.test.ts',
+  'tests/ipc',
   'tests/parsers',
   'tests/scripts',
   'tests/security/trustedSender.test.ts',

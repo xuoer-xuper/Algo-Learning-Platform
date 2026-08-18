@@ -46,7 +46,7 @@ export function registerMainIpc(options: RegisterMainIpcOptions): void {
     getParentWindow: options.getWindow,
     notifyProblemsUpdated,
   })
-  registerScriptsIpc()
+  registerScriptsIpc({ getParentWindow: options.getWindow })
   registerRatingIpc()
   registerStatsIpc()
   registerSubmissionsIpc({

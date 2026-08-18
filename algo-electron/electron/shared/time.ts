@@ -29,3 +29,13 @@ export function toBeijing(date: Date): string {
   const ms = String(date.getMilliseconds()).padStart(3, '0')
   return `${y}-${m}-${day}T${h}:${min}:${s}.${ms}`
 }
+
+/** Formats a Date as an explicit UTC+8 timestamp, independent of the host timezone. */
+export function toChinaStandardTime(date: Date): string {
+  const utc8 = new Date(date.getTime() + 8 * 60 * 60 * 1000)
+  return utc8.toISOString().slice(0, -1)
+}
+
+export function nowChinaStandardTime(): string {
+  return toChinaStandardTime(new Date())
+}

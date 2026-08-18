@@ -474,7 +474,9 @@ Phase 7 通过 migration 021 为历史核心表追加同步兼容字段，均为
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
 | id | TEXT PRIMARY KEY | 脚本 ID |
-| name | TEXT NOT NULL | 脚本名称 |
+| name | TEXT NOT NULL | 用户可编辑的显示名称 |
+| namespace | TEXT | 脚本身份命名空间；`NULL` 为尚未认领的 legacy canonical，空字符串为明确无 namespace 的 canonical，`local:<id>` 为本地副本 |
+| identity_name | TEXT NOT NULL | 稳定的脚本身份名称，不随显示名称编辑 |
 | description | TEXT | 脚本描述 |
 | version | TEXT | 脚本版本 |
 | match_urls_json | TEXT NOT NULL | 匹配的 URL 正则或通配符规则数组 |
@@ -482,8 +484,21 @@ Phase 7 通过 migration 021 为历史核心表追加同步兼容字段，均为
 | file_path | TEXT | 脚本本地存储路径 |
 | site_ids_json | TEXT | 关联的作用站点 ID 列表 |
 | enabled | INTEGER NOT NULL DEFAULT 1 | 是否启用 |
+| auto_update_enabled | INTEGER NOT NULL DEFAULT 1 | 是否允许自动更新；本地副本默认关闭 |
 | created_at | TEXT NOT NULL | 创建时间 |
 | updated_at | TEXT NOT NULL | 更新时间 |
+| deleted_at | TEXT | 软删除预留 |
+
+活动脚本身份索引（migration 025）：
+
+```sql
+CREATE UNIQUE INDEX user_scripts_active_identity_unique ON user_scripts(namespace, identity_name)
+  WHERE deleted_at IS NULL AND namespace IS NOT NULL
+CREATE UNIQUE INDEX user_scripts_active_legacy_identity_unique ON user_scripts(identity_name)
+  WHERE deleted_at IS NULL AND namespace IS NULL
+```
+
+存量活动同名脚本按 `created_at ASC, id ASC` 选择首条作为 legacy canonical；其余活动记录不删除，转为 `local:<id>` namespace 并关闭自动更新。legacy canonical 首次确认更新时原子认领为脚本声明的 namespace；无 `@namespace` 时认领为空字符串。
 
 ## 9. Verdict 枚举
 

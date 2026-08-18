@@ -7,6 +7,7 @@ test('scripts/userScriptMetadata.test.ts', async () => {
 const code = `
 // ==UserScript==
 // @name        Sample Helper
+// @namespace   https://example.com/userscripts
 // @description Demo script
 // @version     1.2.3
 // @match       *://*.codeforces.com/*
@@ -21,6 +22,7 @@ console.log('body')
 const meta = parseScriptMetadata(code)
 
 assert.strictEqual(meta.name, 'Sample Helper')
+assert.strictEqual(meta.namespace, 'https://example.com/userscripts')
 assert.strictEqual(meta.description, 'Demo script')
 assert.strictEqual(meta.version, '1.2.3')
 assert.deepStrictEqual(meta.matches, ['*://*.codeforces.com/*', 'https://ac.nowcoder.com/*'])

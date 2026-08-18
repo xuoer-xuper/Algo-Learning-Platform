@@ -100,7 +100,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // Scripts
   scriptsGetAll: () => ipcRenderer.invoke('scripts:getAll'),
-  scriptsSave: (id: string | null, data: UserScriptSaveInput) => ipcRenderer.invoke('scripts:save', id, data),
+  scriptsSave: (id: string, data: UserScriptSaveInput) => ipcRenderer.invoke('scripts:save', id, data),
   scriptsImportFile: () => ipcRenderer.invoke('scripts:importFile'),
   scriptsOpenFolder: () => ipcRenderer.invoke('scripts:openFolder'),
   scriptsToggle: (id: string, enabled: boolean) => ipcRenderer.invoke('scripts:toggle', id, enabled),

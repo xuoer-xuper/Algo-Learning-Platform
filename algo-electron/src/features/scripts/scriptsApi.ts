@@ -40,6 +40,6 @@ export async function deleteUserScript(scriptId: string): Promise<boolean> {
   return window.electronAPI.scriptsDelete(scriptId)
 }
 
-export function openUserScriptsFolder(): Promise<void> {
+export function openUserScriptsFolder(): Promise<string> {
   return window.electronAPI.scriptsOpenFolder()
 }

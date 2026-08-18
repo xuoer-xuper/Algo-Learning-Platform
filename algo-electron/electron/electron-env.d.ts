@@ -301,6 +301,8 @@ interface LearningDataImportResult {
 interface UserScriptRecord {
   id: string
   name: string
+  namespace: string | null
+  identity_name: string
   description: string | null
   version: string | null
   match_urls_json: string
@@ -308,11 +310,16 @@ interface UserScriptRecord {
   file_path: string | null
   site_ids_json: string | null
   enabled: boolean
+  auto_update_enabled: boolean
   created_at: string
   updated_at: string
+  deleted_at: string | null
 }
 
-type UserScriptSaveInput = Partial<Omit<UserScriptRecord, 'id' | 'created_at' | 'updated_at'>>
+interface UserScriptSaveInput {
+  name: string
+  site_ids_json: string
+}
 
 interface NoteRecord {
   id: string
@@ -737,9 +744,9 @@ interface ElectronAPI {
 
   // Scripts
   scriptsGetAll: () => Promise<UserScriptRecord[]>
-  scriptsSave: (id: string | null, data: UserScriptSaveInput) => Promise<string>
+  scriptsSave: (id: string, data: UserScriptSaveInput) => Promise<string>
   scriptsImportFile: () => Promise<string | null>
-  scriptsOpenFolder: () => Promise<void>
+  scriptsOpenFolder: () => Promise<string>
   scriptsToggle: (id: string, enabled: boolean) => Promise<boolean>
   scriptsDelete: (id: string) => Promise<boolean>
 

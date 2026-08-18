@@ -12,11 +12,11 @@
 - 数据库位置：`app.getPath('userData')/data/algo-learning.sqlite`。
 - 连接配置：启用 WAL、foreign keys、`busy_timeout = 5000`。
 - 迁移系统：`schema_migrations` 表记录已执行版本；迁移在事务内执行。
-- 当前迁移版本：001 到 024。
+- 当前迁移版本：001 到 025。
 - 应用启动使用异步初始化：检测到 pending migration 时先用 SQLite backup API 写入 `userData/backups`，只保留最近 3 份。
 - 迁移失败会关闭连接、恢复迁移前备份、写 failure marker；同一 pending migration 下次启动不会自动重试。
 - 启动完成会把未正常结束的 `problem_visits` 按 `entered_at` 安全封闭，并标记 `startup_recovery`。
-- Repository 覆盖：账号/rating、AI 上下文快照、AI 输出、Cookie 元数据、题目、站点配置、统计、提交、用户脚本。
+- Repository 覆盖：账号/rating、AI 上下文快照、AI 输出、Cookie 元数据、题目、站点配置、统计、提交、带稳定身份的用户脚本。
 
 数据库结构的权威契约仍是`docs/DESIGN/DATABASE_SCHEMA.md`。
 

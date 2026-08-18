@@ -1,5 +1,6 @@
 export interface UserScriptMetadata {
   name?: string
+  namespace?: string
   description?: string
   version?: string
   matches: string[]
@@ -28,6 +29,7 @@ export function parseScriptMetadata(code: string): UserScriptMetadata {
         const key = match[1]
         const val = match[2].trim()
         if (key === 'name') meta.name = val
+        else if (key === 'namespace') meta.namespace = val
         else if (key === 'description') meta.description = val
         else if (key === 'version') meta.version = val
         else if (key === 'match' || key === 'include') meta.matches.push(val)

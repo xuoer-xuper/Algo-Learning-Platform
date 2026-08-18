@@ -36,6 +36,7 @@ import { migration021 } from './migrations/021_sync_metadata_fields'
 import { migration022 } from './migrations/022_coach_events'
 import { migration023 } from './migrations/023_coach_interventions'
 import { migration024 } from './migrations/024_coach_feedback'
+import { migration025 } from './migrations/025_userscript_identity'
 
 let db: Database.Database | null = null
 let dbFilePath: string | null = null
@@ -48,7 +49,7 @@ const allMigrations = [
   migration009, migration010, migration011, migration012, migration013,
   migration014, migration015, migration016, migration017, migration018,
   migration019, migration020, migration021,
-  migration022, migration023, migration024,
+  migration022, migration023, migration024, migration025,
 ]
 
 export function getDb(): Database.Database {
