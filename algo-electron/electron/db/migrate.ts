@@ -2,15 +2,32 @@ import type Database from 'better-sqlite3'
 import { nowBeijing } from '../shared/time'
 import { appLogger, type Logger } from '../shared/logger'
 
-interface Migration {
+export interface Migration {
   version: number
   name: string
   up: (db: Database.Database) => void
 }
 
+export function getPendingMigrations(
+  db: Database.Database,
+  migrations: readonly Migration[],
+): Migration[] {
+  const migrationTable = db.prepare(`
+    SELECT 1 as present
+    FROM sqlite_master
+    WHERE type = 'table' AND name = 'schema_migrations'
+  `).get() as { present: number } | undefined
+  if (!migrationTable) return [...migrations]
+
+  const applied = new Set(
+    db.prepare('SELECT version FROM schema_migrations').all().map((row: any) => row.version),
+  )
+  return migrations.filter(migration => !applied.has(migration.version))
+}
+
 export function runMigrations(
   db: Database.Database,
-  migrations: Migration[],
+  migrations: readonly Migration[],
   logger: Logger = appLogger,
 ): void {
   db.exec(`

@@ -19,8 +19,8 @@ export interface MainServices {
   browserDiagnostics: BrowserDiagnostics
 }
 
-export function initializeMainServices(getWindow: () => BrowserWindow | null): MainServices {
-  initDb()
+export async function initializeMainServices(getWindow: () => BrowserWindow | null): Promise<MainServices> {
+  await initDb()
   seedBuiltinSites()
   setEnabledSitesFetcher(getEnabledSites)
   new SiteRegistry()

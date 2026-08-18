@@ -15,6 +15,8 @@ export default defineConfig({
       'tests/ai/traceability.test.ts',
       'tests/coach/llmConfigStore.test.ts',
       'tests/db/backupImport.test.ts',
+      'tests/db/dailyStatsPerformance.test.ts',
+      'tests/db/migrationSafety.test.ts',
       'tests/db/repositories.test.ts',
       'tests/electron/startupSmoke.test.ts',
     ],

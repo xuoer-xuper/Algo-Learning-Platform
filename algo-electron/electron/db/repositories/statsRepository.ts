@@ -32,4 +32,5 @@ export {
 export {
   recomputeAllDailyStats,
   recomputeDailyStats,
+  recomputeDailyStatsForDates,
 } from './stats/recompute'

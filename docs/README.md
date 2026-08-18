@@ -148,6 +148,7 @@
 | test shared | [tests/shared/README](../algo-electron/tests/shared/README.md) |
 | test shortcuts | [tests/shortcuts/README](../algo-electron/tests/shortcuts/README.md) |
 | test submissions | [tests/submissions/README](../algo-electron/tests/submissions/README.md) |
+| test tracking | [tests/tracking/README](../algo-electron/tests/tracking/README.md) |
 | test ui | [tests/ui/README](../algo-electron/tests/ui/README.md) |
 | GitHub | [.github/README](../.github/README.md) |
 | workflows | [.github/workflows/README](../.github/workflows/README.md) |

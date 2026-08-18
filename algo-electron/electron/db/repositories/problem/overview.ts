@@ -1,6 +1,7 @@
 import { getDb } from '../../connection'
 import { todayBeijing } from '../../../shared/time'
 import type { OverviewStats, PlatformDistributionRow } from './types'
+import { nextLocalDay } from '../stats/date'
 
 export function getProblemCount(): number {
   const db = getDb()
@@ -20,11 +21,12 @@ export function getPlatformDistribution(): PlatformDistributionRow[] {
 export function getTodayVisitedCount(): number {
   const db = getDb()
   const today = todayBeijing()
+  const tomorrow = nextLocalDay(today)
   const row = db.prepare(`
     SELECT COUNT(DISTINCT problem_id) as count
     FROM problem_visits
-    WHERE entered_at LIKE ?
-  `).get(`${today}%`) as { count: number }
+    WHERE entered_at >= ? AND entered_at < ?
+  `).get(today, tomorrow) as { count: number }
   return row.count
 }
 

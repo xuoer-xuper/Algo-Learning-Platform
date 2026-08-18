@@ -11,6 +11,7 @@
 当前包含：
 
 - `TrackingService.ts`：题目访问开始/结束、activity event 和 daily stats 更新。
+- `orphanProblemVisits.ts`：启动时封闭上次异常退出留下的开放访问记录。
 - `problemTitleTracking.ts`：把 `TabManager` 的导航、标题变化和活动 tab 事件接到题目标题补全流程。
 
 `TrackingService.ts`：
@@ -21,6 +22,7 @@
 - 写入 `problem_visits`。
 - 写入 `activity_events` 的 `visit_start`。
 - 结束上一次访问并记录停留时长。
+- 正常结束按唯一 visit id 更新，避免同题遗留开放记录被批量误改。
 - 访问开始和结束后重算当日 `daily_stats`。
 
 `problemTitleTracking.ts`：
@@ -68,13 +70,13 @@ TabManager title / active tab / navigate
 
 - 只追踪启用站点。
 - 当前只写入访问开始事件；提交事件由 submissions 写入路径负责。
-- `currentVisit` 是进程内状态，不跨重启恢复。
+- `currentVisit` 是进程内状态；异常退出遗留行在下次启动按 `entered_at` 封闭，时长归零并标记 `startup_recovery`。
 - 统计重算失败不阻断浏览器导航。
 - 标题补全只更新 `problems`，不创建提交记录，不读取 Cookie 或页面源码。
 
 ## 6. 测试入口
 
-当前没有 tracking 独立测试。修改后至少运行：
+`tests/tracking/orphanProblemVisits.test.ts` 覆盖启动孤儿访问清理；其余 tracking 行为修改后至少运行：
 
 ```powershell
 cd algo-electron

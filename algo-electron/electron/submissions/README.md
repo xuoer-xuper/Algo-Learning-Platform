@@ -105,7 +105,7 @@ SyncService
 - 所有持久化提交必须经过 `SubmissionBatchWriter`。
 - `SubmissionBatchWriter` 只负责编排批量写入、首次 AC 和统计刷新。
 - `SubmissionProblemAttacher` 只消费 `SubmissionData` 和 `ProblemIdentity`，不抓网页、不发请求。
-- 新提交写入后才刷新首次 AC 和统计。
+- 新提交写入后才刷新首次 AC 和统计；统计只重算本批插入提交日期及首次 AC 变更影响的日期，不再全史重算。
 - 题目关联优先级：当前页面身份 > 提交 rawJson/sourceUrl > 站点专用上下文字段。
 - 不写入 Cookie、用户源码或完整请求体。
 

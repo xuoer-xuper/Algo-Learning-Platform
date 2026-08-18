@@ -1,10 +1,14 @@
 import { getDb } from '../../connection'
 import { nowBeijing } from '../../../shared/time'
 import type { FirstAcRow } from './types'
+import { localDayFromTimestamp } from '../stats/date'
 
-export function updateFirstAc(problemId: string): void {
+export function updateFirstAc(problemId: string): string[] {
   const db = getDb()
   const now = nowBeijing()
+  const existing = db.prepare(`
+    SELECT first_solved_at FROM problems WHERE id = ?
+  `).get(problemId) as { first_solved_at: string | null } | undefined
 
   const firstAc = db.prepare(`
     SELECT submitted_at FROM submissions
@@ -18,4 +22,13 @@ export function updateFirstAc(problemId: string): void {
       WHERE id = ? AND (first_solved_at IS NULL OR first_solved_at > ?)
     `).run(firstAc.submitted_at, now, problemId, firstAc.submitted_at)
   }
+
+  const affectedDays = new Set<string>()
+  const previousDay = existing?.first_solved_at
+    ? localDayFromTimestamp(existing.first_solved_at)
+    : null
+  const nextDay = firstAc ? localDayFromTimestamp(firstAc.submitted_at) : null
+  if (previousDay) affectedDays.add(previousDay)
+  if (nextDay) affectedDays.add(nextDay)
+  return Array.from(affectedDays)
 }

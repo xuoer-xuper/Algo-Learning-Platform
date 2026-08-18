@@ -9,12 +9,15 @@
 ## 2. 当前实现程度
 
 - `backupService.ts`：SQLite 备份、JSON 文件导出、JSON 文件读取、导入预览和确认导入封装。
+- `sqliteMigrationBackup.ts`：迁移前备份、三份轮换、原子恢复、WAL/SHM 清理和 migration failure marker。
 - `learningDataExport.ts`：学习数据导出结构、版本校验、冲突检测和 merge 导入逻辑。
 - `types.ts`：导出版本、导入预览、冲突、导入结果和备份结果类型。
 
 ## 3. 封装入口
 
 - `createDatabaseBackup(targetDir)`：使用 SQLite backup API 生成时间戳 `.sqlite` 文件。
+- `createPreMigrationBackup(...)`：应用启动发现 pending migration 时创建一致性备份并轮换。
+- `restoreDatabaseFromBackup(...)`：数据库关闭后从迁移前备份恢复，替换前清理 WAL/SHM sidecar。
 - `exportLearningData()` / `exportLearningDataToFile(filePath)`：导出题目、访问、提交、每日统计、账号和 rating 历史。
 - `previewLearningDataImport(raw)` / `previewLearningDataImportFile(filePath)`：校验版本、统计新增/重复/冲突。
 - `importLearningData(data, overwriteConflicts)`：导入非敏感学习数据；默认遇到冲突不写库。

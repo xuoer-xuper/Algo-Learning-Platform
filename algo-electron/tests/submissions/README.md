@@ -11,7 +11,7 @@
 - `realtimeHookInjector.test.ts`、`realtimeHookScriptLifetime.test.ts`：实时 hook 注入和生命周期。
 - `realtimeSubmissionDiagnostics.test.ts`：实时监听诊断。
 - `realtimeTabActivation.test.ts`：多标签活动页注入约束。
-- `submissionBatchWriter.test.ts`：批量写入、去重和最终结果入库。
+- `submissionBatchWriter.test.ts`：批量写入、去重、最终结果入库和受影响日期定向重算。
 - `submissionPageContextResolver.test.ts`：提交页上下文和题目关联。
 - `submissionWatcherCore.test.ts`：watcher core 状态机。
 - `syncService.test.ts`：手动同步服务。

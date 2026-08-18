@@ -1,4 +1,5 @@
 import type { ProblemIdentity, SubmissionData } from '../shared/types'
+import { localDayFromTimestamp } from '../db/repositories/stats/date'
 import { SubmissionProblemAttacher } from './SubmissionProblemAttacher'
 
 export interface SubmissionBatchWriteResult {
@@ -19,8 +20,8 @@ export interface SubmissionBatchWriterDeps {
   upsertProblem(identity: ProblemIdentity): void
   findProblemId(platform: string, platformProblemId: string): string | undefined
   upsertSubmission(submission: SubmissionData): boolean
-  updateFirstAc(problemId: string): void
-  recomputeStats(): void
+  updateFirstAc(problemId: string): Iterable<string> | void
+  recomputeStats(dates: Iterable<string>): void
   parseUrl(url: string): ProblemIdentity | null
   buildCodeforcesProblemUrl(contestId: string | number, index: string): string
 }
@@ -35,6 +36,7 @@ export class SubmissionBatchWriter {
   write(options: SubmissionBatchWriteOptions): SubmissionBatchWriteResult {
     const { platform, submissions, pageProblemId, pageProblemIdentity, currentUrl } = options
     let inserted = 0
+    const affectedDates = new Set<string>()
 
     let pageProblemDbId: string | undefined
     if (pageProblemIdentity) {
@@ -58,14 +60,21 @@ export class SubmissionBatchWriter {
       this.problemAttacher.attachProblem(submission, platform, pageProblemDbId)
 
       const isNew = this.deps.upsertSubmission(submission)
-      if (isNew) inserted += 1
+      if (isNew) {
+        inserted += 1
+        const submittedDay = localDayFromTimestamp(submission.submittedAt)
+        if (submittedDay) affectedDates.add(submittedDay)
+      }
       if (isNew && submission.verdict === 'AC' && submission.problemId) {
-        this.deps.updateFirstAc(submission.problemId)
+        const firstAcDays = this.deps.updateFirstAc(submission.problemId)
+        if (firstAcDays) {
+          for (const date of firstAcDays) affectedDates.add(date)
+        }
       }
     }
 
     if (inserted > 0) {
-      try { this.deps.recomputeStats() } catch { /* ignore */ }
+      try { this.deps.recomputeStats(affectedDates) } catch { /* ignore */ }
     }
 
     return { platform, fetched: submissions.length, inserted }

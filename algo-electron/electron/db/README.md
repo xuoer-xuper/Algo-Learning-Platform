@@ -12,7 +12,10 @@
 - 数据库位置：`app.getPath('userData')/data/algo-learning.sqlite`。
 - 连接配置：启用 WAL、foreign keys、`busy_timeout = 5000`。
 - 迁移系统：`schema_migrations` 表记录已执行版本；迁移在事务内执行。
-- 当前迁移版本：001 到 021。
+- 当前迁移版本：001 到 024。
+- 应用启动使用异步初始化：检测到 pending migration 时先用 SQLite backup API 写入 `userData/backups`，只保留最近 3 份。
+- 迁移失败会关闭连接、恢复迁移前备份、写 failure marker；同一 pending migration 下次启动不会自动重试。
+- 启动完成会把未正常结束的 `problem_visits` 按 `entered_at` 安全封闭，并标记 `startup_recovery`。
 - Repository 覆盖：账号/rating、AI 上下文快照、AI 输出、Cookie 元数据、题目、站点配置、统计、提交、用户脚本。
 
 数据库结构的权威契约仍是`docs/DESIGN/DATABASE_SCHEMA.md`。
@@ -37,15 +40,16 @@
 
 `connection.ts`：
 
-- `initDb()`：创建数据目录，打开 SQLite，设置 pragma，按顺序运行迁移。
+- `initDb()`：异步创建数据目录，打开 SQLite，设置 pragma，执行迁移安全备份、迁移和启动清理。
 - `initDbAtPath(dbPath)`：打开指定 SQLite 文件并运行同一组迁移，供临时数据库测试使用。
+- `initDbAtPathWithMigrationSafety(dbPath, options)`：供生产启动和迁移恢复集成测试使用的异步安全初始化入口。
 - `getDb()`：返回已初始化连接；未初始化时抛错。
 - `getDbPath()`：返回当前 SQLite 文件路径，供备份服务使用。
 - `closeDb()`：关闭连接并清空模块内单例。
 
 使用规则：
 
-- 应用启动阶段先调用 `initDb()`。
+- 应用启动阶段必须 `await initDb()`，数据库就绪前不得创建依赖 repository 的服务。
 - 自动测试必须使用 `initDbAtPath(dbPath)` 指向临时目录，不能写入用户真实 `userData`。
 - 业务代码不要自己 new `Database`。
 - 长生命周期服务通过 repository 或明确封装访问数据库。
@@ -56,6 +60,9 @@
 `migrate.ts`：
 
 - `runMigrations(db, migrations)`：创建 `schema_migrations`，跳过已执行版本，对每个新 migration 开事务运行 `up()`，成功后写入版本记录；每个开始、完成和失败事件写入主进程滚动日志，失败仍原样抛回启动链。
+- `getPendingMigrations(db, migrations)`：只读检查待执行版本，确保迁移前备份发生在任何 schema 写入之前。
+
+迁移失败 marker 位于 `userData/backups/algo-learning.sqlite.migration-failure.json`。marker 中记录待迁移版本、备份路径和错误摘要；只要失败版本仍 pending，启动会直接失败并交由主进程致命错误链退出，避免反复改写同一数据库。数据库已由人工/新版迁移处理且失败版本不再 pending 时，成功启动会清理 marker。
 
 Migration 文件约定：
 

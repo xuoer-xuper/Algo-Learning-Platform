@@ -5,11 +5,11 @@ import { upsertProblem } from '../db/repositories/problemRepository'
 import { getSiteById } from '../db/repositories/siteRepository'
 import { recomputeDailyStats } from '../db/repositories/statsRepository'
 import type { ProblemIdentity } from '../shared/types'
-import { nowBeijing, todayBeijing } from '../shared/time'
+import { nowBeijing } from '../shared/time'
 import { appLogger, type Logger } from '../shared/logger'
 
 export class TrackingService {
-  private currentVisit: { problemId: string; enteredAt: number } | null = null
+  private currentVisit: { visitId: string; enteredAt: number; localDay: string } | null = null
   private onProblemDetected: ((identity: ProblemIdentity) => void) | null = null
 
   constructor(private readonly logger: Logger = appLogger) {}
@@ -38,12 +38,13 @@ export class TrackingService {
     if (problem) {
       const now = nowBeijing()
       const today = now.slice(0, 10)
+      const visitId = crypto.randomUUID()
 
       // 写入访问记录
       db.prepare(`
         INSERT INTO problem_visits (id, problem_id, platform, url, entered_at, created_at, updated_at)
         VALUES (?, ?, ?, ?, ?, ?, ?)
-      `).run(crypto.randomUUID(), problem.id, identity.platform, identity.canonicalUrl, now, now, now)
+      `).run(visitId, problem.id, identity.platform, identity.canonicalUrl, now, now, now)
 
       // 写入活跃事件
       db.prepare(`
@@ -51,7 +52,7 @@ export class TrackingService {
         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
       `).run(crypto.randomUUID(), 'visit_start', now, today, problem.id, identity.platform, identity.canonicalUrl, now)
 
-      this.currentVisit = { problemId: problem.id, enteredAt: Date.now() }
+      this.currentVisit = { visitId, enteredAt: Date.now(), localDay: today }
 
       // 实时重算当日统计，保证趋势图/连续天数/AI 上下文与访问记录同步
       try {
@@ -77,16 +78,16 @@ export class TrackingService {
     const nowStr = nowBeijing()
     db.prepare(`
       UPDATE problem_visits SET left_at = ?, duration_seconds = ?, updated_at = ?
-      WHERE problem_id = ? AND left_at IS NULL
-    `).run(nowStr, duration, nowStr, this.currentVisit.problemId)
+      WHERE id = ? AND left_at IS NULL
+    `).run(nowStr, duration, nowStr, this.currentVisit.visitId)
+    const visitDay = this.currentVisit.localDay
     this.currentVisit = null
 
     // 停留时长更新后重算当日统计（duration_seconds/active_seconds 可能变化）
-    const day = todayBeijing()
     try {
-      recomputeDailyStats(day)
+      recomputeDailyStats(visitDay)
     } catch (error) {
-      this.logger.warn('tracking.stats-recompute-failed', { phase: 'visit-end', day, error })
+      this.logger.warn('tracking.stats-recompute-failed', { phase: 'visit-end', day: visitDay, error })
     }
     this.logger.debug('tracking.visit-ended', { durationSeconds: duration })
   }

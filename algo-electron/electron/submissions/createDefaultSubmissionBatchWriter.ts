@@ -1,6 +1,6 @@
 import { getDb } from '../db/connection'
 import { upsertProblem } from '../db/repositories/problemRepository'
-import { recomputeAllDailyStats } from '../db/repositories/statsRepository'
+import { recomputeDailyStatsForDates } from '../db/repositories/statsRepository'
 import { upsertSubmission, updateFirstAc } from '../db/repositories/submissionRepository'
 import { parseUrl } from '../parsers/registry'
 import { buildCodeforcesProblemUrlFromApi } from '../adapters/codeforcesUrls'
@@ -17,7 +17,7 @@ export function createDefaultSubmissionBatchWriter(): SubmissionBatchWriter {
     },
     upsertSubmission,
     updateFirstAc,
-    recomputeStats: recomputeAllDailyStats,
+    recomputeStats: recomputeDailyStatsForDates,
     parseUrl,
     buildCodeforcesProblemUrl: buildCodeforcesProblemUrlFromApi,
   })

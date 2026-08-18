@@ -284,3 +284,62 @@ assert.deepStrictEqual(duplicateResult, { platform: 'pta', fetched: 1, inserted:
 assert.strictEqual(statsRecomputeCount, 10, 'Stats should not be recomputed when no row is inserted')
 
 })
+
+test('recomputes only unique dates affected by newly inserted submissions', () => {
+  const savedIds = new Set<string>()
+  const recomputedBatches: string[][] = []
+  const writer = new SubmissionBatchWriter({
+    upsertProblem: () => undefined,
+    findProblemId: () => undefined,
+    upsertSubmission: (submission) => {
+      if (savedIds.has(submission.platformSubmissionId)) return false
+      savedIds.add(submission.platformSubmissionId)
+      return true
+    },
+    updateFirstAc: () => ['2026-06-28'],
+    recomputeStats: (dates) => {
+      recomputedBatches.push(Array.from(dates).sort())
+    },
+    parseUrl: () => null,
+    buildCodeforcesProblemUrl: () => '',
+  })
+
+  const result = writer.write({
+    platform: 'codeforces',
+    submissions: [
+      {
+        platform: 'codeforces',
+        platformSubmissionId: 'affected-1',
+        problemId: 'problem-1',
+        verdict: 'AC',
+        submittedAt: '2026-06-29T10:00:00.000',
+      },
+      {
+        platform: 'codeforces',
+        platformSubmissionId: 'affected-2',
+        verdict: 'WA',
+        submittedAt: '2026-06-29T11:00:00.000',
+      },
+      {
+        platform: 'codeforces',
+        platformSubmissionId: 'affected-3',
+        verdict: 'WA',
+        submittedAt: '2026-06-30T00:00:00.000',
+      },
+    ],
+  })
+
+  assert.deepStrictEqual(result, { platform: 'codeforces', fetched: 3, inserted: 3 })
+  assert.deepStrictEqual(recomputedBatches, [['2026-06-28', '2026-06-29', '2026-06-30']])
+
+  writer.write({
+    platform: 'codeforces',
+    submissions: [{
+      platform: 'codeforces',
+      platformSubmissionId: 'affected-1',
+      verdict: 'AC',
+      submittedAt: '2026-06-29T10:00:00.000',
+    }],
+  })
+  assert.strictEqual(recomputedBatches.length, 1, 'Duplicate-only batches must not recompute stats')
+})

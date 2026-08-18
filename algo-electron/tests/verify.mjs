@@ -29,7 +29,12 @@ const coreVitestFiles = [
 
 const dbVitestFiles = [
   'tests/db/codeforcesSubmissionIdMigration.test.ts',
+  'tests/db/databaseInitialization.test.ts',
+  'tests/db/migrateLogging.test.ts',
   'tests/db/problemContextMigration.test.ts',
+  'tests/db/sqliteMigrationBackup.test.ts',
+  'tests/db/statsDate.test.ts',
+  'tests/tracking/orphanProblemVisits.test.ts',
 ]
 
 function run(command, args, env = {}) {
@@ -109,6 +114,8 @@ function runAiElectronTests() {
 
 function runDbElectronTests() {
   runElectronNodeTest(path.join('tests', 'db', 'backupImport.test.ts'), 'db-backupImport')
+  runElectronNodeTest(path.join('tests', 'db', 'migrationSafety.test.ts'), 'db-migrationSafety')
+  runElectronNodeTest(path.join('tests', 'db', 'dailyStatsPerformance.test.ts'), 'db-dailyStatsPerformance')
   runElectronNodeTest(path.join('tests', 'db', 'repositories.test.ts'), 'db-repositories')
 }
 

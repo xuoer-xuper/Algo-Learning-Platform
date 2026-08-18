@@ -276,7 +276,7 @@ app.on('activate', () => {
   }
 })
 
-void app.whenReady().then(() => {
+void app.whenReady().then(async () => {
   appLogger.info('app.ready')
   if (!VITE_DEV_SERVER_URL) {
     registerShellProtocol(RENDERER_DIST)
@@ -284,7 +284,7 @@ void app.whenReady().then(() => {
   configureOjSession({ getSiteById })
 
   registerNoteAssetProtocol()
-  services = initializeMainServices(() => win)
+  services = await initializeMainServices(() => win)
   // Only preconnect sites the user actually visited recently to avoid noisy cold-start timeouts.
   preconnectRecentSiteOrigins()
 

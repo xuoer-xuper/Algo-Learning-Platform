@@ -2,7 +2,16 @@ import Database from 'better-sqlite3'
 import path from 'node:path'
 import fs from 'node:fs'
 import { createRequire } from 'node:module'
-import { runMigrations } from './migrate'
+import { appLogger, type Logger } from '../shared/logger'
+import { closeOrphanProblemVisits } from '../tracking/orphanProblemVisits'
+import {
+  assertMigrationRetryAllowed,
+  clearMigrationFailureMarker,
+  createPreMigrationBackup,
+  restoreDatabaseFromBackup,
+  writeMigrationFailureMarker,
+} from '../backup/sqliteMigrationBackup'
+import { getPendingMigrations, runMigrations, type Migration } from './migrate'
 import { migration001 } from './migrations/001_initial'
 import { migration002 } from './migrations/002_submissions'
 import { migration003 } from './migrations/003_fix_codeforces_canonical_urls'
@@ -30,6 +39,7 @@ import { migration024 } from './migrations/024_coach_feedback'
 
 let db: Database.Database | null = null
 let dbFilePath: string | null = null
+let dbInitialization: Promise<Database.Database> | null = null
 const require = createRequire(import.meta.url)
 
 const allMigrations = [
@@ -48,36 +58,103 @@ export function getDb(): Database.Database {
   return db
 }
 
-export function initDb(): Database.Database {
+export async function initDb(): Promise<Database.Database> {
   if (db) return db
+  if (dbInitialization) return dbInitialization
 
   const electron = require('electron') as { app?: { getPath: (name: string) => string } }
   if (!electron.app) {
     throw new Error('Electron app is not available. Use initDbAtPath() in Node tests.')
   }
 
-  const dataDir = path.join(electron.app.getPath('userData'), 'data')
+  const userDataDir = electron.app.getPath('userData')
+  const dataDir = path.join(userDataDir, 'data')
   const dbPath = path.join(dataDir, 'algo-learning.sqlite')
-  return initDbAtPath(dbPath)
+  const backupDir = path.join(userDataDir, 'backups')
+  const initialization = initDbAtPathWithMigrationSafety(dbPath, { backupDir })
+  dbInitialization = initialization
+  void initialization.then(clearDatabaseInitialization, clearDatabaseInitialization)
+  return initialization
 }
 
 export function initDbAtPath(dbPath: string): Database.Database {
   if (db) return db
+  if (dbInitialization) throw new Error('Database initialization is already in progress.')
 
-  const dataDir = path.dirname(dbPath)
-  if (!fs.existsSync(dataDir)) {
-    fs.mkdirSync(dataDir, { recursive: true })
+  const database = openDatabase(dbPath)
+  try {
+    runMigrations(database, allMigrations)
+    closeStartupOrphans(database)
+    assignDatabase(database, dbPath)
+    return database
+  } catch (error) {
+    database.close()
+    throw error
   }
+}
 
-  db = new Database(dbPath)
-  dbFilePath = dbPath
-  db.pragma('journal_mode = WAL')
-  db.pragma('foreign_keys = ON')
-  db.pragma('busy_timeout = 5000')
+export interface SafeDatabaseInitializationOptions {
+  backupDir: string
+  migrations?: readonly Migration[]
+  logger?: Logger
+  now?: () => Date
+}
 
-  runMigrations(db, allMigrations)
+export async function initDbAtPathWithMigrationSafety(
+  dbPath: string,
+  options: SafeDatabaseInitializationOptions,
+): Promise<Database.Database> {
+  if (db) return db
+  const logger = options.logger ?? appLogger
+  const migrations = options.migrations ?? allMigrations
+  const database = openDatabase(dbPath)
+  let backupPath: string | null = null
+  const pendingMigrations = getPendingMigrations(database, migrations)
 
-  return db
+  try {
+    assertMigrationRetryAllowed(options.backupDir, dbPath, pendingMigrations)
+    if (pendingMigrations.length > 0) {
+      backupPath = await createPreMigrationBackup(
+        database,
+        dbPath,
+        options.backupDir,
+        options.now?.() ?? new Date(),
+      )
+      logger.info('db.pre-migration-backup-completed', {
+        backupPath,
+        pendingVersions: pendingMigrations.map(migration => migration.version),
+      })
+    }
+
+    runMigrations(database, migrations, logger)
+    closeStartupOrphans(database, logger)
+    clearMigrationFailureMarker(options.backupDir, dbPath)
+    assignDatabase(database, dbPath)
+    return database
+  } catch (error) {
+    database.close()
+    if (!backupPath) throw error
+
+    let restoreError: unknown
+    try {
+      restoreDatabaseFromBackup(backupPath, dbPath)
+      logger.warn('db.migration-backup-restored', { backupPath, dbPath })
+    } catch (caughtRestoreError) {
+      restoreError = caughtRestoreError
+      logger.fatal('db.migration-backup-restore-failed', { backupPath, dbPath, error: caughtRestoreError })
+    }
+
+    const markerPath = writeMigrationFailureMarker(options.backupDir, dbPath, {
+      databasePath: dbPath,
+      backupPath,
+      failedAt: new Date().toISOString(),
+      pendingMigrations: pendingMigrations.map(({ version, name }) => ({ version, name })),
+      error: errorMessage(error),
+      ...(restoreError ? { restoreError: errorMessage(restoreError) } : {}),
+    })
+    logger.fatal('db.migration-startup-blocked', { markerPath, error, restoreError })
+    throw error
+  }
 }
 
 export function closeDb(): void {
@@ -86,6 +163,33 @@ export function closeDb(): void {
     db = null
     dbFilePath = null
   }
+}
+
+function openDatabase(dbPath: string): Database.Database {
+  fs.mkdirSync(path.dirname(dbPath), { recursive: true })
+  const database = new Database(dbPath)
+  database.pragma('journal_mode = WAL')
+  database.pragma('foreign_keys = ON')
+  database.pragma('busy_timeout = 5000')
+  return database
+}
+
+function assignDatabase(database: Database.Database, dbPath: string): void {
+  db = database
+  dbFilePath = dbPath
+}
+
+function closeStartupOrphans(database: Database.Database, logger: Logger = appLogger): void {
+  const closedCount = closeOrphanProblemVisits(database)
+  if (closedCount > 0) logger.warn('tracking.orphan-visits-closed', { count: closedCount })
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
+}
+
+function clearDatabaseInitialization(): void {
+  dbInitialization = null
 }
 
 export function getDbPath(): string {
