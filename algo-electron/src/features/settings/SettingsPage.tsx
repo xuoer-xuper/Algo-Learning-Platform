@@ -3,7 +3,6 @@ import { IconButton } from '../../components/ui'
 import { BackupPanel } from './BackupPanel'
 import { CodeforcesSyncPanel } from './CodeforcesSyncPanel'
 import { CoachPanel } from './CoachPanel'
-import { DefaultHomePanel } from './DefaultHomePanel'
 import { LearningOverviewPanel } from './LearningOverviewPanel'
 import { LlmConfigPanel } from './LlmConfigPanel'
 import { PlatformDistributionSummary } from './PlatformDistributionSummary'
@@ -49,7 +48,6 @@ export function SettingsPage({ onClose }: { onClose: () => void }) {
         <div className="settings-cols">
           {/* 左栏：配置类设置 */}
           <div className="settings-col">
-            <DefaultHomePanel />
             <CoachPanel />
             <LlmConfigPanel />
             <LearningOverviewPanel stats={stats} />

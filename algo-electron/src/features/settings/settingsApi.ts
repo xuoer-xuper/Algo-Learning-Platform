@@ -10,22 +10,6 @@ export type LearningDataExportResult = Awaited<ReturnType<ElectronAPI['exportLea
 export type LearningDataImportPreviewResult = Awaited<ReturnType<ElectronAPI['previewLearningDataImport']>>
 export type LearningDataImportResult = Awaited<ReturnType<ElectronAPI['confirmLearningDataImport']>>
 
-export function normalizeHomeUrl(rawUrl: string): string {
-  const url = rawUrl.trim()
-  if (!url.startsWith('http://') && !url.startsWith('https://')) {
-    return `https://${url}`
-  }
-  return url
-}
-
-export function loadDefaultHomeUrl(): Promise<string> {
-  return window.electronAPI.getDefaultHomeUrl()
-}
-
-export function saveDefaultHomeUrl(url: string): void {
-  window.electronAPI.setDefaultHomeUrl(url)
-}
-
 export function loadSettingsOverviewStats(): Promise<SettingsOverviewStats> {
   return window.electronAPI.getOverviewStats()
 }

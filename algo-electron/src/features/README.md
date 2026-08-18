@@ -48,7 +48,6 @@
   - `SettingsPage.tsx`
   - `AddSiteForm.tsx`
   - `CodeforcesSyncPanel.tsx`
-  - `DefaultHomePanel.tsx`
   - `ImportPreviewPanel.tsx`
   - `LearningOverviewPanel.tsx`
   - `PlatformDistributionSummary.tsx`
@@ -57,7 +56,7 @@
   - `settingsApi.ts`
   - `settingsTypes.ts`
   - `siteManagementTypes.ts`
-  - 首页设置、Codeforces 同步、rating 同步、实时提交诊断、站点配置导入导出和自定义站点。
+  - Codeforces 同步、rating 同步、实时提交诊断、站点配置导入导出和自定义站点。
 
 ## 3. API 调用边界
 
@@ -84,7 +83,8 @@ Feature 只能通过已有 preload 白名单能力调主进程。业务组件应
 ## 5. UI 规则
 
 - 运营型界面保持信息密度和可扫描性。
-- 弹层应通过 `ModalLayer`，避免 `WebContentsView` 覆盖 React UI。
+- 首页、设置、统计、脚本、Coach 指标、题目详情和笔记属于内部标签，由 `ShellRouter` 渲染；不要重新引入功能型 modal 或截图替身。
+- 内部页可使用 DOM Dialog/DropdownMenu；web 标签区域的菜单使用原生菜单，持久提示使用布局让位的 NoticeBar，任何 DOM 浮层不得伸入已挂载的 `WebContentsView` 区域。
 - 题目/提交/统计页面不要直接展示 Cookie、源码或完整请求体。
 - 长文本和表格状态需要考虑窄屏宽度和滚动。
 
@@ -103,4 +103,4 @@ node node_modules\typescript\bin\tsc --noEmit
 npm run dev
 ```
 
-然后手测对应入口、IPC 调用、空数据状态、错误降级和 modal 关闭。
+然后手测对应入口、IPC 调用、空数据状态、错误降级和标签关闭。

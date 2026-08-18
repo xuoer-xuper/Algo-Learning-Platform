@@ -10,9 +10,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   reload: () => ipcRenderer.send('browser:reload'),
   goHome: () => ipcRenderer.send('browser:goHome'),
   setSidebarWidth: (width: number) => ipcRenderer.send('browser:setSidebarWidth', width),
-  hideView: () => ipcRenderer.send('browser:hideView'),
-  showView: () => ipcRenderer.send('browser:showView'),
-  captureBrowserPreview: () => ipcRenderer.invoke('browser:capturePreview') as Promise<string | null>,
   getBrowserDiagnostics: () => ipcRenderer.invoke('browser:getDiagnostics') as Promise<BrowserDiagnosticsSnapshot>,
   minimizeWindow: () => ipcRenderer.send('window:minimize'),
   maximizeWindow: () => ipcRenderer.send('window:maximize'),
@@ -107,8 +104,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   scriptsDelete: (id: string) => ipcRenderer.invoke('scripts:delete', id),
 
   // 配置
-  getDefaultHomeUrl: () => ipcRenderer.invoke('config:getDefaultHomeUrl'),
-  setDefaultHomeUrl: (url: string) => ipcRenderer.send('config:setDefaultHomeUrl', url),
+  getHomeShortcuts: () => ipcRenderer.invoke('config:getHomeShortcuts') as Promise<string[]>,
 
   // 备份与导入导出
   createDatabaseBackup: () => ipcRenderer.invoke('backup:createDatabaseBackup') as Promise<DatabaseBackupResult>,
@@ -124,6 +120,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   detachTab: (tabId: string) => ipcRenderer.send('tab:detach', tabId),
   reloadTab: (tabId: string) => ipcRenderer.send('tab:reload', tabId),
   dismissUnresponsiveTab: (tabId: string) => ipcRenderer.send('tab:dismissUnresponsive', tabId),
+  openInternalTab: (page: InternalPage) => ipcRenderer.invoke('tab:openInternal', page) as Promise<string>,
   getTabList: () => ipcRenderer.invoke('tab:getList'),
   onTabListChanged: (callback: (tabs: TabInfo[]) => void) => {
     const handler = (_event: Electron.IpcRendererEvent, tabs: TabInfo[]) => callback(tabs)

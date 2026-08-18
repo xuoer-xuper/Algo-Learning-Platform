@@ -22,14 +22,15 @@
 `config.ts`：
 
 - 配置文件位置：`app.getPath('userData')/config.json`。
-- 默认配置：`defaultHomeUrl = https://codeforces.com`。
-- 读取时会与默认配置合并。
+- 默认配置：`homeShortcuts = []`，新标签和无恢复会话的首页由 Browser 模块固定为内部 `algo://home`，不再由配置 URL 决定。
+- 读取时会与默认配置合并；旧 `defaultHomeUrl` 仅在迁移入口读取，净化后并入 `homeShortcuts` 并尽力删除旧字段。
+- 快捷入口只接受不含 userinfo 的 HTTP/HTTPS URL，迁移写回失败不会丢失已经加载到内存的配置。
 - 写入时保存格式化 JSON。
 
 `startupSmoke.ts`：
 
 - 根据 `ALGO_ELECTRON_SMOKE_USER_DATA` 切换临时 `userData` 目录。
-- 验证主窗口、`app://shell` origin、preload 白名单 API、默认首页配置、基础 browser/tab/window IPC 和 `WebContentsView` 默认页加载。
+- 验证主窗口、`app://shell` origin、preload 白名单 API、初始内部 home、旧首页 URL 迁移、基础 browser/tab/window IPC 和显式 web 标签加载。
 - 通过注入的 `cleanup()` 清理访问追踪和数据库连接，不直接持有业务服务。
 - smoke 结束后由 disposable Electron 进程立即退出，外层测试对 Windows 临时目录做有限重试清理。
 
@@ -67,8 +68,8 @@
   - 文件不存在或 JSON 解析失败时回退默认配置。
 - `saveConfig(partial)`
   - 与当前配置合并后写回 `config.json`。
-- `getDefaultHomeUrl()`
-  - 返回默认首页 URL。
+- `getHomeShortcuts()`
+  - 返回净化后的首页自定义快捷入口副本。
 - `configureChromiumCommandLine()`
   - 设置 Chromium 启动开关，必须在 `app.whenReady()` 前调用。
 - `MAIN_WINDOW_BOUNDS`
@@ -80,7 +81,7 @@
 - `applyStartupSmokeUserDataPath()`
   - 在 Electron ready 前应用 smoke 专用用户数据目录。
 - `runStartupSmokeTest(options)`
-  - 启动后运行 smoke 断言；通过 `getWindow`、`getTabManager`、`getDefaultHomeUrl` 和 `cleanup` 读取运行期依赖。
+  - 启动后运行 smoke 断言；通过 `getWindow`、`getTabManager` 和 `cleanup` 读取运行期依赖。
 - `installSingleInstanceLock(app, getMainWindow, options)`
   - 锁获取失败时立即请求退出，不安装 `second-instance` listener。
   - 锁获取成功后，后续启动会恢复最小化窗口，并依次执行 `show()` 与 `focus()`。
@@ -102,11 +103,12 @@
 
 ## 5. 测试入口
 
-当前没有独立 app 配置测试。修改该模块后至少运行：
+配置迁移由 `tests/app/configMigration.test.ts` 覆盖。修改该模块后至少运行：
 
 ```powershell
 cd algo-electron
 node node_modules\typescript\bin\tsc --noEmit
+npx vitest run tests/app/configMigration.test.ts
 ```
 
 涉及 smoke 或启动顺序时追加：

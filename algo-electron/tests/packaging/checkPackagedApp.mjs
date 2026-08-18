@@ -16,15 +16,15 @@ function writeSmokePages(webRoot, rendererDist) {
   fs.mkdirSync(webRoot, { recursive: true })
   fs.mkdirSync(rendererDist, { recursive: true })
   fs.writeFileSync(path.join(rendererDist, 'index.html'), '<!doctype html><html><body><h1>packaged-renderer-ready</h1></body></html>')
-  fs.writeFileSync(path.join(webRoot, 'default-home.html'), '<!doctype html><html><body><h1>packaged-home-ready</h1></body></html>')
+  fs.writeFileSync(path.join(webRoot, 'legacy-home.html'), '<!doctype html><html><body><h1>packaged-home-ready</h1></body></html>')
   fs.writeFileSync(path.join(webRoot, 'popup-get.html'), '<!doctype html><html><body><h1>popup-get-ready</h1></body></html>')
   fs.writeFileSync(path.join(webRoot, 'popup-oauth.html'), '<!doctype html><html><body><h1>popup-oauth-ready</h1><script>window.opener?.postMessage("oauth-complete", location.origin)</script></body></html>')
 }
 
 async function startSmokeServer(webRoot) {
   const requests = []
-  let releaseDefaultHome
-  const defaultHomeGate = new Promise((resolve) => { releaseDefaultHome = resolve })
+  let releaseLegacyHome
+  const legacyHomeGate = new Promise((resolve) => { releaseLegacyHome = resolve })
   const server = createServer((request, response) => {
     const requestUrl = new URL(request.url ?? '/', 'http://127.0.0.1')
     requests.push(`${request.method} ${requestUrl.pathname}`)
@@ -52,8 +52,8 @@ async function startSmokeServer(webRoot) {
       response.writeHead(200, { 'content-type': 'text/html; charset=utf-8' })
       response.end(fs.readFileSync(filePath))
     }
-    if (request.method === 'GET' && requestUrl.pathname === '/default-home.html') {
-      void defaultHomeGate.then(sendFile)
+    if (request.method === 'GET' && requestUrl.pathname === '/legacy-home.html') {
+      void legacyHomeGate.then(sendFile)
       return
     }
     sendFile()
@@ -69,7 +69,7 @@ async function startSmokeServer(webRoot) {
     server,
     origin: `http://127.0.0.1:${address.port}`,
     requests,
-    releaseDefaultHome: () => releaseDefaultHome(),
+    releaseLegacyHome: () => releaseLegacyHome(),
   }
 }
 
@@ -154,15 +154,15 @@ async function main() {
   const rendererDist = path.join(tempRoot, 'renderer-dist')
   fs.mkdirSync(userDataDir)
   writeSmokePages(webRoot, rendererDist)
-  const { server, origin, requests, releaseDefaultHome } = await startSmokeServer(webRoot)
-  const defaultHomeUrl = `${origin}/default-home.html`
+  const { server, origin, requests, releaseLegacyHome } = await startSmokeServer(webRoot)
+  const legacyHomeUrl = `${origin}/legacy-home.html`
   const logFile = path.join(userDataDir, 'logs', 'main.log')
   let primary = null
   let secondary = null
 
   fs.writeFileSync(
     path.join(userDataDir, 'config.json'),
-    JSON.stringify({ defaultHomeUrl }, null, 2),
+    JSON.stringify({ defaultHomeUrl: legacyHomeUrl }, null, 2),
   )
 
   try {
@@ -170,7 +170,7 @@ async function main() {
       ...process.env,
       ALGO_ELECTRON_SMOKE: '1',
       ALGO_ELECTRON_SMOKE_USER_DATA: userDataDir,
-      ALGO_ELECTRON_SMOKE_DEFAULT_URL: defaultHomeUrl,
+      ALGO_ELECTRON_SMOKE_LEGACY_HOME_URL: legacyHomeUrl,
       ALGO_ELECTRON_SMOKE_RENDERER_DIST: rendererDist,
       ALGO_ELECTRON_LOG_STDERR: '1',
       ELECTRON_DISABLE_SECURITY_WARNINGS: 'true',
@@ -200,7 +200,7 @@ async function main() {
     assert.strictEqual(primary.child.exitCode, null, 'Primary packaged app exited after the second launch')
     assert.strictEqual(primary.child.signalCode, null, 'Primary packaged app was terminated after the second launch')
 
-    releaseDefaultHome()
+    releaseLegacyHome()
     const result = await primary.result
 
     assert.ifError(result.error)
@@ -218,6 +218,10 @@ async function main() {
     )
     assert.match(output, /app\.second-instance-focused/, 'Primary packaged app did not focus its window')
 
+    const migratedConfig = JSON.parse(fs.readFileSync(path.join(userDataDir, 'config.json'), 'utf8'))
+    assert.deepStrictEqual(migratedConfig.homeShortcuts, [legacyHomeUrl])
+    assert.strictEqual(Object.hasOwn(migratedConfig, 'defaultHomeUrl'), false)
+
     const logText = fs.existsSync(logFile) ? fs.readFileSync(logFile, 'utf8') : ''
     assert.match(logText, /app\.single-instance-acquired/, 'Primary single-instance acquisition was not logged')
     assert.match(logText, /app\.second-instance-focused/, 'Primary second-instance focus was not logged')
@@ -229,7 +233,7 @@ async function main() {
 
     console.log('[PASS] Packaged win-unpacked app enforces one instance, focuses the primary window, and loads SQLite')
   } finally {
-    releaseDefaultHome()
+    releaseLegacyHome()
     await Promise.allSettled([
       primary?.stop(),
       secondary?.stop(),

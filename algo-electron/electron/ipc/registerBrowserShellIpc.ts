@@ -3,6 +3,7 @@ import { ipcMain } from './trustedSender'
 import type { TabManager } from '../browser/TabManager'
 import { resolveNavigateUrl } from '../parsers/navigateUrl'
 import type { BrowserDiagnostics } from '../diagnostics/BrowserDiagnostics'
+import { isInternalPage } from '../browser/tabManagerTypes'
 
 interface RegisterBrowserShellIpcOptions {
   getWindow: () => BrowserWindow | null
@@ -39,6 +40,11 @@ export function registerBrowserShellIpc(options: RegisterBrowserShellIpcOptions)
     options.getTabManager()?.dismissUnresponsive(tabId)
   })
 
+  ipcMain.handle('tab:openInternal', (_event, page: unknown) => {
+    if (!isInternalPage(page)) return ''
+    return options.getTabManager()?.openInternalTab(page) ?? ''
+  })
+
   ipcMain.handle('tab:getList', () => {
     return options.getTabManager()?.getTabList() ?? []
   })
@@ -61,23 +67,11 @@ export function registerBrowserShellIpc(options: RegisterBrowserShellIpcOptions)
   })
 
   ipcMain.on('browser:goHome', () => {
-    options.getTabManager()?.hideView()
-  })
-
-  ipcMain.on('browser:hideView', () => {
-    options.getTabManager()?.hideView()
-  })
-
-  ipcMain.on('browser:showView', () => {
-    options.getTabManager()?.showView()
+    options.getTabManager()?.openInternalTab({ type: 'home' }, { reuseExisting: true })
   })
 
   ipcMain.on('browser:setSidebarWidth', (_event, width: number) => {
     options.getTabManager()?.setLeftOffset(width)
-  })
-
-  ipcMain.handle('browser:capturePreview', async () => {
-    return options.getTabManager()?.capturePreview() ?? null
   })
 
   ipcMain.handle('browser:getDiagnostics', () => {

@@ -2,10 +2,11 @@
 
 ## 职责
 
-覆盖主进程单实例启动、致命错误处理、启动失败退出语义和壳 renderer 崩溃恢复策略。这里的测试使用可注入的 logger、进程事件源、窗口与 WebContents 替身，不替代真实 Electron startup smoke。
+覆盖应用配置迁移、主进程单实例启动、致命错误处理、启动失败退出语义和壳 renderer 崩溃恢复策略。这里的测试使用临时目录、可注入 logger、进程事件源、窗口与 WebContents 替身，不替代真实 Electron startup smoke。
 
 ## 当前实现
 
+- `configMigration.test.ts`：验证旧默认首页迁入净化快捷入口、旧字段删除、去重/userinfo 拒绝和迁移写回失败时的内存回退。
 - `mainProcessErrors.test.ts`：验证全局异常只弹一次并退出，以及 smoke 模式跳过阻塞对话框。
 - `shellRendererRecovery.test.ts`：验证卡死/崩溃记录、reload 条件和清理监听器。
 - `singleInstance.test.ts`：验证锁失败退出、第二次启动恢复/聚焦窗口和异常容错。

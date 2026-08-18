@@ -176,9 +176,10 @@ algo-electron/electron/
 
 `TabManager` 统一管理浏览器视图和标签：
 
-- 创建 `WebContentsView`。
+- 管理有序的 web/internal 混合标签；内部页使用受校验的判别联合和 `algo://` 展示地址。
+- 仅为 web 标签创建 `WebContentsView`，内部标签激活时不挂载 view。
 - 设置 bounds 和 resize。
-- 加载默认 URL。
+- 新标签和无恢复会话固定进入内部 home；内部标签导航到 HTTP/HTTPS 时保留稳定 ID 原位转成 web 标签。
 - 执行 navigate、back、forward、reload。
 - 监听 URL 变化。
 - 监听页面标题变化。
@@ -199,14 +200,14 @@ Renderer 不直接操作 `webContents`。
 - 默认拒绝摄像头、麦克风等无关权限。
 - 弹窗和新窗口由 Browser System 统一处理。
 
-### 4.4 多标签页系统 (Phase 5 完成)
+### 4.4 混合标签与内部页
 
-Phase 5 已重构为基于 `TabManager` 和 `DetachedWindow` 的完整多标签页架构：
-
-- **TabManager**：管理内部的 `tabs` 映射，控制当前 `activeTabId`，并负责动态调用 `addChildView` / `removeChildView` 来切换显示的 `WebContentsView`。
-- **UI 呈现**：在 Renderer 侧通过 `TabBar.tsx` 组件渲染多标签 UI。支持增加标签页、关闭标签页。
-- **剥离独立窗口**：支持将现有的标签页直接拖拽/双击，剥离为原生的 `BrowserWindow` (`DetachedWindow`)，适合多屏或并行阅读场景。
-- **性能优化**：通过预创建和 `isViewHidden` 等标志，解决快速切换标签页时的点击穿透 Bug。
+- **主进程事实源**：`TabManager` 持有标签顺序、稳定 ID、活动项、关闭栈和会话快照；Renderer 不复制标签路由状态。
+- **Web 标签**：由 `WebContentsView` 承载，切换时动态 `addChildView` / `removeChildView`，使用 `persist:oj-main`。
+- **内部标签**：首页、设置、统计、脚本、Coach 指标、题目详情和笔记由壳 React 内的 `ShellRouter` 渲染；`algo://...` 只是地址栏与会话标识，不注册本地资源协议。
+- **壳资源**：生产 Renderer 仍只从可信 `app://shell/index.html` 加载；不得把 `algo://` 解析成任意本地路径。
+- **浮层边界**：功能页面不再通过截图替身 modal 打开。内部页可使用 DOM Dialog/DropdownMenu；web 页菜单使用原生 `Menu.popup`，持久提示使用布局让位的 NoticeBar。
+- **拆分窗口**：当前 `DetachedWindow` 仅保留旧 web 标签能力，B3 将替换为完整对等浏览器壳；在此之前拖出/双击入口保持禁用。
 
 ## 5. Session 与 CookieVault
 
@@ -311,7 +312,7 @@ algo-electron/src/
   App.css
   main.tsx
   components/
-    ModalLayer.tsx
+    ShellRouter.tsx
     WindowControls.tsx
   features/
     home/

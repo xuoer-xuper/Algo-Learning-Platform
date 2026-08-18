@@ -3,7 +3,7 @@ import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import { TabManager } from './browser/TabManager'
 import { closeDb } from './db/connection'
-import { getDefaultHomeUrl, loadCoachConfig } from './app/config'
+import { loadCoachConfig } from './app/config'
 import { configureChromiumCommandLine } from './app/chromiumFlags'
 import { MAIN_WINDOW_BOUNDS } from './app/windowBounds'
 import { preconnectRecentSiteOrigins } from './app/recentSitePreconnect'
@@ -238,6 +238,8 @@ async function createWindow() {
       appLogger.info('browser.session-fallback', { reason: fallbackReason })
       manager.ensureInitialTab()
     }
+  } else if (STARTUP_SMOKE_MODE) {
+    tabManager.ensureInitialTab()
   }
 
   win.webContents.on('did-finish-load', () => {
@@ -419,7 +421,6 @@ void app.whenReady().then(async () => {
     runStartupSmokeTest({
       getWindow: () => win,
       getTabManager: () => tabManager,
-      getDefaultHomeUrl,
       cleanup: () => {
         try {
           services?.trackingService.endCurrentVisit()

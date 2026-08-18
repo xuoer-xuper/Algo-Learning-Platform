@@ -263,7 +263,7 @@ describe('TabManager session restore', () => {
     expect(existingView.webContents.isDestroyed()).toBe(false)
   })
 
-  test('rejects empty and not-yet-supported internal sessions without creating views', () => {
+  test('rejects empty sessions and restores internal sessions without creating views', () => {
     const emptyWindow = new MockBrowserWindow()
     const emptyManager = new TabManager(emptyWindow as never)
     expect(emptyManager.restoreSession({ version: 1, activeTabId: null, tabs: [] })).toBe(false)
@@ -281,10 +281,50 @@ describe('TabManager session restore', () => {
         page: { type: 'settings' },
         title: 'Settings',
       }],
-    })).toBe(false)
-    expect(internalManager.getTabList()).toEqual([])
+    })).toBe(true)
+    expect(internalManager.getTabList()).toMatchObject([{
+      id: 'settings-tab',
+      kind: 'internal',
+      page: { type: 'settings' },
+      url: 'algo://settings',
+      title: 'Settings',
+      isActive: true,
+    }])
     expect(internalWindow.contentView.children).toEqual([])
     expect(harness.createdViews).toEqual([])
+  })
+
+  test('restores mixed internal and web tabs while mounting only an active web view', async () => {
+    const window = new MockBrowserWindow()
+    const manager = new TabManager(window as never)
+
+    expect(manager.restoreSession({
+      version: 1,
+      activeTabId: 'web-1',
+      tabs: [
+        { id: 'home-1', kind: 'internal', page: { type: 'home' }, title: '首页' },
+        { id: 'web-1', kind: 'web', url: 'https://example.com/problem', title: 'Problem' },
+        { id: 'settings-1', kind: 'internal', page: { type: 'settings' }, title: '设置' },
+      ],
+    })).toBe(true)
+    await drainNavigationEvents()
+
+    expect(manager.getTabList().map((tab) => [tab.id, tab.kind, tab.isActive])).toEqual([
+      ['home-1', 'internal', false],
+      ['web-1', 'web', true],
+      ['settings-1', 'internal', false],
+    ])
+    expect(harness.createdViews).toHaveLength(1)
+    expect(window.contentView.children).toEqual([harness.createdViews[0]])
+    expect(manager.getSessionSnapshot()).toEqual({
+      version: 1,
+      activeTabId: 'web-1',
+      tabs: [
+        { id: 'home-1', kind: 'internal', page: { type: 'home' }, title: '首页' },
+        { id: 'web-1', kind: 'web', url: 'https://example.com/problem', title: 'Problem' },
+        { id: 'settings-1', kind: 'internal', page: { type: 'settings' }, title: '设置' },
+      ],
+    })
   })
 
   test('rolls back every created view and trusted sender when view creation fails midway', () => {

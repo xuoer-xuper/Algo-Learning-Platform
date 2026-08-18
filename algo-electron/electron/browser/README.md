@@ -11,11 +11,11 @@
 - 主线浏览器容器：`TabManager`，已接入 `main.ts`。
 - 视图技术：统一使用 `WebContentsView`，遵守 `docs/ADR/ADR_0001_USE_WEBCONTENTSVIEW.md`。
 - 会话隔离：OJ 页面使用 `partition: 'persist:oj-main'` 持久登录态。
-- 多标签：最多 16 个标签，支持创建、关闭、切换和恢复关闭；关闭活动标签优先激活右邻，关闭最后一个标签会重置为空白新标签，满额时拒绝创建并通知壳层。旧双击剥离入口在 B3 多窗口对等壳完成前临时禁用，双击仅通过既有工具栏消息区说明恢复计划。
+- 多标签：最多 16 个有序 web/internal 混合标签，支持创建、关闭、切换、恢复关闭和混合会话恢复；关闭活动标签优先激活右邻，关闭最后一个标签会创建内部 home，满额时拒绝创建并通知壳层。旧双击剥离入口在 B3 多窗口对等壳完成前临时禁用，双击仅通过既有工具栏消息区说明恢复计划。
 - 弹窗接管：`window.open` / `target=_blank` 创建的 Chromium `webContents` 会被原样接管为受管标签，保留 about:blank、POST、OAuth 和 opener 语义；后台标签不会抢占活动标签。
 - 导航边界：生产环境只允许 HTTPS 和受控 about:blank；开发与 smoke 额外允许 localhost/loopback HTTP，未知协议默认拒绝并通过 `ui:command` 通知壳层。
 - 会话快照：`tabSessionSnapshot.ts` 对版本、字段白名单、标签顺序、活动项、内部页和可恢复 URL 做整份严格校验；拒绝 userinfo、敏感 query/hash、控制字符和未知字段，不部分抢救损坏数据，也不序列化 favicon、加载/崩溃状态、表单、密码或脚本源码。
-- 会话恢复：正常启动严格读取 `browser-session.json`，按原顺序和稳定 ID 建立全部 web view，最后只挂载一次活动 view；任一同步创建失败会销毁本次全部 view 并回退空白标签。壳 renderer 先订阅列表事件再主动拉取当前列表，且用版本/卸载保护避免迟到响应覆盖新状态。
+- 会话恢复：正常启动严格读取 `browser-session.json`，按原顺序和稳定 ID 恢复 web/internal 标签，只为 web 标签创建 view，最后仅挂载活动 web view；任一同步创建失败会销毁本次全部 view 并回退内部 home。壳 renderer 先订阅列表事件再主动拉取当前列表，且用版本/卸载保护避免迟到响应覆盖新状态。
 - 会话文件：`TabSessionStore` 使用同目录临时文件执行 write + fsync + close + rename，失败时清理临时文件并保留旧目标；`TabSessionPersistence` 对创建、关闭、切换、URL 和标题变化做 250ms 防抖，只保存最新快照，加载/favicon 状态不触发落盘。窗口 `close` 与 `before-quit` 在最终 flush 完成后继续关闭，startup smoke 禁用持久化。
 - renderer 健康状态：web 标签 `render-process-gone` 后保留稳定 ID、URL、标题和顺序，摘除坏 view 并显示恢复页；原 view 已销毁时创建同配置替代 view，失败仍保留标签供后续重试。`unresponsive` 只影响运行时列表和活动 view bounds，NoticeBar 可继续等待、按 tabId 重载或关闭，`responsive` 后自动清理；这些状态不进入会话快照。
 - 壳层 IPC：browser/tab/window channel 由 `electron/ipc/registerBrowserShellIpc.ts` 注册，Browser 模块只暴露 `TabManager` 等运行期对象。
@@ -26,9 +26,10 @@
 ## 3. 文件职责
 
 - `TabManager.ts`：多标签 `WebContentsView` 管理器，当前主线。
+- `internalPage.ts`：受控内部页标题、`algo://` 展示地址和页面身份比较；这些地址只用于标签状态，不注册为资源协议。
 - `tabManagerTypes.ts`：受校验的 `InternalPage` 判别联合、web/internal `TabInfo`、managed tab 与可序列化 session snapshot 类型。
 - `tabManagerConfig.ts`：标签数量、工具栏高度、tabbar 高度和 OJ preload 路径配置。
-- `browserLayout.ts`：主进程定义的标题栏/工具栏布局契约；preload 注入 renderer CSS 变量，避免 bounds、ModalLayer 与 CSS 各自维护高度副本。
+- `browserLayout.ts`：主进程定义的标题栏/工具栏/NoticeBar 布局契约；preload 注入 renderer CSS 变量，避免 bounds 与 CSS 各自维护高度副本。
 - `tabViewLayout.ts`：活动 tab view 的 bounds 计算、安全移除和 webContents 关闭 helper。
 - `tabScriptExecution.ts`：按 URL 命中的标签页中，对主 frame 和子 frame 执行脚本。
 - `urlMatching.ts`：同页 URL 匹配 helper，供按 URL 找 tab 的脚本执行路径使用。
@@ -48,7 +49,8 @@
 `TabManager` 负责主窗口里的 OJ 多标签体验：
 
 - 标签生命周期
-  - `createTab(url?)`
+  - `createTab(url?)`：有 URL 时创建 web 标签，无 URL 时创建内部 home。
+  - `openInternalTab(page, options?)`：创建受控内部页标签，可按页面身份复用已有标签。
   - `closeTab(tabId)`
   - `switchTab(tabId)`
   - `detachTab(tabId)`
@@ -61,7 +63,7 @@
   - `reloadTab(tabId)`：为故障态操作绑定明确标签，避免活动标签切换竞态。
   - `dismissUnresponsive(tabId)`：隐藏当前无响应提示并恢复 view bounds，但保留真实 unresponsive 状态直到 Electron 发出 `responsive`。
   - `closeActiveTab()`、`switchRelative(offset)`、`switchTabByIndex(index)`
-  - `reopenClosedTab()`：按 LIFO 恢复最近关闭标签的 URL 与标题。
+  - `reopenClosedTab()`：按 LIFO 恢复最近关闭的 web URL 或内部页及标题。
   - `adjustZoom(delta)`、`resetZoom()`
 - 状态读取
   - `getUrl()`
@@ -71,14 +73,12 @@
   - `getSessionSnapshot()`：只返回稳定、安全、可序列化的标签字段。
   - `isViewVisible()`
 - 会话生命周期
-  - `restoreSession(snapshot)`：整份复验后恢复有序 web 标签、稳定 ID、标题和活动项；当前内部页恢复由 B2.2 接入。
-  - `ensureInitialTab()`：仅在无可恢复标签时创建初始空白标签，B2.2 改为内部 home。
+  - `restoreSession(snapshot)`：整份复验后恢复有序 web/internal 标签、稳定 ID、标题和活动项。
+  - `ensureInitialTab()`：仅在无可恢复标签时创建内部 home。
   - `addSessionChangeListener(callback)`：只广播持久状态变化，不复用包含 favicon/loading 噪声的列表事件。
 - 布局和可见性
   - `setLeftOffset(offset)`
-  - `hideView()`
-  - `showView()`
-  - `capturePreview()`
+  - 活动 internal 标签不挂载 view；切回 web 标签时由 `switchTab()` 恢复对应 view。
 - 脚本执行
   - `executeScript(code, userGesture?)`：只在当前活动标签执行；`userGesture` 仅供需要模拟真实点击语义的受控主进程调用。
   - `executeScriptOnUrl(url, code)`：按 URL 找标签，并对主 frame 和子 frame 执行。

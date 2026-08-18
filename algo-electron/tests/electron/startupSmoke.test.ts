@@ -41,7 +41,7 @@ function runEsbuild(input: string, outfile: string, format: 'esm' | 'cjs' = 'esm
 
 async function runSmokeElectron(userDataDir: string): Promise<void> {
   writeSmokePage(path.join('dist', 'index.html'), 'Smoke Renderer', '<h1>renderer-ready</h1>')
-  writeSmokePage('default-home.html', 'Smoke OJ', '<h1>default-home-ready</h1>')
+  writeSmokePage('legacy-home.html', 'Smoke OJ', '<h1>legacy-home-ready</h1>')
   writeSmokePage('popup-get.html', 'Popup GET', '<h1>popup-get-ready</h1>')
   writeSmokePage(
     'popup-oauth.html',
@@ -49,11 +49,11 @@ async function runSmokeElectron(userDataDir: string): Promise<void> {
     '<h1>popup-oauth-ready</h1><script>window.opener?.postMessage("oauth-complete", location.origin)</script>',
   )
   const { server, origin } = await startSmokeServer()
-  const defaultHomeUrl = `${origin}/default-home.html`
+  const legacyHomeUrl = `${origin}/legacy-home.html`
 
   fs.writeFileSync(
     path.join(userDataDir, 'config.json'),
-    JSON.stringify({ defaultHomeUrl }, null, 2),
+    JSON.stringify({ defaultHomeUrl: legacyHomeUrl }, null, 2),
     'utf-8',
   )
 
@@ -66,7 +66,7 @@ async function runSmokeElectron(userDataDir: string): Promise<void> {
         ...process.env,
         ALGO_ELECTRON_SMOKE: '1',
         ALGO_ELECTRON_SMOKE_USER_DATA: userDataDir,
-        ALGO_ELECTRON_SMOKE_DEFAULT_URL: defaultHomeUrl,
+        ALGO_ELECTRON_SMOKE_LEGACY_HOME_URL: legacyHomeUrl,
         ALGO_ELECTRON_SMOKE_PRELOAD_PATH: preloadBundle,
         ALGO_ELECTRON_SMOKE_OJ_PRELOAD_PATH: ojPreloadBundle,
         ALGO_ELECTRON_SMOKE_RENDERER_DIST: path.join(buildDir, 'dist'),
@@ -124,6 +124,11 @@ async function runSmokeElectron(userDataDir: string): Promise<void> {
   }
 
   assert.match(`${stdout}\n${stderr}`, /\[startup-smoke\] ok mainWindow=1 tab=.+ url=http:\/\/127\.0\.0\.1:/)
+  const migratedConfig = JSON.parse(
+    fs.readFileSync(path.join(userDataDir, 'config.json'), 'utf-8'),
+  ) as Record<string, unknown>
+  assert.deepStrictEqual(migratedConfig.homeShortcuts, [legacyHomeUrl])
+  assert.strictEqual(Object.hasOwn(migratedConfig, 'defaultHomeUrl'), false)
 }
 
 function writeSmokePage(fileName: string, title: string, body: string): void {

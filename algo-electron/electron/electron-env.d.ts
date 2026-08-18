@@ -717,9 +717,6 @@ interface ElectronAPI {
   reload: () => void
   goHome: () => void
   setSidebarWidth: (width: number) => void
-  hideView: () => void
-  showView: () => void
-  captureBrowserPreview: () => Promise<string | null>
   getBrowserDiagnostics: () => Promise<BrowserDiagnosticsSnapshot>
   minimizeWindow: () => void
   maximizeWindow: () => void
@@ -778,8 +775,7 @@ interface ElectronAPI {
   scriptsToggle: (id: string, enabled: boolean) => Promise<boolean>
   scriptsDelete: (id: string) => Promise<boolean>
 
-  getDefaultHomeUrl: () => Promise<string>
-  setDefaultHomeUrl: (url: string) => void
+  getHomeShortcuts: () => Promise<string[]>
   createDatabaseBackup: () => Promise<DatabaseBackupResult>
   exportLearningData: () => Promise<LearningDataExportFileResult>
   previewLearningDataImport: () => Promise<LearningDataImportPreviewResult>
@@ -793,6 +789,7 @@ interface ElectronAPI {
   detachTab: (tabId: string) => void
   reloadTab: (tabId: string) => void
   dismissUnresponsiveTab: (tabId: string) => void
+  openInternalTab: (page: InternalPage) => Promise<string>
   getTabList: () => Promise<TabInfo[]>
   onTabListChanged: (callback: (tabs: TabInfo[]) => void) => () => void
 

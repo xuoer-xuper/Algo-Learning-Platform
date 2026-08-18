@@ -1,12 +1,8 @@
 import { ipcMain } from './trustedSender'
-import { getDefaultHomeUrl, saveConfig } from '../app/config'
+import { getHomeShortcuts } from '../app/config'
 
 export function registerConfigIpc(): void {
-  ipcMain.handle('config:getDefaultHomeUrl', () => {
-    return getDefaultHomeUrl()
-  })
-
-  ipcMain.on('config:setDefaultHomeUrl', (_event, url: string) => {
-    saveConfig({ defaultHomeUrl: url })
+  ipcMain.handle('config:getHomeShortcuts', () => {
+    return getHomeShortcuts()
   })
 }

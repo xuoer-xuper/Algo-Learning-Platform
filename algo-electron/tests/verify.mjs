@@ -18,6 +18,7 @@ const suites = new Set(['core', 'ai', 'db', 'electron', 'coach', 'all'])
 
 const coreVitestFiles = [
   'tests/ai/recommendationRules.test.ts',
+  'tests/app',
   'tests/browser',
   'tests/coach',
   'tests/components',

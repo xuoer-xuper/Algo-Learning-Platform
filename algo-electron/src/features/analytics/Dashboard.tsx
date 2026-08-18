@@ -7,8 +7,6 @@ import {
   loadDashboardTrends,
   loadRatingHistory,
   recomputeDashboardDailyStats,
-  hideDashboardBrowserView,
-  showDashboardBrowserView,
 } from './analyticsApi'
 import { DashboardListsPanel } from './DashboardListsPanel'
 import { PlatformDistributionPanel } from './PlatformDistributionPanel'
@@ -67,9 +65,7 @@ export function Dashboard({ onClose, onNavigate }: { onClose: () => void; onNavi
   }, [])
 
   useEffect(() => {
-    hideDashboardBrowserView()
     loadAll()
-    return () => { showDashboardBrowserView() }
   }, [loadAll])
 
   useEffect(() => { loadTrends() }, [loadTrends])

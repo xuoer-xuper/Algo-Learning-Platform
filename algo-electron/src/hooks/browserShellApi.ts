@@ -1,15 +1,3 @@
-export function captureBrowserPreview(): Promise<string | null> {
-  return window.electronAPI.captureBrowserPreview()
-}
-
-export function hideBrowserView(): void {
-  window.electronAPI.hideView()
-}
-
-export function showBrowserView(): void {
-  window.electronAPI.showView()
-}
-
 export function subscribeUrlChanged(callback: (url: string) => void): () => void {
   return window.electronAPI.onUrlChanged(callback)
 }

@@ -6,22 +6,14 @@
 
 ## 2. 当前实现程度
 
-当前应用壳 hooks 已覆盖 modal 状态、浏览器 view 显隐和浏览器导航编排。关键 hook 和 helper 如下：
+当前应用壳 hooks 负责浏览器导航编排；内部页归属由主进程标签模型和 `ShellRouter` 决定，不在 hook 中维护第二套 modal/view 可见性状态。
 
-- `useAppModalState.ts`
-  - 维护设置、统计、脚本、题目详情和笔记弹层的打开状态。
-  - 打开非首页 modal 前捕获浏览器预览图并隐藏真实 `WebContentsView`。
-  - 关闭 modal 时清理预览背景，并在非首页恢复浏览器 view。
-- `useBrowserViewVisibility.ts`
-  - 根据首页状态和 modal 预览背景控制真实 `WebContentsView` 显隐。
-  - 首页隐藏浏览器 view，非首页且没有 modal 背景时恢复浏览器 view。
-  - 保持 React 页面和 Electron view 的覆盖关系集中在应用级 hook 内。
 - `useBrowserNavigation.ts`
-  - 维护浏览器 URL、首页状态、侧栏宽度和当前页同步提示。
+  - 维护地址栏 URL、侧栏宽度和当前页同步提示。
   - 封装地址栏跳转、首页、前进、后退、刷新、URL 变化监听、侧栏宽度同步和当前页提交抓取。
   - 将 App 壳层的浏览器 IPC 调用集中到一个应用级 hook。
 - `browserShellApi.ts`
-  - 封装浏览器预览、`WebContentsView` 显隐、URL 监听、导航、侧栏宽度和当前页提交抓取 preload 调用。
+  - 封装 URL 监听、导航、侧栏宽度和当前页提交抓取 preload 调用。
   - 只服务应用壳 hooks，不保存 React state，不包含站点解析、提交监测或数据库规则。
 
 ## 3. 边界规则
@@ -39,4 +31,4 @@ cd algo-electron
 node node_modules\typescript\bin\tsc --noEmit
 ```
 
-涉及 modal、浏览器 view 显隐或导航时，还需要 `npm run dev` 手测对应入口。
+涉及内部页标签或导航时，还需要 `npm run dev` 手测对应入口。

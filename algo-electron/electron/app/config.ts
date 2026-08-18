@@ -34,9 +34,13 @@ export interface CoachLlmConfig {
   enabled?: boolean
 }
 
-interface AppConfig {
-  defaultHomeUrl: string
+export interface AppConfig {
+  homeShortcuts: string[]
   coach: CoachConfig
+}
+
+interface LegacyAppConfig extends Partial<AppConfig> {
+  defaultHomeUrl?: unknown
 }
 
 const DEFAULT_COACH_CONFIG: CoachConfig = {
@@ -49,7 +53,7 @@ const DEFAULT_COACH_CONFIG: CoachConfig = {
 }
 
 const DEFAULT_CONFIG: AppConfig = {
-  defaultHomeUrl: 'https://codeforces.com',
+  homeShortcuts: [],
   coach: DEFAULT_COACH_CONFIG,
 }
 
@@ -68,29 +72,74 @@ export function loadConfig(): AppConfig {
 
   const p = getConfigPath()
   if (fs.existsSync(p)) {
+    let parsed: LegacyAppConfig
     try {
       const raw = fs.readFileSync(p, 'utf-8')
-      const parsed = JSON.parse(raw) as Partial<AppConfig>
-      // 兼容旧配置：coach 字段缺失或部分缺失时回填默认值（深合并）
-      const coach: CoachConfig = { ...DEFAULT_COACH_CONFIG, ...(parsed.coach ?? {}) }
-      config = { ...DEFAULT_CONFIG, ...parsed, coach }
+      parsed = JSON.parse(raw) as LegacyAppConfig
     } catch {
-      config = { ...DEFAULT_CONFIG }
+      config = createDefaultConfig()
+      return config
+    }
+
+    // 兼容旧配置：coach 字段缺失或部分缺失时回填默认值（深合并）
+    const coach: CoachConfig = { ...DEFAULT_COACH_CONFIG, ...(parsed.coach ?? {}) }
+    const homeShortcuts = sanitizeHomeShortcuts([
+      ...(Array.isArray(parsed.homeShortcuts) ? parsed.homeShortcuts : []),
+      parsed.defaultHomeUrl,
+    ])
+    config = { homeShortcuts, coach }
+
+    if (Object.prototype.hasOwnProperty.call(parsed, 'defaultHomeUrl')) {
+      try {
+        writeConfig(config)
+      } catch {
+        // Keep the successfully loaded migration in memory and retry on a later save.
+      }
     }
   } else {
-    config = { ...DEFAULT_CONFIG }
+    config = createDefaultConfig()
   }
-  return config as AppConfig
+  return config
 }
 
 export function saveConfig(partial: Partial<AppConfig>): void {
   const current = loadConfig()
   config = { ...current, ...partial }
-  fs.writeFileSync(getConfigPath(), JSON.stringify(config, null, 2), 'utf-8')
+  writeConfig(config)
 }
 
-export function getDefaultHomeUrl(): string {
-  return loadConfig().defaultHomeUrl
+export function getHomeShortcuts(): string[] {
+  return [...loadConfig().homeShortcuts]
+}
+
+function sanitizeHomeShortcuts(values: unknown[]): string[] {
+  const shortcuts: string[] = []
+  for (const value of values) {
+    if (typeof value !== 'string' || value.length > 2_048) continue
+    try {
+      const url = new URL(value)
+      if (url.protocol !== 'https:' && url.protocol !== 'http:') continue
+      if (url.username || url.password) continue
+      const normalized = url.toString()
+      if (normalized.length > 2_048) continue
+      if (!shortcuts.includes(normalized)) shortcuts.push(normalized)
+    } catch {
+      // Invalid legacy values are dropped during migration.
+    }
+  }
+  return shortcuts
+}
+
+function writeConfig(value: AppConfig): void {
+  fs.writeFileSync(getConfigPath(), JSON.stringify(value, null, 2), 'utf-8')
+}
+
+function createDefaultConfig(): AppConfig {
+  return {
+    ...DEFAULT_CONFIG,
+    homeShortcuts: [...DEFAULT_CONFIG.homeShortcuts],
+    coach: { ...DEFAULT_CONFIG.coach },
+  }
 }
 
 /**

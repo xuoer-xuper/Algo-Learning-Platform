@@ -32,6 +32,10 @@ export function dismissUnresponsiveBrowserTab(tabId: string): void {
   window.electronAPI.dismissUnresponsiveTab(tabId)
 }
 
+export function openInternalBrowserTab(page: InternalPage): Promise<string> {
+  return window.electronAPI.openInternalTab(page)
+}
+
 export function createBrowserTab(): Promise<string> {
   return window.electronAPI.createTab()
 }

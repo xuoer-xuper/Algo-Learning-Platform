@@ -87,11 +87,3 @@ export async function loadRatingHistory(account: CodeforcesAccount | null): Prom
 export function recomputeDashboardDailyStats(): Promise<number> {
   return window.electronAPI.recomputeAllDailyStats()
 }
-
-export function hideDashboardBrowserView(): void {
-  window.electronAPI.hideView()
-}
-
-export function showDashboardBrowserView(): void {
-  window.electronAPI.showView()
-}

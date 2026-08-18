@@ -11,10 +11,6 @@ import {
   syncBrowserCurrentPage,
 } from './browserShellApi'
 
-function isHomeUrl(url: string): boolean {
-  return !url || url === 'about:blank'
-}
-
 function normalizeUrl(url: string): string {
   const target = url.trim()
   if (!target) return ''
@@ -26,7 +22,6 @@ export function useBrowserNavigation() {
   const [url, setUrl] = useState('')
   const [syncMsg, setSyncMsg] = useState('')
   const [sidebarWidth, setSidebarWidth] = useState(220)
-  const [isHome, setIsHome] = useState(true)
   const syncMessageTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const showTransientMessage = useCallback((message: string) => {
@@ -37,7 +32,6 @@ export function useBrowserNavigation() {
 
   const applyUrlState = useCallback((nextUrl: string) => {
     setUrl(nextUrl)
-    setIsHome(isHomeUrl(nextUrl))
   }, [])
 
   useEffect(() => {
@@ -74,7 +68,6 @@ export function useBrowserNavigation() {
 
   const navigateTo = useCallback((targetUrl: string) => {
     navigateBrowser(targetUrl)
-    setIsHome(false)
   }, [])
 
   const navigateFromInput = useCallback(() => {
@@ -85,8 +78,7 @@ export function useBrowserNavigation() {
 
   const goHome = useCallback(() => {
     goBrowserHome()
-    setUrl('')
-    setIsHome(true)
+    setUrl('algo://home')
   }, [])
 
   const goBack = useCallback(() => {
@@ -110,8 +102,6 @@ export function useBrowserNavigation() {
   return {
     url,
     syncMsg,
-    sidebarWidth,
-    isHome,
     setUrl,
     setSidebarWidth,
     applyUrlState,

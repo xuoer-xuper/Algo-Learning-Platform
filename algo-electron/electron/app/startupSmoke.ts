@@ -7,7 +7,6 @@ export const STARTUP_SMOKE_MODE = process.env.ALGO_ELECTRON_SMOKE === '1'
 interface RunStartupSmokeOptions {
   getWindow: () => ElectronBrowserWindow | null
   getTabManager: () => TabManager | null
-  getDefaultHomeUrl: () => string
   cleanup: () => void
 }
 
@@ -139,17 +138,24 @@ export async function runStartupSmokeTest(options: RunStartupSmokeOptions): Prom
     const hasBasicIpc = await win.webContents.executeJavaScript(`
       Boolean(
         window.electronAPI
-        && typeof window.electronAPI.getDefaultHomeUrl === 'function'
+        && typeof window.electronAPI.getHomeShortcuts === 'function'
+        && typeof window.electronAPI.openInternalTab === 'function'
         && typeof window.electronAPI.createTab === 'function'
         && typeof window.electronAPI.isWindowMaximized === 'function'
       )
     `) as boolean
     if (!hasBasicIpc) throw new Error('Preload electronAPI is not available')
 
-    const expectedDefaultUrl = process.env.ALGO_ELECTRON_SMOKE_DEFAULT_URL || options.getDefaultHomeUrl()
-    const defaultHomeUrl = await win.webContents.executeJavaScript('window.electronAPI.getDefaultHomeUrl()') as string
-    if (defaultHomeUrl !== expectedDefaultUrl) {
-      throw new Error(`Default home URL mismatch: expected ${expectedDefaultUrl}, got ${defaultHomeUrl}`)
+    const initialTab = tabManager.getTabList().find((tab) => tab.isActive)
+    if (initialTab?.kind !== 'internal' || initialTab.page.type !== 'home') {
+      throw new Error(`Initial tab is not internal home: ${JSON.stringify(initialTab)}`)
+    }
+
+    const legacyHomeUrl = process.env.ALGO_ELECTRON_SMOKE_LEGACY_HOME_URL
+    if (!legacyHomeUrl) throw new Error('Missing ALGO_ELECTRON_SMOKE_LEGACY_HOME_URL')
+    const homeShortcuts = await win.webContents.executeJavaScript('window.electronAPI.getHomeShortcuts()') as string[]
+    if (!homeShortcuts.includes(legacyHomeUrl)) {
+      throw new Error(`Legacy default URL was not migrated: ${JSON.stringify(homeShortcuts)}`)
     }
 
     if (!win.isVisible()) {
@@ -157,12 +163,12 @@ export async function runStartupSmokeTest(options: RunStartupSmokeOptions): Prom
     }
 
     const tabId = await win.webContents.executeJavaScript(
-      `window.electronAPI.createTab(${JSON.stringify(defaultHomeUrl)})`,
+      `window.electronAPI.createTab(${JSON.stringify(legacyHomeUrl)})`,
     ) as string
     if (!tabId) throw new Error('createTab IPC returned an empty tab id')
 
-    const loadedDefaultUrl = await waitForActiveWebContentsUrl(tabManager, defaultHomeUrl, 10000)
-    step('default-tab-loaded')
+    const loadedWebUrl = await waitForActiveWebContentsUrl(tabManager, legacyHomeUrl, 10000)
+    step('web-tab-loaded')
 
     const maximized = await win.webContents.executeJavaScript('window.electronAPI.isWindowMaximized()') as boolean
     if (typeof maximized !== 'boolean') throw new Error('Basic IPC did not return a boolean result')
@@ -195,7 +201,7 @@ export async function runStartupSmokeTest(options: RunStartupSmokeOptions): Prom
 
     const openerTabId = activeTab.id
     const baseTabCount = tabManager.getTabList().length
-    const baseUrl = new URL(expectedDefaultUrl)
+    const baseUrl = new URL(legacyHomeUrl)
 
     triggerPopupScript(tabManager, `window.open('about:blank', 'blank-popup')`)
     await waitForTabCount(tabManager, baseTabCount + 1)
@@ -256,11 +262,11 @@ export async function runStartupSmokeTest(options: RunStartupSmokeOptions): Prom
     `)
     await waitForTabCount(tabManager, baseTabCount + 1)
     await waitForActiveWebContentsUrl(tabManager, oauthUrl, 10000)
-    await waitForScriptValue(tabManager, expectedDefaultUrl, 'window.__oauthSignal', 'oauth-complete')
+    await waitForScriptValue(tabManager, legacyHomeUrl, 'window.__oauthSignal', 'oauth-complete')
     await closePopupAndRestore(tabManager, openerTabId, baseTabCount)
     step('oauth-popup')
 
-    finishStartupSmoke(options, 0, `ok mainWindow=1 tab=${tabId} url=${loadedDefaultUrl || activeTab.url || tabManager.getUrl()}`)
+    finishStartupSmoke(options, 0, `ok mainWindow=1 tab=${tabId} url=${loadedWebUrl || activeTab.url || tabManager.getUrl()}`)
   } catch (error) {
     finishStartupSmoke(options, 1, 'failed', error)
   }

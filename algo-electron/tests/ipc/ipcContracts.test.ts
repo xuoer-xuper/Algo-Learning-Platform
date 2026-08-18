@@ -31,14 +31,12 @@ const coreContracts: PreloadContract[] = [
   { method: 'reload', mode: 'send', channel: 'browser:reload' },
   { method: 'goHome', mode: 'send', channel: 'browser:goHome' },
   { method: 'setSidebarWidth', mode: 'send', channel: 'browser:setSidebarWidth' },
-  { method: 'hideView', mode: 'send', channel: 'browser:hideView' },
-  { method: 'showView', mode: 'send', channel: 'browser:showView' },
-  { method: 'captureBrowserPreview', mode: 'invoke', channel: 'browser:capturePreview' },
   { method: 'onUrlChanged', mode: 'on', channel: 'browser:urlChanged' },
   { method: 'onUiCommand', mode: 'on', channel: 'ui:command' },
   { method: 'reopenClosedTab', mode: 'invoke', channel: 'tab:reopenClosed' },
   { method: 'reloadTab', mode: 'send', channel: 'tab:reload' },
   { method: 'dismissUnresponsiveTab', mode: 'send', channel: 'tab:dismissUnresponsive' },
+  { method: 'openInternalTab', mode: 'invoke', channel: 'tab:openInternal' },
 
   // Problem and tracking surface
   { method: 'listRecentProblems', mode: 'invoke', channel: 'problem:listRecent' },
@@ -49,8 +47,7 @@ const coreContracts: PreloadContract[] = [
   { method: 'getTimeline', mode: 'invoke', channel: 'stats:getTimeline' },
 
   // Settings and site management
-  { method: 'getDefaultHomeUrl', mode: 'invoke', channel: 'config:getDefaultHomeUrl' },
-  { method: 'setDefaultHomeUrl', mode: 'send', channel: 'config:setDefaultHomeUrl' },
+  { method: 'getHomeShortcuts', mode: 'invoke', channel: 'config:getHomeShortcuts' },
   { method: 'getRealtimeSubmissionStatus', mode: 'invoke', channel: 'realtimeSubmission:getStatus' },
   { method: 'getAllSites', mode: 'invoke', channel: 'sites:getAll' },
   { method: 'getSiteById', mode: 'invoke', channel: 'sites:getById' },

@@ -11,6 +11,7 @@ import {
   loadHomeOverviewStats,
   loadHomeRecentProblems,
   loadHomeRecommendations,
+  loadHomeShortcuts,
   subscribeHomeProblemsUpdated,
 } from './homeApi'
 import type { HomeOverviewStats, HomeProblemRecord, HomeRecommendation } from './homeTypes'
@@ -24,10 +25,12 @@ export function HomePage({ onNavigate }: Props) {
   const [stats, setStats] = useState<HomeOverviewStats | null>(null)
   const [recent, setRecent] = useState<HomeProblemRecord[]>([])
   const [recommendations, setRecommendations] = useState<HomeRecommendation[]>([])
+  const [homeShortcuts, setHomeShortcuts] = useState<string[]>([])
 
   useEffect(() => {
     loadHomeOverviewStats().then(setStats)
     loadHomeRecentProblems(8).then(setRecent)
+    loadHomeShortcuts().then(setHomeShortcuts).catch(() => setHomeShortcuts([]))
     // 复习建议：失败时降级为空列表，不阻塞首页
     loadHomeRecommendations(5).then(setRecommendations).catch(() => setRecommendations([]))
     const unsubscribe = subscribeHomeProblemsUpdated(() => {
@@ -37,6 +40,17 @@ export function HomePage({ onNavigate }: Props) {
     })
     return unsubscribe
   }, [])
+
+  const builtInUrls = new Set(Object.values(PLATFORM_URLS).map((url) => new URL(url).origin))
+  const customShortcuts = homeShortcuts.flatMap((url) => {
+    try {
+      const parsed = new URL(url)
+      if (builtInUrls.has(parsed.origin)) return []
+      return [{ url, host: parsed.hostname.replace(/^www\./, '') }]
+    } catch {
+      return []
+    }
+  })
 
   return (
     <div className="home-page">
@@ -63,6 +77,20 @@ export function HomePage({ onNavigate }: Props) {
               </span>
               <span className="home-site-name">{PLATFORM_NAMES[key]}</span>
               <span className="home-site-url num">{url.replace('https://', '').replace(/\/$/, '')}</span>
+            </button>
+          ))}
+          {customShortcuts.map(({ url, host }) => (
+            <button
+              key={url}
+              className="home-site-btn"
+              onClick={() => onNavigate(url)}
+            >
+              <span className="home-site-head">
+                <span className="home-site-dot" style={{ backgroundColor: 'var(--color-accent)' }} />
+                <span className="home-site-label num">URL</span>
+              </span>
+              <span className="home-site-name">{host}</span>
+              <span className="home-site-url num">{url.replace(/^https?:\/\//, '').replace(/\/$/, '')}</span>
             </button>
           ))}
         </div>

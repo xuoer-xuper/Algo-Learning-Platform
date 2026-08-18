@@ -18,7 +18,7 @@
 - `registerSitesIpc.ts`：注册 `sites:*` 站点 CRUD、导入导出、冲突预览确认 handler。
 - `registerStatsIpc.ts`：注册 `stats:*` 统计查询和重算 handler。
 - `registerSubmissionsIpc.ts`：注册 `submissions:*` 手动同步 handler。
-- `registerBrowserShellIpc.ts`：注册 `browser:*`、`tab:*` 和 `window:*` 浏览器壳层 handler，包括 `tab:reopenClosed`、按 tabId 的 `tab:reload` 与 `tab:dismissUnresponsive` 故障恢复入口。
+- `registerBrowserShellIpc.ts`：注册 `browser:*`、`tab:*` 和 `window:*` 浏览器壳层 handler，包括受校验的 `tab:openInternal`、`tab:reopenClosed`、按 tabId 的 `tab:reload` 与 `tab:dismissUnresponsive` 故障恢复入口。
 - `registerCoachIpc.ts`：注册 Coach 桌宠、比赛模式、会话、干预和指标相关 handler。
 - `registerCookieIpc.ts`：注册 `cookies:*` 安全摘要 handler，不向 renderer 暴露 Cookie value。
 - `registerMainIpc.ts`：组合注册入口，集中由 `main.ts` 调用各业务域注册函数。
@@ -33,7 +33,7 @@
 
 - `registerAiIpc()`：注册 AI 相关 channel，包括上下文导出、复习建议、薄弱标签、阶段总结、复习计划、AI 输出保存和输出 CRUD。
 - `registerBackupIpc(options)`：注册备份导入导出 channel；通过 `getParentWindow` 注入文件对话框父窗口，并在主进程内暂存待确认导入数据。
-- `registerConfigIpc()`：注册应用配置 channel，包括默认首页读取和保存。
+- `registerConfigIpc()`：只公开净化后的 `config:getHomeShortcuts`；旧默认首页读写 channel 已退役。
 - `registerNotesIpc(options)`：注册笔记相关 channel；通过 `notifyProblemsUpdated` 注入题目更新通知，避免模块直接依赖 `BrowserWindow`。
 - `registerProblemIpc(options)`：注册题目相关 channel；通过 `notifyProblemsUpdated` 注入删除题目后的刷新通知。
 - `registerRatingIpc()`：注册 rating 相关 channel，包括账号绑定、账号查询、Codeforces rating 同步、历史查询和比赛结果查询。
@@ -41,7 +41,7 @@
 - `registerSitesIpc(options)`：注册站点配置相关 channel；通过 `getParentWindow` 注入文件对话框父窗口，通过 `notifyProblemsUpdated` 注入导入后的刷新通知。
 - `registerStatsIpc()`：注册统计相关 channel，包括概览、趋势、平台分布、题目访问统计、时间线、复访、连续天数、错题、未复习和日统计重算。
 - `registerSubmissionsIpc(options)`：注册手动提交同步 channel；通过 `getSyncService` 延迟读取 `SyncService`，避免模块 import 时绑定尚未初始化的服务实例。
-- `registerBrowserShellIpc(options)`：注册浏览器壳层 channel；通过 `getWindow`、`getTabManager` 注入运行期对象，URL 输入只负责解析与导航，题目追踪统一由 TabManager 导航链处理。
+- `registerBrowserShellIpc(options)`：注册浏览器壳层 channel；通过 `getWindow`、`getTabManager` 注入运行期对象，URL 输入只负责解析与导航，内部页 payload 先经过严格判别联合校验，题目追踪统一由 TabManager 导航链处理。
 - `registerCookieIpc(cookieVault?)`：注册 Cookie 摘要查询 channel；完整 Cookie 仅保留在 main 内部，renderer 只拿名称、数量、过期时间和安全标记统计。
 - `registerMainIpc(options)`：主入口调用的组合函数；只负责串联各注册模块，不直接实现具体 handler。
 - `handleFromShell()` / `onFromShell()`：普通壳 IPC 的统一校验入口，拒绝未知 webContents、iframe、伪造 origin 和超限/循环 payload。

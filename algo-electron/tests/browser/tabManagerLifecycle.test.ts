@@ -76,7 +76,7 @@ test('destroying or detaching an active middle tab selects its right neighbor', 
   detached.close()
 })
 
-test('closing the last tab resets it to a blank new tab and keeps it reopenable', () => {
+test('closing the last tab resets it to an internal home tab and keeps it reopenable', () => {
   resetElectronMock()
   const window = new MockBrowserWindow()
   const manager = new TabManager(window as never)
@@ -87,12 +87,57 @@ test('closing the last tab resets it to a blank new tab and keeps it reopenable'
   const resetTabs = manager.getTabList()
   assert.strictEqual(resetTabs.length, 1)
   assert.notStrictEqual(resetTabs[0].id, originalId)
-  assert.strictEqual(resetTabs[0].url, '')
+  assert.strictEqual(resetTabs[0].kind, 'internal')
+  assert.strictEqual(resetTabs[0].url, 'algo://home')
+  assert.deepStrictEqual(resetTabs[0].kind === 'internal' ? resetTabs[0].page : null, { type: 'home' })
   assert.strictEqual(resetTabs[0].isActive, true)
 
   const reopenedId = manager.reopenClosedTab()
   assert.ok(reopenedId)
   assert.strictEqual(manager.getTabList().find((tab) => tab.id === reopenedId)?.url, 'https://example.com/problem')
+})
+
+test('internal tabs close and reopen with their validated page payload', () => {
+  resetElectronMock()
+  const window = new MockBrowserWindow()
+  const manager = new TabManager(window as never)
+  const homeId = manager.createTab()
+  const notesId = manager.openInternalTab({ type: 'notes', problemId: 'problem-1' })
+
+  manager.closeTab(notesId)
+  assert.strictEqual(manager.getActiveTabId(), homeId)
+
+  const reopenedId = manager.reopenClosedTab()
+  assert.deepStrictEqual(manager.getTabList().find((tab) => tab.id === reopenedId), {
+    id: reopenedId,
+    kind: 'internal',
+    page: { type: 'notes', problemId: 'problem-1' },
+    url: 'algo://problem-notes?problemId=problem-1',
+    title: '本地笔记',
+    favicon: null,
+    isLoading: false,
+    isCrashed: false,
+    isUnresponsive: false,
+    isUnresponsiveNoticeDismissed: false,
+    isActive: true,
+  })
+})
+
+test('navigating from an internal tab converts the same stable id into a web tab', async () => {
+  resetElectronMock()
+  const window = new MockBrowserWindow()
+  const manager = new TabManager(window as never)
+  const tabId = manager.createTab()
+
+  manager.navigate('https://example.com/problem')
+  await Promise.resolve()
+  await Promise.resolve()
+
+  const tab = manager.getTabList()[0]
+  assert.strictEqual(tab.id, tabId)
+  assert.strictEqual(tab.kind, 'web')
+  assert.strictEqual(tab.url, 'https://example.com/problem')
+  assert.strictEqual(window.contentView.children.length, 1)
 })
 
 test('tab capacity is 16 and both direct and popup creation report the limit', () => {

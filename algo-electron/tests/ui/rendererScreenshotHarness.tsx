@@ -117,11 +117,13 @@ function filterProblems(limit = 50, platform?: string, status?: string): Problem
 }
 
 function createApiMock(): ElectronAPI {
-  let currentUrl = ''
+  let currentUrl = 'algo://home'
+  const tabListeners = new Set<(tabs: TabInfo[]) => void>()
   const tabs: TabInfo[] = [{
     id: 'home',
-    kind: 'web',
-    url: '',
+    kind: 'internal',
+    page: { type: 'home' },
+    url: 'algo://home',
     title: '首页',
     favicon: null,
     isLoading: false,
@@ -131,17 +133,36 @@ function createApiMock(): ElectronAPI {
     isActive: true,
   }]
 
+  const emitTabs = () => {
+    const snapshot = tabs.map((tab) => ({ ...tab }))
+    for (const listener of tabListeners) listener(snapshot)
+  }
+
+  const activateTab = (tabId: string) => {
+    for (const tab of tabs) tab.isActive = tab.id === tabId
+    const active = tabs.find((tab) => tab.isActive)
+    currentUrl = active?.url ?? ''
+    emitTabs()
+  }
+
+  const internalUrl = (page: InternalPage) => {
+    if (page.type === 'problem-detail') return `algo://problem-detail?problemId=${page.problemId}`
+    if (page.type === 'notes') return `algo://problem-notes?problemId=${page.problemId}`
+    if (page.type === 'script-install') return `algo://script-install?installId=${page.installId}`
+    return `algo://${page.type}`
+  }
+
   return {
     browserLayout: { toolbarHeight: 42, tabBarHeight: 36, noticeBarHeight: 38, topOffset: 78 },
     navigate: (url) => { currentUrl = url },
     goBack: () => {},
     goForward: () => {},
     reload: () => {},
-    goHome: () => { currentUrl = '' },
+    goHome: () => {
+      const home = tabs.find((tab) => tab.kind === 'internal' && tab.page.type === 'home')
+      if (home) activateTab(home.id)
+    },
     setSidebarWidth: () => {},
-    hideView: () => {},
-    showView: () => {},
-    captureBrowserPreview: async () => null,
     minimizeWindow: () => {},
     maximizeWindow: () => {},
     closeWindow: () => {},
@@ -300,16 +321,28 @@ function createApiMock(): ElectronAPI {
     scriptsToggle: async () => true,
     scriptsDelete: async () => true,
 
-    getDefaultHomeUrl: async () => 'https://codeforces.com',
-    setDefaultHomeUrl: () => {},
+    getHomeShortcuts: async () => ['https://codeforces.com/'],
 
     createTab: async (url) => {
-      currentUrl = url ?? ''
-      tabs.push({
-        id: `tab-${tabs.length + 1}`,
+      const id = `tab-${tabs.length + 1}`
+      for (const tab of tabs) tab.isActive = false
+      tabs.push(url ? {
+        id,
         kind: 'web',
-        url: currentUrl,
-        title: currentUrl || '首页',
+        url,
+        title: url,
+        favicon: null,
+        isLoading: false,
+        isCrashed: false,
+        isUnresponsive: false,
+        isUnresponsiveNoticeDismissed: false,
+        isActive: true,
+      } : {
+        id,
+        kind: 'internal',
+        page: { type: 'home' },
+        url: 'algo://home',
+        title: '首页',
         favicon: null,
         isLoading: false,
         isCrashed: false,
@@ -317,18 +350,48 @@ function createApiMock(): ElectronAPI {
         isUnresponsiveNoticeDismissed: false,
         isActive: true,
       })
-      return tabs[tabs.length - 1].id
+      currentUrl = tabs[tabs.length - 1].url
+      emitTabs()
+      return id
     },
-    closeTab: () => {},
+    closeTab: (tabId) => {
+      const index = tabs.findIndex((tab) => tab.id === tabId)
+      if (index < 0) return
+      const wasActive = tabs[index].isActive
+      tabs.splice(index, 1)
+      if (wasActive && tabs.length > 0) activateTab(tabs[Math.min(index, tabs.length - 1)].id)
+      else emitTabs()
+    },
     reopenClosedTab: async () => '',
-    switchTab: () => {},
+    switchTab: activateTab,
     detachTab: () => {},
     reloadTab: () => {},
     dismissUnresponsiveTab: () => {},
+    openInternalTab: async (page) => {
+      const id = `tab-${tabs.length + 1}`
+      for (const tab of tabs) tab.isActive = false
+      tabs.push({
+        id,
+        kind: 'internal',
+        page,
+        url: internalUrl(page),
+        title: page.type,
+        favicon: null,
+        isLoading: false,
+        isCrashed: false,
+        isUnresponsive: false,
+        isUnresponsiveNoticeDismissed: false,
+        isActive: true,
+      })
+      currentUrl = tabs[tabs.length - 1].url
+      emitTabs()
+      return id
+    },
     getTabList: async () => tabs,
     onTabListChanged: (callback) => {
       callback(tabs)
-      return () => {}
+      tabListeners.add(callback)
+      return () => { tabListeners.delete(callback) }
     },
 
     listNotesByProblem: async () => [screenshotNote],

@@ -20,7 +20,7 @@ Renderer 不直接访问 Node.js、SQLite、Electron session、Cookie 或文件�
 ## 3. 文件职责
 
 - `main.tsx`：React root 挂载。
-- `App.tsx`：renderer 顶层布局、浏览器状态接线和 modal 编排。
+- `App.tsx`：renderer 顶层布局、浏览器状态接线和内部页入口编排。
 - `App.css`：按稳定顺序导入 `styles/` 下的应用壳和功能样式。
 - `styles/`：按应用壳、设置、首页、题目、统计、笔记和 Coach 拆分的全局样式。
 - `index.css`：Tailwind 入口和全局基础样式。
@@ -45,11 +45,10 @@ Renderer 不直接访问 Node.js、SQLite、Electron session、Cookie 或文件�
 
 `App.tsx` 负责：
 
-- 浏览器 URL、首页状态和导航回调接线；状态和 IPC 编排由 `hooks/useBrowserNavigation.ts` 管理，工具栏 UI 由 `components/BrowserToolbar.tsx` 渲染。
-- 首页/浏览器视图显隐接线；具体 `WebContentsView` 显隐副作用由 `hooks/useBrowserViewVisibility.ts` 管理。
+- 浏览器 URL 和导航回调接线；状态和 IPC 编排由 `hooks/useBrowserNavigation.ts` 管理，工具栏 UI 由 `components/BrowserToolbar.tsx` 渲染。
+- 订阅活动标签并交给 `components/ShellRouter.tsx` 渲染内部页或 web 标签故障页；web view 的挂载由主进程 `TabManager` 根据标签类型决定。
 - 侧栏宽度同步给主进程 `TabManager`。
-- 设置、统计、脚本、题目详情、笔记等 modal 的入口接线；modal 状态与预览背景由 `hooks/useAppModalState.ts` 管理。
-- 打开 modal 时通过 hook 捕获浏览器预览并隐藏真实 `WebContentsView`，避免 Electron view 覆盖 React modal。
+- 设置、统计、脚本、Coach 指标、题目详情和笔记入口统一调用 `tab:openInternal`，不再维护独立 modal 状态或截图背景。
 
 ## 5. IPC 边界
 
@@ -59,7 +58,7 @@ Renderer 只能通过 `window.electronAPI` 使用 preload 白名单能力；业�
 
 - `features/{domain}/*Api.ts`：封装业务页面需要的主进程能力。
 - `components/tabApi.ts`、`components/windowApi.ts`：封装标签栏和窗口控制能力。
-- `hooks/browserShellApi.ts`：封装浏览器壳层导航、view 显隐、预览和当前页同步能力。
+- `hooks/browserShellApi.ts`：封装浏览器壳层导航、URL 订阅、侧栏宽度和当前页同步能力。
 
 当前 preload 能力分组：
 
