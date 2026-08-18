@@ -446,7 +446,7 @@ Renderer（同一构建产物，多窗口实例化——桌宠 hash 路由已证
 | B0.10 | [x] | `9de6661`（2026-08-18）：统计日期条件统一改为 `>= local_day AND < next_local_day` 范围谓词；提交批次只重算本批新增提交日期及首次 AC 变化影响的旧/新日期，不再全史逐日刷新；主服务改为等待异步数据库初始化。检测 pending migration 后使用 SQLite backup API 写入 `userData/backups` 并保留最近 3 份；迁移失败关闭连接、清理 WAL/SHM、恢复迁移前备份、原子写 failure marker，同一 pending version 下次启动直接阻断并交由主进程致命错误链退出；启动时把开放的 `problem_visits` 按 `entered_at` 封闭并标记 `startup_recovery`，正常关闭改为精确 visit id 更新。验证：`npm run test:db`、`npm run test:all`（57 files/379 tests，覆盖率 35.73/38.63/31.49/36.75%）、`npm run build`、`npm run test:packaged-app` 全部通过；两年事实数据单日重算重复实测 0.33-0.90ms，低于 50ms 门槛；无视觉变更 |
 | B0.11 | [x] | `e35212b`（2026-08-18）：migration 025 为用户脚本增加 namespace/identity_name/auto_update_enabled，并按活动身份把存量重复项确定性拆为 canonical + local copy；新导入按精确身份覆盖更新，支持版本关系确认、另存本地副本、legacy 原子认领和北京时间；内容寻址文件名、原子落盘、DB 失败清理、旧受管文件安全回收和源文件保护已完成；`scripts:save` 收窄为显示名/站点绑定白名单，父窗口原生对话框接线完成；无视觉变更 |
 | B0.12 | [x] | `a004d3c`（2026-08-16）：生产壳迁移至 `app://shell` 并启用严格 CSP；普通 IPC 统一接入 shell sender/main-frame/origin/payload 校验，OJ 提交通道使用专用 HTTPS sender validator；TabManager 管理 OJ sender 生命周期；安全、架构、IPC 合约与真实 Electron startup smoke 覆盖已完成；全量验证通过；无视觉变更 |
-| B1.1 | [~] | `1190daf` 已统一主要 token；暗色双值与剩余域核对待完成 |
+| B1.1 | [x] | `c7b9f3e`（2026-08-18）：补齐 4 档 spacing、3 档语义圆角别名、3 档 easing；暗色主题同步覆盖完整 `--color-*` 语义 token 与兼容别名；静态治理测试纳入 core suite；仅 token 层变更，视觉冻结不变 |
 | B1.2 | [x] | `16bae97`（2026-08-18）：补齐内部页 Dialog、DropdownMenu、Toast、NoticeBar；Dialog 支持焦点陷阱、Esc/遮罩关闭与焦点恢复，DropdownMenu 支持方向键/Home/End/禁用项/外点关闭，Toast 提供 live region/自动消退/操作，NoticeBar 保持文档流让位；独立 jsdom 测试与 README 已同步；无业务页和视觉 token 变更 |
 | B1.3 | [~] | `9346856`（2026-08-18）：低风险收拢时间轴、Coach 关闭按钮与笔记删除按钮到现有 Icon/IconButton，保留原 class/尺寸并增加窄范围守卫；时间轴语义 emoji、笔记空态图标、详情链接箭头和桌宠插画暂留，待截图确认后继续 |
 | B1.4 | [x] | `1190daf`；`rg` 确认 src 中无原生 confirm；组件测试已覆盖 ConfirmDialog |
@@ -612,3 +612,16 @@ Renderer（同一构建产物，多窗口实例化——桌宠 hash 路由已证
 | 视觉影响 | `无视觉变更` |
 | 文档同步 | `package.json`、`package-lock.json`、B1 台账 |
 | 完成时间 | 北京时间 `2026-08-18 13:20` |
+
+### 11.16 B1.1 token 收尾记录
+
+| 字段 | 填写内容 |
+|---|---|
+| 任务 | B1.1 spacing/easing/暗色语义 token 收尾 |
+| 状态 | `[x] 已完成` |
+| Commit | `c7b9f3e ui: 补齐设计 token 双值与治理守卫` |
+| 自动验证 | `npm run typecheck`、目标 ESLint、`tests/components/tokenGovernance.test.ts`、`npm run test:core`、`npm run test:docs`、`git diff --check` |
+| 人工验收 | 暗色切换仍由 B5.4 实现；本提交未改现有业务 CSS 数值、布局或动画 |
+| 视觉影响 | `无视觉变更`；只增加未改变浅色现状的 token 和暗色预留值 |
+| 文档同步 | `src/index.css`、`tests/components/tokenGovernance.test.ts`、`tests/components/README.md` |
+| 完成时间 | 北京时间 `2026-08-18` |

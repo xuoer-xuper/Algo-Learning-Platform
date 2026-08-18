@@ -48,6 +48,15 @@
   --radius-md: 8px;
   --radius-lg: 10px;
   --radius-xl: 12px;
+  --radius-control: var(--radius-sm);
+  --radius-surface: var(--radius-md);
+  --radius-overlay: var(--radius-lg);
+
+  /* 间距：保留现有像素值，供后续壳层/内部页机械迁移 */
+  --spacing-1: 4px;
+  --spacing-2: 8px;
+  --spacing-3: 12px;
+  --spacing-4: 16px;
 
   /* 阴影 */
   --shadow-sm: 0 1px 2px rgba(23, 28, 38, 0.06);
@@ -55,7 +64,9 @@
   --shadow-lg: 0 18px 50px rgba(23, 28, 38, 0.20);
 
   /* 动效 */
+  --ease-in: cubic-bezier(0.4, 0, 1, 1);
   --ease-out: cubic-bezier(0.2, 0, 0, 1);
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
   --duration-fast: 120ms;
   --duration-base: 160ms;
   --duration-slow: 240ms;
@@ -94,6 +105,25 @@
 
 /* 深色 token 预留（B5.4 启用：设置 data-theme="dark" 并逐值验证） */
 :root[data-theme="dark"] {
+  --color-app: #14161c;
+  --color-chrome: #191d26;
+  --color-card: #1e222c;
+  --color-inset: #232834;
+  --color-hover: #262b38;
+  --color-ink: #e8ebf2;
+  --color-ink-2: #a8b0c0;
+  --color-ink-3: #6c7585;
+  --color-line: #333a48;
+  --color-line-soft: #2a3040;
+  --color-accent: #7d9cff;
+  --color-accent-strong: #9bb3ff;
+  --color-accent-soft: #26345f;
+  --color-ok: #55d993;
+  --color-ok-soft: #193c2a;
+  --color-warn: #f3b35b;
+  --color-warn-soft: #45301c;
+  --color-danger: #ff7777;
+  --color-danger-soft: #452429;
   --bg: #14161c;
   --bg-surface: #191d26;
   --bg-card: #1e222c;
