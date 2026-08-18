@@ -451,7 +451,7 @@ Renderer（同一构建产物，多窗口实例化——桌宠 hash 路由已证
 | B1.3 | [x] | `9346856` + `20bc054`（2026-08-18）：关闭/删除按钮、时间轴五类事件、详情外链和笔记空态全部收拢到统一 Icon/IconButton；运行时功能性 Unicode 归零，内联 SVG 仅保留统一 Icon 实现与 CoachPet 领域插画；固定原容器/字号/尺寸并增加回流守卫；集中截图验收并入后续 UI 回归 |
 | B1.4 | [x] | `0a1a1c4`；`rg` 确认 src 中无原生 confirm；组件测试已覆盖 ConfirmDialog |
 | B1.5 | [x] | `66821d0` + `7df12ce` + `7240170`（2026-08-18）：清理零引用 `@milkdown/theme-nord`，保留 Crepe 实际 Nord CSS；Coach 原始配色、透明度、圆角与动效值集中到独立 `tokens.css`；Dashboard/Coach、首页和设置三组统计卡片真实迁移到 `Card`，治理测试防止回流；既有 feature/notes/scripts 已由 `0a1a1c4` 完成按钮/输入/确认框收编；视觉冻结不变 |
-| B2.1 | [~] | `ac5fa27` + `4f8f40f`（2026-08-18）：第一子块完成 tabs Map→稳定有序数组、web/internal 判别联合、受校验内部页与状态/快照契约；第二子块完成快照 exact-shape 整份校验、敏感 URL/字段拒绝、确定性活动项回退，以及 write+fsync+close+rename 原子存储、并发保存合并和失败保旧。剩余：TabManager/启动退出恢复接线、renderer 首次列表回放、render-process-gone 恢复态及 unresponsive NoticeBar 操作。无视觉变更，冻结基线不变 |
+| B2.1 | [~] | `ac5fa27` + `4f8f40f` + `8db5c27`（2026-08-18）：有序判别联合标签模型、严格安全快照与原子存储已完成；运行时现按稳定 ID/顺序恢复全部 web view 后只挂活动项，创建失败全回滚，持久状态独立 250ms 防抖，窗口 close/before-quit 最终 flush，renderer 订阅后主动拉取列表且防迟到覆盖；startup smoke 保持无持久化。剩余仅 render-process-gone 恢复态及 unresponsive NoticeBar 操作。无视觉变更，冻结基线不变 |
 | B2.2-B2.8 | [ ] | 内部页、截图机制退役、TabStrip、Omnibox、UI 测试、下载/查找/缩放、右键菜单均待实施 |
 | B3.1-B3.5 | [ ] | WindowManager、事件多窗口化、标签过户、服务广播、生命周期与恢复均待实施 |
 | B4.1-B4.6 | [ ] | 026_site_credentials、Vault、自动填充、账户页、登录捕获、fuses 均待实施 |
@@ -708,3 +708,19 @@ Renderer（同一构建产物，多窗口实例化——桌宠 hash 路由已证
 | 安全边界 | 快照只允许 `id/kind/url|page/title`；生产仅恢复 HTTPS，开发只额外放行 loopback HTTP；拒绝 userinfo、敏感 query/hash、控制字符、未知字段、损坏/超限 JSON，整份失败且不输出原始 JSON/URL |
 | 剩余工作 | 将存储接入 TabManager 和应用启动/退出生命周期；恢复全部标签后只切换一次活动项；renderer 首次挂载主动获取列表；实现标签崩溃占位与无响应 NoticeBar |
 | 完成时间 | 北京时间 `2026-08-18 21:54` |
+
+### 11.23 B2.1 运行时会话恢复阶段记录
+
+| 字段 | 填写内容 |
+|---|---|
+| 任务 | B2.1 第三子块：TabManager 会话恢复、变更防抖保存、退出 flush 与 renderer 首次列表同步 |
+| 状态 | `[~] 部分完成` |
+| Commit | `8db5c27 browser: 接入标签会话恢复与退出持久化` |
+| 自动验证 | `npm run typecheck`、目标 ESLint、聚焦 Vitest 7 files/43 tests、`npm run test:core`（39 files/479 tests）、Electron 接线聚焦 2 files/5 tests、`npm run test:docs`、`git diff --check`；全部通过 |
+| 人工验收 | 本子块不提前执行生产构建、NSIS、真实 startup 恢复或 packaged 双实例 smoke，继续按多任务合并验证策略执行；自动测试已覆盖恢复顺序/稳定 ID/标题/活动项、只挂活动 view、创建中途全回滚、关闭前等待最终写入和 renderer 首次列表竞态 |
+| 视觉影响 | `无视觉变更`；未修改 CSS、颜色、布局、字体、组件形态或动画，TabBar 仅补首次数据同步，保持 `0a1a1c4` 冻结基线 |
+| 文档同步 | `electron/browser/README.md`、`tests/browser/README.md`、`tests/electron/README.md`、B2 完成台账 |
+| 生命周期 | 正常启动在服务/事件接线后、壳 loadURL 前恢复；普通变化 250ms 防抖；窗口 close 与 before-quit 最终 dispose/flush；致命 app.exit 依赖最近一次稳定防抖快照；startup smoke 禁用 session store |
+| 安全与一致性 | 恢复前再次整份校验；全部 view 创建成功后才提交 live tabs，失败关闭并注销本次所有 webContents；保存事件与 favicon/loading 列表事件分离；首次列表响应不会覆盖较新的 listChanged 事件 |
+| 剩余工作 | 处理 `render-process-gone`：摘除坏 view 并显示可恢复状态；处理 `unresponsive`：NoticeBar 提供等待/重载/关闭并在恢复 responsive 后撤销 |
+| 完成时间 | 北京时间 `2026-08-18 22:12` |
