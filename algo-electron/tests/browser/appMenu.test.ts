@@ -33,6 +33,21 @@ test('app menu routes existing toolbar destinations through internal tabs', () =
   ])
 })
 
+test('app menu exposes Chrome-style zoom commands for an active web tab', () => {
+  const commands: string[] = []
+  const template = createAppMenuTemplate(() => undefined, {
+    factor: 1.25,
+    set: (command) => commands.push(command),
+  })
+  const zoomItem = template[0]
+  assert.strictEqual(zoomItem.label, '缩放 (125%)')
+  const submenu = zoomItem.submenu as Electron.MenuItemConstructorOptions[]
+  for (const item of submenu) {
+    if (typeof item.click === 'function') item.click({} as never, {} as never, {} as never)
+  }
+  assert.deepStrictEqual(commands, ['in', 'out', 'reset'])
+})
+
 test('app menu opens at the renderer-provided toolbar anchor', () => {
   resetElectronMock()
   const window = new MockBrowserWindow()

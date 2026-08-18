@@ -8,11 +8,14 @@ import { resolveOmniboxInput, type OmniboxBlockReason } from '../browser/omnibox
 import { getSearchConfig } from '../app/config'
 import { getOmniboxSuggestions } from '../db/repositories/problemRepository'
 import { isAppMenuAnchor, popupAppMenu } from '../contextMenus/appMenu'
+import { isZoomCommand } from '../browser/zoomPreferences'
+import type { PendingUserScriptInstallRegistry } from '../downloads/userScriptNavigation'
 
 interface RegisterBrowserShellIpcOptions {
   getWindow: () => BrowserWindow | null
   getTabManager: () => TabManager | null
   getBrowserDiagnostics?: () => BrowserDiagnostics | null
+  getUserScriptInstallRegistry?: () => PendingUserScriptInstallRegistry | null
   allowInsecureLocalhost?: boolean
 }
 
@@ -95,15 +98,45 @@ export function registerBrowserShellIpc(options: RegisterBrowserShellIpcOptions)
     options.getTabManager()?.setOmniboxOpen(open)
   })
 
+  ipcMain.handle('browser:findInPage', (_event, tabId: unknown, command: unknown) => {
+    if (typeof tabId !== 'string') return null
+    return options.getTabManager()?.findInPage(tabId, command) ?? null
+  })
+
+  ipcMain.handle('browser:setZoom', (_event, tabId: unknown, command: unknown) => {
+    if (typeof tabId !== 'string' || !isZoomCommand(command)) return null
+    return options.getTabManager()?.setZoom(tabId, command) ?? null
+  })
+
+  ipcMain.on('browser:setDownloadNoticeVisible', (_event, visible: unknown) => {
+    if (typeof visible !== 'boolean') return
+    options.getTabManager()?.setDownloadNoticeVisible(visible)
+  })
+
+  ipcMain.handle('browser:getUserScriptInstall', (_event, installId: unknown) => {
+    if (typeof installId !== 'string') return null
+    return options.getUserScriptInstallRegistry?.()?.get(installId) ?? null
+  })
+
+  ipcMain.handle('browser:cancelUserScriptInstall', (_event, installId: unknown) => {
+    if (typeof installId !== 'string') return false
+    return options.getUserScriptInstallRegistry?.()?.consume(installId) !== null
+  })
+
   ipcMain.on('browser:showAppMenu', (_event, anchor: unknown) => {
     if (!isAppMenuAnchor(anchor)) return
     const window = options.getWindow()
     const tabManager = options.getTabManager()
     if (!window || window.isDestroyed() || !tabManager) return
+    const zoomState = tabManager.getActiveZoomState()
     popupAppMenu({
       window,
       anchor,
       openInternalPage: (page) => { tabManager.openInternalTab(page) },
+      zoom: zoomState ? {
+        factor: zoomState.factor,
+        set: (command) => { tabManager.setZoom(zoomState.tabId, command) },
+      } : undefined,
     })
   })
 

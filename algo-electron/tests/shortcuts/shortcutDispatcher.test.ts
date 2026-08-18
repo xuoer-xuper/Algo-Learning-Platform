@@ -28,6 +28,7 @@ test('resolves shell and OJ browser shortcuts consistently', () => {
     [{ control: true, key: 'Tab' }, { type: 'next-tab' }],
     [{ control: true, shift: true, key: 'Tab' }, { type: 'previous-tab' }],
     [{ control: true, key: 'l', code: 'KeyL' }, { type: 'focus-address-bar' }],
+    [{ control: true, key: 'f', code: 'KeyF' }, { type: 'find-in-page' }],
     [{ control: true, key: 'r', code: 'KeyR' }, { type: 'reload' }],
     [{ key: 'F5' }, { type: 'reload' }],
     [{ control: true, key: '+' }, { type: 'zoom-in' }],
@@ -61,6 +62,7 @@ test('dispatches commands through injected actions', () => {
     previousTab: () => calls.push('previous'),
     switchTab: (index) => calls.push(`switch:${index}`),
     focusAddressBar: () => calls.push('focus'),
+    findInPage: () => calls.push('find'),
     reload: () => calls.push('reload'),
     zoomIn: () => calls.push('zoom-in'),
     zoomOut: () => calls.push('zoom-out'),
@@ -73,7 +75,8 @@ test('dispatches commands through injected actions', () => {
   dispatchShortcut({ type: 'switch-tab', index: 4 }, actions)
   dispatchShortcut({ type: 'reopen-closed-tab' }, actions)
   dispatchShortcut({ type: 'focus-address-bar' }, actions)
+  dispatchShortcut({ type: 'find-in-page' }, actions)
   dispatchShortcut({ type: 'zoom-out' }, actions)
 
-  assert.deepStrictEqual(calls, ['switch:4', 'reopen', 'focus', 'zoom-out'])
+  assert.deepStrictEqual(calls, ['switch:4', 'reopen', 'focus', 'find', 'zoom-out'])
 })

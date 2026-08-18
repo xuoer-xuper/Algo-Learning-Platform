@@ -168,7 +168,7 @@ function createApiMock(): ElectronAPI {
   }
 
   return {
-    browserLayout: { toolbarHeight: 42, tabBarHeight: 36, noticeBarHeight: 38, topOffset: 78 },
+    browserLayout: { toolbarHeight: 42, tabBarHeight: 36, noticeBarHeight: 38, findBarHeight: 38, topOffset: 78 },
     navigate: (url) => { currentUrl = url },
     goBack: () => {},
     goForward: () => {},
@@ -185,6 +185,22 @@ function createApiMock(): ElectronAPI {
     onWindowMaximized: () => () => {},
     onUrlChanged: () => () => {},
     onUiCommand: () => () => {},
+    findInPage: async (tabId, command) => ({
+      open: command.type !== 'close',
+      tabId: command.type === 'close' ? null : tabId,
+      query: command.type === 'query' ? command.query : '',
+      requestId: null,
+      activeMatchOrdinal: 0,
+      matches: 0,
+      finalUpdate: true,
+    }),
+    onFindInPageResult: () => () => {},
+    setZoom: async (tabId, command) => ({ tabId, factor: command === 'in' ? 1.1 : command === 'out' ? 0.9 : 1 }),
+    onZoomChanged: () => () => {},
+    setDownloadNoticeVisible: () => {},
+    onDownloadResult: () => () => {},
+    getUserScriptInstall: async () => null,
+    cancelUserScriptInstall: async () => true,
 
     listRecentProblems: async (limit, platform, status) => filterProblems(limit, platform, status),
     getProblemDetail: async (problemId) => {

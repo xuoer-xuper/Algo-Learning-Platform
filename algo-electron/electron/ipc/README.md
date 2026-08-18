@@ -18,12 +18,12 @@
 - `registerSitesIpc.ts`：注册 `sites:*` 站点 CRUD、导入导出、冲突预览确认 handler。
 - `registerStatsIpc.ts`：注册 `stats:*` 统计查询和重算 handler。
 - `registerSubmissionsIpc.ts`：注册 `submissions:*` 手动同步 handler。
-- `registerBrowserShellIpc.ts`：注册 `browser:*`、`tab:*` 和 `window:*` 浏览器壳层 handler，包括受校验的 `tab:openInternal`、`tab:reorder`、`tab:reopenClosed`、按 tabId 的 `tab:reload` 与 `tab:dismissUnresponsive` 故障恢复入口。
+- `registerBrowserShellIpc.ts`：注册 `browser:*`、`tab:*` 和 `window:*` 浏览器壳层 handler，包括受校验的 `tab:openInternal`、`tab:reorder`、`tab:reopenClosed`、按 tabId 的 `tab:reload` 与 `tab:dismissUnresponsive` 故障恢复入口，以及 `browser:findInPage`、`browser:setZoom`、受控下载通知可见性和短时脚本安装请求读/取消。
 - `registerCoachIpc.ts`：注册 Coach 桌宠、比赛模式、会话、干预和指标相关 handler。
 - `registerCookieIpc.ts`：注册 `cookies:*` 安全摘要 handler，不向 renderer 暴露 Cookie value。
 - `registerMainIpc.ts`：组合注册入口，集中由 `main.ts` 调用各业务域注册函数。
 - `trustedSender.ts`：统一完整浏览器壳、Coach 壳与 OJ sender 的 main frame、origin、webContents 能力归属和 payload 边界；普通 handler 使用仅完整壳可调用的 guarded `ipcMain` facade，桌宠必需的最小 Coach handler 使用 `coachPetIpcMain`，提交 bridge 使用 `onFromOj()`。
-- `ui:command`：主进程向壳 renderer 发送的受限对象指令，目前包含聚焦地址栏和导航被安全策略阻止；renderer 只能通过 preload 的 `onUiCommand()` 订阅。
+- `ui:command`：主进程向壳 renderer 发送的受限对象指令，目前包含聚焦地址栏、聚焦查找条、导航被安全策略阻止和标签满额提示；查找结果、缩放状态和下载结果使用独立固定事件。
 
 其他 IPC 仍在 `electron/main.ts`，后续可按风险逐步迁移：
 

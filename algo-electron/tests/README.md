@@ -30,6 +30,8 @@
   - Markdown 相对链接、README 覆盖、README 内容质量、总索引覆盖和 `npm run` 脚本引用一致性检查。
 - `electron/`
   - Electron 应用启动 smoke test，以及 Vitest Electron test-double 的薄壳契约测试。
+- `downloads/`
+  - 受控下载路径、DownloadManager 结果状态和 `.user.js` 安装请求路由。
 - `diagnostics/`
   - 浏览器导航/标题提取/用户脚本注入的可注入诊断记录；只保存状态元数据，不保存页面内容、凭据或脚本源码。
 - `integration/`

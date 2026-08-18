@@ -1,9 +1,13 @@
-import { app, BrowserWindow, dialog, Menu, type Input, type WebContents } from 'electron'
+import { app, BrowserWindow, dialog, Menu, session, type Input, type WebContents } from 'electron'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import { TabManager } from './browser/TabManager'
 import { closeDb } from './db/connection'
-import { loadCoachConfig } from './app/config'
+import {
+  getZoomFactorForUrl,
+  loadCoachConfig,
+  saveZoomFactorForUrl,
+} from './app/config'
 import { configureChromiumCommandLine } from './app/chromiumFlags'
 import { MAIN_WINDOW_BOUNDS } from './app/windowBounds'
 import { preconnectRecentSiteOrigins } from './app/recentSitePreconnect'
@@ -32,6 +36,11 @@ import {
   type TabSessionLoadResult,
 } from './browser/tabSessionStore'
 import { installWindowSessionFlush } from './browser/tabSessionLifecycle'
+import {
+  DownloadManager,
+  PendingUserScriptInstallRegistry,
+  getManagedDownloadDirectory,
+} from './downloads'
 
 configureChromiumCommandLine()
 
@@ -46,6 +55,8 @@ let removeShellRendererRecovery: (() => void) | null = null
 let tabSessionStore: TabSessionStore | null = null
 let tabSessionPersistence: TabSessionPersistence | null = null
 let removeTabSessionChangeListener: (() => void) | null = null
+let downloadManager: DownloadManager | null = null
+let userScriptInstallRegistry: PendingUserScriptInstallRegistry | null = null
 let isQuitting = false
 let isQuitSessionFlushComplete = false
 let quitSessionFlushPromise: Promise<void> | null = null
@@ -146,7 +157,12 @@ async function createWindow() {
   })
 
   // 创建多标签页宿主
-  tabManager = new TabManager(win, { allowInsecureLocalhost })
+  tabManager = new TabManager(win, {
+    allowInsecureLocalhost,
+    getZoomFactorForUrl,
+    saveZoomFactorForUrl,
+    userScriptInstallRegistry: userScriptInstallRegistry ?? undefined,
+  })
   tabManager.setNavigationBlockedHandler(notifyNavigationBlocked)
   tabManager.setTabLimitReachedHandler((limit) => {
     win?.webContents.send('ui:command', { type: 'tab-limit-reached', limit })
@@ -162,9 +178,14 @@ async function createWindow() {
     previousTab: () => { tabManager?.switchRelative(-1) },
     switchTab: (index) => { tabManager?.switchTabByIndex(index) },
     focusAddressBar: () => { win?.webContents.send('ui:command', { type: 'focus-address-bar' }) },
+    findInPage: () => {
+      if (tabManager?.openFindInPage()) {
+        win?.webContents.send('ui:command', { type: 'focus-find-in-page' })
+      }
+    },
     reload: () => { tabManager?.reload() },
-    zoomIn: () => { tabManager?.adjustZoom(0.1) },
-    zoomOut: () => { tabManager?.adjustZoom(-0.1) },
+    zoomIn: () => { tabManager?.adjustZoom(1) },
+    zoomOut: () => { tabManager?.adjustZoom(-1) },
     resetZoom: () => { tabManager?.resetZoom() },
     back: () => { tabManager?.goBack() },
     forward: () => { tabManager?.goForward() },
@@ -190,6 +211,14 @@ async function createWindow() {
 
   tabManager.setUrlChangeCallback((url) => {
     win?.webContents.send('browser:urlChanged', url)
+  })
+
+  tabManager.setFindInPageStateChangedHandler((state) => {
+    win?.webContents.send('browser:findInPageResult', state)
+  })
+
+  tabManager.setZoomChangedHandler((state) => {
+    win?.webContents.send('browser:zoomChanged', state)
   })
 
   installProblemTitleTracking({
@@ -245,8 +274,11 @@ async function createWindow() {
   win.webContents.on('did-finish-load', () => {
     if (tabManager) {
       tabManager.setOmniboxOpen(false)
+      tabManager.setDownloadNoticeVisible(false)
       win?.webContents.send('browser:urlChanged', tabManager.getUrl())
       win?.webContents.send('tab:listChanged', tabManager.getTabList())
+      const zoomState = tabManager.getActiveZoomState()
+      if (zoomState) win?.webContents.send('browser:zoomChanged', zoomState)
     }
   })
 
@@ -316,6 +348,7 @@ registerMainIpc({
   getCoachPetWindow: () => coachPetWindow,
   getCoachOrchestrator: () => coachOrchestrator,
   getBrowserDiagnostics: () => services?.browserDiagnostics ?? null,
+  getUserScriptInstallRegistry: () => userScriptInstallRegistry,
   allowInsecureLocalhost: Boolean(VITE_DEV_SERVER_URL || STARTUP_SMOKE_MODE),
 })
 
@@ -350,6 +383,10 @@ app.on('before-quit', (event) => {
   } catch (error) {
     appLogger.warn('db.close-failed', error)
   }
+  downloadManager?.destroy()
+  downloadManager = null
+  userScriptInstallRegistry?.clear()
+  userScriptInstallRegistry = null
 })
 
 app.on('activate', () => {
@@ -365,6 +402,19 @@ void app.whenReady().then(async () => {
   if (!VITE_DEV_SERVER_URL) {
     registerShellProtocol(RENDERER_DIST)
   }
+  userScriptInstallRegistry = new PendingUserScriptInstallRegistry()
+  downloadManager = new DownloadManager({
+    downloadDirectory: getManagedDownloadDirectory(app.getPath('userData')),
+    interceptDownload: ({ sourceUrl }, source) => (
+      tabManager?.routeUserScriptDownload(sourceUrl, source as WebContents | null) ?? false
+    ),
+  })
+  downloadManager.attachSession(session.defaultSession)
+  downloadManager.attachSession(session.fromPartition('persist:oj-main'))
+  downloadManager.addResultListener((result) => {
+    tabManager?.setDownloadNoticeVisible(true)
+    win?.webContents.send('download:result', result)
+  })
   configureOjSession({ getSiteById })
 
   registerNoteAssetProtocol()

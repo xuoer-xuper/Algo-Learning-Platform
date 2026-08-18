@@ -73,6 +73,7 @@
 | browser | [electron/browser/README](../algo-electron/electron/browser/README.md) |
 | context menus | [electron/contextMenus/README](../algo-electron/electron/contextMenus/README.md) |
 | cookies | [electron/cookies/README](../algo-electron/electron/cookies/README.md) |
+| downloads | [electron/downloads/README](../algo-electron/electron/downloads/README.md) |
 | db | [electron/db/README](../algo-electron/electron/db/README.md) |
 | db migrations | [electron/db/migrations/README](../algo-electron/electron/db/migrations/README.md) |
 | db repositories | [electron/db/repositories/README](../algo-electron/electron/db/repositories/README.md) |
@@ -139,6 +140,7 @@
 | test docs | [tests/docs/README](../algo-electron/tests/docs/README.md) |
 | test electron | [tests/electron/README](../algo-electron/tests/electron/README.md) |
 | test diagnostics | [tests/diagnostics/README](../algo-electron/tests/diagnostics/README.md) |
+| test downloads | [tests/downloads/README](../algo-electron/tests/downloads/README.md) |
 | test integration | [tests/integration/README](../algo-electron/tests/integration/README.md) |
 | test ipc | [tests/ipc/README](../algo-electron/tests/ipc/README.md) |
 | test parsers | [tests/parsers/README](../algo-electron/tests/parsers/README.md) |

@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { ProblemSidebar } from './features/problems/ProblemSidebar'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { WindowControls } from './components/WindowControls'
@@ -15,11 +15,17 @@ import {
   type TabStripTabInfo,
 } from './components/tabApi'
 import { NoticeBar } from './components/ui'
+import { FindInPageBar } from './components/FindInPageBar'
 import { useBrowserNavigation } from './hooks/useBrowserNavigation'
+import {
+  setDownloadNoticeVisible,
+  subscribeDownloadResult,
+} from './hooks/browserShellApi'
 import './App.css'
 
 function App() {
   const [activeTab, setActiveTab] = useState<TabStripTabInfo | null>(null)
+  const [downloadResult, setDownloadResult] = useState<ManagedDownloadResult | null>(null)
   const {
     url,
     syncMsg,
@@ -57,6 +63,18 @@ function App() {
 
   const openInternal = useCallback((page: InternalPage) => {
     void openInternalBrowserTab(page)
+  }, [])
+
+  useEffect(() => subscribeDownloadResult((result) => {
+    setDownloadResult(result)
+    setDownloadNoticeVisible(true)
+  }), [])
+
+  useEffect(() => () => setDownloadNoticeVisible(false), [])
+
+  const dismissDownloadNotice = useCallback(() => {
+    setDownloadResult(null)
+    setDownloadNoticeVisible(false)
   }, [])
 
   const showUnresponsiveNotice = Boolean(
@@ -100,6 +118,23 @@ function App() {
           你可以继续等待，或重新加载这个标签。
         </NoticeBar>
       )}
+      {downloadResult && (
+        <NoticeBar
+          tone={downloadResult.state === 'completed' ? 'success' : downloadResult.state === 'cancelled' ? 'info' : 'danger'}
+          title={downloadResult.state === 'completed' ? '下载完成' : downloadResult.state === 'cancelled' ? '下载已取消' : '下载失败'}
+          dismissLabel="关闭下载通知"
+          onDismiss={dismissDownloadNotice}
+        >
+          {downloadResult.errorCode === 'path-setup-failed'
+            ? `无法在受控下载目录中保存 ${downloadResult.fileName}`
+            : downloadResult.errorCode === 'intercept-failed'
+              ? `无法安全处理 ${downloadResult.fileName}`
+              : downloadResult.fileName}
+        </NoticeBar>
+      )}
+      <FindInPageBar
+        activeTabId={omnibox.open || activeTab?.kind !== 'web' ? null : activeTab.id}
+      />
       {omnibox.open ? (
         <OmniboxSuggestionsPanel controller={omnibox} />
       ) : (

@@ -21,6 +21,7 @@ Renderer 不能直接访问本目录能力，只能通过 `preload.ts` 暴露的
 | `browser/` | `WebContentsView`、多标签、独立窗口、OJ session 和远程页面 preload bridge。 |
 | `ipc/` | 按业务域注册主进程 IPC handler，统一由 `registerMainIpc.ts` 组合。 |
 | `db/` | SQLite 连接、migration、repository 和数据库写入边界。 |
+| `downloads/` | 普通下载受控落盘、文件名/重名治理和 `.user.js` 安装请求登记。 |
 | `adapters/` | 站点 adapter 注册、题目身份解析、提交解析、实时 hook 和共享 helper。 |
 | `sites/` | 内置站点配置、用户站点配置类型和站点 registry。 |
 | `parsers/` | URL 识别、标题抓取脚本、标题校验和配置 pattern 兼容层。 |

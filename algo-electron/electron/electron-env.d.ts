@@ -68,6 +68,7 @@ interface BrowserLayoutConfig {
   toolbarHeight: number
   tabBarHeight: number
   noticeBarHeight: number
+  findBarHeight: number
   topOffset: number
 }
 
@@ -368,8 +369,50 @@ type TabInfo = WebTabInfo | InternalTabInfo
 
 type UiCommand =
   | { type: 'focus-address-bar' }
+  | { type: 'focus-find-in-page' }
   | { type: 'navigation-blocked'; reason: 'invalid-url' | 'insecure-http' | 'unsupported-protocol' }
   | { type: 'tab-limit-reached'; limit: number }
+
+type FindInPageCommand =
+  | { type: 'query'; query: string }
+  | { type: 'next' }
+  | { type: 'previous' }
+  | { type: 'close' }
+
+interface FindInPageViewState {
+  open: boolean
+  tabId: string | null
+  query: string
+  requestId: number | null
+  activeMatchOrdinal: number
+  matches: number
+  finalUpdate: boolean
+}
+
+type ZoomCommand = 'in' | 'out' | 'reset'
+
+interface ZoomState {
+  tabId: string
+  factor: number
+}
+
+interface ManagedDownloadResult {
+  downloadId: string
+  fileName: string
+  savePath: string | null
+  state: 'completed' | 'cancelled' | 'interrupted'
+  receivedBytes: number
+  totalBytes: number
+  finishedAt: string
+  errorCode?: 'path-setup-failed' | 'intercept-failed'
+}
+
+interface PendingUserScriptInstall {
+  installId: string
+  sourceUrl: string
+  sourceFileName: string
+  createdAt: string
+}
 
 type SearchEngineId = 'bing' | 'google' | 'baidu' | 'custom'
 
@@ -747,6 +790,14 @@ interface ElectronAPI {
   onWindowMaximized: (callback: (maximized: boolean) => void) => () => void
   onUrlChanged: (callback: (url: string) => void) => () => void
   onUiCommand: (callback: (command: UiCommand) => void) => () => void
+  findInPage: (tabId: string, command: FindInPageCommand) => Promise<FindInPageViewState | null>
+  onFindInPageResult: (callback: (state: FindInPageViewState) => void) => () => void
+  setZoom: (tabId: string, command: ZoomCommand) => Promise<ZoomState | null>
+  onZoomChanged: (callback: (state: ZoomState) => void) => () => void
+  setDownloadNoticeVisible: (visible: boolean) => void
+  onDownloadResult: (callback: (result: ManagedDownloadResult) => void) => () => void
+  getUserScriptInstall: (installId: string) => Promise<PendingUserScriptInstall | null>
+  cancelUserScriptInstall: (installId: string) => Promise<boolean>
   listRecentProblems: (limit?: number, platform?: string, status?: string) => Promise<ProblemRecord[]>
   getProblemDetail: (problemId: string) => Promise<ProblemDetailRecord | null>
   deleteProblem: (problemId: string) => Promise<boolean>

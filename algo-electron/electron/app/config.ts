@@ -6,6 +6,13 @@ import {
   normalizeSearchEngineConfig,
   type SearchEngineConfig,
 } from '../browser/omnibox'
+import {
+  getZoomFactorForUrl as resolveZoomFactorForUrl,
+  isStoredZoomByOrigin,
+  normalizeZoomByOrigin,
+  withZoomFactorForUrl,
+  type ZoomByOrigin,
+} from '../browser/zoomPreferences'
 
 /**
  * Coach 桌宠配置。
@@ -43,11 +50,13 @@ export interface AppConfig {
   homeShortcuts: string[]
   coach: CoachConfig
   search: SearchEngineConfig
+  zoomByOrigin: ZoomByOrigin
 }
 
-interface LegacyAppConfig extends Omit<Partial<AppConfig>, 'search'> {
+interface LegacyAppConfig extends Omit<Partial<AppConfig>, 'search' | 'zoomByOrigin'> {
   defaultHomeUrl?: unknown
   search?: unknown
+  zoomByOrigin?: unknown
 }
 
 const DEFAULT_COACH_CONFIG: CoachConfig = {
@@ -63,6 +72,7 @@ const DEFAULT_CONFIG: AppConfig = {
   homeShortcuts: [],
   coach: DEFAULT_COACH_CONFIG,
   search: { ...DEFAULT_SEARCH_ENGINE_CONFIG },
+  zoomByOrigin: {},
 }
 
 let config: AppConfig | null = null
@@ -96,11 +106,13 @@ export function loadConfig(): AppConfig {
       parsed.defaultHomeUrl,
     ])
     const search = normalizeSearchEngineConfig(parsed.search)
-    config = { homeShortcuts, coach, search }
+    const zoomByOrigin = normalizeZoomByOrigin(parsed.zoomByOrigin)
+    config = { homeShortcuts, coach, search, zoomByOrigin }
 
     if (
       Object.prototype.hasOwnProperty.call(parsed, 'defaultHomeUrl')
       || !isStoredSearchEngineConfig(parsed.search, search)
+      || !isStoredZoomByOrigin(parsed.zoomByOrigin, zoomByOrigin)
     ) {
       try {
         writeConfig(config)
@@ -122,6 +134,9 @@ export function saveConfig(partial: Partial<AppConfig>): void {
     search: Object.prototype.hasOwnProperty.call(partial, 'search')
       ? normalizeSearchEngineConfig(partial.search)
       : current.search,
+    zoomByOrigin: Object.prototype.hasOwnProperty.call(partial, 'zoomByOrigin')
+      ? normalizeZoomByOrigin(partial.zoomByOrigin)
+      : current.zoomByOrigin,
   }
   writeConfig(nextConfig)
   config = nextConfig
@@ -137,6 +152,22 @@ export function getSearchConfig(): SearchEngineConfig {
 
 export function saveSearchConfig(search: SearchEngineConfig): void {
   saveConfig({ search: normalizeSearchEngineConfig(search) })
+}
+
+export function getZoomPreferences(): ZoomByOrigin {
+  return { ...loadConfig().zoomByOrigin }
+}
+
+export function getZoomFactorForUrl(url: string): number {
+  return resolveZoomFactorForUrl(loadConfig().zoomByOrigin, url)
+}
+
+export function saveZoomFactorForUrl(url: string, factor: unknown): number | null {
+  const current = loadConfig()
+  const next = withZoomFactorForUrl(current.zoomByOrigin, url, factor)
+  if (!next) return null
+  saveConfig({ zoomByOrigin: next })
+  return resolveZoomFactorForUrl(next, url)
 }
 
 function isStoredSearchEngineConfig(value: unknown, normalized: SearchEngineConfig): boolean {
@@ -175,6 +206,7 @@ function createDefaultConfig(): AppConfig {
     homeShortcuts: [...DEFAULT_CONFIG.homeShortcuts],
     coach: { ...DEFAULT_CONFIG.coach },
     search: { ...DEFAULT_CONFIG.search },
+    zoomByOrigin: { ...DEFAULT_CONFIG.zoomByOrigin },
   }
 }
 

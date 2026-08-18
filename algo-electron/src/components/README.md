@@ -22,6 +22,11 @@
   - 地址栏 draft 与活动标签 URL 分离；普通 Enter 把原始输入交给主进程三分流，选择本地建议时导航其 URL。
   - 聚焦后通知主进程摘除活动 view，并由 App 用普通文档流建议面板替换整个内容区；blur、Escape 和卸载保证恢复 view。
   - 本地建议使用 140ms debounce 与请求序号隔离迟到响应，支持空查询、错误空列表降级、方向键/Enter/Escape、IME composing、Ctrl+L 与 combobox/listbox/option ARIA。
+- `FindInPageBar.tsx`
+  - 通过固定 preload 事件显示活动 web 标签的查找状态，query/next/previous/close 全部走主进程 requestId 状态机。
+  - 以普通文档流 38px 占位，不能改为 fixed/absolute，也不能遮挡 `WebContentsView`。
+- `NoticeBar`（`components/ui/NoticeBar.tsx`）
+  - 承载下载完成/取消/中断和无响应提示；主进程同步调整活动 view bounds，renderer 不绘制浮层。
 - `TabStrip.tsx` / `TabStrip.css`
   - Chrome 风格混合标签 UI，渲染 favicon、内部页领域图标、加载 spinner 和崩溃状态图标。
   - 支持 pointer capture 拖拽排序、中键关闭、关闭/新建动效、窄屏横向滚动和活动标签自动滚入可视区。

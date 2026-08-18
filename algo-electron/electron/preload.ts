@@ -36,6 +36,32 @@ contextBridge.exposeInMainWorld('electronAPI', {
       ipcRenderer.off('ui:command', handler)
     }
   },
+  findInPage: (tabId: string, command: FindInPageCommand) => ipcRenderer.invoke('browser:findInPage', tabId, command) as Promise<FindInPageViewState | null>,
+  onFindInPageResult: (callback: (state: FindInPageViewState) => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, state: FindInPageViewState) => callback(state)
+    ipcRenderer.on('browser:findInPageResult', handler)
+    return () => {
+      ipcRenderer.off('browser:findInPageResult', handler)
+    }
+  },
+  setZoom: (tabId: string, command: ZoomCommand) => ipcRenderer.invoke('browser:setZoom', tabId, command) as Promise<ZoomState | null>,
+  onZoomChanged: (callback: (state: ZoomState) => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, state: ZoomState) => callback(state)
+    ipcRenderer.on('browser:zoomChanged', handler)
+    return () => {
+      ipcRenderer.off('browser:zoomChanged', handler)
+    }
+  },
+  setDownloadNoticeVisible: (visible: boolean) => ipcRenderer.send('browser:setDownloadNoticeVisible', visible),
+  onDownloadResult: (callback: (result: ManagedDownloadResult) => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, result: ManagedDownloadResult) => callback(result)
+    ipcRenderer.on('download:result', handler)
+    return () => {
+      ipcRenderer.off('download:result', handler)
+    }
+  },
+  getUserScriptInstall: (installId: string) => ipcRenderer.invoke('browser:getUserScriptInstall', installId) as Promise<PendingUserScriptInstall | null>,
+  cancelUserScriptInstall: (installId: string) => ipcRenderer.invoke('browser:cancelUserScriptInstall', installId) as Promise<boolean>,
 
   // 题目
   listRecentProblems: (limit?: number, platform?: string, status?: string) =>

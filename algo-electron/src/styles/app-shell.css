@@ -122,6 +122,53 @@
   white-space: nowrap;
 }
 
+/* ── 页内查找（文档流让位，不覆盖 WebContentsView） ── */
+.find-in-page-bar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  height: var(--browser-find-bar-height, 38px);
+  padding: 5px 8px 5px 12px;
+  flex: 0 0 var(--browser-find-bar-height, 38px);
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border);
+}
+
+.find-in-page-input {
+  width: min(320px, 45vw);
+  min-width: 120px;
+  height: 28px;
+  padding: 0 9px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  outline: none;
+  background: var(--color-inset);
+  color: var(--text);
+  font-size: 12px;
+  transition: border-color var(--duration-fast) var(--ease-out), box-shadow var(--duration-fast) var(--ease-out);
+}
+
+.find-in-page-input:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px var(--color-accent-soft);
+}
+
+.find-in-page-count {
+  min-width: 52px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 11px;
+  text-align: right;
+}
+
+.find-in-page-bar .ui-icon-btn {
+  width: 26px;
+  height: 26px;
+  flex-shrink: 0;
+}
+
 .settings-btn {
   -webkit-app-region: no-drag;
   width: 32px;

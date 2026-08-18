@@ -6,6 +6,7 @@ import { Button, Icon } from './ui'
 const SettingsPage = lazy(() => import('../features/settings/SettingsPage').then((module) => ({ default: module.SettingsPage })))
 const Dashboard = lazy(() => import('../features/analytics/Dashboard').then((module) => ({ default: module.Dashboard })))
 const UserScriptManager = lazy(() => import('../features/scripts/UserScriptManager').then((module) => ({ default: module.UserScriptManager })))
+const UserScriptInstallPage = lazy(() => import('../features/scripts/UserScriptInstallPage').then((module) => ({ default: module.UserScriptInstallPage })))
 const CoachMetricsView = lazy(() => import('../features/coach/CoachMetricsView').then((module) => ({ default: module.CoachMetricsView })))
 const ProblemDetail = lazy(() => import('../features/problems/ProblemDetail').then((module) => ({ default: module.ProblemDetail })))
 const NotePanelModal = lazy(() => import('../features/problems/NotePanelModal').then((module) => ({ default: module.NotePanelModal })))
@@ -72,8 +73,10 @@ export function ShellRouter({
     case 'notes':
       page = <NotePanelModal problemId={activeTab.page.problemId} onClose={close} />
       break
-    case 'credentials':
     case 'script-install':
+      page = <UserScriptInstallPage installId={activeTab.page.installId} onClose={close} />
+      break
+    case 'credentials':
       page = <UnavailableInternalPage />
       break
   }

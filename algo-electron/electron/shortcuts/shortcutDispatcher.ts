@@ -16,6 +16,7 @@ export type ShortcutCommand =
   | { type: 'previous-tab' }
   | { type: 'switch-tab'; index: number }
   | { type: 'focus-address-bar' }
+  | { type: 'find-in-page' }
   | { type: 'reload' }
   | { type: 'zoom-in' }
   | { type: 'zoom-out' }
@@ -32,6 +33,7 @@ export interface ShortcutActions {
   previousTab: () => void
   switchTab: (index: number) => void
   focusAddressBar: () => void
+  findInPage?: () => void
   reload: () => void
   zoomIn: () => void
   zoomOut: () => void
@@ -75,6 +77,7 @@ export function resolveShortcut(input: ShortcutInput): ShortcutCommand | null {
     return input.shift ? { type: 'previous-tab' } : { type: 'next-tab' }
   }
   if (keyMatches(input, 'l', 'keyl')) return { type: 'focus-address-bar' }
+  if (keyMatches(input, 'f', 'keyf')) return { type: 'find-in-page' }
   if (keyMatches(input, 'r', 'keyr')) return { type: 'reload' }
   if (keyMatches(input, '0', 'digit0')) return { type: 'reset-zoom' }
   if (keyMatches(input, '+', '=', 'equal', 'numpadadd')) return { type: 'zoom-in' }
@@ -111,6 +114,9 @@ export function dispatchShortcut(command: ShortcutCommand, actions: ShortcutActi
       break
     case 'focus-address-bar':
       actions.focusAddressBar()
+      break
+    case 'find-in-page':
+      actions.findInPage?.()
       break
     case 'reload':
       actions.reload()

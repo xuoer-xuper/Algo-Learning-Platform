@@ -1,5 +1,6 @@
 import { Menu, type BrowserWindow, type MenuItemConstructorOptions } from 'electron'
 import type { InternalPage } from '../browser/tabManagerTypes'
+import type { ZoomCommand } from '../browser/zoomPreferences'
 
 export interface AppMenuAnchor {
   x: number
@@ -10,6 +11,10 @@ export interface PopupAppMenuOptions {
   window: BrowserWindow
   anchor: AppMenuAnchor
   openInternalPage: (page: InternalPage) => void
+  zoom?: {
+    factor: number
+    set: (command: ZoomCommand) => void
+  }
 }
 
 const MAX_ANCHOR_COORDINATE = 100_000
@@ -30,8 +35,17 @@ export function isAppMenuAnchor(value: unknown): value is AppMenuAnchor {
 
 export function createAppMenuTemplate(
   openInternalPage: (page: InternalPage) => void,
+  zoom?: PopupAppMenuOptions['zoom'],
 ): MenuItemConstructorOptions[] {
   return [
+    ...(zoom ? [{
+      label: `缩放 (${Math.round(zoom.factor * 100)}%)`,
+      submenu: [
+        { label: '放大', click: () => zoom.set('in') },
+        { label: '缩小', click: () => zoom.set('out') },
+        { label: '恢复 100%', click: () => zoom.set('reset') },
+      ],
+    }, { type: 'separator' as const }] : []),
     { label: '学习统计', click: () => openInternalPage({ type: 'dashboard' }) },
     { label: 'Coach 指标', click: () => openInternalPage({ type: 'coach-metrics' }) },
     { label: '脚本管理', click: () => openInternalPage({ type: 'scripts' }) },
@@ -41,7 +55,7 @@ export function createAppMenuTemplate(
 }
 
 export function popupAppMenu(options: PopupAppMenuOptions): void {
-  const menu = Menu.buildFromTemplate(createAppMenuTemplate(options.openInternalPage))
+  const menu = Menu.buildFromTemplate(createAppMenuTemplate(options.openInternalPage, options.zoom))
   menu.popup({
     window: options.window,
     x: options.anchor.x,

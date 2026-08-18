@@ -350,3 +350,78 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* ── .user.js 安装边界页（B2.7 仅拦截与来源确认） ── */
+.script-install-page {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  width: min(760px, 100%);
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.script-install-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.script-install-header h1 {
+  margin: 0 0 6px;
+  color: var(--text);
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.script-install-header p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.script-install-details {
+  margin: 0;
+  border-top: 1px solid var(--border-light);
+}
+
+.script-install-details > div {
+  display: grid;
+  grid-template-columns: 92px minmax(0, 1fr);
+  gap: 12px;
+  padding: 11px 0;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.script-install-details dt {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.script-install-details dd {
+  min-width: 0;
+  margin: 0;
+  color: var(--text);
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.script-install-url {
+  font-family: var(--font-mono);
+  font-size: 11px !important;
+}
+
+.script-install-boundary {
+  padding: 10px 12px;
+  border-left: 3px solid var(--primary);
+  background: var(--color-accent-soft);
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.script-install-actions {
+  display: flex;
+  justify-content: flex-end;
+}

@@ -22,6 +22,7 @@ const coreVitestFiles = [
   'tests/browser',
   'tests/coach',
   'tests/components',
+  'tests/downloads',
   'tests/integration',
   'tests/ipc',
   'tests/parsers',

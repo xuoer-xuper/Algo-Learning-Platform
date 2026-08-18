@@ -11,6 +11,9 @@ export class MockWebContents extends EventEmitter {
   private loading = false
   private devToolsOpen = false
   private zoomFactor = 1
+  private nextFindRequestId = 1
+  readonly findInPageCalls: Array<{ text: string; options?: Electron.FindInPageOptions }> = []
+  readonly stopFindInPageCalls: Array<'clearSelection' | 'keepSelection' | 'activateSelection'> = []
   private windowOpenHandler: ((details: any) => any) | null = null
   readonly navigationHistory = {
     canGoBack: () => false,
@@ -29,6 +32,17 @@ export class MockWebContents extends EventEmitter {
   closeDevTools(): void { this.devToolsOpen = false }
   getZoomFactor(): number { return this.zoomFactor }
   setZoomFactor(factor: number): void { this.zoomFactor = factor }
+  findInPage(text: string, options?: Electron.FindInPageOptions): number {
+    this.findInPageCalls.push({ text, options })
+    return this.nextFindRequestId++
+  }
+  stopFindInPage(action: 'clearSelection' | 'keepSelection' | 'activateSelection'): void {
+    this.stopFindInPageCalls.push(action)
+  }
+  simulateFoundInPage(result: Electron.FoundInPageResult): void { this.emit('found-in-page', {}, result) }
+  simulateZoomChange(direction: 'in' | 'out'): void {
+    this.emit('zoom-changed', { preventDefault: () => undefined }, direction)
+  }
   setTitle(title: string): void { this.title = title; this.emit('page-title-updated', {}, title) }
   setWindowOpenHandler(handler: (details: any) => any): void { this.windowOpenHandler = handler }
   simulateWindowOpen(details: any): { response: any; webContents?: MockWebContents } {

@@ -29,11 +29,35 @@ import { appLogger } from '../shared/logger'
 import { createTabSessionSnapshot, parseTabSessionSnapshot } from './tabSessionSnapshot'
 import { BROWSER_LAYOUT } from './browserLayout'
 import { getInternalPageTitle, getInternalPageUrl, sameInternalPage } from './internalPage'
+import {
+  INITIAL_FIND_IN_PAGE_STATE,
+  applyFindInPageResult,
+  parseFindInPageCommand,
+  reduceFindInPageCommand,
+  registerFindInPageRequest,
+  type FindInPageState,
+  type FindInPageViewState,
+} from './findInPage'
+import {
+  DEFAULT_ZOOM_FACTOR,
+  getAdjacentZoomFactor,
+  normalizeZoomFactor,
+  type ZoomCommand,
+  type ZoomState,
+} from './zoomPreferences'
+import {
+  resolveUserScriptNavigation,
+  type PendingUserScriptInstallRegistry,
+  type UserScriptInstallRoute,
+} from '../downloads/userScriptNavigation'
 
 export type { TabInfo } from './tabManagerTypes'
 
 export interface TabManagerOptions {
   allowInsecureLocalhost?: boolean
+  getZoomFactorForUrl?: (url: string) => number
+  saveZoomFactorForUrl?: (url: string, factor: number) => number | null
+  userScriptInstallRegistry?: PendingUserScriptInstallRegistry
 }
 
 export interface WebContentsUrlSnapshot {
@@ -99,17 +123,150 @@ export class TabManager {
   private shortcutHandler: ((event: Electron.Event, input: Input, source: WebContents) => void) | null = null
   private navigationBlockedHandler: ((reason: NavigationBlockReason) => void) | null = null
   private tabLimitReachedHandler: ((limit: number) => void) | null = null
+  private findInPageStateChangedHandler: ((state: FindInPageViewState) => void) | null = null
+  private zoomChangedHandler: ((state: ZoomState) => void) | null = null
   private readonly allowInsecureLocalhost: boolean
+  private readonly getZoomFactorForUrl: (url: string) => number
+  private readonly saveZoomFactorForUrl: (url: string, factor: number) => number | null
+  private readonly userScriptInstallRegistry: PendingUserScriptInstallRegistry | null
   private closedTabs: ClosedTabSnapshot[] = []
   private isDestroying = false
   private isRestoringSession = false
   private isOmniboxOpen = false
+  private isDownloadNoticeVisible = false
+  private findInPageTabId: string | null = null
+  private findInPageState: FindInPageState = { ...INITIAL_FIND_IN_PAGE_STATE }
   private recoveryPendingViews = new Set<WebContentsView>()
 
   constructor(window: BrowserWindow, options: TabManagerOptions = {}) {
     this.window = window
     this.allowInsecureLocalhost = options.allowInsecureLocalhost ?? false
+    this.getZoomFactorForUrl = options.getZoomFactorForUrl ?? (() => DEFAULT_ZOOM_FACTOR)
+    this.saveZoomFactorForUrl = options.saveZoomFactorForUrl ?? ((_url, factor) => factor)
+    this.userScriptInstallRegistry = options.userScriptInstallRegistry ?? null
     this.window.on('resize', () => this.updateBounds())
+  }
+
+  private getFindInPageViewState(): FindInPageViewState {
+    return {
+      open: this.findInPageTabId !== null,
+      tabId: this.findInPageTabId,
+      ...this.findInPageState,
+    }
+  }
+
+  private emitFindInPageState(): void {
+    this.findInPageStateChangedHandler?.(this.getFindInPageViewState())
+  }
+
+  private stopFindInPage(tab: ManagedWebTab | null, action: 'clearSelection' | 'keepSelection'): void {
+    if (!tab || tab.isCrashed) return
+    try {
+      tab.view.webContents.stopFindInPage(action)
+    } catch {
+      // Navigation, crashes, and tab teardown can invalidate webContents mid-command.
+    }
+  }
+
+  private clearFindInPage(
+    action: 'clearSelection' | 'keepSelection' = 'clearSelection',
+    notify = true,
+  ): void {
+    const tab = this.findInPageTabId ? this.findTab(this.findInPageTabId) : null
+    this.stopFindInPage(this.isWebTab(tab) ? tab : null, action)
+    this.findInPageTabId = null
+    this.findInPageState = { ...INITIAL_FIND_IN_PAGE_STATE }
+    this.updateBounds()
+    if (notify) this.emitFindInPageState()
+  }
+
+  openFindInPage(): boolean {
+    const tab = this.activeTabId ? this.findTab(this.activeTabId) : null
+    if (!this.isWebTab(tab) || tab.isCrashed) return false
+    if (this.findInPageTabId && this.findInPageTabId !== tab.id) this.clearFindInPage('clearSelection', false)
+    this.findInPageTabId = tab.id
+    this.updateBounds()
+    this.emitFindInPageState()
+    return true
+  }
+
+  findInPage(tabId: string, value: unknown): FindInPageViewState | null {
+    const command = parseFindInPageCommand(value)
+    const tab = this.findTab(tabId)
+    if (!command || !this.isWebTab(tab) || tab.isCrashed || tabId !== this.activeTabId) return null
+    if (this.findInPageTabId !== tabId) this.findInPageTabId = tabId
+
+    const transition = reduceFindInPageCommand(this.findInPageState, command)
+    this.findInPageState = transition.state
+    if (transition.effect.type === 'stop') {
+      this.stopFindInPage(tab, transition.effect.action)
+      if (command.type === 'close') {
+        this.findInPageTabId = null
+        this.updateBounds()
+      }
+      this.emitFindInPageState()
+      return this.getFindInPageViewState()
+    }
+    if (transition.effect.type === 'find') {
+      try {
+        const requestId = tab.view.webContents.findInPage(
+          transition.effect.query,
+          transition.effect.options,
+        )
+        this.findInPageState = registerFindInPageRequest(this.findInPageState, requestId)
+      } catch (error) {
+        appLogger.warn('browser.find-in-page-failed', { errorName: getErrorName(error) })
+      }
+    }
+    this.emitFindInPageState()
+    return this.getFindInPageViewState()
+  }
+
+  private applyZoomToView(view: WebContentsView, url: string): number {
+    let factor = DEFAULT_ZOOM_FACTOR
+    try {
+      factor = normalizeZoomFactor(this.getZoomFactorForUrl(url)) ?? DEFAULT_ZOOM_FACTOR
+    } catch (error) {
+      appLogger.warn('browser.zoom-read-failed', { errorName: getErrorName(error) })
+    }
+    try {
+      view.webContents.setZoomFactor(factor)
+    } catch (error) {
+      appLogger.warn('browser.zoom-apply-failed', { errorName: getErrorName(error) })
+    }
+    return factor
+  }
+
+  private emitZoomState(tab: ManagedWebTab, factor?: number): void {
+    if (tab.id !== this.activeTabId) return
+    let resolvedFactor = factor
+    if (resolvedFactor === undefined) {
+      try {
+        resolvedFactor = normalizeZoomFactor(tab.view.webContents.getZoomFactor())
+          ?? DEFAULT_ZOOM_FACTOR
+      } catch {
+        resolvedFactor = DEFAULT_ZOOM_FACTOR
+      }
+    }
+    this.zoomChangedHandler?.({ tabId: tab.id, factor: resolvedFactor })
+  }
+
+  private resolveUserScriptInstall(url: string): UserScriptInstallRoute | 'blocked' | null {
+    const navigation = resolveUserScriptNavigation(url, {
+      allowInsecureLocalhost: this.allowInsecureLocalhost,
+    })
+    if (!navigation) return null
+    if (!this.userScriptInstallRegistry) return 'blocked'
+    try {
+      return this.userScriptInstallRegistry.register(url, {
+        allowInsecureLocalhost: this.allowInsecureLocalhost,
+      }) ?? 'blocked'
+    } catch (error) {
+      appLogger.warn('browser.userscript-install-route-failed', {
+        errorName: getErrorName(error),
+      })
+      return 'blocked'
+    }
   }
 
   private findTab(tabId: string): ManagedTab | null {
@@ -175,6 +332,7 @@ export class TabManager {
     if (this.isDestroying) return
     const tab = this.findTabByView(view)
     if (!tab) return
+    if (tab.id === this.findInPageTabId) this.clearFindInPage()
     this.recoveryPendingViews.delete(view)
     tab.isCrashed = true
     tab.isLoading = false
@@ -239,12 +397,22 @@ export class TabManager {
     const contentsId = contents.id
     registerOjWebContents(contents)
     this.updateWebContentsUrl(contentsId, contents.getURL())
+    this.applyZoomToView(view, contents.getURL())
 
     contents.on('before-input-event', (event, input) => {
       this.shortcutHandler?.(event, input, contents)
     })
 
     const guardNavigation = (event: Electron.Event, url: string): void => {
+      const installRoute = this.resolveUserScriptInstall(url)
+      if (installRoute) {
+        event.preventDefault()
+        if (installRoute !== 'blocked') {
+          const tab = this.findTabByView(view)
+          if (tab) queueMicrotask(() => this.replaceWebTabWithInternal(tab, installRoute.page))
+        }
+        return
+      }
       const decision = this.evaluateNavigation(url, true)
       if (decision.allowed) return
       event.preventDefault()
@@ -255,13 +423,16 @@ export class TabManager {
 
     contents.on('did-navigate', (_event, url) => {
       this.updateWebContentsUrl(contentsId, url)
+      const zoomFactor = this.applyZoomToView(view, url)
       const tab = this.findTabByView(view)
       if (tab) {
         const urlChanged = tab.url !== url
+        if (urlChanged && tab.id === this.findInPageTabId) this.clearFindInPage()
         tab.url = url
         if (tab.id === this.activeTabId) {
           this.onUrlChange?.(url)
           this.emitNavigate(url)
+          this.emitZoomState(tab, zoomFactor)
         }
         if (urlChanged) this.emitSessionChange()
       }
@@ -269,13 +440,16 @@ export class TabManager {
 
     contents.on('did-navigate-in-page', (_event, url) => {
       this.updateWebContentsUrl(contentsId, url)
+      const zoomFactor = this.applyZoomToView(view, url)
       const tab = this.findTabByView(view)
       if (tab) {
         const urlChanged = tab.url !== url
+        if (urlChanged && tab.id === this.findInPageTabId) this.clearFindInPage()
         tab.url = url
         if (tab.id === this.activeTabId) {
           this.onUrlChange?.(url)
           this.emitNavigate(url)
+          this.emitZoomState(tab, zoomFactor)
         }
         if (urlChanged) this.emitSessionChange()
       }
@@ -307,7 +481,36 @@ export class TabManager {
       this.notifyTabListChanged()
     })
 
+    contents.on('found-in-page', (_event, result) => {
+      const tab = this.findTabByView(view)
+      if (!tab || tab.id !== this.findInPageTabId) return
+      const nextState = applyFindInPageResult(this.findInPageState, result)
+      if (!nextState) return
+      this.findInPageState = nextState
+      this.emitFindInPageState()
+    })
+
+    contents.on('zoom-changed', (event, direction) => {
+      const tab = this.findTabByView(view)
+      if (!tab) return
+      event.preventDefault()
+      this.setZoom(tab.id, direction)
+    })
+
     contents.setWindowOpenHandler((details) => {
+      const userScriptNavigation = resolveUserScriptNavigation(details.url, {
+        allowInsecureLocalhost: this.allowInsecureLocalhost,
+      })
+      if (userScriptNavigation) {
+        if (!this.canCreateTab()) return { action: 'deny' }
+        const installRoute = this.resolveUserScriptInstall(details.url)
+        if (installRoute && installRoute !== 'blocked') {
+          this.openInternalTab(installRoute.page, {
+            activate: details.disposition !== 'background-tab',
+          })
+        }
+        return { action: 'deny' }
+      }
       const decision = this.evaluateNavigation(details.url, true)
       if (!decision.allowed) {
         this.notifyNavigationBlocked(decision.reason!)
@@ -449,6 +652,7 @@ export class TabManager {
       isUnresponsive: false,
       isUnresponsiveNoticeDismissed: false,
     })
+    this.applyZoomToView(view, url)
 
     if (options.activate !== false || !this.activeTabId) {
       this.switchTab(id)
@@ -521,6 +725,7 @@ export class TabManager {
       if (!tab.url) return
       this.closedTabs.push({ kind: 'web', url: tab.url, title: tab.title })
     } else {
+      if (tab.page.type === 'script-install') return
       this.closedTabs.push({ kind: 'internal', page: tab.page, title: tab.title })
     }
     if (this.closedTabs.length > MAX_CLOSED_TABS) this.closedTabs.shift()
@@ -531,10 +736,12 @@ export class TabManager {
     this.recoveryPendingViews.delete(view)
     const tab = this.findTabByView(view)
     if (!tab) return
+    if (tab.id === this.findInPageTabId) this.clearFindInPage()
 
     if (!this.isDestroying && tab.isCrashed) {
       try {
         tab.view = this.createView()
+        this.applyZoomToView(tab.view, tab.url)
         tab.isLoading = false
         tab.isUnresponsive = false
         tab.isUnresponsiveNoticeDismissed = false
@@ -575,9 +782,28 @@ export class TabManager {
     return null
   }
 
+  routeUserScriptDownload(url: string, source: WebContents | null): boolean {
+    const installRoute = this.resolveUserScriptInstall(url)
+    if (!installRoute) return false
+    if (installRoute === 'blocked') return true
+    const sourceTab = source
+      ? this.tabs.find((tab): tab is ManagedWebTab => (
+          tab.kind === 'web' && tab.view.webContents === source
+        )) ?? null
+      : null
+    if (sourceTab) queueMicrotask(() => this.replaceWebTabWithInternal(sourceTab, installRoute.page))
+    else this.openInternalTab(installRoute.page)
+    return true
+  }
+
   createTab(url?: string): string {
     if (!url) return this.openInternalTab({ type: 'home' })
     if (!this.canCreateTab()) return ''
+
+    const installRoute = this.resolveUserScriptInstall(url)
+    if (installRoute) {
+      return installRoute === 'blocked' ? '' : this.openInternalTab(installRoute.page)
+    }
 
     const decision = this.evaluateNavigation(url, true)
     if (!decision.allowed) {
@@ -602,6 +828,11 @@ export class TabManager {
     const tabIndex = this.findTabIndex(tabId)
     const wasActive = tabId === this.activeTabId
     const nextTabId = wasActive ? this.getAdjacentTabId(tabIndex) : null
+
+    if (tabId === this.findInPageTabId) this.clearFindInPage()
+    if (tab.kind === 'internal' && tab.page.type === 'script-install') {
+      this.userScriptInstallRegistry?.consume(tab.page.installId)
+    }
 
     if (wasActive && tab.kind === 'web') this.detachTabView(tab)
 
@@ -659,13 +890,19 @@ export class TabManager {
     const newTab = this.findTab(tabId)
     if (!newTab) return
 
+    if (this.findInPageTabId && this.findInPageTabId !== tabId) this.clearFindInPage()
+
     if (this.activeTabId) {
       const currentTab = this.findTab(this.activeTabId)
       if (currentTab?.kind === 'web') this.detachTabView(currentTab)
     }
 
     this.activeTabId = tabId
-    if (newTab.kind === 'web') this.attachTabView(newTab)
+    if (newTab.kind === 'web') {
+      const zoomFactor = this.applyZoomToView(newTab.view, newTab.url)
+      this.attachTabView(newTab)
+      this.emitZoomState(newTab, zoomFactor)
+    }
 
     this.onUrlChange?.(newTab.url)
     this.emitActiveTabChange(newTab.url)
@@ -714,6 +951,7 @@ export class TabManager {
     const tabIndex = this.findTabIndex(tabId)
     const wasActive = tabId === this.activeTabId
     const nextTabId = wasActive ? this.getAdjacentTabId(tabIndex) : null
+    if (tabId === this.findInPageTabId) this.clearFindInPage()
     this.tabs.splice(tabIndex, 1)
 
     if (wasActive) {
@@ -728,6 +966,40 @@ export class TabManager {
       this.emitSessionChange()
     }
     return detached.getWindow()
+  }
+
+  private replaceWebTabWithInternal(tab: ManagedWebTab, page: InternalPage): void {
+    const tabIndex = this.findTabIndex(tab.id)
+    if (tabIndex < 0 || this.findTab(tab.id) !== tab) return
+    const wasActive = tab.id === this.activeTabId
+    if (tab.id === this.findInPageTabId) this.clearFindInPage()
+    if (wasActive) this.detachTabView(tab)
+    this.recoveryPendingViews.delete(tab.view)
+    try {
+      unregisterOjWebContents(tab.view.webContents)
+    } catch {
+      // A redirect can race with renderer teardown.
+    }
+    const internalTab: ManagedInternalTab = {
+      id: tab.id,
+      kind: 'internal',
+      page,
+      url: getInternalPageUrl(page),
+      title: getInternalPageTitle(page),
+      favicon: null,
+      isLoading: false,
+      isCrashed: false,
+      isUnresponsive: false,
+      isUnresponsiveNoticeDismissed: false,
+    }
+    this.tabs[tabIndex] = internalTab
+    safeCloseWebContents(tab.view)
+    if (wasActive) {
+      this.onUrlChange?.(internalTab.url)
+      this.emitActiveTabChange(internalTab.url)
+    }
+    this.notifyTabListChanged()
+    this.emitSessionChange()
   }
 
   private replaceInternalTabWithWeb(tab: ManagedInternalTab, url: string): void {
@@ -757,7 +1029,11 @@ export class TabManager {
       isUnresponsive: false,
       isUnresponsiveNoticeDismissed: false,
     }
+    if (tab.page.type === 'script-install') {
+      this.userScriptInstallRegistry?.consume(tab.page.installId)
+    }
     this.tabs[tabIndex] = webTab
+    this.applyZoomToView(view, url)
     this.attachTabView(webTab)
     this.onUrlChange?.(url)
     this.emitActiveTabChange(url)
@@ -796,6 +1072,7 @@ export class TabManager {
     }
 
     if (currentTab.kind === 'web') {
+      if (currentTab.id === this.findInPageTabId) this.clearFindInPage()
       this.detachTabView(currentTab)
       this.recoveryPendingViews.delete(currentTab.view)
       try {
@@ -806,6 +1083,9 @@ export class TabManager {
       this.tabs[tabIndex] = internalTab
       safeCloseWebContents(currentTab.view)
     } else {
+      if (currentTab.page.type === 'script-install') {
+        this.userScriptInstallRegistry?.consume(currentTab.page.installId)
+      }
       this.tabs[tabIndex] = internalTab
     }
 
@@ -816,6 +1096,11 @@ export class TabManager {
   }
 
   navigate(url: string) {
+    const installRoute = this.resolveUserScriptInstall(url)
+    if (installRoute) {
+      if (installRoute !== 'blocked') this.navigateInternal(installRoute.page)
+      return
+    }
     const decision = this.evaluateNavigation(url, true)
     if (!decision.allowed) {
       this.notifyNavigationBlocked(decision.reason!)
@@ -834,6 +1119,7 @@ export class TabManager {
       this.recoverCrashedTab(tab, url)
       return
     }
+    if (tab.id === this.findInPageTabId) this.clearFindInPage()
     void tab.view.webContents.loadURL(url).catch((error) => {
       appLogger.error('browser.navigate-failed', { url, error })
     })
@@ -864,6 +1150,7 @@ export class TabManager {
       this.recoverCrashedTab(tab)
       return
     }
+    if (tab.id === this.findInPageTabId) this.clearFindInPage()
     const healthChanged = tab.isUnresponsive || tab.isUnresponsiveNoticeDismissed
     tab.isUnresponsive = false
     tab.isUnresponsiveNoticeDismissed = false
@@ -889,6 +1176,7 @@ export class TabManager {
     if (needsReplacement) {
       try {
         tab.view = this.createView()
+        this.applyZoomToView(tab.view, nextUrl ?? tab.url)
       } catch (error) {
         appLogger.warn('browser.crashed-tab-recovery-failed', {
           tabId: tab.id,
@@ -928,18 +1216,61 @@ export class TabManager {
     }
   }
 
+  setZoom(tabId: string, command: ZoomCommand): ZoomState | null {
+    const tab = this.findTab(tabId)
+    if (!this.isWebTab(tab) || tab.isCrashed) return null
+    let current = DEFAULT_ZOOM_FACTOR
+    let url = ''
+    try {
+      current = normalizeZoomFactor(tab.view.webContents.getZoomFactor()) ?? DEFAULT_ZOOM_FACTOR
+      url = tab.view.webContents.getURL()
+    } catch {
+      return null
+    }
+    const next = command === 'reset'
+      ? DEFAULT_ZOOM_FACTOR
+      : getAdjacentZoomFactor(current, command)
+    let persisted: number | null
+    try {
+      persisted = this.saveZoomFactorForUrl(url, next)
+    } catch (error) {
+      appLogger.warn('browser.zoom-save-failed', { errorName: getErrorName(error) })
+      return null
+    }
+    if (persisted === null) return null
+    const factor = normalizeZoomFactor(persisted)
+    if (factor === null) return null
+    try {
+      tab.view.webContents.setZoomFactor(factor)
+    } catch (error) {
+      appLogger.warn('browser.zoom-apply-failed', { errorName: getErrorName(error) })
+      return null
+    }
+    const state = { tabId, factor }
+    if (tabId === this.activeTabId) this.zoomChangedHandler?.(state)
+    return state
+  }
+
   adjustZoom(delta: number): void {
-    const tab = this.activeTabId ? this.findTab(this.activeTabId) : null
-    if (!this.isWebTab(tab) || tab.isCrashed) return
-    const current = tab.view.webContents.getZoomFactor()
-    const next = Math.min(5, Math.max(0.25, Math.round((current + delta) * 100) / 100))
-    tab.view.webContents.setZoomFactor(next)
+    if (!this.activeTabId || delta === 0) return
+    this.setZoom(this.activeTabId, delta > 0 ? 'in' : 'out')
   }
 
   resetZoom(): void {
+    if (this.activeTabId) this.setZoom(this.activeTabId, 'reset')
+  }
+
+  getActiveZoomState(): ZoomState | null {
     const tab = this.activeTabId ? this.findTab(this.activeTabId) : null
-    if (!this.isWebTab(tab) || tab.isCrashed) return
-    tab.view.webContents.setZoomFactor(1)
+    if (!this.isWebTab(tab) || tab.isCrashed) return null
+    try {
+      return {
+        tabId: tab.id,
+        factor: normalizeZoomFactor(tab.view.webContents.getZoomFactor()) ?? DEFAULT_ZOOM_FACTOR,
+      }
+    } catch {
+      return null
+    }
   }
 
   getUrl(): string {
@@ -1007,10 +1338,18 @@ export class TabManager {
   }
 
   getSessionSnapshot(): TabSessionSnapshot {
-    const tabs: TabSnapshot[] = this.tabs.map((tab) => tab.kind === 'web'
-      ? { id: tab.id, kind: 'web', url: tab.url, title: tab.title }
-      : { id: tab.id, kind: 'internal', page: tab.page, title: tab.title })
-    return createTabSessionSnapshot(tabs, this.activeTabId, {
+    const tabs: TabSnapshot[] = []
+    for (const tab of this.tabs) {
+      if (tab.kind === 'web') {
+        tabs.push({ id: tab.id, kind: 'web', url: tab.url, title: tab.title })
+      } else if (tab.page.type !== 'script-install') {
+        tabs.push({ id: tab.id, kind: 'internal', page: tab.page, title: tab.title })
+      }
+    }
+    const activeTabId = tabs.some((tab) => tab.id === this.activeTabId)
+      ? this.activeTabId
+      : tabs[0]?.id ?? null
+    return createTabSessionSnapshot(tabs, activeTabId, {
       allowInsecureLocalhost: this.allowInsecureLocalhost,
     })
   }
@@ -1041,6 +1380,7 @@ export class TabManager {
             isUnresponsiveNoticeDismissed: false,
           })
         } else {
+          if (tab.page.type === 'script-install') continue
           restoredTabs.push({
             id: tab.id,
             kind: 'internal',
@@ -1056,10 +1396,13 @@ export class TabManager {
         }
       }
 
+      if (restoredTabs.length === 0) return false
+
       this.tabs = restoredTabs
       this.activeTabId = null
       for (const tab of restoredTabs) {
         if (tab.kind !== 'web') continue
+        this.applyZoomToView(tab.view, tab.url)
         void tab.view.webContents.loadURL(tab.url).catch((error) => {
           appLogger.warn('browser.session-tab-load-failed', {
             tabId: tab.id,
@@ -1067,7 +1410,10 @@ export class TabManager {
           })
         })
       }
-      this.switchTab(parsed.snapshot.activeTabId!)
+      const activeTabId = restoredTabs.some((tab) => tab.id === parsed.snapshot.activeTabId)
+        ? parsed.snapshot.activeTabId!
+        : restoredTabs[0].id
+      this.switchTab(activeTabId)
       return true
     } catch (error) {
       this.tabs = []
@@ -1100,10 +1446,19 @@ export class TabManager {
     const tab = this.findTab(this.activeTabId)
     if (!this.isWebTab(tab)) return
     const [width, height] = this.window.getContentSize()
-    const topInset = tab.isUnresponsive && !tab.isUnresponsiveNoticeDismissed
-      ? BROWSER_LAYOUT.noticeBarHeight
-      : 0
+    let topInset = 0
+    if (tab.isUnresponsive && !tab.isUnresponsiveNoticeDismissed) {
+      topInset += BROWSER_LAYOUT.noticeBarHeight
+    }
+    if (this.isDownloadNoticeVisible) topInset += BROWSER_LAYOUT.noticeBarHeight
+    if (tab.id === this.findInPageTabId) topInset += BROWSER_LAYOUT.findBarHeight
     setTabViewBounds(tab.view, { width, height }, this.leftOffset, topInset)
+  }
+
+  setDownloadNoticeVisible(visible: boolean): void {
+    if (this.isDownloadNoticeVisible === visible) return
+    this.isDownloadNoticeVisible = visible
+    this.updateBounds()
   }
 
   async executeScript(code: string, userGesture = false): Promise<any> {
@@ -1144,6 +1499,14 @@ export class TabManager {
 
   setTabLimitReachedHandler(handler: (limit: number) => void): void {
     this.tabLimitReachedHandler = handler
+  }
+
+  setFindInPageStateChangedHandler(handler: (state: FindInPageViewState) => void): void {
+    this.findInPageStateChangedHandler = handler
+  }
+
+  setZoomChangedHandler(handler: (state: ZoomState) => void): void {
+    this.zoomChangedHandler = handler
   }
 
   setNavigateCallback(callback: (url: string) => void) {
@@ -1243,6 +1606,11 @@ export class TabManager {
   destroy() {
     this.isDestroying = true
     this.isOmniboxOpen = false
+    this.isDownloadNoticeVisible = false
+    this.findInPageTabId = null
+    this.findInPageState = { ...INITIAL_FIND_IN_PAGE_STATE }
+    this.findInPageStateChangedHandler = null
+    this.zoomChangedHandler = null
     this.recoveryPendingViews.clear()
     this.sessionChangeListeners.clear()
     const tabs = [...this.tabs]

@@ -6,6 +6,47 @@ export function subscribeUiCommand(callback: (command: UiCommand) => void): () =
   return window.electronAPI.onUiCommand(callback)
 }
 
+export function findBrowserInPage(
+  tabId: string,
+  command: FindInPageCommand,
+): Promise<FindInPageViewState | null> {
+  return window.electronAPI.findInPage(tabId, command)
+}
+
+export function subscribeFindInPageResult(
+  callback: (state: FindInPageViewState) => void,
+): () => void {
+  return window.electronAPI.onFindInPageResult(callback)
+}
+
+export function setBrowserZoom(tabId: string, command: ZoomCommand): Promise<ZoomState | null> {
+  return window.electronAPI.setZoom(tabId, command)
+}
+
+export function subscribeBrowserZoomChanged(callback: (state: ZoomState) => void): () => void {
+  return window.electronAPI.onZoomChanged(callback)
+}
+
+export function setDownloadNoticeVisible(visible: boolean): void {
+  window.electronAPI.setDownloadNoticeVisible(visible)
+}
+
+export function subscribeDownloadResult(
+  callback: (result: ManagedDownloadResult) => void,
+): () => void {
+  return window.electronAPI.onDownloadResult(callback)
+}
+
+export function getPendingUserScriptInstall(
+  installId: string,
+): Promise<PendingUserScriptInstall | null> {
+  return window.electronAPI.getUserScriptInstall(installId)
+}
+
+export function cancelPendingUserScriptInstall(installId: string): Promise<boolean> {
+  return window.electronAPI.cancelUserScriptInstall(installId)
+}
+
 export function setBrowserSidebarWidth(width: number): void {
   window.electronAPI.setSidebarWidth(width)
 }

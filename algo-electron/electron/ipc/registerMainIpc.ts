@@ -17,6 +17,7 @@ import { registerScriptsIpc } from './registerScriptsIpc'
 import { registerSitesIpc } from './registerSitesIpc'
 import { registerStatsIpc } from './registerStatsIpc'
 import { registerSubmissionsIpc } from './registerSubmissionsIpc'
+import type { PendingUserScriptInstallRegistry } from '../downloads/userScriptNavigation'
 
 interface RegisterMainIpcOptions {
   getWindow: () => BrowserWindow | null
@@ -26,6 +27,7 @@ interface RegisterMainIpcOptions {
   /** 阶段 2 注入：CoachOrchestrator */
   getCoachOrchestrator?: () => CoachOrchestrator | null
   getBrowserDiagnostics?: () => BrowserDiagnostics | null
+  getUserScriptInstallRegistry?: () => PendingUserScriptInstallRegistry | null
   allowInsecureLocalhost?: boolean
 }
 
@@ -38,6 +40,7 @@ export function registerMainIpc(options: RegisterMainIpcOptions): void {
     getWindow: options.getWindow,
     getTabManager: options.getTabManager,
     getBrowserDiagnostics: options.getBrowserDiagnostics,
+    getUserScriptInstallRegistry: options.getUserScriptInstallRegistry,
     allowInsecureLocalhost: options.allowInsecureLocalhost,
   })
   registerConfigIpc()

@@ -9,6 +9,7 @@
 ## 2. 当前实现程度
 
 - `UserScriptManager.tsx`：用户脚本管理弹层入口，负责加载脚本和站点数据；删除确认走 `ConfirmDialog`。
+- `UserScriptInstallPage.tsx`：`.user.js` 短时安装确认页，只展示净化后的来源元数据和取消/关闭；B6 前不下载、解析、执行或报告安装成功。
 - `UserScriptList.tsx`：脚本列表、启停、选择和删除。
 - `UserScriptEditor.tsx`：脚本名称和站点绑定编辑。
 - `scriptsApi.ts` 集中封装脚本相关 preload 调用。
