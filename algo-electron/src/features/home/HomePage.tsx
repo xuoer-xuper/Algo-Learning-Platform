@@ -14,6 +14,7 @@ import {
   subscribeHomeProblemsUpdated,
 } from './homeApi'
 import type { HomeOverviewStats, HomeProblemRecord, HomeRecommendation } from './homeTypes'
+import { Card } from '../../components/ui'
 
 interface Props {
   onNavigate: (url: string) => void
@@ -78,22 +79,22 @@ export function HomePage({ onNavigate }: Props) {
         <div className="home-section">
           <h2 className="home-section-title">学习概览</h2>
           <div className="home-stats">
-            <div className="home-stat-card">
+            <Card padded={false} className="home-stat-card">
               <div className="home-stat-value num">{stats.totalProblems}</div>
               <div className="home-stat-label">总题数</div>
-            </div>
-            <div className="home-stat-card">
+            </Card>
+            <Card padded={false} className="home-stat-card">
               <div className="home-stat-value num">{stats.todayVisited}</div>
               <div className="home-stat-label">今日访问</div>
-            </div>
+            </Card>
             {stats.platformDistribution.map(p => (
-              <div key={p.platform} className="home-stat-card">
+              <Card key={p.platform} padded={false} className="home-stat-card">
                 <div className="home-stat-value num">{p.count}</div>
                 <div className="home-stat-label">
                   <span className="home-stat-dot" style={{ backgroundColor: PLATFORM_COLORS[p.platform] }} />
                   <span className="num">{PLATFORM_LABELS[p.platform] || p.platform}</span>
                 </div>
-              </div>
+              </Card>
             ))}
           </div>
         </div>

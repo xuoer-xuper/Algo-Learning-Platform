@@ -7,9 +7,9 @@
 ## 当前实现
 
 - `icons.tsx`：`Icon` 组件 + `IconName` 联合类型，24 viewBox / 1.8 描边 / currentColor，`data-icon` 便于测试定位。
-- `Button.tsx`：`Button`（primary/secondary/ghost/danger × md/sm，可带图标）、`IconButton`（纯图标，title 必填并同步 aria-label）。
-- `fields.tsx`：`Input`/`Select`/`Textarea`/`Card` 样式化原生控件。
-- `ConfirmDialog.tsx`：统一确认对话框（portal 到 body、z-index 200、Esc/遮罩取消、danger 变体、附加内容插槽），替代原生 `window.confirm`。
+- `Button.tsx`：`Button`（primary/secondary/ghost/danger × md/sm，可带图标）、`IconButton`（纯图标，title 必填并同步 aria-label）；组件默认输出稳定 `data-testid`，调用方可覆盖。
+- `fields.tsx`：`Input`/`Select`/`Textarea`/`Card` 样式化原生控件，默认输出稳定 `data-testid`。
+- `ConfirmDialog.tsx`：统一确认对话框（portal 到 body、z-index 200、焦点陷阱与恢复、Esc/遮罩取消、danger 变体、附加内容插槽），替代原生 `window.confirm`。
 - `Dialog.tsx`：内部页通用对话框，带标题/描述、焦点陷阱、Esc/遮罩关闭和关闭后焦点恢复。
 - `DropdownMenu.tsx`：内部页命令菜单，支持方向键、Home/End、禁用项、外部点击和 Portal 定位。
 - `Toast.tsx`：短时状态反馈，带 live region、自动消退、操作和关闭按钮。

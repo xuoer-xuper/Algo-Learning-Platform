@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from 'react'
-import { Button, IconButton } from '../../components/ui'
+import { Button, Card, IconButton } from '../../components/ui'
 import { AiSuggestionsPanel } from './AiSuggestionsPanel'
 import {
   loadDashboardAiSuggestions,
@@ -95,22 +95,22 @@ export function Dashboard({ onClose, onNavigate }: { onClose: () => void; onNavi
 
       {/* 概览卡片（数据声线：大数字等宽 + 表格数字） */}
       <div className="dashboard-cards">
-        <div className="dashboard-card">
+        <Card padded={false} className="dashboard-card">
           <div className="dashboard-card-value num">{stats?.totalProblems ?? 0}</div>
           <div className="dashboard-card-label">总题数</div>
-        </div>
-        <div className="dashboard-card">
+        </Card>
+        <Card padded={false} className="dashboard-card">
           <div className="dashboard-card-value num">{stats?.todayVisited ?? 0}</div>
           <div className="dashboard-card-label">今日访问</div>
-        </div>
-        <div className="dashboard-card">
+        </Card>
+        <Card padded={false} className="dashboard-card">
           <div className="dashboard-card-value num">{streak.current}<span className="dashboard-card-unit">天</span></div>
           <div className="dashboard-card-label">连续活跃</div>
-        </div>
-        <div className="dashboard-card">
+        </Card>
+        <Card padded={false} className="dashboard-card">
           <div className="dashboard-card-value num">{streak.longest}<span className="dashboard-card-unit">天</span></div>
           <div className="dashboard-card-label">最长连续</div>
-        </div>
+        </Card>
       </div>
 
       <AiSuggestionsPanel

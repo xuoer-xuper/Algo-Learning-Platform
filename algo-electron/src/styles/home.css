@@ -150,7 +150,9 @@
 
 .home-stat-card {
   background-color: var(--color-inset);
+  border: none;
   border-radius: var(--radius-md);
+  box-shadow: none;
   padding: 12px 14px;
 }
 

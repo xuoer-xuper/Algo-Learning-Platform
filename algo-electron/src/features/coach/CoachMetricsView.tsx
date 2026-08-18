@@ -14,7 +14,7 @@ import {
 import { loadMetricsBundle } from './coachDataApi'
 import { computeCoachMetrics, formatPercent, type CoachMetricsComputed } from './computeMetrics'
 import { MOCK_METRICS_BUNDLE, MOCK_EXPECTED } from './mockMetricsBundle'
-import { Button, IconButton } from '../../components/ui'
+import { Button, Card, IconButton } from '../../components/ui'
 import { CHART_COLORS } from '../../shared/display'
 
 /**
@@ -176,34 +176,34 @@ export function CoachMetricsView({ onClose }: Props) {
       {/* 5 项指标卡片（数据声线：大数字与分子分母等宽 + 表格数字） */}
       {metrics && (
         <div className="dashboard-cards coach-metrics-cards">
-          <div className="dashboard-card">
+          <Card padded={false} className="dashboard-card">
             <div className="dashboard-card-value num">{metrics.total_shown}</div>
             <div className="dashboard-card-label">提示展示数</div>
             <div className="dashboard-card-sub">（不含比赛审计）</div>
-          </div>
-          <div className="dashboard-card">
+          </Card>
+          <Card padded={false} className="dashboard-card">
             <div className="dashboard-card-value num">{formatPercent(metrics.hint_click_rate)}</div>
             <div className="dashboard-card-label">"再给一点"点击率</div>
             <div className="dashboard-card-sub num">{metrics.hint_requested_count} / {metrics.total_shown}</div>
-          </div>
-          <div className="dashboard-card">
+          </Card>
+          <Card padded={false} className="dashboard-card">
             <div className="dashboard-card-value num">{formatPercent(metrics.helpful_rate)}</div>
             <div className="dashboard-card-label">"有帮助"反馈率</div>
             <div className="dashboard-card-sub num">{metrics.helpful_count} / {metrics.total_feedback}</div>
-          </div>
-          <div className="dashboard-card">
+          </Card>
+          <Card padded={false} className="dashboard-card">
             <div className="dashboard-card-value num">{formatPercent(metrics.post_intervention_ac_rate)}</div>
             <div className="dashboard-card-label">干预后同题 AC 转化率</div>
             <div className="dashboard-card-sub num">{metrics.post_intervention_ac_count} / {metrics.intervention_problem_count}</div>
-          </div>
-          <div className="dashboard-card">
+          </Card>
+          <Card padded={false} className="dashboard-card">
             <div className="dashboard-card-value num">{formatPercent(metrics.dismiss_rate)}</div>
             <div className="dashboard-card-label">桌宠关闭率</div>
             <div className="dashboard-card-sub num">
               {metrics.dismissed_count + metrics.never_today_count} / {metrics.total_shown}
               <span className="coach-card-sub-hint">（dismiss {metrics.dismissed_count} + never_today {metrics.never_today_count}）</span>
             </div>
-          </div>
+          </Card>
         </div>
       )}
 
