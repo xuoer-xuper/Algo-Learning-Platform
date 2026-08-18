@@ -1,9 +1,4 @@
-export interface TabBarTabInfo {
-  id: string
-  url: string
-  title: string
-  isActive: boolean
-}
+export type TabBarTabInfo = TabInfo
 
 export function subscribeTabListChanged(callback: (tabs: TabBarTabInfo[]) => void): () => void {
   return window.electronAPI.onTabListChanged(callback)

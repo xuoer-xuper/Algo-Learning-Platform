@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import type { TabBarTabInfo } from '../../src/components/tabApi'
 
 const tabApi = vi.hoisted(() => ({
   closeBrowserTab: vi.fn(),
@@ -11,8 +12,17 @@ const tabApi = vi.hoisted(() => ({
 
 vi.mock('../../src/components/tabApi', () => ({
   ...tabApi,
-  subscribeTabListChanged: (callback: (tabs: unknown[]) => void) => {
-    callback([{ id: 'tab-1', url: 'https://example.com', title: 'Example', isActive: true }])
+  subscribeTabListChanged: (callback: (tabs: TabBarTabInfo[]) => void) => {
+    callback([{
+      id: 'tab-1',
+      kind: 'web',
+      url: 'https://example.com',
+      title: 'Example',
+      favicon: null,
+      isLoading: false,
+      isCrashed: false,
+      isActive: true,
+    }])
     return () => {}
   },
 }))

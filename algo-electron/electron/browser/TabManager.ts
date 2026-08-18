@@ -10,7 +10,7 @@ import { randomUUID } from 'node:crypto'
 import { DetachedWindow } from './DetachedWindow'
 import { STEALTH_SCRIPT } from './stealthScript'
 import { MAX_CLOSED_TABS, MAX_TABS, OJ_PRELOAD_PATH } from './tabManagerConfig'
-import type { ClosedTabSnapshot, ManagedTab, TabInfo } from './tabManagerTypes'
+import type { ClosedTabSnapshot, ManagedWebTab, TabInfo } from './tabManagerTypes'
 import { executeScriptAcrossFrames } from './tabScriptExecution'
 import { safeCloseWebContents, safeRemoveChildView, setTabViewBounds } from './tabViewLayout'
 import { samePageUrl } from './urlMatching'
@@ -34,8 +34,24 @@ type PopupWindowOptions = BrowserWindowConstructorOptions & {
   webContents?: WebContents
 }
 
+const MAX_REMOTE_FAVICON_URL_LENGTH = 4_096
+const MAX_DATA_FAVICON_URL_LENGTH = 64 * 1_024
+const SAFE_DATA_FAVICON_PATTERN = /^data:image\/(?:png|jpeg|gif|webp|x-icon|vnd\.microsoft\.icon);base64,/i
+
+function isAllowedFaviconUrl(value: string): boolean {
+  if (value.length > MAX_DATA_FAVICON_URL_LENGTH) return false
+  if (SAFE_DATA_FAVICON_PATTERN.test(value)) return true
+  if (value.length > MAX_REMOTE_FAVICON_URL_LENGTH) return false
+  try {
+    const parsed = new URL(value)
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:'
+  } catch {
+    return false
+  }
+}
+
 export class TabManager {
-  private tabs = new Map<string, ManagedTab>()
+  private tabs: ManagedWebTab[] = []
   private activeTabId: string | null = null
   private window: BrowserWindow
   private leftOffset = 0
@@ -62,6 +78,22 @@ export class TabManager {
     this.window = window
     this.allowInsecureLocalhost = options.allowInsecureLocalhost ?? false
     this.window.on('resize', () => this.updateBounds())
+  }
+
+  private findTab(tabId: string): ManagedWebTab | null {
+    return this.tabs.find((tab) => tab.id === tabId) ?? null
+  }
+
+  private findTabIndex(tabId: string): number {
+    return this.tabs.findIndex((tab) => tab.id === tabId)
+  }
+
+  private getTabIds(): string[] {
+    return this.tabs.map((tab) => tab.id)
+  }
+
+  private getAdjacentTabId(tabIndex: number): string | null {
+    return this.tabs[tabIndex + 1]?.id ?? this.tabs[tabIndex - 1]?.id ?? null
   }
 
   private createView(
@@ -120,6 +152,32 @@ export class TabManager {
           this.emitNavigate(url)
         }
       }
+    })
+
+    contents.on('did-start-loading', () => {
+      const tab = this.findTabByView(view)
+      if (!tab) return
+      if (tab.isLoading && !tab.isCrashed) return
+      tab.isLoading = true
+      tab.isCrashed = false
+      this.onTabListChanged?.(this.getTabList())
+    })
+
+    contents.on('did-stop-loading', () => {
+      const tab = this.findTabByView(view)
+      if (!tab) return
+      if (!tab.isLoading) return
+      tab.isLoading = false
+      this.onTabListChanged?.(this.getTabList())
+    })
+
+    contents.on('page-favicon-updated', (_event, favicons: string[]) => {
+      const tab = this.findTabByView(view)
+      if (!tab) return
+      const favicon = favicons.find(isAllowedFaviconUrl) ?? null
+      if (tab.favicon === favicon) return
+      tab.favicon = favicon
+      this.onTabListChanged?.(this.getTabList())
     })
 
     contents.setWindowOpenHandler((details) => {
@@ -219,7 +277,16 @@ export class TabManager {
 
   private addManagedTab(view: WebContentsView, url: string, activate = true): string {
     const id = randomUUID().slice(0, 8)
-    this.tabs.set(id, { id, view, url, title: '' })
+    this.tabs.push({
+      id,
+      kind: 'web',
+      view,
+      url,
+      title: '',
+      favicon: null,
+      isLoading: false,
+      isCrashed: false,
+    })
 
     if (activate || !this.activeTabId) {
       this.switchTab(id)
@@ -242,14 +309,14 @@ export class TabManager {
   }
 
   private canCreateTab(): boolean {
-    if (this.tabs.size < MAX_TABS) return true
+    if (this.tabs.length < MAX_TABS) return true
     this.tabLimitReachedHandler?.(MAX_TABS)
     return false
   }
 
-  private rememberClosedTab(tab: ManagedTab): void {
+  private rememberClosedTab(tab: ManagedWebTab): void {
     if (!tab.url) return
-    this.closedTabs.push({ url: tab.url, title: tab.title })
+    this.closedTabs.push({ kind: 'web', url: tab.url, title: tab.title })
     if (this.closedTabs.length > MAX_CLOSED_TABS) this.closedTabs.shift()
   }
 
@@ -259,22 +326,23 @@ export class TabManager {
     if (!tab) return
 
     const wasActive = tab.id === this.activeTabId
+    const tabIndex = this.findTabIndex(tab.id)
+    const nextTabId = wasActive ? this.getAdjacentTabId(tabIndex) : null
     if (!this.isDestroying) this.rememberClosedTab(tab)
     if (wasActive) safeRemoveChildView(this.window, tab.view)
-    this.tabs.delete(tab.id)
+    if (tabIndex >= 0) this.tabs.splice(tabIndex, 1)
 
     if (this.isDestroying) return
     if (wasActive) {
       this.activeTabId = null
-      const nextTabId = Array.from(this.tabs.keys()).pop()
       if (nextTabId) this.switchTab(nextTabId)
       else this.createTab()
     }
     this.onTabListChanged?.(this.getTabList())
   }
 
-  private findTabByView(view: WebContentsView): ManagedTab | null {
-    for (const tab of this.tabs.values()) {
+  private findTabByView(view: WebContentsView): ManagedWebTab | null {
+    for (const tab of this.tabs) {
       if (tab.view === view) return tab
     }
     return null
@@ -304,22 +372,19 @@ export class TabManager {
   }
 
   closeTab(tabId: string): void {
-    const tab = this.tabs.get(tabId)
+    const tab = this.findTab(tabId)
     if (!tab) return
 
-    const tabIds = Array.from(this.tabs.keys())
-    const tabIndex = tabIds.indexOf(tabId)
+    const tabIndex = this.findTabIndex(tabId)
     const wasActive = tabId === this.activeTabId
-    const nextTabId = wasActive
-      ? tabIds[tabIndex + 1] ?? tabIds[tabIndex - 1] ?? null
-      : null
+    const nextTabId = wasActive ? this.getAdjacentTabId(tabIndex) : null
 
     if (wasActive) {
       safeRemoveChildView(this.window, tab.view)
     }
 
     this.rememberClosedTab(tab)
-    this.tabs.delete(tabId)
+    this.tabs.splice(tabIndex, 1)
     unregisterOjWebContents(tab.view.webContents)
     safeCloseWebContents(tab.view)
 
@@ -343,11 +408,12 @@ export class TabManager {
   reopenClosedTab(): string {
     const snapshot = this.closedTabs.at(-1)
     if (!snapshot) return ''
+    if (snapshot.kind !== 'web') return ''
     if (!this.canCreateTab()) return ''
     this.closedTabs.pop()
 
     const id = this.createTab(snapshot.url)
-    const tab = this.tabs.get(id)
+    const tab = this.findTab(id)
     if (tab) {
       tab.title = snapshot.title
       this.onTabListChanged?.(this.getTabList())
@@ -358,11 +424,11 @@ export class TabManager {
   switchTab(tabId: string): void {
     if (tabId === this.activeTabId) return
 
-    const newTab = this.tabs.get(tabId)
+    const newTab = this.findTab(tabId)
     if (!newTab) return
 
     if (this.activeTabId) {
-      const currentTab = this.tabs.get(this.activeTabId)
+      const currentTab = this.findTab(this.activeTabId)
       if (currentTab) {
         safeRemoveChildView(this.window, currentTab.view)
       }
@@ -380,7 +446,7 @@ export class TabManager {
   }
 
   switchRelative(offset: number): void {
-    const tabIds = Array.from(this.tabs.keys())
+    const tabIds = this.getTabIds()
     if (tabIds.length === 0 || !this.activeTabId) return
     const activeIndex = tabIds.indexOf(this.activeTabId)
     if (activeIndex < 0) return
@@ -389,25 +455,26 @@ export class TabManager {
   }
 
   switchTabByIndex(index: number): void {
-    const tabId = Array.from(this.tabs.keys())[index]
+    const tabId = this.getTabIds()[index]
     if (tabId) this.switchTab(tabId)
   }
 
   detachTab(tabId: string): BrowserWindow | null {
-    if (this.tabs.size <= 1) return null
+    if (this.tabs.length <= 1) return null
 
-    const tab = this.tabs.get(tabId)
+    const tab = this.findTab(tabId)
     if (!tab) return null
     
     if (!tab.url || tab.url === 'about:blank') return null
 
-    this.tabs.delete(tabId)
+    const tabIndex = this.findTabIndex(tabId)
+    const nextTabId = tabId === this.activeTabId ? this.getAdjacentTabId(tabIndex) : null
+    this.tabs.splice(tabIndex, 1)
 
     if (tabId === this.activeTabId) {
       safeRemoveChildView(this.window, tab.view)
       this.activeTabId = null
-      const nextKey = Array.from(this.tabs.keys()).pop()!
-      this.switchTab(nextKey)
+      if (nextTabId) this.switchTab(nextTabId)
     }
 
     const detached = new DetachedWindow(tab.view, tab.title)
@@ -421,37 +488,37 @@ export class TabManager {
       this.notifyNavigationBlocked(decision.reason!)
       return
     }
-    if (!this.activeTabId || !this.tabs.has(this.activeTabId)) {
+    if (!this.activeTabId || !this.findTab(this.activeTabId)) {
       this.createTab(url)
       return
     }
-    const tab = this.tabs.get(this.activeTabId)!
+    const tab = this.findTab(this.activeTabId)!
     void tab.view.webContents.loadURL(url).catch((error) => {
       appLogger.error('browser.navigate-failed', { url, error })
     })
   }
 
   goBack() {
-    const tab = this.activeTabId ? this.tabs.get(this.activeTabId) : null
+    const tab = this.activeTabId ? this.findTab(this.activeTabId) : null
     if (tab?.view.webContents.navigationHistory.canGoBack()) {
       tab.view.webContents.navigationHistory.goBack()
     }
   }
 
   goForward() {
-    const tab = this.activeTabId ? this.tabs.get(this.activeTabId) : null
+    const tab = this.activeTabId ? this.findTab(this.activeTabId) : null
     if (tab?.view.webContents.navigationHistory.canGoForward()) {
       tab.view.webContents.navigationHistory.goForward()
     }
   }
 
   reload() {
-    const tab = this.activeTabId ? this.tabs.get(this.activeTabId) : null
+    const tab = this.activeTabId ? this.findTab(this.activeTabId) : null
     tab?.view.webContents.reload()
   }
 
   adjustZoom(delta: number): void {
-    const tab = this.activeTabId ? this.tabs.get(this.activeTabId) : null
+    const tab = this.activeTabId ? this.findTab(this.activeTabId) : null
     if (!tab) return
     const current = tab.view.webContents.getZoomFactor()
     const next = Math.min(5, Math.max(0.25, Math.round((current + delta) * 100) / 100))
@@ -459,17 +526,17 @@ export class TabManager {
   }
 
   resetZoom(): void {
-    const tab = this.activeTabId ? this.tabs.get(this.activeTabId) : null
+    const tab = this.activeTabId ? this.findTab(this.activeTabId) : null
     tab?.view.webContents.setZoomFactor(1)
   }
 
   getUrl(): string {
-    const tab = this.activeTabId ? this.tabs.get(this.activeTabId) : null
+    const tab = this.activeTabId ? this.findTab(this.activeTabId) : null
     return tab?.view.webContents.getURL() ?? ''
   }
 
   getTitleForUrl(url: string): string | undefined {
-    for (const tab of this.tabs.values()) {
+    for (const tab of this.tabs) {
       const currentUrl = tab.view.webContents.getURL()
       if (tab.url === url || currentUrl === url || samePageUrl(tab.url, url) || samePageUrl(currentUrl, url)) {
         return tab.title || tab.view.webContents.getTitle()
@@ -484,16 +551,20 @@ export class TabManager {
 
   isViewVisible(): boolean {
     if (!this.activeTabId) return false
-    return this.tabs.has(this.activeTabId)
+    return this.findTab(this.activeTabId) !== null
   }
 
   getTabList(): TabInfo[] {
     const list: TabInfo[] = []
-    for (const tab of this.tabs.values()) {
+    for (const tab of this.tabs) {
       list.push({
         id: tab.id,
+        kind: 'web',
         url: tab.url,
         title: tab.title,
+        favicon: tab.favicon,
+        isLoading: tab.isLoading,
+        isCrashed: tab.isCrashed,
         isActive: tab.id === this.activeTabId,
       })
     }
@@ -507,7 +578,7 @@ export class TabManager {
 
   private updateBounds() {
     if (!this.activeTabId) return
-    const tab = this.tabs.get(this.activeTabId)
+    const tab = this.findTab(this.activeTabId)
     if (!tab) return
     const [width, height] = this.window.getContentSize()
     setTabViewBounds(tab.view, { width, height }, this.leftOffset)
@@ -516,7 +587,7 @@ export class TabManager {
   hideView() {
     this.isViewHidden = true
     if (!this.activeTabId) return
-    const tab = this.tabs.get(this.activeTabId)
+    const tab = this.findTab(this.activeTabId)
     if (!tab) return
     safeRemoveChildView(this.window, tab.view)
   }
@@ -524,7 +595,7 @@ export class TabManager {
   showView() {
     this.isViewHidden = false
     if (!this.activeTabId) return
-    const tab = this.tabs.get(this.activeTabId)
+    const tab = this.findTab(this.activeTabId)
     if (!tab) return
     try {
       this.window.contentView.addChildView(tab.view)
@@ -533,7 +604,7 @@ export class TabManager {
   }
 
   async capturePreview(): Promise<string | null> {
-    const tab = this.activeTabId ? this.tabs.get(this.activeTabId) : null
+    const tab = this.activeTabId ? this.findTab(this.activeTabId) : null
     if (!tab) return null
     try {
       const bounds = tab.view.getBounds()
@@ -550,13 +621,13 @@ export class TabManager {
   }
 
   async executeScript(code: string, userGesture = false): Promise<any> {
-    const tab = this.activeTabId ? this.tabs.get(this.activeTabId) : null
+    const tab = this.activeTabId ? this.findTab(this.activeTabId) : null
     if (!tab) return null
     return tab.view.webContents.executeJavaScript(code, userGesture)
   }
 
   async executeScriptOnUrl(url: string, code: string): Promise<any> {
-    for (const tab of this.tabs.values()) {
+    for (const tab of this.tabs) {
       const currentUrl = tab.view.webContents.getURL()
       if (tab.url === url || currentUrl === url || samePageUrl(tab.url, url) || samePageUrl(currentUrl, url)) {
         return executeScriptAcrossFrames(tab, url, code)
@@ -674,8 +745,8 @@ export class TabManager {
 
   destroy() {
     this.isDestroying = true
-    const tabs = Array.from(this.tabs.values())
-    this.tabs.clear()
+    const tabs = [...this.tabs]
+    this.tabs = []
     this.activeTabId = null
     for (const tab of tabs) {
       try {

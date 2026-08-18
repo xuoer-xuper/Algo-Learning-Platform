@@ -118,7 +118,16 @@ function filterProblems(limit = 50, platform?: string, status?: string): Problem
 
 function createApiMock(): ElectronAPI {
   let currentUrl = ''
-  const tabs: TabInfo[] = [{ id: 'home', url: '', title: '首页', isActive: true }]
+  const tabs: TabInfo[] = [{
+    id: 'home',
+    kind: 'web',
+    url: '',
+    title: '首页',
+    favicon: null,
+    isLoading: false,
+    isCrashed: false,
+    isActive: true,
+  }]
 
   return {
     browserLayout: { toolbarHeight: 42, tabBarHeight: 36, topOffset: 78 },
@@ -294,7 +303,16 @@ function createApiMock(): ElectronAPI {
 
     createTab: async (url) => {
       currentUrl = url ?? ''
-      tabs.push({ id: `tab-${tabs.length + 1}`, url: currentUrl, title: currentUrl || '首页', isActive: true })
+      tabs.push({
+        id: `tab-${tabs.length + 1}`,
+        kind: 'web',
+        url: currentUrl,
+        title: currentUrl || '首页',
+        favicon: null,
+        isLoading: false,
+        isCrashed: false,
+        isActive: true,
+      })
       return tabs[tabs.length - 1].id
     },
     closeTab: () => {},

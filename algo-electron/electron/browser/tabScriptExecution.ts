@@ -1,7 +1,7 @@
-import type { ManagedTab } from './tabManagerTypes'
+import type { ManagedWebTab } from './tabManagerTypes'
 
 export async function executeScriptAcrossFrames(
-  tab: ManagedTab,
+  tab: ManagedWebTab,
   topPageUrl: string,
   code: string,
 ): Promise<any> {

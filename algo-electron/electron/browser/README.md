@@ -22,7 +22,7 @@
 ## 3. 文件职责
 
 - `TabManager.ts`：多标签 `WebContentsView` 管理器，当前主线。
-- `tabManagerTypes.ts`：`TabInfo` 和内部 managed tab 类型。
+- `tabManagerTypes.ts`：受校验的 `InternalPage` 判别联合、web/internal `TabInfo`、managed tab 与可序列化 session snapshot 类型。
 - `tabManagerConfig.ts`：标签数量、工具栏高度、tabbar 高度和 OJ preload 路径配置。
 - `browserLayout.ts`：主进程定义的标题栏/工具栏布局契约；preload 注入 renderer CSS 变量，避免 bounds、ModalLayer 与 CSS 各自维护高度副本。
 - `tabViewLayout.ts`：活动 tab view 的 bounds 计算、安全移除和 webContents 关闭 helper。

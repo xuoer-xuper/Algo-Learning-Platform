@@ -17,8 +17,7 @@ test('closing the active tab selects its right neighbor and reopening restores u
   manager.closeActiveTab()
 
   assert.strictEqual(manager.getActiveTabId(), rightId)
-  assert.strictEqual(manager.getTabList().length, 2)
-  assert.strictEqual(manager.getTabList()[0].id, firstId)
+  assert.deepStrictEqual(manager.getTabList().map((tab) => tab.id), [firstId, rightId])
 
   const reopenedId = manager.reopenClosedTab()
   const reopened = manager.getTabList().find((tab) => tab.id === reopenedId)
@@ -26,6 +25,55 @@ test('closing the active tab selects its right neighbor and reopening restores u
   assert.strictEqual(reopened.url, 'https://example.com/middle')
   assert.strictEqual(reopened.title, 'Middle title')
   assert.strictEqual(reopened.isActive, true)
+  assert.deepStrictEqual(manager.getTabList().map((tab) => tab.id), [firstId, rightId, reopenedId])
+})
+
+test('closing a background tab preserves the remaining order and active tab', () => {
+  resetElectronMock()
+  const window = new MockBrowserWindow()
+  const manager = new TabManager(window as never)
+  const firstId = manager.createTab('https://example.com/first')
+  const middleId = manager.createTab('https://example.com/middle')
+  const rightId = manager.createTab('https://example.com/right')
+
+  manager.closeTab(middleId)
+
+  assert.strictEqual(manager.getActiveTabId(), rightId)
+  assert.deepStrictEqual(manager.getTabList().map((tab) => tab.id), [firstId, rightId])
+})
+
+test('destroying or detaching an active middle tab selects its right neighbor', () => {
+  resetElectronMock()
+  const destroyedWindow = new MockBrowserWindow()
+  const destroyedManager = new TabManager(destroyedWindow as never)
+  const firstId = destroyedManager.createTab('https://example.com/first')
+  const middleId = destroyedManager.createTab('https://example.com/middle')
+  const rightId = destroyedManager.createTab('https://example.com/right')
+  const lastId = destroyedManager.createTab('https://example.com/last')
+
+  destroyedManager.switchTab(middleId)
+  destroyedWindow.contentView.children[0].webContents.close()
+
+  assert.strictEqual(destroyedManager.getActiveTabId(), rightId)
+  assert.deepStrictEqual(destroyedManager.getTabList().map((tab) => tab.id), [firstId, rightId, lastId])
+
+  const detachedWindow = new MockBrowserWindow()
+  const detachedManager = new TabManager(detachedWindow as never)
+  const detachedFirstId = detachedManager.createTab('https://example.com/first')
+  const detachedMiddleId = detachedManager.createTab('https://example.com/middle')
+  const detachedRightId = detachedManager.createTab('https://example.com/right')
+  const detachedLastId = detachedManager.createTab('https://example.com/last')
+
+  detachedManager.switchTab(detachedMiddleId)
+  const detached = detachedManager.detachTab(detachedMiddleId)
+
+  assert.ok(detached)
+  assert.strictEqual(detachedManager.getActiveTabId(), detachedRightId)
+  assert.deepStrictEqual(
+    detachedManager.getTabList().map((tab) => tab.id),
+    [detachedFirstId, detachedRightId, detachedLastId],
+  )
+  detached.close()
 })
 
 test('closing the last tab resets it to a blank new tab and keeps it reopenable', () => {
@@ -69,4 +117,43 @@ test('tab capacity is 16 and both direct and popup creation report the limit', (
   assert.strictEqual(popup.response.action, 'deny')
   assert.deepStrictEqual(notices, [16, 16])
   assert.strictEqual(manager.getTabList().length, 16)
+})
+
+test('tab list preserves insertion order and reports loading/favicon state', () => {
+  resetElectronMock()
+  const window = new MockBrowserWindow()
+  const manager = new TabManager(window as never)
+  const firstId = manager.createTab('https://example.com/first')
+  const secondId = manager.createTab('https://example.com/second')
+  const contents = window.contentView.children[0].webContents
+  const snapshots: string[][] = []
+  manager.setTabListChangedCallback((tabs) => snapshots.push(tabs.map((tab) => tab.id)))
+
+  contents.emit('did-start-loading')
+  contents.emit('did-start-loading')
+  contents.emit('page-favicon-updated', {}, [
+    'javascript:alert(1)',
+    'https://example.com/favicon.ico',
+  ])
+  contents.emit('page-favicon-updated', {}, ['https://example.com/favicon.ico'])
+
+  const loadingTabs = manager.getTabList()
+  assert.deepStrictEqual(loadingTabs.map((tab) => tab.id), [firstId, secondId])
+  assert.deepStrictEqual(loadingTabs.map((tab) => tab.kind), ['web', 'web'])
+  assert.strictEqual(loadingTabs[1].isLoading, true)
+  assert.strictEqual(loadingTabs[1].isCrashed, false)
+  assert.strictEqual(loadingTabs[1].favicon, 'https://example.com/favicon.ico')
+  assert.strictEqual(snapshots.length, 2)
+
+  contents.emit('did-stop-loading')
+  contents.emit('did-stop-loading')
+  assert.strictEqual(manager.getTabList()[1].isLoading, false)
+  assert.strictEqual(snapshots.length, 3)
+
+  contents.emit('page-favicon-updated', {}, [
+    `data:image/svg+xml;base64,${'x'.repeat(70_000)}`,
+    'data:image/svg+xml;base64,PHN2Zy8+',
+  ])
+  assert.strictEqual(manager.getTabList()[1].favicon, null)
+  assert.strictEqual(snapshots.length, 4)
 })

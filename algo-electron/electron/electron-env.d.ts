@@ -331,12 +331,37 @@ interface NoteRecord {
   updated_at: string
 }
 
-interface TabInfo {
+type InternalPage =
+  | { type: 'home' }
+  | { type: 'settings' }
+  | { type: 'dashboard' }
+  | { type: 'scripts' }
+  | { type: 'coach-metrics' }
+  | { type: 'problem-detail'; problemId: string }
+  | { type: 'notes'; problemId: string }
+  | { type: 'credentials' }
+  | { type: 'script-install'; installId: string }
+
+interface TabInfoBase {
   id: string
   url: string
   title: string
+  favicon: string | null
+  isLoading: boolean
+  isCrashed: boolean
   isActive: boolean
 }
+
+interface WebTabInfo extends TabInfoBase {
+  kind: 'web'
+}
+
+interface InternalTabInfo extends TabInfoBase {
+  kind: 'internal'
+  page: InternalPage
+}
+
+type TabInfo = WebTabInfo | InternalTabInfo
 
 type UiCommand =
   | { type: 'focus-address-bar' }
