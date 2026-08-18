@@ -20,6 +20,7 @@ const coreVitestFiles = [
   'tests/ai/recommendationRules.test.ts',
   'tests/browser',
   'tests/coach',
+  'tests/components',
   'tests/integration',
   'tests/ipc',
   'tests/parsers',
