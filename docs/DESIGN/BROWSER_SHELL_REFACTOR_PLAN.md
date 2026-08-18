@@ -447,10 +447,10 @@ Renderer（同一构建产物，多窗口实例化——桌宠 hash 路由已证
 | B0.11 | [x] | `e35212b`（2026-08-18）：migration 025 为用户脚本增加 namespace/identity_name/auto_update_enabled，并按活动身份把存量重复项确定性拆为 canonical + local copy；新导入按精确身份覆盖更新，支持版本关系确认、另存本地副本、legacy 原子认领和北京时间；内容寻址文件名、原子落盘、DB 失败清理、旧受管文件安全回收和源文件保护已完成；`scripts:save` 收窄为显示名/站点绑定白名单，父窗口原生对话框接线完成；无视觉变更 |
 | B0.12 | [x] | `a004d3c`（2026-08-16）：生产壳迁移至 `app://shell` 并启用严格 CSP；普通 IPC 统一接入 shell sender/main-frame/origin/payload 校验，OJ 提交通道使用专用 HTTPS sender validator；TabManager 管理 OJ sender 生命周期；安全、架构、IPC 合约与真实 Electron startup smoke 覆盖已完成；全量验证通过；无视觉变更 |
 | B1.1 | [x] | `efed871`（2026-08-18）：补齐 4 档 spacing、3 档语义圆角别名、3 档 easing；暗色主题同步覆盖完整 `--color-*` 语义 token 与兼容别名；静态治理测试纳入 core suite；仅 token 层变更，视觉冻结不变 |
-| B1.2 | [x] | `16bae97`（2026-08-18）：补齐内部页 Dialog、DropdownMenu、Toast、NoticeBar；Dialog 支持焦点陷阱、Esc/遮罩关闭与焦点恢复，DropdownMenu 支持方向键/Home/End/禁用项/外点关闭，Toast 提供 live region/自动消退/操作，NoticeBar 保持文档流让位；独立 jsdom 测试与 README 已同步；无业务页和视觉 token 变更 |
+| B1.2 | [x] | `16bae97` + `d0fc989`（2026-08-18）：补齐内部页 Dialog、DropdownMenu、Toast、NoticeBar；Dialog/ConfirmDialog 支持焦点陷阱、Esc/遮罩关闭与焦点恢复，DropdownMenu 支持方向键/Home/End/禁用项/空菜单 Esc/外点关闭，Toast 提供 live region/自动消退/操作，NoticeBar 保持文档流让位；全部基础组件默认输出可覆盖的 `data-testid`；独立 jsdom 测试与 README 已同步 |
 | B1.3 | [x] | `9346856` + `20bc054`（2026-08-18）：关闭/删除按钮、时间轴五类事件、详情外链和笔记空态全部收拢到统一 Icon/IconButton；运行时功能性 Unicode 归零，内联 SVG 仅保留统一 Icon 实现与 CoachPet 领域插画；固定原容器/字号/尺寸并增加回流守卫；集中截图验收并入后续 UI 回归 |
 | B1.4 | [x] | `0a1a1c4`；`rg` 确认 src 中无原生 confirm；组件测试已覆盖 ConfirmDialog |
-| B1.5 | [x] | `66821d0` + `7df12ce`（2026-08-18）：清理零引用 `@milkdown/theme-nord`，保留 Crepe 实际 Nord CSS；Coach 原始配色、透明度、圆角与动效值集中到独立 `tokens.css`，pet/bubble CSS 只消费变量，删除 TS 重复视觉配置并增加六状态回流守卫；既有 feature/notes/scripts 已由 `0a1a1c4` 完成收编；视觉冻结不变 |
+| B1.5 | [x] | `66821d0` + `7df12ce` + `7240170`（2026-08-18）：清理零引用 `@milkdown/theme-nord`，保留 Crepe 实际 Nord CSS；Coach 原始配色、透明度、圆角与动效值集中到独立 `tokens.css`；Dashboard/Coach、首页和设置三组统计卡片真实迁移到 `Card`，治理测试防止回流；既有 feature/notes/scripts 已由 `0a1a1c4` 完成按钮/输入/确认框收编；视觉冻结不变 |
 | B2.1-B2.8 | [ ] | 标签模型、内部页、截图机制退役、TabStrip、Omnibox、UI 测试、下载/查找/缩放、右键菜单均待实施 |
 | B3.1-B3.5 | [ ] | WindowManager、事件多窗口化、标签过户、服务广播、生命周期与恢复均待实施 |
 | B4.1-B4.6 | [ ] | 026_site_credentials、Vault、自动填充、账户页、登录捕获、fuses 均待实施 |
@@ -581,18 +581,18 @@ Renderer（同一构建产物，多窗口实例化——桌宠 hash 路由已证
 | 任务 | B1.2 Dialog/DropdownMenu/Toast/NoticeBar 与无障碍基础行为 |
 | 状态 | `[x] 已完成` |
 | Commit | `16bae97 ui: 补齐内部页基础反馈组件` |
-| 自动验证 | `npm run typecheck`、目标 ESLint、基础组件聚焦 Vitest 23/23、`git diff --check`；后续 `tests/verify.mjs` 已把 `tests/components` 纳入快速 core suite，完整 Vitest 会自动收录 |
+| 自动验证 | `npm run typecheck`、目标 ESLint、最终基础组件聚焦 Vitest 22/22、`git diff --check`；后续 `tests/verify.mjs` 已把 `tests/components` 纳入快速 core suite，完整 Vitest 会自动收录 |
 | 人工验收 | 待用户统一回归；组件未接入业务页，不改变现有页面视觉，后续 B2/B4 按内部页/NoticeBar 场景接入 |
 | 视觉影响 | `无视觉变更`；仅新增未接入的基础组件和既有 token 样式 |
 | 文档同步 | `src/components/ui/README.md`、`tests/components/README.md` |
 | 完成时间 | 北京时间 `2026-08-18 13:20` |
 
-### 11.14 B1.3 图标治理阶段记录
+### 11.14 B1.3 图标治理阶段记录（历史）
 
 | 字段 | 填写内容 |
 |---|---|
 | 任务 | B1.3 低风险功能图标收拢（阶段性） |
-| 状态 | `[~] 部分完成` |
+| 状态 | `[~] 当时阶段性`；已在 §11.18 以 `[x]` 完成 |
 | Commit | `9346856 ui: 收拢低风险功能图标` |
 | 自动验证 | `npm run typecheck`、聚焦图标守卫 4/4、目标 ESLint、`git diff --check` |
 | 人工验收 | 暂缓剩余 emoji/箭头替换，等待截图确认以避免冻结视觉漂移；桌宠 SVG 明确保留为插画而非功能图标 |
@@ -600,12 +600,12 @@ Renderer（同一构建产物，多窗口实例化——桌宠 hash 路由已证
 | 文档同步 | `tests/components/README.md`、`tests/components/iconGovernance.test.ts` |
 | 完成时间 | 北京时间 `2026-08-18 13:20` |
 
-### 11.15 B1.5 依赖与 token 收尾阶段记录
+### 11.15 B1.5 依赖与 token 收尾阶段记录（历史）
 
 | 字段 | 填写内容 |
 |---|---|
 | 任务 | B1.5 零引用依赖清理（阶段性） |
-| 状态 | `[~] 部分完成` |
+| 状态 | `[~] 当时阶段性`；依赖、Coach token 与统计卡片已由后续提交全部完成 |
 | Commit | `66821d0 deps: 清理未使用的 Milkdown Nord 依赖` |
 | 自动验证 | `npm ls @milkdown/theme-nord --depth=0` 确认无安装项；`npm run typecheck` 与现有 UI 聚焦测试通过；`MilkdownEditor.tsx` 仍从 Crepe 包加载 Nord CSS |
 | 人工验收 | 未触及桌宠颜色、现有 feature CSS 或 token 值；剩余机械 token 化在截图/暗色验证前继续 |
@@ -671,10 +671,10 @@ Renderer（同一构建产物，多窗口实例化——桌宠 hash 路由已证
 |---|---|
 | 任务 | B1.1-B1.5 完成审计：组件默认测试标识、ConfirmDialog 焦点管理、DropdownMenu 边界、语义 token 消费与基线可追溯性 |
 | 状态 | `[x] 已完成` |
-| Commit | 待本块提交：`ui: 收口 B1 组件契约与 token 治理` |
-| 自动验证 | `npm run typecheck`、目标 ESLint、组件/Coach 聚焦 Vitest（预计 5 files / 35 tests）、`npm run test:core`、`npm run test:docs`、`git diff --check`；`rg` 确认 `src` 无原生 `confirm()`，功能性 SVG 仅统一 Icon 与 CoachPet 领域插画 |
+| Commit | `d0fc989 ui: 收口 B1 组件契约与 token 治理`；`7240170 ui: 完成统计卡片组件收编` |
+| 自动验证 | `npm run typecheck`、目标 ESLint、组件/Coach 聚焦 Vitest 6 files/35 tests、`npm run test:core`（35 files/375 tests）、`npm run test:docs`、`git diff --check`；`rg` 确认 `src` 无原生 `confirm()`，功能性 SVG 仅统一 Icon 与 CoachPet 领域插画 |
 | 人工验收 | 保持 `0a1a1c4` 浅色视觉冻结；ConfirmDialog 打开后聚焦确认动作、Tab 循环、Esc/遮罩取消并恢复打开者焦点；全禁用 DropdownMenu 可用 Esc 关闭 |
 | 视觉影响 | `无视觉变更`；默认 `data-testid`、焦点管理和 CSS 语义别名不改变颜色、尺寸、排版、组件形态或动效值；状态色改为现有语义 token 引用，浅色计算值保持不变并为 B5.4 暗色切换留出通道 |
-| 文档同步 | `src/components/ui/{Button,fields,ConfirmDialog,DropdownMenu}.tsx`、`src/components/ui/ui.css`、`src/shared/display.ts`、`tests/components/*`、视觉基线引用 |
+| 文档同步 | `src/components/ui/README.md`、`tests/components/README.md`、B1 完成台账与视觉基线引用 |
 | 剩余工作 | B1 无已知代码缺口；B2 继续标签模型与浏览器壳重构 |
 | 完成时间 | 北京时间 `2026-08-18` |
