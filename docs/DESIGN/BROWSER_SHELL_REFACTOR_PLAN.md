@@ -447,10 +447,10 @@ Renderer（同一构建产物，多窗口实例化——桌宠 hash 路由已证
 | B0.11 | [x] | `e35212b`（2026-08-18）：migration 025 为用户脚本增加 namespace/identity_name/auto_update_enabled，并按活动身份把存量重复项确定性拆为 canonical + local copy；新导入按精确身份覆盖更新，支持版本关系确认、另存本地副本、legacy 原子认领和北京时间；内容寻址文件名、原子落盘、DB 失败清理、旧受管文件安全回收和源文件保护已完成；`scripts:save` 收窄为显示名/站点绑定白名单，父窗口原生对话框接线完成；无视觉变更 |
 | B0.12 | [x] | `a004d3c`（2026-08-16）：生产壳迁移至 `app://shell` 并启用严格 CSP；普通 IPC 统一接入 shell sender/main-frame/origin/payload 校验，OJ 提交通道使用专用 HTTPS sender validator；TabManager 管理 OJ sender 生命周期；安全、架构、IPC 合约与真实 Electron startup smoke 覆盖已完成；全量验证通过；无视觉变更 |
 | B1.1 | [~] | `1190daf` 已统一主要 token；暗色双值与剩余域核对待完成 |
-| B1.2 | [~] | Button/fields/Card/ConfirmDialog 已落地；Dialog/DropdownMenu/Toast/NoticeBar 待补 |
-| B1.3 | [~] | Icon 组件已落地；全仓遗留 Unicode/emoji/内联图标核对待完成 |
+| B1.2 | [x] | `16bae97`（2026-08-18）：补齐内部页 Dialog、DropdownMenu、Toast、NoticeBar；Dialog 支持焦点陷阱、Esc/遮罩关闭与焦点恢复，DropdownMenu 支持方向键/Home/End/禁用项/外点关闭，Toast 提供 live region/自动消退/操作，NoticeBar 保持文档流让位；独立 jsdom 测试与 README 已同步；无业务页和视觉 token 变更 |
+| B1.3 | [~] | `9346856`（2026-08-18）：低风险收拢时间轴、Coach 关闭按钮与笔记删除按钮到现有 Icon/IconButton，保留原 class/尺寸并增加窄范围守卫；时间轴语义 emoji、笔记空态图标、详情链接箭头和桌宠插画暂留，待截图确认后继续 |
 | B1.4 | [x] | `1190daf`；`rg` 确认 src 中无原生 confirm；组件测试已覆盖 ConfirmDialog |
-| B1.5 | [~] | 主要 feature 已视觉统一；`@milkdown/theme-nord` 仍在 package.json，桌宠独立颜色与剩余 token 待治理 |
+| B1.5 | [~] | `66821d0`（2026-08-18）：确认 `@milkdown/theme-nord` 零引用并从 package/package-lock 清理，实际主题仍由 `@milkdown/crepe/theme/nord.css` 提供；桌宠独立颜色和其余裸色 token 待机械收拢，视觉冻结不变 |
 | B2.1-B2.8 | [ ] | 标签模型、内部页、截图机制退役、TabStrip、Omnibox、UI 测试、下载/查找/缩放、右键菜单均待实施 |
 | B3.1-B3.5 | [ ] | WindowManager、事件多窗口化、标签过户、服务广播、生命周期与恢复均待实施 |
 | B4.1-B4.6 | [ ] | 026_site_credentials、Vault、自动填充、账户页、登录捕获、fuses 均待实施 |
@@ -573,3 +573,42 @@ Renderer（同一构建产物，多窗口实例化——桌宠 hash 路由已证
 | 视觉影响 | `无视觉变更`；未修改 TSX、CSS、颜色、布局或动画 |
 | 文档同步 | `electron/db/README.md`、`electron/db/repositories/userScript/README.md`、`electron/scripts/README.md`、`electron/ipc/README.md`、`tests/{db,ipc,scripts}/README.md`、`docs/DESIGN/DATABASE_SCHEMA.md`、`docs/OPERATIONS/DATABASE_MIGRATION_ROLLBACK.md` |
 | 完成时间 | 北京时间 `2026-08-18 12:50` |
+
+### 11.13 B1.2 基础组件完成记录
+
+| 字段 | 填写内容 |
+|---|---|
+| 任务 | B1.2 Dialog/DropdownMenu/Toast/NoticeBar 与无障碍基础行为 |
+| 状态 | `[x] 已完成` |
+| Commit | `16bae97 ui: 补齐内部页基础反馈组件` |
+| 自动验证 | `npm run typecheck`、目标 ESLint、基础组件聚焦 Vitest 23/23、`git diff --check`；后续 `tests/verify.mjs` 已把 `tests/components` 纳入快速 core suite，完整 Vitest 会自动收录 |
+| 人工验收 | 待用户统一回归；组件未接入业务页，不改变现有页面视觉，后续 B2/B4 按内部页/NoticeBar 场景接入 |
+| 视觉影响 | `无视觉变更`；仅新增未接入的基础组件和既有 token 样式 |
+| 文档同步 | `src/components/ui/README.md`、`tests/components/README.md` |
+| 完成时间 | 北京时间 `2026-08-18 13:20` |
+
+### 11.14 B1.3 图标治理阶段记录
+
+| 字段 | 填写内容 |
+|---|---|
+| 任务 | B1.3 低风险功能图标收拢（阶段性） |
+| 状态 | `[~] 部分完成` |
+| Commit | `9346856 ui: 收拢低风险功能图标` |
+| 自动验证 | `npm run typecheck`、聚焦图标守卫 4/4、目标 ESLint、`git diff --check` |
+| 人工验收 | 暂缓剩余 emoji/箭头替换，等待截图确认以避免冻结视觉漂移；桌宠 SVG 明确保留为插画而非功能图标 |
+| 视觉影响 | 已完成替换保持原 class、容器尺寸和颜色；未改时间轴 emoji、笔记空态、详情链接箭头 |
+| 文档同步 | `tests/components/README.md`、`tests/components/iconGovernance.test.ts` |
+| 完成时间 | 北京时间 `2026-08-18 13:20` |
+
+### 11.15 B1.5 依赖与 token 收尾阶段记录
+
+| 字段 | 填写内容 |
+|---|---|
+| 任务 | B1.5 零引用依赖清理（阶段性） |
+| 状态 | `[~] 部分完成` |
+| Commit | `66821d0 deps: 清理未使用的 Milkdown Nord 依赖` |
+| 自动验证 | `npm ls @milkdown/theme-nord --depth=0` 确认无安装项；`npm run typecheck` 与现有 UI 聚焦测试通过；`MilkdownEditor.tsx` 仍从 Crepe 包加载 Nord CSS |
+| 人工验收 | 未触及桌宠颜色、现有 feature CSS 或 token 值；剩余机械 token 化在截图/暗色验证前继续 |
+| 视觉影响 | `无视觉变更` |
+| 文档同步 | `package.json`、`package-lock.json`、B1 台账 |
+| 完成时间 | 北京时间 `2026-08-18 13:20` |
