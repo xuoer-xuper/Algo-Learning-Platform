@@ -451,7 +451,8 @@ Renderer（同一构建产物，多窗口实例化——桌宠 hash 路由已证
 | B1.3 | [x] | `9346856` + `20bc054`（2026-08-18）：关闭/删除按钮、时间轴五类事件、详情外链和笔记空态全部收拢到统一 Icon/IconButton；运行时功能性 Unicode 归零，内联 SVG 仅保留统一 Icon 实现与 CoachPet 领域插画；固定原容器/字号/尺寸并增加回流守卫；集中截图验收并入后续 UI 回归 |
 | B1.4 | [x] | `0a1a1c4`；`rg` 确认 src 中无原生 confirm；组件测试已覆盖 ConfirmDialog |
 | B1.5 | [x] | `66821d0` + `7df12ce` + `7240170`（2026-08-18）：清理零引用 `@milkdown/theme-nord`，保留 Crepe 实际 Nord CSS；Coach 原始配色、透明度、圆角与动效值集中到独立 `tokens.css`；Dashboard/Coach、首页和设置三组统计卡片真实迁移到 `Card`，治理测试防止回流；既有 feature/notes/scripts 已由 `0a1a1c4` 完成按钮/输入/确认框收编；视觉冻结不变 |
-| B2.1-B2.8 | [ ] | 标签模型、内部页、截图机制退役、TabStrip、Omnibox、UI 测试、下载/查找/缩放、右键菜单均待实施 |
+| B2.1 | [~] | `ac5fa27`（2026-08-18）：第一子块完成 tabs Map→稳定有序数组、web/internal `TabInfo` 判别联合、受校验 `InternalPage`、favicon/isLoading/isCrashed payload 与可序列化 `TabSnapshot`/`TabSessionSnapshot` 契约；加载/favicon 去抖与输入边界、中间标签关闭/销毁/拆出右邻选择测试已补齐。剩余：快照全量校验、原子持久化/恢复、render-process-gone 恢复态及 unresponsive NoticeBar 操作。无视觉变更，冻结基线不变 |
+| B2.2-B2.8 | [ ] | 内部页、截图机制退役、TabStrip、Omnibox、UI 测试、下载/查找/缩放、右键菜单均待实施 |
 | B3.1-B3.5 | [ ] | WindowManager、事件多窗口化、标签过户、服务广播、生命周期与恢复均待实施 |
 | B4.1-B4.6 | [ ] | 026_site_credentials、Vault、自动填充、账户页、登录捕获、fuses 均待实施 |
 | B5.1-B5.6 | [ ] | 仅按视觉冻结约束做结构收尾、暗色、无障碍、桌宠策略和 Latex |
@@ -677,4 +678,18 @@ Renderer（同一构建产物，多窗口实例化——桌宠 hash 路由已证
 | 视觉影响 | `无视觉变更`；默认 `data-testid`、焦点管理和 CSS 语义别名不改变颜色、尺寸、排版、组件形态或动效值；状态色改为现有语义 token 引用，浅色计算值保持不变并为 B5.4 暗色切换留出通道 |
 | 文档同步 | `src/components/ui/README.md`、`tests/components/README.md`、B1 完成台账与视觉基线引用 |
 | 剩余工作 | B1 无已知代码缺口；B2 继续标签模型与浏览器壳重构 |
+| 完成时间 | 北京时间 `2026-08-18` |
+
+### 11.21 B2.1 标签模型契约阶段记录
+
+| 字段 | 填写内容 |
+|---|---|
+| 任务 | B2.1 第一子块：有序标签模型、内部页判别联合与状态/快照契约 |
+| 状态 | `[~] 部分完成` |
+| Commit | `ac5fa27 browser: 扩展有序标签模型与状态契约` |
+| 自动验证 | `npm run typecheck`、目标 ESLint、聚焦 Vitest 4 files/14 tests、`npm run test:core`（35 files/376 tests）、`npm run test:docs`、`git diff --check`；tabs 残余 Map API 扫描为零 |
+| 人工验收 | 本子块不提前执行生产构建、NSIS 或 packaged 双实例 smoke；集中回归时再验证真实 Electron 加载、崩溃/无响应和会话恢复 |
+| 视觉影响 | `无视觉变更`；未修改 CSS 或业务页面样式，renderer TSX 仅同步测试替身字段，保持 `0a1a1c4` 冻结基线 |
+| 文档同步 | `electron/browser/README.md`、`tests/browser/README.md`、B2 完成台账 |
+| 剩余工作 | 校验并原子保存/读取 `TabSessionSnapshot`；恢复有序标签与激活项；崩溃 view 摘除及恢复；无响应 NoticeBar 的等待/重载/关闭 |
 | 完成时间 | 北京时间 `2026-08-18` |
