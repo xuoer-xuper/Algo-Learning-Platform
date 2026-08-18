@@ -21,8 +21,47 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  fast-guard:
+    name: Fast core and docs guard
+    runs-on: windows-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: algo-electron
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22.23.2
+          cache: npm
+          cache-dependency-path: algo-electron/package-lock.json
+
+      - name: Restore Electron downloads
+        uses: actions/cache@v6
+        with:
+          path: ~\AppData\Local\electron\Cache
+          key: ${{ runner.os }}-electron-${{ hashFiles('algo-electron/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-electron-
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run core guard
+        run: npm run test:core
+
+      - name: Check documentation links and coverage
+        run: npm run test:docs
+
   validate:
-    name: Validate Electron project
+    name: Full validation (manual)
+    if: github.event_name == 'workflow_dispatch'
     runs-on: windows-latest
     timeout-minutes: 30
     defaults:
@@ -57,7 +96,8 @@ jobs:
         run: npm run test:all
 
   packaged-smoke:
-    name: Build and smoke test packaged app
+    name: Build and smoke test packaged app (manual)
+    if: github.event_name == 'workflow_dispatch'
     runs-on: windows-latest
     timeout-minutes: 35
     defaults:

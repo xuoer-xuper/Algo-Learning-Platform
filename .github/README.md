@@ -6,7 +6,7 @@
 
 ## 2. 当前内容
 
-- `workflows/ci.yml`：在手动触发、pull request 和 `main`/`master` push 上运行 Windows CI；包含全量验证和 packaged-main 构建检查。
+- `workflows/ci.yml`：在 pull request 和 `main`/`master` push 上自动运行 fast guard；手动触发时追加全量验证和 packaged app 构建 smoke。
 - `pull_request_template.md`：PR 变更范围、边界确认、验证、手测和文档同步清单。
 - `ISSUE_TEMPLATE/bug_report.yml`：普通应用缺陷模板。
 - `ISSUE_TEMPLATE/submission_monitoring.yml`：提交监测专项问题模板。
@@ -14,7 +14,7 @@
 
 ## 3. 实现程度
 
-当前 CI 使用 Windows runner、Node.js 22、`npm ci`、`npm run test:all` 和 `npm run build:check`。它能覆盖 TypeScript、lint、Vitest 单元/集成与覆盖率门槛、IPC contract、adapter、submission、DB repository、Electron smoke、Playwright renderer 和生产主进程构建验证。
+当前 CI 使用 Windows runner、Node.js 22 和干净的 `npm ci`。自动 fast guard 执行 `npm run test:core` + `npm run test:docs`；集中验收时手动运行 workflow，追加 `npm run test:all`、`npm run build:check` 与隔离 userData 的 packaged app smoke。完整覆盖 TypeScript、lint、Vitest 单元/集成与覆盖率门槛、IPC contract、adapter、submission、DB repository、Electron smoke、Playwright renderer 和生产主进程构建验证。
 
 CI 不访问真实 OJ 登录态，不提交代码，不读取 Cookie，也不替代七站实时提交手测、站点风控验证或安装包安装/卸载验收。
 

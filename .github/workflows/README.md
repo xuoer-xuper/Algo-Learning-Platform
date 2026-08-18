@@ -8,17 +8,24 @@
 
 `ci.yml`：
 
-- 触发条件：手动运行、pull request、push 到 `main` 或 `master`；同一分支的新提交会取消旧运行。
+- 触发条件：手动运行、pull request、push 到 `main` 或 `master`；同一分支的新提交会取消旧运行。默认自动路径只跑 `fast-guard`，全量和 packaged job 仅手动运行。
 - 运行环境：`windows-latest`。
 - Node 版本：22.23.2（项目支持范围为 `>=22.18.0 <25`）。
 - 工作目录：`algo-electron/`。
 - 最小权限：仅 `contents: read`。
 - 安全边界：checkout 不保留 Git 凭据；CI 不接收业务 secret，不上传 artifact。
 - 缓存：`setup-node` 缓存 npm 下载，`actions/cache` 缓存公开的 Electron 与 electron-builder 工具下载；不缓存 `node_modules`、构建产物或用户数据。
-- `validate`：`npm ci` + `npm run test:all`，覆盖测试、Electron smoke 和 Playwright。
-- `packaged-smoke`：与 `validate` 并行，运行生产 renderer/main/preload 构建与 packaged-main 外部依赖检查，再生成 Windows `win-unpacked` 目录并执行隔离 userData 的真实进程 smoke。
+- `fast-guard`：每次 pull request、`main`/`master` push 和手动运行都会执行；`npm ci` + `npm run test:core` + `npm run test:docs`，覆盖类型、lint、架构/敏感文件、核心 Vitest、组件治理和文档守卫。
+- `validate`：仅 `workflow_dispatch` 手动运行；执行 `npm run test:all`，覆盖测试、Electron smoke 和 Playwright。
+- `packaged-smoke`：仅 `workflow_dispatch` 手动运行；与 `validate` 并行，运行生产 renderer/main/preload 构建与 packaged-main 外部依赖检查，再生成 Windows `win-unpacked` 目录并执行隔离 userData 的真实进程 smoke。
 
-两个 job 各自执行干净的 `npm ci`，不通过 artifact 传递 `node_modules`、`dist/`、`release/` 或测试临时目录。这样可以保留独立、可复现的质量门槛，同时避免过去 `packaged-main` 等待全部测试完成后才开始的串行耗时。
+三个 job 各自执行干净的 `npm ci`，不通过 artifact 传递 `node_modules`、`dist/`、`release/` 或测试临时目录。默认 push/PR 只付出 fast guard 成本；准备集中验收时在 Actions 页面手动运行 workflow，才启动 full validation 与 packaged smoke。
+
+手动集中验证：
+
+```text
+gh workflow run ci.yml --ref master
+```
 
 ## 3. 覆盖范围
 
