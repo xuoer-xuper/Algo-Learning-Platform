@@ -2,7 +2,7 @@
 
 ## 1. 职责
 
-`electron/db/repositories/problem/` 是 `problemRepository.ts` 的内部实现目录，负责 `problems` 事实表的 upsert、删除、题目列表、详情和首页概览统计。
+`electron/db/repositories/problem/` 是 `problemRepository.ts` 的内部实现目录，负责 `problems` 事实表的 upsert、删除、题目列表、详情、Omnibox 本地建议和首页概览统计。
 
 本目录不解析 OJ 页面、不抓提交、不注册 IPC、不读取 Cookie。题目身份解析来自 `electron/adapters/` 和 `electron/parsers/`，提交写入来自 `electron/submissions/`。
 
@@ -11,6 +11,7 @@
 - `types.ts`：题目列表、详情、提交行、平台分布和概览返回类型。
 - `mutations.ts`：题目 upsert 和删除。upsert 会校验抓取标题质量，并保护已有有效标题。
 - `queries.ts`：最近题目列表和题目详情，状态根据 submissions 实时计算。
+- `omnibox.ts`：从本地题目与最近访问生成最多 8 条建议。先限制题目/访问候选，再按现有时间索引补最近 URL，不对整张 `problem_visits` 做分组或窗口扫描。
 - `overview.ts`：题目总数、今日访问、平台分布、最近活跃时间和概览聚合。
 - `../problemRepository.ts`：兼容导出口，外部调用方继续从原路径 import。
 
@@ -18,6 +19,7 @@
 
 - 写入：`upsertProblem(identity)`、`deleteProblem(problemId)`。
 - 查询：`getRecentProblems(limit, platform?, status?)`、`getProblemDetail(problemId)`。
+- Omnibox：`getOmniboxSuggestions(query)`；固定返回上限由 `OMNIBOX_SUGGESTION_LIMIT` 定义，不接受 renderer 自定义 limit。
 - 概览：`getProblemCount()`、`getPlatformDistribution()`、`getTodayVisitedCount()`、`getLastActiveTime()`、`getOverviewStats()`。
 
 ## 4. 边界规则
@@ -25,6 +27,8 @@
 - `upsertProblem()` 只接收已经解析好的 `ProblemIdentity`，不要在 repository 内写站点 URL 解析逻辑。
 - 状态展示优先根据 submissions 实时计算，避免依赖可能滞后的 `problems.status`。
 - 删除题目会同步删除关联 submissions、problem_visits、activity_events；UI 侧仍应先处理笔记确认。
+- Omnibox 仅查询本地 `problems`/`problem_visits`；输入按参数绑定，并把 `%`、`_`、`\` 作为 LIKE 字面量处理。结果过滤软删除行，同时按 problem 与 URL 去重。
+- 高频建议查询不得对整张 `problem_visits` 使用 `GROUP BY` 或窗口函数；继续复用 `idx_problems_last_visited`、`idx_pv_entered` 和 `idx_pv_problem_time`。
 - Schema 变化必须先写 migration，再更新本目录 SQL 和测试。
 - 不写入 Cookie、源码、请求体或浏览器日志。
 

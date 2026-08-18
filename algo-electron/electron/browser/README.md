@@ -14,6 +14,7 @@
 - 多标签：最多 16 个有序 web/internal 混合标签，支持创建、关闭、切换、pointer 拖拽排序、恢复关闭和混合会话恢复；关闭活动标签优先激活右邻，关闭最后一个标签会创建内部 home，满额时拒绝创建并通知壳层。旧双击剥离入口在 B3 多窗口对等壳完成前临时禁用，双击仅通过既有工具栏消息区说明恢复计划。
 - 弹窗接管：`window.open` / `target=_blank` 创建的 Chromium `webContents` 会被原样接管为受管标签，保留 about:blank、POST、OAuth 和 opener 语义；后台标签不会抢占活动标签。
 - 导航边界：生产环境只允许 HTTPS 和受控 about:blank；开发与 smoke 额外允许 localhost/loopback HTTP，未知协议默认拒绝并通过 `ui:command` 通知壳层。
+- Omnibox 纯逻辑：canonical `algo://` 内部页、HTTPS/开发 loopback URL 与搜索严格三分流；显式危险协议、生产 HTTP 和 URL userinfo 固定阻断，不降级为搜索。搜索默认 Bing，可选 Google/Baidu，custom 模板只接受无 userinfo、恰好一个字面量 `{query}` 且无其他占位符的 HTTPS URL。
 - 会话快照：`tabSessionSnapshot.ts` 对版本、字段白名单、标签顺序、活动项、内部页和可恢复 URL 做整份严格校验；拒绝 userinfo、敏感 query/hash、控制字符和未知字段，不部分抢救损坏数据，也不序列化 favicon、加载/崩溃状态、表单、密码或脚本源码。
 - 会话恢复：正常启动严格读取 `browser-session.json`，按原顺序和稳定 ID 恢复 web/internal 标签，只为 web 标签创建 view，最后仅挂载活动 web view；任一同步创建失败会销毁本次全部 view 并回退内部 home。壳 renderer 先订阅列表事件再主动拉取当前列表，且用版本/卸载保护避免迟到响应覆盖新状态。
 - 会话文件：`TabSessionStore` 使用同目录临时文件执行 write + fsync + close + rename，失败时清理临时文件并保留旧目标；`TabSessionPersistence` 对创建、关闭、切换、URL 和标题变化做 250ms 防抖，只保存最新快照，加载/favicon 状态不触发落盘。窗口 `close` 与 `before-quit` 在最终 flush 完成后继续关闭，startup smoke 禁用持久化。
@@ -26,7 +27,8 @@
 ## 3. 文件职责
 
 - `TabManager.ts`：多标签 `WebContentsView` 管理器，当前主线。
-- `internalPage.ts`：受控内部页标题、`algo://` 展示地址和页面身份比较；这些地址只用于标签状态，不注册为资源协议。
+- `internalPage.ts`：受控内部页标题、canonical `algo://` 展示地址、严格反向解析和页面身份比较；这些地址只用于标签状态，不注册为资源协议。
+- `omnibox.ts`：Omnibox 输入三分流、内置/自定义搜索 URL 构造与 custom 模板安全校验；纯逻辑层不读取配置、数据库或 renderer 状态。
 - `tabManagerTypes.ts`：受校验的 `InternalPage` 判别联合、web/internal `TabInfo`、managed tab 与可序列化 session snapshot 类型。
 - `tabManagerConfig.ts`：标签数量、工具栏高度、tabbar 高度和 OJ preload 路径配置。
 - `browserLayout.ts`：主进程定义的标题栏/工具栏/NoticeBar 布局契约；preload 注入 renderer CSS 变量，避免 bounds 与 CSS 各自维护高度副本。

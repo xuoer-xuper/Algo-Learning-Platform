@@ -140,6 +140,66 @@ test('navigating from an internal tab converts the same stable id into a web tab
   assert.strictEqual(window.contentView.children.length, 1)
 })
 
+test('omnibox focus detaches the active web view until the panel closes', () => {
+  resetElectronMock()
+  const window = new MockBrowserWindow()
+  const manager = new TabManager(window as never)
+  const firstId = manager.createTab('https://example.com/first')
+  const firstView = window.contentView.children[0]
+  const secondId = manager.createTab('https://example.com/second')
+  const secondView = window.contentView.children[0]
+
+  manager.setOmniboxOpen(true)
+  assert.deepStrictEqual(window.contentView.children, [])
+  assert.strictEqual(manager.isViewVisible(), false)
+
+  manager.switchTab(firstId)
+  assert.deepStrictEqual(window.contentView.children, [])
+  manager.switchTab(secondId)
+  assert.deepStrictEqual(window.contentView.children, [])
+
+  manager.setOmniboxOpen(false)
+  assert.deepStrictEqual(window.contentView.children, [secondView])
+  assert.strictEqual(manager.isViewVisible(), true)
+
+  manager.switchTab(firstId)
+  assert.deepStrictEqual(window.contentView.children, [firstView])
+})
+
+test('omnibox internal navigation replaces the active tab in place and closes its web view', () => {
+  resetElectronMock()
+  const window = new MockBrowserWindow()
+  const manager = new TabManager(window as never)
+  const backgroundId = manager.createTab('https://example.com/background')
+  const activeId = manager.createTab('https://example.com/active')
+  const activeContents = window.contentView.children[0].webContents
+  const urls: string[] = []
+  let sessionChanges = 0
+  manager.setUrlChangeCallback((url) => urls.push(url))
+  manager.addSessionChangeListener(() => { sessionChanges += 1 })
+
+  manager.navigateInternal({ type: 'settings' })
+
+  assert.deepStrictEqual(manager.getTabList().map((tab) => tab.id), [backgroundId, activeId])
+  assert.deepStrictEqual(manager.getTabList()[1], {
+    id: activeId,
+    kind: 'internal',
+    page: { type: 'settings' },
+    url: 'algo://settings',
+    title: '设置',
+    favicon: null,
+    isLoading: false,
+    isCrashed: false,
+    isUnresponsive: false,
+    isUnresponsiveNoticeDismissed: false,
+    isActive: true,
+  })
+  assert.strictEqual(activeContents.isDestroyed(), true)
+  assert.deepStrictEqual(window.contentView.children, [])
+  assert.deepStrictEqual(urls, ['algo://settings'])
+  assert.strictEqual(sessionChanges, 1)
+})
+
 test('tab capacity is 16 and both direct and popup creation report the limit', () => {
   resetElectronMock()
   const window = new MockBrowserWindow()

@@ -1,9 +1,32 @@
 import { screen, type BrowserWindow } from 'electron'
-import { ipcMain } from './trustedSender'
+import { coachPetIpcMain, ipcMain as shellIpcMain } from './trustedSender'
 import type { CoachPetWindow } from '../coach/CoachPetWindow'
 import type { CoachOrchestrator } from '../coach/CoachOrchestrator'
 import type { CoachBubblePayload, CoachPetState } from '../coach/types'
-import { loadCoachConfig, saveCoachConfig } from '../app/config'
+import { getCoachConfigForRenderer, saveCoachConfig } from '../app/config'
+
+const COACH_PET_CHANNELS = new Set([
+  'coach:getPetState',
+  'coach:toggleIgnoreMouseEvents',
+  'coach:startDrag',
+  'coach:endDrag',
+  'coach:getConfig',
+  'coach:triggerHint',
+  'coach:dismissHint',
+  'coach:feedback',
+  'coach:dismissDisclaimer',
+  'coach:petClick',
+  'coach:chat',
+])
+
+type CoachIpcHandler = Parameters<typeof shellIpcMain.handle>[1]
+
+const ipcMain = {
+  handle(channel: string, handler: CoachIpcHandler): void {
+    const registrar = COACH_PET_CHANNELS.has(channel) ? coachPetIpcMain : shellIpcMain
+    registrar.handle(channel, handler)
+  },
+}
 
 /**
  * Coach IPC 注册。
@@ -69,7 +92,7 @@ export function registerCoachIpc(options: RegisterCoachIpcOptions): void {
   // --- 配置 ---
 
   ipcMain.handle('coach:getConfig', () => {
-    return loadCoachConfig()
+    return getCoachConfigForRenderer()
   })
 
   ipcMain.handle('coach:saveConfig', (_event, partial: Parameters<typeof saveCoachConfig>[0]) => {

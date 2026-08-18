@@ -2,13 +2,14 @@
 
 ## 1. 职责
 
-`src/features/settings/` 负责设置内部页 renderer 层，包括学习概览、Codeforces 同步、实时提交诊断、备份导入导出、站点配置和导入导出。
+`src/features/settings/` 负责设置内部页 renderer 层，包括地址栏搜索、学习概览、Codeforces 同步、实时提交诊断、备份导入导出、站点配置和导入导出。
 
 本目录不持久化配置、不读取 Cookie、不执行提交同步逻辑，只通过 preload 白名单调用主进程能力。
 
 ## 2. 当前实现程度
 
 - `SettingsPage.tsx`：设置内部标签入口和面板编排。
+- `SearchEnginePanel.tsx`：Bing、Google、Baidu 和自定义 HTTPS 搜索模板设置；错误在面板文档流内反馈。
 - `LearningOverviewPanel.tsx`、`PlatformDistributionSummary.tsx`：学习概览展示。
 - `CodeforcesSyncPanel.tsx`：Codeforces 提交同步和 rating 同步入口。
 - `BackupPanel.tsx`：SQLite 数据库备份、学习数据 JSON 导出、导入预览和确认导入入口。
@@ -24,6 +25,7 @@
 `settingsApi.ts` 当前对外封装：
 
 - 概览和诊断：`loadSettingsOverviewStats()`、`loadRealtimeSubmissionStatus()`。
+- 地址栏搜索：`loadSearchEngine()`、`saveSearchEngine()`。
 - Codeforces：`loadPrimaryCodeforcesAccount()`、`syncCodeforcesSubmissions()`、`syncCodeforcesRatingProfile()`。
 - 备份导入导出：`createDatabaseBackup()`、`exportLearningData()`、`previewLearningDataImport()`、`confirmLearningDataImport()`。
 - 站点配置：`loadSites()`、`toggleSiteEnabled()`、`deleteSiteConfig()`、`loadSiteById()`、`createSiteFromDraft()`。
@@ -32,6 +34,7 @@
 ## 4. 边界规则
 
 - 新标签固定进入内部 home；设置页不再持有默认远程首页配置。
+- 自定义搜索模板必须使用 HTTPS 且只含一个 `{query}` 占位符；renderer 提前反馈，最终配置始终以主进程校验后的返回值为准。
 - 提交同步和 rating 同步的业务逻辑在主进程，renderer 只展示结果。
 - 实时提交诊断只显示状态和最近事件，不写入调试数据。
 - 备份导入导出只通过 preload 白名单调用主进程；renderer 不读取文件内容或本机数据库。

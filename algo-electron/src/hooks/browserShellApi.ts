@@ -33,3 +33,15 @@ export function reloadBrowser(): void {
 export function syncBrowserCurrentPage(): Promise<SyncResult> {
   return window.electronAPI.syncCurrentPage()
 }
+
+export function getBrowserOmniboxSuggestions(query: string): Promise<OmniboxSuggestion[]> {
+  return window.electronAPI.getOmniboxSuggestions(query)
+}
+
+export function setBrowserOmniboxOpen(open: boolean): void {
+  window.electronAPI.setOmniboxOpen(open)
+}
+
+export function showBrowserAppMenu(anchor: AppMenuAnchor): void {
+  window.electronAPI.showAppMenu(anchor)
+}

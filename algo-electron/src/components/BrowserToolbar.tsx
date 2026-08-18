@@ -1,50 +1,36 @@
-import type { KeyboardEvent } from 'react'
-import { useEffect, useRef } from 'react'
+import type { MouseEvent, RefObject } from 'react'
+import { showBrowserAppMenu } from '../hooks/browserShellApi'
+import { Omnibox } from './Omnibox'
+import type { OmniboxController } from './useOmnibox'
 import { Icon } from './ui'
 
 interface BrowserToolbarProps {
-  url: string
+  omnibox: OmniboxController
+  omniboxInputRef: RefObject<HTMLInputElement | null>
   syncMsg: string
-  onUrlChange: (url: string) => void
-  onNavigate: () => void
   onHome: () => void
   onBack: () => void
   onForward: () => void
   onReload: () => void
   onSyncPage: () => void
-  onOpenDashboard: () => void
-  onOpenScripts: () => void
-  onOpenSettings: () => void
-  onOpenCoachMetrics: () => void
 }
 
 export function BrowserToolbar({
-  url,
+  omnibox,
+  omniboxInputRef,
   syncMsg,
-  onUrlChange,
-  onNavigate,
   onHome,
   onBack,
   onForward,
   onReload,
   onSyncPage,
-  onOpenDashboard,
-  onOpenScripts,
-  onOpenSettings,
-  onOpenCoachMetrics,
 }: BrowserToolbarProps) {
-  const addressBarRef = useRef<HTMLInputElement>(null)
-
-  useEffect(() => {
-    return window.electronAPI.onUiCommand((command) => {
-      if (command.type !== 'focus-address-bar') return
-      addressBarRef.current?.focus()
-      addressBarRef.current?.select()
+  const handleShowAppMenu = (event: MouseEvent<HTMLButtonElement>) => {
+    const bounds = event.currentTarget.getBoundingClientRect()
+    showBrowserAppMenu({
+      x: Math.round(bounds.left),
+      y: Math.round(bounds.bottom),
     })
-  }, [])
-
-  const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
-    if (event.key === 'Enter') onNavigate()
   }
 
   return (
@@ -61,32 +47,20 @@ export function BrowserToolbar({
       <button className="nav-btn" onClick={onReload} title="刷新" aria-label="刷新">
         <Icon name="refresh" size={15} />
       </button>
-      <input
-        ref={addressBarRef}
-        className="url-input"
-        type="text"
-        value={url}
-        onChange={(event) => onUrlChange(event.target.value)}
-        onKeyDown={handleKeyDown}
-        placeholder="输入网址..."
-      />
-      <button className="go-btn" onClick={onNavigate}>前往</button>
+      <Omnibox controller={omnibox} inputRef={omniboxInputRef} />
       <div className="toolbar-divider" />
       <button className="sync-btn" onClick={onSyncPage} title="抓取当前页面提交记录" aria-label="抓取当前页面提交记录">
         <Icon name="capture" size={15} />
       </button>
       {syncMsg && <span className="sync-msg">{syncMsg}</span>}
-      <button className="settings-btn" onClick={onOpenDashboard} title="统计" aria-label="统计">
-        <Icon name="chart" />
-      </button>
-      <button className="settings-btn" onClick={onOpenCoachMetrics} title="Coach 干预效果指标" aria-label="Coach 干预效果指标">
-        <Icon name="bot" />
-      </button>
-      <button className="settings-btn" onClick={onOpenScripts} title="脚本管理" aria-label="脚本管理">
-        <Icon name="code" size={15} />
-      </button>
-      <button className="settings-btn" onClick={onOpenSettings} title="设置" aria-label="设置">
-        <Icon name="settings" />
+      <button
+        className="settings-btn"
+        onClick={handleShowAppMenu}
+        title="更多"
+        aria-label="更多"
+        aria-haspopup="menu"
+      >
+        <Icon name="more" />
       </button>
     </div>
   )

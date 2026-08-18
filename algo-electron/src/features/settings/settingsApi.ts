@@ -10,6 +10,14 @@ export type LearningDataExportResult = Awaited<ReturnType<ElectronAPI['exportLea
 export type LearningDataImportPreviewResult = Awaited<ReturnType<ElectronAPI['previewLearningDataImport']>>
 export type LearningDataImportResult = Awaited<ReturnType<ElectronAPI['confirmLearningDataImport']>>
 
+export function loadSearchEngine(): Promise<SearchEngineConfig> {
+  return window.electronAPI.getSearchEngine()
+}
+
+export function saveSearchEngine(search: SearchEngineConfig): Promise<SearchEngineConfig> {
+  return window.electronAPI.setSearchEngine(search)
+}
+
 export function loadSettingsOverviewStats(): Promise<SettingsOverviewStats> {
   return window.electronAPI.getOverviewStats()
 }

@@ -1,6 +1,11 @@
 import { app } from 'electron'
 import path from 'node:path'
 import fs from 'node:fs'
+import {
+  DEFAULT_SEARCH_ENGINE_CONFIG,
+  normalizeSearchEngineConfig,
+  type SearchEngineConfig,
+} from '../browser/omnibox'
 
 /**
  * Coach 桌宠配置。
@@ -37,10 +42,12 @@ export interface CoachLlmConfig {
 export interface AppConfig {
   homeShortcuts: string[]
   coach: CoachConfig
+  search: SearchEngineConfig
 }
 
-interface LegacyAppConfig extends Partial<AppConfig> {
+interface LegacyAppConfig extends Omit<Partial<AppConfig>, 'search'> {
   defaultHomeUrl?: unknown
+  search?: unknown
 }
 
 const DEFAULT_COACH_CONFIG: CoachConfig = {
@@ -55,6 +62,7 @@ const DEFAULT_COACH_CONFIG: CoachConfig = {
 const DEFAULT_CONFIG: AppConfig = {
   homeShortcuts: [],
   coach: DEFAULT_COACH_CONFIG,
+  search: { ...DEFAULT_SEARCH_ENGINE_CONFIG },
 }
 
 let config: AppConfig | null = null
@@ -87,9 +95,13 @@ export function loadConfig(): AppConfig {
       ...(Array.isArray(parsed.homeShortcuts) ? parsed.homeShortcuts : []),
       parsed.defaultHomeUrl,
     ])
-    config = { homeShortcuts, coach }
+    const search = normalizeSearchEngineConfig(parsed.search)
+    config = { homeShortcuts, coach, search }
 
-    if (Object.prototype.hasOwnProperty.call(parsed, 'defaultHomeUrl')) {
+    if (
+      Object.prototype.hasOwnProperty.call(parsed, 'defaultHomeUrl')
+      || !isStoredSearchEngineConfig(parsed.search, search)
+    ) {
       try {
         writeConfig(config)
       } catch {
@@ -104,12 +116,35 @@ export function loadConfig(): AppConfig {
 
 export function saveConfig(partial: Partial<AppConfig>): void {
   const current = loadConfig()
-  config = { ...current, ...partial }
-  writeConfig(config)
+  const nextConfig: AppConfig = {
+    ...current,
+    ...partial,
+    search: Object.prototype.hasOwnProperty.call(partial, 'search')
+      ? normalizeSearchEngineConfig(partial.search)
+      : current.search,
+  }
+  writeConfig(nextConfig)
+  config = nextConfig
 }
 
 export function getHomeShortcuts(): string[] {
   return [...loadConfig().homeShortcuts]
+}
+
+export function getSearchConfig(): SearchEngineConfig {
+  return { ...loadConfig().search }
+}
+
+export function saveSearchConfig(search: SearchEngineConfig): void {
+  saveConfig({ search: normalizeSearchEngineConfig(search) })
+}
+
+function isStoredSearchEngineConfig(value: unknown, normalized: SearchEngineConfig): boolean {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return false
+  const candidate = value as Record<string, unknown>
+  return Object.keys(candidate).length === 2
+    && candidate.engine === normalized.engine
+    && candidate.customTemplate === normalized.customTemplate
 }
 
 function sanitizeHomeShortcuts(values: unknown[]): string[] {
@@ -139,6 +174,7 @@ function createDefaultConfig(): AppConfig {
     ...DEFAULT_CONFIG,
     homeShortcuts: [...DEFAULT_CONFIG.homeShortcuts],
     coach: { ...DEFAULT_CONFIG.coach },
+    search: { ...DEFAULT_CONFIG.search },
   }
 }
 
@@ -147,6 +183,16 @@ function createDefaultConfig(): AppConfig {
  */
 export function loadCoachConfig(): CoachConfig {
   return loadConfig().coach
+}
+
+export function getCoachConfigForRenderer(): CoachConfig {
+  const current = loadCoachConfig()
+  if (!current.llm) return { ...current }
+  const {
+    encrypted_api_key: _encryptedApiKey,
+    ...publicLlmConfig
+  } = current.llm
+  return { ...current, llm: publicLlmConfig }
 }
 
 /**

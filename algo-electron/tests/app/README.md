@@ -6,7 +6,7 @@
 
 ## 当前实现
 
-- `configMigration.test.ts`：验证旧默认首页迁入净化快捷入口、旧字段删除、去重/userinfo 拒绝和迁移写回失败时的内存回退。
+- `configMigration.test.ts`：验证旧默认首页迁入净化快捷入口、旧字段删除、去重/userinfo 拒绝、默认 Bing 搜索配置迁移、custom 模板净化和迁移写回失败时的内存回退。
 - `mainProcessErrors.test.ts`：验证全局异常只弹一次并退出，以及 smoke 模式跳过阻塞对话框。
 - `shellRendererRecovery.test.ts`：验证卡死/崩溃记录、reload 条件和清理监听器。
 - `singleInstance.test.ts`：验证锁失败退出、第二次启动恢复/聚焦窗口和异常容错。

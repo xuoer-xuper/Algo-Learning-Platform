@@ -172,9 +172,13 @@ export class MockApp extends EventEmitter {
 }
 export const app = new MockApp()
 
+export const menuPopups: Array<{ template: unknown; options: unknown }> = []
 export const Menu = {
   setApplicationMenu: (_menu: unknown) => undefined,
-  buildFromTemplate: (template: unknown) => ({ template }),
+  buildFromTemplate: (template: unknown) => ({
+    template,
+    popup: (options: unknown) => { menuPopups.push({ template, options }) },
+  }),
 }
 
 export const shell = {
@@ -268,6 +272,7 @@ export function resetElectronMock(): void {
   ipcRenderer.removeAllListeners()
   protocolSchemes.length = 0
   protocolHandlers.clear()
+  menuPopups.length = 0
   defaultSession.reset()
   partitionSessions.clear()
 }

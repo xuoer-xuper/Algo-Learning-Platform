@@ -13,7 +13,7 @@
 - 禁止提交 `.sqlite`、`.sqlite3`、`.db`。
 - 禁止提交 `.log`。
 - 检查高置信的 `Cookie:`、`Set-Cookie:`、`Authorization: Bearer ...`、常见 session/csrf token 赋值模式。
-- `trustedSender.test.ts`：验证 `app://shell`/localhost origin、main frame、已登记 webContents、OJ 专用 sender 和循环/超限 payload 的 fail-closed 行为。
+- `trustedSender.test.ts`：验证 `app://shell`/localhost origin、main frame、完整浏览器壳与 Coach 壳能力隔离、OJ 专用 sender 和循环/超限 payload 的 fail-closed 行为。
 
 检查不会因为文档中普通描述 `Cookie`、`session`、`csrf token` 等词汇而失败。
 

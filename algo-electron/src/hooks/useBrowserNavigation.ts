@@ -11,13 +11,6 @@ import {
   syncBrowserCurrentPage,
 } from './browserShellApi'
 
-function normalizeUrl(url: string): string {
-  const target = url.trim()
-  if (!target) return ''
-  if (target.startsWith('http://') || target.startsWith('https://')) return target
-  return `https://${target}`
-}
-
 export function useBrowserNavigation() {
   const [url, setUrl] = useState('')
   const [syncMsg, setSyncMsg] = useState('')
@@ -70,11 +63,10 @@ export function useBrowserNavigation() {
     navigateBrowser(targetUrl)
   }, [])
 
-  const navigateFromInput = useCallback(() => {
-    const target = normalizeUrl(url)
-    if (!target) return
-    navigateTo(target)
-  }, [navigateTo, url])
+  const navigateFromInput = useCallback((input: string) => {
+    if (!input.trim()) return
+    navigateTo(input)
+  }, [navigateTo])
 
   const goHome = useCallback(() => {
     goBrowserHome()

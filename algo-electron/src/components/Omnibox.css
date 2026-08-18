@@ -1,0 +1,99 @@
+.omnibox {
+  -webkit-app-region: no-drag;
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.omnibox .url-input {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.omnibox-suggestions-panel {
+  -webkit-app-region: no-drag;
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+  background-color: var(--bg-card);
+}
+
+.omnibox-suggestions-list {
+  width: 100%;
+}
+
+.omnibox-suggestion-option {
+  width: 100%;
+  min-height: 52px;
+  display: grid;
+  grid-template-columns: 18px minmax(160px, 0.8fr) minmax(220px, 1.2fr);
+  align-items: center;
+  gap: 10px;
+  padding: 8px 18px;
+  border: 0;
+  border-bottom: 1px solid var(--border-light);
+  border-radius: 0;
+  background: transparent;
+  color: var(--text-secondary);
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background-color var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out);
+}
+
+.omnibox-suggestion-option:hover,
+.omnibox-suggestion-option-active {
+  background-color: var(--hover-bg);
+  color: var(--text);
+}
+
+.omnibox-suggestion-copy {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.omnibox-suggestion-title,
+.omnibox-suggestion-meta,
+.omnibox-suggestion-url {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.omnibox-suggestion-title {
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.omnibox-suggestion-meta {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.omnibox-suggestion-url {
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+.omnibox-suggestions-empty {
+  padding: 28px 18px;
+  color: var(--text-muted);
+  font-size: 12px;
+  text-align: center;
+}
+
+@media (max-width: 760px) {
+  .omnibox-suggestion-option {
+    grid-template-columns: 18px minmax(0, 1fr);
+  }
+
+  .omnibox-suggestion-url {
+    display: none;
+  }
+}

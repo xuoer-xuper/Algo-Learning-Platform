@@ -22,9 +22,10 @@
 `config.ts`：
 
 - 配置文件位置：`app.getPath('userData')/config.json`。
-- 默认配置：`homeShortcuts = []`，新标签和无恢复会话的首页由 Browser 模块固定为内部 `algo://home`，不再由配置 URL 决定。
+- 默认配置：`homeShortcuts = []`、搜索引擎为 Bing；新标签和无恢复会话的首页由 Browser 模块固定为内部 `algo://home`，不再由配置 URL 决定。
 - 读取时会与默认配置合并；旧 `defaultHomeUrl` 仅在迁移入口读取，净化后并入 `homeShortcuts` 并尽力删除旧字段。
 - 快捷入口只接受不含 userinfo 的 HTTP/HTTPS URL，迁移写回失败不会丢失已经加载到内存的配置。
+- 搜索配置支持 Bing/Google/Baidu/custom；旧配置自动补 Bing，非法 custom 模板净化并写回默认值。custom 必须为无 userinfo、只含一个 `{query}` 且无其他占位符的 HTTPS URL，保存前会再次净化。
 - 写入时保存格式化 JSON。
 
 `startupSmoke.ts`：
@@ -67,9 +68,13 @@
   - 懒加载配置文件。
   - 文件不存在或 JSON 解析失败时回退默认配置。
 - `saveConfig(partial)`
-  - 与当前配置合并后写回 `config.json`。
+  - 与当前配置合并后写回 `config.json`；只有落盘成功才发布新的内存配置。
 - `getHomeShortcuts()`
   - 返回净化后的首页自定义快捷入口副本。
+- `getSearchConfig()` / `saveSearchConfig(search)`
+  - 读取副本或保存经严格净化的搜索引擎配置。
+- `getCoachConfigForRenderer()`
+  - 返回不含 `encrypted_api_key` envelope 的 Coach renderer 配置副本。
 - `configureChromiumCommandLine()`
   - 设置 Chromium 启动开关，必须在 `app.whenReady()` 前调用。
 - `MAIN_WINDOW_BOUNDS`

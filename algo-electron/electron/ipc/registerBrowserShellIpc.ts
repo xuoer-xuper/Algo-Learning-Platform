@@ -4,11 +4,24 @@ import type { TabManager } from '../browser/TabManager'
 import { resolveNavigateUrl } from '../parsers/navigateUrl'
 import type { BrowserDiagnostics } from '../diagnostics/BrowserDiagnostics'
 import { isInternalPage } from '../browser/tabManagerTypes'
+import { resolveOmniboxInput, type OmniboxBlockReason } from '../browser/omnibox'
+import { getSearchConfig } from '../app/config'
+import { getOmniboxSuggestions } from '../db/repositories/problemRepository'
+import { isAppMenuAnchor, popupAppMenu } from '../contextMenus/appMenu'
 
 interface RegisterBrowserShellIpcOptions {
   getWindow: () => BrowserWindow | null
   getTabManager: () => TabManager | null
   getBrowserDiagnostics?: () => BrowserDiagnostics | null
+  allowInsecureLocalhost?: boolean
+}
+
+function toNavigationBlockReason(
+  reason: OmniboxBlockReason,
+): 'invalid-url' | 'insecure-http' | 'unsupported-protocol' | null {
+  if (reason === 'empty-input') return null
+  if (reason === 'insecure-http' || reason === 'unsupported-protocol') return reason
+  return 'invalid-url'
 }
 
 export function registerBrowserShellIpc(options: RegisterBrowserShellIpcOptions): void {
@@ -54,9 +67,44 @@ export function registerBrowserShellIpc(options: RegisterBrowserShellIpcOptions)
     return options.getTabManager()?.getTabList() ?? []
   })
 
-  ipcMain.on('browser:navigate', (_event, url: string) => {
-    const resolvedUrl = resolveNavigateUrl(url)
-    options.getTabManager()?.navigate(resolvedUrl)
+  ipcMain.on('browser:navigate', (_event, input: unknown) => {
+    if (typeof input !== 'string') return
+    const resolution = resolveOmniboxInput(input, {
+      search: getSearchConfig(),
+      allowInsecureLocalhost: options.allowInsecureLocalhost ?? false,
+    })
+    if (resolution.kind === 'blocked') {
+      const reason = toNavigationBlockReason(resolution.reason)
+      if (reason) options.getWindow()?.webContents.send('ui:command', { type: 'navigation-blocked', reason })
+      return
+    }
+    if (resolution.kind === 'internal') {
+      options.getTabManager()?.navigateInternal(resolution.page)
+      return
+    }
+    options.getTabManager()?.navigate(resolveNavigateUrl(resolution.url))
+  })
+
+  ipcMain.handle('browser:omniboxSuggest', (_event, query: unknown) => {
+    if (typeof query !== 'string' || query.length > 256) return []
+    return getOmniboxSuggestions(query)
+  })
+
+  ipcMain.on('browser:setOmniboxOpen', (_event, open: unknown) => {
+    if (typeof open !== 'boolean') return
+    options.getTabManager()?.setOmniboxOpen(open)
+  })
+
+  ipcMain.on('browser:showAppMenu', (_event, anchor: unknown) => {
+    if (!isAppMenuAnchor(anchor)) return
+    const window = options.getWindow()
+    const tabManager = options.getTabManager()
+    if (!window || window.isDestroyed() || !tabManager) return
+    popupAppMenu({
+      window,
+      anchor,
+      openInternalPage: (page) => { tabManager.openInternalTab(page) },
+    })
   })
 
   ipcMain.on('browser:goBack', () => {

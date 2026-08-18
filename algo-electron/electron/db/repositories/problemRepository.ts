@@ -1,5 +1,6 @@
 export type {
   OverviewStats,
+  OmniboxSuggestion,
   PlatformDistributionRow,
   ProblemDetail,
   ProblemRow,
@@ -17,6 +18,11 @@ export {
   getRecentProblems,
   listProblemVisitsByProblem,
 } from './problem/queries'
+
+export {
+  getOmniboxSuggestions,
+  OMNIBOX_SUGGESTION_LIMIT,
+} from './problem/omnibox'
 
 export {
   getLastActiveTime,

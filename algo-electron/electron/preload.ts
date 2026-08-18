@@ -105,6 +105,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // 配置
   getHomeShortcuts: () => ipcRenderer.invoke('config:getHomeShortcuts') as Promise<string[]>,
+  getSearchEngine: () => ipcRenderer.invoke('config:getSearchEngine') as Promise<SearchEngineConfig>,
+  setSearchEngine: (search: SearchEngineConfig) => ipcRenderer.invoke('config:setSearchEngine', search) as Promise<SearchEngineConfig>,
 
   // 备份与导入导出
   createDatabaseBackup: () => ipcRenderer.invoke('backup:createDatabaseBackup') as Promise<DatabaseBackupResult>,
@@ -130,6 +132,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
       ipcRenderer.off('tab:listChanged', handler)
     }
   },
+
+  // Omnibox 与应用菜单
+  getOmniboxSuggestions: (query: string) => ipcRenderer.invoke('browser:omniboxSuggest', query) as Promise<OmniboxSuggestion[]>,
+  setOmniboxOpen: (open: boolean) => ipcRenderer.send('browser:setOmniboxOpen', open),
+  showAppMenu: (anchor: AppMenuAnchor) => ipcRenderer.send('browser:showAppMenu', anchor),
 
   // 笔记（本地题解 Markdown）
   listNotesByProblem: (problemId: string) => ipcRenderer.invoke('notes:listByProblem', problemId) as Promise<NoteRecord[]>,

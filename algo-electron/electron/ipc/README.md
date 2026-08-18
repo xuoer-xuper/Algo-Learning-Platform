@@ -22,7 +22,7 @@
 - `registerCoachIpc.ts`：注册 Coach 桌宠、比赛模式、会话、干预和指标相关 handler。
 - `registerCookieIpc.ts`：注册 `cookies:*` 安全摘要 handler，不向 renderer 暴露 Cookie value。
 - `registerMainIpc.ts`：组合注册入口，集中由 `main.ts` 调用各业务域注册函数。
-- `trustedSender.ts`：统一 shell/OJ sender、main frame、origin、webContents 归属和 payload 边界；普通 handler 使用 guarded `ipcMain` facade，提交 bridge 使用 `onFromOj()`。
+- `trustedSender.ts`：统一完整浏览器壳、Coach 壳与 OJ sender 的 main frame、origin、webContents 能力归属和 payload 边界；普通 handler 使用仅完整壳可调用的 guarded `ipcMain` facade，桌宠必需的最小 Coach handler 使用 `coachPetIpcMain`，提交 bridge 使用 `onFromOj()`。
 - `ui:command`：主进程向壳 renderer 发送的受限对象指令，目前包含聚焦地址栏和导航被安全策略阻止；renderer 只能通过 preload 的 `onUiCommand()` 订阅。
 
 其他 IPC 仍在 `electron/main.ts`，后续可按风险逐步迁移：

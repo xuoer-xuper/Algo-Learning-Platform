@@ -244,6 +244,7 @@ async function createWindow() {
 
   win.webContents.on('did-finish-load', () => {
     if (tabManager) {
+      tabManager.setOmniboxOpen(false)
       win?.webContents.send('browser:urlChanged', tabManager.getUrl())
       win?.webContents.send('tab:listChanged', tabManager.getTabList())
     }
@@ -315,6 +316,7 @@ registerMainIpc({
   getCoachPetWindow: () => coachPetWindow,
   getCoachOrchestrator: () => coachOrchestrator,
   getBrowserDiagnostics: () => services?.browserDiagnostics ?? null,
+  allowInsecureLocalhost: Boolean(VITE_DEV_SERVER_URL || STARTUP_SMOKE_MODE),
 })
 
 // --- App 生命周期 ---

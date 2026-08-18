@@ -49,6 +49,27 @@ const problems: ProblemRecord[] = [
   },
 ]
 
+const omniboxSuggestions: OmniboxSuggestion[] = [
+  {
+    problemId: problems[0].id,
+    title: problems[0].title,
+    platform: problems[0].platform,
+    platformProblemId: problems[0].platform_problem_id,
+    url: problems[0].canonical_url,
+    lastVisitedAt: problems[0].last_visited_at,
+    source: 'history',
+  },
+  {
+    problemId: problems[1].id,
+    title: problems[1].title,
+    platform: problems[1].platform,
+    platformProblemId: problems[1].platform_problem_id,
+    url: problems[1].canonical_url,
+    lastVisitedAt: problems[1].last_visited_at,
+    source: 'problem',
+  },
+]
+
 const overview: OverviewStats = {
   totalProblems: problems.length,
   todayVisited: 2,
@@ -322,6 +343,8 @@ function createApiMock(): ElectronAPI {
     scriptsDelete: async () => true,
 
     getHomeShortcuts: async () => ['https://codeforces.com/'],
+    getSearchEngine: async () => ({ engine: 'bing', customTemplate: null }),
+    setSearchEngine: async (search) => search,
 
     createTab: async (url) => {
       const id = `tab-${tabs.length + 1}`
@@ -403,6 +426,17 @@ function createApiMock(): ElectronAPI {
       tabListeners.add(callback)
       return () => { tabListeners.delete(callback) }
     },
+    getOmniboxSuggestions: async (query) => {
+      const normalizedQuery = query.trim().toLocaleLowerCase()
+      if (!normalizedQuery) return omniboxSuggestions
+      return omniboxSuggestions.filter((suggestion) => (
+        suggestion.title?.toLocaleLowerCase().includes(normalizedQuery)
+        || suggestion.platformProblemId.toLocaleLowerCase().includes(normalizedQuery)
+        || suggestion.url.toLocaleLowerCase().includes(normalizedQuery)
+      ))
+    },
+    setOmniboxOpen: () => {},
+    showAppMenu: () => {},
 
     listNotesByProblem: async () => [screenshotNote],
     getNote: async () => screenshotNote,

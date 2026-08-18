@@ -8,6 +8,7 @@ type RegistrableWebContents = Pick<WebContents, 'id'> & Partial<Pick<WebContents
 type WebContentsIdentity = Pick<WebContents, 'id'> | null | undefined
 
 const shellWebContentsIds = new Set<number>()
+const coachWebContentsIds = new Set<number>()
 const ojWebContentsIds = new Set<number>()
 
 function getWebContentsId(webContents: WebContentsIdentity): number | null {
@@ -75,6 +76,18 @@ export function checkShellSender(event: ShellEvent): TrustedSenderCheck {
   return { trusted: true, reason: 'ok' }
 }
 
+export function checkCoachSender(event: ShellEvent): TrustedSenderCheck {
+  if (
+    !isKnownSender(event, shellWebContentsIds)
+    && !isKnownSender(event, coachWebContentsIds)
+  ) {
+    return { trusted: false, reason: 'sender' }
+  }
+  if (!isMainFrame(event)) return { trusted: false, reason: 'frame' }
+  if (!isExpectedOrigin(event, allowedShellOrigins())) return { trusted: false, reason: 'origin' }
+  return { trusted: true, reason: 'ok' }
+}
+
 export function checkOjSender(event: ShellEvent): TrustedSenderCheck {
   if (!isKnownSender(event, ojWebContentsIds)) return { trusted: false, reason: 'sender' }
   if (!isMainFrame(event)) return { trusted: false, reason: 'frame' }
@@ -133,6 +146,18 @@ export function unregisterShellWebContents(webContents: WebContentsIdentity): vo
   if (id !== null) shellWebContentsIds.delete(id)
 }
 
+export function registerCoachWebContents(webContents: RegistrableWebContents): void {
+  const id = getWebContentsId(webContents)
+  if (id === null || coachWebContentsIds.has(id)) return
+  coachWebContentsIds.add(id)
+  webContents.once?.('destroyed', () => coachWebContentsIds.delete(id))
+}
+
+export function unregisterCoachWebContents(webContents: WebContentsIdentity): void {
+  const id = getWebContentsId(webContents)
+  if (id !== null) coachWebContentsIds.delete(id)
+}
+
 export function registerOjWebContents(webContents: RegistrableWebContents): void {
   const id = getWebContentsId(webContents)
   if (id === null || ojWebContentsIds.has(id)) return
@@ -165,6 +190,26 @@ export function onFromShell(channel: string, listener: IpcListener<IpcMainEvent>
   })
 }
 
+export function handleFromCoach(channel: string, listener: IpcListener<IpcMainInvokeEvent>): void {
+  electronIpcMain.handle(channel, (event, ...args) => {
+    const check = checkCoachSender(event)
+    if (!check.trusted) rejectInvoke(check)
+    const payloadCheck = checkIpcPayload(args)
+    if (!payloadCheck.trusted) rejectInvoke(payloadCheck)
+    return listener(event, ...args)
+  })
+}
+
+export function onFromCoach(channel: string, listener: IpcListener<IpcMainEvent>): void {
+  electronIpcMain.on(channel, (event, ...args) => {
+    const check = checkCoachSender(event)
+    if (!check.trusted) return rejectSend(channel, check)
+    const payloadCheck = checkIpcPayload(args)
+    if (!payloadCheck.trusted) return rejectSend(channel, payloadCheck)
+    listener(event, ...args)
+  })
+}
+
 export function onFromOj(channel: string, listener: IpcListener<IpcMainEvent>): IpcListener<IpcMainEvent> {
   const guardedListener: IpcListener<IpcMainEvent> = (event, ...args) => {
     const check = checkOjSender(event)
@@ -184,7 +229,13 @@ export const ipcMain = {
   on: onFromShell,
 }
 
+export const coachPetIpcMain = {
+  handle: handleFromCoach,
+  on: onFromCoach,
+}
+
 export function resetTrustedSenderRegistry(): void {
   shellWebContentsIds.clear()
+  coachWebContentsIds.clear()
   ojWebContentsIds.clear()
 }

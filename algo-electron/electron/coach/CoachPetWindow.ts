@@ -1,8 +1,8 @@
 import { BrowserWindow, screen } from 'electron'
 import type { CoachBubblePayload, CoachPetState } from './types'
-import { loadCoachConfig, saveCoachConfig } from '../app/config'
+import { getCoachConfigForRenderer, loadCoachConfig, saveCoachConfig } from '../app/config'
 import { shellUrl } from '../app/appProtocol'
-import { registerShellWebContents, unregisterShellWebContents } from '../ipc/trustedSender'
+import { registerCoachWebContents, unregisterCoachWebContents } from '../ipc/trustedSender'
 
 /**
  * Coach 桌宠透明悬浮窗口。
@@ -87,7 +87,7 @@ export class CoachPetWindow {
         sandbox: true,
       },
     })
-    registerShellWebContents(this.win.webContents)
+    registerCoachWebContents(this.win.webContents)
 
     this.win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
     this.win.webContents.on('will-navigate', (event, url) => {
@@ -113,11 +113,11 @@ export class CoachPetWindow {
       // 推送初始状态给渲染层（避免渲染层在 IPC 就绪前错过状态）
       this.win?.webContents.send('coach:petStateChanged', this.currentState)
       // 推送初始配置
-      this.win?.webContents.send('coach:configChanged', loadCoachConfig())
+      this.win?.webContents.send('coach:configChanged', getCoachConfigForRenderer())
     })
 
     this.win.on('closed', () => {
-      if (this.win) unregisterShellWebContents(this.win.webContents)
+      if (this.win) unregisterCoachWebContents(this.win.webContents)
       this.win = null
       this.dragging = false
       this.stopDragPoll()
@@ -190,7 +190,7 @@ export class CoachPetWindow {
    * 推送配置变更到桌宠渲染层（如 scale/opacity 调整后）。
    */
   notifyConfigChanged(): void {
-    this.win?.webContents.send('coach:configChanged', loadCoachConfig())
+    this.win?.webContents.send('coach:configChanged', getCoachConfigForRenderer())
     // 同步窗口级透明度
     const cfg = loadCoachConfig()
     this.win?.setOpacity(clamp(cfg.opacity, 0.3, 1))

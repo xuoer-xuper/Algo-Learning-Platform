@@ -1,4 +1,4 @@
-import type { InternalPage } from './tabManagerTypes'
+import { isInternalPage, type InternalPage } from './tabManagerTypes'
 
 const INTERNAL_PAGE_TITLES: Record<InternalPage['type'], string> = {
   home: '首页',
@@ -27,6 +27,47 @@ export function getInternalPageUrl(page: InternalPage): string {
     default:
       return `algo://${page.type}`
   }
+}
+
+export function parseInternalPageUrl(value: string): InternalPage | null {
+  let parsed: URL
+  try {
+    parsed = new URL(value)
+  } catch {
+    return null
+  }
+  if (
+    parsed.protocol !== 'algo:'
+    || parsed.username
+    || parsed.password
+    || parsed.port
+    || parsed.pathname
+    || parsed.hash
+  ) {
+    return null
+  }
+
+  let page: InternalPage | null = null
+  if (!parsed.search) {
+    switch (parsed.hostname) {
+      case 'home': page = { type: 'home' }; break
+      case 'settings': page = { type: 'settings' }; break
+      case 'dashboard': page = { type: 'dashboard' }; break
+      case 'scripts': page = { type: 'scripts' }; break
+      case 'coach-metrics': page = { type: 'coach-metrics' }; break
+      case 'credentials': page = { type: 'credentials' }; break
+    }
+  } else if (parsed.searchParams.size === 1) {
+    if (parsed.hostname === 'problem-detail' && parsed.searchParams.has('problemId')) {
+      page = { type: 'problem-detail', problemId: parsed.searchParams.get('problemId') ?? '' }
+    } else if (parsed.hostname === 'problem-notes' && parsed.searchParams.has('problemId')) {
+      page = { type: 'notes', problemId: parsed.searchParams.get('problemId') ?? '' }
+    } else if (parsed.hostname === 'script-install' && parsed.searchParams.has('installId')) {
+      page = { type: 'script-install', installId: parsed.searchParams.get('installId') ?? '' }
+    }
+  }
+
+  return page && isInternalPage(page) && getInternalPageUrl(page) === value ? page : null
 }
 
 export function sameInternalPage(left: InternalPage, right: InternalPage): boolean {

@@ -371,6 +371,28 @@ type UiCommand =
   | { type: 'navigation-blocked'; reason: 'invalid-url' | 'insecure-http' | 'unsupported-protocol' }
   | { type: 'tab-limit-reached'; limit: number }
 
+type SearchEngineId = 'bing' | 'google' | 'baidu' | 'custom'
+
+interface SearchEngineConfig {
+  engine: SearchEngineId
+  customTemplate: string | null
+}
+
+interface OmniboxSuggestion {
+  problemId: string
+  title: string | null
+  platform: string
+  platformProblemId: string
+  url: string
+  lastVisitedAt: string | null
+  source: 'history' | 'problem'
+}
+
+interface AppMenuAnchor {
+  x: number
+  y: number
+}
+
 interface SaveNoteImageResult {
   markdownUrl: string
 }
@@ -776,6 +798,8 @@ interface ElectronAPI {
   scriptsDelete: (id: string) => Promise<boolean>
 
   getHomeShortcuts: () => Promise<string[]>
+  getSearchEngine: () => Promise<SearchEngineConfig>
+  setSearchEngine: (search: SearchEngineConfig) => Promise<SearchEngineConfig>
   createDatabaseBackup: () => Promise<DatabaseBackupResult>
   exportLearningData: () => Promise<LearningDataExportFileResult>
   previewLearningDataImport: () => Promise<LearningDataImportPreviewResult>
@@ -793,6 +817,11 @@ interface ElectronAPI {
   openInternalTab: (page: InternalPage) => Promise<string>
   getTabList: () => Promise<TabInfo[]>
   onTabListChanged: (callback: (tabs: TabInfo[]) => void) => () => void
+
+  // Omnibox 与应用菜单
+  getOmniboxSuggestions: (query: string) => Promise<OmniboxSuggestion[]>
+  setOmniboxOpen: (open: boolean) => void
+  showAppMenu: (anchor: AppMenuAnchor) => void
 
   // 笔记（本地题解 Markdown）
   listNotesByProblem: (problemId: string) => Promise<NoteRecord[]>

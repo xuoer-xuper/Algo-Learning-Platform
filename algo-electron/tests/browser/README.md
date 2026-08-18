@@ -8,6 +8,8 @@
 
 - `ojBridge.test.ts`：`__algo_submission_v1` channel、同窗口/子 frame message 转发和非法 message 忽略。
 - `navigationPolicy.test.ts`：生产 HTTPS、受控 about:blank、开发 loopback HTTP 与未知协议拒绝。
+- `internalPage.test.ts`：canonical `algo://` 地址正反向互逆，以及额外路径/参数/hash/userinfo/非 canonical 编码拒绝。
+- `omnibox.test.ts`：内部页/HTTPS URL/搜索三分流、bare host 推断、开发 loopback、稳定阻断原因、内置搜索 URL 与 custom HTTPS 模板校验。
 - `permissionPolicy.test.ts`：敏感权限默认拒绝，以及默认/OJ session 的 permission check/request 双处理器安装。
 - `tabManagerTypes.test.ts`：内部页判别联合的严格参数白名单与长度边界。
 - `tabManagerWindowOpen.test.ts`：接管 Chromium 创建的原始 `webContents`、前后台标签、销毁竞态与不安全协议拒绝。

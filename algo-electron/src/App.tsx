@@ -4,7 +4,9 @@ import { ErrorBoundary } from './components/ErrorBoundary'
 import { WindowControls } from './components/WindowControls'
 import { TabStrip } from './components/TabStrip'
 import { BrowserToolbar } from './components/BrowserToolbar'
+import { OmniboxSuggestionsPanel } from './components/Omnibox'
 import { ShellRouter } from './components/ShellRouter'
+import { useOmnibox } from './components/useOmnibox'
 import {
   closeBrowserTab,
   dismissUnresponsiveBrowserTab,
@@ -21,7 +23,6 @@ function App() {
   const {
     url,
     syncMsg,
-    setUrl,
     setSidebarWidth,
     applyUrlState,
     navigateFromInput,
@@ -33,6 +34,10 @@ function App() {
     syncCurrentPage,
     showTransientMessage,
   } = useBrowserNavigation()
+  const { inputRef: omniboxInputRef, controller: omnibox } = useOmnibox({
+    activeUrl: url,
+    onNavigate: navigateFromInput,
+  })
 
   const handleActiveTabChange = useCallback((tab: TabStripTabInfo | null) => {
     setActiveTab(tab)
@@ -72,19 +77,14 @@ function App() {
         <WindowControls />
       </div>
       <BrowserToolbar
-        url={url}
+        omnibox={omnibox}
+        omniboxInputRef={omniboxInputRef}
         syncMsg={syncMsg}
-        onUrlChange={setUrl}
-        onNavigate={navigateFromInput}
         onHome={goHome}
         onBack={goBack}
         onForward={goForward}
         onReload={reload}
         onSyncPage={syncCurrentPage}
-        onOpenDashboard={() => openInternal({ type: 'dashboard' })}
-        onOpenScripts={() => openInternal({ type: 'scripts' })}
-        onOpenSettings={() => openInternal({ type: 'settings' })}
-        onOpenCoachMetrics={() => openInternal({ type: 'coach-metrics' })}
       />
       {showUnresponsiveNotice && (
         <NoticeBar
@@ -100,22 +100,26 @@ function App() {
           你可以继续等待，或重新加载这个标签。
         </NoticeBar>
       )}
-      <div className="content-area">
-        <ProblemSidebar
-          onNavigate={navigateTo}
-          onShowDetail={(problemId) => openInternal({ type: 'problem-detail', problemId })}
-          onShowNotes={(problemId) => openInternal({ type: 'notes', problemId })}
-          onWidthChange={setSidebarWidth}
-        />
-        <main className="main-content">
-          <ShellRouter
-            activeTab={activeTab}
+      {omnibox.open ? (
+        <OmniboxSuggestionsPanel controller={omnibox} />
+      ) : (
+        <div className="content-area">
+          <ProblemSidebar
             onNavigate={navigateTo}
-            onCloseActiveTab={handleCloseActiveTab}
-            onReloadActiveTab={handleReloadActiveTab}
+            onShowDetail={(problemId) => openInternal({ type: 'problem-detail', problemId })}
+            onShowNotes={(problemId) => openInternal({ type: 'notes', problemId })}
+            onWidthChange={setSidebarWidth}
           />
-        </main>
-      </div>
+          <main className="main-content">
+            <ShellRouter
+              activeTab={activeTab}
+              onNavigate={navigateTo}
+              onCloseActiveTab={handleCloseActiveTab}
+              onReloadActiveTab={handleReloadActiveTab}
+            />
+          </main>
+        </div>
+      )}
     </div>
     </ErrorBoundary>
   )

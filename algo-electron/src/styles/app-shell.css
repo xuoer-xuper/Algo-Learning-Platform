@@ -94,24 +94,6 @@
   box-shadow: 0 0 0 3px var(--color-accent-soft);
 }
 
-.go-btn {
-  -webkit-app-region: no-drag;
-  height: 28px;
-  padding: 0 14px;
-  border: none;
-  border-radius: 999px;
-  background-color: var(--primary);
-  color: #fff;
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background-color var(--duration-fast) var(--ease-out);
-}
-
-.go-btn:hover {
-  background-color: var(--primary-hover);
-}
-
 .sync-btn {
   -webkit-app-region: no-drag;
   width: 32px;

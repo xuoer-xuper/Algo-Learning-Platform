@@ -19,9 +19,11 @@ import {
   shellUrl,
 } from '../../electron/app/appProtocol.ts'
 import {
+  checkCoachSender,
   checkIpcPayload,
   checkOjSender,
   checkShellSender,
+  registerCoachWebContents,
   registerOjWebContents,
   registerShellWebContents,
   resetTrustedSenderRegistry,
@@ -101,6 +103,22 @@ test('trusted shell sender rejects remote views, iframes, forged origins, and no
     if (originalDevUrl === undefined) delete process.env.VITE_DEV_SERVER_URL
     else process.env.VITE_DEV_SERVER_URL = originalDevUrl
   }
+})
+
+test('coach shell can use Coach IPC without receiving full browser-shell capabilities', async () => {
+  resetTrustedSenderRegistry()
+  const browserShell = new MockWebContents()
+  await browserShell.loadURL('app://shell/index.html')
+  registerShellWebContents(browserShell)
+
+  const coachShell = new MockWebContents()
+  await coachShell.loadURL('app://shell/index.html#/coach-pet')
+  registerCoachWebContents(coachShell)
+
+  assert.strictEqual(checkShellSender(eventFor(browserShell)).trusted, true)
+  assert.strictEqual(checkCoachSender(eventFor(browserShell)).trusted, true)
+  assert.deepStrictEqual(checkShellSender(eventFor(coachShell)), { trusted: false, reason: 'sender' })
+  assert.strictEqual(checkCoachSender(eventFor(coachShell)).trusted, true)
 })
 
 test('OJ sender validator and payload guard fail closed', async () => {

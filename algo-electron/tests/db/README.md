@@ -12,6 +12,7 @@
 - `migrationSafety.test.ts`：迁移前备份、失败恢复、failure marker 阻断重试、三份轮换和 orphan visit 启动清理。
 - `databaseInitialization.test.ts`、`sqliteMigrationBackup.test.ts`：用 test double 覆盖异步初始化和备份恢复纯逻辑，纳入全仓覆盖率统计。
 - `dailyStatsPerformance.test.ts`：两年事实数据下的单日统计重算基准，硬门槛 `<50ms`。
+- `omniboxSuggestions.test.ts`：Omnibox 本地题目/访问建议的固定上限、字段匹配、稳定排序、LIKE 字面量转义、软删除过滤与去重。
 - `statsDate.test.ts`：日期范围边界和 timestamp 日期提取。
 - `repositories.test.ts`：临时 SQLite 文件中的迁移、题目 upsert、提交 upsert、唯一约束、首次 AC、日统计聚合、站点 seed、站点导入预览和 Cookie 元数据安全边界。
 - `userScriptIdentityMigration.test.ts`：migration 025 的存量 canonical/local 分流、已删除行排序隔离和软删除部分唯一索引。
@@ -26,6 +27,12 @@ $env:ELECTRON_RUN_AS_NODE='1'; node_modules\.bin\electron.cmd tmp\db-repositorie
 ```
 
 纯 migration 辅助测试可用 `npx --yes tsx tests\db\<name>.test.ts` 运行。
+
+Omnibox 建议聚焦测试：
+
+```powershell
+npm exec vitest -- run tests/db/omniboxSuggestions.test.ts
+```
 
 用户脚本身份聚焦测试：
 

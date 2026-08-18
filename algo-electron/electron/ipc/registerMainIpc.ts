@@ -26,6 +26,7 @@ interface RegisterMainIpcOptions {
   /** 阶段 2 注入：CoachOrchestrator */
   getCoachOrchestrator?: () => CoachOrchestrator | null
   getBrowserDiagnostics?: () => BrowserDiagnostics | null
+  allowInsecureLocalhost?: boolean
 }
 
 export function registerMainIpc(options: RegisterMainIpcOptions): void {
@@ -37,6 +38,7 @@ export function registerMainIpc(options: RegisterMainIpcOptions): void {
     getWindow: options.getWindow,
     getTabManager: options.getTabManager,
     getBrowserDiagnostics: options.getBrowserDiagnostics,
+    allowInsecureLocalhost: options.allowInsecureLocalhost,
   })
   registerConfigIpc()
   registerCookieIpc()

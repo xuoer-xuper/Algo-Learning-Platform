@@ -103,6 +103,7 @@ export class TabManager {
   private closedTabs: ClosedTabSnapshot[] = []
   private isDestroying = false
   private isRestoringSession = false
+  private isOmniboxOpen = false
   private recoveryPendingViews = new Set<WebContentsView>()
 
   constructor(window: BrowserWindow, options: TabManagerOptions = {}) {
@@ -153,7 +154,7 @@ export class TabManager {
   }
 
   private attachTabView(tab: ManagedWebTab): void {
-    if (tab.isCrashed) return
+    if (tab.isCrashed || this.isOmniboxOpen) return
     try {
       this.window.contentView.addChildView(tab.view)
       this.updateBounds()
@@ -768,6 +769,52 @@ export class TabManager {
     })
   }
 
+  navigateInternal(page: InternalPage): void {
+    if (!this.activeTabId) {
+      this.openInternalTab(page)
+      return
+    }
+
+    const tabIndex = this.findTabIndex(this.activeTabId)
+    if (tabIndex < 0) {
+      this.openInternalTab(page)
+      return
+    }
+
+    const currentTab = this.tabs[tabIndex]
+    const internalTab: ManagedInternalTab = {
+      id: currentTab.id,
+      kind: 'internal',
+      page,
+      url: getInternalPageUrl(page),
+      title: getInternalPageTitle(page),
+      favicon: null,
+      isLoading: false,
+      isCrashed: false,
+      isUnresponsive: false,
+      isUnresponsiveNoticeDismissed: false,
+    }
+
+    if (currentTab.kind === 'web') {
+      this.detachTabView(currentTab)
+      this.recoveryPendingViews.delete(currentTab.view)
+      try {
+        unregisterOjWebContents(currentTab.view.webContents)
+      } catch {
+        // A crashed view may already have lost its webContents object.
+      }
+      this.tabs[tabIndex] = internalTab
+      safeCloseWebContents(currentTab.view)
+    } else {
+      this.tabs[tabIndex] = internalTab
+    }
+
+    this.onUrlChange?.(internalTab.url)
+    this.emitActiveTabChange(internalTab.url)
+    this.notifyTabListChanged()
+    this.emitSessionChange()
+  }
+
   navigate(url: string) {
     const decision = this.evaluateNavigation(url, true)
     if (!decision.allowed) {
@@ -926,7 +973,16 @@ export class TabManager {
   isViewVisible(): boolean {
     if (!this.activeTabId) return false
     const tab = this.findTab(this.activeTabId)
-    return this.isWebTab(tab) && !tab.isCrashed
+    return this.isWebTab(tab) && !tab.isCrashed && !this.isOmniboxOpen
+  }
+
+  setOmniboxOpen(open: boolean): void {
+    if (this.isOmniboxOpen === open) return
+    this.isOmniboxOpen = open
+    const tab = this.activeTabId ? this.findTab(this.activeTabId) : null
+    if (!this.isWebTab(tab)) return
+    if (open) this.detachTabView(tab)
+    else this.attachTabView(tab)
   }
 
   getTabList(): TabInfo[] {
@@ -1186,6 +1242,7 @@ export class TabManager {
 
   destroy() {
     this.isDestroying = true
+    this.isOmniboxOpen = false
     this.recoveryPendingViews.clear()
     this.sessionChangeListeners.clear()
     const tabs = [...this.tabs]

@@ -12,6 +12,7 @@ const harnessHtml = path.join(outputDir, 'rendererScreenshotHarness.html')
 const electronAppPath = path.join(projectRoot, 'tests', 'ui', 'electronScreenshotApp.mjs')
 
 const screenshotNames = [
+  'omnibox.png',
   'problem-sidebar.png',
   'dashboard.png',
   'settings.png',
@@ -45,6 +46,12 @@ interface LayoutCheckConfig {
 }
 
 const layoutChecks: Record<string, LayoutCheckConfig> = {
+  'omnibox.png': {
+    required: ['.toolbar', '.omnibox-suggestions-panel', '.omnibox-suggestions-list'],
+    minElements: [['.omnibox-suggestion-option', 2]],
+    withinViewportX: ['.toolbar', '.omnibox-suggestions-panel', '.omnibox-suggestions-list'],
+    withinX: [['.omnibox-suggestions-list', '.omnibox-suggestions-panel']],
+  },
   'problem-sidebar.png': {
     required: ['.content-area', '.sidebar', '.main-content', '.home-page'],
     minWidthRatios: [['.main-content', 0.7]],
@@ -189,7 +196,9 @@ async function assertResponsiveContainer(page: Page, name: string): Promise<void
 
   const issues: string[] = []
   const tolerance = 2
-  if (!result.content || result.content.width <= 0) issues.push('content-area has no usable width')
+  if (name !== 'omnibox.png' && (!result.content || result.content.width <= 0)) {
+    issues.push('content-area has no usable width')
+  }
   if (result.workspace && result.content) {
     if (result.workspace.width > result.content.width + tolerance) issues.push('modal workspace exceeds content-area width')
     if (result.workspace.left < result.content.left - tolerance || result.workspace.right > result.content.right + tolerance) {
@@ -317,11 +326,24 @@ for (const scenario of viewportScenarios) {
 
     try {
       await assertNativeViewport(electronApp, page)
+
+      const omnibox = page.getByRole('combobox', { name: '地址和搜索栏' })
+      await omnibox.focus()
+      await omnibox.fill('')
+      await expect(page.getByRole('listbox', { name: '本地浏览建议' })).toBeVisible()
+      await expect(page.getByRole('option')).toHaveCount(2)
+      await expect(page.locator('.content-area')).toHaveCount(0)
+      await expect(page.locator('.sidebar')).toHaveCount(0)
+      await capture(page, scenario.name, 'omnibox.png')
+
+      await omnibox.press('Escape')
+      await expect(page.getByRole('listbox', { name: '本地浏览建议' })).toHaveCount(0)
+      await expect(page.locator('.content-area')).toBeVisible()
       await expect(page.locator('.sidebar')).toBeVisible()
       await expect(page.locator('body')).toContainText('题库')
       await capture(page, scenario.name, 'problem-sidebar.png')
 
-      await page.locator('button[title="统计"]').click()
+      await page.evaluate(() => window.electronAPI.openInternalTab({ type: 'dashboard' }))
       await expect(page.locator('.dashboard-page')).toBeVisible()
       await expect(page.locator('body')).toContainText('学习统计')
       await expect(page.locator('.dashboard-chart-pie .recharts-pie-sector path').first()).toBeVisible()
@@ -329,7 +351,7 @@ for (const scenario of viewportScenarios) {
 
       await page.locator('.dashboard-close').click()
       await expect(page.locator('.dashboard-page')).toHaveCount(0)
-      await page.locator('button[title="设置"]').click()
+      await page.evaluate(() => window.electronAPI.openInternalTab({ type: 'settings' }))
       await expect(page.locator('.settings-title')).toHaveText('设置')
       await expect(page.locator('.site-list')).toBeVisible()
       await capture(page, scenario.name, 'settings.png')
@@ -339,7 +361,7 @@ for (const scenario of viewportScenarios) {
 
       await page.locator('.settings-close').click()
       await expect(page.locator('.settings-page')).toHaveCount(0)
-      await page.locator('button[title="Coach 干预效果指标"]').click()
+      await page.evaluate(() => window.electronAPI.openInternalTab({ type: 'coach-metrics' }))
       await expect(page.locator('.coach-metrics-view')).toBeVisible()
       await expect(page.locator('.coach-metrics-view .recharts-pie-sector path').first()).toBeVisible()
       await capture(page, scenario.name, 'coach-metrics.png')

@@ -7,6 +7,7 @@ import { LearningOverviewPanel } from './LearningOverviewPanel'
 import { LlmConfigPanel } from './LlmConfigPanel'
 import { PlatformDistributionSummary } from './PlatformDistributionSummary'
 import { RealtimeSubmissionPanel } from './RealtimeSubmissionPanel'
+import { SearchEnginePanel } from './SearchEnginePanel'
 import { SiteManagementPanel } from './SiteManagementPanel'
 import { loadRealtimeSubmissionStatus, loadSettingsOverviewStats } from './settingsApi'
 import type { RealtimeSubmissionStatus, SettingsOverviewStats } from './settingsTypes'
@@ -49,6 +50,7 @@ export function SettingsPage({ onClose }: { onClose: () => void }) {
           {/* 左栏：配置类设置 */}
           <div className="settings-col">
             <CoachPanel />
+            <SearchEnginePanel />
             <LlmConfigPanel />
             <LearningOverviewPanel stats={stats} />
             <CodeforcesSyncPanel onStatsRefresh={loadOverviewStats} />

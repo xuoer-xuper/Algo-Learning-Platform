@@ -71,6 +71,7 @@
 | app | [electron/app/README](../algo-electron/electron/app/README.md) |
 | backup | [electron/backup/README](../algo-electron/electron/backup/README.md) |
 | browser | [electron/browser/README](../algo-electron/electron/browser/README.md) |
+| context menus | [electron/contextMenus/README](../algo-electron/electron/contextMenus/README.md) |
 | cookies | [electron/cookies/README](../algo-electron/electron/cookies/README.md) |
 | db | [electron/db/README](../algo-electron/electron/db/README.md) |
 | db migrations | [electron/db/migrations/README](../algo-electron/electron/db/migrations/README.md) |

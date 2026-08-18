@@ -31,6 +31,9 @@ const coreContracts: PreloadContract[] = [
   { method: 'reload', mode: 'send', channel: 'browser:reload' },
   { method: 'goHome', mode: 'send', channel: 'browser:goHome' },
   { method: 'setSidebarWidth', mode: 'send', channel: 'browser:setSidebarWidth' },
+  { method: 'getOmniboxSuggestions', mode: 'invoke', channel: 'browser:omniboxSuggest' },
+  { method: 'setOmniboxOpen', mode: 'send', channel: 'browser:setOmniboxOpen' },
+  { method: 'showAppMenu', mode: 'send', channel: 'browser:showAppMenu' },
   { method: 'onUrlChanged', mode: 'on', channel: 'browser:urlChanged' },
   { method: 'onUiCommand', mode: 'on', channel: 'ui:command' },
   { method: 'reopenClosedTab', mode: 'invoke', channel: 'tab:reopenClosed' },
@@ -49,6 +52,8 @@ const coreContracts: PreloadContract[] = [
 
   // Settings and site management
   { method: 'getHomeShortcuts', mode: 'invoke', channel: 'config:getHomeShortcuts' },
+  { method: 'getSearchEngine', mode: 'invoke', channel: 'config:getSearchEngine' },
+  { method: 'setSearchEngine', mode: 'invoke', channel: 'config:setSearchEngine' },
   { method: 'getRealtimeSubmissionStatus', mode: 'invoke', channel: 'realtimeSubmission:getStatus' },
   { method: 'getAllSites', mode: 'invoke', channel: 'sites:getAll' },
   { method: 'getSiteById', mode: 'invoke', channel: 'sites:getById' },
