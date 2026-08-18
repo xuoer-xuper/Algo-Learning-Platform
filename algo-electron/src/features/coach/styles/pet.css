@@ -17,11 +17,6 @@
   inset: 0;
   width: 100%;
   height: 100%;
-  /* CSS 变量由 [data-pet-state] 设置 */
-  --pet-primary: #22d3ee;
-  --pet-accent: #67e8f9;
-  --pet-glow: rgba(34, 211, 238, 0.45);
-  --pet-scale: 1;
 }
 
 /* 全局透明：窗口 transparent 需要根元素也透明 */
@@ -49,7 +44,7 @@ html, body, #root {
   cursor: grab;
   user-select: none;
   -webkit-user-select: none;
-  transition: transform 0.2s ease;
+  transition: transform var(--coach-duration-body) var(--coach-ease-standard);
 }
 
 .pet-body.dragging {
@@ -71,7 +66,7 @@ html, body, #root {
 
 .pet-svg-glow {
   filter: drop-shadow(0 0 8px var(--pet-glow));
-  transition: filter 0.4s ease;
+  transition: filter var(--coach-duration-filter) var(--coach-ease-standard);
 }
 
 /* 主体多边形：菱形几何体 */
@@ -81,7 +76,7 @@ html, body, #root {
   stroke: var(--pet-primary);
   stroke-width: 1.5;
   stroke-opacity: 0.9;
-  animation: var(--pet-animation, pet-idle-breathe) 3.2s ease-in-out infinite;
+  animation: var(--pet-animation, pet-idle-breathe) 3.2s var(--coach-ease-in-out) infinite;
   transform-origin: center;
 }
 
@@ -91,7 +86,7 @@ html, body, #root {
   stroke: var(--pet-accent);
   stroke-width: 1;
   stroke-opacity: 0.7;
-  animation: var(--pet-animation, pet-idle-breathe) 4s ease-in-out infinite reverse;
+  animation: var(--pet-animation, pet-idle-breathe) 4s var(--coach-ease-in-out) infinite reverse;
   transform-origin: center;
 }
 
@@ -99,7 +94,7 @@ html, body, #root {
 .pet-eye {
   fill: var(--pet-accent);
   filter: drop-shadow(0 0 4px var(--pet-accent));
-  animation: var(--pet-animation, pet-idle-breathe) 3.2s ease-in-out infinite;
+  animation: var(--pet-animation, pet-idle-breathe) 3.2s var(--coach-ease-in-out) infinite;
   transform-origin: center;
 }
 
@@ -133,54 +128,54 @@ html, body, #root {
     transparent 60%
   );
   opacity: 0.6;
-  animation: pet-aura-pulse 4s ease-in-out infinite;
+  animation: pet-aura-pulse 4s var(--coach-ease-in-out) infinite;
 }
 
 /* === 状态机：通过 data-pet-state 属性切换 CSS 变量与动画 === */
 .pet-root[data-pet-state='idle'] {
-  --pet-primary: #22d3ee;
-  --pet-accent: #67e8f9;
-  --pet-glow: rgba(34, 211, 238, 0.45);
+  --pet-primary: var(--coach-pet-idle-primary);
+  --pet-accent: var(--coach-pet-idle-accent);
+  --pet-glow: var(--coach-pet-idle-glow);
   --pet-animation: pet-idle-breathe;
   --pet-particle-duration: 12s;
 }
 
 .pet-root[data-pet-state='thinking'] {
-  --pet-primary: #818cf8;
-  --pet-accent: #a5b4fc;
-  --pet-glow: rgba(129, 140, 248, 0.5);
+  --pet-primary: var(--coach-pet-thinking-primary);
+  --pet-accent: var(--coach-pet-thinking-accent);
+  --pet-glow: var(--coach-pet-thinking-glow);
   --pet-animation: pet-thinking-pulse;
   --pet-particle-duration: 6s;
 }
 
 .pet-root[data-pet-state='alert'] {
-  --pet-primary: #f472b6;
-  --pet-accent: #f9a8d4;
-  --pet-glow: rgba(244, 114, 182, 0.55);
+  --pet-primary: var(--coach-pet-alert-primary);
+  --pet-accent: var(--coach-pet-alert-accent);
+  --pet-glow: var(--coach-pet-alert-glow);
   --pet-animation: pet-alert-shake;
   --pet-particle-duration: 3s;
 }
 
 .pet-root[data-pet-state='celebrate'] {
-  --pet-primary: #34d399;
-  --pet-accent: #6ee7b7;
-  --pet-glow: rgba(52, 211, 153, 0.55);
+  --pet-primary: var(--coach-pet-celebrate-primary);
+  --pet-accent: var(--coach-pet-celebrate-accent);
+  --pet-glow: var(--coach-pet-celebrate-glow);
   --pet-animation: pet-celebrate-bounce;
   --pet-particle-duration: 4s;
 }
 
 .pet-root[data-pet-state='sleep'] {
-  --pet-primary: #6366f1;
-  --pet-accent: #818cf8;
-  --pet-glow: rgba(99, 102, 241, 0.35);
+  --pet-primary: var(--coach-pet-sleep-primary);
+  --pet-accent: var(--coach-pet-sleep-accent);
+  --pet-glow: var(--coach-pet-sleep-glow);
   --pet-animation: pet-sleep-drift;
   --pet-particle-duration: 18s;
 }
 
 .pet-root[data-pet-state='focus'] {
-  --pet-primary: #06b6d4;
-  --pet-accent: #22d3ee;
-  --pet-glow: rgba(6, 182, 212, 0.5);
+  --pet-primary: var(--coach-pet-focus-primary);
+  --pet-accent: var(--coach-pet-focus-accent);
+  --pet-glow: var(--coach-pet-focus-glow);
   --pet-animation: pet-focus-hold;
   --pet-particle-duration: 8s;
 }

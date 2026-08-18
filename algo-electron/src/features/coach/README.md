@@ -21,7 +21,7 @@
 - 桌宠入口：`main.tsx` 按 hash `#/coach-pet` 分流渲染 `<CoachPet />`。
 - 指标页入口：`App.tsx` 模态渲染 `<CoachMetricsView />`，工具栏机器人按钮打开。
 - 时间轴入口：`ProblemDetail.tsx` 的 `view` 状态切换 `'timeline'` 子视图。
-- 样式：`styles/pet.css` + `styles/bubble.css`。
+- 样式：`styles/tokens.css` 是 Coach 独立视觉 token 唯一源；`styles/pet.css` + `styles/bubble.css` 只消费变量。
 
 ## 4. 边界规则
 

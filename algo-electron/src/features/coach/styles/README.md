@@ -6,12 +6,14 @@
 
 ## 2. 当前实现程度
 
+- `tokens.css`：Coach 独立深色视觉 token 与 6 状态原始配色的唯一来源。
 - `pet.css`：6 状态 keyframes 动画 + CSS 变量切换 + 几何体/粒子环/发光描边样式。
 - `bubble.css`：气泡深色背景 + 描边发光 + 按钮样式 + 自动消失动画。
 
 ## 3. 关键文件
 
-- `pet.css`：定义 `--pet-primary` / `--pet-secondary` 等 CSS 变量，每状态对应一组配色与动画。
+- `tokens.css`：定义 `--coach-*` 和各状态 `--coach-pet-*` 原始值；禁止在 TS、`pet.css`、`bubble.css` 重复写裸色。
+- `pet.css`：把各状态 token 映射到 `--pet-primary` / `--pet-accent` / `--pet-glow`，并定义动画。
 - `bubble.css`：气泡容器、标题、消息、来源标签、等级标签、按钮的样式。
 
 ## 4. 边界规则

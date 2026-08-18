@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import { CoachBubble } from './CoachBubble'
 import { PET_STATES, type PetState } from './petStates'
+import './styles/tokens.css'
 import './styles/pet.css'
 
 const CoachChatPanel = lazy(() => import('./CoachChatPanel').then((module) => ({

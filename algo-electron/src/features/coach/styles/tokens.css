@@ -1,0 +1,66 @@
+/**
+ * Coach 桌宠独立视觉 token。
+ *
+ * 这些值刻意保留既有深色科技风格，不映射到主界面浅色 token；pet.css 与
+ * bubble.css 只消费变量，避免状态配色在 TS/CSS 间重复。
+ */
+.pet-root {
+  --coach-surface: rgb(15 23 42 / 0.92);
+  --coach-surface-strong: rgb(15 23 42 / 0.95);
+  --coach-surface-input: rgb(15 23 42 / 0.6);
+  --coach-surface-code: rgb(0 0 0 / 0.35);
+  --coach-surface-code-strong: rgb(0 0 0 / 0.45);
+  --coach-shadow-rgb: 0 0 0;
+
+  --coach-text-strong: #f1f5f9;
+  --coach-text: #e2e8f0;
+  --coach-text-soft: #cbd5e1;
+  --coach-text-muted: #94a3b8;
+  --coach-text-faint: #64748b;
+  --coach-text-placeholder: #475569;
+  --coach-muted-rgb: 148 163 184;
+  --coach-faint-rgb: 100 116 139;
+
+  --coach-accent: #22d3ee;
+  --coach-accent-rgb: 34 211 238;
+  --coach-violet: #a78bfa;
+  --coach-violet-rgb: 167 139 250;
+
+  --coach-radius-chip: 3px;
+  --coach-radius-control: 4px;
+  --coach-radius-input: 6px;
+  --coach-radius-message: 8px;
+  --coach-radius-panel: 10px;
+  --coach-duration-control: 150ms;
+  --coach-duration-body: 200ms;
+  --coach-duration-enter: 280ms;
+  --coach-duration-content: 300ms;
+  --coach-duration-filter: 400ms;
+  --coach-ease-standard: ease;
+  --coach-ease-out: ease-out;
+  --coach-ease-in-out: ease-in-out;
+
+  --coach-pet-idle-primary: #22d3ee;
+  --coach-pet-idle-accent: #67e8f9;
+  --coach-pet-idle-glow: rgb(34 211 238 / 0.45);
+  --coach-pet-thinking-primary: #818cf8;
+  --coach-pet-thinking-accent: #a5b4fc;
+  --coach-pet-thinking-glow: rgb(129 140 248 / 0.5);
+  --coach-pet-alert-primary: #f472b6;
+  --coach-pet-alert-accent: #f9a8d4;
+  --coach-pet-alert-glow: rgb(244 114 182 / 0.55);
+  --coach-pet-celebrate-primary: #34d399;
+  --coach-pet-celebrate-accent: #6ee7b7;
+  --coach-pet-celebrate-glow: rgb(52 211 153 / 0.55);
+  --coach-pet-sleep-primary: #6366f1;
+  --coach-pet-sleep-accent: #818cf8;
+  --coach-pet-sleep-glow: rgb(99 102 241 / 0.35);
+  --coach-pet-focus-primary: #06b6d4;
+  --coach-pet-focus-accent: #22d3ee;
+  --coach-pet-focus-glow: rgb(6 182 212 / 0.5);
+
+  --pet-primary: var(--coach-pet-idle-primary);
+  --pet-accent: var(--coach-pet-idle-accent);
+  --pet-glow: var(--coach-pet-idle-glow);
+  --pet-scale: 1;
+}
