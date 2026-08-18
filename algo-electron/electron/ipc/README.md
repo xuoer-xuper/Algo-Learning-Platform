@@ -18,7 +18,7 @@
 - `registerSitesIpc.ts`：注册 `sites:*` 站点 CRUD、导入导出、冲突预览确认 handler。
 - `registerStatsIpc.ts`：注册 `stats:*` 统计查询和重算 handler。
 - `registerSubmissionsIpc.ts`：注册 `submissions:*` 手动同步 handler。
-- `registerBrowserShellIpc.ts`：注册 `browser:*`、`tab:*` 和 `window:*` 浏览器壳层 handler，包括 `tab:reopenClosed` 关闭标签恢复入口。
+- `registerBrowserShellIpc.ts`：注册 `browser:*`、`tab:*` 和 `window:*` 浏览器壳层 handler，包括 `tab:reopenClosed`、按 tabId 的 `tab:reload` 与 `tab:dismissUnresponsive` 故障恢复入口。
 - `registerCoachIpc.ts`：注册 Coach 桌宠、比赛模式、会话、干预和指标相关 handler。
 - `registerCookieIpc.ts`：注册 `cookies:*` 安全摘要 handler，不向 renderer 暴露 Cookie value。
 - `registerMainIpc.ts`：组合注册入口，集中由 `main.ts` 调用各业务域注册函数。

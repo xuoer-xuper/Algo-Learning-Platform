@@ -17,6 +17,7 @@
 - 会话快照：`tabSessionSnapshot.ts` 对版本、字段白名单、标签顺序、活动项、内部页和可恢复 URL 做整份严格校验；拒绝 userinfo、敏感 query/hash、控制字符和未知字段，不部分抢救损坏数据，也不序列化 favicon、加载/崩溃状态、表单、密码或脚本源码。
 - 会话恢复：正常启动严格读取 `browser-session.json`，按原顺序和稳定 ID 建立全部 web view，最后只挂载一次活动 view；任一同步创建失败会销毁本次全部 view 并回退空白标签。壳 renderer 先订阅列表事件再主动拉取当前列表，且用版本/卸载保护避免迟到响应覆盖新状态。
 - 会话文件：`TabSessionStore` 使用同目录临时文件执行 write + fsync + close + rename，失败时清理临时文件并保留旧目标；`TabSessionPersistence` 对创建、关闭、切换、URL 和标题变化做 250ms 防抖，只保存最新快照，加载/favicon 状态不触发落盘。窗口 `close` 与 `before-quit` 在最终 flush 完成后继续关闭，startup smoke 禁用持久化。
+- renderer 健康状态：web 标签 `render-process-gone` 后保留稳定 ID、URL、标题和顺序，摘除坏 view 并显示恢复页；原 view 已销毁时创建同配置替代 view，失败仍保留标签供后续重试。`unresponsive` 只影响运行时列表和活动 view bounds，NoticeBar 可继续等待、按 tabId 重载或关闭，`responsive` 后自动清理；这些状态不进入会话快照。
 - 壳层 IPC：browser/tab/window channel 由 `electron/ipc/registerBrowserShellIpc.ts` 注册，Browser 模块只暴露 `TabManager` 等运行期对象。
 - OJ Session：`ojSession.ts` 配置持久 session、真实 Chrome UA、受控 CORS、早期实时提交 hook 和 stealth script；默认 session 与 OJ session 同时安装 permission check/request 双处理器，敏感权限默认拒绝。
 - 实时提交桥：`ojPreload.ts` 暴露 `__algo_submission_v1.reportSubmission()`，并转发同页面/子 frame 的 `postMessage`。
@@ -57,6 +58,8 @@
   - `goBack()`
   - `goForward()`
   - `reload()`
+  - `reloadTab(tabId)`：为故障态操作绑定明确标签，避免活动标签切换竞态。
+  - `dismissUnresponsive(tabId)`：隐藏当前无响应提示并恢复 view bounds，但保留真实 unresponsive 状态直到 Electron 发出 `responsive`。
   - `closeActiveTab()`、`switchRelative(offset)`、`switchTabByIndex(index)`
   - `reopenClosedTab()`：按 LIFO 恢复最近关闭标签的 URL 与标题。
   - `adjustZoom(delta)`、`resetZoom()`
@@ -100,7 +103,7 @@
 
 布局 helper 边界：
 
-- `setTabViewBounds(view, contentSize, leftOffset)`：统一 toolbar/tabbar/sidebar 偏移计算。
+- `setTabViewBounds(view, contentSize, leftOffset, topInset?)`：统一 toolbar/tabbar/sidebar 偏移计算；活动标签显示 NoticeBar 时额外下移共享的 38px 高度。
 - `safeRemoveChildView(window, view)`：切换、隐藏和销毁时安全移除 view。
 - `safeCloseWebContents(view)`：销毁时安全关闭 webContents。
 
@@ -139,7 +142,7 @@ adapter hook in OJ page
 
 ## 7. 测试入口
 
-Browser 相关自动测试覆盖提交桥、导航策略、权限策略、Chromium 弹窗接管，以及会话快照安全边界、恢复回滚、防抖原子存储和关闭前 flush：
+Browser 相关自动测试覆盖提交桥、导航策略、权限策略、Chromium 弹窗接管、标签崩溃/无响应，以及会话快照安全边界、恢复回滚、防抖原子存储和关闭前 flush：
 
 ```powershell
 cd algo-electron
@@ -147,4 +150,4 @@ npx vitest run tests\browser
 npm run test:electron
 ```
 
-真实 Electron smoke 使用临时 localhost 服务验证默认/ OJ session 权限拒绝，以及 about:blank、GET、POST、OAuth opener/postMessage 弹窗链路。布局契约在 `tests/browser/browserLayout.test.ts` 中覆盖；与实时提交联动的 TabManager 约束在 `tests/submissions/realtimeTabActivation.test.ts` 中覆盖；ContestGuard 的后台标签与销毁聚合路径在 `tests/coach/contestUrlAggregator.test.ts` 中覆盖。
+真实 Electron smoke 使用临时 localhost 服务验证默认/ OJ session 权限拒绝，以及 about:blank、GET、POST、OAuth opener/postMessage 弹窗链路。`tabManagerHealth.test.ts` 覆盖活动/后台无响应、等待/恢复、崩溃 view 摘除/替换和关闭竞态；布局契约在 `tests/browser/browserLayout.test.ts` 中覆盖；与实时提交联动的 TabManager 约束在 `tests/submissions/realtimeTabActivation.test.ts` 中覆盖；ContestGuard 的后台标签与销毁聚合路径在 `tests/coach/contestUrlAggregator.test.ts` 中覆盖。

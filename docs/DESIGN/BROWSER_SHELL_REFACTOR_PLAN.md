@@ -451,7 +451,7 @@ Renderer（同一构建产物，多窗口实例化——桌宠 hash 路由已证
 | B1.3 | [x] | `9346856` + `20bc054`（2026-08-18）：关闭/删除按钮、时间轴五类事件、详情外链和笔记空态全部收拢到统一 Icon/IconButton；运行时功能性 Unicode 归零，内联 SVG 仅保留统一 Icon 实现与 CoachPet 领域插画；固定原容器/字号/尺寸并增加回流守卫；集中截图验收并入后续 UI 回归 |
 | B1.4 | [x] | `0a1a1c4`；`rg` 确认 src 中无原生 confirm；组件测试已覆盖 ConfirmDialog |
 | B1.5 | [x] | `66821d0` + `7df12ce` + `7240170`（2026-08-18）：清理零引用 `@milkdown/theme-nord`，保留 Crepe 实际 Nord CSS；Coach 原始配色、透明度、圆角与动效值集中到独立 `tokens.css`；Dashboard/Coach、首页和设置三组统计卡片真实迁移到 `Card`，治理测试防止回流；既有 feature/notes/scripts 已由 `0a1a1c4` 完成按钮/输入/确认框收编；视觉冻结不变 |
-| B2.1 | [~] | `ac5fa27` + `4f8f40f` + `8db5c27`（2026-08-18）：有序判别联合标签模型、严格安全快照与原子存储已完成；运行时现按稳定 ID/顺序恢复全部 web view 后只挂活动项，创建失败全回滚，持久状态独立 250ms 防抖，窗口 close/before-quit 最终 flush，renderer 订阅后主动拉取列表且防迟到覆盖；startup smoke 保持无持久化。剩余仅 render-process-gone 恢复态及 unresponsive NoticeBar 操作。无视觉变更，冻结基线不变 |
+| B2.1 | [x] | `ac5fa27` + `4f8f40f` + `8db5c27` + `8c93cd7`（2026-08-18）：有序标签模型、严格安全快照、原子存储、250ms 防抖、退出 flush、稳定 ID/顺序恢复与 renderer 首次列表同步全部完成；web renderer 崩溃后保留标签元数据并摘除坏 view，可复用或替换 view 恢复原地址，失败与迟到事件不删除/污染标签；unresponsive 使用普通文档流 NoticeBar 提供继续等待、按 tabId 重载和关闭，活动 view 同步下移 38px，responsive 后自动撤销。健康态不进入会话快照。验证：`npm run typecheck`、`npm run lint`、`npm run test:core`（40 files/484 tests）、`npm run test:ui`（3 viewports）和 `git diff --check` 全部通过；按批量验证策略暂缓生产构建、NSIS 与真实 packaged smoke。正常态视觉冻结不变，仅新增复用现有 token/组件的故障状态页和通知条 |
 | B2.2-B2.8 | [ ] | 内部页、截图机制退役、TabStrip、Omnibox、UI 测试、下载/查找/缩放、右键菜单均待实施 |
 | B3.1-B3.5 | [ ] | WindowManager、事件多窗口化、标签过户、服务广播、生命周期与恢复均待实施 |
 | B4.1-B4.6 | [ ] | 026_site_credentials、Vault、自动填充、账户页、登录捕获、fuses 均待实施 |
@@ -724,3 +724,19 @@ Renderer（同一构建产物，多窗口实例化——桌宠 hash 路由已证
 | 安全与一致性 | 恢复前再次整份校验；全部 view 创建成功后才提交 live tabs，失败关闭并注销本次所有 webContents；保存事件与 favicon/loading 列表事件分离；首次列表响应不会覆盖较新的 listChanged 事件 |
 | 剩余工作 | 处理 `render-process-gone`：摘除坏 view 并显示可恢复状态；处理 `unresponsive`：NoticeBar 提供等待/重载/关闭并在恢复 responsive 后撤销 |
 | 完成时间 | 北京时间 `2026-08-18 22:12` |
+
+### 11.24 B2.1 标签崩溃与无响应阶段记录
+
+| 字段 | 填写内容 |
+|---|---|
+| 任务 | B2.1 第四子块：web 标签 render-process-gone 恢复态、unresponsive 操作与 B2.1 总收口 |
+| 状态 | `[x] 已完成` |
+| Commit | `8c93cd7 browser: 完成标签崩溃与无响应恢复` |
+| 自动验证 | `npm run typecheck`、`npm run lint`、故障/组件/IPC 聚焦 Vitest 8 files/39 tests、`npm run test:core`（40 files/484 tests）、`npm run test:ui`（1280×800、1024×720、800×600）和 `git diff --check`；全部通过 |
+| 自动验收 | 覆盖活动/后台标签无响应、通知条 38px 布局让位、继续等待不伪造 responsive、responsive 自动清理、活动崩溃摘除 view、稳定 ID/URL 保留、destroyed view 替换、替换创建失败后再次恢复、恢复失败后关闭竞态、首次壳加载健康列表回放和按 tabId 操作 |
+| 人工验收 | 按多任务合并验证策略，本子块未提前执行生产构建、NSIS、真实 renderer crash 注入或 packaged 双实例 smoke；正常页面三档 Playwright 截图与布局断言通过，集中 packaged 回归时补真实崩溃/无响应操作 |
+| 视觉影响 | 正常态颜色、排版、组件形态和动画不变；仅新增崩溃占位页，并复用现有 Button/Icon/NoticeBar、语义色与动效 token；NoticeBar 保持普通文档流，不使用浮层 |
+| 文档同步 | `electron/browser/README.md`、`electron/ipc/README.md`、`src/components/README.md`、`tests/browser/README.md`、B2 完成台账 |
+| 安全与持久化 | `isCrashed`、`isUnresponsive`、通知 dismiss 状态、favicon/loading、表单、密码和脚本源码均不写入 `TabSnapshot`；日志只记录稳定 tabId、进程退出原因/码和错误名，不记录页面 URL 或内容 |
+| 剩余工作 | B2.1 无已知代码缺口；下一步进入 B2.2 内部页标签化，生产构建、NSIS 与真实 packaged smoke 继续合并到后续集中回归 |
+| 完成时间 | 北京时间 `2026-08-18 23:10` |

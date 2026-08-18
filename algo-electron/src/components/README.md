@@ -22,9 +22,9 @@
 - `TabBar.tsx` / `TabBar.css`
   - 多标签 UI。
   - 通过 `tabApi.ts` 创建、关闭、恢复、切换、剥离标签；支持中键关闭。
-  - 监听 `onTabListChanged` 同步标签状态。
+  - 监听 `onTabListChanged` 同步标签状态，并把活动标签的崩溃/无响应变化交给壳层渲染恢复页或 NoticeBar。
 - `tabApi.ts`
-  - 封装 `createTab`、`closeTab`、`reopenClosedTab`、`switchTab`、`detachTab` 和 `onTabListChanged`。
+  - 封装 `createTab`、`closeTab`、`reopenClosedTab`、`switchTab`、`detachTab`、按 tabId 重载、无响应等待和 `onTabListChanged`。
   - 只处理标签 UI 所需的 preload 调用，不保存标签业务状态。
 - `WindowControls.tsx`
   - 自定义窗口最小化、最大化、关闭按钮。
