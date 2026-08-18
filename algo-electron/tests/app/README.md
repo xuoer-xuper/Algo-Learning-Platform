@@ -2,17 +2,18 @@
 
 ## 职责
 
-覆盖主进程致命错误处理、启动失败退出语义和壳 renderer 崩溃恢复策略。这里的测试使用可注入的 logger、进程事件源和 WebContents 替身，不替代真实 Electron startup smoke。
+覆盖主进程单实例启动、致命错误处理、启动失败退出语义和壳 renderer 崩溃恢复策略。这里的测试使用可注入的 logger、进程事件源、窗口与 WebContents 替身，不替代真实 Electron startup smoke。
 
 ## 当前实现
 
 - `mainProcessErrors.test.ts`：验证全局异常只弹一次并退出，以及 smoke 模式跳过阻塞对话框。
 - `shellRendererRecovery.test.ts`：验证卡死/崩溃记录、reload 条件和清理监听器。
-- `mainResilience.test.ts`：守卫 `main.ts` 的启动失败与 renderer 恢复接线。
+- `singleInstance.test.ts`：验证锁失败退出、第二次启动恢复/聚焦窗口和异常容错。
+- `tests/electron/mainResilience.test.ts`：守卫 `main.ts` 的单实例启动门、启动失败与 renderer 恢复接线。
 
 ## 封装入口
 
-被测关键文件是 `electron/app/mainProcessErrors.ts`、`electron/app/shellRendererRecovery.ts` 和 `electron/main.ts`。
+被测关键文件是 `electron/app/singleInstance.ts`、`electron/app/mainProcessErrors.ts`、`electron/app/shellRendererRecovery.ts` 和 `electron/main.ts`。
 
 ## 边界规则
 

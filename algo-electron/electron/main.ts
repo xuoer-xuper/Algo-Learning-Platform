@@ -25,22 +25,21 @@ import { evaluateBrowserNavigation, type NavigationBlockReason } from './browser
 import { appLogger, initializeAppLogger } from './shared/logger'
 import { createFatalErrorReporter, installMainProcessErrorHandlers } from './app/mainProcessErrors'
 import { installShellRendererRecovery } from './app/shellRendererRecovery'
+import { installSingleInstanceLock } from './app/singleInstance'
 
 configureChromiumCommandLine()
 
 applyStartupSmokeUserDataPath()
 
-initializeAppLogger(path.join(app.getPath('userData'), 'logs'))
-const reportFatalError = createFatalErrorReporter({
-  logger: appLogger,
-  showErrorBox: (title, content) => dialog.showErrorBox(title, content),
-  exit: (code) => app.exit(code),
-  showDialog: !STARTUP_SMOKE_MODE,
-})
-installMainProcessErrorHandlers(process, reportFatalError)
+let win: BrowserWindow | null = null
+let tabManager: TabManager | null = null
+let services: MainServices | null = null
+let coachPetWindow: CoachPetWindow | null = null
+let coachOrchestrator: CoachOrchestrator | null = null
+let removeShellRendererRecovery: (() => void) | null = null
+let isQuitting = false
 
-registerNoteAssetSchemeAsPrivileged()
-registerShellSchemeAsPrivileged()
+const hasSingleInstanceLock = installSingleInstanceLock(app, () => win, { logger: appLogger })
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -52,13 +51,20 @@ export const RENDERER_DIST = process.env.ALGO_ELECTRON_SMOKE_RENDERER_DIST || pa
 
 process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL ? path.join(process.env.APP_ROOT, 'public') : RENDERER_DIST
 
-let win: BrowserWindow | null
-let tabManager: TabManager | null
-let services: MainServices | null = null
-let coachPetWindow: CoachPetWindow | null = null
-let coachOrchestrator: CoachOrchestrator | null = null
-let removeShellRendererRecovery: (() => void) | null = null
-let isQuitting = false
+// The losing process has already requested app.quit(). Keep every protocol,
+// IPC, lifecycle, and database-backed service registration behind this gate.
+if (hasSingleInstanceLock) {
+  initializeAppLogger(path.join(app.getPath('userData'), 'logs'))
+  const reportFatalError = createFatalErrorReporter({
+    logger: appLogger,
+    showErrorBox: (title, content) => dialog.showErrorBox(title, content),
+    exit: (code) => app.exit(code),
+    showDialog: !STARTUP_SMOKE_MODE,
+  })
+  installMainProcessErrorHandlers(process, reportFatalError)
+
+  registerNoteAssetSchemeAsPrivileged()
+  registerShellSchemeAsPrivileged()
 
 // The frameless renderer owns the visible browser chrome. An explicit empty
 // native menu prevents Electron's default_app accelerators from hijacking it.
@@ -346,3 +352,4 @@ void app.whenReady().then(() => {
 }).catch((error) => {
   reportFatalError('startup', error)
 })
+}

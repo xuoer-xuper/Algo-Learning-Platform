@@ -26,3 +26,25 @@ test('Electron test double exposes observable command-line and view primitives',
   assert.strictEqual(app.commandLine.appendSwitch instanceof Function, true)
   window.close()
 })
+
+test('Electron test double models single-instance and window focus primitives', () => {
+  resetElectronMock()
+  app.singleInstanceLockGranted = false
+
+  assert.strictEqual(app.requestSingleInstanceLock(), false)
+  assert.strictEqual(app.requestSingleInstanceLockCallCount, 1)
+  app.quit()
+  assert.strictEqual(app.quitCallCount, 1)
+
+  const window = new BrowserWindow()
+  window.show()
+  window.minimize()
+  assert.strictEqual(window.isMinimized(), true)
+  assert.strictEqual(window.isVisible(), false)
+
+  window.restore()
+  window.focus()
+  assert.strictEqual(window.isMinimized(), false)
+  assert.strictEqual(window.isVisible(), true)
+  assert.strictEqual(window.isFocused(), true)
+})

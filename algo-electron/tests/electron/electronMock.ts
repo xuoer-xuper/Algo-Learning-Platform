@@ -98,7 +98,9 @@ export class MockBrowserWindow extends EventEmitter {
   readonly webContents = new MockWebContents()
   private destroyed = false
   private visible = false
+  private minimized = false
   private maximized = false
+  private focused = false
   private size: [number, number] = [1280, 800]
 
   constructor(options: { width?: number; height?: number } = {}) {
@@ -112,9 +114,14 @@ export class MockBrowserWindow extends EventEmitter {
   setContentSize(width: number, height: number): void { this.size = [width, height]; this.emit('resize') }
   isDestroyed(): boolean { return this.destroyed }
   isVisible(): boolean { return this.visible }
+  isMinimized(): boolean { return this.minimized }
+  isFocused(): boolean { return this.focused }
   show(): void { this.visible = true; this.emit('show') }
   showInactive(): void { this.show() }
-  hide(): void { this.visible = false }
+  hide(): void { this.visible = false; this.focused = false }
+  minimize(): void { this.minimized = true; this.visible = false; this.focused = false; this.emit('minimize') }
+  restore(): void { this.minimized = false; this.visible = true; this.emit('restore') }
+  focus(): void { this.visible = true; this.focused = true; this.emit('focus') }
   isMaximized(): boolean { return this.maximized }
   maximize(): void { this.maximized = true; this.emit('maximize') }
   unmaximize(): void { this.maximized = false; this.emit('unmaximize') }
@@ -122,22 +129,43 @@ export class MockBrowserWindow extends EventEmitter {
   close(): void {
     if (this.destroyed) return
     this.destroyed = true
+    this.focused = false
     MockBrowserWindow.windows = MockBrowserWindow.windows.filter((window) => window !== this)
     this.emit('closed')
   }
 }
 
 export const commandLineSwitches: Array<[string, string | undefined]> = []
-export const app = {
-  commandLine: { appendSwitch: (name: string, value?: string) => commandLineSwitches.push([name, value]) },
-  userAgentFallback: '',
-  setPath: (_name: string, _value: string) => undefined,
-  getPath: (_name: string) => 'C:\\mock-user-data',
-  exit: (_code?: number) => undefined,
-  quit: () => undefined,
-  whenReady: () => Promise.resolve(),
-  on: (_event: string, _listener: Listener) => app,
+export class MockApp extends EventEmitter {
+  readonly commandLine = {
+    appendSwitch: (name: string, value?: string) => commandLineSwitches.push([name, value]),
+  }
+  userAgentFallback = ''
+  singleInstanceLockGranted = true
+  requestSingleInstanceLockCallCount = 0
+  quitCallCount = 0
+  readonly exitCodes: Array<number | undefined> = []
+
+  setPath(_name: string, _value: string): void { /* no-op */ }
+  getPath(_name: string): string { return 'C:\\mock-user-data' }
+  exit(code?: number): void { this.exitCodes.push(code) }
+  quit(): void { this.quitCallCount += 1 }
+  requestSingleInstanceLock(): boolean {
+    this.requestSingleInstanceLockCallCount += 1
+    return this.singleInstanceLockGranted
+  }
+  whenReady(): Promise<void> { return Promise.resolve() }
+
+  reset(): void {
+    this.removeAllListeners()
+    this.userAgentFallback = ''
+    this.singleInstanceLockGranted = true
+    this.requestSingleInstanceLockCallCount = 0
+    this.quitCallCount = 0
+    this.exitCodes.length = 0
+  }
 }
+export const app = new MockApp()
 
 export const Menu = {
   setApplicationMenu: (_menu: unknown) => undefined,
@@ -228,6 +256,7 @@ export const net = { fetch: (_url: string) => Promise.resolve(new Response()) }
 
 export function resetElectronMock(): void {
   commandLineSwitches.length = 0
+  app.reset()
   MockBrowserWindow.windows = []
   ipcHandlers.clear()
   ipcMain.removeAllListeners()

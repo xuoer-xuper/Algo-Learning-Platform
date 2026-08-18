@@ -17,6 +17,7 @@
 - `appProtocol.ts`：注册生产 `app://shell` privileged scheme、静态资源 handler 和 CSP。
 - `mainProcessErrors.ts`：统一处理 `uncaughtException`、`unhandledRejection` 与启动失败，记录致命错误并在生产环境弹框退出。
 - `shellRendererRecovery.ts`：监听壳 renderer 卡死/崩溃事件，非退出阶段自动 reload 并记录恢复过程。
+- `singleInstance.ts`：在任何协议、IPC 或数据库服务注册前获取单实例锁；后续启动只唤醒并聚焦现有主窗口。
 
 `config.ts`：
 
@@ -80,6 +81,9 @@
   - 在 Electron ready 前应用 smoke 专用用户数据目录。
 - `runStartupSmokeTest(options)`
   - 启动后运行 smoke 断言；通过 `getWindow`、`getTabManager`、`getDefaultHomeUrl` 和 `cleanup` 读取运行期依赖。
+- `installSingleInstanceLock(app, getMainWindow, options)`
+  - 锁获取失败时立即请求退出，不安装 `second-instance` listener。
+  - 锁获取成功后，后续启动会恢复最小化窗口，并依次执行 `show()` 与 `focus()`。
 
 ## 4. 边界规则
 
@@ -94,6 +98,7 @@
 - Chromium 启动开关必须有明确兼容性或反检测原因，不能引入全局证书绕过。
 - `mainServices.ts` 只做服务构造和启动接线，不注册 browser/tab/window 壳层 IPC，不创建窗口。
 - 预连接只能使用站点 origin，不应携带 Cookie、请求体或用户源码。
+- 单实例锁必须早于日志文件、privileged scheme、IPC、应用生命周期和运行期服务注册；失败实例不得写共享日志、打开数据库或创建窗口。
 
 ## 5. 测试入口
 
@@ -107,5 +112,6 @@ node node_modules\typescript\bin\tsc --noEmit
 涉及 smoke 或启动顺序时追加：
 
 ```powershell
+npx vitest run tests/app/singleInstance.test.ts tests/electron/mainResilience.test.ts tests/electron/electronDouble.test.ts
 npx --yes tsx tests\electron\startupSmoke.test.ts
 ```
