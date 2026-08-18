@@ -50,6 +50,34 @@ export interface TabSessionStoreOptions extends TabSessionSnapshotOptions {
   fileSystem?: TabSessionFileSystem
 }
 
+export interface TabSessionPersistenceStore {
+  save(snapshot: TabSessionSnapshot): Promise<void>
+}
+
+export interface TabSessionPersistenceTimer {
+  setTimeout(callback: () => void, delayMs: number): unknown
+  clearTimeout(handle: unknown): void
+}
+
+export type TabSessionPersistenceFailureReason =
+  | 'snapshot-provider-failed'
+  | 'save-failed'
+
+export interface TabSessionPersistenceOptions {
+  debounceMs?: number
+  timer?: TabSessionPersistenceTimer
+  onDiagnostic?: (reason: TabSessionPersistenceFailureReason) => void
+}
+
+export const DEFAULT_TAB_SESSION_DEBOUNCE_MS = 250
+
+const systemTabSessionPersistenceTimer: TabSessionPersistenceTimer = {
+  setTimeout: (callback, delayMs) => globalThis.setTimeout(callback, delayMs),
+  clearTimeout: (handle) => {
+    globalThis.clearTimeout(handle as ReturnType<typeof globalThis.setTimeout>)
+  },
+}
+
 function isMissingFileError(error: unknown): boolean {
   return typeof error === 'object'
     && error !== null
@@ -125,6 +153,106 @@ export class TabSessionStore {
       if (handle) await handle.close().catch(() => {})
       await this.fileSystem.rm(this.temporaryPath).catch(() => {})
       throw error
+    }
+  }
+}
+
+export class TabSessionPersistence {
+  private readonly debounceMs: number
+  private readonly timer: TabSessionPersistenceTimer
+  private readonly onDiagnostic: ((reason: TabSessionPersistenceFailureReason) => void) | undefined
+  private timerHandle: { value: unknown } | null = null
+  private pendingSnapshot: TabSessionSnapshot | null = null
+  private writeLoop: Promise<void> | null = null
+  private disposePromise: Promise<void> | null = null
+  private disposed = false
+
+  constructor(
+    private readonly store: TabSessionPersistenceStore,
+    private readonly getSnapshot: () => TabSessionSnapshot,
+    options: TabSessionPersistenceOptions = {},
+  ) {
+    const requestedDebounceMs = options.debounceMs
+    this.debounceMs = typeof requestedDebounceMs === 'number'
+      && Number.isFinite(requestedDebounceMs)
+      && requestedDebounceMs >= 0
+      ? requestedDebounceMs
+      : DEFAULT_TAB_SESSION_DEBOUNCE_MS
+    this.timer = options.timer ?? systemTabSessionPersistenceTimer
+    this.onDiagnostic = options.onDiagnostic
+  }
+
+  schedule(): void {
+    if (this.disposed) return
+    this.clearScheduledWrite()
+
+    const timerHandle = { value: undefined as unknown }
+    timerHandle.value = this.timer.setTimeout(() => {
+      if (this.timerHandle !== timerHandle) return
+      this.timerHandle = null
+      this.queueLatestSnapshot()
+    }, this.debounceMs)
+    this.timerHandle = timerHandle
+  }
+
+  flush(): Promise<void> {
+    if (this.disposePromise) return this.disposePromise
+    this.clearScheduledWrite()
+    return this.flushLatestSnapshot()
+  }
+
+  dispose(): Promise<void> {
+    if (this.disposePromise) return this.disposePromise
+    this.disposed = true
+    this.clearScheduledWrite()
+    this.disposePromise = this.flushLatestSnapshot()
+    return this.disposePromise
+  }
+
+  private clearScheduledWrite(): void {
+    if (!this.timerHandle) return
+    this.timer.clearTimeout(this.timerHandle.value)
+    this.timerHandle = null
+  }
+
+  private async flushLatestSnapshot(): Promise<void> {
+    this.queueLatestSnapshot()
+    while (this.writeLoop) await this.writeLoop
+  }
+
+  private queueLatestSnapshot(): void {
+    try {
+      this.pendingSnapshot = this.getSnapshot()
+    } catch {
+      this.reportFailure('snapshot-provider-failed')
+      return
+    }
+
+    if (this.writeLoop) return
+    const writeLoop = this.drainWrites()
+    this.writeLoop = writeLoop
+    void writeLoop.then(() => {
+      if (this.writeLoop === writeLoop) this.writeLoop = null
+    })
+  }
+
+  private async drainWrites(): Promise<void> {
+    while (this.pendingSnapshot) {
+      const snapshot = this.pendingSnapshot
+      this.pendingSnapshot = null
+      try {
+        await this.store.save(snapshot)
+      } catch {
+        this.reportFailure('save-failed')
+      }
+    }
+  }
+
+  private reportFailure(reason: TabSessionPersistenceFailureReason): void {
+    try {
+      this.onDiagnostic?.(reason)
+    } catch {
+      // Diagnostics must never prevent a later persistence attempt.
     }
   }
 }

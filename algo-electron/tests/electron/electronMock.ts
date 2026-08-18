@@ -128,6 +128,11 @@ export class MockBrowserWindow extends EventEmitter {
   setTitle(_title: string): void { /* no-op */ }
   close(): void {
     if (this.destroyed) return
+    let defaultPrevented = false
+    this.emit('close', {
+      preventDefault: () => { defaultPrevented = true },
+    })
+    if (defaultPrevented) return
     this.destroyed = true
     this.focused = false
     MockBrowserWindow.windows = MockBrowserWindow.windows.filter((window) => window !== this)

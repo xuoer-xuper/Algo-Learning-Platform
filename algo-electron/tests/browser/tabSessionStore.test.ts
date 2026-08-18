@@ -1,8 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import {
+  DEFAULT_TAB_SESSION_DEBOUNCE_MS,
+  TabSessionPersistence,
   TabSessionStore,
   type TabSessionFileHandle,
   type TabSessionFileSystem,
+  type TabSessionPersistenceFailureReason,
+  type TabSessionPersistenceTimer,
 } from '../../electron/browser/tabSessionStore'
 import type { TabSessionSnapshot } from '../../electron/browser/tabManagerTypes'
 
@@ -91,6 +95,36 @@ class MemoryTabSessionFileSystem implements TabSessionFileSystem {
     if (this.failOnceAt !== stage) return
     this.failOnceAt = null
     throw fileError('EIO', `${stage} failed`)
+  }
+}
+
+class ManualTabSessionTimer implements TabSessionPersistenceTimer {
+  readonly delays: number[] = []
+  readonly clearedHandles: unknown[] = []
+  private readonly callbacks = new Map<number, () => void>()
+  private nextHandle = 1
+
+  get pendingCount(): number {
+    return this.callbacks.size
+  }
+
+  setTimeout(callback: () => void, delayMs: number): number {
+    const handle = this.nextHandle
+    this.nextHandle += 1
+    this.delays.push(delayMs)
+    this.callbacks.set(handle, callback)
+    return handle
+  }
+
+  clearTimeout(handle: unknown): void {
+    this.clearedHandles.push(handle)
+    this.callbacks.delete(handle as number)
+  }
+
+  runAll(): void {
+    const callbacks = [...this.callbacks.values()]
+    this.callbacks.clear()
+    for (const callback of callbacks) callback()
   }
 }
 
@@ -208,5 +242,194 @@ describe('TabSessionStore.save', () => {
     await expect(store.save(recoveredSnapshot)).resolves.toBeUndefined()
     expect(fileSystem.files.get(sessionPath)).toBe(serialize(recoveredSnapshot))
     expect(fileSystem.files.has(temporaryPath)).toBe(false)
+  })
+})
+
+describe('TabSessionPersistence', () => {
+  it('debounces schedules with the default delay and captures only the latest snapshot', async () => {
+    const timer = new ManualTabSessionTimer()
+    const saved: TabSessionSnapshot[] = []
+    let currentSnapshot = webSession('first')
+    let providerCalls = 0
+    const persistence = new TabSessionPersistence(
+      { save: async (snapshot) => { saved.push(snapshot) } },
+      () => {
+        providerCalls += 1
+        return currentSnapshot
+      },
+      { timer },
+    )
+
+    persistence.schedule()
+    currentSnapshot = webSession('middle')
+    persistence.schedule()
+    currentSnapshot = webSession('newest')
+    persistence.schedule()
+
+    expect(timer.delays).toEqual([
+      DEFAULT_TAB_SESSION_DEBOUNCE_MS,
+      DEFAULT_TAB_SESSION_DEBOUNCE_MS,
+      DEFAULT_TAB_SESSION_DEBOUNCE_MS,
+    ])
+    expect(timer.pendingCount).toBe(1)
+    expect(timer.clearedHandles).toHaveLength(2)
+
+    timer.runAll()
+    await Promise.resolve()
+
+    expect(providerCalls).toBe(1)
+    expect(saved).toEqual([webSession('newest')])
+  })
+
+  it('flushes immediately, cancels the debounce timer, and waits for the write', async () => {
+    const timer = new ManualTabSessionTimer()
+    const saveGate = deferred()
+    const saveStarted = deferred()
+    const saved: TabSessionSnapshot[] = []
+    let currentSnapshot = webSession('scheduled')
+    const persistence = new TabSessionPersistence(
+      {
+        save: async (snapshot) => {
+          saved.push(snapshot)
+          saveStarted.resolve()
+          await saveGate.promise
+        },
+      },
+      () => currentSnapshot,
+      { debounceMs: 75, timer },
+    )
+
+    persistence.schedule()
+    currentSnapshot = webSession('flushed')
+    let flushCompleted = false
+    const flushPromise = persistence.flush().then(() => { flushCompleted = true })
+    await saveStarted.promise
+
+    expect(timer.delays).toEqual([75])
+    expect(timer.pendingCount).toBe(0)
+    expect(timer.clearedHandles).toHaveLength(1)
+    expect(saved).toEqual([webSession('flushed')])
+    expect(flushCompleted).toBe(false)
+
+    saveGate.resolve()
+    await flushPromise
+    expect(flushCompleted).toBe(true)
+  })
+
+  it('coalesces snapshots queued during an in-flight write to the newest one', async () => {
+    const timer = new ManualTabSessionTimer()
+    const firstSaveGate = deferred()
+    const firstSaveStarted = deferred()
+    const saved: TabSessionSnapshot[] = []
+    let currentSnapshot = webSession('first')
+    const persistence = new TabSessionPersistence(
+      {
+        save: async (snapshot) => {
+          saved.push(snapshot)
+          if (saved.length === 1) {
+            firstSaveStarted.resolve()
+            await firstSaveGate.promise
+          }
+        },
+      },
+      () => currentSnapshot,
+      { timer },
+    )
+
+    const flushPromise = persistence.flush()
+    await firstSaveStarted.promise
+
+    currentSnapshot = webSession('middle')
+    persistence.schedule()
+    timer.runAll()
+    currentSnapshot = webSession('newest')
+    persistence.schedule()
+    timer.runAll()
+
+    expect(saved).toEqual([webSession('first')])
+    firstSaveGate.resolve()
+    await flushPromise
+
+    expect(saved).toEqual([webSession('first'), webSession('newest')])
+  })
+
+  it('disposes idempotently with one final flush and ignores later schedules', async () => {
+    const timer = new ManualTabSessionTimer()
+    const saved: TabSessionSnapshot[] = []
+    let currentSnapshot = webSession('scheduled')
+    const persistence = new TabSessionPersistence(
+      { save: async (snapshot) => { saved.push(snapshot) } },
+      () => currentSnapshot,
+      { timer },
+    )
+
+    persistence.schedule()
+    currentSnapshot = webSession('final')
+    const firstDispose = persistence.dispose()
+    const secondDispose = persistence.dispose()
+
+    expect(secondDispose).toBe(firstDispose)
+    expect(timer.pendingCount).toBe(0)
+    await firstDispose
+    expect(saved).toEqual([webSession('final')])
+
+    persistence.schedule()
+    expect(timer.pendingCount).toBe(0)
+    expect(persistence.flush()).toBe(firstDispose)
+  })
+
+  it('reports fixed failure reasons without exposing errors and recovers later', async () => {
+    const diagnostics: TabSessionPersistenceFailureReason[] = []
+    const saved: TabSessionSnapshot[] = []
+    let currentSnapshot = webSession('failed')
+    let failNextSave = true
+    const persistence = new TabSessionPersistence(
+      {
+        save: async (snapshot) => {
+          if (failNextSave) {
+            failNextSave = false
+            throw new Error('failed to save https://example.com/?token=secret')
+          }
+          saved.push(snapshot)
+        },
+      },
+      () => currentSnapshot,
+      { onDiagnostic: (reason) => { diagnostics.push(reason) } },
+    )
+
+    await expect(persistence.flush()).resolves.toBeUndefined()
+    expect(diagnostics).toEqual(['save-failed'])
+    expect(JSON.stringify(diagnostics)).not.toContain('secret')
+
+    currentSnapshot = webSession('recovered')
+    await expect(persistence.flush()).resolves.toBeUndefined()
+    expect(saved).toEqual([webSession('recovered')])
+  })
+
+  it('contains provider and diagnostic callback failures so a later flush can recover', async () => {
+    const diagnostics: TabSessionPersistenceFailureReason[] = []
+    const saved: TabSessionSnapshot[] = []
+    let providerShouldFail = true
+    const persistence = new TabSessionPersistence(
+      { save: async (snapshot) => { saved.push(snapshot) } },
+      () => {
+        if (providerShouldFail) throw new Error('snapshot contained https://example.com/private')
+        return webSession('recovered')
+      },
+      {
+        onDiagnostic: (reason) => {
+          diagnostics.push(reason)
+          throw new Error('diagnostic sink unavailable')
+        },
+      },
+    )
+
+    await expect(persistence.flush()).resolves.toBeUndefined()
+    expect(diagnostics).toEqual(['snapshot-provider-failed'])
+    expect(saved).toEqual([])
+
+    providerShouldFail = false
+    await expect(persistence.flush()).resolves.toBeUndefined()
+    expect(saved).toEqual([webSession('recovered')])
   })
 })

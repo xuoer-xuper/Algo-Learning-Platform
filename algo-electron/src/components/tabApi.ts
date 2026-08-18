@@ -4,6 +4,10 @@ export function subscribeTabListChanged(callback: (tabs: TabBarTabInfo[]) => voi
   return window.electronAPI.onTabListChanged(callback)
 }
 
+export function getBrowserTabList(): Promise<TabBarTabInfo[]> {
+  return window.electronAPI.getTabList()
+}
+
 export function switchBrowserTab(tabId: string): void {
   window.electronAPI.switchTab(tabId)
 }

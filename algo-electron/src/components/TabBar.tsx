@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import {
   closeBrowserTab,
   createBrowserTab,
+  getBrowserTabList,
   subscribeTabListChanged,
   switchBrowserTab,
   type TabBarTabInfo,
@@ -21,7 +22,12 @@ export function TabBar({ onTabUrlChange, onNotice }: TabBarProps) {
   const prevActiveIdRef = useRef<string | null>(null)
 
   useEffect(() => {
-    const unsub = subscribeTabListChanged((newTabs) => {
+    let disposed = false
+    let listRevision = 0
+
+    const applyTabs = (newTabs: TabBarTabInfo[]) => {
+      if (disposed) return
+
       setTabs(newTabs)
 
       const active = newTabs.find((t) => t.isActive)
@@ -29,8 +35,26 @@ export function TabBar({ onTabUrlChange, onNotice }: TabBarProps) {
         prevActiveIdRef.current = active.id
         onTabUrlChange?.(active.url)
       }
+    }
+
+    const unsub = subscribeTabListChanged((newTabs) => {
+      listRevision += 1
+      applyTabs(newTabs)
     })
-    return unsub
+
+    const requestRevision = listRevision
+    void getBrowserTabList().then(
+      (initialTabs) => {
+        if (listRevision !== requestRevision) return
+        applyTabs(initialTabs)
+      },
+      () => undefined,
+    )
+
+    return () => {
+      disposed = true
+      unsub()
+    }
   }, [onTabUrlChange])
 
   const handleSwitch = (tabId: string) => {

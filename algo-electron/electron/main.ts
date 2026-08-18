@@ -26,6 +26,12 @@ import { appLogger, initializeAppLogger } from './shared/logger'
 import { createFatalErrorReporter, installMainProcessErrorHandlers } from './app/mainProcessErrors'
 import { installShellRendererRecovery } from './app/shellRendererRecovery'
 import { installSingleInstanceLock } from './app/singleInstance'
+import {
+  TabSessionPersistence,
+  TabSessionStore,
+  type TabSessionLoadResult,
+} from './browser/tabSessionStore'
+import { installWindowSessionFlush } from './browser/tabSessionLifecycle'
 
 configureChromiumCommandLine()
 
@@ -37,7 +43,12 @@ let services: MainServices | null = null
 let coachPetWindow: CoachPetWindow | null = null
 let coachOrchestrator: CoachOrchestrator | null = null
 let removeShellRendererRecovery: (() => void) | null = null
+let tabSessionStore: TabSessionStore | null = null
+let tabSessionPersistence: TabSessionPersistence | null = null
+let removeTabSessionChangeListener: (() => void) | null = null
 let isQuitting = false
+let isQuitSessionFlushComplete = false
+let quitSessionFlushPromise: Promise<void> | null = null
 
 const hasSingleInstanceLock = installSingleInstanceLock(app, () => win, { logger: appLogger })
 
@@ -70,7 +81,21 @@ if (hasSingleInstanceLock) {
 // native menu prevents Electron's default_app accelerators from hijacking it.
 Menu.setApplicationMenu(Menu.buildFromTemplate([]))
 
-function createWindow() {
+async function loadWindowTabSession(): Promise<TabSessionLoadResult | null> {
+  if (!tabSessionStore) return null
+  return tabSessionStore.load()
+}
+
+function disposeTabSessionPersistence(): Promise<void> {
+  removeTabSessionChangeListener?.()
+  removeTabSessionChangeListener = null
+  const persistence = tabSessionPersistence
+  tabSessionPersistence = null
+  return persistence?.dispose() ?? Promise.resolve()
+}
+
+async function createWindow() {
+  const loadedSession = await loadWindowTabSession()
   win = new BrowserWindow({
     width: MAIN_WINDOW_BOUNDS.defaultWidth,
     height: MAIN_WINDOW_BOUNDS.defaultHeight,
@@ -184,6 +209,37 @@ function createWindow() {
     diagnostics: services?.browserDiagnostics,
   })
 
+  if (!STARTUP_SMOKE_MODE && tabSessionStore) {
+    const manager = tabManager
+    tabSessionPersistence = new TabSessionPersistence(
+      tabSessionStore,
+      () => manager.getSessionSnapshot(),
+      {
+        onDiagnostic: (reason) => {
+          appLogger.warn('browser.session-persistence-failed', { reason })
+        },
+      },
+    )
+    removeTabSessionChangeListener = manager.addSessionChangeListener(() => {
+      tabSessionPersistence?.schedule()
+    })
+
+    const restored = loadedSession?.kind === 'restore'
+      ? manager.restoreSession(loadedSession.snapshot)
+      : false
+    if (restored) {
+      appLogger.info('browser.session-restored', { tabCount: manager.getTabList().length })
+    } else {
+      const fallbackReason = loadedSession?.kind === 'fallback'
+        ? loadedSession.reason
+        : loadedSession?.kind === 'restore'
+          ? 'restore-rejected'
+          : 'store-unavailable'
+      appLogger.info('browser.session-fallback', { reason: fallbackReason })
+      manager.ensureInitialTab()
+    }
+  }
+
   win.webContents.on('did-finish-load', () => {
     if (tabManager) {
       win?.webContents.send('browser:urlChanged', tabManager.getUrl())
@@ -200,9 +256,6 @@ function createWindow() {
     if (!STARTUP_SMOKE_MODE) {
       win?.show()
     }
-    if (!STARTUP_SMOKE_MODE) {
-      tabManager?.warmup()
-    }
   })
 
   win.on('maximize', () => {
@@ -213,7 +266,21 @@ function createWindow() {
     win?.webContents.send('window:maximized', false)
   })
 
+  const removeWindowSessionFlush = installWindowSessionFlush(win, {
+    shouldFlush: () => (
+      !STARTUP_SMOKE_MODE
+      && !isQuitSessionFlushComplete
+      && tabSessionPersistence !== null
+    ),
+    flush: disposeTabSessionPersistence,
+    onFailure: () => {
+      appLogger.warn('browser.session-window-flush-failed')
+    },
+  })
+
   win.on('closed', () => {
+    removeWindowSessionFlush()
+    void disposeTabSessionPersistence()
     win = null
     removeShellRendererRecovery?.()
     removeShellRendererRecovery = null
@@ -256,8 +323,18 @@ app.on('window-all-closed', () => {
 })
 
 // 在应用真正退出前清理资源，覆盖 macOS 关窗不退出、直关窗口等场景
-app.on('before-quit', () => {
+app.on('before-quit', (event) => {
   isQuitting = true
+  if (!STARTUP_SMOKE_MODE && !isQuitSessionFlushComplete && tabSessionPersistence) {
+    event.preventDefault()
+    if (!quitSessionFlushPromise) {
+      quitSessionFlushPromise = disposeTabSessionPersistence().finally(() => {
+        isQuitSessionFlushComplete = true
+        app.quit()
+      })
+    }
+    return
+  }
   try {
     services?.trackingService.endCurrentVisit()
   } catch (error) {
@@ -272,7 +349,9 @@ app.on('before-quit', () => {
 
 app.on('activate', () => {
   if (BrowserWindow.getAllWindows().length === 0) {
-    createWindow()
+    void createWindow().catch((error) => {
+      reportFatalError('startup', error)
+    })
   }
 })
 
@@ -288,7 +367,14 @@ void app.whenReady().then(async () => {
   // Only preconnect sites the user actually visited recently to avoid noisy cold-start timeouts.
   preconnectRecentSiteOrigins()
 
-  createWindow()
+  if (!STARTUP_SMOKE_MODE) {
+    tabSessionStore = new TabSessionStore(
+      path.join(app.getPath('userData'), 'browser-session.json'),
+      { allowInsecureLocalhost: Boolean(VITE_DEV_SERVER_URL) },
+    )
+  }
+
+  await createWindow()
 
   // 每日首次启动时生成 AI 上下文快照存库（供阶段总结/复习计划等 AI 模块消费）
   // 失败不阻塞启动，仅记录日志

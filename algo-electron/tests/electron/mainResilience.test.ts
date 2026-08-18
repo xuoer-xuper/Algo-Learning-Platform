@@ -27,9 +27,25 @@ test('main process gates protocols, IPC, lifecycle, and services behind the sing
     "app.on('window-all-closed'",
     'void app.whenReady().then(',
     'initializeMainServices(() => win)',
+    'new TabSessionStore(',
   ]
   for (const call of protectedCalls) {
     assert.ok(gatedSource.includes(call), `${call} must stay behind the single-instance gate`)
     assert.strictEqual(mainSource.slice(0, gateIndex).includes(call), false, `${call} must not run before the gate`)
   }
+})
+
+test('main process restores and flushes browser sessions without affecting startup smoke', () => {
+  const persistenceIndex = mainSource.indexOf('new TabSessionPersistence(')
+  const restoreIndex = mainSource.indexOf('manager.restoreSession(loadedSession.snapshot)')
+  const shellLoadIndex = mainSource.indexOf('win.loadURL(')
+  assert.ok(persistenceIndex >= 0, 'session persistence must be installed')
+  assert.ok(restoreIndex > persistenceIndex, 'restore must run after persistence and callbacks are wired')
+  assert.ok(shellLoadIndex > restoreIndex, 'restore must finish before the shell renderer is loaded')
+
+  assert.match(mainSource, /if \(!STARTUP_SMOKE_MODE && tabSessionStore\) \{[\s\S]+?new TabSessionPersistence\(/)
+  assert.match(mainSource, /manager\.addSessionChangeListener\(\(\) => \{[\s\S]+?schedule\(\)/)
+  assert.match(mainSource, /installWindowSessionFlush\(win, \{[\s\S]+?flush: disposeTabSessionPersistence/)
+  assert.match(mainSource, /app\.on\('before-quit', \(event\) => \{[\s\S]+?event\.preventDefault\(\)[\s\S]+?disposeTabSessionPersistence\(\)[\s\S]+?app\.quit\(\)/)
+  assert.doesNotMatch(mainSource, /\.warmup\(/)
 })
