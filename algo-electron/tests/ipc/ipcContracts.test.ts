@@ -34,6 +34,7 @@ const coreContracts: PreloadContract[] = [
   { method: 'onUrlChanged', mode: 'on', channel: 'browser:urlChanged' },
   { method: 'onUiCommand', mode: 'on', channel: 'ui:command' },
   { method: 'reopenClosedTab', mode: 'invoke', channel: 'tab:reopenClosed' },
+  { method: 'reorderTab', mode: 'invoke', channel: 'tab:reorder' },
   { method: 'reloadTab', mode: 'send', channel: 'tab:reload' },
   { method: 'dismissUnresponsiveTab', mode: 'send', channel: 'tab:dismissUnresponsive' },
   { method: 'openInternalTab', mode: 'invoke', channel: 'tab:openInternal' },

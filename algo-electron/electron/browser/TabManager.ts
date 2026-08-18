@@ -686,6 +686,21 @@ export class TabManager {
     if (tabId) this.switchTab(tabId)
   }
 
+  reorderTab(tabId: string, targetIndex: number): boolean {
+    if (!Number.isInteger(targetIndex)) return false
+    const sourceIndex = this.findTabIndex(tabId)
+    if (sourceIndex < 0 || this.tabs.length < 2) return false
+
+    const destinationIndex = Math.max(0, Math.min(targetIndex, this.tabs.length - 1))
+    if (sourceIndex === destinationIndex) return false
+
+    const [tab] = this.tabs.splice(sourceIndex, 1)
+    this.tabs.splice(destinationIndex, 0, tab)
+    this.notifyTabListChanged()
+    this.emitSessionChange()
+    return true
+  }
+
   detachTab(tabId: string): BrowserWindow | null {
     if (this.tabs.length <= 1) return null
 

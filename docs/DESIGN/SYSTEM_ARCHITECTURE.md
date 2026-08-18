@@ -203,6 +203,7 @@ Renderer 不直接操作 `webContents`。
 ### 4.4 混合标签与内部页
 
 - **主进程事实源**：`TabManager` 持有标签顺序、稳定 ID、活动项、关闭栈和会话快照；Renderer 不复制标签路由状态。
+- **标签条**：`TabStrip` 渲染 favicon/loading/internal 图标，pointer 手势只提交 `tab:reorder(tabId, finalIndex)`；主进程完成排序并广播新快照。标签交互区为 `no-drag`，窗口拖动仅使用标题栏空白区。
 - **Web 标签**：由 `WebContentsView` 承载，切换时动态 `addChildView` / `removeChildView`，使用 `persist:oj-main`。
 - **内部标签**：首页、设置、统计、脚本、Coach 指标、题目详情和笔记由壳 React 内的 `ShellRouter` 渲染；`algo://...` 只是地址栏与会话标识，不注册本地资源协议。
 - **壳资源**：生产 Renderer 仍只从可信 `app://shell/index.html` 加载；不得把 `algo://` 解析成任意本地路径。

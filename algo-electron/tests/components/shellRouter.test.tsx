@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
-import type { TabBarTabInfo } from '../../src/components/tabApi'
+import type { TabStripTabInfo } from '../../src/components/tabApi'
 
 vi.mock('../../src/features/home/HomePage', () => ({
   HomePage: ({ onNavigate }: { onNavigate: (url: string) => void }) => (
@@ -41,7 +41,7 @@ const baseTab = {
   isActive: true,
 }
 
-function renderRoute(activeTab: TabBarTabInfo) {
+function renderRoute(activeTab: TabStripTabInfo) {
   const onNavigate = vi.fn()
   const onCloseActiveTab = vi.fn()
   const onReloadActiveTab = vi.fn()

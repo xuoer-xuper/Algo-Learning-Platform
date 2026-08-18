@@ -786,6 +786,7 @@ interface ElectronAPI {
   closeTab: (tabId: string) => void
   reopenClosedTab: () => Promise<string>
   switchTab: (tabId: string) => void
+  reorderTab: (tabId: string, targetIndex: number) => Promise<boolean>
   detachTab: (tabId: string) => void
   reloadTab: (tabId: string) => void
   dismissUnresponsiveTab: (tabId: string) => void

@@ -362,3 +362,61 @@ for (const scenario of viewportScenarios) {
     }
   })
 }
+
+test('native tab strip overflows horizontally and reorders with a pointer drag', async () => {
+  const scenario = viewportScenarios.find((candidate) => candidate.name === 'narrow')!
+  const electronApp = await launchScenario(scenario)
+  const page = await electronApp.firstWindow()
+
+  try {
+    await assertNativeViewport(electronApp, page)
+    await page.evaluate(async () => {
+      for (let index = 0; index < 12; index += 1) {
+        await window.electronAPI.openInternalTab({ type: 'notes', problemId: `drag-${index}` })
+      }
+    })
+    await expect(page.getByRole('tab')).toHaveCount(13)
+
+    const stripState = await page.locator('.tab-strip-tabs').evaluate((element) => {
+      const dragRegion = document.querySelector<HTMLElement>('.tab-strip-drag-region')
+      const styles = dragRegion ? getComputedStyle(dragRegion) as CSSStyleDeclaration & { webkitAppRegion?: string } : null
+      return {
+        scrollWidth: element.scrollWidth,
+        clientWidth: element.clientWidth,
+        dragRegionWidth: dragRegion?.getBoundingClientRect().width ?? 0,
+        dragRegionMode: styles?.webkitAppRegion ?? '',
+      }
+    })
+    expect(stripState.scrollWidth).toBeGreaterThan(stripState.clientWidth)
+    expect(stripState.dragRegionWidth).toBeGreaterThan(0)
+    expect(stripState.dragRegionMode).toBe('drag')
+
+    const tabItems = page.locator('.tab-item')
+    const before = await tabItems.evaluateAll((elements) => elements.map((element) => element.getAttribute('data-tab-id')))
+    await page.locator('.tab-strip-tabs').evaluate((element) => { element.scrollLeft = 0 })
+    const first = tabItems.nth(0).locator('.tab-item-main')
+    const firstBox = await first.boundingBox()
+    const stripBox = await page.locator('.tab-strip-tabs').boundingBox()
+    expect(firstBox).not.toBeNull()
+    expect(stripBox).not.toBeNull()
+
+    await page.mouse.move(firstBox!.x + firstBox!.width / 2, firstBox!.y + firstBox!.height / 2)
+    await page.mouse.down()
+    await page.mouse.move(stripBox!.x + stripBox!.width - 3, firstBox!.y + firstBox!.height / 2, { steps: 8 })
+    await page.waitForTimeout(450)
+    await page.mouse.up()
+
+    await expect.poll(async () => {
+      const current = await tabItems.evaluateAll(
+        (elements) => elements.map((element) => element.getAttribute('data-tab-id')),
+      )
+      return current.indexOf(before[0])
+    }).toBeGreaterThan(3)
+    await expect.poll(() => page.locator('.tab-strip-tabs').evaluate((element) => element.scrollLeft))
+      .toBeGreaterThan(0)
+    const after = await tabItems.evaluateAll((elements) => elements.map((element) => element.getAttribute('data-tab-id')))
+    expect(after.filter((tabId) => tabId !== before[0])).toEqual(before.slice(1))
+  } finally {
+    await electronApp.close()
+  }
+})

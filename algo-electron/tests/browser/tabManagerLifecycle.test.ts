@@ -202,3 +202,31 @@ test('tab list preserves insertion order and reports loading/favicon state', () 
   assert.strictEqual(manager.getTabList()[1].favicon, null)
   assert.strictEqual(snapshots.length, 4)
 })
+
+test('reordering tabs preserves the active tab and mounted web view while persisting the new order', () => {
+  resetElectronMock()
+  const window = new MockBrowserWindow()
+  const manager = new TabManager(window as never)
+  const firstId = manager.createTab('https://example.com/first')
+  const homeId = manager.openInternalTab({ type: 'home' })
+  const activeId = manager.createTab('https://example.com/active')
+  const activeView = window.contentView.children[0]
+  let listChanges = 0
+  let sessionChanges = 0
+  manager.setTabListChangedCallback(() => { listChanges += 1 })
+  manager.addSessionChangeListener(() => { sessionChanges += 1 })
+
+  assert.strictEqual(manager.reorderTab(firstId, 2), true)
+  assert.deepStrictEqual(manager.getTabList().map((tab) => tab.id), [homeId, activeId, firstId])
+  assert.strictEqual(manager.getActiveTabId(), activeId)
+  assert.deepStrictEqual(window.contentView.children, [activeView])
+  assert.deepStrictEqual(manager.getSessionSnapshot().tabs.map((tab) => tab.id), [homeId, activeId, firstId])
+  assert.strictEqual(listChanges, 1)
+  assert.strictEqual(sessionChanges, 1)
+
+  assert.strictEqual(manager.reorderTab(firstId, 2), false)
+  assert.strictEqual(manager.reorderTab('missing', 0), false)
+  assert.strictEqual(manager.reorderTab(firstId, Number.NaN), false)
+  assert.strictEqual(listChanges, 1)
+  assert.strictEqual(sessionChanges, 1)
+})

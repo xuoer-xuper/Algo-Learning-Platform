@@ -28,6 +28,11 @@ export function registerBrowserShellIpc(options: RegisterBrowserShellIpcOptions)
     options.getTabManager()?.switchTab(tabId)
   })
 
+  ipcMain.handle('tab:reorder', (_event, tabId: unknown, targetIndex: unknown) => {
+    if (typeof tabId !== 'string' || !Number.isInteger(targetIndex)) return false
+    return options.getTabManager()?.reorderTab(tabId, targetIndex as number) ?? false
+  })
+
   ipcMain.on('tab:detach', (_event, tabId: string) => {
     options.getTabManager()?.detachTab(tabId)
   })

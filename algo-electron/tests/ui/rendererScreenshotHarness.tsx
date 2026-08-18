@@ -364,6 +364,16 @@ function createApiMock(): ElectronAPI {
     },
     reopenClosedTab: async () => '',
     switchTab: activateTab,
+    reorderTab: async (tabId, targetIndex) => {
+      const sourceIndex = tabs.findIndex((tab) => tab.id === tabId)
+      if (sourceIndex < 0 || !Number.isInteger(targetIndex)) return false
+      const destinationIndex = Math.max(0, Math.min(targetIndex, tabs.length - 1))
+      if (sourceIndex === destinationIndex) return false
+      const [tab] = tabs.splice(sourceIndex, 1)
+      tabs.splice(destinationIndex, 0, tab)
+      emitTabs()
+      return true
+    },
     detachTab: () => {},
     reloadTab: () => {},
     dismissUnresponsiveTab: () => {},

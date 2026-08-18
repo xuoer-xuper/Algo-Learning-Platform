@@ -1,0 +1,272 @@
+/* 标签栏（token 来源：src/index.css） */
+.tab-strip {
+  display: flex;
+  align-items: stretch;
+  height: 100%;
+  min-width: 0;
+  flex: 1;
+  background: transparent;
+  overflow: hidden;
+  padding-top: 4px;
+}
+
+.tab-strip-tabs {
+  -webkit-app-region: no-drag;
+  display: flex;
+  align-items: stretch;
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: calc(100% - 38px);
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+}
+
+.tab-strip-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.tab-strip-drag-region {
+  -webkit-app-region: drag;
+  min-width: 8px;
+  flex: 1 1 16px;
+}
+
+/* 单个标签 */
+.tab-item {
+  -webkit-app-region: no-drag;
+  display: flex;
+  align-items: center;
+  flex: 1 1 180px;
+  width: 180px;
+  min-width: 80px;
+  max-width: 180px;
+  height: 100%;
+  border: none;
+  background: transparent;
+  position: relative;
+  box-sizing: border-box;
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+  margin-left: 2px;
+  margin-right: 2px;
+  transition:
+    background-color var(--duration-fast) var(--ease-out),
+    box-shadow var(--duration-fast) var(--ease-out);
+  animation: tab-item-enter var(--duration-fast) var(--ease-out);
+}
+
+.tab-item:first-child {
+  margin-left: 8px;
+}
+
+.tab-item:hover {
+  background-color: rgba(255, 255, 255, 0.55);
+}
+
+/* 相邻非活动标签之间的细分隔线（Chrome 式） */
+.tab-item:not(.tab-item-active) + .tab-item:not(.tab-item-active)::before {
+  content: '';
+  position: absolute;
+  left: -3px;
+  top: 25%;
+  height: 50%;
+  width: 1px;
+  background: var(--border);
+}
+
+/* 活动标签：与下方工具栏连成一体 */
+.tab-item-active {
+  background-color: var(--bg-card);
+  z-index: 2;
+  box-shadow: var(--shadow-sm);
+}
+
+.tab-item-active:hover {
+  background-color: var(--bg-card);
+}
+
+.tab-item-main {
+  -webkit-app-region: no-drag;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  height: 100%;
+  flex: 1;
+  padding: 0 4px 0 10px;
+  border: 0;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  touch-action: none;
+}
+
+.tab-item-main:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: -2px;
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+}
+
+.tab-item-dragging {
+  z-index: 4;
+  opacity: 0.86;
+  box-shadow: var(--shadow-md);
+  cursor: grabbing;
+}
+
+.tab-item-dragging .tab-item-main {
+  cursor: grabbing;
+}
+
+.tab-drop-indicator {
+  position: absolute;
+  z-index: 6;
+  top: 4px;
+  bottom: 4px;
+  width: 2px;
+  border-radius: var(--radius-sm);
+  background: var(--primary);
+  pointer-events: none;
+}
+
+.tab-drop-indicator-before { left: -2px; }
+.tab-drop-indicator-after { right: -2px; }
+
+.tab-item-icon,
+.tab-item-favicon,
+.tab-item-spinner {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 14px;
+}
+
+.tab-item-icon {
+  color: var(--text-muted);
+}
+
+.tab-item-favicon {
+  object-fit: contain;
+}
+
+.tab-item-spinner {
+  box-sizing: border-box;
+  border: 1.5px solid var(--border);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: tab-spinner 700ms linear infinite;
+}
+
+/* 标签文字 */
+.tab-item-title {
+  flex: 1;
+  min-width: 0;
+  font-size: 12px;
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: left;
+  line-height: 32px;
+}
+
+.tab-item-active .tab-item-title {
+  color: var(--text);
+}
+
+/* 关闭按钮 */
+.tab-item-close {
+  -webkit-app-region: no-drag;
+  width: 18px;
+  height: 18px;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  margin-right: 6px;
+  flex-shrink: 0;
+  opacity: 0;
+  transition:
+    opacity var(--duration-fast) var(--ease-out),
+    background-color var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out);
+}
+
+.tab-item:hover .tab-item-close,
+.tab-item-active .tab-item-close,
+.tab-item-close:focus-visible {
+  opacity: 1;
+}
+
+.tab-item-close:hover {
+  background-color: var(--hover-bg);
+  color: var(--text);
+}
+
+.tab-item-closing {
+  pointer-events: none;
+  overflow: hidden;
+  animation: tab-item-close 140ms var(--ease-out) forwards;
+}
+
+/* 新建标签按钮 */
+.tab-strip-new {
+  -webkit-app-region: no-drag;
+  width: 26px;
+  height: 26px;
+  flex-shrink: 0;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  margin: auto 4px;
+  transition:
+    background-color var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out);
+}
+
+.tab-strip-new:hover {
+  background-color: rgba(255, 255, 255, 0.7);
+  color: var(--text);
+}
+
+@keyframes tab-spinner {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes tab-item-enter {
+  from {
+    opacity: 0;
+    transform: translateY(2px) scale(0.98);
+  }
+}
+
+@keyframes tab-item-close {
+  to {
+    opacity: 0;
+    transform: scale(0.94);
+    width: 0;
+    min-width: 0;
+    max-width: 0;
+    flex-basis: 0;
+    margin-left: 0;
+    margin-right: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tab-item,
+  .tab-item-closing,
+  .tab-item-spinner {
+    animation-duration: 1ms;
+  }
+}

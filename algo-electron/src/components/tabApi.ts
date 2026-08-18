@@ -1,15 +1,19 @@
-export type TabBarTabInfo = TabInfo
+export type TabStripTabInfo = TabInfo
 
-export function subscribeTabListChanged(callback: (tabs: TabBarTabInfo[]) => void): () => void {
+export function subscribeTabListChanged(callback: (tabs: TabStripTabInfo[]) => void): () => void {
   return window.electronAPI.onTabListChanged(callback)
 }
 
-export function getBrowserTabList(): Promise<TabBarTabInfo[]> {
+export function getBrowserTabList(): Promise<TabStripTabInfo[]> {
   return window.electronAPI.getTabList()
 }
 
 export function switchBrowserTab(tabId: string): void {
   window.electronAPI.switchTab(tabId)
+}
+
+export function reorderBrowserTab(tabId: string, targetIndex: number): Promise<boolean> {
+  return window.electronAPI.reorderTab(tabId, targetIndex)
 }
 
 export function closeBrowserTab(tabId: string): void {

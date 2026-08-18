@@ -11,7 +11,7 @@
 - 主线浏览器容器：`TabManager`，已接入 `main.ts`。
 - 视图技术：统一使用 `WebContentsView`，遵守 `docs/ADR/ADR_0001_USE_WEBCONTENTSVIEW.md`。
 - 会话隔离：OJ 页面使用 `partition: 'persist:oj-main'` 持久登录态。
-- 多标签：最多 16 个有序 web/internal 混合标签，支持创建、关闭、切换、恢复关闭和混合会话恢复；关闭活动标签优先激活右邻，关闭最后一个标签会创建内部 home，满额时拒绝创建并通知壳层。旧双击剥离入口在 B3 多窗口对等壳完成前临时禁用，双击仅通过既有工具栏消息区说明恢复计划。
+- 多标签：最多 16 个有序 web/internal 混合标签，支持创建、关闭、切换、pointer 拖拽排序、恢复关闭和混合会话恢复；关闭活动标签优先激活右邻，关闭最后一个标签会创建内部 home，满额时拒绝创建并通知壳层。旧双击剥离入口在 B3 多窗口对等壳完成前临时禁用，双击仅通过既有工具栏消息区说明恢复计划。
 - 弹窗接管：`window.open` / `target=_blank` 创建的 Chromium `webContents` 会被原样接管为受管标签，保留 about:blank、POST、OAuth 和 opener 语义；后台标签不会抢占活动标签。
 - 导航边界：生产环境只允许 HTTPS 和受控 about:blank；开发与 smoke 额外允许 localhost/loopback HTTP，未知协议默认拒绝并通过 `ui:command` 通知壳层。
 - 会话快照：`tabSessionSnapshot.ts` 对版本、字段白名单、标签顺序、活动项、内部页和可恢复 URL 做整份严格校验；拒绝 userinfo、敏感 query/hash、控制字符和未知字段，不部分抢救损坏数据，也不序列化 favicon、加载/崩溃状态、表单、密码或脚本源码。
@@ -53,6 +53,7 @@
   - `openInternalTab(page, options?)`：创建受控内部页标签，可按页面身份复用已有标签。
   - `closeTab(tabId)`
   - `switchTab(tabId)`
+  - `reorderTab(tabId, targetIndex)`：按最终索引调整有序数组，只广播列表/会话持久状态，不切换活动标签或重新挂载 view。
   - `detachTab(tabId)`
   - `destroy()`
 - 导航控制

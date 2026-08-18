@@ -2,7 +2,7 @@ import { useCallback, useState } from 'react'
 import { ProblemSidebar } from './features/problems/ProblemSidebar'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { WindowControls } from './components/WindowControls'
-import { TabBar } from './components/TabBar'
+import { TabStrip } from './components/TabStrip'
 import { BrowserToolbar } from './components/BrowserToolbar'
 import { ShellRouter } from './components/ShellRouter'
 import {
@@ -10,14 +10,14 @@ import {
   dismissUnresponsiveBrowserTab,
   openInternalBrowserTab,
   reloadBrowserTab,
-  type TabBarTabInfo,
+  type TabStripTabInfo,
 } from './components/tabApi'
 import { NoticeBar } from './components/ui'
 import { useBrowserNavigation } from './hooks/useBrowserNavigation'
 import './App.css'
 
 function App() {
-  const [activeTab, setActiveTab] = useState<TabBarTabInfo | null>(null)
+  const [activeTab, setActiveTab] = useState<TabStripTabInfo | null>(null)
   const {
     url,
     syncMsg,
@@ -34,7 +34,7 @@ function App() {
     showTransientMessage,
   } = useBrowserNavigation()
 
-  const handleActiveTabChange = useCallback((tab: TabBarTabInfo | null) => {
+  const handleActiveTabChange = useCallback((tab: TabStripTabInfo | null) => {
     setActiveTab(tab)
   }, [])
 
@@ -64,7 +64,7 @@ function App() {
     <ErrorBoundary>
       <div className="app-layout">
       <div className="titlebar-layer">
-        <TabBar
+        <TabStrip
           onTabUrlChange={applyUrlState}
           onActiveTabChange={handleActiveTabChange}
           onNotice={showTransientMessage}

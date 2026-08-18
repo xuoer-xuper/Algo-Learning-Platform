@@ -1,6 +1,6 @@
 import { lazy, Suspense } from 'react'
 import { HomePage } from '../features/home/HomePage'
-import type { TabBarTabInfo } from './tabApi'
+import type { TabStripTabInfo } from './tabApi'
 import { Button, Icon } from './ui'
 
 const SettingsPage = lazy(() => import('../features/settings/SettingsPage').then((module) => ({ default: module.SettingsPage })))
@@ -11,7 +11,7 @@ const ProblemDetail = lazy(() => import('../features/problems/ProblemDetail').th
 const NotePanelModal = lazy(() => import('../features/problems/NotePanelModal').then((module) => ({ default: module.NotePanelModal })))
 
 interface ShellRouterProps {
-  activeTab: TabBarTabInfo | null
+  activeTab: TabStripTabInfo | null
   onNavigate: (url: string) => void
   onCloseActiveTab: () => void
   onReloadActiveTab: () => void
