@@ -454,7 +454,8 @@ Renderer（同一构建产物，多窗口实例化——桌宠 hash 路由已证
 | B2.1 | [x] | `ac5fa27` + `4f8f40f` + `8db5c27` + `8c93cd7`（2026-08-18）：有序标签模型、严格安全快照、原子存储、250ms 防抖、退出 flush、稳定 ID/顺序恢复与 renderer 首次列表同步全部完成；web renderer 崩溃后保留标签元数据并摘除坏 view，可复用或替换 view 恢复原地址，失败与迟到事件不删除/污染标签；unresponsive 使用普通文档流 NoticeBar 提供继续等待、按 tabId 重载和关闭，活动 view 同步下移 38px，responsive 后自动撤销。健康态不进入会话快照。验证：`npm run typecheck`、`npm run lint`、`npm run test:core`（40 files/484 tests）、`npm run test:ui`（3 viewports）和 `git diff --check` 全部通过；按批量验证策略暂缓生产构建、NSIS 与真实 packaged smoke。正常态视觉冻结不变，仅新增复用现有 token/组件的故障状态页和通知条 |
 | B2.2 | [x] | `8922c54`（2026-08-18）：完成 web/internal 混合标签、ShellRouter、内部 home、旧默认首页迁移与全部既定内部页路由归属；正常态视觉风格冻结 |
 | B2.3 | [x] | `8922c54`（2026-08-18）：删除截图替身三件套和三个旧 view 通道，`goHome` 切换内部 home；NoticeBar 与 38px view bounds 让位链路完成 |
-| B2.4-B2.8 | [ ] | TabStrip、Omnibox、UI 测试扩展、下载/查找/缩放、右键菜单待实施 |
+| B2.4 | [x] | `4112c01`（2026-08-18）：旧 TabBar 完整替换为 Chrome 风格 TabStrip；补齐 favicon/内部页图标、加载与崩溃状态、pointer 排序及 `tab:reorder` 持久化、横向溢出与边缘自动滚动、新建/关闭动效、reduced motion、中键关闭、活动标签自动滚入、ARIA 方向键/Home/End 导航；标签区保持 no-drag，右侧空白区保留窗口拖动。自动 GitHub `renderer-smoke` 纳入真实 Electron 与 Playwright；正常态颜色、排版、按钮外观和动效基调保持冻结 |
+| B2.5-B2.8 | [ ] | Omnibox、UI 测试扩展、下载/查找/缩放、右键菜单待实施 |
 | B3.1-B3.5 | [ ] | WindowManager、事件多窗口化、标签过户、服务广播、生命周期与恢复均待实施 |
 | B4.1-B4.6 | [ ] | 026_site_credentials、Vault、自动填充、账户页、登录捕获、fuses 均待实施 |
 | B5.1-B5.6 | [ ] | 仅按视觉冻结约束做结构收尾、暗色、无障碍、桌宠策略和 Latex |
@@ -759,3 +760,19 @@ Renderer（同一构建产物，多窗口实例化——桌宠 hash 路由已证
 | 安全边界 | `algo://` 仅为受控标签标识，不注册资源协议；Renderer 仍从 `app://shell` 加载。内部页 IPC 严格校验 exact-shape payload；会话不保存表单、密码、Cookie、脚本源码、favicon 或运行时健康态；旧快捷入口不接受非 HTTP(S) 或 URL userinfo |
 | 剩余工作 | 下一步进入 B2.4 TabStrip；凭据中心内容属于 B4，脚本安装确认内容属于 B6。生产构建、NSIS 与真实 packaged 双实例 smoke 继续合并到后续集中回归 |
 | 完成时间 | 北京时间 `2026-08-18 23:42` |
+
+### 11.25 B2.4 Chrome 风格标签条完成记录
+
+| 字段 | 填写内容 |
+|---|---|
+| 任务 | B2.4 TabStrip 重写、拖拽排序、溢出交互与自动 renderer smoke |
+| 状态 | `[x] 已完成` |
+| Commit | `4112c01 browser: 完成 Chrome 风格标签条` |
+| 自动验证 | `npm run test:core`（45 files/508 tests）、`npm run test:electron`、`npm run test:ui`（4/4，含三档 viewport 与真实 pointer 跨可视区拖拽）、`npm run test:docs`、`npm run typecheck`、目标 ESLint、`git diff --check`；全部通过 |
+| 自动验收 | `TabManager.reorderTab` 按最终索引重排并广播列表/会话变化，不切换活动标签或重挂活动 view；IPC/preload/类型/harness 全链路接通。TabStrip 覆盖 favicon、内部页领域图标、loading spinner、崩溃图标、5px pointer 阈值、插入指示线、拖后 click 抑制、中键关闭、新建/关闭动画、reduced motion、滚轮横移、活动标签滚入、横向溢出边缘连续滚动、Enter/Space 与 ArrowLeft/ArrowRight/Home/End 键盘交互 |
+| 原生窗口回归 | 800×600 创建 13 个内部标签，确认标签条横向溢出、右侧空白窗口拖动区为 `-webkit-app-region: drag`；从首标签真实按下 pointer 并拖到标签条右缘，等待自动滚动后释放，确认移出初始可视范围且其他标签相对顺序保持。1280×800、1024×720、800×600 既有壳层/内部页场景同步通过 |
+| CI 策略 | GitHub Actions 新增自动 `renderer-smoke` job，push/PR 并行执行 `test:electron + test:ui`；生产 build、NSIS 与真实 packaged 双实例 smoke 仍保持手动集中执行 |
+| 视觉影响 | TabBar 实现升级为 TabStrip，但严格沿用 `0a1a1c4` 的语义 token、浅色配色、42px 壳层关系、字体、按钮形态和动效基调；未重做业务页面或整体前端风格 |
+| 文档同步 | `.github/workflows/README.md`、`electron/browser/README.md`、`electron/ipc/README.md`、`src/components/README.md`、`tests/components/README.md`、`tests/ui/README.md`、`SYSTEM_ARCHITECTURE.md` 与本台账 |
+| 剩余工作 | 下一步进入 B2.5 Omnibox + AppMenu；继续按批量策略暂缓生产构建、NSIS 与真实 packaged 双实例 smoke |
+| 完成时间 | 北京时间 `2026-08-18` |
