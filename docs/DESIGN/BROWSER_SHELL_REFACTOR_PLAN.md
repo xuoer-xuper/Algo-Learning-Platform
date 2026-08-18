@@ -448,7 +448,7 @@ Renderer（同一构建产物，多窗口实例化——桌宠 hash 路由已证
 | B0.12 | [x] | `a004d3c`（2026-08-16）：生产壳迁移至 `app://shell` 并启用严格 CSP；普通 IPC 统一接入 shell sender/main-frame/origin/payload 校验，OJ 提交通道使用专用 HTTPS sender validator；TabManager 管理 OJ sender 生命周期；安全、架构、IPC 合约与真实 Electron startup smoke 覆盖已完成；全量验证通过；无视觉变更 |
 | B1.1 | [x] | `efed871`（2026-08-18）：补齐 4 档 spacing、3 档语义圆角别名、3 档 easing；暗色主题同步覆盖完整 `--color-*` 语义 token 与兼容别名；静态治理测试纳入 core suite；仅 token 层变更，视觉冻结不变 |
 | B1.2 | [x] | `16bae97`（2026-08-18）：补齐内部页 Dialog、DropdownMenu、Toast、NoticeBar；Dialog 支持焦点陷阱、Esc/遮罩关闭与焦点恢复，DropdownMenu 支持方向键/Home/End/禁用项/外点关闭，Toast 提供 live region/自动消退/操作，NoticeBar 保持文档流让位；独立 jsdom 测试与 README 已同步；无业务页和视觉 token 变更 |
-| B1.3 | [~] | `9346856`（2026-08-18）：低风险收拢时间轴、Coach 关闭按钮与笔记删除按钮到现有 Icon/IconButton，保留原 class/尺寸并增加窄范围守卫；时间轴语义 emoji、笔记空态图标、详情链接箭头和桌宠插画暂留，待截图确认后继续 |
+| B1.3 | [x] | `9346856` + `20bc054`（2026-08-18）：关闭/删除按钮、时间轴五类事件、详情外链和笔记空态全部收拢到统一 Icon/IconButton；运行时功能性 Unicode 归零，内联 SVG 仅保留统一 Icon 实现与 CoachPet 领域插画；固定原容器/字号/尺寸并增加回流守卫；集中截图验收并入后续 UI 回归 |
 | B1.4 | [x] | `1190daf`；`rg` 确认 src 中无原生 confirm；组件测试已覆盖 ConfirmDialog |
 | B1.5 | [x] | `66821d0` + `7df12ce`（2026-08-18）：清理零引用 `@milkdown/theme-nord`，保留 Crepe 实际 Nord CSS；Coach 原始配色、透明度、圆角与动效值集中到独立 `tokens.css`，pet/bubble CSS 只消费变量，删除 TS 重复视觉配置并增加六状态回流守卫；既有 feature/notes/scripts 已由 `1190daf` 完成收编；视觉冻结不变 |
 | B2.1-B2.8 | [ ] | 标签模型、内部页、截图机制退役、TabStrip、Omnibox、UI 测试、下载/查找/缩放、右键菜单均待实施 |
@@ -637,4 +637,17 @@ Renderer（同一构建产物，多窗口实例化——桌宠 hash 路由已证
 | 人工验收 | 原始颜色、alpha、圆角和动效时长逐值搬运；未改变桌宠 SVG、布局、状态动画或气泡交互 |
 | 视觉影响 | `无视觉变更`；Coach 保持既有独立深色科技风格，不映射为主界面近似色 |
 | 文档同步 | `src/features/coach/{README.md,styles/README.md}`、`tests/coach/README.md` |
+| 完成时间 | 北京时间 `2026-08-18` |
+
+### 11.18 B1.3 功能图标治理完成记录
+
+| 字段 | 填写内容 |
+|---|---|
+| 任务 | B1.3 运行时功能图标统一治理 |
+| 状态 | `[x] 已完成` |
+| Commit | `20bc054 ui: 完成功能图标统一治理`（首批见 `9346856`） |
+| 自动验证 | `npm run typecheck`、目标 ESLint、图标/UI 聚焦 Vitest 18/18、运行时 Unicode/内联 SVG 审计、`npm run test:core`、`npm run test:docs`、`git diff --check` |
+| 人工验收 | Playwright 截图并入后续集中 UI 回归；时间轴圆点保持 22px、空态图标保持 48px、详情链接字号不变 |
+| 视觉影响 | 功能图标由字体符号等价替换为统一 24 viewBox 线性图标；不改页面配色、布局、动画或组件外观 |
+| 文档同步 | `tests/components/README.md`、B1 完成台账 |
 | 完成时间 | 北京时间 `2026-08-18` |
