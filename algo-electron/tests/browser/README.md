@@ -13,6 +13,8 @@
 - `tabManagerWindowOpen.test.ts`：接管 Chromium 创建的原始 `webContents`、前后台标签、销毁竞态与不安全协议拒绝。
 - `tabManagerLifecycle.test.ts`：关闭后右邻激活、最后标签重置、URL/标题恢复关闭栈和 16 标签满额通知。
 - `browserLayout.test.ts`：验证主进程布局契约的 36/42/78 派生关系，以及 renderer CSS 变量注入。
+- `tabSessionSnapshot.test.ts`：会话 exact-shape/版本/数量/ID/标题/内部页/活动项校验，HTTPS 与开发 loopback URL、敏感 query/hash、损坏/超限 JSON，以及序列化字段白名单和活动项邻位回退。
+- `tabSessionStore.test.ts`：缺失与陈旧临时文件、严格恢复 fallback、快速保存合并，以及 write/sync/close/rename 失败时清理临时文件并保留旧目标。
 
 ## 3. 运行方式
 
@@ -24,4 +26,4 @@ npm run test:electron
 
 ## 4. 新增规则
 
-修改 `electron/browser/ojBridge.ts`、`ojPreload.ts`、导航/权限策略或 `setWindowOpenHandler` 接管流程时，在这里补测试。POST、OAuth 和 opener 等 Electron ABI 行为必须追加真实 startup smoke；fixture 不得包含真实站点响应、Cookie 或源码。
+修改 `electron/browser/ojBridge.ts`、`ojPreload.ts`、导航/权限/会话策略或 `setWindowOpenHandler` 接管流程时，在这里补测试。POST、OAuth 和 opener 等 Electron ABI 行为必须追加真实 startup smoke；会话 fixture 不得包含真实 URL 凭据、表单、密码、Cookie 或脚本源码。

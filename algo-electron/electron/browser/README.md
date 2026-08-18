@@ -14,6 +14,8 @@
 - 多标签：最多 16 个标签，支持创建、关闭、切换和恢复关闭；关闭活动标签优先激活右邻，关闭最后一个标签会重置为空白新标签，满额时拒绝创建并通知壳层。旧双击剥离入口在 B3 多窗口对等壳完成前临时禁用，双击仅通过既有工具栏消息区说明恢复计划。
 - 弹窗接管：`window.open` / `target=_blank` 创建的 Chromium `webContents` 会被原样接管为受管标签，保留 about:blank、POST、OAuth 和 opener 语义；后台标签不会抢占活动标签。
 - 导航边界：生产环境只允许 HTTPS 和受控 about:blank；开发与 smoke 额外允许 localhost/loopback HTTP，未知协议默认拒绝并通过 `ui:command` 通知壳层。
+- 会话快照：`tabSessionSnapshot.ts` 对版本、字段白名单、标签顺序、活动项、内部页和可恢复 URL 做整份严格校验；拒绝 userinfo、敏感 query/hash、控制字符和未知字段，不部分抢救损坏数据，也不序列化 favicon、加载/崩溃状态、表单、密码或脚本源码。
+- 会话文件：`TabSessionStore` 使用同目录临时文件执行 write + fsync + close + rename，失败时清理临时文件并保留旧目标；并发保存串行化且只落盘最新待写快照。当前仅完成独立存储层，`TabManager` 与应用启动/退出生命周期接线在 B2.1 后续子块完成。
 - 壳层 IPC：browser/tab/window channel 由 `electron/ipc/registerBrowserShellIpc.ts` 注册，Browser 模块只暴露 `TabManager` 等运行期对象。
 - OJ Session：`ojSession.ts` 配置持久 session、真实 Chrome UA、受控 CORS、早期实时提交 hook 和 stealth script；默认 session 与 OJ session 同时安装 permission check/request 双处理器，敏感权限默认拒绝。
 - 实时提交桥：`ojPreload.ts` 暴露 `__algo_submission_v1.reportSubmission()`，并转发同页面/子 frame 的 `postMessage`。
@@ -29,6 +31,8 @@
 - `tabScriptExecution.ts`：按 URL 命中的标签页中，对主 frame 和子 frame 执行脚本。
 - `urlMatching.ts`：同页 URL 匹配 helper，供按 URL 找 tab 的脚本执行路径使用。
 - `navigationPolicy.ts`：HTTPS、localhost HTTP、about:blank 与未知协议的统一导航判定。
+- `tabSessionSnapshot.ts`：严格解析/净化可恢复标签会话，限制 128 KiB JSON、16 个标签、ID/标题/URL 边界与敏感 URL 数据。
+- `tabSessionStore.ts`：会话 JSON 的原子读取/写入与快速保存合并，不记录原始 JSON 或 URL。
 - `permissionPolicy.ts`：默认 session 与 OJ session 共用的最小权限白名单及双处理器安装函数。
 - `DetachedWindow.ts`：将标签页 view 剥离到原生独立窗口。
 - `ojPreload.ts`：OJ 页面 preload，暴露提交上报桥并转发 frame 消息。
@@ -128,7 +132,7 @@ adapter hook in OJ page
 
 ## 7. 测试入口
 
-Browser 相关自动测试覆盖提交桥、导航策略、权限策略和 Chromium 弹窗接管：
+Browser 相关自动测试覆盖提交桥、导航策略、权限策略、Chromium 弹窗接管，以及会话快照安全边界和原子存储失败恢复：
 
 ```powershell
 cd algo-electron
