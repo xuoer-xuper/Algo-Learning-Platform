@@ -122,6 +122,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   reopenClosedTab: () => ipcRenderer.invoke('tab:reopenClosed') as Promise<string>,
   switchTab: (tabId: string) => ipcRenderer.send('tab:switch', tabId),
   detachTab: (tabId: string) => ipcRenderer.send('tab:detach', tabId),
+  reloadTab: (tabId: string) => ipcRenderer.send('tab:reload', tabId),
+  dismissUnresponsiveTab: (tabId: string) => ipcRenderer.send('tab:dismissUnresponsive', tabId),
   getTabList: () => ipcRenderer.invoke('tab:getList'),
   onTabListChanged: (callback: (tabs: TabInfo[]) => void) => {
     const handler = (_event: Electron.IpcRendererEvent, tabs: TabInfo[]) => callback(tabs)

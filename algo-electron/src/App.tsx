@@ -1,4 +1,4 @@
-import { lazy, Suspense } from 'react'
+import { lazy, Suspense, useCallback, useState } from 'react'
 import { HomePage } from './features/home/HomePage'
 import { ProblemSidebar } from './features/problems/ProblemSidebar'
 import { ErrorBoundary } from './components/ErrorBoundary'
@@ -6,6 +6,13 @@ import { WindowControls } from './components/WindowControls'
 import { ModalLayer } from './components/ModalLayer'
 import { TabBar } from './components/TabBar'
 import { BrowserToolbar } from './components/BrowserToolbar'
+import {
+  closeBrowserTab,
+  dismissUnresponsiveBrowserTab,
+  reloadBrowserTab,
+  type TabBarTabInfo,
+} from './components/tabApi'
+import { Button, Icon, NoticeBar } from './components/ui'
 import { useAppModalState } from './hooks/useAppModalState'
 import { useBrowserNavigation } from './hooks/useBrowserNavigation'
 import { useBrowserViewVisibility } from './hooks/useBrowserViewVisibility'
@@ -23,6 +30,7 @@ function ModalLoading() {
 }
 
 function App() {
+  const [activeTab, setActiveTab] = useState<TabBarTabInfo | null>(null)
   const {
     url,
     syncMsg,
@@ -63,11 +71,37 @@ function App() {
   } = useAppModalState({ isHome })
   useBrowserViewVisibility({ isHome, modalBackdrop })
 
+  const handleActiveTabChange = useCallback((tab: TabBarTabInfo | null) => {
+    setActiveTab(tab)
+  }, [])
+
+  const handleReloadActiveTab = useCallback(() => {
+    if (activeTab) reloadBrowserTab(activeTab.id)
+  }, [activeTab])
+
+  const handleCloseActiveTab = useCallback(() => {
+    if (activeTab) closeBrowserTab(activeTab.id)
+  }, [activeTab])
+
+  const handleWaitForActiveTab = useCallback(() => {
+    if (activeTab) dismissUnresponsiveBrowserTab(activeTab.id)
+  }, [activeTab])
+
+  const showUnresponsiveNotice = Boolean(
+    activeTab?.isUnresponsive
+    && !activeTab.isUnresponsiveNoticeDismissed
+    && !activeTab.isCrashed,
+  )
+
   return (
     <ErrorBoundary>
       <div className="app-layout">
       <div className="titlebar-layer">
-        <TabBar onTabUrlChange={applyUrlState} onNotice={showTransientMessage} />
+        <TabBar
+          onTabUrlChange={applyUrlState}
+          onActiveTabChange={handleActiveTabChange}
+          onNotice={showTransientMessage}
+        />
         <WindowControls />
       </div>
       <BrowserToolbar
@@ -85,6 +119,20 @@ function App() {
         onOpenSettings={openSettings}
         onOpenCoachMetrics={openCoachMetrics}
       />
+      {showUnresponsiveNotice && (
+        <NoticeBar
+          tone="warning"
+          title="页面没有响应"
+          actions={[
+            { label: '重新加载', onClick: handleReloadActiveTab },
+            { label: '关闭标签', onClick: handleCloseActiveTab, variant: 'ghost' },
+          ]}
+          dismissLabel="继续等待"
+          onDismiss={handleWaitForActiveTab}
+        >
+          你可以继续等待，或重新加载这个标签。
+        </NoticeBar>
+      )}
       <div className="content-area">
         <ProblemSidebar
           onNavigate={navigateTo}
@@ -93,7 +141,19 @@ function App() {
           onWidthChange={setSidebarWidth}
         />
         <main className="main-content">
-          {isHome && <HomePage onNavigate={navigateTo} />}
+          {activeTab?.isCrashed ? (
+            <div className="browser-crash-state" role="alert" data-testid="browser-crash-state">
+              <Icon name="refresh" size={28} />
+              <h1>此页面已停止运行</h1>
+              <p>标签仍然保留。重新加载后会尝试恢复当前地址。</p>
+              <div className="browser-crash-actions">
+                <Button variant="primary" icon="refresh" onClick={handleReloadActiveTab}>重新加载</Button>
+                <Button variant="ghost" onClick={handleCloseActiveTab}>关闭标签</Button>
+              </div>
+            </div>
+          ) : isHome ? (
+            <HomePage onNavigate={navigateTo} />
+          ) : null}
         </main>
       </div>
 

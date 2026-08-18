@@ -26,6 +26,8 @@ const initialTab: TabBarTabInfo = {
   favicon: null,
   isLoading: false,
   isCrashed: false,
+  isUnresponsive: false,
+  isUnresponsiveNoticeDismissed: false,
   isActive: true,
 }
 
@@ -45,6 +47,20 @@ afterEach(() => {
 })
 
 describe('TabBar', () => {
+  it('reports active-tab health changes even when the active id stays the same', () => {
+    const onActiveTabChange = vi.fn()
+    render(<TabBar onActiveTabChange={onActiveTabChange} />)
+
+    act(() => {
+      tabApi.listener?.([{ ...initialTab, isUnresponsive: true }])
+    })
+
+    expect(onActiveTabChange).toHaveBeenLastCalledWith({
+      ...initialTab,
+      isUnresponsive: true,
+    })
+  })
+
   it('subscribes before requesting the current restored tab list', async () => {
     tabApi.subscribeTabListChanged.mockImplementation((callback: (tabs: TabBarTabInfo[]) => void) => {
       tabApi.listener = callback

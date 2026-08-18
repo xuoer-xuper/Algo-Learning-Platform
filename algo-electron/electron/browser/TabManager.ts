@@ -24,6 +24,7 @@ import { registerOjWebContents, unregisterOjWebContents } from '../ipc/trustedSe
 import { evaluateBrowserNavigation, type NavigationBlockReason } from './navigationPolicy'
 import { appLogger } from '../shared/logger'
 import { createTabSessionSnapshot, parseTabSessionSnapshot } from './tabSessionSnapshot'
+import { BROWSER_LAYOUT } from './browserLayout'
 
 export type { TabInfo } from './tabManagerTypes'
 
@@ -92,6 +93,7 @@ export class TabManager {
   private closedTabs: ClosedTabSnapshot[] = []
   private isDestroying = false
   private isRestoringSession = false
+  private recoveryPendingViews = new Set<WebContentsView>()
 
   constructor(window: BrowserWindow, options: TabManagerOptions = {}) {
     this.window = window
@@ -130,6 +132,76 @@ export class TabManager {
   private emitSessionChange(): void {
     if (this.isDestroying || this.isRestoringSession) return
     for (const listener of this.sessionChangeListeners) listener()
+  }
+
+  private detachTabView(tab: ManagedWebTab): void {
+    safeRemoveChildView(this.window, tab.view)
+  }
+
+  private attachTabView(tab: ManagedWebTab): void {
+    if (this.isViewHidden || tab.isCrashed) return
+    try {
+      this.window.contentView.addChildView(tab.view)
+      this.updateBounds()
+    } catch {
+      // A view can disappear while a renderer process is recovering.
+    }
+  }
+
+  private updateTabHealth(tab: ManagedWebTab): void {
+    if (tab.id === this.activeTabId) this.updateBounds()
+    this.notifyTabListChanged()
+  }
+
+  private handleRenderProcessGone(
+    view: WebContentsView,
+    details: Electron.RenderProcessGoneDetails,
+  ): void {
+    if (this.isDestroying) return
+    const tab = this.findTabByView(view)
+    if (!tab) return
+    this.recoveryPendingViews.delete(view)
+    tab.isCrashed = true
+    tab.isLoading = false
+    tab.isUnresponsive = false
+    tab.isUnresponsiveNoticeDismissed = false
+    this.detachTabView(tab)
+    this.updateTabHealth(tab)
+    appLogger.warn('browser.tab-render-process-gone', {
+      tabId: tab.id,
+      reason: details.reason,
+      exitCode: details.exitCode,
+    })
+  }
+
+  private handleTabUnresponsive(view: WebContentsView): void {
+    if (this.isDestroying) return
+    const tab = this.findTabByView(view)
+    if (!tab || tab.isCrashed) return
+    if (tab.isUnresponsive && !tab.isUnresponsiveNoticeDismissed) return
+    tab.isUnresponsive = true
+    tab.isUnresponsiveNoticeDismissed = false
+    this.updateTabHealth(tab)
+    appLogger.warn('browser.tab-unresponsive', { tabId: tab.id })
+  }
+
+  private handleTabResponsive(view: WebContentsView): void {
+    if (this.isDestroying) return
+    const tab = this.findTabByView(view)
+    if (!tab || !tab.isUnresponsive) return
+    tab.isUnresponsive = false
+    tab.isUnresponsiveNoticeDismissed = false
+    this.updateTabHealth(tab)
+  }
+
+  private failTabRecovery(tab: ManagedWebTab, view: WebContentsView): boolean {
+    if (!this.recoveryPendingViews.delete(view)) return false
+    if (tab.view !== view || !this.findTab(tab.id)) return false
+    tab.isCrashed = true
+    tab.isLoading = false
+    this.detachTabView(tab)
+    this.updateTabHealth(tab)
+    return true
   }
 
   private createView(
@@ -197,9 +269,9 @@ export class TabManager {
     contents.on('did-start-loading', () => {
       const tab = this.findTabByView(view)
       if (!tab) return
-      if (tab.isLoading && !tab.isCrashed) return
+      if (tab.isCrashed && !this.recoveryPendingViews.has(view)) return
+      if (tab.isLoading) return
       tab.isLoading = true
-      tab.isCrashed = false
       this.notifyTabListChanged()
     })
 
@@ -232,6 +304,18 @@ export class TabManager {
         action: 'allow',
         createWindow: (options) => this.createPopupTab(options, details.url, details.disposition),
       }
+    })
+
+    contents.on('render-process-gone', (_event, details) => {
+      this.handleRenderProcessGone(view, details)
+    })
+
+    contents.on('unresponsive', () => {
+      this.handleTabUnresponsive(view)
+    })
+
+    contents.on('responsive', () => {
+      this.handleTabResponsive(view)
     })
 
     contents.on('destroyed', () => {
@@ -274,6 +358,15 @@ export class TabManager {
 
     contents.on('did-finish-load', () => {
       const tab = this.findTabByView(view)
+      if (tab && this.recoveryPendingViews.delete(view)) {
+        tab.isCrashed = false
+        tab.isLoading = false
+        tab.isUnresponsive = false
+        tab.isUnresponsiveNoticeDismissed = false
+        if (tab.id === this.activeTabId) this.attachTabView(tab)
+        this.updateTabHealth(tab)
+      }
+      if (!tab || tab.isCrashed) return
       if (tab && tab.id === this.activeTabId) {
         const url = contents.getURL()
         this.onPageLoaded?.(url)
@@ -284,6 +377,10 @@ export class TabManager {
 
     contents.on('did-fail-load', (_event, errorCode, errorDescription, validatedURL, isMainFrame) => {
       if (!isMainFrame) return
+      if (errorCode !== -3) {
+        const tab = this.findTabByView(view)
+        if (tab) this.failTabRecovery(tab, view)
+      }
       appLogger.warn('browser.did-fail-load', {
         errorCode,
         errorDescription,
@@ -334,6 +431,8 @@ export class TabManager {
       favicon: null,
       isLoading: false,
       isCrashed: false,
+      isUnresponsive: false,
+      isUnresponsiveNoticeDismissed: false,
     })
 
     if (options.activate !== false || !this.activeTabId) {
@@ -371,8 +470,27 @@ export class TabManager {
 
   private handleViewDestroyed(view: WebContentsView, contentsId: number): void {
     unregisterOjWebContents({ id: contentsId })
+    this.recoveryPendingViews.delete(view)
     const tab = this.findTabByView(view)
     if (!tab) return
+
+    if (!this.isDestroying && tab.isCrashed) {
+      try {
+        tab.view = this.createView()
+        tab.isLoading = false
+        tab.isUnresponsive = false
+        tab.isUnresponsiveNoticeDismissed = false
+        this.notifyTabListChanged()
+        return
+      } catch (error) {
+        appLogger.warn('browser.crashed-tab-replacement-failed', {
+          tabId: tab.id,
+          errorName: getErrorName(error),
+        })
+        this.updateTabHealth(tab)
+        return
+      }
+    }
 
     const wasActive = tab.id === this.activeTabId
     const tabIndex = this.findTabIndex(tab.id)
@@ -436,7 +554,12 @@ export class TabManager {
 
     this.rememberClosedTab(tab)
     this.tabs.splice(tabIndex, 1)
-    unregisterOjWebContents(tab.view.webContents)
+    this.recoveryPendingViews.delete(tab.view)
+    try {
+      unregisterOjWebContents(tab.view.webContents)
+    } catch {
+      // A crashed view may already have lost its webContents object.
+    }
     safeCloseWebContents(tab.view)
 
     if (wasActive) {
@@ -488,10 +611,7 @@ export class TabManager {
     }
 
     this.activeTabId = tabId
-    if (!this.isViewHidden) {
-      this.window.contentView.addChildView(newTab.view)
-      this.updateBounds()
-    }
+    this.attachTabView(newTab)
 
     this.onUrlChange?.(newTab.url)
     this.emitActiveTabChange(newTab.url)
@@ -518,6 +638,7 @@ export class TabManager {
 
     const tab = this.findTab(tabId)
     if (!tab) return null
+    if (tab.isCrashed) return null
     
     if (!tab.url || tab.url === 'about:blank') return null
 
@@ -551,6 +672,10 @@ export class TabManager {
       return
     }
     const tab = this.findTab(this.activeTabId)!
+    if (tab.isCrashed) {
+      this.recoverCrashedTab(tab, url)
+      return
+    }
     void tab.view.webContents.loadURL(url).catch((error) => {
       appLogger.error('browser.navigate-failed', { url, error })
     })
@@ -558,26 +683,96 @@ export class TabManager {
 
   goBack() {
     const tab = this.activeTabId ? this.findTab(this.activeTabId) : null
-    if (tab?.view.webContents.navigationHistory.canGoBack()) {
+    if (tab && !tab.isCrashed && tab.view.webContents.navigationHistory.canGoBack()) {
       tab.view.webContents.navigationHistory.goBack()
     }
   }
 
   goForward() {
     const tab = this.activeTabId ? this.findTab(this.activeTabId) : null
-    if (tab?.view.webContents.navigationHistory.canGoForward()) {
+    if (tab && !tab.isCrashed && tab.view.webContents.navigationHistory.canGoForward()) {
       tab.view.webContents.navigationHistory.goForward()
     }
   }
 
   reload() {
-    const tab = this.activeTabId ? this.findTab(this.activeTabId) : null
-    tab?.view.webContents.reload()
+    if (this.activeTabId) this.reloadTab(this.activeTabId)
+  }
+
+  reloadTab(tabId: string): void {
+    const tab = this.findTab(tabId)
+    if (!tab) return
+    if (tab.isCrashed) {
+      this.recoverCrashedTab(tab)
+      return
+    }
+    const healthChanged = tab.isUnresponsive || tab.isUnresponsiveNoticeDismissed
+    tab.isUnresponsive = false
+    tab.isUnresponsiveNoticeDismissed = false
+    if (healthChanged) this.updateTabHealth(tab)
+    tab.view.webContents.reload()
+  }
+
+  dismissUnresponsive(tabId: string): void {
+    const tab = this.findTab(tabId)
+    if (!tab || !tab.isUnresponsive) return
+    tab.isUnresponsiveNoticeDismissed = true
+    this.updateTabHealth(tab)
+  }
+
+  private recoverCrashedTab(tab: ManagedWebTab, nextUrl?: string): void {
+    if (this.recoveryPendingViews.has(tab.view) && !nextUrl) return
+    let needsReplacement = false
+    try {
+      needsReplacement = tab.view.webContents.isDestroyed()
+    } catch {
+      needsReplacement = true
+    }
+    if (needsReplacement) {
+      try {
+        tab.view = this.createView()
+      } catch (error) {
+        appLogger.warn('browser.crashed-tab-recovery-failed', {
+          tabId: tab.id,
+          errorName: getErrorName(error),
+        })
+        return
+      }
+    }
+
+    const recoveryView = tab.view
+    tab.isLoading = true
+    tab.isUnresponsive = false
+    tab.isUnresponsiveNoticeDismissed = false
+    this.recoveryPendingViews.add(recoveryView)
+    this.attachTabView(tab)
+    this.updateTabHealth(tab)
+    try {
+      const recoveryUrl = nextUrl ?? (recoveryView.webContents.getURL() ? undefined : tab.url)
+      const load = recoveryUrl
+        ? recoveryView.webContents.loadURL(recoveryUrl)
+        : recoveryView.webContents.reload()
+      if (load && typeof (load as Promise<void>).catch === 'function') {
+        void (load as Promise<void>).catch((error) => {
+          if (!this.failTabRecovery(tab, recoveryView)) return
+          appLogger.warn('browser.crashed-tab-recovery-failed', {
+            tabId: tab.id,
+            errorName: getErrorName(error),
+          })
+        })
+      }
+    } catch (error) {
+      if (!this.failTabRecovery(tab, recoveryView)) return
+      appLogger.warn('browser.crashed-tab-recovery-failed', {
+        tabId: tab.id,
+        errorName: getErrorName(error),
+      })
+    }
   }
 
   adjustZoom(delta: number): void {
     const tab = this.activeTabId ? this.findTab(this.activeTabId) : null
-    if (!tab) return
+    if (!tab || tab.isCrashed) return
     const current = tab.view.webContents.getZoomFactor()
     const next = Math.min(5, Math.max(0.25, Math.round((current + delta) * 100) / 100))
     tab.view.webContents.setZoomFactor(next)
@@ -585,19 +780,28 @@ export class TabManager {
 
   resetZoom(): void {
     const tab = this.activeTabId ? this.findTab(this.activeTabId) : null
-    tab?.view.webContents.setZoomFactor(1)
+    if (!tab || tab.isCrashed) return
+    tab.view.webContents.setZoomFactor(1)
   }
 
   getUrl(): string {
     const tab = this.activeTabId ? this.findTab(this.activeTabId) : null
-    return tab?.view.webContents.getURL() ?? ''
+    return tab?.url ?? ''
   }
 
   getTitleForUrl(url: string): string | undefined {
     for (const tab of this.tabs) {
-      const currentUrl = tab.view.webContents.getURL()
+      let currentUrl = ''
+      if (!tab.isCrashed) {
+        try {
+          currentUrl = tab.view.webContents.getURL()
+        } catch {
+          currentUrl = ''
+        }
+      }
       if (tab.url === url || currentUrl === url || samePageUrl(tab.url, url) || samePageUrl(currentUrl, url)) {
-        return tab.title || tab.view.webContents.getTitle()
+        if (tab.title || tab.isCrashed) return tab.title || undefined
+        return tab.view.webContents.getTitle()
       }
     }
     return undefined
@@ -609,7 +813,8 @@ export class TabManager {
 
   isViewVisible(): boolean {
     if (!this.activeTabId) return false
-    return this.findTab(this.activeTabId) !== null
+    const tab = this.findTab(this.activeTabId)
+    return tab !== null && !this.isViewHidden && !tab.isCrashed
   }
 
   getTabList(): TabInfo[] {
@@ -623,6 +828,8 @@ export class TabManager {
         favicon: tab.favicon,
         isLoading: tab.isLoading,
         isCrashed: tab.isCrashed,
+        isUnresponsive: tab.isUnresponsive,
+        isUnresponsiveNoticeDismissed: tab.isUnresponsiveNoticeDismissed,
         isActive: tab.id === this.activeTabId,
       })
     }
@@ -664,6 +871,8 @@ export class TabManager {
           favicon: null,
           isLoading: false,
           isCrashed: false,
+          isUnresponsive: false,
+          isUnresponsiveNoticeDismissed: false,
         })
       }
 
@@ -709,7 +918,10 @@ export class TabManager {
     const tab = this.findTab(this.activeTabId)
     if (!tab) return
     const [width, height] = this.window.getContentSize()
-    setTabViewBounds(tab.view, { width, height }, this.leftOffset)
+    const topInset = tab.isUnresponsive && !tab.isUnresponsiveNoticeDismissed
+      ? BROWSER_LAYOUT.noticeBarHeight
+      : 0
+    setTabViewBounds(tab.view, { width, height }, this.leftOffset, topInset)
   }
 
   hideView() {
@@ -717,7 +929,7 @@ export class TabManager {
     if (!this.activeTabId) return
     const tab = this.findTab(this.activeTabId)
     if (!tab) return
-    safeRemoveChildView(this.window, tab.view)
+    this.detachTabView(tab)
   }
 
   showView() {
@@ -725,10 +937,7 @@ export class TabManager {
     if (!this.activeTabId) return
     const tab = this.findTab(this.activeTabId)
     if (!tab) return
-    try {
-      this.window.contentView.addChildView(tab.view)
-      this.updateBounds()
-    } catch { /* ignore */ }
+    this.attachTabView(tab)
   }
 
   async capturePreview(): Promise<string | null> {
@@ -750,12 +959,13 @@ export class TabManager {
 
   async executeScript(code: string, userGesture = false): Promise<any> {
     const tab = this.activeTabId ? this.findTab(this.activeTabId) : null
-    if (!tab) return null
+    if (!tab || tab.isCrashed) return null
     return tab.view.webContents.executeJavaScript(code, userGesture)
   }
 
   async executeScriptOnUrl(url: string, code: string): Promise<any> {
     for (const tab of this.tabs) {
+      if (tab.isCrashed) continue
       const currentUrl = tab.view.webContents.getURL()
       if (tab.url === url || currentUrl === url || samePageUrl(tab.url, url) || samePageUrl(currentUrl, url)) {
         return executeScriptAcrossFrames(tab, url, code)
@@ -882,6 +1092,7 @@ export class TabManager {
 
   destroy() {
     this.isDestroying = true
+    this.recoveryPendingViews.clear()
     this.sessionChangeListeners.clear()
     const tabs = [...this.tabs]
     this.tabs = []

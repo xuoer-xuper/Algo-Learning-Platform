@@ -24,6 +24,14 @@ export function detachBrowserTab(tabId: string): void {
   window.electronAPI.detachTab(tabId)
 }
 
+export function reloadBrowserTab(tabId: string): void {
+  window.electronAPI.reloadTab(tabId)
+}
+
+export function dismissUnresponsiveBrowserTab(tabId: string): void {
+  window.electronAPI.dismissUnresponsiveTab(tabId)
+}
+
 export function createBrowserTab(): Promise<string> {
   return window.electronAPI.createTab()
 }

@@ -12,12 +12,13 @@ import './TabBar.css'
 
 interface TabBarProps {
   onTabUrlChange?: (url: string) => void
+  onActiveTabChange?: (tab: TabBarTabInfo | null) => void
   onNotice?: (message: string) => void
 }
 
 const DETACH_UNAVAILABLE_NOTICE = '拆分窗口将在多窗口版本以更完整形态回归'
 
-export function TabBar({ onTabUrlChange, onNotice }: TabBarProps) {
+export function TabBar({ onTabUrlChange, onActiveTabChange, onNotice }: TabBarProps) {
   const [tabs, setTabs] = useState<TabBarTabInfo[]>([])
   const prevActiveIdRef = useRef<string | null>(null)
 
@@ -31,6 +32,7 @@ export function TabBar({ onTabUrlChange, onNotice }: TabBarProps) {
       setTabs(newTabs)
 
       const active = newTabs.find((t) => t.isActive)
+      onActiveTabChange?.(active ?? null)
       if (active && active.id !== prevActiveIdRef.current) {
         prevActiveIdRef.current = active.id
         onTabUrlChange?.(active.url)
@@ -55,7 +57,7 @@ export function TabBar({ onTabUrlChange, onNotice }: TabBarProps) {
       disposed = true
       unsub()
     }
-  }, [onTabUrlChange])
+  }, [onActiveTabChange, onTabUrlChange])
 
   const handleSwitch = (tabId: string) => {
     switchBrowserTab(tabId)

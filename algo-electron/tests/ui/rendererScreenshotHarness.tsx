@@ -126,11 +126,13 @@ function createApiMock(): ElectronAPI {
     favicon: null,
     isLoading: false,
     isCrashed: false,
+    isUnresponsive: false,
+    isUnresponsiveNoticeDismissed: false,
     isActive: true,
   }]
 
   return {
-    browserLayout: { toolbarHeight: 42, tabBarHeight: 36, topOffset: 78 },
+    browserLayout: { toolbarHeight: 42, tabBarHeight: 36, noticeBarHeight: 38, topOffset: 78 },
     navigate: (url) => { currentUrl = url },
     goBack: () => {},
     goForward: () => {},
@@ -311,6 +313,8 @@ function createApiMock(): ElectronAPI {
         favicon: null,
         isLoading: false,
         isCrashed: false,
+        isUnresponsive: false,
+        isUnresponsiveNoticeDismissed: false,
         isActive: true,
       })
       return tabs[tabs.length - 1].id
@@ -319,6 +323,8 @@ function createApiMock(): ElectronAPI {
     reopenClosedTab: async () => '',
     switchTab: () => {},
     detachTab: () => {},
+    reloadTab: () => {},
+    dismissUnresponsiveTab: () => {},
     getTabList: async () => tabs,
     onTabListChanged: (callback) => {
       callback(tabs)

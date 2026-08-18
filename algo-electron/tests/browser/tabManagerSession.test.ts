@@ -103,6 +103,37 @@ beforeEach(() => {
 })
 
 describe('TabManager session restore', () => {
+  test('keeps crashed metadata when immediate replacement creation fails and retries later', async () => {
+    const window = new MockBrowserWindow()
+    const manager = new TabManager(window as never)
+    const tabId = manager.createTab('https://example.com/retry')
+    await drainNavigationEvents()
+    const contents = harness.createdContents[0]
+    harness.failViewCreationAt = 2
+
+    contents.emit('render-process-gone', {}, { reason: 'crashed', exitCode: 1 })
+    contents.emit('destroyed')
+
+    expect(manager.getTabList()).toMatchObject([{
+      id: tabId,
+      url: 'https://example.com/retry',
+      isCrashed: true,
+    }])
+    expect(harness.createAttempts).toBe(2)
+
+    harness.failViewCreationAt = null
+    manager.reloadTab(tabId)
+    await drainNavigationEvents()
+
+    expect(manager.getTabList()).toMatchObject([{
+      id: tabId,
+      url: 'https://example.com/retry',
+      isCrashed: false,
+    }])
+    expect(harness.createAttempts).toBe(3)
+    expect(window.contentView.children).toEqual([harness.createdViews[1]])
+  })
+
   test('restores ordered web tabs with stable metadata and mounts only the active view after setup', async () => {
     const window = new MockBrowserWindow({ width: 1200, height: 800 })
     const manager = new TabManager(window as never)
@@ -127,6 +158,8 @@ describe('TabManager session restore', () => {
         favicon: null,
         isLoading: false,
         isCrashed: false,
+        isUnresponsive: false,
+        isUnresponsiveNoticeDismissed: false,
         isActive: false,
       },
       {
@@ -137,6 +170,8 @@ describe('TabManager session restore', () => {
         favicon: null,
         isLoading: false,
         isCrashed: false,
+        isUnresponsive: false,
+        isUnresponsiveNoticeDismissed: false,
         isActive: true,
       },
       {
@@ -147,6 +182,8 @@ describe('TabManager session restore', () => {
         favicon: null,
         isLoading: false,
         isCrashed: false,
+        isUnresponsive: false,
+        isUnresponsiveNoticeDismissed: false,
         isActive: false,
       },
     ])

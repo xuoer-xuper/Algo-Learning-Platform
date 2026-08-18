@@ -6,12 +6,18 @@ export interface ContentSize {
   height: number
 }
 
-export function setTabViewBounds(view: WebContentsView, contentSize: ContentSize, leftOffset: number): void {
+export function setTabViewBounds(
+  view: WebContentsView,
+  contentSize: ContentSize,
+  leftOffset: number,
+  topInset = 0,
+): void {
+  const top = BROWSER_LAYOUT.topOffset + topInset
   view.setBounds({
     x: leftOffset,
-    y: BROWSER_LAYOUT.topOffset,
+    y: top,
     width: contentSize.width - leftOffset,
-    height: contentSize.height - BROWSER_LAYOUT.topOffset,
+    height: Math.max(0, contentSize.height - top),
   })
 }
 

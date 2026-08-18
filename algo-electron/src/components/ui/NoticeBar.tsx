@@ -7,6 +7,7 @@ export interface NoticeBarProps {
   title?: ReactNode
   tone?: FeedbackTone
   action?: FeedbackAction
+  actions?: Array<FeedbackAction & { variant?: 'secondary' | 'ghost' | 'danger' }>
   dismissLabel?: string
   onDismiss?: () => void
   className?: string
@@ -18,6 +19,7 @@ export function NoticeBar({
   title,
   tone = 'info',
   action,
+  actions = [],
   dismissLabel = '关闭通知',
   onDismiss,
   className,
@@ -33,11 +35,11 @@ export function NoticeBar({
         {title && <span className="ui-notice-title">{title}</span>}
         <span className="ui-notice-message">{children}</span>
       </div>
-      {action && (
-        <Button size="sm" variant="secondary" onClick={action.onClick}>
-          {action.label}
+      {[...(action ? [{ ...action, variant: 'secondary' as const }] : []), ...actions].map((item) => (
+        <Button key={item.label} size="sm" variant={item.variant ?? 'secondary'} onClick={item.onClick}>
+          {item.label}
         </Button>
-      )}
+      ))}
       {onDismiss && (
         <IconButton icon="close" title={dismissLabel} size={13} onClick={onDismiss} />
       )}

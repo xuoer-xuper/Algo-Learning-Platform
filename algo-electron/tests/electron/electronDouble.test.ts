@@ -17,6 +17,8 @@ test('Electron test double exposes observable command-line and view primitives',
   window.contentView.addChildView(view)
   setTabViewBounds(view, { width: 1200, height: 700 }, 240)
   assert.deepStrictEqual(view.getBounds(), { x: 240, y: 78, width: 960, height: 622 })
+  setTabViewBounds(view, { width: 1200, height: 700 }, 240, 38)
+  assert.deepStrictEqual(view.getBounds(), { x: 240, y: 116, width: 960, height: 584 })
 
   const contents = view.webContents
   safeRemoveChildView(window, view)

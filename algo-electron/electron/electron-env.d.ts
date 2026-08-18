@@ -67,6 +67,7 @@ interface BrowserDiagnosticsSnapshot {
 interface BrowserLayoutConfig {
   toolbarHeight: number
   tabBarHeight: number
+  noticeBarHeight: number
   topOffset: number
 }
 
@@ -349,6 +350,8 @@ interface TabInfoBase {
   favicon: string | null
   isLoading: boolean
   isCrashed: boolean
+  isUnresponsive: boolean
+  isUnresponsiveNoticeDismissed: boolean
   isActive: boolean
 }
 
@@ -788,6 +791,8 @@ interface ElectronAPI {
   reopenClosedTab: () => Promise<string>
   switchTab: (tabId: string) => void
   detachTab: (tabId: string) => void
+  reloadTab: (tabId: string) => void
+  dismissUnresponsiveTab: (tabId: string) => void
   getTabList: () => Promise<TabInfo[]>
   onTabListChanged: (callback: (tabs: TabInfo[]) => void) => () => void
 

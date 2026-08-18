@@ -67,6 +67,8 @@ interface TabInfoBase {
   favicon: string | null
   isLoading: boolean
   isCrashed: boolean
+  isUnresponsive: boolean
+  isUnresponsiveNoticeDismissed: boolean
   isActive: boolean
 }
 
@@ -88,6 +90,8 @@ interface ManagedTabBase {
   favicon: string | null
   isLoading: boolean
   isCrashed: boolean
+  isUnresponsive: boolean
+  isUnresponsiveNoticeDismissed: boolean
 }
 
 export interface ManagedWebTab extends ManagedTabBase {

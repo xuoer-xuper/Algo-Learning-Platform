@@ -37,6 +37,8 @@ const coreContracts: PreloadContract[] = [
   { method: 'onUrlChanged', mode: 'on', channel: 'browser:urlChanged' },
   { method: 'onUiCommand', mode: 'on', channel: 'ui:command' },
   { method: 'reopenClosedTab', mode: 'invoke', channel: 'tab:reopenClosed' },
+  { method: 'reloadTab', mode: 'send', channel: 'tab:reload' },
+  { method: 'dismissUnresponsiveTab', mode: 'send', channel: 'tab:dismissUnresponsive' },
 
   // Problem and tracking surface
   { method: 'listRecentProblems', mode: 'invoke', channel: 'problem:listRecent' },

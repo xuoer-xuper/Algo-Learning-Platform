@@ -31,6 +31,14 @@ export function registerBrowserShellIpc(options: RegisterBrowserShellIpcOptions)
     options.getTabManager()?.detachTab(tabId)
   })
 
+  ipcMain.on('tab:reload', (_event, tabId: string) => {
+    options.getTabManager()?.reloadTab(tabId)
+  })
+
+  ipcMain.on('tab:dismissUnresponsive', (_event, tabId: string) => {
+    options.getTabManager()?.dismissUnresponsive(tabId)
+  })
+
   ipcMain.handle('tab:getList', () => {
     return options.getTabManager()?.getTabList() ?? []
   })

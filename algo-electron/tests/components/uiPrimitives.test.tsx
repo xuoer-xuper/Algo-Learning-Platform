@@ -115,10 +115,17 @@ describe('Toast and NoticeBar', () => {
 
   it('keeps NoticeBar in normal document flow with actions and dismiss', () => {
     const onAction = vi.fn()
+    const onSecondaryAction = vi.fn()
     const onDismiss = vi.fn()
     const { container } = render(
       <div data-testid="host">
-        <NoticeBar tone="warning" title="提示" action={{ label: '重试', onClick: onAction }} onDismiss={onDismiss}>
+        <NoticeBar
+          tone="warning"
+          title="提示"
+          action={{ label: '重试', onClick: onAction }}
+          actions={[{ label: '关闭标签', onClick: onSecondaryAction, variant: 'ghost' }]}
+          onDismiss={onDismiss}
+        >
           网络连接暂时不可用
         </NoticeBar>
       </div>,
@@ -127,8 +134,10 @@ describe('Toast and NoticeBar', () => {
     const notice = screen.getByRole('alert')
     expect(host.contains(notice)).toBe(true)
     fireEvent.click(screen.getByRole('button', { name: '重试' }))
+    fireEvent.click(screen.getByRole('button', { name: '关闭标签' }))
     fireEvent.click(screen.getByRole('button', { name: '关闭通知' }))
     expect(onAction).toHaveBeenCalledTimes(1)
+    expect(onSecondaryAction).toHaveBeenCalledTimes(1)
     expect(onDismiss).toHaveBeenCalledTimes(1)
     expect(container.querySelector('.ui-notice-bar')?.className).toContain('ui-notice-bar-warning')
   })

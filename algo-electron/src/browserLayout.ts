@@ -8,5 +8,6 @@ export function applyBrowserLayoutVariables(
 ): void {
   target.setProperty('--browser-toolbar-height', `${layout.toolbarHeight}px`)
   target.setProperty('--browser-tabbar-height', `${layout.tabBarHeight}px`)
+  target.setProperty('--browser-notice-bar-height', `${layout.noticeBarHeight}px`)
   target.setProperty('--browser-top-offset', `${layout.topOffset}px`)
 }

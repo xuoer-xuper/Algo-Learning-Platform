@@ -243,6 +243,7 @@ async function createWindow() {
   win.webContents.on('did-finish-load', () => {
     if (tabManager) {
       win?.webContents.send('browser:urlChanged', tabManager.getUrl())
+      win?.webContents.send('tab:listChanged', tabManager.getTabList())
     }
   })
 

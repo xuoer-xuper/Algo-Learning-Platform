@@ -276,6 +276,8 @@ describe('tab session snapshot creation', () => {
       favicon: 'data:image/png;base64,secret',
       isLoading: true,
       isCrashed: true,
+      isUnresponsive: true,
+      isUnresponsiveNoticeDismissed: true,
       isActive: true,
       formData: { answer: 'secret' },
       password: 'secret',

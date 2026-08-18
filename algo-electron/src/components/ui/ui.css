@@ -385,7 +385,7 @@
   align-items: center;
   gap: 10px;
   width: 100%;
-  min-height: 38px;
+  min-height: var(--browser-notice-bar-height, 38px);
   padding: 5px 8px 5px 12px;
   flex: 0 0 auto;
   background: var(--color-accent-soft);
