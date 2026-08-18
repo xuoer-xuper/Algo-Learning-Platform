@@ -49,8 +49,8 @@
   --radius-lg: 10px;
   --radius-xl: 12px;
   --radius-control: var(--radius-sm);
-  --radius-surface: var(--radius-md);
-  --radius-overlay: var(--radius-lg);
+  --radius-surface: var(--radius-lg);
+  --radius-overlay: var(--radius-xl);
 
   /* 间距：保留现有像素值，供后续壳层/内部页机械迁移 */
   --spacing-1: 4px;

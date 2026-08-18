@@ -51,26 +51,26 @@ export const STATUS_LABELS: Record<string, string> = {
   unknown: '未知',
 }
 
-/** 状态色：浅色面高对比档，永远与文字/图标成对出现 */
+/** 状态色：语义 token 引用，永远与文字/图标成对出现。平台品牌色和图表色保留静态色板。 */
 export const STATUS_COLORS: Record<string, string> = {
-  solved: '#158445',
-  attempted: '#b45309',
-  visited: '#2f5fe0',
-  unknown: '#8b94a6',
+  solved: 'var(--color-ok)',
+  attempted: 'var(--color-warn)',
+  visited: 'var(--color-accent)',
+  unknown: 'var(--color-ink-3)',
 }
 
 export const VERDICT_COLORS: Record<string, string> = {
-  AC: '#158445',
-  WA: '#c22f2f',
-  TLE: '#b45309',
-  MLE: '#b45309',
-  RE: '#c22f2f',
-  CE: '#946300',
-  PE: '#946300',
-  OLE: '#946300',
-  SKIPPED: '#8b94a6',
-  TESTING: '#2f5fe0',
-  UNKNOWN: '#8b94a6',
+  AC: 'var(--color-ok)',
+  WA: 'var(--color-danger)',
+  TLE: 'var(--color-warn)',
+  MLE: 'var(--color-warn)',
+  RE: 'var(--color-danger)',
+  CE: 'var(--color-warn)',
+  PE: 'var(--color-warn)',
+  OLE: 'var(--color-warn)',
+  SKIPPED: 'var(--color-ink-3)',
+  TESTING: 'var(--color-accent)',
+  UNKNOWN: 'var(--color-ink-3)',
 }
 
 /**

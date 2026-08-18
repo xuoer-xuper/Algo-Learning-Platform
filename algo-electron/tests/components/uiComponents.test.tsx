@@ -29,6 +29,7 @@ describe('Button', () => {
     expect(btn.className).toContain('ui-btn-secondary')
     expect(btn.className).toContain('ui-btn-md')
     expect(btn.getAttribute('type')).toBe('button')
+    expect(btn.getAttribute('data-testid')).toBe('ui-button')
   })
 
   it('渲染 primary/danger 变体、尺寸与图标', () => {
@@ -63,6 +64,7 @@ describe('IconButton', () => {
     const { container } = render(<IconButton icon="settings" title="设置" onClick={onClick} />)
     const btn = screen.getByRole('button', { name: '设置' })
     expect(btn.getAttribute('title')).toBe('设置')
+    expect(btn.getAttribute('data-testid')).toBe('ui-icon-button')
     expect(container.querySelector('svg[data-icon="settings"]')).toBeTruthy()
     fireEvent.click(btn)
     expect(onClick).toHaveBeenCalledTimes(1)
@@ -75,6 +77,7 @@ describe('Input / Select / Textarea / Card', () => {
     render(<Input placeholder="域名" className="extra" onChange={onChange} />)
     const input = screen.getByPlaceholderText('域名')
     expect(input.className).toContain('ui-input')
+    expect(input.getAttribute('data-testid')).toBe('ui-input')
     expect(input.className).toContain('extra')
     fireEvent.change(input, { target: { value: 'codeforces.com' } })
     expect(onChange).toHaveBeenCalled()
@@ -89,6 +92,7 @@ describe('Input / Select / Textarea / Card', () => {
       </Select>,
     )
     const select = screen.getByLabelText('平台') as HTMLSelectElement
+    expect(select.getAttribute('data-testid')).toBe('ui-select')
     fireEvent.change(select, { target: { value: 'lg' } })
     expect(onChange).toHaveBeenCalled()
     expect(select.value).toBe('lg')
@@ -96,7 +100,9 @@ describe('Input / Select / Textarea / Card', () => {
 
   it('Textarea 使用等宽样式类', () => {
     render(<Textarea placeholder="脚本" />)
-    expect(screen.getByPlaceholderText('脚本').className).toContain('ui-textarea')
+    const textarea = screen.getByPlaceholderText('脚本')
+    expect(textarea.className).toContain('ui-textarea')
+    expect(textarea.getAttribute('data-testid')).toBe('ui-textarea')
   })
 
   it('Card 默认带内边距，可关闭', () => {
@@ -108,6 +114,11 @@ describe('Input / Select / Textarea / Card', () => {
       </Card>,
     )
     expect(screen.getByTestId('card').className).not.toContain('ui-card-pad')
+  })
+
+  it('组件允许覆盖默认 data-testid', () => {
+    render(<Card data-testid="custom-card">内容</Card>)
+    expect(screen.getByTestId('custom-card')).toBeTruthy()
   })
 })
 
@@ -137,10 +148,31 @@ describe('ConfirmDialog', () => {
       </ConfirmDialog>,
     )
     expect(screen.getByRole('alertdialog', { name: '删除题目？' })).toBeTruthy()
+    expect(screen.getByTestId('confirm-dialog')).toBeTruthy()
     expect(screen.getByText('该操作不可撤销。')).toBeTruthy()
     expect(screen.getByText('同时删除笔记')).toBeTruthy()
     fireEvent.click(screen.getByTestId('confirm-ok'))
     expect(onConfirm).toHaveBeenCalledTimes(1)
+  })
+
+  it('ConfirmDialog traps focus and restores the opener', async () => {
+    const opener = document.createElement('button')
+    opener.textContent = '打开确认'
+    document.body.appendChild(opener)
+    opener.focus()
+    expect(document.activeElement).toBe(opener)
+    const { unmount } = render(
+      <ConfirmDialog open title="确认？" onConfirm={() => {}} onCancel={() => {}}>
+        <input aria-label="备注" />
+      </ConfirmDialog>,
+    )
+    await vi.waitFor(() => expect(document.activeElement).toBe(screen.getByTestId('confirm-ok')))
+    screen.getByTestId('confirm-ok').focus()
+    fireEvent.keyDown(document, { key: 'Tab' })
+    expect(document.activeElement).toBe(screen.getByLabelText('备注'))
+    unmount()
+    await vi.waitFor(() => expect(document.activeElement).toBe(opener))
+    opener.remove()
   })
 
   it('取消键、遮罩点击与 Esc 都走 onCancel，面板点击不冒泡', () => {
@@ -148,7 +180,7 @@ describe('ConfirmDialog', () => {
     render(<ConfirmDialog open title="确认？" onConfirm={() => {}} onCancel={onCancel} />)
     fireEvent.click(screen.getByTestId('confirm-cancel'))
     fireEvent.click(screen.getByTestId('confirm-overlay'))
-    fireEvent.keyDown(window, { key: 'Escape' })
+    fireEvent.keyDown(document, { key: 'Escape' })
     expect(onCancel).toHaveBeenCalledTimes(3)
     onCancel.mockClear()
     fireEvent.click(screen.getByRole('alertdialog'))

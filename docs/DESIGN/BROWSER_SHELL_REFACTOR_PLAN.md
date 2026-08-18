@@ -2,8 +2,8 @@
 
 > 状态：**已确认，待实施**（2026-08-16 起草并完成联网查缺补漏；决策点 D1-D30 已由用户拍板）
 > 范围：窗口/浮层体系、标签页体系、拆分窗口、工具栏与交互、账户密码管理、视觉与动效
-> 版本基线：`2.0.0-beta.2`，master @ `1190daf`（前端设计系统与全站视觉统一基线）
-> 执行约束：后续功能重构必须保持 `1190daf` 的视觉语言、颜色、排版、组件形态与动效基调；除修复明确缺陷或计划列出的暗色/无障碍任务外，不做二次视觉改版。
+> 版本基线：`2.0.0-beta.2`，master @ `0a1a1c4`（前端设计系统与全站视觉统一基线）
+> 执行约束：后续功能重构必须保持 `0a1a1c4` 的视觉语言、颜色、排版、组件形态与动效基调；除修复明确缺陷或计划列出的暗色/无障碍任务外，不做二次视觉改版。
 
 ---
 
@@ -68,7 +68,7 @@
 ### 2.6 CI 硬门槛实测（排期的真正约束）
 
 - **包体余量极大**：entry 实测 192,201 字节，上限 1,443,845，余量约 1.19 MB（86.7%）。字节预算完全不是瓶颈；真正的雷是门槛脚本硬编码 5 个懒加载 chunk 文件名正则（`checkRendererBundle.mjs:44-50`），SettingsPage/Dashboard/CoachMetricsView/CoachChatPanel/MilkdownEditor 改名/合并即红灯。
-- **覆盖率仍接近门槛**：在 `1190daf` 基线上重新实测为 28.91/34.66/24.60/29.63，对门槛 28/34/24/29 的余量分别仅 0.91/0.66/0.60/0.63pp。jsdom、Testing Library 与 `uiComponents.test.tsx` 已落地，`src/components/ui` 当前 100% statements/functions/lines，但绝大多数 feature TSX 仍为 0%；新增 UI 与 Electron 绑定模块仍必须测试同 PR 落地。
+- **覆盖率仍接近门槛**：在 `0a1a1c4` 基线上重新实测为 28.91/34.66/24.60/29.63，对门槛 28/34/24/29 的余量分别仅 0.91/0.66/0.60/0.63pp。jsdom、Testing Library 与 `uiComponents.test.tsx` 已落地，`src/components/ui` 当前 100% statements/functions/lines，但绝大多数 feature TSX 仍为 0%；新增 UI 与 Electron 绑定模块仍必须测试同 PR 落地。
 - 结论：排期必须"测试与 UI 同 PR 落地"；主进程新增代码可为覆盖率蓄分子，但 electron 绑定模块必须先做 DI 拆分（见 §5 覆盖率纪律）。
 
 ### 2.7 地基体检结论（2026-08-16，五维体检）
@@ -190,7 +190,7 @@ Renderer（同一构建产物，多窗口实例化——桌宠 hash 路由已证
 | B0.3 | 标签基础体验：中键关闭、关闭后激活右邻、恢复关闭栈（记 url+title，Ctrl+Shift+T）；（已定 D8）MAX_TABS 提升至 16 且满额时 UI 提示（不再静默）；（已定 D11）Ctrl+W 于最后一个标签=重置为新标签页，B3 起改为关闭窗口 | `TabManager`、`TabBar` |
 | B0.4 | **ContestGuard 聚合化修复（合规优先，不等多窗口）**：（已定 D3）比赛判定改为按 webContents 维度的 URL 快照集合聚合（任一 view 处于比赛页即全局静默）；事件源在 `createView` 时直挂裸 webContents 的 did-navigate（**不经 findTabByView/activeTab 门控**，修复同标签导航与后台标签漏检）；⚠️ 禁止使用单槽 `setNavigateCallback`（已被 problemTitleTracking 占用，覆盖即静默打断题目追踪链路——多播挂点是 `addNavigateListener`，但它同样受 activeTab 门控，故必须直挂）；聚合判定逻辑放独立模块注入，不向 CoachOrchestrator（已 1080 行）净增行数。**（已定 D12）同 commit 临时禁用双击拆出**：TabBar 双击入口下线，提示"拆分窗口将在多窗口版本以更完整形态回归"——**这是临时措施，B3.3 必须恢复拆分能力**（见 B3.3 与 D12 行） | `ContestGuard`、`CoachOrchestrator`、`TabManager`、`TabBar` |
 | B0.5 | 布局常量收敛单一来源（主进程定义，注入 renderer），消灭 42/36 四份手抄 | `tabManagerConfig`、`ModalLayer`、CSS 变量 |
-| B0.6 | 测试基建：jsdom + @testing-library 已由 `1190daf` 落地，本任务继续建立 electron test-double 基建，使 electron 绑定薄壳可在 node 下覆盖；Playwright 选择器迁 `data-testid`；给追踪/标题/脚本注入三条静默降级链路加诊断出口；TS7 下启用 eslint 核心 async 守卫，并跟踪 typescript-eslint 恢复类型感知规则 | `vitest.config.ts`、`eslint.config.js`、`tests/ui/`、`tests/` |
+| B0.6 | 测试基建：jsdom + @testing-library 已由 `0a1a1c4` 落地，本任务继续建立 electron test-double 基建，使 electron 绑定薄壳可在 node 下覆盖；Playwright 选择器迁 `data-testid`；给追踪/标题/脚本注入三条静默降级链路加诊断出口；TS7 下启用 eslint 核心 async 守卫，并跟踪 typescript-eslint 恢复类型感知规则 | `vitest.config.ts`、`eslint.config.js`、`tests/ui/`、`tests/` |
 | B0.7 | **死资产清扫**：删遗留 `BrowserHost`、删 `public/home.html`（git 跟踪的零引用死页面）、`genericTableSites.ts`/`specializedScraperSites.ts` 两个仅测试引用的转发壳（测试改直连后删除）、`syncService.setBrowserHost` 改名 `setScrapeHost`（命名残留）；（已定 D7）删除 `submissions:detected`/`problem:detected` 死发送通道（SubmissionWatcher/main.ts/registerBrowserShellIpc 三处发送点与 ipcContracts internalChannels 清单同 commit 清理）；顺手修正 `electron/ipc/README.md` 未列 registerCoachIpc 的滞后 | `electron/browser/`、`electron/adapters/`、`electron/submissions/` |
 | B0.8 | **主进程兜底与落盘日志（critical 修复）**：`process.on('uncaughtException'/'unhandledRejection')` 兜底 + `whenReady` 链 `.catch` + 致命错误 `dialog.showErrorBox` 后退出（消灭"僵尸进程"路径）；壳 webContents `render-process-gone` 自动 reload；引入落盘 logger（electron-log 或自研滚动文件），兜底/迁移/崩溃/五条追踪链路必须接入（111 处静默吞错不必全改，关键链路优先） | `main.ts`、新 `electron/shared/logger` |
 | B0.9 | **单实例锁**：`requestSingleInstanceLock` 拿不到即 quit；`second-instance` 聚焦已有窗口（B3.5 扩展为路由到 WindowManager）——消除双开损坏 OJ 登录态分区与 config.json 互相清写的风险 | `main.ts` |
@@ -202,7 +202,7 @@ Renderer（同一构建产物，多窗口实例化——桌宠 hash 路由已证
 
 ### B1 设计系统（预计 6-10 小时）
 
-> **当前基线（`1190daf`，状态 `[~]`）**：Button/IconButton、Input/Select/Textarea、Card、ConfirmDialog、统一 Icon、jsdom、Testing Library 与全站视觉统一已经落地。本阶段只补齐 Dialog/DropdownMenu/Toast/NoticeBar、无障碍、剩余 token 治理和明确缺陷；禁止重新设计现有页面。
+> **当前基线（`0a1a1c4`，状态 `[x]`）**：Button/IconButton、Input/Select/Textarea、Card、ConfirmDialog、统一 Icon、jsdom、Testing Library 与全站视觉统一已经落地。本阶段已补齐 Dialog/DropdownMenu/Toast/NoticeBar、无障碍、剩余 token 治理和明确缺陷；禁止重新设计现有页面。
 
 | 任务 | 内容 | 涉及 |
 |---|---|---|
@@ -222,7 +222,7 @@ Renderer（同一构建产物，多窗口实例化——桌宠 hash 路由已证
 | B2.2 | 内部页标签化：首页=`algo://home`、设置、看板、脚本、Coach 指标、题目详情、笔记、凭据中心与脚本安装确认页全部成为内部标签；生产壳实际由 `app://shell` 自定义协议加载，`algo://` 仅作受控内部页标识；新标签和无恢复会话时始终进入内部 home；删除 defaultHomeUrl 面板、IPC 与配置字段，旧 URL 一次性迁移为主页快捷入口；保留现有组件文件名、lazy 边界和当前视觉样式 | `App.tsx`、`ShellRouter`、各入口、`DefaultHomePanel`、`appProtocol` |
 | B2.3 | **删除截图替身三件套**（`useAppModalState`/`useBrowserViewVisibility`/`ModalLayer`）+ 通道退役（`browser:hideView`/`showView`/`capturePreview`，`goHome` 改语义）；落地 NoticeBar 通知条机制：view bounds 支持顶部让位（扩展现有 offset 机制），供 B2.7 下载提示、B4 保存密码询问复用 | hooks、`tabViewLayout`、`components/ui/NoticeBar`、**`ipcContracts.test.ts` coreContracts 同 commit 删项、`rendererScreenshotHarness.tsx` mock 同步** |
 | B2.4 | TabStrip 重写：favicon+加载 spinner、pointer 拖拽排序（`tab:reorder`）、新建/关闭动效；处理与 `-webkit-app-region: drag` 的手势冲突（拖拽区收窄到空白区）；标签右键菜单规格见 **B2.8** | `TabBar` → `TabStrip` |
-| B2.5 | Omnibox + 工具栏收敛：输入解析内部路由/HTTPS URL/搜索三分流；默认 Bing，可选 Google/Baidu，自定义模板必须为 HTTPS 且仅含一个 `{query}`；建议只读本地 `problems`/`problem_visits`，不接远程联想；聚焦即摘 view 展示全区建议面板；工具栏继续沿用 `1190daf` 的视觉基线，只做功能收纳，不改颜色、排版、按钮外观与动效基调 | `BrowserToolbar` → `Omnibox`+`AppMenu`、`browser:omniboxSuggest` |
+| B2.5 | Omnibox + 工具栏收敛：输入解析内部路由/HTTPS URL/搜索三分流；默认 Bing，可选 Google/Baidu，自定义模板必须为 HTTPS 且仅含一个 `{query}`；建议只读本地 `problems`/`problem_visits`，不接远程联想；聚焦即摘 view 展示全区建议面板；工具栏继续沿用 `0a1a1c4` 的视觉基线，只做功能收纳，不改颜色、排版、按钮外观与动效基调 | `BrowserToolbar` → `Omnibox`+`AppMenu`、`browser:omniboxSuggest` |
 | B2.6 | Playwright 用例重写：`.modal-panel` 断言 → 标签页容器契约；6 页面流程改为标签导航流程 | `tests/ui/` |
 | B2.7 | **Chrome 基线交互补齐**：`findInPage` 查找条；缩放按 normalized origin 记忆；DownloadManager 将普通下载写入受控下载目录，净化文件名、防目录穿越、处理重名并用 NoticeBar 反馈，`.user.js` 导航进入安装确认页；页面右键菜单见 **B2.8** | `TabManager`、`shortcuts/`、`downloads/`、`browser:findInPage`/`browser:setZoom` |
 | B2.8 | **右键菜单体系（用户点名重点，一等交付物）**。统一走原生 `Menu.popup`（§4 三分法，零遮挡零延迟），一个 `contextMenus/` 模块集中定义全部菜单模板，杜绝散落。**① OJ 页面右键**（webContents `context-menu` 事件，params 提供 linkURL/srcURL/mediaType/selectionText/isEditable/editFlags，按上下文动态组装）：链接上=新标签页打开/复制链接地址（B3 起加"在新窗口打开"）；图片上=新标签页打开图片/复制图片/复制图片地址/图片另存为（走 B2.7 下载）；选中文本=复制/"使用 <搜索引擎> 搜索'…'"（联动 B2.5 omnibox 搜索引擎，新标签打开）；可编辑区=剪切/复制/粘贴/全选/撤销/重做（按 editFlags 动态置灰）；空白处=返回/前进/重新加载（置灰态跟随导航状态）。**② 标签右键**（Chrome 全集）：重新加载、复制标签页（duplicate）、移到新窗口（B3 启用）、关闭、关闭其他标签页、关闭右侧标签页、恢复关闭的标签页、复制网址。**③ 壳内编辑区右键**（笔记编辑器/设置输入框/omnibox 等 React 区域，壳 webContents 同一 handler）：剪切/复制/粘贴/全选；omnibox 额外提供 **"粘贴并前往"**（Chrome 特色）。**④ 内部页空白右键**：返回/刷新。**后续挂点**：B3 拆分入口（移到新窗口）、B6 脚本命令子菜单（与三点菜单双入口）。侧栏题目行右键（打开/新标签打开/详情/笔记）为可选加分项 | 新 `electron/contextMenus/`、`TabManager`、`TabStrip`、`Omnibox` |
@@ -260,7 +260,7 @@ Renderer（同一构建产物，多窗口实例化——桌宠 hash 路由已证
 
 ### B5 视觉收尾与打磨（预计 10-14 小时）
 
-> **视觉冻结约束**：本阶段不是第二轮改版。所有布局、状态和动效补全必须复用 `1190daf` 已确定的 token、字体、色彩、圆角、阴影、组件和图标；禁止重新换主题、重画组件或扩大视觉 diff。允许的变化仅限浏览器化结构必需调整、暗色模式、无障碍、响应式缺陷与明确视觉 bug。
+> **视觉冻结约束**：本阶段不是第二轮改版。所有布局、状态和动效补全必须复用 `0a1a1c4` 已确定的 token、字体、色彩、圆角、阴影、组件和图标；禁止重新换主题、重画组件或扩大视觉 diff。允许的变化仅限浏览器化结构必需调整、暗色模式、无障碍、响应式缺陷与明确视觉 bug。
 
 | 任务 | 内容 |
 |---|---|
@@ -308,7 +308,7 @@ Renderer（同一构建产物，多窗口实例化——桌宠 hash 路由已证
 7. **IPC 纪律**：新增 channel 五处同步（handler/preload/类型声明/feature Api/ipc README）+ 契约测试清单；普通 IPC 必须使用 trusted-shell 注册器并验证 sender/senderFrame/origin/窗口归属；OJ 内部通道必须使用各自的 fail-closed validator；preload 保持扁平字面量格式。
 8. **文档守卫**：新目录必须五要素 README 并登记 `docs/README.md` 索引；schema 变更同步 DATABASE_SCHEMA；北京时间（本地时间）入库；中文 commit；直接在主目录修改文件。
 9. **用户脚本安全边界（B6 起生效）**：GM API 严格按 @grant 白名单裁剪注入，不挂 window.GM_*；GM_xmlhttpRequest 仅经主进程代理且受 @connect 白名单 + 用户授权双闸，绝不给页面世界无白名单的自由跨域代理；@require/@resource 必须 SRI 校验 + 本地缓存；脚本源码不进日志，renderer 仅经受控只读通道查看（升级为测试守卫）。
-10. **前端视觉冻结**：`1190daf` 是后续重构的视觉基线。除暗色模式、无障碍、响应式缺陷和明确 bug 外，禁止更换色板、字体、圆角、阴影、组件外观、图标体系与动效基调；浏览器化只调整信息架构、布局占位和交互，不另起视觉方案。每次涉及 TSX/CSS 的任务必须附视觉 diff 说明，若无计划内视觉变化应明确记录“视觉无变更”。
+10. **前端视觉冻结**：`0a1a1c4` 是后续重构的视觉基线。除暗色模式、无障碍、响应式缺陷和明确 bug 外，禁止更换色板、字体、圆角、阴影、组件外观、图标体系与动效基调；浏览器化只调整信息架构、布局占位和交互，不另起视觉方案。每次涉及 TSX/CSS 的任务必须附视觉 diff 说明，若无计划内视觉变化应明确记录“视觉无变更”。
 
 ---
 
@@ -426,7 +426,7 @@ Renderer（同一构建产物，多窗口实例化——桌宠 hash 路由已证
 2. 单元、Electron 集成、UI、架构、安全、性能、打包测试按任务风险运行并通过。
 3. IPC、schema、README、ADR、SECURITY 等受影响文档同 commit 更新。
 4. 人工验收覆盖任务表中的主要成功路径、失败路径和多窗口路径。
-5. `git diff` 不包含任务外重构；前端视觉遵守 `1190daf` 冻结基线。
+5. `git diff` 不包含任务外重构；前端视觉遵守 `0a1a1c4` 冻结基线。
 6. 状态表从 `[ ]/[~]` 更新为 `[x]`，填写证据后才算完成。
 
 ### 11.3 总任务台账
@@ -449,8 +449,8 @@ Renderer（同一构建产物，多窗口实例化——桌宠 hash 路由已证
 | B1.1 | [x] | `efed871`（2026-08-18）：补齐 4 档 spacing、3 档语义圆角别名、3 档 easing；暗色主题同步覆盖完整 `--color-*` 语义 token 与兼容别名；静态治理测试纳入 core suite；仅 token 层变更，视觉冻结不变 |
 | B1.2 | [x] | `16bae97`（2026-08-18）：补齐内部页 Dialog、DropdownMenu、Toast、NoticeBar；Dialog 支持焦点陷阱、Esc/遮罩关闭与焦点恢复，DropdownMenu 支持方向键/Home/End/禁用项/外点关闭，Toast 提供 live region/自动消退/操作，NoticeBar 保持文档流让位；独立 jsdom 测试与 README 已同步；无业务页和视觉 token 变更 |
 | B1.3 | [x] | `9346856` + `20bc054`（2026-08-18）：关闭/删除按钮、时间轴五类事件、详情外链和笔记空态全部收拢到统一 Icon/IconButton；运行时功能性 Unicode 归零，内联 SVG 仅保留统一 Icon 实现与 CoachPet 领域插画；固定原容器/字号/尺寸并增加回流守卫；集中截图验收并入后续 UI 回归 |
-| B1.4 | [x] | `1190daf`；`rg` 确认 src 中无原生 confirm；组件测试已覆盖 ConfirmDialog |
-| B1.5 | [x] | `66821d0` + `7df12ce`（2026-08-18）：清理零引用 `@milkdown/theme-nord`，保留 Crepe 实际 Nord CSS；Coach 原始配色、透明度、圆角与动效值集中到独立 `tokens.css`，pet/bubble CSS 只消费变量，删除 TS 重复视觉配置并增加六状态回流守卫；既有 feature/notes/scripts 已由 `1190daf` 完成收编；视觉冻结不变 |
+| B1.4 | [x] | `0a1a1c4`；`rg` 确认 src 中无原生 confirm；组件测试已覆盖 ConfirmDialog |
+| B1.5 | [x] | `66821d0` + `7df12ce`（2026-08-18）：清理零引用 `@milkdown/theme-nord`，保留 Crepe 实际 Nord CSS；Coach 原始配色、透明度、圆角与动效值集中到独立 `tokens.css`，pet/bubble CSS 只消费变量，删除 TS 重复视觉配置并增加六状态回流守卫；既有 feature/notes/scripts 已由 `0a1a1c4` 完成收编；视觉冻结不变 |
 | B2.1-B2.8 | [ ] | 标签模型、内部页、截图机制退役、TabStrip、Omnibox、UI 测试、下载/查找/缩放、右键菜单均待实施 |
 | B3.1-B3.5 | [ ] | WindowManager、事件多窗口化、标签过户、服务广播、生命周期与恢复均待实施 |
 | B4.1-B4.6 | [ ] | 026_site_credentials、Vault、自动填充、账户页、登录捕获、fuses 均待实施 |
@@ -663,4 +663,18 @@ Renderer（同一构建产物，多窗口实例化——桌宠 hash 路由已证
 | 远端策略 | PR 与 `main`/`master` push 自动运行 `test:core + test:docs`；`test:all`、生产 build 与 packaged smoke 仅 `workflow_dispatch` 集中触发 |
 | 安全边界 | `contents: read`、checkout 不保留凭据、不接收业务 secret、不上传构建产物/用户数据/登录态 |
 | 效率说明 | 每块提交不再重复触发重型构建与真实进程 smoke；需要集中验收时使用 `gh workflow run ci.yml --ref master` |
+| 完成时间 | 北京时间 `2026-08-18` |
+
+### 11.20 B1 完成审计与无障碍收口记录
+
+| 字段 | 填写内容 |
+|---|---|
+| 任务 | B1.1-B1.5 完成审计：组件默认测试标识、ConfirmDialog 焦点管理、DropdownMenu 边界、语义 token 消费与基线可追溯性 |
+| 状态 | `[x] 已完成` |
+| Commit | 待本块提交：`ui: 收口 B1 组件契约与 token 治理` |
+| 自动验证 | `npm run typecheck`、目标 ESLint、组件/Coach 聚焦 Vitest（预计 5 files / 35 tests）、`npm run test:core`、`npm run test:docs`、`git diff --check`；`rg` 确认 `src` 无原生 `confirm()`，功能性 SVG 仅统一 Icon 与 CoachPet 领域插画 |
+| 人工验收 | 保持 `0a1a1c4` 浅色视觉冻结；ConfirmDialog 打开后聚焦确认动作、Tab 循环、Esc/遮罩取消并恢复打开者焦点；全禁用 DropdownMenu 可用 Esc 关闭 |
+| 视觉影响 | `无视觉变更`；默认 `data-testid`、焦点管理和 CSS 语义别名不改变颜色、尺寸、排版、组件形态或动效值；状态色改为现有语义 token 引用，浅色计算值保持不变并为 B5.4 暗色切换留出通道 |
+| 文档同步 | `src/components/ui/{Button,fields,ConfirmDialog,DropdownMenu}.tsx`、`src/components/ui/ui.css`、`src/shared/display.ts`、`tests/components/*`、视觉基线引用 |
+| 剩余工作 | B1 无已知代码缺口；B2 继续标签模型与浏览器壳重构 |
 | 完成时间 | 北京时间 `2026-08-18` |

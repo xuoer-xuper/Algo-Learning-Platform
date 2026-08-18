@@ -7,7 +7,7 @@
   justify-content: center;
   gap: 6px;
   border: 1px solid transparent;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-control);
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;
@@ -85,7 +85,7 @@
   height: 28px;
   padding: 0;
   border: none;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-control);
   background: transparent;
   color: var(--text-secondary);
   cursor: pointer;
@@ -113,7 +113,7 @@
   height: 30px;
   padding: 0 10px;
   border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-control);
   background: var(--bg-card);
   color: var(--text);
   font-size: 13px;
@@ -159,7 +159,7 @@
 .ui-card {
   background: var(--bg-card);
   border: 1px solid var(--border-light);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-surface);
   box-shadow: var(--shadow-sm);
 }
 
@@ -185,7 +185,7 @@
   width: min(400px, 100%);
   background: var(--bg-card);
   border: 1px solid var(--border);
-  border-radius: var(--radius-xl);
+  border-radius: var(--radius-overlay);
   box-shadow: var(--shadow-lg);
   padding: 18px 20px 16px;
   animation: modal-pop var(--duration-base) var(--ease-out);

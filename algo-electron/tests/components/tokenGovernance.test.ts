@@ -2,6 +2,8 @@ import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 
 const source = readFileSync(new URL('../../src/index.css', import.meta.url), 'utf8')
+const uiSource = readFileSync(new URL('../../src/components/ui/ui.css', import.meta.url), 'utf8')
+const displaySource = readFileSync(new URL('../../src/shared/display.ts', import.meta.url), 'utf8')
 
 describe('设计 token 治理', () => {
   it('提供四档间距、三档语义圆角和三档缓动 token', () => {
@@ -13,6 +15,15 @@ describe('设计 token 治理', () => {
     }
     for (const token of ['--ease-in', '--ease-out', '--ease-in-out']) {
       expect(source).toContain(token)
+    }
+    expect(source.match(/--shadow-(?:sm|md|lg):/g)).toHaveLength(3)
+    expect(source.match(/--duration-(?:fast|base|slow):/g)).toHaveLength(3)
+    expect(source.match(/^:root\s*\{/gm)).toHaveLength(1)
+    for (const token of ['--accent:', '--bg-code:']) {
+      expect(source).toContain(token)
+    }
+    for (const token of ['var(--radius-control)', 'var(--radius-surface)', 'var(--radius-overlay)']) {
+      expect(uiSource).toContain(token)
     }
   })
 
@@ -30,5 +41,12 @@ describe('设计 token 治理', () => {
     for (const token of ['--bg', '--bg-surface', '--bg-card', '--bg-code', '--text', '--text-secondary', '--text-muted']) {
       expect(darkBlock, `dark theme missing alias ${token}`).toContain(token)
     }
+  })
+
+  it('状态和 verdict 颜色消费语义 token，品牌/图表色保留独立色板', () => {
+    expect(displaySource).toContain("solved: 'var(--color-ok)'")
+    expect(displaySource).toContain("WA: 'var(--color-danger)'")
+    expect(displaySource).toContain('PLATFORM_COLORS')
+    expect(displaySource).toContain('CHART_COLORS')
   })
 })

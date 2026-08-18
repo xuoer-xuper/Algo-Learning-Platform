@@ -97,6 +97,16 @@ export function DropdownMenu({
   }
 
   const onMenuKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === 'Escape') {
+      event.preventDefault()
+      setMenuOpen(false)
+      triggerButton()?.focus()
+      return
+    }
+    if (event.key === 'Tab') {
+      setMenuOpen(false)
+      return
+    }
     const candidates = enabledItems()
     if (candidates.length === 0) return
     const currentIndex = candidates.indexOf(document.activeElement as HTMLButtonElement)
@@ -105,16 +115,6 @@ export function DropdownMenu({
     else if (event.key === 'ArrowUp') nextIndex = currentIndex > 0 ? currentIndex - 1 : candidates.length - 1
     else if (event.key === 'Home') nextIndex = 0
     else if (event.key === 'End') nextIndex = candidates.length - 1
-    else if (event.key === 'Escape') {
-      event.preventDefault()
-      setMenuOpen(false)
-      triggerButton()?.focus()
-      return
-    }
-    else if (event.key === 'Tab') {
-      setMenuOpen(false)
-      return
-    }
     if (nextIndex !== null) {
       event.preventDefault()
       candidates[nextIndex]?.focus()

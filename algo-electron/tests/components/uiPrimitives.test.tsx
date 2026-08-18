@@ -86,6 +86,21 @@ describe('DropdownMenu', () => {
     expect(onSelect).toHaveBeenCalledTimes(1)
     expect(screen.queryByRole('menu')).toBeNull()
   })
+
+  it('closes an all-disabled menu with Escape', async () => {
+    render(
+      <DropdownMenu
+        label="不可用操作"
+        items={[{ id: 'disabled', label: '不可用', disabled: true, onSelect: () => {} }]}
+      />,
+    )
+    const trigger = screen.getByRole('button', { name: '不可用操作' })
+    fireEvent.click(trigger)
+    const menu = await screen.findByRole('menu', { name: '不可用操作' })
+    fireEvent.keyDown(menu, { key: 'Escape' })
+    expect(screen.queryByRole('menu')).toBeNull()
+    expect(document.activeElement).toBe(trigger)
+  })
 })
 
 describe('Toast and NoticeBar', () => {
