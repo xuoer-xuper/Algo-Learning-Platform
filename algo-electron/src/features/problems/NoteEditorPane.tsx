@@ -1,4 +1,5 @@
 import { lazy, Suspense } from 'react'
+import { Icon } from '../../components/ui'
 
 const MilkdownEditor = lazy(() => import('./MilkdownEditor').then((module) => ({
   default: module.MilkdownEditor,
@@ -65,7 +66,7 @@ export function NoteEditorPane({
         </>
       ) : (
         <div className="note-editor-placeholder">
-          <div className="note-editor-placeholder-icon">📝</div>
+          <Icon className="note-editor-placeholder-icon" name="note" size={48} strokeWidth={1.2} />
           <div>选择左侧笔记查看，或点击「新建笔记」创建</div>
         </div>
       )}

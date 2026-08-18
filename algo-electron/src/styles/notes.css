@@ -353,7 +353,9 @@
 }
 
 .note-editor-placeholder-icon {
-  font-size: 48px;
+  display: block;
+  width: 48px;
+  height: 48px;
   opacity: 0.3;
 }
 

@@ -27,6 +27,11 @@ export type IconName =
   | 'maximize'
   | 'restore'
   | 'external'
+  | 'log-in'
+  | 'upload'
+  | 'bolt'
+  | 'lightbulb'
+  | 'star'
 
 const ICON_PATHS: Record<IconName, ReactNode> = {
   home: (
@@ -155,6 +160,29 @@ const ICON_PATHS: Record<IconName, ReactNode> = {
       <path d="M9 5H6a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-3" />
     </>
   ),
+  'log-in': (
+    <>
+      <path d="M14 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h7a2 2 0 0 0 2-2v-3" />
+      <path d="M10 12h11" />
+      <path d="m17 8 4 4-4 4" />
+    </>
+  ),
+  upload: (
+    <>
+      <path d="M12 16V4" />
+      <path d="m7 9 5-5 5 5" />
+      <path d="M5 20h14" />
+    </>
+  ),
+  bolt: <path d="m13 2-9 12h7l-1 8 9-12h-7l1-8Z" />,
+  lightbulb: (
+    <>
+      <path d="M9 18h6" />
+      <path d="M10 22h4" />
+      <path d="M8.4 14.5A7 7 0 1 1 15.6 14.5C14.6 15.2 14 16.1 14 17h-4c0-.9-.6-1.8-1.6-2.5Z" />
+    </>
+  ),
+  star: <path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-2.9-5.6 2.9 1.1-6.2L3 9.6l6.2-.9L12 3Z" />,
 }
 
 export interface IconProps extends Omit<SVGProps<SVGSVGElement>, 'name'> {

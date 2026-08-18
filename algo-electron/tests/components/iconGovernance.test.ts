@@ -7,6 +7,8 @@ const timelineSource = readSource('../../src/features/coach/SessionTimelineView.
 const chatSource = readSource('../../src/features/coach/CoachChatPanel.tsx')
 const bubbleSource = readSource('../../src/features/coach/CoachBubble.tsx')
 const noteListSource = readSource('../../src/features/problems/NoteList.tsx')
+const noteEditorSource = readSource('../../src/features/problems/NoteEditorPane.tsx')
+const detailSource = readSource('../../src/features/problems/ProblemDetail.tsx')
 
 describe('已治理图标入口', () => {
   it('关闭与删除按钮不回流到文本符号', () => {
@@ -28,5 +30,14 @@ describe('已治理图标入口', () => {
 
   it('笔记删除键使用固定尺寸的删除图标按钮', () => {
     expect(noteListSource).toMatch(/<IconButton\s+icon="trash"\s+size=\{12\}\s+danger\s+className="note-item-del"/)
+  })
+
+  it('时间轴、详情链接和笔记空态不回流到功能性 Unicode', () => {
+    for (const source of [timelineSource, detailSource, noteEditorSource]) {
+      expect(source).not.toMatch(/[➡⬆⚡💡★📝]/u)
+    }
+    expect(timelineSource.match(/icon: '(?:log-in|upload|bolt|lightbulb|star)'/g)).toHaveLength(5)
+    expect(detailSource).toContain('<Icon name="external" size={12} />')
+    expect(noteEditorSource).toContain('<Icon className="note-editor-placeholder-icon" name="note" size={48} strokeWidth={1.2} />')
   })
 })

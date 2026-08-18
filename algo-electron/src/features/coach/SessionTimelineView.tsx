@@ -10,7 +10,7 @@ import {
 } from 'recharts'
 import { loadProblemTimeline } from './coachDataApi'
 import { PLATFORM_NAMES, STATUS_COLORS, VERDICT_COLORS } from '../../shared/display'
-import { IconButton } from '../../components/ui'
+import { Icon, IconButton, type IconName } from '../../components/ui'
 
 /**
  * 单题时间轴复盘视图（阶段 4 Task 18）。
@@ -38,18 +38,18 @@ interface TimelinePoint {
   title: string
   subtitle: string
   color: string
-  icon: string
+  icon: IconName
   detail?: string
   /** 判题结果代码（AC/WA/…），存在时以等宽芯片展示 */
   verdict?: string
 }
 
-const KIND_META: Record<TimelinePointKind, { label: string; icon: string }> = {
-  visit: { label: '进入题目', icon: '➡' },
-  submission: { label: '提交', icon: '⬆' },
-  event: { label: 'Coach 事件', icon: '⚡' },
-  intervention: { label: 'Coach 介入', icon: '💡' },
-  ac: { label: '通过', icon: '★' },
+const KIND_META: Record<TimelinePointKind, { label: string; icon: IconName }> = {
+  visit: { label: '进入题目', icon: 'log-in' },
+  submission: { label: '提交', icon: 'upload' },
+  event: { label: 'Coach 事件', icon: 'bolt' },
+  intervention: { label: 'Coach 介入', icon: 'lightbulb' },
+  ac: { label: '通过', icon: 'star' },
 }
 
 const EVENT_TYPE_LABELS: Record<string, string> = {
@@ -409,7 +409,9 @@ export function SessionTimelineView({ problemId, onClose }: Props) {
           <ol className="timeline-stream">
             {points.map((p, idx) => (
               <li key={`${p.kind}-${idx}`} className="timeline-item">
-                <span className="timeline-dot" style={{ color: p.color }}>{p.icon}</span>
+                <span className="timeline-dot" style={{ color: p.color }}>
+                  <Icon name={p.icon} size={12} strokeWidth={2} />
+                </span>
                 <div className="timeline-content">
                   <div className="timeline-head">
                     <span className="timeline-title" style={{ color: p.color }}>{p.title}</span>

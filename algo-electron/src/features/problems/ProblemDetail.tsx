@@ -9,7 +9,7 @@ import {
 } from './problemsApi'
 import type { ProblemDetailRecord, SubmissionRecord } from './problemTypes'
 import { SessionTimelineView } from '../coach/SessionTimelineView'
-import { Button, ConfirmDialog, IconButton } from '../../components/ui'
+import { Button, ConfirmDialog, Icon, IconButton } from '../../components/ui'
 
 interface Props {
   problemId: string
@@ -154,7 +154,8 @@ export function ProblemDetail({ problemId, onClose }: Props) {
               onClose()
             }}
           >
-            {isContestPageLink(detail.canonical_url) ? '打开比赛 →' : '打开原题 →'}
+            <span>{isContestPageLink(detail.canonical_url) ? '打开比赛' : '打开原题'}</span>
+            <Icon name="external" size={12} />
           </a>
         </div>
       </div>
