@@ -442,7 +442,7 @@ Renderer（同一构建产物，多窗口实例化——桌宠 hash 路由已证
 | B0.6 | [x] | `a466c30`（2026-08-16）：Electron test-double、Vitest alias、核心 async lint 守卫、tracking/title/userscript 诊断出口与 `browser:getDiagnostics` 已完成；`npm run typecheck`、`npm run lint`、`npm run test:coverage`（38 files/332 tests，29.68/34.85/25.17/30.48%）、`npm run test:architecture`、`npm run test:security`、`npm run test:docs` 通过；人工验收覆盖 test-double view 生命周期和诊断 skip/failure；无视觉变更 |
 | B0.7 | [x] | `22c7013`（2026-08-17）：删除零运行时引用的 `BrowserHost`、`public/home.html` 与两个站点适配器转发壳，适配器测试改为直接导入真实实现；`SyncService.setBrowserHost` 收敛为 `setScrapeHost`；删除 renderer 无消费者的 `problem:detected`、`submissions:detected` 发送通道与过期 IPC wiring，同时保留 TrackingService 内部回调和 SubmissionWatcher 主进程事件语义；README、ADR、系统架构、提交监控和治理文档已同步。验证：`npm run test:all` 全部通过，47 files/357 tests，覆盖率 33.65/37.53/29.20/34.64%，真实 Electron smoke 与 Playwright 1280x800、1024x720、800x600 均通过；另执行 `npm run test:electron`、`npm run build` 和 packaged-main 检查通过，源代码扫描确认无旧运行时引用。人工验收覆盖适配器直连、同步服务命名、死 channel 合约和被保留的主进程事件链。视觉影响：无视觉变更，未修改 TSX/CSS/动画 |
 | B0.8 | [x] | `81f4c08`（2026-08-17）：主进程致命异常兜底、启动失败报告、壳 renderer 自动恢复、滚动落盘日志与关键链路诊断已完成；packaged smoke 改为异步子进程，修复同步阻塞 HTTP server 导致的假失败；全量验证通过；无视觉变更 |
-| B0.9 | [ ] | 单实例锁待实施 |
+| B0.9 | [x] | `ddeabfa`（2026-08-18）：在日志文件、privileged scheme、IPC、生命周期和数据库服务注册前获取 Electron 单实例锁；失败实例立即 `app.quit()` 且不写共享日志、不打开数据库、不创建窗口；后续启动通过 `second-instance` 恢复最小化窗口并执行 `show()`/`focus()`，缺失、已销毁或聚焦失败路径均记录诊断；Electron test-double、单元测试和 README 已同步。验证：`npm run typecheck`、`npm run lint`、聚焦 3 files/7 tests、`npm run test:all`（53 files/370 tests，覆盖率 34.87/38.31/30.48/35.84%）、`npm run build`、`npm run test:packaged-app` 全部通过；无视觉变更 |
 | B0.10 | [ ] | 数据性能、迁移备份/恢复、孤儿 visit 清理待实施 |
 | B0.11 | [ ] | 025_userscript_identity 待实施 |
 | B0.12 | [x] | `a004d3c`（2026-08-16）：生产壳迁移至 `app://shell` 并启用严格 CSP；普通 IPC 统一接入 shell sender/main-frame/origin/payload 校验，OJ 提交通道使用专用 HTTPS sender validator；TabManager 管理 OJ sender 生命周期；安全、架构、IPC 合约与真实 Electron startup smoke 覆盖已完成；全量验证通过；无视觉变更 |
@@ -534,3 +534,16 @@ Renderer（同一构建产物，多窗口实例化——桌宠 hash 路由已证
 | 视觉影响 | `无视觉变更`；未修改 TSX、CSS、视觉 token、布局值或动画方向 |
 | 文档同步 | `electron/app/README.md`、`electron/shared/README.md`、`electron/db/README.md`、`tests/app/README.md`、`tests/shared/README.md`、`docs/README.md`、`.github/workflows/README.md` 与 CI 工作流 |
 | 完成时间 | 北京时间 `2026-08-17 11:48` |
+
+### 11.10 B0.9 完成记录
+
+| 字段 | 填写内容 |
+|---|---|
+| 任务 | B0.9 应用单实例锁 |
+| 状态 | `[x] 已完成` |
+| Commit | `ddeabfa resilience: 增加应用单实例锁` |
+| 自动验证 | `npm run typecheck`、`npm run lint`、`npx vitest run tests/app/singleInstance.test.ts tests/electron/mainResilience.test.ts tests/electron/electronDouble.test.ts`（3 files/7 tests）、`npm run test:all`（53 files/370 tests，覆盖率 Statements 34.87%、Branches 38.31%、Functions 30.48%、Lines 35.84%）、`npm run build`、`npm run test:packaged-app`；全部通过，打包态 `win-unpacked` 应用成功使用隔离 userData 启动并加载 SQLite |
+| 人工验收 | Windows 单窗口主实例启动正常；锁失败实例只请求退出，未安装 `second-instance` listener；后续启动路径覆盖最小化恢复、显示、聚焦，以及窗口缺失、已销毁和聚焦异常的容错与诊断；最终双开交互可纳入用户统一回归 |
+| 视觉影响 | `无视觉变更`；未修改 TSX、CSS、视觉 token、布局值或动画方向 |
+| 文档同步 | `electron/app/README.md`、`tests/app/README.md` 与 Electron test-double/启动接线守卫 |
+| 完成时间 | 北京时间 `2026-08-18 11:40` |
