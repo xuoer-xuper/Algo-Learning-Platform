@@ -33,7 +33,7 @@
   - 标签交互区明确为 `no-drag`，仅保留右侧空白为窗口拖动区，避免与 `-webkit-app-region: drag` 冲突。
   - 监听 `onTabListChanged` 同步主进程事实状态，并把活动标签的崩溃/无响应变化交给壳层渲染恢复页或 NoticeBar。
 - `tabApi.ts`
-  - 封装 `createTab`、`openInternalTab`、`closeTab`、`reopenClosedTab`、`switchTab`、`reorderTab`、`detachTab`、按 tabId 重载、无响应等待和 `onTabListChanged`。
+  - 封装 `createTab`、`openInternalTab`、`closeTab`、`reopenClosedTab`、`switchTab`、`reorderTab`、按 tabId 重载、无响应等待和 `onTabListChanged`；旧 `tab:detach` 已退役，B3 将以对等窗口过户通道替代。
   - 只处理标签 UI 所需的 preload 调用，不保存标签业务状态。
 - `WindowControls.tsx`
   - 自定义窗口最小化、最大化、关闭按钮。

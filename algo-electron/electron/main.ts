@@ -4,6 +4,7 @@ import path from 'node:path'
 import { TabManager } from './browser/TabManager'
 import { closeDb } from './db/connection'
 import {
+  getSearchConfig,
   getZoomFactorForUrl,
   loadCoachConfig,
   saveZoomFactorForUrl,
@@ -26,6 +27,7 @@ import { registerShellProtocol, registerShellSchemeAsPrivileged, shellUrl } from
 import { registerShellWebContents, unregisterShellWebContents } from './ipc/trustedSender'
 import { dispatchShortcut, resolveShortcut, type ShortcutActions } from './shortcuts/shortcutDispatcher'
 import { evaluateBrowserNavigation, type NavigationBlockReason } from './browser/navigationPolicy'
+import { buildSearchUrl } from './browser/omnibox'
 import { appLogger, initializeAppLogger } from './shared/logger'
 import { createFatalErrorReporter, installMainProcessErrorHandlers } from './app/mainProcessErrors'
 import { installShellRendererRecovery } from './app/shellRendererRecovery'
@@ -162,6 +164,7 @@ async function createWindow() {
     getZoomFactorForUrl,
     saveZoomFactorForUrl,
     userScriptInstallRegistry: userScriptInstallRegistry ?? undefined,
+    buildSearchUrlForQuery: (query) => buildSearchUrl(query, getSearchConfig()),
   })
   tabManager.setNavigationBlockedHandler(notifyNavigationBlocked)
   tabManager.setTabLimitReachedHandler((limit) => {

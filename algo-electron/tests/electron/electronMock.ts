@@ -14,6 +14,8 @@ export class MockWebContents extends EventEmitter {
   private nextFindRequestId = 1
   readonly findInPageCalls: Array<{ text: string; options?: Electron.FindInPageOptions }> = []
   readonly stopFindInPageCalls: Array<'clearSelection' | 'keepSelection' | 'activateSelection'> = []
+  readonly copyImageAtCalls: Array<{ x: number; y: number }> = []
+  readonly downloadURLCalls: string[] = []
   private windowOpenHandler: ((details: any) => any) | null = null
   readonly navigationHistory = {
     canGoBack: () => false,
@@ -39,6 +41,14 @@ export class MockWebContents extends EventEmitter {
   stopFindInPage(action: 'clearSelection' | 'keepSelection' | 'activateSelection'): void {
     this.stopFindInPageCalls.push(action)
   }
+  undo(): void { /* no-op */ }
+  redo(): void { /* no-op */ }
+  cut(): void { /* no-op */ }
+  copy(): void { /* no-op */ }
+  paste(): void { /* no-op */ }
+  selectAll(): void { /* no-op */ }
+  copyImageAt(x: number, y: number): void { this.copyImageAtCalls.push({ x, y }) }
+  downloadURL(url: string): void { this.downloadURLCalls.push(url) }
   simulateFoundInPage(result: Electron.FoundInPageResult): void { this.emit('found-in-page', {}, result) }
   simulateZoomChange(direction: 'in' | 'out'): void {
     this.emit('zoom-changed', { preventDefault: () => undefined }, direction)
@@ -195,6 +205,14 @@ export const Menu = {
   }),
 }
 
+export const clipboard = {
+  text: '',
+  images: [] as unknown[],
+  writeText(value: string): void { this.text = value },
+  readText(): string { return this.text },
+  writeImage(value: unknown): void { this.images.push(value) },
+}
+
 export const shell = {
   openExternal: (_url: string) => Promise.resolve(),
   openPath: (_path: string) => Promise.resolve(''),
@@ -287,6 +305,8 @@ export function resetElectronMock(): void {
   protocolSchemes.length = 0
   protocolHandlers.clear()
   menuPopups.length = 0
+  clipboard.text = ''
+  clipboard.images.length = 0
   defaultSession.reset()
   partitionSessions.clear()
 }

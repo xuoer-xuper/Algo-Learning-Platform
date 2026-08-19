@@ -146,7 +146,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   reopenClosedTab: () => ipcRenderer.invoke('tab:reopenClosed') as Promise<string>,
   switchTab: (tabId: string) => ipcRenderer.send('tab:switch', tabId),
   reorderTab: (tabId: string, targetIndex: number) => ipcRenderer.invoke('tab:reorder', tabId, targetIndex) as Promise<boolean>,
-  detachTab: (tabId: string) => ipcRenderer.send('tab:detach', tabId),
   reloadTab: (tabId: string) => ipcRenderer.send('tab:reload', tabId),
   dismissUnresponsiveTab: (tabId: string) => ipcRenderer.send('tab:dismissUnresponsive', tabId),
   openInternalTab: (page: InternalPage) => ipcRenderer.invoke('tab:openInternal', page) as Promise<string>,
@@ -163,6 +162,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getOmniboxSuggestions: (query: string) => ipcRenderer.invoke('browser:omniboxSuggest', query) as Promise<OmniboxSuggestion[]>,
   setOmniboxOpen: (open: boolean) => ipcRenderer.send('browser:setOmniboxOpen', open),
   showAppMenu: (anchor: AppMenuAnchor) => ipcRenderer.send('browser:showAppMenu', anchor),
+  showShellContextMenu: (kind: ShellContextMenuKind) => ipcRenderer.send('browser:showShellContextMenu', kind),
+  showTabContextMenu: (tabId: string) => ipcRenderer.send('browser:showTabContextMenu', tabId),
 
   // 笔记（本地题解 Markdown）
   listNotesByProblem: (problemId: string) => ipcRenderer.invoke('notes:listByProblem', problemId) as Promise<NoteRecord[]>,

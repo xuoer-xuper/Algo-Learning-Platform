@@ -19,6 +19,7 @@ import { FindInPageBar } from './components/FindInPageBar'
 import { useBrowserNavigation } from './hooks/useBrowserNavigation'
 import {
   setDownloadNoticeVisible,
+  showBrowserShellContextMenu,
   subscribeDownloadResult,
 } from './hooks/browserShellApi'
 import './App.css'
@@ -85,7 +86,20 @@ function App() {
 
   return (
     <ErrorBoundary>
-      <div className="app-layout">
+      <div
+        className="app-layout"
+        onContextMenu={(event) => {
+          const target = event.target instanceof Element ? event.target : null
+          if (!target || target.closest('[data-tab-id]')) return
+          event.preventDefault()
+          const kind: ShellContextMenuKind = target.closest('.url-input')
+            ? 'omnibox'
+            : target.closest('input:not([disabled]), textarea:not([disabled]), [contenteditable="true"]')
+              ? 'editor'
+              : 'page'
+          showBrowserShellContextMenu(kind)
+        }}
+      >
       <div className="titlebar-layer">
         <TabStrip
           onTabUrlChange={applyUrlState}

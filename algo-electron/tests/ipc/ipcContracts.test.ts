@@ -34,6 +34,8 @@ const coreContracts: PreloadContract[] = [
   { method: 'getOmniboxSuggestions', mode: 'invoke', channel: 'browser:omniboxSuggest' },
   { method: 'setOmniboxOpen', mode: 'send', channel: 'browser:setOmniboxOpen' },
   { method: 'showAppMenu', mode: 'send', channel: 'browser:showAppMenu' },
+  { method: 'showShellContextMenu', mode: 'send', channel: 'browser:showShellContextMenu' },
+  { method: 'showTabContextMenu', mode: 'send', channel: 'browser:showTabContextMenu' },
   { method: 'findInPage', mode: 'invoke', channel: 'browser:findInPage' },
   { method: 'setZoom', mode: 'invoke', channel: 'browser:setZoom' },
   { method: 'setDownloadNoticeVisible', mode: 'send', channel: 'browser:setDownloadNoticeVisible' },

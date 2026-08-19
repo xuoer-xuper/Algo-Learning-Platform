@@ -457,7 +457,7 @@ Renderer（同一构建产物，多窗口实例化——桌宠 hash 路由已证
 | B2.4 | [x] | `4112c01`（2026-08-18）：旧 TabBar 完整替换为 Chrome 风格 TabStrip；补齐 favicon/内部页图标、加载与崩溃状态、pointer 排序及 `tab:reorder` 持久化、横向溢出与边缘自动滚动、新建/关闭动效、reduced motion、中键关闭、活动标签自动滚入、ARIA 方向键/Home/End 导航；标签区保持 no-drag，右侧空白区保留窗口拖动。自动 GitHub `renderer-smoke` 纳入真实 Electron 与 Playwright；正常态颜色、排版、按钮外观和动效基调保持冻结 |
 | B2.5 | [x] | `a0f7d3f`（2026-08-18）：Omnibox 三分流、本地建议、搜索引擎设置、工具栏 AppMenu 与 view 聚焦摘挂完成；完整证据见 §11.26 |
 | B2.6 | [x] | 六个内部页面已改为真实标签创建、切换、地址同步、再次激活与标签关闭契约；实现与完成标记同提交，B2 统一验证待执行，完整记录见 §11.27 |
-| B2.7-B2.8 | [ ] | B2.7 下载/查找/缩放已实现，B2.8 完整右键菜单待实施；B2 统一验证待执行 |
+| B2.7-B2.8 | [x] | B2.7 下载/查找/缩放与 B2.8 完整右键菜单已实现；B2 统一验证待执行 |
 | B3.1-B3.5 | [ ] | WindowManager、事件多窗口化、标签过户、服务广播、生命周期与恢复均待实施 |
 | B4.1-B4.6 | [ ] | 026_site_credentials、Vault、自动填充、账户页、登录捕获、fuses 均待实施 |
 | B5.1-B5.6 | [ ] | 仅按视觉冻结约束做结构收尾、暗色、无障碍、桌宠策略和 Latex |
@@ -830,3 +830,18 @@ Renderer（同一构建产物，多窗口实例化——桌宠 hash 路由已证
 | 自动验证 | 按批处理策略暂不单独运行；B2.8 完成后统一执行 Playwright、core/Electron/DB/docs/security、生产构建、NSIS 与真实 packaged 双实例 smoke |
 | 剩余工作 | 进入 B2.8 原生右键菜单体系；完成后统一验证整个 B2 |
 | 完成时间 | 北京时间 `2026-08-18` |
+
+### 11.29 B2.8 原生右键菜单体系完成记录
+
+| 字段 | 填写内容 |
+|---|---|
+| 任务 | B2.8 页面、标签、壳内编辑区与内部页空白处的 Chrome 风格右键菜单 |
+| 状态 | `[x] 实现完成；B2 统一验证待执行` |
+| Commit | `browser: 完成原生右键菜单体系`（代码与本完成标记同提交） |
+| 页面右键 | WebContentsView 的 `context-menu` 事件统一走原生 `Menu.popup()`；链接支持新标签打开/复制地址，图片支持新标签打开/复制图片/复制地址/另存为，选中文本支持复制与按当前搜索引擎搜索，可编辑区按 `editFlags` 提供撤销/重做/剪切/复制/粘贴/全选，空白处提供后退/前进/重新加载 |
+| 标签右键 | 重新加载、复制标签页、关闭、关闭其他、关闭右侧、恢复关闭和复制网址均由 TabManager 执行；“移到新窗口”保留原生菜单挂点并在 B3 对等窗口壳完成前置灰，避免旧 DetachedWindow 被误当成完整拆分窗口 |
+| 壳内右键 | BrowserWindow 壳的编辑区与内部页空白处使用同一原生菜单；Omnibox 额外提供“粘贴并前往”，剪贴板内容重新经过 Omnibox 三分流与导航安全策略 |
+| 叠层边界 | 不新增 DOM 菜单或 WebContentsView 覆盖层；页面菜单、标签菜单、壳菜单均由 OS 原生菜单绘制，保留冻结的前端视觉基线 |
+| IPC 与文档 | 新增 `browser:showShellContextMenu`、`browser:showTabContextMenu` 受限入口，同步 preload、ambient types、IPC 契约、contextMenus/browser README 与测试 mock |
+| 自动验证 | 按批处理策略暂不单独运行；现在进入 B2 统一验证：Playwright、core/Electron/DB/docs/security、生产构建、NSIS 与真实 packaged 双实例 smoke |
+| 完成时间 | 北京时间 `2026-08-19` |

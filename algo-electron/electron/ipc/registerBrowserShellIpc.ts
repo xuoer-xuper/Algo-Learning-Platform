@@ -8,6 +8,7 @@ import { resolveOmniboxInput, type OmniboxBlockReason } from '../browser/omnibox
 import { getSearchConfig } from '../app/config'
 import { getOmniboxSuggestions } from '../db/repositories/problemRepository'
 import { isAppMenuAnchor, popupAppMenu } from '../contextMenus/appMenu'
+import { popupShellContextMenu, readClipboardText } from '../contextMenus/browserContextMenu'
 import { isZoomCommand } from '../browser/zoomPreferences'
 import type { PendingUserScriptInstallRegistry } from '../downloads/userScriptNavigation'
 
@@ -47,10 +48,6 @@ export function registerBrowserShellIpc(options: RegisterBrowserShellIpcOptions)
   ipcMain.handle('tab:reorder', (_event, tabId: unknown, targetIndex: unknown) => {
     if (typeof tabId !== 'string' || !Number.isInteger(targetIndex)) return false
     return options.getTabManager()?.reorderTab(tabId, targetIndex as number) ?? false
-  })
-
-  ipcMain.on('tab:detach', (_event, tabId: string) => {
-    options.getTabManager()?.detachTab(tabId)
   })
 
   ipcMain.on('tab:reload', (_event, tabId: string) => {
@@ -137,6 +134,37 @@ export function registerBrowserShellIpc(options: RegisterBrowserShellIpcOptions)
         factor: zoomState.factor,
         set: (command) => { tabManager.setZoom(zoomState.tabId, command) },
       } : undefined,
+    })
+  })
+
+  ipcMain.on('browser:showTabContextMenu', (_event, tabId: unknown) => {
+    if (typeof tabId !== 'string' || tabId.length === 0 || tabId.length > 200) return
+    options.getTabManager()?.showTabContextMenu(tabId)
+  })
+
+  ipcMain.on('browser:showShellContextMenu', (_event, kind: unknown) => {
+    if (kind !== 'omnibox' && kind !== 'editor' && kind !== 'page') return
+    const window = options.getWindow()
+    const tabManager = options.getTabManager()
+    if (!window || window.isDestroyed() || !tabManager) return
+    popupShellContextMenu({
+      window,
+      params: { isEditable: kind !== 'page' },
+      canGoBack: tabManager.canGoBack(),
+      goBack: () => tabManager.goBack(),
+      reload: () => tabManager.reload(),
+      pasteAndGo: kind === 'omnibox'
+        ? () => {
+            const value = readClipboardText()
+            if (!value) return
+            const resolution = resolveOmniboxInput(value, {
+              search: getSearchConfig(),
+              allowInsecureLocalhost: options.allowInsecureLocalhost ?? false,
+            })
+            if (resolution.kind === 'internal') tabManager.navigateInternal(resolution.page)
+            else if (resolution.kind === 'url' || resolution.kind === 'search') tabManager.navigate(resolveNavigateUrl(resolution.url))
+          }
+        : undefined,
     })
   })
 

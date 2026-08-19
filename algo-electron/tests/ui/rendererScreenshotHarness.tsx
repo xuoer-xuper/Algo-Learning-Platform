@@ -407,7 +407,6 @@ function createApiMock(): ElectronAPI {
       emitTabs()
       return true
     },
-    detachTab: () => {},
     reloadTab: () => {},
     dismissUnresponsiveTab: () => {},
     openInternalTab: async (page) => {
@@ -447,6 +446,8 @@ function createApiMock(): ElectronAPI {
     },
     setOmniboxOpen: () => {},
     showAppMenu: () => {},
+    showShellContextMenu: () => {},
+    showTabContextMenu: () => {},
 
     listNotesByProblem: async () => [screenshotNote],
     getNote: async () => screenshotNote,

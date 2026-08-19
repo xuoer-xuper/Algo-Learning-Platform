@@ -436,6 +436,8 @@ interface AppMenuAnchor {
   y: number
 }
 
+type ShellContextMenuKind = 'omnibox' | 'editor' | 'page'
+
 interface SaveNoteImageResult {
   markdownUrl: string
 }
@@ -862,7 +864,6 @@ interface ElectronAPI {
   reopenClosedTab: () => Promise<string>
   switchTab: (tabId: string) => void
   reorderTab: (tabId: string, targetIndex: number) => Promise<boolean>
-  detachTab: (tabId: string) => void
   reloadTab: (tabId: string) => void
   dismissUnresponsiveTab: (tabId: string) => void
   openInternalTab: (page: InternalPage) => Promise<string>
@@ -873,6 +874,8 @@ interface ElectronAPI {
   getOmniboxSuggestions: (query: string) => Promise<OmniboxSuggestion[]>
   setOmniboxOpen: (open: boolean) => void
   showAppMenu: (anchor: AppMenuAnchor) => void
+  showShellContextMenu: (kind: ShellContextMenuKind) => void
+  showTabContextMenu: (tabId: string) => void
 
   // 笔记（本地题解 Markdown）
   listNotesByProblem: (problemId: string) => Promise<NoteRecord[]>

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'vitest'
-import { MockBrowserWindow, resetElectronMock } from 'electron'
+import { MockBrowserWindow, menuPopups, resetElectronMock } from 'electron'
 import { TabManager } from '../../electron/browser/TabManager.ts'
 import { MAX_TABS } from '../../electron/browser/tabManagerConfig.ts'
 
@@ -42,7 +42,43 @@ test('closing a background tab preserves the remaining order and active tab', ()
   assert.deepStrictEqual(manager.getTabList().map((tab) => tab.id), [firstId, rightId])
 })
 
-test('destroying or detaching an active middle tab selects its right neighbor', () => {
+test('tab context menu closes tab ranges and keeps move-to-window disabled until B3', () => {
+  resetElectronMock()
+  const window = new MockBrowserWindow()
+  const manager = new TabManager(window as never)
+  const firstId = manager.createTab('https://example.com/first')
+  const middleId = manager.createTab('https://example.com/middle')
+  manager.createTab('https://example.com/right')
+  manager.createTab('https://example.com/last')
+  manager.switchTab(middleId)
+
+  manager.showTabContextMenu(middleId)
+  const firstTemplate = menuPopups.at(-1)?.template as Electron.MenuItemConstructorOptions[]
+  assert.strictEqual(firstTemplate.find((item) => item.label === '移到新窗口')?.enabled, false)
+  firstTemplate.find((item) => item.label === '关闭右侧标签页')?.click?.(
+    {} as never,
+    {} as never,
+    {} as never,
+  )
+  assert.deepStrictEqual(manager.getTabList().map((tab) => tab.id), [firstId, middleId])
+
+  manager.showTabContextMenu(middleId)
+  const secondTemplate = menuPopups.at(-1)?.template as Electron.MenuItemConstructorOptions[]
+  secondTemplate.find((item) => item.label === '关闭其他标签页')?.click?.(
+    {} as never,
+    {} as never,
+    {} as never,
+  )
+  assert.deepStrictEqual(manager.getTabList().map((tab) => tab.id), [middleId])
+
+  manager.showTabContextMenu(middleId)
+  const finalTemplate = menuPopups.at(-1)?.template as Electron.MenuItemConstructorOptions[]
+  assert.strictEqual(finalTemplate.find((item) => item.label === '关闭其他标签页')?.enabled, false)
+  assert.strictEqual(finalTemplate.find((item) => item.label === '关闭右侧标签页')?.enabled, false)
+  assert.strictEqual(finalTemplate.find((item) => item.label === '恢复关闭的标签页')?.enabled, true)
+})
+
+test('destroying an active middle tab selects its right neighbor', () => {
   resetElectronMock()
   const destroyedWindow = new MockBrowserWindow()
   const destroyedManager = new TabManager(destroyedWindow as never)
@@ -57,23 +93,6 @@ test('destroying or detaching an active middle tab selects its right neighbor', 
   assert.strictEqual(destroyedManager.getActiveTabId(), rightId)
   assert.deepStrictEqual(destroyedManager.getTabList().map((tab) => tab.id), [firstId, rightId, lastId])
 
-  const detachedWindow = new MockBrowserWindow()
-  const detachedManager = new TabManager(detachedWindow as never)
-  const detachedFirstId = detachedManager.createTab('https://example.com/first')
-  const detachedMiddleId = detachedManager.createTab('https://example.com/middle')
-  const detachedRightId = detachedManager.createTab('https://example.com/right')
-  const detachedLastId = detachedManager.createTab('https://example.com/last')
-
-  detachedManager.switchTab(detachedMiddleId)
-  const detached = detachedManager.detachTab(detachedMiddleId)
-
-  assert.ok(detached)
-  assert.strictEqual(detachedManager.getActiveTabId(), detachedRightId)
-  assert.deepStrictEqual(
-    detachedManager.getTabList().map((tab) => tab.id),
-    [detachedFirstId, detachedRightId, detachedLastId],
-  )
-  detached.close()
 })
 
 test('closing the last tab resets it to an internal home tab and keeps it reopenable', () => {

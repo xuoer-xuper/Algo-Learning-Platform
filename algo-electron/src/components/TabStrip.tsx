@@ -8,6 +8,7 @@ import {
   switchBrowserTab,
   type TabStripTabInfo,
 } from './tabApi'
+import { showBrowserTabContextMenu } from '../hooks/browserShellApi'
 import { Icon, type IconName } from './ui'
 import './TabStrip.css'
 
@@ -359,6 +360,11 @@ export function TabStrip({ onTabUrlChange, onActiveTabChange, onNotice }: TabStr
               ].filter(Boolean).join(' ')}
               data-tab-id={tab.id}
               style={isDragging ? { transform: `translateX(${dragState.deltaX}px)` } : undefined}
+              onContextMenu={(event) => {
+                event.preventDefault()
+                event.stopPropagation()
+                showBrowserTabContextMenu(tab.id)
+              }}
             >
               {markerEdge && <span className={`tab-drop-indicator tab-drop-indicator-${markerEdge}`} />}
               <button

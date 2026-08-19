@@ -1,4 +1,5 @@
 import {
+  clipboard,
   WebContentsView,
   BrowserWindow,
   type BrowserWindowConstructorOptions,
@@ -7,7 +8,6 @@ import {
   type WebPreferences,
 } from 'electron'
 import { randomUUID } from 'node:crypto'
-import { DetachedWindow } from './DetachedWindow'
 import { STEALTH_SCRIPT } from './stealthScript'
 import { MAX_CLOSED_TABS, MAX_TABS, OJ_PRELOAD_PATH } from './tabManagerConfig'
 import type {
@@ -50,6 +50,7 @@ import {
   type PendingUserScriptInstallRegistry,
   type UserScriptInstallRoute,
 } from '../downloads/userScriptNavigation'
+import { popupPageContextMenu, popupTabContextMenu } from '../contextMenus/browserContextMenu'
 
 export type { TabInfo } from './tabManagerTypes'
 
@@ -58,6 +59,7 @@ export interface TabManagerOptions {
   getZoomFactorForUrl?: (url: string) => number
   saveZoomFactorForUrl?: (url: string, factor: number) => number | null
   userScriptInstallRegistry?: PendingUserScriptInstallRegistry
+  buildSearchUrlForQuery?: (query: string) => string
 }
 
 export interface WebContentsUrlSnapshot {
@@ -129,6 +131,7 @@ export class TabManager {
   private readonly getZoomFactorForUrl: (url: string) => number
   private readonly saveZoomFactorForUrl: (url: string, factor: number) => number | null
   private readonly userScriptInstallRegistry: PendingUserScriptInstallRegistry | null
+  private readonly buildSearchUrlForQuery: (query: string) => string
   private closedTabs: ClosedTabSnapshot[] = []
   private isDestroying = false
   private isRestoringSession = false
@@ -144,6 +147,7 @@ export class TabManager {
     this.getZoomFactorForUrl = options.getZoomFactorForUrl ?? (() => DEFAULT_ZOOM_FACTOR)
     this.saveZoomFactorForUrl = options.saveZoomFactorForUrl ?? ((_url, factor) => factor)
     this.userScriptInstallRegistry = options.userScriptInstallRegistry ?? null
+    this.buildSearchUrlForQuery = options.buildSearchUrlForQuery ?? ((query) => query)
     this.window.on('resize', () => this.updateBounds())
   }
 
@@ -479,6 +483,19 @@ export class TabManager {
       if (tab.favicon === favicon) return
       tab.favicon = favicon
       this.notifyTabListChanged()
+    })
+
+    contents.on('context-menu', (_event, params) => {
+      if (this.isDestroying || contents.isDestroyed()) return
+      popupPageContextMenu({
+        window: this.window,
+        contents,
+        params,
+        openUrlInNewTab: (url) => { this.createTab(url) },
+        searchSelectionInNewTab: (query) => {
+          this.createTab(this.buildSearchUrlForQuery(query))
+        },
+      })
     })
 
     contents.on('found-in-page', (_event, result) => {
@@ -939,35 +956,6 @@ export class TabManager {
     return true
   }
 
-  detachTab(tabId: string): BrowserWindow | null {
-    if (this.tabs.length <= 1) return null
-
-    const tab = this.findTab(tabId)
-    if (!tab || tab.kind !== 'web') return null
-    if (tab.isCrashed) return null
-    
-    if (!tab.url || tab.url === 'about:blank') return null
-
-    const tabIndex = this.findTabIndex(tabId)
-    const wasActive = tabId === this.activeTabId
-    const nextTabId = wasActive ? this.getAdjacentTabId(tabIndex) : null
-    if (tabId === this.findInPageTabId) this.clearFindInPage()
-    this.tabs.splice(tabIndex, 1)
-
-    if (wasActive) {
-      safeRemoveChildView(this.window, tab.view)
-      this.activeTabId = null
-      if (nextTabId) this.switchTab(nextTabId)
-    }
-
-    const detached = new DetachedWindow(tab.view, tab.title)
-    if (!wasActive) {
-      this.notifyTabListChanged()
-      this.emitSessionChange()
-    }
-    return detached.getWindow()
-  }
-
   private replaceWebTabWithInternal(tab: ManagedWebTab, page: InternalPage): void {
     const tabIndex = this.findTabIndex(tab.id)
     if (tabIndex < 0 || this.findTab(tab.id) !== tab) return
@@ -1129,7 +1117,19 @@ export class TabManager {
     const tab = this.activeTabId ? this.findTab(this.activeTabId) : null
     if (this.isWebTab(tab) && !tab.isCrashed && tab.view.webContents.navigationHistory.canGoBack()) {
       tab.view.webContents.navigationHistory.goBack()
+      return
     }
+    if (tab?.kind === 'internal' && tab.page.type !== 'home') {
+      this.navigateInternal({ type: 'home' })
+    }
+  }
+
+  canGoBack(): boolean {
+    const tab = this.activeTabId ? this.findTab(this.activeTabId) : null
+    if (this.isWebTab(tab) && !tab.isCrashed) {
+      return tab.view.webContents.navigationHistory.canGoBack()
+    }
+    return tab?.kind === 'internal' && tab.page.type !== 'home'
   }
 
   goForward() {
@@ -1140,7 +1140,69 @@ export class TabManager {
   }
 
   reload() {
-    if (this.activeTabId) this.reloadTab(this.activeTabId)
+    if (!this.activeTabId) return
+    const tab = this.findTab(this.activeTabId)
+    if (tab?.kind === 'internal') {
+      this.window.webContents.reload()
+      return
+    }
+    this.reloadTab(this.activeTabId)
+  }
+
+  private reloadTabFromContext(tabId: string): void {
+    const tab = this.findTab(tabId)
+    if (!tab) return
+    if (tab.kind === 'internal') {
+      if (tab.id === this.activeTabId) this.window.webContents.reload()
+      return
+    }
+    this.reloadTab(tabId)
+  }
+
+  private duplicateTab(tabId: string): string {
+    const tab = this.findTab(tabId)
+    if (!tab || !this.canCreateTab()) return ''
+    if (tab.kind === 'internal') {
+      return this.openInternalTab(tab.page, { title: tab.title })
+    }
+    return this.createTab(tab.url)
+  }
+
+  private closeOtherTabs(tabId: string): void {
+    const ids = this.tabs.map((tab) => tab.id).filter((id) => id !== tabId)
+    for (const id of ids) this.closeTab(id)
+  }
+
+  private closeTabsToRight(tabId: string): void {
+    const index = this.findTabIndex(tabId)
+    if (index < 0) return
+    const ids = this.tabs.slice(index + 1).map((tab) => tab.id)
+    for (const id of ids) this.closeTab(id)
+  }
+
+  showTabContextMenu(tabId: string): void {
+    const tab = this.findTab(tabId)
+    if (!tab || this.isDestroying) return
+    const tabIndex = this.findTabIndex(tabId)
+    popupTabContextMenu({
+      window: this.window,
+      tabId,
+      title: tab.title || '首页',
+      url: tab.url,
+      canReload: tab.kind === 'web' || tab.id === this.activeTabId,
+      canDetach: false,
+      canCloseOthers: this.tabs.length > 1,
+      canCloseToRight: tabIndex >= 0 && tabIndex < this.tabs.length - 1,
+      canReopenClosed: this.closedTabs.length > 0,
+      reload: () => this.reloadTabFromContext(tabId),
+      duplicate: () => { this.duplicateTab(tabId) },
+      detach: () => undefined,
+      close: () => { this.closeTab(tabId) },
+      closeOthers: () => { this.closeOtherTabs(tabId) },
+      closeToRight: () => { this.closeTabsToRight(tabId) },
+      reopenClosed: () => { this.reopenClosedTab() },
+      copyUrl: () => clipboard.writeText(tab.url),
+    })
   }
 
   reloadTab(tabId: string): void {
@@ -1219,8 +1281,8 @@ export class TabManager {
   setZoom(tabId: string, command: ZoomCommand): ZoomState | null {
     const tab = this.findTab(tabId)
     if (!this.isWebTab(tab) || tab.isCrashed) return null
-    let current = DEFAULT_ZOOM_FACTOR
-    let url = ''
+    let current: number
+    let url: string
     try {
       current = normalizeZoomFactor(tab.view.webContents.getZoomFactor()) ?? DEFAULT_ZOOM_FACTOR
       url = tab.view.webContents.getURL()

@@ -86,3 +86,11 @@ export function setBrowserOmniboxOpen(open: boolean): void {
 export function showBrowserAppMenu(anchor: AppMenuAnchor): void {
   window.electronAPI.showAppMenu(anchor)
 }
+
+export function showBrowserShellContextMenu(kind: ShellContextMenuKind): void {
+  window.electronAPI.showShellContextMenu(kind)
+}
+
+export function showBrowserTabContextMenu(tabId: string): void {
+  window.electronAPI.showTabContextMenu(tabId)
+}

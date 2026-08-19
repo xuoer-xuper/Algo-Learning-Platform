@@ -21,6 +21,7 @@
 - renderer 健康状态：web 标签 `render-process-gone` 后保留稳定 ID、URL、标题和顺序，摘除坏 view 并显示恢复页；原 view 已销毁时创建同配置替代 view，失败仍保留标签供后续重试。`unresponsive` 只影响运行时列表和活动 view bounds，NoticeBar 可继续等待、按 tabId 重载或关闭，`responsive` 后自动清理；下载 NoticeBar、查找条和无响应条按真实文档流高度累加，任何状态都不进入会话快照。
 - Chrome 基线：`findInPage.ts` 管理受限 query、requestId 和多帧 `found-in-page` 结果；`zoomPreferences.ts` 按 normalized HTTP(S) origin 保存 Chrome 预设档位。查找在导航、切标签、崩溃、关闭和 web/internal 替换时停止并清理；缩放在最终导航、恢复、切换和 Ctrl+滚轮时恢复/保存。
 - `.user.js` 边界：直接导航、`will-redirect`、popup 和 `will-download` 均进入内存短时 `script-install` 路由；安装确认页只展示净化来源元数据，B6 前不下载、解析、执行或伪装成功。安装页不进入关闭栈或会话快照。
+- B2.8 原生右键：WebContentsView 页面按链接/图片/选中文本/编辑区/空白处组装菜单；TabStrip 支持复制、关闭范围和恢复，拆分项在 B3 对等窗口就绪前置灰；壳内编辑区与 Omnibox 复用同一原生菜单，Omnibox 额外提供“粘贴并前往”。内部页空白处提供后退与重新加载，不引入会被 view 遮挡的 DOM 菜单。
 - 壳层 IPC：browser/tab/window channel 由 `electron/ipc/registerBrowserShellIpc.ts` 注册，Browser 模块只暴露 `TabManager` 等运行期对象。
 - OJ Session：`ojSession.ts` 配置持久 session、真实 Chrome UA、受控 CORS、早期实时提交 hook 和 stealth script；默认 session 与 OJ session 同时安装 permission check/request 双处理器，敏感权限默认拒绝。
 - 实时提交桥：`ojPreload.ts` 暴露 `__algo_submission_v1.reportSubmission()`，并转发同页面/子 frame 的 `postMessage`。
@@ -44,7 +45,7 @@
 - `tabSessionStore.ts`：会话 JSON 的原子读取/写入、快速保存合并与可 flush/dispose 的防抖协调器，不记录原始 JSON 或 URL。
 - `tabSessionLifecycle.ts`：窗口关闭前的异步会话 flush 门控；重复关闭只触发一次写入，完成或失败后再允许窗口销毁。
 - `permissionPolicy.ts`：默认 session 与 OJ session 共用的最小权限白名单及双处理器安装函数。
-- `DetachedWindow.ts`：将标签页 view 剥离到原生独立窗口。
+- `DetachedWindow.ts`：已无公开调用通道的旧裸窗口原型，仅保留到 B3 删除；不得作为对等拆分窗口恢复使用。
 - `ojPreload.ts`：OJ 页面 preload，暴露提交上报桥并转发 frame 消息。
 - `ojBridge.ts`：提交上报桥的纯函数和 channel 常量。
 - `ojSession.ts`：配置 OJ 持久 session 的 UA、CORS、实时 hook 和 stealth 注入。
@@ -60,7 +61,6 @@
   - `closeTab(tabId)`
   - `switchTab(tabId)`
   - `reorderTab(tabId, targetIndex)`：按最终索引调整有序数组，只广播列表/会话持久状态，不切换活动标签或重新挂载 view。
-  - `detachTab(tabId)`
   - `destroy()`
 - 导航控制
   - `navigate(url)`
@@ -74,6 +74,7 @@
   - `findInPage(tabId, command)`、`openFindInPage()`：只对活动 web 标签执行查找，关闭时保留或清理选择由命令决定。
   - `setZoom(tabId, 'in'|'out'|'reset')`、`getActiveZoomState()`：先成功写入 origin 配置再改变 view，写失败保持当前缩放。
   - `adjustZoom(direction)`、`resetZoom()`：快捷键兼容入口，内部使用 Chrome 预设档位。
+  - `showTabContextMenu(tabId)`：按标签上下文打开原生菜单，复制、关闭范围和恢复关闭标签由 TabManager 执行；拆分项固定禁用，等待 B3 新 WindowManager 接管。
 - 状态读取
   - `getUrl()`
   - `getTitleForUrl(url)`
