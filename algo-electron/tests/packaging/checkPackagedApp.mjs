@@ -1,6 +1,6 @@
 import assert from 'node:assert'
 import { createServer } from 'node:http'
-import { spawn } from 'node:child_process'
+import { spawn, spawnSync } from 'node:child_process'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -9,8 +9,38 @@ const projectRoot = process.cwd()
 const packageJson = JSON.parse(fs.readFileSync(path.join(projectRoot, 'package.json'), 'utf8'))
 const releaseDir = path.join(projectRoot, 'release', packageJson.version, 'win-unpacked')
 const executable = path.join(releaseDir, 'AlgoLearningPlatform.exe')
+const fusesCli = path.join(projectRoot, 'node_modules', '@electron', 'fuses', 'dist', 'bin.js')
 
 assert.ok(fs.existsSync(executable), `Missing packaged executable: ${executable}`)
+
+function assertProductionFuses() {
+  assert.ok(fs.existsSync(fusesCli), `Missing Electron fuses CLI: ${fusesCli}`)
+  const result = spawnSync(process.execPath, [fusesCli, 'read', '--app', executable], {
+    cwd: projectRoot,
+    encoding: 'utf8',
+    windowsHide: true,
+  })
+  assert.strictEqual(
+    result.status,
+    0,
+    `Unable to read packaged Electron fuses\nSTDOUT:\n${result.stdout}\nSTDERR:\n${result.stderr}`,
+  )
+  const output = `${result.stdout}\n${result.stderr}`
+  const expected = {
+    RunAsNode: 'Disabled',
+    EnableCookieEncryption: 'Enabled',
+    EnableNodeOptionsEnvironmentVariable: 'Disabled',
+    EnableNodeCliInspectArguments: 'Disabled',
+    EnableEmbeddedAsarIntegrityValidation: 'Enabled',
+    OnlyLoadAppFromAsar: 'Enabled',
+    GrantFileProtocolExtraPrivileges: 'Disabled',
+  }
+  for (const [name, state] of Object.entries(expected)) {
+    assert.match(output, new RegExp(`${name} is ${state}`), `Packaged fuse ${name} must be ${state}`)
+  }
+}
+
+assertProductionFuses()
 
 function writeSmokePages(webRoot, rendererDist) {
   fs.mkdirSync(webRoot, { recursive: true })

@@ -22,7 +22,7 @@ concurrency:
 
 jobs:
   fast-guard:
-    name: Fast core and docs guard
+    name: Fast core, packaging and docs guard
     runs-on: windows-latest
     timeout-minutes: 20
     defaults:
@@ -55,6 +55,9 @@ jobs:
 
       - name: Run core guard
         run: npm run test:core
+
+      - name: Check packaging security configuration
+        run: npm run test:packaging
 
       - name: Check documentation links and coverage
         run: npm run test:docs

@@ -3,6 +3,8 @@ import fs from 'node:fs'
 import { test } from 'vitest'
 
 const mainSource = fs.readFileSync('electron/main.ts', 'utf8')
+const tabManagerConfigSource = fs.readFileSync('electron/browser/tabManagerConfig.ts', 'utf8')
+const userScriptConfigSource = fs.readFileSync('electron/scripts/userScriptRuntimeConfig.ts', 'utf8')
 
 test('main process keeps fatal error and shell renderer recovery wiring', () => {
   assert.match(mainSource, /installMainProcessErrorHandlers\(process, reportFatalError\)/)
@@ -72,4 +74,12 @@ test('main process restores and flushes browser sessions without affecting start
 test('the final complete shell closes the pet and exits the application', () => {
   assert.match(mainSource, /function quitIfLastShellWindowClosed\(\): void \{[\s\S]+?windowManager\.getAll\(\)\.length > 0[\s\S]+?coachPetWindow\?\.destroy\(\)[\s\S]+?app\.quit\(\)/)
   assert.match(mainSource, /win\.on\('closed', \(\) => \{[\s\S]+?tabManager\.destroy\(\)[\s\S]+?quitIfLastShellWindowClosed\(\)/)
+})
+
+test('production builds reject smoke-only paths and DevTools', () => {
+  assert.match(mainSource, /STARTUP_SMOKE_MODE && process\.env\.ALGO_ELECTRON_SMOKE_PRELOAD_PATH/)
+  assert.match(mainSource, /STARTUP_SMOKE_MODE && process\.env\.ALGO_ELECTRON_SMOKE_RENDERER_DIST/)
+  assert.match(mainSource, /if \(!VITE_DEV_SERVER_URL && !STARTUP_SMOKE_MODE\) return/)
+  assert.match(tabManagerConfigSource, /process\.env\.ALGO_ELECTRON_SMOKE === '1'[\s\S]+?ALGO_ELECTRON_SMOKE_OJ_PRELOAD_PATH/)
+  assert.match(userScriptConfigSource, /process\.env\.ALGO_ELECTRON_SMOKE === '1'[\s\S]+?ALGO_ELECTRON_SMOKE_USERSCRIPT_PRELOAD_PATH/)
 })

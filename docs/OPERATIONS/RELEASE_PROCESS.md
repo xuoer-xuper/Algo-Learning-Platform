@@ -75,6 +75,8 @@ npm run build:win
 - 应用名：`AlgoLearningPlatform`。
 - 图标目录：`build/`。
 - `better-sqlite3` 原生模块通过 `asarUnpack` 解包。
+- `electronFuses` 必须保持生产安全基线：`runAsNode=false`、`enableCookieEncryption=true`、`enableNodeOptionsEnvironmentVariable=false`、`enableNodeCliInspectArguments=false`、`enableEmbeddedAsarIntegrityValidation=true`、`onlyLoadAppFromAsar=true`、`grantFileProtocolExtraPrivileges=false`。
+- smoke preload、Renderer dist 覆盖和测试入口只能在显式 `ALGO_ELECTRON_SMOKE=1` 下启用；生产环境不允许通过环境变量替换入口，DevTools 快捷键必须关闭。
 - 打包输入白名单只包含 renderer 构建、主进程构建、`package.json` 和生产依赖。
 
 新增构建产物、原生依赖、资源目录或打包入口后，必须重新检查 `electron-builder.json5`，避免把开发缓存或敏感数据带入安装包。
@@ -87,6 +89,8 @@ npm run build:win
 - 安装包文件名包含产品名、版本号、架构和 `Setup`。
 - 解包后的 app 产物不包含 `tests/`、`tmp/`、`release/`、`.env`、本地数据库、日志、Cookie 或用户源码。
 - `better-sqlite3` `.node` 文件位于可加载位置，安装后启动不会因 SQLite 原生模块失败而崩溃。
+- 使用 `@electron/fuses` 读取 `release/${version}/win-unpacked/AlgoLearningPlatform.exe`，逐项确认上面的 fuse 安全基线已写入真实 executable。
+- 使用同一隔离 `userData` 启动两次 packaged app：第二实例应快速退出并请求主实例聚焦，主实例继续运行且 SQLite 可加载；失败实例不得写共享日志。
 - 安装包不是从未清理的旧 `release/` 目录中误取的旧版本。
 
 如果产物检查失败，先修打包配置或构建输入，再重新运行自动验证和打包；不要手工改安装包内容。

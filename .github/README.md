@@ -14,7 +14,7 @@
 
 ## 3. 实现程度
 
-当前 CI 使用 Windows runner、Node.js 22 和干净的 `npm ci`。自动 fast guard 执行 `npm run test:core` + `npm run test:docs`；集中验收时手动运行 workflow，追加 `npm run test:all`、`npm run build:check` 与隔离 userData 的 packaged app smoke。完整覆盖 TypeScript、lint、Vitest 单元/集成与覆盖率门槛、IPC contract、adapter、submission、DB repository、Electron smoke、Playwright renderer 和生产主进程构建验证。
+当前 CI 使用 Windows runner、Node.js 22 和干净的 `npm ci`。自动 fast guard 执行 `npm run test:core` + `npm run test:packaging` + `npm run test:docs`，因此每个 PR/push 都会检查 electron-builder 的 fuses、asar 输入白名单和 better-sqlite3 解包边界；集中验收时手动运行 workflow，追加 `npm run test:all`、`npm run build:check` 与隔离 userData 的 packaged app smoke。完整覆盖 TypeScript、lint、Vitest 单元/集成与覆盖率门槛、IPC contract、adapter、submission、DB repository、Electron smoke、Playwright renderer 和生产主进程构建验证。
 
 CI 不访问真实 OJ 登录态，不提交代码，不读取 Cookie，也不替代七站实时提交手测、站点风控验证或安装包安装/卸载验收。
 

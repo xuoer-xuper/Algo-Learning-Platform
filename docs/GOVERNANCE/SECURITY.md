@@ -64,6 +64,7 @@ Algo Learning Platform 是本地优先桌面应用。安全与隐私边界重点
 - 用户脚本代理过滤 Cookie、Host、Origin、Referer、Content-Length、`Sec-*`、`Proxy-*` 等浏览器所有请求头，不返回 `Set-Cookie`，并限制请求体、响应体、响应头、超时、重定向及全局/单端口并发；OJ session 不再安装全局 CORS response rewriter。
 - host 首次授权只通过所属完整壳的既有 NoticeBar 展示脚本名、目标 host 和来源 host；允许前必须复验 generation、webContents 和当前 owner，reload、标签过户、关窗及异步校验竞态均 fail closed。
 - 打包产物不得包含 `tests/`、`tmp/`、`release/`、`.env`、本地数据库或 Cookie。
+- 生产 Windows 产物必须通过 `electron-builder.json5` 的 `electronFuses` 加固：禁用 `runAsNode`、Node inspect 参数和 `NODE_OPTIONS` 注入，启用 Cookie 加密、嵌入式 ASAR 完整性校验与 `onlyLoadAppFromAsar`，并保持 `grantFileProtocolExtraPrivileges` 关闭。`ALGO_ELECTRON_SMOKE_PRELOAD_PATH`、Renderer dist 覆盖和 OJ/userscript smoke preload 只允许在显式 `ALGO_ELECTRON_SMOKE=1` 下启用；生产环境不得依赖这些测试入口，DevTools 快捷键也必须禁用。
 
 ## 6. 验证入口
 
@@ -76,5 +77,7 @@ npm run test:all
 ```
 
 `test:security` 检查 tracked 和未忽略的新增文件中是否存在 `.env`、本地数据库、日志文件，以及高置信 Cookie/header/token 明文模式。它不能替代人工安全审查和安装包内容验收。
+
+打包安全还需运行 `npm run test:packaging`，并在生成真实 `win-unpacked` 后使用 `npm run test:packaged-app` 读取 executable fuse 状态、验证 native SQLite 的 `asarUnpack` 边界、隔离 `userData` 启动和单实例行为。静态配置通过不代表真实产物 fuse 已写入，发布验收必须保留这一步。
 
 提交监测、真实 OJ 登录态和安装包流程必须按 `docs/OPERATIONS/RELEASE_PROCESS.md` 人工验收。CI 不访问真实站点登录态，也不替代人工安全验收。

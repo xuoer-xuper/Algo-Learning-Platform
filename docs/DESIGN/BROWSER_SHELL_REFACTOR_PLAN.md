@@ -245,7 +245,7 @@ Renderer（同一构建产物，多窗口实例化——桌宠 hash 路由已证
 
 ### B4 账户与密码管理（预计 14-18 小时）
 
-> 安全前置：B0 的 app 协议/CSP/IPC sender 校验与 B6.1-B6.4 的用户脚本/网络边界已经完成。由于迁移版本固定为 B4.1=026、B6.1=027，B4.1 仍作为唯一数据地基前置例外；B4.2 Vault、B4.3 自动填充、B4.4 账户中心和 B4.5 登录捕获已在前置闭合后完成，下一步只剩 B4.6 打包层加固。
+> 安全前置：B0 的 app 协议/CSP/IPC sender 校验与 B6.1-B6.4 的用户脚本/网络边界已经完成。由于迁移版本固定为 B4.1=026、B6.1=027，B4.1 仍作为唯一数据地基前置例外；B4.2-B4.6 已在前置闭合后完成。
 
 | 任务 | 内容 | 涉及 |
 |---|---|---|
@@ -254,7 +254,7 @@ Renderer（同一构建产物，多窗口实例化——桌宠 hash 路由已证
 | B4.3 | 登录自动填充：**站点配置收敛为 DB site_configs 唯一源**（体检定性：SiteRegistry 创建即丢弃、cookiePolicy 全链零消费——"双源"实为"一源已死"；seed 补全写入 cookie_policy/patterns/adapter/login selectors 后删除旧内存配置）；**监听挂点不走 TabManager 回调**——改挂 `app.on('web-contents-created')` 过滤 `persist:oj-main`，天然覆盖所有窗口；**只填充不自动提交**；填充前严格校验 HTTPS、域名和登录 URL。已完成 migration 028、七站初始 selector seed、OJ 隔离 preload 通道、SPA/reload stale guard 和定向测试；真实七站逐站登录页 smoke 留作后续环境验收，不在本任务中虚报 | `db/repositories/site`、`credentials/autofill` |
 | B4.4 | 设置内"账户"分区（内部页标签体系内）：整合登录态摘要 + 保存凭据列表（脱敏显示、删除、重命名、前往登录页更新密码）+ rating handle 绑定；不在壳 renderer 提供密码明文查看/编辑框；多凭据选择填充使用顶部 NoticeBar；顺手清理 mainServices 里创建即丢弃的 SiteRegistry/CookieVault 实例语句 | `src/features/settings/`、`app/mainServices.ts` |
 | B4.5 | `[x]` **登录捕获（Chrome 主路径）**：ojPreload 隔离世界监听登录表单 submit，仅把 username/password 直接送入主进程短时内存；主进程向壳发送不含密码的 captureId + 脱敏摘要，NoticeBar 确认后入 Vault，取消/超时/导航/销毁/dispose 立即清空；已存在同名凭据且密码变化时提示更新，同密码静默忽略；自动填充只填不提交 | `ojPreload`、`credentials/`、NoticeBar |
-| B4.6 | `[ ]` **打包层加固**：直接使用 electron-builder `electronFuses` 配置：runAsNode=false、enableCookieEncryption=true、enableNodeOptionsEnvironmentVariable=false、enableNodeCliInspectArguments=false、enableEmbeddedAsarIntegrityValidation=true、onlyLoadAppFromAsar=true、grantFileProtocolExtraPrivileges=false；smoke preload 仅 STARTUP_SMOKE_MODE 可启用；生产 DevTools 禁用；打包测试读取 fuse 状态并验证 asarUnpack/native SQLite 兼容 | `electron-builder.json5`、`main.ts`、packaged tests |
+| B4.6 | `[x]` **打包层加固**：直接使用 electron-builder `electronFuses` 配置：runAsNode=false、enableCookieEncryption=true、enableNodeOptionsEnvironmentVariable=false、enableNodeCliInspectArguments=false、enableEmbeddedAsarIntegrityValidation=true、onlyLoadAppFromAsar=true、grantFileProtocolExtraPrivileges=false；smoke preload 仅 STARTUP_SMOKE_MODE 可启用；生产 DevTools 禁用；打包测试读取 fuse 状态并验证 asarUnpack/native SQLite 兼容 | `electron-builder.json5`、`main.ts`、packaged tests |
 
 验收：在 OJ 登录一次 → 通知条提示保存 → 重开登录页自动填好、点登录即可（拆分窗口内同样生效）；密码在 DB 中为密文、导出不含、日志无泄漏；safeStorage 不可用时保存被拒绝且有提示；打包产物 cookie 落盘加密、无法以 --inspect 附加；`test:security` 与 `test:packaged-app` 绿。
 
@@ -468,7 +468,7 @@ Renderer（同一构建产物，多窗口实例化——桌宠 hash 路由已证
 | B4.3 | [x] | migration 028、DB `site_configs` 登录配置唯一源、全局 `web-contents-created` OJ session 协调器、只填充不提交的 `oj-credentials:fill` preload 通道、URL/selector 安全校验和 7 个测试文件已完成；真实七站逐站 smoke 明确延期，不宣称已完成；完整记录见 §11.43 |
 | B4.4 | [x] | 账户内部标签、登录态摘要、脱敏凭据列表、重命名/删除、登录页新标签跳转、Codeforces rating 绑定和多凭据 NoticeBar 选择已完成；完整记录见 §11.44 |
 | B4.5 | [x] | 登录捕获、保存/覆盖确认与 stale/取消边界已完成；完整记录见 §11.45 |
-| B4.6 | [ ] | 打包 fuses 与 packaged smoke 待实施 |
+| B4.6 | [x] | electron-builder fuses、生产 DevTools/smoke 边界、NSIS 与真实 packaged 双实例 smoke 已完成；完整记录见 §11.46 |
 | B5.1-B5.6 | [ ] | 仅按视觉冻结约束做结构收尾、暗色、无障碍、桌宠策略和 Latex |
 | B6.1 | [x] | `027_userscript_runtime`、完整 metadata 持久化、严格 URL 匹配、site binding/exclude 优先级、values/资源/host/update repository 已完成；完整记录见 §11.38 |
 | B6.2 | [x] | GM 私有桥、固定 frame bootstrap、IIFE/grant 裁剪、主进程值快照与 shell 源码隔离已完成；完整记录见 §11.39 |
@@ -1140,4 +1140,18 @@ Renderer（同一构建产物，多窗口实例化——桌宠 hash 路由已证
 | 文档与视觉 | 已同步 credentials、IPC、browser、系统架构、安全规范与本计划；未修改主题、配色、字体、按钮样式、布局基调或动画，继续严格复用现有 class/token/component，前端视觉冻结保持不变 |
 | 暂缓验证 | 按批量策略本块不运行生产构建、NSIS、真实 packaged 双实例 smoke 或真实七站登录捕获；这些验证留到 B4.6/B4 大块统一验收，不在本块虚报 |
 | 后续工作 | 进入 B4.6：electron-builder fuses、生产 DevTools/启动 smoke 边界、asar/native SQLite 兼容和 packaged 双实例验证 |
+| 完成时间 | 北京时间 `2026-08-19` |
+
+### 11.46 B4.6 打包层加固完成记录
+
+| 字段 | 填写内容 |
+|---|---|
+| 任务 | electron-builder fuses、生产 DevTools 禁用、smoke 专用 preload 路径门控、asar/native SQLite 兼容检查、NSIS 与 packaged 双实例 smoke |
+| 状态 | `[x] 已完成；B4 账户与打包链路闭合` |
+| Fuses | `electron-builder.json5` 配置 `runAsNode=false`、`enableCookieEncryption=true`、`enableNodeOptionsEnvironmentVariable=false`、`enableNodeCliInspectArguments=false`、`enableEmbeddedAsarIntegrityValidation=true`、`onlyLoadAppFromAsar=true`、`grantFileProtocolExtraPrivileges=false`；对真实 `win-unpacked/AlgoLearningPlatform.exe` 读取结果逐项验证通过 |
+| 生产边界 | `ALGO_ELECTRON_SMOKE_PRELOAD_PATH`、`ALGO_ELECTRON_SMOKE_RENDERER_DIST`、OJ/userscript smoke preload 覆盖均要求 `ALGO_ELECTRON_SMOKE=1`；生产构建不会从环境变量替换 preload/renderer 入口；生产 `F12`/`Ctrl/Cmd+Shift+I` DevTools action 直接禁用 |
+| Packaged 检查 | `check-packaging.mjs` 固定校验 fuses、asar 输入白名单、`better-sqlite3` `.node` 解包；`checkPackagedApp.mjs` 读取真实 fuse 状态，并在隔离 userData 下启动主实例/第二实例，验证单实例聚焦、SQLite 创建和日志边界 |
+| 构建与 smoke | 标准 `npm run build:win` 的 Electron 下载阶段受当前网络解析阻断；使用已安装且版本匹配的 `node_modules/electron/dist` 作为 `electronDist` 完成离线 `win-unpacked`、NSIS 和 blockmap 构建，真实 fuse 读回和 `npm run test:packaged-app` 均通过 |
+| GitHub 检查 | 自动 fast guard 新增 `npm run test:packaging`，每个 PR/push 检查 fuses、asar 白名单和 native SQLite 解包；手动 `packaged-smoke` 继续执行生产主进程检查、Windows unpacked 构建和真实双实例 smoke |
+| 文档与视觉 | 已同步打包测试 README、GitHub Actions README、本计划和安全/架构边界；未修改主题、配色、字体、按钮样式、布局基调或动画，前端视觉冻结保持不变 |
 | 完成时间 | 北京时间 `2026-08-19` |

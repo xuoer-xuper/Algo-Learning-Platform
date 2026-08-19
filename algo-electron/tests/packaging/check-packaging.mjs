@@ -32,6 +32,7 @@ const builderConfig = readJson5Like(builderConfigPath)
 const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'))
 const files = builderConfig.files ?? []
 const asarUnpack = builderConfig.asarUnpack ?? []
+const electronFuses = builderConfig.electronFuses ?? {}
 
 check('electron-builder uses explicit packaged entrypoints', () => {
   assert(builderConfig.asar === true, 'asar must stay enabled')
@@ -41,6 +42,21 @@ check('electron-builder uses explicit packaged entrypoints', () => {
 
   includesAll(files, ['dist/**', 'dist-electron/**', 'package.json'], 'files')
   assert(!files.some((entry) => entry === '**/*' || entry === './**/*'), 'files must not use broad repository include patterns')
+})
+
+check('electron-builder enables the required production fuses', () => {
+  const expected = {
+    runAsNode: false,
+    enableCookieEncryption: true,
+    enableNodeOptionsEnvironmentVariable: false,
+    enableNodeCliInspectArguments: false,
+    enableEmbeddedAsarIntegrityValidation: true,
+    onlyLoadAppFromAsar: true,
+    grantFileProtocolExtraPrivileges: false,
+  }
+  for (const [name, value] of Object.entries(expected)) {
+    assert(electronFuses[name] === value, `electronFuses.${name} must be ${String(value)}`)
+  }
 })
 
 check('electron-builder excludes development and sensitive inputs', () => {

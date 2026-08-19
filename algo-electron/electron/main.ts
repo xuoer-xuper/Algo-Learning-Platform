@@ -141,7 +141,9 @@ process.env.APP_ROOT = path.join(__dirname, '..')
 
 export const VITE_DEV_SERVER_URL = process.env['VITE_DEV_SERVER_URL']
 export const MAIN_DIST = path.join(process.env.APP_ROOT, 'dist-electron')
-export const RENDERER_DIST = process.env.ALGO_ELECTRON_SMOKE_RENDERER_DIST || path.join(process.env.APP_ROOT, 'dist')
+export const RENDERER_DIST = STARTUP_SMOKE_MODE && process.env.ALGO_ELECTRON_SMOKE_RENDERER_DIST
+  ? process.env.ALGO_ELECTRON_SMOKE_RENDERER_DIST
+  : path.join(process.env.APP_ROOT, 'dist')
 
 process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL ? path.join(process.env.APP_ROOT, 'public') : RENDERER_DIST
 
@@ -269,7 +271,9 @@ async function createWindowOnce(
     frame: false,
     icon: path.join(process.env.VITE_PUBLIC, 'electron-vite.svg'),
     webPreferences: {
-      preload: process.env.ALGO_ELECTRON_SMOKE_PRELOAD_PATH || path.join(__dirname, 'preload.mjs'),
+      preload: STARTUP_SMOKE_MODE && process.env.ALGO_ELECTRON_SMOKE_PRELOAD_PATH
+        ? process.env.ALGO_ELECTRON_SMOKE_PRELOAD_PATH
+        : path.join(__dirname, 'preload.mjs'),
       nodeIntegration: false,
       contextIsolation: true,
       sandbox: true,
@@ -361,6 +365,7 @@ async function createWindowOnce(
     back: () => { tabManager.goBack() },
     forward: () => { tabManager.goForward() },
     toggleDevTools: () => {
+      if (!VITE_DEV_SERVER_URL && !STARTUP_SMOKE_MODE) return
       const target = win.webContents
       if (target.isDevToolsOpened()) target.closeDevTools()
       else target.openDevTools({ mode: 'undocked' })
@@ -832,7 +837,9 @@ void app.whenReady().then(async () => {
       const coachCfg = loadCoachConfig()
       if (coachCfg.enabled) {
         coachPetWindow = new CoachPetWindow({
-          preloadPath: process.env.ALGO_ELECTRON_SMOKE_PRELOAD_PATH || path.join(__dirname, 'preload.mjs'),
+          preloadPath: STARTUP_SMOKE_MODE && process.env.ALGO_ELECTRON_SMOKE_PRELOAD_PATH
+            ? process.env.ALGO_ELECTRON_SMOKE_PRELOAD_PATH
+            : path.join(__dirname, 'preload.mjs'),
           devServerUrl: VITE_DEV_SERVER_URL ?? undefined,
           rendererDist: RENDERER_DIST,
         })

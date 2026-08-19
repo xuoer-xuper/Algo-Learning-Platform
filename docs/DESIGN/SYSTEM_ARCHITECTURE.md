@@ -246,6 +246,17 @@ Renderer 不直接操作 `webContents`。
 - 请求/响应大小、header、超时、重定向、并发和菜单注册数均有上限；浏览器所有请求头和 `Set-Cookie` 不跨越脚本桥。
 - 用户脚本菜单按活动端口绑定到页面原生右键菜单，端口关闭或 generation 更新即清理；剪贴板能力只写不读，所有特权 API 继续受 `@grant` 和 `@grant none` 双层校验。
 
+### 4.7 生产打包边界
+
+Windows 生产产物由 `electron-builder.json5` 单一配置管理，必须同时满足以下边界：
+
+- `electronFuses` 禁用 `runAsNode`、`NODE_OPTIONS` 环境变量和 Node CLI inspect 参数，启用 Cookie 加密、嵌入式 ASAR 完整性校验和 `onlyLoadAppFromAsar`，并关闭 `grantFileProtocolExtraPrivileges`。
+- Renderer、主进程和 preload 的生产入口固定来自打包后的 `app://shell`/`dist-electron` 资源。`ALGO_ELECTRON_SMOKE_PRELOAD_PATH`、`ALGO_ELECTRON_SMOKE_RENDERER_DIST` 及 OJ/userscript smoke preload 属于测试注入，只能在 `ALGO_ELECTRON_SMOKE=1` 下生效。
+- `better-sqlite3` 保持主进程 external，并只把所需 `.node` 原生文件放入 `asarUnpack`；其它开发目录、测试数据和敏感文件不得进入 asar。
+- 生产主进程不提供 DevTools 快捷键。真实产物必须读取 fuse 状态，并在隔离 `userData` 下完成 SQLite 启动、第二实例退出和主实例聚焦 smoke。
+
+这组约束由 `tests/packaging/check-packaging.mjs`（静态输入边界）和 `tests/packaging/checkPackagedApp.mjs`（真实 executable/运行时）双层验证；任一层失败都不能视为可发布。
+
 ## 5. Session 与 CookieVault
 
 ### 5.1 持久 Session
