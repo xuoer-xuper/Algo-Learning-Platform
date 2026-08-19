@@ -17,9 +17,11 @@ import { registerStatsIpc } from './registerStatsIpc'
 import { registerSubmissionsIpc } from './registerSubmissionsIpc'
 import type { PendingUserScriptInstallRegistry } from '../downloads/userScriptNavigation'
 import type { AppWindow } from '../windows/AppWindow'
+import type { UserScriptRuntime } from '../scripts/UserScriptRuntime'
 
 interface RegisterMainIpcOptions {
   getSyncService: () => SyncService | null
+  getUserScriptRuntime?: () => UserScriptRuntime | null
   getCoachPetWindow?: () => CoachPetWindow | null
   /** 阶段 2 注入：CoachOrchestrator */
   getCoachOrchestrator?: () => CoachOrchestrator | null
@@ -39,6 +41,7 @@ interface RegisterMainIpcOptions {
 
 export function registerMainIpc(options: RegisterMainIpcOptions): void {
   const notifyProblemsUpdated = (): void => { options.notifyProblemsUpdated() }
+  const refreshUserScriptRuntime = (): void => { options.getUserScriptRuntime?.()?.refresh() }
 
   registerAiIpc()
   registerBackupIpc()
@@ -55,8 +58,9 @@ export function registerMainIpc(options: RegisterMainIpcOptions): void {
   registerProblemIpc({ notifyProblemsUpdated })
   registerSitesIpc({
     notifyProblemsUpdated,
+    refreshUserScriptRuntime,
   })
-  registerScriptsIpc()
+  registerScriptsIpc({ refreshUserScriptRuntime })
   registerRatingIpc()
   registerStatsIpc()
   registerSubmissionsIpc({

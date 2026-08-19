@@ -280,7 +280,7 @@ Renderer（同一构建产物，多窗口实例化——桌宠 hash 路由已证
 | 任务 | 内容 | 涉及 |
 |---|---|---|
 | B6.1 | migration **027_userscript_runtime**；metadata 扩至 @namespace/@grant/@exclude(-match)/@connect/@noframes/@updateURL/@downloadURL/@antifeature/@icon 等；新表覆盖 values、资源缓存、host 授权与 update state；@match 严格按 scheme/host/path 解析并锚定 host、忽略 query/hash，@include 支持 glob/regex，exclude 最高优先，site_ids 显式绑定覆盖脚本规则 | `userScriptMetadata`、`UserScriptService`、`db/migrations/` |
-| B6.2 | GM 运行时重写：脚本以 IIFE 执行，GM API 仅作局部参数，不挂 `window.GM_*`；session 注册一个固定 userscript bootstrap preload，它从主进程内存缓存取得当前 frame 的匹配脚本和值快照；主世界脚本通过每次导航生成的私有 MessagePort 与隔离 preload 通信，桥不暴露给站点；shell renderer 永远不接收可执行源码 | `userscriptBootstrapPreload`、`userScriptInjector`、受限 GM 桥 |
+| B6.2 | GM 运行时重写：脚本以 IIFE 执行，GM API 仅作局部参数，不挂 `window.GM_*`；session 注册一个固定 userscript bootstrap preload，它从主进程内存缓存取得当前 frame 的匹配脚本和值快照；主世界脚本通过每次导航生成的私有 MessagePort 与隔离 preload 通信，桥不暴露给站点；shell renderer 永远不接收可执行源码 | `userscriptBootstrapPreload`、`userScriptMainWorldRuntime`、受限 GM 桥 |
 | B6.3 | GM_xmlhttpRequest 主进程代理 + @connect 白名单：初始与重定向 URL 双校验，未授权域首次请求由所属窗口 NoticeBar 授权并按脚本持久化；响应补齐 finalUrl/headers/status/timeout/responseType；本任务前半段作为 B4 安全前置，完成后删除 `ojSession` 的全局 CORS 响应头改写；GM_setClipboard、GM_registerMenuCommand、window.onurlchange 同批接入 | 新 `scripts/gmProxy`、`contextMenus/`、NoticeBar |
 | B6.4 | 注入调度重写：使用 `session.registerPreloadScript({ type:'frame' })` 让 bootstrap 早于普通 ojPreload；document-start 必须以真实页面内联脚本顺序测试证明，document-end=DOMContentLoaded，document-idle=did-finish-load；覆盖后台标签、iframe、noframes、SPA、脚本更新/注销竞态与 stale-version guard；若目标 Electron 版本无法通过顺序测试，明确标记为 best-effort，禁止声称精确兼容 | `ojSession`、`userscriptBootstrapPreload`、调度器 |
 | B6.5 | @require/@resource 改为安装/更新时下载入库 + **SRI 校验**（URL #sha256/md5，多 hash 取最后受支持项——现状"解析时剥离丢弃"是安全缺陷）；注入时 @require 按序拼接在用户代码前同段执行（免站点 CSP、保证顺序）；GM_getResourceText 回缓存文本、GM_getResourceURL 回 data:/blob: | `scripts/installer`、资源缓存 |
@@ -467,7 +467,8 @@ Renderer（同一构建产物，多窗口实例化——桌宠 hash 路由已证
 | B4.2-B4.6 | [ ] | Vault、自动填充、账户页、登录捕获、fuses 均待实施；须等待 B6.1-B6.4 |
 | B5.1-B5.6 | [ ] | 仅按视觉冻结约束做结构收尾、暗色、无障碍、桌宠策略和 Latex |
 | B6.1 | [x] | `027_userscript_runtime`、完整 metadata 持久化、严格 URL 匹配、site binding/exclude 优先级、values/资源/host/update repository 已完成；完整记录见 §11.38 |
-| B6.2-B6.7 | [ ] | GM 私有桥、网络代理、早注入、资源下载/SRI、安装更新与管理页待实施 |
+| B6.2 | [x] | GM 私有桥、固定 frame bootstrap、IIFE/grant 裁剪、主进程值快照与 shell 源码隔离已完成；完整记录见 §11.39 |
+| B6.3-B6.7 | [ ] | 网络代理、早注入时序收口、资源下载/SRI、安装更新与管理页待实施 |
 
 ### 11.4 单任务完成记录模板
 
@@ -1010,4 +1011,21 @@ Renderer（同一构建产物，多窗口实例化——桌宠 hash 路由已证
 | 文档与视觉 | `DATABASE_SCHEMA.md`、导出/回滚/安全文档、DB/migration/repository/scripts/test README 与公开 `UserScriptRecord` 类型同步；未修改 TSX、CSS、颜色、字体、按钮形态、布局或动画，前端视觉冻结不变 |
 | 暂缓验证 | 按批量策略，本任务不运行生产构建、NSIS、真实 Electron 或 packaged 双实例 smoke；待 B6 更大阶段统一执行 |
 | 后续工作 | 进入 B6.2：固定 userscript bootstrap preload、IIFE/按 grant 裁剪的 GM 私有桥与主进程值快照；B4.2-B4.6 仍等待 B6.1-B6.4 全部完成 |
+| 完成时间 | 北京时间 `2026-08-19` |
+
+### 11.39 B6.2 GM 私有运行时桥完成记录
+
+| 字段 | 填写内容 |
+|---|---|
+| 任务 | 固定 userscript bootstrap preload、主进程内存快照、按 grant 裁剪的 IIFE 运行器、每导航私有 MessagePort 与 shell 源码隔离 |
+| 状态 | `[x] 已完成；B6.3 的跨域代理、剪贴板/菜单等 API 与 B6.4 的真实 document-start/end/idle 时序验收留待后续` |
+| Commit | `scripts: 完成 B6.2 GM 私有运行时桥`（代码、测试、文档与完成标记同提交） |
+| 主进程缓存 | `UserScriptService.refresh()` 缓存启用脚本、文件内容、规则与启用站点；`UserScriptRuntime` 启动水合 values，按 frame URL 生成受限快照；脚本/站点变更先推进 generation 并清空旧缓存，刷新失败也保持空快照，使旧端口和旧写入权限 fail closed |
+| preload 与端口 | `session.registerPreloadScript({ type: 'frame' })` 只注册一个固定 `userscriptBootstrapPreload`；每导航使用随机 nonce，隔离 preload 先装 listener，再以 `contextBridge.executeInMainWorld` 创建主世界闭包并通过一次性 `window.postMessage` 转移 DOM `MessagePort`；主进程按 webContents/frame process/routing ID 绑定并校验 sender、session、URL、generation |
+| GM 语义 | 用户代码以独立 IIFE 执行；`GM_info`、`GM_addStyle`、`GM_get/set/delete/listValues`、`unsafeWindow` 与 `GM.*` aliases 只按 `@grant` 作为局部参数提供，`@grant none` 在主世界和主进程二次授权层都硬拒绝特权 API；values 按脚本 ID 隔离并通过专用端口落库；start/end/idle 先采用保守事件调度，精确时序证明归 B6.4 |
+| shell 隔离 | `scripts:getAll` 改为只返回 `id/name/enabled/site_ids_json/has_file` 摘要，不再向 shell renderer 结构化克隆 `code` 或绝对 `file_path`；旧页面 `window.GM_*`、localStorage 和页面 fetch polyfill 已删除 |
+| 测试 | B6.2 定向 `10 files / 53 tests` 通过；`npm run test:core` 通过：Vitest `80 files / 758 tests`、TypeScript、全仓 ESLint、architecture `7/7` 与 security 全绿；新增运行器 grant/IIFE/value 快照、start/end/idle 调度骨架、协议边界、frame/port 代际、`@grant none` 主进程拒绝、刷新失败闭锁、renderer 摘要安全与 IPC 合约测试 |
+| 暂缓验证 | 按批量策略未运行生产 build、NSIS、真实 packaged 双实例 smoke；B6.4 负责真实 Electron 父 frame/iframe、reload stale port、站点捕获不到端口与 document-start 顺序 smoke |
+| 视觉影响 | 仅调整脚本来源摘要字段，未修改主题、颜色、字体、按钮形态、布局或动画；前端视觉冻结保持不变 |
+| 后续工作 | 进入 B6.3 主进程 `GM_xmlhttpRequest` 代理与 `@connect` 双重 URL 校验；B4.2-B4.6 继续等待 B6.1-B6.4 |
 | 完成时间 | 北京时间 `2026-08-19` |

@@ -17,6 +17,7 @@ import {
 interface RegisterSitesIpcOptions {
   getParentWindow?: (event: IpcMainInvokeEvent) => BrowserWindow | null
   notifyProblemsUpdated?: (event: IpcMainInvokeEvent) => void
+  refreshUserScriptRuntime?: () => void
 }
 
 function errorMessage(error: unknown): string {
@@ -36,19 +37,27 @@ export function registerSitesIpc(options: RegisterSitesIpcOptions = {}): void {
   })
 
   ipcMain.handle('sites:create', (_event, data: Omit<SiteConfigData, 'isBuiltin'>) => {
-    return createSite(data)
+    const result = createSite(data)
+    options.refreshUserScriptRuntime?.()
+    return result
   })
 
   ipcMain.handle('sites:update', (_event, id: string, data: Partial<SiteConfigData>) => {
-    return updateSite(id, data)
+    const result = updateSite(id, data)
+    if (result) options.refreshUserScriptRuntime?.()
+    return result
   })
 
   ipcMain.handle('sites:toggle', (_event, id: string, enabled: boolean) => {
-    return toggleSite(id, enabled)
+    const result = toggleSite(id, enabled)
+    if (result) options.refreshUserScriptRuntime?.()
+    return result
   })
 
   ipcMain.handle('sites:delete', (_event, id: string) => {
-    return deleteSite(id)
+    const result = deleteSite(id)
+    if (result) options.refreshUserScriptRuntime?.()
+    return result
   })
 
   ipcMain.handle('sites:exportConfig', async (event) => {
@@ -97,6 +106,7 @@ export function registerSitesIpc(options: RegisterSitesIpcOptions = {}): void {
   ipcMain.handle('sites:confirmImport', (event, sites: SiteConfigData[], overwriteIds: string[]) => {
     try {
       const result = confirmImportSites(sites, overwriteIds)
+      options.refreshUserScriptRuntime?.()
       options.notifyProblemsUpdated?.(event)
       return { success: true, ...result }
     } catch (error) {

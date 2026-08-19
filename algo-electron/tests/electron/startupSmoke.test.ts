@@ -12,6 +12,7 @@ const buildDir = path.join(tmpRoot, 'electron-startup-smoke')
 const mainBundle = path.join(buildDir, 'main.mjs')
 const preloadBundle = path.join(buildDir, 'preload.cjs')
 const ojPreloadBundle = path.join(buildDir, 'ojPreload.cjs')
+const userscriptPreloadBundle = path.join(buildDir, 'userscriptBootstrapPreload.cjs')
 const esbuildBin = path.join(projectRoot, 'node_modules', 'esbuild', 'bin', 'esbuild')
 const electronBin = process.platform === 'win32'
   ? path.join(projectRoot, 'node_modules', 'electron', 'dist', 'electron.exe')
@@ -69,6 +70,7 @@ async function runSmokeElectron(userDataDir: string): Promise<void> {
         ALGO_ELECTRON_SMOKE_LEGACY_HOME_URL: legacyHomeUrl,
         ALGO_ELECTRON_SMOKE_PRELOAD_PATH: preloadBundle,
         ALGO_ELECTRON_SMOKE_OJ_PRELOAD_PATH: ojPreloadBundle,
+        ALGO_ELECTRON_SMOKE_USERSCRIPT_PRELOAD_PATH: userscriptPreloadBundle,
         ALGO_ELECTRON_SMOKE_RENDERER_DIST: path.join(buildDir, 'dist'),
         ELECTRON_DISABLE_SECURITY_WARNINGS: 'true',
         VITE_DEV_SERVER_URL: '',
@@ -216,6 +218,7 @@ try {
   runEsbuild('electron/main.ts', mainBundle)
   runEsbuild('electron/preload.ts', preloadBundle, 'cjs')
   runEsbuild('electron/browser/ojPreload.ts', ojPreloadBundle, 'cjs')
+  runEsbuild('electron/scripts/userscriptBootstrapPreload.ts', userscriptPreloadBundle, 'cjs')
   await runSmokeElectron(userDataDir)
 
   console.log('[PASS] Electron startup smoke test')

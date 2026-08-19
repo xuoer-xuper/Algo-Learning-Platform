@@ -89,7 +89,10 @@ export class MockWebContents extends EventEmitter {
 }
 
 export class MockWebFrame {
+  private static nextRoutingId = 1
   url = ''
+  readonly processId = 1
+  readonly routingId = MockWebFrame.nextRoutingId++
   readonly framesInSubtree: MockWebFrame[] = []
   isDestroyed(): boolean { return false }
   executeJavaScript(_code: string): Promise<unknown> { return Promise.resolve(undefined) }
@@ -272,12 +275,25 @@ ipcMain.removeHandler = (channel) => { ipcHandlers.delete(channel) }
 
 export const ipcRenderer = new EventEmitter() as EventEmitter & {
   send: (...args: unknown[]) => void
+  sendSync: (...args: unknown[]) => unknown
+  postMessage: (channel: string, message: unknown, transfer?: MessagePort[]) => void
   invoke: (...args: unknown[]) => Promise<unknown>
 }
 ipcRenderer.send = (...args) => { ipcRenderer.emit('send', ...args) }
+ipcRenderer.sendSync = (...args) => {
+  const event = { returnValue: undefined as unknown }
+  ipcRenderer.emit('send-sync', event, ...args)
+  return event.returnValue
+}
+ipcRenderer.postMessage = (channel, message, transfer = []) => {
+  ipcRenderer.emit('post-message', channel, message, transfer)
+}
 ipcRenderer.invoke = async (channel, ...args) => ipcHandlers.get(String(channel))?.({}, ...args)
 
-export const contextBridge = { exposeInMainWorld: (_name: string, _api: unknown) => undefined }
+export const contextBridge = {
+  exposeInMainWorld: (_name: string, _api: unknown) => undefined,
+  executeInMainWorld: ({ func, args = [] }: Electron.ExecutionScript) => func(...args),
+}
 export const dialog = {
   showOpenDialog: async () => ({ canceled: true, filePaths: [] }),
   showSaveDialog: async () => ({ canceled: true, filePath: undefined }),
@@ -299,16 +315,26 @@ export class MockSession {
   userAgent = ''
   permissionCheckHandler: Listener | null = null
   permissionRequestHandler: Listener | null = null
+  readonly preloadScripts = new Map<string, Electron.PreloadScriptRegistration>()
+  private nextPreloadId = 1
 
   setUserAgent(userAgent: string): void { this.userAgent = userAgent }
   setPermissionCheckHandler(handler: Listener | null): void { this.permissionCheckHandler = handler }
   setPermissionRequestHandler(handler: Listener | null): void { this.permissionRequestHandler = handler }
+  registerPreloadScript(script: Electron.PreloadScriptRegistration): string {
+    const id = script.id ?? `mock-preload-${this.nextPreloadId++}`
+    this.preloadScripts.set(id, { ...script })
+    return id
+  }
+  unregisterPreloadScript(id: string): void { this.preloadScripts.delete(id) }
   reset(): void {
     this.userAgent = ''
     this.permissionCheckHandler = null
     this.permissionRequestHandler = null
     this.webRequest.headersReceivedHandler = null
     this.webRequest.responseStartedHandler = null
+    this.preloadScripts.clear()
+    this.nextPreloadId = 1
   }
 }
 

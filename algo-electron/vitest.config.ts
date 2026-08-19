@@ -37,6 +37,7 @@ export default defineConfig({
         'electron/main.ts',
         'electron/preload.ts',
         'electron/browser/ojPreload.ts',
+        'electron/scripts/userscriptBootstrapPreload.ts',
         'src/main.tsx',
         'src/vite-env.d.ts',
       ],

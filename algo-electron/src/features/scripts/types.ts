@@ -3,7 +3,7 @@ export interface UserScriptRecord {
   name: string
   enabled: boolean
   site_ids_json?: string | null
-  file_path?: string | null
+  has_file: boolean
 }
 
 export interface ScriptSite {

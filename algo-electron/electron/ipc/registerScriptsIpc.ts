@@ -35,13 +35,22 @@ type UserScriptSaveInput = {
 
 interface RegisterScriptsIpcOptions {
   getParentWindow?: (event: IpcMainInvokeEvent) => BrowserWindow | null
+  refreshUserScriptRuntime?: () => void
+}
+
+interface UserScriptSummary {
+  id: string
+  name: string
+  enabled: boolean
+  site_ids_json: string | null
+  has_file: boolean
 }
 
 const UUID_FILE_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.js$/i
 const MANAGED_IMPORT_FILE_PATTERN = /^.+--[0-9a-f]{12}--[0-9a-f]{12}\.user\.js$/i
 
 export function registerScriptsIpc(options: RegisterScriptsIpcOptions = {}): void {
-  ipcMain.handle('scripts:getAll', () => getAllScripts())
+  ipcMain.handle('scripts:getAll', () => getAllScripts().map(toUserScriptSummary))
 
   ipcMain.handle('scripts:save', (_event, id: unknown, data: unknown) => {
     const validatedId = validateScriptId(id)
@@ -49,6 +58,7 @@ export function registerScriptsIpc(options: RegisterScriptsIpcOptions = {}): voi
     if (!updateScript(validatedId, validatedData)) {
       throw new Error('User script was not found or could not be updated')
     }
+    options.refreshUserScriptRuntime?.()
     return validatedId
   })
 
@@ -144,6 +154,7 @@ export function registerScriptsIpc(options: RegisterScriptsIpcOptions = {}): voi
         sourcePath,
       )
     }
+    options.refreshUserScriptRuntime?.()
     return importedId
   })
 
@@ -153,8 +164,26 @@ export function registerScriptsIpc(options: RegisterScriptsIpcOptions = {}): voi
     return shell.openPath(scriptsDir)
   })
 
-  ipcMain.handle('scripts:toggle', (_event, id: string, enabled: boolean) => toggleScript(id, enabled))
-  ipcMain.handle('scripts:delete', (_event, id: string) => deleteScript(id))
+  ipcMain.handle('scripts:toggle', (_event, id: string, enabled: boolean) => {
+    const result = toggleScript(id, enabled)
+    if (result) options.refreshUserScriptRuntime?.()
+    return result
+  })
+  ipcMain.handle('scripts:delete', (_event, id: string) => {
+    const result = deleteScript(id)
+    if (result) options.refreshUserScriptRuntime?.()
+    return result
+  })
+}
+
+function toUserScriptSummary(script: ReturnType<typeof getAllScripts>[number]): UserScriptSummary {
+  return {
+    id: script.id,
+    name: script.name,
+    enabled: script.enabled,
+    site_ids_json: script.site_ids_json,
+    has_file: Boolean(script.file_path),
+  }
 }
 
 function getLiveParentWindow(

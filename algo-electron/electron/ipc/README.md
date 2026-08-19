@@ -14,7 +14,7 @@
 - `registerNotesIpc.ts`：注册 `notes:*` 笔记 CRUD、图片保存、批量删除和打开目录 handler。
 - `registerProblemIpc.ts`：注册 `problem:*` 最近题目、题目详情和题目删除 handler。
 - `registerRatingIpc.ts`：注册 `rating:*` 账号绑定、Codeforces rating 同步、rating 历史和比赛结果查询 handler。
-- `registerScriptsIpc.ts`：注册 `scripts:*` 用户脚本列表、导入、保存、启停、删除和打开目录 handler。
+- `registerScriptsIpc.ts`：注册 `scripts:*` 用户脚本摘要列表、导入、保存、启停、删除和打开目录 handler；列表不返回源码或绝对路径。
 - `registerSitesIpc.ts`：注册 `sites:*` 站点 CRUD、导入导出、冲突预览确认 handler。
 - `registerStatsIpc.ts`：注册 `stats:*` 统计查询和重算 handler。
 - `registerSubmissionsIpc.ts`：注册 `submissions:*` 手动同步 handler。

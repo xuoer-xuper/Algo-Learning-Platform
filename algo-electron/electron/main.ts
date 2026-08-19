@@ -25,7 +25,6 @@ import { configureChromiumCommandLine } from './app/chromiumFlags'
 import { preconnectRecentSiteOrigins } from './app/recentSitePreconnect'
 import { initializeMainServices, type MainServices } from './app/mainServices'
 import { getSiteById } from './db/repositories/siteRepository'
-import { installUserScriptInjection } from './scripts/userScriptInjector'
 import { installProblemTitleTracking } from './tracking/problemTitleTracking'
 import { registerNoteAssetProtocol, registerNoteAssetSchemeAsPrivileged } from './notes/noteAssetProtocol'
 import { ensureTodaySnapshot } from './db/repositories/aiContextSnapshotRepository'
@@ -78,12 +77,18 @@ import {
   normalizeWindowState,
   type WindowDisplayArea,
 } from './windows/windowBounds'
+import {
+  installUserScriptRuntimeBridge,
+  type UserScriptRuntimeBridge,
+} from './scripts/userScriptRuntimeBridge'
+import { USER_SCRIPT_BOOTSTRAP_PRELOAD_PATH } from './scripts/userScriptRuntimeConfig'
 
 configureChromiumCommandLine()
 
 applyStartupSmokeUserDataPath()
 
 let services: MainServices | null = null
+let userScriptRuntimeBridge: UserScriptRuntimeBridge | null = null
 let coachPetWindow: CoachPetWindow | null = null
 let coachOrchestrator: CoachOrchestrator | null = null
 let legacyTabSessionStore: TabSessionStore | null = null
@@ -382,12 +387,6 @@ async function createWindowOnce(
     appWindow.send('tab:listChanged', tabs)
   })
 
-  installUserScriptInjection({
-    tabManager,
-    getUserScriptService: () => services?.userScriptService ?? null,
-    diagnostics: services?.browserDiagnostics,
-  })
-
   const removeTabSessionListener = tabManager.addSessionChangeListener(scheduleApplicationSession)
   win.on('move', scheduleApplicationSession)
   win.on('resize', scheduleApplicationSession)
@@ -519,6 +518,7 @@ const tabTransferCoordinator = new TabTransferCoordinator({
 
 registerMainIpc({
   getSyncService: () => services?.syncService ?? null,
+  getUserScriptRuntime: () => services?.userScriptRuntime ?? null,
   getCoachPetWindow: () => coachPetWindow,
   getCoachOrchestrator: () => coachOrchestrator,
   getBrowserDiagnostics: () => services?.browserDiagnostics ?? null,
@@ -562,6 +562,12 @@ app.on('before-quit', (event) => {
         })
     }
     return
+  }
+  try {
+    userScriptRuntimeBridge?.dispose()
+    userScriptRuntimeBridge = null
+  } catch (error) {
+    appLogger.warn('userscript.runtime-dispose-failed', error)
   }
   try {
     services?.trackingService.endCurrentVisit()
@@ -625,10 +631,16 @@ void app.whenReady().then(async () => {
     owner.tabManager.setDownloadNoticeVisible(true)
     owner.send('download:result', result)
   })
-  configureOjSession({ getSiteById })
+  const ojSession = configureOjSession({ getSiteById })
 
   registerNoteAssetProtocol()
   services = await initializeMainServices(() => { windowManager.sendToAll('problems:updated') })
+  userScriptRuntimeBridge = installUserScriptRuntimeBridge({
+    runtime: services.userScriptRuntime,
+    session: ojSession,
+    preloadPath: USER_SCRIPT_BOOTSTRAP_PRELOAD_PATH,
+    allowInsecureLocalhost: Boolean(VITE_DEV_SERVER_URL || STARTUP_SMOKE_MODE),
+  })
   // Only preconnect sites the user actually visited recently to avoid noisy cold-start timeouts.
   preconnectRecentSiteOrigins()
 

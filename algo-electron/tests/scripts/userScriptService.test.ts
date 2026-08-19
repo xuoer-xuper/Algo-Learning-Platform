@@ -190,3 +190,27 @@ test('file-backed and database-backed scripts return equivalent parsed dependenc
     url: 'https://cdn.example.com/db.css',
   }])
 })
+
+test('refresh failure discards the previous script and site cache', () => {
+  const enabledScript = createScript({
+    id: 'cached-script',
+    siteIds: '["example"]',
+  })
+  let refreshShouldFail = false
+  const service = new UserScriptService({
+    getEnabledScripts: () => {
+      if (refreshShouldFail) throw new Error('database unavailable')
+      return [enabledScript]
+    },
+    getEnabledSites: () => [createSite('example', ['example.com'])],
+  })
+
+  assert.deepStrictEqual(
+    service.getMatchingScripts('https://example.com/problem/1').map(item => item.id),
+    ['cached-script'],
+  )
+  refreshShouldFail = true
+  assert.throws(() => service.refresh(), /database unavailable/)
+  assert.deepStrictEqual(service.getEnabledScriptsSnapshot(), [])
+  assert.deepStrictEqual(service.getMatchingScripts('https://example.com/problem/1'), [])
+})

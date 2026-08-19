@@ -189,7 +189,7 @@ node tmp\submissions-submissionBatchWriter.test.mjs
 
 1. 确认脚本已启用。
 2. 确认脚本 `@match` / `@include` 或绑定站点覆盖当前 URL。
-3. 打开脚本管理器确认 `file_path` 指向的文件仍存在。
+3. 在脚本管理器确认来源为“本地托管”，再用“打开目录”检查受管 `.user.js` 文件是否仍存在；shell 不再显示绝对 `file_path`。
 4. 如果是 `@require` 或 `@resource` 失败，确认网络可访问这些资源。
 5. 运行 metadata 测试：
 

@@ -157,7 +157,10 @@ algo-electron/electron/
     noteText.ts
   scripts/
     UserScriptService.ts
-    userScriptInjector.ts
+    UserScriptRuntime.ts
+    userScriptRuntimeBridge.ts
+    userscriptBootstrapPreload.ts
+    userScriptMainWorldRuntime.ts
   ai/
     contextExporter.ts
     recommendations/

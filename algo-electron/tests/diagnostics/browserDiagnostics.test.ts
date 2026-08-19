@@ -2,7 +2,6 @@ import assert from 'node:assert/strict'
 import { test } from 'vitest'
 import { BrowserDiagnostics } from '../../electron/diagnostics/BrowserDiagnostics.ts'
 import { installProblemTitleTracking } from '../../electron/tracking/problemTitleTracking.ts'
-import { installUserScriptInjection } from '../../electron/scripts/userScriptInjector.ts'
 import type { BrowserPageEvent } from '../../electron/browser/TabManager.ts'
 
 test('browser diagnostics are bounded, serializable, and redacted to metadata', () => {
@@ -26,7 +25,7 @@ test('browser diagnostics are bounded, serializable, and redacted to metadata', 
   assert.strictEqual(diagnostics.getSnapshot().entries[0].detail, '20')
 })
 
-test('title and userscript silent fallbacks publish injectable diagnostics', async () => {
+test('title silent fallbacks publish injectable diagnostics', async () => {
   const diagnostics = new BrowserDiagnostics()
   const pageListeners: Array<(event: BrowserPageEvent) => void> = []
   const tabManager = {
@@ -48,12 +47,6 @@ test('title and userscript silent fallbacks publish injectable diagnostics', asy
     notifyProblemsUpdated: () => undefined,
     diagnostics,
   })
-  installUserScriptInjection({
-    tabManager: tabManager as never,
-    getUserScriptService: () => null,
-    diagnostics,
-  })
-
   const pageEvent: BrowserPageEvent = {
     windowId: 'window-1',
     tabId: 'tab-1',
@@ -63,9 +56,7 @@ test('title and userscript silent fallbacks publish injectable diagnostics', asy
     reason: 'did-navigate',
   }
   pageListeners.forEach((listener) => listener(pageEvent))
-  pageListeners.forEach((listener) => listener({ ...pageEvent, reason: 'did-finish-load' }))
   await new Promise((resolve) => setTimeout(resolve, 0))
   const entries = diagnostics.getSnapshot().entries
   assert.ok(entries.some((entry) => entry.area === 'tracking' && entry.status === 'skipped'))
-  assert.ok(entries.some((entry) => entry.area === 'userscript' && entry.event === 'service-unavailable'))
 })

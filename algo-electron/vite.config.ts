@@ -25,6 +25,7 @@ export default defineConfig({
       preload: [
         { input: 'electron/preload.ts' },
         { input: 'electron/browser/ojPreload.ts' },
+        { input: 'electron/scripts/userscriptBootstrapPreload.ts' },
       ],
       renderer: process.env.NODE_ENV === 'test'
         ? undefined

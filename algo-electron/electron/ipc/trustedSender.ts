@@ -101,6 +101,33 @@ export function checkOjSender(event: ShellEvent): TrustedSenderCheck {
   return { trusted: true, reason: 'ok' }
 }
 
+export function checkOjFrameSender(event: ShellEvent, allowInsecureLocalhost = false): TrustedSenderCheck {
+  if (!isKnownSender(event, ojWebContentsIds)) return { trusted: false, reason: 'sender' }
+  const frameUrl = event.senderFrame?.url
+  const senderUrl = event.sender.getURL()
+  if (
+    !frameUrl
+    || !isAllowedOjFrameUrl(frameUrl, allowInsecureLocalhost)
+    || !isAllowedOjFrameUrl(senderUrl, allowInsecureLocalhost)
+  ) {
+    return { trusted: false, reason: 'origin' }
+  }
+  return { trusted: true, reason: 'ok' }
+}
+
+function isAllowedOjFrameUrl(rawUrl: string, allowInsecureLocalhost: boolean): boolean {
+  try {
+    const url = new URL(rawUrl)
+    if (url.protocol === 'https:') return true
+    return allowInsecureLocalhost
+      && url.protocol === 'http:'
+      && (url.hostname === 'localhost' || url.hostname === '127.0.0.1' || url.hostname === '[::1]')
+  }
+  catch {
+    return false
+  }
+}
+
 export function checkIpcPayload(args: unknown[]): TrustedSenderCheck {
   const seen = new Set<object>()
   let nodes = 0

@@ -73,8 +73,8 @@ export function UserScriptList({
                       <span className="scripts-dot" aria-hidden="true" />
                       <div className="scripts-name-text">
                         <span className="scripts-name">{script.name}</span>
-                        {Boolean(script.file_path) && (
-                          <span className="scripts-path" title={String(script.file_path)}>{String(script.file_path)}</span>
+                        {script.has_file && (
+                          <span className="scripts-path">本地托管</span>
                         )}
                       </div>
                     </div>

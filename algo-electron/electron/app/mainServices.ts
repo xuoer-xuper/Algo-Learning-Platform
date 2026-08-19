@@ -9,12 +9,14 @@ import { createDefaultSubmissionBatchWriter } from '../submissions/createDefault
 import { SyncService } from '../submissions/syncService'
 import { TrackingService } from '../tracking/TrackingService'
 import { BrowserDiagnostics } from '../diagnostics/BrowserDiagnostics'
+import { UserScriptRuntime } from '../scripts/UserScriptRuntime'
 
 export interface MainServices {
   trackingService: TrackingService
   syncService: SyncService
   realtimeSubmissionService: RealtimeSubmissionService
   userScriptService: UserScriptService
+  userScriptRuntime: UserScriptRuntime
   browserDiagnostics: BrowserDiagnostics
 }
 
@@ -39,6 +41,8 @@ export async function initializeMainServices(notifyProblemsUpdated: () => void):
   const realtimeSubmissionService = new RealtimeSubmissionService(notifyProblemsUpdated)
   realtimeSubmissionService.registerIpc()
   const userScriptService = new UserScriptService()
+  const userScriptRuntime = new UserScriptRuntime({ userScriptService })
+  userScriptRuntime.refresh()
   const browserDiagnostics = new BrowserDiagnostics()
 
   return {
@@ -46,6 +50,7 @@ export async function initializeMainServices(notifyProblemsUpdated: () => void):
     syncService,
     realtimeSubmissionService,
     userScriptService,
+    userScriptRuntime,
     browserDiagnostics,
   }
 }

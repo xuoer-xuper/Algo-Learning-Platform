@@ -2,21 +2,25 @@
 
 ## 1. 职责
 
-`tests/scripts/` 覆盖用户脚本 metadata、匹配规则和脚本管理纯逻辑，不启动 Electron 窗口。
+`tests/scripts/` 覆盖用户脚本 metadata、匹配规则、主世界运行器、主进程缓存与端口桥，不启动真实 Electron 窗口。
 
 ## 2. 当前覆盖
 
 - `userScriptMetadata.test.ts`：覆盖 B6.1 完整 metadata、严格 scheme/host/path、host 锚定、query/hash、path 大小写、非法 match fail closed、include glob/regex flags 与 exclude 优先级。
 - `userScriptService.test.ts`：覆盖显式站点绑定权威范围、exclude 优先、空绑定 metadata fallback、未知/禁用站点和坏 JSON fail closed，以及文件/数据库源码等价读取。
 - `userScriptImport.test.ts`：覆盖精确身份、版本比较、Windows 安全文件名、重复 metadata 指令收敛、local 副本 namespace 改写，以及持久化失败的临时文件清理。
+- `userScriptMainWorldRuntime.test.ts`：覆盖独立 IIFE、语法错误隔离、classic/modern grant 裁剪、`@grant none`、值快照、端口 mutation 与全局 GM 缺席。
+- `userScriptRuntime.test.ts`：覆盖启动水合、frame/noframes、按脚本 ID 的值隔离和 generation 刷新。
+- `userScriptRuntimeProtocol.test.ts`：覆盖握手与 value mutation exact-shape、大小和 JSON 安全边界。
+- `userScriptRuntimeBridge.test.ts`：使用 Electron test-double 覆盖固定 frame preload、OJ sender/session/frame 校验、nonce/generation 和 stale port 拒绝。
 
 ## 3. 运行方式
 
 ```powershell
 cd algo-electron
-npm exec vitest -- run tests/scripts/userScriptMetadata.test.ts tests/scripts/userScriptService.test.ts tests/scripts/userScriptImport.test.ts
+npm exec vitest -- run tests/scripts
 ```
 
 ## 4. 新增规则
 
-修改用户脚本 metadata 解析、站点匹配或导入默认值时补这里。测试 fixture 不应包含真实用户脚本源码、Cookie、token 或登录态。
+修改用户脚本 metadata、站点匹配、grant/API、值快照或端口协议时补这里。测试 fixture 不应包含真实用户脚本源码、Cookie、token 或登录态。

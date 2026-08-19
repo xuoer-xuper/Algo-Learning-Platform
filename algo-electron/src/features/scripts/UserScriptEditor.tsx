@@ -49,15 +49,15 @@ export function UserScriptEditor({
         </div>
 
         <div className="scripts-field">
-          <label className="scripts-label" htmlFor="scripts-path-input">脚本路径</label>
+          <label className="scripts-label" htmlFor="scripts-path-input">脚本来源</label>
           <div className="scripts-path-row">
             <Input
               id="scripts-path-input"
               className="scripts-path-input mono"
-              value={String(script.file_path || '（旧版存库脚本，无本地路径）')}
+              value={script.has_file ? '本地托管脚本' : '数据库托管脚本'}
               readOnly
             />
-            {Boolean(script.file_path) && (
+            {script.has_file && (
               <Button variant="secondary" icon="external" onClick={onOpenFolder}>打开目录</Button>
             )}
           </div>

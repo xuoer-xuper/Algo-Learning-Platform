@@ -54,7 +54,7 @@ Algo Learning Platform 是本地优先桌面应用。安全与隐私边界重点
 - Cookie、用户源码、完整请求体和可复用登录态不得进入日志、文档、测试 fixture、截图或 CI artifact。
 - 站点凭据只允许主进程保存版本化 `electron-safe-storage` envelope；活动行必须 `sync_excluded=1`，软删除清空密文；renderer 不接收 envelope 或密码明文。
 - 普通 JSON 学习数据导出排除 `site_credentials`；需要完整本机恢复时使用数据库备份，并按敏感数据处理。
-- migration 027 新增的用户脚本 values、资源缓存、host 授权与更新状态只由主进程 repository 访问，并随脚本外键级联删除；B6.1 仅建立数据地基，尚未替换 legacy GM polyfill，也不向远程页面开放数据库或任意新跨域能力。
+- migration 027 新增的用户脚本 values、资源缓存、host 授权与更新状态只由主进程 repository 访问，并随脚本外键级联删除；B6.2 已用固定 frame preload、每导航 generation/nonce 与私有 MessagePort 替换 legacy `window.GM_*`/localStorage polyfill，`scripts:getAll` 只向 shell 返回无源码、无绝对路径的摘要。跨域代理仍未开放，须等待 B6.3 的 `@connect` 与用户授权双闸。
 - `@connect` 声明不等于已授权。B6.3 接入主进程代理前，host permission 表不得被解释为页面可直接使用的网络能力；后续代理必须同时校验声明、持久授权、初始 URL 和重定向 URL。
 - 打包产物不得包含 `tests/`、`tmp/`、`release/`、`.env`、本地数据库或 Cookie。
 

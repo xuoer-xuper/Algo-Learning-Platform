@@ -70,6 +70,31 @@ test('new imports persist complete runtime metadata and create an explicit empty
   assert.ok(fs.existsSync(sourcePath), 'the selected source file must never be removed')
 })
 
+test('scripts:getAll returns a renderer-safe summary without source or absolute paths', async () => {
+  createScript({
+    name: 'Summary helper',
+    namespace: 'https://example.com',
+    identity_name: 'Summary helper',
+    match_urls_json: '["https://example.com/*"]',
+    code: 'window.secretSource = true',
+    file_path: path.join(tempDirectory, 'userscripts', 'summary.user.js'),
+    site_ids_json: '["codeforces"]',
+    enabled: true,
+  })
+  registerScriptsIpc()
+
+  const result = await ipcRenderer.invoke('scripts:getAll') as Array<Record<string, unknown>>
+  assert.deepStrictEqual(result, [{
+    id: result[0].id,
+    name: 'Summary helper',
+    enabled: true,
+    site_ids_json: '["codeforces"]',
+    has_file: true,
+  }])
+  assert.strictEqual(Object.hasOwn(result[0], 'code'), false)
+  assert.strictEqual(Object.hasOwn(result[0], 'file_path'), false)
+})
+
 test('confirmed updates preserve user configuration and remove only the replaced managed file', async () => {
   const scriptsDirectory = path.join(tempDirectory, 'userscripts')
   fs.mkdirSync(scriptsDirectory, { recursive: true })
