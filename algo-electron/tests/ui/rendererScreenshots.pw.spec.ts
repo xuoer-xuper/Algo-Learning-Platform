@@ -238,6 +238,9 @@ async function openInternalPageTab(
   contract: InternalPageContract,
 ): Promise<{ tabId: string, previousTabCount: number }> {
   const tabs = page.getByRole('tab')
+  const homeTab = page.getByRole('tab', { name: '首页', exact: true })
+  await expect(homeTab).toHaveCount(1)
+  await expect(homeTab).toHaveAttribute('aria-selected', 'true')
   const previousTabCount = await tabs.count()
   const tabId = await page.evaluate(
     (target) => window.electronAPI.openInternalTab(target),
@@ -255,7 +258,6 @@ async function openInternalPageTab(
   await expect(page.locator('.content-area')).toBeVisible()
   await expect(page.locator('.main-content')).toBeVisible()
 
-  const homeTab = page.getByRole('tab', { name: '首页', exact: true })
   await homeTab.click()
   await expect(homeTab).toHaveAttribute('aria-selected', 'true')
   await expect(page.getByRole('combobox', { name: '地址和搜索栏' })).toHaveValue('algo://home')

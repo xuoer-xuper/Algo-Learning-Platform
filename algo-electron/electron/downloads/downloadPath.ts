@@ -3,7 +3,6 @@ import path from 'node:path'
 
 const WINDOWS_RESERVED_NAMES = /^(?:CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])$/i
 const INVALID_FILENAME_CHARACTERS = /[<>:"/\\|?*]/g
-const CONTROL_AND_BIDI_CHARACTERS = /[\u0000-\u001f\u007f-\u009f\u202a-\u202e\u2066-\u2069]/g
 
 export const MAX_DOWNLOAD_FILENAME_LENGTH = 120
 const MAX_DUPLICATE_ATTEMPTS = 10_000
@@ -15,6 +14,18 @@ export interface DownloadPathFileSystem {
 
 function truncateText(value: string, maxLength: number): string {
   return Array.from(value).slice(0, maxLength).join('')
+}
+
+function removeControlAndBidiCharacters(value: string): string {
+  return Array.from(value).filter((character) => {
+    const codePoint = character.codePointAt(0) ?? 0
+    return !(
+      codePoint <= 0x1f
+      || (codePoint >= 0x7f && codePoint <= 0x9f)
+      || (codePoint >= 0x202a && codePoint <= 0x202e)
+      || (codePoint >= 0x2066 && codePoint <= 0x2069)
+    )
+  }).join('')
 }
 
 function splitExtension(fileName: string): { stem: string; extension: string } {
@@ -41,8 +52,7 @@ function truncateFilename(fileName: string, maxLength: number): string {
 function cleanFilename(value: string, maxLength: number): string {
   const normalized = value.normalize('NFKC')
   const leafName = normalized.split(/[\\/]/).at(-1) ?? ''
-  const cleaned = leafName
-    .replace(CONTROL_AND_BIDI_CHARACTERS, '')
+  const cleaned = removeControlAndBidiCharacters(leafName)
     .replace(INVALID_FILENAME_CHARACTERS, '-')
     .replace(/-+/g, '-')
     .replace(/^[.\s-]+|[.\s-]+$/g, '')

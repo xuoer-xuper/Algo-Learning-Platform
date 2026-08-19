@@ -456,8 +456,8 @@ Renderer（同一构建产物，多窗口实例化——桌宠 hash 路由已证
 | B2.3 | [x] | `8922c54`（2026-08-18）：删除截图替身三件套和三个旧 view 通道，`goHome` 切换内部 home；NoticeBar 与 38px view bounds 让位链路完成 |
 | B2.4 | [x] | `4112c01`（2026-08-18）：旧 TabBar 完整替换为 Chrome 风格 TabStrip；补齐 favicon/内部页图标、加载与崩溃状态、pointer 排序及 `tab:reorder` 持久化、横向溢出与边缘自动滚动、新建/关闭动效、reduced motion、中键关闭、活动标签自动滚入、ARIA 方向键/Home/End 导航；标签区保持 no-drag，右侧空白区保留窗口拖动。自动 GitHub `renderer-smoke` 纳入真实 Electron 与 Playwright；正常态颜色、排版、按钮外观和动效基调保持冻结 |
 | B2.5 | [x] | `a0f7d3f`（2026-08-18）：Omnibox 三分流、本地建议、搜索引擎设置、工具栏 AppMenu 与 view 聚焦摘挂完成；完整证据见 §11.26 |
-| B2.6 | [x] | 六个内部页面已改为真实标签创建、切换、地址同步、再次激活与标签关闭契约；实现与完成标记同提交，B2 统一验证待执行，完整记录见 §11.27 |
-| B2.7-B2.8 | [x] | B2.7 下载/查找/缩放与 B2.8 完整右键菜单已实现；B2 统一验证待执行 |
+| B2.6 | [x] | 六个内部页面已改为真实标签创建、切换、地址同步、再次激活与标签关闭契约；实现与完成标记同提交，B2 统一验证已通过，完整记录见 §11.27、§11.30 |
+| B2.7-B2.8 | [x] | B2.7 下载/查找/缩放与 B2.8 完整右键菜单已实现；B2 统一验证、生产构建、NSIS 与真实 packaged 双实例 smoke 全部通过，完整记录见 §11.28-§11.30 |
 | B3.1-B3.5 | [ ] | WindowManager、事件多窗口化、标签过户、服务广播、生命周期与恢复均待实施 |
 | B4.1-B4.6 | [ ] | 026_site_credentials、Vault、自动填充、账户页、登录捕获、fuses 均待实施 |
 | B5.1-B5.6 | [ ] | 仅按视觉冻结约束做结构收尾、暗色、无障碍、桌宠策略和 Latex |
@@ -803,16 +803,16 @@ Renderer（同一构建产物，多窗口实例化——桌宠 hash 路由已证
 | 字段 | 填写内容 |
 |---|---|
 | 任务 | B2.6 Playwright 内部页流程改写与标签容器契约 |
-| 状态 | `[x] 实现完成；B2 统一验证待执行` |
+| 状态 | `[x] 已完成；B2 统一验证通过` |
 | Commit | `test: 重写 B2.6 标签导航 UI 契约`（代码与本完成标记同提交） |
 | 标签流程 | 学习统计、设置、脚本管理、Coach 指标、题目详情、本地笔记六类内部页均验证：创建后标签数增加、活动 tab ARIA、受控 `algo://` 地址、路由容器可见、切回首页、再次激活、从标签关闭并恢复首页 |
 | 截图与布局 | 壳面 Omnibox/题库流程与六内部页标签流程拆成独立场景；新增脚本管理与题目详情截图。响应式断言只读取 `.content-area`、`.main-content`、`.shell-route-*` 的真实边界，Dashboard/设置/Coach/笔记断点按当前 route 宽度判断 |
 | 契约复用 | Screenshot harness 删除手写 internal URL/title，直接复用生产 `getInternalPageUrl()` 与 `getInternalPageTitle()`；mock 的标签列表、切换、排序、关闭和地址同步继续通过事件模型驱动 |
 | 退役清理 | `tests/ui/` 已不再引用 `.modal-panel`、`.modal-workspace`、`capturePreview`、`hideView`、`showView` 或旧页面关闭按钮导航流程；禁止重新引入截图背景与浮窗容器假设 |
-| 自动验证 | 按 2026-08-18 批处理策略，本任务不单独运行测试；将在 B2.7/B2.8 完成后统一执行 Playwright、core/Electron/DB/docs、生产构建、NSIS 与真实 packaged 双实例 smoke，并集中修复 |
+| 自动验证 | 已纳入 §11.30 的 B2 统一验收：`npm run test:all`、Playwright 三档 viewport、生产构建、NSIS 与真实 packaged 双实例 smoke 全部通过 |
 | 视觉影响 | 仅重写测试契约与补充截图场景；未修改 runtime、CSS、颜色、排版、按钮、动画或冻结视觉基线 |
 | 文档同步 | `tests/ui/README.md` 与本台账 |
-| 剩余工作 | 下一步进入 B2.7 下载、查找与按 origin 记忆缩放；B2.8 完成后统一验证整个 B2 |
+| 剩余工作 | B2.6 无已知缺口；B2 整体已通过统一验收，下一步进入 B3.1 |
 | 完成时间 | 北京时间 `2026-08-18` |
 
 ### 11.28 B2.7 下载、页内查找与按 origin 记忆缩放完成记录
@@ -820,15 +820,15 @@ Renderer（同一构建产物，多窗口实例化——桌宠 hash 路由已证
 | 字段 | 填写内容 |
 |---|---|
 | 任务 | B2.7 Chrome 基线交互：页内查找、按 origin 记忆缩放、受控下载与 `.user.js` 安装边界页 |
-| 状态 | `[x] 实现完成；B2 统一验证待执行` |
+| 状态 | `[x] 已完成；B2 统一验证通过` |
 | Commit | `browser: 完成下载查找与缩放`（代码与本完成标记同提交） |
 | 页内查找 | Ctrl/Cmd+F 打开文档流查找条；Enter/Shift+Enter、前后按钮、Escape/关闭均通过 `findInPage` IPC；按活动标签维护匹配状态，导航、切换、崩溃、关闭和壳重载时清理；查找条与无响应/下载通知条累加顶部让位，不遮挡 WebContentsView |
 | 缩放 | 使用 Chrome 风格离散档位；仅对规范化 HTTP(S) origin 持久化，限制范围与条目数；导航、切换、恢复会话、崩溃替换和 Ctrl/Cmd+滚轮均恢复；三点菜单复用同一档位控制 |
 | 下载 | 普通下载统一进入受控 `userData/downloads`；文件名净化、目录穿越防护、重名分配、`defaultSession` 与 `persist:oj-main` 均接入；完成/取消/中断通过 NoticeBar 反馈 |
 | `.user.js` | 当前标签导航、重定向、popup 和普通下载统一转入短期 `script-install` 内部页；安装请求带 TTL/数量上限，不落盘、不解析、不执行，完整安装流程留给 B6；不进入关闭栈或会话快照 |
 | 视觉影响 | 严格保持冻结的前端视觉基线；仅复用既有 NoticeBar、按钮和间距 token，新增查找条与安装边界页的文档流布局 |
-| 自动验证 | 按批处理策略暂不单独运行；B2.8 完成后统一执行 Playwright、core/Electron/DB/docs/security、生产构建、NSIS 与真实 packaged 双实例 smoke |
-| 剩余工作 | 进入 B2.8 原生右键菜单体系；完成后统一验证整个 B2 |
+| 自动验证 | 已纳入 §11.30 的 B2 统一验收：下载文件名净化与目录边界、查找/缩放、Electron/DB/security/docs、Playwright、生产构建、NSIS 与真实 packaged smoke 全部通过 |
+| 剩余工作 | B2.7 无已知缺口；B2 整体已通过统一验收，下一步进入 B3.1 |
 | 完成时间 | 北京时间 `2026-08-18` |
 
 ### 11.29 B2.8 原生右键菜单体系完成记录
@@ -836,12 +836,30 @@ Renderer（同一构建产物，多窗口实例化——桌宠 hash 路由已证
 | 字段 | 填写内容 |
 |---|---|
 | 任务 | B2.8 页面、标签、壳内编辑区与内部页空白处的 Chrome 风格右键菜单 |
-| 状态 | `[x] 实现完成；B2 统一验证待执行` |
+| 状态 | `[x] 已完成；B2 统一验证通过` |
 | Commit | `browser: 完成原生右键菜单体系`（代码与本完成标记同提交） |
 | 页面右键 | WebContentsView 的 `context-menu` 事件统一走原生 `Menu.popup()`；链接支持新标签打开/复制地址，图片支持新标签打开/复制图片/复制地址/另存为，选中文本支持复制与按当前搜索引擎搜索，可编辑区按 `editFlags` 提供撤销/重做/剪切/复制/粘贴/全选，空白处提供后退/前进/重新加载 |
 | 标签右键 | 重新加载、复制标签页、关闭、关闭其他、关闭右侧、恢复关闭和复制网址均由 TabManager 执行；“移到新窗口”保留原生菜单挂点并在 B3 对等窗口壳完成前置灰，避免旧 DetachedWindow 被误当成完整拆分窗口 |
 | 壳内右键 | BrowserWindow 壳的编辑区与内部页空白处使用同一原生菜单；Omnibox 额外提供“粘贴并前往”，剪贴板内容重新经过 Omnibox 三分流与导航安全策略 |
 | 叠层边界 | 不新增 DOM 菜单或 WebContentsView 覆盖层；页面菜单、标签菜单、壳菜单均由 OS 原生菜单绘制，保留冻结的前端视觉基线 |
 | IPC 与文档 | 新增 `browser:showShellContextMenu`、`browser:showTabContextMenu` 受限入口，同步 preload、ambient types、IPC 契约、contextMenus/browser README 与测试 mock |
-| 自动验证 | 按批处理策略暂不单独运行；现在进入 B2 统一验证：Playwright、core/Electron/DB/docs/security、生产构建、NSIS 与真实 packaged 双实例 smoke |
+| 自动验证 | 已纳入 §11.30 的 B2 统一验收：右键菜单模板、IPC/preload 契约、trusted sender、安全 URL 边界、Playwright、生产构建、NSIS 与真实 packaged smoke 全部通过 |
+| 完成时间 | 北京时间 `2026-08-19` |
+
+### 11.30 B2 标签体系 Chrome 化统一验收记录
+
+| 字段 | 填写内容 |
+|---|---|
+| 验收范围 | B2.1-B2.8：标签模型与恢复、内部页标签化、截图替身退役、TabStrip、Omnibox/AppMenu、Playwright 标签导航、下载/查找/缩放和完整原生右键菜单体系 |
+| 状态 | `[x] B2 完整通过` |
+| Commit | `test: 完成 B2 统一验收`（验证修复与本完成标记同提交） |
+| 全量测试 | 第二轮 `npm run test:all` 完整通过：TypeScript、全仓 ESLint、architecture/security/docs/packaging/performance、Vitest `90 files / 684 tests`、DB/Electron/safeStorage/startup smoke 全部通过 |
+| 覆盖率 | Statements `47.28%`、Branches `47.30%`、Functions `42.83%`、Lines `48.92%` |
+| UI 回归 | Playwright `7/7` 通过，覆盖 1280x800、1024x720、800x600；六类内部页按真实标签创建、切换、地址同步、再次激活与关闭，首页标签异步就绪后再读取基线数量，消除启动竞态 |
+| 集中修复 | 第一轮统一验证发现并修复两项测试/静态检查问题：下载文件名控制字符净化不再使用触发 `no-control-regex` 的正则，并新增控制字符用例；Playwright 内部页流程先等待首页活动标签稳定，再采集标签数量基线 |
+| 生产打包 | `npm run build:win` 完整退出码为 0：renderer/main/preload 生产构建、`test:packaged-main`、electron-builder x64 NSIS、`test:packaged-app` 全部通过 |
+| 真实 packaged smoke | `release/2.0.0-beta.2/win-unpacked/AlgoLearningPlatform.exe` 真实启动验证通过：双实例限制生效、第二实例聚焦主窗口、SQLite 可加载 |
+| 安装产物 | `release/2.0.0-beta.2/AlgoLearningPlatform-Windows-2.0.0-beta.2-x64-Setup.exe`、对应 blockmap 与 `win-unpacked` 目录均已生成 |
+| 视觉影响 | 本次仅修复验证稳定性并更新台账；未修改 CSS、颜色、字体、按钮形态、整体布局或动画基调，继续冻结既有前端风格 |
+| 后续工作 | B2 无已知代码缺口；下一步进入 B3.1 `WindowManager`/`AppWindow`、sender 路由化、窗口 bounds 持久化与多显示器越界校验 |
 | 完成时间 | 北京时间 `2026-08-19` |

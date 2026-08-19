@@ -30,6 +30,7 @@ describe('sanitizeDownloadFilename', () => {
     ['CON.txt', '_CON.txt'],
     ['NUL .log', '_NUL .log'],
     ['bad<name>:final?.zip', 'bad-name-final-.zip'],
+    [`bad\u0000\u001fname\u007f.txt`, 'badname.txt'],
     [`report\u202Ecod.exe`, 'reportcod.exe'],
     ['  ...  ', 'download'],
   ])('normalizes %s without allowing path components', (input, expected) => {
