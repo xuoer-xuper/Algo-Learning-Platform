@@ -90,6 +90,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getRealtimeSubmissionStatus: () => ipcRenderer.invoke('realtimeSubmission:getStatus'),
   getCookieSummaryForSite: (siteId: string) => ipcRenderer.invoke('cookies:getSiteSummary', siteId) as Promise<CookieSafeSiteSummary>,
   getCookieSummaryForDomain: (siteId: string, domain: string) => ipcRenderer.invoke('cookies:getDomainSummary', siteId, domain) as Promise<CookieSafeDomainSummary>,
+  listCredentials: (siteId?: string) => ipcRenderer.invoke('credentials:list', siteId) as Promise<CredentialSummary[]>,
+  deleteCredential: (credentialId: string) => ipcRenderer.invoke('credentials:delete', credentialId) as Promise<boolean>,
 
   // 统计
   getOverviewStats: () => ipcRenderer.invoke('stats:getOverview'),

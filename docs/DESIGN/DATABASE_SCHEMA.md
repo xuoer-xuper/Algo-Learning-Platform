@@ -569,7 +569,7 @@ GM 值的主进程持久化地基。值按 JSON 保存，站点页面不能直�
 
 ### 8.8 site_credentials
 
-站点登录凭据的主进程数据地基。B4.1 只建立 schema 和 repository 边界；safeStorage 解密、自动填充和登录捕获必须等待 B6.3 的主进程网络代理与全局 CORS 清除完成。
+站点登录凭据的主进程数据边界。B4.1 建立 schema/repository，B4.2 `CredentialVault` 已接入异步 safeStorage 加密、envelope 校验和旧 key rotation；自动填充和登录捕获仍必须等待对应 B4.3-B4.5 任务完成。
 
 | 字段 | 类型 | 说明 |
 |---|---|---|

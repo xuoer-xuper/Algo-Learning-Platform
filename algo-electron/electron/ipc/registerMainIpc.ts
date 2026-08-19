@@ -8,6 +8,7 @@ import { registerBrowserShellIpc } from './registerBrowserShellIpc'
 import { registerCoachIpc } from './registerCoachIpc'
 import { registerConfigIpc } from './registerConfigIpc'
 import { registerCookieIpc } from './registerCookieIpc'
+import { registerCredentialsIpc } from './registerCredentialsIpc'
 import { registerNotesIpc } from './registerNotesIpc'
 import { registerProblemIpc } from './registerProblemIpc'
 import { registerRatingIpc } from './registerRatingIpc'
@@ -18,6 +19,7 @@ import { registerSubmissionsIpc } from './registerSubmissionsIpc'
 import type { PendingUserScriptInstallRegistry } from '../downloads/userScriptNavigation'
 import type { AppWindow } from '../windows/AppWindow'
 import type { UserScriptRuntime } from '../scripts/UserScriptRuntime'
+import type { CredentialVault } from '../credentials/CredentialVault'
 import type {
   UserScriptHostPermissionPrompt,
   UserScriptHostPermissionResponse,
@@ -29,6 +31,7 @@ interface RegisterMainIpcOptions {
   getCoachPetWindow?: () => CoachPetWindow | null
   /** 阶段 2 注入：CoachOrchestrator */
   getCoachOrchestrator?: () => CoachOrchestrator | null
+  credentialVault?: CredentialVault
   getBrowserDiagnostics?: () => BrowserDiagnostics | null
   getUserScriptInstallRegistry?: () => PendingUserScriptInstallRegistry | null
   allowInsecureLocalhost?: boolean
@@ -66,6 +69,7 @@ export function registerMainIpc(options: RegisterMainIpcOptions): void {
   })
   registerConfigIpc()
   registerCookieIpc()
+  registerCredentialsIpc(options.credentialVault)
   registerNotesIpc({ notifyProblemsUpdated })
   registerProblemIpc({ notifyProblemsUpdated })
   registerSitesIpc({

@@ -106,6 +106,7 @@ algo-electron/electron/
     registerScriptsIpc.ts
     registerConfigIpc.ts
     registerRatingIpc.ts
+    registerCredentialsIpc.ts
   adapters/
     registry.ts
     shared/
@@ -142,6 +143,9 @@ algo-electron/electron/
       vjudge.ts
   cookies/
     CookieVault.ts
+  credentials/
+    CredentialVault.ts
+    credentialVaultCore.ts
   tracking/
     TrackingService.ts
   submissions/
@@ -284,6 +288,8 @@ CookieVault 不负责：
 ### 6.1 Preload 原则
 
 Preload 只暴露白名单 API，不暴露通用 `ipcRenderer`。
+
+凭据由 `CredentialVault` 在主进程使用异步 `safeStorage` 加密；壳 renderer 只接收 `credentialId/siteId/username/masked` 摘要。自动填充明文不得经过壳 IPC，只能由后续受限 OJ preload 通道消费。
 
 当前形态：
 

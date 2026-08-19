@@ -245,7 +245,7 @@ Renderer（同一构建产物，多窗口实例化——桌宠 hash 路由已证
 
 ### B4 账户与密码管理（预计 14-18 小时）
 
-> 安全前置：B0 的 app 协议/CSP/IPC sender 校验必须完成；B6.3 的最小主进程网络代理与全局 CORS 清除必须先落地，之后才允许启用登录捕获与凭据保存。由于迁移版本固定为 B4.1=026、B6.1=027，B4.1 仅作为不启用凭据能力的数据地基前置落地；B4.2-B4.6 仍严格等待 B6.1-B6.4，尤其 B6.3。
+> 安全前置：B0 的 app 协议/CSP/IPC sender 校验必须完成；B6.3 的最小主进程网络代理与全局 CORS 清除必须先落地，之后才允许启用登录捕获与凭据保存。由于迁移版本固定为 B4.1=026、B6.1=027，B4.1 仅作为不启用凭据能力的数据地基前置落地；B4.2 Vault 已完成，B4.3-B4.6 仍严格等待 B6.1-B6.4，尤其 B6.3。
 
 | 任务 | 内容 | 涉及 |
 |---|---|---|
@@ -464,7 +464,8 @@ Renderer（同一构建产物，多窗口实例化——桌宠 hash 路由已证
 | B3.4 | [x] | `problems:updated` 全壳广播、SyncService sender 宿主、任一壳 focus 判定与比赛横幅已完成；完整记录见 §11.34 |
 | B3.5 | [x] | 浏览器化关窗、桌宠/second-instance 最近窗口语义、应用级原子快照与全窗口恢复已完成；B3 全量测试、生产构建、离线 NSIS、真实 Electron 拆分 smoke 与 packaged 双实例 smoke 全部通过，完整记录见 §11.35-§11.36 |
 | B4.1 | [x] | `026_site_credentials`、版本化 envelope repository、软删/revive、导出排除闭合与备份提示已完成；仅数据地基，不启用凭据保存能力，完整记录见 §11.37 |
-| B4.2-B4.6 | [ ] | Vault、自动填充、账户页、登录捕获、fuses 均待实施；须等待 B6.1-B6.4 |
+| B4.2 | [x] | CredentialVault 已完成：DI 纯逻辑核心、异步 safeStorage、envelope/provider 校验、rotation 重加密、结构化错误码；壳 renderer 仅开放脱敏 list/delete，自动填充明文通道留待 B4.3 |
+| B4.3-B4.6 | [ ] | 自动填充、账户页、登录捕获、fuses 待实施 |
 | B5.1-B5.6 | [ ] | 仅按视觉冻结约束做结构收尾、暗色、无障碍、桌宠策略和 Latex |
 | B6.1 | [x] | `027_userscript_runtime`、完整 metadata 持久化、严格 URL 匹配、site binding/exclude 优先级、values/资源/host/update repository 已完成；完整记录见 §11.38 |
 | B6.2 | [x] | GM 私有桥、固定 frame bootstrap、IIFE/grant 裁剪、主进程值快照与 shell 源码隔离已完成；完整记录见 §11.39 |
@@ -1066,4 +1067,22 @@ Renderer（同一构建产物，多窗口实例化——桌宠 hash 路由已证
 | 兼容边界 | Electron 43 真实 smoke 证明 document-start 早于页面内联脚本，但晚于普通 webPreferences preload，且普通 iframe 不执行 session frame preload；因此 B6.4 对页面脚本时序交付精确兼容，对普通 preload 前置和 iframe 注入明确标记 best-effort。Electron 升级若改变任一行为，`test:electron` 必须先失败并重新评估 |
 | 视觉影响 | 未修改 TSX、CSS、主题、颜色、字体、布局或动画；前端视觉冻结保持不变 |
 | 后续工作 | B6.1-B6.4 安全与时序前置已闭合，可进入 B4.2 Vault/自动填充/登录捕获与 B6.5 资源缓存/SRI；两条后续链路仍需按计划独立验收 |
+| 完成时间 | 北京时间 `2026-08-19` |
+
+### 11.42 B4.2 CredentialVault 完成记录
+
+| 字段 | 填写内容 |
+|---|---|
+| 任务 | `CredentialVault` DI 纯逻辑核心、异步 safeStorage、envelope/provider 校验、key rotation 重加密、结构化错误码与脱敏 IPC |
+| 状态 | `[x] 已完成；B4.3 自动填充、B4.4 账户中心、B4.5 登录捕获和 B4.6 打包 fuses 仍待实施` |
+| Commit | `credentials: 完成 B4.2 CredentialVault`（代码、测试、README、架构/安全文档与完成标记同提交） |
+| Vault 边界 | `credentialVaultCore.ts` 通过依赖注入拆分纯逻辑；`CredentialVault.ts` 只绑定 Electron `safeStorage`；`save/list/delete/getForAutofill` 均已实现；系统加密不可用时拒绝保存/解密，不回退明文或应用主密码 |
+| Envelope 与 rotation | 保存前异步加密并写入 V1 `electron-safe-storage` envelope；读取严格校验 version/provider/base64；Electron 返回 `shouldReEncrypt` 时按官方语义再次解密并使用当前 key 重加密旧记录 |
+| Renderer 边界 | 壳 preload 只开放 `credentials:list` 与 `credentials:delete`；返回字段固定为 `credentialId/siteId/username/masked/时间`，密码、密文和 `getForAutofill` 结果不进入普通壳 IPC |
+| 错误模型 | `CredentialVaultError.code` 提供 `invalid-input/encryption-unavailable/encryption-failed/decryption-failed/invalid-envelope/rotation-failed/storage-failed`，错误消息不携带密码、密文、Cookie、URL 或数据库路径 |
+| 自动验证 | 定向 Vitest `3 files / 12 tests` 通过（Vault 安全逻辑、IPC 脱敏、IPC 合约）；TypeScript、敏感文件、architecture、docs、定向 ESLint 和 `git diff --check` 通过 |
+| 视觉影响 | 未修改 TSX、CSS、主题、颜色、字体、按钮、布局或动画；前端视觉冻结保持不变 |
+| 文档同步 | `electron/credentials/README.md`、`electron/ipc/README.md`、`electron/db/README.md`、凭据 repository README、`DATABASE_SCHEMA.md`、`SYSTEM_ARCHITECTURE.md`、`docs/README.md` 与安全边界同步 |
+| 暂缓验证 | 按批量策略暂不运行生产构建、NSIS、真实 Electron safeStorage、登录页自动填充和 packaged 双实例 smoke；待 B4/B6 后续大块统一执行 |
+| 后续工作 | 进入 B4.3：收敛站点登录配置并实现只填充不提交的 OJ 隔离 preload 通道；`getForAutofill` 是唯一主进程明文出口 |
 | 完成时间 | 北京时间 `2026-08-19` |

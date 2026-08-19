@@ -75,6 +75,7 @@
 | windows | [electron/windows/README](../algo-electron/electron/windows/README.md) |
 | context menus | [electron/contextMenus/README](../algo-electron/electron/contextMenus/README.md) |
 | cookies | [electron/cookies/README](../algo-electron/electron/cookies/README.md) |
+| credentials | [electron/credentials/README](../algo-electron/electron/credentials/README.md) |
 | downloads | [electron/downloads/README](../algo-electron/electron/downloads/README.md) |
 | db | [electron/db/README](../algo-electron/electron/db/README.md) |
 | db migrations | [electron/db/migrations/README](../algo-electron/electron/db/migrations/README.md) |

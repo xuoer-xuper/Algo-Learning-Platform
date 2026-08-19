@@ -10,7 +10,7 @@
 - `serialization.ts`：严格校验/序列化 V1 envelope，拒绝无版本、错误 provider、非法 base64 和额外字段。
 - `queries.ts`：按 ID、站点/用户名读取，以及只返回脱敏摘要的列表查询。
 - `mutations.ts`：同站点同用户名 upsert、软删除清密文、最近使用时间更新。
-- `../credentialRepository.ts`：兼容导出口，供后续 Vault 使用。
+- `../credentialRepository.ts`：兼容导出口，供 `CredentialVault` 使用。
 
 关键入口：`upsertCredential`、`getCredentialById`、`getCredentialBySiteAndUsername`、`listCredentials`、`softDeleteCredential`、`markCredentialUsed`。
 
@@ -19,7 +19,7 @@
 - `site_credentials.sync_excluded` 固定为 `1`，不进入同步或普通 JSON 导出。
 - 活动行必须有 V1 envelope；软删除行清空 `secret_envelope` 并保留 tombstone。
 - `UNIQUE(site_id, username)` 冲突时 revive 原行，保留 `id` 和 `created_at`。
-- renderer 只能看到 `credentialId`、站点和用户名摘要；B4.2 才接入受限 autofill 明文通道。
+- renderer 只能看到 `credentialId`、站点和用户名摘要；B4.2 的 `getForAutofill` 仍只在主进程内部可用，受限 OJ 明文通道由 B4.3 接入。
 - migration/schema 变化必须同步 `docs/DESIGN/DATABASE_SCHEMA.md` 与导出边界文档。
 
 ## 4. 验证入口

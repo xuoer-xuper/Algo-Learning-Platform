@@ -90,6 +90,16 @@ interface CookieSafeSiteSummary {
   domains: CookieSafeDomainSummary[]
 }
 
+interface CredentialSummary {
+  credentialId: string
+  siteId: string
+  username: string
+  masked: string
+  lastUsedAt: string | null
+  createdAt: string
+  updatedAt: string
+}
+
 interface OverviewStats {
   totalProblems: number
   todayVisited: number
@@ -812,6 +822,8 @@ interface ElectronAPI {
   getRealtimeSubmissionStatus: () => Promise<RealtimeSubmissionStatus | null>
   getCookieSummaryForSite: (siteId: string) => Promise<CookieSafeSiteSummary>
   getCookieSummaryForDomain: (siteId: string, domain: string) => Promise<CookieSafeDomainSummary>
+  listCredentials: (siteId?: string) => Promise<CredentialSummary[]>
+  deleteCredential: (credentialId: string) => Promise<boolean>
   getOverviewStats: () => Promise<OverviewStats>
   getDailyActiveStats: (days?: number) => Promise<DailyActiveStats[]>
   getVisitedTrend: (days?: number) => Promise<TrendPoint[]>

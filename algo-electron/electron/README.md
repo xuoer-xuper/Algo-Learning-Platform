@@ -29,6 +29,7 @@ Renderer 不能直接访问本目录能力，只能通过 `preload.ts` 暴露的
 | `submissions/` | 实时提交 watcher、批量写入、题目关联、手动同步和页面 scraper。 |
 | `tracking/` | 题目访问、停留时长、activity events 和 daily stats 触发。 |
 | `cookies/` | CookieVault 和持久登录态读取边界。 |
+| `credentials/` | CredentialVault、安全存储和凭据脱敏边界。 |
 | `notes/` | Markdown 笔记、图片附件、`note-asset://` 协议和 DB 缓存。 |
 | `scripts/` | 用户脚本 metadata、匹配、注入和脚本服务。 |
 | `ai/` | 本地 AI 上下文、复习建议、薄弱标签和周期总结。 |

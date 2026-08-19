@@ -17,7 +17,7 @@
 - 迁移失败会关闭连接、恢复迁移前备份、写 failure marker；同一 pending migration 下次启动不会自动重试。
 - 启动完成会把未正常结束的 `problem_visits` 按 `entered_at` 安全封闭，并标记 `startup_recovery`。
 - Repository 覆盖：账号/rating、AI 上下文快照、AI 输出、Cookie 元数据、题目、站点配置、统计、提交、带稳定身份和运行时地基的用户脚本。
-- `site_credentials` 已建立版本化 envelope 数据地基；凭据解密、自动填充和登录捕获仍由 B4.2-B4.5 在 B6.3 安全前置完成后接入。
+- `site_credentials` 已建立版本化 envelope 数据地基；B4.2 `CredentialVault` 已接入异步 safeStorage、脱敏摘要和主进程 autofill 解密边界，自动填充/登录捕获 UI 与 OJ 通道仍由 B4.3-B4.5 接入。
 
 数据库结构的权威契约仍是`docs/DESIGN/DATABASE_SCHEMA.md`。
 
