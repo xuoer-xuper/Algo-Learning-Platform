@@ -8,6 +8,7 @@
 
 - SQLite 备份：设置页可选择目录生成时间戳 `.sqlite` 备份，供本机恢复使用。
 - JSON 导出：导出题目、访问、提交、每日统计、平台账号和 rating 历史，格式版本为 `schema_version: 1`。
+- 导出 metadata 同时提供 `excluded_tables`、`excluded_fields` 和完整备份提示；排除表清单按当前 SQLite `sqlite_master` 动态闭合，避免新增敏感表后文档失真。
 - JSON 导入：导入前预览新增、重复和冲突；默认遇到冲突不写库，只有用户明确选择覆盖才更新冲突字段。
 - 同步兼容字段：核心历史表保留 nullable `deleted_at`，少数早期表补 `updated_at` 并以 `created_at` 回填，用于导入覆盖和数据恢复时表达状态。
 - `sync_queue` 表已经存在，但当前 v1.0 不自动写入、上传或连接远端服务。
@@ -23,12 +24,13 @@
 - `platform_accounts`
 - `rating_history`
 
-禁止进入普通 JSON 导出的数据：
+禁止进入普通 JSON 导出的表和字段：
 
-- `cookie_records`、完整 Cookie value、session、csrf token 和可复用登录态。
-- `sync_queue` 自身。
-- `raw_json`、完整请求体、普通日志和本机绝对路径。
+- `activity_events`、`study_sessions`、`contest_results`、`site_configs`、`user_scripts`、`notes`、`ai_context_snapshots`、`ai_outputs`、`cookie_records`、`sync_queue`、`coach_events`、`coach_interventions`、`coach_feedback`、`site_credentials` 和内部 `schema_migrations`。
+- 完整 Cookie value、session、csrf token、可复用登录态、`submissions.raw_json`、完整请求体、普通日志和本机绝对路径。
 - 本机数据库文件本体；`.sqlite` 备份只用于本机恢复，不作为普通学习数据交换格式。
+
+设置页的 JSON 导出入口明确提示：**完整备份请用数据库备份**。数据库备份可能包含本机敏感数据，只用于受保护的本机恢复，不应作为普通共享文件。
 
 ## 4. 冲突策略
 

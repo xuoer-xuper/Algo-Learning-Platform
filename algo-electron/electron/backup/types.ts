@@ -9,6 +9,9 @@ export interface LearningDataExport {
   exported_at: string
   metadata: {
     excluded: string[]
+    excluded_tables: string[]
+    excluded_fields: string[]
+    complete_backup_hint: string
   }
   tables: {
     problems: ExportRow[]

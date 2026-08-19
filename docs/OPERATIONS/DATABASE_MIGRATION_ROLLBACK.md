@@ -167,6 +167,8 @@ CREATE INDEX IF NOT EXISTS ...
 
 migration 025 在创建用户脚本身份唯一索引前保留全部存量行：每组活动同名脚本中最早记录保持 legacy canonical，其余活动记录改为 `local:<id>` 并关闭自动更新；已软删除记录不参与 canonical 排名。回滚到旧版本时应恢复迁移前 SQLite 备份，不要手工删除 local copy 或把 namespace 批量改回 `NULL`，否则会重新制造身份冲突。
 
+migration 026 创建 `site_credentials` 作为凭据数据地基。活动行必须保存 V1 safeStorage envelope，软删除同时清空 envelope；同站点同用户名再次保存由 repository revive 原 tombstone。回滚时优先恢复迁移前备份，不要手工删除 `schema_migrations` 或复制凭据表数据到普通 JSON 导出。
+
 ## 10. 验证命令
 
 基础验证：

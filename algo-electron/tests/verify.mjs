@@ -33,11 +33,14 @@ const coreVitestFiles = [
 
 const dbVitestFiles = [
   'tests/db/codeforcesSubmissionIdMigration.test.ts',
+  'tests/db/credentialExport.test.ts',
+  'tests/db/credentialRepository.test.ts',
   'tests/db/databaseInitialization.test.ts',
   'tests/db/migrateLogging.test.ts',
   'tests/db/omniboxSuggestions.test.ts',
   'tests/db/problemContextMigration.test.ts',
   'tests/db/sqliteMigrationBackup.test.ts',
+  'tests/db/siteCredentialMigration.test.ts',
   'tests/db/statsDate.test.ts',
   'tests/tracking/orphanProblemVisits.test.ts',
 ]

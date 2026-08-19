@@ -52,6 +52,8 @@ Algo Learning Platform 是本地优先桌面应用。安全与隐私边界重点
 - Nowcoder、VJudge 等高风险站点不能使用通用 DOM verdict observer 作为实时入库来源。
 - 数据库 schema 变化必须有 migration，并同步 `docs/DESIGN/DATABASE_SCHEMA.md` 和 `docs/OPERATIONS/DATABASE_MIGRATION_ROLLBACK.md`。
 - Cookie、用户源码、完整请求体和可复用登录态不得进入日志、文档、测试 fixture、截图或 CI artifact。
+- 站点凭据只允许主进程保存版本化 `electron-safe-storage` envelope；活动行必须 `sync_excluded=1`，软删除清空密文；renderer 不接收 envelope 或密码明文。
+- 普通 JSON 学习数据导出排除 `site_credentials`；需要完整本机恢复时使用数据库备份，并按敏感数据处理。
 - 打包产物不得包含 `tests/`、`tmp/`、`release/`、`.env`、本地数据库或 Cookie。
 
 ## 6. 验证入口

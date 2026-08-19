@@ -19,6 +19,12 @@ const EXPORT_TABLES = [
   'rating_history',
 ] as const
 
+const EXCLUDED_FIELDS = [
+  'submissions.raw_json',
+  'local absolute file paths',
+  'logs',
+] as const
+
 type ExportTableName = typeof EXPORT_TABLES[number]
 
 interface ExistingKeyRow {
@@ -28,6 +34,15 @@ interface ExistingKeyRow {
 
 export function exportLearningData(): LearningDataExport {
   const db = getDb()
+  const exportedTables = new Set<string>(EXPORT_TABLES)
+  const excludedTables = (db.prepare(`
+    SELECT name
+    FROM sqlite_master
+    WHERE type = 'table' AND name NOT LIKE 'sqlite_%'
+    ORDER BY name ASC
+  `).all() as Array<{ name: string }>)
+    .map(row => row.name)
+    .filter(name => !exportedTables.has(name))
 
   return {
     app: LEARNING_DATA_EXPORT_APP,
@@ -35,12 +50,12 @@ export function exportLearningData(): LearningDataExport {
     exported_at: nowBeijing(),
     metadata: {
       excluded: [
-        'cookie_records',
-        'sync_queue',
-        'raw_json',
-        'local absolute file paths',
-        'logs',
+        ...excludedTables,
+        ...EXCLUDED_FIELDS,
       ],
+      excluded_tables: excludedTables,
+      excluded_fields: [...EXCLUDED_FIELDS],
+      complete_backup_hint: '完整备份请用数据库备份；数据库备份含本机敏感数据，仅用于受保护的本机恢复。',
     },
     tables: {
       problems: sanitizeRows(db.prepare(`

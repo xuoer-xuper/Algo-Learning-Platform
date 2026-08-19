@@ -86,10 +86,10 @@ test('initializes asynchronously, clears stale markers, and records applied migr
   try {
     await initDbAtPathWithMigrationSafety(databasePath, {
       backupDir,
-      migrations: [{ version: 25, name: 'success', up: () => undefined }],
+      migrations: [{ version: 9001, name: 'success', up: () => undefined }],
       logger: new MemoryLogger(),
     })
-    assert.deepStrictEqual(fakeDatabaseState.appliedVersions, [25])
+    assert.deepStrictEqual(fakeDatabaseState.appliedVersions, [9001])
     assert.strictEqual(fs.existsSync(markerPath), false)
   } finally {
     closeDb()
@@ -107,7 +107,7 @@ test('restores failed migrations and blocks the same pending version', async () 
   fs.writeFileSync(databasePath, 'original')
 
   const migrations = [{
-    version: 25,
+    version: 9001,
     name: 'failure',
     up: () => {
       fs.writeFileSync(databasePath, 'mutated')

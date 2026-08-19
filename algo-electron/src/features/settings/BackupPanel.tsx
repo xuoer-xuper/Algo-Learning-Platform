@@ -73,7 +73,7 @@ export function BackupPanel() {
       <h3 className="settings-section-title">备份与导入导出</h3>
       <div className="settings-row">
         <Button onClick={handleBackup}>备份数据库</Button>
-        <Button onClick={handleExport}>导出 JSON</Button>
+        <Button onClick={handleExport}>导出学习数据 JSON</Button>
         <Button onClick={handlePreviewImport}>导入 JSON</Button>
       </div>
 
@@ -100,7 +100,7 @@ export function BackupPanel() {
       )}
 
       {status && <div className="sync-status">{status}</div>}
-      <div className="sync-hint">JSON 导出不包含登录态、原始调试载荷、日志或本机路径；数据库备份仅用于本机恢复。</div>
+      <div className="sync-hint">JSON 导出仅包含学习数据，不包含登录态、原始调试载荷、日志或本机路径；完整备份请用数据库备份，数据库备份含本机敏感数据，仅用于受保护的本机恢复。</div>
     </div>
   )
 }

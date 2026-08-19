@@ -8,7 +8,7 @@
 
 ## 2. 当前实现程度
 
-当前 migration 版本为 `001` 到 `021`：
+当前 migration 版本为 `001` 到 `026`：
 
 - `001_initial.ts`：初始问题、访问、事件等基础结构。
 - `002_submissions.ts`：提交记录相关结构。
@@ -25,6 +25,9 @@
 - `019_cookie_records.ts`：CookieVault 本地元数据表，仅保存 Cookie 名称、domain、过期时间和安全标记，不保存明文值。
 - `020_sync_queue.ts`：未来同步队列表；当前只本地预留，不自动上传。
 - `021_sync_metadata_fields.ts`：为核心表补 `updated_at`/`deleted_at` 等同步兼容字段。
+- `022_coach_events.ts`、`023_coach_interventions.ts`、`024_coach_feedback.ts`：Coach 事件、干预和反馈表。
+- `025_userscript_identity.ts`：用户脚本稳定身份和活动唯一索引。
+- `026_site_credentials.ts`：站点凭据版本化 envelope、软删除、同步排除和访问索引。
 
 ## 3. 编写规则
 

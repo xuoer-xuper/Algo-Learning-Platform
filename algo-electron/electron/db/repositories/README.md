@@ -28,6 +28,8 @@
 - `aiOutput/`：AI 输出类型、元信息序列化、查询、保存、更新和删除。
 - `cookieRecordRepository.ts`：Cookie 元数据 repository 兼容导出口；实际实现位于 `cookieRecord/`。
 - `cookieRecord/`：Cookie 元数据类型、幂等保存、按站点/domain 查询和安全摘要。
+- `credentialRepository.ts`：站点凭据 repository 兼容导出口；实际实现位于 `credential/`。
+- `credential/`：版本化 envelope 校验、脱敏查询、upsert、软删除和最近使用时间。
 
 ## 3. 函数边界
 
@@ -42,6 +44,7 @@
 - AI 输出 repository 只保存独立输出和追溯元信息，不反写题目、提交、笔记等核心事实表。
 - AI context snapshot repository 只保存 `exportAIContext()` 的脱敏上下文快照；阶段总结聚合逻辑留在 `electron/ai/summary/`。
 - Cookie record repository 只保存元数据和安全摘要，不保存 Cookie value，且 `sync_excluded` 必须保持为 `1`。
+- Credential repository 只接收版本化 `electron-safe-storage` envelope；活动行必须有密文 envelope，软删除清空 envelope，且 `sync_excluded` 必须保持为 `1`。
 
 ## 4. 边界规则
 

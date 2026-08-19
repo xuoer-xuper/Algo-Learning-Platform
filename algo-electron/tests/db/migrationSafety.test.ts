@@ -44,12 +44,12 @@ test('backs up before migrations, restores on failure, and blocks the same retry
     let failingMigrationRuns = 0
     const migrations: Migration[] = [
       {
-        version: 25,
+        version: 9001,
         name: 'committed_before_failure',
         up: database => database.exec('CREATE TABLE must_be_restored_away (id INTEGER PRIMARY KEY)'),
       },
       {
-        version: 26,
+        version: 9002,
         name: 'intentional_failure',
         up: () => {
           failingMigrationRuns += 1
@@ -99,7 +99,7 @@ test('keeps only three pre-migration backups', async () => {
     initDbAtPath(dbPath)
     closeDb()
 
-    for (let version = 25; version <= 28; version += 1) {
+    for (let version = 9100; version <= 9103; version += 1) {
       await initDbAtPathWithMigrationSafety(dbPath, {
         backupDir,
         migrations: [{
@@ -108,7 +108,7 @@ test('keeps only three pre-migration backups', async () => {
           up: database => database.exec(`CREATE TABLE retention_${version} (id INTEGER PRIMARY KEY)`),
         }],
         logger: new MemoryLogger(),
-        now: () => new Date(`2026-08-18T00:00:0${version - 25}.000Z`),
+        now: () => new Date(`2026-08-18T00:00:0${version - 9100}.000Z`),
       })
       closeDb()
     }

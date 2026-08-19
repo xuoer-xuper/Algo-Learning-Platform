@@ -245,7 +245,7 @@ Renderer（同一构建产物，多窗口实例化——桌宠 hash 路由已证
 
 ### B4 账户与密码管理（预计 14-18 小时）
 
-> 安全前置：B0 的 app 协议/CSP/IPC sender 校验必须完成；B6.3 的最小主进程网络代理与全局 CORS 清除必须先落地，之后才允许启用登录捕获与凭据保存。
+> 安全前置：B0 的 app 协议/CSP/IPC sender 校验必须完成；B6.3 的最小主进程网络代理与全局 CORS 清除必须先落地，之后才允许启用登录捕获与凭据保存。由于迁移版本固定为 B4.1=026、B6.1=027，B4.1 仅作为不启用凭据能力的数据地基前置落地；B4.2-B4.6 仍严格等待 B6.1-B6.4，尤其 B6.3。
 
 | 任务 | 内容 | 涉及 |
 |---|---|---|
@@ -293,7 +293,7 @@ Renderer（同一构建产物，多窗口实例化——桌宠 hash 路由已证
 
 ### 预计总量
 
-查缺补漏后的净协作编码时长约 **115-165 小时**；按每天 4-6 小时协作节奏约 **5-8 周**。每个任务开工时仍需给出单项预计用时。强制顺序为：B0 安全/数据地基 → B1 补齐与 B2 标签壳 → B3 多窗口 → B6.1-B6.4 网络与早注入边界 → B4 凭据 → B6 剩余兼容与 B5 收尾。B4.5 不得先于 B6.3 的全局 CORS 清除上线。
+查缺补漏后的净协作编码时长约 **115-165 小时**；按每天 4-6 小时协作节奏约 **5-8 周**。每个任务开工时仍需给出单项预计用时。强制顺序为：B0 安全/数据地基 → B1 补齐与 B2 标签壳 → B3 多窗口 → B6.1-B6.4 网络与早注入边界 → B4 凭据 → B6 剩余兼容与 B5 收尾。唯一顺序例外是先落 B4.1 的 migration 026 数据地基，以保持迁移版本 026→027 单调递增；B4.2-B4.6 不得提前启用。B4.5 不得先于 B6.3 的全局 CORS 清除上线。
 
 ---
 
@@ -463,7 +463,8 @@ Renderer（同一构建产物，多窗口实例化——桌宠 hash 路由已证
 | B3.3 | [x] | 完整壳标签过户、拖出/右键/双击拆分、拖回合并与过户回滚已完成；B3.4-B3.5 继续处理服务广播、窗口生命周期与多窗口快照 |
 | B3.4 | [x] | `problems:updated` 全壳广播、SyncService sender 宿主、任一壳 focus 判定与比赛横幅已完成；完整记录见 §11.34 |
 | B3.5 | [x] | 浏览器化关窗、桌宠/second-instance 最近窗口语义、应用级原子快照与全窗口恢复已完成；B3 全量测试、生产构建、离线 NSIS、真实 Electron 拆分 smoke 与 packaged 双实例 smoke 全部通过，完整记录见 §11.35-§11.36 |
-| B4.1-B4.6 | [ ] | 026_site_credentials、Vault、自动填充、账户页、登录捕获、fuses 均待实施 |
+| B4.1 | [x] | `026_site_credentials`、版本化 envelope repository、软删/revive、导出排除闭合与备份提示已完成；仅数据地基，不启用凭据保存能力，完整记录见 §11.37 |
+| B4.2-B4.6 | [ ] | Vault、自动填充、账户页、登录捕获、fuses 均待实施；须等待 B6.1-B6.4 |
 | B5.1-B5.6 | [ ] | 仅按视觉冻结约束做结构收尾、暗色、无障碍、桌宠策略和 Latex |
 | B6.1-B6.7 | [ ] | 027_userscript_runtime、GM 桥、网络代理、早注入、资源、安装更新与管理页均待实施 |
 
@@ -973,4 +974,21 @@ Renderer（同一构建产物，多窗口实例化——桌宠 hash 路由已证
 | 回归修正 | 首轮 `test:all` 发现 `realtimeTabActivation.test.ts` 仍断言旧的活动标签 DOM-ready 调用；运行时已在 B3.2 改为精确 `BrowserPageEvent` owner 路由并保留兼容通知，因此将静态断言和测试索引更新为多窗口/多标签 owner 契约；定向复核确认不是行为回归，最终全量通过 |
 | 视觉影响 | 统一验收与测试修正未修改任何 CSS、颜色、字体、按钮、布局或动画；前端视觉冻结继续生效 |
 | 剩余工作 | B3 无已知缺口；进入 B4.1，继续按子块提交、B4 整块统一生产与 packaged 验收策略执行 |
+| 完成时间 | 北京时间 `2026-08-19` |
+
+### 11.37 B4.1 站点凭据数据地基完成记录
+
+| 字段 | 填写内容 |
+|---|---|
+| 任务 | migration `026_site_credentials`、版本化 secret envelope、凭据 repository、普通导出排除边界与失败恢复不变量 |
+| 状态 | `[x] 已完成；仅建立主进程数据地基，未启用凭据保存、自动填充或登录捕获` |
+| Commit | `data: 完成 B4.1 站点凭据数据地基`（代码、测试、文档与完成标记同提交） |
+| 迁移 | `site_credentials` 包含 `id/site_id/username/secret_envelope/last_used_at/sync_excluded/created_at/updated_at/deleted_at`；`UNIQUE(site_id, username)`、站点外键级联、活动/软删 envelope CHECK 和站点/最近使用索引均已落地；连接迁移版本由 025 升至 026 |
+| Envelope | repository 只接受 `{version:1, provider:"electron-safe-storage", ciphertextBase64:string}`；拒绝明文、非法 base64、未知 provider、缺版本和额外字段；活动行必须有 envelope，软删清空密文并保留 tombstone |
+| Repository | `upsertCredential` 同身份冲突时 revive 原行并保留 ID；`listCredentials` 只返回脱敏摘要；`getCredentialById` 仅供主进程后续 Vault；`softDeleteCredential` 清密文；`markCredentialUsed` 单独更新最近使用时间；兼容导出口与 README 已同步 |
+| 导出边界 | 普通学习 JSON 动态列出 `sqlite_master` 中全部未导出表，明确排除 `site_credentials`、用户脚本、Cookie、队列、Coach/AI/笔记/站点等非学习表，并列出 `submissions.raw_json`、日志、本机路径等字段；设置页提示“完整备份请用数据库备份” |
+| 测试 | 定向 Vitest `3 files / 4 tests` 通过；`npm run test:db` 通过：Vitest `11 files / 19 tests`、备份导入、迁移失败恢复、三份轮换、repository 与日统计 benchmark 全绿；额外覆盖密文不变量、导出清单闭合、软删/revive、UNIQUE/CHECK/FK 和 026 后续迁移失败恢复 |
+| 文档 | `DATABASE_SCHEMA.md`、`DATA_EXPORT_AND_IMPORT.md`、`SECURITY.md`、数据库迁移/DB/repository README 与本计划同步；未修改 CSS、颜色、字体、按钮、布局或动画 |
+| 顺序说明 | 因计划固定 B4.1=026、B6.1=027，先落 B4.1 是保持 migration 单调递增的唯一前置例外；B4.2-B4.6 仍严格等待 B6.1-B6.4，尤其 B6.3 的主进程代理与全局 CORS 清除 |
+| 后续工作 | 进入 B6.1；完成 B6.1-B6.4 后再实施 B4.2 Vault、自动填充、账户页、登录捕获和 fuses |
 | 完成时间 | 北京时间 `2026-08-19` |

@@ -12,11 +12,12 @@
 - 数据库位置：`app.getPath('userData')/data/algo-learning.sqlite`。
 - 连接配置：启用 WAL、foreign keys、`busy_timeout = 5000`。
 - 迁移系统：`schema_migrations` 表记录已执行版本；迁移在事务内执行。
-- 当前迁移版本：001 到 025。
+- 当前迁移版本：001 到 026。
 - 应用启动使用异步初始化：检测到 pending migration 时先用 SQLite backup API 写入 `userData/backups`，只保留最近 3 份。
 - 迁移失败会关闭连接、恢复迁移前备份、写 failure marker；同一 pending migration 下次启动不会自动重试。
 - 启动完成会把未正常结束的 `problem_visits` 按 `entered_at` 安全封闭，并标记 `startup_recovery`。
 - Repository 覆盖：账号/rating、AI 上下文快照、AI 输出、Cookie 元数据、题目、站点配置、统计、提交、带稳定身份的用户脚本。
+- `site_credentials` 已建立版本化 envelope 数据地基；凭据解密、自动填充和登录捕获仍由 B4.2-B4.5 在 B6.3 安全前置完成后接入。
 
 数据库结构的权威契约仍是`docs/DESIGN/DATABASE_SCHEMA.md`。
 
@@ -30,6 +31,7 @@
 - `repositories/aiOutput/`：AI 输出保存、读取、列表、更新、删除和元信息序列化实现。
 - `repositories/account/`：平台账号、当前 rating、peak rating 和 rating history 实现。
 - `repositories/cookieRecord/`：Cookie 元数据保存、查询和安全摘要实现。
+- `repositories/credential/`：站点凭据版本化 envelope、脱敏列表、upsert、软删除和最近使用时间实现。
 - `repositories/problem/`：题目 upsert、删除、详情、列表和概览统计实现。
 - `repositories/submission/`：提交去重写入、按题目/平台查询和首次 AC 更新实现。
 - `repositories/site/`：站点配置 CRUD、内置 seed、导入导出和导入预览实现。
@@ -123,6 +125,9 @@ Migration 文件约定：
 - `cookieRecordRepository.ts`
   - 兼容导出口；内部实现位于 `repositories/cookieRecord/`。
   - Cookie 元数据保存、按站点/domain 查询和安全摘要。
+- `credentialRepository.ts`
+  - 兼容导出口；内部实现位于 `repositories/credential/`。
+  - 版本化 envelope 校验、站点/用户名 upsert、脱敏列表、软删除和最近使用时间。
 
 ## 7. 写入规则
 

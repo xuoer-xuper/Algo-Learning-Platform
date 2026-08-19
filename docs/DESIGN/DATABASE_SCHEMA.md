@@ -500,6 +500,34 @@ CREATE UNIQUE INDEX user_scripts_active_legacy_identity_unique ON user_scripts(i
 
 存量活动同名脚本按 `created_at ASC, id ASC` 选择首条作为 legacy canonical；其余活动记录不删除，转为 `local:<id>` namespace 并关闭自动更新。legacy canonical 首次确认更新时原子认领为脚本声明的 namespace；无 `@namespace` 时认领为空字符串。
 
+### 8.4 site_credentials
+
+站点登录凭据的主进程数据地基。B4.1 只建立 schema 和 repository 边界；safeStorage 解密、自动填充和登录捕获必须等待 B6.3 的主进程网络代理与全局 CORS 清除完成。
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| id | TEXT PRIMARY KEY | 凭据 ID |
+| site_id | TEXT NOT NULL | 关联 `site_configs.id`；站点删除时级联清理 |
+| username | TEXT NOT NULL | 登录用户名或账号标识，不是密码 |
+| secret_envelope | TEXT | V1 `electron-safe-storage` 版本化 JSON；活动行必有，软删除行清空 |
+| last_used_at | TEXT | 最近一次填充/使用时间 |
+| sync_excluded | INTEGER NOT NULL DEFAULT 1 | 固定为 `1`，不进入同步和普通 JSON 导出 |
+| created_at | TEXT NOT NULL | 北京时间时间戳 |
+| updated_at | TEXT NOT NULL | 北京时间时间戳 |
+| deleted_at | TEXT | 软删除时间；软删除同时清空 envelope |
+
+约束和索引：
+
+```sql
+UNIQUE(site_id, username)
+FOREIGN KEY(site_id) REFERENCES site_configs(id) ON DELETE CASCADE
+CHECK (sync_excluded = 1)
+INDEX site_credentials_active_site_idx(site_id, deleted_at)
+INDEX site_credentials_last_used_idx(last_used_at DESC)
+```
+
+`secret_envelope` 的 V1 形状固定为 `{version:1, provider:"electron-safe-storage", ciphertextBase64:string}`。repository 拒绝明文、无版本、未知 provider、非法 base64 和额外字段；同站点同用户名再次保存会 revive 原 tombstone 并保留原 `id`。
+
 ## 9. Verdict 枚举
 
 统一 verdict 建议：
@@ -535,6 +563,7 @@ CREATE UNIQUE INDEX user_scripts_active_legacy_identity_unique ON user_scripts(i
 - 时间字段使用文本时间字符串，业务日期使用本地日期键；统计聚合必须可从原始事件重算。
 - 主键 ID 使用代码侧生成的字符串 ID，repository 负责去重和 upsert 边界。
 - Cookie 明文不进入普通导出、日志或测试快照；Cookie 策略以 Electron session 和 CookieVault 边界为准。
+- 站点凭据只允许版本化 safeStorage envelope 进入 `site_credentials`；凭据表固定 `sync_excluded=1`，不得进入普通 JSON 导出、同步队列、日志或 renderer payload。
 - 题目 tags 当前按 JSON 文本存储；如未来要拆独立 `problem_tags` 表，必须新增 migration、同步本文档并提供回滚说明。
 - 所有 schema 变更必须追加 migration，不允许改写已发布 migration。
 

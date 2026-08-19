@@ -83,6 +83,7 @@
 | db ai output | [electron/db/repositories/aiOutput/README](../algo-electron/electron/db/repositories/aiOutput/README.md) |
 | db account | [electron/db/repositories/account/README](../algo-electron/electron/db/repositories/account/README.md) |
 | db cookie record | [electron/db/repositories/cookieRecord/README](../algo-electron/electron/db/repositories/cookieRecord/README.md) |
+| db credential | [electron/db/repositories/credential/README](../algo-electron/electron/db/repositories/credential/README.md) |
 | db problem | [electron/db/repositories/problem/README](../algo-electron/electron/db/repositories/problem/README.md) |
 | db submission | [electron/db/repositories/submission/README](../algo-electron/electron/db/repositories/submission/README.md) |
 | db site | [electron/db/repositories/site/README](../algo-electron/electron/db/repositories/site/README.md) |
