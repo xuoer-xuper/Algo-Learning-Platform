@@ -175,6 +175,9 @@ INDEX study_sessions_ended_at(ended_at)
 | enabled | INTEGER NOT NULL | 是否启用 |
 | problem_url_patterns_json | TEXT | 题目 URL 规则 |
 | submit_url_patterns_json | TEXT | 提交 URL 规则 |
+| login_url_patterns_json | TEXT | 登录页 URL glob 规则，供自动填充目标校验 |
+| login_username_selectors_json | TEXT | 登录用户名字段 CSS 选择器列表 |
+| login_password_selectors_json | TEXT | 登录密码字段 CSS 选择器列表 |
 | cookie_policy | TEXT | Cookie 策略 |
 | adapter | TEXT | 专用 adapter 名称 |
 | is_builtin | INTEGER NOT NULL | 是否内置 |
@@ -569,7 +572,7 @@ GM 值的主进程持久化地基。值按 JSON 保存，站点页面不能直�
 
 ### 8.8 site_credentials
 
-站点登录凭据的主进程数据边界。B4.1 建立 schema/repository，B4.2 `CredentialVault` 已接入异步 safeStorage 加密、envelope 校验和旧 key rotation；自动填充和登录捕获仍必须等待对应 B4.3-B4.5 任务完成。
+站点登录凭据的主进程数据边界。B4.1 建立 schema/repository，B4.2 `CredentialVault` 已接入异步 safeStorage 加密、envelope 校验和旧 key rotation；B4.3 自动填充已通过 `persist:oj-main` 的隔离 preload 通道接入，登录捕获和账户管理仍属于 B4.4-B4.5。
 
 | 字段 | 类型 | 说明 |
 |---|---|---|

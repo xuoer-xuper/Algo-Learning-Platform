@@ -119,16 +119,7 @@ algo-electron/electron/
       luogu/
       leetcode/
   sites/
-    siteRegistry.ts
-    types.ts
-    builtins/
-      codeforces.ts
-      acwing.ts
-      nowcoder.ts
-      vjudge.ts
-      pta.ts
-      luogu.ts
-      leetcode.ts
+    README.md
   parsers/
     types.ts
     registry.ts
@@ -146,6 +137,11 @@ algo-electron/electron/
   credentials/
     CredentialVault.ts
     credentialVaultCore.ts
+    autofill/
+      CredentialAutofillService.ts
+      autofillServiceCore.ts
+      autofillPolicy.ts
+      formFiller.ts
   tracking/
     TrackingService.ts
   submissions/

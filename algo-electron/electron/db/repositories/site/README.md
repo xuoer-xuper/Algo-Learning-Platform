@@ -26,7 +26,7 @@
 - 内置站点 seed 只插入不存在的记录，不能覆盖用户启停状态。
 - 删除只允许非内置站点。
 - 导入预览必须跳过内置站点覆盖，并把自定义站点冲突交给用户确认。
-- `siteRepository.ts` 是 DB 边界；新增平台时仍需同步 `electron/sites/builtins/`、adapter、parser、renderer 展示映射和测试。
+- `siteRepository.ts` 是 DB 边界；新增平台时在 `repositories/site/builtins.ts` 补充 DB seed，并同步 adapter、parser、renderer 展示映射和测试。登录自动填充 pattern/selector 也必须随 seed 或站点配置一起进入 `site_configs`。
 - 不在导入导出数据中写 Cookie、源码、请求体或可复用登录态。
 
 ## 5. 验证入口

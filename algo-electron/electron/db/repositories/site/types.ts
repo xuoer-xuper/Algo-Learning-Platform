@@ -6,6 +6,9 @@ export interface SiteConfigData {
   enabled: boolean
   problemUrlPatterns?: string[]
   submitUrlPatterns?: string[]
+  loginUrlPatterns?: string[]
+  loginUsernameSelectors?: string[]
+  loginPasswordSelectors?: string[]
   cookiePolicy?: string
   adapter?: string
   isBuiltin: boolean
@@ -19,6 +22,9 @@ export interface SiteConfigRow {
   enabled: number
   problem_url_patterns_json: string | null
   submit_url_patterns_json: string | null
+  login_url_patterns_json: string | null
+  login_username_selectors_json: string | null
+  login_password_selectors_json: string | null
   cookie_policy: string | null
   adapter: string | null
   is_builtin: number
@@ -58,6 +64,9 @@ export function rowToSite(row: SiteConfigRow): SiteConfigData {
     enabled: row.enabled === 1,
     problemUrlPatterns: row.problem_url_patterns_json ? parseStringArray(row.problem_url_patterns_json) : undefined,
     submitUrlPatterns: row.submit_url_patterns_json ? parseStringArray(row.submit_url_patterns_json) : undefined,
+    loginUrlPatterns: row.login_url_patterns_json ? parseStringArray(row.login_url_patterns_json) : undefined,
+    loginUsernameSelectors: row.login_username_selectors_json ? parseStringArray(row.login_username_selectors_json) : undefined,
+    loginPasswordSelectors: row.login_password_selectors_json ? parseStringArray(row.login_password_selectors_json) : undefined,
     cookiePolicy: row.cookie_policy ?? undefined,
     adapter: row.adapter ?? undefined,
     isBuiltin: row.is_builtin === 1,
@@ -87,6 +96,9 @@ export function parseImportedSite(raw: unknown): SiteConfigData | null {
     enabled: site.enabled !== false,
     problemUrlPatterns: parseOptionalStringArray(site.problemUrlPatterns),
     submitUrlPatterns: parseOptionalStringArray(site.submitUrlPatterns),
+    loginUrlPatterns: parseOptionalStringArray(site.loginUrlPatterns),
+    loginUsernameSelectors: parseOptionalStringArray(site.loginUsernameSelectors),
+    loginPasswordSelectors: parseOptionalStringArray(site.loginPasswordSelectors),
     cookiePolicy: typeof site.cookiePolicy === 'string' ? site.cookiePolicy : undefined,
     adapter: typeof site.adapter === 'string' ? site.adapter : undefined,
     isBuiltin: false,

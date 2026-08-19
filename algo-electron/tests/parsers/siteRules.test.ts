@@ -5,6 +5,16 @@ import type { ProblemIdentity } from '../../electron/shared/types'
 
 type ExpectedIdentity = Pick<ProblemIdentity, 'platform' | 'platformProblemId'> & Partial<ProblemIdentity>
 
+setEnabledSitesFetcher(() => [
+  { id: 'codeforces', domains: ['codeforces.com', 'www.codeforces.com'], enabled: true },
+  { id: 'acwing', domains: ['acwing.com', 'www.acwing.com'], enabled: true },
+  { id: 'nowcoder', domains: ['nowcoder.com', 'www.nowcoder.com', 'ac.nowcoder.com'], enabled: true },
+  { id: 'vjudge', domains: ['vjudge.net', 'www.vjudge.net'], enabled: true },
+  { id: 'pta', domains: ['pintia.cn', 'www.pintia.cn'], enabled: true },
+  { id: 'luogu', domains: ['luogu.com.cn', 'www.luogu.com.cn'], enabled: true },
+  { id: 'leetcode-cn', domains: ['leetcode.cn', 'www.leetcode.cn'], enabled: true },
+])
+
 function assertProblemIdentity(url: string, expected: ExpectedIdentity): ProblemIdentity {
   const identity = parseUrl(url)
   assert.ok(identity, `Should parse problem URL: ${url}`)

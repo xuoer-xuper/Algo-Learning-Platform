@@ -6,6 +6,9 @@ export interface SiteConfigView {
   enabled: boolean
   problemUrlPatterns?: string[]
   submitUrlPatterns?: string[]
+  loginUrlPatterns?: string[]
+  loginUsernameSelectors?: string[]
+  loginPasswordSelectors?: string[]
   cookiePolicy?: string
   adapter?: string
   isBuiltin?: boolean
@@ -19,6 +22,9 @@ export interface ImportPreviewSite {
   enabled: boolean
   problemUrlPatterns?: string[]
   submitUrlPatterns?: string[]
+  loginUrlPatterns?: string[]
+  loginUsernameSelectors?: string[]
+  loginPasswordSelectors?: string[]
   cookiePolicy?: string
   adapter?: string
   isBuiltin: boolean

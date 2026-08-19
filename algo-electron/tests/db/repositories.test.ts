@@ -179,7 +179,7 @@ function seedCodeforcesSubmissions(problem: ProblemRow): void {
 test('runs migrations into a temporary database', () => {
   const db = getDbForTest()
   const migrations = db.prepare('SELECT COUNT(*) as count FROM schema_migrations').get() as { count: number }
-  assert.strictEqual(migrations.count, 27)
+  assert.strictEqual(migrations.count, 28)
 
   const tables = db.prepare(`
     SELECT name FROM sqlite_master

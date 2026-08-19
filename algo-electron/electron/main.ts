@@ -86,6 +86,8 @@ import { USER_SCRIPT_BOOTSTRAP_PRELOAD_PATH } from './scripts/userScriptRuntimeC
 import { UserScriptHostPermissionBroker } from './scripts/UserScriptHostPermissionBroker'
 import { UserScriptMenuRegistry } from './scripts/UserScriptMenuRegistry'
 import { UserScriptNetworkProxy } from './scripts/UserScriptNetworkProxy'
+import { CredentialVault } from './credentials/CredentialVault'
+import { CredentialAutofillService } from './credentials/autofill/CredentialAutofillService'
 
 configureChromiumCommandLine()
 
@@ -104,6 +106,7 @@ let applicationSessionPersistence: ApplicationSessionPersistence | null = null
 let removeApplicationRecencyListener: (() => void) | null = null
 let downloadManager: DownloadManager | null = null
 let userScriptInstallRegistry: PendingUserScriptInstallRegistry | null = null
+let credentialAutofillService: CredentialAutofillService | null = null
 let windowStateStore: WindowStateStore | null = null
 let isQuitting = false
 let isQuitSessionFlushComplete = false
@@ -112,6 +115,7 @@ let quitSessionFlushPromise: Promise<void> | null = null
 const viewRegistry = new ViewRegistry()
 const windowManager = new WindowManager({ viewRegistry })
 const windowCreationGate = new WindowCreationGate<AppWindow>()
+const credentialVault = new CredentialVault()
 
 function getMostRecentAppWindow(): AppWindow | null {
   return windowManager.getMostRecent()
@@ -526,6 +530,7 @@ const tabTransferCoordinator = new TabTransferCoordinator({
 })
 
 registerMainIpc({
+  credentialVault,
   getSyncService: () => services?.syncService ?? null,
   getUserScriptRuntime: () => services?.userScriptRuntime ?? null,
   getCoachPetWindow: () => coachPetWindow,
@@ -575,6 +580,12 @@ app.on('before-quit', (event) => {
         })
     }
     return
+  }
+  try {
+    credentialAutofillService?.dispose()
+    credentialAutofillService = null
+  } catch (error) {
+    appLogger.warn('credentials.autofill-dispose-failed', error)
   }
   try {
     userScriptRuntimeBridge?.dispose()
@@ -651,6 +662,11 @@ void app.whenReady().then(async () => {
     owner.send('download:result', result)
   })
   const ojSession = configureOjSession({ getSiteById })
+  credentialAutofillService = new CredentialAutofillService(
+    { ojSession },
+    { vault: credentialVault },
+  )
+  credentialAutofillService.attach()
 
   registerNoteAssetProtocol()
   services = await initializeMainServices(() => { windowManager.sendToAll('problems:updated') })

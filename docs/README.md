@@ -76,6 +76,7 @@
 | context menus | [electron/contextMenus/README](../algo-electron/electron/contextMenus/README.md) |
 | cookies | [electron/cookies/README](../algo-electron/electron/cookies/README.md) |
 | credentials | [electron/credentials/README](../algo-electron/electron/credentials/README.md) |
+| credentials autofill | [electron/credentials/autofill/README](../algo-electron/electron/credentials/autofill/README.md) |
 | downloads | [electron/downloads/README](../algo-electron/electron/downloads/README.md) |
 | db | [electron/db/README](../algo-electron/electron/db/README.md) |
 | db migrations | [electron/db/migrations/README](../algo-electron/electron/db/migrations/README.md) |
@@ -99,7 +100,7 @@
 | scripts | [electron/scripts/README](../algo-electron/electron/scripts/README.md) |
 | shared | [electron/shared/README](../algo-electron/electron/shared/README.md) |
 | sites | [electron/sites/README](../algo-electron/electron/sites/README.md) |
-| builtin sites | [electron/sites/builtins/README](../algo-electron/electron/sites/builtins/README.md) |
+| legacy builtin sites note | [electron/sites/builtins/README](../algo-electron/electron/sites/builtins/README.md) |
 | submissions | [electron/submissions/README](../algo-electron/electron/submissions/README.md) |
 | submission scrapers | [electron/submissions/scrapers/README](../algo-electron/electron/submissions/scrapers/README.md) |
 | submission syncers | [electron/submissions/syncers/README](../algo-electron/electron/submissions/syncers/README.md) |

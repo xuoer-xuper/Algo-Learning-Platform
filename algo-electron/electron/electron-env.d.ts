@@ -225,6 +225,9 @@ interface SiteConfigRecord {
   enabled: boolean
   problemUrlPatterns?: string[]
   submitUrlPatterns?: string[]
+  loginUrlPatterns?: string[]
+  loginUsernameSelectors?: string[]
+  loginPasswordSelectors?: string[]
   cookiePolicy?: string
   adapter?: string
   isBuiltin: boolean

@@ -1,9 +1,7 @@
-import { CookieVault } from '../cookies/CookieVault'
 import { initDb, getDb } from '../db/connection'
 import { getEnabledSites, seedBuiltinSites } from '../db/repositories/siteRepository'
 import { setEnabledSitesFetcher } from '../parsers/registry'
 import { UserScriptService } from '../scripts/UserScriptService'
-import { SiteRegistry } from '../sites/siteRegistry'
 import { RealtimeSubmissionService } from '../submissions/RealtimeSubmissionService'
 import { createDefaultSubmissionBatchWriter } from '../submissions/createDefaultSubmissionBatchWriter'
 import { SyncService } from '../submissions/syncService'
@@ -24,8 +22,6 @@ export async function initializeMainServices(notifyProblemsUpdated: () => void):
   await initDb()
   seedBuiltinSites()
   setEnabledSitesFetcher(getEnabledSites)
-  new SiteRegistry()
-  new CookieVault()
 
   const trackingService = new TrackingService()
   const syncService = new SyncService({

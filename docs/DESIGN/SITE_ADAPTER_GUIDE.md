@@ -230,7 +230,7 @@ ID 格式：`{pid}`（如 P1014、B2005）
 
 ### 6.1 后端层（electron/）
 
-1. **站点配置**：在 `electron/sites/builtins/` 创建 `{id}.ts`，导出 `SiteConfig` 对象，并在 `electron/sites/siteRegistry.ts` 注册。
+1. **站点配置**：在 `electron/db/repositories/site/builtins.ts` 增加 `{id}` 的 DB seed（域名、URL pattern、cookie policy、adapter；需要登录自动填充时同时补 login URL pattern 和表单选择器）。`site_configs` 是运行时唯一配置源。
 2. **URL 解析器**：在 `electron/parsers/sites/` 创建 `{id}.ts`，实现 `SiteAdapter` 接口（`match`, `parse`, `extractTitleScript`），并在 `electron/parsers/registry.ts` 注册。
 3. **提交抓取器**：在 `electron/submissions/scrapers/domScraper.ts` 的 `scrapeCurrentPage()` 添加域名判断分发，并实现 `scrape{Name}()` 函数。
 4. **同步服务关联**：在 `electron/submissions/syncService.ts` 中：
@@ -350,7 +350,7 @@ export const builtinSiteAdapters: SiteAdapter[] = [
 
 ### 7.4 配置站点关联
 
-如果该站点也需要出现在设置页或用户站点配置中，仍需在 `electron/sites/builtins/{id}.ts` 中补充 `SiteConfig`，并同步 Renderer 的平台显示常量。
+如果该站点也需要出现在设置页或用户站点配置中，在 `electron/db/repositories/site/builtins.ts` 补充 seed，并同步 Renderer 的平台显示常量。不要重新创建 `siteRegistry.ts` 或第二份内存 builtins 配置。
 
 ## 8. 提交抓取器编写规范
 

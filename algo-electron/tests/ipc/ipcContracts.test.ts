@@ -160,6 +160,7 @@ test('renderer cannot access arbitrary IPC channels through preload', () => {
   const rendererChannels = new Set(extractPreloadRendererChannels(preloadSource).map(channel => channel.channel))
   const internalChannels = [
     'oj-submission:detected',
+    'oj-credentials:fill',
   ]
   for (const channel of internalChannels) {
     assert.ok(!rendererChannels.has(channel), `${channel} must remain internal and unavailable to renderer code`)

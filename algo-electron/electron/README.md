@@ -45,7 +45,7 @@ Renderer 不能直接访问本目录能力，只能通过 `preload.ts` 暴露的
 - IPC 契约：`preload.ts`、`electron-env.d.ts`、`ipc/register*.ts`。
 - 数据写入：`db/repositories/*`、`submissions/SubmissionBatchWriter.ts`、`tracking/TrackingService.ts`。
 - 备份导入：`backup/backupService.ts`、`backup/learningDataExport.ts`。
-- 站点能力：`adapters/sites/{site}/`、`sites/builtins/`、`parsers/sites/`。
+- 站点能力：`db/repositories/site/builtins.ts`（DB 唯一 seed 源）、`adapters/sites/{site}/`、`parsers/sites/`。
 - 提交监测：`submissions/SubmissionWatcherCore.ts`、`adapters/shared/frontendVerdictHook.ts`、站点专用 `hook.ts`。
 - AI 本地分析：`ai/contextExporter.ts`、`ai/recommendations/`、`ai/summary/`。
 
@@ -56,6 +56,7 @@ Renderer 不能直接访问本目录能力，只能通过 `preload.ts` 暴露的
 - WebContentsView 多标签浏览器和独立窗口剥离。
 - 完整壳所有权层、sender 路由、三种拆分入口、跨窗口标签过户、窗口位置/最大化校正，以及 B3.5 应用级多窗口会话恢复。
 - 持久 OJ session 和 CookieVault 基础能力。
+- 站点登录自动填充：`credentials/autofill/`，仅通过 OJ 隔离 preload 填充且不自动提交。
 - SQLite migration、repository、统计聚合和本地数据写入。
 - 本地 SQLite 备份、非敏感学习数据 JSON 导出/导入和冲突预览。
 - 七站题目识别、提交同步和实时提交监测。

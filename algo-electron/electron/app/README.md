@@ -56,7 +56,7 @@
 `mainServices.ts`：
 
 - 初始化 SQLite、内置站点 seed 和 parser enabled-sites fetcher。
-- 创建 `SiteRegistry`、`CookieVault`、`TrackingService`、`SyncService`、`RealtimeSubmissionService` 和 `UserScriptService`。
+- 创建 `TrackingService`、`SyncService`、`RealtimeSubmissionService` 和 `UserScriptService`；站点配置统一从 DB repository 读取，凭据自动填充由 `CredentialAutofillService` 在主进程单独接入。
 - 为 Nowcoder 同步提供现有题目 ID 搜索回调。
 - 返回 `MainServices`，由 `main.ts` 负责保存并注入窗口、IPC 和 smoke cleanup。
 

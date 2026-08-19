@@ -41,6 +41,7 @@ const dbVitestFiles = [
   'tests/db/problemContextMigration.test.ts',
   'tests/db/sqliteMigrationBackup.test.ts',
   'tests/db/siteCredentialMigration.test.ts',
+  'tests/db/siteLoginAutofillMigration.test.ts',
   'tests/db/statsDate.test.ts',
   'tests/db/userScriptRuntimeMigration.test.ts',
   'tests/db/userScriptRuntimeRepository.test.ts',

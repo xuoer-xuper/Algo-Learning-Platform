@@ -28,8 +28,8 @@ export function createSite(data: Omit<SiteConfigData, 'isBuiltin'>): string {
   const id = data.id || crypto.randomUUID()
 
   db.prepare(`
-    INSERT INTO site_configs (id, name, domains_json, home_url, enabled, problem_url_patterns_json, submit_url_patterns_json, cookie_policy, adapter, is_builtin, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)
+    INSERT INTO site_configs (id, name, domains_json, home_url, enabled, problem_url_patterns_json, submit_url_patterns_json, login_url_patterns_json, login_username_selectors_json, login_password_selectors_json, cookie_policy, adapter, is_builtin, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)
   `).run(
     id,
     data.name,
@@ -38,6 +38,9 @@ export function createSite(data: Omit<SiteConfigData, 'isBuiltin'>): string {
     data.enabled ? 1 : 0,
     data.problemUrlPatterns ? JSON.stringify(data.problemUrlPatterns) : null,
     data.submitUrlPatterns ? JSON.stringify(data.submitUrlPatterns) : null,
+    data.loginUrlPatterns ? JSON.stringify(data.loginUrlPatterns) : null,
+    data.loginUsernameSelectors ? JSON.stringify(data.loginUsernameSelectors) : null,
+    data.loginPasswordSelectors ? JSON.stringify(data.loginPasswordSelectors) : null,
     data.cookiePolicy ?? null,
     data.adapter ?? null,
     now,
@@ -59,6 +62,7 @@ export function updateSite(id: string, data: Partial<SiteConfigData>): boolean {
     UPDATE site_configs SET
       name = ?, domains_json = ?, home_url = ?, enabled = ?,
       problem_url_patterns_json = ?, submit_url_patterns_json = ?,
+      login_url_patterns_json = ?, login_username_selectors_json = ?, login_password_selectors_json = ?,
       cookie_policy = ?, adapter = ?, updated_at = ?
     WHERE id = ?
   `).run(
@@ -68,6 +72,9 @@ export function updateSite(id: string, data: Partial<SiteConfigData>): boolean {
     merged.enabled ? 1 : 0,
     merged.problemUrlPatterns ? JSON.stringify(merged.problemUrlPatterns) : null,
     merged.submitUrlPatterns ? JSON.stringify(merged.submitUrlPatterns) : null,
+    merged.loginUrlPatterns ? JSON.stringify(merged.loginUrlPatterns) : null,
+    merged.loginUsernameSelectors ? JSON.stringify(merged.loginUsernameSelectors) : null,
+    merged.loginPasswordSelectors ? JSON.stringify(merged.loginPasswordSelectors) : null,
     merged.cookiePolicy ?? null,
     merged.adapter ?? null,
     now,
