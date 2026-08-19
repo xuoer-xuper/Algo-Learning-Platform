@@ -462,7 +462,7 @@ Renderer（同一构建产物，多窗口实例化——桌宠 hash 路由已证
 | B3.2 | [x] | per-webContents 页面事件、Tracking 多 visit、Contest 聚合、Coach 最近窗口防抖、实时提交/用户脚本精确 owner、deleteProblem 事务重算已完成；B3.3 已在此前置语义上开放拆分入口 |
 | B3.3 | [x] | 完整壳标签过户、拖出/右键/双击拆分、拖回合并与过户回滚已完成；B3.4-B3.5 继续处理服务广播、窗口生命周期与多窗口快照 |
 | B3.4 | [x] | `problems:updated` 全壳广播、SyncService sender 宿主、任一壳 focus 判定与比赛横幅已完成；完整记录见 §11.34 |
-| B3.5 | [x] | 浏览器化关窗、桌宠/second-instance 最近窗口语义、应用级原子快照与全窗口恢复已完成；定向、核心与真实 Electron smoke 已通过；B3 集中生产构建/NSIS/packaged 双实例验收按块完成后统一执行 |
+| B3.5 | [x] | 浏览器化关窗、桌宠/second-instance 最近窗口语义、应用级原子快照与全窗口恢复已完成；B3 全量测试、生产构建、离线 NSIS、真实 Electron 拆分 smoke 与 packaged 双实例 smoke 全部通过，完整记录见 §11.35-§11.36 |
 | B4.1-B4.6 | [ ] | 026_site_credentials、Vault、自动填充、账户页、登录捕获、fuses 均待实施 |
 | B5.1-B5.6 | [ ] | 仅按视觉冻结约束做结构收尾、暗色、无障碍、桌宠策略和 Latex |
 | B6.1-B6.7 | [ ] | 027_userscript_runtime、GM 桥、网络代理、早注入、资源、安装更新与管理页均待实施 |
@@ -953,6 +953,24 @@ Renderer（同一构建产物，多窗口实例化——桌宠 hash 路由已证
 | 关闭竞态 | 窗口 close 与 before-quit 共用应用级 flush/dispose；重复 close、窗口销毁、退出和最近窗口变化不会产生重复写入或已关闭窗口回写；`WindowSessionRegistry` 由应用级 persistence 取代 |
 | 测试 | 定向窗口/会话/桌宠/单实例矩阵 `12 files / 92 tests` 通过；`npm run test:core` 通过：Vitest `76 files / 734 tests`、TypeScript、全仓 ESLint、architecture `7/7`、security 全绿；`npm run test:docs`、`git diff --check` 通过；`npm run test:electron` 真实 Electron startup smoke 通过，覆盖拆分、源壳关闭、目标壳存活和 BrowserWindow 数量无泄漏 |
 | 视觉影响 | 未修改 CSS、颜色、字体、按钮形态、整体布局或动画基调；桌宠仅调整原生父子窗口关系，浏览器壳继续复用冻结的前端视觉 |
-| 暂缓验证 | 按批量策略，生产构建、NSIS 与 packaged 双实例 smoke 不在 B3.5 子提交中重复执行，待 B3 全部子块完成后统一验收 |
-| 后续工作 | B3.5 代码块已完成；进入 B3 统一生产构建、NSIS、真实 packaged 双实例 smoke 与全量验收 |
+| 统一验收 | B3.5 子提交后已按批量策略完成生产构建、离线 NSIS、packaged 双实例 smoke 与全量验收，结果和产物校验见 §11.36 |
+| 后续工作 | B3 无已知代码或验收缺口；下一步进入 B4.1 `026_site_credentials`、凭据 repository 与导出边界 |
+| 完成时间 | 北京时间 `2026-08-19` |
+
+### 11.36 B3 多窗口对等壳统一验收记录
+
+| 字段 | 填写内容 |
+|---|---|
+| 验收范围 | B3.1-B3.5：窗口所有权与 sender 路由、多源页面事件、完整壳标签过户、剩余服务多窗口化、任意壳关闭和应用级会话恢复 |
+| 状态 | `[x] B3 已完成；全量测试、生产构建、NSIS、真实 Electron 与 packaged smoke 全部通过` |
+| Commit | `test: 完成 B3 统一验收`（过期断言修正、验收记录与完成标记同提交） |
+| 全量验证 | `npm run test:all` 通过：Vitest `111 files / 797 tests`；覆盖率 statements `52.97%`、branches `51.16%`、functions `48.32%`、lines `55.14%`；DB、AI、架构、文档、性能、安全、真实 Electron startup smoke 与 Playwright `7/7` 全绿，Playwright 覆盖 `1280x800`、`1024x720`、`800x600` |
+| 拆分实机 smoke | `npm run test:electron` 通过；真实 Electron 启动后拆分完整壳、关闭原壳，目标壳仍可继续 IPC 与页面状态，BrowserWindow 数量符合预期且无泄漏 |
+| 生产构建与 NSIS | renderer/main/preload 生产构建通过。常规 builder 因本机 `hosts` 将 GitHub 下载域名映射到 `127.0.0.1` 而无法联网取依赖；改用仓库已安装 Electron 的 `electron-builder --win nsis --config.electronDist=node_modules/electron/dist` 完成等价离线 NSIS 打包 |
+| Packaged smoke | `npm run test:packaged-app` 通过：单实例锁有效，第二实例请求聚焦主实例，打包程序可正常加载 SQLite |
+| 安装包产物 | `AlgoLearningPlatform-Windows-2.0.0-beta.2-x64-Setup.exe`：`121241554` bytes，SHA-256 `BF6E6CCDEF3EB2A2EB181DBBA015C122F64A56A84415E665530EC5A761D46D04`；生成时间北京时间 `2026-08-19 19:57:48` |
+| 增量与解包产物 | `.blockmap`：`127349` bytes，SHA-256 `DD01E806ECDF0790F0784732FCA1CD0614CA0BC6BB9F7D31DE43EA0675CFC319`；`win-unpacked/AlgoLearningPlatform.exe`：`225533952` bytes，SHA-256 `691AF4DFD1358DDA7F7CB990A0519EF0B0E909F7BAA88C983D14EDA7ECCB2F6E` |
+| 回归修正 | 首轮 `test:all` 发现 `realtimeTabActivation.test.ts` 仍断言旧的活动标签 DOM-ready 调用；运行时已在 B3.2 改为精确 `BrowserPageEvent` owner 路由并保留兼容通知，因此将静态断言和测试索引更新为多窗口/多标签 owner 契约；定向复核确认不是行为回归，最终全量通过 |
+| 视觉影响 | 统一验收与测试修正未修改任何 CSS、颜色、字体、按钮、布局或动画；前端视觉冻结继续生效 |
+| 剩余工作 | B3 无已知缺口；进入 B4.1，继续按子块提交、B4 整块统一生产与 packaged 验收策略执行 |
 | 完成时间 | 北京时间 `2026-08-19` |

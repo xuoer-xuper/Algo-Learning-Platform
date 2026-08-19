@@ -10,7 +10,7 @@
 - `domScraperGenericIntegration.test.ts`：DOM scraper 与通用扫描组合。
 - `realtimeHookInjector.test.ts`、`realtimeHookScriptLifetime.test.ts`：实时 hook 注入和生命周期。
 - `realtimeSubmissionDiagnostics.test.ts`：实时监听诊断。
-- `realtimeTabActivation.test.ts`：多标签活动页注入约束。
+- `realtimeTabActivation.test.ts`：多窗口/多标签精确 page owner、活动页和子 frame 注入接线约束。
 - `submissionBatchWriter.test.ts`：批量写入、去重、最终结果入库和受影响日期定向重算。
 - `submissionPageContextResolver.test.ts`：提交页上下文和题目关联。
 - `submissionWatcherCore.test.ts`：watcher core 状态机。

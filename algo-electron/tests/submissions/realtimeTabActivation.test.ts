@@ -22,8 +22,12 @@ assert.ok(
   'TabManager should observe sub-frame load events for late iframe submissions',
 )
 assert.ok(
-  tabManagerSource.includes('this.emitDomReady(tab.url)'),
-  'TabManager should reuse realtime DOM-ready listeners after sub-frame loads',
+  tabManagerSource.includes("owner.emitPageEvent(tab, contentsId, url, isMainFrame, 'did-frame-finish-load')"),
+  'TabManager should publish exact page ownership for main-frame and sub-frame loads',
+)
+assert.ok(
+  tabManagerSource.includes('owner.emitDomReady(url)'),
+  'TabManager should preserve legacy active-tab DOM-ready listeners after sub-frame loads',
 )
 assert.ok(
   realtimeServiceSource.includes("event.reason === 'active-tab-changed'"),
