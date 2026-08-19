@@ -1,6 +1,7 @@
 import { ipcMain as electronIpcMain, type IpcMainEvent, type IpcMainInvokeEvent, type WebContents } from 'electron'
 import { SHELL_ORIGIN } from '../app/appProtocol'
 import { appLogger } from '../shared/logger'
+import type { AppWindow } from '../windows/AppWindow'
 
 type ShellEvent = IpcMainEvent | IpcMainInvokeEvent
 type IpcListener<T extends ShellEvent> = (event: T, ...args: any[]) => any
@@ -8,6 +9,7 @@ type RegistrableWebContents = Pick<WebContents, 'id'> & Partial<Pick<WebContents
 type WebContentsIdentity = Pick<WebContents, 'id'> | null | undefined
 
 const shellWebContentsIds = new Set<number>()
+const shellWindowOwners = new Map<number, AppWindow>()
 const coachWebContentsIds = new Set<number>()
 const ojWebContentsIds = new Set<number>()
 
@@ -134,16 +136,35 @@ function rejectSend(channel: string, check: TrustedSenderCheck): void {
   appLogger.warn('ipc.send-rejected', { channel, reason: check.reason })
 }
 
-export function registerShellWebContents(webContents: RegistrableWebContents): void {
+export function registerShellWebContents(webContents: RegistrableWebContents, owner?: AppWindow): void {
   const id = getWebContentsId(webContents)
-  if (id === null || shellWebContentsIds.has(id)) return
+  if (id === null) return
+  const existingOwner = shellWindowOwners.get(id)
+  if (existingOwner && owner && existingOwner !== owner) {
+    throw new Error(`Shell webContents ${id} already belongs to another window`)
+  }
+  if (owner) shellWindowOwners.set(id, owner)
+  if (shellWebContentsIds.has(id)) return
   shellWebContentsIds.add(id)
-  webContents.once?.('destroyed', () => shellWebContentsIds.delete(id))
+  webContents.once?.('destroyed', () => {
+    shellWebContentsIds.delete(id)
+    shellWindowOwners.delete(id)
+  })
 }
 
 export function unregisterShellWebContents(webContents: WebContentsIdentity): void {
   const id = getWebContentsId(webContents)
-  if (id !== null) shellWebContentsIds.delete(id)
+  if (id !== null) {
+    shellWebContentsIds.delete(id)
+    shellWindowOwners.delete(id)
+  }
+}
+
+export function getShellWindowOwner(event: ShellEvent): AppWindow | null {
+  const check = checkShellSender(event)
+  if (!check.trusted) return null
+  const id = getWebContentsId(event.sender)
+  return id === null ? null : shellWindowOwners.get(id) ?? null
 }
 
 export function registerCoachWebContents(webContents: RegistrableWebContents): void {
@@ -236,6 +257,7 @@ export const coachPetIpcMain = {
 
 export function resetTrustedSenderRegistry(): void {
   shellWebContentsIds.clear()
+  shellWindowOwners.clear()
   coachWebContentsIds.clear()
   ojWebContentsIds.clear()
 }

@@ -22,7 +22,10 @@ import {
   registerScriptsIpc,
 } from '../../electron/ipc/registerScriptsIpc'
 
-vi.mock('../../electron/ipc/trustedSender', () => ({ ipcMain }))
+vi.mock('../../electron/ipc/trustedSender', () => ({
+  getShellWindowOwner: () => null,
+  ipcMain,
+}))
 
 let tempDirectory = ''
 

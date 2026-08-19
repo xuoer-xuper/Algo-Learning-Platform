@@ -1,4 +1,5 @@
-import { app, BrowserWindow, dialog, Menu, session, type Input, type WebContents } from 'electron'
+import { app, BrowserWindow, dialog, Menu, screen, session, type Input, type WebContents } from 'electron'
+import { randomUUID } from 'node:crypto'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import { TabManager } from './browser/TabManager'
@@ -10,7 +11,6 @@ import {
   saveZoomFactorForUrl,
 } from './app/config'
 import { configureChromiumCommandLine } from './app/chromiumFlags'
-import { MAIN_WINDOW_BOUNDS } from './app/windowBounds'
 import { preconnectRecentSiteOrigins } from './app/recentSitePreconnect'
 import { initializeMainServices, type MainServices } from './app/mainServices'
 import { getSiteById } from './db/repositories/siteRepository'
@@ -43,27 +43,47 @@ import {
   PendingUserScriptInstallRegistry,
   getManagedDownloadDirectory,
 } from './downloads'
+import { AppWindow } from './windows/AppWindow'
+import { ViewRegistry } from './windows/ViewRegistry'
+import { WindowCreationGate } from './windows/WindowCreationGate'
+import { WindowManager } from './windows/WindowManager'
+import { WindowSessionRegistry } from './windows/WindowSessionRegistry'
+import {
+  MAIN_WINDOW_BOUNDS,
+  WindowStateStore,
+  installWindowStatePersistence,
+  type WindowDisplayArea,
+} from './windows/windowBounds'
 
 configureChromiumCommandLine()
 
 applyStartupSmokeUserDataPath()
 
-let win: BrowserWindow | null = null
-let tabManager: TabManager | null = null
 let services: MainServices | null = null
 let coachPetWindow: CoachPetWindow | null = null
 let coachOrchestrator: CoachOrchestrator | null = null
-let removeShellRendererRecovery: (() => void) | null = null
 let tabSessionStore: TabSessionStore | null = null
-let tabSessionPersistence: TabSessionPersistence | null = null
-let removeTabSessionChangeListener: (() => void) | null = null
 let downloadManager: DownloadManager | null = null
 let userScriptInstallRegistry: PendingUserScriptInstallRegistry | null = null
+let windowStateStore: WindowStateStore | null = null
 let isQuitting = false
 let isQuitSessionFlushComplete = false
 let quitSessionFlushPromise: Promise<void> | null = null
 
-const hasSingleInstanceLock = installSingleInstanceLock(app, () => win, { logger: appLogger })
+const viewRegistry = new ViewRegistry()
+const windowManager = new WindowManager({ viewRegistry })
+const windowCreationGate = new WindowCreationGate<AppWindow>()
+const windowSessionRuntimes = new WindowSessionRegistry()
+
+function getMostRecentAppWindow(): AppWindow | null {
+  return windowManager.getMostRecent()
+}
+
+const hasSingleInstanceLock = installSingleInstanceLock(
+  app,
+  () => getMostRecentAppWindow()?.browserWindow ?? null,
+  { logger: appLogger },
+)
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -99,19 +119,26 @@ async function loadWindowTabSession(): Promise<TabSessionLoadResult | null> {
   return tabSessionStore.load()
 }
 
-function disposeTabSessionPersistence(): Promise<void> {
-  removeTabSessionChangeListener?.()
-  removeTabSessionChangeListener = null
-  const persistence = tabSessionPersistence
-  tabSessionPersistence = null
-  return persistence?.dispose() ?? Promise.resolve()
+function disposeWindowTabSessionPersistence(windowId: string): Promise<void> {
+  return windowSessionRuntimes.dispose(windowId)
 }
 
-async function createWindow() {
+function disposeAllTabSessionPersistence(): Promise<void> {
+  return windowSessionRuntimes.disposeAll()
+}
+
+async function createWindowOnce(isCancelled: () => boolean): Promise<AppWindow | null> {
+  if (isCancelled()) return null
   const loadedSession = await loadWindowTabSession()
-  win = new BrowserWindow({
-    width: MAIN_WINDOW_BOUNDS.defaultWidth,
-    height: MAIN_WINDOW_BOUNDS.defaultHeight,
+  if (isCancelled()) return null
+  if (!windowStateStore) throw new Error('Window state store is not initialized')
+  const primaryDisplayArea: WindowDisplayArea = { ...screen.getPrimaryDisplay().workArea }
+  const displayAreas: WindowDisplayArea[] = screen.getAllDisplays().map((display) => ({ ...display.workArea }))
+  const restoredWindowState = await windowStateStore.load(displayAreas, primaryDisplayArea)
+  if (isCancelled()) return null
+  const windowId = randomUUID()
+  const win = new BrowserWindow({
+    ...restoredWindowState.bounds,
     minWidth: MAIN_WINDOW_BOUNDS.minWidth,
     minHeight: MAIN_WINDOW_BOUNDS.minHeight,
     show: false,
@@ -124,16 +151,17 @@ async function createWindow() {
       sandbox: true,
     },
   })
-  registerShellWebContents(win.webContents)
+  const windowStatePersistence = installWindowStatePersistence(win, windowStateStore)
   const shellWebContents = win.webContents
-  removeShellRendererRecovery = installShellRendererRecovery(win.webContents, {
+  const removeShellRendererRecovery = installShellRendererRecovery(win.webContents, {
     logger: appLogger,
     shouldReload: () => !isQuitting,
   })
 
   const allowInsecureLocalhost = Boolean(VITE_DEV_SERVER_URL || STARTUP_SMOKE_MODE)
+  let tabManager: TabManager
   const notifyNavigationBlocked = (reason: NavigationBlockReason): void => {
-    win?.webContents.send('ui:command', { type: 'navigation-blocked', reason })
+    if (!win.isDestroyed()) win.webContents.send('ui:command', { type: 'navigation-blocked', reason })
   }
   const openInManagedTab = (url: string): void => {
     const decision = evaluateBrowserNavigation(url, {
@@ -144,7 +172,7 @@ async function createWindow() {
       notifyNavigationBlocked(decision.reason!)
       return
     }
-    tabManager?.createTab(url)
+    tabManager.createTab(url)
   }
 
   win.webContents.setWindowOpenHandler(({ url }) => {
@@ -152,7 +180,7 @@ async function createWindow() {
     return { action: 'deny' }
   })
   win.webContents.on('will-navigate', (event, url) => {
-    const currentUrl = win?.webContents.getURL()
+    const currentUrl = win.webContents.getURL()
     if (!currentUrl || url === currentUrl) return
     event.preventDefault()
     openInManagedTab(url)
@@ -165,36 +193,45 @@ async function createWindow() {
     saveZoomFactorForUrl,
     userScriptInstallRegistry: userScriptInstallRegistry ?? undefined,
     buildSearchUrlForQuery: (query) => buildSearchUrl(query, getSearchConfig()),
+    windowId,
+    viewRegistry,
   })
+  const appWindow = new AppWindow({
+    id: windowId,
+    browserWindow: win,
+    tabManager,
+    flushWindowState: () => windowStatePersistence.flush(),
+  })
+  windowManager.register(appWindow)
+  registerShellWebContents(win.webContents, appWindow)
   tabManager.setNavigationBlockedHandler(notifyNavigationBlocked)
   tabManager.setTabLimitReachedHandler((limit) => {
-    win?.webContents.send('ui:command', { type: 'tab-limit-reached', limit })
+    appWindow.send('ui:command', { type: 'tab-limit-reached', limit })
   })
   services?.syncService.setScrapeHost(tabManager)
   services?.realtimeSubmissionService.attachTabManager(tabManager)
 
   const shortcutActions: ShortcutActions = {
-    newTab: () => { tabManager?.createTab() },
-    closeTab: () => { tabManager?.closeActiveTab() },
-    reopenClosedTab: () => { tabManager?.reopenClosedTab() },
-    nextTab: () => { tabManager?.switchRelative(1) },
-    previousTab: () => { tabManager?.switchRelative(-1) },
-    switchTab: (index) => { tabManager?.switchTabByIndex(index) },
-    focusAddressBar: () => { win?.webContents.send('ui:command', { type: 'focus-address-bar' }) },
+    newTab: () => { tabManager.createTab() },
+    closeTab: () => { tabManager.closeActiveTab() },
+    reopenClosedTab: () => { tabManager.reopenClosedTab() },
+    nextTab: () => { tabManager.switchRelative(1) },
+    previousTab: () => { tabManager.switchRelative(-1) },
+    switchTab: (index) => { tabManager.switchTabByIndex(index) },
+    focusAddressBar: () => { appWindow.send('ui:command', { type: 'focus-address-bar' }) },
     findInPage: () => {
-      if (tabManager?.openFindInPage()) {
-        win?.webContents.send('ui:command', { type: 'focus-find-in-page' })
+      if (tabManager.openFindInPage()) {
+        appWindow.send('ui:command', { type: 'focus-find-in-page' })
       }
     },
-    reload: () => { tabManager?.reload() },
-    zoomIn: () => { tabManager?.adjustZoom(1) },
-    zoomOut: () => { tabManager?.adjustZoom(-1) },
-    resetZoom: () => { tabManager?.resetZoom() },
-    back: () => { tabManager?.goBack() },
-    forward: () => { tabManager?.goForward() },
+    reload: () => { tabManager.reload() },
+    zoomIn: () => { tabManager.adjustZoom(1) },
+    zoomOut: () => { tabManager.adjustZoom(-1) },
+    resetZoom: () => { tabManager.resetZoom() },
+    back: () => { tabManager.goBack() },
+    forward: () => { tabManager.goForward() },
     toggleDevTools: () => {
-      const target = win?.webContents
-      if (!target) return
+      const target = win.webContents
       if (target.isDevToolsOpened()) target.closeDevTools()
       else target.openDevTools({ mode: 'undocked' })
     },
@@ -208,31 +245,31 @@ async function createWindow() {
   }
 
   win.webContents.on('before-input-event', (event, input) => {
-    handleShortcut(event, input, win!.webContents)
+    handleShortcut(event, input, win.webContents)
   })
   tabManager.setShortcutHandler(handleShortcut)
 
   tabManager.setUrlChangeCallback((url) => {
-    win?.webContents.send('browser:urlChanged', url)
+    appWindow.send('browser:urlChanged', url)
   })
 
   tabManager.setFindInPageStateChangedHandler((state) => {
-    win?.webContents.send('browser:findInPageResult', state)
+    appWindow.send('browser:findInPageResult', state)
   })
 
   tabManager.setZoomChangedHandler((state) => {
-    win?.webContents.send('browser:zoomChanged', state)
+    appWindow.send('browser:zoomChanged', state)
   })
 
   installProblemTitleTracking({
     tabManager,
     getTrackingService: () => services?.trackingService ?? null,
-    notifyProblemsUpdated: () => win?.webContents.send('problems:updated'),
+    notifyProblemsUpdated: () => { appWindow.send('problems:updated') },
     diagnostics: services?.browserDiagnostics,
   })
 
   tabManager.setTabListChangedCallback((tabs) => {
-    win?.webContents.send('tab:listChanged', tabs)
+    appWindow.send('tab:listChanged', tabs)
   })
 
   installUserScriptInjection({
@@ -243,7 +280,7 @@ async function createWindow() {
 
   if (!STARTUP_SMOKE_MODE && tabSessionStore) {
     const manager = tabManager
-    tabSessionPersistence = new TabSessionPersistence(
+    const persistence = new TabSessionPersistence(
       tabSessionStore,
       () => manager.getSessionSnapshot(),
       {
@@ -252,9 +289,10 @@ async function createWindow() {
         },
       },
     )
-    removeTabSessionChangeListener = manager.addSessionChangeListener(() => {
-      tabSessionPersistence?.schedule()
+    const removeChangeListener = manager.addSessionChangeListener(() => {
+      persistence.schedule()
     })
+    windowSessionRuntimes.register(windowId, { persistence, removeChangeListener })
 
     const restored = loadedSession?.kind === 'restore'
       ? manager.restoreSession(loadedSession.snapshot)
@@ -275,14 +313,12 @@ async function createWindow() {
   }
 
   win.webContents.on('did-finish-load', () => {
-    if (tabManager) {
-      tabManager.setOmniboxOpen(false)
-      tabManager.setDownloadNoticeVisible(false)
-      win?.webContents.send('browser:urlChanged', tabManager.getUrl())
-      win?.webContents.send('tab:listChanged', tabManager.getTabList())
-      const zoomState = tabManager.getActiveZoomState()
-      if (zoomState) win?.webContents.send('browser:zoomChanged', zoomState)
-    }
+    tabManager.setOmniboxOpen(false)
+    tabManager.setDownloadNoticeVisible(false)
+    appWindow.send('browser:urlChanged', tabManager.getUrl())
+    appWindow.send('tab:listChanged', tabManager.getTabList())
+    const zoomState = tabManager.getActiveZoomState()
+    if (zoomState) appWindow.send('browser:zoomChanged', zoomState)
   })
 
   if (VITE_DEV_SERVER_URL) {
@@ -292,26 +328,32 @@ async function createWindow() {
   }
 
   win.once('ready-to-show', () => {
+    if (restoredWindowState.maximized) win.maximize()
     if (!STARTUP_SMOKE_MODE) {
-      win?.show()
+      win.show()
     }
   })
 
   win.on('maximize', () => {
-    win?.webContents.send('window:maximized', true)
+    appWindow.send('window:maximized', true)
   })
 
   win.on('unmaximize', () => {
-    win?.webContents.send('window:maximized', false)
+    appWindow.send('window:maximized', false)
   })
 
   const removeWindowSessionFlush = installWindowSessionFlush(win, {
     shouldFlush: () => (
       !STARTUP_SMOKE_MODE
       && !isQuitSessionFlushComplete
-      && tabSessionPersistence !== null
+      && windowSessionRuntimes.has(windowId)
     ),
-    flush: disposeTabSessionPersistence,
+    flush: async () => {
+      await Promise.all([
+        disposeWindowTabSessionPersistence(windowId),
+        appWindow.flushWindowState(),
+      ])
+    },
     onFailure: () => {
       appLogger.warn('browser.session-window-flush-failed')
     },
@@ -319,34 +361,28 @@ async function createWindow() {
 
   win.on('closed', () => {
     removeWindowSessionFlush()
-    void disposeTabSessionPersistence()
-    win = null
-    removeShellRendererRecovery?.()
-    removeShellRendererRecovery = null
+    void disposeWindowTabSessionPersistence(windowId)
+    void windowStatePersistence.dispose().catch(() => {
+      appLogger.warn('window.state-dispose-failed', { windowId })
+    })
+    removeShellRendererRecovery()
     unregisterShellWebContents(shellWebContents)
     try {
       services?.trackingService.endCurrentVisit()
     } catch (error) {
       appLogger.warn('tracking.window-close-failed', error)
     }
-    // 阶段 2：停止 Coach 服务（关当前会话 + 解绑监听）
-    try {
-      coachOrchestrator?.stop()
-    } catch (error) {
-      appLogger.warn('coach.stop-failed', error)
-    }
-    coachOrchestrator = null
-    tabManager?.destroy()
-    tabManager = null
-    // 主窗口关闭时同步销毁桌宠窗口（生命周期绑定）
-    coachPetWindow?.destroy()
-    coachPetWindow = null
+    tabManager.destroy()
   })
+
+  return appWindow
+}
+
+function createWindow(): Promise<AppWindow | null> {
+  return windowCreationGate.run(createWindowOnce)
 }
 
 registerMainIpc({
-  getWindow: () => win,
-  getTabManager: () => tabManager,
   getSyncService: () => services?.syncService ?? null,
   getCoachPetWindow: () => coachPetWindow,
   getCoachOrchestrator: () => coachOrchestrator,
@@ -366,13 +402,27 @@ app.on('window-all-closed', () => {
 // 在应用真正退出前清理资源，覆盖 macOS 关窗不退出、直关窗口等场景
 app.on('before-quit', (event) => {
   isQuitting = true
-  if (!STARTUP_SMOKE_MODE && !isQuitSessionFlushComplete && tabSessionPersistence) {
+  const hasPendingWindowCreation = windowCreationGate.isRunning
+  windowCreationGate.stop()
+  const hasPendingWindowState = windowManager.getAll().length > 0
+  if (
+    !STARTUP_SMOKE_MODE
+    && !isQuitSessionFlushComplete
+    && (hasPendingWindowCreation || windowSessionRuntimes.size > 0 || hasPendingWindowState)
+  ) {
     event.preventDefault()
     if (!quitSessionFlushPromise) {
-      quitSessionFlushPromise = disposeTabSessionPersistence().finally(() => {
-        isQuitSessionFlushComplete = true
-        app.quit()
-      })
+      quitSessionFlushPromise = windowCreationGate.waitForIdle()
+        .then(async () => {
+          await Promise.all([
+            disposeAllTabSessionPersistence(),
+            windowManager.flushWindowStates(),
+          ])
+        })
+        .finally(() => {
+          isQuitSessionFlushComplete = true
+          app.quit()
+        })
     }
     return
   }
@@ -390,10 +440,18 @@ app.on('before-quit', (event) => {
   downloadManager = null
   userScriptInstallRegistry?.clear()
   userScriptInstallRegistry = null
+  try {
+    coachOrchestrator?.stop()
+  } catch (error) {
+    appLogger.warn('coach.stop-failed', error)
+  }
+  coachOrchestrator = null
+  coachPetWindow?.destroy()
+  coachPetWindow = null
 })
 
 app.on('activate', () => {
-  if (BrowserWindow.getAllWindows().length === 0) {
+  if (!isQuitting && windowManager.getAll().length === 0) {
     void createWindow().catch((error) => {
       reportFatalError('startup', error)
     })
@@ -406,22 +464,30 @@ void app.whenReady().then(async () => {
     registerShellProtocol(RENDERER_DIST)
   }
   userScriptInstallRegistry = new PendingUserScriptInstallRegistry()
+  windowStateStore = new WindowStateStore(path.join(app.getPath('userData'), 'browser-window-state.json'))
   downloadManager = new DownloadManager({
     downloadDirectory: getManagedDownloadDirectory(app.getPath('userData')),
-    interceptDownload: ({ sourceUrl }, source) => (
-      tabManager?.routeUserScriptDownload(sourceUrl, source as WebContents | null) ?? false
+    interceptDownload: ({ sourceUrl }, source) => {
+      const sourceContents = source as WebContents | null | undefined
+      const owner = windowManager.resolveDownloadSource(sourceContents)
+      return owner?.tabManager.routeUserScriptDownload(sourceUrl, sourceContents ?? null) ?? false
+    },
+    captureResultContext: (source) => (
+      windowManager.resolveDownloadSource(source as WebContents | null | undefined)?.id
     ),
   })
   downloadManager.attachSession(session.defaultSession)
   downloadManager.attachSession(session.fromPartition('persist:oj-main'))
-  downloadManager.addResultListener((result) => {
-    tabManager?.setDownloadNoticeVisible(true)
-    win?.webContents.send('download:result', result)
+  downloadManager.addResultListener((result, windowId) => {
+    const owner = typeof windowId === 'string' ? windowManager.get(windowId) : null
+    if (!owner) return
+    owner.tabManager.setDownloadNoticeVisible(true)
+    owner.send('download:result', result)
   })
   configureOjSession({ getSiteById })
 
   registerNoteAssetProtocol()
-  services = await initializeMainServices(() => win)
+  services = await initializeMainServices(() => getMostRecentAppWindow()?.browserWindow ?? null)
   // Only preconnect sites the user actually visited recently to avoid noisy cold-start timeouts.
   preconnectRecentSiteOrigins()
 
@@ -432,7 +498,9 @@ void app.whenReady().then(async () => {
     )
   }
 
-  await createWindow()
+  windowCreationGate.enable()
+  const initialWindow = await createWindow()
+  if (!initialWindow || isQuitting) return
 
   // 每日首次启动时生成 AI 上下文快照存库（供阶段总结/复习计划等 AI 模块消费）
   // 失败不阻塞启动，仅记录日志
@@ -456,10 +524,11 @@ void app.whenReady().then(async () => {
 
         // 阶段 2：初始化 Coach 编排服务（规则引擎 + 比赛模式 + 事件桥）
         // 需要 TabManager / TrackingService / RealtimeSubmissionService 全部就绪
-        if (tabManager && services) {
+        const activeWindow = getMostRecentAppWindow()
+        if (activeWindow && services) {
           coachOrchestrator = new CoachOrchestrator({
-            getMainWindow: () => win,
-            getTabManager: () => tabManager,
+            getMainWindow: () => getMostRecentAppWindow()?.browserWindow ?? null,
+            getTabManager: () => getMostRecentAppWindow()?.tabManager ?? null,
             getTrackingService: () => services?.trackingService ?? null,
             getRealtimeSubmissionService: () => services?.realtimeSubmissionService ?? null,
             getCoachPetWindow: () => coachPetWindow,
@@ -474,8 +543,8 @@ void app.whenReady().then(async () => {
 
   if (STARTUP_SMOKE_MODE) {
     runStartupSmokeTest({
-      getWindow: () => win,
-      getTabManager: () => tabManager,
+      getWindow: () => getMostRecentAppWindow()?.browserWindow ?? null,
+      getTabManager: () => getMostRecentAppWindow()?.tabManager ?? null,
       cleanup: () => {
         try {
           services?.trackingService.endCurrentVisit()

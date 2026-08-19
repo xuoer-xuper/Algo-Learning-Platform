@@ -2,6 +2,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { MockBrowserWindow, resetElectronMock } from 'electron'
 import {
   DownloadManager,
   type DownloadSessionLike,
@@ -10,6 +11,9 @@ import {
   type NativeDownloadState,
   type WillDownloadListener,
 } from '../../electron/downloads/DownloadManager'
+import { AppWindow } from '../../electron/windows/AppWindow.ts'
+import { ViewRegistry } from '../../electron/windows/ViewRegistry.ts'
+import { WindowManager } from '../../electron/windows/WindowManager.ts'
 
 const temporaryDirectories: string[] = []
 
@@ -36,12 +40,12 @@ class MockDownloadSession implements DownloadSessionLike {
     if (this.listener === listener) this.listener = null
   }
 
-  start(item: MockDownloadItem): DownloadWillStartEvent & { prevented: boolean } {
+  start(item: MockDownloadItem, webContents?: unknown): DownloadWillStartEvent & { prevented: boolean } {
     const event = {
       prevented: false,
       preventDefault() { this.prevented = true },
     }
-    this.listener?.(event, item)
+    this.listener?.(event, item, webContents)
     return event
   }
 }
@@ -163,5 +167,60 @@ describe('DownloadManager', () => {
 
     expect(event.prevented).toBe(true)
     expect(item.savePath).toBe('')
+  })
+
+  it('captures result context when the download starts', () => {
+    const context = { windowId: 'window-1' }
+    const manager = new DownloadManager({
+      downloadDirectory: createTemporaryDirectory(),
+      captureResultContext: () => context,
+    })
+    const session = new MockDownloadSession()
+    const listener = vi.fn()
+    manager.attachSession(session)
+    manager.addResultListener(listener)
+
+    const item = new MockDownloadItem('answer.txt')
+    session.start(item, { id: 42 })
+    item.finish('completed')
+
+    expect(listener).toHaveBeenCalledWith(expect.objectContaining({ state: 'completed' }), context)
+  })
+
+  it('uses the same safe single-window fallback for missing download result sources', () => {
+    resetElectronMock()
+    const windowManager = new WindowManager({ viewRegistry: new ViewRegistry() })
+    const browserWindow = new MockBrowserWindow()
+    windowManager.register(new AppWindow({
+      id: 'window-1',
+      browserWindow: browserWindow as never,
+      tabManager: {} as never,
+    }))
+    const manager = new DownloadManager({
+      downloadDirectory: createTemporaryDirectory(),
+      captureResultContext: (source) => (
+        windowManager.resolveDownloadSource(source as { id: number } | undefined)?.id
+      ),
+    })
+    const session = new MockDownloadSession()
+    const listener = vi.fn()
+    manager.attachSession(session)
+    manager.addResultListener(listener)
+
+    const missingSource = new MockDownloadItem('missing-source.txt')
+    session.start(missingSource)
+    missingSource.finish('completed')
+
+    const unknownSource = new MockDownloadItem('unknown-source.txt')
+    session.start(unknownSource, { id: 999_999 })
+    unknownSource.finish('completed')
+
+    expect(listener.mock.calls[0]).toEqual([
+      expect.objectContaining({ fileName: 'missing-source.txt', state: 'completed' }),
+      'window-1',
+    ])
+    expect(listener.mock.calls[1]).toEqual([
+      expect.objectContaining({ fileName: 'unknown-source.txt', state: 'completed' }),
+    ])
   })
 })

@@ -1,4 +1,4 @@
-import { screen, type BrowserWindow } from 'electron'
+import { screen } from 'electron'
 import { coachPetIpcMain, ipcMain as shellIpcMain } from './trustedSender'
 import type { CoachPetWindow } from '../coach/CoachPetWindow'
 import type { CoachOrchestrator } from '../coach/CoachOrchestrator'
@@ -46,7 +46,6 @@ const ipcMain = {
  * getter 注入模式与现有 registerXxxIpc 一致。
  */
 export interface RegisterCoachIpcOptions {
-  getWindow: () => BrowserWindow | null
   getCoachPetWindow: () => CoachPetWindow | null
   /** 阶段 2 注入：CoachOrchestrator（可选，未注入时新 channel 返回 null/空） */
   getCoachOrchestrator?: () => CoachOrchestrator | null

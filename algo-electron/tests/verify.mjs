@@ -28,6 +28,7 @@ const coreVitestFiles = [
   'tests/parsers',
   'tests/scripts',
   'tests/security/trustedSender.test.ts',
+  'tests/windows',
 ]
 
 const dbVitestFiles = [

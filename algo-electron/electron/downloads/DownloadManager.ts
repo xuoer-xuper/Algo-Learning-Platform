@@ -53,9 +53,10 @@ export interface DownloadManagerOptions {
     download: { sourceUrl: string; fileName: string },
     webContents?: unknown,
   ) => boolean
+  captureResultContext?: (webContents?: unknown) => unknown
 }
 
-export type DownloadResultListener = (result: ManagedDownloadResult) => void
+export type DownloadResultListener = (result: ManagedDownloadResult, webContents?: unknown) => void
 
 function safeByteCount(value: number | undefined): number {
   return typeof value === 'number' && Number.isFinite(value) && value >= 0
@@ -72,6 +73,7 @@ export class DownloadManager {
   private readonly clock: () => number
   private readonly idFactory: () => string
   private readonly interceptDownload: DownloadManagerOptions['interceptDownload']
+  private readonly captureResultContext: DownloadManagerOptions['captureResultContext']
   private readonly resultListeners = new Set<DownloadResultListener>()
   private readonly sessionListeners = new Map<DownloadSessionLike, WillDownloadListener>()
   private destroyed = false
@@ -81,6 +83,7 @@ export class DownloadManager {
     this.clock = options.clock ?? Date.now
     this.idFactory = options.idFactory ?? randomUUID
     this.interceptDownload = options.interceptDownload
+    this.captureResultContext = options.captureResultContext
   }
 
   attachSession(session: DownloadSessionLike): () => void {
@@ -124,6 +127,9 @@ export class DownloadManager {
     item: ManagedDownloadItem,
     webContents?: unknown,
   ): void {
+    const resultContext = this.captureResultContext
+      ? this.captureResultContext(webContents)
+      : webContents
     let fileName = sanitizeDownloadFilename(item.getFilename())
     let savePath: string | null = null
 
@@ -145,7 +151,7 @@ export class DownloadManager {
           totalBytes: 0,
           finishedAt: new Date(this.clock()).toISOString(),
           errorCode: 'intercept-failed',
-        })
+        }, resultContext)
         return
       }
     }
@@ -167,7 +173,7 @@ export class DownloadManager {
         totalBytes: 0,
         finishedAt: new Date(this.clock()).toISOString(),
         errorCode: 'path-setup-failed',
-      })
+      }, resultContext)
       return
     }
 
@@ -182,15 +188,16 @@ export class DownloadManager {
         receivedBytes: safeByteCount(item.getReceivedBytes?.()),
         totalBytes: safeByteCount(item.getTotalBytes?.()),
         finishedAt: new Date(this.clock()).toISOString(),
-      })
+      }, resultContext)
     })
   }
 
-  private emitResult(result: ManagedDownloadResult): void {
+  private emitResult(result: ManagedDownloadResult, webContents?: unknown): void {
     if (this.destroyed) return
     for (const listener of this.resultListeners) {
       try {
-        listener({ ...result })
+        if (webContents === undefined) listener({ ...result })
+        else listener({ ...result }, webContents)
       } catch {
         // One observer must not break download finalization or other observers.
       }

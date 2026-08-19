@@ -19,6 +19,7 @@ Renderer 不能直接访问本目录能力，只能通过 `preload.ts` 暴露的
 | `app/` | 主进程配置、Chromium flag、服务初始化、最近站点预连接和 smoke test 编排。 |
 | `backup/` | 本地 SQLite 备份、学习数据 JSON 导入导出和冲突检测。 |
 | `browser/` | `WebContentsView`、多标签、独立窗口、OJ session 和远程页面 preload bridge。 |
+| `windows/` | 完整壳 `AppWindow`、WindowManager、ViewRegistry、sender 所有权和窗口 bounds/maximized 持久化。 |
 | `ipc/` | 按业务域注册主进程 IPC handler，统一由 `registerMainIpc.ts` 组合。 |
 | `db/` | SQLite 连接、migration、repository 和数据库写入边界。 |
 | `downloads/` | 普通下载受控落盘、文件名/重名治理和 `.user.js` 安装请求登记。 |
@@ -39,7 +40,7 @@ Renderer 不能直接访问本目录能力，只能通过 `preload.ts` 暴露的
 ## 4. 关键封装入口
 
 - 启动组合：`main.ts`、`app/mainServices.ts`、`ipc/registerMainIpc.ts`。
-- 浏览器能力：`browser/TabManager.ts`、`browser/ojPreload.ts`。
+- 窗口与浏览器能力：`windows/WindowManager.ts`、`windows/ViewRegistry.ts`、`browser/TabManager.ts`、`browser/ojPreload.ts`。
 - IPC 契约：`preload.ts`、`electron-env.d.ts`、`ipc/register*.ts`。
 - 数据写入：`db/repositories/*`、`submissions/SubmissionBatchWriter.ts`、`tracking/TrackingService.ts`。
 - 备份导入：`backup/backupService.ts`、`backup/learningDataExport.ts`。
@@ -52,6 +53,7 @@ Renderer 不能直接访问本目录能力，只能通过 `preload.ts` 暴露的
 当前已实现：
 
 - WebContentsView 多标签浏览器和独立窗口剥离。
+- 单窗口行为下的完整壳所有权层、sender 路由和窗口位置/最大化恢复；完整拆分窗口仍待 B3.2-B3.5。
 - 持久 OJ session 和 CookieVault 基础能力。
 - SQLite migration、repository、统计聚合和本地数据写入。
 - 本地 SQLite 备份、非敏感学习数据 JSON 导出/导入和冲突预览。

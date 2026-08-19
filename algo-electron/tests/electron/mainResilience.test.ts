@@ -26,7 +26,7 @@ test('main process gates protocols, IPC, lifecycle, and services behind the sing
     'registerMainIpc({',
     "app.on('window-all-closed'",
     'void app.whenReady().then(',
-    'initializeMainServices(() => win)',
+    'initializeMainServices(() => getMostRecentAppWindow()?.browserWindow ?? null)',
     'new TabSessionStore(',
   ]
   for (const call of protectedCalls) {
@@ -39,13 +39,22 @@ test('main process restores and flushes browser sessions without affecting start
   const persistenceIndex = mainSource.indexOf('new TabSessionPersistence(')
   const restoreIndex = mainSource.indexOf('manager.restoreSession(loadedSession.snapshot)')
   const shellLoadIndex = mainSource.indexOf('win.loadURL(')
+  const servicesIndex = mainSource.indexOf('services = await initializeMainServices(')
+  const creationEnableIndex = mainSource.indexOf('windowCreationGate.enable()')
   assert.ok(persistenceIndex >= 0, 'session persistence must be installed')
   assert.ok(restoreIndex > persistenceIndex, 'restore must run after persistence and callbacks are wired')
   assert.ok(shellLoadIndex > restoreIndex, 'restore must finish before the shell renderer is loaded')
+  assert.ok(creationEnableIndex > servicesIndex, 'activate must stay disabled until main services are ready')
 
   assert.match(mainSource, /if \(!STARTUP_SMOKE_MODE && tabSessionStore\) \{[\s\S]+?new TabSessionPersistence\(/)
   assert.match(mainSource, /manager\.addSessionChangeListener\(\(\) => \{[\s\S]+?schedule\(\)/)
-  assert.match(mainSource, /installWindowSessionFlush\(win, \{[\s\S]+?flush: disposeTabSessionPersistence/)
-  assert.match(mainSource, /app\.on\('before-quit', \(event\) => \{[\s\S]+?event\.preventDefault\(\)[\s\S]+?disposeTabSessionPersistence\(\)[\s\S]+?app\.quit\(\)/)
+  assert.match(mainSource, /installWindowSessionFlush\(win, \{[\s\S]+?disposeWindowTabSessionPersistence\(windowId\)/)
+  assert.match(mainSource, /windowCreationGate\.run\(createWindowOnce\)/)
+  assert.match(mainSource, /windowCreationGate\.enable\(\)[\s\S]+?const initialWindow = await createWindow\(\)/)
+  assert.match(mainSource, /createWindowOnce\(isCancelled:[\s\S]+?await loadWindowTabSession\(\)[\s\S]+?if \(isCancelled\(\)\) return null[\s\S]+?await windowStateStore\.load[\s\S]+?if \(isCancelled\(\)\) return null/)
+  assert.match(mainSource, /hasPendingWindowCreation = windowCreationGate\.isRunning[\s\S]+?windowCreationGate\.stop\(\)[\s\S]+?windowCreationGate\.waitForIdle\(\)/)
+  assert.match(mainSource, /windowSessionRuntimes\.dispose\(windowId\)/)
+  assert.match(mainSource, /captureResultContext:[\s\S]+?windowManager\.resolveDownloadSource\(/)
+  assert.match(mainSource, /app\.on\('before-quit', \(event\) => \{[\s\S]+?event\.preventDefault\(\)[\s\S]+?disposeAllTabSessionPersistence\(\)[\s\S]+?app\.quit\(\)/)
   assert.doesNotMatch(mainSource, /\.warmup\(/)
 })

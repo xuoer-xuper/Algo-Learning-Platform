@@ -118,6 +118,31 @@ check('ordinary IPC handlers use the trusted shell sender facade', () => {
   }
 })
 
+check('window-sensitive shell actions resolve ownership from the trusted sender', () => {
+  const main = read(path.join(projectRoot, 'electron', 'main.ts'))
+  if (!main.includes('new WindowManager({ viewRegistry })') || !main.includes('new AppWindow({')) {
+    throw new Error('electron/main.ts must create shell windows through WindowManager/AppWindow ownership')
+  }
+  if (/^let\s+(?:win|tabManager)\b/m.test(main)) {
+    throw new Error('electron/main.ts must not restore module-level win/tabManager singletons')
+  }
+
+  const browserIpc = read(path.join(projectRoot, 'electron', 'ipc', 'registerBrowserShellIpc.ts'))
+  if (!browserIpc.includes('getShellWindowOwner(event)')) {
+    throw new Error('browser/window IPC must resolve AppWindow from the trusted sender')
+  }
+  if (/\bgetWindow\s*:|\bgetTabManager\s*:/.test(browserIpc)) {
+    throw new Error('browser/window IPC must not accept global window or TabManager getters')
+  }
+
+  for (const name of ['registerBackupIpc.ts', 'registerSitesIpc.ts', 'registerScriptsIpc.ts']) {
+    const text = read(path.join(projectRoot, 'electron', 'ipc', name))
+    if (!text.includes('getShellWindowOwner')) {
+      throw new Error(`electron/ipc/${name} must parent dialogs to the sender window`)
+    }
+  }
+})
+
 check('Nowcoder realtime path stays network-result driven', () => {
   const nowcoderDir = path.join(projectRoot, 'electron', 'adapters', 'sites', 'nowcoder')
   const files = walkSourceFiles(nowcoderDir)

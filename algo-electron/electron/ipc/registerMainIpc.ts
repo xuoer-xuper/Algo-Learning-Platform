@@ -1,5 +1,4 @@
-import type { BrowserWindow } from 'electron'
-import type { TabManager } from '../browser/TabManager'
+import type { IpcMainInvokeEvent } from 'electron'
 import type { SyncService } from '../submissions/syncService'
 import type { CoachPetWindow } from '../coach/CoachPetWindow'
 import type { CoachOrchestrator } from '../coach/CoachOrchestrator'
@@ -18,10 +17,9 @@ import { registerSitesIpc } from './registerSitesIpc'
 import { registerStatsIpc } from './registerStatsIpc'
 import { registerSubmissionsIpc } from './registerSubmissionsIpc'
 import type { PendingUserScriptInstallRegistry } from '../downloads/userScriptNavigation'
+import { getShellWindowOwner } from './trustedSender'
 
 interface RegisterMainIpcOptions {
-  getWindow: () => BrowserWindow | null
-  getTabManager: () => TabManager | null
   getSyncService: () => SyncService | null
   getCoachPetWindow?: () => CoachPetWindow | null
   /** 阶段 2 注入：CoachOrchestrator */
@@ -32,13 +30,13 @@ interface RegisterMainIpcOptions {
 }
 
 export function registerMainIpc(options: RegisterMainIpcOptions): void {
-  const notifyProblemsUpdated = () => options.getWindow()?.webContents.send('problems:updated')
+  const notifyProblemsUpdated = (event: IpcMainInvokeEvent): void => {
+    getShellWindowOwner(event)?.send('problems:updated')
+  }
 
   registerAiIpc()
-  registerBackupIpc({ getParentWindow: options.getWindow })
+  registerBackupIpc()
   registerBrowserShellIpc({
-    getWindow: options.getWindow,
-    getTabManager: options.getTabManager,
     getBrowserDiagnostics: options.getBrowserDiagnostics,
     getUserScriptInstallRegistry: options.getUserScriptInstallRegistry,
     allowInsecureLocalhost: options.allowInsecureLocalhost,
@@ -48,10 +46,9 @@ export function registerMainIpc(options: RegisterMainIpcOptions): void {
   registerNotesIpc({ notifyProblemsUpdated })
   registerProblemIpc({ notifyProblemsUpdated })
   registerSitesIpc({
-    getParentWindow: options.getWindow,
     notifyProblemsUpdated,
   })
-  registerScriptsIpc({ getParentWindow: options.getWindow })
+  registerScriptsIpc()
   registerRatingIpc()
   registerStatsIpc()
   registerSubmissionsIpc({
@@ -60,7 +57,6 @@ export function registerMainIpc(options: RegisterMainIpcOptions): void {
 
   if (options.getCoachPetWindow) {
     registerCoachIpc({
-      getWindow: options.getWindow,
       getCoachPetWindow: options.getCoachPetWindow,
       getCoachOrchestrator: options.getCoachOrchestrator,
     })

@@ -1,6 +1,4 @@
-import { type BrowserWindow } from 'electron'
-import { ipcMain } from './trustedSender'
-import type { TabManager } from '../browser/TabManager'
+import { getShellWindowOwner, ipcMain } from './trustedSender'
 import { resolveNavigateUrl } from '../parsers/navigateUrl'
 import type { BrowserDiagnostics } from '../diagnostics/BrowserDiagnostics'
 import { isInternalPage } from '../browser/tabManagerTypes'
@@ -13,8 +11,6 @@ import { isZoomCommand } from '../browser/zoomPreferences'
 import type { PendingUserScriptInstallRegistry } from '../downloads/userScriptNavigation'
 
 interface RegisterBrowserShellIpcOptions {
-  getWindow: () => BrowserWindow | null
-  getTabManager: () => TabManager | null
   getBrowserDiagnostics?: () => BrowserDiagnostics | null
   getUserScriptInstallRegistry?: () => PendingUserScriptInstallRegistry | null
   allowInsecureLocalhost?: boolean
@@ -29,60 +25,62 @@ function toNavigationBlockReason(
 }
 
 export function registerBrowserShellIpc(options: RegisterBrowserShellIpcOptions): void {
-  ipcMain.handle('tab:create', (_event, url?: string) => {
-    return options.getTabManager()?.createTab(url) ?? null
+  ipcMain.handle('tab:create', (event, url?: string) => {
+    return getShellWindowOwner(event)?.tabManager.createTab(url) ?? null
   })
 
-  ipcMain.on('tab:close', (_event, tabId: string) => {
-    options.getTabManager()?.closeTab(tabId)
+  ipcMain.on('tab:close', (event, tabId: string) => {
+    getShellWindowOwner(event)?.tabManager.closeTab(tabId)
   })
 
-  ipcMain.handle('tab:reopenClosed', () => {
-    return options.getTabManager()?.reopenClosedTab() ?? ''
+  ipcMain.handle('tab:reopenClosed', (event) => {
+    return getShellWindowOwner(event)?.tabManager.reopenClosedTab() ?? ''
   })
 
-  ipcMain.on('tab:switch', (_event, tabId: string) => {
-    options.getTabManager()?.switchTab(tabId)
+  ipcMain.on('tab:switch', (event, tabId: string) => {
+    getShellWindowOwner(event)?.tabManager.switchTab(tabId)
   })
 
-  ipcMain.handle('tab:reorder', (_event, tabId: unknown, targetIndex: unknown) => {
+  ipcMain.handle('tab:reorder', (event, tabId: unknown, targetIndex: unknown) => {
     if (typeof tabId !== 'string' || !Number.isInteger(targetIndex)) return false
-    return options.getTabManager()?.reorderTab(tabId, targetIndex as number) ?? false
+    return getShellWindowOwner(event)?.tabManager.reorderTab(tabId, targetIndex as number) ?? false
   })
 
-  ipcMain.on('tab:reload', (_event, tabId: string) => {
-    options.getTabManager()?.reloadTab(tabId)
+  ipcMain.on('tab:reload', (event, tabId: string) => {
+    getShellWindowOwner(event)?.tabManager.reloadTab(tabId)
   })
 
-  ipcMain.on('tab:dismissUnresponsive', (_event, tabId: string) => {
-    options.getTabManager()?.dismissUnresponsive(tabId)
+  ipcMain.on('tab:dismissUnresponsive', (event, tabId: string) => {
+    getShellWindowOwner(event)?.tabManager.dismissUnresponsive(tabId)
   })
 
-  ipcMain.handle('tab:openInternal', (_event, page: unknown) => {
+  ipcMain.handle('tab:openInternal', (event, page: unknown) => {
     if (!isInternalPage(page)) return ''
-    return options.getTabManager()?.openInternalTab(page) ?? ''
+    return getShellWindowOwner(event)?.tabManager.openInternalTab(page) ?? ''
   })
 
-  ipcMain.handle('tab:getList', () => {
-    return options.getTabManager()?.getTabList() ?? []
+  ipcMain.handle('tab:getList', (event) => {
+    return getShellWindowOwner(event)?.tabManager.getTabList() ?? []
   })
 
-  ipcMain.on('browser:navigate', (_event, input: unknown) => {
+  ipcMain.on('browser:navigate', (event, input: unknown) => {
     if (typeof input !== 'string') return
+    const owner = getShellWindowOwner(event)
+    if (!owner) return
     const resolution = resolveOmniboxInput(input, {
       search: getSearchConfig(),
       allowInsecureLocalhost: options.allowInsecureLocalhost ?? false,
     })
     if (resolution.kind === 'blocked') {
       const reason = toNavigationBlockReason(resolution.reason)
-      if (reason) options.getWindow()?.webContents.send('ui:command', { type: 'navigation-blocked', reason })
+      if (reason) owner.send('ui:command', { type: 'navigation-blocked', reason })
       return
     }
     if (resolution.kind === 'internal') {
-      options.getTabManager()?.navigateInternal(resolution.page)
+      owner.tabManager.navigateInternal(resolution.page)
       return
     }
-    options.getTabManager()?.navigate(resolveNavigateUrl(resolution.url))
+    owner.tabManager.navigate(resolveNavigateUrl(resolution.url))
   })
 
   ipcMain.handle('browser:omniboxSuggest', (_event, query: unknown) => {
@@ -90,24 +88,24 @@ export function registerBrowserShellIpc(options: RegisterBrowserShellIpcOptions)
     return getOmniboxSuggestions(query)
   })
 
-  ipcMain.on('browser:setOmniboxOpen', (_event, open: unknown) => {
+  ipcMain.on('browser:setOmniboxOpen', (event, open: unknown) => {
     if (typeof open !== 'boolean') return
-    options.getTabManager()?.setOmniboxOpen(open)
+    getShellWindowOwner(event)?.tabManager.setOmniboxOpen(open)
   })
 
-  ipcMain.handle('browser:findInPage', (_event, tabId: unknown, command: unknown) => {
+  ipcMain.handle('browser:findInPage', (event, tabId: unknown, command: unknown) => {
     if (typeof tabId !== 'string') return null
-    return options.getTabManager()?.findInPage(tabId, command) ?? null
+    return getShellWindowOwner(event)?.tabManager.findInPage(tabId, command) ?? null
   })
 
-  ipcMain.handle('browser:setZoom', (_event, tabId: unknown, command: unknown) => {
+  ipcMain.handle('browser:setZoom', (event, tabId: unknown, command: unknown) => {
     if (typeof tabId !== 'string' || !isZoomCommand(command)) return null
-    return options.getTabManager()?.setZoom(tabId, command) ?? null
+    return getShellWindowOwner(event)?.tabManager.setZoom(tabId, command) ?? null
   })
 
-  ipcMain.on('browser:setDownloadNoticeVisible', (_event, visible: unknown) => {
+  ipcMain.on('browser:setDownloadNoticeVisible', (event, visible: unknown) => {
     if (typeof visible !== 'boolean') return
-    options.getTabManager()?.setDownloadNoticeVisible(visible)
+    getShellWindowOwner(event)?.tabManager.setDownloadNoticeVisible(visible)
   })
 
   ipcMain.handle('browser:getUserScriptInstall', (_event, installId: unknown) => {
@@ -120,11 +118,11 @@ export function registerBrowserShellIpc(options: RegisterBrowserShellIpcOptions)
     return options.getUserScriptInstallRegistry?.()?.consume(installId) !== null
   })
 
-  ipcMain.on('browser:showAppMenu', (_event, anchor: unknown) => {
+  ipcMain.on('browser:showAppMenu', (event, anchor: unknown) => {
     if (!isAppMenuAnchor(anchor)) return
-    const window = options.getWindow()
-    const tabManager = options.getTabManager()
-    if (!window || window.isDestroyed() || !tabManager) return
+    const owner = getShellWindowOwner(event)
+    if (!owner || owner.isDestroyed()) return
+    const { browserWindow: window, tabManager } = owner
     const zoomState = tabManager.getActiveZoomState()
     popupAppMenu({
       window,
@@ -137,16 +135,16 @@ export function registerBrowserShellIpc(options: RegisterBrowserShellIpcOptions)
     })
   })
 
-  ipcMain.on('browser:showTabContextMenu', (_event, tabId: unknown) => {
+  ipcMain.on('browser:showTabContextMenu', (event, tabId: unknown) => {
     if (typeof tabId !== 'string' || tabId.length === 0 || tabId.length > 200) return
-    options.getTabManager()?.showTabContextMenu(tabId)
+    getShellWindowOwner(event)?.tabManager.showTabContextMenu(tabId)
   })
 
-  ipcMain.on('browser:showShellContextMenu', (_event, kind: unknown) => {
+  ipcMain.on('browser:showShellContextMenu', (event, kind: unknown) => {
     if (kind !== 'omnibox' && kind !== 'editor' && kind !== 'page') return
-    const window = options.getWindow()
-    const tabManager = options.getTabManager()
-    if (!window || window.isDestroyed() || !tabManager) return
+    const owner = getShellWindowOwner(event)
+    if (!owner || owner.isDestroyed()) return
+    const { browserWindow: window, tabManager } = owner
     popupShellContextMenu({
       window,
       params: { isEditable: kind !== 'page' },
@@ -168,46 +166,46 @@ export function registerBrowserShellIpc(options: RegisterBrowserShellIpcOptions)
     })
   })
 
-  ipcMain.on('browser:goBack', () => {
-    options.getTabManager()?.goBack()
+  ipcMain.on('browser:goBack', (event) => {
+    getShellWindowOwner(event)?.tabManager.goBack()
   })
 
-  ipcMain.on('browser:goForward', () => {
-    options.getTabManager()?.goForward()
+  ipcMain.on('browser:goForward', (event) => {
+    getShellWindowOwner(event)?.tabManager.goForward()
   })
 
-  ipcMain.on('browser:reload', () => {
-    options.getTabManager()?.reload()
+  ipcMain.on('browser:reload', (event) => {
+    getShellWindowOwner(event)?.tabManager.reload()
   })
 
-  ipcMain.on('browser:goHome', () => {
-    options.getTabManager()?.openInternalTab({ type: 'home' }, { reuseExisting: true })
+  ipcMain.on('browser:goHome', (event) => {
+    getShellWindowOwner(event)?.tabManager.openInternalTab({ type: 'home' }, { reuseExisting: true })
   })
 
-  ipcMain.on('browser:setSidebarWidth', (_event, width: number) => {
-    options.getTabManager()?.setLeftOffset(width)
+  ipcMain.on('browser:setSidebarWidth', (event, width: number) => {
+    getShellWindowOwner(event)?.tabManager.setLeftOffset(width)
   })
 
   ipcMain.handle('browser:getDiagnostics', () => {
     return options.getBrowserDiagnostics?.()?.getSnapshot() ?? { entries: [] }
   })
 
-  ipcMain.on('window:minimize', () => {
-    options.getWindow()?.minimize()
+  ipcMain.on('window:minimize', (event) => {
+    getShellWindowOwner(event)?.browserWindow.minimize()
   })
 
-  ipcMain.on('window:maximize', () => {
-    const win = options.getWindow()
+  ipcMain.on('window:maximize', (event) => {
+    const win = getShellWindowOwner(event)?.browserWindow
     if (!win) return
     if (win.isMaximized()) win.unmaximize()
     else win.maximize()
   })
 
-  ipcMain.on('window:close', () => {
-    options.getWindow()?.close()
+  ipcMain.on('window:close', (event) => {
+    getShellWindowOwner(event)?.browserWindow.close()
   })
 
-  ipcMain.handle('window:isMaximized', () => {
-    return options.getWindow()?.isMaximized() ?? false
+  ipcMain.handle('window:isMaximized', (event) => {
+    return getShellWindowOwner(event)?.browserWindow.isMaximized() ?? false
   })
 }

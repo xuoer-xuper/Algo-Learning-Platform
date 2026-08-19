@@ -48,6 +48,7 @@
 | [ADR_0001_USE_WEBCONTENTSVIEW](ADR/ADR_0001_USE_WEBCONTENTSVIEW.md) | 统一使用 `WebContentsView`。 |
 | [ADR_0002_COOKIE_VAULT](ADR/ADR_0002_COOKIE_VAULT.md) | CookieVault 和 Cookie 安全边界。 |
 | [ADR_0003_EVENT_LOG_AND_ANALYTICS](ADR/ADR_0003_EVENT_LOG_AND_ANALYTICS.md) | 学习行为采用“原始事件日志 + 聚合统计表”。 |
+| [ADR_0004_MULTI_WINDOW_SHELL](ADR/ADR_0004_MULTI_WINDOW_SHELL.md) | 完整对等壳窗口、ViewRegistry 和 sender 所有权路由。 |
 
 ## 应用模块 README
 
@@ -71,6 +72,7 @@
 | app | [electron/app/README](../algo-electron/electron/app/README.md) |
 | backup | [electron/backup/README](../algo-electron/electron/backup/README.md) |
 | browser | [electron/browser/README](../algo-electron/electron/browser/README.md) |
+| windows | [electron/windows/README](../algo-electron/electron/windows/README.md) |
 | context menus | [electron/contextMenus/README](../algo-electron/electron/contextMenus/README.md) |
 | cookies | [electron/cookies/README](../algo-electron/electron/cookies/README.md) |
 | downloads | [electron/downloads/README](../algo-electron/electron/downloads/README.md) |
@@ -153,6 +155,7 @@
 | test submissions | [tests/submissions/README](../algo-electron/tests/submissions/README.md) |
 | test tracking | [tests/tracking/README](../algo-electron/tests/tracking/README.md) |
 | test ui | [tests/ui/README](../algo-electron/tests/ui/README.md) |
+| test windows | [tests/windows/README](../algo-electron/tests/windows/README.md) |
 | GitHub | [.github/README](../.github/README.md) |
 | workflows | [.github/workflows/README](../.github/workflows/README.md) |
 | issue templates | [.github/ISSUE_TEMPLATE/README](../.github/ISSUE_TEMPLATE/README.md) |

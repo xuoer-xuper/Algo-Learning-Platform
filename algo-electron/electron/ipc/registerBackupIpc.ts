@@ -1,5 +1,5 @@
-import { dialog, type BrowserWindow, type OpenDialogOptions, type SaveDialogOptions } from 'electron'
-import { ipcMain } from './trustedSender'
+import { dialog, type BrowserWindow, type IpcMainInvokeEvent, type OpenDialogOptions, type SaveDialogOptions } from 'electron'
+import { getShellWindowOwner, ipcMain } from './trustedSender'
 import path from 'node:path'
 import {
   createDatabaseBackup,
@@ -10,14 +10,22 @@ import {
 import type { LearningDataExport } from '../backup/types'
 
 interface RegisterBackupIpcOptions {
-  getParentWindow?: () => BrowserWindow | null
+  getParentWindow?: (event: IpcMainInvokeEvent) => BrowserWindow | null
 }
 
-let pendingImport: LearningDataExport | null = null
+const pendingImports = new Map<string, LearningDataExport>()
+
+function getOwnerId(event: IpcMainInvokeEvent): string | null {
+  return getShellWindowOwner(event)?.id ?? null
+}
+
+function getParentWindow(event: IpcMainInvokeEvent, options: RegisterBackupIpcOptions): BrowserWindow | null {
+  return options.getParentWindow?.(event) ?? getShellWindowOwner(event)?.browserWindow ?? null
+}
 
 export function registerBackupIpc(options: RegisterBackupIpcOptions = {}): void {
-  ipcMain.handle('backup:createDatabaseBackup', async () => {
-    const parentWindow = options.getParentWindow?.()
+  ipcMain.handle('backup:createDatabaseBackup', async (event) => {
+    const parentWindow = getParentWindow(event, options)
     const dialogOptions: OpenDialogOptions = {
       title: '选择数据库备份目录',
       properties: ['openDirectory', 'createDirectory'],
@@ -31,8 +39,8 @@ export function registerBackupIpc(options: RegisterBackupIpcOptions = {}): void 
     return createDatabaseBackup(result.filePaths[0])
   })
 
-  ipcMain.handle('backup:exportLearningData', async () => {
-    const parentWindow = options.getParentWindow?.()
+  ipcMain.handle('backup:exportLearningData', async (event) => {
+    const parentWindow = getParentWindow(event, options)
     const dialogOptions: SaveDialogOptions = {
       title: '导出学习数据',
       defaultPath: `algo-learning-data-${new Date().toISOString().slice(0, 10)}.json`,
@@ -51,8 +59,10 @@ export function registerBackupIpc(options: RegisterBackupIpcOptions = {}): void 
     return exportLearningDataToFile(filePath)
   })
 
-  ipcMain.handle('backup:previewLearningDataImport', async () => {
-    const parentWindow = options.getParentWindow?.()
+  ipcMain.handle('backup:previewLearningDataImport', async (event) => {
+    const ownerId = getOwnerId(event)
+    if (!ownerId) return { success: false, error: '无法确定导入窗口' }
+    const parentWindow = getParentWindow(event, options)
     const dialogOptions: OpenDialogOptions = {
       title: '导入学习数据',
       filters: [{ name: 'JSON', extensions: ['json'] }],
@@ -62,24 +72,29 @@ export function registerBackupIpc(options: RegisterBackupIpcOptions = {}): void 
       ? await dialog.showOpenDialog(parentWindow, dialogOptions)
       : await dialog.showOpenDialog(dialogOptions)
     if (result.canceled || result.filePaths.length === 0) {
-      pendingImport = null
+      pendingImports.delete(ownerId)
       return { success: false, error: '取消导入' }
     }
 
     const { data, preview } = previewLearningDataImportFile(result.filePaths[0])
-    pendingImport = preview.valid && data ? data : null
+    if (preview.valid && data) {
+      pendingImports.set(ownerId, data)
+      event.sender.once('destroyed', () => pendingImports.delete(ownerId))
+    } else {
+      pendingImports.delete(ownerId)
+    }
     return { success: preview.valid, preview, error: preview.error }
   })
 
-  ipcMain.handle('backup:confirmLearningDataImport', (_event, overwriteConflicts: boolean) => {
+  ipcMain.handle('backup:confirmLearningDataImport', (event, overwriteConflicts: boolean) => {
+    const ownerId = getOwnerId(event)
+    const pendingImport = ownerId ? pendingImports.get(ownerId) ?? null : null
     if (!pendingImport) {
       return { success: false, error: '没有待确认的导入数据', inserted: {}, updated: {}, skipped: {}, conflicts: [] }
     }
 
     const result = importLearningDataFromParsedExport(pendingImport, overwriteConflicts)
-    if (result.success) {
-      pendingImport = null
-    }
+    if (result.success && ownerId) pendingImports.delete(ownerId)
     return result
   })
 }

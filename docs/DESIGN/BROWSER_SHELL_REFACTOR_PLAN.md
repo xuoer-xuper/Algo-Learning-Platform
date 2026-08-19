@@ -458,7 +458,8 @@ Renderer（同一构建产物，多窗口实例化——桌宠 hash 路由已证
 | B2.5 | [x] | `a0f7d3f`（2026-08-18）：Omnibox 三分流、本地建议、搜索引擎设置、工具栏 AppMenu 与 view 聚焦摘挂完成；完整证据见 §11.26 |
 | B2.6 | [x] | 六个内部页面已改为真实标签创建、切换、地址同步、再次激活与标签关闭契约；实现与完成标记同提交，B2 统一验证已通过，完整记录见 §11.27、§11.30 |
 | B2.7-B2.8 | [x] | B2.7 下载/查找/缩放与 B2.8 完整右键菜单已实现；B2 统一验证、生产构建、NSIS 与真实 packaged 双实例 smoke 全部通过，完整记录见 §11.28-§11.30 |
-| B3.1-B3.5 | [ ] | WindowManager、事件多窗口化、标签过户、服务广播、生命周期与恢复均待实施 |
+| B3.1 | [x] | WindowManager/AppWindow/ViewRegistry、sender 归属路由、窗口 bounds/maximized 持久化与多显示器越界校验已完成；保持单窗口行为，完整记录见 §11.31 |
+| B3.2-B3.5 | [ ] | 事件源多流化、服务聚合、标签过户、广播、完整多窗口生命周期与会话恢复待实施；B3.2 完成前拆分入口继续禁用 |
 | B4.1-B4.6 | [ ] | 026_site_credentials、Vault、自动填充、账户页、登录捕获、fuses 均待实施 |
 | B5.1-B5.6 | [ ] | 仅按视觉冻结约束做结构收尾、暗色、无障碍、桌宠策略和 Latex |
 | B6.1-B6.7 | [ ] | 027_userscript_runtime、GM 桥、网络代理、早注入、资源、安装更新与管理页均待实施 |
@@ -862,4 +863,23 @@ Renderer（同一构建产物，多窗口实例化——桌宠 hash 路由已证
 | 安装产物 | `release/2.0.0-beta.2/AlgoLearningPlatform-Windows-2.0.0-beta.2-x64-Setup.exe`、对应 blockmap 与 `win-unpacked` 目录均已生成 |
 | 视觉影响 | 本次仅修复验证稳定性并更新台账；未修改 CSS、颜色、字体、按钮形态、整体布局或动画基调，继续冻结既有前端风格 |
 | 后续工作 | B2 无已知代码缺口；下一步进入 B3.1 `WindowManager`/`AppWindow`、sender 路由化、窗口 bounds 持久化与多显示器越界校验 |
+| 完成时间 | 北京时间 `2026-08-19` |
+
+### 11.31 B3.1 窗口所有权与 sender 路由完成记录
+
+| 字段 | 填写内容 |
+|---|---|
+| 任务 | B3.1 `WindowManager`/`AppWindow`、应用级 ViewRegistry、IPC sender 路由和窗口 bounds/maximized 持久化 |
+| 状态 | `[x] 已完成` |
+| Commit | `browser: 完成 B3.1 窗口所有权基础层`（代码、测试、ADR 与本完成标记同提交） |
+| 窗口模型 | 新增 `AppWindow`、`WindowManager`、`ViewRegistry`、`WindowCreationGate` 与 `WindowSessionRegistry`；完整壳、TabManager、shell webContents 与 web 标签 view 建立唯一 `windowId/tabId` 归属。`main.ts` 删除模块级 `win/tabManager` 单槽，重叠 activate 建窗合并为同一 promise；重复 close 与并发 quit 复用同一 session dispose promise |
+| View 生命周期 | TabManager 在创建/popup、web/internal 互转、崩溃替换、会话恢复与失败回滚、关闭和 destroy 路径成对维护 ViewRegistry；冲突 owner fail closed，并预留 B3.3 `transferTab` 过户原语 |
+| IPC 路由 | trusted sender 在既有 main-frame/origin/payload 校验后解析 `AppWindow` owner；`tab:*`、`browser:*`、`window:*`、原生菜单和 Backup/Sites/Scripts 对话框全部按 sender 路由。双可信 shell 测试证明导航和窗口按钮互不串窗；备份待确认导入按 `windowId` 隔离并随 shell 销毁清理 |
+| 定向事件与下载 | URL、标签列表、查找、缩放、问题更新和窗口最大化事件由所属 AppWindow 发回自己的壳；下载开始时捕获来源 `windowId`，标签随后关闭也不会改投其他窗口；非空未知 source fail closed，仅缺失 source 且恰好一个壳窗口时允许回退 |
+| 窗口状态 | `browser-window-state.json` 独立保存 normal bounds 与 maximized，250ms debounce、store 级串行队列和临时文件原子替换；恢复支持负坐标副屏，损坏/超限状态回退居中默认值，显示器拔除或完全越界时校正到主屏 workArea |
+| 架构约束 | 新增 ADR-0004 与 architecture guard：禁止恢复模块级 `win/tabManager`，浏览器 IPC 不得注入全局窗口 getter，窗口敏感 handler 与原生对话框必须从 trusted sender owner 解析 |
+| 自动验证 | `npm run test:core` 完整通过：TypeScript、全仓 ESLint、architecture `7/7`、security，以及 Vitest `65 files / 661 tests`；额外 B3.1 定向窗口/IPC/下载/主进程测试均通过；`npm run test:docs` 与 `git diff --check` 无错误 |
+| 视觉影响 | 未修改 `src/`、CSS、颜色、字体、按钮形态、整体布局或动画基调；现有前端风格继续冻结 |
+| 暂缓验证 | 按批量策略，本任务不单独运行生产构建、NSIS 或真实 packaged 双实例 smoke；B3.2-B3.5 完成后统一执行整个 B3 验收 |
+| 后续工作 | 进入 B3.2：导航事件 per-webContents 化，ContestGuard 多流聚合、TrackingService 多 visit、提交/脚本/Coach 直达消费者；B3.2 完成前拆分入口保持禁用 |
 | 完成时间 | 北京时间 `2026-08-19` |

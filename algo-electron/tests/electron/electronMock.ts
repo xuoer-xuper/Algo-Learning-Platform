@@ -125,17 +125,38 @@ export class MockBrowserWindow extends EventEmitter {
   private minimized = false
   private maximized = false
   private focused = false
-  private size: [number, number] = [1280, 800]
+  private bounds = { x: 0, y: 0, width: 1280, height: 800 }
+  private normalBounds = { ...this.bounds }
 
-  constructor(options: { width?: number; height?: number } = {}) {
+  constructor(options: { x?: number; y?: number; width?: number; height?: number } = {}) {
     super()
-    this.size = [options.width ?? 1280, options.height ?? 800]
+    this.bounds = {
+      x: options.x ?? 0,
+      y: options.y ?? 0,
+      width: options.width ?? 1280,
+      height: options.height ?? 800,
+    }
+    this.normalBounds = { ...this.bounds }
     MockBrowserWindow.windows.push(this)
   }
 
   static getAllWindows(): MockBrowserWindow[] { return [...MockBrowserWindow.windows.filter((window) => !window.isDestroyed())] }
-  getContentSize(): [number, number] { return [...this.size] as [number, number] }
-  setContentSize(width: number, height: number): void { this.size = [width, height]; this.emit('resize') }
+  getContentSize(): [number, number] { return [this.bounds.width, this.bounds.height] }
+  setContentSize(width: number, height: number): void {
+    this.setBounds({ ...this.bounds, width, height })
+  }
+  getBounds(): { x: number; y: number; width: number; height: number } { return { ...this.bounds } }
+  getNormalBounds(): { x: number; y: number; width: number; height: number } { return { ...this.normalBounds } }
+  setBounds(bounds: { x: number; y: number; width: number; height: number }): void {
+    const moved = bounds.x !== this.bounds.x || bounds.y !== this.bounds.y
+    const resized = bounds.width !== this.bounds.width || bounds.height !== this.bounds.height
+    this.bounds = { ...bounds }
+    if (!this.maximized) this.normalBounds = { ...bounds }
+    if (moved) this.emit('move')
+    if (resized) this.emit('resize')
+  }
+  getPosition(): [number, number] { return [this.bounds.x, this.bounds.y] }
+  setPosition(x: number, y: number): void { this.setBounds({ ...this.bounds, x, y }) }
   isDestroyed(): boolean { return this.destroyed }
   isVisible(): boolean { return this.visible }
   isMinimized(): boolean { return this.minimized }
@@ -147,8 +168,18 @@ export class MockBrowserWindow extends EventEmitter {
   restore(): void { this.minimized = false; this.visible = true; this.emit('restore') }
   focus(): void { this.visible = true; this.focused = true; this.emit('focus') }
   isMaximized(): boolean { return this.maximized }
-  maximize(): void { this.maximized = true; this.emit('maximize') }
-  unmaximize(): void { this.maximized = false; this.emit('unmaximize') }
+  maximize(): void {
+    if (this.maximized) return
+    this.normalBounds = { ...this.bounds }
+    this.maximized = true
+    this.emit('maximize')
+  }
+  unmaximize(): void {
+    if (!this.maximized) return
+    this.maximized = false
+    this.bounds = { ...this.normalBounds }
+    this.emit('unmaximize')
+  }
   setTitle(_title: string): void { /* no-op */ }
   close(): void {
     if (this.destroyed) return

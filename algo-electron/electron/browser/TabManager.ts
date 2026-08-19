@@ -51,6 +51,7 @@ import {
   type UserScriptInstallRoute,
 } from '../downloads/userScriptNavigation'
 import { popupPageContextMenu, popupTabContextMenu } from '../contextMenus/browserContextMenu'
+import type { ViewRegistry } from '../windows/ViewRegistry'
 
 export type { TabInfo } from './tabManagerTypes'
 
@@ -60,6 +61,8 @@ export interface TabManagerOptions {
   saveZoomFactorForUrl?: (url: string, factor: number) => number | null
   userScriptInstallRegistry?: PendingUserScriptInstallRegistry
   buildSearchUrlForQuery?: (query: string) => string
+  windowId?: string
+  viewRegistry?: ViewRegistry
 }
 
 export interface WebContentsUrlSnapshot {
@@ -132,6 +135,8 @@ export class TabManager {
   private readonly saveZoomFactorForUrl: (url: string, factor: number) => number | null
   private readonly userScriptInstallRegistry: PendingUserScriptInstallRegistry | null
   private readonly buildSearchUrlForQuery: (query: string) => string
+  private readonly windowId: string | null
+  private readonly viewRegistry: ViewRegistry | null
   private closedTabs: ClosedTabSnapshot[] = []
   private isDestroying = false
   private isRestoringSession = false
@@ -148,7 +153,27 @@ export class TabManager {
     this.saveZoomFactorForUrl = options.saveZoomFactorForUrl ?? ((_url, factor) => factor)
     this.userScriptInstallRegistry = options.userScriptInstallRegistry ?? null
     this.buildSearchUrlForQuery = options.buildSearchUrlForQuery ?? ((query) => query)
+    this.windowId = options.windowId ?? null
+    this.viewRegistry = options.viewRegistry ?? null
     this.window.on('resize', () => this.updateBounds())
+  }
+
+  private registerTabView(tabId: string, view: WebContentsView): void {
+    if (!this.windowId || !this.viewRegistry) return
+    this.viewRegistry.registerTab(this.windowId, tabId, view)
+  }
+
+  private unregisterTabView(viewOrId: WebContentsView | number): void {
+    if (!this.windowId || !this.viewRegistry) return
+    if (typeof viewOrId === 'number') {
+      this.viewRegistry.unregister(viewOrId, this.windowId)
+      return
+    }
+    try {
+      this.viewRegistry.unregister(viewOrId.webContents.id, this.windowId)
+    } catch {
+      // A destroyed WebContentsView may no longer expose webContents.
+    }
   }
 
   private getFindInPageViewState(): FindInPageViewState {
@@ -669,6 +694,7 @@ export class TabManager {
       isUnresponsive: false,
       isUnresponsiveNoticeDismissed: false,
     })
+    this.registerTabView(id, view)
     this.applyZoomToView(view, url)
 
     if (options.activate !== false || !this.activeTabId) {
@@ -750,6 +776,7 @@ export class TabManager {
 
   private handleViewDestroyed(view: WebContentsView, contentsId: number): void {
     unregisterOjWebContents({ id: contentsId })
+    this.unregisterTabView(contentsId)
     this.recoveryPendingViews.delete(view)
     const tab = this.findTabByView(view)
     if (!tab) return
@@ -758,6 +785,7 @@ export class TabManager {
     if (!this.isDestroying && tab.isCrashed) {
       try {
         tab.view = this.createView()
+        this.registerTabView(tab.id, tab.view)
         this.applyZoomToView(tab.view, tab.url)
         tab.isLoading = false
         tab.isUnresponsive = false
@@ -862,6 +890,7 @@ export class TabManager {
       } catch {
         // A crashed view may already have lost its webContents object.
       }
+      this.unregisterTabView(tab.view)
       safeCloseWebContents(tab.view)
     }
 
@@ -968,6 +997,7 @@ export class TabManager {
     } catch {
       // A redirect can race with renderer teardown.
     }
+    this.unregisterTabView(tab.view)
     const internalTab: ManagedInternalTab = {
       id: tab.id,
       kind: 'internal',
@@ -1021,6 +1051,7 @@ export class TabManager {
       this.userScriptInstallRegistry?.consume(tab.page.installId)
     }
     this.tabs[tabIndex] = webTab
+    this.registerTabView(webTab.id, view)
     this.applyZoomToView(view, url)
     this.attachTabView(webTab)
     this.onUrlChange?.(url)
@@ -1068,6 +1099,7 @@ export class TabManager {
       } catch {
         // A crashed view may already have lost its webContents object.
       }
+      this.unregisterTabView(currentTab.view)
       this.tabs[tabIndex] = internalTab
       safeCloseWebContents(currentTab.view)
     } else {
@@ -1238,6 +1270,7 @@ export class TabManager {
     if (needsReplacement) {
       try {
         tab.view = this.createView()
+        this.registerTabView(tab.id, tab.view)
         this.applyZoomToView(tab.view, nextUrl ?? tab.url)
       } catch (error) {
         appLogger.warn('browser.crashed-tab-recovery-failed', {
@@ -1464,6 +1497,7 @@ export class TabManager {
       this.activeTabId = null
       for (const tab of restoredTabs) {
         if (tab.kind !== 'web') continue
+        this.registerTabView(tab.id, tab.view)
         this.applyZoomToView(tab.view, tab.url)
         void tab.view.webContents.loadURL(tab.url).catch((error) => {
           appLogger.warn('browser.session-tab-load-failed', {
@@ -1486,6 +1520,7 @@ export class TabManager {
         if (tab.kind !== 'web') continue
         try {
           unregisterOjWebContents(tab.view.webContents)
+          this.unregisterTabView(tab.view)
           safeRemoveChildView(this.window, tab.view)
           safeCloseWebContents(tab.view)
         } catch { /* ignore rollback failures */ }
@@ -1682,6 +1717,7 @@ export class TabManager {
       if (tab.kind !== 'web') continue
       try {
         unregisterOjWebContents(tab.view.webContents)
+        this.unregisterTabView(tab.view)
         if (!tab.view.webContents.isDestroyed()) {
           safeRemoveChildView(this.window, tab.view)
           safeCloseWebContents(tab.view)

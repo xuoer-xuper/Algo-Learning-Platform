@@ -23,12 +23,14 @@ import {
   checkIpcPayload,
   checkOjSender,
   checkShellSender,
+  getShellWindowOwner,
   registerCoachWebContents,
   registerOjWebContents,
   registerShellWebContents,
   resetTrustedSenderRegistry,
   unregisterOjWebContents,
 } from '../../electron/ipc/trustedSender.ts'
+import type { AppWindow } from '../../electron/windows/AppWindow.ts'
 
 function eventFor(sender: MockWebContents, senderFrame: MockWebFrame = sender.mainFrame) {
   return { sender, senderFrame } as never
@@ -71,12 +73,15 @@ test('trusted shell sender rejects remote views, iframes, forged origins, and no
   try {
     const shell = new MockWebContents()
     await shell.loadURL('app://shell/index.html')
-    registerShellWebContents(shell)
+    const owner = { id: 'window-1' } as AppWindow
+    registerShellWebContents(shell, owner)
     assert.strictEqual(checkShellSender(eventFor(shell)).trusted, true)
+    assert.strictEqual(getShellWindowOwner(eventFor(shell)), owner)
 
     const remote = new MockWebContents()
     await remote.loadURL('https://codeforces.com/problemset')
     assert.deepStrictEqual(checkShellSender(eventFor(remote)), { trusted: false, reason: 'sender' })
+    assert.strictEqual(getShellWindowOwner(eventFor(remote)), null)
 
     const iframe = new MockWebFrame()
     iframe.url = 'app://shell/index.html'

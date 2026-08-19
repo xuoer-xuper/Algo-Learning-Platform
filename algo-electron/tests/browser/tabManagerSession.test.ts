@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, test, vi } from 'vitest'
 import { MockBrowserWindow, resetElectronMock } from 'electron'
 import { TabManager } from '../../electron/browser/TabManager.ts'
 import type { TabSessionSnapshot } from '../../electron/browser/tabManagerTypes.ts'
+import { ViewRegistry } from '../../electron/windows/ViewRegistry.ts'
 import {
   checkOjSender,
   resetTrustedSenderRegistry,
@@ -105,10 +106,16 @@ beforeEach(() => {
 describe('TabManager session restore', () => {
   test('keeps crashed metadata when immediate replacement creation fails and retries later', async () => {
     const window = new MockBrowserWindow()
-    const manager = new TabManager(window as never)
+    const registry = new ViewRegistry()
+    const manager = new TabManager(window as never, {
+      windowId: 'window-retry',
+      viewRegistry: registry,
+    })
     const tabId = manager.createTab('https://example.com/retry')
     await drainNavigationEvents()
     const contents = harness.createdContents[0]
+    const initialEntry = registry.get(contents.id)
+    expect(initialEntry).toMatchObject({ kind: 'tab', windowId: 'window-retry', tabId })
     harness.failViewCreationAt = 2
 
     contents.emit('render-process-gone', {}, { reason: 'crashed', exitCode: 1 })
@@ -120,6 +127,8 @@ describe('TabManager session restore', () => {
       isCrashed: true,
     }])
     expect(harness.createAttempts).toBe(2)
+    expect(registry.get(contents.id)).toBeNull()
+    expect(registry.getByWindow('window-retry')).toEqual([])
 
     harness.failViewCreationAt = null
     manager.reloadTab(tabId)
@@ -132,6 +141,12 @@ describe('TabManager session restore', () => {
     }])
     expect(harness.createAttempts).toBe(3)
     expect(window.contentView.children).toEqual([harness.createdViews[1]])
+    expect(registry.getByWindow('window-retry')).toMatchObject([{
+      kind: 'tab',
+      windowId: 'window-retry',
+      tabId,
+      webContentsId: harness.createdContents[1].id,
+    }])
   })
 
   test('restores ordered web tabs with stable metadata and mounts only the active view after setup', async () => {

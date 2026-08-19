@@ -14,9 +14,13 @@ export function installWindowSessionFlush(
   let flushPromise: Promise<void> | null = null
 
   const handleClose = (event: Electron.Event): void => {
-    if (allowClose || !options.shouldFlush()) return
+    if (allowClose) return
+    if (flushPromise) {
+      event.preventDefault()
+      return
+    }
+    if (!options.shouldFlush()) return
     event.preventDefault()
-    if (flushPromise) return
 
     let requestedFlush: Promise<void>
     try {

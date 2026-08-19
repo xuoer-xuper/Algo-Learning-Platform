@@ -42,7 +42,7 @@ Electron Main Process
 
 Main Process 是本地能力和系统边界的中心，负责：
 
-- 创建主窗口。
+- 通过 WindowManager 创建和登记完整浏览器壳窗口。
 - 创建和管理 `WebContentsView`。
 - 管理持久 session。
 - 注册 IPC handler。
@@ -71,6 +71,11 @@ algo-electron/electron/
     TabManager.ts
     DetachedWindow.ts
     ojSession.ts
+  windows/
+    AppWindow.ts
+    WindowManager.ts
+    ViewRegistry.ts
+    windowBounds.ts
   db/
     connection.ts
     migrate.ts
@@ -210,6 +215,16 @@ Renderer 不直接操作 `webContents`。
 - **浮层边界**：功能页面不再通过截图替身 modal 打开。内部页可使用 DOM Dialog/DropdownMenu；web 页菜单使用原生 `Menu.popup`，持久提示使用布局让位的 NoticeBar。
 - **拆分窗口**：当前 `DetachedWindow` 仅保留旧 web 标签能力，B3 将替换为完整对等浏览器壳；在此之前拖出/双击入口保持禁用。
 
+### 4.5 窗口与 view 所有权
+
+- `AppWindow` 一一封装完整壳 `BrowserWindow` 与其 `TabManager`；`main.ts` 不再保留模块级 `win/tabManager` 单槽。
+- `WindowManager` 持有 `Map<windowId, AppWindow>`，跟踪最近聚焦窗口，并在窗口关闭时清除该窗口的全部 view 归属。
+- 应用级 `ViewRegistry` 记录 shell 与 web 标签的 `webContentsId -> windowId/tabId/view`；TabManager 在创建、popup、崩溃替换、web/internal 转换、关闭、恢复回滚和 destroy 时维护注册表。
+- 普通 shell IPC 先由 `trustedSender` 校验 main frame、origin 和 payload，再从 sender 解析所属 `AppWindow`。窗口、标签、菜单和原生对话框不得使用最近活跃窗口作为隐式回退。
+- 下载开始时捕获来源 `windowId`，完成通知只发回仍存活的来源窗口。
+- 窗口 normal bounds 与 maximized 独立原子保存；恢复时保留合法负坐标副屏，显示器拔除或完全越界时校正到主屏 workArea。
+- B3.1 仍只创建一个壳窗口；B3.2 服务多流语义完成前拆分入口保持禁用，B3.3 才以完整 AppWindow 替换 `DetachedWindow`。
+
 ## 5. Session 与 CookieVault
 
 ### 5.1 持久 Session
@@ -273,6 +288,8 @@ window.electronAPI = {
 ```
 
 完整 preload 契约以 `algo-electron/electron/preload.ts` 和 `algo-electron/electron/electron-env.d.ts` 为准；IPC contract 测试负责防止 renderer 获得通用 `ipcRenderer`。
+
+窗口敏感 IPC 必须使用 `trustedSender.getShellWindowOwner(event)` 定向解析 sender 所属 `AppWindow`；owner 缺失时 fail closed。数据查询可以共享应用级 service，但不得用全局主窗口 getter 处理窗口、标签、菜单或对话框。
 
 ### 6.2 IPC 命名规则
 

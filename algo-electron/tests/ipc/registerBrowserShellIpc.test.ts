@@ -14,13 +14,13 @@ import {
   resetTrustedSenderRegistry,
 } from '../../electron/ipc/trustedSender.ts'
 import type { InternalPage } from '../../electron/browser/tabManagerTypes.ts'
+import { AppWindow } from '../../electron/windows/AppWindow.ts'
 
 test('browser shell IPC resolves omnibox input and validates transient UI commands', async () => {
   resetElectronMock()
   resetTrustedSenderRegistry()
   const shell = new MockWebContents()
   await shell.loadURL('app://shell/index.html')
-  registerShellWebContents(shell)
   const event = { sender: shell, senderFrame: shell.mainFrame } as never
 
   const window = new MockBrowserWindow()
@@ -39,11 +39,13 @@ test('browser shell IPC resolves omnibox input and validates transient UI comman
     openInternalTab: (page: InternalPage) => { openedPages.push(page); return 'tab-1' },
     getActiveZoomState: () => null,
   }
+  registerShellWebContents(shell, new AppWindow({
+    id: 'window-1',
+    browserWindow: window as never,
+    tabManager: tabManager as never,
+  }))
 
-  registerBrowserShellIpc({
-    getWindow: () => window as never,
-    getTabManager: () => tabManager as never,
-  })
+  registerBrowserShellIpc({})
 
   ipcMain.emit('browser:navigate', event, 'algo://settings')
   ipcMain.emit('browser:navigate', event, 'two sum')
@@ -72,7 +74,6 @@ test('browser context-menu IPC validates senders and supports omnibox paste-and-
   resetTrustedSenderRegistry()
   const shell = new MockWebContents()
   await shell.loadURL('app://shell/index.html')
-  registerShellWebContents(shell)
   const event = { sender: shell, senderFrame: shell.mainFrame } as never
   const untrusted = new MockWebContents()
   await untrusted.loadURL('https://example.com/')
@@ -88,11 +89,13 @@ test('browser context-menu IPC validates senders and supports omnibox paste-and-
     navigateInternal: () => undefined,
     showTabContextMenu: (tabId: string) => { tabMenuIds.push(tabId) },
   }
+  registerShellWebContents(shell, new AppWindow({
+    id: 'window-1',
+    browserWindow: window as never,
+    tabManager: tabManager as never,
+  }))
 
-  registerBrowserShellIpc({
-    getWindow: () => window as never,
-    getTabManager: () => tabManager as never,
-  })
+  registerBrowserShellIpc({})
 
   ipcMain.emit('browser:showShellContextMenu', event, 'unknown')
   ipcMain.emit('browser:showShellContextMenu', untrustedEvent, 'page')
@@ -116,4 +119,37 @@ test('browser context-menu IPC validates senders and supports omnibox paste-and-
   ipcMain.emit('browser:showTabContextMenu', event, 42)
   ipcMain.emit('browser:showTabContextMenu', untrustedEvent, 'tab-2')
   assert.deepStrictEqual(tabMenuIds, ['tab-1'])
+})
+
+test('browser shell IPC routes each trusted sender only to its owning window', async () => {
+  resetElectronMock()
+  resetTrustedSenderRegistry()
+  const firstShell = new MockWebContents()
+  const secondShell = new MockWebContents()
+  await firstShell.loadURL('app://shell/index.html')
+  await secondShell.loadURL('app://shell/index.html')
+  const firstWindow = new MockBrowserWindow()
+  const secondWindow = new MockBrowserWindow()
+  const firstNavigations: string[] = []
+  const secondNavigations: string[] = []
+  registerShellWebContents(firstShell, new AppWindow({
+    id: 'window-1',
+    browserWindow: firstWindow as never,
+    tabManager: { navigate: (url: string) => { firstNavigations.push(url) } } as never,
+  }))
+  registerShellWebContents(secondShell, new AppWindow({
+    id: 'window-2',
+    browserWindow: secondWindow as never,
+    tabManager: { navigate: (url: string) => { secondNavigations.push(url) } } as never,
+  }))
+  registerBrowserShellIpc({})
+
+  ipcMain.emit('browser:navigate', { sender: firstShell, senderFrame: firstShell.mainFrame }, 'first.example')
+  ipcMain.emit('browser:navigate', { sender: secondShell, senderFrame: secondShell.mainFrame }, 'second.example')
+  ipcMain.emit('window:minimize', { sender: firstShell, senderFrame: firstShell.mainFrame })
+
+  assert.deepStrictEqual(firstNavigations, ['https://first.example/'])
+  assert.deepStrictEqual(secondNavigations, ['https://second.example/'])
+  assert.strictEqual(firstWindow.isMinimized(), true)
+  assert.strictEqual(secondWindow.isMinimized(), false)
 })

@@ -1,5 +1,5 @@
-import { dialog, type BrowserWindow, type OpenDialogOptions, type SaveDialogOptions } from 'electron'
-import { ipcMain } from './trustedSender'
+import { dialog, type BrowserWindow, type IpcMainInvokeEvent, type OpenDialogOptions, type SaveDialogOptions } from 'electron'
+import { getShellWindowOwner, ipcMain } from './trustedSender'
 import fs from 'node:fs'
 import {
   confirmImportSites,
@@ -15,8 +15,8 @@ import {
 } from '../db/repositories/siteRepository'
 
 interface RegisterSitesIpcOptions {
-  getParentWindow?: () => BrowserWindow | null
-  notifyProblemsUpdated?: () => void
+  getParentWindow?: (event: IpcMainInvokeEvent) => BrowserWindow | null
+  notifyProblemsUpdated?: (event: IpcMainInvokeEvent) => void
 }
 
 function errorMessage(error: unknown): string {
@@ -24,6 +24,9 @@ function errorMessage(error: unknown): string {
 }
 
 export function registerSitesIpc(options: RegisterSitesIpcOptions = {}): void {
+  const getParentWindow = (event: IpcMainInvokeEvent): BrowserWindow | null => (
+    options.getParentWindow?.(event) ?? getShellWindowOwner(event)?.browserWindow ?? null
+  )
   ipcMain.handle('sites:getAll', () => {
     return getAllSites()
   })
@@ -48,9 +51,9 @@ export function registerSitesIpc(options: RegisterSitesIpcOptions = {}): void {
     return deleteSite(id)
   })
 
-  ipcMain.handle('sites:exportConfig', async () => {
+  ipcMain.handle('sites:exportConfig', async (event) => {
     try {
-      const parentWindow = options.getParentWindow?.()
+      const parentWindow = getParentWindow(event)
       const dialogOptions: SaveDialogOptions = {
         title: '导出站点配置',
         defaultPath: 'algo-sites-config.json',
@@ -69,9 +72,9 @@ export function registerSitesIpc(options: RegisterSitesIpcOptions = {}): void {
     }
   })
 
-  ipcMain.handle('sites:importConfig', async () => {
+  ipcMain.handle('sites:importConfig', async (event) => {
     try {
-      const parentWindow = options.getParentWindow?.()
+      const parentWindow = getParentWindow(event)
       const dialogOptions: OpenDialogOptions = {
         title: '导入站点配置',
         filters: [{ name: 'JSON', extensions: ['json'] }],
@@ -91,10 +94,10 @@ export function registerSitesIpc(options: RegisterSitesIpcOptions = {}): void {
     }
   })
 
-  ipcMain.handle('sites:confirmImport', (_event, sites: SiteConfigData[], overwriteIds: string[]) => {
+  ipcMain.handle('sites:confirmImport', (event, sites: SiteConfigData[], overwriteIds: string[]) => {
     try {
       const result = confirmImportSites(sites, overwriteIds)
-      options.notifyProblemsUpdated?.()
+      options.notifyProblemsUpdated?.(event)
       return { success: true, ...result }
     } catch (error) {
       return { success: false, error: errorMessage(error) }

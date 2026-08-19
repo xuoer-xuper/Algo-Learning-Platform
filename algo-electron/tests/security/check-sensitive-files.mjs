@@ -141,7 +141,7 @@ function checkSecurityRegressions() {
 
   const trustedSenderFile = 'algo-electron/electron/ipc/trustedSender.ts'
   const trustedSenderText = fs.readFileSync(path.join(repoRoot, trustedSenderFile), 'utf8')
-  for (const token of ['checkShellSender', 'checkOjSender', 'checkIpcPayload', 'registerShellWebContents', 'registerOjWebContents']) {
+  for (const token of ['checkShellSender', 'checkOjSender', 'checkIpcPayload', 'registerShellWebContents', 'getShellWindowOwner', 'registerOjWebContents']) {
     if (!trustedSenderText.includes(token)) failures.push(`${trustedSenderFile}: missing ${token} trust boundary`)
   }
 

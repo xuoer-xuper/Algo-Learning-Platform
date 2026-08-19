@@ -11,6 +11,7 @@
 - `ADR_0001_USE_WEBCONTENTSVIEW.md`：统一使用 `WebContentsView`，禁止继续扩展旧 `BrowserView`。
 - `ADR_0002_COOKIE_VAULT.md`：CookieVault 作为本地一等能力及 Cookie 安全边界。
 - `ADR_0003_EVENT_LOG_AND_ANALYTICS.md`：学习行为采用“原始事件日志 + 聚合统计表”的设计。
+- `ADR_0004_MULTI_WINDOW_SHELL.md`：完整对等壳窗口、ViewRegistry 和 sender 所有权路由。
 
 ## 3. 新增规则
 

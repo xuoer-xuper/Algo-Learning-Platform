@@ -26,12 +26,14 @@ describe('window tab session flush', () => {
     const flush = vi.fn(() => gate.promise)
     const closed = vi.fn()
     window.on('closed', closed)
+    let shouldFlush = true
     installWindowSessionFlush(window as never, {
-      shouldFlush: () => true,
+      shouldFlush: () => shouldFlush,
       flush,
     })
 
     window.close()
+    shouldFlush = false
     window.close()
 
     expect(flush).toHaveBeenCalledOnce()

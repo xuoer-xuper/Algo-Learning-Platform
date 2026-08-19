@@ -52,6 +52,8 @@
   - 通用表格扫描、DOM scraper、实时 hook 注入、诊断、tab 激活、批量写入、提交页上下文、watcher core、sync service。
 - `ui/`
   - Renderer 关键页面截图验收 harness。
+- `windows/`
+  - AppWindow、WindowManager、ViewRegistry、TabManager owner 生命周期和多显示器 bounds 恢复。
 
 ## 3. 标准验证命令
 

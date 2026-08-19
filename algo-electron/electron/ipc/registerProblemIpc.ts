@@ -1,3 +1,4 @@
+import type { IpcMainInvokeEvent } from 'electron'
 import { ipcMain } from './trustedSender'
 import {
   deleteProblem,
@@ -6,7 +7,7 @@ import {
 } from '../db/repositories/problemRepository'
 
 interface RegisterProblemIpcOptions {
-  notifyProblemsUpdated?: () => void
+  notifyProblemsUpdated?: (event: IpcMainInvokeEvent) => void
 }
 
 export function registerProblemIpc(options: RegisterProblemIpcOptions = {}): void {
@@ -18,10 +19,10 @@ export function registerProblemIpc(options: RegisterProblemIpcOptions = {}): voi
     return getProblemDetail(problemId)
   })
 
-  ipcMain.handle('problem:delete', (_event, problemId: string) => {
+  ipcMain.handle('problem:delete', (event, problemId: string) => {
     const ok = deleteProblem(problemId)
     if (ok) {
-      options.notifyProblemsUpdated?.()
+      options.notifyProblemsUpdated?.(event)
     }
     return ok
   })

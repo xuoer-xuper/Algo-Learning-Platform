@@ -1,4 +1,4 @@
-import { shell } from 'electron'
+import { shell, type IpcMainInvokeEvent } from 'electron'
 import { ipcMain } from './trustedSender'
 import {
   createNote,
@@ -16,7 +16,7 @@ import {
 } from '../notes/NoteService'
 
 interface RegisterNotesIpcOptions {
-  notifyProblemsUpdated?: () => void
+  notifyProblemsUpdated?: (event: IpcMainInvokeEvent) => void
 }
 
 export function registerNotesIpc(options: RegisterNotesIpcOptions = {}): void {
@@ -28,9 +28,9 @@ export function registerNotesIpc(options: RegisterNotesIpcOptions = {}): void {
     return getNoteWithContent(noteId)
   })
 
-  ipcMain.handle('notes:create', (_event, problemId: string | null, title: string, content: string | null, noteType: NoteType) => {
+  ipcMain.handle('notes:create', (event, problemId: string | null, title: string, content: string | null, noteType: NoteType) => {
     const note = createNote({ problem_id: problemId, title, content: content ?? undefined, note_type: noteType })
-    options.notifyProblemsUpdated?.()
+    options.notifyProblemsUpdated?.(event)
     return note
   })
 

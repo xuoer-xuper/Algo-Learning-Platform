@@ -3,10 +3,11 @@ import {
   dialog,
   shell,
   type BrowserWindow,
+  type IpcMainInvokeEvent,
   type MessageBoxOptions,
   type OpenDialogOptions,
 } from 'electron'
-import { ipcMain } from './trustedSender'
+import { getShellWindowOwner, ipcMain } from './trustedSender'
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import {
@@ -33,7 +34,7 @@ type UserScriptSaveInput = {
 }
 
 interface RegisterScriptsIpcOptions {
-  getParentWindow?: () => BrowserWindow | null
+  getParentWindow?: (event: IpcMainInvokeEvent) => BrowserWindow | null
 }
 
 const UUID_FILE_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.js$/i
@@ -51,8 +52,8 @@ export function registerScriptsIpc(options: RegisterScriptsIpcOptions = {}): voi
     return validatedId
   })
 
-  ipcMain.handle('scripts:importFile', async () => {
-    const parent = getLiveParentWindow(options.getParentWindow)
+  ipcMain.handle('scripts:importFile', async (event) => {
+    const parent = getLiveParentWindow(event, options.getParentWindow)
     const openDialogOptions: OpenDialogOptions = {
       title: '选择用户脚本',
       filters: [{ name: 'JavaScript', extensions: ['js'] }],
@@ -156,9 +157,12 @@ export function registerScriptsIpc(options: RegisterScriptsIpcOptions = {}): voi
   ipcMain.handle('scripts:delete', (_event, id: string) => deleteScript(id))
 }
 
-function getLiveParentWindow(getParentWindow?: () => BrowserWindow | null): BrowserWindow | null {
+function getLiveParentWindow(
+  event: IpcMainInvokeEvent,
+  resolveParentWindow?: (event: IpcMainInvokeEvent) => BrowserWindow | null,
+): BrowserWindow | null {
   try {
-    const parent = getParentWindow?.() ?? null
+    const parent = resolveParentWindow?.(event) ?? getShellWindowOwner(event)?.browserWindow ?? null
     return parent && !parent.isDestroyed() ? parent : null
   }
   catch {
