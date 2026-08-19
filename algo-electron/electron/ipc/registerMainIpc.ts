@@ -1,4 +1,3 @@
-import type { IpcMainInvokeEvent } from 'electron'
 import type { SyncService } from '../submissions/syncService'
 import type { CoachPetWindow } from '../coach/CoachPetWindow'
 import type { CoachOrchestrator } from '../coach/CoachOrchestrator'
@@ -17,7 +16,6 @@ import { registerSitesIpc } from './registerSitesIpc'
 import { registerStatsIpc } from './registerStatsIpc'
 import { registerSubmissionsIpc } from './registerSubmissionsIpc'
 import type { PendingUserScriptInstallRegistry } from '../downloads/userScriptNavigation'
-import { getShellWindowOwner } from './trustedSender'
 import type { AppWindow } from '../windows/AppWindow'
 
 interface RegisterMainIpcOptions {
@@ -28,6 +26,7 @@ interface RegisterMainIpcOptions {
   getBrowserDiagnostics?: () => BrowserDiagnostics | null
   getUserScriptInstallRegistry?: () => PendingUserScriptInstallRegistry | null
   allowInsecureLocalhost?: boolean
+  notifyProblemsUpdated: () => void
   moveTabToNewWindow?: (source: AppWindow, tabId: string) => Promise<boolean>
   finishTabDrag?: (
     source: AppWindow,
@@ -39,9 +38,7 @@ interface RegisterMainIpcOptions {
 }
 
 export function registerMainIpc(options: RegisterMainIpcOptions): void {
-  const notifyProblemsUpdated = (event: IpcMainInvokeEvent): void => {
-    getShellWindowOwner(event)?.send('problems:updated')
-  }
+  const notifyProblemsUpdated = (): void => { options.notifyProblemsUpdated() }
 
   registerAiIpc()
   registerBackupIpc()

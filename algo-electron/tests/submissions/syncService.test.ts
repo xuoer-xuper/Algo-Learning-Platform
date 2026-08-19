@@ -5,8 +5,10 @@ import { SyncService } from '../../electron/submissions/syncService.ts'
 test('submissions/syncService.test.ts', async () => {
 
 const writes: any[] = []
+let problemUpdateCount = 0
 
 const service = new SyncService({
+  notifyProblemsUpdated: () => { problemUpdateCount += 1 },
   batchWriter: {
     write(input: any) {
       writes.push(input)
@@ -22,7 +24,7 @@ const service = new SyncService({
 const currentUrl = 'https://www.acwing.com/problem/content/submission/1/'
 let executedScript = ''
 
-service.setScrapeHost({
+const currentHost = {
   getUrl: () => currentUrl,
   executeScript: async (code: string) => {
     executedScript = code
@@ -40,9 +42,9 @@ service.setScrapeHost({
       ],
     }
   },
-})
+}
 
-const result = await service.syncCurrentPage()
+const result = await service.syncCurrentPage(currentHost)
 
 assert.strictEqual(result.platform, 'acwing')
 assert.strictEqual(result.fetched, 1)
@@ -55,6 +57,7 @@ assert.strictEqual(writes[0].pageProblemIdentity.platformProblemId, '1')
 assert.strictEqual(writes[0].submissions[0].platformSubmissionId, 'ac-246810')
 assert.strictEqual(writes[0].submissions[0].verdict, 'AC')
 assert.match(executedScript, /document\.querySelectorAll\('table'\)/)
+assert.strictEqual(problemUpdateCount, 1)
 
 const vjudgeWrites: any[] = []
 const vjudgeService = new SyncService({
@@ -70,7 +73,7 @@ const vjudgeService = new SyncService({
   },
 } as any)
 
-vjudgeService.setScrapeHost({
+const vjudgeHost = {
   getUrl: () => 'https://vjudge.net/contest/123456#status/xuper/K/0/',
   executeScript: async () => ({
     tables: [
@@ -85,9 +88,9 @@ vjudgeService.setScrapeHost({
       },
     ],
   }),
-})
+}
 
-const vjudgeResult = await vjudgeService.syncVjudge()
+const vjudgeResult = await vjudgeService.syncVjudge(vjudgeHost)
 assert.strictEqual(vjudgeResult.platform, 'vjudge')
 assert.strictEqual(vjudgeWrites.length, 1)
 assert.strictEqual(vjudgeWrites[0].pageProblemId, 'contest-123456-K')
@@ -107,7 +110,7 @@ const vjudgeStatusService = new SyncService({
   },
 } as any)
 
-vjudgeStatusService.setScrapeHost({
+const vjudgeStatusHost = {
   getUrl: () => 'https://vjudge.net/status',
   executeScript: async () => ({
     tables: [
@@ -122,9 +125,9 @@ vjudgeStatusService.setScrapeHost({
       },
     ],
   }),
-})
+}
 
-const vjudgeStatusResult = await vjudgeStatusService.syncVjudge()
+const vjudgeStatusResult = await vjudgeStatusService.syncVjudge(vjudgeStatusHost)
 assert.strictEqual(vjudgeStatusResult.platform, 'vjudge')
 assert.strictEqual(vjudgeStatusWrites.length, 1)
 assert.strictEqual(vjudgeStatusWrites[0].pageProblemId, undefined)
@@ -144,7 +147,7 @@ const nowcoderService = new SyncService({
   },
 } as any)
 
-nowcoderService.setScrapeHost({
+const nowcoderHost = {
   getUrl: () => 'https://ac.nowcoder.com/acm/contest/789/status',
   executeScript: async () => ({
     tables: [
@@ -163,9 +166,9 @@ nowcoderService.setScrapeHost({
       },
     ],
   }),
-})
+}
 
-const nowcoderResult = await nowcoderService.syncCurrentPage()
+const nowcoderResult = await nowcoderService.syncCurrentPage(nowcoderHost)
 assert.strictEqual(nowcoderResult.platform, 'nowcoder')
 assert.strictEqual(nowcoderWrites.length, 1)
 assert.strictEqual(
@@ -178,4 +181,44 @@ assert.strictEqual(nowcoderWrites[0].submissions[0]._ncProbLetter, 'A')
 assert.strictEqual(nowcoderWrites[0].submissions[1]._ncContestId, '789')
 assert.strictEqual(nowcoderWrites[0].submissions[1]._ncProbLetter, 'B')
 
+})
+
+test('pins the initiating page URL while DOM scraping is pending', async () => {
+  const writes: any[] = []
+  let currentUrl = 'https://www.acwing.com/problem/content/submission/1/'
+  let resolveScript!: (value: unknown) => void
+  const service = new SyncService({
+    batchWriter: {
+      write(input: any) {
+        writes.push(input)
+        return {
+          platform: input.platform,
+          fetched: input.submissions.length,
+          inserted: input.submissions.length,
+        }
+      },
+    },
+  })
+  const pending = service.syncCurrentPage({
+    getUrl: () => currentUrl,
+    executeScript: () => new Promise((resolve) => {
+      resolveScript = resolve
+    }),
+  })
+
+  currentUrl = 'https://ac.nowcoder.com/acm/contest/789/status'
+  resolveScript({
+    tables: [{
+      headers: ['提交编号', '题目', '运行结果', '使用语言'],
+      rows: [{
+        texts: ['246810', '1', '答案正确', 'C++'],
+        links: ['https://www.acwing.com/problem/content/1/'],
+      }],
+    }],
+  })
+
+  await pending
+  assert.strictEqual(writes[0].currentUrl, 'https://www.acwing.com/problem/content/submission/1/')
+  assert.strictEqual(writes[0].pageProblemIdentity.platform, 'acwing')
+  assert.strictEqual(writes[0].pageProblemIdentity.platformProblemId, '1')
 })

@@ -67,6 +67,8 @@ export interface ProblemSessionTrackerOptions {
   clearInterval?: (handle: NodeJS.Timeout) => void
   /** 注入式 Date.now（便于测试） */
   now?: () => number
+  /** 任一完整应用壳是否聚焦；多窗口环境优先使用此应用级判定。 */
+  isAnyAppWindowFocused?: () => boolean
 }
 
 const DEFAULT_IDLE_THRESHOLD_SEC = 60
@@ -87,6 +89,7 @@ interface ResolvedOptions {
   now: () => number
   trackingService: TrackingService
   parseProblemUrl: ParseProblemUrlFn
+  isAnyAppWindowFocused?: () => boolean
 }
 
 export class ProblemSessionTracker {
@@ -121,6 +124,7 @@ export class ProblemSessionTracker {
       now: options.now ?? Date.now,
       trackingService: options.trackingService,
       parseProblemUrl: options.parseProblemUrl,
+      isAnyAppWindowFocused: options.isAnyAppWindowFocused,
     }
   }
 
@@ -343,7 +347,15 @@ export class ProblemSessionTracker {
    * - 系统空闲时间 < idleThresholdSec
    */
   private isCurrentlyActive(): boolean {
-    if (!this.mainWindowFocused) return false
+    let appFocused = this.mainWindowFocused
+    if (this.options.isAnyAppWindowFocused) {
+      try {
+        appFocused = this.options.isAnyAppWindowFocused()
+      } catch {
+        appFocused = false
+      }
+    }
+    if (!appFocused) return false
     const pm = this.options.powerMonitor
     if (pm && typeof pm.getSystemIdleTime === 'function') {
       try {

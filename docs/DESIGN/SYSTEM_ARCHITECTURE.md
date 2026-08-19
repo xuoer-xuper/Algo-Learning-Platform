@@ -223,7 +223,7 @@ Renderer 不直接操作 `webContents`。
 - 普通 shell IPC 先由 `trustedSender` 校验 main frame、origin 和 payload，再从 sender 解析所属 `AppWindow`。窗口、标签、菜单和原生对话框不得使用最近活跃窗口作为隐式回退。
 - 下载开始时捕获来源 `windowId`，完成通知只发回仍存活的来源窗口。
 - 窗口 normal bounds 与 maximized 独立原子保存；恢复时保留合法负坐标副屏，显示器拔除或完全越界时校正到主屏 workArea。
-- B3.2 已完成页面事件和核心服务多流语义；B3.3 已以完整 AppWindow 替换裸拆分窗口并开放标签过户。剩余服务广播与全窗口会话快照由 B3.4/B3.5 完成。
+- B3.2 已完成页面事件和核心服务多流语义；B3.3 已开放完整壳标签过户；B3.4 已完成 `problems:updated` 全壳广播、sender 绑定 DOM 同步、任一壳 focus 判定和比赛横幅。全窗口生命周期与会话快照由 B3.5 收尾。
 
 ## 5. Session 与 CookieVault
 

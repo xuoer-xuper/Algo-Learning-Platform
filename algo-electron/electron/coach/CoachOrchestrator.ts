@@ -97,6 +97,7 @@ export interface CoachOrchestratorOptions {
   getAppWindows: () => AppWindow[]
   getMostRecentAppWindow: () => AppWindow | null
   addMostRecentWindowChangeListener: (listener: (window: AppWindow | null) => void) => () => void
+  isAnyAppWindowFocused: () => boolean
   getTrackingService: () => TrackingService | null
   getRealtimeSubmissionService: () => RealtimeSubmissionService | null
   getCoachPetWindow: () => CoachPetWindow | null
@@ -174,6 +175,7 @@ export class CoachOrchestrator {
       trackingService: options.getTrackingService()!,
       parseProblemUrl: parseUrl,
       powerMonitor,
+      isAnyAppWindowFocused: options.isAnyAppWindowFocused,
     })
     this.windowFollower = new DebouncedWindowFollower({
       delayMs: WINDOW_SWITCH_DEBOUNCE_MS,
@@ -1120,6 +1122,32 @@ export class CoachOrchestrator {
     this.currentBubbleId = payload.id
   }
 
+  syncContestModeState(appWindow: AppWindow): void {
+    const contest = this.contestGuard.getCurrentContest()
+    this.sendContestModeState(appWindow, contest
+      ? {
+          isContestMode: true,
+          contest: {
+            url: contest.contestUrl,
+            platform: contest.platform,
+            contest_id: contest.contestId,
+            entered_at: new Date(contest.enteredAt).toISOString(),
+          },
+        }
+      : { isContestMode: false, contest: null })
+  }
+
+  private sendContestModeState(
+    appWindow: AppWindow,
+    payload: {
+      isContestMode: boolean
+      contest: { url: string; platform: string; contest_id: string; entered_at: string } | null
+    },
+  ): void {
+    appWindow.tabManager.setContestNoticeVisible(payload.isContestMode)
+    appWindow.send('coach:contestModeChanged', payload)
+  }
+
   private handleContestEnter(info: { platform: string; contestId: string; contestUrl: string; enteredAt: number }): void {
     const pet = this.options.getCoachPetWindow()
     // 切换桌宠到 alert/sleep（不展示气泡）；contest 状态用独立 channel 通知（避免破坏 6 状态）
@@ -1127,7 +1155,7 @@ export class CoachOrchestrator {
     pet?.dismissBubble()
     // 通知 renderer 进入比赛模式（独立 channel，renderer 可订阅切换 UI）
     for (const appWindow of this.options.getAppWindows()) {
-      appWindow.send('coach:contestModeChanged', {
+      this.sendContestModeState(appWindow, {
         isContestMode: true,
         contest: {
           url: info.contestUrl,
@@ -1158,7 +1186,7 @@ export class CoachOrchestrator {
     const pet = this.options.getCoachPetWindow()
     pet?.setPetState('idle')
     for (const appWindow of this.options.getAppWindows()) {
-      appWindow.send('coach:contestModeChanged', {
+      this.sendContestModeState(appWindow, {
         isContestMode: false,
         contest: null,
       })

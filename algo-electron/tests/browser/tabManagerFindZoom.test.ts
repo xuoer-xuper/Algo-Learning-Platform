@@ -25,6 +25,8 @@ describe('TabManager find in page', () => {
     expect(manager.openFindInPage()).toBe(true)
     manager.setDownloadNoticeVisible(true)
     expect(view.getBounds().y).toBe(154)
+    manager.setContestNoticeVisible(true)
+    expect(view.getBounds().y).toBe(192)
 
     const pending = manager.findInPage(tabId, { type: 'query', query: 'graph' })
     expect(pending?.requestId).toBe(1)
@@ -49,6 +51,8 @@ describe('TabManager find in page', () => {
 
     manager.findInPage(tabId, { type: 'close' })
     expect(view.webContents.stopFindInPageCalls.at(-1)).toBe('keepSelection')
+    expect(view.getBounds().y).toBe(154)
+    manager.setContestNoticeVisible(false)
     expect(view.getBounds().y).toBe(116)
   })
 })

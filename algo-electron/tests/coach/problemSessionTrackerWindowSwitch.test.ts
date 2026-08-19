@@ -118,4 +118,32 @@ describe('ProblemSessionTracker window switching', () => {
 
     tracker.stop()
   })
+
+  it('counts activity while any application shell is focused', () => {
+    resetElectronMock()
+    const tracking = new FakeTrackingService()
+    const active = createAppWindow('window-a', 'problem:a')
+    let now = 0
+    let anyWindowFocused = true
+    const tracker = new ProblemSessionTracker({
+      trackingService: tracking as unknown as TrackingService,
+      parseProblemUrl: (url) => url.startsWith('problem:') ? identity(url.slice('problem:'.length)) : null,
+      isAnyAppWindowFocused: () => anyWindowFocused,
+      setInterval: (_callback, _delayMs) => ({}) as NodeJS.Timeout,
+      clearInterval: (_handle) => undefined,
+      now: () => now,
+    })
+
+    tracker.start()
+    tracker.switchWindow(active.appWindow)
+    now = 30_000
+    tracker.tickForTest()
+    expect(tracker.getCurrentSession()?.active_seconds).toBe(30)
+
+    anyWindowFocused = false
+    now = 60_000
+    tracker.tickForTest()
+    expect(tracker.getCurrentSession()?.active_seconds).toBe(30)
+    tracker.stop()
+  })
 })

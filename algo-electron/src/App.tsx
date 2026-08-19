@@ -27,6 +27,7 @@ import './App.css'
 function App() {
   const [activeTab, setActiveTab] = useState<TabStripTabInfo | null>(null)
   const [downloadResult, setDownloadResult] = useState<ManagedDownloadResult | null>(null)
+  const [contestMode, setContestMode] = useState<CoachContestModePayload | null>(null)
   const {
     url,
     syncMsg,
@@ -72,6 +73,30 @@ function App() {
 
   useEffect(() => () => setDownloadNoticeVisible(false), [])
 
+  useEffect(() => {
+    let disposed = false
+    let receivedLiveUpdate = false
+    const unsubscribe = window.electronAPI.onCoachContestModeChanged((payload) => {
+      receivedLiveUpdate = true
+      if (!disposed) setContestMode(payload)
+    })
+
+    void window.electronAPI.coachGetState()
+      .then((state) => {
+        if (disposed || receivedLiveUpdate) return
+        setContestMode({
+          isContestMode: state?.is_contest_mode === true,
+          contest: state?.contest ?? null,
+        })
+      })
+      .catch(() => undefined)
+
+    return () => {
+      disposed = true
+      unsubscribe()
+    }
+  }, [])
+
   const dismissDownloadNotice = useCallback(() => {
     setDownloadResult(null)
     setDownloadNoticeVisible(false)
@@ -116,6 +141,11 @@ function App() {
         onReload={reload}
         onSyncPage={syncCurrentPage}
       />
+      {contestMode?.isContestMode && (
+        <NoticeBar tone="warning" title="比赛模式">
+          Coach 已静默，比赛期间不会显示提示。
+        </NoticeBar>
+      )}
       {showUnresponsiveNotice && (
         <NoticeBar
           tone="warning"

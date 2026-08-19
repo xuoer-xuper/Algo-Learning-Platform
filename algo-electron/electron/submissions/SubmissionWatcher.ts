@@ -1,5 +1,4 @@
 import { EventEmitter } from 'node:events'
-import type { BrowserWindow } from 'electron'
 import { getAdapter, getAdapterForUrl } from '../adapters/registry'
 import { getSiteById } from '../db/repositories/siteRepository'
 import { SubmissionWatcherCore, type SubmissionWatcherOptions, type SubmissionWatcherResult } from './SubmissionWatcherCore'
@@ -26,7 +25,7 @@ export const SUBMISSION_WATCHER_DETECTED_EVENT = 'detected'
 export class SubmissionWatcher extends EventEmitter {
   private readonly core: SubmissionWatcherCore
 
-  constructor(getWindow: () => BrowserWindow | null, logger: Logger = appLogger) {
+  constructor(notifyProblemsUpdated: () => void, logger: Logger = appLogger) {
     super()
     const batchWriter = createDefaultSubmissionBatchWriter()
     this.core = new SubmissionWatcherCore({
@@ -47,8 +46,7 @@ export class SubmissionWatcher extends EventEmitter {
         return result.inserted > 0
       },
       notifyUpdated: (notification) => {
-        const win = getWindow()
-        win?.webContents.send('problems:updated')
+        notifyProblemsUpdated()
         // 阶段 2：同步通知主进程订阅者（CoachEventBridge）
         // 只在 inserted=true 时 core 才会调用 notifyUpdated，所以这里无脑 emit 即可。
         this.emit(SUBMISSION_WATCHER_DETECTED_EVENT, notification)

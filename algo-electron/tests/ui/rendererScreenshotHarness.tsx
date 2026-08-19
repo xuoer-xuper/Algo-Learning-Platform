@@ -535,6 +535,7 @@ function createApiMock(): ElectronAPI {
       level: 1,
     }),
     coachResetPosition: async () => true,
+    coachGetState: async () => null,
     coachGetMetricsBundle: async () => MOCK_METRICS_BUNDLE,
     coachGetLlmConfig: async () => ({
       enabled: false,
@@ -551,6 +552,7 @@ function createApiMock(): ElectronAPI {
       latency_ms: 12,
       model: 'doubao-seed-1-6-flash-250715',
     }),
+    onCoachContestModeChanged: () => () => {},
   }
 }
 

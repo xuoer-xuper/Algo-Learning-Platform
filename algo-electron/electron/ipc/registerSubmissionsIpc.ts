@@ -1,4 +1,4 @@
-import { ipcMain } from './trustedSender'
+import { getShellWindowOwner, ipcMain } from './trustedSender'
 import type { SyncResult, SyncService } from '../submissions/syncService'
 
 interface RegisterSubmissionsIpcOptions {
@@ -16,15 +16,15 @@ export function registerSubmissionsIpc(options: RegisterSubmissionsIpcOptions): 
     return syncService.syncCodeforces(handle)
   })
 
-  ipcMain.handle('submissions:syncVjudge', async () => {
+  ipcMain.handle('submissions:syncVjudge', async (event) => {
     const syncService = options.getSyncService()
     if (!syncService) return serviceNotReady('vjudge')
-    return syncService.syncVjudge()
+    return syncService.syncVjudge(getShellWindowOwner(event)?.tabManager ?? null)
   })
 
-  ipcMain.handle('submissions:syncCurrentPage', async () => {
+  ipcMain.handle('submissions:syncCurrentPage', async (event) => {
     const syncService = options.getSyncService()
     if (!syncService) return serviceNotReady('unknown')
-    return syncService.syncCurrentPage()
+    return syncService.syncCurrentPage(getShellWindowOwner(event)?.tabManager ?? null)
   })
 }

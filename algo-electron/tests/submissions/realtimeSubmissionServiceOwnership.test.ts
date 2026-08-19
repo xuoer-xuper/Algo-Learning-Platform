@@ -52,7 +52,7 @@ afterEach(() => {
 
 test('realtime submission IPC requires a current exact page owner', async () => {
   const warnings: unknown[][] = []
-  const service = new RealtimeSubmissionService(() => null, createLogger(warnings))
+  const service = new RealtimeSubmissionService(() => undefined, createLogger(warnings))
   const detections: unknown[] = []
   const watcher = (service as unknown as {
     watcher: { handleDetected(payload: unknown): { inserted: boolean } }

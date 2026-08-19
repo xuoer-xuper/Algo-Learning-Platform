@@ -46,7 +46,7 @@ TabManager dom-ready / navigate / active-tab
 ```text
 SyncService
   -> Codeforces adapter.syncSubmissions(handle)
-  -> 或 scrapeCurrentPage(browserHost)
+  -> 或按 IPC sender 解析所属 TabManager 后 scrapeCurrentPage(tabManager)
   -> GenericTableDomExtractor / 站点专用 scraper
   -> SubmissionPageContextResolver
   -> SubmissionBatchWriter
@@ -65,7 +65,7 @@ SyncService
   - `inject(host, url)`：按 URL 找实时 adapter，检查站点启用状态后注入脚本。
   - `executeWithRetry(host, url, code)`：处理 SPA/远端页面 frame 未就绪的短重试。
 - `SubmissionWatcher`
-  - Electron 外壳，连接窗口通知和默认写入依赖。
+  - Electron 外壳，连接应用级 `problems:updated` 广播和默认写入依赖。
 - `SubmissionWatcherCore`
   - 纯核心状态机，负责校验、fail-closed、去重、题目身份解析和调用写入。
 - `SubmissionBatchWriter`
@@ -79,10 +79,12 @@ SyncService
   - 站点专用关联规则：Codeforces、PTA、Luogu、Nowcoder、VJudge。
 - `SyncService`
   - `syncCodeforces(handle)`：Codeforces API 同步。
-  - `syncVjudge()`：VJudge 当前页面同步。
-  - `syncCurrentPage()`：通用当前页面提交同步。
+  - `syncVjudge(scrapeHost)`：VJudge 当前页面同步；host 必须由当前可信 shell sender 解析，抓取开始时固定页面 URL。
+  - `syncCurrentPage(scrapeHost)`：通用当前页面提交同步；不保存“最后窗口”单槽，可并发服务不同壳窗口；异步抓取期间切换标签不会改写本次题目关联上下文。
+  - 有新增记录时通过应用级回调广播 `problems:updated` 到全部壳窗口。
 - `registerSubmissionsIpc(options)`
   - `getSyncService()`：延迟获取 `SyncService` 实例，避免 IPC 模块直接持有启动期尚未初始化的服务。
+  - DOM 抓取类 handler 必须通过 `getShellWindowOwner(event)` 绑定发起窗口的活动 TabManager，不得回退最近窗口。
   - 注册 `submissions:syncCodeforces`、`submissions:syncVjudge`、`submissions:syncCurrentPage`。
 - `SubmissionPageContextResolver`
   - `resolveSubmissionPageContext(url, submissions, deps)`：从当前提交页 URL 和提交 raw 信息推断页面题目。

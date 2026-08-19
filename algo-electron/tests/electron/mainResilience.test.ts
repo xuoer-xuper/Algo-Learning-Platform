@@ -26,7 +26,7 @@ test('main process gates protocols, IPC, lifecycle, and services behind the sing
     'registerMainIpc({',
     "app.on('window-all-closed'",
     'void app.whenReady().then(',
-    'initializeMainServices(() => getMostRecentAppWindow()?.browserWindow ?? null)',
+    'services = await initializeMainServices(',
     'new TabSessionStore(',
   ]
   for (const call of protectedCalls) {
@@ -46,12 +46,12 @@ test('main process restores and flushes browser sessions without affecting start
   assert.ok(shellLoadIndex > restoreIndex, 'restore must finish before the shell renderer is loaded')
   assert.ok(creationEnableIndex > servicesIndex, 'activate must stay disabled until main services are ready')
 
-  assert.match(mainSource, /if \(!STARTUP_SMOKE_MODE && tabSessionStore\) \{[\s\S]+?new TabSessionPersistence\(/)
+  assert.match(mainSource, /if \(!STARTUP_SMOKE_MODE && tabSessionStore && options\.persistSession !== false\) \{[\s\S]+?new TabSessionPersistence\(/)
   assert.match(mainSource, /manager\.addSessionChangeListener\(\(\) => \{[\s\S]+?schedule\(\)/)
   assert.match(mainSource, /installWindowSessionFlush\(win, \{[\s\S]+?disposeWindowTabSessionPersistence\(windowId\)/)
   assert.match(mainSource, /windowCreationGate\.run\(createWindowOnce\)/)
   assert.match(mainSource, /windowCreationGate\.enable\(\)[\s\S]+?const initialWindow = await createWindow\(\)/)
-  assert.match(mainSource, /createWindowOnce\(isCancelled:[\s\S]+?await loadWindowTabSession\(\)[\s\S]+?if \(isCancelled\(\)\) return null[\s\S]+?await windowStateStore\.load[\s\S]+?if \(isCancelled\(\)\) return null/)
+  assert.match(mainSource, /async function createWindowOnce\([\s\S]+?await loadWindowTabSession\(\)[\s\S]+?if \(isCancelled\(\)\) return null[\s\S]+?await windowStateStore\.load[\s\S]+?if \(isCancelled\(\)\) return null/)
   assert.match(mainSource, /hasPendingWindowCreation = windowCreationGate\.isRunning[\s\S]+?windowCreationGate\.stop\(\)[\s\S]+?windowCreationGate\.waitForIdle\(\)/)
   assert.match(mainSource, /windowSessionRuntimes\.dispose\(windowId\)/)
   assert.match(mainSource, /captureResultContext:[\s\S]+?windowManager\.resolveDownloadSource\(/)

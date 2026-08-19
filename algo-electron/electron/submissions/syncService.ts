@@ -15,20 +15,18 @@ export interface SyncResult {
 export interface SyncServiceDeps {
   batchWriter: SubmissionBatchWriter
   findNowcoderProblemBySearch?: (search: string) => string | undefined
+  notifyProblemsUpdated?: () => void
 }
 
 export class SyncService {
-  private scrapeHost: SubmissionScrapeContext | null = null
   private readonly batchWriter: SubmissionBatchWriter
   private readonly findNowcoderProblemBySearch: (search: string) => string | undefined
+  private readonly notifyProblemsUpdated: () => void
 
   constructor(deps: SyncServiceDeps) {
     this.batchWriter = deps.batchWriter
     this.findNowcoderProblemBySearch = deps.findNowcoderProblemBySearch ?? (() => undefined)
-  }
-
-  setScrapeHost(host: SubmissionScrapeContext) {
-    this.scrapeHost = host
+    this.notifyProblemsUpdated = deps.notifyProblemsUpdated ?? (() => undefined)
   }
 
   private async withRetry<T>(fn: () => Promise<T>, maxRetries = 2): Promise<T> {
@@ -60,42 +58,47 @@ export class SyncService {
   }
 
   // VJudge 从当前页面 DOM 抓取（需要在 vjudge.net/status 页面）
-  async syncVjudge(): Promise<SyncResult> {
-    if (!this.scrapeHost) return { platform: 'vjudge', fetched: 0, inserted: 0, error: 'Scrape host not ready' }
+  async syncVjudge(scrapeHost: SubmissionScrapeContext | null): Promise<SyncResult> {
+    if (!scrapeHost) return { platform: 'vjudge', fetched: 0, inserted: 0, error: 'Scrape host not ready' }
     try {
-      const submissions = await scrapeCurrentPage(this.scrapeHost)
+      const { url, context } = this.captureScrapeContext(scrapeHost)
+      const submissions = await scrapeCurrentPage(context)
       if (!submissions || submissions.length === 0) {
         return { platform: 'vjudge', fetched: 0, inserted: 0, error: '当前页面无提交记录，请先打开 vjudge.net/status' }
       }
-      const url = this.scrapeHost.getUrl()
       const { pageProblemId, pageProblemIdentity } = resolveSubmissionPageContext(url, submissions, {
         parseUrl,
         findNowcoderProblemBySearch: this.findNowcoderProblemBySearch,
       })
-      return this.writeSubmissions('vjudge', submissions, pageProblemId, pageProblemIdentity)
+      return this.writeSubmissions('vjudge', submissions, url, pageProblemId, pageProblemIdentity)
     } catch (e: any) {
       return { platform: 'vjudge', fetched: 0, inserted: 0, error: e.message }
     }
   }
 
   // AcWing/牛客/VJudge 从当前页面 DOM 抓取
-  async syncCurrentPage(): Promise<SyncResult> {
-    if (!this.scrapeHost) return { platform: 'unknown', fetched: 0, inserted: 0, error: 'Scrape host not ready' }
+  async syncCurrentPage(scrapeHost: SubmissionScrapeContext | null): Promise<SyncResult> {
+    if (!scrapeHost) return { platform: 'unknown', fetched: 0, inserted: 0, error: 'Scrape host not ready' }
 
     try {
-      const submissions = await scrapeCurrentPage(this.scrapeHost)
+      const { url, context } = this.captureScrapeContext(scrapeHost)
+      const submissions = await scrapeCurrentPage(context)
       if (!submissions || submissions.length === 0) {
-        const url = this.scrapeHost.getUrl()
         return { platform: 'unknown', fetched: 0, inserted: 0, error: `当前页面无提交记录 (${url})` }
       }
 
-      const url = this.scrapeHost.getUrl()
       const { pageProblemId, pageProblemIdentity } = resolveSubmissionPageContext(url, submissions, {
         parseUrl,
         findNowcoderProblemBySearch: this.findNowcoderProblemBySearch,
       })
 
-      return this.writeSubmissions(submissions[0]?.platform ?? 'unknown', submissions, pageProblemId, pageProblemIdentity)
+      return this.writeSubmissions(
+        submissions[0]?.platform ?? 'unknown',
+        submissions,
+        url,
+        pageProblemId,
+        pageProblemIdentity,
+      )
     } catch (e: any) {
       return { platform: 'unknown', fetched: 0, inserted: 0, error: e.message }
     }
@@ -104,15 +107,32 @@ export class SyncService {
   private writeSubmissions(
     platform: string,
     submissions: Parameters<SubmissionBatchWriter['write']>[0]['submissions'],
+    currentUrl = '',
     pageProblemId?: string,
     pageProblemIdentity?: Parameters<SubmissionBatchWriter['write']>[0]['pageProblemIdentity'],
   ): SyncResult {
-    return this.batchWriter.write({
+    const result = this.batchWriter.write({
       platform,
       submissions,
       pageProblemId,
       pageProblemIdentity,
-      currentUrl: this.scrapeHost?.getUrl() || '',
+      currentUrl,
     })
+    if (result.inserted > 0) this.notifyProblemsUpdated()
+    return result
+  }
+
+  private captureScrapeContext(scrapeHost: SubmissionScrapeContext): {
+    url: string
+    context: SubmissionScrapeContext
+  } {
+    const url = scrapeHost.getUrl()
+    return {
+      url,
+      context: {
+        getUrl: () => url,
+        executeScript: (code) => scrapeHost.executeScript(code),
+      },
+    }
   }
 }

@@ -185,6 +185,7 @@ export class TabManager {
   private isRestoringSession = false
   private isOmniboxOpen = false
   private isDownloadNoticeVisible = false
+  private isContestNoticeVisible = false
   private findInPageTabId: string | null = null
   private findInPageState: FindInPageState = { ...INITIAL_FIND_IN_PAGE_STATE }
   private recoveryPendingViews = new Set<WebContentsView>()
@@ -1943,6 +1944,7 @@ export class TabManager {
       topInset += BROWSER_LAYOUT.noticeBarHeight
     }
     if (this.isDownloadNoticeVisible) topInset += BROWSER_LAYOUT.noticeBarHeight
+    if (this.isContestNoticeVisible) topInset += BROWSER_LAYOUT.noticeBarHeight
     if (tab.id === this.findInPageTabId) topInset += BROWSER_LAYOUT.findBarHeight
     setTabViewBounds(tab.view, { width, height }, this.leftOffset, topInset)
   }
@@ -1950,6 +1952,12 @@ export class TabManager {
   setDownloadNoticeVisible(visible: boolean): void {
     if (this.isDownloadNoticeVisible === visible) return
     this.isDownloadNoticeVisible = visible
+    this.updateBounds()
+  }
+
+  setContestNoticeVisible(visible: boolean): void {
+    if (this.isContestNoticeVisible === visible) return
+    this.isContestNoticeVisible = visible
     this.updateBounds()
   }
 
@@ -2189,6 +2197,7 @@ export class TabManager {
     this.isDestroying = true
     this.isOmniboxOpen = false
     this.isDownloadNoticeVisible = false
+    this.isContestNoticeVisible = false
     this.findInPageTabId = null
     this.findInPageState = { ...INITIAL_FIND_IN_PAGE_STATE }
     this.findInPageStateChangedHandler = null

@@ -72,6 +72,23 @@ test('tracks the last registered window and updates recency when a window focuse
   assert.strictEqual(manager.getMostRecent(), first.appWindow)
 })
 
+test('reports focus when any registered application shell is focused', () => {
+  resetElectronMock()
+  const manager = new WindowManager({ viewRegistry: new ViewRegistry() })
+  const first = createAppWindow('window-1')
+  const second = createAppWindow('window-2')
+  manager.register(first.appWindow)
+  manager.register(second.appWindow)
+
+  assert.strictEqual(manager.hasFocusedWindow(), false)
+  first.browserWindow.focus()
+  assert.strictEqual(manager.hasFocusedWindow(), true)
+  first.browserWindow.hide()
+  assert.strictEqual(manager.hasFocusedWindow(), false)
+  second.browserWindow.focus()
+  assert.strictEqual(manager.hasFocusedWindow(), true)
+})
+
 test('notifies most-recent window changes without duplicate focus emissions', () => {
   resetElectronMock()
   const manager = new WindowManager({ viewRegistry: new ViewRegistry() })

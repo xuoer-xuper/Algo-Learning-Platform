@@ -63,7 +63,7 @@ TabManager title / active tab / navigate
   -> installProblemTitleTracking()
   -> resolveBrowserTitleProblemIdentity() or DOM fallback script
   -> problemRepository.upsertProblem(identity)
-  -> renderer problems:updated
+  -> WindowManager.sendToAll('problems:updated')
 ```
 
 ## 5. 写入规则
@@ -73,6 +73,7 @@ TabManager title / active tab / navigate
 - `currentVisit` 是进程内状态；异常退出遗留行在下次启动按 `entered_at` 封闭，时长归零并标记 `startup_recovery`。
 - 统计重算失败不阻断浏览器导航。
 - 标题补全只更新 `problems`，不创建提交记录，不读取 Cookie 或页面源码。
+- 标题、提交、笔记和站点变更后的 `problems:updated` 是应用级广播，所有完整壳同步刷新本地问题数据。
 
 ## 6. 测试入口
 

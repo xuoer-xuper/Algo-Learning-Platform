@@ -1,4 +1,4 @@
-import { ipcMain, type BrowserWindow, type IpcMainEvent } from 'electron'
+import { ipcMain, type IpcMainEvent } from 'electron'
 import type { BrowserPageEvent, TabManager } from '../browser/TabManager'
 import { getRealtimeAdapterForUrl, getRealtimeAdapterIds } from '../adapters/registry'
 import { getSiteById } from '../db/repositories/siteRepository'
@@ -22,8 +22,8 @@ export class RealtimeSubmissionService {
   private readonly pageHosts = new Map<number, { tabManager: TabManager; event: BrowserPageEvent }>()
   private isIpcRegistered = false
 
-  constructor(getWindow: () => BrowserWindow | null, logger: Logger = appLogger) {
-    this.watcher = new SubmissionWatcher(getWindow, logger)
+  constructor(notifyProblemsUpdated: () => void, logger: Logger = appLogger) {
+    this.watcher = new SubmissionWatcher(notifyProblemsUpdated, logger)
     this.hookInjector = new RealtimeHookInjector({
       getRealtimeAdapterForUrl,
       getSiteById,

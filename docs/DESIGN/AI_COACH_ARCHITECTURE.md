@@ -13,7 +13,7 @@ AI Coach 是 ALP 的本地优先过程陪练模块。当前 `2.0.0-beta.2` 已�
 - 决策层：`RuleEngine` 负责评分、节流、难度适配、提示升级冷却和用户屏蔽偏好。
 - 提示层：`HintSelector`、`HintLadder`、模板库和 `ConstraintParser` 生成本地分级提示。
 - LLM 层：`ContextGatherer`、`PromptBuilder`、`ArkClient` 和 `LlmHintService` 提供可选增强与失败降级。
-- 展示层：独立桌宠窗口、气泡、聊天面板、设置页、时间轴和效果指标页通过固定 preload API 交互。
+- 展示层：独立桌宠窗口、气泡、聊天面板、设置页、时间轴、效果指标页和完整壳比赛横幅通过固定 preload API 交互。
 - 数据层：Coach repository 只写 Coach 专属事件、干预和反馈表，不修改核心学习事实。
 
 ## 3. 数据流
@@ -28,9 +28,10 @@ AI Coach 是 ALP 的本地优先过程陪练模块。当前 `2.0.0-beta.2` 已�
 ### 3.1 多窗口语义
 
 - `ContestUrlAggregator` 是应用级共享实例；每个 `TabManager` 独立 attach/detach，任一窗口任一 webContents 仍处于比赛页时，`ContestGuard` 都保持全局静默。
-- `ProblemSessionTracker` 保持单会话，只消费最近活跃窗口的活动题与 Tracking 事件；窗口快速切换经过 200ms 防抖，旧窗口监听在切换后解绑。
+- `ProblemSessionTracker` 保持单会话，只消费最近活跃窗口的活动题与 Tracking 事件；窗口快速切换经过 200ms 防抖，旧窗口监听在切换后解绑；active_seconds 的 focus 门槛按“任一完整应用壳聚焦”判定。
 - `ConstraintParser` 捕获发起时的 `AppWindow` 与 `TabManager`，并用 generation guard 丢弃窗口或题目切换后的迟到结果。
 - 新建窗口在注册到 `WindowManager` 后接入比赛聚合；窗口关闭时移除其 URL 快照和 Coach 监听。
+- 比赛状态通过 `coach:contestModeChanged` 广播全部壳；壳使用现有 NoticeBar 展示不可关闭的比赛静默提示，TabManager 同步增加 view top inset；比赛中新增或 reload 的壳会回放当前状态。
 
 ## 4. 合规与安全边界
 

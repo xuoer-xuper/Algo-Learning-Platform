@@ -12,11 +12,12 @@
 - `CoachPetWindow.ts`：透明悬浮窗口封装（BrowserWindow 配置、点击穿透、拖拽、生命周期、状态/气泡/配置推送）。
 
 ### 阶段 2：事件触发 + 比赛模式
-- `ProblemSessionTracker.ts`：三态计时（读题/写码/卡壳），active_seconds 只累计有效活跃时间。
+- `ProblemSessionTracker.ts`：三态计时（读题/写码/卡壳），active_seconds 只在任一完整应用壳聚焦且系统未空闲时累计。
 - `CoachEventBridge.ts`：订阅提交事件，转为 CoachEvent（multiple_wrong / same_error / first_ac）。
 - `rules/RuleEngine.ts` + `rules.ts`：规则引擎（节流、防 hint abuse、难度自适应、比赛硬关闭、never_today）。
 - `ContestGuard.ts`：比赛模式硬保障（URL 识别、时间窗、审计日志）。
 - `ContestUrlAggregator.ts`：聚合所有 `webContents` 的 URL 快照，任一 view 在比赛页即维持全局比赛模式；安装 helper 独立于 `CoachOrchestrator`。
+- `coach:contestModeChanged`：广播到全部壳并驱动布局让位的 NoticeBar；新建/重载壳会回放当前比赛状态，renderer 订阅后再通过 `coach:getState` 补读快照以消除加载竞态。
 - `CoachOrchestrator.ts`：服务编排，黏合 tracker/bridge/ruleEngine/contestGuard/repositories/petWindow。
 
 ### 阶段 3：通用提示 + 靶向提示

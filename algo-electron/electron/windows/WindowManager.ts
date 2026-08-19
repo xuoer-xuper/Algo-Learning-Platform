@@ -81,6 +81,16 @@ export class WindowManager {
     return this.getAll().find((candidate) => !candidate.isDestroyed()) ?? null
   }
 
+  hasFocusedWindow(): boolean {
+    return this.getAll().some((candidate) => {
+      try {
+        return !candidate.isDestroyed() && candidate.browserWindow.isFocused()
+      } catch {
+        return false
+      }
+    })
+  }
+
   addMostRecentWindowChangeListener(listener: (window: AppWindow | null) => void): () => void {
     this.mostRecentWindowChangeListeners.add(listener)
     return () => {

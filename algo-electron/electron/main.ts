@@ -245,7 +245,6 @@ async function createWindowOnce(
   tabManager.setTabDetachHandler((tabId) => {
     void tabTransferCoordinator.moveToNewWindow(appWindow, tabId)
   })
-  services?.syncService.setScrapeHost(tabManager)
   services?.realtimeSubmissionService.attachTabManager(tabManager)
 
   const shortcutActions: ShortcutActions = {
@@ -301,7 +300,7 @@ async function createWindowOnce(
   installProblemTitleTracking({
     tabManager,
     getTrackingService: () => services?.trackingService ?? null,
-    notifyProblemsUpdated: () => { appWindow.send('problems:updated') },
+    notifyProblemsUpdated: () => { windowManager.sendToAll('problems:updated') },
     diagnostics: services?.browserDiagnostics,
   })
 
@@ -360,6 +359,7 @@ async function createWindowOnce(
     appWindow.send('tab:listChanged', tabManager.getTabList())
     const zoomState = tabManager.getActiveZoomState()
     if (zoomState) appWindow.send('browser:zoomChanged', zoomState)
+    coachOrchestrator?.syncContestModeState(appWindow)
   })
 
   if (VITE_DEV_SERVER_URL) {
@@ -461,6 +461,7 @@ registerMainIpc({
   getBrowserDiagnostics: () => services?.browserDiagnostics ?? null,
   getUserScriptInstallRegistry: () => userScriptInstallRegistry,
   allowInsecureLocalhost: Boolean(VITE_DEV_SERVER_URL || STARTUP_SMOKE_MODE),
+  notifyProblemsUpdated: () => { windowManager.sendToAll('problems:updated') },
   moveTabToNewWindow: (source, tabId) => tabTransferCoordinator.moveToNewWindow(source, tabId),
   finishTabDrag: (source, tabId, targetIndex, screenX, screenY) => (
     tabTransferCoordinator.finishDrag(source, tabId, targetIndex, screenX, screenY)
@@ -563,7 +564,7 @@ void app.whenReady().then(async () => {
   configureOjSession({ getSiteById })
 
   registerNoteAssetProtocol()
-  services = await initializeMainServices(() => getMostRecentAppWindow()?.browserWindow ?? null)
+  services = await initializeMainServices(() => { windowManager.sendToAll('problems:updated') })
   // Only preconnect sites the user actually visited recently to avoid noisy cold-start timeouts.
   preconnectRecentSiteOrigins()
 
@@ -608,6 +609,7 @@ void app.whenReady().then(async () => {
             addMostRecentWindowChangeListener: (listener) => (
               windowManager.addMostRecentWindowChangeListener(listener)
             ),
+            isAnyAppWindowFocused: () => windowManager.hasFocusedWindow(),
             getTrackingService: () => services?.trackingService ?? null,
             getRealtimeSubmissionService: () => services?.realtimeSubmissionService ?? null,
             getCoachPetWindow: () => coachPetWindow,

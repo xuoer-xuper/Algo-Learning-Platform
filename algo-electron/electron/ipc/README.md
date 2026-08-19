@@ -38,7 +38,7 @@
 - `registerProblemIpc(options)`：注册题目相关 channel；通过 `notifyProblemsUpdated` 注入删除题目后的刷新通知。
 - `registerRatingIpc()`：注册 rating 相关 channel，包括账号绑定、账号查询、Codeforces rating 同步、历史查询和比赛结果查询。
 - `registerScriptsIpc(options)`：注册用户脚本管理 channel，包括脚本列表、受控保存、身份更新导入、打开目录、启停和删除；原生文件/确认对话框默认绑定 sender 所属窗口。
-- `registerSitesIpc(options)`：注册站点配置相关 channel；文件对话框默认绑定 sender 所属窗口，通过 `notifyProblemsUpdated(event)` 定向通知发起窗口。
+- `registerSitesIpc(options)`：注册站点配置相关 channel；文件对话框默认绑定 sender 所属窗口，数据变更后通过应用级 `notifyProblemsUpdated()` 广播全部完整壳。
 - `registerStatsIpc()`：注册统计相关 channel，包括概览、趋势、平台分布、题目访问统计、时间线、复访、连续天数、错题、未复习和日统计重算。
 - `registerSubmissionsIpc(options)`：注册手动提交同步 channel；通过 `getSyncService` 延迟读取 `SyncService`，避免模块 import 时绑定尚未初始化的服务实例。
 - `registerBrowserShellIpc(options)`：注册浏览器壳层 channel；每次调用从 trusted sender owner 取得所属 `AppWindow/TabManager`，不接受全局窗口 getter。URL 输入只负责解析与导航，内部页 payload 先经过严格判别联合校验，标签排序只接受字符串 ID 与整数最终索引，题目追踪统一由 TabManager 导航链处理。

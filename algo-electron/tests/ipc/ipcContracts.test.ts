@@ -236,7 +236,7 @@ function extractIpcMainHandlers(source: string): RegisteredChannel[] {
 
 function extractSentChannels(source: string): Set<string> {
   const channels = new Set<string>()
-  const pattern = /\.send\(\s*'([^']+)'/g
+  const pattern = /\.(?:send|sendToAll)\(\s*'([^']+)'/g
   let match: RegExpExecArray | null
   while ((match = pattern.exec(source)) !== null) {
     channels.add(match[1])

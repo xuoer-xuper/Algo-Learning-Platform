@@ -1,4 +1,3 @@
-import type { BrowserWindow } from 'electron'
 import { CookieVault } from '../cookies/CookieVault'
 import { initDb, getDb } from '../db/connection'
 import { getEnabledSites, seedBuiltinSites } from '../db/repositories/siteRepository'
@@ -19,7 +18,7 @@ export interface MainServices {
   browserDiagnostics: BrowserDiagnostics
 }
 
-export async function initializeMainServices(getWindow: () => BrowserWindow | null): Promise<MainServices> {
+export async function initializeMainServices(notifyProblemsUpdated: () => void): Promise<MainServices> {
   await initDb()
   seedBuiltinSites()
   setEnabledSitesFetcher(getEnabledSites)
@@ -29,6 +28,7 @@ export async function initializeMainServices(getWindow: () => BrowserWindow | nu
   const trackingService = new TrackingService()
   const syncService = new SyncService({
     batchWriter: createDefaultSubmissionBatchWriter(),
+    notifyProblemsUpdated,
     findNowcoderProblemBySearch: (search) => {
       const problem = getDb().prepare(
         "SELECT platform_problem_id FROM problems WHERE platform = 'nowcoder' AND platform_problem_id LIKE ?"
@@ -36,7 +36,7 @@ export async function initializeMainServices(getWindow: () => BrowserWindow | nu
       return problem?.platform_problem_id
     },
   })
-  const realtimeSubmissionService = new RealtimeSubmissionService(getWindow)
+  const realtimeSubmissionService = new RealtimeSubmissionService(notifyProblemsUpdated)
   realtimeSubmissionService.registerIpc()
   const userScriptService = new UserScriptService()
   const browserDiagnostics = new BrowserDiagnostics()

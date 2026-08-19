@@ -459,9 +459,10 @@ Renderer（同一构建产物，多窗口实例化——桌宠 hash 路由已证
 | B2.6 | [x] | 六个内部页面已改为真实标签创建、切换、地址同步、再次激活与标签关闭契约；实现与完成标记同提交，B2 统一验证已通过，完整记录见 §11.27、§11.30 |
 | B2.7-B2.8 | [x] | B2.7 下载/查找/缩放与 B2.8 完整右键菜单已实现；B2 统一验证、生产构建、NSIS 与真实 packaged 双实例 smoke 全部通过，完整记录见 §11.28-§11.30 |
 | B3.1 | [x] | WindowManager/AppWindow/ViewRegistry、sender 归属路由、窗口 bounds/maximized 持久化与多显示器越界校验已完成；保持单窗口行为，完整记录见 §11.31 |
-| B3.2 | [x] | per-webContents 页面事件、Tracking 多 visit、Contest 聚合、Coach 最近窗口防抖、实时提交/用户脚本精确 owner、deleteProblem 事务重算已完成；拆分入口仍保持禁用，待 B3.3 标签过户后开放 |
+| B3.2 | [x] | per-webContents 页面事件、Tracking 多 visit、Contest 聚合、Coach 最近窗口防抖、实时提交/用户脚本精确 owner、deleteProblem 事务重算已完成；B3.3 已在此前置语义上开放拆分入口 |
 | B3.3 | [x] | 完整壳标签过户、拖出/右键/双击拆分、拖回合并与过户回滚已完成；B3.4-B3.5 继续处理服务广播、窗口生命周期与多窗口快照 |
-| B3.4-B3.5 | [ ] | 全窗口广播/剩余服务多窗口化、完整多窗口生命周期与会话恢复待实施 |
+| B3.4 | [x] | `problems:updated` 全壳广播、SyncService sender 宿主、任一壳 focus 判定与比赛横幅已完成；完整记录见 §11.34 |
+| B3.5 | [ ] | 完整多窗口生命周期、桌宠/second-instance 最近窗口语义与全窗口会话恢复待实施 |
 | B4.1-B4.6 | [ ] | 026_site_credentials、Vault、自动填充、账户页、登录捕获、fuses 均待实施 |
 | B5.1-B5.6 | [ ] | 仅按视觉冻结约束做结构收尾、暗色、无障碍、桌宠策略和 Latex |
 | B6.1-B6.7 | [ ] | 027_userscript_runtime、GM 桥、网络代理、早注入、资源、安装更新与管理页均待实施 |
@@ -918,4 +919,21 @@ Renderer（同一构建产物，多窗口实例化——桌宠 hash 路由已证
 | 视觉影响 | 未修改 CSS、颜色、字体、按钮形态、整体布局或动画基调；仅恢复既有 TabStrip 手势并复用现有原生菜单与壳样式 |
 | 暂缓验证 | 按批量策略，本任务不运行生产构建、NSIS 或真实 packaged 双实例 smoke；B3.4-B3.5 完成后统一执行整个 B3 验收 |
 | 后续工作 | B3.4：`problems:updated`/SessionTracker/SyncService 等剩余服务的全窗口广播与活跃标签语义；B3.5：任一窗口关闭、全窗口会话快照与重启恢复 |
+| 完成时间 | 北京时间 `2026-08-19` |
+
+### 11.34 B3.4 剩余服务多窗口化完成记录
+
+| 字段 | 填写内容 |
+|---|---|
+| 任务 | B3.4 问题更新广播、SyncService sender 路由、ProblemSessionTracker 应用级 focus 与比赛模式横幅 |
+| 状态 | `[x] 已完成` |
+| Commit | `browser: 完成 B3.4 剩余服务多窗口化`（代码、测试、架构文档与本完成标记同提交） |
+| 问题广播 | 标题补全、实时提交、手动同步及 Notes/Problem/Sites IPC 的更新出口统一调用 `WindowManager.sendToAll('problems:updated')`；任一窗口写入后所有壳同步刷新 |
+| 同步宿主 | 删除 SyncService 的可变 `setScrapeHost` 单槽；`submissions:syncVjudge`/`syncCurrentPage` 经 trusted sender 解析所属 AppWindow，并把该窗口 TabManager 作为本次 scrape host；抓取开始时固定页面 URL，等待脚本期间切换标签不会错配题目上下文，跨窗口并发不互相覆盖 |
+| 会话活跃 | `WindowManager.hasFocusedWindow()` 提供应用级聚焦事实；ProblemSessionTracker 保持最近窗口单会话跟随，但 active_seconds 只要求任一完整壳聚焦且系统未空闲 |
+| 比赛横幅 | ContestGuard 状态广播全部 AppWindow；壳复用现有 NoticeBar 展示“比赛模式 / Coach 已静默”，TabManager 同步增加 38px view inset；比赛中创建或 reload 的壳在 did-finish-load 回放当前状态，renderer 先订阅实时事件再补读 `coach:getState`，避免加载期丢事件 |
+| 测试 | 定向验证 `8 files / 24 tests`；`npm run test:core` 完整通过：Vitest `74 files / 695 tests`、TypeScript、全仓 ESLint、architecture `7/7` 与 security 全绿；补充比赛状态初始快照/迟到快照竞态、DOM 抓取期间标签切换及 mainResilience 源码守卫，IPC 合约扫描已识别 `sendToAll` 广播出口 |
+| 视觉影响 | 未修改 CSS、颜色、字体、按钮形态、整体布局或动画基调；比赛提示仅复用 B2 已有 NoticeBar 与既有 warning token |
+| 暂缓验证 | 按批量策略，本任务不运行生产构建、NSIS 或真实 packaged 双实例 smoke；B3.5 完成后统一执行整个 B3 验收 |
+| 后续工作 | B3.5：任一窗口关闭与最后窗口退出、桌宠/second-instance 最近窗口、全窗口标签快照原子落盘和重启恢复 |
 | 完成时间 | 北京时间 `2026-08-19` |
