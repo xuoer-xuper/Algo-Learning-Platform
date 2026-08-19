@@ -7,6 +7,7 @@ const ownerState = vi.hoisted(() => ({ id: 'shell-1' as string | null }))
 
 vi.mock('../../electron/ipc/trustedSender', () => ({
   ipcMain,
+  onFromOj: (channel: string, listener: (...args: any[]) => void) => ipcMain.on(channel, listener),
   getShellWindowOwner: () => ownerState.id ? { id: ownerState.id } : null,
 }))
 
@@ -14,6 +15,7 @@ const { registerCredentialsIpc } = await import('../../electron/ipc/registerCred
 
 beforeEach(() => {
   resetElectronMock()
+  ownerState.id = 'shell-1'
 })
 
 test('credentials IPC exposes only masked list and delete operations', async () => {
@@ -110,4 +112,38 @@ test('credentials IPC renames credentials and routes autofill prompt responses b
   ownerState.id = null
   assert.strictEqual(await ipcRenderer.invoke('credentials:autofillPrompt'), null)
   assert.strictEqual(await ipcRenderer.invoke('credentials:autofillRespond', 'request-1', null), false)
+})
+
+test('credentials IPC routes capture prompts and responses by shell owner', async () => {
+  const vault = {
+    list: vi.fn(() => []),
+    delete: vi.fn(() => true),
+    rename: vi.fn(() => null),
+  } as unknown as CredentialVault
+  const service = {
+    getCurrentPrompt: vi.fn((windowId: string) => windowId === 'shell-1' ? {
+      captureId: 'capture-1',
+      siteId: 'codeforces',
+      siteName: 'Codeforces',
+      username: 'alice',
+      displayName: null,
+      masked: '********',
+      isUpdate: false,
+    } : null),
+    respondCapture: vi.fn(async () => true),
+    receiveCapture: vi.fn(async () => true),
+  }
+  registerCredentialsIpc(vault, { getCaptureService: () => service as never })
+
+  const prompt = await ipcRenderer.invoke('credentials:capturePrompt')
+  assert.strictEqual(prompt.captureId, 'capture-1')
+  assert.strictEqual(JSON.stringify(prompt).includes('password'), false)
+  assert.strictEqual(await ipcRenderer.invoke('credentials:captureRespond', 'capture-1', 'save'), true)
+  assert.deepStrictEqual(service.respondCapture.mock.calls, [['shell-1', 'capture-1', 'save']])
+
+  assert.strictEqual(await ipcRenderer.invoke('credentials:captureRespond', 'capture-1', 'nope'), false)
+  assert.strictEqual(await ipcRenderer.invoke('credentials:captureRespond', '', 'save'), false)
+  ownerState.id = null
+  assert.strictEqual(await ipcRenderer.invoke('credentials:capturePrompt'), null)
+  assert.strictEqual(await ipcRenderer.invoke('credentials:captureRespond', 'capture-1', 'cancel'), false)
 })

@@ -100,6 +100,18 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('credentials:autofillPrompt', handler)
     return () => { ipcRenderer.off('credentials:autofillPrompt', handler) }
   },
+  getCredentialCapturePrompt: () => ipcRenderer.invoke('credentials:capturePrompt') as Promise<CredentialCapturePrompt | null>,
+  respondCredentialCapture: (captureId: string, action: CredentialCaptureAction) => ipcRenderer.invoke('credentials:captureRespond', captureId, action) as Promise<boolean>,
+  onCredentialCapturePrompt: (callback: (prompt: CredentialCapturePrompt) => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, prompt: CredentialCapturePrompt) => callback(prompt)
+    ipcRenderer.on('credentials:capturePrompt', handler)
+    return () => { ipcRenderer.off('credentials:capturePrompt', handler) }
+  },
+  onCredentialCaptureResult: (callback: (result: CredentialCaptureResult) => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, result: CredentialCaptureResult) => callback(result)
+    ipcRenderer.on('credentials:captureResult', handler)
+    return () => { ipcRenderer.off('credentials:captureResult', handler) }
+  },
 
   // 统计
   getOverviewStats: () => ipcRenderer.invoke('stats:getOverview'),

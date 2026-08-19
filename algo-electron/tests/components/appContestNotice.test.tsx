@@ -7,6 +7,9 @@ const unsubscribeContest = vi.fn()
 let getCoachState = vi.fn<() => Promise<CoachStateSnapshot | null>>()
 let permissionListener: ((prompt: UserScriptHostPermissionPrompt) => void) | null = null
 const respondPermission = vi.fn(async () => 'allowed' as UserScriptHostPermissionResponse)
+let capturePromptListener: ((prompt: CredentialCapturePrompt) => void) | null = null
+let captureResultListener: ((result: CredentialCaptureResult) => void) | null = null
+const respondCapture = vi.fn(async () => true)
 
 function createCoachState(isContestMode: boolean): CoachStateSnapshot {
   return {
@@ -76,13 +79,26 @@ import App from '../../src/App'
 beforeEach(() => {
   contestListener = null
   permissionListener = null
+  capturePromptListener = null
+  captureResultListener = null
   unsubscribeContest.mockClear()
   respondPermission.mockClear()
+  respondCapture.mockClear()
   getCoachState = vi.fn(async () => null)
   window.electronAPI = {
     coachGetState: () => getCoachState(),
     getCredentialAutofillPrompt: async () => null,
     onCredentialAutofillPrompt: () => () => undefined,
+    getCredentialCapturePrompt: async () => null,
+    respondCredentialCapture: (captureId, action) => respondCapture(captureId, action),
+    onCredentialCapturePrompt: (listener) => {
+      capturePromptListener = listener
+      return () => { capturePromptListener = null }
+    },
+    onCredentialCaptureResult: (listener) => {
+      captureResultListener = listener
+      return () => { captureResultListener = null }
+    },
     onCoachContestModeChanged: (listener) => {
       contestListener = listener
       return unsubscribeContest
@@ -164,4 +180,44 @@ test('does not let a late initial snapshot overwrite a newer contest event', asy
     resolveState(createCoachState(false))
   })
   expect(screen.getByText('比赛模式')).not.toBeNull()
+})
+
+test('shows a redacted capture prompt and responds with save/update/cancel actions', async () => {
+  render(<App />)
+  act(() => {
+    capturePromptListener?.({
+      captureId: 'capture-1',
+      siteId: 'codeforces',
+      siteName: 'Codeforces',
+      username: 'alice',
+      displayName: 'Main',
+      masked: '********',
+      isUpdate: false,
+    })
+  })
+  expect(screen.getByRole('button', { name: '保存账户' })).toBeTruthy()
+  expect(screen.getByText(/alice/)).toBeTruthy()
+  expect(document.body.textContent).not.toContain('secret')
+  await act(async () => { screen.getByRole('button', { name: '保存账户' }).click() })
+  expect(respondCapture).toHaveBeenCalledWith('capture-1', 'save')
+
+  act(() => {
+    capturePromptListener?.({
+      captureId: 'capture-2',
+      siteId: 'codeforces',
+      siteName: 'Codeforces',
+      username: 'alice',
+      displayName: 'Main',
+      masked: '********',
+      isUpdate: true,
+    })
+  })
+  expect(screen.getByRole('button', { name: '更新密码' })).toBeTruthy()
+  await act(async () => { screen.getByRole('button', { name: '暂不保存' }).click() })
+  expect(respondCapture).toHaveBeenCalledWith('capture-2', 'cancel')
+
+  act(() => {
+    captureResultListener?.({ captureId: 'capture-1', success: false, error: 'save-failed' })
+  })
+  expect(screen.getByText('凭据保存失败')).toBeTruthy()
 })

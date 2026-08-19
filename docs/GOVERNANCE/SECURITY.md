@@ -55,6 +55,8 @@ Algo Learning Platform 是本地优先桌面应用。安全与隐私边界重点
 - 站点凭据只允许主进程保存版本化 `electron-safe-storage` envelope；活动行必须 `sync_excluded=1`，软删除清空密文；renderer 不接收 envelope 或密码明文。
 - B4.2/B4.3 `CredentialVault` 只使用异步 `safeStorage` 加密/解密；壳 renderer 的凭据 IPC 仅返回脱敏摘要和删除结果；`getForAutofill` 明文只能沿 `oj-credentials:fill` 进入 `persist:oj-main` 的隔离 preload，必须校验当前 URL，且只填充不提交。
 - B4.4 账户中心只能读取/修改脱敏摘要和 `display_name`；多凭据选择通过壳 NoticeBar 返回 credentialId，密码仍不进入壳 renderer；登录页更新操作只新开 OJ 标签，不在账户页输入密码。
+- B4.5 登录捕获只允许 OJ 隔离 preload 监听表单 `submit` 后通过专用 `oj-credentials:capture` channel 把用户名/密码送入主进程短时 pending map；shell 只收到一次性 `captureId`、站点/用户名、displayName、masked、isUpdate 等脱敏摘要。确认后才写入 Vault，同密码静默忽略，密码变化提示更新；取消、超时、导航、WebContents 销毁和服务 `dispose` 必须清理 pending，且新捕获不得复用旧 captureId。
+- 登录捕获监听不得阻止或代替原生表单提交，也不得自动点击登录；密码明文只能存在于 OJ 页面输入、OJ preload→主进程专用 IPC、主进程瞬时内存和 Vault 写入路径，不得进入 NoticeBar、shell IPC、日志、导出、测试 fixture、截图或 renderer DOM。`credentials:capturePrompt`/`credentials:captureResult` 仅允许非敏感摘要和结果。
 - 普通 JSON 学习数据导出排除 `site_credentials`；需要完整本机恢复时使用数据库备份，并按敏感数据处理。
 - migration 027 新增的用户脚本 values、资源缓存、host 授权与更新状态只由主进程 repository 访问，并随脚本外键级联删除；B6.2-B6.4 使用固定 frame preload、每导航 generation/nonce、脚本 revision、私有 MessagePort 和主进程网络代理替换 legacy `window.GM_*`/localStorage/page-fetch polyfill，`scripts:getAll` 只向 shell 返回无源码、无绝对路径的摘要。
 - userscript 私有端口不得经 `window.postMessage` 交接给页面；主世界只获得闭包化 send/subscribe 函数。SPA 失配、脚本更新/禁用/删除或 generation 刷新必须同步中止网络请求、清理菜单、拒绝后续特权命令并使延迟 end/idle 回调失效。

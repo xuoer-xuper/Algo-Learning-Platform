@@ -7,6 +7,8 @@ import {
 } from './ojBridge'
 import { OJ_CREDENTIAL_FILL_CHANNEL } from '../credentials/autofill/credentialAutofillBridge'
 import { fillCredentialFormWithRetry, isCredentialFormFillPayload } from '../credentials/autofill/formFiller'
+import { installCredentialCaptureListener } from '../credentials/captureForm'
+import { OJ_CREDENTIAL_CAPTURE_CHANNEL } from '../credentials/captureBridge'
 
 function reportSubmission(payload: unknown): void {
   ipcRenderer.send(OJ_SUBMISSION_IPC_CHANNEL, payload)
@@ -21,4 +23,8 @@ ipcRenderer.on(OJ_CREDENTIAL_FILL_CHANNEL, (_event, payload: unknown) => {
   if (!isCredentialFormFillPayload(payload)) return
   if (window.location.href !== payload.pageUrl) return
   void fillCredentialFormWithRetry(document, payload)
+})
+
+installCredentialCaptureListener(window, document, (payload) => {
+  ipcRenderer.send(OJ_CREDENTIAL_CAPTURE_CHANNEL, payload)
 })

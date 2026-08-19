@@ -1,9 +1,12 @@
-import { getShellWindowOwner, ipcMain } from './trustedSender'
+import { getShellWindowOwner, ipcMain, onFromOj } from './trustedSender'
 import { CredentialVault } from '../credentials/CredentialVault'
 import type { CredentialAutofillService } from '../credentials/autofill/CredentialAutofillService'
+import type { CredentialCaptureService } from '../credentials/CredentialCaptureService'
+import type { CredentialCaptureAction } from '../credentials/captureTypes'
 
 export interface RegisterCredentialsIpcOptions {
   getAutofillService?: () => CredentialAutofillService | null
+  getCaptureService?: () => CredentialCaptureService | null
 }
 
 export function registerCredentialsIpc(
@@ -41,5 +44,23 @@ export function registerCredentialsIpc(
     return owner
       ? options.getAutofillService?.()?.respondSelection(owner.id, requestId, credentialId as string | null) ?? false
       : false
+  })
+
+  ipcMain.handle('credentials:capturePrompt', (event) => {
+    const owner = getShellWindowOwner(event)
+    return owner ? options.getCaptureService?.()?.getCurrentPrompt(owner.id) ?? null : null
+  })
+
+  ipcMain.handle('credentials:captureRespond', async (event, captureId: unknown, action: unknown) => {
+    if (typeof captureId !== 'string' || captureId.length === 0 || captureId.length > 128) return false
+    if (action !== 'save' && action !== 'update' && action !== 'cancel') return false
+    const owner = getShellWindowOwner(event)
+    return owner
+      ? await options.getCaptureService?.()?.respondCapture(owner.id, captureId, action as CredentialCaptureAction) ?? false
+      : false
+  })
+
+  onFromOj('oj-credentials:capture', (event, payload: unknown) => {
+    void options.getCaptureService?.()?.receiveCapture(event.sender, payload)
   })
 }

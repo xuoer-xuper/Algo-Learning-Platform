@@ -245,7 +245,7 @@ Renderer（同一构建产物，多窗口实例化——桌宠 hash 路由已证
 
 ### B4 账户与密码管理（预计 14-18 小时）
 
-> 安全前置：B0 的 app 协议/CSP/IPC sender 校验与 B6.1-B6.4 的用户脚本/网络边界已经完成。由于迁移版本固定为 B4.1=026、B6.1=027，B4.1 仍作为唯一数据地基前置例外；B4.2 Vault、B4.3 自动填充和 B4.4 账户中心已在前置闭合后完成，B4.5-B4.6 继续按登录捕获和打包加固顺序推进。
+> 安全前置：B0 的 app 协议/CSP/IPC sender 校验与 B6.1-B6.4 的用户脚本/网络边界已经完成。由于迁移版本固定为 B4.1=026、B6.1=027，B4.1 仍作为唯一数据地基前置例外；B4.2 Vault、B4.3 自动填充、B4.4 账户中心和 B4.5 登录捕获已在前置闭合后完成，下一步只剩 B4.6 打包层加固。
 
 | 任务 | 内容 | 涉及 |
 |---|---|---|
@@ -253,8 +253,8 @@ Renderer（同一构建产物，多窗口实例化——桌宠 hash 路由已证
 | B4.2 | `CredentialVault` 按 DI 拆分：save/list/delete/getForAutofill；使用 `safeStorage.encryptStringAsync/decryptStringAsync`，支持 isEncryptionAvailable、key rotation/旧 envelope 重加密和结构化错误码；系统密钥环自动解锁，无应用主密码、无明文回退；壳 renderer 只见 credentialId/username/masked，OJ 隔离 preload 到主进程的受限内部通道是唯一允许传输登录明文的 IPC | 新 `electron/credentials/`、`registerCredentialsIpc`、`tests/security/` |
 | B4.3 | 登录自动填充：**站点配置收敛为 DB site_configs 唯一源**（体检定性：SiteRegistry 创建即丢弃、cookiePolicy 全链零消费——"双源"实为"一源已死"；seed 补全写入 cookie_policy/patterns/adapter/login selectors 后删除旧内存配置）；**监听挂点不走 TabManager 回调**——改挂 `app.on('web-contents-created')` 过滤 `persist:oj-main`，天然覆盖所有窗口；**只填充不自动提交**；填充前严格校验 HTTPS、域名和登录 URL。已完成 migration 028、七站初始 selector seed、OJ 隔离 preload 通道、SPA/reload stale guard 和定向测试；真实七站逐站登录页 smoke 留作后续环境验收，不在本任务中虚报 | `db/repositories/site`、`credentials/autofill` |
 | B4.4 | 设置内"账户"分区（内部页标签体系内）：整合登录态摘要 + 保存凭据列表（脱敏显示、删除、重命名、前往登录页更新密码）+ rating handle 绑定；不在壳 renderer 提供密码明文查看/编辑框；多凭据选择填充使用顶部 NoticeBar；顺手清理 mainServices 里创建即丢弃的 SiteRegistry/CookieVault 实例语句 | `src/features/settings/`、`app/mainServices.ts` |
-| B4.5 | **登录捕获（Chrome 主路径）**：ojPreload 隔离世界监听登录表单 submit，仅把 username/password 直接送入主进程短时内存；主进程向壳发送不含密码的 captureId + 脱敏摘要，NoticeBar 确认后入 Vault，取消/超时/窗口关闭立即清空；已存在同名凭据且密码变化时提示更新；自动填充只填不提交 | `ojPreload`、`credentials/`、NoticeBar |
-| B4.6 | **打包层加固**：直接使用 electron-builder `electronFuses` 配置：runAsNode=false、enableCookieEncryption=true、enableNodeOptionsEnvironmentVariable=false、enableNodeCliInspectArguments=false、enableEmbeddedAsarIntegrityValidation=true、onlyLoadAppFromAsar=true、grantFileProtocolExtraPrivileges=false；smoke preload 仅 STARTUP_SMOKE_MODE 可启用；生产 DevTools 禁用；打包测试读取 fuse 状态并验证 asarUnpack/native SQLite 兼容 | `electron-builder.json5`、`main.ts`、packaged tests |
+| B4.5 | `[x]` **登录捕获（Chrome 主路径）**：ojPreload 隔离世界监听登录表单 submit，仅把 username/password 直接送入主进程短时内存；主进程向壳发送不含密码的 captureId + 脱敏摘要，NoticeBar 确认后入 Vault，取消/超时/导航/销毁/dispose 立即清空；已存在同名凭据且密码变化时提示更新，同密码静默忽略；自动填充只填不提交 | `ojPreload`、`credentials/`、NoticeBar |
+| B4.6 | `[ ]` **打包层加固**：直接使用 electron-builder `electronFuses` 配置：runAsNode=false、enableCookieEncryption=true、enableNodeOptionsEnvironmentVariable=false、enableNodeCliInspectArguments=false、enableEmbeddedAsarIntegrityValidation=true、onlyLoadAppFromAsar=true、grantFileProtocolExtraPrivileges=false；smoke preload 仅 STARTUP_SMOKE_MODE 可启用；生产 DevTools 禁用；打包测试读取 fuse 状态并验证 asarUnpack/native SQLite 兼容 | `electron-builder.json5`、`main.ts`、packaged tests |
 
 验收：在 OJ 登录一次 → 通知条提示保存 → 重开登录页自动填好、点登录即可（拆分窗口内同样生效）；密码在 DB 中为密文、导出不含、日志无泄漏；safeStorage 不可用时保存被拒绝且有提示；打包产物 cookie 落盘加密、无法以 --inspect 附加；`test:security` 与 `test:packaged-app` 绿。
 
@@ -467,7 +467,8 @@ Renderer（同一构建产物，多窗口实例化——桌宠 hash 路由已证
 | B4.2 | [x] | CredentialVault 已完成：DI 纯逻辑核心、异步 safeStorage、envelope/provider 校验、rotation 重加密、结构化错误码；壳 renderer 仅开放脱敏 list/delete |
 | B4.3 | [x] | migration 028、DB `site_configs` 登录配置唯一源、全局 `web-contents-created` OJ session 协调器、只填充不提交的 `oj-credentials:fill` preload 通道、URL/selector 安全校验和 7 个测试文件已完成；真实七站逐站 smoke 明确延期，不宣称已完成；完整记录见 §11.43 |
 | B4.4 | [x] | 账户内部标签、登录态摘要、脱敏凭据列表、重命名/删除、登录页新标签跳转、Codeforces rating 绑定和多凭据 NoticeBar 选择已完成；完整记录见 §11.44 |
-| B4.5-B4.6 | [ ] | 登录捕获、fuses 待实施 |
+| B4.5 | [x] | 登录捕获、保存/覆盖确认与 stale/取消边界已完成；完整记录见 §11.45 |
+| B4.6 | [ ] | 打包 fuses 与 packaged smoke 待实施 |
 | B5.1-B5.6 | [ ] | 仅按视觉冻结约束做结构收尾、暗色、无障碍、桌宠策略和 Latex |
 | B6.1 | [x] | `027_userscript_runtime`、完整 metadata 持久化、严格 URL 匹配、site binding/exclude 优先级、values/资源/host/update repository 已完成；完整记录见 §11.38 |
 | B6.2 | [x] | GM 私有桥、固定 frame bootstrap、IIFE/grant 裁剪、主进程值快照与 shell 源码隔离已完成；完整记录见 §11.39 |
@@ -1076,7 +1077,7 @@ Renderer（同一构建产物，多窗口实例化——桌宠 hash 路由已证
 | 字段 | 填写内容 |
 |---|---|
 | 任务 | `CredentialVault` DI 纯逻辑核心、异步 safeStorage、envelope/provider 校验、key rotation 重加密、结构化错误码与脱敏 IPC |
-| 状态 | `[x] 已完成；B4.3 自动填充与 B4.4 账户中心已完成，B4.5 登录捕获和 B4.6 打包 fuses 仍待实施` |
+| 状态 | `[x] 已完成；B4.3 自动填充、B4.4 账户中心与 B4.5 登录捕获均已完成，B4.6 打包 fuses 仍待实施` |
 | Commit | `credentials: 完成 B4.2 CredentialVault`（代码、测试、README、架构/安全文档与完成标记同提交） |
 | Vault 边界 | `credentialVaultCore.ts` 通过依赖注入拆分纯逻辑；`CredentialVault.ts` 只绑定 Electron `safeStorage`；`save/list/delete/getForAutofill` 均已实现；系统加密不可用时拒绝保存/解密，不回退明文或应用主密码 |
 | Envelope 与 rotation | 保存前异步加密并写入 V1 `electron-safe-storage` envelope；读取严格校验 version/provider/base64；Electron 返回 `shouldReEncrypt` 时按官方语义再次解密并使用当前 key 重加密旧记录 |
@@ -1094,7 +1095,7 @@ Renderer（同一构建产物，多窗口实例化——桌宠 hash 路由已证
 | 字段 | 填写内容 |
 |---|---|
 | 任务 | DB `site_configs` 登录配置收敛、七站初始登录 URL/selector seed、跨拆分窗口自动填充协调器、OJ 隔离 preload 表单填充 |
-| 状态 | `[x] 已完成；B4.4 账户中心已完成，B4.5 登录捕获和 B4.6 打包 fuses 仍待实施` |
+| 状态 | `[x] 已完成；B4.4 账户中心与 B4.5 登录捕获均已完成，B4.6 打包 fuses 仍待实施` |
 | Commit | `credentials: 完成 B4.3 自动填充`（代码、测试、autofill README、架构/安全文档与完成标记同提交） |
 | 配置唯一源 | 新增 migration 028：`site_configs` 增加 `login_url_patterns_json`、`login_username_selectors_json`、`login_password_selectors_json`；`repositories/site/builtins.ts` 为 Codeforces、AcWing、牛客、VJudge、PTA、洛谷、LeetCode.cn 写入初始配置；删除零运行时引用的旧 `electron/sites/siteRegistry.ts`、`electron/sites/types.ts` 与 `electron/sites/builtins/` 副本 |
 | 监听与窗口 | `CredentialAutofillService` 使用 `app.on('web-contents-created')` 并过滤 `persist:oj-main` session，不依赖 `TabManager` 活动标签查找，因此拆分窗口、标签过户和后台标签沿用同一协调器 |
@@ -1104,7 +1105,7 @@ Renderer（同一构建产物，多窗口实例化——桌宠 hash 路由已证
 | 文档同步 | `electron/credentials/autofill/README.md`、credentials/IPC/DB/site repository README、`DATABASE_SCHEMA.md`、`SYSTEM_ARCHITECTURE.md`、`SITE_ADAPTER_GUIDE.md`、`SECURITY.md`、`docs/README.md` 已同步 |
 | 视觉影响 | 未修改 TSX、CSS、主题、颜色、字体、布局、按钮或动画；前端视觉冻结保持不变 |
 | 暂缓验证 | 未运行生产构建、NSIS、packaged 双实例和真实七站登录页 smoke；真实站点 selector 需在具备测试账号/网络条件时逐站验收，不能由单元测试替代 |
-| 后续工作 | 进入 B4.5：登录成功后的捕获确认、保存/覆盖凭据流程和 stale/取消边界；继续保持壳 renderer 无密码明文 |
+| 后续工作 | B4.5 登录捕获已完成；进入 B4.6 打包层加固，继续保持壳 renderer 无密码明文 |
 | 完成时间 | 北京时间 `2026-08-19` |
 
 ### 11.44 B4.4 账户中心与多凭据选择完成记录
@@ -1112,7 +1113,7 @@ Renderer（同一构建产物，多窗口实例化——桌宠 hash 路由已证
 | 字段 | 填写内容 |
 |---|---|
 | 任务 | 设置内部页账户中心、登录态安全摘要、凭据脱敏列表管理、Codeforces Handle/rating 绑定、登录页新标签更新密码和多凭据自动填充 NoticeBar |
-| 状态 | `[x] 已完成；B4.5 登录捕获与 B4.6 打包 fuses 仍待实施` |
+| 状态 | `[x] 已完成；B4.5 登录捕获已完成，B4.6 打包 fuses 仍待实施` |
 | 数据与 migration | 新增 migration 029 `site_credential_labels`，为 `site_credentials` 增加可选 `display_name`；repository/Vault 支持列表映射、重命名和空名归一化为 `NULL`，密码 envelope 与明文出口保持不变 |
 | 账户中心 | `src/features/settings/CredentialsPage.tsx` 通过既有 settings/site/button/input 组件展示各站登录 Cookie 安全摘要、凭据数量、脱敏用户名/显示名/masked/最近使用时间、重命名、删除和“更新密码”新建 OJ web 标签；页面不提供密码输入或查看 |
 | Rating 绑定 | 复用现有 Codeforces account/rating API，支持 Handle 绑定与 profile 同步，展示 current/peak rating；账户页不直接读取网页或 Cookie value |
@@ -1121,6 +1122,22 @@ Renderer（同一构建产物，多窗口实例化——桌宠 hash 路由已证
 | 窗口与布局 | prompt 通过所属完整壳 NoticeBar 展示，`TabManager` 将凭据 NoticeBar 高度计入 web view bounds；响应、取消、超时和销毁后恢复原布局，拆分窗口复用同一全局自动填充监听 |
 | 测试 | `npm run typecheck` 通过；定向 Vitest `6 files / 17 tests` 通过（Vault、协调器、service、credentials IPC、preload IPC 合约、credential repository）；新增 `siteCredentialLabelMigration.test.ts` 并纳入 `test:db`；补充账户中心静态安全边界、prompt owner 路由和 migration 幂等覆盖 |
 | 文档与视觉 | 已同步 credentials/autofill、IPC、settings、browser、DB migration README、`DATABASE_SCHEMA.md` 与 `SECURITY.md`；沿用现有 class/token/component，未修改主题、颜色、字体、按钮形态、布局基调或动画，前端视觉冻结保持不变 |
-| 暂缓验证 | 按批量策略本块未运行生产构建、NSIS、真实 packaged 双实例 smoke 或真实七站登录捕获；B4.5-B4.6 或 B4 大块统一验收时集中执行 |
-| 后续工作 | 进入 B4.5：登录页成功提交后的捕获确认、保存/覆盖凭据流程和 stale/取消边界；继续保持密码只在主进程与 OJ 隔离 preload 之间流动 |
+| 暂缓验证 | 按批量策略本块未运行生产构建、NSIS、真实 packaged 双实例 smoke 或真实七站登录捕获；B4.5 已完成自动化边界覆盖，生产与真实站点验证继续留到 B4.6/B4 大块统一验收 |
+| 后续工作 | B4.5 登录捕获已完成；进入 B4.6 打包层加固，继续保持密码只在主进程与 OJ 隔离 preload 之间流动 |
+| 完成时间 | 北京时间 `2026-08-19` |
+
+### 11.45 B4.5 登录捕获完成记录
+
+| 字段 | 填写内容 |
+|---|---|
+| 任务 | OJ 隔离 preload 登录表单 submit 捕获、主进程短时 pending capture、脱敏 NoticeBar 确认、同名密码变化更新提示与 Vault 保存/覆盖流程 |
+| 状态 | `[x] 已完成；B4.6 打包 fuses 与 packaged smoke 仍待实施` |
+| 捕获边界 | `ojPreload` 只监听 submit，不阻止或代替页面正常登录；只从启用的用户名/密码字段提取数据，空值、disabled、readonly、hidden、非表单 target 和 malformed payload fail closed；密码只沿 `oj-credentials:capture` 从 OJ 隔离 preload 进入主进程，不进入壳 preload、renderer、日志、导出或截图 |
+| 主进程流程 | `CredentialCaptureService` 过滤 `persist:oj-main`，复用站点配置校验 HTTPS、域名与登录 URL；同站点同用户名密码未变化时静默忽略，密码变化时标记 `isUpdate`；主进程先保存窗口级一次性 `captureId` 和短时 pending 明文，再向所属壳发送不含密码的站点/用户名/displayName/masked 摘要，确认后才写入 Vault |
+| 清理与竞态 | `save`/`update`/`cancel` 必须匹配 prompt 状态并一次性消费 captureId；30 秒超时、导航、SPA 原位导航、WebContents 销毁、服务 `dispose` 和同窗口新捕获都会清除旧 pending；保存失败只发送 `save-failed` 非敏感结果，不返回密码、密文或异常详情 |
+| Renderer 与布局 | 壳 renderer 只显示脱敏摘要和保存/更新/暂不保存操作；`credentials:capturePrompt`/`credentials:captureResult` 不含密码，`credentials:captureRespond` 只回传 captureId 与受限 action。提示复用既有 NoticeBar、组件、布局 token 和 `TabManager` 文档流让位逻辑 |
+| 自动验证 | 表单提取、service 生命周期、owner/captureId/action 校验、同密码静默、密码变化更新、取消/超时/导航/销毁、保存失败、preload IPC 合约和 renderer 脱敏展示均纳入 B4.5 定向测试；`test:docs` 与 `git diff --check` 已通过，类型、lint、核心/DB/architecture/security 测试在本子块提交前统一执行并按实际结果补记 |
+| 文档与视觉 | 已同步 credentials、IPC、browser、系统架构、安全规范与本计划；未修改主题、配色、字体、按钮样式、布局基调或动画，继续严格复用现有 class/token/component，前端视觉冻结保持不变 |
+| 暂缓验证 | 按批量策略本块不运行生产构建、NSIS、真实 packaged 双实例 smoke 或真实七站登录捕获；这些验证留到 B4.6/B4 大块统一验收，不在本块虚报 |
+| 后续工作 | 进入 B4.6：electron-builder fuses、生产 DevTools/启动 smoke 边界、asar/native SQLite 兼容和 packaged 双实例验证 |
 | 完成时间 | 北京时间 `2026-08-19` |

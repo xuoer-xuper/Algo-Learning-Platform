@@ -33,6 +33,8 @@ function App() {
   const [contestMode, setContestMode] = useState<CoachContestModePayload | null>(null)
   const [userScriptPermission, setUserScriptPermission] = useState<UserScriptHostPermissionPrompt | null>(null)
   const [credentialAutofillPrompt, setCredentialAutofillPrompt] = useState<CredentialAutofillPrompt | null>(null)
+  const [credentialCapturePrompt, setCredentialCapturePrompt] = useState<CredentialCapturePrompt | null>(null)
+  const [credentialCaptureError, setCredentialCaptureError] = useState(false)
   const {
     url,
     syncMsg,
@@ -91,6 +93,33 @@ function App() {
     return () => {
       disposed = true
       unsubscribe()
+    }
+  }, [])
+
+  useEffect(() => {
+    let disposed = false
+    let receivedLiveUpdate = false
+    const unsubscribePrompt = window.electronAPI.onCredentialCapturePrompt((prompt) => {
+      receivedLiveUpdate = true
+      if (!disposed) {
+        setCredentialCaptureError(false)
+        setCredentialCapturePrompt(prompt)
+      }
+    })
+    const unsubscribeResult = window.electronAPI.onCredentialCaptureResult((result) => {
+      if (disposed) return
+      setCredentialCapturePrompt((current) => current?.captureId === result.captureId ? null : current)
+      setCredentialCaptureError(!result.success)
+    })
+    void window.electronAPI.getCredentialCapturePrompt()
+      .then((prompt) => {
+        if (!disposed && !receivedLiveUpdate) setCredentialCapturePrompt(prompt)
+      })
+      .catch(() => undefined)
+    return () => {
+      disposed = true
+      unsubscribePrompt()
+      unsubscribeResult()
     }
   }, [])
 
@@ -159,6 +188,15 @@ function App() {
       .catch(() => undefined)
   }, [credentialAutofillPrompt])
 
+  const answerCredentialCapture = useCallback((action: CredentialCaptureAction) => {
+    const prompt = credentialCapturePrompt
+    if (!prompt) return
+    setCredentialCapturePrompt(null)
+    setCredentialCaptureError(false)
+    void window.electronAPI.respondCredentialCapture(prompt.captureId, action)
+      .catch(() => setCredentialCaptureError(true))
+  }, [credentialCapturePrompt])
+
   const showUnresponsiveNotice = Boolean(
     activeTab?.isUnresponsive
     && !activeTab.isUnresponsiveNoticeDismissed
@@ -222,6 +260,34 @@ function App() {
           onDismiss={() => answerCredentialAutofill(null)}
         >
           {`检测到 ${credentialAutofillPrompt.credentials.length} 个 ${credentialAutofillPrompt.siteId} 账户`}
+        </NoticeBar>
+      )}
+      {credentialCapturePrompt && (
+        <NoticeBar
+          tone="info"
+          title={credentialCapturePrompt.isUpdate ? '更新密码' : '保存账户'}
+          actions={[
+            {
+              label: credentialCapturePrompt.isUpdate ? '更新密码' : '保存账户',
+              onClick: () => answerCredentialCapture(credentialCapturePrompt.isUpdate ? 'update' : 'save'),
+            },
+          ]}
+          dismissLabel="暂不保存"
+          onDismiss={() => answerCredentialCapture('cancel')}
+        >
+          {credentialCapturePrompt.isUpdate
+            ? `${credentialCapturePrompt.siteName} 账户 ${credentialCapturePrompt.username} 的密码已变化（${credentialCapturePrompt.masked}）`
+            : `保存 ${credentialCapturePrompt.siteName} 账户 ${credentialCapturePrompt.username}（${credentialCapturePrompt.masked}）`}
+        </NoticeBar>
+      )}
+      {credentialCaptureError && !credentialCapturePrompt && (
+        <NoticeBar
+          tone="danger"
+          title="凭据保存失败"
+          dismissLabel="关闭"
+          onDismiss={() => setCredentialCaptureError(false)}
+        >
+          未能保存登录账户，请稍后重试。
         </NoticeBar>
       )}
       {contestMode?.isContestMode && (

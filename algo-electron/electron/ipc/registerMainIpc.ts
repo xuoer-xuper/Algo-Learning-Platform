@@ -21,6 +21,7 @@ import type { AppWindow } from '../windows/AppWindow'
 import type { UserScriptRuntime } from '../scripts/UserScriptRuntime'
 import type { CredentialVault } from '../credentials/CredentialVault'
 import type { CredentialAutofillService } from '../credentials/autofill/CredentialAutofillService'
+import type { CredentialCaptureService } from '../credentials/CredentialCaptureService'
 import type {
   UserScriptHostPermissionPrompt,
   UserScriptHostPermissionResponse,
@@ -34,6 +35,7 @@ interface RegisterMainIpcOptions {
   getCoachOrchestrator?: () => CoachOrchestrator | null
   credentialVault?: CredentialVault
   getCredentialAutofillService?: () => CredentialAutofillService | null
+  getCredentialCaptureService?: () => CredentialCaptureService | null
   getBrowserDiagnostics?: () => BrowserDiagnostics | null
   getUserScriptInstallRegistry?: () => PendingUserScriptInstallRegistry | null
   allowInsecureLocalhost?: boolean
@@ -73,6 +75,7 @@ export function registerMainIpc(options: RegisterMainIpcOptions): void {
   registerCookieIpc()
   registerCredentialsIpc(options.credentialVault, {
     getAutofillService: options.getCredentialAutofillService,
+    getCaptureService: options.getCredentialCaptureService,
   })
   registerNotesIpc({ notifyProblemsUpdated })
   registerProblemIpc({ notifyProblemsUpdated })

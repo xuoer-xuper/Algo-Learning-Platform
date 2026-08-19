@@ -108,6 +108,24 @@ interface CredentialAutofillPrompt {
   credentials: Array<Pick<CredentialSummary, 'credentialId' | 'siteId' | 'username' | 'displayName' | 'masked'>>
 }
 
+type CredentialCaptureAction = 'save' | 'update' | 'cancel'
+
+interface CredentialCapturePrompt {
+  captureId: string
+  siteId: string
+  siteName: string
+  username: string
+  displayName: string | null
+  masked: string
+  isUpdate: boolean
+}
+
+interface CredentialCaptureResult {
+  captureId: string
+  success: boolean
+  error?: 'save-failed'
+}
+
 interface OverviewStats {
   totalProblems: number
   todayVisited: number
@@ -839,6 +857,10 @@ interface ElectronAPI {
   getCredentialAutofillPrompt: () => Promise<CredentialAutofillPrompt | null>
   respondCredentialAutofill: (requestId: string, credentialId: string | null) => Promise<boolean>
   onCredentialAutofillPrompt: (callback: (prompt: CredentialAutofillPrompt) => void) => () => void
+  getCredentialCapturePrompt: () => Promise<CredentialCapturePrompt | null>
+  respondCredentialCapture: (captureId: string, action: CredentialCaptureAction) => Promise<boolean>
+  onCredentialCapturePrompt: (callback: (prompt: CredentialCapturePrompt) => void) => () => void
+  onCredentialCaptureResult: (callback: (result: CredentialCaptureResult) => void) => () => void
   getOverviewStats: () => Promise<OverviewStats>
   getDailyActiveStats: (days?: number) => Promise<DailyActiveStats[]>
   getVisitedTrend: (days?: number) => Promise<TrendPoint[]>

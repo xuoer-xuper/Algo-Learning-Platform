@@ -27,6 +27,8 @@ const coreVitestFiles = [
   'tests/ipc',
   'tests/parsers',
   'tests/scripts',
+  'tests/security/credentialCaptureForm.test.ts',
+  'tests/security/credentialCaptureService.test.ts',
   'tests/security/trustedSender.test.ts',
   'tests/windows',
 ]

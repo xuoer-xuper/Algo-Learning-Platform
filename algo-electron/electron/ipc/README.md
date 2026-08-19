@@ -21,9 +21,9 @@
 - `registerBrowserShellIpc.ts`：注册 `browser:*`、`tab:*`、`window:*` 与用户脚本 host 授权 handler，包括受校验的内部页/标签/故障恢复/查找/缩放/下载/脚本安装/原生菜单入口，以及 `userscript:getHostPermissionPrompt`、`userscript:respondHostPermission`。
 - `registerCoachIpc.ts`：注册 Coach 桌宠、比赛模式、会话、干预和指标相关 handler。
 - `registerCookieIpc.ts`：注册 `cookies:*` 安全摘要 handler，不向 renderer 暴露 Cookie value。
-- `registerCredentialsIpc.ts`：注册凭据脱敏列表、重命名、删除和按壳窗口路由的多账户自动填充 prompt/respond handler，不向 renderer 暴露密码或 envelope。
+- `registerCredentialsIpc.ts`：注册凭据脱敏列表、重命名、删除、按壳窗口路由的多账户自动填充 prompt/respond，以及登录捕获 prompt/respond/result handler；不向 renderer 暴露密码或 envelope。
 - `registerMainIpc.ts`：组合注册入口，集中由 `main.ts` 调用各业务域注册函数。
-- `trustedSender.ts`：统一完整浏览器壳、Coach 壳与 OJ sender 的 main frame、origin、webContents 能力归属和 payload 边界；完整壳登记时同时绑定 `AppWindow` owner，窗口敏感 handler 使用 `getShellWindowOwner(event)` 定向路由。普通 handler 使用仅完整壳可调用的 guarded `ipcMain` facade，桌宠必需的最小 Coach handler 使用 `coachPetIpcMain`，提交 bridge 使用 `onFromOj()`。
+- `trustedSender.ts`：统一完整浏览器壳、Coach 壳与 OJ sender 的 main frame、origin、webContents 能力归属和 payload 边界；完整壳登记时同时绑定 `AppWindow` owner，窗口敏感 handler 使用 `getShellWindowOwner(event)` 定向路由。普通 handler 使用仅完整壳可调用的 guarded `ipcMain` facade，桌宠必需的最小 Coach handler 使用 `coachPetIpcMain`，提交与登录捕获 bridge 使用 `onFromOj()`。
 - `ui:command`：主进程向壳 renderer 发送的受限对象指令，目前包含聚焦地址栏、聚焦查找条、导航被安全策略阻止和标签满额提示；查找结果、缩放状态和下载结果使用独立固定事件。
 - `userscript:hostPermissionRequested`：只向请求所属完整壳发送 `promptId/scriptName/targetHost/sourceHost`，renderer 通过既有 NoticeBar 回应；handler 从 sender owner 解析 windowId，不接受 renderer 指定窗口。
 
@@ -45,11 +45,11 @@
 - `registerSubmissionsIpc(options)`：注册手动提交同步 channel；通过 `getSyncService` 延迟读取 `SyncService`，避免模块 import 时绑定尚未初始化的服务实例。
 - `registerBrowserShellIpc(options)`：注册浏览器壳层 channel；每次调用从 trusted sender owner 取得所属 `AppWindow/TabManager`，不接受全局窗口 getter。URL 输入只负责解析与导航，内部页 payload 先经过严格判别联合校验，标签排序只接受字符串 ID 与整数最终索引，题目追踪统一由 TabManager 导航链处理。
 - `registerCookieIpc(cookieVault?)`：注册 Cookie 摘要查询 channel；完整 Cookie 仅保留在 main 内部，renderer 只拿名称、数量、过期时间和安全标记统计。
-- `registerCredentialsIpc(credentialVault?, options?)`：注册 `credentials:list`、`credentials:rename`、`credentials:delete`、`credentials:autofillPrompt` 和 `credentials:autofillRespond`；只返回 Vault 脱敏摘要。自动填充明文仅由 `oj-credentials:fill` 主进程到 OJ 隔离 preload 的内部通道承载，prompt/respond 依据 sender owner 路由且只传 credentialId。
+- `registerCredentialsIpc(credentialVault?, options?)`：注册 `credentials:list`、`credentials:rename`、`credentials:delete`、`credentials:autofillPrompt`、`credentials:autofillRespond`、`credentials:capturePrompt`、`credentials:captureRespond` 和 `credentials:captureResult`；只返回 Vault 脱敏摘要。自动填充明文仅由 `oj-credentials:fill` 主进程到 OJ 隔离 preload 的内部通道承载，登录捕获明文仅由 OJ 隔离 preload 经 `oj-credentials:capture` 进入主进程 pending map，shell prompt/respond/result 只传 captureId、站点/用户名、masked、isUpdate 和非敏感结果。
 - `registerMainIpc(options)`：主入口调用的组合函数；只负责串联各注册模块，不直接实现具体 handler。
 - `handleFromShell()` / `onFromShell()`：普通壳 IPC 的统一校验入口，拒绝未知 webContents、iframe、伪造 origin 和超限/循环 payload。
 - `getShellWindowOwner(event)`：在 sender 校验通过后返回登记的 `AppWindow`；owner 缺失时窗口敏感操作 fail closed，不回退最近活跃窗口。
-- `onFromOj()`：只允许已登记的 `persist:oj-main` WebContentsView 主 frame 发送提交 bridge 事件。
+- `onFromOj()`：只允许已登记的 `persist:oj-main` WebContentsView 主 frame 发送提交或登录捕获 bridge 事件；不同内部 channel 仍各自执行严格 payload 判别。
 
 ## 4. 边界规则
 
@@ -61,6 +61,8 @@
 - `cookies:*` channel 不得返回 Cookie value；需要完整 Cookie 时只能由 main 进程内部 service 调用 `CookieVault`。
 - `credentials:*` 普通壳 channel 不得返回密码、secret envelope 或 `getForAutofill` 结果；自动填充只允许 `persist:oj-main` 的受限 OJ preload 通道，且不得自动提交表单。
 - `credentials:autofillPrompt` 是唯一允许壳 renderer 接收的自动填充通知，payload 只含站点、URL 和脱敏凭据摘要；`credentials:autofillRespond` 必须按 owner/requestId 校验并拒绝不属于 prompt 的 credentialId。
+- `credentials:capturePrompt`/`credentials:captureResult` 是允许壳 renderer 接收的登录捕获事件，但 payload 只能含一次性 captureId、站点/用户名、displayName、masked、isUpdate 和非敏感结果；`credentials:captureRespond` 必须按 owner、captureId 和受限 action（`save`/`update`/`cancel`）校验。
+- `oj-credentials:capture` 是 OJ 专用内部 channel，只能由 `onFromOj()` 接收 `persist:oj-main` 主 frame 的 `{ username, password }`；不得加入 shell preload API 或普通 renderer channel 列表。主进程应在保存前清理 pending，取消、超时、导航、销毁和 `dispose` 均 fail closed，且任何错误不得回传密码或密文。
 - `backup:*` channel 导出的 JSON 不得包含 Cookie、`raw_json`、日志或本机绝对路径；冲突导入必须先预览再确认。
 - `register*.ts` 不得直接从 `electron` 导入 `ipcMain`；新增普通 channel 必须经过 `trustedSender.ts`，并同步 IPC 合约测试。
 - 窗口、标签、菜单和原生对话框操作必须按 sender owner 路由；禁止注入模块级 `getWindow/getTabManager` 单槽。

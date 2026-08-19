@@ -84,6 +84,10 @@ const coreContracts: PreloadContract[] = [
   { method: 'getCredentialAutofillPrompt', mode: 'invoke', channel: 'credentials:autofillPrompt' },
   { method: 'respondCredentialAutofill', mode: 'invoke', channel: 'credentials:autofillRespond' },
   { method: 'onCredentialAutofillPrompt', mode: 'on', channel: 'credentials:autofillPrompt' },
+  { method: 'getCredentialCapturePrompt', mode: 'invoke', channel: 'credentials:capturePrompt' },
+  { method: 'respondCredentialCapture', mode: 'invoke', channel: 'credentials:captureRespond' },
+  { method: 'onCredentialCapturePrompt', mode: 'on', channel: 'credentials:capturePrompt' },
+  { method: 'onCredentialCaptureResult', mode: 'on', channel: 'credentials:captureResult' },
 ]
 
 test('preload maps core renderer methods to stable channels', () => {
@@ -135,6 +139,8 @@ test('preload event subscriptions are fixed and backed by main-process sends', (
     'coach:petStateChanged',
     'coach:showBubble',
     'credentials:autofillPrompt',
+    'credentials:capturePrompt',
+    'credentials:captureResult',
     'download:result',
     'problems:updated',
     'tab:listChanged',
@@ -166,6 +172,7 @@ test('renderer cannot access arbitrary IPC channels through preload', () => {
   const internalChannels = [
     'oj-submission:detected',
     'oj-credentials:fill',
+    'oj-credentials:capture',
   ]
   for (const channel of internalChannels) {
     assert.ok(!rendererChannels.has(channel), `${channel} must remain internal and unavailable to renderer code`)

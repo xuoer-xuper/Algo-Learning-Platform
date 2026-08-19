@@ -88,6 +88,7 @@ import { UserScriptMenuRegistry } from './scripts/UserScriptMenuRegistry'
 import { UserScriptNetworkProxy } from './scripts/UserScriptNetworkProxy'
 import { CredentialVault } from './credentials/CredentialVault'
 import { CredentialAutofillService } from './credentials/autofill/CredentialAutofillService'
+import { CredentialCaptureService } from './credentials/CredentialCaptureService'
 
 configureChromiumCommandLine()
 
@@ -107,6 +108,7 @@ let removeApplicationRecencyListener: (() => void) | null = null
 let downloadManager: DownloadManager | null = null
 let userScriptInstallRegistry: PendingUserScriptInstallRegistry | null = null
 let credentialAutofillService: CredentialAutofillService | null = null
+let credentialCaptureService: CredentialCaptureService | null = null
 let windowStateStore: WindowStateStore | null = null
 let isQuitting = false
 let isQuitSessionFlushComplete = false
@@ -532,6 +534,7 @@ const tabTransferCoordinator = new TabTransferCoordinator({
 registerMainIpc({
   credentialVault,
   getCredentialAutofillService: () => credentialAutofillService,
+  getCredentialCaptureService: () => credentialCaptureService,
   getSyncService: () => services?.syncService ?? null,
   getUserScriptRuntime: () => services?.userScriptRuntime ?? null,
   getCoachPetWindow: () => coachPetWindow,
@@ -561,6 +564,12 @@ app.on('window-all-closed', () => {
 // 在应用真正退出前清理资源，覆盖 macOS 关窗不退出、直关窗口等场景
 app.on('before-quit', (event) => {
   isQuitting = true
+  try {
+    credentialCaptureService?.dispose()
+    credentialCaptureService = null
+  } catch (error) {
+    appLogger.warn('credentials.capture-dispose-failed', error)
+  }
   const hasPendingWindowCreation = windowCreationGate.isRunning
   windowCreationGate.stop()
   const hasOpenShellWindows = windowManager.getAll().length > 0
@@ -677,6 +686,21 @@ void app.whenReady().then(async () => {
     },
   )
   credentialAutofillService.attach()
+  credentialCaptureService = new CredentialCaptureService(
+    { ojSession },
+    {
+      vault: credentialVault,
+      captureHost: {
+        getWindowId: contents => windowManager.resolveWebContents(contents.id)?.id ?? null,
+        showPrompt: (windowId, prompt) => windowManager.get(windowId)?.send('credentials:capturePrompt', prompt) ?? false,
+        setNoticeVisible: (windowId, visible) => {
+          windowManager.get(windowId)?.tabManager.setCredentialCaptureNoticeVisible(visible)
+        },
+        sendResult: (windowId, result) => windowManager.get(windowId)?.send('credentials:captureResult', result),
+      },
+    },
+  )
+  credentialCaptureService.attach()
 
   registerNoteAssetProtocol()
   services = await initializeMainServices(() => { windowManager.sendToAll('problems:updated') })

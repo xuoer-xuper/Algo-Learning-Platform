@@ -20,12 +20,13 @@
 - 会话文件：`applicationSessionStore.ts` 使用同目录临时文件执行 write + fsync + close + rename，失败时清理临时文件并保留旧目标；`ApplicationSessionPersistence` 对任意标签、窗口 bounds/maximized 和最近窗口变化做 250ms 防抖，只保存最新全应用快照，临时空 transfer 壳不落盘。窗口 `close` 与 `before-quit` 在最终 flush 完成后继续关闭，startup smoke 禁用持久化；`TabSessionStore` 仅保留为旧单窗口快照的迁移输入。
 - renderer 健康状态：web 标签 `render-process-gone` 后保留稳定 ID、URL、标题和顺序，摘除坏 view 并显示恢复页；原 view 已销毁时创建同配置替代 view，失败仍保留标签供后续重试。`unresponsive` 只影响运行时列表和活动 view bounds，NoticeBar 可继续等待、按 tabId 重载或关闭，`responsive` 后自动清理；下载 NoticeBar、查找条和无响应条按真实文档流高度累加，任何状态都不进入会话快照。
 - 凭据选择 NoticeBar：多账户自动填充提示由所属壳 renderer 接收脱敏 prompt；`TabManager` 将其高度计入活动 web view bounds，dismiss/响应或窗口销毁后恢复原布局。密码明文不经过壳 renderer。
+- 登录捕获 NoticeBar：`ojPreload` 在隔离世界监听登录表单 `submit`，不阻止页面提交，只把候选用户名/密码送到主进程的短时 pending map；主进程向所属壳只发送一次性 `captureId` 和站点、用户名、displayName、masked、isUpdate 等脱敏摘要。确认后保存/更新 Vault，取消、超时、导航、WebContents 销毁或服务 `dispose` 立即清理；同密码不提示，密码变化才提示更新。捕获和自动填充均复用完整壳的文档流 NoticeBar 布局，不改变冻结的视觉基线。
 - Chrome 基线：`findInPage.ts` 管理受限 query、requestId 和多帧 `found-in-page` 结果；`zoomPreferences.ts` 按 normalized HTTP(S) origin 保存 Chrome 预设档位。查找在导航、切标签、崩溃、关闭和 web/internal 替换时停止并清理；缩放在最终导航、恢复、切换和 Ctrl+滚轮时恢复/保存。
 - `.user.js` 边界：直接导航、`will-redirect`、popup 和 `will-download` 均进入内存短时 `script-install` 路由；安装确认页只展示净化来源元数据，B6 前不下载、解析、执行或伪装成功。安装页不进入关闭栈或会话快照。
 - B2.8 原生右键：WebContentsView 页面按链接/图片/选中文本/编辑区/空白处组装菜单；TabStrip 支持复制、关闭范围、恢复和“移到新窗口”，后者统一进入 B3 完整壳过户；壳内编辑区与 Omnibox 复用同一原生菜单，Omnibox 额外提供“粘贴并前往”。内部页空白处提供后退与重新加载，不引入会被 view 遮挡的 DOM 菜单。
 - 壳层 IPC：browser/tab/window channel 由 `electron/ipc/registerBrowserShellIpc.ts` 注册，Browser 模块只暴露 `TabManager` 等运行期对象。
 - OJ Session：`ojSession.ts` 配置持久 session、真实 Chrome UA、早期实时提交 hook 和 stealth script；不再改写全局 CORS 响应头，默认 session 与 OJ session 同时安装 permission check/request 双处理器，敏感权限默认拒绝。
-- 实时提交桥：`ojPreload.ts` 暴露 `__algo_submission_v1.reportSubmission()`，并转发同页面/子 frame 的 `postMessage`。
+- OJ preload 桥：`ojPreload.ts` 暴露 `__algo_submission_v1.reportSubmission()` 并转发同页面/子 frame 的 `postMessage`；同时在隔离世界安装登录表单 submit 捕获，使用独立 `oj-credentials:capture` 通道，不向页面暴露凭据 API。
 - 反检测脚本：`STEALTH_SCRIPT` 在页面加载后注入，主线由 `TabManager` 执行。
 
 ## 3. 文件职责
@@ -47,7 +48,10 @@
 - `tabSessionLifecycle.ts`：窗口关闭前的异步会话 flush 门控；重复关闭只触发一次写入，完成或失败后再允许窗口销毁。
 - `permissionPolicy.ts`：默认 session 与 OJ session 共用的最小权限白名单及双处理器安装函数。
 - `TabTransferCoordinator`：位于 `electron/windows/`，负责完整壳之间的标签过户；旧裸 `DetachedWindow` 已删除。
-- `ojPreload.ts`：OJ 页面 preload，暴露提交上报桥并转发 frame 消息。
+- `ojPreload.ts`：OJ 页面 preload，暴露提交上报桥、转发 frame 消息并安装隔离的登录表单 submit 捕获。
+- `../credentials/captureForm.ts`：只监听 OJ 登录表单提交并提取非空用户名/密码；不自动提交、不阻止原生提交，字段不满足安全条件时 fail closed。
+- `../credentials/CredentialCaptureService.ts`：按 `persist:oj-main`、登录 URL 和站点配置校验捕获，维护窗口级一次性 pending capture 和 generation/stale guard，向 shell 发送脱敏 prompt/result，并在确认、取消、超时、导航、销毁和 `dispose` 时清理。
+- `../credentials/captureBridge.ts`：定义 OJ 专用 `oj-credentials:capture` 内部 channel；该 channel 不暴露给 shell renderer。
 - `ojBridge.ts`：提交上报桥的纯函数和 channel 常量。
 - `ojSession.ts`：配置 OJ 持久 session 的 UA、实时 hook 和基于 `onResponseStarted` 的 stealth 注入，不安装全局 CORS response rewriter。
 - `stealthScript.ts`：反检测脚本字符串。
@@ -139,6 +143,20 @@ adapter hook in OJ page
 `installOjSubmissionMessageForwarder()` 只转发当前窗口或子 frame 发出的 `postMessage`，channel 必须是 `__algo_submission_v1`。
 
 不得在站点注入脚本里直接 `require('electron')`，也不得通过该桥发送 Cookie、源码或完整请求体。
+
+登录捕获桥的安全边界：
+
+```text
+OJ login form submit
+  -> ojPreload.ts / ../credentials/captureForm.ts
+  -> ipcRenderer.send('oj-credentials:capture', { username, password })
+  -> CredentialCaptureService pending memory
+  -> shell 'credentials:capturePrompt' (脱敏摘要)
+  -> shell confirm/cancel
+  -> CredentialVault.save/update
+```
+
+`oj-credentials:capture` 只能由 `onFromOj()` 接收 `persist:oj-main` 主 frame 事件；密码不得经过 shell IPC、NoticeBar、日志、导出或 renderer DOM。捕获监听只观察 submit，不代替站点登录动作；自动填充仍只填充、不提交。
 
 ## 6. OJ Session
 

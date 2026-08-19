@@ -137,6 +137,10 @@ algo-electron/electron/
   credentials/
     CredentialVault.ts
     credentialVaultCore.ts
+    CredentialCaptureService.ts
+    captureBridge.ts
+    captureForm.ts
+    captureTypes.ts
     autofill/
       CredentialAutofillService.ts
       autofillServiceCore.ts
@@ -286,6 +290,8 @@ CookieVault 不负责：
 Preload 只暴露白名单 API，不暴露通用 `ipcRenderer`。
 
 凭据由 `CredentialVault` 在主进程使用异步 `safeStorage` 加密；壳 renderer 只接收 `credentialId/siteId/username/displayName/masked` 等摘要。B4.4 账户中心可重命名/删除摘要并在新 OJ 标签打开登录页，多凭据选择通过按窗口隔离的 NoticeBar 回传 credentialId；自动填充明文不得经过壳 IPC，只能由 `oj-credentials:fill` 受限 OJ preload 通道消费。
+
+B4.5 登录捕获沿 Chrome 主路径工作：`captureForm.ts` 在 OJ 隔离世界观察登录表单 `submit`，不阻止原生提交；用户名/密码经 OJ 专用 `oj-credentials:capture` channel 进入主进程 `CredentialCaptureService` 的窗口级短时 pending map。服务按 `persist:oj-main`、HTTPS、站点域名和登录 URL pattern 校验，比较同站点同用户名的现有凭据；密码相同静默丢弃，密码变化向所属完整壳发送一次性 `captureId` 和 `siteId/siteName/username/displayName/masked/isUpdate` 脱敏摘要，由 NoticeBar 确认后保存或更新 Vault。取消、超时、导航、WebContents 销毁和 `dispose` 都清理 pending，captureId 不可复用；密码明文不进入 shell renderer、日志、导出或数据库明文列。
 
 当前形态：
 
