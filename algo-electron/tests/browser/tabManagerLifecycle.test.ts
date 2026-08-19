@@ -121,6 +121,21 @@ test('closing the last tab resets it to an internal home tab and keeps it reopen
   assert.strictEqual(manager.getTabList().find((tab) => tab.id === reopenedId)?.url, 'https://example.com/problem')
 })
 
+test('closing the last tab delegates to the owning shell when browser lifecycle mode is enabled', () => {
+  resetElectronMock()
+  const window = new MockBrowserWindow()
+  const manager = new TabManager(window as never)
+  manager.createTab('https://example.com/problem')
+  let closeRequests = 0
+  manager.setLastTabClosedHandler(() => { closeRequests += 1 })
+
+  manager.closeActiveTab()
+
+  assert.strictEqual(closeRequests, 1)
+  assert.deepStrictEqual(manager.getTabList(), [])
+  assert.strictEqual(window.contentView.children.length, 0)
+})
+
 test('internal tabs close and reopen with their validated page payload', () => {
   resetElectronMock()
   const window = new MockBrowserWindow()

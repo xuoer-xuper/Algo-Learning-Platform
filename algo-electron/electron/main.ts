@@ -44,7 +44,6 @@ import { createFatalErrorReporter, installMainProcessErrorHandlers } from './app
 import { installShellRendererRecovery } from './app/shellRendererRecovery'
 import { installSingleInstanceLock } from './app/singleInstance'
 import {
-  TabSessionPersistence,
   TabSessionStore,
   type TabSessionLoadResult,
 } from './browser/tabSessionStore'
@@ -58,15 +57,24 @@ import { AppWindow } from './windows/AppWindow'
 import { ViewRegistry } from './windows/ViewRegistry'
 import { WindowCreationGate } from './windows/WindowCreationGate'
 import { WindowManager } from './windows/WindowManager'
-import { WindowSessionRegistry } from './windows/WindowSessionRegistry'
 import {
   TabTransferCoordinator,
   type CreateTabTransferWindowOptions,
 } from './windows/TabTransferCoordinator'
 import {
+  createApplicationSessionSnapshot,
+  getApplicationWindowsInRestoreOrder,
+  type ApplicationSessionSnapshot,
+  type ApplicationWindowSessionSnapshot,
+} from './windows/applicationSessionSnapshot'
+import {
+  ApplicationSessionPersistence,
+  ApplicationSessionStore,
+  type ApplicationSessionLoadResult,
+} from './windows/applicationSessionStore'
+import {
   MAIN_WINDOW_BOUNDS,
   WindowStateStore,
-  installWindowStatePersistence,
   normalizeWindowState,
   type WindowDisplayArea,
 } from './windows/windowBounds'
@@ -78,7 +86,10 @@ applyStartupSmokeUserDataPath()
 let services: MainServices | null = null
 let coachPetWindow: CoachPetWindow | null = null
 let coachOrchestrator: CoachOrchestrator | null = null
-let tabSessionStore: TabSessionStore | null = null
+let legacyTabSessionStore: TabSessionStore | null = null
+let applicationSessionStore: ApplicationSessionStore | null = null
+let applicationSessionPersistence: ApplicationSessionPersistence | null = null
+let removeApplicationRecencyListener: (() => void) | null = null
 let downloadManager: DownloadManager | null = null
 let userScriptInstallRegistry: PendingUserScriptInstallRegistry | null = null
 let windowStateStore: WindowStateStore | null = null
@@ -89,10 +100,15 @@ let quitSessionFlushPromise: Promise<void> | null = null
 const viewRegistry = new ViewRegistry()
 const windowManager = new WindowManager({ viewRegistry })
 const windowCreationGate = new WindowCreationGate<AppWindow>()
-const windowSessionRuntimes = new WindowSessionRegistry()
 
 function getMostRecentAppWindow(): AppWindow | null {
   return windowManager.getMostRecent()
+}
+
+function quitIfLastShellWindowClosed(): void {
+  if (isQuitting || windowManager.getAll().length > 0) return
+  coachPetWindow?.destroy()
+  app.quit()
 }
 
 const hasSingleInstanceLock = installSingleInstanceLock(
@@ -130,24 +146,74 @@ if (hasSingleInstanceLock) {
 // native menu prevents Electron's default_app accelerators from hijacking it.
 Menu.setApplicationMenu(Menu.buildFromTemplate([]))
 
-async function loadWindowTabSession(): Promise<TabSessionLoadResult | null> {
-  if (!tabSessionStore) return null
-  return tabSessionStore.load()
+function scheduleApplicationSession(): void {
+  applicationSessionPersistence?.schedule()
 }
 
-function disposeWindowTabSessionPersistence(windowId: string): Promise<void> {
-  return windowSessionRuntimes.dispose(windowId)
+function getCurrentApplicationSessionSnapshot(): ApplicationSessionSnapshot {
+  const candidates = windowManager.getAll().flatMap((appWindow) => {
+    if (appWindow.isDestroyed()) return []
+    try {
+      const tabSession = appWindow.tabManager.getSessionSnapshot()
+      if (tabSession.tabs.length === 0) return []
+      return [{
+        id: appWindow.id,
+        bounds: appWindow.browserWindow.getNormalBounds(),
+        maximized: appWindow.browserWindow.isMaximized(),
+        activeTabId: tabSession.activeTabId,
+        tabs: tabSession.tabs,
+      }]
+    } catch {
+      return []
+    }
+  })
+  return createApplicationSessionSnapshot(
+    candidates,
+    windowManager.getMostRecent()?.id ?? null,
+    { allowInsecureLocalhost: Boolean(VITE_DEV_SERVER_URL) },
+  )
 }
 
-function disposeAllTabSessionPersistence(): Promise<void> {
-  return windowSessionRuntimes.disposeAll()
+async function loadStartupApplicationSession(): Promise<{
+  result: ApplicationSessionLoadResult
+  migratedLegacy: boolean
+}> {
+  if (!applicationSessionStore) {
+    return { result: { kind: 'fallback', reason: 'missing' }, migratedLegacy: false }
+  }
+  const result = await applicationSessionStore.load()
+  if (result.kind === 'restore' || result.reason !== 'missing' || !legacyTabSessionStore || !windowStateStore) {
+    return { result, migratedLegacy: false }
+  }
+
+  const legacyTabs: TabSessionLoadResult = await legacyTabSessionStore.load()
+  if (legacyTabs.kind !== 'restore' || legacyTabs.snapshot.tabs.length === 0) {
+    return { result, migratedLegacy: false }
+  }
+  const primaryDisplayArea: WindowDisplayArea = { ...screen.getPrimaryDisplay().workArea }
+  const displayAreas: WindowDisplayArea[] = screen.getAllDisplays().map((display) => ({ ...display.workArea }))
+  const legacyWindowState = await windowStateStore.load(displayAreas, primaryDisplayArea)
+  const windowId = randomUUID()
+  return {
+    result: {
+      kind: 'restore',
+      snapshot: createApplicationSessionSnapshot([{
+        id: windowId,
+        bounds: legacyWindowState.bounds,
+        maximized: legacyWindowState.maximized,
+        activeTabId: legacyTabs.snapshot.activeTabId,
+        tabs: legacyTabs.snapshot.tabs,
+      }], windowId, { allowInsecureLocalhost: Boolean(VITE_DEV_SERVER_URL) }),
+    },
+    migratedLegacy: true,
+  }
 }
 
 interface CreateWindowOptions {
   initialBounds?: Rectangle
-  restoreSession?: boolean
+  restoreSnapshot?: ApplicationWindowSessionSnapshot
   ensureInitialTab?: boolean
-  persistSession?: boolean
+  activateOnShow?: boolean
 }
 
 async function createWindowOnce(
@@ -155,13 +221,20 @@ async function createWindowOnce(
   options: CreateWindowOptions = {},
 ): Promise<AppWindow | null> {
   if (isCancelled()) return null
-  const shouldRestoreSession = options.restoreSession !== false
-  const loadedSession = shouldRestoreSession ? await loadWindowTabSession() : null
-  if (isCancelled()) return null
   if (!windowStateStore) throw new Error('Window state store is not initialized')
   const primaryDisplayArea: WindowDisplayArea = { ...screen.getPrimaryDisplay().workArea }
   const displayAreas: WindowDisplayArea[] = screen.getAllDisplays().map((display) => ({ ...display.workArea }))
-  const restoredWindowState = options.initialBounds
+  const restoredWindowState = options.restoreSnapshot
+    ? normalizeWindowState(
+        {
+          version: 1,
+          bounds: options.restoreSnapshot.bounds,
+          maximized: options.restoreSnapshot.maximized,
+        },
+        displayAreas,
+        primaryDisplayArea,
+      )
+    : options.initialBounds
     ? normalizeWindowState(
         { version: 1, bounds: options.initialBounds, maximized: false },
         displayAreas,
@@ -169,7 +242,7 @@ async function createWindowOnce(
       )
     : await windowStateStore.load(displayAreas, primaryDisplayArea)
   if (isCancelled()) return null
-  const windowId = randomUUID()
+  const windowId = options.restoreSnapshot?.id ?? randomUUID()
   const win = new BrowserWindow({
     ...restoredWindowState.bounds,
     minWidth: MAIN_WINDOW_BOUNDS.minWidth,
@@ -184,7 +257,6 @@ async function createWindowOnce(
       sandbox: true,
     },
   })
-  const windowStatePersistence = installWindowStatePersistence(win, windowStateStore)
   const shellWebContents = win.webContents
   const removeShellRendererRecovery = installShellRendererRecovery(win.webContents, {
     logger: appLogger,
@@ -233,7 +305,6 @@ async function createWindowOnce(
     id: windowId,
     browserWindow: win,
     tabManager,
-    flushWindowState: () => windowStatePersistence.flush(),
   })
   windowManager.register(appWindow)
   coachOrchestrator?.attachAppWindow(appWindow)
@@ -244,6 +315,9 @@ async function createWindowOnce(
   })
   tabManager.setTabDetachHandler((tabId) => {
     void tabTransferCoordinator.moveToNewWindow(appWindow, tabId)
+  })
+  tabManager.setLastTabClosedHandler(() => {
+    if (!win.isDestroyed()) win.close()
   })
   services?.realtimeSubmissionService.attachTabManager(tabManager)
 
@@ -314,41 +388,28 @@ async function createWindowOnce(
     diagnostics: services?.browserDiagnostics,
   })
 
-  if (!STARTUP_SMOKE_MODE && tabSessionStore && options.persistSession !== false) {
-    const manager = tabManager
-    const persistence = new TabSessionPersistence(
-      tabSessionStore,
-      () => manager.getSessionSnapshot(),
-      {
-        onDiagnostic: (reason) => {
-          appLogger.warn('browser.session-persistence-failed', { reason })
-        },
-      },
-    )
-    const removeChangeListener = manager.addSessionChangeListener(() => {
-      persistence.schedule()
-    })
-    windowSessionRuntimes.register(windowId, { persistence, removeChangeListener })
+  const removeTabSessionListener = tabManager.addSessionChangeListener(scheduleApplicationSession)
+  win.on('move', scheduleApplicationSession)
+  win.on('resize', scheduleApplicationSession)
+  win.on('maximize', scheduleApplicationSession)
+  win.on('unmaximize', scheduleApplicationSession)
 
-    if (shouldRestoreSession) {
-      const restored = loadedSession?.kind === 'restore'
-        ? manager.restoreSession(loadedSession.snapshot)
-        : false
-      if (restored) {
-        appLogger.info('browser.session-restored', { tabCount: manager.getTabList().length })
-      } else {
-        const fallbackReason = loadedSession?.kind === 'fallback'
-          ? loadedSession.reason
-          : loadedSession?.kind === 'restore'
-            ? 'restore-rejected'
-            : 'store-unavailable'
-        appLogger.info('browser.session-fallback', { reason: fallbackReason })
-        manager.ensureInitialTab()
-      }
-    } else if (options.ensureInitialTab !== false) {
-      manager.ensureInitialTab()
+  if (options.restoreSnapshot) {
+    const restored = tabManager.restoreSession({
+      version: 1,
+      activeTabId: options.restoreSnapshot.activeTabId,
+      tabs: options.restoreSnapshot.tabs,
+    })
+    if (restored) {
+      appLogger.info('browser.session-window-restored', {
+        windowId,
+        tabCount: tabManager.getTabList().length,
+      })
+    } else {
+      appLogger.warn('browser.session-window-restore-rejected', { windowId })
+      tabManager.ensureInitialTab()
     }
-  } else if (STARTUP_SMOKE_MODE || options.ensureInitialTab !== false) {
+  } else if (options.ensureInitialTab !== false) {
     tabManager.ensureInitialTab()
   }
 
@@ -371,7 +432,8 @@ async function createWindowOnce(
   win.once('ready-to-show', () => {
     if (restoredWindowState.maximized) win.maximize()
     if (!STARTUP_SMOKE_MODE) {
-      win.show()
+      if (options.activateOnShow === false) win.showInactive()
+      else win.show()
     }
   })
 
@@ -387,13 +449,10 @@ async function createWindowOnce(
     shouldFlush: () => (
       !STARTUP_SMOKE_MODE
       && !isQuitSessionFlushComplete
-      && windowSessionRuntimes.has(windowId)
+      && applicationSessionPersistence !== null
     ),
     flush: async () => {
-      await Promise.all([
-        disposeWindowTabSessionPersistence(windowId),
-        appWindow.flushWindowState(),
-      ])
+      await applicationSessionPersistence?.flush()
     },
     onFailure: () => {
       appLogger.warn('browser.session-window-flush-failed')
@@ -402,10 +461,11 @@ async function createWindowOnce(
 
   win.on('closed', () => {
     removeWindowSessionFlush()
-    void disposeWindowTabSessionPersistence(windowId)
-    void windowStatePersistence.dispose().catch(() => {
-      appLogger.warn('window.state-dispose-failed', { windowId })
-    })
+    removeTabSessionListener()
+    win.off('move', scheduleApplicationSession)
+    win.off('resize', scheduleApplicationSession)
+    win.off('maximize', scheduleApplicationSession)
+    win.off('unmaximize', scheduleApplicationSession)
     removeShellRendererRecovery()
     unregisterShellWebContents(shellWebContents)
     try {
@@ -415,14 +475,19 @@ async function createWindowOnce(
     }
     services?.realtimeSubmissionService.detachTabManager(tabManager)
     tabManager.setTabDetachHandler(null)
+    tabManager.setLastTabClosedHandler(null)
     tabManager.destroy()
+    if (!isQuitting && windowManager.getAll().length > 0) {
+      void applicationSessionPersistence?.flush()
+    }
+    quitIfLastShellWindowClosed()
   })
 
   return appWindow
 }
 
-function createWindow(): Promise<AppWindow | null> {
-  return windowCreationGate.run(createWindowOnce)
+function createWindow(options: CreateWindowOptions = {}): Promise<AppWindow | null> {
+  return windowCreationGate.run((isCancelled) => createWindowOnce(isCancelled, options))
 }
 
 function getTransferWindowBounds(options: CreateTabTransferWindowOptions): Rectangle {
@@ -442,9 +507,7 @@ const tabTransferCoordinator = new TabTransferCoordinator({
     () => isQuitting,
     {
       initialBounds: getTransferWindowBounds(options),
-      restoreSession: false,
       ensureInitialTab: false,
-      persistSession: false,
     },
   ),
   getWindows: () => windowManager.getAll(),
@@ -481,20 +544,17 @@ app.on('before-quit', (event) => {
   isQuitting = true
   const hasPendingWindowCreation = windowCreationGate.isRunning
   windowCreationGate.stop()
-  const hasPendingWindowState = windowManager.getAll().length > 0
+  const hasOpenShellWindows = windowManager.getAll().length > 0
   if (
     !STARTUP_SMOKE_MODE
     && !isQuitSessionFlushComplete
-    && (hasPendingWindowCreation || windowSessionRuntimes.size > 0 || hasPendingWindowState)
+    && (hasPendingWindowCreation || (applicationSessionPersistence !== null && hasOpenShellWindows))
   ) {
     event.preventDefault()
     if (!quitSessionFlushPromise) {
       quitSessionFlushPromise = windowCreationGate.waitForIdle()
         .then(async () => {
-          await Promise.all([
-            disposeAllTabSessionPersistence(),
-            windowManager.flushWindowStates(),
-          ])
+          await applicationSessionPersistence?.dispose()
         })
         .finally(() => {
           isQuitSessionFlushComplete = true
@@ -517,6 +577,10 @@ app.on('before-quit', (event) => {
   downloadManager = null
   userScriptInstallRegistry?.clear()
   userScriptInstallRegistry = null
+  removeApplicationRecencyListener?.()
+  removeApplicationRecencyListener = null
+  applicationSessionPersistence = null
+  applicationSessionStore = null
   try {
     coachOrchestrator?.stop()
   } catch (error) {
@@ -568,16 +632,71 @@ void app.whenReady().then(async () => {
   // Only preconnect sites the user actually visited recently to avoid noisy cold-start timeouts.
   preconnectRecentSiteOrigins()
 
+  let startupSession: ApplicationSessionLoadResult | null = null
+  let migratedLegacySession = false
   if (!STARTUP_SMOKE_MODE) {
-    tabSessionStore = new TabSessionStore(
+    legacyTabSessionStore = new TabSessionStore(
       path.join(app.getPath('userData'), 'browser-session.json'),
       { allowInsecureLocalhost: Boolean(VITE_DEV_SERVER_URL) },
     )
+    applicationSessionStore = new ApplicationSessionStore(
+      path.join(app.getPath('userData'), 'browser-application-session.json'),
+      { allowInsecureLocalhost: Boolean(VITE_DEV_SERVER_URL) },
+    )
+    const loadedStartupSession = await loadStartupApplicationSession()
+    startupSession = loadedStartupSession.result
+    migratedLegacySession = loadedStartupSession.migratedLegacy
   }
 
   windowCreationGate.enable()
-  const initialWindow = await createWindow()
+  const restoredSessionSnapshot = startupSession?.kind === 'restore' ? startupSession.snapshot : null
+  const restorableWindows = restoredSessionSnapshot
+    ? getApplicationWindowsInRestoreOrder(restoredSessionSnapshot)
+        .filter((window) => window.tabs.length > 0)
+    : []
+  let initialWindow: AppWindow | null = null
+  for (const snapshot of restorableWindows) {
+    try {
+      const restoredWindow = await createWindow({
+        restoreSnapshot: snapshot,
+        activateOnShow: snapshot.id === restoredSessionSnapshot?.mostRecentWindowId,
+      })
+      initialWindow ??= restoredWindow
+    } catch {
+      appLogger.warn('browser.application-session-window-restore-failed', {
+        windowId: snapshot.id,
+      })
+    }
+    if (isQuitting) break
+  }
+  if (!initialWindow && !isQuitting) initialWindow = await createWindow()
   if (!initialWindow || isQuitting) return
+
+  if (restoredSessionSnapshot) {
+    windowManager.markRecent(restoredSessionSnapshot.mostRecentWindowId ?? '')
+    appLogger.info('browser.application-session-restored', {
+      windowCount: restorableWindows.length,
+      migratedLegacy: migratedLegacySession,
+    })
+  } else if (startupSession?.kind === 'fallback') {
+    appLogger.info('browser.application-session-fallback', { reason: startupSession.reason })
+  }
+
+  if (applicationSessionStore) {
+    applicationSessionPersistence = new ApplicationSessionPersistence(
+      applicationSessionStore,
+      getCurrentApplicationSessionSnapshot,
+      {
+        onDiagnostic: (reason) => {
+          appLogger.warn('browser.application-session-persistence-failed', { reason })
+        },
+      },
+    )
+    removeApplicationRecencyListener = windowManager.addMostRecentWindowChangeListener(() => {
+      scheduleApplicationSession()
+    })
+    void applicationSessionPersistence.flush()
+  }
 
   // 每日首次启动时生成 AI 上下文快照存库（供阶段总结/复习计划等 AI 模块消费）
   // 失败不阻塞启动，仅记录日志
@@ -626,6 +745,7 @@ void app.whenReady().then(async () => {
     runStartupSmokeTest({
       getWindow: () => getMostRecentAppWindow()?.browserWindow ?? null,
       getTabManager: () => getMostRecentAppWindow()?.tabManager ?? null,
+      getAppWindows: () => windowManager.getAll(),
       cleanup: () => {
         try {
           services?.trackingService.endCurrentVisit()

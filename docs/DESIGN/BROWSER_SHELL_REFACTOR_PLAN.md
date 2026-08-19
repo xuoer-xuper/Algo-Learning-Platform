@@ -462,7 +462,7 @@ Renderer（同一构建产物，多窗口实例化——桌宠 hash 路由已证
 | B3.2 | [x] | per-webContents 页面事件、Tracking 多 visit、Contest 聚合、Coach 最近窗口防抖、实时提交/用户脚本精确 owner、deleteProblem 事务重算已完成；B3.3 已在此前置语义上开放拆分入口 |
 | B3.3 | [x] | 完整壳标签过户、拖出/右键/双击拆分、拖回合并与过户回滚已完成；B3.4-B3.5 继续处理服务广播、窗口生命周期与多窗口快照 |
 | B3.4 | [x] | `problems:updated` 全壳广播、SyncService sender 宿主、任一壳 focus 判定与比赛横幅已完成；完整记录见 §11.34 |
-| B3.5 | [ ] | 完整多窗口生命周期、桌宠/second-instance 最近窗口语义与全窗口会话恢复待实施 |
+| B3.5 | [x] | 浏览器化关窗、桌宠/second-instance 最近窗口语义、应用级原子快照与全窗口恢复已完成；定向、核心与真实 Electron smoke 已通过；B3 集中生产构建/NSIS/packaged 双实例验收按块完成后统一执行 |
 | B4.1-B4.6 | [ ] | 026_site_credentials、Vault、自动填充、账户页、登录捕获、fuses 均待实施 |
 | B5.1-B5.6 | [ ] | 仅按视觉冻结约束做结构收尾、暗色、无障碍、桌宠策略和 Latex |
 | B6.1-B6.7 | [ ] | 027_userscript_runtime、GM 桥、网络代理、早注入、资源、安装更新与管理页均待实施 |
@@ -875,7 +875,7 @@ Renderer（同一构建产物，多窗口实例化——桌宠 hash 路由已证
 | 任务 | B3.1 `WindowManager`/`AppWindow`、应用级 ViewRegistry、IPC sender 路由和窗口 bounds/maximized 持久化 |
 | 状态 | `[x] 已完成` |
 | Commit | `browser: 完成 B3.1 窗口所有权基础层`（代码、测试、ADR 与本完成标记同提交） |
-| 窗口模型 | 新增 `AppWindow`、`WindowManager`、`ViewRegistry`、`WindowCreationGate` 与 `WindowSessionRegistry`；完整壳、TabManager、shell webContents 与 web 标签 view 建立唯一 `windowId/tabId` 归属。`main.ts` 删除模块级 `win/tabManager` 单槽，重叠 activate 建窗合并为同一 promise；重复 close 与并发 quit 复用同一 session dispose promise |
+| 窗口模型 | 新增 `AppWindow`、`WindowManager`、`ViewRegistry`、`WindowCreationGate`；完整壳、TabManager、shell webContents 与 web 标签 view 建立唯一 `windowId/tabId` 归属。`main.ts` 删除模块级 `win/tabManager` 单槽，重叠 activate 建窗合并为同一 promise；B3.5 以 `ApplicationSessionPersistence` 统一管理全窗口快照和退出 flush |
 | View 生命周期 | TabManager 在创建/popup、web/internal 互转、崩溃替换、会话恢复与失败回滚、关闭和 destroy 路径成对维护 ViewRegistry；冲突 owner fail closed，并预留 B3.3 `transferTab` 过户原语 |
 | IPC 路由 | trusted sender 在既有 main-frame/origin/payload 校验后解析 `AppWindow` owner；`tab:*`、`browser:*`、`window:*`、原生菜单和 Backup/Sites/Scripts 对话框全部按 sender 路由。双可信 shell 测试证明导航和窗口按钮互不串窗；备份待确认导入按 `windowId` 隔离并随 shell 销毁清理 |
 | 定向事件与下载 | URL、标签列表、查找、缩放、问题更新和窗口最大化事件由所属 AppWindow 发回自己的壳；下载开始时捕获来源 `windowId`，标签随后关闭也不会改投其他窗口；非空未知 source fail closed，仅缺失 source 且恰好一个壳窗口时允许回退 |
@@ -936,4 +936,23 @@ Renderer（同一构建产物，多窗口实例化——桌宠 hash 路由已证
 | 视觉影响 | 未修改 CSS、颜色、字体、按钮形态、整体布局或动画基调；比赛提示仅复用 B2 已有 NoticeBar 与既有 warning token |
 | 暂缓验证 | 按批量策略，本任务不运行生产构建、NSIS 或真实 packaged 双实例 smoke；B3.5 完成后统一执行整个 B3 验收 |
 | 后续工作 | B3.5：任一窗口关闭与最后窗口退出、桌宠/second-instance 最近窗口、全窗口标签快照原子落盘和重启恢复 |
+| 完成时间 | 北京时间 `2026-08-19` |
+
+### 11.35 B3.5 多窗口生命周期与应用级会话恢复完成记录
+
+| 字段 | 填写内容 |
+|---|---|
+| 任务 | B3.5 任一完整壳独立关闭、最后壳退出、桌宠/second-instance 最近窗口语义、全窗口标签快照原子落盘与重启恢复 |
+| 状态 | `[x] 已完成；B3.5 定向、核心与真实 Electron smoke 通过` |
+| Commit | `browser: 完成 B3.5 多窗口生命周期与会话恢复`（代码、测试、文档与本完成标记同提交） |
+| 窗口生命周期 | 每个完整壳拥有独立 `TabManager`；关闭最后标签在 B3 模式委托所属壳关闭；关闭窗口只销毁仍归属该壳的 tabs，已过户 view 不受影响；最后完整壳关闭时先清理桌宠再退出应用 |
+| 拆分窗口 | transfer 空壳不创建首页、不写入应用会话；源壳关闭后目标壳继续保留原 tab、提交/追踪/脚本/比赛语义和壳 IPC |
+| 桌宠与单实例 | 桌宠解除全局 `alwaysOnTop`，默认跟随最近活跃完整壳并在父壳关闭前解绑；second-instance 通过 `WindowManager.getMostRecent()` 动态解析并恢复/显示/聚焦最近壳 |
+| 应用快照 | 新增 `applicationSessionSnapshot.ts` 与 `applicationSessionStore.ts`；一份应用级快照保存合法窗口 ID、normal bounds、maximized、标签顺序、activeTabId 与最近窗口；严格拒绝重复 ID、敏感 URL、空 transfer 壳、超限和损坏 JSON；write + fsync + close + rename 原子替换，防抖合并最新快照 |
+| 恢复与迁移 | 启动先恢复最近窗口，再静默恢复其他窗口；按现存显示器 workArea 校正 bounds；单窗恢复失败继续尝试其他窗口，全部失败回退内部 home；旧 `browser-session.json`/`browser-window-state.json` 仅作为缺少应用快照时的一次性迁移输入 |
+| 关闭竞态 | 窗口 close 与 before-quit 共用应用级 flush/dispose；重复 close、窗口销毁、退出和最近窗口变化不会产生重复写入或已关闭窗口回写；`WindowSessionRegistry` 由应用级 persistence 取代 |
+| 测试 | 定向窗口/会话/桌宠/单实例矩阵 `12 files / 92 tests` 通过；`npm run test:core` 通过：Vitest `76 files / 734 tests`、TypeScript、全仓 ESLint、architecture `7/7`、security 全绿；`npm run test:docs`、`git diff --check` 通过；`npm run test:electron` 真实 Electron startup smoke 通过，覆盖拆分、源壳关闭、目标壳存活和 BrowserWindow 数量无泄漏 |
+| 视觉影响 | 未修改 CSS、颜色、字体、按钮形态、整体布局或动画基调；桌宠仅调整原生父子窗口关系，浏览器壳继续复用冻结的前端视觉 |
+| 暂缓验证 | 按批量策略，生产构建、NSIS 与 packaged 双实例 smoke 不在 B3.5 子提交中重复执行，待 B3 全部子块完成后统一验收 |
+| 后续工作 | B3.5 代码块已完成；进入 B3 统一生产构建、NSIS、真实 packaged 双实例 smoke 与全量验收 |
 | 完成时间 | 北京时间 `2026-08-19` |

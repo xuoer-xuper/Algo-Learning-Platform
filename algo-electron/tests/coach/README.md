@@ -17,6 +17,7 @@
 - `arkClient.test.ts`：OpenAI SDK transport、结构化回复、自由聊天、token、异常与超时。
 - `visualTokens.test.ts`：Coach 独立 token 单一来源、六状态映射以及 TS/CSS 裸色回流守卫。
 - `llmConfigStore.test.ts`：API Key 加密保存失败、成功写入和旧明文迁移/清除。
+- `coachPetWindowFollow.test.ts`：桌宠切换到最近完整壳 parent、旧 parent 监听解绑，以及父壳关闭前解除归属。
 
 ## 3. 关键文件
 

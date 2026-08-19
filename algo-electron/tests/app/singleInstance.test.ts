@@ -68,6 +68,21 @@ test('a later launch restores, shows, and focuses the current main window', () =
   ])
 })
 
+test('each later launch resolves and focuses the latest target window', () => {
+  const app = new FakeApp(true)
+  const first = new FakeWindow()
+  const second = new FakeWindow()
+  let currentWindow: FakeWindow | null = first
+  installSingleInstanceLock(app, () => currentWindow)
+
+  app.emit('second-instance')
+  currentWindow = second
+  app.emit('second-instance')
+
+  assert.strictEqual(first.focusCount, 1)
+  assert.strictEqual(second.focusCount, 1)
+})
+
 test('a later launch tolerates a missing, destroyed, or failing main window', () => {
   const app = new FakeApp(true)
   const logger = new MemoryLogger()

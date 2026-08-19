@@ -13,7 +13,7 @@
 - `permissionPolicy.test.ts`：敏感权限默认拒绝，以及默认/OJ session 的 permission check/request 双处理器安装。
 - `tabManagerTypes.test.ts`：内部页判别联合的严格参数白名单与长度边界。
 - `tabManagerWindowOpen.test.ts`：接管 Chromium 创建的原始 `webContents`、前后台标签、销毁竞态与不安全协议拒绝。
-- `tabManagerLifecycle.test.ts`：关闭后右邻激活、最后标签重置为内部 home、web/internal 恢复关闭栈、内部页原位转 web 和 16 标签满额通知。
+- `tabManagerLifecycle.test.ts`：关闭后右邻激活、B2 默认最后标签重置为内部 home、B3 浏览器生命周期下最后标签委托所属壳关闭、web/internal 恢复关闭栈、内部页原位转 web 和 16 标签满额通知。
 - `browserLayout.test.ts`：验证主进程布局契约的 36/42/38/38/78 派生关系，以及 renderer CSS 变量注入。
 - `tabSessionSnapshot.test.ts`：会话 exact-shape/版本/数量/ID/标题/内部页/活动项校验，HTTPS 与开发 loopback URL、敏感 query/hash、损坏/超限 JSON，以及序列化字段白名单和活动项邻位回退。
 - `tabSessionStore.test.ts`：缺失与陈旧临时文件、严格恢复 fallback、快速保存合并，write/sync/close/rename 失败保旧，以及防抖 schedule、flush/dispose、在途最新快照和固定原因诊断恢复。

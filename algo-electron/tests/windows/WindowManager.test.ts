@@ -72,6 +72,29 @@ test('tracks the last registered window and updates recency when a window focuse
   assert.strictEqual(manager.getMostRecent(), first.appWindow)
 })
 
+test('restores an explicit most-recent window without changing registration order', () => {
+  resetElectronMock()
+  const manager = new WindowManager({ viewRegistry: new ViewRegistry() })
+  const first = createAppWindow('window-1')
+  const second = createAppWindow('window-2')
+  const changes: Array<string | null> = []
+  manager.register(first.appWindow)
+  manager.register(second.appWindow)
+  const unsubscribe = manager.addMostRecentWindowChangeListener((appWindow) => {
+    changes.push(appWindow?.id ?? null)
+  })
+
+  assert.strictEqual(manager.markRecent('window-1'), true)
+  assert.strictEqual(manager.markRecent('window-1'), true)
+  assert.strictEqual(manager.getMostRecent(), first.appWindow)
+  assert.deepStrictEqual(manager.getAll(), [first.appWindow, second.appWindow])
+  assert.deepStrictEqual(changes, ['window-1'])
+  assert.strictEqual(manager.markRecent('missing'), false)
+  assert.deepStrictEqual(changes, ['window-1'])
+
+  unsubscribe()
+})
+
 test('reports focus when any registered application shell is focused', () => {
   resetElectronMock()
   const manager = new WindowManager({ viewRegistry: new ViewRegistry() })

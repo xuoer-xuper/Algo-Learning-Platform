@@ -17,7 +17,7 @@
 - `appProtocol.ts`：注册生产 `app://shell` privileged scheme、静态资源 handler 和 CSP。
 - `mainProcessErrors.ts`：统一处理 `uncaughtException`、`unhandledRejection` 与启动失败，记录致命错误并在生产环境弹框退出。
 - `shellRendererRecovery.ts`：监听壳 renderer 卡死/崩溃事件，非退出阶段自动 reload 并记录恢复过程。
-- `singleInstance.ts`：在任何协议、IPC 或数据库服务注册前获取单实例锁；后续启动只唤醒并聚焦现有主窗口。
+- `singleInstance.ts`：在任何协议、IPC 或数据库服务注册前获取单实例锁；后续启动通过注入 getter 唤醒并聚焦 `WindowManager` 当前最近活跃完整壳。
 
 `config.ts`：
 
@@ -31,7 +31,7 @@
 `startupSmoke.ts`：
 
 - 根据 `ALGO_ELECTRON_SMOKE_USER_DATA` 切换临时 `userData` 目录。
-- 验证主窗口、`app://shell` origin、preload 白名单 API、初始内部 home、旧首页 URL 迁移、基础 browser/tab/window IPC 和显式 web 标签加载。
+- 验证主窗口、`app://shell` origin、preload 白名单 API、初始内部 home、旧首页 URL 迁移、基础 browser/tab/window IPC、显式 web 标签加载，以及拆分为完整壳后关闭原壳仍可继续使用页面和 IPC。
 - 通过注入的 `cleanup()` 清理访问追踪和数据库连接，不直接持有业务服务。
 - smoke 结束后由 disposable Electron 进程立即退出，外层测试对 Windows 临时目录做有限重试清理。
 
@@ -86,7 +86,7 @@
 - `applyStartupSmokeUserDataPath()`
   - 在 Electron ready 前应用 smoke 专用用户数据目录。
 - `runStartupSmokeTest(options)`
-  - 启动后运行 smoke 断言；通过 `getWindow`、`getTabManager` 和 `cleanup` 读取运行期依赖。
+  - 启动后运行 smoke 断言；通过 `getWindow`、`getTabManager`、`getAppWindows` 和 `cleanup` 读取运行期依赖。
 - `installSingleInstanceLock(app, getMainWindow, options)`
   - 锁获取失败时立即请求退出，不安装 `second-instance` listener。
   - 锁获取成功后，后续启动会恢复最小化窗口，并依次执行 `show()` 与 `focus()`。

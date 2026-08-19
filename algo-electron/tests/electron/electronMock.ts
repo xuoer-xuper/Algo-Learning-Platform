@@ -125,6 +125,7 @@ export class MockBrowserWindow extends EventEmitter {
   private minimized = false
   private maximized = false
   private focused = false
+  private parentWindow: MockBrowserWindow | null = null
   private bounds = { x: 0, y: 0, width: 1280, height: 800 }
   private normalBounds = { ...this.bounds }
 
@@ -157,6 +158,8 @@ export class MockBrowserWindow extends EventEmitter {
   }
   getPosition(): [number, number] { return [this.bounds.x, this.bounds.y] }
   setPosition(x: number, y: number): void { this.setBounds({ ...this.bounds, x, y }) }
+  getParentWindow(): MockBrowserWindow | null { return this.parentWindow }
+  setParentWindow(parent: MockBrowserWindow | null): void { this.parentWindow = parent }
   isDestroyed(): boolean { return this.destroyed }
   isVisible(): boolean { return this.visible }
   isMinimized(): boolean { return this.minimized }
@@ -181,6 +184,9 @@ export class MockBrowserWindow extends EventEmitter {
     this.emit('unmaximize')
   }
   setTitle(_title: string): void { /* no-op */ }
+  setIgnoreMouseEvents(_ignore: boolean, _options?: { forward: boolean }): void { /* no-op */ }
+  setOpacity(_opacity: number): void { /* no-op */ }
+  loadURL(url: string): Promise<void> { return this.webContents.loadURL(url) }
   close(): void {
     if (this.destroyed) return
     let defaultPrevented = false

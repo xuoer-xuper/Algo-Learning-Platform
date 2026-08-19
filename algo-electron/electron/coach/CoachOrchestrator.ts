@@ -433,6 +433,7 @@ export class CoachOrchestrator {
     this.activeAppWindow = liveWindow
     this.invalidateCurrentConstraints()
     this.sessionTracker.switchWindow(liveWindow)
+    this.options.getCoachPetWindow()?.followWindow(liveWindow?.browserWindow ?? null)
     if (!liveWindow) return
 
     const tabManager = liveWindow.tabManager

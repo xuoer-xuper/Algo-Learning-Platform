@@ -171,6 +171,7 @@ export class TabManager {
   private navigationBlockedHandler: ((reason: NavigationBlockReason) => void) | null = null
   private tabLimitReachedHandler: ((limit: number) => void) | null = null
   private tabDetachHandler: ((tabId: string) => void) | null = null
+  private lastTabClosedHandler: (() => void) | null = null
   private findInPageStateChangedHandler: ((state: FindInPageViewState) => void) | null = null
   private zoomChangedHandler: ((state: ZoomState) => void) | null = null
   private readonly allowInsecureLocalhost: boolean
@@ -986,6 +987,10 @@ export class TabManager {
       this.activeTabId = null
       if (nextTabId) {
         this.switchTab(nextTabId)
+      } else if (this.lastTabClosedHandler) {
+        this.notifyTabListChanged()
+        this.emitSessionChange()
+        this.lastTabClosedHandler()
       } else {
         this.createTab()
       }
@@ -1633,6 +1638,10 @@ export class TabManager {
     this.tabDetachHandler = handler
   }
 
+  setLastTabClosedHandler(handler: (() => void) | null): void {
+    this.lastTabClosedHandler = handler
+  }
+
   reloadTab(tabId: string): void {
     const tab = this.findTab(tabId)
     if (!this.isWebTab(tab)) return
@@ -2202,6 +2211,7 @@ export class TabManager {
     this.findInPageState = { ...INITIAL_FIND_IN_PAGE_STATE }
     this.findInPageStateChangedHandler = null
     this.zoomChangedHandler = null
+    this.lastTabClosedHandler = null
     this.recoveryPendingViews.clear()
     this.sessionChangeListeners.clear()
     for (const releasedTab of [...this.pendingTabTransfers.values()]) {

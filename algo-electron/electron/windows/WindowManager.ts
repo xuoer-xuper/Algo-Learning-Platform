@@ -81,6 +81,13 @@ export class WindowManager {
     return this.getAll().find((candidate) => !candidate.isDestroyed()) ?? null
   }
 
+  markRecent(windowId: string): boolean {
+    const appWindow = this.windows.get(windowId)
+    if (!appWindow || appWindow.isDestroyed()) return false
+    this.markWindowRecent(windowId)
+    return true
+  }
+
   hasFocusedWindow(): boolean {
     return this.getAll().some((candidate) => {
       try {
@@ -111,10 +118,6 @@ export class WindowManager {
 
   sendToAll(channel: string, ...args: unknown[]): void {
     for (const appWindow of this.windows.values()) appWindow.send(channel, ...args)
-  }
-
-  async flushWindowStates(): Promise<void> {
-    await Promise.allSettled(this.getAll().map((appWindow) => appWindow.flushWindowState()))
   }
 
   private setMostRecentWindowId(windowId: string | null): void {

@@ -33,6 +33,7 @@ const PET_WINDOW_HEIGHT = 640
 
 export class CoachPetWindow {
   private win: BrowserWindow | null = null
+  private followedWindow: BrowserWindow | null = null
   private readonly options: CoachPetWindowOptions
   private currentState: CoachPetState = 'idle'
   private dragging = false
@@ -72,7 +73,7 @@ export class CoachPetWindow {
       y: Math.round(pos.y),
       transparent: true,
       frame: false,
-      alwaysOnTop: true,
+      alwaysOnTop: false,
       skipTaskbar: true,
       hasShadow: false,
       resizable: false,
@@ -87,6 +88,9 @@ export class CoachPetWindow {
         sandbox: true,
       },
     })
+    if (this.followedWindow && !this.followedWindow.isDestroyed()) {
+      this.win.setParentWindow(this.followedWindow)
+    }
     registerCoachWebContents(this.win.webContents)
 
     this.win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
@@ -135,6 +139,7 @@ export class CoachPetWindow {
    * 销毁桌宠窗口。主窗口关闭时调用。
    */
   destroy(): void {
+    this.setFollowedWindow(null)
     if (this.win && !this.win.isDestroyed()) {
       this.win.close()
     }
@@ -150,6 +155,10 @@ export class CoachPetWindow {
 
   getWin(): BrowserWindow | null {
     return this.win
+  }
+
+  followWindow(window: BrowserWindow | null): void {
+    this.setFollowedWindow(window && !window.isDestroyed() ? window : null)
   }
 
   /**
@@ -276,6 +285,20 @@ export class CoachPetWindow {
       // 用 getPosition 与拖拽逻辑同源，避免 getBounds 在 transparent 窗口上的偏差
       const [x, y] = this.win.getPosition()
       saveCoachConfig({ position: { x, y } })
+    }
+  }
+
+  private readonly handleFollowedWindowClose = (): void => {
+    this.setFollowedWindow(null)
+  }
+
+  private setFollowedWindow(window: BrowserWindow | null): void {
+    if (this.followedWindow === window) return
+    this.followedWindow?.off('close', this.handleFollowedWindowClose)
+    this.followedWindow = window
+    this.followedWindow?.once('close', this.handleFollowedWindowClose)
+    if (this.win && !this.win.isDestroyed()) {
+      this.win.setParentWindow(this.followedWindow)
     }
   }
 }

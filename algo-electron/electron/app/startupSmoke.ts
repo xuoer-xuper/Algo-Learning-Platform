@@ -1,12 +1,14 @@
 import { app, BrowserWindow } from 'electron'
 import type { BrowserWindow as ElectronBrowserWindow } from 'electron'
 import type { TabManager } from '../browser/TabManager'
+import type { AppWindow } from '../windows/AppWindow'
 
 export const STARTUP_SMOKE_MODE = process.env.ALGO_ELECTRON_SMOKE === '1'
 
 interface RunStartupSmokeOptions {
   getWindow: () => ElectronBrowserWindow | null
   getTabManager: () => TabManager | null
+  getAppWindows: () => AppWindow[]
   cleanup: () => void
 }
 
@@ -70,6 +72,20 @@ async function waitForTabCount(tabManager: TabManager, expectedCount: number, ti
     await delay(50)
   }
   throw new Error(`Timed out waiting for ${expectedCount} tabs; tabs=${JSON.stringify(tabManager.getTabList())}`)
+}
+
+async function waitForAppWindowCount(
+  getAppWindows: () => AppWindow[],
+  expectedCount: number,
+  timeoutMs = 10000,
+): Promise<AppWindow[]> {
+  const startedAt = Date.now()
+  while (Date.now() - startedAt <= timeoutMs) {
+    const windows = getAppWindows().filter((candidate) => !candidate.isDestroyed())
+    if (windows.length === expectedCount) return windows
+    await delay(50)
+  }
+  throw new Error(`Timed out waiting for ${expectedCount} application windows`)
 }
 
 async function waitForScriptValue(
@@ -266,7 +282,43 @@ export async function runStartupSmokeTest(options: RunStartupSmokeOptions): Prom
     await closePopupAndRestore(tabManager, openerTabId, baseTabCount)
     step('oauth-popup')
 
-    finishStartupSmoke(options, 0, `ok mainWindow=1 tab=${tabId} url=${loadedWebUrl || activeTab.url || tabManager.getUrl()}`)
+    const moved = await win.webContents.executeJavaScript(
+      `window.electronAPI.moveTabToNewWindow(${JSON.stringify(openerTabId)})`,
+    ) as boolean
+    if (!moved) throw new Error('Moving the active tab to a complete shell window failed')
+    const splitWindows = await waitForAppWindowCount(options.getAppWindows, 2)
+    if (BrowserWindow.getAllWindows().filter((window) => !window.isDestroyed()).length !== 2) {
+      throw new Error('Split shell leaked or omitted a BrowserWindow')
+    }
+    const targetWindow = splitWindows.find((candidate) => candidate.browserWindow !== win
+      && candidate.tabManager.getTabList().some((tab) => tab.id === openerTabId))
+      ?? splitWindows.find((candidate) => candidate.tabManager.getTabList().some((tab) => tab.id === openerTabId))
+    if (!targetWindow) throw new Error('Transferred tab owner window was not found')
+    await waitForRendererLoad(targetWindow.browserWindow)
+    if (targetWindow.tabManager.getUrl() !== legacyHomeUrl) {
+      throw new Error(`Transferred shell lost the active URL: ${targetWindow.tabManager.getUrl()}`)
+    }
+    step('complete-shell-split')
+
+    win.close()
+    const survivingWindows = await waitForAppWindowCount(options.getAppWindows, 1)
+    if (BrowserWindow.getAllWindows().filter((window) => !window.isDestroyed()).length !== 1) {
+      throw new Error('Closing the source shell leaked a BrowserWindow')
+    }
+    if (survivingWindows[0].id !== targetWindow.id || targetWindow.browserWindow.isDestroyed()) {
+      throw new Error('Closing the original shell destroyed the transferred shell')
+    }
+    const survivingTab = targetWindow.tabManager.getTabList().find((tab) => tab.id === openerTabId)
+    if (!survivingTab || survivingTab.url !== legacyHomeUrl) {
+      throw new Error(`Transferred tab did not survive source close: ${JSON.stringify(survivingTab)}`)
+    }
+    const newTabId = await targetWindow.browserWindow.webContents.executeJavaScript(
+      'window.electronAPI.createTab()',
+    ) as string
+    if (!newTabId) throw new Error('Surviving complete shell IPC stopped working')
+    step('source-shell-closed')
+
+    finishStartupSmoke(options, 0, `ok mainWindow=1 tab=${openerTabId} url=${loadedWebUrl || survivingTab.url}`)
   } catch (error) {
     finishStartupSmoke(options, 1, 'failed', error)
   }

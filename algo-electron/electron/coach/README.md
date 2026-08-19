@@ -9,7 +9,7 @@
 ## 2. 当前实现程度（阶段 1-4）
 
 ### 阶段 1：桌宠视觉壳
-- `CoachPetWindow.ts`：透明悬浮窗口封装（BrowserWindow 配置、点击穿透、拖拽、生命周期、状态/气泡/配置推送）。
+- `CoachPetWindow.ts`：透明桌宠窗口封装（BrowserWindow 配置、点击穿透、拖拽、生命周期、状态/气泡/配置推送）；默认作为普通子窗口跟随最近活跃完整壳，并在父壳关闭前解绑，不以全局置顶窗口维持应用进程。
 
 ### 阶段 2：事件触发 + 比赛模式
 - `ProblemSessionTracker.ts`：三态计时（读题/写码/卡壳），active_seconds 只在任一完整应用壳聚焦且系统未空闲时累计。
@@ -35,6 +35,7 @@
 
 - `types.ts`：模块共享类型（CoachPetState / CoachBubblePayload / CoachEvent / ProblemSession / CoachIntervention / ContestAuditRecord）。
 - `CoachPetWindow.setPetState()` / `showBubble()`：规则引擎驱动桌宠的主入口。
+- `CoachPetWindow.followWindow()`：更新桌宠 parent 到最近活跃完整壳；切换和父壳 close 时成对清理监听。
 - `CoachOrchestrator.start()` / `stop()`：服务生命周期入口，在 `main.ts` 的 `app.whenReady` 后调用。
 - `ContestGuard.isContestMode()`：比赛模式状态查询。
 - `installContestNavigationTracking()`：把 TabManager 的裸 `webContents` URL/销毁快照接入 ContestGuard，不复用活动标签导航槽。

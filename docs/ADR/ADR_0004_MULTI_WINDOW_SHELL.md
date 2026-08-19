@@ -2,7 +2,7 @@
 
 ## 状态
 
-已接受（B3.1 所有权基础层与 B3.2 页面/服务多流语义已实施，B3.3-B3.5 继续完成过户、广播和生命周期）
+已接受（B3.1-B3.4 已实施所有权、页面/服务多流语义、标签过户和广播；B3.5 正在收尾生命周期与应用级会话恢复）
 
 ## 背景
 
@@ -20,6 +20,8 @@
 6. 窗口 normal bounds 与 maximized 使用独立版本化 JSON 原子持久化；恢复时按当前显示器 workArea 校正完全越界和尺寸异常。
 7. B3.1 保持单窗口行为。ContestGuard、Tracking、提交与 Coach 多流语义在 B3.2 就绪前，拖出、双击拆分和“移到新窗口”继续禁用；B3.3 才删除 `DetachedWindow` 并上线完整壳过户。
 8. B3.2 的页面事件必须携带完整 owner 与顶层 URL；精确脚本 API 对窗口、标签、webContents 和 URL 做 stale 校验。Tracking 按窗口并行，ContestGuard 聚合所有窗口，Coach 单会话防抖跟随最近窗口，实时提交未知 owner fail closed。
+9. B3.5 的持久化事实源是一份应用级原子快照，保存全部非空完整壳、每窗标签顺序/活动项、合法 normal bounds/maximized 和最近窗口；旧单窗口标签/bounds 文件只作一次性迁移输入。
+10. 任一完整壳可以独立关闭并显式销毁自己仍拥有的 tabs；已完成过户的 view 归目标壳所有。最后完整壳关闭即退出，桌宠先销毁且不单独维持进程。
 
 ## 影响
 
@@ -32,8 +34,8 @@
 
 代价：
 
-- `main.ts` 仍负责单窗口创建编排，B3.3/B3.5 还需继续下沉创建、过户和多窗口快照生命周期。
-- 页面事件、Tracking、ContestGuard、实时提交、用户脚本和 Coach 已具备 B3.2 多窗口语义；`problems:updated` 广播、SessionTracker 任一窗口聚焦和 SyncService 活动窗口选择仍留在 B3.4。
+- `main.ts` 仍负责编排完整壳创建、恢复、关闭和应用级会话 flush；这些流程必须由 WindowManager 和严格快照模型约束，不能回退模块级主窗口单槽。
+- 页面事件、Tracking、ContestGuard、实时提交、用户脚本、Coach 及剩余服务广播已具备多窗口语义。
 - 窗口和标签的所有创建、替换、关闭路径都必须维护 ViewRegistry，不允许绕过。
 
 ## 执行要求
