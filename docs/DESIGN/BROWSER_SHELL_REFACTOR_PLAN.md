@@ -231,7 +231,7 @@ Renderer（同一构建产物，多窗口实例化——桌宠 hash 路由已证
 
 ### B3 多窗口对等壳与拆分（预计 15-21 小时）
 
-⚠️ 任务序强约束：**B3.2 的服务语义（尤其 ContestGuard 多 TabManager 聚合、TrackingService 多订阅护栏）必须先于或与 B3.3 同 commit 落地**——否则多壳窗口会在服务语义就绪前上线，出现比赛硬闸空窗或单状态机互踩（ContestGuard `handleUrlChange` 是单流状态机，两窗口混流喂 URL 会互相清状态）。拆分入口（拖出/右键移到新窗口）在服务语义就绪前保持禁用。
+⚠️ 任务序强约束：**B3.2 的服务语义（尤其 ContestGuard 多 TabManager 聚合、TrackingService 多订阅护栏）必须先于或与 B3.3 同 commit 落地**——否则多壳窗口会在服务语义就绪前上线，出现比赛硬闸空窗或单状态机互踩（ContestGuard `handleUrlChange` 是单流状态机，两窗口混流喂 URL 会互相清状态）。该前置条件已满足，B3.3 拆分入口现已开放；剩余服务广播与全窗口会话快照继续由 B3.4/B3.5 收尾。
 
 | 任务 | 内容 | 涉及 |
 |---|---|---|
@@ -460,7 +460,8 @@ Renderer（同一构建产物，多窗口实例化——桌宠 hash 路由已证
 | B2.7-B2.8 | [x] | B2.7 下载/查找/缩放与 B2.8 完整右键菜单已实现；B2 统一验证、生产构建、NSIS 与真实 packaged 双实例 smoke 全部通过，完整记录见 §11.28-§11.30 |
 | B3.1 | [x] | WindowManager/AppWindow/ViewRegistry、sender 归属路由、窗口 bounds/maximized 持久化与多显示器越界校验已完成；保持单窗口行为，完整记录见 §11.31 |
 | B3.2 | [x] | per-webContents 页面事件、Tracking 多 visit、Contest 聚合、Coach 最近窗口防抖、实时提交/用户脚本精确 owner、deleteProblem 事务重算已完成；拆分入口仍保持禁用，待 B3.3 标签过户后开放 |
-| B3.3-B3.5 | [ ] | 标签过户、全窗口广播/剩余服务多窗口化、完整多窗口生命周期与会话恢复待实施 |
+| B3.3 | [x] | 完整壳标签过户、拖出/右键/双击拆分、拖回合并与过户回滚已完成；B3.4-B3.5 继续处理服务广播、窗口生命周期与多窗口快照 |
+| B3.4-B3.5 | [ ] | 全窗口广播/剩余服务多窗口化、完整多窗口生命周期与会话恢复待实施 |
 | B4.1-B4.6 | [ ] | 026_site_credentials、Vault、自动填充、账户页、登录捕获、fuses 均待实施 |
 | B5.1-B5.6 | [ ] | 仅按视觉冻结约束做结构收尾、暗色、无障碍、桌宠策略和 Latex |
 | B6.1-B6.7 | [ ] | 027_userscript_runtime、GM 桥、网络代理、早注入、资源、安装更新与管理页均待实施 |
@@ -899,5 +900,22 @@ Renderer（同一构建产物，多窗口实例化——桌宠 hash 路由已证
 | 自动验证 | B3.2 定向矩阵通过：Vitest `25 files / 317 tests`；核心回归 `npm run test:core` 通过（Vitest `70 files / 677 tests`）；Coach `13 files / 286 tests` 与 Electron LLM 配置检查通过；DB suite（Vitest、backup/import、migration safety、stats benchmark、repositories）通过；`npm run typecheck`、`npm run lint`、architecture `7/7`、security、docs 与 `git diff --check` 全部通过 |
 | 视觉影响 | 未修改前端 TSX/CSS、颜色、字体、按钮形态、整体布局或动画基调；继续冻结既有前端风格 |
 | 暂缓验证 | 按批量策略，本任务不运行生产构建、NSIS 或真实 packaged 双实例 smoke；B3.3-B3.5 完成后统一执行整个 B3 验收 |
-| 后续工作 | 进入 B3.3：完整壳标签过户、拖出/右键/双击拆分、拖回合并与过户回滚；在此之前拆分入口继续禁用 |
+| 后续工作 | 进入 B3.3：完整壳标签过户、拖出/右键/双击拆分、拖回合并与过户回滚；该任务已完成，下一步进入 B3.4 |
+| 完成时间 | 北京时间 `2026-08-19` |
+
+### 11.33 B3.3 完整壳标签过户与拆分入口完成记录
+
+| 字段 | 填写内容 |
+|---|---|
+| 任务 | B3.3 完整壳拆分、标签过户、拖回合并、三种拆分入口与失败回滚 |
+| 状态 | `[x] 已完成` |
+| Commit | `browser: 完成 B3.3 完整壳标签过户`（代码、测试、架构文档与本完成标记同提交） |
+| 完整壳 | `main.ts` 支持恢复窗口与空壳窗口两种创建模式；拆分目标不恢复旧会话、不创建默认首页，但完整安装 shell、TabManager、IPC、追踪、脚本、提交监测和 Coach 挂点 |
+| 过户原语 | `TabManager.releaseTab/adoptTab` 保持稳定 tabId 与同一 WebContentsView；顺序为源父摘除、注册表 transfer lock、owner 更新、目标接纳和目标挂载；重复过户、挂载失败、源销毁均 exactly-once 回滚或失效 |
+| 过户协调 | 新增 `TabTransferCoordinator`，按 tabId 加锁；同窗标签栏落点排序，其他壳标签栏落点执行拖回，壳外落点新建完整窗口；移动最后标签后源窗口关闭，失败目标自动关闭 |
+| 入口与契约 | 恢复双击；右键“移到新窗口”启用；拖拽提交目标索引与屏幕坐标，经 `tab:moveToNewWindow`/`tab:finishDrag` 受 trusted sender 校验；旧 `DetachedWindow.ts` 删除，旧 `tab:detach` 无运行时引用 |
+| 测试 | 过户/注册表/协调器/IPC/TabStrip 定向验证：`7 files / 50 tests`；`npm run test:core` 完整通过：Vitest `72 files / 689 tests`、TypeScript、全仓 ESLint、architecture `7/7` 与 security 全绿；迁移成功后销毁源 TabManager 不会关闭目标 webContents |
+| 视觉影响 | 未修改 CSS、颜色、字体、按钮形态、整体布局或动画基调；仅恢复既有 TabStrip 手势并复用现有原生菜单与壳样式 |
+| 暂缓验证 | 按批量策略，本任务不运行生产构建、NSIS 或真实 packaged 双实例 smoke；B3.4-B3.5 完成后统一执行整个 B3 验收 |
+| 后续工作 | B3.4：`problems:updated`/SessionTracker/SyncService 等剩余服务的全窗口广播与活跃标签语义；B3.5：任一窗口关闭、全窗口会话快照与重启恢复 |
 | 完成时间 | 北京时间 `2026-08-19` |

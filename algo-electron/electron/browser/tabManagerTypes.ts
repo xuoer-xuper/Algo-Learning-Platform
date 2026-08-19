@@ -106,6 +106,21 @@ export interface ManagedInternalTab extends ManagedTabBase {
 
 export type ManagedTab = ManagedWebTab | ManagedInternalTab
 
+export type ReleasedTabState = 'released' | 'adopted' | 'rolled-back' | 'invalid'
+
+export interface ReleasedTab {
+  readonly tabId: string
+  readonly kind: ManagedTab['kind']
+  readonly sourceWindowId: string
+  readonly state: ReleasedTabState
+  rollback(): boolean
+}
+
+export interface AdoptReleasedTabOptions {
+  activate?: boolean
+  index?: number
+}
+
 export interface WebTabSnapshot {
   id: string
   kind: 'web'

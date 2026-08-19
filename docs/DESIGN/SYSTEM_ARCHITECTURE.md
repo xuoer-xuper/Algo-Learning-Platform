@@ -69,10 +69,10 @@ algo-electron/electron/
     startupSmoke.ts
   browser/
     TabManager.ts
-    DetachedWindow.ts
     ojSession.ts
   windows/
     AppWindow.ts
+    TabTransferCoordinator.ts
     WindowManager.ts
     ViewRegistry.ts
     windowBounds.ts
@@ -208,12 +208,12 @@ Renderer 不直接操作 `webContents`。
 ### 4.4 混合标签与内部页
 
 - **主进程事实源**：`TabManager` 持有标签顺序、稳定 ID、活动项、关闭栈和会话快照；Renderer 不复制标签路由状态。
-- **标签条**：`TabStrip` 渲染 favicon/loading/internal 图标，pointer 手势只提交 `tab:reorder(tabId, finalIndex)`；主进程完成排序并广播新快照。标签交互区为 `no-drag`，窗口拖动仅使用标题栏空白区。
+- **标签条**：`TabStrip` 渲染 favicon/loading/internal 图标，pointer 手势提交最终索引与屏幕坐标；主进程按落点执行同窗排序、跨壳过户或创建新壳。标签交互区为 `no-drag`，窗口拖动仅使用标题栏空白区。
 - **Web 标签**：由 `WebContentsView` 承载，切换时动态 `addChildView` / `removeChildView`，使用 `persist:oj-main`。
 - **内部标签**：首页、设置、统计、脚本、Coach 指标、题目详情和笔记由壳 React 内的 `ShellRouter` 渲染；`algo://...` 只是地址栏与会话标识，不注册本地资源协议。
 - **壳资源**：生产 Renderer 仍只从可信 `app://shell/index.html` 加载；不得把 `algo://` 解析成任意本地路径。
 - **浮层边界**：功能页面不再通过截图替身 modal 打开。内部页可使用 DOM Dialog/DropdownMenu；web 页菜单使用原生 `Menu.popup`，持久提示使用布局让位的 NoticeBar。
-- **拆分窗口**：当前 `DetachedWindow` 仅保留旧 web 标签能力，B3 将替换为完整对等浏览器壳；在此之前拖出/双击入口保持禁用。
+- **拆分窗口**：每个拆分目标都是完整 `AppWindow`；`TabTransferCoordinator` 统一处理拖出、右键“移到新窗口”、双击、拖回、每 tab 锁与过户回滚，不再存在裸 `DetachedWindow`。
 
 ### 4.5 窗口与 view 所有权
 
@@ -223,7 +223,7 @@ Renderer 不直接操作 `webContents`。
 - 普通 shell IPC 先由 `trustedSender` 校验 main frame、origin 和 payload，再从 sender 解析所属 `AppWindow`。窗口、标签、菜单和原生对话框不得使用最近活跃窗口作为隐式回退。
 - 下载开始时捕获来源 `windowId`，完成通知只发回仍存活的来源窗口。
 - 窗口 normal bounds 与 maximized 独立原子保存；恢复时保留合法负坐标副屏，显示器拔除或完全越界时校正到主屏 workArea。
-- B3.2 已完成页面事件和核心服务多流语义；拆分入口仍保持禁用，B3.3 才以完整 AppWindow 替换 `DetachedWindow` 并开放标签过户。
+- B3.2 已完成页面事件和核心服务多流语义；B3.3 已以完整 AppWindow 替换裸拆分窗口并开放标签过户。剩余服务广播与全窗口会话快照由 B3.4/B3.5 完成。
 
 ## 5. Session 与 CookieVault
 

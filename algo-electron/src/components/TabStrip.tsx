@@ -2,8 +2,9 @@ import { useEffect, useRef, useState } from 'react'
 import {
   closeBrowserTab,
   createBrowserTab,
+  finishBrowserTabDrag,
   getBrowserTabList,
-  reorderBrowserTab,
+  moveBrowserTabToNewWindow,
   subscribeTabListChanged,
   switchBrowserTab,
   type TabStripTabInfo,
@@ -15,14 +16,15 @@ import './TabStrip.css'
 interface TabStripProps {
   onTabUrlChange?: (url: string) => void
   onActiveTabChange?: (tab: TabStripTabInfo | null) => void
-  onNotice?: (message: string) => void
 }
 
 interface PointerDragState {
   tabId: string
   pointerId: number
   startX: number
+  startY: number
   deltaX: number
+  deltaY: number
   sourceIndex: number
   targetIndex: number
   dragging: boolean
@@ -33,7 +35,6 @@ interface DropMarker {
   edge: 'before' | 'after'
 }
 
-const DETACH_UNAVAILABLE_NOTICE = '拆分窗口将在多窗口版本以更完整形态回归'
 const POINTER_DRAG_THRESHOLD = 5
 const POINTER_EDGE_SCROLL_ZONE = 36
 const POINTER_EDGE_SCROLL_STEP = 14
@@ -102,7 +103,7 @@ function prefersReducedMotion(): boolean {
   return window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false
 }
 
-export function TabStrip({ onTabUrlChange, onActiveTabChange, onNotice }: TabStripProps) {
+export function TabStrip({ onTabUrlChange, onActiveTabChange }: TabStripProps) {
   const [tabs, setTabs] = useState<TabStripTabInfo[]>([])
   const [closingTabIds, setClosingTabIds] = useState<Set<string>>(() => new Set())
   const [dragState, setDragState] = useState<PointerDragState | null>(null)
@@ -279,7 +280,7 @@ export function TabStrip({ onTabUrlChange, onActiveTabChange, onNotice }: TabStr
   }
 
   const handlePointerDown = (event: React.PointerEvent<HTMLButtonElement>, tabId: string) => {
-    if (event.button !== 0 || event.isPrimary === false || tabs.length < 2) return
+    if (event.button !== 0 || event.isPrimary === false) return
     const sourceIndex = tabs.findIndex((tab) => tab.id === tabId)
     if (sourceIndex < 0) return
     event.currentTarget.setPointerCapture?.(event.pointerId)
@@ -287,7 +288,9 @@ export function TabStrip({ onTabUrlChange, onActiveTabChange, onNotice }: TabStr
       tabId,
       pointerId: event.pointerId,
       startX: event.clientX,
+      startY: event.clientY,
       deltaX: 0,
+      deltaY: 0,
       sourceIndex,
       targetIndex: sourceIndex,
       dragging: false,
@@ -298,11 +301,13 @@ export function TabStrip({ onTabUrlChange, onActiveTabChange, onNotice }: TabStr
     const current = dragStateRef.current
     if (!current || current.pointerId !== event.pointerId) return
     const deltaX = event.clientX - current.startX
-    if (!current.dragging && Math.abs(deltaX) < POINTER_DRAG_THRESHOLD) return
+    const deltaY = event.clientY - current.startY
+    if (!current.dragging && Math.hypot(deltaX, deltaY) < POINTER_DRAG_THRESHOLD) return
 
     const next = {
       ...current,
       deltaX,
+      deltaY,
       targetIndex: findTargetIndex(current.tabId, event.clientX),
       dragging: true,
     }
@@ -320,7 +325,12 @@ export function TabStrip({ onTabUrlChange, onActiveTabChange, onNotice }: TabStr
     if (commit && current.dragging) {
       event.preventDefault()
       suppressClickTabIdRef.current = current.tabId
-      void reorderBrowserTab(current.tabId, current.targetIndex).catch(() => false)
+      void finishBrowserTabDrag(
+        current.tabId,
+        current.targetIndex,
+        event.screenX,
+        event.screenY,
+      ).catch(() => false)
     }
     dragStateRef.current = null
     setDragState(null)
@@ -377,7 +387,7 @@ export function TabStrip({ onTabUrlChange, onActiveTabChange, onNotice }: TabStr
                 draggable={false}
                 onClick={() => handleSwitch(tab.id)}
                 onAuxClick={(event) => handleAuxClick(event, tab.id)}
-                onDoubleClick={() => onNotice?.(DETACH_UNAVAILABLE_NOTICE)}
+                onDoubleClick={() => { void moveBrowserTabToNewWindow(tab.id).catch(() => false) }}
                 onPointerDown={(event) => handlePointerDown(event, tab.id)}
                 onPointerMove={handlePointerMove}
                 onPointerUp={(event) => finishPointerDrag(event, true)}

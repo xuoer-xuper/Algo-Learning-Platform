@@ -153,3 +153,50 @@ test('browser shell IPC routes each trusted sender only to its owning window', a
   assert.strictEqual(firstWindow.isMinimized(), true)
   assert.strictEqual(secondWindow.isMinimized(), false)
 })
+
+test('tab transfer IPC validates payloads and preserves the trusted source window', async () => {
+  resetElectronMock()
+  resetTrustedSenderRegistry()
+  const shell = new MockWebContents()
+  await shell.loadURL('app://shell/index.html')
+  const untrusted = new MockWebContents()
+  await untrusted.loadURL('https://example.com/')
+  const appWindow = new AppWindow({
+    id: 'window-1',
+    browserWindow: new MockBrowserWindow() as never,
+    tabManager: {} as never,
+  })
+  registerShellWebContents(shell, appWindow)
+  const moves: Array<[string, string]> = []
+  const drags: Array<[string, string, number, number, number]> = []
+  const handlers = new Map<string, (...args: unknown[]) => unknown>()
+  const originalHandle = ipcMain.handle
+  ipcMain.handle = (channel, handler) => {
+    handlers.set(channel, handler as (...args: unknown[]) => unknown)
+    originalHandle(channel, handler)
+  }
+  registerBrowserShellIpc({
+    moveTabToNewWindow: async (source, tabId) => {
+      moves.push([source.id, tabId])
+      return true
+    },
+    finishTabDrag: async (source, tabId, targetIndex, screenX, screenY) => {
+      drags.push([source.id, tabId, targetIndex, screenX, screenY])
+      return true
+    },
+  })
+  ipcMain.handle = originalHandle
+  const trustedEvent = { sender: shell, senderFrame: shell.mainFrame }
+  const untrustedEvent = { sender: untrusted, senderFrame: untrusted.mainFrame }
+  const move = handlers.get('tab:moveToNewWindow')!
+  const finishDrag = handlers.get('tab:finishDrag')!
+
+  assert.strictEqual(await move(trustedEvent, 'tab-1'), true)
+  assert.strictEqual(await move(trustedEvent, ''), false)
+  assert.throws(() => move(untrustedEvent, 'tab-2'), /Rejected IPC sender/)
+  assert.strictEqual(await finishDrag(trustedEvent, 'tab-1', 2, 300, 20), true)
+  assert.strictEqual(await finishDrag(trustedEvent, 'tab-1', 2.5, 300, 20), false)
+  assert.throws(() => finishDrag(trustedEvent, 'tab-1', 2, NaN, 20), /Rejected IPC sender/)
+  assert.deepStrictEqual(moves, [['window-1', 'tab-1']])
+  assert.deepStrictEqual(drags, [['window-1', 'tab-1', 2, 300, 20]])
+})

@@ -45,7 +45,7 @@
 - `tabSessionStore.ts`：会话 JSON 的原子读取/写入、快速保存合并与可 flush/dispose 的防抖协调器，不记录原始 JSON 或 URL。
 - `tabSessionLifecycle.ts`：窗口关闭前的异步会话 flush 门控；重复关闭只触发一次写入，完成或失败后再允许窗口销毁。
 - `permissionPolicy.ts`：默认 session 与 OJ session 共用的最小权限白名单及双处理器安装函数。
-- `DetachedWindow.ts`：已无公开调用通道的旧裸窗口原型，仅保留到 B3 删除；不得作为对等拆分窗口恢复使用。
+- `TabTransferCoordinator`：位于 `electron/windows/`，负责完整壳之间的标签过户；旧裸 `DetachedWindow` 已删除。
 - `ojPreload.ts`：OJ 页面 preload，暴露提交上报桥并转发 frame 消息。
 - `ojBridge.ts`：提交上报桥的纯函数和 channel 常量。
 - `ojSession.ts`：配置 OJ 持久 session 的 UA、CORS、实时 hook 和 stealth 注入。
@@ -61,6 +61,7 @@
   - `closeTab(tabId)`
   - `switchTab(tabId)`
   - `reorderTab(tabId, targetIndex)`：按最终索引调整有序数组，只广播列表/会话持久状态，不切换活动标签或重新挂载 view。
+  - `releaseTab(tabId)` / `adoptTab(handle, options)`：以稳定 tabId 释放/接纳 web 或内部标签；web 标签保留同一 WebContentsView，任一步失败自动恢复源顺序与活动态。
   - `destroy()`
 - 导航控制
   - `navigate(url)`
@@ -74,7 +75,7 @@
   - `findInPage(tabId, command)`、`openFindInPage()`：只对活动 web 标签执行查找，关闭时保留或清理选择由命令决定。
   - `setZoom(tabId, 'in'|'out'|'reset')`、`getActiveZoomState()`：先成功写入 origin 配置再改变 view，写失败保持当前缩放。
   - `adjustZoom(direction)`、`resetZoom()`：快捷键兼容入口，内部使用 Chrome 预设档位。
-  - `showTabContextMenu(tabId)`：按标签上下文打开原生菜单，复制、关闭范围和恢复关闭标签由 TabManager 执行；拆分项固定禁用，等待 B3 新 WindowManager 接管。
+  - `showTabContextMenu(tabId)`：按标签上下文打开原生菜单，复制、关闭范围、恢复关闭标签和“移到新窗口”由 TabManager/过户协调器执行。
 - 状态读取
   - `getUrl()`
   - `getTitleForUrl(url)`

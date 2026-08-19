@@ -42,7 +42,7 @@ test('closing a background tab preserves the remaining order and active tab', ()
   assert.deepStrictEqual(manager.getTabList().map((tab) => tab.id), [firstId, rightId])
 })
 
-test('tab context menu closes tab ranges and keeps move-to-window disabled until B3', () => {
+test('tab context menu enables move-to-window when a transfer handler is installed', () => {
   resetElectronMock()
   const window = new MockBrowserWindow()
   const manager = new TabManager(window as never)
@@ -51,10 +51,15 @@ test('tab context menu closes tab ranges and keeps move-to-window disabled until
   manager.createTab('https://example.com/right')
   manager.createTab('https://example.com/last')
   manager.switchTab(middleId)
+  const detachedIds: string[] = []
+  manager.setTabDetachHandler((tabId) => { detachedIds.push(tabId) })
 
   manager.showTabContextMenu(middleId)
   const firstTemplate = menuPopups.at(-1)?.template as Electron.MenuItemConstructorOptions[]
-  assert.strictEqual(firstTemplate.find((item) => item.label === '移到新窗口')?.enabled, false)
+  const detachItem = firstTemplate.find((item) => item.label === '移到新窗口')
+  assert.strictEqual(detachItem?.enabled, true)
+  detachItem?.click?.({} as never, {} as never, {} as never)
+  assert.deepStrictEqual(detachedIds, [middleId])
   firstTemplate.find((item) => item.label === '关闭右侧标签页')?.click?.(
     {} as never,
     {} as never,

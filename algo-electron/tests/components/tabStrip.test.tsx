@@ -6,8 +6,9 @@ import type { TabStripTabInfo } from '../../src/components/tabApi'
 const tabApi = vi.hoisted(() => ({
   closeBrowserTab: vi.fn(),
   createBrowserTab: vi.fn(),
+  finishBrowserTabDrag: vi.fn(),
   getBrowserTabList: vi.fn(),
-  reorderBrowserTab: vi.fn(),
+  moveBrowserTabToNewWindow: vi.fn(),
   subscribeTabListChanged: vi.fn(),
   switchBrowserTab: vi.fn(),
   unsubscribe: vi.fn(),
@@ -38,7 +39,8 @@ function tab(id: string, title: string, isActive = false): TabStripTabInfo {
 beforeEach(() => {
   tabApi.listener = null
   tabApi.getBrowserTabList.mockResolvedValue([initialTab])
-  tabApi.reorderBrowserTab.mockResolvedValue(true)
+  tabApi.finishBrowserTabDrag.mockResolvedValue(true)
+  tabApi.moveBrowserTabToNewWindow.mockResolvedValue(true)
   tabApi.subscribeTabListChanged.mockImplementation((callback: (tabs: TabStripTabInfo[]) => void) => {
     tabApi.listener = callback
     callback([initialTab])
@@ -210,7 +212,7 @@ describe('TabStrip', () => {
     fireEvent.pointerUp(first, { pointerId: 7, clientX: 350, isPrimary: true })
     fireEvent.click(first)
 
-    expect(tabApi.reorderBrowserTab).toHaveBeenCalledWith('tab-1', 2)
+    expect(tabApi.finishBrowserTabDrag).toHaveBeenCalledWith('tab-1', 2, 0, 0)
     expect(tabApi.switchBrowserTab).not.toHaveBeenCalled()
   })
 
@@ -221,7 +223,7 @@ describe('TabStrip', () => {
     fireEvent.pointerMove(current, { pointerId: 2, clientX: 23, isPrimary: true })
     fireEvent.pointerUp(current, { pointerId: 2, clientX: 23, isPrimary: true })
     fireEvent.click(current)
-    expect(tabApi.reorderBrowserTab).not.toHaveBeenCalled()
+    expect(tabApi.finishBrowserTabDrag).not.toHaveBeenCalled()
     expect(tabApi.switchBrowserTab).toHaveBeenCalledWith('tab-1')
   })
 
@@ -267,12 +269,11 @@ describe('TabStrip', () => {
     expect(strip.scrollLeft).toBe(80)
   })
 
-  it('replaces the legacy detach gesture with the multi-window notice', () => {
-    const onNotice = vi.fn()
-    render(<TabStrip onNotice={onNotice} />)
+  it('moves a tab to a complete new shell on double click', () => {
+    render(<TabStrip />)
 
     fireEvent.doubleClick(screen.getByRole('tab', { name: 'Example' }))
 
-    expect(onNotice).toHaveBeenCalledWith('拆分窗口将在多窗口版本以更完整形态回归')
+    expect(tabApi.moveBrowserTabToNewWindow).toHaveBeenCalledWith('tab-1')
   })
 })

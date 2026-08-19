@@ -9,11 +9,20 @@ import { isAppMenuAnchor, popupAppMenu } from '../contextMenus/appMenu'
 import { popupShellContextMenu, readClipboardText } from '../contextMenus/browserContextMenu'
 import { isZoomCommand } from '../browser/zoomPreferences'
 import type { PendingUserScriptInstallRegistry } from '../downloads/userScriptNavigation'
+import type { AppWindow } from '../windows/AppWindow'
 
 interface RegisterBrowserShellIpcOptions {
   getBrowserDiagnostics?: () => BrowserDiagnostics | null
   getUserScriptInstallRegistry?: () => PendingUserScriptInstallRegistry | null
   allowInsecureLocalhost?: boolean
+  moveTabToNewWindow?: (source: AppWindow, tabId: string) => Promise<boolean>
+  finishTabDrag?: (
+    source: AppWindow,
+    tabId: string,
+    targetIndex: number,
+    screenX: number,
+    screenY: number,
+  ) => Promise<boolean>
 }
 
 function toNavigationBlockReason(
@@ -45,6 +54,32 @@ export function registerBrowserShellIpc(options: RegisterBrowserShellIpcOptions)
     if (typeof tabId !== 'string' || !Number.isInteger(targetIndex)) return false
     return getShellWindowOwner(event)?.tabManager.reorderTab(tabId, targetIndex as number) ?? false
   })
+
+  ipcMain.handle('tab:moveToNewWindow', (event, tabId: unknown) => {
+    if (typeof tabId !== 'string' || tabId.length === 0 || tabId.length > 200) return false
+    const owner = getShellWindowOwner(event)
+    return owner ? options.moveTabToNewWindow?.(owner, tabId) ?? false : false
+  })
+
+  ipcMain.handle(
+    'tab:finishDrag',
+    (event, tabId: unknown, targetIndex: unknown, screenX: unknown, screenY: unknown) => {
+      if (
+        typeof tabId !== 'string'
+        || tabId.length === 0
+        || tabId.length > 200
+        || !Number.isInteger(targetIndex)
+        || typeof screenX !== 'number'
+        || !Number.isFinite(screenX)
+        || typeof screenY !== 'number'
+        || !Number.isFinite(screenY)
+      ) return false
+      const owner = getShellWindowOwner(event)
+      return owner
+        ? options.finishTabDrag?.(owner, tabId, targetIndex as number, screenX, screenY) ?? false
+        : false
+    },
+  )
 
   ipcMain.on('tab:reload', (event, tabId: string) => {
     getShellWindowOwner(event)?.tabManager.reloadTab(tabId)

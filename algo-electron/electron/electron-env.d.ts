@@ -864,6 +864,13 @@ interface ElectronAPI {
   reopenClosedTab: () => Promise<string>
   switchTab: (tabId: string) => void
   reorderTab: (tabId: string, targetIndex: number) => Promise<boolean>
+  moveTabToNewWindow: (tabId: string) => Promise<boolean>
+  finishTabDrag: (
+    tabId: string,
+    targetIndex: number,
+    screenX: number,
+    screenY: number,
+  ) => Promise<boolean>
   reloadTab: (tabId: string) => void
   dismissUnresponsiveTab: (tabId: string) => void
   openInternalTab: (page: InternalPage) => Promise<string>

@@ -16,6 +16,19 @@ export function reorderBrowserTab(tabId: string, targetIndex: number): Promise<b
   return window.electronAPI.reorderTab(tabId, targetIndex)
 }
 
+export function moveBrowserTabToNewWindow(tabId: string): Promise<boolean> {
+  return window.electronAPI.moveTabToNewWindow(tabId)
+}
+
+export function finishBrowserTabDrag(
+  tabId: string,
+  targetIndex: number,
+  screenX: number,
+  screenY: number,
+): Promise<boolean> {
+  return window.electronAPI.finishTabDrag(tabId, targetIndex, screenX, screenY)
+}
+
 export function closeBrowserTab(tabId: string): void {
   window.electronAPI.closeTab(tabId)
 }

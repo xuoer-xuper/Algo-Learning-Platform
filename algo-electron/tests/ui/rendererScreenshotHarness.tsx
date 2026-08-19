@@ -407,6 +407,15 @@ function createApiMock(): ElectronAPI {
       emitTabs()
       return true
     },
+    moveTabToNewWindow: async () => true,
+    finishTabDrag: async (tabId, targetIndex) => {
+      const sourceIndex = tabs.findIndex((tab) => tab.id === tabId)
+      if (sourceIndex < 0 || !Number.isInteger(targetIndex)) return false
+      const [tab] = tabs.splice(sourceIndex, 1)
+      tabs.splice(Math.max(0, Math.min(targetIndex, tabs.length)), 0, tab)
+      emitTabs()
+      return true
+    },
     reloadTab: () => {},
     dismissUnresponsiveTab: () => {},
     openInternalTab: async (page) => {

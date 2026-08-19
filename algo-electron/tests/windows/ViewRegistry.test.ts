@@ -96,6 +96,20 @@ test('transfers tab ownership while preserving its view', () => {
   })
 })
 
+test('locks a tab owner across source window unregister and supports rollback', () => {
+  const registry = new ViewRegistry()
+  const view = new MockWebContentsView()
+  registry.registerTab('window-1', 'tab-1', view as never)
+
+  const transfer = registry.beginTabTransfer(view.webContents.id, 'window-1', 'tab-1')
+  assert.ok(transfer)
+  assert.strictEqual(registry.beginTabTransfer(view.webContents.id, 'window-1', 'tab-1'), null)
+  assert.strictEqual(registry.unregisterWindow('window-1'), 0)
+  assert.strictEqual(registry.moveTabTransfer(transfer, 'window-2'), true)
+  assert.strictEqual(registry.rollbackTabTransfer(transfer), true)
+  assert.strictEqual(registry.get(view.webContents.id)?.windowId, 'window-1')
+})
+
 test('unregisterWindow removes only entries owned by that window', () => {
   const registry = new ViewRegistry()
   const firstShell = new MockWebContents()

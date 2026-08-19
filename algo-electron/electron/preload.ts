@@ -146,6 +146,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   reopenClosedTab: () => ipcRenderer.invoke('tab:reopenClosed') as Promise<string>,
   switchTab: (tabId: string) => ipcRenderer.send('tab:switch', tabId),
   reorderTab: (tabId: string, targetIndex: number) => ipcRenderer.invoke('tab:reorder', tabId, targetIndex) as Promise<boolean>,
+  moveTabToNewWindow: (tabId: string) => ipcRenderer.invoke('tab:moveToNewWindow', tabId) as Promise<boolean>,
+  finishTabDrag: (tabId: string, targetIndex: number, screenX: number, screenY: number) => (
+    ipcRenderer.invoke('tab:finishDrag', tabId, targetIndex, screenX, screenY) as Promise<boolean>
+  ),
   reloadTab: (tabId: string) => ipcRenderer.send('tab:reload', tabId),
   dismissUnresponsiveTab: (tabId: string) => ipcRenderer.send('tab:dismissUnresponsive', tabId),
   openInternalTab: (page: InternalPage) => ipcRenderer.invoke('tab:openInternal', page) as Promise<string>,

@@ -39,7 +39,6 @@ function App() {
     goForward,
     reload,
     syncCurrentPage,
-    showTransientMessage,
   } = useBrowserNavigation()
   const { inputRef: omniboxInputRef, controller: omnibox } = useOmnibox({
     activeUrl: url,
@@ -104,7 +103,6 @@ function App() {
         <TabStrip
           onTabUrlChange={applyUrlState}
           onActiveTabChange={handleActiveTabChange}
-          onNotice={showTransientMessage}
         />
         <WindowControls />
       </div>

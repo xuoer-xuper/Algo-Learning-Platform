@@ -14,4 +14,4 @@
 - 页面、标签、编辑区和应用菜单都应复用本目录的原生 `Menu.popup()` 基础设施，不在 renderer 另造会被 view 遮挡的 DOM 菜单。
 - 菜单模块只组装白名单模板和分发注入命令；运行期窗口、TabManager、下载器或设置服务由 IPC 注册层注入。
 - renderer 提供的坐标和上下文 payload 必须先做 exact-shape、类型和长度校验，菜单项不得直接信任页面文本、URL 或文件路径。
-- 页面右键中的链接、图片和搜索动作必须重新经过 TabManager 导航策略；复制、编辑和关闭范围动作通过注入回调执行，不把 BrowserWindow 或 WebContents 暴露给 renderer；拆分项在 B3 前保持禁用。
+- 页面右键中的链接、图片和搜索动作必须重新经过 TabManager 导航策略；复制、编辑、关闭范围与“移到新窗口”动作通过注入回调执行，不把 BrowserWindow 或 WebContents 暴露给 renderer。

@@ -11,11 +11,14 @@ import { randomUUID } from 'node:crypto'
 import { STEALTH_SCRIPT } from './stealthScript'
 import { MAX_CLOSED_TABS, MAX_TABS, OJ_PRELOAD_PATH } from './tabManagerConfig'
 import type {
+  AdoptReleasedTabOptions,
   ClosedTabSnapshot,
   InternalPage,
   ManagedInternalTab,
   ManagedTab,
   ManagedWebTab,
+  ReleasedTab,
+  ReleasedTabState,
   TabInfo,
   TabSessionSnapshot,
   TabSnapshot,
@@ -51,7 +54,7 @@ import {
   type UserScriptInstallRoute,
 } from '../downloads/userScriptNavigation'
 import { popupPageContextMenu, popupTabContextMenu } from '../contextMenus/browserContextMenu'
-import type { ViewRegistry } from '../windows/ViewRegistry'
+import type { ViewRegistry, ViewRegistryTabTransfer } from '../windows/ViewRegistry'
 
 export type { TabInfo } from './tabManagerTypes'
 
@@ -108,6 +111,23 @@ interface OpenInternalTabOptions {
   title?: string
 }
 
+interface TabViewOwnerBinding {
+  owner: TabManager
+}
+
+interface TabTransferRecord {
+  source: TabManager
+  tab: ManagedTab
+  sourceIndex: number
+  sourceActiveTabId: string | null
+  wasRecoveryPending: boolean
+  registryTransfer: ViewRegistryTabTransfer | null
+  state: ReleasedTabState
+}
+
+const TAB_VIEW_OWNER_BINDINGS = new WeakMap<WebContentsView, TabViewOwnerBinding>()
+const RELEASED_TAB_RECORDS = new WeakMap<ReleasedTab, TabTransferRecord>()
+
 const MAX_REMOTE_FAVICON_URL_LENGTH = 4_096
 const MAX_DATA_FAVICON_URL_LENGTH = 64 * 1_024
 const SAFE_DATA_FAVICON_PATTERN = /^data:image\/(?:png|jpeg|gif|webp|x-icon|vnd\.microsoft\.icon);base64,/i
@@ -150,6 +170,7 @@ export class TabManager {
   private shortcutHandler: ((event: Electron.Event, input: Input, source: WebContents) => void) | null = null
   private navigationBlockedHandler: ((reason: NavigationBlockReason) => void) | null = null
   private tabLimitReachedHandler: ((limit: number) => void) | null = null
+  private tabDetachHandler: ((tabId: string) => void) | null = null
   private findInPageStateChangedHandler: ((state: FindInPageViewState) => void) | null = null
   private zoomChangedHandler: ((state: ZoomState) => void) | null = null
   private readonly allowInsecureLocalhost: boolean
@@ -167,6 +188,7 @@ export class TabManager {
   private findInPageTabId: string | null = null
   private findInPageState: FindInPageState = { ...INITIAL_FIND_IN_PAGE_STATE }
   private recoveryPendingViews = new Set<WebContentsView>()
+  private pendingTabTransfers = new Map<string, ReleasedTab>()
 
   constructor(window: BrowserWindow, options: TabManagerOptions = {}) {
     this.window = window
@@ -344,7 +366,7 @@ export class TabManager {
     let id: string
     do {
       id = randomUUID().slice(0, 8)
-    } while (this.findTab(id))
+    } while (this.findTab(id) || this.pendingTabTransfers.has(id))
     return id
   }
 
@@ -361,13 +383,15 @@ export class TabManager {
     safeRemoveChildView(this.window, tab.view)
   }
 
-  private attachTabView(tab: ManagedWebTab): void {
-    if (tab.isCrashed || this.isOmniboxOpen) return
+  private attachTabView(tab: ManagedWebTab): boolean {
+    if (tab.isCrashed || this.isOmniboxOpen) return true
     try {
       this.window.contentView.addChildView(tab.view)
       this.updateBounds()
+      return true
     } catch {
       // A view can disappear while a renderer process is recovering.
+      return false
     }
   }
 
@@ -444,6 +468,8 @@ export class TabManager {
             partition: 'persist:oj-main',
           },
         })
+    const ownerBinding: TabViewOwnerBinding = { owner: this }
+    TAB_VIEW_OWNER_BINDINGS.set(view, ownerBinding)
     const contents = view.webContents
     const contentsId = contents.id
     registerOjWebContents(contents)
@@ -451,216 +477,231 @@ export class TabManager {
     this.applyZoomToView(view, contents.getURL())
 
     contents.on('before-input-event', (event, input) => {
-      this.shortcutHandler?.(event, input, contents)
+      ownerBinding.owner.shortcutHandler?.(event, input, contents)
     })
 
     const guardNavigation = (event: Electron.Event, url: string): void => {
-      const installRoute = this.resolveUserScriptInstall(url)
+      const owner = ownerBinding.owner
+      const installRoute = owner.resolveUserScriptInstall(url)
       if (installRoute) {
         event.preventDefault()
         if (installRoute !== 'blocked') {
-          const tab = this.findTabByView(view)
-          if (tab) queueMicrotask(() => this.replaceWebTabWithInternal(tab, installRoute.page))
+          const tab = owner.findTabByView(view)
+          if (tab) queueMicrotask(() => owner.replaceWebTabWithInternal(tab, installRoute.page))
         }
         return
       }
-      const decision = this.evaluateNavigation(url, true)
+      const decision = owner.evaluateNavigation(url, true)
       if (decision.allowed) return
       event.preventDefault()
-      this.notifyNavigationBlocked(decision.reason!)
+      owner.notifyNavigationBlocked(decision.reason!)
     }
     contents.on('will-navigate', guardNavigation)
     contents.on('will-redirect', guardNavigation)
 
     contents.on('did-navigate', (_event, url, _httpResponseCode, _httpStatusText, isMainFrame = true) => {
-      const tab = this.findTabByView(view)
-      if (tab) this.emitPageEvent(tab, contentsId, url, isMainFrame, 'did-navigate')
+      const owner = ownerBinding.owner
+      const tab = owner.findTabByView(view)
+      if (tab) owner.emitPageEvent(tab, contentsId, url, isMainFrame, 'did-navigate')
       if (!isMainFrame) return
-      this.updateWebContentsUrl(contentsId, url)
-      const zoomFactor = this.applyZoomToView(view, url)
+      owner.updateWebContentsUrl(contentsId, url)
+      const zoomFactor = owner.applyZoomToView(view, url)
       if (tab) {
         const urlChanged = tab.url !== url
-        if (urlChanged && tab.id === this.findInPageTabId) this.clearFindInPage()
+        if (urlChanged && tab.id === owner.findInPageTabId) owner.clearFindInPage()
         tab.url = url
-        if (tab.id === this.activeTabId) {
-          this.onUrlChange?.(url)
-          this.emitNavigate(url)
-          this.emitZoomState(tab, zoomFactor)
+        if (tab.id === owner.activeTabId) {
+          owner.onUrlChange?.(url)
+          owner.emitNavigate(url)
+          owner.emitZoomState(tab, zoomFactor)
         }
-        if (urlChanged) this.emitSessionChange()
+        if (urlChanged) owner.emitSessionChange()
       }
     })
 
     contents.on('did-navigate-in-page', (_event, url, isMainFrame = true) => {
-      const tab = this.findTabByView(view)
-      if (tab) this.emitPageEvent(tab, contentsId, url, isMainFrame, 'did-navigate-in-page')
+      const owner = ownerBinding.owner
+      const tab = owner.findTabByView(view)
+      if (tab) owner.emitPageEvent(tab, contentsId, url, isMainFrame, 'did-navigate-in-page')
       if (!isMainFrame) return
-      this.updateWebContentsUrl(contentsId, url)
-      const zoomFactor = this.applyZoomToView(view, url)
+      owner.updateWebContentsUrl(contentsId, url)
+      const zoomFactor = owner.applyZoomToView(view, url)
       if (tab) {
         const urlChanged = tab.url !== url
-        if (urlChanged && tab.id === this.findInPageTabId) this.clearFindInPage()
+        if (urlChanged && tab.id === owner.findInPageTabId) owner.clearFindInPage()
         tab.url = url
-        if (tab.id === this.activeTabId) {
-          this.onUrlChange?.(url)
-          this.emitNavigate(url)
-          this.emitZoomState(tab, zoomFactor)
+        if (tab.id === owner.activeTabId) {
+          owner.onUrlChange?.(url)
+          owner.emitNavigate(url)
+          owner.emitZoomState(tab, zoomFactor)
         }
-        if (urlChanged) this.emitSessionChange()
+        if (urlChanged) owner.emitSessionChange()
       }
     })
 
     contents.on('did-start-loading', () => {
-      const tab = this.findTabByView(view)
+      const owner = ownerBinding.owner
+      const tab = owner.findTabByView(view)
       if (!tab) return
-      if (tab.isCrashed && !this.recoveryPendingViews.has(view)) return
+      if (tab.isCrashed && !owner.recoveryPendingViews.has(view)) return
       if (tab.isLoading) return
       tab.isLoading = true
-      this.notifyTabListChanged()
+      owner.notifyTabListChanged()
     })
 
     contents.on('did-stop-loading', () => {
-      const tab = this.findTabByView(view)
+      const owner = ownerBinding.owner
+      const tab = owner.findTabByView(view)
       if (!tab) return
       if (!tab.isLoading) return
       tab.isLoading = false
-      this.notifyTabListChanged()
+      owner.notifyTabListChanged()
     })
 
     contents.on('page-favicon-updated', (_event, favicons: string[]) => {
-      const tab = this.findTabByView(view)
+      const owner = ownerBinding.owner
+      const tab = owner.findTabByView(view)
       if (!tab) return
       const favicon = favicons.find(isAllowedFaviconUrl) ?? null
       if (tab.favicon === favicon) return
       tab.favicon = favicon
-      this.notifyTabListChanged()
+      owner.notifyTabListChanged()
     })
 
     contents.on('context-menu', (_event, params) => {
-      if (this.isDestroying || contents.isDestroyed()) return
+      const owner = ownerBinding.owner
+      if (owner.isDestroying || contents.isDestroyed()) return
       popupPageContextMenu({
-        window: this.window,
+        window: owner.window,
         contents,
         params,
-        openUrlInNewTab: (url) => { this.createTab(url) },
+        openUrlInNewTab: (url) => { owner.createTab(url) },
         searchSelectionInNewTab: (query) => {
-          this.createTab(this.buildSearchUrlForQuery(query))
+          owner.createTab(owner.buildSearchUrlForQuery(query))
         },
       })
     })
 
     contents.on('found-in-page', (_event, result) => {
-      const tab = this.findTabByView(view)
-      if (!tab || tab.id !== this.findInPageTabId) return
-      const nextState = applyFindInPageResult(this.findInPageState, result)
+      const owner = ownerBinding.owner
+      const tab = owner.findTabByView(view)
+      if (!tab || tab.id !== owner.findInPageTabId) return
+      const nextState = applyFindInPageResult(owner.findInPageState, result)
       if (!nextState) return
-      this.findInPageState = nextState
-      this.emitFindInPageState()
+      owner.findInPageState = nextState
+      owner.emitFindInPageState()
     })
 
     contents.on('zoom-changed', (event, direction) => {
-      const tab = this.findTabByView(view)
+      const owner = ownerBinding.owner
+      const tab = owner.findTabByView(view)
       if (!tab) return
       event.preventDefault()
-      this.setZoom(tab.id, direction)
+      owner.setZoom(tab.id, direction)
     })
 
     contents.setWindowOpenHandler((details) => {
+      const owner = ownerBinding.owner
       const userScriptNavigation = resolveUserScriptNavigation(details.url, {
-        allowInsecureLocalhost: this.allowInsecureLocalhost,
+        allowInsecureLocalhost: owner.allowInsecureLocalhost,
       })
       if (userScriptNavigation) {
-        if (!this.canCreateTab()) return { action: 'deny' }
-        const installRoute = this.resolveUserScriptInstall(details.url)
+        if (!owner.canCreateTab()) return { action: 'deny' }
+        const installRoute = owner.resolveUserScriptInstall(details.url)
         if (installRoute && installRoute !== 'blocked') {
-          this.openInternalTab(installRoute.page, {
+          owner.openInternalTab(installRoute.page, {
             activate: details.disposition !== 'background-tab',
           })
         }
         return { action: 'deny' }
       }
-      const decision = this.evaluateNavigation(details.url, true)
+      const decision = owner.evaluateNavigation(details.url, true)
       if (!decision.allowed) {
-        this.notifyNavigationBlocked(decision.reason!)
+        owner.notifyNavigationBlocked(decision.reason!)
         return { action: 'deny' }
       }
-      if (!this.canCreateTab()) return { action: 'deny' }
+      if (!owner.canCreateTab()) return { action: 'deny' }
 
       return {
         action: 'allow',
-        createWindow: (options) => this.createPopupTab(options, details.url, details.disposition),
+        createWindow: (options) => owner.createPopupTab(options, details.url, details.disposition),
       }
     })
 
     contents.on('render-process-gone', (_event, details) => {
-      this.handleRenderProcessGone(view, details)
+      ownerBinding.owner.handleRenderProcessGone(view, details)
     })
 
     contents.on('unresponsive', () => {
-      this.handleTabUnresponsive(view)
+      ownerBinding.owner.handleTabUnresponsive(view)
     })
 
     contents.on('responsive', () => {
-      this.handleTabResponsive(view)
+      ownerBinding.owner.handleTabResponsive(view)
     })
 
     contents.on('destroyed', () => {
-      const tab = this.findTabByView(view)
-      if (tab) this.emitPageDestroyed(tab, contentsId)
-      this.removeWebContentsUrl(contentsId)
-      this.handleViewDestroyed(view, contentsId)
+      const owner = ownerBinding.owner
+      const tab = owner.findTabByView(view)
+      if (tab) owner.emitPageDestroyed(tab, contentsId)
+      owner.removeWebContentsUrl(contentsId)
+      owner.handleViewDestroyed(view, contentsId)
     })
 
     contents.on('page-title-updated', (_event, title) => {
-      const tab = this.findTabByView(view)
+      const owner = ownerBinding.owner
+      const tab = owner.findTabByView(view)
       if (tab) {
         const titleChanged = tab.title !== title
         tab.title = title
-        if (tab.id === this.activeTabId) {
+        if (tab.id === owner.activeTabId) {
           const url = contents.getURL()
-          this.onTitleChange?.(title, url)
+          owner.onTitleChange?.(title, url)
         }
-        this.emitPageEvent(tab, contentsId, contents.getURL() || tab.url, true, 'page-title-updated', title)
+        owner.emitPageEvent(tab, contentsId, contents.getURL() || tab.url, true, 'page-title-updated', title)
         if (titleChanged) {
-          this.notifyTabListChanged()
-          this.emitSessionChange()
+          owner.notifyTabListChanged()
+          owner.emitSessionChange()
         }
       }
     })
 
     contents.on('dom-ready', () => {
-      const tab = this.findTabByView(view)
+      const owner = ownerBinding.owner
+      const tab = owner.findTabByView(view)
       if (tab) {
         tab.url = contents.getURL()
-        this.emitDomReady(tab.url)
-        this.emitPageEvent(tab, contentsId, tab.url, true, 'dom-ready')
+        owner.emitDomReady(tab.url)
+        owner.emitPageEvent(tab, contentsId, tab.url, true, 'dom-ready')
       }
     })
 
     contents.on('did-frame-finish-load', (_event, isMainFrame) => {
-      const tab = this.findTabByView(view)
+      const owner = ownerBinding.owner
+      const tab = owner.findTabByView(view)
       if (!tab) return
       const url = contents.getURL() || tab.url
-      this.emitPageEvent(tab, contentsId, url, isMainFrame, 'did-frame-finish-load')
-      if (isMainFrame || tab.id !== this.activeTabId) return
-      this.emitDomReady(url)
+      owner.emitPageEvent(tab, contentsId, url, isMainFrame, 'did-frame-finish-load')
+      if (isMainFrame || tab.id !== owner.activeTabId) return
+      owner.emitDomReady(url)
     })
 
     contents.on('did-finish-load', () => {
-      const tab = this.findTabByView(view)
-      if (tab && this.recoveryPendingViews.delete(view)) {
+      const owner = ownerBinding.owner
+      const tab = owner.findTabByView(view)
+      if (tab && owner.recoveryPendingViews.delete(view)) {
         tab.isCrashed = false
         tab.isLoading = false
         tab.isUnresponsive = false
         tab.isUnresponsiveNoticeDismissed = false
-        if (tab.id === this.activeTabId) this.attachTabView(tab)
-        this.updateTabHealth(tab)
+        if (tab.id === owner.activeTabId) owner.attachTabView(tab)
+        owner.updateTabHealth(tab)
       }
       if (!tab || tab.isCrashed) return
       const url = contents.getURL() || tab.url
-      this.emitPageEvent(tab, contentsId, url, true, 'did-finish-load')
-      if (tab && tab.id === this.activeTabId) {
-        this.onPageLoaded?.(url)
+      owner.emitPageEvent(tab, contentsId, url, true, 'did-finish-load')
+      if (tab.id === owner.activeTabId) {
+        owner.onPageLoaded?.(url)
       }
       // 注入反检测脚本到主世界（绕过 contextIsolation），每个页面及 iframe 加载后执行
       contents.executeJavaScript(STEALTH_SCRIPT).catch(() => {})
@@ -669,8 +710,9 @@ export class TabManager {
     contents.on('did-fail-load', (_event, errorCode, errorDescription, validatedURL, isMainFrame) => {
       if (!isMainFrame) return
       if (errorCode !== -3) {
-        const tab = this.findTabByView(view)
-        if (tab) this.failTabRecovery(tab, view)
+        const owner = ownerBinding.owner
+        const tab = owner.findTabByView(view)
+        if (tab) owner.failTabRecovery(tab, view)
       }
       appLogger.warn('browser.did-fail-load', {
         errorCode,
@@ -809,8 +851,21 @@ export class TabManager {
     unregisterOjWebContents({ id: contentsId })
     this.unregisterTabView(contentsId)
     this.recoveryPendingViews.delete(view)
+    TAB_VIEW_OWNER_BINDINGS.delete(view)
     const tab = this.findTabByView(view)
-    if (!tab) return
+    if (!tab) {
+      const pendingTransfer = [...this.pendingTabTransfers.values()].find((releasedTab) => {
+        const record = RELEASED_TAB_RECORDS.get(releasedTab)
+        return record?.tab.kind === 'web' && record.tab.view === view
+      })
+      if (pendingTransfer) {
+        const record = RELEASED_TAB_RECORDS.get(pendingTransfer)!
+        this.emitPageDestroyed(record.tab as ManagedWebTab, contentsId)
+        record.state = 'invalid'
+        this.pendingTabTransfers.delete(record.tab.id)
+      }
+      return
+    }
     if (tab.id === this.findInPageTabId) this.clearFindInPage()
 
     if (!this.isDestroying && tab.isCrashed) {
@@ -1022,6 +1077,301 @@ export class TabManager {
     this.notifyTabListChanged()
     this.emitSessionChange()
     return true
+  }
+
+  releaseTab(tabId: string): ReleasedTab | null {
+    if (this.isDestroying || this.pendingTabTransfers.has(tabId)) return null
+    const tabIndex = this.findTabIndex(tabId)
+    const tab = tabIndex >= 0 ? this.tabs[tabIndex] : null
+    if (!tab) return null
+
+    let registryTransfer: ViewRegistryTabTransfer | null = null
+    if (tab.kind === 'web') {
+      let contentsId: number
+      try {
+        if (tab.view.webContents.isDestroyed()) return null
+        contentsId = tab.view.webContents.id
+      } catch {
+        return null
+      }
+      const ownerBinding = TAB_VIEW_OWNER_BINDINGS.get(tab.view)
+      if (!ownerBinding || ownerBinding.owner !== this) return null
+      if (this.viewRegistry) {
+        registryTransfer = this.viewRegistry.beginTabTransfer(contentsId, this.windowId, tab.id)
+        if (!registryTransfer) return null
+      }
+    }
+
+    const record: TabTransferRecord = {
+      source: this,
+      tab,
+      sourceIndex: tabIndex,
+      sourceActiveTabId: this.activeTabId,
+      wasRecoveryPending: tab.kind === 'web' && this.recoveryPendingViews.has(tab.view),
+      registryTransfer,
+      state: 'released',
+    }
+    let releasedTab!: ReleasedTab
+    releasedTab = Object.freeze({
+      tabId: tab.id,
+      kind: tab.kind,
+      sourceWindowId: this.windowId,
+      get state() { return record.state },
+      rollback: () => this.rollbackReleasedTab(releasedTab),
+    })
+    RELEASED_TAB_RECORDS.set(releasedTab, record)
+    this.pendingTabTransfers.set(tab.id, releasedTab)
+
+    try {
+      const wasActive = tab.id === this.activeTabId
+      const nextTabId = wasActive ? this.getAdjacentTabId(tabIndex) : null
+      if (tab.id === this.findInPageTabId) this.clearFindInPage()
+      if (wasActive && tab.kind === 'web') this.detachTabView(tab)
+      if (tab.kind === 'web') {
+        this.recoveryPendingViews.delete(tab.view)
+        this.removeWebContentsUrl(tab.view.webContents.id)
+      }
+      this.tabs.splice(tabIndex, 1)
+
+      if (wasActive) {
+        this.activeTabId = null
+        if (nextTabId) this.switchTab(nextTabId)
+        else this.notifyEmptyTabState()
+      } else {
+        this.notifyTabListChanged()
+        this.emitSessionChange()
+      }
+      return releasedTab
+    } catch (error) {
+      appLogger.warn('browser.tab-release-failed', {
+        tabId,
+        errorName: getErrorName(error),
+      })
+      this.rollbackReleasedTab(releasedTab)
+      return null
+    }
+  }
+
+  adoptTab(releasedTab: ReleasedTab, options: AdoptReleasedTabOptions = {}): boolean {
+    const record = RELEASED_TAB_RECORDS.get(releasedTab)
+    if (
+      !record
+      || record.state !== 'released'
+      || record.source.pendingTabTransfers.get(record.tab.id) !== releasedTab
+      || this.isDestroying
+      || this.window.isDestroyed()
+    ) {
+      return false
+    }
+    const tab = record.tab
+    const targetIndex = options.index ?? this.tabs.length
+    if (
+      !Number.isInteger(targetIndex)
+      || targetIndex < 0
+      || targetIndex > this.tabs.length
+      || this.findTab(tab.id)
+      || !this.canCreateTab()
+    ) {
+      releasedTab.rollback()
+      return false
+    }
+
+    let ownerBinding: TabViewOwnerBinding | null = null
+    if (tab.kind === 'web') {
+      try {
+        if (tab.view.webContents.isDestroyed()) {
+          this.invalidateReleasedTab(record)
+          return false
+        }
+      } catch {
+        this.invalidateReleasedTab(record)
+        return false
+      }
+      ownerBinding = TAB_VIEW_OWNER_BINDINGS.get(tab.view) ?? null
+      if (
+        !ownerBinding
+        || ownerBinding.owner !== record.source
+        || record.source.viewRegistry !== this.viewRegistry
+        || Boolean(this.viewRegistry) !== Boolean(record.registryTransfer)
+      ) {
+        releasedTab.rollback()
+        return false
+      }
+    }
+
+    const previousActiveTabId = this.activeTabId
+    let registryMoved = false
+    let inserted = false
+    try {
+      if (record.registryTransfer) {
+        registryMoved = this.viewRegistry!.moveTabTransfer(
+          record.registryTransfer,
+          this.windowId,
+          tab.id,
+        )
+        if (!registryMoved) throw new Error('Tab ownership transfer failed')
+      }
+      if (ownerBinding) ownerBinding.owner = this
+      this.tabs.splice(targetIndex, 0, tab)
+      inserted = true
+
+      if (tab.kind === 'web') {
+        if (record.wasRecoveryPending) this.recoveryPendingViews.add(tab.view)
+        this.updateWebContentsUrl(tab.view.webContents.id, tab.view.webContents.getURL() || tab.url)
+      }
+
+      if (options.activate !== false || !this.activeTabId) {
+        if (this.findInPageTabId && this.findInPageTabId !== tab.id) this.clearFindInPage()
+        if (this.activeTabId) {
+          const currentTab = this.findTab(this.activeTabId)
+          if (currentTab?.kind === 'web') this.detachTabView(currentTab)
+        }
+        this.activeTabId = tab.id
+        if (tab.kind === 'web') {
+          const zoomFactor = this.applyZoomToView(tab.view, tab.url)
+          if (!this.attachTabView(tab)) throw new Error('Transferred tab view could not be attached')
+          this.emitZoomState(tab, zoomFactor)
+          this.emitPageEvent(
+            tab,
+            tab.view.webContents.id,
+            tab.view.webContents.getURL() || tab.url,
+            true,
+            'active-tab-changed',
+          )
+        }
+        this.onUrlChange?.(tab.url)
+        this.emitActiveTabChange(tab.url)
+      }
+      this.notifyTabListChanged()
+      this.emitSessionChange()
+
+      if (record.registryTransfer && !this.viewRegistry!.completeTabTransfer(record.registryTransfer)) {
+        throw new Error('Tab ownership transfer could not be committed')
+      }
+      record.source.pendingTabTransfers.delete(tab.id)
+      record.state = 'adopted'
+      return true
+    } catch (error) {
+      appLogger.warn('browser.tab-adopt-failed', {
+        tabId: tab.id,
+        errorName: getErrorName(error),
+      })
+      if (inserted) this.removeFailedAdoption(tab, previousActiveTabId)
+      if (ownerBinding) ownerBinding.owner = record.source
+      if (registryMoved && record.registryTransfer) {
+        record.source.viewRegistry?.rollbackTabTransfer(record.registryTransfer)
+      }
+      record.source.restoreReleasedTab(releasedTab, record, registryMoved)
+      return false
+    }
+  }
+
+  private rollbackReleasedTab(releasedTab: ReleasedTab): boolean {
+    const record = RELEASED_TAB_RECORDS.get(releasedTab)
+    if (!record || record.source !== this || record.state !== 'released') return false
+    return this.restoreReleasedTab(releasedTab, record, false)
+  }
+
+  private restoreReleasedTab(
+    releasedTab: ReleasedTab,
+    record: TabTransferRecord,
+    registryAlreadyRolledBack: boolean,
+  ): boolean {
+    if (
+      record.state !== 'released'
+      || this.pendingTabTransfers.get(record.tab.id) !== releasedTab
+      || this.isDestroying
+      || this.window.isDestroyed()
+    ) {
+      this.invalidateReleasedTab(record)
+      return false
+    }
+    const tab = record.tab
+    if (
+      record.registryTransfer
+      && !registryAlreadyRolledBack
+      && !this.viewRegistry?.rollbackTabTransfer(record.registryTransfer)
+    ) {
+      this.invalidateReleasedTab(record)
+      return false
+    }
+
+    if (tab.kind === 'web') {
+      const ownerBinding = TAB_VIEW_OWNER_BINDINGS.get(tab.view)
+      if (!ownerBinding) {
+        this.invalidateReleasedTab(record)
+        return false
+      }
+      ownerBinding.owner = this
+    }
+    this.tabs.splice(Math.min(record.sourceIndex, this.tabs.length), 0, tab)
+    this.pendingTabTransfers.delete(tab.id)
+    record.state = 'rolled-back'
+
+    if (tab.kind === 'web') {
+      if (record.wasRecoveryPending) this.recoveryPendingViews.add(tab.view)
+      this.updateWebContentsUrl(tab.view.webContents.id, tab.view.webContents.getURL() || tab.url)
+    }
+    if (record.sourceActiveTabId === tab.id) {
+      if (this.activeTabId) {
+        const currentTab = this.findTab(this.activeTabId)
+        if (currentTab?.kind === 'web') this.detachTabView(currentTab)
+      }
+      this.activeTabId = tab.id
+      if (tab.kind === 'web') {
+        const zoomFactor = this.applyZoomToView(tab.view, tab.url)
+        this.attachTabView(tab)
+        this.emitZoomState(tab, zoomFactor)
+        this.emitPageEvent(
+          tab,
+          tab.view.webContents.id,
+          tab.view.webContents.getURL() || tab.url,
+          true,
+          'active-tab-changed',
+        )
+      }
+      this.onUrlChange?.(tab.url)
+      this.emitActiveTabChange(tab.url)
+    }
+    this.notifyTabListChanged()
+    this.emitSessionChange()
+    return true
+  }
+
+  private removeFailedAdoption(tab: ManagedTab, previousActiveTabId: string | null): void {
+    const tabIndex = this.findTabIndex(tab.id)
+    if (tabIndex >= 0) this.tabs.splice(tabIndex, 1)
+    if (tab.kind === 'web') {
+      this.recoveryPendingViews.delete(tab.view)
+      this.removeWebContentsUrl(tab.view.webContents.id)
+      this.detachTabView(tab)
+    }
+    if (this.activeTabId === tab.id) this.activeTabId = null
+    if (previousActiveTabId && this.findTab(previousActiveTabId)) this.switchTab(previousActiveTabId)
+    else this.notifyEmptyTabState()
+  }
+
+  private invalidateReleasedTab(record: TabTransferRecord): void {
+    if (record.state !== 'released') return
+    record.state = 'invalid'
+    record.source.pendingTabTransfers.delete(record.tab.id)
+    if (record.registryTransfer) {
+      record.source.viewRegistry?.discardTabTransfer(record.registryTransfer)
+    }
+    if (record.tab.kind === 'web') {
+      try {
+        unregisterOjWebContents(record.tab.view.webContents)
+      } catch { /* destroyed while transferring */ }
+      TAB_VIEW_OWNER_BINDINGS.delete(record.tab.view)
+      safeCloseWebContents(record.tab.view)
+    }
+  }
+
+  private notifyEmptyTabState(): void {
+    this.onUrlChange?.('')
+    this.emitActiveTabChange('')
+    this.notifyTabListChanged()
+    this.emitSessionChange()
   }
 
   private replaceWebTabWithInternal(tab: ManagedWebTab, page: InternalPage): void {
@@ -1263,19 +1613,23 @@ export class TabManager {
       title: tab.title || '首页',
       url: tab.url,
       canReload: tab.kind === 'web' || tab.id === this.activeTabId,
-      canDetach: false,
+      canDetach: this.tabDetachHandler !== null,
       canCloseOthers: this.tabs.length > 1,
       canCloseToRight: tabIndex >= 0 && tabIndex < this.tabs.length - 1,
       canReopenClosed: this.closedTabs.length > 0,
       reload: () => this.reloadTabFromContext(tabId),
       duplicate: () => { this.duplicateTab(tabId) },
-      detach: () => undefined,
+      detach: () => { this.tabDetachHandler?.(tabId) },
       close: () => { this.closeTab(tabId) },
       closeOthers: () => { this.closeOtherTabs(tabId) },
       closeToRight: () => { this.closeTabsToRight(tabId) },
       reopenClosed: () => { this.reopenClosedTab() },
       copyUrl: () => clipboard.writeText(tab.url),
     })
+  }
+
+  setTabDetachHandler(handler: ((tabId: string) => void) | null): void {
+    this.tabDetachHandler = handler
   }
 
   reloadTab(tabId: string): void {
@@ -1841,6 +2195,11 @@ export class TabManager {
     this.zoomChangedHandler = null
     this.recoveryPendingViews.clear()
     this.sessionChangeListeners.clear()
+    for (const releasedTab of [...this.pendingTabTransfers.values()]) {
+      const record = RELEASED_TAB_RECORDS.get(releasedTab)
+      if (record?.state === 'released') this.invalidateReleasedTab(record)
+    }
+    this.pendingTabTransfers.clear()
     const tabs = [...this.tabs]
     for (const tab of tabs) {
       if (tab.kind === 'web') this.emitPageDestroyed(tab, tab.view.webContents.id)

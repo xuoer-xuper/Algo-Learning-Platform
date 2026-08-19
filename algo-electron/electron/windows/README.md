@@ -7,13 +7,14 @@
 ## 2. 当前实现
 
 - `AppWindow.ts`：封装一个完整壳窗口及其唯一 `TabManager`，提供销毁检查、定向事件发送和窗口状态 flush。
+- `TabTransferCoordinator.ts`：按稳定 tabId 串行过户；根据屏幕落点执行同窗排序、跨壳接纳或创建空的完整壳，并在失败时关闭目标、回滚源标签。
 - `WindowManager.ts`：持有 `Map<windowId, AppWindow>`，跟踪最近注册/聚焦窗口，按 shell 或 tab webContents 解析所属窗口，并负责窗口注销时清除归属。
-- `ViewRegistry.ts`：应用级 `webContentsId -> { windowId, tabId, view }` 事实源；shell 的 `tabId/view` 为 `null`，web 标签记录真实 `WebContentsView`。
+- `ViewRegistry.ts`：应用级 `webContentsId -> { windowId, tabId, view }` 事实源；shell 的 `tabId/view` 为 `null`，web 标签记录真实 `WebContentsView`；begin/move/complete/rollback/discard transfer handle 保证过户期间不会被窗口注销误删。
 - `WindowCreationGate.ts`：在主服务/session store 就绪前拒绝建窗，合并重叠请求，并在退出时停止且等待在途创建，避免启动 `activate` 双窗或退出后迟到注册。
 - `WindowSessionRegistry.ts`：按 `windowId` 保存 session persistence runtime；重复 close 与并发 `before-quit` 复用同一个 dispose promise，最终 flush 完成后才移除。
 - `windowBounds.ts`：版本化保存 normal bounds 与 maximized；读取时按现存显示器 workArea 校正，显示器拔除或完全越界时回到主屏；store 级队列串行执行共享临时文件的原子替换。
 
-B3.2 已完成页面事件、Tracking、ContestGuard、实时提交和 Coach 的多窗口语义。B3.3 完成标签过户前，拆分入口继续禁用。
+B3.2 已完成页面事件、Tracking、ContestGuard、实时提交和 Coach 的多窗口语义。B3.3 已完成完整壳标签过户；剩余全窗口服务广播与多窗口会话快照分别由 B3.4/B3.5 收尾。
 
 ## 3. 所有权规则
 
@@ -24,7 +25,7 @@ B3.2 已完成页面事件、Tracking、ContestGuard、实时提交和 Coach 的
 - 下载开始时捕获来源 `windowId`；完成时只通知仍存活的来源窗口，不改投其他窗口。
 - `.user.js` 下载仅在 Electron 没有提供 source 且当前恰好一个完整壳窗口时回退；非空未知 source 必须拒绝路由。
 - 窗口 close flush 在完成前必须持续拦截重复 close；应用退出同时等待 session 与 bounds flush。
-- `WindowManager` 不接管 Coach 桌宠或历史 `DetachedWindow`；B3.3 会删除后者并让拆分窗口统一成为完整 `AppWindow`。
+- `WindowManager` 不接管 Coach 桌宠；拆分窗口统一由 `AppWindow` 表示，`TabTransferCoordinator` 负责过户编排。
 - `WindowManager` 提供去重的最近窗口变化订阅，供 Coach 单会话防抖跟随；业务服务仍自行维护 attach/detach，不把服务状态塞入所有权层。
 
 ## 4. 验证

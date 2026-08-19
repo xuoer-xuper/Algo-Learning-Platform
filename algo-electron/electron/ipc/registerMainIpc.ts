@@ -18,6 +18,7 @@ import { registerStatsIpc } from './registerStatsIpc'
 import { registerSubmissionsIpc } from './registerSubmissionsIpc'
 import type { PendingUserScriptInstallRegistry } from '../downloads/userScriptNavigation'
 import { getShellWindowOwner } from './trustedSender'
+import type { AppWindow } from '../windows/AppWindow'
 
 interface RegisterMainIpcOptions {
   getSyncService: () => SyncService | null
@@ -27,6 +28,14 @@ interface RegisterMainIpcOptions {
   getBrowserDiagnostics?: () => BrowserDiagnostics | null
   getUserScriptInstallRegistry?: () => PendingUserScriptInstallRegistry | null
   allowInsecureLocalhost?: boolean
+  moveTabToNewWindow?: (source: AppWindow, tabId: string) => Promise<boolean>
+  finishTabDrag?: (
+    source: AppWindow,
+    tabId: string,
+    targetIndex: number,
+    screenX: number,
+    screenY: number,
+  ) => Promise<boolean>
 }
 
 export function registerMainIpc(options: RegisterMainIpcOptions): void {
@@ -40,6 +49,8 @@ export function registerMainIpc(options: RegisterMainIpcOptions): void {
     getBrowserDiagnostics: options.getBrowserDiagnostics,
     getUserScriptInstallRegistry: options.getUserScriptInstallRegistry,
     allowInsecureLocalhost: options.allowInsecureLocalhost,
+    moveTabToNewWindow: options.moveTabToNewWindow,
+    finishTabDrag: options.finishTabDrag,
   })
   registerConfigIpc()
   registerCookieIpc()
