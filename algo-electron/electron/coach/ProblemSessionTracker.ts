@@ -1,8 +1,7 @@
 import crypto from 'node:crypto'
-import type { BrowserWindow } from 'electron'
-import type { TabManager } from '../browser/TabManager'
 import type { TrackingService } from '../tracking/TrackingService'
 import type { ProblemIdentity } from '../shared/types'
+import type { AppWindow } from '../windows/AppWindow'
 import {
   type ProblemSession,
   type ProblemSessionPhase,
@@ -47,9 +46,7 @@ import {
 export type ParseProblemUrlFn = (url: string) => ProblemIdentity | null
 
 export interface ProblemSessionTrackerOptions {
-  tabManager: TabManager
   trackingService: TrackingService
-  getMainWindow: () => BrowserWindow | null
   /** URL → ProblemIdentity 解析函数（parsers/registry.parseUrl 的无副作用版本） */
   parseProblemUrl: ParseProblemUrlFn
   /** 系统空闲阈值（秒），超过则不计时。默认 60s */
@@ -88,8 +85,6 @@ interface ResolvedOptions {
   setInterval: (fn: () => void, ms: number) => NodeJS.Timeout
   clearInterval: (handle: NodeJS.Timeout) => void
   now: () => number
-  getMainWindow: () => BrowserWindow | null
-  tabManager: TabManager
   trackingService: TrackingService
   parseProblemUrl: ParseProblemUrlFn
 }
@@ -100,14 +95,18 @@ export class ProblemSessionTracker {
   private current: ProblemSession | null = null
   private history: ProblemSession[] = []
   private tickHandle: NodeJS.Timeout | null = null
+  private started = false
+  private activeWindow: AppWindow | null = null
   /** 上次 tick 时间戳（ms），用于计算 elapsed */
   private lastTickAt: number | null = null
   /** 主窗口是否聚焦 */
   private mainWindowFocused = true
   /** 用户主动标记"今天别提醒"的提示类型 */
   private neverTodayEventTypes = new Set<string>()
-  /** tabManager/navigate 监听器解绑句柄 */
+  /** 全局 tracking/tick 生命周期解绑句柄 */
   private cleanupFns: Array<() => void> = []
+  /** 当前活动窗口的 tab/focus 解绑句柄 */
+  private windowCleanupFns: Array<() => void> = []
 
   constructor(options: ProblemSessionTrackerOptions) {
     this.options = {
@@ -120,8 +119,6 @@ export class ProblemSessionTracker {
       setInterval: options.setInterval ?? setInterval,
       clearInterval: options.clearInterval ?? clearInterval,
       now: options.now ?? Date.now,
-      getMainWindow: options.getMainWindow,
-      tabManager: options.tabManager,
       trackingService: options.trackingService,
       parseProblemUrl: options.parseProblemUrl,
     }
@@ -132,43 +129,32 @@ export class ProblemSessionTracker {
    * 必须在 app ready 后调用。
    */
   start(): void {
-    // 1. 订阅 TrackingService 的内部题目识别 callback
-    this.options.trackingService.setProblemDetectedCallback((identity) => {
+    if (this.started) return
+    this.started = true
+
+    // 1. 题目识别是全局出口，只消费当前窗口的结果。
+    const unsubscribeProblemDetected = this.options.trackingService.addProblemDetectedListener((identity, source) => {
+      if (!this.activeWindow) return
+      if (source?.windowId !== this.activeWindow.id) return
       this.handleProblemDetected(identity)
     })
+    this.cleanupFns.push(unsubscribeProblemDetected)
 
-    // 2. 订阅 active tab 变化（用于切换题目/挂起）
-    const activeListener = (url: string) => {
-      this.handleActiveTabChange(url)
-    }
-    const unsubscribeActive = this.options.tabManager.addActiveTabChangeListener(activeListener)
-    this.cleanupFns.push(unsubscribeActive)
-
-    // 3. 订阅主窗口 focus/blur（用 electron 主窗口对象）
-    const win = this.options.getMainWindow()
-    if (win) {
-      const onFocus = () => {
-        this.mainWindowFocused = true
-      }
-      const onBlur = () => {
-        this.mainWindowFocused = false
-      }
-      win.on('focus', onFocus)
-      win.on('blur', onBlur)
-      this.cleanupFns.push(() => {
-        win.off('focus', onFocus)
-        win.off('blur', onBlur)
-      })
-    }
-
-    // 4. 启动 tick
+    // 2. 启动 tick
     this.lastTickAt = this.options.now()
     this.tickHandle = this.options.setInterval(() => this.tick(), this.options.tickIntervalMs)
+
+    if (this.activeWindow) this.bindWindow(this.activeWindow)
   }
 
   /** 停止 tracker：关当前 session + 清理监听器 */
   stop(): void {
+    if (!this.started) return
+    this.started = false
     this.closeCurrentSession('closed')
+    this.detachWindow()
+    this.activeWindow = null
+    this.mainWindowFocused = false
     if (this.tickHandle) {
       this.options.clearInterval(this.tickHandle)
       this.tickHandle = null
@@ -181,6 +167,20 @@ export class ProblemSessionTracker {
       }
     }
     this.cleanupFns = []
+  }
+
+  /** 切换 Coach 唯一跟随窗口；旧窗口会话关闭，新窗口活动题成为当前会话。 */
+  switchWindow(appWindow: AppWindow | null): void {
+    if (this.activeWindow?.id === appWindow?.id) return
+    this.closeCurrentSession('closed')
+    this.detachWindow()
+    this.activeWindow = appWindow
+    this.mainWindowFocused = false
+    if (this.started && appWindow) this.bindWindow(appWindow)
+  }
+
+  getCurrentWindowId(): string | null {
+    return this.activeWindow?.id ?? null
   }
 
   /** 当前会话（可能为 null） */
@@ -243,6 +243,46 @@ export class ProblemSessionTracker {
   }
 
   // --- 内部 ---
+
+  private bindWindow(appWindow: AppWindow): void {
+    const activeListener = (url: string) => {
+      if (this.activeWindow?.id !== appWindow.id) return
+      this.handleActiveTabChange(url)
+    }
+    this.windowCleanupFns.push(appWindow.tabManager.addActiveTabChangeListener(activeListener))
+
+    const win = appWindow.browserWindow
+    const onFocus = () => {
+      if (this.activeWindow?.id === appWindow.id) this.mainWindowFocused = true
+    }
+    const onBlur = () => {
+      if (this.activeWindow?.id === appWindow.id) this.mainWindowFocused = false
+    }
+    win.on('focus', onFocus)
+    win.on('blur', onBlur)
+    this.windowCleanupFns.push(() => {
+      win.off('focus', onFocus)
+      win.off('blur', onBlur)
+    })
+
+    try {
+      this.mainWindowFocused = !win.isDestroyed() && win.isFocused()
+    } catch {
+      this.mainWindowFocused = false
+    }
+    this.handleActiveTabChange(appWindow.tabManager.getUrl())
+  }
+
+  private detachWindow(): void {
+    for (const cleanup of this.windowCleanupFns) {
+      try {
+        cleanup()
+      } catch {
+        /* ignore */
+      }
+    }
+    this.windowCleanupFns = []
+  }
 
   private handleProblemDetected(identity: ProblemIdentity): void {
     // 若与当前 session 同题，保持

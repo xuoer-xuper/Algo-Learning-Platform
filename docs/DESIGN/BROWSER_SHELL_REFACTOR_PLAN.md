@@ -459,7 +459,8 @@ Renderer（同一构建产物，多窗口实例化——桌宠 hash 路由已证
 | B2.6 | [x] | 六个内部页面已改为真实标签创建、切换、地址同步、再次激活与标签关闭契约；实现与完成标记同提交，B2 统一验证已通过，完整记录见 §11.27、§11.30 |
 | B2.7-B2.8 | [x] | B2.7 下载/查找/缩放与 B2.8 完整右键菜单已实现；B2 统一验证、生产构建、NSIS 与真实 packaged 双实例 smoke 全部通过，完整记录见 §11.28-§11.30 |
 | B3.1 | [x] | WindowManager/AppWindow/ViewRegistry、sender 归属路由、窗口 bounds/maximized 持久化与多显示器越界校验已完成；保持单窗口行为，完整记录见 §11.31 |
-| B3.2-B3.5 | [ ] | 事件源多流化、服务聚合、标签过户、广播、完整多窗口生命周期与会话恢复待实施；B3.2 完成前拆分入口继续禁用 |
+| B3.2 | [x] | per-webContents 页面事件、Tracking 多 visit、Contest 聚合、Coach 最近窗口防抖、实时提交/用户脚本精确 owner、deleteProblem 事务重算已完成；拆分入口仍保持禁用，待 B3.3 标签过户后开放 |
+| B3.3-B3.5 | [ ] | 标签过户、全窗口广播/剩余服务多窗口化、完整多窗口生命周期与会话恢复待实施 |
 | B4.1-B4.6 | [ ] | 026_site_credentials、Vault、自动填充、账户页、登录捕获、fuses 均待实施 |
 | B5.1-B5.6 | [ ] | 仅按视觉冻结约束做结构收尾、暗色、无障碍、桌宠策略和 Latex |
 | B6.1-B6.7 | [ ] | 027_userscript_runtime、GM 桥、网络代理、早注入、资源、安装更新与管理页均待实施 |
@@ -882,4 +883,21 @@ Renderer（同一构建产物，多窗口实例化——桌宠 hash 路由已证
 | 视觉影响 | 未修改 `src/`、CSS、颜色、字体、按钮形态、整体布局或动画基调；现有前端风格继续冻结 |
 | 暂缓验证 | 按批量策略，本任务不单独运行生产构建、NSIS 或真实 packaged 双实例 smoke；B3.2-B3.5 完成后统一执行整个 B3 验收 |
 | 后续工作 | 进入 B3.2：导航事件 per-webContents 化，ContestGuard 多流聚合、TrackingService 多 visit、提交/脚本/Coach 直达消费者；B3.2 完成前拆分入口保持禁用 |
+| 完成时间 | 北京时间 `2026-08-19` |
+
+### 11.32 B3.2 多源页面事件链路完成记录
+
+| 字段 | 填写内容 |
+|---|---|
+| 任务 | B3.2 per-webContents 页面事件源、Tracking/Contest/Coach 多窗口服务语义、实时提交与用户脚本精确 owner、tracking repository 与 deleteProblem 事务重算 |
+| 状态 | `[x] 已完成` |
+| Commit | `browser: 完成 B3.2 多源页面事件链路`（代码、测试、架构文档与本完成标记同提交） |
+| 页面事件 | `TabManager` 发布统一 `{windowId, tabId, webContentsId, url, isMainFrame, reason}`；覆盖 did-navigate、SPA did-navigate-in-page、dom-ready、page-title-updated、did-frame-finish-load、did-finish-load、active-tab-changed、destroyed；iframe 不覆盖顶层 URL，destroyed exactly-once，脚本执行和导航均拒绝 stale owner |
+| Tracking 与数据库 | `TrackingService` 按 windowId 并行维护 visit，同题去重并按来源精确关闭；problem/visit/activity 写入收进事务 repository；`deleteProblem` 在事务内删除关联事实并重算所有受影响日期，post-commit 重算失败写入诊断而不误报删除失败 |
+| 提交与脚本 | RealtimeSubmissionService 可 attach/detach 多个 TabManager，跨 frame 注入覆盖 SPA/后台标签，未知、已导航或已 detach 的 OJ sender fail closed；用户脚本和题目标题提取按精确 page event 注入，背景同 URL 标签互不串页 |
+| Contest 与 Coach | 全局 `ContestUrlAggregator` 聚合所有窗口并在 detach/destroy 清理；Coach 单会话以最近窗口为跟随目标，200ms 防抖，约束抓取绑定精确 page event 并用 generation 丢弃迟到结果；窗口 recency 变化有去重订阅 |
+| 自动验证 | B3.2 定向矩阵通过：Vitest `25 files / 317 tests`；核心回归 `npm run test:core` 通过（Vitest `70 files / 677 tests`）；Coach `13 files / 286 tests` 与 Electron LLM 配置检查通过；DB suite（Vitest、backup/import、migration safety、stats benchmark、repositories）通过；`npm run typecheck`、`npm run lint`、architecture `7/7`、security、docs 与 `git diff --check` 全部通过 |
+| 视觉影响 | 未修改前端 TSX/CSS、颜色、字体、按钮形态、整体布局或动画基调；继续冻结既有前端风格 |
+| 暂缓验证 | 按批量策略，本任务不运行生产构建、NSIS 或真实 packaged 双实例 smoke；B3.3-B3.5 完成后统一执行整个 B3 验收 |
+| 后续工作 | 进入 B3.3：完整壳标签过户、拖出/右键/双击拆分、拖回合并与过户回滚；在此之前拆分入口继续禁用 |
 | 完成时间 | 北京时间 `2026-08-19` |

@@ -1,4 +1,4 @@
-import type { TabManager } from '../browser/TabManager'
+import type { BrowserPageEvent, TabManager } from '../browser/TabManager'
 import { BrowserDiagnostics } from '../diagnostics/BrowserDiagnostics'
 import type { UserScriptService } from './UserScriptService'
 import { appLogger, type Logger } from '../shared/logger'
@@ -19,7 +19,8 @@ export function installUserScriptInjection(options: InstallUserScriptInjectionOp
   const diagnostics = options.diagnostics ?? new BrowserDiagnostics()
   const logger = options.logger ?? appLogger
 
-  tabManager.setPageLoadedCallback(async (url) => {
+  const injectForPage = async (event: BrowserPageEvent): Promise<void> => {
+    const { url } = event
     logger.debug('userscript.page-loaded', { url })
 
     const userScriptService = getUserScriptService()
@@ -112,7 +113,7 @@ export function installUserScriptInjection(options: InstallUserScriptInjectionOp
           };
           void 0;
         `
-        await tabManager.executeScript(polyfills)
+        await tabManager.executeScriptForPage(event, polyfills)
         logger.debug('userscript.polyfills-injected', { url, scriptName: script.name })
 
         if (resources.length > 0) {
@@ -131,7 +132,7 @@ export function installUserScriptInjection(options: InstallUserScriptInjectionOp
               return void 0;
             })()
           `
-          await tabManager.executeScript(fetchResourcesCode)
+          await tabManager.executeScriptForPage(event, fetchResourcesCode)
           logger.debug('userscript.resources-fetched', { url, scriptName: script.name })
         }
 
@@ -151,11 +152,11 @@ export function installUserScriptInjection(options: InstallUserScriptInjectionOp
               return void 0;
             })()
           `
-          await tabManager.executeScript(loadRequiresCode)
+          await tabManager.executeScriptForPage(event, loadRequiresCode)
           logger.debug('userscript.requires-loaded', { url, scriptName: script.name })
         }
 
-        await tabManager.executeScript(`${script.code}\n; void 0;`)
+        await tabManager.executeScriptForPage(event, `${script.code}\n; void 0;`)
         logger.info('userscript.inject-completed', { url, scriptName: script.name })
         diagnostics.record('userscript', 'inject', 'success', { url, detail: script.name })
       } catch (error) {
@@ -163,6 +164,11 @@ export function installUserScriptInjection(options: InstallUserScriptInjectionOp
         diagnostics.record('userscript', 'inject', 'failed', { url, detail: `${script.name}: ${getErrorMessage(error)}` })
       }
     }
+  }
+
+  tabManager.addPageEventListener((event) => {
+    if (event.reason !== 'did-finish-load' || !event.isMainFrame) return
+    void injectForPage(event)
   })
 
   return diagnostics

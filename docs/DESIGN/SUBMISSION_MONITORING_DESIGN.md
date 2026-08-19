@@ -9,7 +9,7 @@
 ## 2. 实时数据流
 
 ```text
-TabManager
+TabManager BrowserPageEvent
   -> RealtimeHookInjector
   -> adapter registry
   -> site adapter injectHookScript()
@@ -22,6 +22,8 @@ TabManager
 ```
 
 `registry` 只负责 adapter 注册和查找。站点 URL 解析、提交解析、实时 hook、题目身份解析应放在 `algo-electron/electron/adapters/sites/{site}/` 目录内。
+
+`RealtimeSubmissionService` 可同时 attach 多个 `TabManager`。hook 注入绑定完整 `windowId/tabId/webContentsId/url` page owner，覆盖主框架加载、SPA 导航、标签激活和子 frame 完成事件；脚本通过 `executeScriptAcrossFramesForPage` 注入，重试期间若 owner 或 URL 已过期会直接失败。OJ IPC sender 必须能反查到当前 page owner，未知、已导航或已 detach 的 sender 即使仍在 OJ trusted registry 中也不会进入 `SubmissionWatcher`。
 
 ## 3. 手动同步数据流
 
@@ -45,6 +47,7 @@ TabManager
 - 查看提交记录、刷新历史页、打开提交详情不应产生新提交。
 - Cookie、用户源码、完整请求体不写入普通日志或诊断 payload。
 - DOM 文本默认不可信，除非站点 adapter 明确做了 intent、稳定性和身份关联校验。
+- IPC sender 除 origin/main-frame/payload 校验外，还必须匹配当前精确 page owner；不得按 URL 猜测同地址标签，也不得回退最近窗口。
 
 `SubmissionWatcherCore` 是最后一道保护：即使 adapter 返回了数据，核心仍会拒绝 `TESTING` 和 `UNKNOWN`。
 

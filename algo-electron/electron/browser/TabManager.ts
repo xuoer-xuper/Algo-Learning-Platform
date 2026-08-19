@@ -71,6 +71,26 @@ export interface WebContentsUrlSnapshot {
   url: string | null
 }
 
+export type BrowserPageEventReason =
+  | 'did-navigate'
+  | 'did-navigate-in-page'
+  | 'dom-ready'
+  | 'did-frame-finish-load'
+  | 'page-title-updated'
+  | 'did-finish-load'
+  | 'active-tab-changed'
+  | 'destroyed'
+
+export interface BrowserPageEvent {
+  windowId: string
+  tabId: string
+  webContentsId: number
+  url: string
+  isMainFrame: boolean
+  reason: BrowserPageEventReason
+  title?: string
+}
+
 type PopupWindowOptions = BrowserWindowConstructorOptions & {
   webContents?: WebContents
 }
@@ -123,8 +143,10 @@ export class TabManager {
   private domReadyListeners = new Set<(url: string) => void>()
   private activeTabChangeListeners = new Set<(url: string) => void>()
   private webContentsUrlListeners = new Set<(snapshot: WebContentsUrlSnapshot) => void>()
+  private pageEventListeners = new Set<(event: BrowserPageEvent) => void>()
   private sessionChangeListeners = new Set<() => void>()
   private webContentsUrls = new Map<number, string>()
+  private destroyedPageEventIds = new Set<number>()
   private shortcutHandler: ((event: Electron.Event, input: Input, source: WebContents) => void) | null = null
   private navigationBlockedHandler: ((reason: NavigationBlockReason) => void) | null = null
   private tabLimitReachedHandler: ((limit: number) => void) | null = null
@@ -135,7 +157,7 @@ export class TabManager {
   private readonly saveZoomFactorForUrl: (url: string, factor: number) => number | null
   private readonly userScriptInstallRegistry: PendingUserScriptInstallRegistry | null
   private readonly buildSearchUrlForQuery: (query: string) => string
-  private readonly windowId: string | null
+  private readonly windowId: string
   private readonly viewRegistry: ViewRegistry | null
   private closedTabs: ClosedTabSnapshot[] = []
   private isDestroying = false
@@ -153,18 +175,18 @@ export class TabManager {
     this.saveZoomFactorForUrl = options.saveZoomFactorForUrl ?? ((_url, factor) => factor)
     this.userScriptInstallRegistry = options.userScriptInstallRegistry ?? null
     this.buildSearchUrlForQuery = options.buildSearchUrlForQuery ?? ((query) => query)
-    this.windowId = options.windowId ?? null
+    this.windowId = options.windowId ?? `unmanaged-${window.webContents.id}`
     this.viewRegistry = options.viewRegistry ?? null
     this.window.on('resize', () => this.updateBounds())
   }
 
   private registerTabView(tabId: string, view: WebContentsView): void {
-    if (!this.windowId || !this.viewRegistry) return
+    if (!this.viewRegistry) return
     this.viewRegistry.registerTab(this.windowId, tabId, view)
   }
 
   private unregisterTabView(viewOrId: WebContentsView | number): void {
-    if (!this.windowId || !this.viewRegistry) return
+    if (!this.viewRegistry) return
     if (typeof viewOrId === 'number') {
       this.viewRegistry.unregister(viewOrId, this.windowId)
       return
@@ -450,10 +472,12 @@ export class TabManager {
     contents.on('will-navigate', guardNavigation)
     contents.on('will-redirect', guardNavigation)
 
-    contents.on('did-navigate', (_event, url) => {
+    contents.on('did-navigate', (_event, url, _httpResponseCode, _httpStatusText, isMainFrame = true) => {
+      const tab = this.findTabByView(view)
+      if (tab) this.emitPageEvent(tab, contentsId, url, isMainFrame, 'did-navigate')
+      if (!isMainFrame) return
       this.updateWebContentsUrl(contentsId, url)
       const zoomFactor = this.applyZoomToView(view, url)
-      const tab = this.findTabByView(view)
       if (tab) {
         const urlChanged = tab.url !== url
         if (urlChanged && tab.id === this.findInPageTabId) this.clearFindInPage()
@@ -467,10 +491,12 @@ export class TabManager {
       }
     })
 
-    contents.on('did-navigate-in-page', (_event, url) => {
+    contents.on('did-navigate-in-page', (_event, url, isMainFrame = true) => {
+      const tab = this.findTabByView(view)
+      if (tab) this.emitPageEvent(tab, contentsId, url, isMainFrame, 'did-navigate-in-page')
+      if (!isMainFrame) return
       this.updateWebContentsUrl(contentsId, url)
       const zoomFactor = this.applyZoomToView(view, url)
-      const tab = this.findTabByView(view)
       if (tab) {
         const urlChanged = tab.url !== url
         if (urlChanged && tab.id === this.findInPageTabId) this.clearFindInPage()
@@ -579,6 +605,8 @@ export class TabManager {
     })
 
     contents.on('destroyed', () => {
+      const tab = this.findTabByView(view)
+      if (tab) this.emitPageDestroyed(tab, contentsId)
       this.removeWebContentsUrl(contentsId)
       this.handleViewDestroyed(view, contentsId)
     })
@@ -592,6 +620,7 @@ export class TabManager {
           const url = contents.getURL()
           this.onTitleChange?.(title, url)
         }
+        this.emitPageEvent(tab, contentsId, contents.getURL() || tab.url, true, 'page-title-updated', title)
         if (titleChanged) {
           this.notifyTabListChanged()
           this.emitSessionChange()
@@ -604,16 +633,17 @@ export class TabManager {
       if (tab) {
         tab.url = contents.getURL()
         this.emitDomReady(tab.url)
+        this.emitPageEvent(tab, contentsId, tab.url, true, 'dom-ready')
       }
     })
 
     contents.on('did-frame-finish-load', (_event, isMainFrame) => {
-      if (isMainFrame) return
       const tab = this.findTabByView(view)
-      if (tab && tab.id === this.activeTabId) {
-        tab.url = contents.getURL()
-        this.emitDomReady(tab.url)
-      }
+      if (!tab) return
+      const url = contents.getURL() || tab.url
+      this.emitPageEvent(tab, contentsId, url, isMainFrame, 'did-frame-finish-load')
+      if (isMainFrame || tab.id !== this.activeTabId) return
+      this.emitDomReady(url)
     })
 
     contents.on('did-finish-load', () => {
@@ -627,8 +657,9 @@ export class TabManager {
         this.updateTabHealth(tab)
       }
       if (!tab || tab.isCrashed) return
+      const url = contents.getURL() || tab.url
+      this.emitPageEvent(tab, contentsId, url, true, 'did-finish-load')
       if (tab && tab.id === this.activeTabId) {
-        const url = contents.getURL()
         this.onPageLoaded?.(url)
       }
       // 注入反检测脚本到主世界（绕过 contextIsolation），每个页面及 iframe 加载后执行
@@ -882,6 +913,7 @@ export class TabManager {
     if (wasActive && tab.kind === 'web') this.detachTabView(tab)
 
     this.rememberClosedTab(tab)
+    if (tab.kind === 'web') this.emitPageDestroyed(tab, tab.view.webContents.id)
     this.tabs.splice(tabIndex, 1)
     if (tab.kind === 'web') {
       this.recoveryPendingViews.delete(tab.view)
@@ -948,6 +980,13 @@ export class TabManager {
       const zoomFactor = this.applyZoomToView(newTab.view, newTab.url)
       this.attachTabView(newTab)
       this.emitZoomState(newTab, zoomFactor)
+      this.emitPageEvent(
+        newTab,
+        newTab.view.webContents.id,
+        newTab.view.webContents.getURL() || newTab.url,
+        true,
+        'active-tab-changed',
+      )
     }
 
     this.onUrlChange?.(newTab.url)
@@ -998,6 +1037,7 @@ export class TabManager {
       // A redirect can race with renderer teardown.
     }
     this.unregisterTabView(tab.view)
+    this.emitPageDestroyed(tab, tab.view.webContents.id)
     const internalTab: ManagedInternalTab = {
       id: tab.id,
       kind: 'internal',
@@ -1100,6 +1140,7 @@ export class TabManager {
         // A crashed view may already have lost its webContents object.
       }
       this.unregisterTabView(currentTab.view)
+      this.emitPageDestroyed(currentTab, currentTab.view.webContents.id)
       this.tabs[tabIndex] = internalTab
       safeCloseWebContents(currentTab.view)
     } else {
@@ -1649,6 +1690,13 @@ export class TabManager {
     }
   }
 
+  addPageEventListener(callback: (event: BrowserPageEvent) => void): () => void {
+    this.pageEventListeners.add(callback)
+    return () => {
+      this.pageEventListeners.delete(callback)
+    }
+  }
+
   addSessionChangeListener(callback: () => void): () => void {
     this.sessionChangeListeners.add(callback)
     return () => {
@@ -1684,6 +1732,32 @@ export class TabManager {
     }
   }
 
+  private emitPageEvent(
+    tab: ManagedWebTab,
+    webContentsId: number,
+    url: string,
+    isMainFrame: boolean,
+    reason: BrowserPageEventReason,
+    title?: string,
+  ): void {
+    const event: BrowserPageEvent = {
+      windowId: this.windowId,
+      tabId: tab.id,
+      webContentsId,
+      url,
+      isMainFrame,
+      reason,
+      title,
+    }
+    for (const listener of this.pageEventListeners) listener(event)
+  }
+
+  private emitPageDestroyed(tab: ManagedWebTab, webContentsId: number): void {
+    if (this.destroyedPageEventIds.has(webContentsId)) return
+    this.destroyedPageEventIds.add(webContentsId)
+    this.emitPageEvent(tab, webContentsId, tab.url, true, 'destroyed')
+  }
+
   private updateWebContentsUrl(webContentsId: number, url: string): void {
     this.webContentsUrls.set(webContentsId, url)
     this.emitWebContentsUrl({ webContentsId, url })
@@ -1700,6 +1774,63 @@ export class TabManager {
     }
   }
 
+  async executeScriptForPage(event: BrowserPageEvent, code: string, userGesture = false): Promise<any> {
+    const tab = this.resolvePageTab(event)
+    return tab.view.webContents.executeJavaScript(code, userGesture)
+  }
+
+  async executeScriptAcrossFramesForPage(event: BrowserPageEvent, code: string): Promise<any> {
+    const tab = this.resolvePageTab(event)
+    return executeScriptAcrossFrames(tab, event.url, code)
+  }
+
+  getTitleForPage(event: BrowserPageEvent): string | null {
+    try {
+      return this.resolvePageTab(event).title || null
+    } catch {
+      return null
+    }
+  }
+
+  navigatePage(event: BrowserPageEvent, url: string): Promise<void> {
+    const decision = this.evaluateNavigation(url, true)
+    if (!decision.allowed) return Promise.reject(new Error('Page navigation is not allowed'))
+    return this.resolvePageTab(event).view.webContents.loadURL(url)
+  }
+
+  private resolvePageTab(event: BrowserPageEvent): ManagedWebTab {
+    if (event.windowId !== this.windowId) throw new Error('Page does not belong to this window')
+    const tab = this.findTab(event.tabId)
+    if (!this.isWebTab(tab) || tab.isCrashed) throw new Error('Page tab is unavailable')
+    if (tab.view.webContents.id !== event.webContentsId || tab.view.webContents.isDestroyed()) {
+      throw new Error('Page webContents is unavailable')
+    }
+    const currentUrl = tab.view.webContents.getURL() || tab.url
+    if (currentUrl !== event.url) throw new Error('Page navigation is stale')
+    return tab
+  }
+
+  getWindowId(): string {
+    return this.windowId
+  }
+
+  isPageActive(event: BrowserPageEvent): boolean {
+    return event.windowId === this.windowId && event.tabId === this.activeTabId
+  }
+
+  getActivePageEvent(reason: BrowserPageEventReason = 'active-tab-changed'): BrowserPageEvent | null {
+    const tab = this.activeTabId ? this.findTab(this.activeTabId) : null
+    if (!this.isWebTab(tab) || tab.isCrashed) return null
+    return {
+      windowId: this.windowId,
+      tabId: tab.id,
+      webContentsId: tab.view.webContents.id,
+      url: tab.view.webContents.getURL() || tab.url,
+      isMainFrame: true,
+      reason,
+    }
+  }
+
   destroy() {
     this.isDestroying = true
     this.isOmniboxOpen = false
@@ -1711,6 +1842,10 @@ export class TabManager {
     this.recoveryPendingViews.clear()
     this.sessionChangeListeners.clear()
     const tabs = [...this.tabs]
+    for (const tab of tabs) {
+      if (tab.kind === 'web') this.emitPageDestroyed(tab, tab.view.webContents.id)
+    }
+    this.pageEventListeners.clear()
     this.tabs = []
     this.activeTabId = null
     for (const tab of tabs) {
@@ -1724,6 +1859,7 @@ export class TabManager {
         }
       } catch { /* ignore */ }
     }
+    this.destroyedPageEventIds.clear()
     this.isDestroying = false
   }
 }

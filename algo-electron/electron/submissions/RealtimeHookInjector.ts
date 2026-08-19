@@ -1,9 +1,10 @@
 import type { SiteAdapter } from '../adapters/types'
+import type { BrowserPageEvent } from '../browser/TabManager'
 import type { SiteConfigData } from '../db/repositories/siteRepository'
 import type { RealtimeSubmissionDiagnostics } from './RealtimeSubmissionDiagnostics'
 
 export interface RealtimeHookHost {
-  executeScriptOnUrl(url: string, code: string): Promise<unknown>
+  executeScriptAcrossFramesForPage(event: BrowserPageEvent, code: string): Promise<unknown>
 }
 
 export interface RealtimeHookInjectorDeps {
@@ -16,7 +17,8 @@ export interface RealtimeHookInjectorDeps {
 export class RealtimeHookInjector {
   constructor(private readonly deps: RealtimeHookInjectorDeps) {}
 
-  inject(host: RealtimeHookHost, url: string): void {
+  inject(host: RealtimeHookHost, event: BrowserPageEvent): void {
+    const { url } = event
     const adapter = this.deps.getRealtimeAdapterForUrl(url)
     this.deps.diagnostics.recordPageSeen(url, adapter?.id)
     if (!adapter?.injectHookScript) return
@@ -27,7 +29,7 @@ export class RealtimeHookInjector {
       return
     }
 
-    this.executeWithRetry(host, url, adapter.injectHookScript())
+    this.executeWithRetry(host, event, adapter.injectHookScript())
       .then(() => {
         this.deps.diagnostics.recordHookSuccess(adapter.id, url)
       })
@@ -37,7 +39,11 @@ export class RealtimeHookInjector {
       })
   }
 
-  private async executeWithRetry(host: RealtimeHookHost, url: string, code: string): Promise<unknown> {
+  private async executeWithRetry(
+    host: RealtimeHookHost,
+    event: BrowserPageEvent,
+    code: string,
+  ): Promise<unknown> {
     let lastError: unknown
     // Remote OJ pages often finish SPA navigation before their frames are ready.
     // Retry only the injection step; the injected adapter still owns readiness.
@@ -46,7 +52,7 @@ export class RealtimeHookInjector {
         await new Promise(resolve => { setTimeout(resolve, delayMs) })
       }
       try {
-        return await host.executeScriptOnUrl(url, code)
+        return await host.executeScriptAcrossFramesForPage(event, code)
       } catch (error) {
         lastError = error
       }

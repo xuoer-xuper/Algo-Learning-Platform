@@ -1,5 +1,4 @@
 import type { WebContentsUrlSnapshot } from '../browser/TabManager'
-import type { ContestGuard } from './ContestGuard'
 import { detectContestFromUrl } from './ContestGuard'
 
 export interface WebContentsUrlSource {
@@ -57,21 +56,24 @@ export class ContestUrlAggregator {
 
 export function installContestNavigationTracking(
   source: WebContentsUrlSource,
-  guard: Pick<ContestGuard, 'handleUrlChange'>,
+  aggregator: ContestUrlAggregator,
 ): () => void {
-  const aggregator = new ContestUrlAggregator({
-    onAggregateUrlChange: (url) => guard.handleUrlChange(url),
-  })
+  const trackedWebContentsIds = new Set<number>()
   const unsubscribe = source.addWebContentsUrlListener((snapshot) => {
     if (snapshot.url === null) {
+      trackedWebContentsIds.delete(snapshot.webContentsId)
       aggregator.remove(snapshot.webContentsId)
       return
     }
+    trackedWebContentsIds.add(snapshot.webContentsId)
     aggregator.update(snapshot.webContentsId, snapshot.url)
   })
 
   return () => {
     unsubscribe()
-    aggregator.clear()
+    for (const webContentsId of trackedWebContentsIds) {
+      aggregator.remove(webContentsId)
+    }
+    trackedWebContentsIds.clear()
   }
 }

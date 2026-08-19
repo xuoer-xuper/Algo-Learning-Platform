@@ -1,6 +1,7 @@
 import { test } from 'vitest'
 import assert from 'node:assert'
 import type { SiteAdapter } from '../../electron/adapters/types.ts'
+import type { BrowserPageEvent } from '../../electron/browser/TabManager.ts'
 import type { SiteConfigData } from '../../electron/db/repositories/siteRepository.ts'
 import { RealtimeHookInjector, type RealtimeHookHost } from '../../electron/submissions/RealtimeHookInjector.ts'
 import { RealtimeSubmissionDiagnostics } from '../../electron/submissions/RealtimeSubmissionDiagnostics.ts'
@@ -34,20 +35,33 @@ async function flushMicrotasks(): Promise<void> {
   await new Promise((resolve) => setTimeout(resolve, 0))
 }
 
+function createPageEvent(url: string): BrowserPageEvent {
+  return {
+    windowId: 'window-1',
+    tabId: 'tab-1',
+    webContentsId: 101,
+    url,
+    isMainFrame: true,
+    reason: 'did-finish-load',
+  }
+}
+
 const successDiagnostics = new RealtimeSubmissionDiagnostics()
 const executed: { url: string; code: string }[] = []
 const successHost: RealtimeHookHost = {
-  executeScriptOnUrl: async (url, code) => {
-    executed.push({ url, code })
+  executeScriptAcrossFramesForPage: async (event, code) => {
+    executed.push({ url: event.url, code })
   },
 }
+
+const successEvent = createPageEvent('https://leetcode.cn/problems/two-sum/')
 
 new RealtimeHookInjector({
   getRealtimeAdapterForUrl: () => createAdapter(),
   getSiteById: () => createSite(true),
   diagnostics: successDiagnostics,
   logWarn: () => {},
-}).inject(successHost, 'https://leetcode.cn/problems/two-sum/')
+}).inject(successHost, successEvent)
 await flushMicrotasks()
 
 assert.deepStrictEqual(executed, [{
@@ -64,10 +78,10 @@ new RealtimeHookInjector({
   diagnostics: disabledDiagnostics,
   logWarn: () => {},
 }).inject({
-  executeScriptOnUrl: async () => {
+  executeScriptAcrossFramesForPage: async () => {
     disabledExecuted = true
   },
-}, 'https://leetcode.cn/problems/two-sum/')
+}, createPageEvent('https://leetcode.cn/problems/two-sum/'))
 await flushMicrotasks()
 
 assert.strictEqual(disabledExecuted, false, 'Hook injector should not inject when site is disabled')
@@ -82,10 +96,10 @@ new RealtimeHookInjector({
   diagnostics: failureDiagnostics,
   logWarn: (...args) => warnings.push(args),
 }).inject({
-  executeScriptOnUrl: async () => {
+  executeScriptAcrossFramesForPage: async () => {
     throw new Error('execute failed')
   },
-}, 'https://leetcode.cn/problems/two-sum/')
+}, createPageEvent('https://leetcode.cn/problems/two-sum/'))
 await new Promise((resolve) => setTimeout(resolve, 1300))
 
 assert.strictEqual(failureDiagnostics.getStatus().lastHook?.status, 'failed', 'Hook injector should record failed injection')
@@ -101,12 +115,12 @@ new RealtimeHookInjector({
   diagnostics: retryDiagnostics,
   logWarn: () => {},
 }).inject({
-  executeScriptOnUrl: async (url, code) => {
+  executeScriptAcrossFramesForPage: async (event, code) => {
     attempts += 1
     if (attempts === 1) throw new Error('tab not ready')
-    retryExecuted.push({ url, code })
+    retryExecuted.push({ url: event.url, code })
   },
-}, 'https://leetcode.cn/problems/two-sum/?envType=daily-question')
+}, createPageEvent('https://leetcode.cn/problems/two-sum/?envType=daily-question'))
 await new Promise((resolve) => setTimeout(resolve, 300))
 
 assert.strictEqual(attempts, 2, 'Hook injector should retry transient injection failures')
@@ -124,10 +138,10 @@ new RealtimeHookInjector({
   diagnostics: ignoredDiagnostics,
   logWarn: () => {},
 }).inject({
-  executeScriptOnUrl: async () => {
+  executeScriptAcrossFramesForPage: async () => {
     ignoredExecuted = true
   },
-}, 'https://example.com/problems/two-sum/')
+}, createPageEvent('https://example.com/problems/two-sum/'))
 await flushMicrotasks()
 
 assert.strictEqual(ignoredExecuted, false, 'Hook injector should ignore URLs without a realtime adapter')

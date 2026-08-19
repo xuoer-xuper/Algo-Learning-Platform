@@ -25,6 +25,13 @@ AI Coach 是 ALP 的本地优先过程陪练模块。当前 `2.0.0-beta.2` 已�
 5. 仅在用户启用 LLM、配置有效且不处于比赛模式时，才收集脱敏上下文请求增强提示。
 6. 结果通过固定 IPC 推送到桌宠，用户反馈写入 Coach 专属表并影响后续频率。
 
+### 3.1 多窗口语义
+
+- `ContestUrlAggregator` 是应用级共享实例；每个 `TabManager` 独立 attach/detach，任一窗口任一 webContents 仍处于比赛页时，`ContestGuard` 都保持全局静默。
+- `ProblemSessionTracker` 保持单会话，只消费最近活跃窗口的活动题与 Tracking 事件；窗口快速切换经过 200ms 防抖，旧窗口监听在切换后解绑。
+- `ConstraintParser` 捕获发起时的 `AppWindow` 与 `TabManager`，并用 generation guard 丢弃窗口或题目切换后的迟到结果。
+- 新建窗口在注册到 `WindowManager` 后接入比赛聚合；窗口关闭时移除其 URL 快照和 Coach 监听。
+
 ## 4. 合规与安全边界
 
 - renderer 不得直接访问 SQLite、Electron IPC 原语或已保存的明文 API Key。
@@ -37,7 +44,8 @@ AI Coach 是 ALP 的本地优先过程陪练模块。当前 `2.0.0-beta.2` 已�
 ## 5. 关键入口
 
 - 主进程生命周期：`CoachOrchestrator.start()` / `stop()`。
-- 比赛判定：`ContestGuard.isContestMode()`。
+- 比赛判定：共享 `ContestUrlAggregator` 驱动 `ContestGuard.isContestMode()`。
+- 最近窗口跟随：`WindowManager.addMostRecentWindowChangeListener()` 与 `DebouncedWindowFollower`。
 - 桌宠输出：`CoachPetWindow.setPetState()` / `showBubble()`。
 - Renderer API：固定的 `window.electronAPI.coach*` 方法，不提供通用 IPC 通道。
 - 持久化：migration 022-024 与 `electron/db/repositories/coach/`。
@@ -60,4 +68,5 @@ npm run test:all
 
 - 新增 Coach 事件、IPC 或数据表时必须同步类型、preload、主进程 handler、repository、文档和 contract 测试。
 - 修改比赛模式、提示等级或反馈语义时必须补充对应单元测试。
+- 修改窗口跟随、异步约束抓取或比赛 URL 来源时，必须覆盖交错窗口、detach 和迟到结果测试。
 - 新增 LLM Provider 不得改变本地提示默认路径，也不得降低脱敏和降级要求。

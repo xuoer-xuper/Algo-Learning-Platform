@@ -1,4 +1,4 @@
-import type { TabManager } from '../browser/TabManager'
+import type { BrowserPageEvent, TabManager } from '../browser/TabManager'
 import { BrowserDiagnostics } from '../diagnostics/BrowserDiagnostics'
 import { upsertProblem } from '../db/repositories/problemRepository'
 import { resolveBrowserTitleProblemIdentity } from '../parsers/browserTitle'
@@ -28,6 +28,10 @@ export function installProblemTitleTracking(options: InstallProblemTitleTracking
   const extractionTimers = new Map<string, NodeJS.Timeout[]>()
   const successfulExtractions = new Set<string>()
 
+  const pageKey = (event: BrowserPageEvent): string => (
+    `${event.windowId}:${event.tabId}:${event.webContentsId}:${event.url}`
+  )
+
   const updateProblemTitle = (
     url: string,
     title: string | null | undefined,
@@ -40,7 +44,6 @@ export function installProblemTitleTracking(options: InstallProblemTitleTracking
         diagnostics.record('title', 'extract', 'skipped', { url, detail: `${source}: no valid title` })
         return false
       }
-      successfulExtractions.add(url)
       upsertProblem(identity)
       options.notifyProblemsUpdated()
       diagnostics.record('title', 'extract', 'success', { url, detail: source })
@@ -51,30 +54,34 @@ export function installProblemTitleTracking(options: InstallProblemTitleTracking
     }
   }
 
-  const scheduleTitleExtraction = (url: string) => {
+  const scheduleTitleExtraction = (event: BrowserPageEvent) => {
+    const { url } = event
     if (!url || url === 'about:blank') return
-    if (successfulExtractions.has(url)) return
+    const key = pageKey(event)
+    if (successfulExtractions.has(key)) return
 
-    if (extractionTimers.has(url)) {
-      extractionTimers.get(url)?.forEach(clearTimeout)
+    if (extractionTimers.has(key)) {
+      extractionTimers.get(key)?.forEach(clearTimeout)
     }
     const timers: NodeJS.Timeout[] = []
 
     const extract = () => {
-      const title = tabManager.getTitleForUrl(url)
+      const title = tabManager.getTitleForPage(event)
       if (updateProblemTitle(url, title, 'browser-title')) {
+        successfulExtractions.add(key)
         timers.forEach(clearTimeout)
-        extractionTimers.delete(url)
+        extractionTimers.delete(key)
         return
       }
 
       const script = createProblemTitleFallbackScript(url)
       if (!script) return
-      tabManager.executeScriptOnUrl(url, script)
+      tabManager.executeScriptForPage(event, script)
         .then((fallbackTitle) => {
           if (updateProblemTitle(url, typeof fallbackTitle === 'string' ? fallbackTitle : null, 'dom-fallback')) {
+            successfulExtractions.add(key)
             timers.forEach(clearTimeout)
-            extractionTimers.delete(url)
+            extractionTimers.delete(key)
           }
         })
         .catch((error) => {
@@ -87,46 +94,85 @@ export function installProblemTitleTracking(options: InstallProblemTitleTracking
     if (url.includes('pintia.cn') || url.includes('vjudge.net/contest')) {
       timers.push(setTimeout(extract, 8000))
     }
-    extractionTimers.set(url, timers)
+    extractionTimers.set(key, timers)
   }
 
-  tabManager.setNavigateCallback((url) => {
-    let identity
-    try {
-      identity = options.getTrackingService()?.handleNavigation(url)
-    } catch (error) {
-      diagnostics.record('tracking', 'navigate', 'failed', { url, detail: error })
+  tabManager.addPageEventListener((event) => {
+    const { url } = event
+    if (event.reason === 'destroyed') {
+      options.getTrackingService()?.endVisitForPage(event)
+      for (const [key, timers] of extractionTimers) {
+        if (!key.startsWith(`${event.windowId}:${event.tabId}:${event.webContentsId}:`)) continue
+        timers.forEach(clearTimeout)
+        extractionTimers.delete(key)
+      }
+      for (const key of successfulExtractions) {
+        if (key.startsWith(`${event.windowId}:${event.tabId}:${event.webContentsId}:`)) {
+          successfulExtractions.delete(key)
+        }
+      }
       return
     }
-    if (identity) {
-      diagnostics.record('tracking', 'navigate', 'success', { url })
-      options.notifyProblemsUpdated()
-      scheduleTitleExtraction(url)
-    } else {
-      diagnostics.record('tracking', 'navigate', 'skipped', { url, detail: 'No enabled problem identity' })
+
+    if (
+      event.reason === 'did-navigate'
+      || event.reason === 'did-navigate-in-page'
+      || event.reason === 'active-tab-changed'
+    ) {
+      if (!event.isMainFrame) return
+      if (tabManager.isPageActive(event)) {
+        let identity
+        try {
+          identity = options.getTrackingService()?.handleNavigation(event)
+        } catch (error) {
+          diagnostics.record('tracking', 'navigate', 'failed', { url, detail: error })
+          return
+        }
+        if (identity) {
+          diagnostics.record('tracking', 'navigate', 'success', { url })
+          options.notifyProblemsUpdated()
+          scheduleTitleExtraction(event)
+        } else {
+          diagnostics.record('tracking', 'navigate', 'skipped', { url, detail: 'No enabled problem identity' })
+        }
+      }
+      if (event.reason !== 'active-tab-changed') return
     }
-  })
 
-  tabManager.setTitleChangeCallback((title, url) => {
-    if (!url) return
-
-    if (title.includes('Illegal contest ID') && url.includes('codeforces.com')) {
-      const match = url.match(/codeforces\.com\/(?:gym|problemset\/problem|contest)\/(\d+)/)
-      if (match) {
-        tabManager.navigate(`https://codeforces.com/gym/${match[1]}/attachments`)
+    if (event.reason === 'page-title-updated') {
+      const title = event.title ?? ''
+      if (title.includes('Illegal contest ID') && url.includes('codeforces.com')) {
+        const match = url.match(/codeforces\.com\/(?:gym|problemset\/problem|contest)\/(\d+)/)
+        if (match) {
+          void tabManager.navigatePage(event, `https://codeforces.com/gym/${match[1]}/attachments`)
+          return
+        }
+      }
+      if (updateProblemTitle(url, title, 'browser-title')) {
+        successfulExtractions.add(pageKey(event))
         return
       }
+      scheduleTitleExtraction(event)
+      return
     }
 
-    if (updateProblemTitle(url, title, 'browser-title')) return
-    scheduleTitleExtraction(url)
+    if (event.reason === 'active-tab-changed') {
+      const title = tabManager.getTitleForPage(event)
+      if (updateProblemTitle(url, title, 'browser-title')) {
+        successfulExtractions.add(pageKey(event))
+        return
+      }
+      scheduleTitleExtraction(event)
+    }
   })
 
   tabManager.addActiveTabChangeListener((url) => {
-    if (!url || url === 'about:blank') return
-    const title = tabManager.getTitleForUrl(url)
-    if (updateProblemTitle(url, title, 'browser-title')) return
-    scheduleTitleExtraction(url)
+    if (tabManager.getActivePageEvent()) return
+    try {
+      options.getTrackingService()?.handleWindowNavigation(tabManager.getWindowId(), url)
+    } catch (error) {
+      diagnostics.record('tracking', 'active-tab', 'failed', { url, detail: error })
+    }
   })
 
   return diagnostics

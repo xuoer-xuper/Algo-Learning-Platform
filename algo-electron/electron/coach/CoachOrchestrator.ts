@@ -1,9 +1,9 @@
 import crypto from 'node:crypto'
-import type { BrowserWindow } from 'electron'
 import { powerMonitor } from 'electron'
-import type { TabManager } from '../browser/TabManager'
+import type { BrowserPageEvent } from '../browser/TabManager'
 import type { TrackingService } from '../tracking/TrackingService'
 import type { RealtimeSubmissionService } from '../submissions/RealtimeSubmissionService'
+import type { AppWindow } from '../windows/AppWindow'
 import { parseUrl } from '../parsers/registry'
 import { nowBeijing, todayBeijing } from '../shared/time'
 import { appLogger } from '../shared/logger'
@@ -65,7 +65,9 @@ import { CoachEventBridge } from './CoachEventBridge'
 import { ProblemSessionTracker } from './ProblemSessionTracker'
 import { RuleEngine } from './rules/RuleEngine'
 import { ContestGuard } from './ContestGuard'
-import { installContestNavigationTracking } from './ContestUrlAggregator'
+import { ContestUrlAggregator, installContestNavigationTracking } from './ContestUrlAggregator'
+import { DebouncedWindowFollower } from './DebouncedWindowFollower'
+import { AsyncGenerationGate } from './AsyncGenerationGate'
 import { HintSelector } from './hints/HintSelector'
 import { HintLadder, type GetMessageForLevelContext } from './hints/HintLadder'
 import { ConstraintParser, type ProblemConstraints } from './problemFacts/ConstraintParser'
@@ -92,14 +94,16 @@ import { loadCoachConfig, saveCoachConfig } from '../app/config'
  */
 
 export interface CoachOrchestratorOptions {
-  getMainWindow: () => BrowserWindow | null
-  getTabManager: () => TabManager | null
+  getAppWindows: () => AppWindow[]
+  getMostRecentAppWindow: () => AppWindow | null
+  addMostRecentWindowChangeListener: (listener: (window: AppWindow | null) => void) => () => void
   getTrackingService: () => TrackingService | null
   getRealtimeSubmissionService: () => RealtimeSubmissionService | null
   getCoachPetWindow: () => CoachPetWindow | null
 }
 
 const METRICS_LOOKBACK_DAYS = 30
+const WINDOW_SWITCH_DEBOUNCE_MS = 200
 
 export class CoachOrchestrator {
   private readonly options: CoachOrchestratorOptions
@@ -107,6 +111,8 @@ export class CoachOrchestrator {
   private readonly eventBridge: CoachEventBridge
   private readonly ruleEngine: RuleEngine
   private readonly contestGuard: ContestGuard
+  private readonly contestUrlAggregator: ContestUrlAggregator
+  private readonly windowFollower: DebouncedWindowFollower<AppWindow>
   // 阶段 3 服务
   private readonly hintSelector: HintSelector
   private readonly hintLadder: HintLadder
@@ -124,6 +130,14 @@ export class CoachOrchestrator {
   private currentProblemKey: string | null = null
   /** 当前 problem URL（用于 ConstraintParser 注入脚本，避免重复抓取） */
   private currentProblemUrl: string | null = null
+  private currentProblemPage: BrowserPageEvent | null = null
+  private currentProblemWindowId: string | null = null
+  private readonly constraintGenerationGate = new AsyncGenerationGate()
+  private constraintFetchPending = false
+  private activeAppWindow: AppWindow | null = null
+  private requestedWindowId: string | null = null
+  private activeWindowConstraintCleanup: (() => void) | null = null
+  private readonly attachedWindowCleanups = new Map<string, () => void>()
 
   /** 当前展示的 intervention_id（用于关联 feedback） */
   private currentBubbleInterventionId: string | null = null
@@ -151,14 +165,19 @@ export class CoachOrchestrator {
       onContestEnter: (info) => this.handleContestEnter(info),
       onContestEnd: (info, durationSec) => this.handleContestEnd(info, durationSec),
     })
+    this.contestUrlAggregator = new ContestUrlAggregator({
+      onAggregateUrlChange: (url) => this.contestGuard.handleUrlChange(url),
+    })
 
     // 2. ProblemSessionTracker
     this.sessionTracker = new ProblemSessionTracker({
-      tabManager: options.getTabManager()!,
       trackingService: options.getTrackingService()!,
-      getMainWindow: options.getMainWindow,
       parseProblemUrl: parseUrl,
       powerMonitor,
+    })
+    this.windowFollower = new DebouncedWindowFollower({
+      delayMs: WINDOW_SWITCH_DEBOUNCE_MS,
+      onApply: (appWindow) => this.applyActiveWindow(appWindow),
     })
 
     // 3. 阶段 3 服务（先初始化，RuleEngine 需要引用）
@@ -214,6 +233,16 @@ export class CoachOrchestrator {
     // 启动 session tracker
     this.sessionTracker.start()
 
+    for (const appWindow of this.options.getAppWindows()) this.attachAppWindow(appWindow)
+    const initialWindow = this.options.getMostRecentAppWindow()
+    this.requestedWindowId = initialWindow?.id ?? null
+    this.windowFollower.applyNow(initialWindow)
+    this.detachFns.push(this.options.addMostRecentWindowChangeListener((appWindow) => {
+      this.requestedWindowId = appWindow?.id ?? null
+      this.invalidateCurrentConstraints()
+      this.windowFollower.request(appWindow)
+    }))
+
     // 订阅提交检测出口
     const realtime = this.options.getRealtimeSubmissionService()
     if (realtime) {
@@ -229,25 +258,23 @@ export class CoachOrchestrator {
       this.detachFns.push(unsubscribe)
     }
 
-    // ContestGuard 聚合所有 view；ConstraintParser 只跟随活动标签。
-    const tabManager = this.options.getTabManager()
-    if (tabManager) {
-      this.detachFns.push(installContestNavigationTracking(tabManager, this.contestGuard))
-      const unsubscribe = tabManager.addActiveTabChangeListener((url) => {
-        // 阶段 3：切到题目页时异步触发 ConstraintParser
-        this.maybeFetchConstraints(url)
-      })
-      this.detachFns.push(unsubscribe)
-    }
-
-    // TrackingService 的题目识别仍由内部 callback 处理，不再发送 renderer channel。
-    // 注意：ProblemSessionTracker 也订阅了它（通过 setProblemDetectedCallback）。
-    // TrackingService 当前是单 callback 设计，所以 ProblemSessionTracker 占用了。
-    // 为避免冲突，EventBridge 在收到 submission 时会自动从 ProblemSessionTracker 拉取 sessionId，
-    // 不需要额外的 renderer 订阅。
-
     // 启动后延迟展示"仅供参考"免责声明（等桌宠窗口 React 组件就绪）
     setTimeout(() => this.maybeShowDisclaimer(), 2000)
+  }
+
+  /** 将新建窗口接入全局比赛 URL 聚合；重复 attach 是幂等的。 */
+  attachAppWindow(appWindow: AppWindow): void {
+    if (this.attachedWindowCleanups.has(appWindow.id)) return
+    const detachContestTracking = installContestNavigationTracking(
+      appWindow.tabManager,
+      this.contestUrlAggregator,
+    )
+    const onClosed = () => this.detachAppWindow(appWindow.id)
+    appWindow.browserWindow.once('closed', onClosed)
+    this.attachedWindowCleanups.set(appWindow.id, () => {
+      appWindow.browserWindow.off('closed', onClosed)
+      detachContestTracking()
+    })
   }
 
   /** 检查并展示"仅供参考"免责声明 */
@@ -323,37 +350,52 @@ export class CoachOrchestrator {
    * - 解析成功后缓存到 currentConstraints，供 RuleEngine / HintSelector 使用
    * - 切到非题目页时清空缓存
    */
-  private maybeFetchConstraints(url: string): void {
+  private maybeFetchConstraints(appWindow: AppWindow, pageEvent: BrowserPageEvent): void {
+    const { url } = pageEvent
+    if (
+      this.activeAppWindow?.id !== appWindow.id
+      || this.requestedWindowId !== appWindow.id
+      || !appWindow.tabManager.isPageActive(pageEvent)
+    ) return
+
     if (!url) {
-      this.currentConstraints = null
-      this.currentProblemKey = null
-      this.currentProblemUrl = null
+      this.invalidateCurrentConstraints()
       return
     }
     // 用 parseUrl 识别题目页
     const identity = parseUrl(url)
     if (!identity) {
-      // 非题目页，清空缓存
-      this.currentConstraints = null
-      this.currentProblemKey = null
-      this.currentProblemUrl = null
+      this.invalidateCurrentConstraints()
       return
     }
-    // 已缓存且 problem key 一致则跳过
+
     const problemKey = `${identity.platform}:${identity.platformProblemId}`
-    if (this.currentProblemKey === problemKey && this.currentConstraints !== null) {
+    const isNavigation = pageEvent.reason === 'did-navigate' || pageEvent.reason === 'did-navigate-in-page'
+    if (
+      !isNavigation
+      &&
+      this.currentProblemWindowId === appWindow.id
+      && this.currentProblemKey === problemKey
+      && this.currentProblemUrl === url
+      && (this.currentConstraints !== null || this.constraintFetchPending)
+    ) {
       return
     }
+
+    const generation = this.constraintGenerationGate.next()
+    const windowId = appWindow.id
+    const tabManager = appWindow.tabManager
+    this.currentConstraints = null
     this.currentProblemKey = problemKey
     this.currentProblemUrl = url
-
-    // 异步触发：通过 TabManager 注入脚本
-    const tabManager = this.options.getTabManager()
-    if (!tabManager) return
+    this.currentProblemPage = pageEvent
+    this.currentProblemWindowId = windowId
+    this.constraintFetchPending = true
 
     const executeScript = async (targetUrl: string, code: string): Promise<unknown> => {
       try {
-        return await tabManager.executeScriptOnUrl(targetUrl, code)
+        if (targetUrl !== pageEvent.url) throw new Error('Constraint URL does not match page owner')
+        return await tabManager.executeScriptForPage(pageEvent, code)
       } catch (err) {
         appLogger.warn('coach.constraint-injection-failed', { url: targetUrl, error: err })
         return null
@@ -369,22 +411,114 @@ export class CoachOrchestrator {
         executeScript,
       })
       .then((constraints) => {
+        if (!this.isCurrentConstraintRequest(generation, windowId, problemKey, pageEvent)) return
         this.currentConstraints = constraints
+        this.constraintFetchPending = false
       })
       .catch((err) => {
+        if (!this.isCurrentConstraintRequest(generation, windowId, problemKey, pageEvent)) return
         appLogger.warn('coach.constraint-fetch-failed', { url, error: err })
         this.currentConstraints = null
+        this.constraintFetchPending = false
       })
+  }
+
+  private applyActiveWindow(appWindow: AppWindow | null): void {
+    this.activeWindowConstraintCleanup?.()
+    this.activeWindowConstraintCleanup = null
+
+    const liveWindow = appWindow && !appWindow.isDestroyed() ? appWindow : null
+    this.activeAppWindow = liveWindow
+    this.invalidateCurrentConstraints()
+    this.sessionTracker.switchWindow(liveWindow)
+    if (!liveWindow) return
+
+    const tabManager = liveWindow.tabManager
+    const removePageListener = tabManager.addPageEventListener((event) => {
+      if (event.reason === 'destroyed') {
+        if (this.currentProblemPage && this.samePageOwner(this.currentProblemPage, event)) {
+          this.invalidateCurrentConstraints()
+        }
+        return
+      }
+      if (!event.isMainFrame) return
+      if (
+        event.reason !== 'did-navigate'
+        && event.reason !== 'did-navigate-in-page'
+        && event.reason !== 'active-tab-changed'
+      ) return
+      this.maybeFetchConstraints(liveWindow, event)
+    })
+    const removeActiveListener = tabManager.addActiveTabChangeListener(() => {
+      const event = tabManager.getActivePageEvent()
+      if (event) this.maybeFetchConstraints(liveWindow, event)
+      else this.invalidateCurrentConstraints()
+    })
+    this.activeWindowConstraintCleanup = () => {
+      removePageListener()
+      removeActiveListener()
+    }
+    const activePage = tabManager.getActivePageEvent()
+    if (activePage) this.maybeFetchConstraints(liveWindow, activePage)
+  }
+
+  private invalidateCurrentConstraints(): void {
+    this.constraintGenerationGate.next()
+    this.constraintFetchPending = false
+    this.currentConstraints = null
+    this.currentProblemKey = null
+    this.currentProblemUrl = null
+    this.currentProblemPage = null
+    this.currentProblemWindowId = null
+  }
+
+  private isCurrentConstraintRequest(
+    generation: number,
+    windowId: string,
+    problemKey: string,
+    pageEvent: BrowserPageEvent,
+  ): boolean {
+    return this.constraintGenerationGate.isCurrent(generation)
+      && this.activeAppWindow?.id === windowId
+      && this.requestedWindowId === windowId
+      && this.currentProblemWindowId === windowId
+      && this.currentProblemKey === problemKey
+      && this.currentProblemPage !== null
+      && this.samePageOwner(this.currentProblemPage, pageEvent)
+  }
+
+  private samePageOwner(first: BrowserPageEvent, second: BrowserPageEvent): boolean {
+    return first.windowId === second.windowId
+      && first.tabId === second.tabId
+      && first.webContentsId === second.webContentsId
+      && first.url === second.url
+  }
+
+  private detachAppWindow(windowId: string): void {
+    const cleanup = this.attachedWindowCleanups.get(windowId)
+    if (!cleanup) return
+    this.attachedWindowCleanups.delete(windowId)
+    cleanup()
   }
 
   /** 停止所有子服务 */
   stop(): void {
-    this.sessionTracker.stop()
-    this.contestGuard.forceEnd()
     for (const fn of this.detachFns) {
       try { fn() } catch { /* ignore */ }
     }
     this.detachFns = []
+    this.windowFollower.stop()
+    this.activeWindowConstraintCleanup?.()
+    this.activeWindowConstraintCleanup = null
+    this.requestedWindowId = null
+    this.activeAppWindow = null
+    this.invalidateCurrentConstraints()
+    this.sessionTracker.stop()
+    this.contestGuard.forceEnd()
+    for (const windowId of [...this.attachedWindowCleanups.keys()]) {
+      this.detachAppWindow(windowId)
+    }
+    this.contestUrlAggregator.clear()
   }
 
   // --- 状态查询（IPC 消费） ---
@@ -992,15 +1126,17 @@ export class CoachOrchestrator {
     pet?.setPetState('sleep')
     pet?.dismissBubble()
     // 通知 renderer 进入比赛模式（独立 channel，renderer 可订阅切换 UI）
-    this.options.getMainWindow()?.webContents.send('coach:contestModeChanged', {
-      isContestMode: true,
-      contest: {
-        url: info.contestUrl,
-        platform: info.platform,
-        contest_id: info.contestId,
-        entered_at: new Date(info.enteredAt).toISOString(),
-      },
-    })
+    for (const appWindow of this.options.getAppWindows()) {
+      appWindow.send('coach:contestModeChanged', {
+        isContestMode: true,
+        contest: {
+          url: info.contestUrl,
+          platform: info.platform,
+          contest_id: info.contestId,
+          entered_at: new Date(info.enteredAt).toISOString(),
+        },
+      })
+    }
 
     // 写审计日志：进入比赛（zero_intervention=true，比赛期间无任何干预）
     const intervention = buildCoachIntervention({
@@ -1021,10 +1157,12 @@ export class CoachOrchestrator {
   private handleContestEnd(info: { platform: string; contestId: string; contestUrl: string; enteredAt: number }, durationSec: number): void {
     const pet = this.options.getCoachPetWindow()
     pet?.setPetState('idle')
-    this.options.getMainWindow()?.webContents.send('coach:contestModeChanged', {
-      isContestMode: false,
-      contest: null,
-    })
+    for (const appWindow of this.options.getAppWindows()) {
+      appWindow.send('coach:contestModeChanged', {
+        isContestMode: false,
+        contest: null,
+      })
+    }
 
     // 写审计日志：离开比赛（更新 contest_end）
     const end = new Date().toISOString()

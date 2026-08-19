@@ -72,6 +72,48 @@ test('tracks the last registered window and updates recency when a window focuse
   assert.strictEqual(manager.getMostRecent(), first.appWindow)
 })
 
+test('notifies most-recent window changes without duplicate focus emissions', () => {
+  resetElectronMock()
+  const manager = new WindowManager({ viewRegistry: new ViewRegistry() })
+  const first = createAppWindow('window-1')
+  const second = createAppWindow('window-2')
+  const changes: Array<string | null> = []
+  const unsubscribe = manager.addMostRecentWindowChangeListener((appWindow) => {
+    changes.push(appWindow?.id ?? null)
+  })
+
+  manager.register(first.appWindow)
+  manager.register(second.appWindow)
+  second.browserWindow.focus()
+  first.browserWindow.focus()
+  manager.unregister(first.appWindow.id)
+  manager.unregister(second.appWindow.id)
+
+  assert.deepStrictEqual(changes, ['window-1', 'window-2', 'window-1', 'window-2', null])
+
+  unsubscribe()
+  manager.register(createAppWindow('window-3').appWindow)
+  assert.deepStrictEqual(changes, ['window-1', 'window-2', 'window-1', 'window-2', null])
+})
+
+test('falls back to the previously active window when the most recent window closes', () => {
+  resetElectronMock()
+  const manager = new WindowManager({ viewRegistry: new ViewRegistry() })
+  const first = createAppWindow('window-1')
+  const second = createAppWindow('window-2')
+  const third = createAppWindow('window-3')
+
+  manager.register(first.appWindow)
+  manager.register(second.appWindow)
+  manager.register(third.appWindow)
+  first.browserWindow.focus()
+  second.browserWindow.focus()
+
+  second.browserWindow.close()
+
+  assert.strictEqual(manager.getMostRecent(), first.appWindow)
+})
+
 test('explicit unregister removes only that window and its view ownership', () => {
   resetElectronMock()
   const viewRegistry = new ViewRegistry()

@@ -3,6 +3,7 @@ import { test } from 'vitest'
 import { BrowserDiagnostics } from '../../electron/diagnostics/BrowserDiagnostics.ts'
 import { installProblemTitleTracking } from '../../electron/tracking/problemTitleTracking.ts'
 import { installUserScriptInjection } from '../../electron/scripts/userScriptInjector.ts'
+import type { BrowserPageEvent } from '../../electron/browser/TabManager.ts'
 
 test('browser diagnostics are bounded, serializable, and redacted to metadata', () => {
   const diagnostics = new BrowserDiagnostics()
@@ -27,14 +28,18 @@ test('browser diagnostics are bounded, serializable, and redacted to metadata', 
 
 test('title and userscript silent fallbacks publish injectable diagnostics', async () => {
   const diagnostics = new BrowserDiagnostics()
-  const callbacks: { navigate?: (url: string) => void; loaded?: (url: string) => Promise<void> } = {}
+  const pageListeners: Array<(event: BrowserPageEvent) => void> = []
   const tabManager = {
-    setNavigateCallback: (callback: (url: string) => void) => { callbacks.navigate = callback },
-    setTitleChangeCallback: () => undefined,
+    addPageEventListener: (callback: (event: BrowserPageEvent) => void) => {
+      pageListeners.push(callback)
+      return () => undefined
+    },
     addActiveTabChangeListener: () => () => undefined,
-    getTitleForUrl: () => undefined,
-    executeScriptOnUrl: async () => { throw new Error('fallback failed') },
-    setPageLoadedCallback: (callback: (url: string) => Promise<void>) => { callbacks.loaded = callback },
+    getActivePageEvent: () => null,
+    getWindowId: () => 'window-1',
+    isPageActive: () => true,
+    getTitleForPage: () => undefined,
+    executeScriptForPage: async () => { throw new Error('fallback failed') },
   }
 
   installProblemTitleTracking({
@@ -49,8 +54,17 @@ test('title and userscript silent fallbacks publish injectable diagnostics', asy
     diagnostics,
   })
 
-  callbacks.navigate?.('https://example.com/')
-  await callbacks.loaded?.('https://example.com/')
+  const pageEvent: BrowserPageEvent = {
+    windowId: 'window-1',
+    tabId: 'tab-1',
+    webContentsId: 101,
+    url: 'https://example.com/',
+    isMainFrame: true,
+    reason: 'did-navigate',
+  }
+  pageListeners.forEach((listener) => listener(pageEvent))
+  pageListeners.forEach((listener) => listener({ ...pageEvent, reason: 'did-finish-load' }))
+  await new Promise((resolve) => setTimeout(resolve, 0))
   const entries = diagnostics.getSnapshot().entries
   assert.ok(entries.some((entry) => entry.area === 'tracking' && entry.status === 'skipped'))
   assert.ok(entries.some((entry) => entry.area === 'userscript' && entry.event === 'service-unavailable'))

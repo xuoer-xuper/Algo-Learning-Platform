@@ -2,7 +2,7 @@
 
 ## 状态
 
-已接受（B3.1 基础层已实施，B3.2-B3.5 分阶段完成多窗口语义）
+已接受（B3.1 所有权基础层与 B3.2 页面/服务多流语义已实施，B3.3-B3.5 继续完成过户、广播和生命周期）
 
 ## 背景
 
@@ -19,6 +19,7 @@
 5. 事件默认定向发回所属壳；需要应用级广播的服务事件由 B3.4 显式实现，不能用全局主窗口 getter冒充广播。
 6. 窗口 normal bounds 与 maximized 使用独立版本化 JSON 原子持久化；恢复时按当前显示器 workArea 校正完全越界和尺寸异常。
 7. B3.1 保持单窗口行为。ContestGuard、Tracking、提交与 Coach 多流语义在 B3.2 就绪前，拖出、双击拆分和“移到新窗口”继续禁用；B3.3 才删除 `DetachedWindow` 并上线完整壳过户。
+8. B3.2 的页面事件必须携带完整 owner 与顶层 URL；精确脚本 API 对窗口、标签、webContents 和 URL 做 stale 校验。Tracking 按窗口并行，ContestGuard 聚合所有窗口，Coach 单会话防抖跟随最近窗口，实时提交未知 owner fail closed。
 
 ## 影响
 
@@ -32,12 +33,12 @@
 代价：
 
 - `main.ts` 仍负责单窗口创建编排，B3.3/B3.5 还需继续下沉创建、过户和多窗口快照生命周期。
-- 应用级服务当前仍按单活跃 TabManager 工作；B3.2/B3.4 必须完成多流/广播语义后才能开放拆分入口。
+- 页面事件、Tracking、ContestGuard、实时提交、用户脚本和 Coach 已具备 B3.2 多窗口语义；`problems:updated` 广播、SessionTracker 任一窗口聚焦和 SyncService 活动窗口选择仍留在 B3.4。
 - 窗口和标签的所有创建、替换、关闭路径都必须维护 ViewRegistry，不允许绕过。
 
 ## 执行要求
 
 - 不得重新引入模块级 `win`/`tabManager` 单槽。
 - 新增 shell IPC 的窗口敏感操作必须从 `event.sender` 解析 owner。
-- B3.2 未完成前不得启用拆分入口；B3.3 的过户顺序和回滚必须以 ViewRegistry 为事实源。
+- B3.3 完成标签过户和对等壳拆分前不得启用拆分入口；过户顺序和回滚必须以 ViewRegistry 为事实源。
 - 保持现有前端视觉基线；窗口所有权重构不改变颜色、字体、按钮形态、整体布局或动画基调。

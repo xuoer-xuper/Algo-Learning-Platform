@@ -2,7 +2,9 @@ import crypto from 'node:crypto'
 import { getDb } from '../../connection'
 import type { ProblemIdentity } from '../../../shared/types'
 import { nowBeijing } from '../../../shared/time'
+import { appLogger, type Logger } from '../../../shared/logger'
 import { isValidScrapedTitle, shouldReplaceScrapedTitle } from '../../../parsers/titleValidation'
+import { recomputeDailyStatsForDates } from '../stats/recompute'
 
 interface ExistingProblemTitleRow {
   id: string
@@ -64,13 +66,42 @@ export function upsertProblem(identity: ProblemIdentity): void {
   )
 }
 
-export function deleteProblem(problemId: string): boolean {
+export function deleteProblem(problemId: string, logger: Logger = appLogger): boolean {
   const db = getDb()
+  const affectedDates = new Set<string>()
+  const rows = db.prepare(`
+    SELECT substr(entered_at, 1, 10) AS local_day
+    FROM problem_visits WHERE problem_id = ?
+    UNION
+    SELECT substr(submitted_at, 1, 10) AS local_day
+    FROM submissions WHERE problem_id = ?
+    UNION
+    SELECT substr(occurred_at, 1, 10) AS local_day
+    FROM activity_events WHERE problem_id = ?
+    UNION
+    SELECT substr(first_solved_at, 1, 10) AS local_day
+    FROM problems WHERE id = ? AND first_solved_at IS NOT NULL
+  `).all(problemId, problemId, problemId, problemId) as Array<{ local_day: string | null }>
+  for (const row of rows) {
+    if (row.local_day) affectedDates.add(row.local_day)
+  }
 
-  db.prepare('DELETE FROM submissions WHERE problem_id = ?').run(problemId)
-  db.prepare('DELETE FROM problem_visits WHERE problem_id = ?').run(problemId)
-  db.prepare('DELETE FROM activity_events WHERE problem_id = ?').run(problemId)
-
-  const result = db.prepare('DELETE FROM problems WHERE id = ?').run(problemId)
-  return result.changes > 0
+  const deleted = db.transaction(() => {
+    db.prepare('DELETE FROM submissions WHERE problem_id = ?').run(problemId)
+    db.prepare('DELETE FROM problem_visits WHERE problem_id = ?').run(problemId)
+    db.prepare('DELETE FROM activity_events WHERE problem_id = ?').run(problemId)
+    return db.prepare('DELETE FROM problems WHERE id = ?').run(problemId).changes > 0
+  })()
+  if (deleted) {
+    try {
+      recomputeDailyStatsForDates(affectedDates)
+    } catch (error) {
+      logger.warn('problem.delete-stats-recompute-failed', {
+        problemId,
+        affectedDates: [...affectedDates].sort(),
+        error,
+      })
+    }
+  }
+  return deleted
 }

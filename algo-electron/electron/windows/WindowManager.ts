@@ -14,6 +14,8 @@ export interface WindowManagerOptions {
 export class WindowManager {
   private readonly windows = new Map<string, AppWindow>()
   private readonly listeners = new Map<string, WindowListeners>()
+  private readonly mostRecentWindowChangeListeners = new Set<(window: AppWindow | null) => void>()
+  private readonly windowRecency: string[] = []
   private mostRecentWindowId: string | null = null
   readonly viewRegistry: ViewRegistry
 
@@ -27,10 +29,10 @@ export class WindowManager {
     }
     this.viewRegistry.registerShell(appWindow.id, appWindow.browserWindow.webContents)
     this.windows.set(appWindow.id, appWindow)
-    this.mostRecentWindowId = appWindow.id
+    this.markWindowRecent(appWindow.id)
 
     const onFocus = (): void => {
-      if (this.windows.has(appWindow.id)) this.mostRecentWindowId = appWindow.id
+      if (this.windows.has(appWindow.id)) this.markWindowRecent(appWindow.id)
     }
     const onClosed = (): void => {
       this.unregister(appWindow.id)
@@ -50,9 +52,15 @@ export class WindowManager {
       this.listeners.delete(windowId)
     }
     this.windows.delete(windowId)
+    const recencyIndex = this.windowRecency.indexOf(windowId)
+    if (recencyIndex >= 0) this.windowRecency.splice(recencyIndex, 1)
     this.viewRegistry.unregisterWindow(windowId)
     if (this.mostRecentWindowId === windowId) {
-      this.mostRecentWindowId = this.getAll().at(-1)?.id ?? null
+      const nextWindow = [...this.windowRecency]
+        .reverse()
+        .map((candidateId) => this.windows.get(candidateId) ?? null)
+        .find((candidate) => candidate !== null && !candidate.isDestroyed()) ?? null
+      this.setMostRecentWindowId(nextWindow?.id ?? null)
     }
     return appWindow
   }
@@ -73,6 +81,13 @@ export class WindowManager {
     return this.getAll().find((candidate) => !candidate.isDestroyed()) ?? null
   }
 
+  addMostRecentWindowChangeListener(listener: (window: AppWindow | null) => void): () => void {
+    this.mostRecentWindowChangeListeners.add(listener)
+    return () => {
+      this.mostRecentWindowChangeListeners.delete(listener)
+    }
+  }
+
   resolveWebContents(webContents: Pick<WebContents, 'id'> | number | null | undefined): AppWindow | null {
     const entry = this.viewRegistry.get(webContents)
     return entry ? this.get(entry.windowId) : null
@@ -90,5 +105,19 @@ export class WindowManager {
 
   async flushWindowStates(): Promise<void> {
     await Promise.allSettled(this.getAll().map((appWindow) => appWindow.flushWindowState()))
+  }
+
+  private setMostRecentWindowId(windowId: string | null): void {
+    if (windowId === this.mostRecentWindowId) return
+    this.mostRecentWindowId = windowId
+    const appWindow = windowId ? this.windows.get(windowId) ?? null : null
+    for (const listener of this.mostRecentWindowChangeListeners) listener(appWindow)
+  }
+
+  private markWindowRecent(windowId: string): void {
+    const existingIndex = this.windowRecency.indexOf(windowId)
+    if (existingIndex >= 0) this.windowRecency.splice(existingIndex, 1)
+    this.windowRecency.push(windowId)
+    this.setMostRecentWindowId(windowId)
   }
 }

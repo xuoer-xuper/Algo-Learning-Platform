@@ -203,6 +203,7 @@ async function createWindowOnce(isCancelled: () => boolean): Promise<AppWindow |
     flushWindowState: () => windowStatePersistence.flush(),
   })
   windowManager.register(appWindow)
+  coachOrchestrator?.attachAppWindow(appWindow)
   registerShellWebContents(win.webContents, appWindow)
   tabManager.setNavigationBlockedHandler(notifyNavigationBlocked)
   tabManager.setTabLimitReachedHandler((limit) => {
@@ -368,10 +369,11 @@ async function createWindowOnce(isCancelled: () => boolean): Promise<AppWindow |
     removeShellRendererRecovery()
     unregisterShellWebContents(shellWebContents)
     try {
-      services?.trackingService.endCurrentVisit()
+      services?.trackingService.endVisitForWindow(windowId)
     } catch (error) {
       appLogger.warn('tracking.window-close-failed', error)
     }
+    services?.realtimeSubmissionService.detachTabManager(tabManager)
     tabManager.destroy()
   })
 
@@ -527,8 +529,11 @@ void app.whenReady().then(async () => {
         const activeWindow = getMostRecentAppWindow()
         if (activeWindow && services) {
           coachOrchestrator = new CoachOrchestrator({
-            getMainWindow: () => getMostRecentAppWindow()?.browserWindow ?? null,
-            getTabManager: () => getMostRecentAppWindow()?.tabManager ?? null,
+            getAppWindows: () => windowManager.getAll(),
+            getMostRecentAppWindow,
+            addMostRecentWindowChangeListener: (listener) => (
+              windowManager.addMostRecentWindowChangeListener(listener)
+            ),
             getTrackingService: () => services?.trackingService ?? null,
             getRealtimeSubmissionService: () => services?.realtimeSubmissionService ?? null,
             getCoachPetWindow: () => coachPetWindow,

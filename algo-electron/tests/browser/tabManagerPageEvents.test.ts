@@ -1,0 +1,163 @@
+import { describe, expect, it } from 'vitest'
+import { MockBrowserWindow, resetElectronMock } from 'electron'
+import { TabManager, type BrowserPageEvent } from '../../electron/browser/TabManager.ts'
+import { ViewRegistry } from '../../electron/windows/ViewRegistry.ts'
+
+async function drain(): Promise<void> {
+  await Promise.resolve()
+  await Promise.resolve()
+}
+
+describe('TabManager page events', () => {
+  it('emits exact per-webContents identities for background navigation and lifecycle events', async () => {
+    resetElectronMock()
+    const window = new MockBrowserWindow()
+    const registry = new ViewRegistry()
+    const manager = new TabManager(window as never, { windowId: 'window-1', viewRegistry: registry })
+    const events: BrowserPageEvent[] = []
+    manager.addPageEventListener((event) => events.push(event))
+
+    const activeTabId = manager.createTab('https://example.com/active')
+    const backgroundTabId = manager.createTab('https://example.com/background')
+    await drain()
+    manager.switchTab(activeTabId)
+    const backgroundEntry = registry.getByWindow('window-1').find((entry) => entry.tabId === backgroundTabId)
+    expect(backgroundEntry?.kind).toBe('tab')
+    if (!backgroundEntry || backgroundEntry.kind !== 'tab') throw new Error('background tab missing')
+
+    events.length = 0
+    await backgroundEntry.view.webContents.loadURL('https://example.com/background/next')
+    backgroundEntry.view.webContents.emit('page-title-updated', {}, 'Background title')
+    backgroundEntry.view.webContents.emit('dom-ready')
+    backgroundEntry.view.webContents.emit('did-frame-finish-load', {}, false)
+
+    expect(manager.getActiveTabId()).toBe(activeTabId)
+    expect(events).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        windowId: 'window-1',
+        tabId: backgroundTabId,
+        webContentsId: backgroundEntry.webContentsId,
+        url: 'https://example.com/background/next',
+        isMainFrame: true,
+        reason: 'did-navigate',
+      }),
+      expect.objectContaining({ tabId: backgroundTabId, reason: 'page-title-updated', title: 'Background title' }),
+      expect.objectContaining({ tabId: backgroundTabId, reason: 'dom-ready', isMainFrame: true }),
+      expect.objectContaining({ tabId: backgroundTabId, reason: 'did-frame-finish-load', isMainFrame: false }),
+    ]))
+  })
+
+  it('reports iframe navigation without replacing the tab or top-level webContents URL', async () => {
+    resetElectronMock()
+    const window = new MockBrowserWindow()
+    const registry = new ViewRegistry()
+    const manager = new TabManager(window as never, { windowId: 'window-1', viewRegistry: registry })
+    const tabId = manager.createTab('https://example.com/problem')
+    await drain()
+    const entry = registry.getByWindow('window-1').find((candidate) => candidate.tabId === tabId)
+    if (!entry || entry.kind !== 'tab') throw new Error('tab missing')
+
+    const events: BrowserPageEvent[] = []
+    const urlSnapshots: Array<{ webContentsId: number; url: string | null }> = []
+    manager.addPageEventListener((event) => events.push(event))
+    manager.addWebContentsUrlListener((snapshot) => urlSnapshots.push(snapshot))
+    events.length = 0
+    urlSnapshots.length = 0
+
+    entry.view.webContents.emit(
+      'did-navigate',
+      {},
+      'https://frame.example/statement',
+      200,
+      'OK',
+      false,
+    )
+    entry.view.webContents.emit(
+      'did-navigate-in-page',
+      {},
+      'https://frame.example/statement#examples',
+      false,
+    )
+
+    expect(events).toEqual([
+      expect.objectContaining({
+        tabId,
+        url: 'https://frame.example/statement',
+        isMainFrame: false,
+        reason: 'did-navigate',
+      }),
+      expect.objectContaining({
+        tabId,
+        url: 'https://frame.example/statement#examples',
+        isMainFrame: false,
+        reason: 'did-navigate-in-page',
+      }),
+    ])
+    expect(manager.getTabList().find((tab) => tab.id === tabId)?.url).toBe('https://example.com/problem')
+    expect(manager.getActivePageEvent()?.url).toBe('https://example.com/problem')
+    expect(urlSnapshots).toEqual([])
+  })
+
+  it('emits destroyed exactly once when close and webContents teardown overlap', async () => {
+    resetElectronMock()
+    const window = new MockBrowserWindow()
+    const registry = new ViewRegistry()
+    const manager = new TabManager(window as never, { windowId: 'window-1', viewRegistry: registry })
+    const tabId = manager.createTab('https://example.com/problem')
+    await drain()
+    const entry = registry.getByWindow('window-1').find((candidate) => candidate.tabId === tabId)
+    if (!entry || entry.kind !== 'tab') throw new Error('tab missing')
+    const contents = entry.view.webContents
+
+    const events: BrowserPageEvent[] = []
+    manager.addPageEventListener((event) => events.push(event))
+    manager.closeTab(tabId)
+    contents.emit('destroyed')
+
+    expect(events.filter((event) => (
+      event.webContentsId === entry.webContentsId && event.reason === 'destroyed'
+    ))).toEqual([
+      expect.objectContaining({
+        windowId: 'window-1',
+        tabId,
+        webContentsId: entry.webContentsId,
+        url: 'https://example.com/problem',
+      }),
+    ])
+  })
+
+  it('executes only in the page identified by the event and rejects stale ownership', async () => {
+    resetElectronMock()
+    const window = new MockBrowserWindow()
+    const registry = new ViewRegistry()
+    const manager = new TabManager(window as never, { windowId: 'window-1', viewRegistry: registry })
+    const firstTabId = manager.createTab('https://example.com/same')
+    const secondTabId = manager.createTab('https://example.com/same')
+    await drain()
+    const secondEntry = registry.getByWindow('window-1').find((entry) => entry.tabId === secondTabId)
+    if (!secondEntry || secondEntry.kind !== 'tab') throw new Error('second tab missing')
+    const event: BrowserPageEvent = {
+      windowId: 'window-1',
+      tabId: secondTabId,
+      webContentsId: secondEntry.webContentsId,
+      url: 'https://example.com/same',
+      isMainFrame: true,
+      reason: 'did-finish-load',
+    }
+    const calls: string[] = []
+    secondEntry.view.webContents.executeJavaScript = (async (code: string) => {
+      calls.push(code)
+      return 'second-result'
+    }) as never
+
+    await expect(manager.executeScriptForPage(event, 'window.marker = 2')).resolves.toBe('second-result')
+    expect(calls).toEqual(['window.marker = 2'])
+    await expect(manager.executeScriptForPage({ ...event, tabId: firstTabId }, 'wrong')).rejects.toThrow('unavailable')
+
+    await secondEntry.view.webContents.loadURL('https://example.com/next')
+    await expect(manager.executeScriptForPage(event, 'stale-navigation')).rejects.toThrow('stale')
+
+    secondEntry.view.webContents.close()
+    await expect(manager.executeScriptForPage(event, 'stale')).rejects.toThrow('unavailable')
+  })
+})

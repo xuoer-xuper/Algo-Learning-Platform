@@ -6,6 +6,7 @@ test('submissions/realtimeTabActivation.test.ts', async () => {
 
 const tabManagerSource = fs.readFileSync('electron/browser/TabManager.ts', 'utf-8')
 const realtimeServiceSource = fs.readFileSync('electron/submissions/RealtimeSubmissionService.ts', 'utf-8')
+const realtimeInjectorSource = fs.readFileSync('electron/submissions/RealtimeHookInjector.ts', 'utf-8')
 const ojSessionSource = fs.readFileSync('electron/browser/ojSession.ts', 'utf-8')
 
 assert.ok(
@@ -25,12 +26,16 @@ assert.ok(
   'TabManager should reuse realtime DOM-ready listeners after sub-frame loads',
 )
 assert.ok(
-  realtimeServiceSource.includes('tabManager.addActiveTabChangeListener'),
-  'Realtime submission service should inject hooks when an existing tab becomes active',
+  realtimeServiceSource.includes("event.reason === 'active-tab-changed'"),
+  'Realtime submission service should inject hooks when an exact existing page becomes active',
 )
 assert.ok(
-  !realtimeServiceSource.includes('this.emitNavigate(newTab.url)'),
-  'Realtime hook reinjection should not reuse navigation events that drive visit tracking',
+  realtimeServiceSource.includes("event.reason === 'did-navigate-in-page'"),
+  'Realtime hook injection should follow exact SPA navigation events',
+)
+assert.ok(
+  realtimeInjectorSource.includes('executeScriptAcrossFramesForPage'),
+  'Realtime hook injection should target all frames through the exact page owner',
 )
 assert.ok(
   ojSessionSource.includes('getRealtimeAdapterForUrl(details.url)'),

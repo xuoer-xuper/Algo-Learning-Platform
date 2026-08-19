@@ -2,6 +2,7 @@ import { test } from 'vitest'
 import assert from 'node:assert'
 import type { ProblemIdentity, SubmissionData } from '../../electron/shared/types.ts'
 import type { SiteConfigData } from '../../electron/db/repositories/siteRepository.ts'
+import type { BrowserPageEvent } from '../../electron/browser/TabManager.ts'
 import { leetcodeAdapter } from '../../electron/adapters/leetcode.ts'
 import { createOjSubmissionBridge, installOjSubmissionMessageForwarder, OJ_SUBMISSION_BRIDGE_CHANNEL } from '../../electron/browser/ojBridge.ts'
 import { RealtimeHookInjector, type RealtimeHookHost } from '../../electron/submissions/RealtimeHookInjector.ts'
@@ -26,6 +27,14 @@ async function flushMicrotasks(): Promise<void> {
 }
 
 const pageUrl = 'https://leetcode.cn/problems/two-sum/'
+const pageEvent: BrowserPageEvent = {
+  windowId: 'window-1',
+  tabId: 'tab-1',
+  webContentsId: 101,
+  url: pageUrl,
+  isMainFrame: true,
+  reason: 'did-finish-load',
+}
 const submissionCheckUrl = 'https://leetcode.cn/submissions/detail/7654321/check/'
 const savedSubmissions: SubmissionData[] = []
 const upsertedProblems: ProblemIdentity[] = []
@@ -103,8 +112,8 @@ assert.strictEqual(
 )
 
 const host: RealtimeHookHost = {
-  async executeScriptOnUrl(url, code) {
-    assert.strictEqual(url, pageUrl, 'Hook injector should target the active LeetCode page URL')
+  async executeScriptAcrossFramesForPage(event, code) {
+    assert.deepStrictEqual(event, pageEvent, 'Hook injector should preserve the exact LeetCode page owner')
     new Function('window', 'location', code)(fakeWindow, { href: pageUrl })
   },
 }
@@ -114,7 +123,7 @@ new RealtimeHookInjector({
   getSiteById: () => createSite(true),
   diagnostics,
   logWarn: () => {},
-}).inject(host, pageUrl)
+}).inject(host, pageEvent)
 await flushMicrotasks()
 
 assert.strictEqual(diagnostics.getStatus().lastHook?.status, 'success', 'Flow should inject LeetCode realtime hook')

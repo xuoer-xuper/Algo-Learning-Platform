@@ -1,94 +1,166 @@
 import crypto from 'node:crypto'
-import { getDb } from '../db/connection'
 import { parseUrl } from '../parsers/registry'
-import { upsertProblem } from '../db/repositories/problemRepository'
 import { getSiteById } from '../db/repositories/siteRepository'
 import { recomputeDailyStats } from '../db/repositories/statsRepository'
 import type { ProblemIdentity } from '../shared/types'
 import { nowBeijing } from '../shared/time'
 import { appLogger, type Logger } from '../shared/logger'
+import type { BrowserPageEvent } from '../browser/TabManager'
+import { finishProblemVisit, startProblemVisit } from './trackingRepository'
+
+type TrackingPageIdentity = Pick<BrowserPageEvent, 'windowId' | 'tabId' | 'webContentsId'>
+
+interface CurrentVisit {
+  visitId: string
+  enteredAt: number
+  localDay: string
+  problemKey: string
+  webContentsId: number | null
+}
+
+export interface TrackingServiceOptions {
+  logger?: Logger
+  clock?: () => number
+  now?: () => string
+}
 
 export class TrackingService {
-  private currentVisit: { visitId: string; enteredAt: number; localDay: string } | null = null
-  private onProblemDetected: ((identity: ProblemIdentity) => void) | null = null
+  private readonly currentVisits = new Map<string, CurrentVisit>()
+  private readonly problemDetectedListeners = new Set<(
+    identity: ProblemIdentity,
+    source: TrackingPageIdentity | null,
+  ) => void>()
+  private readonly logger: Logger
+  private readonly clock: () => number
+  private readonly now: () => string
 
-  constructor(private readonly logger: Logger = appLogger) {}
-
-  setProblemDetectedCallback(callback: (identity: ProblemIdentity) => void) {
-    this.onProblemDetected = callback
+  constructor(options: TrackingServiceOptions | Logger = {}) {
+    const normalized = 'debug' in options ? { logger: options } : options
+    this.logger = normalized.logger ?? appLogger
+    this.clock = normalized.clock ?? Date.now
+    this.now = normalized.now ?? nowBeijing
   }
 
-  handleNavigation(url: string): ProblemIdentity | null {
+  setProblemDetectedCallback(callback: (identity: ProblemIdentity) => void) {
+    this.problemDetectedListeners.clear()
+    this.problemDetectedListeners.add((identity) => callback(identity))
+  }
+
+  addProblemDetectedListener(
+    callback: (identity: ProblemIdentity, source: TrackingPageIdentity | null) => void,
+  ): () => void {
+    this.problemDetectedListeners.add(callback)
+    return () => this.problemDetectedListeners.delete(callback)
+  }
+
+  handleNavigation(event: BrowserPageEvent): ProblemIdentity | null
+  handleNavigation(url: string): ProblemIdentity | null
+  handleNavigation(input: BrowserPageEvent | string): ProblemIdentity | null {
+    const url = typeof input === 'string' ? input : input.url
+    const source = typeof input === 'string' ? null : input
+    const windowId = source?.windowId ?? 'legacy'
+    return this.handleWindowNavigation(windowId, url, source)
+  }
+
+  handleWindowNavigation(
+    windowId: string,
+    url: string,
+    source: TrackingPageIdentity | null = null,
+  ): ProblemIdentity | null {
     const identity = parseUrl(url)
-    if (!identity) return null
+    if (!identity) {
+      this.endVisitForWindow(windowId)
+      return null
+    }
 
     const site = getSiteById(identity.platform)
-    if (!site || !site.enabled) return null
-
-    upsertProblem(identity)
-    this.onProblemDetected?.(identity)
-
-    this.endCurrentVisit()
-
-    const db = getDb()
-    const problem = db.prepare(
-      'SELECT id FROM problems WHERE platform = ? AND platform_problem_id = ?'
-    ).get(identity.platform, identity.platformProblemId) as { id: string } | undefined
-
-    if (problem) {
-      const now = nowBeijing()
-      const today = now.slice(0, 10)
-      const visitId = crypto.randomUUID()
-
-      // 写入访问记录
-      db.prepare(`
-        INSERT INTO problem_visits (id, problem_id, platform, url, entered_at, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-      `).run(visitId, problem.id, identity.platform, identity.canonicalUrl, now, now, now)
-
-      // 写入活跃事件
-      db.prepare(`
-        INSERT INTO activity_events (id, event_type, occurred_at, local_day, problem_id, platform, url, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-      `).run(crypto.randomUUID(), 'visit_start', now, today, problem.id, identity.platform, identity.canonicalUrl, now)
-
-      this.currentVisit = { visitId, enteredAt: Date.now(), localDay: today }
-
-      // 实时重算当日统计，保证趋势图/连续天数/AI 上下文与访问记录同步
-      try {
-        recomputeDailyStats(today)
-      } catch (error) {
-        this.logger.warn('tracking.stats-recompute-failed', { phase: 'visit-start', day: today, error })
-      }
-      this.logger.debug('tracking.visit-started', {
-        platform: identity.platform,
-        platformProblemId: identity.platformProblemId,
-        url: identity.canonicalUrl,
-      })
+    if (!site || !site.enabled) {
+      this.endVisitForWindow(windowId)
+      return null
     }
+
+    for (const listener of this.problemDetectedListeners) listener(identity, source)
+    const problemKey = `${identity.platform}:${identity.platformProblemId}`
+    const currentVisit = this.currentVisits.get(windowId)
+    if (currentVisit?.problemKey === problemKey) {
+      currentVisit.webContentsId = source?.webContentsId ?? currentVisit.webContentsId
+      return identity
+    }
+
+    this.endVisitForWindow(windowId)
+
+    const now = this.now()
+    const today = now.slice(0, 10)
+    const visitId = crypto.randomUUID()
+    const started = startProblemVisit({
+      identity,
+      visitId,
+      activityId: crypto.randomUUID(),
+      now,
+      localDay: today,
+    })
+    if (!started) return identity
+
+    this.currentVisits.set(windowId, {
+      visitId,
+      enteredAt: this.clock(),
+      localDay: today,
+      problemKey,
+      webContentsId: source?.webContentsId ?? null,
+    })
+    try {
+      recomputeDailyStats(today)
+    } catch (error) {
+      this.logger.warn('tracking.stats-recompute-failed', { phase: 'visit-start', day: today, error })
+    }
+    this.logger.debug('tracking.visit-started', {
+      windowId,
+      visitId,
+      platform: identity.platform,
+      platformProblemId: identity.platformProblemId,
+      url: identity.canonicalUrl,
+    })
 
     return identity
   }
 
-  endCurrentVisit(): void {
-    if (!this.currentVisit) return
-    const db = getDb()
-    const now = Date.now()
-    const duration = Math.floor((now - this.currentVisit.enteredAt) / 1000)
-    const nowStr = nowBeijing()
-    db.prepare(`
-      UPDATE problem_visits SET left_at = ?, duration_seconds = ?, updated_at = ?
-      WHERE id = ? AND left_at IS NULL
-    `).run(nowStr, duration, nowStr, this.currentVisit.visitId)
-    const visitDay = this.currentVisit.localDay
-    this.currentVisit = null
+  endVisitForPage(source: TrackingPageIdentity): void {
+    const currentVisit = this.currentVisits.get(source.windowId)
+    if (!currentVisit || currentVisit.webContentsId !== source.webContentsId) return
+    this.endVisitForWindow(source.windowId)
+  }
 
-    // 停留时长更新后重算当日统计（duration_seconds/active_seconds 可能变化）
+  endVisitForWindow(windowId: string): void {
+    this.endVisit(windowId)
+  }
+
+  endCurrentVisit(): void {
+    for (const sourceKey of [...this.currentVisits.keys()]) this.endVisit(sourceKey)
+  }
+
+  private endVisit(windowId: string): void {
+    const currentVisit = this.currentVisits.get(windowId)
+    if (!currentVisit) return
+    this.currentVisits.delete(windowId)
+    const duration = Math.max(0, Math.floor((this.clock() - currentVisit.enteredAt) / 1000))
+    finishProblemVisit({
+      visitId: currentVisit.visitId,
+      leftAt: this.now(),
+      durationSeconds: duration,
+    })
     try {
-      recomputeDailyStats(visitDay)
+      recomputeDailyStats(currentVisit.localDay)
     } catch (error) {
-      this.logger.warn('tracking.stats-recompute-failed', { phase: 'visit-end', day: visitDay, error })
+      this.logger.warn('tracking.stats-recompute-failed', {
+        phase: 'visit-end',
+        day: currentVisit.localDay,
+        error,
+      })
     }
-    this.logger.debug('tracking.visit-ended', { durationSeconds: duration })
+    this.logger.debug('tracking.visit-ended', {
+      windowId,
+      visitId: currentVisit.visitId,
+      durationSeconds: duration,
+    })
   }
 }

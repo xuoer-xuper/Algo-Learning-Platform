@@ -1,5 +1,5 @@
 import { ipcMain, type BrowserWindow, type IpcMainEvent } from 'electron'
-import type { TabManager } from '../browser/TabManager'
+import type { BrowserPageEvent, TabManager } from '../browser/TabManager'
 import { getRealtimeAdapterForUrl, getRealtimeAdapterIds } from '../adapters/registry'
 import { getSiteById } from '../db/repositories/siteRepository'
 import { RealtimeSubmissionDiagnostics, type RealtimeSubmissionStatus } from './RealtimeSubmissionDiagnostics'
@@ -18,7 +18,8 @@ export class RealtimeSubmissionService {
   private readonly hookInjector: RealtimeHookInjector
   private readonly ipcHandler: (event: IpcMainEvent, payload: unknown) => void
   private registeredIpcHandler: ((event: IpcMainEvent, ...args: any[]) => any) | null = null
-  private tabManager: TabManager | null = null
+  private readonly tabManagerCleanups = new Map<TabManager, () => void>()
+  private readonly pageHosts = new Map<number, { tabManager: TabManager; event: BrowserPageEvent }>()
   private isIpcRegistered = false
 
   constructor(getWindow: () => BrowserWindow | null, logger: Logger = appLogger) {
@@ -32,24 +33,54 @@ export class RealtimeSubmissionService {
     this.diagnostics.setSupportedAdapterIds(getRealtimeAdapterIds())
     this.ipcHandler = (event, payload) => {
       const senderUrl = event.sender.getURL()
-      const senderTitle = event.sender.getTitle()
-      const enrichedPayload = this.withPageTitle(payload, senderUrl, senderTitle)
+      const pageHost = this.pageHosts.get(event.sender.id)
+      if (!pageHost || pageHost.event.url !== senderUrl) {
+        logger.warn('realtime-submission.sender-page-unresolved', {
+          webContentsId: event.sender.id,
+          senderUrl,
+        })
+        return
+      }
+      const enrichedPayload = this.withPageTitle(payload, pageHost, event.sender.getTitle())
       const result = this.watcher.handleDetected(enrichedPayload, { senderUrl })
       this.diagnostics.recordDetection(senderUrl, result)
     }
   }
 
-  attachTabManager(tabManager: TabManager): void {
-    this.tabManager = tabManager
-    tabManager.addDomReadyListener((url) => {
-      this.injectHook(tabManager, url)
+  attachTabManager(tabManager: TabManager): () => void {
+    const existing = this.tabManagerCleanups.get(tabManager)
+    if (existing) return existing
+
+    const removePageListener = tabManager.addPageEventListener((event) => {
+      if (event.reason === 'destroyed') {
+        this.pageHosts.delete(event.webContentsId)
+        return
+      }
+      if (event.isMainFrame) this.pageHosts.set(event.webContentsId, { tabManager, event })
+      if (
+        event.reason === 'did-navigate'
+        || event.reason === 'did-navigate-in-page'
+        || event.reason === 'dom-ready'
+        || event.reason === 'did-frame-finish-load'
+        || event.reason === 'did-finish-load'
+        || event.reason === 'active-tab-changed'
+      ) {
+        this.injectHook(tabManager, event)
+      }
     })
-    tabManager.addNavigateListener((url) => {
-      this.injectHook(tabManager, url)
-    })
-    tabManager.addActiveTabChangeListener((url) => {
-      this.injectHook(tabManager, url)
-    })
+    const cleanup = (): void => {
+      removePageListener()
+      this.tabManagerCleanups.delete(tabManager)
+      for (const [webContentsId, host] of this.pageHosts) {
+        if (host.tabManager === tabManager) this.pageHosts.delete(webContentsId)
+      }
+    }
+    this.tabManagerCleanups.set(tabManager, cleanup)
+    return cleanup
+  }
+
+  detachTabManager(tabManager: TabManager): void {
+    this.tabManagerCleanups.get(tabManager)?.()
   }
 
   /**
@@ -73,12 +104,13 @@ export class RealtimeSubmissionService {
   }
 
   dispose(): void {
-    if (!this.isIpcRegistered) return
-    if (this.registeredIpcHandler) {
+    for (const cleanup of [...this.tabManagerCleanups.values()]) cleanup()
+    this.pageHosts.clear()
+    if (this.isIpcRegistered && this.registeredIpcHandler) {
       ipcMain.off(SUBMISSION_DETECTED_CHANNEL, this.registeredIpcHandler)
       this.registeredIpcHandler = null
     }
-    ipcMain.removeHandler(STATUS_CHANNEL)
+    if (this.isIpcRegistered) ipcMain.removeHandler(STATUS_CHANNEL)
     this.isIpcRegistered = false
     this.diagnostics.setIpcRegistered(false)
   }
@@ -87,11 +119,15 @@ export class RealtimeSubmissionService {
     return this.diagnostics.getStatus()
   }
 
-  private injectHook(tabManager: TabManager, url: string): void {
-    this.hookInjector.inject(tabManager, url)
+  private injectHook(tabManager: TabManager, event: BrowserPageEvent): void {
+    this.hookInjector.inject(tabManager, event)
   }
 
-  private withPageTitle(payload: unknown, senderUrl: string, senderTitle?: string): unknown {
+  private withPageTitle(
+    payload: unknown,
+    pageHost: { tabManager: TabManager; event: BrowserPageEvent },
+    senderTitle?: string,
+  ): unknown {
     if (!payload || typeof payload !== 'object') return payload
 
     const record = payload as Record<string, unknown>
@@ -101,7 +137,7 @@ export class RealtimeSubmissionService {
     const existingTitle = typeof meta.pageTitle === 'string' ? meta.pageTitle : ''
     const pageTitle = existingTitle.trim()
       ? existingTitle
-      : this.tabManager?.getTitleForUrl(senderUrl) ?? senderTitle
+      : pageHost.tabManager.getTitleForPage(pageHost.event) ?? senderTitle
 
     if (!pageTitle?.trim()) return payload
 

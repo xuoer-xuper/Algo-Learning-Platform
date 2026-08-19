@@ -186,10 +186,10 @@ algo-electron/electron/
 - 设置 bounds 和 resize。
 - 新标签和无恢复会话固定进入内部 home；内部标签导航到 HTTP/HTTPS 时保留稳定 ID 原位转成 web 标签。
 - 执行 navigate、back、forward、reload。
-- 监听 URL 变化。
-- 监听页面标题变化。
+- 以 `{windowId, tabId, webContentsId, url, isMainFrame, reason}` 发布逐页导航、标题和加载生命周期；iframe 导航只发事件，不覆盖标签顶层 URL。
+- 对标题提取、用户脚本和实时提交提供精确 page owner 脚本执行 API；窗口、标签、webContents 或 URL 过期时 fail closed。
 - 绑定持久 session。
-- 将导航事件交给 Parser 和 Tracking。
+- 仅把活动页导航交给 Parser 和 Tracking；后台页仍可独立完成标题、脚本和提交 hook 链路。
 - 管理标签创建、切换、关闭、恢复和受控 popup 接管。
 
 Renderer 不直接操作 `webContents`。
@@ -218,12 +218,12 @@ Renderer 不直接操作 `webContents`。
 ### 4.5 窗口与 view 所有权
 
 - `AppWindow` 一一封装完整壳 `BrowserWindow` 与其 `TabManager`；`main.ts` 不再保留模块级 `win/tabManager` 单槽。
-- `WindowManager` 持有 `Map<windowId, AppWindow>`，跟踪最近聚焦窗口，并在窗口关闭时清除该窗口的全部 view 归属。
+- `WindowManager` 持有 `Map<windowId, AppWindow>`，跟踪最近聚焦窗口、提供去重的最近窗口变化订阅，并在窗口关闭时清除该窗口的全部 view 归属。
 - 应用级 `ViewRegistry` 记录 shell 与 web 标签的 `webContentsId -> windowId/tabId/view`；TabManager 在创建、popup、崩溃替换、web/internal 转换、关闭、恢复回滚和 destroy 时维护注册表。
 - 普通 shell IPC 先由 `trustedSender` 校验 main frame、origin 和 payload，再从 sender 解析所属 `AppWindow`。窗口、标签、菜单和原生对话框不得使用最近活跃窗口作为隐式回退。
 - 下载开始时捕获来源 `windowId`，完成通知只发回仍存活的来源窗口。
 - 窗口 normal bounds 与 maximized 独立原子保存；恢复时保留合法负坐标副屏，显示器拔除或完全越界时校正到主屏 workArea。
-- B3.1 仍只创建一个壳窗口；B3.2 服务多流语义完成前拆分入口保持禁用，B3.3 才以完整 AppWindow 替换 `DetachedWindow`。
+- B3.2 已完成页面事件和核心服务多流语义；拆分入口仍保持禁用，B3.3 才以完整 AppWindow 替换 `DetachedWindow` 并开放标签过户。
 
 ## 5. Session 与 CookieVault
 
@@ -483,6 +483,9 @@ Tracking System 负责学习行为记录。
 
 - 原始事件保存在 `activity_events`。
 - 页面停留保存在 `problem_visits`。
+- `TrackingService` 按 `windowId` 并行维护活动 visit，同一窗口同题导航去重，关闭页面或窗口只结束对应 `visitId`。
+- visit 的 problem upsert、`problem_visits` 和 `activity_events` 写入由 tracking repository 在同一事务完成。
+- 删除题目时 submissions、visits、activity 和 problem 在同一事务删除，并重算所有受影响日期；提交后的统计重算失败只记录诊断，不把成功删除误报为失败。
 - 长会话保存在 `study_sessions`。
 - Dashboard 使用聚合表，但聚合结果必须可从原始事件重算。
 
@@ -547,9 +550,9 @@ ai/
 ```text
 用户打开网页
   ↓
-WebContentsView 导航
+WebContentsView 导航或标签激活
   ↓
-TabManager 监听 URL
+TabManager 发布精确 BrowserPageEvent
   ↓
 Site Registry 匹配站点
   ↓
@@ -557,7 +560,7 @@ Parser 解析 ProblemIdentity
   ↓
 ProblemService upsert problems
   ↓
-TrackingService 写入 activity_events / problem_visits
+TrackingService 按 windowId 调用 tracking repository 写入 activity_events / problem_visits
   ↓
 Renderer 通过 IPC 展示题库和统计
 ```

@@ -13,22 +13,22 @@ assert.ok(
 )
 
 assert.ok(
-  titleTrackingSource.includes('tabManager.setTitleChangeCallback'),
-  'Problem title tracking should update problem titles when the active page title changes',
+  titleTrackingSource.includes('tabManager.addPageEventListener'),
+  'Problem title tracking should consume exact per-page lifecycle events',
 )
 
 assert.ok(
-  titleTrackingSource.includes('tabManager.addActiveTabChangeListener'),
-  'Problem title tracking should retry problem title extraction when switching to an already loaded tab',
+  titleTrackingSource.includes("event.reason === 'page-title-updated'"),
+  'Problem title tracking should update problem titles from exact page title events',
 )
 
 assert.ok(
-  titleTrackingSource.includes("updateProblemTitle(url, title, 'browser-title')"),
-  'Active-tab title extraction should reuse the shared browser-title cleaning path',
+  titleTrackingSource.includes('tabManager.executeScriptForPage(event, script)'),
+  'Problem title fallback should execute against the exact page owner',
 )
 
 assert.ok(
-  titleTrackingSource.includes('scheduleTitleExtraction(url)'),
+  titleTrackingSource.includes('scheduleTitleExtraction(event)'),
   'Active-tab title extraction should fall back to delayed DOM/title extraction when needed',
 )
 

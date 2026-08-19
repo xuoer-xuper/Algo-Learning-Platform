@@ -13,7 +13,7 @@
 - `WindowSessionRegistry.ts`：按 `windowId` 保存 session persistence runtime；重复 close 与并发 `before-quit` 复用同一个 dispose promise，最终 flush 完成后才移除。
 - `windowBounds.ts`：版本化保存 normal bounds 与 maximized；读取时按现存显示器 workArea 校正，显示器拔除或完全越界时回到主屏；store 级队列串行执行共享临时文件的原子替换。
 
-B3.1 仍只创建一个完整壳窗口。B3.2 完成服务多流语义、B3.3 完成标签过户前，拆分入口继续禁用。
+B3.2 已完成页面事件、Tracking、ContestGuard、实时提交和 Coach 的多窗口语义。B3.3 完成标签过户前，拆分入口继续禁用。
 
 ## 3. 所有权规则
 
@@ -25,6 +25,7 @@ B3.1 仍只创建一个完整壳窗口。B3.2 完成服务多流语义、B3.3 �
 - `.user.js` 下载仅在 Electron 没有提供 source 且当前恰好一个完整壳窗口时回退；非空未知 source 必须拒绝路由。
 - 窗口 close flush 在完成前必须持续拦截重复 close；应用退出同时等待 session 与 bounds flush。
 - `WindowManager` 不接管 Coach 桌宠或历史 `DetachedWindow`；B3.3 会删除后者并让拆分窗口统一成为完整 `AppWindow`。
+- `WindowManager` 提供去重的最近窗口变化订阅，供 Coach 单会话防抖跟随；业务服务仍自行维护 attach/detach，不把服务状态塞入所有权层。
 
 ## 4. 验证
 
