@@ -62,6 +62,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
   getUserScriptInstall: (installId: string) => ipcRenderer.invoke('browser:getUserScriptInstall', installId) as Promise<PendingUserScriptInstall | null>,
   cancelUserScriptInstall: (installId: string) => ipcRenderer.invoke('browser:cancelUserScriptInstall', installId) as Promise<boolean>,
+  getUserScriptHostPermissionPrompt: () => ipcRenderer.invoke('userscript:getHostPermissionPrompt') as Promise<UserScriptHostPermissionPrompt | null>,
+  respondUserScriptHostPermission: (promptId: string, allow: boolean) => ipcRenderer.invoke('userscript:respondHostPermission', promptId, allow) as Promise<UserScriptHostPermissionResponse>,
+  onUserScriptHostPermissionPrompt: (callback: (prompt: UserScriptHostPermissionPrompt) => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, prompt: UserScriptHostPermissionPrompt) => callback(prompt)
+    ipcRenderer.on('userscript:hostPermissionRequested', handler)
+    return () => { ipcRenderer.off('userscript:hostPermissionRequested', handler) }
+  },
 
   // 题目
   listRecentProblems: (limit?: number, platform?: string, status?: string) =>

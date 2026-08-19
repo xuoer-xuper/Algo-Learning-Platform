@@ -69,6 +69,7 @@ test('hydrates values before navigation and isolates snapshots by script id', ()
     ['script-1', [['count', 1]]],
     ['script-2', [['count', 2]]],
   ])
+  assert.deepStrictEqual(snapshot.scripts.map(item => item.connects), [[], []])
   assert.strictEqual(service.refresh.mock.calls.length, 1)
 })
 
@@ -122,6 +123,26 @@ test('invalid persisted grant JSON fails closed for that script', () => {
   assert.strictEqual(warn.mock.calls.length, 1)
 })
 
+test('invalid persisted connect JSON fails closed for that script', () => {
+  const invalid = script({ connect_json: '{broken' })
+  const warn = vi.fn()
+  const runtime = new UserScriptRuntime({
+    userScriptService: {
+      refresh: vi.fn(),
+      getEnabledScriptsSnapshot: () => [invalid],
+      getMatchingScriptsWithMeta: () => [{ script: invalid, requires: [], resources: [] }],
+    },
+    listValues: () => [],
+    setValue: vi.fn(),
+    deleteValue: vi.fn(),
+    logger: { debug: vi.fn(), info: vi.fn(), warn, error: vi.fn() },
+  })
+
+  runtime.refresh()
+  assert.deepStrictEqual(runtime.getNavigationSnapshot('https://example.com/', true).scripts, [])
+  assert.strictEqual(warn.mock.calls.length, 1)
+})
+
 test('refresh failure advances the generation and clears value mutation authority', () => {
   const enabledScript = script()
   let refreshShouldFail = false
@@ -146,12 +167,15 @@ test('refresh failure advances the generation and clears value mutation authorit
     deleteValue: vi.fn(),
     logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
   })
+  const generations: number[] = []
+  runtime.addGenerationChangeListener(generation => generations.push(generation))
 
   runtime.refresh()
   assert.strictEqual(runtime.generation, 1)
   refreshShouldFail = true
   assert.throws(() => runtime.refresh(), /database unavailable/)
   assert.strictEqual(runtime.generation, 2)
+  assert.deepStrictEqual(generations, [1, 2])
   assert.throws(
     () => runtime.setValue(enabledScript.id, 'count', 2),
     /not enabled in the runtime cache/,

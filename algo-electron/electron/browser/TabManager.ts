@@ -55,6 +55,7 @@ import {
 } from '../downloads/userScriptNavigation'
 import { popupPageContextMenu, popupTabContextMenu } from '../contextMenus/browserContextMenu'
 import type { ViewRegistry, ViewRegistryTabTransfer } from '../windows/ViewRegistry'
+import type { UserScriptMenuCommand } from '../scripts/UserScriptMenuRegistry'
 
 export type { TabInfo } from './tabManagerTypes'
 
@@ -66,6 +67,7 @@ export interface TabManagerOptions {
   buildSearchUrlForQuery?: (query: string) => string
   windowId?: string
   viewRegistry?: ViewRegistry
+  getUserScriptMenuCommands?: (webContentsId: number) => UserScriptMenuCommand[]
 }
 
 export interface WebContentsUrlSnapshot {
@@ -181,12 +183,14 @@ export class TabManager {
   private readonly buildSearchUrlForQuery: (query: string) => string
   private readonly windowId: string
   private readonly viewRegistry: ViewRegistry | null
+  private readonly getUserScriptMenuCommands: (webContentsId: number) => UserScriptMenuCommand[]
   private closedTabs: ClosedTabSnapshot[] = []
   private isDestroying = false
   private isRestoringSession = false
   private isOmniboxOpen = false
   private isDownloadNoticeVisible = false
   private isContestNoticeVisible = false
+  private isUserScriptPermissionNoticeVisible = false
   private findInPageTabId: string | null = null
   private findInPageState: FindInPageState = { ...INITIAL_FIND_IN_PAGE_STATE }
   private recoveryPendingViews = new Set<WebContentsView>()
@@ -201,6 +205,7 @@ export class TabManager {
     this.buildSearchUrlForQuery = options.buildSearchUrlForQuery ?? ((query) => query)
     this.windowId = options.windowId ?? `unmanaged-${window.webContents.id}`
     this.viewRegistry = options.viewRegistry ?? null
+    this.getUserScriptMenuCommands = options.getUserScriptMenuCommands ?? (() => [])
     this.window.on('resize', () => this.updateBounds())
   }
 
@@ -581,6 +586,7 @@ export class TabManager {
         searchSelectionInNewTab: (query) => {
           owner.createTab(owner.buildSearchUrlForQuery(query))
         },
+        userScriptCommands: owner.getUserScriptMenuCommands(contents.id),
       })
     })
 
@@ -1954,6 +1960,7 @@ export class TabManager {
     }
     if (this.isDownloadNoticeVisible) topInset += BROWSER_LAYOUT.noticeBarHeight
     if (this.isContestNoticeVisible) topInset += BROWSER_LAYOUT.noticeBarHeight
+    if (this.isUserScriptPermissionNoticeVisible) topInset += BROWSER_LAYOUT.noticeBarHeight
     if (tab.id === this.findInPageTabId) topInset += BROWSER_LAYOUT.findBarHeight
     setTabViewBounds(tab.view, { width, height }, this.leftOffset, topInset)
   }
@@ -1967,6 +1974,12 @@ export class TabManager {
   setContestNoticeVisible(visible: boolean): void {
     if (this.isContestNoticeVisible === visible) return
     this.isContestNoticeVisible = visible
+    this.updateBounds()
+  }
+
+  setUserScriptPermissionNoticeVisible(visible: boolean): void {
+    if (this.isUserScriptPermissionNoticeVisible === visible) return
+    this.isUserScriptPermissionNoticeVisible = visible
     this.updateBounds()
   }
 
@@ -2207,6 +2220,7 @@ export class TabManager {
     this.isOmniboxOpen = false
     this.isDownloadNoticeVisible = false
     this.isContestNoticeVisible = false
+    this.isUserScriptPermissionNoticeVisible = false
     this.findInPageTabId = null
     this.findInPageState = { ...INITIAL_FIND_IN_PAGE_STATE }
     this.findInPageStateChangedHandler = null

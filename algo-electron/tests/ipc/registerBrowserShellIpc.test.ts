@@ -200,3 +200,50 @@ test('tab transfer IPC validates payloads and preserves the trusted source windo
   assert.deepStrictEqual(moves, [['window-1', 'tab-1']])
   assert.deepStrictEqual(drags, [['window-1', 'tab-1', 2, 300, 20]])
 })
+
+test('userscript host permission IPC is bound to the trusted owning shell window', async () => {
+  resetElectronMock()
+  resetTrustedSenderRegistry()
+  const shell = new MockWebContents()
+  const untrusted = new MockWebContents()
+  await shell.loadURL('app://shell/index.html')
+  await untrusted.loadURL('https://example.com/')
+  const appWindow = new AppWindow({
+    id: 'window-1',
+    browserWindow: new MockBrowserWindow() as never,
+    tabManager: {} as never,
+  })
+  registerShellWebContents(shell, appWindow)
+  const handlers = new Map<string, (...args: unknown[]) => unknown>()
+  const originalHandle = ipcMain.handle
+  ipcMain.handle = (channel, handler) => {
+    handlers.set(channel, handler as (...args: unknown[]) => unknown)
+    originalHandle(channel, handler)
+  }
+  const responses: Array<[string, string, boolean]> = []
+  registerBrowserShellIpc({
+    getUserScriptHostPermissionPrompt: owner => ({
+      promptId: `prompt-${owner.id}`,
+      scriptName: 'Helper',
+      targetHost: 'api.example.com',
+      sourceHost: 'codeforces.com',
+    }),
+    respondUserScriptHostPermission: async (owner, promptId, allow) => {
+      responses.push([owner.id, promptId, allow])
+      return allow ? 'allowed' : 'denied'
+    },
+  })
+  ipcMain.handle = originalHandle
+  const trustedEvent = { sender: shell, senderFrame: shell.mainFrame }
+  const untrustedEvent = { sender: untrusted, senderFrame: untrusted.mainFrame }
+  const getPrompt = handlers.get('userscript:getHostPermissionPrompt')!
+  const respond = handlers.get('userscript:respondHostPermission')!
+
+  assert.deepStrictEqual(await getPrompt(trustedEvent), {
+    promptId: 'prompt-window-1', scriptName: 'Helper', targetHost: 'api.example.com', sourceHost: 'codeforces.com',
+  })
+  assert.strictEqual(await respond(trustedEvent, 'prompt-window-1', true), 'allowed')
+  assert.strictEqual(await respond(trustedEvent, '', true), 'stale')
+  assert.throws(() => getPrompt(untrustedEvent), /Rejected IPC sender/)
+  assert.deepStrictEqual(responses, [['window-1', 'prompt-window-1', true]])
+})

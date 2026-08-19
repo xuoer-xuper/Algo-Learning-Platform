@@ -5,8 +5,11 @@ export const USER_SCRIPT_RUNTIME_HANDOFF_KIND = '__algo_userscript_runtime_port_
 export const USER_SCRIPT_RUNTIME_NONCE_PATTERN = /^[a-f0-9]{32}$/
 export const USER_SCRIPT_RUNTIME_MAX_KEY_LENGTH = 512
 export const USER_SCRIPT_RUNTIME_MAX_VALUE_BYTES = 1024 * 1024
+export const USER_SCRIPT_RUNTIME_MAX_REQUEST_BODY_BYTES = 8 * 1024 * 1024
+export const USER_SCRIPT_RUNTIME_MAX_RESPONSE_BYTES = 16 * 1024 * 1024
 export const USER_SCRIPT_RUNTIME_MAX_SOURCE_BYTES = 4 * 1024 * 1024
 export const USER_SCRIPT_RUNTIME_MAX_SNAPSHOT_BYTES = 16 * 1024 * 1024
+export const USER_SCRIPT_RUNTIME_MAX_TIMEOUT_MS = 120_000
 
 export interface UserScriptRuntimeInitRequest {
   nonce: string
@@ -22,6 +25,7 @@ export interface UserScriptRuntimeScriptSnapshot {
   version: string | null
   runAt: 'document-start' | 'document-end' | 'document-idle'
   grants: string[]
+  connects: string[]
   values: Array<[string, unknown]>
   code: string
 }
@@ -59,6 +63,66 @@ export type UserScriptRuntimeMutation =
       key: string
     }
 
+export type UserScriptXhrResponseType = '' | 'text' | 'json' | 'arraybuffer' | 'blob' | 'document'
+
+export interface UserScriptXhrRequestDetails {
+  method: string
+  url: string
+  headers: Record<string, string>
+  data: string | null
+  responseType: UserScriptXhrResponseType
+  timeout: number
+  anonymous: boolean
+}
+
+export type UserScriptRuntimeCommand =
+  | UserScriptRuntimeMutation
+  | {
+      type: 'xhr:start'
+      scriptId: string
+      requestId: string
+      details: UserScriptXhrRequestDetails
+    }
+  | {
+      type: 'xhr:abort'
+      scriptId: string
+      requestId: string
+    }
+  | {
+      type: 'clipboard:set'
+      scriptId: string
+      requestId: string
+      data: string
+      dataType: 'text' | 'html'
+    }
+  | {
+      type: 'menu:register'
+      scriptId: string
+      commandId: string
+      name: string
+    }
+  | {
+      type: 'menu:unregister'
+      scriptId: string
+      commandId: string
+    }
+
+export interface UserScriptXhrResponseSnapshot {
+  finalUrl: string
+  status: number
+  statusText: string
+  responseHeaders: string
+  responseType: UserScriptXhrResponseType
+  body: ArrayBuffer
+}
+
+export type UserScriptRuntimeEvent =
+  | { type: 'xhr:progress'; requestId: string; loaded: number; total: number }
+  | { type: 'xhr:complete'; requestId: string; response: UserScriptXhrResponseSnapshot }
+  | { type: 'xhr:failed'; requestId: string; reason: 'abort' | 'error' | 'timeout' | 'denied' }
+  | { type: 'clipboard:result'; requestId: string; ok: boolean }
+  | { type: 'menu:invoke'; scriptId: string; commandId: string }
+
 export function isUserScriptRuntimeInitRequest(value: unknown): value is UserScriptRuntimeInitRequest {
   if (!isPlainRecord(value)) return false
   if (!hasExactKeys(value, ['frameUrl', 'isMainFrame', 'nonce'])) return false
@@ -92,6 +156,118 @@ export function parseUserScriptRuntimeMutation(value: unknown): UserScriptRuntim
     return { type: value.type, scriptId: value.scriptId, key: value.key, value: value.value }
   }
   return null
+}
+
+export function parseUserScriptRuntimeCommand(value: unknown): UserScriptRuntimeCommand | null {
+  const mutation = parseUserScriptRuntimeMutation(value)
+  if (mutation) return mutation
+  if (!isPlainRecord(value) || typeof value.type !== 'string') return null
+
+  if (value.type === 'xhr:start') {
+    if (!hasExactKeys(value, ['details', 'requestId', 'scriptId', 'type'])) return null
+    if (!isRuntimeIdentifier(value.scriptId) || !isRequestId(value.requestId)) return null
+    const details = parseXhrRequestDetails(value.details)
+    return details ? { type: value.type, scriptId: value.scriptId, requestId: value.requestId, details } : null
+  }
+  if (value.type === 'xhr:abort') {
+    if (!hasExactKeys(value, ['requestId', 'scriptId', 'type'])) return null
+    return isRuntimeIdentifier(value.scriptId) && isRequestId(value.requestId)
+      ? { type: value.type, scriptId: value.scriptId, requestId: value.requestId }
+      : null
+  }
+  if (value.type === 'clipboard:set') {
+    if (!hasExactKeys(value, ['data', 'dataType', 'requestId', 'scriptId', 'type'])) return null
+    if (!isRuntimeIdentifier(value.scriptId) || !isRequestId(value.requestId)) return null
+    if (value.dataType !== 'text' && value.dataType !== 'html') return null
+    if (typeof value.data !== 'string' || byteLength(value.data) > USER_SCRIPT_RUNTIME_MAX_VALUE_BYTES) return null
+    return {
+      type: value.type,
+      scriptId: value.scriptId,
+      requestId: value.requestId,
+      data: value.data,
+      dataType: value.dataType,
+    }
+  }
+  if (value.type === 'menu:register') {
+    if (!hasExactKeys(value, ['commandId', 'name', 'scriptId', 'type'])) return null
+    if (!isRuntimeIdentifier(value.scriptId) || !isRequestId(value.commandId)) return null
+    if (
+      typeof value.name !== 'string'
+      || value.name.trim().length === 0
+      || value.name.length > 200
+      || hasAsciiControlCharacter(value.name)
+    ) return null
+    return { type: value.type, scriptId: value.scriptId, commandId: value.commandId, name: value.name }
+  }
+  if (value.type === 'menu:unregister') {
+    if (!hasExactKeys(value, ['commandId', 'scriptId', 'type'])) return null
+    return isRuntimeIdentifier(value.scriptId) && isRequestId(value.commandId)
+      ? { type: value.type, scriptId: value.scriptId, commandId: value.commandId }
+      : null
+  }
+  return null
+}
+
+function parseXhrRequestDetails(value: unknown): UserScriptXhrRequestDetails | null {
+  if (!isPlainRecord(value)) return null
+  if (!hasExactKeys(value, ['anonymous', 'data', 'headers', 'method', 'responseType', 'timeout', 'url'])) return null
+  if (typeof value.method !== 'string' || !/^[A-Za-z]{1,16}$/.test(value.method)) return null
+  const method = value.method.toUpperCase()
+  if (method === 'CONNECT' || method === 'TRACE' || method === 'TRACK') return null
+  if (typeof value.url !== 'string' || value.url.length === 0 || value.url.length > 8_192) return null
+  const data = value.data
+  if (data !== null && (typeof data !== 'string' || byteLength(data) > USER_SCRIPT_RUNTIME_MAX_REQUEST_BODY_BYTES)) return null
+  if (!isXhrResponseType(value.responseType)) return null
+  const timeout = value.timeout
+  if (typeof timeout !== 'number' || !Number.isSafeInteger(timeout) || timeout < 0 || timeout > USER_SCRIPT_RUNTIME_MAX_TIMEOUT_MS) return null
+  if (typeof value.anonymous !== 'boolean') return null
+  const headers = parseRequestHeaders(value.headers)
+  if (!headers) return null
+  return {
+    method,
+    url: value.url,
+    headers,
+    data,
+    responseType: value.responseType,
+    timeout,
+    anonymous: value.anonymous,
+  }
+}
+
+function parseRequestHeaders(value: unknown): Record<string, string> | null {
+  if (!isPlainRecord(value)) return null
+  const entries = Object.entries(value)
+  if (entries.length > 64) return null
+  let totalBytes = 0
+  const headers: Record<string, string> = {}
+  for (const [name, headerValue] of entries) {
+    if (!/^[!#$%&'*+.^_`|~0-9A-Za-z-]{1,128}$/.test(name)) return null
+    if (typeof headerValue !== 'string' || headerValue.length > 8_192 || /[\r\n]/.test(headerValue)) return null
+    totalBytes += byteLength(name) + byteLength(headerValue)
+    if (totalBytes > 64 * 1024) return null
+    headers[name] = headerValue
+  }
+  return headers
+}
+
+function isXhrResponseType(value: unknown): value is UserScriptXhrResponseType {
+  return value === '' || value === 'text' || value === 'json' || value === 'arraybuffer' || value === 'blob' || value === 'document'
+}
+
+function isRequestId(value: unknown): value is string {
+  return typeof value === 'string' && value.length > 0 && value.length <= 128
+}
+
+function byteLength(value: string): number {
+  return new TextEncoder().encode(value).byteLength
+}
+
+function hasAsciiControlCharacter(value: string): boolean {
+  for (let index = 0; index < value.length; index += 1) {
+    const code = value.charCodeAt(index)
+    if (code <= 0x1f || code === 0x7f) return true
+  }
+  return false
 }
 
 function isRuntimeIdentifier(value: unknown): value is string {

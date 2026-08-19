@@ -47,6 +47,23 @@ export function cancelPendingUserScriptInstall(installId: string): Promise<boole
   return window.electronAPI.cancelUserScriptInstall(installId)
 }
 
+export function getUserScriptHostPermissionPrompt(): Promise<UserScriptHostPermissionPrompt | null> {
+  return window.electronAPI.getUserScriptHostPermissionPrompt()
+}
+
+export function respondUserScriptHostPermission(
+  promptId: string,
+  allow: boolean,
+): Promise<UserScriptHostPermissionResponse> {
+  return window.electronAPI.respondUserScriptHostPermission(promptId, allow)
+}
+
+export function subscribeUserScriptHostPermissionPrompt(
+  callback: (prompt: UserScriptHostPermissionPrompt) => void,
+): () => void {
+  return window.electronAPI.onUserScriptHostPermissionPrompt(callback)
+}
+
 export function setBrowserSidebarWidth(width: number): void {
   window.electronAPI.setSidebarWidth(width)
 }

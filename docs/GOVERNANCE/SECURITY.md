@@ -54,8 +54,10 @@ Algo Learning Platform 是本地优先桌面应用。安全与隐私边界重点
 - Cookie、用户源码、完整请求体和可复用登录态不得进入日志、文档、测试 fixture、截图或 CI artifact。
 - 站点凭据只允许主进程保存版本化 `electron-safe-storage` envelope；活动行必须 `sync_excluded=1`，软删除清空密文；renderer 不接收 envelope 或密码明文。
 - 普通 JSON 学习数据导出排除 `site_credentials`；需要完整本机恢复时使用数据库备份，并按敏感数据处理。
-- migration 027 新增的用户脚本 values、资源缓存、host 授权与更新状态只由主进程 repository 访问，并随脚本外键级联删除；B6.2 已用固定 frame preload、每导航 generation/nonce 与私有 MessagePort 替换 legacy `window.GM_*`/localStorage polyfill，`scripts:getAll` 只向 shell 返回无源码、无绝对路径的摘要。跨域代理仍未开放，须等待 B6.3 的 `@connect` 与用户授权双闸。
-- `@connect` 声明不等于已授权。B6.3 接入主进程代理前，host permission 表不得被解释为页面可直接使用的网络能力；后续代理必须同时校验声明、持久授权、初始 URL 和重定向 URL。
+- migration 027 新增的用户脚本 values、资源缓存、host 授权与更新状态只由主进程 repository 访问，并随脚本外键级联删除；B6.2/B6.3 使用固定 frame preload、每导航 generation/nonce、私有 MessagePort 和主进程网络代理替换 legacy `window.GM_*`/localStorage/page-fetch polyfill，`scripts:getAll` 只向 shell 返回无源码、无绝对路径的摘要。
+- `@connect` 声明不等于已授权。`GM_xmlhttpRequest` 的初始 URL 与每一跳重定向都必须同时校验 HTTPS/开发 loopback、无 userinfo、当前脚本声明和当前脚本精确 host 持久授权；父域声明可以匹配子域，但授权只保存实际目标 host，跨 origin 跳转移除 Authorization。
+- 用户脚本代理过滤 Cookie、Host、Origin、Referer、Content-Length、`Sec-*`、`Proxy-*` 等浏览器所有请求头，不返回 `Set-Cookie`，并限制请求体、响应体、响应头、超时、重定向及全局/单端口并发；OJ session 不再安装全局 CORS response rewriter。
+- host 首次授权只通过所属完整壳的既有 NoticeBar 展示脚本名、目标 host 和来源 host；允许前必须复验 generation、webContents 和当前 owner，reload、标签过户、关窗及异步校验竞态均 fail closed。
 - 打包产物不得包含 `tests/`、`tmp/`、`release/`、`.env`、本地数据库或 Cookie。
 
 ## 6. 验证入口

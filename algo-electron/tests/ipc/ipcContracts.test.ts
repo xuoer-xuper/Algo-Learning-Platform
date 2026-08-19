@@ -41,6 +41,9 @@ const coreContracts: PreloadContract[] = [
   { method: 'setDownloadNoticeVisible', mode: 'send', channel: 'browser:setDownloadNoticeVisible' },
   { method: 'getUserScriptInstall', mode: 'invoke', channel: 'browser:getUserScriptInstall' },
   { method: 'cancelUserScriptInstall', mode: 'invoke', channel: 'browser:cancelUserScriptInstall' },
+  { method: 'getUserScriptHostPermissionPrompt', mode: 'invoke', channel: 'userscript:getHostPermissionPrompt' },
+  { method: 'respondUserScriptHostPermission', mode: 'invoke', channel: 'userscript:respondHostPermission' },
+  { method: 'onUserScriptHostPermissionPrompt', mode: 'on', channel: 'userscript:hostPermissionRequested' },
   { method: 'onFindInPageResult', mode: 'on', channel: 'browser:findInPageResult' },
   { method: 'onZoomChanged', mode: 'on', channel: 'browser:zoomChanged' },
   { method: 'onDownloadResult', mode: 'on', channel: 'download:result' },
@@ -129,6 +132,7 @@ test('preload event subscriptions are fixed and backed by main-process sends', (
     'problems:updated',
     'tab:listChanged',
     'ui:command',
+    'userscript:hostPermissionRequested',
     'window:maximized',
   ])
 

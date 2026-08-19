@@ -17,6 +17,10 @@
 - `userScriptRuntimeBridge.ts`：注册专用 frame preload、校验 OJ frame sender，并管理每次导航的 MessagePort 代际。
 - `userscriptBootstrapPreload.ts`：固定 session preload；只接收主进程快照，在隔离 preload 与主世界之间完成一次性端口转移。
 - `userScriptMainWorldRuntime.ts`：生成主世界可执行函数；每个脚本独立 IIFE，GM API 仅作为按 grant 裁剪的局部参数。
+- `userScriptConnectPolicy.ts`：规范化网络目标并按 DNS label 校验 `@connect`，拒绝 userinfo、非 HTTPS 和欺骗性后缀。
+- `UserScriptNetworkProxy.ts`：经 `Session.fetch` 执行受限网络请求，逐跳授权并限制重定向、超时、请求/响应大小和并发。
+- `UserScriptHostPermissionBroker.ts`：按窗口串行展示 host 授权，合并同源请求并处理回放、超时、generation/窗口取消。
+- `UserScriptMenuRegistry.ts`：按活动端口和 webContents 隔离脚本菜单命令，供页面原生右键菜单读取。
 
 `UserScriptService.ts`：
 
@@ -46,6 +50,9 @@
 - 每次 frame 导航生成 nonce/generation，快照只经 OJ 专用同步 IPC 进入固定 preload，不进入 shell renderer。
 - `GM_getValue`/`GM_setValue`/`GM_deleteValue`/`GM_listValues` 与 `GM_info`、`GM_addStyle`、`unsafeWindow` 严格按 `@grant` 作为词法参数提供；未授权名称为 `undefined`，`@grant none` 不获得特权 API。
 - values 写入只经私有 MessagePort 返回主进程，并按脚本 ID 隔离；新导航或缓存刷新后旧 generation 的端口 fail closed。
+- `GM_xmlhttpRequest`/`GM.xmlHttpRequest` 只经主进程代理；初始 URL 和每次重定向都同时要求 `@connect` 命中与当前脚本的精确 host 授权。
+- 网络代理过滤浏览器所有请求头、不返回 `Set-Cookie`，并对请求体、响应体、超时、重定向和并发设置硬上限；跨 origin 跳转额外移除 Authorization。
+- `GM_setClipboard`/`GM.setClipboard` 只提供写入；注册菜单命令进入页面原生右键菜单；SPA 地址变化以受限事件触发 `window.onurlchange`。
 
 ## 3. IPC 能力
 
@@ -69,6 +76,9 @@
 - `getMatchingScriptsWithMeta(url)`：返回主进程缓存中的脚本及其 `@require`、`@resource` 元信息。
 - `buildUserScriptMainWorldRuntime(input)`：生成隔离的 IIFE 执行函数和按 grant 裁剪的 GM 局部参数。
 - `installUserScriptRuntimeBridge(options)`：注册固定 frame preload、同步快照入口和每导航私有 MessagePort。
+- `resolveUserScriptRequestTarget(rawUrl, allowInsecureLocalhost?)`：解析并规范化可代理的安全网络目标。
+- `UserScriptNetworkProxy.start(...)`：启动受 `@connect`、host 授权和资源上限约束的请求。
+- `UserScriptHostPermissionBroker.request(...)`：把首次 host 请求路由到所属窗口的 NoticeBar 授权队列。
 - `parseScriptMetadata(code)`：解析 userscript 头部元数据。
 - `matchRuleToRegExp(rule)`：把严格 `@match` 规则转为 fail-closed 正则。
 - `includeRuleToRegExp(rule)`：把 `@include/@exclude` glob 或 regex 转为正则。
@@ -81,7 +91,7 @@
 - 导入脚本复制到 `app.getPath('userData')/userscripts`。
 - DB 保存脚本元信息和 `file_path`。
 - migration 027 将 match/include/exclude(-match)、grant/connect、noframes、run-at、更新地址、antifeature 和 icon 分列保存；导入 create/update/legacy claim/local copy 共用同一持久化映射。
-- GM values、BLOB 资源缓存、host 授权和更新状态已有主进程 repository 地基，但在 B6.2/B6.3/B6.5/B6.6 前不向页面开放。
+- GM values 与 host 授权已由 B6.2/B6.3 的私有桥和网络代理使用；BLOB 资源缓存与更新状态仍等待 B6.5/B6.6。
 - B6.2 已删除旧的页面 `window.GM_*`/localStorage/fetch polyfill；值桥、局部 grant API 和隔离通信统一走主进程缓存与专用 preload。
 - `code` 字段保存导入内容供主进程运行时回退，`file_path` 指向内容寻址的受管副本；两者均不进入 shell 摘要 DTO。
 - 新 canonical 无 `@namespace` 时保存空字符串；`NULL` 只保留给首次重新导入前的 legacy canonical。
@@ -95,7 +105,9 @@
 - 修改 IPC 名称需要同步 preload、renderer helper、`electron/ipc/README.md` 和 IPC contract 测试。
 - `UserScriptService` 不应重新注册 IPC；管理型 IPC 必须放在 `electron/ipc/registerScriptsIpc.ts`。
 - 运行器只在 OJ WebContents 内执行脚本，不向 shell renderer 或普通日志传递脚本源码；`scripts:getAll` 仅返回摘要 DTO。
-- `GM_xmlhttpRequest`、剪贴板、菜单和 URL 变更监听留给 B6.3；`@require/@resource` 留给 B6.5 的缓存/SRI 链路。
+- `@connect` 声明不等于授权；代理必须同时验证声明、精确 host permission、当前 generation、webContents 与窗口 owner，初始 URL 和每一跳重定向都不能复用上一跳结论。
+- host 授权提示只能经既有 NoticeBar 暴露安全展示字段；不得把 URL path/query、header、请求体、脚本源码或任意回调透传给 shell renderer。
+- `@require/@resource` 留给 B6.5 的缓存/SRI 链路，B6.3 不允许页面自行绕过代理下载并执行远程代码。
 
 ## 7. 测试入口
 
@@ -104,7 +116,7 @@
 ```powershell
 cd algo-electron
 npm run typecheck
-npm exec vitest -- run tests/scripts/userScriptMetadata.test.ts tests/scripts/userScriptService.test.ts tests/scripts/userScriptImport.test.ts tests/ipc/registerScriptsIpc.test.ts
+npm exec vitest -- run tests/scripts tests/browser/ojSession.test.ts tests/browser/contextMenu.test.ts tests/ipc/registerBrowserShellIpc.test.ts
 ```
 
 涉及 repository 时追加运行 DB 临时库测试：

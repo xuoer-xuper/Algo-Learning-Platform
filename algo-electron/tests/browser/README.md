@@ -11,6 +11,7 @@
 - `internalPage.test.ts`：canonical `algo://` 地址正反向互逆，以及额外路径/参数/hash/userinfo/非 canonical 编码拒绝。
 - `omnibox.test.ts`：内部页/HTTPS URL/搜索三分流、bare host 推断、开发 loopback、稳定阻断原因、内置搜索 URL 与 custom HTTPS 模板校验。
 - `permissionPolicy.test.ts`：敏感权限默认拒绝，以及默认/OJ session 的 permission check/request 双处理器安装。
+- `ojSession.test.ts`：确认 OJ session 不安装全局 CORS 响应重写，同时保持 HTML mainFrame 的 `onResponseStarted` stealth 注入。
 - `tabManagerTypes.test.ts`：内部页判别联合的严格参数白名单与长度边界。
 - `tabManagerWindowOpen.test.ts`：接管 Chromium 创建的原始 `webContents`、前后台标签、销毁竞态与不安全协议拒绝。
 - `tabManagerLifecycle.test.ts`：关闭后右邻激活、B2 默认最后标签重置为内部 home、B3 浏览器生命周期下最后标签委托所属壳关闭、web/internal 恢复关闭栈、内部页原位转 web 和 16 标签满额通知。
@@ -20,7 +21,7 @@
 - `tabManagerSession.test.ts`：有序 web/internal 混合标签的稳定 ID/标题/活动项恢复、只挂载活动 web view、持久状态事件边界、精确快照字段、创建中途失败全回滚、新 ID 冲突规避，以及崩溃 view 替换创建失败后的标签保留和重试。
 - `tabManagerHealth.test.ts`：活动/后台标签崩溃与无响应、38px NoticeBar 布局让位、继续等待与 responsive 清理、destroyed view 替换、原 URL 恢复和关闭后的迟到失败隔离。
 - `tabManagerFindZoom.test.ts`：查找 requestId/结果隔离、下载通知与查找条 bounds 累加、Chrome 缩放档位/写失败不生效，以及 `.user.js` 短期安装路由不进入会话快照。
-- `contextMenu.test.ts`：页面、壳内编辑区/Omnibox 与标签右键模板覆盖及动作白名单。
+- `contextMenu.test.ts`：页面、壳内编辑区/Omnibox 与标签右键模板、用户脚本子菜单隔离及动作白名单。
 - `tabSessionLifecycle.test.ts`：窗口关闭前 flush、重复关闭合并、无 persistence 直关，以及同步/异步失败和诊断异常不阻断关闭。
 
 ## 3. 运行方式

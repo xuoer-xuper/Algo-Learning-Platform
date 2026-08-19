@@ -21,54 +21,6 @@ export function configureOjSession(options: ConfigureOjSessionOptions): Session 
   installBrowserPermissionPolicy(session.defaultSession)
   installBrowserPermissionPolicy(ojSession)
 
-  const corsHeadersToAdd = {
-    'access-control-allow-origin': ['*'],
-    'access-control-allow-methods': ['GET, POST, PUT, DELETE, OPTIONS, PATCH'],
-    'access-control-allow-headers': ['*'],
-    'access-control-expose-headers': ['*'],
-    'access-control-max-age': ['86400'],
-  }
-
-  ojSession.webRequest.onHeadersReceived((details, callback) => {
-    if (details.resourceType === 'mainFrame') {
-      const ct = details.responseHeaders?.['content-type']?.[0] || details.responseHeaders?.['Content-Type']?.[0]
-      if (ct && ct.includes('text/html')) {
-        (details as unknown as Record<string, unknown>)._needsStealth = true
-      }
-      callback({})
-      return
-    }
-
-    if (details.resourceType !== 'xhr' && details.method !== 'OPTIONS') {
-      callback({})
-      return
-    }
-
-    const hasCredentials = Object.entries(details.responseHeaders || {}).some(
-      ([key, value]) => key.toLowerCase() === 'access-control-allow-credentials' && value[0] === 'true'
-    )
-    if (hasCredentials) {
-      callback({})
-      return
-    }
-
-    const headers: Record<string, string[]> = {}
-    const corsKeys = ['access-control-allow-origin', 'access-control-allow-methods', 'access-control-allow-headers', 'access-control-expose-headers', 'access-control-max-age']
-    for (const [key, value] of Object.entries(details.responseHeaders || {})) {
-      if (!corsKeys.includes(key.toLowerCase())) {
-        headers[key] = value as string[]
-      }
-    }
-    Object.assign(headers, corsHeadersToAdd)
-
-    if (details.method === 'OPTIONS') {
-      callback({ responseHeaders: headers, statusLine: 'HTTP/1.1 204 No Content' })
-      return
-    }
-
-    callback({ responseHeaders: headers })
-  })
-
   ojSession.webRequest.onResponseStarted((details) => {
     const wc = details.webContentsId ? webContents.fromId(details.webContentsId) : undefined
     if (details.resourceType === 'mainFrame') {
@@ -82,7 +34,9 @@ export function configureOjSession(options: ConfigureOjSessionOptions): Session 
       }
     }
 
-    if ((details as unknown as Record<string, unknown>)._needsStealth) {
+    const contentType = Object.entries(details.responseHeaders ?? {})
+      .find(([key]) => key.toLowerCase() === 'content-type')?.[1]?.[0]
+    if (details.resourceType === 'mainFrame' && contentType?.toLowerCase().includes('text/html')) {
       const earlyScript = `
         if (typeof navigator !== 'undefined') {
           ${STEALTH_SCRIPT}

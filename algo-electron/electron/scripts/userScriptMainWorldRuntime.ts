@@ -8,6 +8,10 @@ export const USER_SCRIPT_MAIN_WORLD_PARAMETER_NAMES = [
   'GM_setValue',
   'GM_deleteValue',
   'GM_listValues',
+  'GM_xmlhttpRequest',
+  'GM_setClipboard',
+  'GM_registerMenuCommand',
+  'GM_unregisterMenuCommand',
   'unsafeWindow',
 ] as const
 
@@ -44,6 +48,15 @@ interface GrantPermissions {
   modernSetValue: boolean
   modernDeleteValue: boolean
   modernListValues: boolean
+  classicXmlHttpRequest: boolean
+  classicSetClipboard: boolean
+  classicRegisterMenuCommand: boolean
+  classicUnregisterMenuCommand: boolean
+  modernXmlHttpRequest: boolean
+  modernSetClipboard: boolean
+  modernRegisterMenuCommand: boolean
+  modernUnregisterMenuCommand: boolean
+  urlChange: boolean
   unsafeWindow: boolean
 }
 
@@ -156,6 +169,11 @@ function createExecutionFunction(scripts: readonly CompiledScript[]): UserScript
   const clone = `${prefix}Clone`
   const helpers = `${prefix}Helpers`
   const makeApi = `${prefix}MakeApi`
+  const pendingXhr = `${prefix}PendingXhr`
+  const pendingClipboard = `${prefix}PendingClipboard`
+  const menuCallbacks = `${prefix}MenuCallbacks`
+  const requestSequence = `${prefix}RequestSequence`
+  const nextRequestId = `${prefix}NextRequestId`
   const runs = scripts.map((script, index) => `
     {
       const descriptor = ${payload}.scripts[${index}];
@@ -186,6 +204,11 @@ function createExecutionFunction(scripts: readonly CompiledScript[]): UserScript
     const ${page} = globalThis;
     const ${channel} = new ${page}.MessageChannel();
     const ${send} = ${channel}.port1.postMessage.bind(${channel}.port1);
+    const ${pendingXhr} = new Map();
+    const ${pendingClipboard} = new Map();
+    const ${menuCallbacks} = new Map();
+    let ${requestSequence} = 0;
+    const ${nextRequestId} = (kind) => kind + '-' + (++${requestSequence});
     if (typeof ${channel}.port1.start === 'function') ${channel}.port1.start();
     ${page}.postMessage(
       { type: ${JSON.stringify(USER_SCRIPT_RUNTIME_HANDOFF_KIND)}, handshakeId: ${payload}.handshakeId },
@@ -231,6 +254,197 @@ function createExecutionFunction(scripts: readonly CompiledScript[]): UserScript
       listValues(state) {
         return Array.from(state.keys());
       },
+      callHandler(handler, value) {
+        if (typeof handler !== 'function') return;
+        try { handler(value); } catch { /* isolate callback failures */ }
+      },
+      normalizeXhrDetails(details) {
+        if (!details || typeof details !== 'object' || Array.isArray(details)) {
+          throw new TypeError('GM_xmlhttpRequest details must be an object');
+        }
+        const headers = {};
+        if (details.headers !== undefined) {
+          if (!details.headers || typeof details.headers !== 'object' || Array.isArray(details.headers)) {
+            throw new TypeError('GM_xmlhttpRequest headers must be an object');
+          }
+          for (const [name, value] of Object.entries(details.headers)) headers[String(name)] = String(value);
+        }
+        const allowedResponseTypes = new Set(['', 'text', 'json', 'arraybuffer', 'blob', 'document']);
+        const responseType = details.responseType === undefined ? '' : String(details.responseType).toLowerCase();
+        return {
+          method: details.method === undefined ? 'GET' : String(details.method),
+          url: String(details.url || ''),
+          headers,
+          data: details.data === undefined || details.data === null ? null : String(details.data),
+          responseType: allowedResponseTypes.has(responseType) ? responseType : '',
+          timeout: Number.isSafeInteger(details.timeout) && details.timeout >= 0 ? details.timeout : 0,
+          anonymous: details.anonymous === true,
+        };
+      },
+      createXhr(sendMessage, pending, nextId, scriptId, details, modern) {
+        const normalized = this.normalizeXhrDetails(details);
+        const requestId = nextId('xhr');
+        let resolvePromise;
+        let rejectPromise;
+        const promise = modern ? new Promise((resolve, reject) => {
+          resolvePromise = resolve;
+          rejectPromise = reject;
+        }) : null;
+        const abort = () => {
+          if (!pending.has(requestId)) return;
+          sendMessage({ type: 'xhr:abort', scriptId, requestId });
+        };
+        pending.set(requestId, { scriptId, details, resolvePromise, rejectPromise });
+        const started = {
+          finalUrl: normalized.url,
+          readyState: 1,
+          status: 0,
+          statusText: '',
+          responseHeaders: '',
+          response: null,
+          responseText: '',
+          responseXML: null,
+        };
+        this.callHandler(details.onreadystatechange, started);
+        this.callHandler(details.onloadstart, started);
+        sendMessage({ type: 'xhr:start', scriptId, requestId, details: normalized });
+        if (!modern) return Object.freeze({ abort });
+        Object.defineProperty(promise, 'abort', { value: abort, enumerable: true });
+        return promise;
+      },
+      xhrResponse(targetPage, snapshot) {
+        const body = snapshot.body instanceof ArrayBuffer ? snapshot.body : new Uint8Array(snapshot.body || []).buffer;
+        const text = new targetPage.TextDecoder().decode(body);
+        let response = text;
+        let responseXML = null;
+        if (snapshot.responseType === 'json') {
+          try { response = text.length > 0 ? JSON.parse(text) : null; } catch { response = null; }
+        } else if (snapshot.responseType === 'arraybuffer') {
+          response = body;
+        } else if (snapshot.responseType === 'blob') {
+          response = new targetPage.Blob([body]);
+        } else if (snapshot.responseType === 'document') {
+          responseXML = typeof targetPage.DOMParser === 'function'
+            ? new targetPage.DOMParser().parseFromString(text, 'text/html')
+            : null;
+          response = responseXML;
+        }
+        return {
+          finalUrl: snapshot.finalUrl,
+          readyState: 4,
+          status: snapshot.status,
+          statusText: snapshot.statusText,
+          responseHeaders: snapshot.responseHeaders,
+          response,
+          responseText: snapshot.responseType === 'arraybuffer' || snapshot.responseType === 'blob' ? '' : text,
+          responseXML,
+        };
+      },
+      handleXhrEvent(targetPage, pending, event) {
+        const state = pending.get(event.requestId);
+        if (!state) return;
+        if (event.type === 'xhr:progress') {
+          const progress = {
+            lengthComputable: event.total > 0,
+            loaded: event.loaded,
+            total: event.total,
+            readyState: 3,
+            status: 0,
+          };
+          this.callHandler(state.details.onreadystatechange, progress);
+          this.callHandler(state.details.onprogress, progress);
+          return;
+        }
+        pending.delete(event.requestId);
+        if (event.type === 'xhr:complete') {
+          const response = this.xhrResponse(targetPage, event.response);
+          this.callHandler(state.details.onreadystatechange, response);
+          this.callHandler(state.details.onload, response);
+          state.resolvePromise?.(response);
+          return;
+        }
+        const failed = {
+          finalUrl: '', readyState: 4, status: 0, statusText: '', responseHeaders: '',
+          response: null, responseText: '', responseXML: null,
+        };
+        this.callHandler(state.details.onreadystatechange, failed);
+        const callback = event.reason === 'abort'
+          ? state.details.onabort
+          : event.reason === 'timeout'
+            ? state.details.ontimeout
+            : state.details.onerror;
+        this.callHandler(callback, failed);
+        state.rejectPromise?.(new Error('GM.xmlHttpRequest failed: ' + event.reason));
+      },
+      createClipboard(sendMessage, pending, nextId, scriptId, data, info, callback, modern) {
+        const requestId = nextId('clipboard');
+        const dataType = info === 'html' || (info && typeof info === 'object' && info.type === 'html') ? 'html' : 'text';
+        let resolvePromise;
+        let rejectPromise;
+        const promise = modern ? new Promise((resolve, reject) => {
+          resolvePromise = resolve;
+          rejectPromise = reject;
+        }) : null;
+        pending.set(requestId, { callback, resolvePromise, rejectPromise });
+        sendMessage({ type: 'clipboard:set', scriptId, requestId, data: String(data), dataType });
+        return promise;
+      },
+      handleClipboardEvent(pending, event) {
+        const state = pending.get(event.requestId);
+        if (!state) return;
+        pending.delete(event.requestId);
+        this.callHandler(state.callback, event.ok);
+        if (event.ok) state.resolvePromise?.();
+        else state.rejectPromise?.(new Error('GM.setClipboard failed'));
+      },
+      registerMenu(sendMessage, callbacks, nextId, scriptId, name, callback) {
+        if (typeof callback !== 'function') throw new TypeError('GM_registerMenuCommand callback must be a function');
+        const commandId = nextId('menu');
+        callbacks.set(scriptId + '\\0' + commandId, callback);
+        sendMessage({ type: 'menu:register', scriptId, commandId, name: String(name) });
+        return commandId;
+      },
+      unregisterMenu(sendMessage, callbacks, scriptId, commandId) {
+        const normalized = String(commandId);
+        callbacks.delete(scriptId + '\\0' + normalized);
+        sendMessage({ type: 'menu:unregister', scriptId, commandId: normalized });
+      },
+      handleMenuEvent(callbacks, event) {
+        this.callHandler(callbacks.get(event.scriptId + '\\0' + event.commandId));
+      },
+      installUrlChange(targetPage) {
+        if (!targetPage.location || !targetPage.history || typeof targetPage.addEventListener !== 'function') return;
+        let handler = typeof targetPage.onurlchange === 'function' ? targetPage.onurlchange : null;
+        try {
+          Object.defineProperty(targetPage, 'onurlchange', {
+            configurable: true,
+            enumerable: true,
+            get: () => handler,
+            set: value => { handler = typeof value === 'function' ? value : null; },
+          });
+        } catch { /* keep an existing non-configurable property */ }
+        let lastUrl = String(targetPage.location.href);
+        const emit = () => {
+          const url = String(targetPage.location.href);
+          if (url === lastUrl) return;
+          lastUrl = url;
+          const event = typeof targetPage.Event === 'function' ? new targetPage.Event('urlchange') : { type: 'urlchange' };
+          try { Object.defineProperty(event, 'url', { value: url, enumerable: true }); } catch { /* ignore */ }
+          this.callHandler(targetPage.onurlchange, event);
+          try { targetPage.dispatchEvent?.(event); } catch { /* ignore */ }
+        };
+        for (const methodName of ['pushState', 'replaceState']) {
+          const original = targetPage.history[methodName];
+          if (typeof original !== 'function') continue;
+          targetPage.history[methodName] = function (...args) {
+            const result = original.apply(this, args);
+            emit();
+            return result;
+          };
+        }
+        targetPage.addEventListener('popstate', emit);
+        targetPage.addEventListener('hashchange', emit);
+      },
       asyncValue(operation, ...args) {
         return Promise.resolve(operation(...args));
       },
@@ -256,6 +470,12 @@ function createExecutionFunction(scripts: readonly CompiledScript[]): UserScript
       const setValue = Object.freeze(${helpers}.setValue.bind(undefined, state, ${clone}, ${send}, descriptor.id));
       const deleteValue = Object.freeze(${helpers}.deleteValue.bind(undefined, state, ${send}, descriptor.id));
       const listValues = Object.freeze(${helpers}.listValues.bind(undefined, state));
+      const xmlHttpRequest = Object.freeze((details, modern = false) => (
+        ${helpers}.createXhr(${send}, ${pendingXhr}, ${nextRequestId}, descriptor.id, details, modern)
+      ));
+      const setClipboard = Object.freeze(${helpers}.createClipboard.bind(${helpers}, ${send}, ${pendingClipboard}, ${nextRequestId}, descriptor.id));
+      const registerMenuCommand = Object.freeze(${helpers}.registerMenu.bind(${helpers}, ${send}, ${menuCallbacks}, ${nextRequestId}, descriptor.id));
+      const unregisterMenuCommand = Object.freeze(${helpers}.unregisterMenu.bind(${helpers}, ${send}, ${menuCallbacks}, descriptor.id));
       const modern = (
         descriptor.permissions.modernInfo
         || descriptor.permissions.modernAddStyle
@@ -263,6 +483,10 @@ function createExecutionFunction(scripts: readonly CompiledScript[]): UserScript
         || descriptor.permissions.modernSetValue
         || descriptor.permissions.modernDeleteValue
         || descriptor.permissions.modernListValues
+        || descriptor.permissions.modernXmlHttpRequest
+        || descriptor.permissions.modernSetClipboard
+        || descriptor.permissions.modernRegisterMenuCommand
+        || descriptor.permissions.modernUnregisterMenuCommand
       ) ? Object.freeze({
         ...(descriptor.permissions.modernInfo ? { info } : {}),
         ...(descriptor.permissions.modernAddStyle ? {
@@ -280,6 +504,14 @@ function createExecutionFunction(scripts: readonly CompiledScript[]): UserScript
         ...(descriptor.permissions.modernListValues ? {
           listValues: Object.freeze(${helpers}.asyncValue.bind(undefined, listValues)),
         } : {}),
+        ...(descriptor.permissions.modernXmlHttpRequest ? {
+          xmlHttpRequest: Object.freeze(details => xmlHttpRequest(details, true)),
+        } : {}),
+        ...(descriptor.permissions.modernSetClipboard ? {
+          setClipboard: Object.freeze((data, info) => setClipboard(data, info, undefined, true)),
+        } : {}),
+        ...(descriptor.permissions.modernRegisterMenuCommand ? { registerMenuCommand } : {}),
+        ...(descriptor.permissions.modernUnregisterMenuCommand ? { unregisterMenuCommand } : {}),
       }) : undefined;
       return [
         modern,
@@ -289,9 +521,27 @@ function createExecutionFunction(scripts: readonly CompiledScript[]): UserScript
         descriptor.permissions.classicSetValue ? setValue : undefined,
         descriptor.permissions.classicDeleteValue ? deleteValue : undefined,
         descriptor.permissions.classicListValues ? listValues : undefined,
+        descriptor.permissions.classicXmlHttpRequest ? xmlHttpRequest : undefined,
+        descriptor.permissions.classicSetClipboard ? setClipboard : undefined,
+        descriptor.permissions.classicRegisterMenuCommand ? registerMenuCommand : undefined,
+        descriptor.permissions.classicUnregisterMenuCommand ? unregisterMenuCommand : undefined,
         descriptor.permissions.unsafeWindow ? ${page} : undefined,
       ];
     };
+    ${channel}.port1.onmessage = (event) => {
+      const message = event?.data;
+      if (!message || typeof message !== 'object' || typeof message.type !== 'string') return;
+      if (message.type === 'xhr:progress' || message.type === 'xhr:complete' || message.type === 'xhr:failed') {
+        ${helpers}.handleXhrEvent(${page}, ${pendingXhr}, message);
+      } else if (message.type === 'clipboard:result') {
+        ${helpers}.handleClipboardEvent(${pendingClipboard}, message);
+      } else if (message.type === 'menu:invoke') {
+        ${helpers}.handleMenuEvent(${menuCallbacks}, message);
+      }
+    };
+    if (${payload}.scripts.some(descriptor => descriptor.permissions.urlChange)) {
+      ${helpers}.installUrlChange(${page});
+    }
     ${runs}
   `
   return new Function(payload, body) as UserScriptMainWorldExecution['func']
@@ -313,6 +563,15 @@ function resolvePermissions(grants: readonly string[]): GrantPermissions {
     modernSetValue: has('GM.setValue'),
     modernDeleteValue: has('GM.deleteValue'),
     modernListValues: has('GM.listValues'),
+    classicXmlHttpRequest: has('GM_xmlhttpRequest'),
+    classicSetClipboard: has('GM_setClipboard'),
+    classicRegisterMenuCommand: has('GM_registerMenuCommand'),
+    classicUnregisterMenuCommand: has('GM_unregisterMenuCommand'),
+    modernXmlHttpRequest: has('GM.xmlHttpRequest'),
+    modernSetClipboard: has('GM.setClipboard'),
+    modernRegisterMenuCommand: has('GM.registerMenuCommand'),
+    modernUnregisterMenuCommand: has('GM.unregisterMenuCommand'),
+    urlChange: has('window.onurlchange'),
     unsafeWindow: has('unsafeWindow'),
   }
 }

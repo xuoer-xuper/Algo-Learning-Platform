@@ -404,6 +404,15 @@ interface PendingUserScriptInstall {
   createdAt: string
 }
 
+interface UserScriptHostPermissionPrompt {
+  promptId: string
+  scriptName: string
+  targetHost: string
+  sourceHost: string
+}
+
+type UserScriptHostPermissionResponse = 'allowed' | 'denied' | 'persist-failed' | 'stale'
+
 type SearchEngineId = 'bing' | 'google' | 'baidu' | 'custom'
 
 interface SearchEngineConfig {
@@ -790,6 +799,9 @@ interface ElectronAPI {
   onDownloadResult: (callback: (result: ManagedDownloadResult) => void) => () => void
   getUserScriptInstall: (installId: string) => Promise<PendingUserScriptInstall | null>
   cancelUserScriptInstall: (installId: string) => Promise<boolean>
+  getUserScriptHostPermissionPrompt: () => Promise<UserScriptHostPermissionPrompt | null>
+  respondUserScriptHostPermission: (promptId: string, allow: boolean) => Promise<UserScriptHostPermissionResponse>
+  onUserScriptHostPermissionPrompt: (callback: (prompt: UserScriptHostPermissionPrompt) => void) => () => void
   listRecentProblems: (limit?: number, platform?: string, status?: string) => Promise<ProblemRecord[]>
   getProblemDetail: (problemId: string) => Promise<ProblemDetailRecord | null>
   deleteProblem: (problemId: string) => Promise<boolean>

@@ -29,6 +29,7 @@ export interface UserScriptRuntimeNavigationSnapshot {
 export class UserScriptRuntime {
   private readonly dependencies: UserScriptRuntimeDependencies
   private readonly valuesByScript = new Map<string, Map<string, unknown>>()
+  private readonly generationChangeListeners = new Set<(generation: number) => void>()
   private runtimeGeneration = 0
 
   public constructor(dependencies: Partial<UserScriptRuntimeDependencies> & {
@@ -50,6 +51,7 @@ export class UserScriptRuntime {
   public refresh(): void {
     this.runtimeGeneration += 1
     this.valuesByScript.clear()
+    for (const listener of this.generationChangeListeners) listener(this.runtimeGeneration)
     this.dependencies.userScriptService.refresh()
     const nextValues = new Map<string, Map<string, unknown>>()
     for (const script of this.dependencies.userScriptService.getEnabledScriptsSnapshot()) {
@@ -78,8 +80,9 @@ export class UserScriptRuntime {
           return []
         }
         const grants = parseStringArray(script.grant_json)
-        if (!grants) {
-          this.dependencies.logger.warn('userscript.runtime-grants-invalid', { scriptId: script.id })
+        const connects = parseStringArray(script.connect_json)
+        if (!grants || !connects) {
+          this.dependencies.logger.warn('userscript.runtime-permissions-invalid', { scriptId: script.id })
           return []
         }
         return [{
@@ -90,6 +93,7 @@ export class UserScriptRuntime {
           version: script.version,
           runAt: normalizeRunAt(script.run_at),
           grants,
+          connects,
           values: Array.from(this.valuesByScript.get(script.id) ?? []),
           code: script.code,
         }]
@@ -107,6 +111,11 @@ export class UserScriptRuntime {
     this.requireEnabledScript(scriptId)
     this.dependencies.deleteValue(scriptId, key)
     this.valuesByScript.get(scriptId)?.delete(key)
+  }
+
+  public addGenerationChangeListener(listener: (generation: number) => void): () => void {
+    this.generationChangeListeners.add(listener)
+    return () => { this.generationChangeListeners.delete(listener) }
   }
 
   private requireEnabledScript(scriptId: string): void {

@@ -25,6 +25,7 @@ import { configureChromiumCommandLine } from './app/chromiumFlags'
 import { preconnectRecentSiteOrigins } from './app/recentSitePreconnect'
 import { initializeMainServices, type MainServices } from './app/mainServices'
 import { getSiteById } from './db/repositories/siteRepository'
+import { grantUserScriptHost } from './db/repositories/userScriptRuntimeRepository'
 import { installProblemTitleTracking } from './tracking/problemTitleTracking'
 import { registerNoteAssetProtocol, registerNoteAssetSchemeAsPrivileged } from './notes/noteAssetProtocol'
 import { ensureTodaySnapshot } from './db/repositories/aiContextSnapshotRepository'
@@ -82,6 +83,9 @@ import {
   type UserScriptRuntimeBridge,
 } from './scripts/userScriptRuntimeBridge'
 import { USER_SCRIPT_BOOTSTRAP_PRELOAD_PATH } from './scripts/userScriptRuntimeConfig'
+import { UserScriptHostPermissionBroker } from './scripts/UserScriptHostPermissionBroker'
+import { UserScriptMenuRegistry } from './scripts/UserScriptMenuRegistry'
+import { UserScriptNetworkProxy } from './scripts/UserScriptNetworkProxy'
 
 configureChromiumCommandLine()
 
@@ -89,6 +93,9 @@ applyStartupSmokeUserDataPath()
 
 let services: MainServices | null = null
 let userScriptRuntimeBridge: UserScriptRuntimeBridge | null = null
+let userScriptHostPermissionBroker: UserScriptHostPermissionBroker | null = null
+let userScriptMenuRegistry: UserScriptMenuRegistry | null = null
+let removeUserScriptGenerationListener: (() => void) | null = null
 let coachPetWindow: CoachPetWindow | null = null
 let coachOrchestrator: CoachOrchestrator | null = null
 let legacyTabSessionStore: TabSessionStore | null = null
@@ -305,6 +312,7 @@ async function createWindowOnce(
     buildSearchUrlForQuery: (query) => buildSearchUrl(query, getSearchConfig()),
     windowId,
     viewRegistry,
+    getUserScriptMenuCommands: webContentsId => userScriptMenuRegistry?.getForWebContents(webContentsId) ?? [],
   })
   const appWindow = new AppWindow({
     id: windowId,
@@ -312,6 +320,7 @@ async function createWindowOnce(
     tabManager,
   })
   windowManager.register(appWindow)
+  win.once('closed', () => userScriptHostPermissionBroker?.cancelWindow(windowId))
   coachOrchestrator?.attachAppWindow(appWindow)
   registerShellWebContents(win.webContents, appWindow)
   tabManager.setNavigationBlockedHandler(notifyNavigationBlocked)
@@ -529,6 +538,10 @@ registerMainIpc({
   finishTabDrag: (source, tabId, targetIndex, screenX, screenY) => (
     tabTransferCoordinator.finishDrag(source, tabId, targetIndex, screenX, screenY)
   ),
+  getUserScriptHostPermissionPrompt: owner => userScriptHostPermissionBroker?.getCurrent(owner.id) ?? null,
+  respondUserScriptHostPermission: (owner, promptId, allow) => (
+    userScriptHostPermissionBroker?.respond(owner.id, promptId, allow) ?? Promise.resolve('stale')
+  ),
 })
 
 // --- App 生命周期 ---
@@ -569,6 +582,12 @@ app.on('before-quit', (event) => {
   } catch (error) {
     appLogger.warn('userscript.runtime-dispose-failed', error)
   }
+  removeUserScriptGenerationListener?.()
+  removeUserScriptGenerationListener = null
+  userScriptHostPermissionBroker?.dispose()
+  userScriptHostPermissionBroker = null
+  userScriptMenuRegistry?.clear()
+  userScriptMenuRegistry = null
   try {
     services?.trackingService.endCurrentVisit()
   } catch (error) {
@@ -635,11 +654,49 @@ void app.whenReady().then(async () => {
 
   registerNoteAssetProtocol()
   services = await initializeMainServices(() => { windowManager.sendToAll('problems:updated') })
+  userScriptMenuRegistry = new UserScriptMenuRegistry()
+  userScriptHostPermissionBroker = new UserScriptHostPermissionBroker({
+    grantUserScriptHost,
+    send: (windowId, prompt) => windowManager.get(windowId)?.send('userscript:hostPermissionRequested', prompt) ?? false,
+    show: (windowId) => { windowManager.get(windowId)?.tabManager.setUserScriptPermissionNoticeVisible(true) },
+    hide: (windowId) => { windowManager.get(windowId)?.tabManager.setUserScriptPermissionNoticeVisible(false) },
+    validate: (request) => {
+      if (request.generation !== services?.userScriptRuntime.generation || request.webContentsId === undefined) return false
+      return windowManager.resolveWebContents(request.webContentsId)?.id === request.windowId
+    },
+  })
+  let permissionGeneration = services.userScriptRuntime.generation
+  removeUserScriptGenerationListener = services.userScriptRuntime.addGenerationChangeListener((generation) => {
+    userScriptHostPermissionBroker?.cancelGeneration(permissionGeneration)
+    permissionGeneration = generation
+  })
+  const userScriptNetworkProxy = new UserScriptNetworkProxy({
+    fetch: ojSession.fetch.bind(ojSession),
+    allowInsecureLocalhost: Boolean(VITE_DEV_SERVER_URL || STARTUP_SMOKE_MODE),
+    requestPermission: (context, target) => {
+      const owner = windowManager.resolveWebContents(context.webContentsId)
+      if (!owner || !userScriptHostPermissionBroker || !services) return Promise.resolve(false)
+      let sourceHost: string
+      try { sourceHost = new URL(context.frameUrl).hostname.toLowerCase() }
+      catch { return Promise.resolve(false) }
+      return userScriptHostPermissionBroker.request({
+        windowId: owner.id,
+        generation: services.userScriptRuntime.generation,
+        scriptId: context.scriptId,
+        scriptName: context.scriptName,
+        targetHost: target.permissionHost,
+        sourceHost,
+        webContentsId: context.webContentsId,
+      })
+    },
+  })
   userScriptRuntimeBridge = installUserScriptRuntimeBridge({
     runtime: services.userScriptRuntime,
     session: ojSession,
     preloadPath: USER_SCRIPT_BOOTSTRAP_PRELOAD_PATH,
     allowInsecureLocalhost: Boolean(VITE_DEV_SERVER_URL || STARTUP_SMOKE_MODE),
+    networkProxy: userScriptNetworkProxy,
+    menuRegistry: userScriptMenuRegistry,
   })
   // Only preconnect sites the user actually visited recently to avoid noisy cold-start timeouts.
   preconnectRecentSiteOrigins()

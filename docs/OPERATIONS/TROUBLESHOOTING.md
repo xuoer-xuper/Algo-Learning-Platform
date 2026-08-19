@@ -190,12 +190,14 @@ node tmp\submissions-submissionBatchWriter.test.mjs
 1. 确认脚本已启用。
 2. 确认脚本 `@match` / `@include` 或绑定站点覆盖当前 URL。
 3. 在脚本管理器确认来源为“本地托管”，再用“打开目录”检查受管 `.user.js` 文件是否仍存在；shell 不再显示绝对 `file_path`。
-4. 如果是 `@require` 或 `@resource` 失败，确认网络可访问这些资源。
-5. 运行 metadata 测试：
+4. 使用 `GM_xmlhttpRequest` 时，确认脚本声明了对应 `@grant`，且 `@connect` 覆盖初始 host 和所有重定向 host；首次访问应在请求所属窗口的 NoticeBar 中逐 host 授权。拒绝或超时会在当前 generation 内抑制重复提示，reload 后可重试。
+5. 若网络回调返回 denied，检查 HTTPS、URL userinfo、`@connect` 和 host 授权；返回 timeout 检查脚本 timeout；返回 error 再检查响应是否超过 16 MiB、重定向是否过多或并发是否超过单端口 8 个。不要通过恢复全局 CORS 改写绕过代理。
+6. `@require` / `@resource` 的下载、缓存与 SRI 尚属于 B6.5；当前只解析 metadata，不应假定远程资源已加载。
+7. 运行用户脚本测试：
 
 ```powershell
 cd algo-electron
-npx --yes tsx tests\scripts\userScriptMetadata.test.ts
+npx vitest run tests\scripts tests\browser\ojSession.test.ts tests\browser\contextMenu.test.ts
 ```
 
 ## 12. 统计页异常

@@ -201,6 +201,9 @@ function createApiMock(): ElectronAPI {
     onDownloadResult: () => () => {},
     getUserScriptInstall: async () => null,
     cancelUserScriptInstall: async () => true,
+    getUserScriptHostPermissionPrompt: async () => null,
+    respondUserScriptHostPermission: async () => 'stale',
+    onUserScriptHostPermissionPrompt: () => () => {},
 
     listRecentProblems: async (limit, platform, status) => filterProblems(limit, platform, status),
     getProblemDetail: async (problemId) => {

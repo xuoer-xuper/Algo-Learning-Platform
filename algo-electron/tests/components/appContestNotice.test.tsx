@@ -5,6 +5,8 @@ import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 let contestListener: ((payload: CoachContestModePayload) => void) | null = null
 const unsubscribeContest = vi.fn()
 let getCoachState = vi.fn<() => Promise<CoachStateSnapshot | null>>()
+let permissionListener: ((prompt: UserScriptHostPermissionPrompt) => void) | null = null
+const respondPermission = vi.fn(async () => 'allowed' as UserScriptHostPermissionResponse)
 
 function createCoachState(isContestMode: boolean): CoachStateSnapshot {
   return {
@@ -58,16 +60,24 @@ vi.mock('../../src/hooks/useBrowserNavigation', () => ({
   }),
 }))
 vi.mock('../../src/hooks/browserShellApi', () => ({
+  getUserScriptHostPermissionPrompt: async () => null,
+  respondUserScriptHostPermission: (promptId: string, allow: boolean) => respondPermission(promptId, allow),
   setDownloadNoticeVisible: vi.fn(),
   showBrowserShellContextMenu: vi.fn(),
   subscribeDownloadResult: () => () => undefined,
+  subscribeUserScriptHostPermissionPrompt: (listener: (prompt: UserScriptHostPermissionPrompt) => void) => {
+    permissionListener = listener
+    return () => { permissionListener = null }
+  },
 }))
 
 import App from '../../src/App'
 
 beforeEach(() => {
   contestListener = null
+  permissionListener = null
   unsubscribeContest.mockClear()
+  respondPermission.mockClear()
   getCoachState = vi.fn(async () => null)
   window.electronAPI = {
     coachGetState: () => getCoachState(),
@@ -107,6 +117,22 @@ test('shows a persistent layout notice while contest mode is active', () => {
 
   unmount()
   expect(unsubscribeContest).toHaveBeenCalledOnce()
+})
+
+test('shows the userscript host prompt in the existing NoticeBar and returns the decision', async () => {
+  render(<App />)
+  act(() => {
+    permissionListener?.({
+      promptId: 'prompt-1',
+      scriptName: 'Ratings helper',
+      targetHost: 'api.example.com',
+      sourceHost: 'codeforces.com',
+    })
+  })
+  expect(screen.getByText(/Ratings helper/)).toBeTruthy()
+  expect(screen.getByText(/api\.example\.com/)).toBeTruthy()
+  await act(async () => { screen.getByRole('button', { name: '允许' }).click() })
+  expect(respondPermission).toHaveBeenCalledWith('prompt-1', true)
 })
 
 test('hydrates contest mode from the current Coach state after subscribing', async () => {

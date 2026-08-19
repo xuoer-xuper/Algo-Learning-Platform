@@ -19,8 +19,11 @@ import { FindInPageBar } from './components/FindInPageBar'
 import { useBrowserNavigation } from './hooks/useBrowserNavigation'
 import {
   setDownloadNoticeVisible,
+  getUserScriptHostPermissionPrompt,
+  respondUserScriptHostPermission,
   showBrowserShellContextMenu,
   subscribeDownloadResult,
+  subscribeUserScriptHostPermissionPrompt,
 } from './hooks/browserShellApi'
 import './App.css'
 
@@ -28,6 +31,7 @@ function App() {
   const [activeTab, setActiveTab] = useState<TabStripTabInfo | null>(null)
   const [downloadResult, setDownloadResult] = useState<ManagedDownloadResult | null>(null)
   const [contestMode, setContestMode] = useState<CoachContestModePayload | null>(null)
+  const [userScriptPermission, setUserScriptPermission] = useState<UserScriptHostPermissionPrompt | null>(null)
   const {
     url,
     syncMsg,
@@ -76,6 +80,22 @@ function App() {
   useEffect(() => {
     let disposed = false
     let receivedLiveUpdate = false
+    const unsubscribe = subscribeUserScriptHostPermissionPrompt((prompt) => {
+      receivedLiveUpdate = true
+      if (!disposed) setUserScriptPermission(prompt)
+    })
+    void getUserScriptHostPermissionPrompt().then((prompt) => {
+      if (!disposed && !receivedLiveUpdate) setUserScriptPermission(prompt)
+    }).catch(() => undefined)
+    return () => {
+      disposed = true
+      unsubscribe()
+    }
+  }, [])
+
+  useEffect(() => {
+    let disposed = false
+    let receivedLiveUpdate = false
     const unsubscribe = window.electronAPI.onCoachContestModeChanged((payload) => {
       receivedLiveUpdate = true
       if (!disposed) setContestMode(payload)
@@ -101,6 +121,16 @@ function App() {
     setDownloadResult(null)
     setDownloadNoticeVisible(false)
   }, [])
+
+  const answerUserScriptPermission = useCallback((allow: boolean) => {
+    const promptId = userScriptPermission?.promptId
+    if (!promptId) return
+    setUserScriptPermission(null)
+    void respondUserScriptHostPermission(promptId, allow)
+      .then(() => getUserScriptHostPermissionPrompt())
+      .then(prompt => setUserScriptPermission(prompt))
+      .catch(() => setUserScriptPermission(null))
+  }, [userScriptPermission])
 
   const showUnresponsiveNotice = Boolean(
     activeTab?.isUnresponsive
@@ -141,6 +171,18 @@ function App() {
         onReload={reload}
         onSyncPage={syncCurrentPage}
       />
+      {userScriptPermission && (
+        <NoticeBar
+          tone="warning"
+          title="用户脚本网络权限"
+          actions={[
+            { label: '允许', onClick: () => answerUserScriptPermission(true) },
+            { label: '拒绝', onClick: () => answerUserScriptPermission(false), variant: 'ghost' },
+          ]}
+        >
+          {`脚本“${userScriptPermission.scriptName}”请求从 ${userScriptPermission.sourceHost} 访问 ${userScriptPermission.targetHost}`}
+        </NoticeBar>
+      )}
       {contestMode?.isContestMode && (
         <NoticeBar tone="warning" title="比赛模式">
           Coach 已静默，比赛期间不会显示提示。

@@ -10,6 +10,10 @@ import { popupShellContextMenu, readClipboardText } from '../contextMenus/browse
 import { isZoomCommand } from '../browser/zoomPreferences'
 import type { PendingUserScriptInstallRegistry } from '../downloads/userScriptNavigation'
 import type { AppWindow } from '../windows/AppWindow'
+import type {
+  UserScriptHostPermissionPrompt,
+  UserScriptHostPermissionResponse,
+} from '../scripts/UserScriptHostPermissionBroker'
 
 interface RegisterBrowserShellIpcOptions {
   getBrowserDiagnostics?: () => BrowserDiagnostics | null
@@ -23,6 +27,12 @@ interface RegisterBrowserShellIpcOptions {
     screenX: number,
     screenY: number,
   ) => Promise<boolean>
+  getUserScriptHostPermissionPrompt?: (owner: AppWindow) => UserScriptHostPermissionPrompt | null
+  respondUserScriptHostPermission?: (
+    owner: AppWindow,
+    promptId: string,
+    allow: boolean,
+  ) => Promise<UserScriptHostPermissionResponse>
 }
 
 function toNavigationBlockReason(
@@ -151,6 +161,20 @@ export function registerBrowserShellIpc(options: RegisterBrowserShellIpcOptions)
   ipcMain.handle('browser:cancelUserScriptInstall', (_event, installId: unknown) => {
     if (typeof installId !== 'string') return false
     return options.getUserScriptInstallRegistry?.()?.consume(installId) !== null
+  })
+
+  ipcMain.handle('userscript:getHostPermissionPrompt', (event) => {
+    const owner = getShellWindowOwner(event)
+    return owner ? options.getUserScriptHostPermissionPrompt?.(owner) ?? null : null
+  })
+
+  ipcMain.handle('userscript:respondHostPermission', (event, promptId: unknown, allow: unknown) => {
+    if (typeof promptId !== 'string' || promptId.length === 0 || promptId.length > 256) return 'stale'
+    if (typeof allow !== 'boolean') return 'stale'
+    const owner = getShellWindowOwner(event)
+    return owner
+      ? options.respondUserScriptHostPermission?.(owner, promptId, allow) ?? 'stale'
+      : 'stale'
   })
 
   ipcMain.on('browser:showAppMenu', (event, anchor: unknown) => {

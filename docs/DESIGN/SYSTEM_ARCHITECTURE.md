@@ -161,6 +161,10 @@ algo-electron/electron/
     userScriptRuntimeBridge.ts
     userscriptBootstrapPreload.ts
     userScriptMainWorldRuntime.ts
+    userScriptConnectPolicy.ts
+    UserScriptNetworkProxy.ts
+    UserScriptHostPermissionBroker.ts
+    UserScriptMenuRegistry.ts
   ai/
     contextExporter.ts
     recommendations/
@@ -227,6 +231,14 @@ Renderer 不直接操作 `webContents`。
 - 下载开始时捕获来源 `windowId`，完成通知只发回仍存活的来源窗口。
 - 窗口 normal bounds 与 maximized 独立原子保存；恢复时保留合法负坐标副屏，显示器拔除或完全越界时校正到主屏 workArea。
 - B3.2 已完成页面事件和核心服务多流语义；B3.3 已开放完整壳标签过户；B3.4 已完成 `problems:updated` 全壳广播、sender 绑定 DOM 同步、任一壳 focus 判定和比赛横幅。B3.5 使用应用级原子快照保存全部窗口、标签、活动项、normal bounds、maximized 与最近窗口；任一壳可独立关闭，最后壳退出应用，临时 transfer 空壳不进入快照。
+
+### 4.6 用户脚本权限边界
+
+- 固定 frame preload 只传输当前导航的受限快照和一次性 MessagePort；脚本源码、GM values 与网络响应不进入 shell renderer 或普通 IPC。
+- `GM_xmlhttpRequest` 由主进程 `UserScriptNetworkProxy` 执行。初始目标和每一跳重定向均重新经过 URL 规范化、`@connect` DNS label 匹配和脚本级精确 host permission；OJ session 不承担跨域放行职责。
+- 首次 host 授权由 `UserScriptHostPermissionBroker` 路由到 webContents 当前所属窗口，复用文档流 NoticeBar；generation、owner 或窗口失效时请求与提示一起撤销。
+- 请求/响应大小、header、超时、重定向、并发和菜单注册数均有上限；浏览器所有请求头和 `Set-Cookie` 不跨越脚本桥。
+- 用户脚本菜单按活动端口绑定到页面原生右键菜单，端口关闭或 generation 更新即清理；剪贴板能力只写不读，所有特权 API 继续受 `@grant` 和 `@grant none` 双层校验。
 
 ## 5. Session 与 CookieVault
 

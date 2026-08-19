@@ -1,4 +1,5 @@
 import {
+  clipboard,
   ipcMain,
   type IpcMainEvent,
   type MessagePortMain,
@@ -8,14 +9,17 @@ import {
 import { checkOjFrameSender } from '../ipc/trustedSender'
 import { appLogger, type Logger } from '../shared/logger'
 import type { UserScriptRuntime } from './UserScriptRuntime'
+import type { UserScriptMenuRegistry } from './UserScriptMenuRegistry'
+import type { UserScriptNetworkProxy } from './UserScriptNetworkProxy'
 import {
   USER_SCRIPT_RUNTIME_INIT_CHANNEL,
   USER_SCRIPT_RUNTIME_MAX_SNAPSHOT_BYTES,
   USER_SCRIPT_RUNTIME_PORT_CHANNEL,
   isUserScriptRuntimeInitRequest,
   isUserScriptRuntimePortRequest,
-  parseUserScriptRuntimeMutation,
+  parseUserScriptRuntimeCommand,
   type UserScriptRuntimeBootstrapResponse,
+  type UserScriptRuntimeEvent,
 } from './userScriptRuntimeProtocol'
 
 const PENDING_PORT_TTL_MS = 5_000
@@ -28,13 +32,22 @@ interface UserScriptRuntimeBridgeOptions {
   allowInsecureLocalhost?: boolean
   logger?: Logger
   now?: () => number
+  networkProxy?: Pick<UserScriptNetworkProxy, 'start' | 'abort' | 'abortPrefix'>
+  menuRegistry?: UserScriptMenuRegistry
+  writeClipboard?: (data: string, dataType: 'text' | 'html') => void
+}
+
+interface AllowedRuntimeScript {
+  name: string
+  grants: Set<string>
+  connects: string[]
 }
 
 interface PendingRuntimePort {
   nonce: string
   frameUrl: string
   generation: number
-  allowedGrants: Map<string, Set<string>>
+  allowedScripts: Map<string, AllowedRuntimeScript>
   expiresAt: number
 }
 
@@ -60,15 +73,37 @@ export function installUserScriptRuntimeBridge(
     type: 'frame',
     filePath: options.preloadPath,
   })
+  const writeClipboard = options.writeClipboard ?? ((data: string, dataType: 'text' | 'html') => {
+    if (dataType === 'html') clipboard.writeHTML(data)
+    else clipboard.writeText(data)
+  })
 
   const closeFramePort = (frameKey: string): void => {
     pendingPorts.delete(frameKey)
+    options.networkProxy?.abortPrefix(operationPrefix(frameKey))
+    options.menuRegistry?.clearPort(frameKey)
     const active = activePorts.get(frameKey)
     if (!active) return
     activePorts.delete(frameKey)
     try { active.port.close() }
     catch { /* the remote frame may already be gone */ }
   }
+
+  const closeAllPorts = (): void => {
+    pendingPorts.clear()
+    for (const frameKey of Array.from(activePorts.keys())) closeFramePort(frameKey)
+  }
+
+  const sendToActivePort = (active: ActiveRuntimePort, event: UserScriptRuntimeEvent): void => {
+    if (activePorts.get(active.frameKey) !== active || active.generation !== options.runtime.generation) {
+      closeFramePort(active.frameKey)
+      return
+    }
+    try { active.port.postMessage(event) }
+    catch { closeFramePort(active.frameKey) }
+  }
+
+  const removeGenerationListener = options.runtime.addGenerationChangeListener?.(() => closeAllPorts())
 
   const closeWebContentsPorts = (webContentsId: number): void => {
     observedContents.delete(webContentsId)
@@ -130,7 +165,11 @@ export function installUserScriptRuntimeBridge(
           nonce: payload.nonce,
           frameUrl: payload.frameUrl,
           generation: snapshot.generation,
-          allowedGrants: new Map(snapshot.scripts.map(script => [script.id, new Set(script.grants)])),
+          allowedScripts: new Map(snapshot.scripts.map(script => [script.id, {
+            name: script.name,
+            grants: new Set(script.grants),
+            connects: [...script.connects],
+          }])),
           expiresAt: now() + PENDING_PORT_TTL_MS,
         })
       }
@@ -183,22 +222,78 @@ export function installUserScriptRuntimeBridge(
           closeFramePort(frameKey)
           return
         }
-        const mutation = parseUserScriptRuntimeMutation(messageEvent.data)
-        if (!mutation) return
-        const grants = active.allowedGrants.get(mutation.scriptId)
-        if (!grants || !allowsValueMutation(grants, mutation.type)) return
+        const command = parseUserScriptRuntimeCommand(messageEvent.data)
+        if (!command) return
+        const script = active.allowedScripts.get(command.scriptId)
+        if (!script) return
         try {
-          if (mutation.type === 'value:set') {
-            options.runtime.setValue(mutation.scriptId, mutation.key, mutation.value)
+          if (command.type === 'value:set') {
+            if (!allowsValueMutation(script.grants, command.type)) return
+            options.runtime.setValue(command.scriptId, command.key, command.value)
           }
-          else {
-            options.runtime.deleteValue(mutation.scriptId, mutation.key)
+          else if (command.type === 'value:delete') {
+            if (!allowsValueMutation(script.grants, command.type)) return
+            options.runtime.deleteValue(command.scriptId, command.key)
+          }
+          else if (command.type === 'xhr:start') {
+            if (!allowsGrant(script.grants, 'GM_xmlhttpRequest', 'GM.xmlHttpRequest')) return
+            options.networkProxy?.start(
+              operationId(frameKey, command.scriptId, command.requestId),
+              {
+                scriptId: command.scriptId,
+                scriptName: script.name,
+                frameUrl: active.frameUrl,
+                connects: script.connects,
+                webContentsId: active.webContentsId,
+              },
+              command.requestId,
+              command.details,
+              event => sendToActivePort(active, event),
+            )
+          }
+          else if (command.type === 'xhr:abort') {
+            if (!allowsGrant(script.grants, 'GM_xmlhttpRequest', 'GM.xmlHttpRequest')) return
+            options.networkProxy?.abort(operationId(frameKey, command.scriptId, command.requestId))
+          }
+          else if (command.type === 'clipboard:set') {
+            if (!allowsGrant(script.grants, 'GM_setClipboard', 'GM.setClipboard')) return
+            let ok = false
+            try {
+              writeClipboard(command.data, command.dataType)
+              ok = true
+            }
+            catch { /* report a bounded failure without clipboard contents */ }
+            sendToActivePort(active, { type: 'clipboard:result', requestId: command.requestId, ok })
+          }
+          else if (command.type === 'menu:register') {
+            if (!allowsGrant(script.grants, 'GM_registerMenuCommand', 'GM.registerMenuCommand')) return
+            options.menuRegistry?.register({
+              portId: frameKey,
+              webContentsId: active.webContentsId,
+              scriptId: command.scriptId,
+              scriptName: script.name,
+              commandId: command.commandId,
+              name: command.name,
+              invoke: () => sendToActivePort(active, {
+                type: 'menu:invoke', scriptId: command.scriptId, commandId: command.commandId,
+              }),
+            })
+          }
+          else if (command.type === 'menu:unregister') {
+            if (!allowsGrant(
+              script.grants,
+              'GM_registerMenuCommand',
+              'GM.registerMenuCommand',
+              'GM_unregisterMenuCommand',
+              'GM.unregisterMenuCommand',
+            )) return
+            options.menuRegistry?.unregister(frameKey, command.scriptId, command.commandId)
           }
         }
         catch (error) {
           logger.error('userscript.runtime-value-mutation-failed', {
-            scriptId: mutation.scriptId,
-            operation: mutation.type,
+            scriptId: command.scriptId,
+            operation: command.type,
             error: error instanceof Error ? error.message : error,
           })
         }
@@ -224,11 +319,21 @@ export function installUserScriptRuntimeBridge(
       ipcMain.removeListener(USER_SCRIPT_RUNTIME_INIT_CHANNEL, handleInit)
       ipcMain.removeListener(USER_SCRIPT_RUNTIME_PORT_CHANNEL, handlePort)
       pendingPorts.clear()
-      for (const frameKey of Array.from(activePorts.keys())) closeFramePort(frameKey)
+      closeAllPorts()
       observedContents.clear()
+      removeGenerationListener?.()
+      options.menuRegistry?.clear()
       options.session.unregisterPreloadScript(preloadRegistrationId)
     },
   }
+}
+
+function operationPrefix(frameKey: string): string {
+  return `${frameKey}\u0000`
+}
+
+function operationId(frameKey: string, scriptId: string, requestId: string): string {
+  return `${operationPrefix(frameKey)}${scriptId}\u0000${requestId}`
 }
 
 function getFrameKey(event: IpcMainEvent): string | null {
@@ -242,6 +347,10 @@ function allowsValueMutation(grants: ReadonlySet<string>, type: 'value:set' | 'v
   return type === 'value:set'
     ? grants.has('GM_setValue') || grants.has('GM.setValue')
     : grants.has('GM_deleteValue') || grants.has('GM.deleteValue')
+}
+
+function allowsGrant(grants: ReadonlySet<string>, ...names: string[]): boolean {
+  return !grants.has('none') && names.some(name => grants.has(name))
 }
 
 function isAllowedRuntimeUrl(rawUrl: string, allowInsecureLocalhost: boolean): boolean {

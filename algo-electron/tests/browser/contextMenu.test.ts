@@ -68,6 +68,29 @@ test('inline images remain copyable while unsafe image and link URLs stay hidden
   assert.deepStrictEqual(contents.copyImageAtCalls, [{ x: 3, y: 7 }])
 })
 
+test('page context menu groups registered userscript commands in a native submenu', () => {
+  const invoked: string[] = []
+  const template = createPageContextMenuTemplate({
+    window: new MockBrowserWindow() as never,
+    contents: new MockWebContents() as never,
+    params: {},
+    openUrlInNewTab: () => undefined,
+    searchSelectionInNewTab: () => undefined,
+    userScriptCommands: [{
+      scriptName: 'Ratings helper',
+      name: 'Refresh rating',
+      invoke: () => invoked.push('refresh'),
+    }],
+  })
+
+  assert.deepStrictEqual(labels(template), ['用户脚本', '---', '后退', '前进', '重新加载'])
+  const submenu = template[0].submenu
+  assert.ok(Array.isArray(submenu))
+  assert.strictEqual(submenu[0].label, 'Ratings helper: Refresh rating')
+  submenu[0].click?.({} as never, {} as never, {} as never)
+  assert.deepStrictEqual(invoked, ['refresh'])
+})
+
 test('shell context menu adds paste-and-go only for the omnibox path', () => {
   const window = new MockBrowserWindow()
   const editor = createShellContextMenuTemplate({

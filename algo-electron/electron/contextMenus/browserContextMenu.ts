@@ -1,4 +1,5 @@
 import { clipboard, Menu, type BrowserWindow, type MenuItemConstructorOptions, type WebContents } from 'electron'
+import type { UserScriptMenuCommand } from '../scripts/UserScriptMenuRegistry'
 
 const MAX_CONTEXT_TEXT_LENGTH = 4_096
 const MAX_CONTEXT_URL_LENGTH = 8_192
@@ -29,6 +30,7 @@ export interface PageContextMenuActions {
   params: ContextMenuParamsLike
   openUrlInNewTab: (url: string) => void
   searchSelectionInNewTab: (query: string) => void
+  userScriptCommands?: UserScriptMenuCommand[]
 }
 
 export interface ShellContextMenuActions {
@@ -149,6 +151,16 @@ export function createPageContextMenuTemplate(options: PageContextMenuActions): 
     items.push(...createEditItems(options.contents, options.params))
   }
 
+  if (options.userScriptCommands && options.userScriptCommands.length > 0) {
+    if (items.length > 0) items.push({ type: 'separator' })
+    items.push({
+      label: '用户脚本',
+      submenu: options.userScriptCommands.map(command => ({
+        label: `${command.scriptName}: ${command.name}`,
+        click: command.invoke,
+      })),
+    })
+  }
   if (items.length > 0) items.push({ type: 'separator' })
   items.push(
     { label: '后退', enabled: options.contents.navigationHistory.canGoBack(), click: () => options.contents.navigationHistory.goBack() },

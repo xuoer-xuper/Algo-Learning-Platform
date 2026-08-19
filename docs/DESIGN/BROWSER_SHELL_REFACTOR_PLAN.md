@@ -468,7 +468,8 @@ Renderer（同一构建产物，多窗口实例化——桌宠 hash 路由已证
 | B5.1-B5.6 | [ ] | 仅按视觉冻结约束做结构收尾、暗色、无障碍、桌宠策略和 Latex |
 | B6.1 | [x] | `027_userscript_runtime`、完整 metadata 持久化、严格 URL 匹配、site binding/exclude 优先级、values/资源/host/update repository 已完成；完整记录见 §11.38 |
 | B6.2 | [x] | GM 私有桥、固定 frame bootstrap、IIFE/grant 裁剪、主进程值快照与 shell 源码隔离已完成；完整记录见 §11.39 |
-| B6.3-B6.7 | [ ] | 网络代理、早注入时序收口、资源下载/SRI、安装更新与管理页待实施 |
+| B6.3 | [x] | `GM_xmlhttpRequest` 主进程受限代理、`@connect` 与逐 host 授权、NoticeBar、剪贴板/菜单/onurlchange、全局 CORS 清理已完成；完整记录见 §11.40 |
+| B6.4-B6.7 | [ ] | 早注入时序收口、资源下载/SRI、安装更新与管理页待实施 |
 
 ### 11.4 单任务完成记录模板
 
@@ -1028,4 +1029,22 @@ Renderer（同一构建产物，多窗口实例化——桌宠 hash 路由已证
 | 暂缓验证 | 按批量策略未运行生产 build、NSIS、真实 packaged 双实例 smoke；B6.4 负责真实 Electron 父 frame/iframe、reload stale port、站点捕获不到端口与 document-start 顺序 smoke |
 | 视觉影响 | 仅调整脚本来源摘要字段，未修改主题、颜色、字体、按钮形态、布局或动画；前端视觉冻结保持不变 |
 | 后续工作 | 进入 B6.3 主进程 `GM_xmlhttpRequest` 代理与 `@connect` 双重 URL 校验；B4.2-B4.6 继续等待 B6.1-B6.4 |
+| 完成时间 | 北京时间 `2026-08-19` |
+
+### 11.40 B6.3 受限网络代理与授权完成记录
+
+| 字段 | 填写内容 |
+|---|---|
+| 任务 | `GM_xmlhttpRequest` 主进程代理、`@connect` 白名单与逐 host 授权、NoticeBar 回执、`GM_setClipboard`、`GM_registerMenuCommand`、`window.onurlchange` 及 OJ session 全局 CORS 清理 |
+| 状态 | `[x] 已完成；B6.4 的真实 document-start/end/idle 时序、父 frame/iframe/reload smoke 与 B6.5 的 @require/@resource 下载/SRI 仍待后续` |
+| Commit | `scripts: 完成 B6.3 受限网络代理与授权`（代码、测试、文档与完成标记同提交） |
+| 网络边界 | `Session.fetch` 使用 `redirect: 'manual'`，初始 URL 与每一跳重定向都重新校验 HTTPS（开发态仅额外允许 loopback HTTP）、userinfo、当前脚本 `@connect` 和当前脚本精确 host 持久授权；父域声明只按 DNS label 匹配，实际授权永远保存目标精确 host |
+| 资源限制 | 请求体、响应体、响应头、超时、重定向、全局并发与单端口并发均设硬上限；过滤 Cookie、Host、Origin、Referer、Content-Length、`Sec-*`、`Proxy-*` 等浏览器所有请求头，跨 origin 重定向额外移除 Authorization，响应不向脚本暴露 Set-Cookie |
+| 授权链路 | `UserScriptHostPermissionBroker` 按窗口串行提示、同脚本/host 合并、拒绝与超时按 generation 负缓存；shell 仅接收 `promptId/scriptName/targetHost/sourceHost`，通过既有 NoticeBar 回应；允许前重新验证 generation、webContents 与当前 owner，标签过户、reload、关窗、generation 变化和异步校验竞态均 fail closed |
+| GM 与菜单 | classic callback 和 modern Promise/abort 两套 `GM_xmlhttpRequest` 语义支持 `text/json/arraybuffer/blob/document`；`GM_setClipboard` 只写不读；脚本菜单命令按活动端口和 webContents 隔离，进入页面原生右键菜单的“用户脚本”子菜单；SPA 地址变化触发 `window.onurlchange`；`@grant none` 在主世界和主进程都硬拒绝 |
+| CORS 与 stealth | 删除 OJ session 的全局 `onHeadersReceived` CORS 改写，跨域能力只存在于受限代理；HTML stealth 判定迁移到 `onResponseStarted`，保持主 frame 早期注入而不改写任何站点响应头 |
+| 自动验证 | B6.3 定向类型检查、安全边界、运行时、UI/IPC、OJ session 与右键菜单测试通过；`npm run test:core` 通过：Vitest `85 files / 792 tests`、TypeScript、全仓 ESLint、architecture `7/7` 与 security 全绿；`npm run test:docs`、`npm run test:packaging` 和 `git diff --check` 通过 |
+| 暂缓验证 | 按 B6 批量策略不运行生产 build、NSIS、真实 Electron 或 packaged 双实例 smoke；这些与 B6.4 的真实 frame/reload 时序一并集中执行 |
+| 视觉影响 | 未修改 CSS、主题、颜色、字体、按钮形态、布局基调或动画；授权复用既有 NoticeBar，脚本命令复用原生右键菜单，前端视觉冻结保持不变 |
+| 后续工作 | 进入 B6.4，证明真实 Electron 中 document-start/end/idle、父 frame/iframe、reload stale port 与站点无法捕获私有端口；B4.2-B4.6 继续等待 B6.4 完成 |
 | 完成时间 | 北京时间 `2026-08-19` |

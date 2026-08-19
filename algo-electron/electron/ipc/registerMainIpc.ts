@@ -18,6 +18,10 @@ import { registerSubmissionsIpc } from './registerSubmissionsIpc'
 import type { PendingUserScriptInstallRegistry } from '../downloads/userScriptNavigation'
 import type { AppWindow } from '../windows/AppWindow'
 import type { UserScriptRuntime } from '../scripts/UserScriptRuntime'
+import type {
+  UserScriptHostPermissionPrompt,
+  UserScriptHostPermissionResponse,
+} from '../scripts/UserScriptHostPermissionBroker'
 
 interface RegisterMainIpcOptions {
   getSyncService: () => SyncService | null
@@ -37,6 +41,12 @@ interface RegisterMainIpcOptions {
     screenX: number,
     screenY: number,
   ) => Promise<boolean>
+  getUserScriptHostPermissionPrompt?: (owner: AppWindow) => UserScriptHostPermissionPrompt | null
+  respondUserScriptHostPermission?: (
+    owner: AppWindow,
+    promptId: string,
+    allow: boolean,
+  ) => Promise<UserScriptHostPermissionResponse>
 }
 
 export function registerMainIpc(options: RegisterMainIpcOptions): void {
@@ -51,6 +61,8 @@ export function registerMainIpc(options: RegisterMainIpcOptions): void {
     allowInsecureLocalhost: options.allowInsecureLocalhost,
     moveTabToNewWindow: options.moveTabToNewWindow,
     finishTabDrag: options.finishTabDrag,
+    getUserScriptHostPermissionPrompt: options.getUserScriptHostPermissionPrompt,
+    respondUserScriptHostPermission: options.respondUserScriptHostPermission,
   })
   registerConfigIpc()
   registerCookieIpc()

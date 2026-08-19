@@ -23,7 +23,7 @@
 - `.user.js` 边界：直接导航、`will-redirect`、popup 和 `will-download` 均进入内存短时 `script-install` 路由；安装确认页只展示净化来源元数据，B6 前不下载、解析、执行或伪装成功。安装页不进入关闭栈或会话快照。
 - B2.8 原生右键：WebContentsView 页面按链接/图片/选中文本/编辑区/空白处组装菜单；TabStrip 支持复制、关闭范围、恢复和“移到新窗口”，后者统一进入 B3 完整壳过户；壳内编辑区与 Omnibox 复用同一原生菜单，Omnibox 额外提供“粘贴并前往”。内部页空白处提供后退与重新加载，不引入会被 view 遮挡的 DOM 菜单。
 - 壳层 IPC：browser/tab/window channel 由 `electron/ipc/registerBrowserShellIpc.ts` 注册，Browser 模块只暴露 `TabManager` 等运行期对象。
-- OJ Session：`ojSession.ts` 配置持久 session、真实 Chrome UA、受控 CORS、早期实时提交 hook 和 stealth script；默认 session 与 OJ session 同时安装 permission check/request 双处理器，敏感权限默认拒绝。
+- OJ Session：`ojSession.ts` 配置持久 session、真实 Chrome UA、早期实时提交 hook 和 stealth script；不再改写全局 CORS 响应头，默认 session 与 OJ session 同时安装 permission check/request 双处理器，敏感权限默认拒绝。
 - 实时提交桥：`ojPreload.ts` 暴露 `__algo_submission_v1.reportSubmission()`，并转发同页面/子 frame 的 `postMessage`。
 - 反检测脚本：`STEALTH_SCRIPT` 在页面加载后注入，主线由 `TabManager` 执行。
 
@@ -48,7 +48,7 @@
 - `TabTransferCoordinator`：位于 `electron/windows/`，负责完整壳之间的标签过户；旧裸 `DetachedWindow` 已删除。
 - `ojPreload.ts`：OJ 页面 preload，暴露提交上报桥并转发 frame 消息。
 - `ojBridge.ts`：提交上报桥的纯函数和 channel 常量。
-- `ojSession.ts`：配置 OJ 持久 session 的 UA、CORS、实时 hook 和 stealth 注入。
+- `ojSession.ts`：配置 OJ 持久 session 的 UA、实时 hook 和基于 `onResponseStarted` 的 stealth 注入，不安装全局 CORS response rewriter。
 - `stealthScript.ts`：反检测脚本字符串。
 
 ## 4. TabManager 封装
@@ -145,9 +145,9 @@ adapter hook in OJ page
 
 - 设置真实 Chrome User-Agent，并同步到 `app.userAgentFallback` 和 OJ session。
 - 为默认 session 和 `persist:oj-main` 同时安装 `setPermissionCheckHandler` 与 `setPermissionRequestHandler`；仅放行全屏、受净化剪贴板写入和存储访问，摄像头、麦克风、定位、通知等敏感权限默认拒绝。
-- 只为 XHR/fetch 和 OPTIONS 响应补受控 CORS 头，保留服务器已声明 credentials 的响应。
+- 不改写 XHR/fetch、OPTIONS 或其他站点响应的 CORS header；用户脚本跨域请求只能进入 `electron/scripts/UserScriptNetworkProxy.ts` 的 `@connect` + 精确 host 授权代理。
 - 在 mainFrame 响应开始时按当前 URL 找实时 adapter，站点未禁用时提前注入 hook，避免编辑器提前缓存 fetch/XHR。
-- 保持 stealth script 注入逻辑在 browser 层集中维护。
+- 在 `onResponseStarted` 中仅对 HTML mainFrame 保持 stealth script 注入，避免依赖响应头改写回调。
 
 本模块不读取 Cookie、不写库、不解析提交结果；提交结果仍由 adapter 和 `RealtimeSubmissionService` 处理。
 
