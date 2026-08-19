@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import {
   deleteUserScriptValue,
   listUserScriptValues,
@@ -51,54 +52,43 @@ export class UserScriptRuntime {
   public refresh(): void {
     this.runtimeGeneration += 1
     this.valuesByScript.clear()
-    for (const listener of this.generationChangeListeners) listener(this.runtimeGeneration)
-    this.dependencies.userScriptService.refresh()
-    const nextValues = new Map<string, Map<string, unknown>>()
-    for (const script of this.dependencies.userScriptService.getEnabledScriptsSnapshot()) {
-      try {
-        nextValues.set(script.id, new Map(
-          this.dependencies.listValues(script.id).map(value => [value.value_key, value.value]),
-        ))
+    try {
+      this.dependencies.userScriptService.refresh()
+      const nextValues = new Map<string, Map<string, unknown>>()
+      for (const script of this.dependencies.userScriptService.getEnabledScriptsSnapshot()) {
+        try {
+          nextValues.set(script.id, new Map(
+            this.dependencies.listValues(script.id).map(value => [value.value_key, value.value]),
+          ))
+        }
+        catch (error) {
+          this.dependencies.logger.error('userscript.runtime-values-load-failed', {
+            scriptId: script.id,
+            error: error instanceof Error ? error.message : error,
+          })
+          nextValues.set(script.id, new Map())
+        }
       }
-      catch (error) {
-        this.dependencies.logger.error('userscript.runtime-values-load-failed', {
-          scriptId: script.id,
-          error: error instanceof Error ? error.message : error,
-        })
-        nextValues.set(script.id, new Map())
-      }
+      for (const [scriptId, values] of nextValues) this.valuesByScript.set(scriptId, values)
     }
-    for (const [scriptId, values] of nextValues) this.valuesByScript.set(scriptId, values)
+    finally {
+      for (const listener of this.generationChangeListeners) listener(this.runtimeGeneration)
+    }
   }
 
   public getNavigationSnapshot(url: string, isMainFrame: boolean): UserScriptRuntimeNavigationSnapshot {
     const scripts = this.dependencies.userScriptService.getMatchingScriptsWithMeta(url)
       .filter(({ script }) => isMainFrame || !script.noframes)
-      .flatMap(({ script }) => {
-        if (new TextEncoder().encode(script.code).byteLength > USER_SCRIPT_RUNTIME_MAX_SOURCE_BYTES) {
-          this.dependencies.logger.warn('userscript.runtime-source-too-large', { scriptId: script.id })
-          return []
-        }
-        const grants = parseStringArray(script.grant_json)
-        const connects = parseStringArray(script.connect_json)
-        if (!grants || !connects) {
-          this.dependencies.logger.warn('userscript.runtime-permissions-invalid', { scriptId: script.id })
-          return []
-        }
-        return [{
-          id: script.id,
-          name: script.name,
-          namespace: script.namespace,
-          description: script.description,
-          version: script.version,
-          runAt: normalizeRunAt(script.run_at),
-          grants,
-          connects,
-          values: Array.from(this.valuesByScript.get(script.id) ?? []),
-          code: script.code,
-        }]
-      })
+      .flatMap(({ script }) => this.buildScriptSnapshot(script))
     return { generation: this.runtimeGeneration, scripts }
+  }
+
+  public getCatalogSnapshot(): UserScriptRuntimeNavigationSnapshot {
+    return {
+      generation: this.runtimeGeneration,
+      scripts: this.dependencies.userScriptService.getEnabledScriptsSnapshot()
+        .flatMap(script => this.buildScriptSnapshot(script)),
+    }
   }
 
   public setValue(scriptId: string, key: string, value: unknown): void {
@@ -121,6 +111,53 @@ export class UserScriptRuntime {
   private requireEnabledScript(scriptId: string): void {
     if (!this.valuesByScript.has(scriptId)) throw new Error('Userscript is not enabled in the runtime cache')
   }
+
+  private buildScriptSnapshot(
+    script: ReturnType<UserScriptRuntimeDependencies['userScriptService']['getEnabledScriptsSnapshot']>[number],
+  ): UserScriptRuntimeScriptSnapshot[] {
+    if (new TextEncoder().encode(script.code).byteLength > USER_SCRIPT_RUNTIME_MAX_SOURCE_BYTES) {
+      this.dependencies.logger.warn('userscript.runtime-source-too-large', { scriptId: script.id })
+      return []
+    }
+    const grants = parseStringArray(script.grant_json)
+    const connects = parseStringArray(script.connect_json)
+    if (!grants || !connects) {
+      this.dependencies.logger.warn('userscript.runtime-permissions-invalid', { scriptId: script.id })
+      return []
+    }
+    const runAt = normalizeRunAt(script.run_at)
+    return [{
+      id: script.id,
+      revision: scriptRevision(script, { grants, connects, runAt }),
+      name: script.name,
+      namespace: script.namespace,
+      description: script.description,
+      version: script.version,
+      runAt,
+      grants,
+      connects,
+      values: Array.from(this.valuesByScript.get(script.id) ?? []),
+      code: script.code,
+    }]
+  }
+}
+
+function scriptRevision(
+  script: { id: string; name: string; namespace: string | null; description: string | null; version: string | null; noframes: boolean; code: string },
+  contract: { grants: string[]; connects: string[]; runAt: 'document-start' | 'document-end' | 'document-idle' },
+): string {
+  return createHash('sha256').update(JSON.stringify({
+    id: script.id,
+    name: script.name,
+    namespace: script.namespace,
+    description: script.description,
+    version: script.version,
+    noframes: script.noframes,
+    runAt: contract.runAt,
+    grants: contract.grants,
+    connects: contract.connects,
+    code: script.code,
+  }), 'utf8').digest('hex').slice(0, 32)
 }
 
 function normalizeRunAt(value: string): 'document-start' | 'document-end' | 'document-idle' {

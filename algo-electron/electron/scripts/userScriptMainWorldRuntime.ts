@@ -1,5 +1,3 @@
-import { USER_SCRIPT_RUNTIME_HANDOFF_KIND } from './userScriptRuntimeProtocol'
-
 export const USER_SCRIPT_MAIN_WORLD_PARAMETER_NAMES = [
   'GM',
   'GM_info',
@@ -17,6 +15,7 @@ export const USER_SCRIPT_MAIN_WORLD_PARAMETER_NAMES = [
 
 export interface UserScriptMainWorldScript {
   id: string
+  revision?: string
   name: string
   namespace?: string | null
   description?: string | null
@@ -30,6 +29,7 @@ export interface UserScriptMainWorldScript {
 export interface UserScriptMainWorldBuildInput {
   handshakeId: string
   targetOrigin: string
+  generation: number
   scripts: readonly UserScriptMainWorldScript[]
   handlerName?: string
   handlerVersion?: string
@@ -62,6 +62,7 @@ interface GrantPermissions {
 
 interface ScriptDescriptor {
   id: string
+  revision: string
   name: string
   namespace: string | null
   description: string | null
@@ -74,6 +75,7 @@ interface ScriptDescriptor {
 interface ExecutionPayload {
   handshakeId: string
   targetOrigin: string
+  generation: number
   handlerName: string
   handlerVersion: string
   scripts: ScriptDescriptor[]
@@ -86,8 +88,13 @@ export interface UserScriptMainWorldRejectedScript {
 }
 
 export interface UserScriptMainWorldExecution {
-  func: (payload: ExecutionPayload) => void
-  args: [ExecutionPayload]
+  func: (
+    payload: ExecutionPayload,
+    body: string,
+    sendMessageOrPort: ((message: unknown) => void) | MessagePort,
+    subscribe?: (listener: (message: unknown) => void) => void,
+  ) => void
+  args: [ExecutionPayload, string]
 }
 
 export interface UserScriptMainWorldBuildResult {
@@ -98,6 +105,7 @@ export interface UserScriptMainWorldBuildResult {
 interface CompiledScript {
   descriptor: ScriptDescriptor
   functionSource: string
+  deferredSource: boolean
 }
 
 let runtimeSequence = 0
@@ -107,6 +115,7 @@ export function buildUserScriptMainWorldRuntime(
 ): UserScriptMainWorldBuildResult {
   const handshakeId = requireString(input.handshakeId, 'handshakeId', 200)
   const targetOrigin = requireExactOrigin(input.targetOrigin)
+  const generation = requireGeneration(input.generation)
   const handlerName = requireString(input.handlerName ?? 'Algo Learning Platform', 'handlerName', 200)
   const handlerVersion = requireString(input.handlerVersion ?? '', 'handlerVersion', 100, true)
   const compiledScripts: CompiledScript[] = []
@@ -123,49 +132,54 @@ export function buildUserScriptMainWorldRuntime(
       throw new TypeError(`Userscript ${id} grants must be a string array`)
     }
 
+    let descriptor: ScriptDescriptor | null = null
     try {
+      descriptor = {
+        id,
+        revision: requireString(script.revision ?? `initial:${id}`, 'script.revision', 200),
+        name,
+        namespace: optionalString(script.namespace),
+        description: optionalString(script.description),
+        version: optionalString(script.version),
+        runAt: normalizeRunAt(script.runAt),
+        permissions: resolvePermissions(script.grants),
+        values: normalizeValues(script.values),
+      }
       const compiled = new Function(
         ...USER_SCRIPT_MAIN_WORLD_PARAMETER_NAMES,
         `"use strict";\n${script.source}\n`,
       )
-      compiledScripts.push({
-        descriptor: {
-          id,
-          name,
-          namespace: optionalString(script.namespace),
-          description: optionalString(script.description),
-          version: optionalString(script.version),
-          runAt: normalizeRunAt(script.runAt),
-          permissions: resolvePermissions(script.grants),
-          values: normalizeValues(script.values),
-        },
-        functionSource: compiled.toString(),
-      })
+      compiledScripts.push({ descriptor, functionSource: compiled.toString(), deferredSource: false })
     }
     catch (error) {
-      rejectedScripts.push({ id, name, reason: errorMessage(error) })
+      if (error instanceof EvalError && descriptor) {
+        compiledScripts.push({ descriptor, functionSource: script.source, deferredSource: true })
+      } else {
+        rejectedScripts.push({ id, name, reason: errorMessage(error) })
+      }
     }
   }
 
   const payload: ExecutionPayload = {
     handshakeId,
     targetOrigin,
+    generation,
     handlerName,
     handlerVersion,
     scripts: compiledScripts.map(script => script.descriptor),
   }
   return {
-    execution: { func: createExecutionFunction(compiledScripts), args: [payload] },
+    execution: { func: createExecutionFunction(compiledScripts), args: [payload, createExecutionBody(compiledScripts)] },
     rejectedScripts,
   }
 }
 
-function createExecutionFunction(scripts: readonly CompiledScript[]): UserScriptMainWorldExecution['func'] {
+function createExecutionBody(scripts: readonly CompiledScript[]): string {
   const prefix = runtimePrefix()
   const payload = `${prefix}Payload`
   const page = `${prefix}Window`
-  const channel = `${prefix}Channel`
   const send = `${prefix}Send`
+  const subscribe = `${prefix}Subscribe`
   const clone = `${prefix}Clone`
   const helpers = `${prefix}Helpers`
   const makeApi = `${prefix}MakeApi`
@@ -174,47 +188,61 @@ function createExecutionFunction(scripts: readonly CompiledScript[]): UserScript
   const menuCallbacks = `${prefix}MenuCallbacks`
   const requestSequence = `${prefix}RequestSequence`
   const nextRequestId = `${prefix}NextRequestId`
-  const runs = scripts.map((script, index) => `
-    {
-      const descriptor = ${payload}.scripts[${index}];
-      const api = ${makeApi}(descriptor);
-      const run = () => {
-        try {
-          (${script.functionSource}).call(${page}, ...api);
-        } catch { /* isolate one script without leaking source or error text */ }
-      };
-      if (descriptor.runAt === 'document-start') {
-        run();
-      } else if (descriptor.runAt === 'document-end') {
-        if (${page}.document?.readyState === 'loading') {
-          ${page}.document.addEventListener('DOMContentLoaded', run, { once: true });
-        } else {
-          run();
-        }
-      } else if (${page}.document?.readyState === 'complete') {
-        ${page}.setTimeout(run, 0);
-      } else {
-        ${page}.addEventListener('load', () => ${page}.setTimeout(run, 0), { once: true });
-      }
-    }
-  `).join('\n')
+  const lifecycle = `${prefix}Lifecycle`
+  const flushLifecycle = `${prefix}FlushLifecycle`
+  const scriptStates = `${prefix}ScriptStates`
+  const executedScripts = `${prefix}ExecutedScripts`
+  const scheduleScript = `${prefix}ScheduleScript`
+  const deactivateScript = `${prefix}DeactivateScript`
+  const catalog = `${prefix}Catalog`
+  const scheduleCatalogScript = `${prefix}ScheduleCatalogScript`
+  const catalogEntries = scripts.map((script) => {
+    const executable = script.deferredSource
+      ? `new Function(...${JSON.stringify(USER_SCRIPT_MAIN_WORLD_PARAMETER_NAMES)}, ${JSON.stringify(`"use strict";\n${script.functionSource}\n`)})`
+      : `(${script.functionSource})`
+    return `[${JSON.stringify(scriptKey(script.descriptor))},{descriptor:${JSON.stringify(script.descriptor)},executable:${executable}}]`
+  }).join(',')
 
   const body = `
     "use strict";
+    const ${payload} = payloadArg;
+    const ${send} = sendArg;
+    const ${subscribe} = subscribeArg;
     const ${page} = globalThis;
-    const ${channel} = new ${page}.MessageChannel();
-    const ${send} = ${channel}.port1.postMessage.bind(${channel}.port1);
+    if (typeof ${send} !== 'function' || typeof ${subscribe} !== 'function') return;
     const ${pendingXhr} = new Map();
     const ${pendingClipboard} = new Map();
     const ${menuCallbacks} = new Map();
+    const ${scriptStates} = new Map();
+    const ${executedScripts} = new Set();
+    const ${catalog} = new Map([${catalogEntries}]);
     let ${requestSequence} = 0;
     const ${nextRequestId} = (kind) => kind + '-' + (++${requestSequence});
-    if (typeof ${channel}.port1.start === 'function') ${channel}.port1.start();
-    ${page}.postMessage(
-      { type: ${JSON.stringify(USER_SCRIPT_RUNTIME_HANDOFF_KIND)}, handshakeId: ${payload}.handshakeId },
-      ${payload}.targetOrigin,
-      [${channel}.port2],
-    );
+    const ${lifecycle} = {
+      status: 'pending',
+      endReached: ${page}.document?.readyState !== 'loading',
+      idleReached: false,
+      endRuns: [],
+      idleRuns: [],
+      urlChangeInstalled: false,
+    };
+    const ${flushLifecycle} = () => {
+      if (${lifecycle}.status === 'invalid') return;
+      if (${lifecycle}.endReached && (${lifecycle}.status === 'pending' || ${lifecycle}.status === 'active')) {
+        for (const entry of ${lifecycle}.endRuns.splice(0)) entry.run();
+      }
+      if (${lifecycle}.idleReached && ${lifecycle}.status === 'active') {
+        ${lifecycle}.endReached = true;
+        for (const entry of ${lifecycle}.endRuns.splice(0)) entry.run();
+        for (const entry of ${lifecycle}.idleRuns.splice(0)) entry.run();
+      }
+    };
+    if (!${lifecycle}.endReached && ${page}.document?.addEventListener) {
+      ${page}.document.addEventListener('DOMContentLoaded', () => {
+        ${lifecycle}.endReached = true;
+        ${flushLifecycle}();
+      }, { once: true });
+    }
     const ${clone} = (value) => {
       if (value === undefined) return undefined;
       const serialized = JSON.stringify(value);
@@ -385,7 +413,7 @@ function createExecutionFunction(scripts: readonly CompiledScript[]): UserScript
           resolvePromise = resolve;
           rejectPromise = reject;
         }) : null;
-        pending.set(requestId, { callback, resolvePromise, rejectPromise });
+        pending.set(requestId, { scriptId, callback, resolvePromise, rejectPromise });
         sendMessage({ type: 'clipboard:set', scriptId, requestId, data: String(data), dataType });
         return promise;
       },
@@ -412,8 +440,73 @@ function createExecutionFunction(scripts: readonly CompiledScript[]): UserScript
       handleMenuEvent(callbacks, event) {
         this.callHandler(callbacks.get(event.scriptId + '\\0' + event.commandId));
       },
+      permissions(grants) {
+        const set = new Set(grants);
+        const has = (name) => !set.has('none') && set.has(name);
+        return {
+          classicInfo: has('GM_info'),
+          classicAddStyle: has('GM_addStyle'),
+          classicGetValue: has('GM_getValue'),
+          classicSetValue: has('GM_setValue'),
+          classicDeleteValue: has('GM_deleteValue'),
+          classicListValues: has('GM_listValues'),
+          modernInfo: has('GM.info'),
+          modernAddStyle: has('GM.addStyle'),
+          modernGetValue: has('GM.getValue'),
+          modernSetValue: has('GM.setValue'),
+          modernDeleteValue: has('GM.deleteValue'),
+          modernListValues: has('GM.listValues'),
+          classicXmlHttpRequest: has('GM_xmlhttpRequest'),
+          classicSetClipboard: has('GM_setClipboard'),
+          classicRegisterMenuCommand: has('GM_registerMenuCommand'),
+          classicUnregisterMenuCommand: has('GM_unregisterMenuCommand'),
+          modernXmlHttpRequest: has('GM.xmlHttpRequest'),
+          modernSetClipboard: has('GM.setClipboard'),
+          modernRegisterMenuCommand: has('GM.registerMenuCommand'),
+          modernUnregisterMenuCommand: has('GM.unregisterMenuCommand'),
+          urlChange: has('window.onurlchange'),
+          unsafeWindow: has('unsafeWindow'),
+        };
+      },
+      compileCandidate(candidate) {
+        if (!candidate || typeof candidate !== 'object' || Array.isArray(candidate)) return null;
+        if (typeof candidate.id !== 'string' || candidate.id.length === 0 || candidate.id.length > 200) return null;
+        if (typeof candidate.revision !== 'string' || candidate.revision.length === 0 || candidate.revision.length > 200) return null;
+        if (typeof candidate.name !== 'string' || candidate.name.trim().length === 0 || candidate.name.length > 500) return null;
+        if (typeof candidate.code !== 'string' || candidate.code.length > 4 * 1024 * 1024) return null;
+        if (!Array.isArray(candidate.grants) || candidate.grants.some(grant => typeof grant !== 'string')) return null;
+        if (!Array.isArray(candidate.values)) return null;
+        const values = [];
+        const valueKeys = new Set();
+        for (const entry of candidate.values) {
+          if (!Array.isArray(entry) || entry.length !== 2 || typeof entry[0] !== 'string' || valueKeys.has(entry[0])) return null;
+          valueKeys.add(entry[0]);
+          values.push([entry[0], ${clone}(entry[1])]);
+        }
+        if (candidate.runAt !== 'document-start' && candidate.runAt !== 'document-end' && candidate.runAt !== 'document-idle') return null;
+        const descriptor = {
+          id: candidate.id,
+          revision: candidate.revision,
+          name: candidate.name,
+          namespace: typeof candidate.namespace === 'string' ? candidate.namespace : null,
+          description: typeof candidate.description === 'string' ? candidate.description : null,
+          version: typeof candidate.version === 'string' ? candidate.version : null,
+          runAt: candidate.runAt,
+          permissions: this.permissions(candidate.grants),
+          values,
+        };
+        try {
+          const executable = new Function(
+            ...${JSON.stringify(USER_SCRIPT_MAIN_WORLD_PARAMETER_NAMES)},
+            '"use strict";\\n' + candidate.code + '\\n',
+          );
+          return { descriptor, executable };
+        } catch { return null; }
+      },
       installUrlChange(targetPage) {
+        if (${lifecycle}.urlChangeInstalled) return;
         if (!targetPage.location || !targetPage.history || typeof targetPage.addEventListener !== 'function') return;
+        ${lifecycle}.urlChangeInstalled = true;
         let handler = typeof targetPage.onurlchange === 'function' ? targetPage.onurlchange : null;
         try {
           Object.defineProperty(targetPage, 'onurlchange', {
@@ -528,23 +621,142 @@ function createExecutionFunction(scripts: readonly CompiledScript[]): UserScript
         descriptor.permissions.unsafeWindow ? ${page} : undefined,
       ];
     };
-    ${channel}.port1.onmessage = (event) => {
-      const message = event?.data;
+    const ${scheduleScript} = (descriptor, executable) => {
+      if (${lifecycle}.status === 'invalid') return;
+      const current = ${scriptStates}.get(descriptor.id);
+      if (current && current.revision === descriptor.revision) return;
+      ${scriptStates}.set(descriptor.id, { revision: descriptor.revision });
+      const executionKey = descriptor.id + '\\0' + descriptor.revision;
+      const api = ${makeApi}(descriptor);
+      const run = () => {
+        const active = ${scriptStates}.get(descriptor.id);
+        if (
+          ${lifecycle}.status === 'invalid'
+          || (
+            ${lifecycle}.status !== 'active'
+            && !(descriptor.runAt === 'document-start'
+              || (descriptor.runAt === 'document-end' && ${lifecycle}.endReached))
+          )
+          || !active
+          || active.revision !== descriptor.revision
+          || ${executedScripts}.has(executionKey)
+        ) return;
+        ${executedScripts}.add(executionKey);
+        try { executable.call(${page}, ...api); }
+        catch { /* isolate one script without leaking source or error text */ }
+      };
+      const entry = { scriptId: descriptor.id, revision: descriptor.revision, run };
+      if (descriptor.permissions.urlChange) ${helpers}.installUrlChange(${page});
+      if (descriptor.runAt === 'document-start') run();
+      else if (descriptor.runAt === 'document-end') ${lifecycle}.endRuns.push(entry);
+      else ${lifecycle}.idleRuns.push(entry);
+      ${flushLifecycle}();
+    };
+  const ${scheduleCatalogScript} = (candidate) => {
+      if (!candidate || typeof candidate !== 'object' || Array.isArray(candidate)) return;
+      if (typeof candidate.id !== 'string' || candidate.id.length === 0 || candidate.id.length > 200) return;
+      if (typeof candidate.revision !== 'string' || candidate.revision.length === 0 || candidate.revision.length > 200) return;
+      const entry = ${catalog}.get(candidate.id + '\\0' + candidate.revision);
+      if (!entry) {
+        const fallback = ${helpers}.compileCandidate(candidate);
+        if (fallback) ${scheduleScript}(fallback.descriptor, fallback.executable);
+        return;
+      }
+      if (!Array.isArray(candidate.values)) return;
+      const values = [];
+      const valueKeys = new Set();
+      for (const value of candidate.values) {
+        if (!Array.isArray(value) || value.length !== 2 || typeof value[0] !== 'string' || valueKeys.has(value[0])) return;
+        valueKeys.add(value[0]);
+        values.push([value[0], ${clone}(value[1])]);
+      }
+      const descriptor = { ...entry.descriptor, values };
+      ${scheduleScript}(descriptor, entry.executable);
+    };
+    const ${deactivateScript} = (scriptId) => {
+      if (typeof scriptId !== 'string') return;
+      ${scriptStates}.delete(scriptId);
+      ${lifecycle}.endRuns = ${lifecycle}.endRuns.filter(entry => entry.scriptId !== scriptId);
+      ${lifecycle}.idleRuns = ${lifecycle}.idleRuns.filter(entry => entry.scriptId !== scriptId);
+      for (const [requestId, state] of ${pendingXhr}) {
+        if (state.scriptId === scriptId) ${pendingXhr}.delete(requestId);
+      }
+      for (const [requestId, state] of ${pendingClipboard}) {
+        if (state.scriptId === scriptId) ${pendingClipboard}.delete(requestId);
+      }
+      for (const key of ${menuCallbacks}.keys()) {
+        if (key.startsWith(scriptId + '\\0')) ${menuCallbacks}.delete(key);
+      }
+    };
+    ${subscribe}((message) => {
       if (!message || typeof message !== 'object' || typeof message.type !== 'string') return;
-      if (message.type === 'xhr:progress' || message.type === 'xhr:complete' || message.type === 'xhr:failed') {
+      if (message.type === 'runtime:ready' && message.generation === ${payload}.generation) {
+        if (${lifecycle}.status === 'pending') {
+          ${lifecycle}.status = 'active';
+          ${flushLifecycle}();
+        }
+      } else if (message.type === 'runtime:phase'
+        && message.generation === ${payload}.generation
+        && message.phase === 'document-idle') {
+        ${lifecycle}.idleReached = true;
+        ${flushLifecycle}();
+      } else if (message.type === 'runtime:invalidate' && message.generation === ${payload}.generation) {
+        ${lifecycle}.status = 'invalid';
+        ${lifecycle}.endRuns.length = 0;
+        ${lifecycle}.idleRuns.length = 0;
+        ${scriptStates}.clear();
+        ${menuCallbacks}.clear();
+      } else if (message.type === 'runtime:sync' && message.generation === ${payload}.generation) {
+        let sameOrigin = false;
+        try { sameOrigin = new URL(message.frameUrl).origin === ${payload}.targetOrigin; }
+        catch { /* reject malformed sync URLs */ }
+        if (!sameOrigin || !Array.isArray(message.scripts) || !Array.isArray(message.inactiveScriptIds)) return;
+        for (const scriptId of message.inactiveScriptIds) ${deactivateScript}(scriptId);
+        for (const candidate of message.scripts) {
+          ${scheduleCatalogScript}(candidate);
+        }
+      } else if (message.type === 'xhr:progress' || message.type === 'xhr:complete' || message.type === 'xhr:failed') {
         ${helpers}.handleXhrEvent(${page}, ${pendingXhr}, message);
       } else if (message.type === 'clipboard:result') {
         ${helpers}.handleClipboardEvent(${pendingClipboard}, message);
       } else if (message.type === 'menu:invoke') {
         ${helpers}.handleMenuEvent(${menuCallbacks}, message);
       }
-    };
-    if (${payload}.scripts.some(descriptor => descriptor.permissions.urlChange)) {
-      ${helpers}.installUrlChange(${page});
-    }
-    ${runs}
+    });
+    for (const candidate of ${payload}.scripts) ${scheduleCatalogScript}(candidate);
   `
-  return new Function(payload, body) as UserScriptMainWorldExecution['func']
+  return body
+}
+
+function executeSerializedRuntime(
+  payload: ExecutionPayload,
+  body: string,
+  sendMessageOrPort: ((message: unknown) => void) | MessagePort,
+  subscribe?: (listener: (message: unknown) => void) => void,
+): void {
+  let sendMessage: (message: unknown) => void
+  if (typeof sendMessageOrPort === 'function') {
+    sendMessage = sendMessageOrPort
+  } else if (sendMessageOrPort && typeof sendMessageOrPort.postMessage === 'function') {
+    sendMessage = message => sendMessageOrPort.postMessage(message)
+    subscribe ??= listener => {
+      sendMessageOrPort.addEventListener('message', event => listener(event.data))
+      sendMessageOrPort.start()
+    }
+  } else {
+    return
+  }
+  if (typeof subscribe !== 'function') return
+  const execute = new Function('payloadArg', 'sendArg', 'subscribeArg', body) as (
+    payload: ExecutionPayload,
+    sendMessage: (message: unknown) => void,
+    subscribe: (listener: (message: unknown) => void) => void,
+  ) => void
+  execute(payload, sendMessage, subscribe)
+}
+
+function createExecutionFunction(_scripts: readonly CompiledScript[]): UserScriptMainWorldExecution['func'] {
+  return executeSerializedRuntime as UserScriptMainWorldExecution['func']
 }
 
 function resolvePermissions(grants: readonly string[]): GrantPermissions {
@@ -600,11 +812,22 @@ function optionalString(value: string | null | undefined): string | null {
   return typeof value === 'string' ? value : null
 }
 
+function scriptKey(script: Pick<ScriptDescriptor, 'id' | 'revision'>): string {
+  return `${script.id}\u0000${script.revision}`
+}
+
 function normalizeRunAt(
   value: UserScriptMainWorldScript['runAt'],
 ): 'document-start' | 'document-end' | 'document-idle' {
   if (value === 'document-end' || value === 'document-idle') return value
   return 'document-start'
+}
+
+function requireGeneration(value: unknown): number {
+  if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 0) {
+    throw new TypeError('generation must be a non-negative safe integer')
+  }
+  return value
 }
 
 function requireString(value: unknown, field: string, max: number, allowEmpty = false): string {

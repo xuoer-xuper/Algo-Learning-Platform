@@ -234,7 +234,9 @@ Renderer 不直接操作 `webContents`。
 
 ### 4.6 用户脚本权限边界
 
-- 固定 frame preload 只传输当前导航的受限快照和一次性 MessagePort；脚本源码、GM values 与网络响应不进入 shell renderer 或普通 IPC。
+- 固定 frame preload 使用主进程按 generation 生成的预编译 catalog，只向当前导航提供受限快照；sandbox preload 不编译用户源码，脚本源码、GM values 与网络响应不进入 shell renderer 或普通 IPC。
+- 隔离 preload 不使用 `window.postMessage` 转交 DOM `MessagePort`，只短暂暴露随机 nonce 的 contextBridge send/subscribe 闭包，主世界运行器取得后立即删除桥接属性；页面消息监听器无法捕获或复用私有端口。
+- `document-start` 在 Electron 43 中早于页面内联脚本但晚于普通 webPreferences preload，`document-end` 对齐页面 `DOMContentLoaded`，`document-idle` 由真实 frame load 事件回传；普通 iframe 的 session frame preload 在该版本不触发，已标记 best-effort。SPA 原位导航重算快照，script revision 与 runtime generation 共同阻止旧脚本、旧端口和延迟阶段回调复活。
 - `GM_xmlhttpRequest` 由主进程 `UserScriptNetworkProxy` 执行。初始目标和每一跳重定向均重新经过 URL 规范化、`@connect` DNS label 匹配和脚本级精确 host permission；OJ session 不承担跨域放行职责。
 - 首次 host 授权由 `UserScriptHostPermissionBroker` 路由到 webContents 当前所属窗口，复用文档流 NoticeBar；generation、owner 或窗口失效时请求与提示一起撤销。
 - 请求/响应大小、header、超时、重定向、并发和菜单注册数均有上限；浏览器所有请求头和 `Set-Cookie` 不跨越脚本桥。

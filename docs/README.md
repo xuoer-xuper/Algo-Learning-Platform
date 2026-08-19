@@ -142,6 +142,7 @@
 | test app | [tests/app/README](../algo-electron/tests/app/README.md) |
 | test docs | [tests/docs/README](../algo-electron/tests/docs/README.md) |
 | test electron | [tests/electron/README](../algo-electron/tests/electron/README.md) |
+| test electron fixtures | [tests/electron/fixtures/README](../algo-electron/tests/electron/fixtures/README.md) |
 | test diagnostics | [tests/diagnostics/README](../algo-electron/tests/diagnostics/README.md) |
 | test downloads | [tests/downloads/README](../algo-electron/tests/downloads/README.md) |
 | test integration | [tests/integration/README](../algo-electron/tests/integration/README.md) |

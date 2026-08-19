@@ -46,6 +46,12 @@ export class UserScriptMenuRegistry {
     }
   }
 
+  public clearScript(portId: string, scriptId: string): void {
+    for (const [key, command] of this.commands) {
+      if (command.portId === portId && command.scriptId === scriptId) this.commands.delete(key)
+    }
+  }
+
   public getForWebContents(webContentsId: number): UserScriptMenuCommand[] {
     return Array.from(this.commands.values())
       .filter(command => command.webContentsId === webContentsId)

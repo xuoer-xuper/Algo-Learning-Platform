@@ -2,28 +2,15 @@ import assert from 'node:assert/strict'
 import { test } from 'vitest'
 import {
   buildUserScriptMainWorldRuntime,
+  type UserScriptMainWorldBuildResult,
 } from '../../electron/scripts/userScriptMainWorldRuntime'
-import { USER_SCRIPT_RUNTIME_HANDOFF_KIND } from '../../electron/scripts/userScriptRuntimeProtocol'
 
 class TestPort {
-  peer: TestPort | null = null
   messages: unknown[] = []
-  onmessage: ((event: { data: unknown }) => void) | null = null
-  postMessage(message: unknown): void {
-    this.peer?.messages.push(message)
-    this.peer?.onmessage?.({ data: message })
-  }
-  start(): void { /* no-op */ }
-  receive(message: unknown): void { this.postMessage(message) }
-}
-
-class TestMessageChannel {
-  readonly port1 = new TestPort()
-  readonly port2 = new TestPort()
-  constructor() {
-    this.port1.peer = this.port2
-    this.port2.peer = this.port1
-  }
+  listener: ((message: unknown) => void) | null = null
+  readonly send = (message: unknown): void => { this.messages.push(message) }
+  readonly subscribe = (listener: (message: unknown) => void): void => { this.listener = listener }
+  receive(message: unknown): void { this.listener?.(message) }
 }
 
 interface RuntimeEvents {
@@ -37,8 +24,6 @@ async function withRuntimeGlobals(callback: (
   events: RuntimeEvents,
 ) => void | Promise<void>): Promise<void> {
   const originals = {
-    MessageChannel: Object.getOwnPropertyDescriptor(globalThis, 'MessageChannel'),
-    postMessage: Object.getOwnPropertyDescriptor(globalThis, 'postMessage'),
     document: Object.getOwnPropertyDescriptor(globalThis, 'document'),
     addEventListener: Object.getOwnPropertyDescriptor(globalThis, 'addEventListener'),
     dispatchEvent: Object.getOwnPropertyDescriptor(globalThis, 'dispatchEvent'),
@@ -49,19 +34,7 @@ async function withRuntimeGlobals(callback: (
   }
   const styles: Array<{ textContent: string }> = []
   const events: RuntimeEvents = { document: new Map(), window: new Map() }
-  let transferredPort: TestPort | null = null
-  Object.defineProperty(globalThis, 'MessageChannel', { configurable: true, value: TestMessageChannel })
-  Object.defineProperty(globalThis, 'postMessage', {
-    configurable: true,
-    value: (message: unknown, origin: string, ports: TestPort[]) => {
-      assert.deepStrictEqual(message, {
-        type: USER_SCRIPT_RUNTIME_HANDOFF_KIND,
-        handshakeId: 'navigation-handshake',
-      })
-      assert.strictEqual(origin, 'https://example.com')
-      transferredPort = ports[0]
-    },
-  })
+  const port = new TestPort()
   Object.defineProperty(globalThis, 'document', {
     configurable: true,
     value: {
@@ -89,20 +62,9 @@ async function withRuntimeGlobals(callback: (
   })
   Object.defineProperty(globalThis, 'window', { configurable: true, value: globalThis })
   try {
-    await callback({
-      get messages() {
-        assert.ok(transferredPort)
-        return transferredPort.messages
-      },
-      postMessage: () => undefined,
-      start: () => undefined,
-      receive: (message: unknown) => transferredPort?.receive(message),
-      peer: null,
-    } as TestPort, styles, events)
+    await callback(port, styles, events)
   }
   finally {
-    restoreGlobal('MessageChannel', originals.MessageChannel)
-    restoreGlobal('postMessage', originals.postMessage)
     restoreGlobal('document', originals.document)
     restoreGlobal('addEventListener', originals.addEventListener)
     restoreGlobal('dispatchEvent', originals.dispatchEvent)
@@ -122,8 +84,13 @@ function execute(scripts: Parameters<typeof buildUserScriptMainWorldRuntime>[0][
   return buildUserScriptMainWorldRuntime({
     handshakeId: 'navigation-handshake',
     targetOrigin: 'https://example.com',
+    generation: 7,
     scripts,
   })
+}
+
+function runExecution(result: UserScriptMainWorldBuildResult, port: TestPort): void {
+  result.execution.func(...result.execution.args, port.send, port.subscribe)
 }
 
 test('runs scripts in independent IIFEs and rejects only syntax-invalid entries', async () => {
@@ -135,7 +102,7 @@ test('runs scripts in independent IIFEs and rejects only syntax-invalid entries'
         { id: 'syntax', name: 'Syntax', grants: [], source: 'const broken =' },
         { id: 'last', name: 'Last', grants: [], source: "const collision = 'last'; globalThis.__userscriptRuns.push(collision)" },
       ])
-      result.execution.func(...result.execution.args)
+      runExecution(result, port)
       assert.deepStrictEqual((globalThis as typeof globalThis & { __userscriptRuns: string[] }).__userscriptRuns, ['first', 'last'])
       assert.deepStrictEqual(result.rejectedScripts.map(script => script.id), ['syntax'])
       assert.strictEqual('source' in result.execution.args[0].scripts[0], false)
@@ -171,7 +138,7 @@ test('provides only granted classic APIs and persists cloned values through the 
           };
         `,
       }])
-      result.execution.func(...result.execution.args)
+      runExecution(result, port)
       assert.deepStrictEqual((globalThis as typeof globalThis & { __classicResult: unknown }).__classicResult, {
         modernType: 'undefined',
         infoName: 'Classic',
@@ -199,7 +166,7 @@ test('@grant none disables all supported bindings and modern GM aliases are exac
     Object.defineProperty(globalThis, '__noneResult', { configurable: true, value: null, writable: true })
     Object.defineProperty(globalThis, '__modernResult', { configurable: true, value: null, writable: true })
     try {
-      execute([
+      const result = execute([
         {
           id: 'none', name: 'None', grants: ['none', 'GM_getValue', 'GM.getValue', 'unsafeWindow'],
           source: 'globalThis.__noneResult = [typeof GM, typeof GM_getValue, typeof unsafeWindow]',
@@ -208,16 +175,8 @@ test('@grant none disables all supported bindings and modern GM aliases are exac
           id: 'modern', name: 'Modern', grants: ['GM.info', 'GM.getValue', 'GM.setValue'], values: [['answer', 41]],
           source: `globalThis.__modernResult = { keys: Object.keys(GM).sort(), classic: typeof GM_getValue, name: GM.info.script.name }; (async () => { await GM.setValue('answer', (await GM.getValue('answer')) + 1) })()`,
         },
-      ]).execution.func(...execute([
-        {
-          id: 'none', name: 'None', grants: ['none', 'GM_getValue', 'GM.getValue', 'unsafeWindow'],
-          source: 'globalThis.__noneResult = [typeof GM, typeof GM_getValue, typeof unsafeWindow]',
-        },
-        {
-          id: 'modern', name: 'Modern', grants: ['GM.info', 'GM.getValue', 'GM.setValue'], values: [['answer', 41]],
-          source: `globalThis.__modernResult = { keys: Object.keys(GM).sort(), classic: typeof GM_getValue, name: GM.info.script.name }; (async () => { await GM.setValue('answer', (await GM.getValue('answer')) + 1) })()`,
-        },
-      ]).execution.args)
+      ])
+      runExecution(result, port)
       assert.deepStrictEqual((globalThis as typeof globalThis & { __noneResult: unknown }).__noneResult, ['undefined', 'undefined', 'undefined'])
       assert.deepStrictEqual((globalThis as typeof globalThis & { __modernResult: unknown }).__modernResult, {
         keys: ['getValue', 'info', 'setValue'],
@@ -237,7 +196,7 @@ test('@grant none disables all supported bindings and modern GM aliases are exac
 })
 
 test('stages document-end and document-idle scripts without running them at preload time', async () => {
-  await withRuntimeGlobals(async (_port, _styles, events) => {
+  await withRuntimeGlobals(async (port, _styles, events) => {
     Object.defineProperty(globalThis, '__scheduledRuns', { configurable: true, value: [], writable: true })
     try {
       const result = execute([
@@ -250,17 +209,81 @@ test('stages document-end and document-idle scripts without running them at prel
           source: "globalThis.__scheduledRuns.push('idle')",
         },
       ])
-      result.execution.func(...result.execution.args)
+      runExecution(result, port)
       const scheduledRuns = (globalThis as typeof globalThis & { __scheduledRuns: string[] }).__scheduledRuns
       assert.deepStrictEqual(scheduledRuns, [])
 
       events.document.get('DOMContentLoaded')?.()
       assert.deepStrictEqual(scheduledRuns, ['end'])
-      events.window.get('load')?.()
-      await new Promise(resolve => setTimeout(resolve, 0))
+      port.receive({ type: 'runtime:ready', generation: 7 })
+      assert.deepStrictEqual(scheduledRuns, ['end'])
+      port.receive({ type: 'runtime:phase', generation: 7, phase: 'document-idle' })
       assert.deepStrictEqual(scheduledRuns, ['end', 'idle'])
     }
     finally { Reflect.deleteProperty(globalThis, '__scheduledRuns') }
+  })
+})
+
+test('ignores stale lifecycle events and invalidation permanently cancels delayed scripts', async () => {
+  await withRuntimeGlobals((port, _styles, events) => {
+    Object.defineProperty(globalThis, '__staleRuns', { configurable: true, value: [], writable: true })
+    try {
+      const result = execute([
+        { id: 'start', name: 'Start', grants: [], source: "globalThis.__staleRuns.push('start')" },
+        { id: 'end', name: 'End', grants: [], runAt: 'document-end', source: "globalThis.__staleRuns.push('end')" },
+        { id: 'idle', name: 'Idle', grants: [], runAt: 'document-idle', source: "globalThis.__staleRuns.push('idle')" },
+      ])
+      runExecution(result, port)
+      const runs = (globalThis as typeof globalThis & { __staleRuns: string[] }).__staleRuns
+      assert.deepStrictEqual(runs, ['start'])
+      events.document.get('DOMContentLoaded')?.()
+      port.receive({ type: 'runtime:ready', generation: 6 })
+      port.receive({ type: 'runtime:phase', generation: 6, phase: 'document-idle' })
+      assert.deepStrictEqual(runs, ['start', 'end'])
+      port.receive({ type: 'runtime:invalidate', generation: 7 })
+      port.receive({ type: 'runtime:ready', generation: 7 })
+      port.receive({ type: 'runtime:phase', generation: 7, phase: 'document-idle' })
+      assert.deepStrictEqual(runs, ['start', 'end'])
+    }
+    finally { Reflect.deleteProperty(globalThis, '__staleRuns') }
+  })
+})
+
+test('syncs SPA matches by current document phase and runs one revision at most once', async () => {
+  await withRuntimeGlobals((port, _styles, events) => {
+    Object.defineProperty(globalThis, '__spaRuns', { configurable: true, value: [], writable: true })
+    try {
+      runExecution(execute([]), port)
+      port.receive({ type: 'runtime:ready', generation: 7 })
+      const startScript = syncedScript({
+        id: 'spa-start', revision: 'revision-start', runAt: 'document-start',
+        code: "globalThis.__spaRuns.push('start')",
+      })
+      port.receive(runtimeSync([startScript]))
+      port.receive(runtimeSync([startScript]))
+      assert.deepStrictEqual((globalThis as typeof globalThis & { __spaRuns: string[] }).__spaRuns, ['start'])
+
+      const endScript = syncedScript({
+        id: 'spa-end', revision: 'revision-end', runAt: 'document-end',
+        code: "globalThis.__spaRuns.push('end')",
+      })
+      port.receive(runtimeSync([endScript]))
+      port.receive(runtimeSync([], ['spa-end']))
+      port.receive(runtimeSync([endScript]))
+      events.document.get('DOMContentLoaded')?.()
+      assert.deepStrictEqual((globalThis as typeof globalThis & { __spaRuns: string[] }).__spaRuns, ['start', 'end'])
+
+      port.receive({ type: 'runtime:phase', generation: 7, phase: 'document-idle' })
+      const idleScript = syncedScript({
+        id: 'spa-idle', revision: 'revision-idle', runAt: 'document-idle',
+        code: "globalThis.__spaRuns.push('idle')",
+      })
+      port.receive(runtimeSync([idleScript]))
+      port.receive(runtimeSync([], ['spa-start', 'spa-end', 'spa-idle']))
+      port.receive(runtimeSync([startScript, endScript, idleScript]))
+      assert.deepStrictEqual((globalThis as typeof globalThis & { __spaRuns: string[] }).__spaRuns, ['start', 'end', 'idle'])
+    }
+    finally { Reflect.deleteProperty(globalThis, '__spaRuns') }
   })
 })
 
@@ -272,7 +295,7 @@ test('routes classic xhr, clipboard, and menu callbacks through the private port
       writable: true,
     })
     try {
-      execute([{
+      const built = execute([{
         id: 'network',
         name: 'Network helper',
         grants: ['GM_xmlhttpRequest', 'GM_setClipboard', 'GM_registerMenuCommand'],
@@ -288,21 +311,8 @@ test('routes classic xhr, clipboard, and menu callbacks through the private port
           GM_setClipboard('answer', 'text', ok => { result.clipboard = ok; });
           result.menuId = GM_registerMenuCommand('Refresh rating', () => { result.menuRuns += 1; });
         `,
-      }]).execution.func(...execute([{
-        id: 'network',
-        name: 'Network helper',
-        grants: ['GM_xmlhttpRequest', 'GM_setClipboard', 'GM_registerMenuCommand'],
-        source: `
-          const result = globalThis.__gmRuntimeResult;
-          result.request = GM_xmlhttpRequest({
-            method: 'GET', url: 'https://api.example.com/data', responseType: 'json',
-            onprogress: event => { result.loaded = event.loaded; },
-            onload: response => { result.response = response.response; result.finalUrl = response.finalUrl; },
-          });
-          GM_setClipboard('answer', 'text', ok => { result.clipboard = ok; });
-          result.menuId = GM_registerMenuCommand('Refresh rating', () => { result.menuRuns += 1; });
-        `,
-      }]).execution.args)
+      }])
+      runExecution(built, port)
 
       const messages = port.messages as Array<Record<string, unknown>>
       const xhr = messages.find(message => message.type === 'xhr:start')!
@@ -357,7 +367,7 @@ test('modern xhr returns a promise with abort and @grant none suppresses new pri
         },
       ]
       const built = execute(scripts)
-      built.execution.func(...built.execution.args)
+      runExecution(built, port)
       const messages = port.messages as Array<Record<string, unknown>>
       const xhr = messages.find(message => message.type === 'xhr:start')!
       const clipboard = messages.find(message => message.type === 'clipboard:set')!
@@ -380,10 +390,10 @@ test('modern xhr returns a promise with abort and @grant none suppresses new pri
 })
 
 test('window.onurlchange is installed only for its grant and deduplicates unchanged URLs', async () => {
-  await withRuntimeGlobals(() => {
+  await withRuntimeGlobals((port) => {
     Object.defineProperty(globalThis, '__urlChanges', { configurable: true, value: [], writable: true })
     try {
-      execute([{
+      const built = execute([{
         id: 'urlchange', name: 'SPA helper', grants: ['window.onurlchange'],
         source: `
           window.onurlchange = event => globalThis.__urlChanges.push(event.url);
@@ -391,15 +401,8 @@ test('window.onurlchange is installed only for its grant and deduplicates unchan
           history.replaceState({}, '', '/next');
           history.replaceState({}, '', '/final#hash');
         `,
-      }]).execution.func(...execute([{
-        id: 'urlchange', name: 'SPA helper', grants: ['window.onurlchange'],
-        source: `
-          window.onurlchange = event => globalThis.__urlChanges.push(event.url);
-          history.pushState({}, '', '/next');
-          history.replaceState({}, '', '/next');
-          history.replaceState({}, '', '/final#hash');
-        `,
-      }]).execution.args)
+      }])
+      runExecution(built, port)
       assert.deepStrictEqual((globalThis as typeof globalThis & { __urlChanges: string[] }).__urlChanges, [
         'https://example.com/next',
         'https://example.com/final#hash',
@@ -410,7 +413,9 @@ test('window.onurlchange is installed only for its grant and deduplicates unchan
 })
 
 test('rejects wildcard origins, duplicate ids, and non-JSON snapshots', () => {
-  assert.throws(() => buildUserScriptMainWorldRuntime({ handshakeId: 'x', targetOrigin: '*', scripts: [] }), /targetOrigin/)
+  assert.throws(() => buildUserScriptMainWorldRuntime({
+    handshakeId: 'x', targetOrigin: '*', generation: 1, scripts: [],
+  }), /targetOrigin/)
   assert.throws(() => execute([
     { id: 'duplicate', name: 'One', grants: [], source: '' },
     { id: 'duplicate', name: 'Two', grants: [], source: '' },
@@ -421,3 +426,30 @@ test('rejects wildcard origins, duplicate ids, and non-JSON snapshots', () => {
   assert.strictEqual(invalidSnapshot.rejectedScripts[0].id, 'bad')
   assert.match(invalidSnapshot.rejectedScripts[0].reason, /JSON serializable/)
 })
+
+function syncedScript(overrides: Partial<Record<string, unknown>> = {}) {
+  return {
+    id: 'spa-script',
+    revision: 'revision-1',
+    name: 'SPA helper',
+    namespace: null,
+    description: null,
+    version: '1.0.0',
+    runAt: 'document-start',
+    grants: [],
+    connects: [],
+    values: [],
+    code: '',
+    ...overrides,
+  }
+}
+
+function runtimeSync(scripts: unknown[], inactiveScriptIds: string[] = []) {
+  return {
+    type: 'runtime:sync',
+    generation: 7,
+    frameUrl: 'https://example.com/spa',
+    scripts,
+    inactiveScriptIds,
+  }
+}

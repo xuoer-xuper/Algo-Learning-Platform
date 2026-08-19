@@ -21,8 +21,9 @@ test('runtime handshake payloads require exact bounded shapes', () => {
     isMainFrame: true,
     source: 'blocked',
   }), false)
-  assert.strictEqual(isUserScriptRuntimePortRequest({ nonce, frameUrl: 'https://example.com/' }), true)
-  assert.strictEqual(isUserScriptRuntimePortRequest({ nonce: 'short', frameUrl: 'https://example.com/' }), false)
+  assert.strictEqual(isUserScriptRuntimePortRequest({ nonce, frameUrl: 'https://example.com/', generation: 4 }), true)
+  assert.strictEqual(isUserScriptRuntimePortRequest({ nonce: 'short', frameUrl: 'https://example.com/', generation: 4 }), false)
+  assert.strictEqual(isUserScriptRuntimePortRequest({ nonce, frameUrl: 'https://example.com/', generation: -1 }), false)
 })
 
 test('runtime value mutations reject extra fields, unsafe values, and oversized keys', () => {

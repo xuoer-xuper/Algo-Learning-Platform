@@ -469,7 +469,8 @@ Renderer（同一构建产物，多窗口实例化——桌宠 hash 路由已证
 | B6.1 | [x] | `027_userscript_runtime`、完整 metadata 持久化、严格 URL 匹配、site binding/exclude 优先级、values/资源/host/update repository 已完成；完整记录见 §11.38 |
 | B6.2 | [x] | GM 私有桥、固定 frame bootstrap、IIFE/grant 裁剪、主进程值快照与 shell 源码隔离已完成；完整记录见 §11.39 |
 | B6.3 | [x] | `GM_xmlhttpRequest` 主进程受限代理、`@connect` 与逐 host 授权、NoticeBar、剪贴板/菜单/onurlchange、全局 CORS 清理已完成；完整记录见 §11.40 |
-| B6.4-B6.7 | [ ] | 早注入时序收口、资源下载/SRI、安装更新与管理页待实施 |
+| B6.4 | [x] | 固定 frame preload、预编译 catalog、DOMContentLoaded/真实 frame load 阶段调度、SPA 重匹配与 revision/generation stale guard 已完成；真实 Electron 主 frame/reload smoke 已纳入 `test:electron`，Electron 43 的普通 iframe/frame-preload 限制已按 best-effort 记录，完整记录见 §11.41 |
+| B6.5-B6.7 | [ ] | `@require/@resource` 下载与 SRI、安装更新链路与管理页收口待实施 |
 
 ### 11.4 单任务完成记录模板
 
@@ -1047,4 +1048,22 @@ Renderer（同一构建产物，多窗口实例化——桌宠 hash 路由已证
 | 暂缓验证 | 按 B6 批量策略不运行生产 build、NSIS、真实 Electron 或 packaged 双实例 smoke；这些与 B6.4 的真实 frame/reload 时序一并集中执行 |
 | 视觉影响 | 未修改 CSS、主题、颜色、字体、按钮形态、布局基调或动画；授权复用既有 NoticeBar，脚本命令复用原生右键菜单，前端视觉冻结保持不变 |
 | 后续工作 | 进入 B6.4，证明真实 Electron 中 document-start/end/idle、父 frame/iframe、reload stale port 与站点无法捕获私有端口；B4.2-B4.6 继续等待 B6.4 完成 |
+| 完成时间 | 北京时间 `2026-08-19` |
+
+### 11.41 B6.4 用户脚本注入时序收口完成记录
+
+| 字段 | 填写内容 |
+|---|---|
+| 任务 | 固定 frame preload 与 sandbox 兼容的预编译 catalog、`document-start/end/idle` 真实阶段调度、父 frame/iframe/noframes、SPA 重匹配与脚本更新/注销竞态收口 |
+| 状态 | `[x] 已完成；B6.5 的 @require/@resource 本地缓存与 SRI、B6.6-B6.7 的安装更新及管理页仍待后续` |
+| Commit | `scripts: 完成 B6.4 用户脚本注入时序收口`（代码、真实 Electron smoke、文档与完成标记同提交） |
+| 注入时序 | 主进程按 generation 生成受限预编译 catalog，与固定 bootstrap 合并为一个 frame preload；sandbox preload 不再执行 `new Function`。Electron 43 的真实顺序为普通 webPreferences preload → userscript document-start → 页面内联脚本；document-start 仍早于页面脚本，普通 preload 之前的顺序标为 best-effort。`document-end` 以页面世界 `DOMContentLoaded` 为界，`document-idle` 由主进程 `did-finish-load`/`did-frame-finish-load` 通知 |
+| frame 与后台页 | 主 frame 按 `webContentsId:processId:routingId` 维护独立端口和阶段状态；`@noframes` 在主进程快照阶段过滤。Electron 43 的 `session.registerPreloadScript({ type: 'frame' })` 在普通 iframe 中不触发，已由真实 smoke 记录为兼容边界；bridge 仍保留精确 child-frame key 与 idle 事件，后续升级 Electron 必须重新验证。阶段事件不依赖标签激活状态，后台页仍保持一致调度 |
+| SPA 与动态权限 | `did-navigate-in-page` 重新计算当前 URL 快照，通过受限 `runtime:sync` 仅启动新匹配且尚未执行的脚本；移除的脚本立即中止其网络请求、清理菜单命令并拒绝后续特权消息 |
+| stale guard | 运行时为每个脚本快照生成基于代码和权限合同的 revision，执行去重键同时包含 script ID 与 revision；每次缓存刷新推进 generation、主动发送 invalidate、关闭旧端口并取消未完成操作，延迟的 `document-end/idle` 不会在旧代继续执行 |
+| 端口隐藏 | 不使用 `window.postMessage` 转交 DOM `MessagePort`。隔离 preload 只在随机 nonce 下短暂暴露 contextBridge send/subscribe 闭包，主世界运行器取得后立即删除桥接属性，再以私有端口和主进程通信；页面内联脚本无法捕获该端口或复用桥接入口 |
+| 自动验证 | 单元测试覆盖阶段状态、SPA 同步、inactive 脚本收权、revision/generation 去重、旧端口失效和空匹配端口；`npm run test:electron` 新增真实 Electron localhost smoke，覆盖主 frame document-start/end/idle、页面无法捕获私有端口、SPA 重匹配、延迟 load stale generation 和 reload。iframe 运行时限制也作为 smoke 断言保留 |
+| 兼容边界 | Electron 43 真实 smoke 证明 document-start 早于页面内联脚本，但晚于普通 webPreferences preload，且普通 iframe 不执行 session frame preload；因此 B6.4 对页面脚本时序交付精确兼容，对普通 preload 前置和 iframe 注入明确标记 best-effort。Electron 升级若改变任一行为，`test:electron` 必须先失败并重新评估 |
+| 视觉影响 | 未修改 TSX、CSS、主题、颜色、字体、布局或动画；前端视觉冻结保持不变 |
+| 后续工作 | B6.1-B6.4 安全与时序前置已闭合，可进入 B4.2 Vault/自动填充/登录捕获与 B6.5 资源缓存/SRI；两条后续链路仍需按计划独立验收 |
 | 完成时间 | 北京时间 `2026-08-19` |

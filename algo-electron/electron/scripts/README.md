@@ -14,9 +14,9 @@
 - `userScriptMetadata.ts`：解析 B6.1 userscript metadata，并分别编译严格 `@match` 与 `@include/@exclude`。
 - `userScriptImport.ts`：提供身份、版本、文件名、另存副本和原子落盘的纯导入逻辑。
 - `UserScriptRuntime.ts`：启动时水合启用脚本和值快照，按 frame URL 在主进程内存中匹配并处理值持久化。
-- `userScriptRuntimeBridge.ts`：注册专用 frame preload、校验 OJ frame sender，并管理每次导航的 MessagePort 代际。
-- `userscriptBootstrapPreload.ts`：固定 session preload；只接收主进程快照，在隔离 preload 与主世界之间完成一次性端口转移。
-- `userScriptMainWorldRuntime.ts`：生成主世界可执行函数；每个脚本独立 IIFE，GM API 仅作为按 grant 裁剪的局部参数。
+- `userScriptRuntimeBridge.ts`：生成按 generation 绑定的预编译 catalog preload，校验 OJ frame sender，管理每次导航的 MessagePort 代际，并从真实 frame load 事件驱动 idle 阶段与 SPA 重匹配。
+- `userscriptBootstrapPreload.ts`：固定 session preload；sandbox 中不执行用户源码编译，只通过随机 nonce 的短暂 contextBridge 闭包接入主世界运行器，再向主进程转移私有端口。
+- `userScriptMainWorldRuntime.ts`：生成主世界可执行函数；每个脚本独立 IIFE，GM API 仅作为按 grant 裁剪的局部参数，并按 revision 处理 start/end/idle 与 SPA 动态同步。
 - `userScriptConnectPolicy.ts`：规范化网络目标并按 DNS label 校验 `@connect`，拒绝 userinfo、非 HTTPS 和欺骗性后缀。
 - `UserScriptNetworkProxy.ts`：经 `Session.fetch` 执行受限网络请求，逐跳授权并限制重定向、超时、请求/响应大小和并发。
 - `UserScriptHostPermissionBroker.ts`：按窗口串行展示 host 授权，合并同源请求并处理回放、超时、generation/窗口取消。
@@ -53,6 +53,9 @@
 - `GM_xmlhttpRequest`/`GM.xmlHttpRequest` 只经主进程代理；初始 URL 和每次重定向都同时要求 `@connect` 命中与当前脚本的精确 host 授权。
 - 网络代理过滤浏览器所有请求头、不返回 `Set-Cookie`，并对请求体、响应体、超时、重定向和并发设置硬上限；跨 origin 跳转额外移除 Authorization。
 - `GM_setClipboard`/`GM.setClipboard` 只提供写入；注册菜单命令进入页面原生右键菜单；SPA 地址变化以受限事件触发 `window.onurlchange`。
+- `document-start` 在固定 frame preload 中立即调度并早于页面内联脚本，`document-end` 等待页面世界 `DOMContentLoaded`，`document-idle` 由主进程 `did-finish-load`/`did-frame-finish-load` 回传；Electron 43 中普通 webPreferences preload 仍先于 userscript preload，普通 iframe 不触发 session frame preload，均按 best-effort 记录；后台标签不依赖壳层激活状态。
+- `did-navigate-in-page` 会在原 frame 内重算快照；新匹配脚本仅执行一次，失配脚本立即被收回网络、菜单和后续特权消息能力。
+- 每个快照包含代码/权限合同 revision，并受 runtime generation 双重约束；刷新、更新、禁用或删除后，旧端口先收到 invalidate，再关闭并取消未完成操作。
 
 ## 3. IPC 能力
 
@@ -105,6 +108,8 @@
 - 修改 IPC 名称需要同步 preload、renderer helper、`electron/ipc/README.md` 和 IPC contract 测试。
 - `UserScriptService` 不应重新注册 IPC；管理型 IPC 必须放在 `electron/ipc/registerScriptsIpc.ts`。
 - 运行器只在 OJ WebContents 内执行脚本，不向 shell renderer 或普通日志传递脚本源码；`scripts:getAll` 仅返回摘要 DTO。
+- 不得恢复用 `window.postMessage` 转交 userscript DOM `MessagePort`；站点世界只能使用主世界运行器的短暂闭包通道，不应能捕获、复用或伪造私有端口。
+- 修改 Electron 版本、session preload 注册或 frame load 调度时，必须运行 `npm run test:electron`；真实顺序 smoke 失败时只能标记 `document-start` best-effort，不得继续声称精确兼容。
 - `@connect` 声明不等于授权；代理必须同时验证声明、精确 host permission、当前 generation、webContents 与窗口 owner，初始 URL 和每一跳重定向都不能复用上一跳结论。
 - host 授权提示只能经既有 NoticeBar 暴露安全展示字段；不得把 URL path/query、header、请求体、脚本源码或任意回调透传给 shell renderer。
 - `@require/@resource` 留给 B6.5 的缓存/SRI 链路，B6.3 不允许页面自行绕过代理下载并执行远程代码。
@@ -117,6 +122,7 @@
 cd algo-electron
 npm run typecheck
 npm exec vitest -- run tests/scripts tests/browser/ojSession.test.ts tests/browser/contextMenu.test.ts tests/ipc/registerBrowserShellIpc.test.ts
+npm run test:electron
 ```
 
 涉及 repository 时追加运行 DB 临时库测试：

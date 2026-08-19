@@ -694,6 +694,7 @@ void app.whenReady().then(async () => {
     runtime: services.userScriptRuntime,
     session: ojSession,
     preloadPath: USER_SCRIPT_BOOTSTRAP_PRELOAD_PATH,
+    catalogPreloadPath: path.join(app.getPath('userData'), 'userscript-runtime-catalog.mjs'),
     allowInsecureLocalhost: Boolean(VITE_DEV_SERVER_URL || STARTUP_SMOKE_MODE),
     networkProxy: userScriptNetworkProxy,
     menuRegistry: userScriptMenuRegistry,

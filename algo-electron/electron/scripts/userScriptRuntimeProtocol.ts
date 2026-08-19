@@ -1,6 +1,5 @@
 export const USER_SCRIPT_RUNTIME_INIT_CHANNEL = 'userscript-runtime:init'
 export const USER_SCRIPT_RUNTIME_PORT_CHANNEL = 'userscript-runtime:port'
-export const USER_SCRIPT_RUNTIME_HANDOFF_KIND = '__algo_userscript_runtime_port_v1'
 
 export const USER_SCRIPT_RUNTIME_NONCE_PATTERN = /^[a-f0-9]{32}$/
 export const USER_SCRIPT_RUNTIME_MAX_KEY_LENGTH = 512
@@ -19,6 +18,7 @@ export interface UserScriptRuntimeInitRequest {
 
 export interface UserScriptRuntimeScriptSnapshot {
   id: string
+  revision: string
   name: string
   namespace: string | null
   description: string | null
@@ -48,6 +48,15 @@ export type UserScriptRuntimeBootstrapResponse =
 export interface UserScriptRuntimePortRequest {
   nonce: string
   frameUrl: string
+  generation: number
+}
+
+export interface UserScriptRuntimeSyncEvent {
+  type: 'runtime:sync'
+  generation: number
+  frameUrl: string
+  scripts: UserScriptRuntimeScriptSnapshot[]
+  inactiveScriptIds: string[]
 }
 
 export type UserScriptRuntimeMutation =
@@ -117,6 +126,10 @@ export interface UserScriptXhrResponseSnapshot {
 }
 
 export type UserScriptRuntimeEvent =
+  | { type: 'runtime:ready'; generation: number }
+  | { type: 'runtime:phase'; generation: number; phase: 'document-idle' }
+  | { type: 'runtime:invalidate'; generation: number }
+  | UserScriptRuntimeSyncEvent
   | { type: 'xhr:progress'; requestId: string; loaded: number; total: number }
   | { type: 'xhr:complete'; requestId: string; response: UserScriptXhrResponseSnapshot }
   | { type: 'xhr:failed'; requestId: string; reason: 'abort' | 'error' | 'timeout' | 'denied' }
@@ -135,11 +148,14 @@ export function isUserScriptRuntimeInitRequest(value: unknown): value is UserScr
 
 export function isUserScriptRuntimePortRequest(value: unknown): value is UserScriptRuntimePortRequest {
   if (!isPlainRecord(value)) return false
-  if (!hasExactKeys(value, ['frameUrl', 'nonce'])) return false
+  if (!hasExactKeys(value, ['frameUrl', 'generation', 'nonce'])) return false
   return typeof value.nonce === 'string'
     && USER_SCRIPT_RUNTIME_NONCE_PATTERN.test(value.nonce)
     && typeof value.frameUrl === 'string'
     && value.frameUrl.length <= 8_192
+    && typeof value.generation === 'number'
+    && Number.isSafeInteger(value.generation)
+    && value.generation >= 0
 }
 
 export function parseUserScriptRuntimeMutation(value: unknown): UserScriptRuntimeMutation | null {

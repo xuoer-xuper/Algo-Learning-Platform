@@ -1,7 +1,7 @@
 import { EventEmitter } from 'node:events'
 import assert from 'node:assert/strict'
 import { afterEach, beforeEach, test, vi } from 'vitest'
-import { ipcMain, MockWebContents, resetElectronMock, session } from '../electron/electronMock'
+import { ipcMain, MockWebContents, MockWebFrame, resetElectronMock, session } from '../electron/electronMock'
 import {
   registerOjWebContents,
   resetTrustedSenderRegistry,
@@ -17,9 +17,10 @@ class MockPort extends EventEmitter {
   closed = false
   started = false
   sentMessages: unknown[] = []
-  close(): void { this.closed = true; this.emit('close') }
+  timeline: string[] = []
+  close(): void { this.closed = true; this.timeline.push('close'); this.emit('close') }
   start(): void { this.started = true }
-  postMessage(message: unknown): void { this.sentMessages.push(message) }
+  postMessage(message: unknown): void { this.sentMessages.push(message); this.timeline.push(`message:${(message as { type?: string }).type ?? 'unknown'}`) }
   receive(data: unknown): void { this.emit('message', { data }) }
 }
 
@@ -85,8 +86,15 @@ test('binds value mutations to the navigation generation, script grants, and exa
   ipcMain.emit(USER_SCRIPT_RUNTIME_PORT_CHANNEL, createEvent(sender, [port]), {
     nonce,
     frameUrl: sender.getURL(),
+    generation: 1,
   })
   assert.strictEqual(port.started, true)
+  assert.deepStrictEqual(port.sentMessages[0], { type: 'runtime:ready', generation: 1 })
+
+  sender.emit('did-finish-load')
+  assert.deepStrictEqual(port.sentMessages[1], {
+    type: 'runtime:phase', generation: 1, phase: 'document-idle',
+  })
 
   port.receive({ type: 'value:set', scriptId: 'script-1', key: 'count', value: 2 })
   port.receive({ type: 'value:delete', scriptId: 'script-1', key: 'count' })
@@ -97,7 +105,115 @@ test('binds value mutations to the navigation generation, script grants, and exa
   runtime.generation = 2
   port.receive({ type: 'value:set', scriptId: 'script-1', key: 'count', value: 3 })
   assert.strictEqual(port.closed, true)
+  assert.deepStrictEqual(port.timeline.slice(-2), ['message:runtime:invalidate', 'close'])
   assert.strictEqual(runtime.setValue.mock.calls.length, 1)
+  bridge.dispose()
+})
+
+test('opens a private port for an initially unmatched frame and marks the exact child frame idle', async () => {
+  const ojSession = session.fromPartition('persist:oj-main')
+  const runtime = createRuntime()
+  runtime.getNavigationSnapshot.mockReturnValue({ generation: 1, scripts: [] })
+  const bridge = installUserScriptRuntimeBridge({
+    runtime: runtime as never,
+    session: ojSession as never,
+    preloadPath: 'C:\\app\\userscriptBootstrapPreload.mjs',
+  })
+  const sender = await createSender(ojSession)
+  registerOjWebContents(sender)
+  const childFrame = new MockWebFrame()
+  childFrame.url = 'https://frames.example.com/embedded'
+  const childEvent = createEvent(sender, [], childFrame)
+  ipcMain.emit(USER_SCRIPT_RUNTIME_INIT_CHANNEL, childEvent, {
+    nonce, frameUrl: childFrame.url, isMainFrame: false,
+  })
+  assert.deepStrictEqual(childEvent.returnValue, { ok: true, nonce, generation: 1, scripts: [] })
+
+  const port = new MockPort()
+  ipcMain.emit(USER_SCRIPT_RUNTIME_PORT_CHANNEL, createEvent(sender, [port], childFrame), {
+    nonce, frameUrl: childFrame.url, generation: 1,
+  })
+  assert.strictEqual(port.started, true)
+  sender.emit('did-frame-finish-load', {}, false, childFrame.processId, childFrame.routingId)
+  assert.deepStrictEqual(port.sentMessages, [
+    { type: 'runtime:ready', generation: 1 },
+    { type: 'runtime:phase', generation: 1, phase: 'document-idle' },
+  ])
+  bridge.dispose()
+})
+
+test('recomputes SPA matches, updates command authority, and revokes scripts that leave the URL', async () => {
+  const ojSession = session.fromPartition('persist:oj-main')
+  const runtime = createRuntime(['GM_setValue'])
+  runtime.getNavigationSnapshot.mockImplementation((url: string) => ({
+    generation: 1,
+    scripts: url.endsWith('/matched') ? [expectScriptSnapshot(['GM_setValue'])] : [],
+  }))
+  const networkProxy = { start: vi.fn(), abort: vi.fn(), abortPrefix: vi.fn() }
+  const menuRegistry = new UserScriptMenuRegistry()
+  const bridge = installUserScriptRuntimeBridge({
+    runtime: runtime as never,
+    session: ojSession as never,
+    preloadPath: 'C:\\app\\userscriptBootstrapPreload.mjs',
+    networkProxy: networkProxy as never,
+    menuRegistry,
+  })
+  const sender = await createSender(ojSession)
+  registerOjWebContents(sender)
+  ipcMain.emit(USER_SCRIPT_RUNTIME_INIT_CHANNEL, createEvent(sender, []), initPayload())
+  const port = new MockPort()
+  ipcMain.emit(USER_SCRIPT_RUNTIME_PORT_CHANNEL, createEvent(sender, [port]), {
+    nonce, frameUrl: sender.getURL(), generation: 1,
+  })
+
+  sender.emit('did-navigate-in-page', {}, 'https://example.com/matched', true, sender.mainFrame.processId, sender.mainFrame.routingId)
+  assert.deepStrictEqual(port.sentMessages.at(-1), {
+    type: 'runtime:sync',
+    generation: 1,
+    frameUrl: 'https://example.com/matched',
+    scripts: [expectScriptSnapshot(['GM_setValue'])],
+    inactiveScriptIds: [],
+  })
+  port.receive({ type: 'value:set', scriptId: 'script-1', key: 'count', value: 2 })
+  assert.deepStrictEqual(runtime.setValue.mock.calls, [['script-1', 'count', 2]])
+
+  sender.emit('did-navigate-in-page', {}, 'https://example.com/unmatched', true, sender.mainFrame.processId, sender.mainFrame.routingId)
+  assert.deepStrictEqual(port.sentMessages.at(-1), {
+    type: 'runtime:sync', generation: 1, frameUrl: 'https://example.com/unmatched',
+    scripts: [], inactiveScriptIds: ['script-1'],
+  })
+  port.receive({ type: 'value:set', scriptId: 'script-1', key: 'count', value: 3 })
+  assert.strictEqual(runtime.setValue.mock.calls.length, 1)
+  assert.ok(networkProxy.abortPrefix.mock.calls.some(call => String(call[0]).includes('script-1')))
+  bridge.dispose()
+})
+
+test('remote port close clears its network operations and menu commands', async () => {
+  const ojSession = session.fromPartition('persist:oj-main')
+  const runtime = createRuntime(['GM_registerMenuCommand'])
+  const networkProxy = { start: vi.fn(), abort: vi.fn(), abortPrefix: vi.fn() }
+  const menuRegistry = new UserScriptMenuRegistry()
+  const bridge = installUserScriptRuntimeBridge({
+    runtime: runtime as never,
+    session: ojSession as never,
+    preloadPath: 'C:\\app\\userscriptBootstrapPreload.mjs',
+    networkProxy: networkProxy as never,
+    menuRegistry,
+  })
+  const sender = await createSender(ojSession)
+  registerOjWebContents(sender)
+  ipcMain.emit(USER_SCRIPT_RUNTIME_INIT_CHANNEL, createEvent(sender, []), initPayload())
+  const port = new MockPort()
+  ipcMain.emit(USER_SCRIPT_RUNTIME_PORT_CHANNEL, createEvent(sender, [port]), {
+    nonce, frameUrl: sender.getURL(), generation: 1,
+  })
+  port.receive({ type: 'menu:register', scriptId: 'script-1', commandId: 'menu-1', name: 'Refresh' })
+  assert.strictEqual(menuRegistry.getForWebContents(sender.id).length, 1)
+
+  port.close()
+  assert.deepStrictEqual(menuRegistry.getForWebContents(sender.id), [])
+  assert.strictEqual(networkProxy.abortPrefix.mock.calls.length, 1)
+  assert.deepStrictEqual(port.sentMessages, [{ type: 'runtime:ready', generation: 1 }])
   bridge.dispose()
 })
 
@@ -123,6 +239,7 @@ test('@grant none blocks value mutations even when mutation grants are also pers
   ipcMain.emit(USER_SCRIPT_RUNTIME_PORT_CHANNEL, createEvent(sender, [port]), {
     nonce,
     frameUrl: sender.getURL(),
+    generation: 1,
   })
 
   port.receive({ type: 'value:set', scriptId: 'script-1', key: 'count', value: 2 })
@@ -164,6 +281,7 @@ test('routes granted network, clipboard, and menu commands and revokes them on g
   ipcMain.emit(USER_SCRIPT_RUNTIME_PORT_CHANNEL, createEvent(sender, [port]), {
     nonce,
     frameUrl: sender.getURL(),
+    generation: 1,
   })
 
   port.receive({
@@ -234,6 +352,7 @@ test('rejects stale or mismatched port handoffs', async () => {
   ipcMain.emit(USER_SCRIPT_RUNTIME_PORT_CHANNEL, createEvent(sender, [wrongNoncePort]), {
     nonce: 'b'.repeat(32),
     frameUrl: sender.getURL(),
+    generation: 1,
   })
   assert.strictEqual(wrongNoncePort.closed, true)
 
@@ -241,6 +360,7 @@ test('rejects stale or mismatched port handoffs', async () => {
   ipcMain.emit(USER_SCRIPT_RUNTIME_PORT_CHANNEL, createEvent(sender, [replayPort]), {
     nonce,
     frameUrl: sender.getURL(),
+    generation: 1,
   })
   assert.strictEqual(replayPort.closed, true)
   bridge.dispose()
@@ -268,6 +388,7 @@ function createRuntime(grants?: string[]) {
 function expectScriptSnapshot(grants = ['GM_getValue', 'GM_setValue', 'GM_deleteValue']) {
   return {
     id: 'script-1',
+    revision: 'revision-1',
     name: 'Helper',
     namespace: null,
     description: null,
@@ -291,10 +412,10 @@ function initPayload() {
   return { nonce, frameUrl: 'https://example.com/problem/1', isMainFrame: true }
 }
 
-function createEvent(sender: MockWebContents, ports: MockPort[]) {
+function createEvent(sender: MockWebContents, ports: MockPort[], senderFrame: MockWebFrame = sender.mainFrame) {
   return {
     sender,
-    senderFrame: sender.mainFrame,
+    senderFrame,
     ports,
     returnValue: undefined as unknown,
   }

@@ -86,6 +86,21 @@ function runElectronAppTest(testFile, outputName) {
   run(electronBin, [outfile])
 }
 
+function bundleElectronPreload(testFile, outputName) {
+  const outfile = path.join(tmpDir, `${outputName}.cjs`)
+  fs.mkdirSync(tmpDir, { recursive: true })
+  run(process.execPath, [
+    esbuildBin,
+    testFile,
+    '--bundle',
+    '--platform=node',
+    '--format=cjs',
+    '--external:electron',
+    `--outfile=${outfile}`,
+  ])
+  return outfile
+}
+
 function runVitest(files = [], coverage = false) {
   run(process.execPath, [vitestBin, 'run', ...(coverage ? ['--coverage'] : []), ...files])
 }
@@ -138,6 +153,27 @@ function runStartupSmoke() {
   run(process.execPath, [outfile])
 }
 
+function runUserScriptRuntimeSmoke() {
+  const userscriptPreload = bundleElectronPreload(
+    path.join('electron', 'scripts', 'userscriptBootstrapPreload.ts'),
+    'userscript-runtime-preload',
+  )
+  const ordinaryPreload = bundleElectronPreload(
+    path.join('tests', 'electron', 'fixtures', 'userScriptRuntimeOrdinaryPreload.ts'),
+    'userscript-runtime-ordinary-preload',
+  )
+  const outfile = bundleTest(
+    path.join('tests', 'electron', 'userScriptRuntimeSmoke.test.ts'),
+    'electron-userscript-runtime-smoke',
+    ['electron'],
+  )
+  run(electronBin, [outfile], {
+    ALGO_USERSCRIPT_SMOKE_PRELOAD: userscriptPreload,
+    ALGO_USERSCRIPT_SMOKE_ORDINARY_PRELOAD: ordinaryPreload,
+    ELECTRON_DISABLE_SECURITY_WARNINGS: 'true',
+  })
+}
+
 function runUiTests() {
   run(process.execPath, [path.join('tests', 'ui', 'runPlaywright.mjs')])
 }
@@ -178,6 +214,7 @@ function runAllSuite() {
   runPackaging()
   runPerformance()
   runStartupSmoke()
+  runUserScriptRuntimeSmoke()
   runUiTests()
 }
 
@@ -194,6 +231,7 @@ function runSuite(suite) {
       break
     case 'electron':
       runStartupSmoke()
+      runUserScriptRuntimeSmoke()
       break
     case 'coach':
       runCoachSuite()
