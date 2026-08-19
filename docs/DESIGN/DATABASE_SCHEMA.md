@@ -479,7 +479,19 @@ Phase 7 通过 migration 021 为历史核心表追加同步兼容字段，均为
 | identity_name | TEXT NOT NULL | 稳定的脚本身份名称，不随显示名称编辑 |
 | description | TEXT | 脚本描述 |
 | version | TEXT | 脚本版本 |
-| match_urls_json | TEXT NOT NULL | 匹配的 URL 正则或通配符规则数组 |
+| match_urls_json | TEXT NOT NULL | 严格 `@match` 规则数组；scheme/host/path 解析，目标 query/hash 不参与匹配 |
+| include_rules_json | TEXT NOT NULL DEFAULT '[]' | `@include` glob/regex 数组 |
+| exclude_rules_json | TEXT NOT NULL DEFAULT '[]' | `@exclude` glob/regex 数组 |
+| exclude_match_rules_json | TEXT NOT NULL DEFAULT '[]' | 严格 `@exclude-match` 数组 |
+| grant_json | TEXT NOT NULL DEFAULT '[]' | `@grant` 声明数组 |
+| connect_json | TEXT NOT NULL DEFAULT '[]' | `@connect` 声明数组 |
+| noframes | INTEGER NOT NULL DEFAULT 0 | `@noframes`；仅允许 0/1 |
+| run_at | TEXT NOT NULL DEFAULT 'document-idle' | `@run-at` 原始值 |
+| update_url | TEXT | `@updateURL` |
+| download_url | TEXT | `@downloadURL` |
+| last_install_url | TEXT | 最近一次安装来源；供 B6.6 更新回退链使用 |
+| antifeature_json | TEXT NOT NULL DEFAULT '[]' | `@antifeature` 数组 |
+| icon_url | TEXT | `@icon` |
 | code | TEXT NOT NULL | 脚本源码（兼容旧版，新版可能为空） |
 | file_path | TEXT | 脚本本地存储路径 |
 | site_ids_json | TEXT | 关联的作用站点 ID 列表 |
@@ -500,7 +512,62 @@ CREATE UNIQUE INDEX user_scripts_active_legacy_identity_unique ON user_scripts(i
 
 存量活动同名脚本按 `created_at ASC, id ASC` 选择首条作为 legacy canonical；其余活动记录不删除，转为 `local:<id>` namespace 并关闭自动更新。legacy canonical 首次确认更新时原子认领为脚本声明的 namespace；无 `@namespace` 时认领为空字符串。
 
-### 8.4 site_credentials
+migration 027 从存量 `code` metadata 重新分离旧版混存在 `match_urls_json` 中的 `@include`，并回填 exclude、grant、connect、run-at 和更新元数据。`site_ids_json` 非空时是正向匹配的权威范围，不再回退 metadata；两类 exclude 始终优先。所有 027 JSON 数组列由 SQLite `json_valid/json_type` CHECK 保证基本形状。
+
+### 8.4 user_script_values
+
+GM 值的主进程持久化地基。值按 JSON 保存，站点页面不能直接访问；B6.2 接入私有桥后消费。
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| id | TEXT PRIMARY KEY | 记录 ID |
+| script_id | TEXT NOT NULL | 关联脚本，删除脚本时级联清理 |
+| value_key | TEXT NOT NULL | 脚本内键名 |
+| value_json | TEXT NOT NULL | JSON 值，带 `json_valid` CHECK |
+| created_at | TEXT NOT NULL | 创建时间 |
+| updated_at | TEXT NOT NULL | 更新时间 |
+
+约束：`UNIQUE(script_id, value_key)`、`FOREIGN KEY(script_id) ... ON DELETE CASCADE`。
+
+### 8.5 user_script_resources
+
+`@require`/`@resource` 安装缓存地基。B6.1 只建立无损存储和 repository；下载、SRI 校验及注入消费留给 B6.5。
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| id | TEXT PRIMARY KEY | 缓存 ID |
+| script_id | TEXT NOT NULL | 关联脚本 |
+| resource_kind | TEXT NOT NULL | `require` 或 `resource` |
+| resource_key | TEXT NOT NULL | require 稳定键或 resource 名称 |
+| declaration_order | INTEGER NOT NULL | 同类声明顺序，非负整数 |
+| source_url | TEXT NOT NULL | 原始下载 URL |
+| content_blob | BLOB | 原始字节，图片/字体不经 TEXT 损坏 |
+| content_encoding | TEXT NOT NULL | `binary` 或 `utf8` |
+| content_type | TEXT | MIME 类型 |
+| integrity | TEXT | 待 B6.5 验证的完整性声明 |
+| fetched_at | TEXT | 成功抓取时间 |
+| created_at / updated_at | TEXT NOT NULL | 创建/更新时间 |
+
+约束：`UNIQUE(script_id, resource_kind, resource_key)`、`UNIQUE(script_id, resource_kind, declaration_order)`、脚本外键级联；查询索引按脚本、kind、声明顺序排列。
+
+### 8.6 user_script_host_permissions
+
+`@connect` 跨域授权记录。repository 将 host pattern trim 并转为小写；`UNIQUE(script_id, host_pattern)` 保留稳定 ID。撤销写 `revoked_at`，再次授权 revive 同一行，`last_used_at` 单独记录最近使用。
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| id | TEXT PRIMARY KEY | 授权 ID |
+| script_id | TEXT NOT NULL | 关联脚本 |
+| host_pattern | TEXT NOT NULL | 已批准 host pattern |
+| granted_at | TEXT NOT NULL | 授权时间 |
+| last_used_at | TEXT | 最近使用时间 |
+| revoked_at | TEXT | 撤销时间；NULL 为活动授权 |
+
+### 8.7 user_script_update_state
+
+每个脚本一行的更新检查状态，主键同时是级联外键。`status` 仅允许 `idle/checking/current/available/error`；保存 ETag、Last-Modified、可用版本、上次/下次检查时间和错误摘要，并按 `next_check_at/status` 建索引。
+
+### 8.8 site_credentials
 
 站点登录凭据的主进程数据地基。B4.1 只建立 schema 和 repository 边界；safeStorage 解密、自动填充和登录捕获必须等待 B6.3 的主进程网络代理与全局 CORS 清除完成。
 

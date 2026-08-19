@@ -466,7 +466,8 @@ Renderer（同一构建产物，多窗口实例化——桌宠 hash 路由已证
 | B4.1 | [x] | `026_site_credentials`、版本化 envelope repository、软删/revive、导出排除闭合与备份提示已完成；仅数据地基，不启用凭据保存能力，完整记录见 §11.37 |
 | B4.2-B4.6 | [ ] | Vault、自动填充、账户页、登录捕获、fuses 均待实施；须等待 B6.1-B6.4 |
 | B5.1-B5.6 | [ ] | 仅按视觉冻结约束做结构收尾、暗色、无障碍、桌宠策略和 Latex |
-| B6.1-B6.7 | [ ] | 027_userscript_runtime、GM 桥、网络代理、早注入、资源、安装更新与管理页均待实施 |
+| B6.1 | [x] | `027_userscript_runtime`、完整 metadata 持久化、严格 URL 匹配、site binding/exclude 优先级、values/资源/host/update repository 已完成；完整记录见 §11.38 |
+| B6.2-B6.7 | [ ] | GM 私有桥、网络代理、早注入、资源下载/SRI、安装更新与管理页待实施 |
 
 ### 11.4 单任务完成记录模板
 
@@ -991,4 +992,22 @@ Renderer（同一构建产物，多窗口实例化——桌宠 hash 路由已证
 | 文档 | `DATABASE_SCHEMA.md`、`DATA_EXPORT_AND_IMPORT.md`、`SECURITY.md`、数据库迁移/DB/repository README 与本计划同步；未修改 CSS、颜色、字体、按钮、布局或动画 |
 | 顺序说明 | 因计划固定 B4.1=026、B6.1=027，先落 B4.1 是保持 migration 单调递增的唯一前置例外；B4.2-B4.6 仍严格等待 B6.1-B6.4，尤其 B6.3 的主进程代理与全局 CORS 清除 |
 | 后续工作 | 进入 B6.1；完成 B6.1-B6.4 后再实施 B4.2 Vault、自动填充、账户页、登录捕获和 fuses |
+| 完成时间 | 北京时间 `2026-08-19` |
+
+### 11.38 B6.1 用户脚本运行时数据地基完成记录
+
+| 字段 | 填写内容 |
+|---|---|
+| 任务 | migration `027_userscript_runtime`、完整 metadata 持久化、严格 URL 匹配、显式站点绑定语义与四类运行时 repository |
+| 状态 | `[x] 已完成；只建立主进程数据/匹配地基，尚未向页面开放新 GM 桥或跨域代理` |
+| Commit | `scripts: 完成 B6.1 用户脚本运行时数据地基`（代码、测试、文档与完成标记同提交） |
+| Metadata 与升级 | parser 分离 `@match/@include/@exclude/@exclude-match`，并持久化 namespace、grant、connect、noframes、run-at、update/download URL、antifeature 与 icon；027 从存量源码回填旧版混存在 `match_urls_json` 的 include，保持 026 升级后的脚本范围语义 |
+| 匹配边界 | 严格 `@match` 按 scheme/host/path 编译并锚定 host，scheme/host 大小写不敏感、path 大小写敏感，目标 query/hash 忽略；非法 match never-match，include/exclude 支持 glob 和显式 flags regex；两类 exclude 最高优先，非空 `site_ids_json` 是正向范围的权威来源，未知/禁用站点和坏 JSON fail closed |
+| 运行时存储 | 新增 `user_script_values`、`user_script_resources`、`user_script_host_permissions`、`user_script_update_state`；values 受 JSON CHECK，资源区分 require/resource、保存声明顺序与原始 BLOB/encoding，host 授权支持 revoke/revive，update state 保存 ETag/Last-Modified/next check/status；四表均随脚本 FK cascade |
+| Repository 与导入 | `userScriptRuntimeRepository` 提供值、资源、host 和更新状态 API；`createScript/updateScript/updateScriptWithLegacyClaim` 全量接通 027 列并归一 noframes；导入 create、覆盖更新、legacy claim 和 local copy 共用完整 metadata 映射，继续保留用户显示名、启停和站点配置 |
+| 测试 | B6.1 定向 `5 files / 21 tests` 通过；`npm run test:core` 通过：Vitest `77 files / 744 tests`、TypeScript、全仓 ESLint、architecture `7/7` 和 security 全绿；`npm run test:db` 通过：Vitest `13 files / 23 tests`，并通过 Electron ABI 下备份导入、迁移失败恢复、repository 与日统计 benchmark；`npm run test:docs` 通过 |
+| 数据与安全 | 普通学习 JSON 导出动态排除四张 runtime 表；host permission 仅是 B6.3 代理的授权数据地基，不代表页面已获得跨域能力；新 runtime 表尚未接入页面，legacy GM polyfill 留待 B6.2 重写，用户脚本源码继续禁止进入日志和 shell renderer |
+| 文档与视觉 | `DATABASE_SCHEMA.md`、导出/回滚/安全文档、DB/migration/repository/scripts/test README 与公开 `UserScriptRecord` 类型同步；未修改 TSX、CSS、颜色、字体、按钮形态、布局或动画，前端视觉冻结不变 |
+| 暂缓验证 | 按批量策略，本任务不运行生产构建、NSIS、真实 Electron 或 packaged 双实例 smoke；待 B6 更大阶段统一执行 |
+| 后续工作 | 进入 B6.2：固定 userscript bootstrap preload、IIFE/按 grant 裁剪的 GM 私有桥与主进程值快照；B4.2-B4.6 仍等待 B6.1-B6.4 全部完成 |
 | 完成时间 | 北京时间 `2026-08-19` |

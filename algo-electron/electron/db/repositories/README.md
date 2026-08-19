@@ -22,6 +22,7 @@
 - `site/`：站点配置 CRUD、内置站点 seed、导入导出预览和确认。
 - `userScriptRepository.ts`：用户脚本 repository 兼容导出口；实际实现位于 `userScript/`。
 - `userScript/`：用户脚本类型、行映射、查询、CRUD 和启停。
+- `userScriptRuntimeRepository.ts`：GM values、`@require/@resource` BLOB 缓存、`@connect` host 授权和更新检查状态。
 - `aiContextSnapshotRepository.ts`：AI 上下文快照 repository 兼容导出口；实际实现位于 `aiContextSnapshot/`。
 - `aiContextSnapshot/`：每日快照类型、JSON context 序列化/解析、查询和幂等创建。
 - `aiOutputRepository.ts`：AI 输出 repository 兼容导出口；实际实现位于 `aiOutput/`。
@@ -41,6 +42,7 @@
 - 站点配置导入入口通过 `siteRepository.ts` 导出，内部实现位于 `site/importExport.ts`；导入预览不能覆盖内置站点。
 - 账号 rating history 通过 `accountRepository.ts` 导出，内部实现位于 `account/ratingHistory.ts`；重复 contest 不覆盖旧记录。
 - 用户脚本 repository 只保存脚本元信息、匹配规则 JSON、兼容源码字段和本地文件路径；文件导入和 metadata 解析留在 scripts IPC/service。
+- 用户脚本 runtime repository 只持久化主进程运行时状态，不执行依赖下载、不注入脚本、不发起 GM 网络请求；这些能力分别留给 B6.2/B6.3/B6.5。
 - AI 输出 repository 只保存独立输出和追溯元信息，不反写题目、提交、笔记等核心事实表。
 - AI context snapshot repository 只保存 `exportAIContext()` 的脱敏上下文快照；阶段总结聚合逻辑留在 `electron/ai/summary/`。
 - Cookie record repository 只保存元数据和安全摘要，不保存 Cookie value，且 `sync_excluded` 必须保持为 `1`。

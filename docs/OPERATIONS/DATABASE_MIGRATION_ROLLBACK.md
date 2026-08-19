@@ -169,6 +169,8 @@ migration 025 在创建用户脚本身份唯一索引前保留全部存量行：
 
 migration 026 创建 `site_credentials` 作为凭据数据地基。活动行必须保存 V1 safeStorage envelope，软删除同时清空 envelope；同站点同用户名再次保存由 repository revive 原 tombstone。回滚时优先恢复迁移前备份，不要手工删除 `schema_migrations` 或复制凭据表数据到普通 JSON 导出。
 
+migration 027 扩展 `user_scripts` metadata，并从存量源码重新拆分旧版混存的 `@match/@include`；同时创建 values、BLOB 资源、host 授权和更新状态四张级联表。SQLite 无法可靠地通过简单 `down` 删除新增列，因此 027 失败或需要回到旧版本时必须恢复迁移前完整数据库备份，不能只删除四张表或手工把版本号改回 026。自动迁移安全测试已覆盖 027 成功后紧随 migration 失败时恢复到无新增列/表的原数据库。
+
 ## 10. 验证命令
 
 基础验证：

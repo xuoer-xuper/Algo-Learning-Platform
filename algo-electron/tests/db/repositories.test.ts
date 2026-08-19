@@ -179,14 +179,28 @@ function seedCodeforcesSubmissions(problem: ProblemRow): void {
 test('runs migrations into a temporary database', () => {
   const db = getDbForTest()
   const migrations = db.prepare('SELECT COUNT(*) as count FROM schema_migrations').get() as { count: number }
-  assert.strictEqual(migrations.count, 26)
+  assert.strictEqual(migrations.count, 27)
 
   const tables = db.prepare(`
     SELECT name FROM sqlite_master
-    WHERE type = 'table' AND name IN ('cookie_records', 'problems', 'submissions', 'sync_queue', 'user_daily_stats')
+    WHERE type = 'table' AND name IN (
+      'cookie_records', 'problems', 'submissions', 'sync_queue', 'user_daily_stats',
+      'user_script_values', 'user_script_resources',
+      'user_script_host_permissions', 'user_script_update_state'
+    )
     ORDER BY name
   `).all() as { name: string }[]
-  assert.deepStrictEqual(tables.map(row => row.name), ['cookie_records', 'problems', 'submissions', 'sync_queue', 'user_daily_stats'])
+  assert.deepStrictEqual(tables.map(row => row.name), [
+    'cookie_records',
+    'problems',
+    'submissions',
+    'sync_queue',
+    'user_daily_stats',
+    'user_script_host_permissions',
+    'user_script_resources',
+    'user_script_update_state',
+    'user_script_values',
+  ])
 
   const submissionDeletedAt = db.prepare(`PRAGMA table_info(submissions)`).all()
     .some((column: any) => column.name === 'deleted_at')

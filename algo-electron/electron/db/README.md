@@ -12,11 +12,11 @@
 - 数据库位置：`app.getPath('userData')/data/algo-learning.sqlite`。
 - 连接配置：启用 WAL、foreign keys、`busy_timeout = 5000`。
 - 迁移系统：`schema_migrations` 表记录已执行版本；迁移在事务内执行。
-- 当前迁移版本：001 到 026。
+- 当前迁移版本：001 到 027。
 - 应用启动使用异步初始化：检测到 pending migration 时先用 SQLite backup API 写入 `userData/backups`，只保留最近 3 份。
 - 迁移失败会关闭连接、恢复迁移前备份、写 failure marker；同一 pending migration 下次启动不会自动重试。
 - 启动完成会把未正常结束的 `problem_visits` 按 `entered_at` 安全封闭，并标记 `startup_recovery`。
-- Repository 覆盖：账号/rating、AI 上下文快照、AI 输出、Cookie 元数据、题目、站点配置、统计、提交、带稳定身份的用户脚本。
+- Repository 覆盖：账号/rating、AI 上下文快照、AI 输出、Cookie 元数据、题目、站点配置、统计、提交、带稳定身份和运行时地基的用户脚本。
 - `site_credentials` 已建立版本化 envelope 数据地基；凭据解密、自动填充和登录捕获仍由 B4.2-B4.5 在 B6.3 安全前置完成后接入。
 
 数据库结构的权威契约仍是`docs/DESIGN/DATABASE_SCHEMA.md`。
@@ -37,6 +37,7 @@
 - `repositories/site/`：站点配置 CRUD、内置 seed、导入导出和导入预览实现。
 - `repositories/stats/`：统计 repository 的趋势、洞察、日期 helper 和日统计重算实现。
 - `repositories/userScript/`：用户脚本元信息、启用状态、匹配规则和本地文件路径实现。
+- `repositories/userScriptRuntimeRepository.ts`：GM values、BLOB 资源、host 授权与更新检查状态实现。
 
 ## 4. 连接封装
 
@@ -116,6 +117,8 @@ Migration 文件约定：
 - `userScriptRepository.ts`
   - 兼容导出口；内部实现位于 `repositories/userScript/`。
   - 用户脚本 CRUD 和启用状态切换。
+- `userScriptRuntimeRepository.ts`
+  - GM values、`@require/@resource` 缓存、`@connect` host 授权和更新状态 CRUD。
 - `aiContextSnapshotRepository.ts`
   - 兼容导出口；内部实现位于 `repositories/aiContextSnapshot/`。
   - 每日 AI 上下文快照创建、读取、列表。

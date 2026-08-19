@@ -308,6 +308,18 @@ interface UserScriptRecord {
   description: string | null
   version: string | null
   match_urls_json: string
+  include_rules_json: string
+  exclude_rules_json: string
+  exclude_match_rules_json: string
+  grant_json: string
+  connect_json: string
+  noframes: boolean
+  run_at: string
+  update_url: string | null
+  download_url: string | null
+  last_install_url: string | null
+  antifeature_json: string
+  icon_url: string | null
   code: string
   file_path: string | null
   site_ids_json: string | null

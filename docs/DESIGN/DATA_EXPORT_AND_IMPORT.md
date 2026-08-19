@@ -26,7 +26,7 @@
 
 禁止进入普通 JSON 导出的表和字段：
 
-- `activity_events`、`study_sessions`、`contest_results`、`site_configs`、`user_scripts`、`notes`、`ai_context_snapshots`、`ai_outputs`、`cookie_records`、`sync_queue`、`coach_events`、`coach_interventions`、`coach_feedback`、`site_credentials` 和内部 `schema_migrations`。
+- `activity_events`、`study_sessions`、`contest_results`、`site_configs`、`user_scripts`、`user_script_values`、`user_script_resources`、`user_script_host_permissions`、`user_script_update_state`、`notes`、`ai_context_snapshots`、`ai_outputs`、`cookie_records`、`sync_queue`、`coach_events`、`coach_interventions`、`coach_feedback`、`site_credentials` 和内部 `schema_migrations`。
 - 完整 Cookie value、session、csrf token、可复用登录态、`submissions.raw_json`、完整请求体、普通日志和本机绝对路径。
 - 本机数据库文件本体；`.sqlite` 备份只用于本机恢复，不作为普通学习数据交换格式。
 

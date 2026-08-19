@@ -8,7 +8,7 @@
 
 ## 2. 当前实现程度
 
-当前 migration 版本为 `001` 到 `026`：
+当前 migration 版本为 `001` 到 `027`：
 
 - `001_initial.ts`：初始问题、访问、事件等基础结构。
 - `002_submissions.ts`：提交记录相关结构。
@@ -28,6 +28,7 @@
 - `022_coach_events.ts`、`023_coach_interventions.ts`、`024_coach_feedback.ts`：Coach 事件、干预和反馈表。
 - `025_userscript_identity.ts`：用户脚本稳定身份和活动唯一索引。
 - `026_site_credentials.ts`：站点凭据版本化 envelope、软删除、同步排除和访问索引。
+- `027_userscript_runtime.ts`：用户脚本完整 metadata 列、旧 `@include` 回填拆分，以及 values、资源缓存、host 授权和更新状态表。
 
 ## 3. 编写规则
 
@@ -54,4 +55,4 @@ node node_modules\esbuild\bin\esbuild tests\db\repositories.test.ts --bundle --p
 $env:ELECTRON_RUN_AS_NODE='1'; node_modules\.bin\electron.cmd tmp\db-repositories.test.mjs
 ```
 
-新增 migration 后还需要用临时空库确认从 001 到最新版本完整迁移成功。
+新增 migration 后还需要用临时空库确认从 001 到最新版本完整迁移成功。027 另外由 `userScriptRuntimeMigration.test.ts` 覆盖 026 升级回填、JSON/CHECK/UNIQUE/FK 约束、二进制资源和后续迁移失败恢复。

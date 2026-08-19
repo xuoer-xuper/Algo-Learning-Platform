@@ -6,14 +6,15 @@
 
 ## 2. 当前覆盖
 
-- `userScriptMetadata.test.ts`：解析 userscript 头部字段、剥离 `@require` / `@resource` hash，并验证 `*://*.domain/*` 同时匹配裸域名和子域名。
+- `userScriptMetadata.test.ts`：覆盖 B6.1 完整 metadata、严格 scheme/host/path、host 锚定、query/hash、path 大小写、非法 match fail closed、include glob/regex flags 与 exclude 优先级。
+- `userScriptService.test.ts`：覆盖显式站点绑定权威范围、exclude 优先、空绑定 metadata fallback、未知/禁用站点和坏 JSON fail closed，以及文件/数据库源码等价读取。
 - `userScriptImport.test.ts`：覆盖精确身份、版本比较、Windows 安全文件名、重复 metadata 指令收敛、local 副本 namespace 改写，以及持久化失败的临时文件清理。
 
 ## 3. 运行方式
 
 ```powershell
 cd algo-electron
-npm exec vitest -- run tests/scripts/userScriptMetadata.test.ts tests/scripts/userScriptImport.test.ts
+npm exec vitest -- run tests/scripts/userScriptMetadata.test.ts tests/scripts/userScriptService.test.ts tests/scripts/userScriptImport.test.ts
 ```
 
 ## 4. 新增规则
