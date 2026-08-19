@@ -27,6 +27,7 @@ function createCoordinator(options: { credentialCount?: number; delayed?: boolea
     credentialId: `credential-${index + 1}`,
     siteId: 'codeforces',
     username: `alice-${index + 1}`,
+    displayName: null,
     masked: '********',
     lastUsedAt: null,
     createdAt: 'now',
@@ -71,12 +72,48 @@ test('fills one credential independently in every attached split-window webConte
   assert.strictEqual(await coordinator.tryAutofill(first), false, 'same document must not be filled twice')
 })
 
-test('does not guess among multiple saved accounts', async () => {
+test('fails closed among multiple saved accounts when no selection host is provided', async () => {
   const { coordinator } = createCoordinator({ credentialCount: 2 })
   const contents = new FakeContents(1, 'https://codeforces.com/enter')
   coordinator.attach(contents)
   assert.strictEqual(await coordinator.tryAutofill(contents), false)
   assert.deepStrictEqual(contents.sent, [])
+})
+
+test('fills only the explicitly selected account and drops a selection after navigation', async () => {
+  const credentials = [
+    { credentialId: 'credential-1', siteId: 'codeforces', username: 'alice-1', displayName: null, masked: '********', lastUsedAt: null, createdAt: 'now', updatedAt: 'now' },
+    { credentialId: 'credential-2', siteId: 'codeforces', username: 'alice-2', displayName: 'Primary', masked: '********', lastUsedAt: null, createdAt: 'now', updatedAt: 'now' },
+  ]
+  let resolveSelection: ((value: string | null) => void) | null = null
+  const coordinator = new CredentialAutofillCoordinator({
+    getSites: () => [{
+      id: 'codeforces', name: 'Codeforces', domains: ['codeforces.com'], homeUrl: 'https://codeforces.com', enabled: true, isBuiltin: true,
+      loginUrlPatterns: ['/enter'], loginUsernameSelectors: ['input[name="handleOrEmail"]'], loginPasswordSelectors: ['input[name="password"]'],
+    }],
+    listCredentials: () => credentials,
+    selectCredential: async (_contents, request) => {
+      assert.strictEqual(request.credentials.length, 2)
+      return new Promise(resolve => { resolveSelection = resolve })
+    },
+    getForAutofill: async (credentialId) => ({ credentialId, siteId: 'codeforces', username: 'alice-2', password: 'secret-2' }),
+  })
+  const contents = new FakeContents(1, 'https://codeforces.com/enter')
+  coordinator.attach(contents)
+  const pending = coordinator.tryAutofill(contents)
+  resolveSelection?.('credential-2')
+  assert.strictEqual(await pending, true)
+  assert.strictEqual(contents.sent[0].payload.credentialId, 'credential-2')
+  assert.strictEqual(contents.sent[0].payload.username, 'alice-2')
+
+  const secondContents = new FakeContents(2, 'https://codeforces.com/enter')
+  coordinator.attach(secondContents)
+  const delayed = coordinator.tryAutofill(secondContents)
+  secondContents.setURL('https://codeforces.com/problemset')
+  coordinator.invalidate(secondContents.id)
+  resolveSelection?.(null)
+  assert.strictEqual(await delayed, false)
+  assert.deepStrictEqual(secondContents.sent, [])
 })
 
 test('drops decrypted values when navigation changes before the async vault read returns', async () => {

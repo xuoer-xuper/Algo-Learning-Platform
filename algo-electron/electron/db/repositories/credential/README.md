@@ -19,7 +19,8 @@
 - `site_credentials.sync_excluded` 固定为 `1`，不进入同步或普通 JSON 导出。
 - 活动行必须有 V1 envelope；软删除行清空 `secret_envelope` 并保留 tombstone。
 - `UNIQUE(site_id, username)` 冲突时 revive 原行，保留 `id` 和 `created_at`。
-- renderer 只能看到 `credentialId`、站点和用户名摘要；B4.2 的 `getForAutofill` 仍只在主进程内部可用，受限 OJ 明文通道由 B4.3 接入。
+- renderer 只能看到 `credentialId`、站点、用户名和用户自定义的脱敏显示名；B4.2 的 `getForAutofill` 仍只在主进程内部可用，受限 OJ 明文通道由 B4.3 接入。
+- B4.4 的重命名只更新 `display_name`，空名称归一化为 `NULL`，不触碰 secret envelope。
 - migration/schema 变化必须同步 `docs/DESIGN/DATABASE_SCHEMA.md` 与导出边界文档。
 
 ## 4. 验证入口

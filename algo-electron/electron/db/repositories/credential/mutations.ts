@@ -55,6 +55,17 @@ export function markCredentialUsed(id: string): boolean {
   return result.changes > 0
 }
 
+export function renameCredential(id: string, displayName: string | null): boolean {
+  const db = getDb()
+  const now = nowChinaStandardTime()
+  const result = db.prepare(`
+    UPDATE site_credentials
+    SET display_name = ?, updated_at = ?
+    WHERE id = ? AND deleted_at IS NULL
+  `).run(displayName, now, id)
+  return result.changes > 0
+}
+
 function requireNonEmpty(value: string, field: string): string {
   if (typeof value !== 'string' || value.trim().length === 0) {
     throw new TypeError(`Credential ${field} must be a non-empty string`)

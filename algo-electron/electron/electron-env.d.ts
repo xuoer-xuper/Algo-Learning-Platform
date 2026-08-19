@@ -94,10 +94,18 @@ interface CredentialSummary {
   credentialId: string
   siteId: string
   username: string
+  displayName: string | null
   masked: string
   lastUsedAt: string | null
   createdAt: string
   updatedAt: string
+}
+
+interface CredentialAutofillPrompt {
+  requestId: string
+  siteId: string
+  pageUrl: string
+  credentials: Array<Pick<CredentialSummary, 'credentialId' | 'siteId' | 'username' | 'displayName' | 'masked'>>
 }
 
 interface OverviewStats {
@@ -827,6 +835,10 @@ interface ElectronAPI {
   getCookieSummaryForDomain: (siteId: string, domain: string) => Promise<CookieSafeDomainSummary>
   listCredentials: (siteId?: string) => Promise<CredentialSummary[]>
   deleteCredential: (credentialId: string) => Promise<boolean>
+  renameCredential: (credentialId: string, displayName: string) => Promise<CredentialSummary | null>
+  getCredentialAutofillPrompt: () => Promise<CredentialAutofillPrompt | null>
+  respondCredentialAutofill: (requestId: string, credentialId: string | null) => Promise<boolean>
+  onCredentialAutofillPrompt: (callback: (prompt: CredentialAutofillPrompt) => void) => () => void
   getOverviewStats: () => Promise<OverviewStats>
   getDailyActiveStats: (days?: number) => Promise<DailyActiveStats[]>
   getVisitedTrend: (days?: number) => Promise<TrendPoint[]>

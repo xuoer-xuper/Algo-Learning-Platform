@@ -29,6 +29,7 @@ function createHarness(options: {
     id: nextId,
     site_id: 'codeforces',
     username: 'alice',
+    display_name: null,
     last_used_at: null,
     created_at: '2026-08-19 10:00:00',
     updated_at: '2026-08-19 10:00:00',
@@ -42,6 +43,7 @@ function createHarness(options: {
         id: nextId,
         site_id: input.siteId,
         username: input.username,
+        display_name: null,
         secret_envelope: input.secretEnvelope,
         last_used_at: null,
         sync_excluded: true,
@@ -54,6 +56,10 @@ function createHarness(options: {
     getCredentialById: () => credential,
     softDeleteCredential: () => true,
     markCredentialUsed: (id) => { calls.marked.push(id); return true },
+    renameCredential: (_id, displayName) => {
+      summary.display_name = displayName
+      return true
+    },
   }
   let resultIndex = 0
   const safeStorage: CredentialSafeStorage = {
@@ -89,6 +95,7 @@ test('save encrypts before repository write and only returns a masked renderer s
     credentialId: 'credential-1',
     siteId: 'codeforces',
     username: 'alice',
+    displayName: null,
     masked: '********',
     lastUsedAt: null,
     createdAt: '2026-08-19 10:00:00',
@@ -101,11 +108,19 @@ test('save encrypts before repository write and only returns a masked renderer s
   assert.ok(!JSON.stringify(result).includes('encrypted:'))
 })
 
+test('renames credentials without exposing an envelope or password', () => {
+  const { vault } = createHarness()
+  const result = vault.rename('credential-1', 'Primary')
+  assert.strictEqual(result?.displayName, 'Primary')
+  assert.strictEqual(JSON.stringify(result).includes('password'), false)
+})
+
 test('getForAutofill rejects unsupported envelopes and never falls back to plaintext', async () => {
   const unsupported = {
     id: 'credential-1',
     site_id: 'codeforces',
     username: 'alice',
+    display_name: null,
     secret_envelope: { version: 9, provider: 'legacy', ciphertextBase64: 'c2VjcmV0' },
     last_used_at: null,
     sync_excluded: true,
@@ -126,6 +141,7 @@ test('rotates an old safeStorage key before returning the main-process-only auto
     id: 'credential-1',
     site_id: 'codeforces',
     username: 'alice',
+    display_name: null,
     secret_envelope: {
       version: 1,
       provider: 'electron-safe-storage',
@@ -164,6 +180,7 @@ test('list and delete expose no envelope and preserve structured validation erro
     credentialId: 'credential-1',
     siteId: 'codeforces',
     username: 'alice',
+    displayName: null,
     masked: '********',
     lastUsedAt: null,
     createdAt: '2026-08-19 10:00:00',

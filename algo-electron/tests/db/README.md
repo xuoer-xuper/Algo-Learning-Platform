@@ -20,6 +20,7 @@
 - `userScriptRuntimeMigration.test.ts`：migration 027 metadata 回填拆分、JSON/CHECK/UNIQUE/FK/BLOB 约束、级联删除和后续迁移失败恢复。
 - `userScriptRuntimeRepository.test.ts`：用户脚本 027 字段 round-trip、GM values、资源缓存、host 授权 revoke/revive 和更新状态合并。
 - `siteLoginAutofillMigration.test.ts`：migration 028 的登录 URL pattern、用户名/密码选择器字段和七站 seed 回填。
+- `siteCredentialLabelMigration.test.ts`：migration 029 的凭据可选显示名字段和幂等升级。
 
 ## 3. 运行方式
 

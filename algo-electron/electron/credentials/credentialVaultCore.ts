@@ -2,6 +2,7 @@ import {
   getCredentialById,
   listCredentials,
   markCredentialUsed,
+  renameCredential,
   softDeleteCredential,
   upsertCredential,
   type SiteCredentialSummary,
@@ -50,6 +51,7 @@ export interface CredentialRepository {
   getCredentialById: typeof getCredentialById
   softDeleteCredential: typeof softDeleteCredential
   markCredentialUsed: typeof markCredentialUsed
+  renameCredential: typeof renameCredential
 }
 
 export interface CredentialVaultDependencies {
@@ -67,6 +69,7 @@ export interface CredentialSummary {
   credentialId: string
   siteId: string
   username: string
+  displayName: string | null
   masked: string
   lastUsedAt: string | null
   createdAt: string
@@ -92,6 +95,7 @@ const defaultRepository: CredentialRepository = {
   getCredentialById,
   softDeleteCredential,
   markCredentialUsed,
+  renameCredential,
 }
 
 export class CredentialVaultCore {
@@ -145,6 +149,17 @@ export class CredentialVaultCore {
       return this.dependencies.repository.softDeleteCredential(credentialId)
     } catch {
       throw new CredentialVaultError('storage-failed', 'Credential could not be deleted')
+    }
+  }
+
+  rename(credentialId: string, displayName: string): CredentialSummary | null {
+    validateIdentifier(credentialId, 'credentialId')
+    const normalized = normalizeDisplayName(displayName)
+    try {
+      if (!this.dependencies.repository.renameCredential(credentialId, normalized)) return null
+      return this.list().find(entry => entry.credentialId === credentialId) ?? null
+    } catch {
+      throw new CredentialVaultError('storage-failed', 'Credential could not be renamed')
     }
   }
 
@@ -285,6 +300,7 @@ function toSummary(value: SiteCredentialSummary): CredentialSummary {
     credentialId: value.id,
     siteId: value.site_id,
     username: value.username,
+    displayName: value.display_name ?? null,
     masked: MASKED_CREDENTIAL_SECRET,
     lastUsedAt: value.last_used_at,
     createdAt: value.created_at,
@@ -316,6 +332,14 @@ function validateIdentifier(value: unknown, field: string): asserts value is str
   if (typeof value !== 'string' || value.trim().length === 0 || value.length > 512) {
     throw new CredentialVaultError('invalid-input', `Credential ${field} is invalid`)
   }
+}
+
+function normalizeDisplayName(value: unknown): string | null {
+  if (typeof value !== 'string' || value.length > 128) {
+    throw new CredentialVaultError('invalid-input', 'Credential display name is invalid')
+  }
+  const normalized = value.trim()
+  return normalized.length > 0 ? normalized : null
 }
 
 function isDecryptResult(value: unknown): value is { result: string; shouldReEncrypt: boolean } {

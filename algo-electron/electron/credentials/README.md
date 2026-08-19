@@ -8,9 +8,10 @@
 
 - `credentialVaultCore.ts`：无 Electron 绑定的 Vault 逻辑和依赖注入接口。
 - `CredentialVault.ts`：使用系统密钥环 `safeStorage` 的主进程薄壳。
-- 支持 `save`、`list`、`delete` 和主进程内部 `getForAutofill`。
+- 支持 `save`、`list`、`rename`、`delete` 和主进程内部 `getForAutofill`。
 - envelope 固定校验 V1/provider；Electron key rotation 会再次解密并用新 key 重加密旧记录。
-- `credentials:list`、`credentials:delete` 仅提供脱敏摘要和删除能力；B4.3 已接入仅限 OJ 隔离 preload 的自动填充明文通道。
+- `credentials:list`、`credentials:rename`、`credentials:delete` 仅提供脱敏摘要管理；账户中心可按站点查看登录态摘要、重命名/删除保存凭据，并在新 OJ 标签打开登录页更新密码。B4.4 不提供密码输入或查看框。
+- 多账户自动填充通过完整壳顶部 NoticeBar 显示 `credentialId`、用户名、显示名和 masked 摘要，壳只回传所选 ID；密码仍只经过 OJ 隔离 preload。
 
 ### 自动填充
 
@@ -24,7 +25,7 @@
 
 - `safeStorage.isEncryptionAvailable()` 或异步加密能力不可用时拒绝保存和解密。
 - 不使用应用主密码，不回退到明文或同步配置文件。
-- renderer 只见 `credentialId`、`siteId`、`username`、固定 masked 摘要和时间字段。
+- renderer 只见 `credentialId`、`siteId`、`username`、可选 `displayName`、固定 masked 摘要和时间字段。
 - `getForAutofill` 返回的密码只能由 `oj-credentials:fill` 受限 OJ preload 通道消费，禁止接入壳 renderer IPC。
 - 错误只携带结构化 `CredentialVaultError.code`，不携带密码、密文、URL、Cookie 或数据库路径。
 
@@ -36,4 +37,4 @@ node node_modules\typescript\bin\tsc --noEmit
 node node_modules\vitest\vitest.mjs run tests\security\credentialVault.test.ts tests\ipc\registerCredentialsIpc.test.ts
 ```
 
-真实七站登录页逐站 smoke、账户选择 UI 和登录捕获仍分别属于后续验收/B4.4-B4.5；Vitest 已覆盖策略、协调器、preload 表单填充、迁移和 IPC 合约。
+真实七站登录页逐站 smoke、登录捕获仍属于后续验收/B4.5；B4.4 账户页和多账户选择使用脱敏摘要，Vitest 覆盖协调器选择竞态、NoticeBar IPC 合约、preload 表单填充、迁移和 Vault 安全边界。

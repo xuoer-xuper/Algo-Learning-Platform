@@ -32,6 +32,7 @@ function App() {
   const [downloadResult, setDownloadResult] = useState<ManagedDownloadResult | null>(null)
   const [contestMode, setContestMode] = useState<CoachContestModePayload | null>(null)
   const [userScriptPermission, setUserScriptPermission] = useState<UserScriptHostPermissionPrompt | null>(null)
+  const [credentialAutofillPrompt, setCredentialAutofillPrompt] = useState<CredentialAutofillPrompt | null>(null)
   const {
     url,
     syncMsg,
@@ -96,6 +97,24 @@ function App() {
   useEffect(() => {
     let disposed = false
     let receivedLiveUpdate = false
+    const unsubscribe = window.electronAPI.onCredentialAutofillPrompt((prompt) => {
+      receivedLiveUpdate = true
+      if (!disposed) setCredentialAutofillPrompt(prompt)
+    })
+    void window.electronAPI.getCredentialAutofillPrompt()
+      .then((prompt) => {
+        if (!disposed && !receivedLiveUpdate) setCredentialAutofillPrompt(prompt)
+      })
+      .catch(() => undefined)
+    return () => {
+      disposed = true
+      unsubscribe()
+    }
+  }, [])
+
+  useEffect(() => {
+    let disposed = false
+    let receivedLiveUpdate = false
     const unsubscribe = window.electronAPI.onCoachContestModeChanged((payload) => {
       receivedLiveUpdate = true
       if (!disposed) setContestMode(payload)
@@ -131,6 +150,14 @@ function App() {
       .then(prompt => setUserScriptPermission(prompt))
       .catch(() => setUserScriptPermission(null))
   }, [userScriptPermission])
+
+  const answerCredentialAutofill = useCallback((credentialId: string | null) => {
+    const prompt = credentialAutofillPrompt
+    if (!prompt) return
+    setCredentialAutofillPrompt(null)
+    void window.electronAPI.respondCredentialAutofill(prompt.requestId, credentialId)
+      .catch(() => undefined)
+  }, [credentialAutofillPrompt])
 
   const showUnresponsiveNotice = Boolean(
     activeTab?.isUnresponsive
@@ -181,6 +208,20 @@ function App() {
           ]}
         >
           {`脚本“${userScriptPermission.scriptName}”请求从 ${userScriptPermission.sourceHost} 访问 ${userScriptPermission.targetHost}`}
+        </NoticeBar>
+      )}
+      {credentialAutofillPrompt && (
+        <NoticeBar
+          tone="info"
+          title="选择登录账户"
+          actions={credentialAutofillPrompt.credentials.map((credential) => ({
+            label: credential.displayName || credential.username,
+            onClick: () => answerCredentialAutofill(credential.credentialId),
+          }))}
+          dismissLabel="取消自动填充"
+          onDismiss={() => answerCredentialAutofill(null)}
+        >
+          {`检测到 ${credentialAutofillPrompt.credentials.length} 个 ${credentialAutofillPrompt.siteId} 账户`}
         </NoticeBar>
       )}
       {contestMode?.isContestMode && (

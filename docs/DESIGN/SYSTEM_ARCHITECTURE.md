@@ -285,7 +285,7 @@ CookieVault 不负责：
 
 Preload 只暴露白名单 API，不暴露通用 `ipcRenderer`。
 
-凭据由 `CredentialVault` 在主进程使用异步 `safeStorage` 加密；壳 renderer 只接收 `credentialId/siteId/username/masked` 摘要。自动填充明文不得经过壳 IPC，只能由后续受限 OJ preload 通道消费。
+凭据由 `CredentialVault` 在主进程使用异步 `safeStorage` 加密；壳 renderer 只接收 `credentialId/siteId/username/displayName/masked` 等摘要。B4.4 账户中心可重命名/删除摘要并在新 OJ 标签打开登录页，多凭据选择通过按窗口隔离的 NoticeBar 回传 credentialId；自动填充明文不得经过壳 IPC，只能由 `oj-credentials:fill` 受限 OJ preload 通道消费。
 
 当前形态：
 

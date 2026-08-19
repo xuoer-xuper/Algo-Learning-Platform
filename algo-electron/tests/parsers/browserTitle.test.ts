@@ -1,7 +1,13 @@
 import { test } from 'vitest'
 import assert from 'node:assert'
 import { cleanBrowserProblemTitle, resolveBrowserTitleProblemIdentity } from '../../electron/parsers/browserTitle.ts'
-import { parseUrl } from '../../electron/parsers/registry.ts'
+import { parseUrl, setEnabledSitesFetcher } from '../../electron/parsers/registry.ts'
+
+setEnabledSitesFetcher(() => [
+  { id: 'leetcode-cn', domains: ['leetcode.cn', 'www.leetcode.cn'], enabled: true, adapter: 'leetcode-cn' },
+  { id: 'codeforces', domains: ['codeforces.com', 'www.codeforces.com'], enabled: true, adapter: 'codeforces' },
+  { id: 'luogu', domains: ['luogu.com.cn', 'www.luogu.com.cn'], enabled: true, adapter: 'luogu' },
+])
 
 test('parsers/browserTitle.test.ts', async () => {
 

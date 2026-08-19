@@ -8,6 +8,7 @@ import {
   getCredentialById,
   listCredentials,
   markCredentialUsed,
+  renameCredential,
   parseCredentialEnvelope,
   softDeleteCredential,
   upsertCredential,
@@ -32,6 +33,7 @@ test('credential repository stores only a versioned envelope, revives tombstones
       id,
       site_id: 'codeforces',
       username: 'alice',
+      display_name: null,
       last_used_at: null,
       created_at: stored?.created_at,
       updated_at: stored?.updated_at,
@@ -46,6 +48,8 @@ test('credential repository stores only a versioned envelope, revives tombstones
     assert.throws(() => parseCredentialEnvelope({ provider: 'electron-safe-storage', ciphertextBase64: ciphertext }), /unsupported shape/)
 
     assert.strictEqual(markCredentialUsed(id), true)
+    assert.strictEqual(renameCredential(id, 'Primary'), true)
+    assert.strictEqual(listCredentials()[0].display_name, 'Primary')
     const used = getCredentialById(id)
     assert.ok(used?.last_used_at)
     assert.strictEqual(softDeleteCredential(id), true)

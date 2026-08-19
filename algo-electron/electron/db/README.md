@@ -12,12 +12,12 @@
 - 数据库位置：`app.getPath('userData')/data/algo-learning.sqlite`。
 - 连接配置：启用 WAL、foreign keys、`busy_timeout = 5000`。
 - 迁移系统：`schema_migrations` 表记录已执行版本；迁移在事务内执行。
-- 当前迁移版本：001 到 028。
+- 当前迁移版本：001 到 029。
 - 应用启动使用异步初始化：检测到 pending migration 时先用 SQLite backup API 写入 `userData/backups`，只保留最近 3 份。
 - 迁移失败会关闭连接、恢复迁移前备份、写 failure marker；同一 pending migration 下次启动不会自动重试。
 - 启动完成会把未正常结束的 `problem_visits` 按 `entered_at` 安全封闭，并标记 `startup_recovery`。
 - Repository 覆盖：账号/rating、AI 上下文快照、AI 输出、Cookie 元数据、题目、站点配置、统计、提交、带稳定身份和运行时地基的用户脚本。
-- `site_credentials` 已建立版本化 envelope 数据地基；B4.2 `CredentialVault` 已接入异步 safeStorage 和脱敏摘要，B4.3 通过 migration 028 将登录 pattern/selector 收敛进 `site_configs`，并由主进程自动填充服务经 OJ 隔离 preload 只填充不提交。
+- `site_credentials` 已建立版本化 envelope 数据地基；B4.2 `CredentialVault` 已接入异步 safeStorage 和脱敏摘要，B4.3 通过 migration 028 将登录 pattern/selector 收敛进 `site_configs`，B4.4 通过 migration 029 增加可选脱敏显示名；自动填充仍由主进程经 OJ 隔离 preload 只填充不提交。
 
 数据库结构的权威契约仍是`docs/DESIGN/DATABASE_SCHEMA.md`。
 

@@ -29,6 +29,7 @@ test('app menu routes existing toolbar destinations through internal tabs', () =
     { type: 'dashboard' },
     { type: 'coach-metrics' },
     { type: 'scripts' },
+    { type: 'credentials' },
     { type: 'settings' },
   ])
 })

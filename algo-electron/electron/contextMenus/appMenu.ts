@@ -49,6 +49,7 @@ export function createAppMenuTemplate(
     { label: '学习统计', click: () => openInternalPage({ type: 'dashboard' }) },
     { label: 'Coach 指标', click: () => openInternalPage({ type: 'coach-metrics' }) },
     { label: '脚本管理', click: () => openInternalPage({ type: 'scripts' }) },
+    { label: '账户', click: () => openInternalPage({ type: 'credentials' }) },
     { type: 'separator' },
     { label: '设置', click: () => openInternalPage({ type: 'settings' }) },
   ]

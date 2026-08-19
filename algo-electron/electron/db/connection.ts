@@ -40,6 +40,7 @@ import { migration025 } from './migrations/025_userscript_identity'
 import { migration026 } from './migrations/026_site_credentials'
 import { migration027 } from './migrations/027_userscript_runtime'
 import { migration028 } from './migrations/028_site_login_autofill'
+import { migration029 } from './migrations/029_site_credential_labels'
 
 let db: Database.Database | null = null
 let dbFilePath: string | null = null
@@ -52,7 +53,7 @@ const allMigrations = [
   migration009, migration010, migration011, migration012, migration013,
   migration014, migration015, migration016, migration017, migration018,
   migration019, migration020, migration021,
-  migration022, migration023, migration024, migration025, migration026, migration027, migration028,
+  migration022, migration023, migration024, migration025, migration026, migration027, migration028, migration029,
 ]
 
 export function getDb(): Database.Database {

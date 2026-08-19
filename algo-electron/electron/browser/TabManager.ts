@@ -191,6 +191,7 @@ export class TabManager {
   private isDownloadNoticeVisible = false
   private isContestNoticeVisible = false
   private isUserScriptPermissionNoticeVisible = false
+  private isCredentialAutofillNoticeVisible = false
   private findInPageTabId: string | null = null
   private findInPageState: FindInPageState = { ...INITIAL_FIND_IN_PAGE_STATE }
   private recoveryPendingViews = new Set<WebContentsView>()
@@ -1961,6 +1962,7 @@ export class TabManager {
     if (this.isDownloadNoticeVisible) topInset += BROWSER_LAYOUT.noticeBarHeight
     if (this.isContestNoticeVisible) topInset += BROWSER_LAYOUT.noticeBarHeight
     if (this.isUserScriptPermissionNoticeVisible) topInset += BROWSER_LAYOUT.noticeBarHeight
+    if (this.isCredentialAutofillNoticeVisible) topInset += BROWSER_LAYOUT.noticeBarHeight
     if (tab.id === this.findInPageTabId) topInset += BROWSER_LAYOUT.findBarHeight
     setTabViewBounds(tab.view, { width, height }, this.leftOffset, topInset)
   }
@@ -1980,6 +1982,12 @@ export class TabManager {
   setUserScriptPermissionNoticeVisible(visible: boolean): void {
     if (this.isUserScriptPermissionNoticeVisible === visible) return
     this.isUserScriptPermissionNoticeVisible = visible
+    this.updateBounds()
+  }
+
+  setCredentialAutofillNoticeVisible(visible: boolean): void {
+    if (this.isCredentialAutofillNoticeVisible === visible) return
+    this.isCredentialAutofillNoticeVisible = visible
     this.updateBounds()
   }
 
@@ -2221,6 +2229,7 @@ export class TabManager {
     this.isDownloadNoticeVisible = false
     this.isContestNoticeVisible = false
     this.isUserScriptPermissionNoticeVisible = false
+    this.isCredentialAutofillNoticeVisible = false
     this.findInPageTabId = null
     this.findInPageState = { ...INITIAL_FIND_IN_PAGE_STATE }
     this.findInPageStateChangedHandler = null

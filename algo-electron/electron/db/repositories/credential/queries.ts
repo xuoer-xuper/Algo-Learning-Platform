@@ -24,13 +24,13 @@ export function listCredentials(siteId?: string): SiteCredentialSummary[] {
   const db = getDb()
   const rows = (siteId === undefined
     ? db.prepare(`
-        SELECT id, site_id, username, last_used_at, created_at, updated_at
+        SELECT id, site_id, username, display_name, last_used_at, created_at, updated_at
         FROM site_credentials
         WHERE deleted_at IS NULL
         ORDER BY COALESCE(last_used_at, '') DESC, username ASC, id ASC
       `).all()
     : db.prepare(`
-        SELECT id, site_id, username, last_used_at, created_at, updated_at
+        SELECT id, site_id, username, display_name, last_used_at, created_at, updated_at
         FROM site_credentials
         WHERE site_id = ? AND deleted_at IS NULL
         ORDER BY COALESCE(last_used_at, '') DESC, username ASC, id ASC
@@ -46,6 +46,7 @@ function mapCredential(row: SiteCredentialRow): SiteCredential {
     id: row.id,
     site_id: row.site_id,
     username: row.username,
+    display_name: row.display_name,
     secret_envelope: parseCredentialEnvelope(row.secret_envelope),
     last_used_at: row.last_used_at,
     sync_excluded: true,

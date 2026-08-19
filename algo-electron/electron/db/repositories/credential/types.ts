@@ -11,6 +11,7 @@ export interface SiteCredentialRow {
   id: string
   site_id: string
   username: string
+  display_name: string | null
   secret_envelope: string | null
   last_used_at: string | null
   sync_excluded: number
@@ -23,6 +24,7 @@ export interface SiteCredential {
   id: string
   site_id: string
   username: string
+  display_name: string | null
   secret_envelope: CredentialSecretEnvelopeV1
   last_used_at: string | null
   sync_excluded: true
@@ -34,6 +36,7 @@ export interface SiteCredentialSummary {
   id: string
   site_id: string
   username: string
+  display_name: string | null
   last_used_at: string | null
   created_at: string
   updated_at: string

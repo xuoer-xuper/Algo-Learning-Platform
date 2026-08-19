@@ -24,6 +24,7 @@ export {
 
 export {
   markCredentialUsed,
+  renameCredential,
   softDeleteCredential,
   upsertCredential,
 } from './credential/mutations'

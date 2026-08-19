@@ -20,6 +20,7 @@ import type { PendingUserScriptInstallRegistry } from '../downloads/userScriptNa
 import type { AppWindow } from '../windows/AppWindow'
 import type { UserScriptRuntime } from '../scripts/UserScriptRuntime'
 import type { CredentialVault } from '../credentials/CredentialVault'
+import type { CredentialAutofillService } from '../credentials/autofill/CredentialAutofillService'
 import type {
   UserScriptHostPermissionPrompt,
   UserScriptHostPermissionResponse,
@@ -32,6 +33,7 @@ interface RegisterMainIpcOptions {
   /** 阶段 2 注入：CoachOrchestrator */
   getCoachOrchestrator?: () => CoachOrchestrator | null
   credentialVault?: CredentialVault
+  getCredentialAutofillService?: () => CredentialAutofillService | null
   getBrowserDiagnostics?: () => BrowserDiagnostics | null
   getUserScriptInstallRegistry?: () => PendingUserScriptInstallRegistry | null
   allowInsecureLocalhost?: boolean
@@ -69,7 +71,9 @@ export function registerMainIpc(options: RegisterMainIpcOptions): void {
   })
   registerConfigIpc()
   registerCookieIpc()
-  registerCredentialsIpc(options.credentialVault)
+  registerCredentialsIpc(options.credentialVault, {
+    getAutofillService: options.getCredentialAutofillService,
+  })
   registerNotesIpc({ notifyProblemsUpdated })
   registerProblemIpc({ notifyProblemsUpdated })
   registerSitesIpc({

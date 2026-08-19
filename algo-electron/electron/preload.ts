@@ -92,6 +92,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getCookieSummaryForDomain: (siteId: string, domain: string) => ipcRenderer.invoke('cookies:getDomainSummary', siteId, domain) as Promise<CookieSafeDomainSummary>,
   listCredentials: (siteId?: string) => ipcRenderer.invoke('credentials:list', siteId) as Promise<CredentialSummary[]>,
   deleteCredential: (credentialId: string) => ipcRenderer.invoke('credentials:delete', credentialId) as Promise<boolean>,
+  renameCredential: (credentialId: string, displayName: string) => ipcRenderer.invoke('credentials:rename', credentialId, displayName) as Promise<CredentialSummary | null>,
+  getCredentialAutofillPrompt: () => ipcRenderer.invoke('credentials:autofillPrompt') as Promise<CredentialAutofillPrompt | null>,
+  respondCredentialAutofill: (requestId: string, credentialId: string | null) => ipcRenderer.invoke('credentials:autofillRespond', requestId, credentialId) as Promise<boolean>,
+  onCredentialAutofillPrompt: (callback: (prompt: CredentialAutofillPrompt) => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, prompt: CredentialAutofillPrompt) => callback(prompt)
+    ipcRenderer.on('credentials:autofillPrompt', handler)
+    return () => { ipcRenderer.off('credentials:autofillPrompt', handler) }
+  },
 
   // 统计
   getOverviewStats: () => ipcRenderer.invoke('stats:getOverview'),

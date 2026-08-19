@@ -19,6 +19,7 @@
 - 会话恢复：正常启动由应用级快照恢复全部合法完整壳，按稳定 windowId、窗口 normal bounds/maximized、标签顺序和 activeTabId 重建；最近窗口优先创建并激活，其余窗口静默显示。旧 `browser-session.json` 与 `browser-window-state.json` 只在首次缺少应用快照时作为一次性迁移输入。任一窗口恢复失败会记录诊断并继续恢复其余窗口，全部失败时回退内部 home。
 - 会话文件：`applicationSessionStore.ts` 使用同目录临时文件执行 write + fsync + close + rename，失败时清理临时文件并保留旧目标；`ApplicationSessionPersistence` 对任意标签、窗口 bounds/maximized 和最近窗口变化做 250ms 防抖，只保存最新全应用快照，临时空 transfer 壳不落盘。窗口 `close` 与 `before-quit` 在最终 flush 完成后继续关闭，startup smoke 禁用持久化；`TabSessionStore` 仅保留为旧单窗口快照的迁移输入。
 - renderer 健康状态：web 标签 `render-process-gone` 后保留稳定 ID、URL、标题和顺序，摘除坏 view 并显示恢复页；原 view 已销毁时创建同配置替代 view，失败仍保留标签供后续重试。`unresponsive` 只影响运行时列表和活动 view bounds，NoticeBar 可继续等待、按 tabId 重载或关闭，`responsive` 后自动清理；下载 NoticeBar、查找条和无响应条按真实文档流高度累加，任何状态都不进入会话快照。
+- 凭据选择 NoticeBar：多账户自动填充提示由所属壳 renderer 接收脱敏 prompt；`TabManager` 将其高度计入活动 web view bounds，dismiss/响应或窗口销毁后恢复原布局。密码明文不经过壳 renderer。
 - Chrome 基线：`findInPage.ts` 管理受限 query、requestId 和多帧 `found-in-page` 结果；`zoomPreferences.ts` 按 normalized HTTP(S) origin 保存 Chrome 预设档位。查找在导航、切标签、崩溃、关闭和 web/internal 替换时停止并清理；缩放在最终导航、恢复、切换和 Ctrl+滚轮时恢复/保存。
 - `.user.js` 边界：直接导航、`will-redirect`、popup 和 `will-download` 均进入内存短时 `script-install` 路由；安装确认页只展示净化来源元数据，B6 前不下载、解析、执行或伪装成功。安装页不进入关闭栈或会话快照。
 - B2.8 原生右键：WebContentsView 页面按链接/图片/选中文本/编辑区/空白处组装菜单；TabStrip 支持复制、关闭范围、恢复和“移到新窗口”，后者统一进入 B3 完整壳过户；壳内编辑区与 Omnibox 复用同一原生菜单，Omnibox 额外提供“粘贴并前往”。内部页空白处提供后退与重新加载，不引入会被 view 遮挡的 DOM 菜单。

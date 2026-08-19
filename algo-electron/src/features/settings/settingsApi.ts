@@ -52,6 +52,22 @@ export function loadSites(): Promise<SiteConfigView[]> {
   return window.electronAPI.getAllSites()
 }
 
+export function loadCredentialSummaries(siteId?: string): Promise<CredentialSummary[]> {
+  return window.electronAPI.listCredentials(siteId)
+}
+
+export function renameCredential(credentialId: string, displayName: string): Promise<CredentialSummary | null> {
+  return window.electronAPI.renameCredential(credentialId, displayName)
+}
+
+export function deleteSavedCredential(credentialId: string): Promise<boolean> {
+  return window.electronAPI.deleteCredential(credentialId)
+}
+
+export function openCredentialLoginPage(url: string): Promise<string> {
+  return window.electronAPI.createTab(url)
+}
+
 export function toggleSiteEnabled(id: string, enabled: boolean): Promise<boolean> {
   return window.electronAPI.toggleSite(id, enabled)
 }

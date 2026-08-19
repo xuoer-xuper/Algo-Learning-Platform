@@ -19,6 +19,16 @@ export interface CredentialAutofillDependencies {
   getSites: () => SiteConfigData[]
   listCredentials: (siteId: string) => CredentialSummary[]
   getForAutofill: (credentialId: string) => Promise<CredentialAutofillValue | null>
+  selectCredential?: (
+    contents: AutofillWebContents,
+    request: CredentialAutofillSelectionRequest,
+  ) => Promise<string | null>
+}
+
+export interface CredentialAutofillSelectionRequest {
+  siteId: string
+  pageUrl: string
+  credentials: CredentialSummary[]
 }
 
 export class CredentialAutofillCoordinator {
@@ -84,10 +94,22 @@ export class CredentialAutofillCoordinator {
     } catch {
       return false
     }
-    // Multiple credentials require an explicit B4.4 selection surface; never
-    // guess an account or show a password chooser inside the remote page.
-    if (credentials.length !== 1) return false
-    const credential = credentials[0]
+    if (credentials.length === 0) return false
+    if (generation !== this.requestGenerations.get(contents.id)) return false
+    if (contents.isDestroyed?.() || safeGetUrl(contents) !== url) return false
+
+    let credential: CredentialSummary | undefined = credentials[0]
+    if (credentials.length > 1) {
+      const selectedId = await this.dependencies.selectCredential?.(contents, {
+        siteId: target.siteId,
+        pageUrl: url,
+        credentials,
+      })
+      if (generation !== this.requestGenerations.get(contents.id)) return false
+      if (contents.isDestroyed?.() || safeGetUrl(contents) !== url || !selectedId) return false
+      credential = credentials.find(entry => entry.credentialId === selectedId)
+    }
+    if (!credential) return false
     const fillKey = `${url}\n${target.siteId}\n${credential.credentialId}`
     if (this.filledKeys.get(contents.id) === fillKey) return false
 

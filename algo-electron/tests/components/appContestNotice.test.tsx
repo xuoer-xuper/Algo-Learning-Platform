@@ -81,6 +81,8 @@ beforeEach(() => {
   getCoachState = vi.fn(async () => null)
   window.electronAPI = {
     coachGetState: () => getCoachState(),
+    getCredentialAutofillPrompt: async () => null,
+    onCredentialAutofillPrompt: () => () => undefined,
     onCoachContestModeChanged: (listener) => {
       contestListener = listener
       return unsubscribeContest

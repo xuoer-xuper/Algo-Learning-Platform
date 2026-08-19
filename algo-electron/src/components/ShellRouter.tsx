@@ -8,6 +8,7 @@ const Dashboard = lazy(() => import('../features/analytics/Dashboard').then((mod
 const UserScriptManager = lazy(() => import('../features/scripts/UserScriptManager').then((module) => ({ default: module.UserScriptManager })))
 const UserScriptInstallPage = lazy(() => import('../features/scripts/UserScriptInstallPage').then((module) => ({ default: module.UserScriptInstallPage })))
 const CoachMetricsView = lazy(() => import('../features/coach/CoachMetricsView').then((module) => ({ default: module.CoachMetricsView })))
+const CredentialsPage = lazy(() => import('../features/settings/CredentialsPage').then((module) => ({ default: module.CredentialsPage })))
 const ProblemDetail = lazy(() => import('../features/problems/ProblemDetail').then((module) => ({ default: module.ProblemDetail })))
 const NotePanelModal = lazy(() => import('../features/problems/NotePanelModal').then((module) => ({ default: module.NotePanelModal })))
 
@@ -20,10 +21,6 @@ interface ShellRouterProps {
 
 function RouteLoading() {
   return <div className="modal-loading" role="status">加载中...</div>
-}
-
-function UnavailableInternalPage() {
-  return <div className="ui-empty">页面暂不可用</div>
 }
 
 export function ShellRouter({
@@ -77,7 +74,7 @@ export function ShellRouter({
       page = <UserScriptInstallPage installId={activeTab.page.installId} onClose={close} />
       break
     case 'credentials':
-      page = <UnavailableInternalPage />
+      page = <CredentialsPage onClose={close} />
       break
   }
 

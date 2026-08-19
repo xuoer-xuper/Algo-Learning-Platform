@@ -531,6 +531,7 @@ const tabTransferCoordinator = new TabTransferCoordinator({
 
 registerMainIpc({
   credentialVault,
+  getCredentialAutofillService: () => credentialAutofillService,
   getSyncService: () => services?.syncService ?? null,
   getUserScriptRuntime: () => services?.userScriptRuntime ?? null,
   getCoachPetWindow: () => coachPetWindow,
@@ -664,7 +665,16 @@ void app.whenReady().then(async () => {
   const ojSession = configureOjSession({ getSiteById })
   credentialAutofillService = new CredentialAutofillService(
     { ojSession },
-    { vault: credentialVault },
+    {
+      vault: credentialVault,
+      selectionHost: {
+        getWindowId: contents => windowManager.resolveWebContents(contents.id)?.id ?? null,
+        showPrompt: (windowId, prompt) => windowManager.get(windowId)?.send('credentials:autofillPrompt', prompt) ?? false,
+        setNoticeVisible: (windowId, visible) => {
+          windowManager.get(windowId)?.tabManager.setCredentialAutofillNoticeVisible(visible)
+        },
+      },
+    },
   )
   credentialAutofillService.attach()
 

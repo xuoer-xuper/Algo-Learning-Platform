@@ -80,6 +80,10 @@ const coreContracts: PreloadContract[] = [
   { method: 'getCookieSummaryForDomain', mode: 'invoke', channel: 'cookies:getDomainSummary' },
   { method: 'listCredentials', mode: 'invoke', channel: 'credentials:list' },
   { method: 'deleteCredential', mode: 'invoke', channel: 'credentials:delete' },
+  { method: 'renameCredential', mode: 'invoke', channel: 'credentials:rename' },
+  { method: 'getCredentialAutofillPrompt', mode: 'invoke', channel: 'credentials:autofillPrompt' },
+  { method: 'respondCredentialAutofill', mode: 'invoke', channel: 'credentials:autofillRespond' },
+  { method: 'onCredentialAutofillPrompt', mode: 'on', channel: 'credentials:autofillPrompt' },
 ]
 
 test('preload maps core renderer methods to stable channels', () => {
@@ -130,6 +134,7 @@ test('preload event subscriptions are fixed and backed by main-process sends', (
     'coach:dismissBubble',
     'coach:petStateChanged',
     'coach:showBubble',
+    'credentials:autofillPrompt',
     'download:result',
     'problems:updated',
     'tab:listChanged',

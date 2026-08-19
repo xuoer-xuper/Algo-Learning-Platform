@@ -579,6 +579,7 @@ GM 值的主进程持久化地基。值按 JSON 保存，站点页面不能直�
 | id | TEXT PRIMARY KEY | 凭据 ID |
 | site_id | TEXT NOT NULL | 关联 `site_configs.id`；站点删除时级联清理 |
 | username | TEXT NOT NULL | 登录用户名或账号标识，不是密码 |
+| display_name | TEXT | 账户中心中的可选脱敏显示名，不是密码或密钥 |
 | secret_envelope | TEXT | V1 `electron-safe-storage` 版本化 JSON；活动行必有，软删除行清空 |
 | last_used_at | TEXT | 最近一次填充/使用时间 |
 | sync_excluded | INTEGER NOT NULL DEFAULT 1 | 固定为 `1`，不进入同步和普通 JSON 导出 |
