@@ -11,13 +11,13 @@
 - `types.ts`：用户脚本对外记录、数据库行和写入/更新输入类型。
 - `rowMapper.ts`：把 SQLite 的启用状态 0/1 归一为布尔值。
 - `queries.ts`：脚本列表、启用脚本列表、按 ID 查询和精确身份查询。
-- `mutations.ts`：脚本创建、部分更新、启停、删除和 legacy canonical 身份认领。
+- `mutations.ts`：脚本创建、部分更新、启停、删除、legacy canonical 身份认领和导入链路的事务边界。
 - `../userScriptRepository.ts`：兼容导出口，外部调用方继续从原路径 import。
 
 ## 3. 封装函数
 
 - 查询：`getAllScripts()`、`getEnabledScripts()`、`getScriptById(id)`、`getScriptByIdentity(namespace, identityName)`、`getLegacyScriptByIdentityName(identityName)`。
-- 写入：`createScript(data)`、`updateScript(id, data)`、`toggleScript(id, enabled)`、`deleteScript(id)`、`claimLegacyScriptIdentity(id, namespace)`、`updateScriptWithLegacyClaim(id, namespace, data)`。
+- 写入：`createScript(data)`、`updateScript(id, data)`、`toggleScript(id, enabled)`、`deleteScript(id)`、`claimLegacyScriptIdentity(id, namespace)`、`updateScriptWithLegacyClaim(id, namespace, data)`、`runUserScriptTransaction(operation)`。
 - 行映射：`normalizeUserScriptRow(row)`。
 
 ## 4. 边界规则
@@ -33,7 +33,7 @@
 - 不记录用户脚本源码、Cookie、登录态、完整请求体或可复用登录态信息。
 - Schema 变化必须先写 migration，再同步 `docs/DESIGN/DATABASE_SCHEMA.md` 和本目录 SQL。
 
-`userScriptRuntimeRepository.ts` 提供 JSON 值 set/get/list/delete、BLOB 资源 upsert/list、host 授权 revoke/revive/use 和 update-state merge。四类记录都由 `user_scripts` 外键级联删除；资源严格保留 kind 与声明顺序。
+`userScriptRuntimeRepository.ts` 提供 JSON 值 set/get/list/delete、BLOB 资源 upsert/list/全量替换、host 授权 revoke/revive/use 和 update-state merge。四类记录都由 `user_scripts` 外键级联删除；资源严格保留 kind 与声明顺序，导入时与脚本 metadata 更新处于同一事务。
 
 ## 5. 验证入口
 

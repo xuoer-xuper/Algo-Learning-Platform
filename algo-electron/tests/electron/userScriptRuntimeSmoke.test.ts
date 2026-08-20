@@ -41,6 +41,9 @@ class SmokeRuntime {
     else if (url.pathname === '/spa-matched') {
       scripts = [smokeScript('spa', 'document-start', 'globalThis.__spaRuns = (globalThis.__spaRuns || 0) + 1')]
     }
+    else if (url.pathname === '/resources') {
+      scripts = [resourceSmokeScript()]
+    }
     else if (url.pathname === '/race') {
       const version = this.generation === 1 ? 'v1' : 'v2'
       scripts = [
@@ -61,6 +64,7 @@ class SmokeRuntime {
         smokeScript('idle', 'document-idle', "globalThis.__runtimeOrder.push('userscript-idle:' + document.readyState)"),
         smokeScript('noframes', 'document-start', 'globalThis.__noframesRuns = (globalThis.__noframesRuns || 0) + 1'),
         smokeScript('spa', 'document-start', 'globalThis.__spaRuns = (globalThis.__spaRuns || 0) + 1'),
+        resourceSmokeScript(),
         smokeScript('race-start-v1', 'document-start', "globalThis.__raceRuns ??= []; globalThis.__raceRuns.push('v1-start')"),
         smokeScript('race-end-v1', 'document-end', "globalThis.__raceRuns.push('v1-end')"),
         smokeScript('race-idle-v1', 'document-idle', "globalThis.__raceRuns.push('v1-idle')"),
@@ -191,6 +195,17 @@ try {
   assert.ok(frameResult.order.includes('inline:loading'))
   assert.strictEqual(frameResult.noframesRuns, undefined)
 
+  stage = 'loading cached require and resource APIs'
+  recordStage(stage)
+  const resourceWindow = createHiddenWindow(smokeSession)
+  windows.push(resourceWindow)
+  await resourceWindow.loadURL(`${origin}/resources`)
+  assert.deepStrictEqual(await resourceWindow.webContents.executeJavaScript('globalThis.__resourceSmoke'), {
+    order: ['require', 'script'],
+    text: 'body { color: red; }',
+    url: `data:text/css;base64,${Buffer.from('body { color: red; }').toString('base64')}`,
+  })
+
   stage = 'syncing SPA matches'
   recordStage(stage)
   const spaWindow = createHiddenWindow(smokeSession)
@@ -290,7 +305,29 @@ function smokeScript(
     grants: [],
     connects: [],
     values: [],
+    resources: [],
     code,
+  }
+}
+
+function resourceSmokeScript(): UserScriptRuntimeScriptSnapshot {
+  const resource = Buffer.from('body { color: red; }').toString('base64')
+  return {
+    id: 'resources',
+    revision: 'resources-revision',
+    name: 'resources',
+    namespace: null,
+    description: null,
+    version: '1.0.0',
+    runAt: 'document-start',
+    grants: ['GM_getResourceText', 'GM_getResourceURL'],
+    connects: [],
+    values: [],
+    resources: [{ name: 'theme', contentType: 'text/css', dataBase64: resource }],
+    code: `globalThis.__resourceSmoke = { order: ['require'] };
+      globalThis.__resourceSmoke.order.push('script');
+      globalThis.__resourceSmoke.text = GM_getResourceText('theme');
+      globalThis.__resourceSmoke.url = GM_getResourceURL('theme');`,
   }
 }
 

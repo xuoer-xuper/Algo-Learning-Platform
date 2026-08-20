@@ -82,5 +82,6 @@ function toMainWorldScript(script: UserScriptRuntimeScriptSnapshot) {
     source: script.code,
     grants: script.grants,
     values: script.values,
+    resources: script.resources,
   }
 }

@@ -397,6 +397,7 @@ function expectScriptSnapshot(grants = ['GM_getValue', 'GM_setValue', 'GM_delete
     grants,
     connects: ['api.example.com'],
     values: [['count', 1]],
+    resources: [],
     code: 'window.marker = true',
   }
 }

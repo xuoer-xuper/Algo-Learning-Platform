@@ -205,6 +205,17 @@ export function deleteUserScriptResources(scriptId: string): number {
   return getDb().prepare('DELETE FROM user_script_resources WHERE script_id = ?').run(scriptId).changes
 }
 
+export function replaceUserScriptResources(
+  scriptId: string,
+  resources: readonly Omit<UserScriptResourceWriteInput, 'scriptId'>[],
+): void {
+  const normalizedScriptId = requireNonEmpty(scriptId, 'scriptId')
+  getDb().prepare('DELETE FROM user_script_resources WHERE script_id = ?').run(normalizedScriptId)
+  for (const resource of resources) {
+    upsertUserScriptResource({ scriptId: normalizedScriptId, ...resource })
+  }
+}
+
 export function grantUserScriptHost(scriptId: string, hostPattern: string): string {
   const normalizedScriptId = requireNonEmpty(scriptId, 'scriptId')
   const normalizedHost = normalizeHostPattern(hostPattern)

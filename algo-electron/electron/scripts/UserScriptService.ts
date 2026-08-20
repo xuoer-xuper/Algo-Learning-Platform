@@ -8,6 +8,7 @@ import {
   isUserScriptUrlExcluded,
   matchesUserScriptUrl,
   parseScriptMetadata,
+  type UserScriptResourceReference,
 } from './userScriptMetadata'
 import { appLogger } from '../shared/logger'
 
@@ -29,8 +30,8 @@ interface CachedUserScriptDefinition {
   script: UserScript
   rules: PersistedMatchRules
   siteIds: string[]
-  requires: string[]
-  resources: { name: string; url: string }[]
+  requires: UserScriptResourceReference[]
+  resources: Array<UserScriptResourceReference & { name: string }>
 }
 
 const defaultDependencies: UserScriptServiceDependencies = {
@@ -99,8 +100,8 @@ export class UserScriptService {
 
   public getMatchingScriptsWithMeta(url: string): Array<{
     script: UserScript
-    requires: string[]
-    resources: { name: string; url: string }[]
+    requires: UserScriptResourceReference[]
+    resources: Array<UserScriptResourceReference & { name: string }>
   }> {
     let domain: string
     try {
@@ -114,8 +115,8 @@ export class UserScriptService {
     if (definitions.length === 0) return []
     const results: Array<{
       script: UserScript
-      requires: string[]
-      resources: { name: string; url: string }[]
+      requires: UserScriptResourceReference[]
+      resources: Array<UserScriptResourceReference & { name: string }>
     }> = []
 
     for (const definition of definitions) {

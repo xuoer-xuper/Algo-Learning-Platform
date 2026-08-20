@@ -283,7 +283,7 @@ Renderer（同一构建产物，多窗口实例化——桌宠 hash 路由已证
 | B6.2 | GM 运行时重写：脚本以 IIFE 执行，GM API 仅作局部参数，不挂 `window.GM_*`；session 注册一个固定 userscript bootstrap preload，它从主进程内存缓存取得当前 frame 的匹配脚本和值快照；主世界脚本通过每次导航生成的私有 MessagePort 与隔离 preload 通信，桥不暴露给站点；shell renderer 永远不接收可执行源码 | `userscriptBootstrapPreload`、`userScriptMainWorldRuntime`、受限 GM 桥 |
 | B6.3 | GM_xmlhttpRequest 主进程代理 + @connect 白名单：初始与重定向 URL 双校验，未授权域首次请求由所属窗口 NoticeBar 授权并按脚本持久化；响应补齐 finalUrl/headers/status/timeout/responseType；本任务前半段作为 B4 安全前置，完成后删除 `ojSession` 的全局 CORS 响应头改写；GM_setClipboard、GM_registerMenuCommand、window.onurlchange 同批接入 | 新 `scripts/gmProxy`、`contextMenus/`、NoticeBar |
 | B6.4 | 注入调度重写：使用 `session.registerPreloadScript({ type:'frame' })` 让 bootstrap 早于普通 ojPreload；document-start 必须以真实页面内联脚本顺序测试证明，document-end=DOMContentLoaded，document-idle=did-finish-load；覆盖后台标签、iframe、noframes、SPA、脚本更新/注销竞态与 stale-version guard；若目标 Electron 版本无法通过顺序测试，明确标记为 best-effort，禁止声称精确兼容 | `ojSession`、`userscriptBootstrapPreload`、调度器 |
-| B6.5 | @require/@resource 改为安装/更新时下载入库 + **SRI 校验**（URL #sha256/md5，多 hash 取最后受支持项——现状"解析时剥离丢弃"是安全缺陷）；注入时 @require 按序拼接在用户代码前同段执行（免站点 CSP、保证顺序）；GM_getResourceText 回缓存文本、GM_getResourceURL 回 data:/blob: | `scripts/installer`、资源缓存 |
+| B6.5 | `[x]` @require/@resource 改为安装/更新时下载入库 + **SRI 校验**（URL #sha256/md5，多 hash 取最后受支持项——现状"解析时剥离丢弃"是安全缺陷）；注入时 @require 按序拼接在用户代码前同段执行（免站点 CSP、保证顺序）；GM_getResourceText 回缓存文本、GM_getResourceURL 回 data:/blob: | `scripts/installer`、资源缓存 |
 | B6.6 | 安装与更新链路：拦截 `.user.js` 后先下载、解析、校验、缓存资源，再用数据库事务 + 临时文件原子替换，任一步失败保留旧版；确认页展示身份、版本、匹配域、grant/connect、antifeature 与版本 diff；更新链按 updateURL/downloadURL/lastInstallURL 回退，默认每 24h + 手动检查，使用 ETag/Last-Modified | `scripts/updater`、`scripts/installer`、TabManager 导航拦截 |
 | B6.7 | 管理页升级与安全收口：代码只读查看 + 系统编辑器打开 + watcher；重复导入提供更新现有/另存本地副本/取消，本地副本使用独立 namespace；启停、更新、删除必须同步刷新主进程缓存并注销旧版本；脚本源码不进日志，OJ bootstrap 之外的 renderer 不接收源码；提交桥加每导航随机 token | `src/features/scripts/`、`ojPreload`、`tests/` |
 
@@ -474,7 +474,8 @@ Renderer（同一构建产物，多窗口实例化——桌宠 hash 路由已证
 | B6.2 | [x] | GM 私有桥、固定 frame bootstrap、IIFE/grant 裁剪、主进程值快照与 shell 源码隔离已完成；完整记录见 §11.39 |
 | B6.3 | [x] | `GM_xmlhttpRequest` 主进程受限代理、`@connect` 与逐 host 授权、NoticeBar、剪贴板/菜单/onurlchange、全局 CORS 清理已完成；完整记录见 §11.40 |
 | B6.4 | [x] | 固定 frame preload、预编译 catalog、DOMContentLoaded/真实 frame load 阶段调度、SPA 重匹配与 revision/generation stale guard 已完成；真实 Electron 主 frame/reload smoke 已纳入 `test:electron`，Electron 43 的普通 iframe/frame-preload 限制已按 best-effort 记录，完整记录见 §11.41 |
-| B6.5-B6.7 | [ ] | `@require/@resource` 下载与 SRI、安装更新链路与管理页收口待实施 |
+| B6.5 | [x] | `@require/@resource` HTTPS 下载、本地 BLOB 缓存、sha256/md5 多 hash SRI、按序 `@require` 与 GM 资源 API 已完成；完整记录见 §11.47 |
+| B6.6-B6.7 | [ ] | 远程安装/自动更新链路、确认页版本 diff 与管理页安全收口待实施 |
 
 ### 11.4 单任务完成记录模板
 
@@ -1155,3 +1156,20 @@ Renderer（同一构建产物，多窗口实例化——桌宠 hash 路由已证
 | GitHub 检查 | 自动 fast guard 新增 `npm run test:packaging`，每个 PR/push 检查 fuses、asar 白名单和 native SQLite 解包；手动 `packaged-smoke` 继续执行生产主进程检查、Windows unpacked 构建和真实双实例 smoke |
 | 文档与视觉 | 已同步打包测试 README、GitHub Actions README、本计划和安全/架构边界；未修改主题、配色、字体、按钮样式、布局基调或动画，前端视觉冻结保持不变 |
 | 完成时间 | 北京时间 `2026-08-19` |
+
+### 11.47 B6.5 用户脚本资源缓存与 SRI 完成记录
+
+| 字段 | 填写内容 |
+|---|---|
+| 任务 | `@require/@resource` metadata 完整性保留、受限下载、SRI、BLOB 缓存、运行时依赖拼接与 GM 资源 API |
+| 状态 | `[x] 已完成；B6.6-B6.7 安装更新链路与管理页收口仍待实施` |
+| Metadata 与 SRI | `parseScriptMetadata` 不再丢弃 URL fragment；资源缓存选择 fragment 中最后一个受支持的 `sha256`/`md5`，支持 hex/base64/base64url，写库前使用常量时间比较验证，声明了但无受支持 hash、digest 非法或内容不匹配均拒绝导入 |
+| 下载边界 | 仅允许 HTTPS，开发/smoke 可显式允许 loopback HTTP；不携带凭据，逐跳重新校验重定向，最多 5 跳、每项 4 MiB、总计 8 MiB、最多 64 项；`@require` 必须是有效 UTF-8 |
+| 原子持久化 | 导入确认后先完成全部下载与校验，再写受管脚本文件；脚本 create/update/legacy claim 与 `user_script_resources` 全量替换处于同一 SQLite transaction，失败时旧脚本/旧缓存不变且新临时文件清理 |
+| 运行时 | refresh 时把资源加载到主进程缓存；声明、顺序、URL、完整性、抓取状态或内容缺失任一不一致即整段脚本 fail closed；`@require` 按声明顺序拼接在用户代码前并参与 revision；`@resource` 只以 base64 快照进入 OJ 私有运行时，不进入 shell renderer |
+| GM API | 按 grant 提供 `GM_getResourceText`、`GM_getResourceURL`、`GM.getResourceText` 和 `GM.getResourceUrl`；文本从缓存字节 UTF-8 解码，URL 返回带 MIME 的 `data:` URL；未授权名称继续为 `undefined` |
+| 自动验证 | `npm run typecheck`、变更文件 ESLint通过；定向 Vitest `8 files / 51 tests` 通过；真实 `npm run test:electron` 通过，覆盖预编译 catalog、固定 preload、缓存资源 API 与 document-start 运行 |
+| 文档与视觉 | 已同步 scripts/tests/repository README、数据库 schema、系统架构、安全规范和本计划；未修改 TSX/CSS、主题、颜色、字体、布局、按钮或动画，前端视觉冻结保持不变 |
+| 暂缓验证 | 本子块不运行生产构建、NSIS、packaged 双实例 smoke 或真实 Greasy Fork 远程安装；B6.6-B6.7 完成后按 B6 大块统一执行全量/生产验收 |
+| 后续工作 | 进入 B6.6：`.user.js` 导航拦截后的应用内安装确认、事务更新、ETag/Last-Modified、24h/手动检查与 updateURL/downloadURL 回退 |
+| 完成时间 | 北京时间 `2026-08-20` |

@@ -1,6 +1,7 @@
 import {
   app,
   dialog,
+  net,
   shell,
   type BrowserWindow,
   type IpcMainInvokeEvent,
@@ -14,6 +15,7 @@ import {
   createScript,
   deleteScript,
   getAllScripts,
+  runUserScriptTransaction,
   toggleScript,
   updateScript,
   updateScriptWithLegacyClaim,
@@ -26,6 +28,11 @@ import {
   type ExistingUserScriptIdentity,
   type UserScriptImportDecision,
 } from '../scripts/userScriptImport'
+import { replaceUserScriptResources } from '../db/repositories/userScriptRuntimeRepository'
+import {
+  prepareUserScriptResources,
+  type PreparedUserScriptResource,
+} from '../scripts/UserScriptResourceCache'
 import { appLogger } from '../shared/logger'
 
 type UserScriptSaveInput = {
@@ -36,6 +43,8 @@ type UserScriptSaveInput = {
 interface RegisterScriptsIpcOptions {
   getParentWindow?: (event: IpcMainInvokeEvent) => BrowserWindow | null
   refreshUserScriptRuntime?: () => void
+  fetchResource?: (input: string, init: RequestInit) => Promise<Response>
+  allowInsecureLocalhost?: boolean
 }
 
 interface UserScriptSummary {
@@ -133,13 +142,22 @@ export function registerScriptsIpc(options: RegisterScriptsIpcOptions = {}): voi
         })
       : decision
     const shouldClaimLegacy = claimLegacy && response !== 1
+    const preparedResources = await prepareUserScriptResources(importDecision.metadata, {
+      fetch: options.fetchResource ?? ((input, init) => net.fetch(input, init)),
+      allowInsecureLocalhost: options.allowInsecureLocalhost,
+    })
 
     const previousFilePath = importDecision.existing?.filePath ?? null
     let importedId: string | null = null
     await writeUserScriptImport(importDecision, {
       scriptsDirectory,
       persist: (resolvedDecision, filePath) => {
-        importedId = persistImportedScript(resolvedDecision, filePath, shouldClaimLegacy)
+        importedId = persistImportedScriptWithResources(
+          resolvedDecision,
+          filePath,
+          shouldClaimLegacy,
+          preparedResources,
+        )
         return importedId
       },
     })
@@ -173,6 +191,19 @@ export function registerScriptsIpc(options: RegisterScriptsIpcOptions = {}): voi
     const result = deleteScript(id)
     if (result) options.refreshUserScriptRuntime?.()
     return result
+  })
+}
+
+function persistImportedScriptWithResources(
+  decision: UserScriptImportDecision,
+  filePath: string,
+  claimLegacy: boolean,
+  resources: readonly PreparedUserScriptResource[],
+): string {
+  return runUserScriptTransaction(() => {
+    const scriptId = persistImportedScript(decision, filePath, claimLegacy)
+    replaceUserScriptResources(scriptId, resources)
+    return scriptId
   })
 }
 

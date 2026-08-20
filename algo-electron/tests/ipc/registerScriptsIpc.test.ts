@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { createHash } from 'node:crypto'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -18,6 +19,7 @@ import {
   getScriptById,
   type UserScript,
 } from '../../electron/db/repositories/userScriptRepository'
+import { listUserScriptResources } from '../../electron/db/repositories/userScriptRuntimeRepository'
 import {
   getUserScriptImportConfirmationOptions,
   registerScriptsIpc,
@@ -68,6 +70,70 @@ test('new imports persist complete runtime metadata and create an explicit empty
   assert.strictEqual(openDialog.mock.calls[0][0], parent)
   assert.strictEqual(messageBox.mock.calls.length, 0)
   assert.ok(fs.existsSync(sourcePath), 'the selected source file must never be removed')
+})
+
+test('imports download and atomically persist verified require and resource caches', async () => {
+  const dependency = 'globalThis.__dependencyReady = true'
+  const style = 'body { color: red; }'
+  const source = userscript('Resource Helper', '1.0.0', 'https://example.com/*', undefined, [
+    `// @require https://cdn.example.com/dependency.js#sha256=${createHash('sha256').update(dependency).digest('hex')}`,
+    `// @resource theme https://cdn.example.com/theme.css#md5=${createHash('md5').update(style).digest('base64')}`,
+  ])
+  const sourcePath = writeSource('resource.user.js', source)
+  vi.spyOn(dialog, 'showOpenDialog').mockResolvedValue({ canceled: false, filePaths: [sourcePath] })
+  const fetchResource = vi.fn(async (url: string) => new Response(
+    url.endsWith('.js') ? dependency : style,
+    { headers: { 'content-type': url.endsWith('.js') ? 'application/javascript' : 'text/css' } },
+  ))
+  registerScriptsIpc({ fetchResource })
+
+  const scriptId = await ipcRenderer.invoke('scripts:importFile') as string
+  const resources = listUserScriptResources(scriptId)
+  assert.deepStrictEqual(resources.map(resource => [
+    resource.resource_kind,
+    resource.resource_key,
+    resource.declaration_order,
+    resource.source_url,
+    resource.content_encoding,
+    resource.content_type,
+    Boolean(resource.integrity),
+  ]), [
+    ['require', 'require-0', 0, 'https://cdn.example.com/dependency.js', 'utf8', 'application/javascript', true],
+    ['resource', 'theme', 0, 'https://cdn.example.com/theme.css', 'binary', 'text/css', true],
+  ])
+  assert.strictEqual(Buffer.from(resources[0].content_blob ?? []).toString('utf8'), dependency)
+  assert.strictEqual(fetchResource.mock.calls.length, 2)
+})
+
+test('resource verification failure leaves the existing script and managed files untouched', async () => {
+  const existingId = createScript({
+    name: 'Helper',
+    namespace: '',
+    identity_name: 'Helper',
+    description: null,
+    version: '1.0.0',
+    match_urls_json: '[]',
+    code: 'old source',
+    file_path: null,
+    site_ids_json: '[]',
+    enabled: true,
+  })
+  const sourcePath = writeSource('failed-update.user.js', userscript(
+    'Helper',
+    '1.1.0',
+    'https://example.com/*',
+    undefined,
+    [`// @require https://cdn.example.com/dependency.js#sha256=${'00'.repeat(32)}`],
+  ))
+  vi.spyOn(dialog, 'showOpenDialog').mockResolvedValue({ canceled: false, filePaths: [sourcePath] })
+  vi.spyOn(dialog, 'showMessageBox').mockResolvedValue({ response: 0 })
+  registerScriptsIpc({ fetchResource: async () => new Response('different') })
+
+  await assert.rejects(() => ipcRenderer.invoke('scripts:importFile'), /integrity mismatch/)
+  assert.strictEqual(getScriptById(existingId)?.version, '1.0.0')
+  assert.strictEqual(getScriptById(existingId)?.code, 'old source')
+  assert.deepStrictEqual(listUserScriptResources(existingId), [])
+  assert.strictEqual(fs.existsSync(path.join(tempDirectory, 'userscripts')), false)
 })
 
 test('scripts:getAll returns a renderer-safe summary without source or absolute paths', async () => {

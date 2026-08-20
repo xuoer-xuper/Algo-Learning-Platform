@@ -57,8 +57,15 @@ console.log('body')
   assert.strictEqual(metadata.downloadURL, 'https://example.com/sample.user.js')
   assert.deepStrictEqual(metadata.antifeatures, ['ads', 'tracking'])
   assert.strictEqual(metadata.icon, 'https://example.com/icon.png')
-  assert.deepStrictEqual(metadata.requires, ['https://example.com/lib.js'])
-  assert.deepStrictEqual(metadata.resources, [{ name: 'style', url: 'https://example.com/style.css' }])
+  assert.deepStrictEqual(metadata.requires, [{
+    url: 'https://example.com/lib.js',
+    integrity: 'sha256-demo',
+  }])
+  assert.deepStrictEqual(metadata.resources, [{
+    name: 'style',
+    url: 'https://example.com/style.css',
+    integrity: 'hash',
+  }])
   assert.strictEqual(metadata.runAt, 'document-end')
 })
 

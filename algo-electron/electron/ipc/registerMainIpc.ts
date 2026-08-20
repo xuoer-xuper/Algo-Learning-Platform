@@ -83,7 +83,10 @@ export function registerMainIpc(options: RegisterMainIpcOptions): void {
     notifyProblemsUpdated,
     refreshUserScriptRuntime,
   })
-  registerScriptsIpc({ refreshUserScriptRuntime })
+  registerScriptsIpc({
+    refreshUserScriptRuntime,
+    allowInsecureLocalhost: options.allowInsecureLocalhost,
+  })
   registerRatingIpc()
   registerStatsIpc()
   registerSubmissionsIpc({

@@ -153,11 +153,58 @@ test('provides only granted classic APIs and persists cloned values through the 
         { type: 'value:set', scriptId: 'classic', key: 'count', value: 4 },
         { type: 'value:delete', scriptId: 'classic', key: 'object' },
       ])
-      for (const name of ['GM', 'GM_info', 'GM_addStyle', 'GM_getValue', 'GM_setValue', 'GM_deleteValue', 'GM_listValues', 'GM_xmlhttpRequest', 'GM_setClipboard', 'GM_registerMenuCommand', 'GM_unregisterMenuCommand', 'unsafeWindow']) {
+      for (const name of ['GM', 'GM_info', 'GM_addStyle', 'GM_getValue', 'GM_setValue', 'GM_deleteValue', 'GM_listValues', 'GM_xmlhttpRequest', 'GM_setClipboard', 'GM_registerMenuCommand', 'GM_unregisterMenuCommand', 'GM_getResourceText', 'GM_getResourceURL', 'unsafeWindow']) {
         assert.strictEqual(Object.prototype.hasOwnProperty.call(globalThis, name), false)
       }
     }
     finally { Reflect.deleteProperty(globalThis, '__classicResult') }
+  })
+})
+
+test('serves cached resources only through explicitly granted classic and modern APIs', async () => {
+  await withRuntimeGlobals(async (port) => {
+    Object.defineProperty(globalThis, '__resourceResult', { configurable: true, value: null, writable: true })
+    try {
+      const resources = [{
+        name: 'theme',
+        contentType: 'text/css',
+        dataBase64: Buffer.from('body { color: red; }', 'utf8').toString('base64'),
+      }]
+      const result = execute([
+        {
+          id: 'classic-resource',
+          name: 'Classic resource',
+          grants: ['GM_getResourceText', 'GM_getResourceURL'],
+          resources,
+          source: `globalThis.__resourceResult = {
+            text: GM_getResourceText('theme'),
+            url: GM_getResourceURL('theme'),
+            modern: typeof GM,
+          }`,
+        },
+        {
+          id: 'modern-resource',
+          name: 'Modern resource',
+          grants: ['GM.getResourceText', 'GM.getResourceUrl'],
+          resources,
+          source: `(async () => {
+            globalThis.__resourceResult.modernText = await GM.getResourceText('theme');
+            globalThis.__resourceResult.modernUrl = await GM.getResourceUrl('theme');
+          })()`,
+        },
+      ])
+      runExecution(result, port)
+      await Promise.resolve()
+      await Promise.resolve()
+      assert.deepStrictEqual((globalThis as typeof globalThis & { __resourceResult: unknown }).__resourceResult, {
+        text: 'body { color: red; }',
+        url: `data:text/css;base64,${resources[0].dataBase64}`,
+        modern: 'undefined',
+        modernText: 'body { color: red; }',
+        modernUrl: `data:text/css;base64,${resources[0].dataBase64}`,
+      })
+    }
+    finally { Reflect.deleteProperty(globalThis, '__resourceResult') }
   })
 })
 
@@ -439,6 +486,7 @@ function syncedScript(overrides: Partial<Record<string, unknown>> = {}) {
     grants: [],
     connects: [],
     values: [],
+    resources: [],
     code: '',
     ...overrides,
   }

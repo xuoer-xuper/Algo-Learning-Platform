@@ -534,7 +534,7 @@ GM 值的主进程持久化地基。值按 JSON 保存，站点页面不能直�
 
 ### 8.5 user_script_resources
 
-`@require`/`@resource` 安装缓存地基。B6.1 只建立无损存储和 repository；下载、SRI 校验及注入消费留给 B6.5。
+`@require`/`@resource` 安装缓存。B6.5 已接入受限 HTTPS 下载、sha256/md5 SRI、事务替换和运行时消费；页面不现场下载远程依赖。
 
 | 字段 | 类型 | 说明 |
 |---|---|---|
@@ -547,11 +547,11 @@ GM 值的主进程持久化地基。值按 JSON 保存，站点页面不能直�
 | content_blob | BLOB | 原始字节，图片/字体不经 TEXT 损坏 |
 | content_encoding | TEXT NOT NULL | `binary` 或 `utf8` |
 | content_type | TEXT | MIME 类型 |
-| integrity | TEXT | 待 B6.5 验证的完整性声明 |
+| integrity | TEXT | 已验证并规范化的 `sha256-<base64>` / `md5-<base64>`；未声明时为 NULL |
 | fetched_at | TEXT | 成功抓取时间 |
 | created_at / updated_at | TEXT NOT NULL | 创建/更新时间 |
 
-约束：`UNIQUE(script_id, resource_kind, resource_key)`、`UNIQUE(script_id, resource_kind, declaration_order)`、脚本外键级联；查询索引按脚本、kind、声明顺序排列。
+约束：`UNIQUE(script_id, resource_kind, resource_key)`、`UNIQUE(script_id, resource_kind, declaration_order)`、脚本外键级联；查询索引按脚本、kind、声明顺序排列。导入时先完成全部下载/SRI，再在脚本 create/update 同一 SQLite transaction 中全量替换资源；运行时复验声明 URL、顺序、integrity 与 `fetched_at`。
 
 ### 8.6 user_script_host_permissions
 

@@ -245,6 +245,7 @@ Renderer 不直接操作 `webContents`。
 - 首次 host 授权由 `UserScriptHostPermissionBroker` 路由到 webContents 当前所属窗口，复用文档流 NoticeBar；generation、owner 或窗口失效时请求与提示一起撤销。
 - 请求/响应大小、header、超时、重定向、并发和菜单注册数均有上限；浏览器所有请求头和 `Set-Cookie` 不跨越脚本桥。
 - 用户脚本菜单按活动端口绑定到页面原生右键菜单，端口关闭或 generation 更新即清理；剪贴板能力只写不读，所有特权 API 继续受 `@grant` 和 `@grant none` 双层校验。
+- `@require/@resource` 在安装/更新阶段由 `UserScriptResourceCache` 下载，逐跳执行 HTTPS/大小限制并验证 fragment 中最后一个受支持的 sha256/md5；脚本记录和资源 BLOB 同事务替换。运行时按声明顺序拼接本地 `@require`，把命名资源作为 base64 快照送入私有运行器，按 grant 提供 text/data URL API；任何缓存漂移都 fail closed。
 
 ### 4.7 生产打包边界
 

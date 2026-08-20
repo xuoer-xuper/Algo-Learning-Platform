@@ -27,7 +27,14 @@ export interface UserScriptRuntimeScriptSnapshot {
   grants: string[]
   connects: string[]
   values: Array<[string, unknown]>
+  resources: UserScriptRuntimeResourceSnapshot[]
   code: string
+}
+
+export interface UserScriptRuntimeResourceSnapshot {
+  name: string
+  contentType: string | null
+  dataBase64: string
 }
 
 export interface UserScriptRuntimeBootstrapSnapshot {

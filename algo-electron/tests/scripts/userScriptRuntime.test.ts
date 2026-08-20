@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { createHash } from 'node:crypto'
 import { test, vi } from 'vitest'
 import { UserScriptRuntime } from '../../electron/scripts/UserScriptRuntime'
 import type { UserScript } from '../../electron/db/repositories/userScript/types'
@@ -103,6 +104,63 @@ test('filters noframes scripts and updates the in-memory value snapshot after pe
   assert.strictEqual(deleteValue.mock.calls.length, 1)
 })
 
+test('prepends cached requires in order and exposes named resources in the runtime snapshot', () => {
+  const dependencyOne = 'globalThis.order.push("require-1")'
+  const dependencyTwo = 'globalThis.order.push("require-2")'
+  const enabledScript = script({
+    code: `// ==UserScript==
+// @name Helper
+// @require https://cdn.example.com/one.js
+// @require https://cdn.example.com/two.js#sha256=${createHash('sha256').update(dependencyTwo).digest('hex')}
+// @resource theme https://cdn.example.com/theme.css
+// ==/UserScript==
+globalThis.order.push("script")`,
+  })
+  const metadata = {
+    requires: [
+      { url: 'https://cdn.example.com/one.js', integrity: null },
+      {
+        url: 'https://cdn.example.com/two.js',
+        integrity: `sha256=${createHash('sha256').update(dependencyTwo).digest('hex')}`,
+      },
+    ],
+    resources: [{ name: 'theme', url: 'https://cdn.example.com/theme.css', integrity: null }],
+  }
+  const runtime = new UserScriptRuntime({
+    userScriptService: {
+      refresh: vi.fn(),
+      getEnabledScriptsSnapshot: () => [enabledScript],
+      getMatchingScriptsWithMeta: () => [{ script: enabledScript, ...metadata }],
+    },
+    listValues: () => [],
+    listResources: () => [
+      cachedResource('require', 'require-0', 0, metadata.requires[0].url, dependencyOne),
+      cachedResource(
+        'require',
+        'require-1',
+        1,
+        metadata.requires[1].url,
+        dependencyTwo,
+        `sha256-${createHash('sha256').update(dependencyTwo).digest('base64')}`,
+      ),
+      cachedResource('resource', 'theme', 0, metadata.resources[0].url, 'body { color: red; }', null, 'text/css'),
+    ],
+    setValue: vi.fn(),
+    deleteValue: vi.fn(),
+    logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
+  })
+
+  runtime.refresh()
+  const snapshot = runtime.getNavigationSnapshot('https://example.com/', true).scripts[0]
+  assert.ok(snapshot.code.indexOf(dependencyOne) < snapshot.code.indexOf(dependencyTwo))
+  assert.ok(snapshot.code.indexOf(dependencyTwo) < snapshot.code.indexOf('globalThis.order.push("script")'))
+  assert.deepStrictEqual(snapshot.resources, [{
+    name: 'theme',
+    contentType: 'text/css',
+    dataBase64: Buffer.from('body { color: red; }').toString('base64'),
+  }])
+})
+
 test('invalid persisted grant JSON fails closed for that script', () => {
   const invalid = script({ grant_json: '{broken' })
   const warn = vi.fn()
@@ -181,3 +239,29 @@ test('refresh failure advances the generation and clears value mutation authorit
     /not enabled in the runtime cache/,
   )
 })
+
+function cachedResource(
+  kind: 'require' | 'resource',
+  key: string,
+  order: number,
+  sourceUrl: string,
+  content: string,
+  integrity: string | null = null,
+  contentType: string | null = 'application/javascript',
+) {
+  return {
+    id: `${kind}-${key}`,
+    script_id: 'script-1',
+    resource_kind: kind,
+    resource_key: key,
+    declaration_order: order,
+    source_url: sourceUrl,
+    content_blob: Buffer.from(content),
+    content_encoding: kind === 'require' ? 'utf8' as const : 'binary' as const,
+    content_type: contentType,
+    integrity,
+    fetched_at: '2026-08-20 12:00:00',
+    created_at: '2026-08-20 12:00:00',
+    updated_at: '2026-08-20 12:00:00',
+  }
+}

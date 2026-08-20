@@ -200,3 +200,7 @@ export function updateScriptWithLegacyClaim(
     return false
   }
 }
+
+export function runUserScriptTransaction<T>(operation: () => T): T {
+  return getDb().transaction(operation)()
+}

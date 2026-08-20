@@ -10,6 +10,8 @@ export const USER_SCRIPT_MAIN_WORLD_PARAMETER_NAMES = [
   'GM_setClipboard',
   'GM_registerMenuCommand',
   'GM_unregisterMenuCommand',
+  'GM_getResourceText',
+  'GM_getResourceURL',
   'unsafeWindow',
 ] as const
 
@@ -24,6 +26,13 @@ export interface UserScriptMainWorldScript {
   source: string
   grants: readonly string[]
   values?: ReadonlyArray<readonly [string, unknown]>
+  resources?: readonly UserScriptMainWorldResource[]
+}
+
+export interface UserScriptMainWorldResource {
+  name: string
+  contentType: string | null
+  dataBase64: string
 }
 
 export interface UserScriptMainWorldBuildInput {
@@ -52,10 +61,14 @@ interface GrantPermissions {
   classicSetClipboard: boolean
   classicRegisterMenuCommand: boolean
   classicUnregisterMenuCommand: boolean
+  classicGetResourceText: boolean
+  classicGetResourceUrl: boolean
   modernXmlHttpRequest: boolean
   modernSetClipboard: boolean
   modernRegisterMenuCommand: boolean
   modernUnregisterMenuCommand: boolean
+  modernGetResourceText: boolean
+  modernGetResourceUrl: boolean
   urlChange: boolean
   unsafeWindow: boolean
 }
@@ -70,6 +83,7 @@ interface ScriptDescriptor {
   runAt: 'document-start' | 'document-end' | 'document-idle'
   permissions: GrantPermissions
   values: Array<[string, unknown]>
+  resources: UserScriptMainWorldResource[]
 }
 
 interface ExecutionPayload {
@@ -144,6 +158,7 @@ export function buildUserScriptMainWorldRuntime(
         runAt: normalizeRunAt(script.runAt),
         permissions: resolvePermissions(script.grants),
         values: normalizeValues(script.values),
+        resources: normalizeResources(script.resources),
       }
       const compiled = new Function(
         ...USER_SCRIPT_MAIN_WORLD_PARAMETER_NAMES,
@@ -166,7 +181,9 @@ export function buildUserScriptMainWorldRuntime(
     generation,
     handlerName,
     handlerVersion,
-    scripts: compiledScripts.map(script => script.descriptor),
+    // Resources already live in the compiled catalog entry. Keeping them out
+    // of the candidate payload avoids duplicating large base64 blobs.
+    scripts: compiledScripts.map(script => ({ ...script.descriptor, resources: [] })),
   }
   return {
     execution: { func: createExecutionFunction(compiledScripts), args: [payload, createExecutionBody(compiledScripts)] },
@@ -281,6 +298,25 @@ function createExecutionBody(scripts: readonly CompiledScript[]): string {
       },
       listValues(state) {
         return Array.from(state.keys());
+      },
+      getResource(resources, name) {
+        const resource = resources.get(String(name));
+        if (!resource) throw new Error('Unknown userscript resource: ' + String(name));
+        return resource;
+      },
+      getResourceText(targetPage, resources, name) {
+        const resource = this.getResource(resources, name);
+        if (resource.text === undefined) {
+          const binary = targetPage.atob(resource.dataBase64);
+          const bytes = new Uint8Array(binary.length);
+          for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
+          resource.text = new targetPage.TextDecoder().decode(bytes);
+        }
+        return resource.text;
+      },
+      getResourceUrl(resources, name) {
+        const resource = this.getResource(resources, name);
+        return 'data:' + (resource.contentType || 'application/octet-stream') + ';base64,' + resource.dataBase64;
       },
       callHandler(handler, value) {
         if (typeof handler !== 'function') return;
@@ -460,10 +496,14 @@ function createExecutionBody(scripts: readonly CompiledScript[]): string {
           classicSetClipboard: has('GM_setClipboard'),
           classicRegisterMenuCommand: has('GM_registerMenuCommand'),
           classicUnregisterMenuCommand: has('GM_unregisterMenuCommand'),
+          classicGetResourceText: has('GM_getResourceText'),
+          classicGetResourceUrl: has('GM_getResourceURL'),
           modernXmlHttpRequest: has('GM.xmlHttpRequest'),
           modernSetClipboard: has('GM.setClipboard'),
           modernRegisterMenuCommand: has('GM.registerMenuCommand'),
           modernUnregisterMenuCommand: has('GM.unregisterMenuCommand'),
+          modernGetResourceText: has('GM.getResourceText'),
+          modernGetResourceUrl: has('GM.getResourceUrl') || has('GM.getResourceURL'),
           urlChange: has('window.onurlchange'),
           unsafeWindow: has('unsafeWindow'),
         };
@@ -476,12 +516,23 @@ function createExecutionBody(scripts: readonly CompiledScript[]): string {
         if (typeof candidate.code !== 'string' || candidate.code.length > 4 * 1024 * 1024) return null;
         if (!Array.isArray(candidate.grants) || candidate.grants.some(grant => typeof grant !== 'string')) return null;
         if (!Array.isArray(candidate.values)) return null;
+        if (candidate.resources !== undefined && !Array.isArray(candidate.resources)) return null;
         const values = [];
         const valueKeys = new Set();
         for (const entry of candidate.values) {
           if (!Array.isArray(entry) || entry.length !== 2 || typeof entry[0] !== 'string' || valueKeys.has(entry[0])) return null;
           valueKeys.add(entry[0]);
           values.push([entry[0], ${clone}(entry[1])]);
+        }
+        const resources = [];
+        const resourceNames = new Set();
+        for (const resource of candidate.resources || []) {
+          if (!resource || typeof resource !== 'object' || Array.isArray(resource)) return null;
+          if (typeof resource.name !== 'string' || resource.name.length === 0 || resourceNames.has(resource.name)) return null;
+          if (resource.contentType !== null && typeof resource.contentType !== 'string') return null;
+          if (typeof resource.dataBase64 !== 'string' || !/^[A-Za-z0-9+/]*={0,2}$/.test(resource.dataBase64)) return null;
+          resourceNames.add(resource.name);
+          resources.push({ name: resource.name, contentType: resource.contentType, dataBase64: resource.dataBase64 });
         }
         if (candidate.runAt !== 'document-start' && candidate.runAt !== 'document-end' && candidate.runAt !== 'document-idle') return null;
         const descriptor = {
@@ -494,6 +545,7 @@ function createExecutionBody(scripts: readonly CompiledScript[]): string {
           runAt: candidate.runAt,
           permissions: this.permissions(candidate.grants),
           values,
+          resources,
         };
         try {
           const executable = new Function(
@@ -548,6 +600,7 @@ function createExecutionBody(scripts: readonly CompiledScript[]): string {
     };
     const ${makeApi} = (descriptor) => {
       const state = new Map(descriptor.values.map(([key, value]) => [key, ${clone}(value)]));
+      const resources = new Map(descriptor.resources.map(resource => [resource.name, { ...resource }]));
       const info = Object.freeze({
         script: Object.freeze({
           name: descriptor.name,
@@ -569,6 +622,8 @@ function createExecutionBody(scripts: readonly CompiledScript[]): string {
       const setClipboard = Object.freeze(${helpers}.createClipboard.bind(${helpers}, ${send}, ${pendingClipboard}, ${nextRequestId}, descriptor.id));
       const registerMenuCommand = Object.freeze(${helpers}.registerMenu.bind(${helpers}, ${send}, ${menuCallbacks}, ${nextRequestId}, descriptor.id));
       const unregisterMenuCommand = Object.freeze(${helpers}.unregisterMenu.bind(${helpers}, ${send}, ${menuCallbacks}, descriptor.id));
+      const getResourceText = Object.freeze(${helpers}.getResourceText.bind(${helpers}, ${page}, resources));
+      const getResourceUrl = Object.freeze(${helpers}.getResourceUrl.bind(${helpers}, resources));
       const modern = (
         descriptor.permissions.modernInfo
         || descriptor.permissions.modernAddStyle
@@ -580,6 +635,8 @@ function createExecutionBody(scripts: readonly CompiledScript[]): string {
         || descriptor.permissions.modernSetClipboard
         || descriptor.permissions.modernRegisterMenuCommand
         || descriptor.permissions.modernUnregisterMenuCommand
+        || descriptor.permissions.modernGetResourceText
+        || descriptor.permissions.modernGetResourceUrl
       ) ? Object.freeze({
         ...(descriptor.permissions.modernInfo ? { info } : {}),
         ...(descriptor.permissions.modernAddStyle ? {
@@ -605,6 +662,12 @@ function createExecutionBody(scripts: readonly CompiledScript[]): string {
         } : {}),
         ...(descriptor.permissions.modernRegisterMenuCommand ? { registerMenuCommand } : {}),
         ...(descriptor.permissions.modernUnregisterMenuCommand ? { unregisterMenuCommand } : {}),
+        ...(descriptor.permissions.modernGetResourceText ? {
+          getResourceText: Object.freeze(${helpers}.asyncValue.bind(undefined, getResourceText)),
+        } : {}),
+        ...(descriptor.permissions.modernGetResourceUrl ? {
+          getResourceUrl: Object.freeze(${helpers}.asyncValue.bind(undefined, getResourceUrl)),
+        } : {}),
       }) : undefined;
       return [
         modern,
@@ -618,6 +681,8 @@ function createExecutionBody(scripts: readonly CompiledScript[]): string {
         descriptor.permissions.classicSetClipboard ? setClipboard : undefined,
         descriptor.permissions.classicRegisterMenuCommand ? registerMenuCommand : undefined,
         descriptor.permissions.classicUnregisterMenuCommand ? unregisterMenuCommand : undefined,
+        descriptor.permissions.classicGetResourceText ? getResourceText : undefined,
+        descriptor.permissions.classicGetResourceUrl ? getResourceUrl : undefined,
         descriptor.permissions.unsafeWindow ? ${page} : undefined,
       ];
     };
@@ -783,9 +848,36 @@ function resolvePermissions(grants: readonly string[]): GrantPermissions {
     modernSetClipboard: has('GM.setClipboard'),
     modernRegisterMenuCommand: has('GM.registerMenuCommand'),
     modernUnregisterMenuCommand: has('GM.unregisterMenuCommand'),
+    classicGetResourceText: has('GM_getResourceText'),
+    classicGetResourceUrl: has('GM_getResourceURL'),
+    modernGetResourceText: has('GM.getResourceText'),
+    modernGetResourceUrl: has('GM.getResourceUrl') || has('GM.getResourceURL'),
     urlChange: has('window.onurlchange'),
     unsafeWindow: has('unsafeWindow'),
   }
+}
+
+function normalizeResources(
+  resources: UserScriptMainWorldScript['resources'],
+): UserScriptMainWorldResource[] {
+  if (resources === undefined) return []
+  const names = new Set<string>()
+  return resources.map((resource) => {
+    const name = requireString(resource?.name, 'resource.name', 512)
+    if (names.has(name)) throw new TypeError(`Duplicate userscript resource name: ${name}`)
+    names.add(name)
+    if (resource.contentType !== null && typeof resource.contentType !== 'string') {
+      throw new TypeError('Userscript resource contentType must be a string or null')
+    }
+    if (typeof resource.dataBase64 !== 'string' || !/^[A-Za-z0-9+/]*={0,2}$/.test(resource.dataBase64)) {
+      throw new TypeError('Userscript resource data must be base64')
+    }
+    return {
+      name,
+      contentType: resource.contentType,
+      dataBase64: resource.dataBase64,
+    }
+  })
 }
 
 function normalizeValues(values: UserScriptMainWorldScript['values']): Array<[string, unknown]> {

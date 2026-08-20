@@ -178,16 +178,24 @@ test('file-backed and database-backed scripts return equivalent parsed dependenc
   const entries = service.getMatchingScriptsWithMeta('https://example.com/problem/1')
   assert.deepStrictEqual(entries.map(entry => entry.script.id), ['file-backed', 'database-backed'])
   assert.strictEqual(entries[0].script.code, fileCode)
-  assert.deepStrictEqual(entries[0].requires, ['https://cdn.example.com/file-lib.js'])
+  assert.deepStrictEqual(entries[0].requires, [{
+    url: 'https://cdn.example.com/file-lib.js',
+    integrity: null,
+  }])
   assert.deepStrictEqual(entries[0].resources, [{
     name: 'file-style',
     url: 'https://cdn.example.com/file.css',
+    integrity: null,
   }])
   assert.strictEqual(entries[1].script.code, databaseCode)
-  assert.deepStrictEqual(entries[1].requires, ['https://cdn.example.com/db-lib.js'])
+  assert.deepStrictEqual(entries[1].requires, [{
+    url: 'https://cdn.example.com/db-lib.js',
+    integrity: null,
+  }])
   assert.deepStrictEqual(entries[1].resources, [{
     name: 'db-style',
     url: 'https://cdn.example.com/db.css',
+    integrity: null,
   }])
 })
 

@@ -14,9 +14,15 @@ export interface UserScriptMetadata {
   downloadURL?: string
   antifeatures: string[]
   icon?: string
-  requires: string[]
-  resources: { name: string; url: string }[]
+  requires: UserScriptResourceReference[]
+  resources: Array<UserScriptResourceReference & { name: string }>
   runAt?: string
+}
+
+export interface UserScriptResourceReference {
+  url: string
+  /** Raw URL fragment. The installer selects and verifies the last supported hash. */
+  integrity: string | null
 }
 
 const NEVER_MATCH = /(?!)\b/
@@ -122,6 +128,17 @@ function parseDirectiveValue(trimmed: string): { key: string; value: string } | 
   return { key: match[1].toLowerCase(), value: match[2]?.trim() ?? '' }
 }
 
+function parseResourceReference(value: string): UserScriptResourceReference | null {
+  const trimmed = value.trim()
+  if (!trimmed) return null
+  const hashIndex = trimmed.indexOf('#')
+  if (hashIndex < 0) return { url: trimmed, integrity: null }
+  const url = trimmed.slice(0, hashIndex).trim()
+  if (!url) return null
+  const integrity = trimmed.slice(hashIndex + 1).trim()
+  return { url, integrity: integrity || null }
+}
+
 export function parseScriptMetadata(code: string): UserScriptMetadata {
   const meta: UserScriptMetadata = {
     matches: [],
@@ -165,10 +182,14 @@ export function parseScriptMetadata(code: string): UserScriptMetadata {
     else if (key === 'downloadurl' && value) meta.downloadURL = value
     else if (key === 'antifeature' && value) meta.antifeatures.push(value)
     else if (key === 'icon' && value) meta.icon = value
-    else if (key === 'require' && value) meta.requires.push(value.split('#')[0])
+    else if (key === 'require' && value) {
+      const reference = parseResourceReference(value)
+      if (reference) meta.requires.push(reference)
+    }
     else if (key === 'resource' && value) {
-      const parts = value.split(/\s+/)
-      if (parts.length >= 2) meta.resources.push({ name: parts[0], url: parts[1].split('#')[0] })
+      const match = value.match(/^(\S+)\s+(.+)$/)
+      const reference = match ? parseResourceReference(match[2]) : null
+      if (match && reference) meta.resources.push({ name: match[1], ...reference })
     }
     else if (key === 'run-at' && value) meta.runAt = value
   }

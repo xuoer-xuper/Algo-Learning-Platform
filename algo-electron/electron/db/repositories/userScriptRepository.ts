@@ -17,6 +17,7 @@ export {
   claimLegacyScriptIdentity,
   createScript,
   deleteScript,
+  runUserScriptTransaction,
   toggleScript,
   updateScript,
   updateScriptWithLegacyClaim,
