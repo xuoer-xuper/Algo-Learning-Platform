@@ -22,6 +22,10 @@
 - `UserScriptHostPermissionBroker.ts`：按窗口串行展示 host 授权，合并同源请求并处理回放、超时、generation/窗口取消。
 - `UserScriptMenuRegistry.ts`：按活动端口和 webContents 隔离脚本菜单命令，供页面原生右键菜单读取。
 - `UserScriptResourceCache.ts`：安装确认后下载 `@require/@resource`，执行 URL/重定向/大小边界与 sha256/md5 SRI 校验，生成可原子写入的 BLOB 缓存记录。
+- `UserScriptRemoteFetch.ts`：远程脚本文档的 HTTPS、重定向、流式大小、超时和 ETag/Last-Modified 条件请求边界。
+- `UserScriptRemoteInstaller.ts`：按短时 installId 去重下载脚本与资源，只向确认页暴露无源码预览，并在关闭/取消/过期时中止和清理。
+- `UserScriptInstaller.ts`：本地导入、远程安装和自动更新共用的临时文件 + SQLite transaction + 资源/update-state 原子持久化原语。
+- `UserScriptUpdateService.ts`：按 updateURL/downloadURL/lastInstallURL 回退检查更新，负责 24 小时到期调度、手动检查、条件请求、身份/版本复验与运行时刷新。
 
 `UserScriptService.ts`：
 
@@ -71,8 +75,12 @@
 - `scripts:openFolder`
 - `scripts:toggle`
 - `scripts:delete`
+- `scripts:getRemoteInstallPreview`
+- `scripts:confirmRemoteInstall`
+- `scripts:cancelRemoteInstall`
+- `scripts:checkUpdates`
 
-这些 IPC 依赖 `userScriptRepository` 和 Electron `dialog/shell`。
+这些 IPC 依赖 `userScriptRepository`、短时安装 registry、远程安装/更新 service 和 Electron `dialog/shell`。
 用户脚本 repository 的内部说明见 `electron/db/repositories/userScript/README.md`。
 
 导入确认使用原生父窗口对话框，不新增 renderer 浮层：升级/同版本默认覆盖，降级/未知版本默认取消，所有分支都可另存为关闭自动更新的本地副本。`scripts:save` 只允许修改显示名和站点绑定，不能从 renderer 改写身份、版本、文件路径或源码。
@@ -92,13 +100,16 @@
 - `matchesUserScriptUrl(url, metadata)`：按 exclude 优先级计算 metadata 匹配。
 - `decideUserScriptImport(input)`：生成可注入 repository 的导入决策。
 - `writeUserScriptImport(decision, options)`：落盘后执行注入的持久化回调，并处理失败清理。
+- `persistUserScriptInstall(options)`：统一原子写文件、脚本记录、资源缓存和远程 update state，并安全回收旧受管文件。
+- `fetchUserScriptDocument(url, options)`：执行受限远程抓取与条件请求；跨 origin 重定向不携带旧验证器。
+- `UserScriptUpdateService.checkAll(force)`：手动或按期检查全部可自动更新脚本，并返回结构化摘要。
 
 ## 5. 存储规则
 
 - 导入脚本复制到 `app.getPath('userData')/userscripts`。
 - DB 保存脚本元信息和 `file_path`。
 - migration 027 将 match/include/exclude(-match)、grant/connect、noframes、run-at、更新地址、antifeature 和 icon 分列保存；导入 create/update/legacy claim/local copy 共用同一持久化映射。
-- GM values、host 授权与 BLOB 资源缓存已接入私有运行时；更新状态与远程更新调度留给 B6.6。
+- GM values、host 授权、BLOB 资源缓存和更新状态已接入私有运行时与远程安装/更新链；远程安装保存稳定 `last_install_url`，条件验证器只在下一检查目标一致时复用。
 - B6.2 已删除旧的页面 `window.GM_*`/localStorage/fetch polyfill；值桥、局部 grant API 和隔离通信统一走主进程缓存与专用 preload。
 - `code` 字段保存导入内容供主进程运行时回退，`file_path` 指向内容寻址的受管副本；两者均不进入 shell 摘要 DTO。
 - 新 canonical 无 `@namespace` 时保存空字符串；`NULL` 只保留给首次重新导入前的 legacy canonical。
@@ -117,6 +128,8 @@
 - `@connect` 声明不等于授权；代理必须同时验证声明、精确 host permission、当前 generation、webContents 与窗口 owner，初始 URL 和每一跳重定向都不能复用上一跳结论。
 - host 授权提示只能经既有 NoticeBar 暴露安全展示字段；不得把 URL path/query、header、请求体、脚本源码或任意回调透传给 shell renderer。
 - 修改资源解析、下载或运行时 API 时，必须保持“下载校验先于持久化、DB 同事务替换、运行时缓存不一致 fail closed”，并运行资源缓存、IPC、runtime 与真实 Electron smoke。
+- 远程安装预览不得包含源码或资源正文；确认前必须重算 identity、目标脚本和已安装版本，重复确认必须互斥，标签关闭/过期/取消必须中止未完成抓取。
+- 自动更新只接受版本严格 newer 且身份精确匹配的完整脚本；updateURL/downloadURL/lastInstallURL 均失败时保留旧版并记录有限错误摘要。
 
 ## 7. 测试入口
 

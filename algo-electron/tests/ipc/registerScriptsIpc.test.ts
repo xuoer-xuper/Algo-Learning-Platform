@@ -17,13 +17,19 @@ import {
   createScript,
   getAllScripts,
   getScriptById,
+  updateScript,
   type UserScript,
 } from '../../electron/db/repositories/userScriptRepository'
-import { listUserScriptResources } from '../../electron/db/repositories/userScriptRuntimeRepository'
+import {
+  getUserScriptUpdateState,
+  listUserScriptResources,
+} from '../../electron/db/repositories/userScriptRuntimeRepository'
 import {
   getUserScriptImportConfirmationOptions,
   registerScriptsIpc,
 } from '../../electron/ipc/registerScriptsIpc'
+import { PendingUserScriptInstallRegistry } from '../../electron/downloads/userScriptNavigation'
+import { UserScriptRemoteInstaller } from '../../electron/scripts/UserScriptRemoteInstaller'
 
 vi.mock('../../electron/ipc/trustedSender', () => ({
   getShellWindowOwner: () => null,
@@ -134,6 +140,123 @@ test('resource verification failure leaves the existing script and managed files
   assert.strictEqual(getScriptById(existingId)?.code, 'old source')
   assert.deepStrictEqual(listUserScriptResources(existingId), [])
   assert.strictEqual(fs.existsSync(path.join(tempDirectory, 'userscripts')), false)
+})
+
+test('remote preview and confirmation install through the same atomic resource transaction', async () => {
+  const sourceUrl = 'https://example.com/releases/helper.user.js?stable=1'
+  const dependency = 'globalThis.__remoteDependency = true'
+  const source = userscript('Remote Helper', '2.0.0', 'https://example.com/*', 'remote.namespace', [
+    `// @updateURL ${sourceUrl}`,
+    '// @downloadURL https://example.com/releases/helper.user.js',
+    `// @require https://cdn.example.com/dependency.js#sha256=${createHash('sha256').update(dependency).digest('hex')}`,
+  ])
+  const registry = new PendingUserScriptInstallRegistry({ idFactory: () => 'remote-install' })
+  const route = registry.register(sourceUrl)
+  assert.ok(route)
+  const fetch = vi.fn(async (url: string) => {
+    if (url.includes('dependency.js')) return new Response(dependency)
+    return new Response(source, { headers: { etag: '"remote-v2"', 'last-modified': 'Thu, 20 Aug 2026 12:00:00 GMT' } })
+  })
+  const installer = new UserScriptRemoteInstaller({ fetch })
+  registerScriptsIpc({
+    getUserScriptInstallRegistry: () => registry,
+    getUserScriptRemoteInstaller: () => installer,
+  })
+
+  const preview = await ipcRenderer.invoke('scripts:getRemoteInstallPreview', route.request.installId) as UserScriptInstallPreview
+  assert.strictEqual(preview.name, 'Remote Helper')
+  assert.strictEqual(preview.version, '2.0.0')
+  assert.strictEqual(preview.requires, 1)
+
+  const result = await ipcRenderer.invoke(
+    'scripts:confirmRemoteInstall',
+    route.request.installId,
+    'install',
+  ) as UserScriptInstallInstallResult
+  assert.strictEqual(result.status, 'installed')
+  const installed = getScriptById(result.scriptId!)
+  assert.strictEqual(installed?.last_install_url, sourceUrl)
+  assert.strictEqual(installed?.update_url, sourceUrl)
+  assert.strictEqual(listUserScriptResources(result.scriptId!).length, 1)
+  const state = getUserScriptUpdateState(result.scriptId!)
+  assert.strictEqual(state?.status, 'current')
+  assert.strictEqual(state?.etag, '"remote-v2"')
+  assert.strictEqual(registry.get(route.request.installId), null)
+  assert.strictEqual(installer.consume(route.request.installId), null)
+})
+
+test('remote confirmation claims a legacy identity and rejects a concurrent replay', async () => {
+  const legacyId = createScript({
+    name: 'Legacy Display',
+    namespace: null,
+    identity_name: 'Remote Helper',
+    description: null,
+    version: '1.0.0',
+    match_urls_json: '[]',
+    code: 'legacy',
+    file_path: null,
+    site_ids_json: '["codeforces"]',
+    enabled: false,
+  })
+  const registry = new PendingUserScriptInstallRegistry({ idFactory: () => 'legacy-remote-install' })
+  const route = registry.register('https://example.com/remote.user.js')
+  assert.ok(route)
+  const installer = new UserScriptRemoteInstaller({
+    fetch: async () => new Response(userscript('Remote Helper', '2.0.0')),
+  })
+  registerScriptsIpc({
+    getUserScriptInstallRegistry: () => registry,
+    getUserScriptRemoteInstaller: () => installer,
+  })
+  const preview = await ipcRenderer.invoke('scripts:getRemoteInstallPreview', route.request.installId) as UserScriptInstallPreview
+  assert.strictEqual(preview.existingScriptId, legacyId)
+
+  const results = await Promise.all([
+    ipcRenderer.invoke('scripts:confirmRemoteInstall', route.request.installId, 'install'),
+    ipcRenderer.invoke('scripts:confirmRemoteInstall', route.request.installId, 'install'),
+  ]) as Array<UserScriptInstallInstallResult | null>
+  assert.strictEqual(results.filter(result => result?.status === 'installed').length, 1)
+  assert.strictEqual(results.filter(result => result === null).length, 1)
+  assert.strictEqual(getAllScripts().length, 1)
+  assert.strictEqual(getScriptById(legacyId)?.namespace, '')
+  assert.strictEqual(getScriptById(legacyId)?.site_ids_json, '["codeforces"]')
+  assert.strictEqual(getScriptById(legacyId)?.enabled, false)
+})
+
+test('remote confirmation invalidates a preview when the installed version changed', async () => {
+  const scriptId = createScript({
+    name: 'Remote Helper',
+    namespace: '',
+    identity_name: 'Remote Helper',
+    description: null,
+    version: '1.0.0',
+    match_urls_json: '[]',
+    code: 'old',
+    file_path: null,
+    site_ids_json: '[]',
+    enabled: true,
+  })
+  const registry = new PendingUserScriptInstallRegistry({ idFactory: () => 'stale-remote-install' })
+  const route = registry.register('https://example.com/stale.user.js')
+  assert.ok(route)
+  const installer = new UserScriptRemoteInstaller({
+    fetch: async () => new Response(userscript('Remote Helper', '2.0.0')),
+  })
+  registerScriptsIpc({
+    getUserScriptInstallRegistry: () => registry,
+    getUserScriptRemoteInstaller: () => installer,
+  })
+  await ipcRenderer.invoke('scripts:getRemoteInstallPreview', route.request.installId)
+  assert.strictEqual(getScriptById(scriptId)?.version, '1.0.0')
+  updateScript(scriptId, { version: '1.5.0' })
+
+  const result = await ipcRenderer.invoke(
+    'scripts:confirmRemoteInstall',
+    route.request.installId,
+    'install',
+  ) as UserScriptInstallInstallResult
+  assert.strictEqual(result.status, 'stale')
+  assert.strictEqual(getScriptById(scriptId)?.version, '1.5.0')
 })
 
 test('scripts:getAll returns a renderer-safe summary without source or absolute paths', async () => {

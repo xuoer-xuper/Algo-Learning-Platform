@@ -12,28 +12,28 @@ import { getShellWindowOwner, ipcMain } from './trustedSender'
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import {
-  createScript,
   deleteScript,
   getAllScripts,
-  runUserScriptTransaction,
   toggleScript,
   updateScript,
-  updateScriptWithLegacyClaim,
-  type UserScriptUpdateInput,
 } from '../db/repositories/userScriptRepository'
 import {
   compareUserScriptVersions,
   decideUserScriptImport,
-  writeUserScriptImport,
+  resolveUserScriptImportDecision,
   type ExistingUserScriptIdentity,
   type UserScriptImportDecision,
 } from '../scripts/userScriptImport'
-import { replaceUserScriptResources } from '../db/repositories/userScriptRuntimeRepository'
 import {
   prepareUserScriptResources,
-  type PreparedUserScriptResource,
 } from '../scripts/UserScriptResourceCache'
-import { appLogger } from '../shared/logger'
+import type { PendingUserScriptInstallRegistry } from '../downloads/userScriptNavigation'
+import {
+  UserScriptRemoteInstaller,
+} from '../scripts/UserScriptRemoteInstaller'
+import { persistUserScriptInstall } from '../scripts/UserScriptInstaller'
+import type { UserScriptUpdateService } from '../scripts/UserScriptUpdateService'
+import { resolveUserScriptRequestTarget } from '../scripts/userScriptConnectPolicy'
 
 type UserScriptSaveInput = {
   name: string
@@ -45,6 +45,9 @@ interface RegisterScriptsIpcOptions {
   refreshUserScriptRuntime?: () => void
   fetchResource?: (input: string, init: RequestInit) => Promise<Response>
   allowInsecureLocalhost?: boolean
+  getUserScriptInstallRegistry?: () => PendingUserScriptInstallRegistry | null
+  getUserScriptRemoteInstaller?: () => UserScriptRemoteInstaller | null
+  getUserScriptUpdateService?: () => UserScriptUpdateService | null
 }
 
 interface UserScriptSummary {
@@ -55,10 +58,8 @@ interface UserScriptSummary {
   has_file: boolean
 }
 
-const UUID_FILE_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.js$/i
-const MANAGED_IMPORT_FILE_PATTERN = /^.+--[0-9a-f]{12}--[0-9a-f]{12}\.user\.js$/i
-
 export function registerScriptsIpc(options: RegisterScriptsIpcOptions = {}): void {
+  const confirmingRemoteInstalls = new Set<string>()
   ipcMain.handle('scripts:getAll', () => getAllScripts().map(toUserScriptSummary))
 
   ipcMain.handle('scripts:save', (_event, id: unknown, data: unknown) => {
@@ -147,33 +148,121 @@ export function registerScriptsIpc(options: RegisterScriptsIpcOptions = {}): voi
       allowInsecureLocalhost: options.allowInsecureLocalhost,
     })
 
-    const previousFilePath = importDecision.existing?.filePath ?? null
-    let importedId: string | null = null
-    await writeUserScriptImport(importDecision, {
+    const importedId = await persistUserScriptInstall({
+      decision: importDecision,
+      resources: preparedResources,
       scriptsDirectory,
-      persist: (resolvedDecision, filePath) => {
-        importedId = persistImportedScriptWithResources(
-          resolvedDecision,
-          filePath,
-          shouldClaimLegacy,
-          preparedResources,
-        )
-        return importedId
-      },
+      claimLegacy: shouldClaimLegacy,
+      sourceFilePath: sourcePath,
     })
-
-    if (!importedId) throw new Error('Userscript import did not produce an id')
-    if (previousFilePath && previousFilePath !== path.join(scriptsDirectory, importDecision.fileName)) {
-      await removeReplacedManagedFile(
-        previousFilePath,
-        path.join(scriptsDirectory, importDecision.fileName),
-        scriptsDirectory,
-        importedId,
-        sourcePath,
-      )
-    }
     options.refreshUserScriptRuntime?.()
     return importedId
+  })
+
+  ipcMain.handle('scripts:getRemoteInstallPreview', async (_event, installId: unknown) => {
+    if (typeof installId !== 'string' || installId.length === 0 || installId.length > 200) return null
+    const registry = options.getUserScriptInstallRegistry?.()
+    const installer = options.getUserScriptRemoteInstaller?.()
+    const request = registry?.get(installId)
+    if (!request || !installer) return null
+    const existing = getAllScripts().map(script => ({
+      id: script.id,
+      namespace: script.namespace,
+      identityName: script.identity_name,
+      version: script.version,
+      filePath: script.file_path,
+    }))
+    const prepared = installer.getPrepared(installId, request.sourceUrl)
+    if (prepared) return prepared.preview
+    return installer.prepare(request, existing, installId)
+  })
+
+  ipcMain.handle('scripts:confirmRemoteInstall', async (_event, installId: unknown, action: unknown) => {
+    if (typeof installId !== 'string' || installId.length === 0 || installId.length > 200) return null
+    if (action !== 'install' && action !== 'copy' && action !== 'cancel') return null
+    const registry = options.getUserScriptInstallRegistry?.()
+    const installer = options.getUserScriptRemoteInstaller?.()
+    const request = registry?.get(installId)
+    if (!request || !installer) return null
+    if (confirmingRemoteInstalls.has(installId)) return null
+    confirmingRemoteInstalls.add(installId)
+    try {
+      if (action === 'cancel') {
+        installer.clear(installId)
+        registry?.consume(installId)
+        return { status: 'cancelled' as const }
+      }
+      const prepared = installer.getPrepared(installId, request.sourceUrl)
+      if (!prepared) return null
+      const existingScripts = getAllScripts()
+      const existingIdentities: ExistingUserScriptIdentity[] = existingScripts.map(script => ({
+        id: script.id,
+        namespace: script.namespace,
+        identityName: script.identity_name,
+        version: script.version,
+        filePath: script.file_path,
+      }))
+      let claimLegacy = false
+      let decision: UserScriptImportDecision
+      if (action === 'copy') {
+        decision = decideUserScriptImport({
+          code: prepared.decision.code,
+          sourceFileName: request.sourceFileName,
+          existingScripts: existingIdentities,
+          mode: 'copy',
+        })
+      } else {
+        const resolved = resolveUserScriptImportDecision({
+          code: prepared.decision.code,
+          sourceFileName: request.sourceFileName,
+          existingScripts: existingIdentities,
+        })
+        decision = resolved.decision
+        claimLegacy = resolved.claimLegacy
+        if (
+          decision.identity.key !== prepared.decision.identity.key
+          || decision.action !== prepared.preview.action
+          || (decision.existing?.id ?? null) !== prepared.preview.existingScriptId
+          || (decision.existing?.version ?? null) !== prepared.preview.installedVersion
+          || decision.versionComparison !== prepared.preview.versionComparison
+        ) {
+          installer.clear(installId)
+          return { status: 'stale' as const }
+        }
+      }
+      const validatorsApply = installValidatorsApply(
+        decision,
+        request.sourceUrl,
+        prepared.finalUrl,
+        options.allowInsecureLocalhost,
+      )
+      const importedId = await persistUserScriptInstall({
+        decision,
+        resources: prepared.resources,
+        scriptsDirectory: path.join(app.getPath('userData'), 'userscripts'),
+        claimLegacy,
+        sourceUrl: request.sourceUrl,
+        etag: validatorsApply ? prepared.etag : null,
+        lastModified: validatorsApply ? prepared.lastModified : null,
+      })
+      installer.consume(installId)
+      registry?.consume(installId)
+      options.refreshUserScriptRuntime?.()
+      return { status: 'installed' as const, scriptId: importedId }
+    }
+    finally {
+      confirmingRemoteInstalls.delete(installId)
+    }
+  })
+
+  ipcMain.handle('scripts:cancelRemoteInstall', (_event, installId: unknown) => {
+    if (typeof installId !== 'string' || installId.length === 0 || installId.length > 200) return false
+    options.getUserScriptRemoteInstaller?.()?.clear(installId)
+    return options.getUserScriptInstallRegistry?.()?.consume(installId) !== null
+  })
+
+  ipcMain.handle('scripts:checkUpdates', () => {
+    return options.getUserScriptUpdateService?.()?.checkAll(true) ?? null
   })
 
   ipcMain.handle('scripts:openFolder', async () => {
@@ -194,17 +283,18 @@ export function registerScriptsIpc(options: RegisterScriptsIpcOptions = {}): voi
   })
 }
 
-function persistImportedScriptWithResources(
+function installValidatorsApply(
   decision: UserScriptImportDecision,
-  filePath: string,
-  claimLegacy: boolean,
-  resources: readonly PreparedUserScriptResource[],
-): string {
-  return runUserScriptTransaction(() => {
-    const scriptId = persistImportedScript(decision, filePath, claimLegacy)
-    replaceUserScriptResources(scriptId, resources)
-    return scriptId
-  })
+  sourceUrl: string,
+  finalUrl: string,
+  allowInsecureLocalhost = false,
+): boolean {
+  const nextCheck = decision.metadata.updateURL ?? decision.metadata.downloadURL ?? sourceUrl
+  const target = resolveUserScriptRequestTarget(nextCheck, allowInsecureLocalhost)
+  const source = resolveUserScriptRequestTarget(sourceUrl, allowInsecureLocalhost)
+  const final = resolveUserScriptRequestTarget(finalUrl, allowInsecureLocalhost)
+  if (!target || !source || !final || new URL(source.url).origin !== new URL(final.url).origin) return false
+  return target.url === source.url || target.url === final.url
 }
 
 function toUserScriptSummary(script: ReturnType<typeof getAllScripts>[number]): UserScriptSummary {
@@ -264,64 +354,6 @@ export function getUserScriptImportConfirmationOptions(
   }
 }
 
-function persistImportedScript(
-  decision: UserScriptImportDecision,
-  filePath: string,
-  claimLegacy: boolean,
-): string {
-  const metadata = decision.metadata
-  const update: UserScriptUpdateInput = {
-    description: metadata.description ?? null,
-    version: metadata.version ?? null,
-    match_urls_json: JSON.stringify(metadata.matches),
-    include_rules_json: JSON.stringify(metadata.includes),
-    exclude_rules_json: JSON.stringify(metadata.excludes),
-    exclude_match_rules_json: JSON.stringify(metadata.excludeMatches),
-    grant_json: JSON.stringify(metadata.grants),
-    connect_json: JSON.stringify(metadata.connects),
-    noframes: metadata.noframes,
-    run_at: metadata.runAt ?? 'document-idle',
-    update_url: metadata.updateURL ?? null,
-    download_url: metadata.downloadURL ?? null,
-    antifeature_json: JSON.stringify(metadata.antifeatures),
-    icon_url: metadata.icon ?? null,
-    code: decision.code,
-    file_path: filePath,
-  }
-
-  if (decision.action === 'update' && decision.existing) {
-    const updated = claimLegacy
-      ? updateScriptWithLegacyClaim(decision.existing.id, decision.identity.namespace ?? '', update)
-      : updateScript(decision.existing.id, update)
-    if (!updated) throw new Error('User script update failed')
-    return decision.existing.id
-  }
-
-  return createScript({
-    name: metadata.name ?? decision.identity.identityName,
-    namespace: decision.identity.namespace,
-    identity_name: decision.identity.identityName,
-    description: metadata.description ?? null,
-    version: metadata.version ?? null,
-    match_urls_json: JSON.stringify(metadata.matches),
-    include_rules_json: JSON.stringify(metadata.includes),
-    exclude_rules_json: JSON.stringify(metadata.excludes),
-    exclude_match_rules_json: JSON.stringify(metadata.excludeMatches),
-    grant_json: JSON.stringify(metadata.grants),
-    connect_json: JSON.stringify(metadata.connects),
-    noframes: metadata.noframes,
-    run_at: metadata.runAt ?? 'document-idle',
-    update_url: metadata.updateURL ?? null,
-    download_url: metadata.downloadURL ?? null,
-    antifeature_json: JSON.stringify(metadata.antifeatures),
-    icon_url: metadata.icon ?? null,
-    code: decision.code,
-    file_path: filePath,
-    site_ids_json: '[]',
-    enabled: true,
-    auto_update_enabled: decision.autoUpdateEnabled,
-  })
-}
 
 function validateScriptId(id: unknown): string {
   if (typeof id !== 'string' || id.trim().length === 0) {
@@ -359,37 +391,5 @@ function validateScriptSaveInput(data: unknown): UserScriptSaveInput {
   return {
     name: record.name,
     site_ids_json: JSON.stringify(siteIds),
-  }
-}
-
-async function removeReplacedManagedFile(
-  oldFilePath: string,
-  newFilePath: string,
-  scriptsDirectory: string,
-  updatedScriptId: string,
-  sourceFilePath: string,
-): Promise<void> {
-  try {
-    const root = path.resolve(scriptsDirectory)
-    const oldPath = path.resolve(oldFilePath)
-    if (
-      oldPath === path.resolve(newFilePath)
-      || oldPath === path.resolve(sourceFilePath)
-      || path.dirname(oldPath) !== root
-    ) return
-    const baseName = path.basename(oldPath)
-    if (!UUID_FILE_PATTERN.test(baseName) && !MANAGED_IMPORT_FILE_PATTERN.test(baseName)) return
-    const stat = await fs.lstat(oldPath)
-    if (!stat.isFile() && !stat.isSymbolicLink()) return
-
-    const stillReferenced = getAllScripts().some(script => (
-      script.id !== updatedScriptId && script.file_path && path.resolve(script.file_path) === oldPath
-    ))
-    if (stillReferenced) return
-    await fs.unlink(oldPath)
-  }
-  catch (error) {
-    const code = (error as NodeJS.ErrnoException).code
-    if (code !== 'ENOENT') appLogger.warn('userscript.old-file-cleanup-failed', { oldFilePath, error })
   }
 }

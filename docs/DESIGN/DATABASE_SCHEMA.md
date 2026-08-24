@@ -492,7 +492,7 @@ Phase 7 通过 migration 021 为历史核心表追加同步兼容字段，均为
 | run_at | TEXT NOT NULL DEFAULT 'document-idle' | `@run-at` 原始值 |
 | update_url | TEXT | `@updateURL` |
 | download_url | TEXT | `@downloadURL` |
-| last_install_url | TEXT | 最近一次安装来源；供 B6.6 更新回退链使用 |
+| last_install_url | TEXT | 最近一次稳定安装来源；远程更新按 updateURL/downloadURL 不可用时回退，不保存短期重定向签名地址 |
 | antifeature_json | TEXT NOT NULL DEFAULT '[]' | `@antifeature` 数组 |
 | icon_url | TEXT | `@icon` |
 | code | TEXT NOT NULL | 脚本源码（兼容旧版，新版可能为空） |
@@ -568,7 +568,7 @@ GM 值的主进程持久化地基。值按 JSON 保存，站点页面不能直�
 
 ### 8.7 user_script_update_state
 
-每个脚本一行的更新检查状态，主键同时是级联外键。`status` 仅允许 `idle/checking/current/available/error`；保存 ETag、Last-Modified、可用版本、上次/下次检查时间和错误摘要，并按 `next_check_at/status` 建索引。
+每个脚本一行的更新检查状态，主键同时是级联外键。`status` 仅允许 `idle/checking/current/available/error`；远程安装成功写入当前验证器和 24 小时后的 `next_check_at`，自动/手动更新在检查、可用、当前和失败间迁移。ETag/Last-Modified 只在下一检查 URL 与响应目标一致时复用，跨 origin 重定向或回退到其他 URL 时清空；错误只保存有限摘要。表按 `next_check_at/status` 建索引。
 
 ### 8.8 site_credentials
 

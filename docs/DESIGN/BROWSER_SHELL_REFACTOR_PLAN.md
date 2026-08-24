@@ -284,7 +284,7 @@ Renderer（同一构建产物，多窗口实例化——桌宠 hash 路由已证
 | B6.3 | GM_xmlhttpRequest 主进程代理 + @connect 白名单：初始与重定向 URL 双校验，未授权域首次请求由所属窗口 NoticeBar 授权并按脚本持久化；响应补齐 finalUrl/headers/status/timeout/responseType；本任务前半段作为 B4 安全前置，完成后删除 `ojSession` 的全局 CORS 响应头改写；GM_setClipboard、GM_registerMenuCommand、window.onurlchange 同批接入 | 新 `scripts/gmProxy`、`contextMenus/`、NoticeBar |
 | B6.4 | 注入调度重写：使用 `session.registerPreloadScript({ type:'frame' })` 让 bootstrap 早于普通 ojPreload；document-start 必须以真实页面内联脚本顺序测试证明，document-end=DOMContentLoaded，document-idle=did-finish-load；覆盖后台标签、iframe、noframes、SPA、脚本更新/注销竞态与 stale-version guard；若目标 Electron 版本无法通过顺序测试，明确标记为 best-effort，禁止声称精确兼容 | `ojSession`、`userscriptBootstrapPreload`、调度器 |
 | B6.5 | `[x]` @require/@resource 改为安装/更新时下载入库 + **SRI 校验**（URL #sha256/md5，多 hash 取最后受支持项——现状"解析时剥离丢弃"是安全缺陷）；注入时 @require 按序拼接在用户代码前同段执行（免站点 CSP、保证顺序）；GM_getResourceText 回缓存文本、GM_getResourceURL 回 data:/blob: | `scripts/installer`、资源缓存 |
-| B6.6 | 安装与更新链路：拦截 `.user.js` 后先下载、解析、校验、缓存资源，再用数据库事务 + 临时文件原子替换，任一步失败保留旧版；确认页展示身份、版本、匹配域、grant/connect、antifeature 与版本 diff；更新链按 updateURL/downloadURL/lastInstallURL 回退，默认每 24h + 手动检查，使用 ETag/Last-Modified | `scripts/updater`、`scripts/installer`、TabManager 导航拦截 |
+| B6.6 | `[x]` 安装与更新链路：拦截 `.user.js` 后先下载、解析、校验、缓存资源，再用数据库事务 + 临时文件原子替换，任一步失败保留旧版；确认页展示身份、版本、匹配域、grant/connect、antifeature 与版本 diff；更新链按 updateURL/downloadURL/lastInstallURL 回退，默认每 24h + 手动检查，使用 ETag/Last-Modified | `scripts/updater`、`scripts/installer`、TabManager 导航拦截 |
 | B6.7 | 管理页升级与安全收口：代码只读查看 + 系统编辑器打开 + watcher；重复导入提供更新现有/另存本地副本/取消，本地副本使用独立 namespace；启停、更新、删除必须同步刷新主进程缓存并注销旧版本；脚本源码不进日志，OJ bootstrap 之外的 renderer 不接收源码；提交桥加每导航随机 token | `src/features/scripts/`、`ojPreload`、`tests/` |
 
 明确不做/降级（写入脚本页说明，画像中使用率各 ≤1 或 0）：GM_webRequest、GM_cookie、GM_getTab 族、GM_download（降级为主进程 dialog 下载）、@sandbox DOM 隔离世界（首版全部主世界=TM raw 默认；Electron executeJavaScript 不受站点 CSP 限制）、脚本云同步。
@@ -475,7 +475,8 @@ Renderer（同一构建产物，多窗口实例化——桌宠 hash 路由已证
 | B6.3 | [x] | `GM_xmlhttpRequest` 主进程受限代理、`@connect` 与逐 host 授权、NoticeBar、剪贴板/菜单/onurlchange、全局 CORS 清理已完成；完整记录见 §11.40 |
 | B6.4 | [x] | 固定 frame preload、预编译 catalog、DOMContentLoaded/真实 frame load 阶段调度、SPA 重匹配与 revision/generation stale guard 已完成；真实 Electron 主 frame/reload smoke 已纳入 `test:electron`，Electron 43 的普通 iframe/frame-preload 限制已按 best-effort 记录，完整记录见 §11.41 |
 | B6.5 | [x] | `@require/@resource` HTTPS 下载、本地 BLOB 缓存、sha256/md5 多 hash SRI、按序 `@require` 与 GM 资源 API 已完成；完整记录见 §11.47 |
-| B6.6-B6.7 | [ ] | 远程安装/自动更新链路、确认页版本 diff 与管理页安全收口待实施 |
+| B6.6 | [x] | `.user.js` 应用内确认安装、事务更新、资源缓存、ETag/Last-Modified、24h/手动检查与更新 URL 回退已完成；完整记录见 §11.48 |
+| B6.7 | [ ] | 管理页代码查看/系统编辑器/watcher、启停更新删除安全收口与提交桥随机 token 待实施 |
 
 ### 11.4 单任务完成记录模板
 
@@ -1060,7 +1061,7 @@ Renderer（同一构建产物，多窗口实例化——桌宠 hash 路由已证
 | 字段 | 填写内容 |
 |---|---|
 | 任务 | 固定 frame preload 与 sandbox 兼容的预编译 catalog、`document-start/end/idle` 真实阶段调度、父 frame/iframe/noframes、SPA 重匹配与脚本更新/注销竞态收口 |
-| 状态 | `[x] 已完成；B6.5 的 @require/@resource 本地缓存与 SRI、B6.6-B6.7 的安装更新及管理页仍待后续` |
+| 状态 | `[x] 已完成；B6.5-B6.6 资源与安装更新链路已完成，B6.7 管理页安全收口待后续` |
 | Commit | `scripts: 完成 B6.4 用户脚本注入时序收口`（代码、真实 Electron smoke、文档与完成标记同提交） |
 | 注入时序 | 主进程按 generation 生成受限预编译 catalog，与固定 bootstrap 合并为一个 frame preload；sandbox preload 不再执行 `new Function`。Electron 43 的真实顺序为普通 webPreferences preload → userscript document-start → 页面内联脚本；document-start 仍早于页面脚本，普通 preload 之前的顺序标为 best-effort。`document-end` 以页面世界 `DOMContentLoaded` 为界，`document-idle` 由主进程 `did-finish-load`/`did-frame-finish-load` 通知 |
 | frame 与后台页 | 主 frame 按 `webContentsId:processId:routingId` 维护独立端口和阶段状态；`@noframes` 在主进程快照阶段过滤。Electron 43 的 `session.registerPreloadScript({ type: 'frame' })` 在普通 iframe 中不触发，已由真实 smoke 记录为兼容边界；bridge 仍保留精确 child-frame key 与 idle 事件，后续升级 Electron 必须重新验证。阶段事件不依赖标签激活状态，后台页仍保持一致调度 |
@@ -1162,7 +1163,7 @@ Renderer（同一构建产物，多窗口实例化——桌宠 hash 路由已证
 | 字段 | 填写内容 |
 |---|---|
 | 任务 | `@require/@resource` metadata 完整性保留、受限下载、SRI、BLOB 缓存、运行时依赖拼接与 GM 资源 API |
-| 状态 | `[x] 已完成；B6.6-B6.7 安装更新链路与管理页收口仍待实施` |
+| 状态 | `[x] 已完成；B6.6 安装更新链路已完成，B6.7 管理页收口仍待实施` |
 | Metadata 与 SRI | `parseScriptMetadata` 不再丢弃 URL fragment；资源缓存选择 fragment 中最后一个受支持的 `sha256`/`md5`，支持 hex/base64/base64url，写库前使用常量时间比较验证，声明了但无受支持 hash、digest 非法或内容不匹配均拒绝导入 |
 | 下载边界 | 仅允许 HTTPS，开发/smoke 可显式允许 loopback HTTP；不携带凭据，逐跳重新校验重定向，最多 5 跳、每项 4 MiB、总计 8 MiB、最多 64 项；`@require` 必须是有效 UTF-8 |
 | 原子持久化 | 导入确认后先完成全部下载与校验，再写受管脚本文件；脚本 create/update/legacy claim 与 `user_script_resources` 全量替换处于同一 SQLite transaction，失败时旧脚本/旧缓存不变且新临时文件清理 |
@@ -1170,6 +1171,35 @@ Renderer（同一构建产物，多窗口实例化——桌宠 hash 路由已证
 | GM API | 按 grant 提供 `GM_getResourceText`、`GM_getResourceURL`、`GM.getResourceText` 和 `GM.getResourceUrl`；文本从缓存字节 UTF-8 解码，URL 返回带 MIME 的 `data:` URL；未授权名称继续为 `undefined` |
 | 自动验证 | `npm run typecheck`、变更文件 ESLint通过；定向 Vitest `8 files / 51 tests` 通过；真实 `npm run test:electron` 通过，覆盖预编译 catalog、固定 preload、缓存资源 API 与 document-start 运行 |
 | 文档与视觉 | 已同步 scripts/tests/repository README、数据库 schema、系统架构、安全规范和本计划；未修改 TSX/CSS、主题、颜色、字体、布局、按钮或动画，前端视觉冻结保持不变 |
-| 暂缓验证 | 本子块不运行生产构建、NSIS、packaged 双实例 smoke 或真实 Greasy Fork 远程安装；B6.6-B6.7 完成后按 B6 大块统一执行全量/生产验收 |
-| 后续工作 | 进入 B6.6：`.user.js` 导航拦截后的应用内安装确认、事务更新、ETag/Last-Modified、24h/手动检查与 updateURL/downloadURL 回退 |
+| 暂缓验证 | 本子块不运行生产构建、NSIS、packaged 双实例 smoke 或真实 Greasy Fork 远程安装；B6.7 完成后按 B6 大块统一执行全量/生产验收 |
+| 后续工作 | B6.6 已完成；进入 B6.7 管理页代码查看、系统编辑器/watcher、变更同步刷新与提交桥随机 token 收口 |
 | 完成时间 | 北京时间 `2026-08-20` |
+
+### 11.48 B6.6 用户脚本远程安装与更新链路完成记录
+
+| 字段 | 填写内容 |
+|---|---|
+| 任务 | `.user.js` 应用内确认安装、主进程短时预览、原子持久化、条件更新与 24 小时调度 |
+| 状态 | `[x] 已完成；B6.7 管理页与提交桥安全收口待实施` |
+| 远程安装 | TabManager 既有 `.user.js` 导航/重定向/popup/download 拦截进入内部确认标签；主进程流式下载脚本并限制 HTTPS、逐跳重定向、30 秒超时和 4 MiB，随后解析 metadata、下载并校验全部 `@require/@resource`，shell renderer 只接收身份、版本、规则、grant/connect、antifeature、更新地址和资源计数，不接收源码或 BLOB |
+| 确认页 | 展示脚本名/namespace、原始与重定向最终来源、已安装→待安装版本及 newer/same/older/unknown、完整 match/include/exclude、grant/connect、antifeature 和更新地址；降级/未知覆盖默认突出取消，重复安装可更新现有或另存关闭自动更新的 local 副本；继续复用现有内部页、Button 与 scripts class，未修改 CSS/主题/颜色/字体/布局基调或动画 |
+| 原子持久化 | `UserScriptInstaller` 统一本地导入、远程安装和自动更新：先写临时文件，再在同一 SQLite transaction 中 create/update/legacy claim、全量替换资源和写 update state；失败清理新文件并保留旧脚本/旧缓存/用户配置，成功后仅回收失去引用的受管旧文件；`last_install_url` 保留原始稳定安装地址 |
+| 并发与生命周期 | 同一 installId 的预览共用一个 in-flight Promise，暂存容量有上限；关闭/过期/取消安装标签会联动中止抓取并清理源码与资源；确认按 installId 互斥，持久化前重算 identity、目标脚本、已安装版本和版本关系，状态变化返回 stale 并要求重新确认，避免双击重放或预览 A 安装 B |
+| 更新链 | `UserScriptUpdateService` 按 `updateURL → downloadURL → lastInstallURL` 逐项回退，只接受安全 HTTPS（开发/smoke loopback 例外）；使用 `If-None-Match`/`If-Modified-Since` 与 304，重定向跨 origin 时不转发验证器；metadata 宣告 newer 后重新下载完整脚本、复验身份/版本、缓存资源并原子替换，失败写 error 状态且旧版继续运行 |
+| 调度与手动检查 | 远程安装成功写 last/next check、ETag、Last-Modified 和 current 状态；生产启动后检查到期脚本并每小时扫描一次，单脚本实际默认间隔 24 小时；脚本管理页增加复用现有 secondary refresh Button 的“检查更新”，返回 checked/updated/current/skipped/failed 摘要；更新成功立即刷新主进程运行时 |
+| 自动验证 | `node_modules/.bin/tsc --noEmit --pretty false`、变更文件 ESLint 通过；受影响目录 Vitest `22 files / 139 tests` 通过，覆盖全部 userscript/downloads 回归以及远程资源事务、legacy claim、确认重放/stale、条件请求/304、URL 回退、身份不匹配与到期调度；Playwright renderer `7/7` 通过；docs/security/architecture guard 全绿 |
+| 暂缓验证 | 按大块策略，本子块不运行生产构建、NSIS、packaged 双实例 smoke 或真实 Greasy Fork 安装/更新；B6.7 完成后统一执行 B6 全量、生产与真实脚本验收 |
+| 后续工作 | 进入 B6.7：管理页只读代码/系统编辑器/watcher，重复导入与启停更新删除同步刷新，源码/日志边界和提交桥每导航随机 token |
+| 完成时间 | 北京时间 `2026-08-20` |
+
+### 11.49 GitHub CI renderer smoke 修复记录
+
+| 字段 | 填写内容 |
+|---|---|
+| 任务 | 修复 `renderer-smoke` 在远端启动后七个 Playwright 用例均找不到首页 tab 的回归 |
+| 状态 | `[x] 已完成` |
+| 根因 | B4.5/B6.6 扩展了 `ElectronAPI`，截图 harness 仍缺少凭据自动填充与密码捕获的空操作回调；React 首次渲染调用缺失函数后直接崩溃，页面保持空 root，表现为 `getByRole('tab')` 数量为 0 |
+| 修复 | `tests/ui/rendererScreenshotHarness.tsx` 补齐 `get/respond/onCredentialAutofill` 与 `get/respond/onCredentialCapture` mock；不改变产品 UI、样式、主题、颜色、字体或动画 |
+| 自动验证 | 本机 `npm run test:ui`：Playwright `7/7`；`npm run test:core`：Vitest `93 files / 836 tests`；`npm run test:packaging`、`npm run test:docs`、`git diff --check` 全部通过 |
+| 远端策略 | 保持自动 PR/push fast guard 与 renderer smoke；生产构建、NSIS、packaged 双实例 smoke 仍只在 B6 大块完成后的手动集中验证执行 |
+| 完成时间 | 北京时间 `2026-08-24` |

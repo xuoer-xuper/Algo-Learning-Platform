@@ -24,6 +24,7 @@ interface PrepareUserScriptResourcesOptions {
   fetch: (input: string, init: RequestInit) => Promise<Response>
   allowInsecureLocalhost?: boolean
   now?: () => string
+  signal?: AbortSignal
 }
 
 export function selectUserScriptIntegrity(fragment: string | null): UserScriptIntegrity | null {
@@ -103,6 +104,9 @@ async function downloadResource(
 ): Promise<{ finalUrl: string; content: Uint8Array; contentType: string | null; integrity: string | null }> {
   const integrity = selectUserScriptIntegrity(reference.integrity)
   const controller = new AbortController()
+  const abortFromCaller = () => controller.abort(options.signal?.reason)
+  if (options.signal?.aborted) abortFromCaller()
+  else options.signal?.addEventListener('abort', abortFromCaller, { once: true })
   const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS)
   let rawUrl = reference.url
   try {
@@ -141,6 +145,7 @@ async function downloadResource(
   }
   finally {
     clearTimeout(timer)
+    options.signal?.removeEventListener('abort', abortFromCaller)
   }
 }
 

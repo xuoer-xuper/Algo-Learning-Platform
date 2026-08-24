@@ -43,3 +43,7 @@ export async function deleteUserScript(scriptId: string): Promise<boolean> {
 export function openUserScriptsFolder(): Promise<string> {
   return window.electronAPI.scriptsOpenFolder()
 }
+
+export function checkUserScriptUpdates(): Promise<UserScriptUpdateSummary | null> {
+  return window.electronAPI.scriptsCheckUpdates()
+}

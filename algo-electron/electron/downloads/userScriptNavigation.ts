@@ -4,7 +4,7 @@ import type { InternalPage } from '../browser/tabManagerTypes'
 
 const MAX_NAVIGATION_URL_LENGTH = 4_096
 const DEFAULT_INSTALL_TTL_MS = 15 * 60 * 1_000
-const DEFAULT_MAX_PENDING_INSTALLS = 32
+export const MAX_PENDING_USER_SCRIPT_INSTALLS = 4
 const INSTALL_ID_PATTERN = /^[A-Za-z0-9_-]{1,200}$/
 
 export interface UserScriptNavigationOptions {
@@ -31,6 +31,7 @@ export interface PendingUserScriptInstallRegistryOptions {
   idFactory?: () => string
   ttlMs?: number
   maxPending?: number
+  onRemove?: (installId: string) => void
 }
 
 interface StoredInstallRequest extends PendingUserScriptInstall {
@@ -110,13 +111,15 @@ export class PendingUserScriptInstallRegistry {
   private readonly idFactory: () => string
   private readonly ttlMs: number
   private readonly maxPending: number
+  private readonly onRemove?: (installId: string) => void
   private readonly requests = new Map<string, StoredInstallRequest>()
 
   constructor(options: PendingUserScriptInstallRegistryOptions = {}) {
     this.clock = options.clock ?? Date.now
     this.idFactory = options.idFactory ?? randomUUID
     this.ttlMs = options.ttlMs ?? DEFAULT_INSTALL_TTL_MS
-    this.maxPending = options.maxPending ?? DEFAULT_MAX_PENDING_INSTALLS
+    this.maxPending = options.maxPending ?? MAX_PENDING_USER_SCRIPT_INSTALLS
+    this.onRemove = options.onRemove
     if (!Number.isFinite(this.ttlMs) || this.ttlMs <= 0) {
       throw new RangeError('ttlMs must be positive')
     }
@@ -136,7 +139,7 @@ export class PendingUserScriptInstallRegistry {
     while (this.requests.size >= this.maxPending) {
       const oldestId = this.requests.keys().next().value as string | undefined
       if (!oldestId) break
-      this.requests.delete(oldestId)
+      this.remove(oldestId)
     }
 
     const installId = this.createInstallId()
@@ -163,12 +166,12 @@ export class PendingUserScriptInstallRegistry {
   consume(installId: string): PendingUserScriptInstall | null {
     const request = this.get(installId)
     if (!request) return null
-    this.requests.delete(installId)
+    this.remove(installId)
     return request
   }
 
   clear(): void {
-    this.requests.clear()
+    for (const installId of [...this.requests.keys()]) this.remove(installId)
   }
 
   private createInstallId(): string {
@@ -181,7 +184,13 @@ export class PendingUserScriptInstallRegistry {
 
   private prune(now: number): void {
     for (const [installId, request] of this.requests) {
-      if (now - request.createdAtMs >= this.ttlMs) this.requests.delete(installId)
+      if (now - request.createdAtMs >= this.ttlMs) this.remove(installId)
     }
+  }
+
+  private remove(installId: string): void {
+    if (!this.requests.delete(installId)) return
+    try { this.onRemove?.(installId) }
+    catch { /* Registry cleanup must remain deterministic. */ }
   }
 }

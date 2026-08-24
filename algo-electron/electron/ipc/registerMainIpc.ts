@@ -17,6 +17,8 @@ import { registerSitesIpc } from './registerSitesIpc'
 import { registerStatsIpc } from './registerStatsIpc'
 import { registerSubmissionsIpc } from './registerSubmissionsIpc'
 import type { PendingUserScriptInstallRegistry } from '../downloads/userScriptNavigation'
+import type { UserScriptRemoteInstaller } from '../scripts/UserScriptRemoteInstaller'
+import type { UserScriptUpdateService } from '../scripts/UserScriptUpdateService'
 import type { AppWindow } from '../windows/AppWindow'
 import type { UserScriptRuntime } from '../scripts/UserScriptRuntime'
 import type { CredentialVault } from '../credentials/CredentialVault'
@@ -38,6 +40,8 @@ interface RegisterMainIpcOptions {
   getCredentialCaptureService?: () => CredentialCaptureService | null
   getBrowserDiagnostics?: () => BrowserDiagnostics | null
   getUserScriptInstallRegistry?: () => PendingUserScriptInstallRegistry | null
+  getUserScriptRemoteInstaller?: () => UserScriptRemoteInstaller | null
+  getUserScriptUpdateService?: () => UserScriptUpdateService | null
   allowInsecureLocalhost?: boolean
   notifyProblemsUpdated: () => void
   moveTabToNewWindow?: (source: AppWindow, tabId: string) => Promise<boolean>
@@ -86,6 +90,9 @@ export function registerMainIpc(options: RegisterMainIpcOptions): void {
   registerScriptsIpc({
     refreshUserScriptRuntime,
     allowInsecureLocalhost: options.allowInsecureLocalhost,
+    getUserScriptInstallRegistry: options.getUserScriptInstallRegistry,
+    getUserScriptRemoteInstaller: options.getUserScriptRemoteInstaller,
+    getUserScriptUpdateService: options.getUserScriptUpdateService,
   })
   registerRatingIpc()
   registerStatsIpc()

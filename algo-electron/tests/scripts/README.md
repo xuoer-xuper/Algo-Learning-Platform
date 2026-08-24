@@ -9,6 +9,8 @@
 - `userScriptMetadata.test.ts`：覆盖 B6.1 完整 metadata、严格 scheme/host/path、host 锚定、query/hash、path 大小写、非法 match fail closed、include glob/regex flags 与 exclude 优先级。
 - `userScriptService.test.ts`：覆盖显式站点绑定权威范围、exclude 优先、空绑定 metadata fallback、未知/禁用站点和坏 JSON fail closed，以及文件/数据库源码等价读取。
 - `userScriptResourceCache.test.ts`：覆盖 sha256/md5 最后受支持 hash、hex/base64url 归一化、HTTPS/重定向/大小限制、声明顺序、重复名称与 SRI mismatch fail closed。
+- `userScriptRemoteInstaller.test.ts`：覆盖远程脚本/资源预下载、安全预览、重定向拒绝、非 userscript 内容、暂存消费和 TTL 清理。
+- `userScriptUpdateService.test.ts`：覆盖 ETag/Last-Modified 条件请求、304、updateURL→downloadURL 回退、严格 newer、身份漂移拒绝和 24 小时到期跳过。
 - `userScriptImport.test.ts`：覆盖精确身份、版本比较、Windows 安全文件名、重复 metadata 指令收敛、local 副本 namespace 改写，以及持久化失败的临时文件清理。
 - `userScriptMainWorldRuntime.test.ts`：覆盖独立 IIFE、语法错误隔离、classic/modern grant 裁剪、`@grant none`、值快照、缓存资源 text/data URL API、网络 classic callback/modern Promise+abort、剪贴板、菜单、onurlchange，以及 start/end/idle、SPA sync、inactive 收权和 revision 去重；document-start/end 可在主世界 runtime ready 前按页面阶段安全排队。
 - `userScriptRuntime.test.ts`：覆盖启动水合、frame/noframes、按脚本 ID 的值隔离、`@require` 顺序拼接、资源快照、缓存漂移拒绝、稳定 revision 和 generation 刷新。

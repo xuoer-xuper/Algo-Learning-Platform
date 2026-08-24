@@ -47,6 +47,21 @@ export function cancelPendingUserScriptInstall(installId: string): Promise<boole
   return window.electronAPI.cancelUserScriptInstall(installId)
 }
 
+export function getRemoteUserScriptInstallPreview(installId: string): Promise<UserScriptInstallPreview | null> {
+  return window.electronAPI.getRemoteUserScriptInstallPreview(installId)
+}
+
+export function confirmRemoteUserScriptInstall(
+  installId: string,
+  action: UserScriptInstallAction,
+): Promise<UserScriptInstallInstallResult | null> {
+  return window.electronAPI.confirmRemoteUserScriptInstall(installId, action)
+}
+
+export function cancelRemoteUserScriptInstall(installId: string): Promise<boolean> {
+  return window.electronAPI.cancelRemoteUserScriptInstall(installId)
+}
+
 export function getUserScriptHostPermissionPrompt(): Promise<UserScriptHostPermissionPrompt | null> {
   return window.electronAPI.getUserScriptHostPermissionPrompt()
 }

@@ -14,7 +14,7 @@
 - `registerNotesIpc.ts`：注册 `notes:*` 笔记 CRUD、图片保存、批量删除和打开目录 handler。
 - `registerProblemIpc.ts`：注册 `problem:*` 最近题目、题目详情和题目删除 handler。
 - `registerRatingIpc.ts`：注册 `rating:*` 账号绑定、Codeforces rating 同步、rating 历史和比赛结果查询 handler。
-- `registerScriptsIpc.ts`：注册 `scripts:*` 用户脚本摘要列表、导入、保存、启停、删除和打开目录 handler；列表不返回源码或绝对路径。
+- `registerScriptsIpc.ts`：注册 `scripts:*` 用户脚本摘要列表、本地导入、远程安装预览/确认/取消、手动检查更新、保存、启停、删除和打开目录 handler；列表和远程预览不返回源码、资源正文或绝对路径。
 - `registerSitesIpc.ts`：注册 `sites:*` 站点 CRUD、导入导出、冲突预览确认 handler。
 - `registerStatsIpc.ts`：注册 `stats:*` 统计查询和重算 handler。
 - `registerSubmissionsIpc.ts`：注册 `submissions:*` 手动同步 handler。
@@ -39,7 +39,7 @@
 - `registerNotesIpc(options)`：注册笔记相关 channel；通过 `notifyProblemsUpdated` 注入题目更新通知，避免模块直接依赖 `BrowserWindow`。
 - `registerProblemIpc(options)`：注册题目相关 channel；通过 `notifyProblemsUpdated` 注入删除题目后的刷新通知。
 - `registerRatingIpc()`：注册 rating 相关 channel，包括账号绑定、账号查询、Codeforces rating 同步、历史查询和比赛结果查询。
-- `registerScriptsIpc(options)`：注册用户脚本管理 channel，包括脚本列表、受控保存、身份更新导入、打开目录、启停和删除；原生文件/确认对话框默认绑定 sender 所属窗口。
+- `registerScriptsIpc(options)`：注册用户脚本管理 channel，包括脚本列表、受控保存、身份更新导入、远程 installId 预览/确认/取消、手动更新检查、打开目录、启停和删除；确认前复验 identity/目标版本并按 installId 互斥，原生文件/确认对话框默认绑定 sender 所属窗口。
 - `registerSitesIpc(options)`：注册站点配置相关 channel；文件对话框默认绑定 sender 所属窗口，数据变更后通过应用级 `notifyProblemsUpdated()` 广播全部完整壳。
 - `registerStatsIpc()`：注册统计相关 channel，包括概览、趋势、平台分布、题目访问统计、时间线、复访、连续天数、错题、未复习和日统计重算。
 - `registerSubmissionsIpc(options)`：注册手动提交同步 channel；通过 `getSyncService` 延迟读取 `SyncService`，避免模块 import 时绑定尚未初始化的服务实例。

@@ -5,7 +5,10 @@ interface UserScriptListProps {
   scripts: UserScriptRecord[]
   sites: ScriptSite[]
   errorMsg: string
+  updateMsg: string
+  checkingUpdates: boolean
   onImport: () => void
+  onCheckUpdates: () => void
   onOpenFolder: () => void
   onToggle: (id: string, enabled: boolean) => void
   onEdit: (script: UserScriptRecord) => void
@@ -28,7 +31,10 @@ export function UserScriptList({
   scripts,
   sites,
   errorMsg,
+  updateMsg,
+  checkingUpdates,
   onImport,
+  onCheckUpdates,
   onOpenFolder,
   onToggle,
   onEdit,
@@ -38,10 +44,14 @@ export function UserScriptList({
     <div className="scripts-body">
       <div className="scripts-toolbar">
         <Button variant="primary" icon="plus" onClick={onImport}>导入本地脚本文件</Button>
+        <Button variant="secondary" icon="refresh" disabled={checkingUpdates} onClick={onCheckUpdates}>
+          {checkingUpdates ? '正在检查' : '检查更新'}
+        </Button>
         <Button variant="secondary" icon="external" onClick={onOpenFolder}>打开脚本目录</Button>
       </div>
 
       {errorMsg && <div className="scripts-error">{errorMsg}</div>}
+      {updateMsg && <div className="scripts-path" role="status">{updateMsg}</div>}
 
       <div className="scripts-table-wrap">
         <table className="scripts-table">

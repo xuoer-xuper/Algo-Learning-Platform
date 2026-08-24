@@ -443,6 +443,57 @@ interface PendingUserScriptInstall {
   createdAt: string
 }
 
+type UserScriptInstallAction = 'install' | 'copy' | 'cancel'
+
+interface UserScriptInstallPreview {
+  installId: string
+  sourceUrl: string
+  finalUrl: string
+  sourceFileName: string
+  name: string
+  namespace: string | null
+  version: string | null
+  installedVersion: string | null
+  description: string | null
+  updateURL: string | null
+  downloadURL: string | null
+  matches: string[]
+  includes: string[]
+  excludes: string[]
+  excludeMatches: string[]
+  grants: string[]
+  connects: string[]
+  antifeatures: string[]
+  requires: number
+  resources: string[]
+  action: 'create' | 'update'
+  existingScriptId: string | null
+  versionComparison: 'newer' | 'same' | 'older' | 'unknown'
+}
+
+interface UserScriptInstallInstallResult {
+  status: 'installed' | 'cancelled' | 'stale'
+  scriptId?: string
+}
+
+interface UserScriptUpdateResult {
+  scriptId: string
+  name: string
+  status: 'updated' | 'current' | 'skipped' | 'error'
+  previousVersion: string | null
+  version: string | null
+  error?: string
+}
+
+interface UserScriptUpdateSummary {
+  checked: number
+  updated: number
+  current: number
+  skipped: number
+  failed: number
+  results: UserScriptUpdateResult[]
+}
+
 interface UserScriptHostPermissionPrompt {
   promptId: string
   scriptName: string
@@ -838,6 +889,9 @@ interface ElectronAPI {
   onDownloadResult: (callback: (result: ManagedDownloadResult) => void) => () => void
   getUserScriptInstall: (installId: string) => Promise<PendingUserScriptInstall | null>
   cancelUserScriptInstall: (installId: string) => Promise<boolean>
+  getRemoteUserScriptInstallPreview: (installId: string) => Promise<UserScriptInstallPreview | null>
+  confirmRemoteUserScriptInstall: (installId: string, action: UserScriptInstallAction) => Promise<UserScriptInstallInstallResult | null>
+  cancelRemoteUserScriptInstall: (installId: string) => Promise<boolean>
   getUserScriptHostPermissionPrompt: () => Promise<UserScriptHostPermissionPrompt | null>
   respondUserScriptHostPermission: (promptId: string, allow: boolean) => Promise<UserScriptHostPermissionResponse>
   onUserScriptHostPermissionPrompt: (callback: (prompt: UserScriptHostPermissionPrompt) => void) => () => void
@@ -900,6 +954,7 @@ interface ElectronAPI {
   scriptsOpenFolder: () => Promise<string>
   scriptsToggle: (id: string, enabled: boolean) => Promise<boolean>
   scriptsDelete: (id: string) => Promise<boolean>
+  scriptsCheckUpdates: () => Promise<UserScriptUpdateSummary | null>
 
   getHomeShortcuts: () => Promise<string[]>
   getSearchEngine: () => Promise<SearchEngineConfig>

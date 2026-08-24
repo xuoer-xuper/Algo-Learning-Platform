@@ -89,6 +89,8 @@ import { UserScriptNetworkProxy } from './scripts/UserScriptNetworkProxy'
 import { CredentialVault } from './credentials/CredentialVault'
 import { CredentialAutofillService } from './credentials/autofill/CredentialAutofillService'
 import { CredentialCaptureService } from './credentials/CredentialCaptureService'
+import { UserScriptRemoteInstaller } from './scripts/UserScriptRemoteInstaller'
+import { UserScriptUpdateService } from './scripts/UserScriptUpdateService'
 
 configureChromiumCommandLine()
 
@@ -107,6 +109,8 @@ let applicationSessionPersistence: ApplicationSessionPersistence | null = null
 let removeApplicationRecencyListener: (() => void) | null = null
 let downloadManager: DownloadManager | null = null
 let userScriptInstallRegistry: PendingUserScriptInstallRegistry | null = null
+let userScriptRemoteInstaller: UserScriptRemoteInstaller | null = null
+let userScriptUpdateService: UserScriptUpdateService | null = null
 let credentialAutofillService: CredentialAutofillService | null = null
 let credentialCaptureService: CredentialCaptureService | null = null
 let windowStateStore: WindowStateStore | null = null
@@ -546,6 +550,8 @@ registerMainIpc({
   getCoachOrchestrator: () => coachOrchestrator,
   getBrowserDiagnostics: () => services?.browserDiagnostics ?? null,
   getUserScriptInstallRegistry: () => userScriptInstallRegistry,
+  getUserScriptRemoteInstaller: () => userScriptRemoteInstaller,
+  getUserScriptUpdateService: () => userScriptUpdateService,
   allowInsecureLocalhost: Boolean(VITE_DEV_SERVER_URL || STARTUP_SMOKE_MODE),
   notifyProblemsUpdated: () => { windowManager.sendToAll('problems:updated') },
   moveTabToNewWindow: (source, tabId) => tabTransferCoordinator.moveToNewWindow(source, tabId),
@@ -619,6 +625,8 @@ app.on('before-quit', (event) => {
   } catch (error) {
     appLogger.warn('tracking.shutdown-failed', error)
   }
+  userScriptUpdateService?.stop()
+  userScriptUpdateService = null
   try {
     closeDb()
   } catch (error) {
@@ -628,6 +636,8 @@ app.on('before-quit', (event) => {
   downloadManager = null
   userScriptInstallRegistry?.clear()
   userScriptInstallRegistry = null
+  userScriptRemoteInstaller?.clear()
+  userScriptRemoteInstaller = null
   removeApplicationRecencyListener?.()
   removeApplicationRecencyListener = null
   applicationSessionPersistence = null
@@ -655,7 +665,13 @@ void app.whenReady().then(async () => {
   if (!VITE_DEV_SERVER_URL) {
     registerShellProtocol(RENDERER_DIST)
   }
-  userScriptInstallRegistry = new PendingUserScriptInstallRegistry()
+  userScriptRemoteInstaller = new UserScriptRemoteInstaller({
+    fetch: (input, init) => session.defaultSession.fetch(input, init),
+    allowInsecureLocalhost: Boolean(VITE_DEV_SERVER_URL || STARTUP_SMOKE_MODE),
+  })
+  userScriptInstallRegistry = new PendingUserScriptInstallRegistry({
+    onRemove: installId => userScriptRemoteInstaller?.clear(installId),
+  })
   windowStateStore = new WindowStateStore(path.join(app.getPath('userData'), 'browser-window-state.json'))
   downloadManager = new DownloadManager({
     downloadDirectory: getManagedDownloadDirectory(app.getPath('userData')),
@@ -709,6 +725,13 @@ void app.whenReady().then(async () => {
 
   registerNoteAssetProtocol()
   services = await initializeMainServices(() => { windowManager.sendToAll('problems:updated') })
+  userScriptUpdateService = new UserScriptUpdateService({
+    fetch: (input, init) => session.defaultSession.fetch(input, init),
+    scriptsDirectory: path.join(app.getPath('userData'), 'userscripts'),
+    allowInsecureLocalhost: Boolean(VITE_DEV_SERVER_URL || STARTUP_SMOKE_MODE),
+    onUpdated: () => services?.userScriptRuntime.refresh(),
+  })
+  if (!STARTUP_SMOKE_MODE) userScriptUpdateService.start()
   userScriptMenuRegistry = new UserScriptMenuRegistry()
   userScriptHostPermissionBroker = new UserScriptHostPermissionBroker({
     grantUserScriptHost,

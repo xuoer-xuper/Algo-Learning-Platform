@@ -4,6 +4,7 @@ import { UserScriptEditor } from './UserScriptEditor'
 import { UserScriptList } from './UserScriptList'
 import {
   deleteUserScript,
+  checkUserScriptUpdates,
   importUserScriptFile,
   loadUserScriptManagerData,
   openUserScriptsFolder,
@@ -19,6 +20,8 @@ export function UserScriptManager({ onClose }: { onClose: () => void }) {
   const [editName, setEditName] = useState('')
   const [selectedSiteIds, setSelectedSiteIds] = useState<string[]>([])
   const [errorMsg, setErrorMsg] = useState('')
+  const [updateMsg, setUpdateMsg] = useState('')
+  const [checkingUpdates, setCheckingUpdates] = useState(false)
   /* 待删除脚本 id：仅用于驱动 ConfirmDialog（替代原生 confirm） */
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
 
@@ -77,6 +80,23 @@ export function UserScriptManager({ onClose }: { onClose: () => void }) {
     loadScripts()
   }
 
+  const handleCheckUpdates = async () => {
+    if (checkingUpdates) return
+    setCheckingUpdates(true)
+    setErrorMsg('')
+    setUpdateMsg('')
+    try {
+      const summary = await checkUserScriptUpdates()
+      if (!summary) throw new Error('更新服务尚未就绪。')
+      await loadScripts()
+      setUpdateMsg(`已检查 ${summary.checked} 个脚本，更新 ${summary.updated} 个，失败 ${summary.failed} 个。`)
+    } catch (e: unknown) {
+      setErrorMsg(e instanceof Error ? e.message : String(e))
+    } finally {
+      setCheckingUpdates(false)
+    }
+  }
+
   const toggleSiteSelection = (siteId: string) => {
     if (selectedSiteIds.includes(siteId)) {
       setSelectedSiteIds(selectedSiteIds.filter(id => id !== siteId))
@@ -113,7 +133,10 @@ export function UserScriptManager({ onClose }: { onClose: () => void }) {
           scripts={scripts}
           sites={sites}
           errorMsg={errorMsg}
+          updateMsg={updateMsg}
+          checkingUpdates={checkingUpdates}
           onImport={handleImport}
+          onCheckUpdates={handleCheckUpdates}
           onOpenFolder={openUserScriptsFolder}
           onToggle={handleToggle}
           onEdit={handleEdit}

@@ -2,14 +2,14 @@
 
 ## 1. 职责
 
-`src/features/scripts/` 负责用户脚本管理器的 renderer 层，包括脚本导入、启停、绑定站点、删除和打开脚本目录。
+`src/features/scripts/` 负责用户脚本管理器的 renderer 层，包括脚本导入、远程安装确认、手动检查更新、启停、绑定站点、删除和打开脚本目录。
 
 本目录只管理用户可见配置，不执行脚本注入、不扫描远程页面、不直接访问脚本文件系统。
 
 ## 2. 当前实现程度
 
 - `UserScriptManager.tsx`：用户脚本管理弹层入口，负责加载脚本和站点数据；删除确认走 `ConfirmDialog`。
-- `UserScriptInstallPage.tsx`：`.user.js` 短时安装确认页，只展示净化后的来源元数据和取消/关闭；B6 前不下载、解析、执行或报告安装成功。
+- `UserScriptInstallPage.tsx`：`.user.js` 短时安装确认页，展示身份、原始/最终来源、版本 diff、匹配/排除规则、grant/connect、antifeature、更新地址与资源计数；源码和 BLOB 不进入 renderer。降级/未知覆盖默认突出取消。
 - `UserScriptList.tsx`：脚本列表、启停、选择和删除。
 - `UserScriptEditor.tsx`：脚本名称和站点绑定编辑。
 - `scriptsApi.ts` 集中封装脚本相关 preload 调用。
@@ -26,6 +26,7 @@
 - `toggleUserScript(scriptId, enabled)`：启停脚本。
 - `deleteUserScript(scriptId)`：删除脚本记录和对应文件。
 - `openUserScriptsFolder()`：打开脚本目录。
+- `checkUserScriptUpdates()`：触发主进程手动检查，返回 checked/updated/current/skipped/failed 摘要。
 
 ## 4. 边界规则
 
@@ -33,6 +34,7 @@
 - 站点绑定存储格式由主进程 schema 决定，renderer 只通过 API 提交选择结果。
 - 导入、删除、打开目录必须走 preload 白名单，不使用浏览器文件 API 绕过主进程。
 - 新增脚本管理动作时优先扩展 `scriptsApi.ts`。
+- 安装确认页只允许展示主进程生成的安全预览 DTO；不得请求、缓存或渲染用户脚本源码与资源正文。
 
 ## 5. 验证入口
 

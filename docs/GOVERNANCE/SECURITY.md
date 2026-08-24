@@ -64,6 +64,8 @@ Algo Learning Platform 是本地优先桌面应用。安全与隐私边界重点
 - 用户脚本代理过滤 Cookie、Host、Origin、Referer、Content-Length、`Sec-*`、`Proxy-*` 等浏览器所有请求头，不返回 `Set-Cookie`，并限制请求体、响应体、响应头、超时、重定向及全局/单端口并发；OJ session 不再安装全局 CORS response rewriter。
 - host 首次授权只通过所属完整壳的既有 NoticeBar 展示脚本名、目标 host 和来源 host；允许前必须复验 generation、webContents 和当前 owner，reload、标签过户、关窗及异步校验竞态均 fail closed。
 - `@require/@resource` 只在导入/更新确认后由主进程下载，不携带站点凭据，逐跳限制 HTTPS/开发 loopback、重定向和大小；URL fragment 中最后一个受支持的 sha256/md5 必须在持久化前验证。脚本 metadata 与 BLOB 缓存同事务替换；运行时缓存缺失或声明/顺序/URL/integrity 漂移时整段脚本拒绝执行，页面不得现场补下载。
+- `.user.js` 远程安装正文只允许存在于主进程有界短时暂存，shell renderer 仅接收身份、版本 diff、规则、grant/connect、antifeature、来源和资源计数；预览请求去重，关闭/取消/过期中止抓取，确认按 installId 互斥并复验 identity、目标脚本和已安装版本，防止预览与安装内容竞态或重复提交。
+- 自动更新只访问 HTTPS（开发/smoke loopback 例外），不携带 Cookie/站点凭据，逐跳限制重定向、30 秒超时和 4 MiB；条件验证器不得跨 origin 转发。updateURL/downloadURL/lastInstallURL 全部失败、身份漂移、版本非 newer、资源/SRI 或事务失败时必须保留旧版继续运行，日志只记录 scriptId 和错误类别/有限摘要，不记录源码或响应正文。
 - 打包产物不得包含 `tests/`、`tmp/`、`release/`、`.env`、本地数据库或 Cookie。
 - 生产 Windows 产物必须通过 `electron-builder.json5` 的 `electronFuses` 加固：禁用 `runAsNode`、Node inspect 参数和 `NODE_OPTIONS` 注入，启用 Cookie 加密、嵌入式 ASAR 完整性校验与 `onlyLoadAppFromAsar`，并保持 `grantFileProtocolExtraPrivileges` 关闭。`ALGO_ELECTRON_SMOKE_PRELOAD_PATH`、Renderer dist 覆盖和 OJ/userscript smoke preload 只允许在显式 `ALGO_ELECTRON_SMOKE=1` 下启用；生产环境不得依赖这些测试入口，DevTools 快捷键也必须禁用。
 

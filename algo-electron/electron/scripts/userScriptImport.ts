@@ -47,6 +47,11 @@ export interface UserScriptImportDecision {
   autoUpdateEnabled: boolean
 }
 
+export interface ResolvedUserScriptImportDecision {
+  decision: UserScriptImportDecision
+  claimLegacy: boolean
+}
+
 export interface UserScriptImportFileSystem {
   mkdir(directoryPath: string, options: { recursive: true }): Promise<unknown>
   writeFile(filePath: string, data: string, options: { encoding: 'utf8'; flag: 'wx' }): Promise<unknown>
@@ -266,6 +271,31 @@ export function decideUserScriptImport(input: UserScriptImportDecisionInput): Us
       : 'unknown',
     isLocalCopy: mode === 'copy',
     autoUpdateEnabled: mode !== 'copy',
+  }
+}
+
+export function resolveUserScriptImportDecision(
+  input: UserScriptImportDecisionInput,
+): ResolvedUserScriptImportDecision {
+  const decision = decideUserScriptImport(input)
+  if (
+    decision.existing
+    || decision.identity.namespace === null
+    || decision.identity.namespace.startsWith('local:')
+  ) return { decision, claimLegacy: false }
+
+  const legacy = input.existingScripts?.find(script => (
+    script.namespace === null && script.identityName === decision.identity.identityName
+  ))
+  if (!legacy) return { decision, claimLegacy: false }
+  return {
+    decision: {
+      ...decision,
+      action: 'update',
+      existing: legacy,
+      versionComparison: compareUserScriptVersions(decision.metadata.version, legacy.version),
+    },
+    claimLegacy: true,
   }
 }
 

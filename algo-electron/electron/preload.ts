@@ -62,6 +62,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
   getUserScriptInstall: (installId: string) => ipcRenderer.invoke('browser:getUserScriptInstall', installId) as Promise<PendingUserScriptInstall | null>,
   cancelUserScriptInstall: (installId: string) => ipcRenderer.invoke('browser:cancelUserScriptInstall', installId) as Promise<boolean>,
+  getRemoteUserScriptInstallPreview: (installId: string) => ipcRenderer.invoke('scripts:getRemoteInstallPreview', installId) as Promise<UserScriptInstallPreview | null>,
+  confirmRemoteUserScriptInstall: (installId: string, action: UserScriptInstallAction) => ipcRenderer.invoke('scripts:confirmRemoteInstall', installId, action) as Promise<UserScriptInstallInstallResult | null>,
+  cancelRemoteUserScriptInstall: (installId: string) => ipcRenderer.invoke('scripts:cancelRemoteInstall', installId) as Promise<boolean>,
   getUserScriptHostPermissionPrompt: () => ipcRenderer.invoke('userscript:getHostPermissionPrompt') as Promise<UserScriptHostPermissionPrompt | null>,
   respondUserScriptHostPermission: (promptId: string, allow: boolean) => ipcRenderer.invoke('userscript:respondHostPermission', promptId, allow) as Promise<UserScriptHostPermissionResponse>,
   onUserScriptHostPermissionPrompt: (callback: (prompt: UserScriptHostPermissionPrompt) => void) => {
@@ -157,6 +160,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   scriptsOpenFolder: () => ipcRenderer.invoke('scripts:openFolder'),
   scriptsToggle: (id: string, enabled: boolean) => ipcRenderer.invoke('scripts:toggle', id, enabled),
   scriptsDelete: (id: string) => ipcRenderer.invoke('scripts:delete', id),
+  scriptsCheckUpdates: () => ipcRenderer.invoke('scripts:checkUpdates') as Promise<UserScriptUpdateSummary | null>,
 
   // 配置
   getHomeShortcuts: () => ipcRenderer.invoke('config:getHomeShortcuts') as Promise<string[]>,

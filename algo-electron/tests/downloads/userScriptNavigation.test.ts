@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  MAX_PENDING_USER_SCRIPT_INSTALLS,
   PendingUserScriptInstallRegistry,
   resolveUserScriptNavigation,
 } from '../../electron/downloads/userScriptNavigation'
@@ -79,6 +80,23 @@ describe('PendingUserScriptInstallRegistry', () => {
     now = 100
     expect(registry.get('install-2')).toBeNull()
     expect(registry.get('install-3')).toBeNull()
+  })
+
+  it('uses the shared prepared-install capacity by default', () => {
+    let id = 0
+    const removed: string[] = []
+    const registry = new PendingUserScriptInstallRegistry({
+      idFactory: () => `install-${++id}`,
+      onRemove: installId => removed.push(installId),
+    })
+
+    for (let index = 0; index <= MAX_PENDING_USER_SCRIPT_INSTALLS; index += 1) {
+      registry.register(`https://example.com/${index}.user.js`)
+    }
+
+    expect(removed).toEqual(['install-1'])
+    expect(registry.get('install-1')).toBeNull()
+    expect(registry.get(`install-${MAX_PENDING_USER_SCRIPT_INSTALLS + 1}`)).not.toBeNull()
   })
 
   it('rejects unsafe ids and non-userscript registration without retaining state', () => {
