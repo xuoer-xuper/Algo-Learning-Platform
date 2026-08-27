@@ -178,6 +178,22 @@ function runUserScriptRuntimeSmoke() {
   })
 }
 
+function runOjSubmissionBridgeSmoke() {
+  const ojPreload = bundleElectronPreload(
+    path.join('electron', 'browser', 'ojPreload.ts'),
+    'oj-bridge-preload',
+  )
+  const outfile = bundleTest(
+    path.join('tests', 'electron', 'ojSubmissionBridgeSmoke.test.ts'),
+    'electron-oj-submission-bridge-smoke',
+    ['electron'],
+  )
+  run(electronBin, [outfile], {
+    ALGO_OJ_BRIDGE_SMOKE_PRELOAD: ojPreload,
+    ELECTRON_DISABLE_SECURITY_WARNINGS: 'true',
+  })
+}
+
 function runUiTests() {
   run(process.execPath, [path.join('tests', 'ui', 'runPlaywright.mjs')])
 }
@@ -219,6 +235,7 @@ function runAllSuite() {
   runPerformance()
   runStartupSmoke()
   runUserScriptRuntimeSmoke()
+  runOjSubmissionBridgeSmoke()
   runUiTests()
 }
 
@@ -236,6 +253,7 @@ function runSuite(suite) {
     case 'electron':
       runStartupSmoke()
       runUserScriptRuntimeSmoke()
+      runOjSubmissionBridgeSmoke()
       break
     case 'coach':
       runCoachSuite()

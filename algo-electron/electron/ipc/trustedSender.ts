@@ -270,6 +270,26 @@ export function onFromOj(channel: string, listener: IpcListener<IpcMainEvent>): 
   return guardedListener
 }
 
+/**
+ * Invoke counterpart of {@link onFromOj}. The isolated OJ preload uses this to
+ * pull main-process state at document start; a pull can never be lost the way a
+ * main-to-renderer push can race a not-yet-registered listener.
+ */
+export function handleFromOj(
+  channel: string,
+  listener: IpcListener<IpcMainInvokeEvent>,
+): IpcListener<IpcMainInvokeEvent> {
+  const guardedListener: IpcListener<IpcMainInvokeEvent> = (event, ...args) => {
+    const check = checkOjSender(event)
+    if (!check.trusted) rejectInvoke(check)
+    const payloadCheck = checkIpcPayload(args)
+    if (!payloadCheck.trusted) rejectInvoke(payloadCheck)
+    return listener(event, ...args)
+  }
+  electronIpcMain.handle(channel, guardedListener)
+  return guardedListener
+}
+
 // Compatibility facade keeps register*.ts call sites small while guaranteeing
 // every ordinary renderer channel passes through the same shell validator.
 export const ipcMain = {

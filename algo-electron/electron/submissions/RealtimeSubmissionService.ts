@@ -1,4 +1,5 @@
 import { ipcMain, type IpcMainEvent } from 'electron'
+import { randomBytes } from 'node:crypto'
 import type { BrowserPageEvent, TabManager } from '../browser/TabManager'
 import { getRealtimeAdapterForUrl, getRealtimeAdapterIds } from '../adapters/registry'
 import { getSiteById } from '../db/repositories/siteRepository'
@@ -6,11 +7,13 @@ import { RealtimeSubmissionDiagnostics, type RealtimeSubmissionStatus } from './
 import { RealtimeHookInjector } from './RealtimeHookInjector'
 import { SubmissionWatcher, SUBMISSION_WATCHER_DETECTED_EVENT } from './SubmissionWatcher'
 import type { SubmissionNotification } from './SubmissionWatcherCore'
-import { handleFromShell, onFromOj } from '../ipc/trustedSender'
+import { handleFromOj, handleFromShell, onFromOj } from '../ipc/trustedSender'
+import { OJ_SUBMISSION_TOKEN_CHANNEL as DOCUMENT_TOKEN_CHANNEL } from '../browser/ojBridge'
 import { appLogger, type Logger } from '../shared/logger'
 
 const SUBMISSION_DETECTED_CHANNEL = 'oj-submission:detected'
 const STATUS_CHANNEL = 'realtimeSubmission:getStatus'
+const DOCUMENT_TOKEN_PATTERN = /^[a-f0-9]{32}$/
 
 export class RealtimeSubmissionService {
   private readonly watcher: SubmissionWatcher
@@ -19,7 +22,17 @@ export class RealtimeSubmissionService {
   private readonly ipcHandler: (event: IpcMainEvent, payload: unknown) => void
   private registeredIpcHandler: ((event: IpcMainEvent, ...args: any[]) => any) | null = null
   private readonly tabManagerCleanups = new Map<TabManager, () => void>()
-  private readonly pageHosts = new Map<number, { tabManager: TabManager; event: BrowserPageEvent }>()
+  private readonly pageHosts = new Map<number, {
+    tabManager: TabManager
+    event: BrowserPageEvent
+  }>()
+  /**
+   * One token per OJ webContents, minted lazily when its preload asks. It is
+   * deliberately not rotated per navigation: the sender-URL check already
+   * rejects stale documents, and rotation would reintroduce a window where the
+   * preload holds a token main has already replaced.
+   */
+  private readonly documentTokens = new Map<number, string>()
   private isIpcRegistered = false
 
   constructor(notifyProblemsUpdated: () => void, logger: Logger = appLogger) {
@@ -41,7 +54,15 @@ export class RealtimeSubmissionService {
         })
         return
       }
-      const enrichedPayload = this.withPageTitle(payload, pageHost, event.sender.getTitle())
+      const envelope = parseSubmissionEnvelope(payload)
+      if (!envelope || envelope.token !== this.documentTokens.get(event.sender.id)) {
+        logger.warn('realtime-submission.sender-document-token-mismatch', {
+          webContentsId: event.sender.id,
+          senderUrl,
+        })
+        return
+      }
+      const enrichedPayload = this.withPageTitle(envelope.payload, pageHost, event.sender.getTitle())
       const result = this.watcher.handleDetected(enrichedPayload, { senderUrl })
       this.diagnostics.recordDetection(senderUrl, result)
     }
@@ -54,6 +75,7 @@ export class RealtimeSubmissionService {
     const removePageListener = tabManager.addPageEventListener((event) => {
       if (event.reason === 'destroyed') {
         this.pageHosts.delete(event.webContentsId)
+        this.documentTokens.delete(event.webContentsId)
         return
       }
       if (event.isMainFrame) this.pageHosts.set(event.webContentsId, { tabManager, event })
@@ -98,6 +120,7 @@ export class RealtimeSubmissionService {
   registerIpc(): void {
     if (this.isIpcRegistered) return
     this.registeredIpcHandler = onFromOj(SUBMISSION_DETECTED_CHANNEL, this.ipcHandler)
+    handleFromOj(DOCUMENT_TOKEN_CHANNEL, event => this.issueDocumentToken(event.sender.id))
     handleFromShell(STATUS_CHANNEL, () => this.getStatus())
     this.isIpcRegistered = true
     this.diagnostics.setIpcRegistered(true)
@@ -106,13 +129,25 @@ export class RealtimeSubmissionService {
   dispose(): void {
     for (const cleanup of [...this.tabManagerCleanups.values()]) cleanup()
     this.pageHosts.clear()
+    this.documentTokens.clear()
     if (this.isIpcRegistered && this.registeredIpcHandler) {
       ipcMain.off(SUBMISSION_DETECTED_CHANNEL, this.registeredIpcHandler)
       this.registeredIpcHandler = null
     }
-    if (this.isIpcRegistered) ipcMain.removeHandler(STATUS_CHANNEL)
+    if (this.isIpcRegistered) {
+      ipcMain.removeHandler(STATUS_CHANNEL)
+      ipcMain.removeHandler(DOCUMENT_TOKEN_CHANNEL)
+    }
     this.isIpcRegistered = false
     this.diagnostics.setIpcRegistered(false)
+  }
+
+  private issueDocumentToken(webContentsId: number): string {
+    const existing = this.documentTokens.get(webContentsId)
+    if (existing) return existing
+    const token = randomBytes(16).toString('hex')
+    this.documentTokens.set(webContentsId, token)
+    return token
   }
 
   getStatus(): RealtimeSubmissionStatus {
@@ -149,4 +184,16 @@ export class RealtimeSubmissionService {
       },
     }
   }
+}
+
+function parseSubmissionEnvelope(value: unknown): { token: string; payload: unknown } | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null
+  const record = value as Record<string, unknown>
+  if (
+    Object.keys(record).length !== 2
+    || typeof record.token !== 'string'
+    || !DOCUMENT_TOKEN_PATTERN.test(record.token)
+    || !Object.prototype.hasOwnProperty.call(record, 'payload')
+  ) return null
+  return { token: record.token, payload: record.payload }
 }

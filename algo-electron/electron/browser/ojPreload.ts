@@ -4,14 +4,40 @@ import {
   installOjSubmissionMessageForwarder,
   OJ_SUBMISSION_BRIDGE_CHANNEL,
   OJ_SUBMISSION_IPC_CHANNEL,
+  OJ_SUBMISSION_TOKEN_CHANNEL,
 } from './ojBridge'
 import { OJ_CREDENTIAL_FILL_CHANNEL } from '../credentials/autofill/credentialAutofillBridge'
 import { fillCredentialFormWithRetry, isCredentialFormFillPayload } from '../credentials/autofill/formFiller'
 import { installCredentialCaptureListener } from '../credentials/captureForm'
 import { OJ_CREDENTIAL_CAPTURE_CHANNEL } from '../credentials/captureBridge'
 
+const DOCUMENT_TOKEN_PATTERN = /^[a-f0-9]{32}$/
+
+// Requested once per document at preload time and retried on demand. Pulling
+// removes the push race entirely: if the first request loses to webContents
+// registration, the next submission report simply asks again.
+let documentToken: Promise<string | null> = requestDocumentToken()
+
+function requestDocumentToken(): Promise<string | null> {
+  return ipcRenderer
+    .invoke(OJ_SUBMISSION_TOKEN_CHANNEL)
+    .then((token: unknown) => (
+      typeof token === 'string' && DOCUMENT_TOKEN_PATTERN.test(token) ? token : null
+    ))
+    .catch(() => null)
+}
+
 function reportSubmission(payload: unknown): void {
-  ipcRenderer.send(OJ_SUBMISSION_IPC_CHANNEL, payload)
+  void documentToken.then((token) => {
+    if (token) {
+      ipcRenderer.send(OJ_SUBMISSION_IPC_CHANNEL, { token, payload })
+      return
+    }
+    documentToken = requestDocumentToken()
+    void documentToken.then((retriedToken) => {
+      if (retriedToken) ipcRenderer.send(OJ_SUBMISSION_IPC_CHANNEL, { token: retriedToken, payload })
+    })
+  })
 }
 
 contextBridge.exposeInMainWorld(OJ_SUBMISSION_BRIDGE_CHANNEL, createOjSubmissionBridge(reportSubmission))

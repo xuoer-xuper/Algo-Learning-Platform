@@ -158,6 +158,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   scriptsSave: (id: string, data: UserScriptSaveInput) => ipcRenderer.invoke('scripts:save', id, data),
   scriptsImportFile: () => ipcRenderer.invoke('scripts:importFile'),
   scriptsOpenFolder: () => ipcRenderer.invoke('scripts:openFolder'),
+  scriptsGetCode: (id: string) => ipcRenderer.invoke('scripts:getCode', id) as Promise<UserScriptCodeView>,
+  scriptsOpenEditor: (id: string) => (
+    ipcRenderer.invoke('scripts:openEditor', id) as Promise<UserScriptOpenEditorResult>
+  ),
   scriptsToggle: (id: string, enabled: boolean) => ipcRenderer.invoke('scripts:toggle', id, enabled),
   scriptsDelete: (id: string) => ipcRenderer.invoke('scripts:delete', id),
   scriptsCheckUpdates: () => ipcRenderer.invoke('scripts:checkUpdates') as Promise<UserScriptUpdateSummary | null>,

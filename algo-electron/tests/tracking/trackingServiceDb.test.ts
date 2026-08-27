@@ -4,7 +4,8 @@ import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import type { BrowserPageEvent } from '../../electron/browser/TabManager.ts'
 import { closeDb, getDb, initDbAtPath } from '../../electron/db/connection.ts'
-import { seedBuiltinSites } from '../../electron/db/repositories/siteRepository.ts'
+import { getEnabledSites, seedBuiltinSites } from '../../electron/db/repositories/siteRepository.ts'
+import { setEnabledSitesFetcher } from '../../electron/parsers/registry.ts'
 import type { Logger } from '../../electron/shared/logger.ts'
 import { TrackingService } from '../../electron/tracking/TrackingService.ts'
 import { startProblemVisit } from '../../electron/tracking/trackingRepository.ts'
@@ -24,6 +25,9 @@ beforeEach(() => {
   temporaryDirectory = fs.mkdtempSync(path.join(os.tmpdir(), 'algo-tracking-db-'))
   initDbAtPath(path.join(temporaryDirectory, 'tracking.sqlite'))
   seedBuiltinSites()
+  // Mirrors initializeMainServices: URL parsing needs the enabled-site source.
+  // Without it this file only passed when another suite had installed one.
+  setEnabledSitesFetcher(getEnabledSites)
 })
 
 afterEach(() => {

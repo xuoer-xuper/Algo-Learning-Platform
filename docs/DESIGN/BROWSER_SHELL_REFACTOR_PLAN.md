@@ -476,7 +476,7 @@ Renderer（同一构建产物，多窗口实例化——桌宠 hash 路由已证
 | B6.4 | [x] | 固定 frame preload、预编译 catalog、DOMContentLoaded/真实 frame load 阶段调度、SPA 重匹配与 revision/generation stale guard 已完成；真实 Electron 主 frame/reload smoke 已纳入 `test:electron`，Electron 43 的普通 iframe/frame-preload 限制已按 best-effort 记录，完整记录见 §11.41 |
 | B6.5 | [x] | `@require/@resource` HTTPS 下载、本地 BLOB 缓存、sha256/md5 多 hash SRI、按序 `@require` 与 GM 资源 API 已完成；完整记录见 §11.47 |
 | B6.6 | [x] | `.user.js` 应用内确认安装、事务更新、资源缓存、ETag/Last-Modified、24h/手动检查与更新 URL 回退已完成；完整记录见 §11.48 |
-| B6.7 | [ ] | 管理页代码查看/系统编辑器/watcher、启停更新删除安全收口与提交桥随机 token 待实施 |
+| B6.7 | [x] | 管理页代码查看/系统编辑器/watcher、启停更新删除安全收口与提交桥随机 token 已完成；完整记录见 §11.50 |
 
 ### 11.4 单任务完成记录模板
 
@@ -1203,3 +1203,40 @@ Renderer（同一构建产物，多窗口实例化——桌宠 hash 路由已证
 | 自动验证 | 本机 `npm run test:ui`：Playwright `7/7`；`npm run test:core`：Vitest `93 files / 836 tests`；`npm run test:packaging`、`npm run test:docs`、`git diff --check` 全部通过 |
 | 远端策略 | 保持自动 PR/push fast guard 与 renderer smoke；生产构建、NSIS、packaged 双实例 smoke 仍只在 B6 大块完成后的手动集中验证执行 |
 | 完成时间 | 北京时间 `2026-08-24` |
+
+### 11.50 B6.7 管理页与提交桥安全收口完成记录
+
+| 字段 | 填写内容 |
+|---|---|
+| 任务 | 管理页只读源码查看、系统编辑器打开、受管目录 watcher、启停/更新/删除生命周期收口与提交桥每导航随机 token |
+| 状态 | `[x] 已完成；B6.1-B6.7 代码链路闭合，生产构建/NSIS/packaged 双实例 smoke 按 B6 大块统一执行` |
+| Commit | `scripts: 完成 B6.7 管理页与提交桥安全收口`（代码、测试、文档与完成标记同提交） |
+| 管理页 | 新增 `scripts:getCode` 显式只读请求和 `scripts:openEditor` 系统编辑器入口；主进程按脚本 ID 校验受管 `userData/userscripts` 直属 `.js` 路径，或使用主进程数据库回退源码，统一限制 4 MiB；两者均返回带 `status` 的判别联合（`ok`/`not-found`/`unmanaged`/`unreadable`/`too-large`、`open-failed`），renderer 据此给出中文说明，不再把四种失败压成同一个 `null`，也不回传 OS 本地化错误串；普通列表/远程预览/日志/截图 harness 不接收源码，编辑器打开不经过 renderer 传递文件内容 |
+| watcher | `UserScriptFileWatcher` 只监听受管目录直属 `.js` 文件，change/rename/delete/error 统一 debounce 后触发主进程 runtime refresh；不读取、不记录源码，watch 失败不阻塞启动并保留显式刷新路径。watcher 比对 debounce 期间的 runtime generation：应用自身写入（导入/安装/更新）已显式刷新过，回声不再触发第二次 refresh，避免二次销毁全部存活 GM port |
+| 生命周期 | 启停、导入/自动更新和删除成功后刷新 runtime generation；删除同步移除数据库记录及外键级联资源/值/授权/更新状态，并仅回收受管目录内失去引用的文件，不触碰用户原始源文件。受管文件判定统一收敛到 `scripts/managedScriptPath.ts`，删除回收与安装替换共用同一判定并同样执行 `stillReferenced` 检查（内容寻址文件名允许两行共享一个文件） |
+| 提交桥 | 每个 OJ webContents 惰性生成 128-bit 随机 document token，由隔离 `ojPreload` 经 `oj-submission:getDocumentToken` 主动 `invoke` 拉取，首次为空时下一次上报自动重试；提交 envelope 必须携带该 token，缺 token、格式错误和 token 不匹配 fail closed；token 不进入 shell renderer。**不采用主进程 push + 每次导航轮换**：`did-navigate` 时的 push 可能早于新文档 preload 注册监听而永久丢失，导致该页提交检测静默全失效；轮换同样会产生 preload 持旧 token 的窗口。安全边界如实记录：该 token 只证明 envelope 来自当前活文档，**不能**阻止页面内脚本或同页 iframe 经 bridge/`postMessage` 伪造 payload，那条路径仍由 `SubmissionWatcherCore` 的 adapter/URL/verdict 校验与提交去重收敛 |
+| 视觉影响 | 仅复用既有 scripts class、Button、Input 和 token；未修改色板、字体、布局基调、按钮形态或动画，前端视觉冻结保持不变 |
+| 顺带修复 | 两个既有测试隔离缺陷：`tests/submissions/syncService.test.ts` 与 `tests/tracking/trackingServiceDb.test.ts` 未自行注入 enabled-site fetcher，单文件运行必然失败，只在其他套件先执行时才通过；已各自补上注入。测试替身新增 `ipcMain.invokeHandler(channel, event, ...)`，使 invoke handler 可按具体 sender 断言 |
+| 自动验证 | `npm run typecheck`、eslint（`--max-warnings 0`）通过；`npm run test:core` `94 files / 841 tests`、`test:db` `15 files / 26 tests` 通过；B6.7 定向 Vitest `registerScriptsIpc 16 tests`、watcher `3 tests`、提交 ownership `2 tests`（含 pull 幂等、SPA 不失效、伪造 token 拒绝、销毁清除）通过；全部非 Electron 测试文件已逐个单独运行确认无隔离依赖；`vitest run --coverage` `140 files / 931 tests` 通过；`check-docs`/`check-architecture`（`0/8 failed`）/`check-sensitive-files`、`git diff --check` 通过 |
+| 真实 Electron 验证 | 新增 `tests/electron/ojSubmissionBridgeSmoke.test.ts`，用打包后的真实 `ojPreload` 在 `sandbox: true` 窗口里跑完整握手，六段覆盖：document-start 拉取、**真实导航后复用 token（即 push 方案会失效的回归点）**、同窗口 `postMessage`、子 frame 向 `window.top` `postMessage`、未注册 webContents 拿不到 token、纯 http 文档拿不到 token。单测里 preload 是 mock 的，看不到"main 与 preload 谁先就绪"，这个 smoke 才是该结论的证据。已做变异验证：把 bundle 里的 `requestDocumentToken` 改成返回 `null` 会让 smoke 超时失败，确认非空跑。因 `checkOjSender` 只信 https 且项目禁用 `ignore-certificate-errors`，smoke 用 per-session `protocol.handle('https')` 提供真实 https origin |
+| 暂缓验证 | 本子块不运行生产 build、NSIS、真实 packaged 双实例 smoke 或真实 Greasy Fork/竞赛站脚本验收；按用户策略在 B6 大块完成后统一执行 |
+| 后续工作 | 进入 B6 大块集中验收：生产构建、NSIS、packaged 双实例 smoke、真实脚本安装/更新与七站回归；发现问题统一修复后再更新本计划 |
+| 完成时间 | 北京时间 `2026-08-24`（真实 Electron smoke 与审计补充于 `2026-08-27`，见 §11.51） |
+
+### 11.51 B6.7 复核与导入预览缺陷修复记录
+
+| 字段 | 填写内容 |
+|---|---|
+| 任务 | 复核 B6.7 全部改动是否成立、是否存在过度设计；补齐缺失的真实 Electron 证据；修复复核中发现的既有缺陷 |
+| 结论：pull 方向 | 成立。§11.50 里"push 可能早于 preload 注册监听而永久丢失"的判断经真实 Electron 验证为真，pull + 一次重试是正确取法。已补 smoke 固化（见 §11.50 真实 Electron 验证行） |
+| 结论：token 安全边界 | 成立且文档如实。该 token 只证明 envelope 来自当前活文档，不防页面内脚本伪造 payload；`installOjSubmissionMessageForwarder` 接受任意后代 frame 的消息也是必要的——`frontendVerdictHook.ts` 在 vjudge 上确实跨源 `postMessage` 到 `window.top` 且 target 为 `'*'` |
+| 修复：导入预览与实际导入漂移 | `previewLearningDataImport` 原先三段算术推导 `new_counts = 总数 − 重复 − 冲突`，而冲突恒为重复的子集，两边都减会重复扣除：混合导出（1 冲突 + 1 真新增 problems）预览成 `0 新增`，`Math.max(0, …)` 在单行场景恰好掩盖了它。改为 `planImport` 单趟逐行分类，与实际导入同一判定，预览与应用不可能再漂移 |
+| 修复：跨设备 rating history 漏判重复 | 原 `existsByRatingKey` 用**导出文件里的** `account_id` 查本地表，而实际导入会按 `(platform, handle)` 重映射到本地 account id。`upsertAccount` 用 `crypto.randomUUID()` 铸 id，两台机器永不共享 UUID，所以跨设备导入必然预览成"新增"而实际被跳过。`planImport` 改为先解析 id 映射再判重，与导入一致 |
+| 修复：每日统计时长静默覆盖 | `collectConflicts` 的 `dailyStatByDay` 只 SELECT 了题目/提交计数，而 `differs()` 只比较 SELECT 出来的列，`importDailyStats` 的 overwrite 分支却会写 `active_seconds`/`duration_seconds`。两台设备算同一天时，题目数一致而用时不同是常态，此时预览**不报冲突**，导入直接静默覆盖本机用时。已把 overwrite 会写的列补齐进 SELECT |
+| 验证方式 | 三个缺陷均先写失败测试再修：`tests/db/backupImport.test.ts` 新增 `previews rating history duplicates when the local account id differs`、`does not count a conflicting row twice when previewing new rows`、`reports a daily stats conflict when only the time figures differ` |
+| 顺带修复：test:all 长期红 | `tests/electron/userScriptRuntimeSmoke.test.ts` 从未从 Vitest glob 排除，模块层 `requiredEnvironment()` 在 Vitest Electron 替身下必抛，`npm run test:all` 的 coverage 步骤一直失败。已补 exclude，并新增第 8 条架构守卫：`tests/electron/*.test.ts` 里存在模块层 `requiredEnvironment()` 的文件，必须同时"在 vitest.config.ts 里被排除"且"被 verify.mjs 真正运行"，双向验证过守卫会因缺失而失败 |
+| 顺带修复：coverage 阈值失真 | 阈值 `28/34/24/29` 比实测 `58.46/55.83/54.88/61.01` 低约 30 个百分点，等于不设防。已提到 `55/53/52/58`，留数点余量 |
+| 性能 | 预览路径把 prepared statement 提到行循环外：20k problems + 20k submissions，空库 `476ms → 199ms`、有数据 `593ms → 261ms`（≈2.3x），better-sqlite3 每次 `prepare()` 都重新编译。**未**对六个 import 函数做同样处理：导入 40k 行 961ms 且在用户显式确认后只跑一次，不值当扩大 diff |
+| 精简 | 删除随之失效的 `collectDuplicateCounts`、`countConflictsForTable`、`existsByProblemKey`、`existsBySubmissionKey`、`existsByAccountKey`、`existsByRatingKey`；保留仍被 `importProblemVisits`/`importDailyStats` 使用的 `existsById`、`existsByLocalDay` |
+| 视觉影响 | 无。未触碰任何 renderer 样式、色板、字体、布局基调、按钮形态或动画 |
+| 完成时间 | 北京时间 `2026-08-27` |

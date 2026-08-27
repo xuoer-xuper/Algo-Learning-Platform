@@ -19,10 +19,9 @@ import {
   type UserScriptImportDecision,
 } from './userScriptImport'
 import type { PreparedUserScriptResource } from './UserScriptResourceCache'
+import { isManagedScriptArtifactName } from './managedScriptPath'
 
 const UPDATE_INTERVAL_MS = 24 * 60 * 60 * 1_000
-const UUID_FILE_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.js$/i
-const MANAGED_IMPORT_FILE_PATTERN = /^.+--[0-9a-f]{12}--[0-9a-f]{12}\.user\.js$/i
 
 export interface PersistUserScriptInstallOptions {
   decision: UserScriptImportDecision
@@ -172,8 +171,7 @@ async function removeReplacedManagedFile(
       || (sourceFilePath !== null && oldPath === path.resolve(sourceFilePath))
       || path.dirname(oldPath) !== root
     ) return
-    const baseName = path.basename(oldPath)
-    if (!UUID_FILE_PATTERN.test(baseName) && !MANAGED_IMPORT_FILE_PATTERN.test(baseName)) return
+    if (!isManagedScriptArtifactName(path.basename(oldPath))) return
     const stat = await fs.lstat(oldPath)
     if (!stat.isFile() && !stat.isSymbolicLink()) return
     const stillReferenced = getAllScripts().some(script => (

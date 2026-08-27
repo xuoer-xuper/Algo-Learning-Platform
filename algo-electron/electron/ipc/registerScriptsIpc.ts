@@ -14,6 +14,7 @@ import path from 'node:path'
 import {
   deleteScript,
   getAllScripts,
+  getScriptById,
   toggleScript,
   updateScript,
 } from '../db/repositories/userScriptRepository'
@@ -32,8 +33,10 @@ import {
   UserScriptRemoteInstaller,
 } from '../scripts/UserScriptRemoteInstaller'
 import { persistUserScriptInstall } from '../scripts/UserScriptInstaller'
+import { isManagedScriptArtifactName, resolveManagedScriptPath } from '../scripts/managedScriptPath'
 import type { UserScriptUpdateService } from '../scripts/UserScriptUpdateService'
 import { resolveUserScriptRequestTarget } from '../scripts/userScriptConnectPolicy'
+import { appLogger } from '../shared/logger'
 
 type UserScriptSaveInput = {
   name: string
@@ -271,16 +274,78 @@ export function registerScriptsIpc(options: RegisterScriptsIpcOptions = {}): voi
     return shell.openPath(scriptsDir)
   })
 
+  ipcMain.handle('scripts:getCode', async (_event, id: unknown): Promise<UserScriptCodeView> => {
+    const script = getScriptById(validateScriptId(id))
+    if (!script) return { status: 'not-found' }
+    const managedPath = resolveManagedScriptPath(script.file_path, userScriptsDirectory())
+    if (script.file_path && !managedPath) return { status: 'unmanaged' }
+
+    const code = managedPath ? await readManagedScriptCode(managedPath) : script.code
+    if (code === null) return { status: 'unreadable' }
+    if (Buffer.byteLength(code, 'utf8') > MAX_VIEWABLE_SCRIPT_BYTES) {
+      return { status: 'too-large', limitBytes: MAX_VIEWABLE_SCRIPT_BYTES }
+    }
+    return { status: 'ok', scriptId: script.id, code }
+  })
+
+  ipcMain.handle('scripts:openEditor', async (_event, id: unknown): Promise<UserScriptOpenEditorResult> => {
+    const script = getScriptById(validateScriptId(id))
+    if (!script) return { status: 'not-found' }
+    const managedPath = resolveManagedScriptPath(script.file_path, userScriptsDirectory())
+    if (!managedPath) return { status: 'unmanaged' }
+    // shell.openPath resolves to '' on success and to a platform message on
+    // failure; the message is not surfaced verbatim because it is OS-localized.
+    const failure = await shell.openPath(managedPath)
+    return failure ? { status: 'open-failed' } : { status: 'ok' }
+  })
+
   ipcMain.handle('scripts:toggle', (_event, id: string, enabled: boolean) => {
     const result = toggleScript(id, enabled)
     if (result) options.refreshUserScriptRuntime?.()
     return result
   })
-  ipcMain.handle('scripts:delete', (_event, id: string) => {
-    const result = deleteScript(id)
-    if (result) options.refreshUserScriptRuntime?.()
-    return result
+  ipcMain.handle('scripts:delete', async (_event, id: unknown) => {
+    const script = getScriptById(validateScriptId(id))
+    if (!script) return false
+    const managedPath = resolveManagedScriptPath(script.file_path, userScriptsDirectory())
+    const result = deleteScript(script.id)
+    if (!result) return false
+    if (managedPath && isManagedScriptArtifactName(path.basename(managedPath))) {
+      // Content-addressed names mean two rows can legitimately share one file
+      // (identical code imported under different identities). Only reclaim the
+      // file once no surviving row still points at it.
+      const stillReferenced = getAllScripts().some(other => (
+        other.file_path !== null && path.resolve(other.file_path) === managedPath
+      ))
+      if (!stillReferenced) {
+        try { await fs.unlink(managedPath) }
+        catch (error) {
+          if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+            appLogger.warn('userscript.managed-file-delete-failed', { scriptId: script.id, error })
+          }
+        }
+      }
+    }
+    options.refreshUserScriptRuntime?.()
+    return true
   })
+}
+
+const MAX_VIEWABLE_SCRIPT_BYTES = 4 * 1024 * 1024
+
+function userScriptsDirectory(): string {
+  return path.join(app.getPath('userData'), 'userscripts')
+}
+
+async function readManagedScriptCode(filePath: string): Promise<string | null> {
+  try {
+    const stat = await fs.stat(filePath)
+    if (!stat.isFile() || stat.size > MAX_VIEWABLE_SCRIPT_BYTES) return null
+    return await fs.readFile(filePath, 'utf8')
+  }
+  catch {
+    return null
+  }
 }
 
 function installValidatorsApply(

@@ -10,6 +10,7 @@ import {
   dialog,
   ipcMain,
   ipcRenderer,
+  shell,
   resetElectronMock,
 } from 'electron'
 import { closeDb, initDbAtPath } from '../../electron/db/connection'
@@ -282,6 +283,96 @@ test('scripts:getAll returns a renderer-safe summary without source or absolute 
   }])
   assert.strictEqual(Object.hasOwn(result[0], 'code'), false)
   assert.strictEqual(Object.hasOwn(result[0], 'file_path'), false)
+})
+
+test('scripts code view and editor stay inside the managed directory, delete removes only managed files', async () => {
+  const scriptsDirectory = path.join(tempDirectory, 'userscripts')
+  fs.mkdirSync(scriptsDirectory, { recursive: true })
+  const managedPath = path.join(scriptsDirectory, '00000000-0000-4000-8000-000000000003.js')
+  const unmanagedPath = path.join(tempDirectory, 'outside.user.js')
+  fs.writeFileSync(managedPath, 'console.log("managed")')
+  fs.writeFileSync(unmanagedPath, 'console.log("outside")')
+  const managedId = createScript({
+    name: 'Managed',
+    namespace: '',
+    identity_name: 'Managed',
+    match_urls_json: '[]',
+    code: 'fallback',
+    file_path: managedPath,
+    site_ids_json: '[]',
+    enabled: true,
+  })
+  const outsideId = createScript({
+    name: 'Outside',
+    namespace: '',
+    identity_name: 'Outside',
+    match_urls_json: '[]',
+    code: 'outside',
+    file_path: unmanagedPath,
+    site_ids_json: '[]',
+    enabled: true,
+  })
+  const openPath = vi.spyOn(shell, 'openPath').mockResolvedValue('')
+  registerScriptsIpc()
+
+  assert.deepStrictEqual(await ipcRenderer.invoke('scripts:getCode', managedId), {
+    status: 'ok',
+    scriptId: managedId,
+    code: 'console.log("managed")',
+  })
+  // Each failure mode is distinguishable so the UI can explain it instead of
+  // rendering one undifferentiated "unavailable".
+  assert.deepStrictEqual(
+    await ipcRenderer.invoke('scripts:getCode', outsideId),
+    { status: 'unmanaged' },
+  )
+  assert.deepStrictEqual(
+    await ipcRenderer.invoke('scripts:getCode', '00000000-0000-4000-8000-00000000dead'),
+    { status: 'not-found' },
+  )
+  assert.deepStrictEqual(
+    await ipcRenderer.invoke('scripts:openEditor', managedId),
+    { status: 'ok' },
+  )
+  assert.strictEqual(openPath.mock.calls[0][0], managedPath)
+  assert.deepStrictEqual(
+    await ipcRenderer.invoke('scripts:openEditor', outsideId),
+    { status: 'unmanaged' },
+  )
+  openPath.mockResolvedValueOnce('Windows cannot open this file')
+  assert.deepStrictEqual(
+    await ipcRenderer.invoke('scripts:openEditor', managedId),
+    { status: 'open-failed' },
+  )
+  assert.strictEqual(await ipcRenderer.invoke('scripts:delete', managedId), true)
+  assert.strictEqual(fs.existsSync(managedPath), false)
+  assert.strictEqual(await ipcRenderer.invoke('scripts:delete', outsideId), true)
+  assert.strictEqual(fs.existsSync(unmanagedPath), true)
+})
+
+test('deleting one of two rows sharing a managed file keeps the file for the survivor', async () => {
+  const scriptsDirectory = path.join(tempDirectory, 'userscripts')
+  fs.mkdirSync(scriptsDirectory, { recursive: true })
+  const sharedPath = path.join(scriptsDirectory, 'shared--0123456789ab--ba9876543210.user.js')
+  fs.writeFileSync(sharedPath, userscript('Shared', '1.0.0'))
+  const base = {
+    namespace: '',
+    match_urls_json: '[]',
+    code: 'shared',
+    file_path: sharedPath,
+    site_ids_json: '[]',
+    enabled: true,
+  }
+  const firstId = createScript({ ...base, name: 'Shared A', identity_name: 'Shared A' })
+  createScript({ ...base, name: 'Shared B', identity_name: 'Shared B' })
+  registerScriptsIpc()
+
+  assert.strictEqual(await ipcRenderer.invoke('scripts:delete', firstId), true)
+  assert.strictEqual(
+    fs.existsSync(sharedPath),
+    true,
+    'A managed file still referenced by another row must survive deletion',
+  )
 })
 
 test('confirmed updates preserve user configuration and remove only the replaced managed file', async () => {

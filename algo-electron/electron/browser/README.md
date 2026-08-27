@@ -26,7 +26,8 @@
 - B2.8 原生右键：WebContentsView 页面按链接/图片/选中文本/编辑区/空白处组装菜单；TabStrip 支持复制、关闭范围、恢复和“移到新窗口”，后者统一进入 B3 完整壳过户；壳内编辑区与 Omnibox 复用同一原生菜单，Omnibox 额外提供“粘贴并前往”。内部页空白处提供后退与重新加载，不引入会被 view 遮挡的 DOM 菜单。
 - 壳层 IPC：browser/tab/window channel 由 `electron/ipc/registerBrowserShellIpc.ts` 注册，Browser 模块只暴露 `TabManager` 等运行期对象。
 - OJ Session：`ojSession.ts` 配置持久 session、真实 Chrome UA、早期实时提交 hook 和 stealth script；不再改写全局 CORS 响应头，默认 session 与 OJ session 同时安装 permission check/request 双处理器，敏感权限默认拒绝。
-- OJ preload 桥：`ojPreload.ts` 暴露 `__algo_submission_v1.reportSubmission()` 并转发同页面/子 frame 的 `postMessage`；同时在隔离世界安装登录表单 submit 捕获，使用独立 `oj-credentials:capture` 通道，不向页面暴露凭据 API。
+- OJ preload 桥：`ojPreload.ts` 暴露 `__algo_submission_v1.reportSubmission()` 并转发同页面/子 frame 的 `postMessage`；提交 envelope 必须携带该 webContents 的 document token，token 由 preload 主动 `invoke` 拉取（不能由主进程 push，push 会与新文档 preload 注册竞态并永久丢失），主进程按 sender 校验后丢弃不匹配的 envelope。同时在隔离世界安装登录表单 submit 捕获，使用独立 `oj-credentials:capture` 通道，不向页面暴露凭据 API。
+- 提交 token 的安全边界要说清：它只保证 envelope 来自当前 webContents 的活文档，**不能**阻止页面内脚本或同页 iframe 通过 `postMessage`/bridge 伪造 payload——那条路径由 `SubmissionWatcherCore` 的 adapter/URL/verdict 校验和提交去重收敛。
 - 反检测脚本：`STEALTH_SCRIPT` 在页面加载后注入，主线由 `TabManager` 执行。
 
 ## 3. 文件职责
@@ -136,7 +137,7 @@
 adapter hook in OJ page
   -> window.__algo_submission_v1.reportSubmission(payload)
   -> ojPreload.ts
-  -> ipcRenderer.send('oj-submission:detected', payload)
+  -> ipcRenderer.send('oj-submission:detected', { token, payload })
   -> RealtimeSubmissionService
 ```
 

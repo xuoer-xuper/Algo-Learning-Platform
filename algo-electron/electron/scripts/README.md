@@ -26,6 +26,7 @@
 - `UserScriptRemoteInstaller.ts`：按短时 installId 去重下载脚本与资源，只向确认页暴露无源码预览，并在关闭/取消/过期时中止和清理。
 - `UserScriptInstaller.ts`：本地导入、远程安装和自动更新共用的临时文件 + SQLite transaction + 资源/update-state 原子持久化原语。
 - `UserScriptUpdateService.ts`：按 updateURL/downloadURL/lastInstallURL 回退检查更新，负责 24 小时到期调度、手动检查、条件请求、身份/版本复验与运行时刷新。
+- `UserScriptFileWatcher.ts`：只监听 `userData/userscripts` 直属 `.js` 受管文件，变更/重命名/删除采用 debounce 后触发主进程 runtime refresh；不读取或记录源码。
 
 `UserScriptService.ts`：
 
@@ -79,6 +80,8 @@
 - `scripts:confirmRemoteInstall`
 - `scripts:cancelRemoteInstall`
 - `scripts:checkUpdates`
+- `scripts:getCode`
+- `scripts:openEditor`
 
 这些 IPC 依赖 `userScriptRepository`、短时安装 registry、远程安装/更新 service 和 Electron `dialog/shell`。
 用户脚本 repository 的内部说明见 `electron/db/repositories/userScript/README.md`。
@@ -112,6 +115,8 @@
 - GM values、host 授权、BLOB 资源缓存和更新状态已接入私有运行时与远程安装/更新链；远程安装保存稳定 `last_install_url`，条件验证器只在下一检查目标一致时复用。
 - B6.2 已删除旧的页面 `window.GM_*`/localStorage/fetch polyfill；值桥、局部 grant API 和隔离通信统一走主进程缓存与专用 preload。
 - `code` 字段保存导入内容供主进程运行时回退，`file_path` 指向内容寻址的受管副本；两者均不进入 shell 摘要 DTO。
+- 管理页源码查看只经 `scripts:getCode` 临时返回只读 DTO；普通列表、截图 harness、日志和远程安装预览均不得接收源码。系统编辑器打开不会把文件内容经过 renderer。
+- `managedScriptPath.ts` 是“什么算受管文件”的唯一判定源。安装替换与删除回收必须共用它；此前两处各有一份正则副本，删除路径可能与安装路径漂移。
 - 新 canonical 无 `@namespace` 时保存空字符串；`NULL` 只保留给首次重新导入前的 legacy canonical。
 - 更新成功后仅清理 `userscripts` 直属目录中已失去引用的受管旧文件；永远不删除用户选择的源文件。
 
@@ -130,6 +135,7 @@
 - 修改资源解析、下载或运行时 API 时，必须保持“下载校验先于持久化、DB 同事务替换、运行时缓存不一致 fail closed”，并运行资源缓存、IPC、runtime 与真实 Electron smoke。
 - 远程安装预览不得包含源码或资源正文；确认前必须重算 identity、目标脚本和已安装版本，重复确认必须互斥，标签关闭/过期/取消必须中止未完成抓取。
 - 自动更新只接受版本严格 newer 且身份精确匹配的完整脚本；updateURL/downloadURL/lastInstallURL 均失败时保留旧版并记录有限错误摘要。
+- 提交 bridge 的 document token 由 `ojPreload` 主动拉取并在首次为空时重试；主进程拒绝 token 不匹配的 envelope。禁止改成主进程 push，会与新文档 preload 注册竞态。
 
 ## 7. 测试入口
 

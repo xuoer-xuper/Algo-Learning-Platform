@@ -179,6 +179,32 @@ check('VJudge realtime path stays strongly associated', () => {
   }
 })
 
+check('real-Electron suites stay out of the Vitest run', () => {
+  // A suite that reads its bundle path from the environment cannot run under
+  // the Vitest Electron double: it throws before asserting anything, which is
+  // how userScriptRuntimeSmoke silently broke `npm run test:all`.
+  const vitestConfig = read(path.join(projectRoot, 'vitest.config.ts'))
+  const verify = read(path.join(projectRoot, 'tests', 'verify.mjs'))
+  const missing = []
+
+  for (const file of walkSourceFiles(path.join(projectRoot, 'tests', 'electron'))) {
+    if (!/\.test\.ts$/.test(file)) continue
+    const relativePath = relative(file)
+    // A module-scope requiredEnvironment() throws during import, before any
+    // assertion runs. Files that merely name an env var in a source assertion
+    // (mainResilience) or spawn their own Electron child are fine under Vitest.
+    if (!/^const \w+ = requiredEnvironment\(/m.test(read(file))) continue
+    if (!vitestConfig.includes(relativePath)) {
+      missing.push(`${relativePath}: needs a bundle env var but is not excluded in vitest.config.ts`)
+    }
+    if (!verify.includes(path.basename(file))) {
+      missing.push(`${relativePath}: excluded from Vitest but never run by tests/verify.mjs`)
+    }
+  }
+
+  if (missing.length > 0) throw new Error(missing.join('\n'))
+})
+
 let failed = 0
 console.log('Running architecture guard checks...\n')
 for (const item of checks) {

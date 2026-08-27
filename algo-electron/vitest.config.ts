@@ -11,6 +11,9 @@ export default defineConfig({
   },
   test: {
     include: ['tests/**/*.test.ts', 'tests/**/*.test.tsx'],
+    // Suites that need real Electron, safeStorage or the better-sqlite3 ABI.
+    // They are driven by tests/verify.mjs and must not run under the Vitest
+    // Electron double, where they fail on their missing bundle env vars.
     exclude: [
       'tests/ai/traceability.test.ts',
       'tests/coach/llmConfigStore.test.ts',
@@ -18,7 +21,9 @@ export default defineConfig({
       'tests/db/dailyStatsPerformance.test.ts',
       'tests/db/migrationSafety.test.ts',
       'tests/db/repositories.test.ts',
+      'tests/electron/ojSubmissionBridgeSmoke.test.ts',
       'tests/electron/startupSmoke.test.ts',
+      'tests/electron/userScriptRuntimeSmoke.test.ts',
     ],
     environment: 'node',
     pool: 'forks',
@@ -41,11 +46,14 @@ export default defineConfig({
         'src/main.tsx',
         'src/vite-env.d.ts',
       ],
+      // Kept a few points under the measured numbers (58.46/55.83/54.88/61.01)
+      // so ordinary refactors do not trip the gate, while a real coverage drop
+      // still fails. Raise these together with coverage, never lower them.
       thresholds: {
-        statements: 28,
-        branches: 34,
-        functions: 24,
-        lines: 29,
+        statements: 55,
+        branches: 53,
+        functions: 52,
+        lines: 58,
       },
     },
   },

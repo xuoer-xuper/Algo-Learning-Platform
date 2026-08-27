@@ -1,5 +1,12 @@
 export const OJ_SUBMISSION_BRIDGE_CHANNEL = '__algo_submission_v1'
 export const OJ_SUBMISSION_IPC_CHANNEL = 'oj-submission:detected'
+/**
+ * Pull-only channel. The isolated preload requests the document token; main
+ * never pushes it, because a push emitted on `did-navigate` can arrive before
+ * the new document's preload has registered a listener and would then be lost
+ * for the whole page lifetime.
+ */
+export const OJ_SUBMISSION_TOKEN_CHANNEL = 'oj-submission:getDocumentToken'
 
 export interface OjSubmissionBridge {
   reportSubmission(payload: unknown): void

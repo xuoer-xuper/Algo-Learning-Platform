@@ -6,12 +6,16 @@ interface UserScriptEditorProps {
   sites: ScriptSite[]
   editName: string
   selectedSiteIds: string[]
+  code: string | null
+  codeNotice: string
+  codeLoading: boolean
   errorMsg: string
   onEditNameChange: (value: string) => void
   onToggleSite: (siteId: string) => void
   onCancel: () => void
   onSave: () => void
   onOpenFolder: () => void
+  onOpenEditor: () => void
 }
 
 export function UserScriptEditor({
@@ -19,12 +23,16 @@ export function UserScriptEditor({
   sites,
   editName,
   selectedSiteIds,
+  code,
+  codeNotice,
+  codeLoading,
   errorMsg,
   onEditNameChange,
   onToggleSite,
   onCancel,
   onSave,
   onOpenFolder,
+  onOpenEditor,
 }: UserScriptEditorProps) {
   return (
     <div className="scripts-body">
@@ -57,10 +65,22 @@ export function UserScriptEditor({
               value={script.has_file ? '本地托管脚本' : '数据库托管脚本'}
               readOnly
             />
-            {script.has_file && (
-              <Button variant="secondary" icon="external" onClick={onOpenFolder}>打开目录</Button>
-            )}
+            {script.has_file && <Button variant="secondary" icon="external" onClick={onOpenFolder}>打开目录</Button>}
+            {script.has_file && <Button variant="secondary" icon="edit" onClick={onOpenEditor}>系统编辑器</Button>}
           </div>
+        </div>
+
+        <div className="scripts-field">
+          <label className="scripts-label" htmlFor="scripts-code-view">脚本源码（只读）</label>
+          {codeNotice && <span className="scripts-field-hint">{codeNotice}</span>}
+          <textarea
+            id="scripts-code-view"
+            className="ui-input mono"
+            value={codeLoading ? '正在读取源码...' : (code ?? '')}
+            readOnly
+            rows={12}
+            spellCheck={false}
+          />
         </div>
 
         <div className="scripts-field">

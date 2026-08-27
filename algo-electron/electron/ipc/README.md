@@ -14,7 +14,7 @@
 - `registerNotesIpc.ts`：注册 `notes:*` 笔记 CRUD、图片保存、批量删除和打开目录 handler。
 - `registerProblemIpc.ts`：注册 `problem:*` 最近题目、题目详情和题目删除 handler。
 - `registerRatingIpc.ts`：注册 `rating:*` 账号绑定、Codeforces rating 同步、rating 历史和比赛结果查询 handler。
-- `registerScriptsIpc.ts`：注册 `scripts:*` 用户脚本摘要列表、本地导入、远程安装预览/确认/取消、手动检查更新、保存、启停、删除和打开目录 handler；列表和远程预览不返回源码、资源正文或绝对路径。
+- `registerScriptsIpc.ts`：注册 `scripts:*` 用户脚本摘要列表、本地导入、远程安装预览/确认/取消、手动检查更新、保存、启停、删除、只读源码查看、系统编辑器打开和打开目录 handler；列表和远程预览不返回源码、资源正文或绝对路径，源码只经显式受控只读请求返回。
 - `registerSitesIpc.ts`：注册 `sites:*` 站点 CRUD、导入导出、冲突预览确认 handler。
 - `registerStatsIpc.ts`：注册 `stats:*` 统计查询和重算 handler。
 - `registerSubmissionsIpc.ts`：注册 `submissions:*` 手动同步 handler。
@@ -50,6 +50,8 @@
 - `handleFromShell()` / `onFromShell()`：普通壳 IPC 的统一校验入口，拒绝未知 webContents、iframe、伪造 origin 和超限/循环 payload。
 - `getShellWindowOwner(event)`：在 sender 校验通过后返回登记的 `AppWindow`；owner 缺失时窗口敏感操作 fail closed，不回退最近活跃窗口。
 - `onFromOj()`：只允许已登记的 `persist:oj-main` WebContentsView 主 frame 发送提交或登录捕获 bridge 事件；不同内部 channel 仍各自执行严格 payload 判别。
+- `handleFromOj()`：`onFromOj()` 的 invoke 版本，供隔离 OJ preload 在 document start 主动拉取主进程状态。主进程到 OJ 的 push 不可用于这类握手：`did-navigate` 时发出的 push 可能早于新文档 preload 注册监听而永久丢失。
+- OJ 提交 bridge token：主进程按 webContents 惰性生成随机 token，`ojPreload` 通过 `oj-submission:getDocumentToken` 拉取；token 在该 webContents 生命周期内稳定，不随导航轮换（轮换会重新引入 preload 持旧 token 的窗口），销毁时清除。它只证明 envelope 来自当前活文档，不构成对页面内伪造 payload 的防护。
 
 ## 4. 边界规则
 
@@ -60,6 +62,7 @@
 - handler 内不要记录 Cookie、用户源码、完整请求体或可复用登录态信息。
 - `cookies:*` channel 不得返回 Cookie value；需要完整 Cookie 时只能由 main 进程内部 service 调用 `CookieVault`。
 - `credentials:*` 普通壳 channel 不得返回密码、secret envelope 或 `getForAutofill` 结果；自动填充只允许 `persist:oj-main` 的受限 OJ preload 通道，且不得自动提交表单。
+- `scripts:getCode` 只允许显式按脚本 ID 读取主进程数据库回退源码或受管目录内、4 MiB 以内的源码；主进程读取后返回带 `status` 的只读判别联合（`ok`/`not-found`/`unmanaged`/`unreadable`/`too-large`），不记录日志。`scripts:openEditor` 仅能打开同一受管目录内的 `.js` 文件并返回结构化 `status`，不回传 OS 本地化错误串。删除只回收应用生成的受管文件名，且必须确认没有其他脚本行仍引用同一文件（内容寻址文件名允许两行共享一个文件）。
 - `credentials:autofillPrompt` 是唯一允许壳 renderer 接收的自动填充通知，payload 只含站点、URL 和脱敏凭据摘要；`credentials:autofillRespond` 必须按 owner/requestId 校验并拒绝不属于 prompt 的 credentialId。
 - `credentials:capturePrompt`/`credentials:captureResult` 是允许壳 renderer 接收的登录捕获事件，但 payload 只能含一次性 captureId、站点/用户名、displayName、masked、isUpdate 和非敏感结果；`credentials:captureRespond` 必须按 owner、captureId 和受限 action（`save`/`update`/`cancel`）校验。
 - `oj-credentials:capture` 是 OJ 专用内部 channel，只能由 `onFromOj()` 接收 `persist:oj-main` 主 frame 的 `{ username, password }`；不得加入 shell preload API 或普通 renderer channel 列表。主进程应在保存前清理 pending，取消、超时、导航、销毁和 `dispose` 均 fail closed，且任何错误不得回传密码或密文。

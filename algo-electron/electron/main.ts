@@ -91,6 +91,7 @@ import { CredentialAutofillService } from './credentials/autofill/CredentialAuto
 import { CredentialCaptureService } from './credentials/CredentialCaptureService'
 import { UserScriptRemoteInstaller } from './scripts/UserScriptRemoteInstaller'
 import { UserScriptUpdateService } from './scripts/UserScriptUpdateService'
+import { UserScriptFileWatcher } from './scripts/UserScriptFileWatcher'
 
 configureChromiumCommandLine()
 
@@ -111,6 +112,7 @@ let downloadManager: DownloadManager | null = null
 let userScriptInstallRegistry: PendingUserScriptInstallRegistry | null = null
 let userScriptRemoteInstaller: UserScriptRemoteInstaller | null = null
 let userScriptUpdateService: UserScriptUpdateService | null = null
+let userScriptFileWatcher: UserScriptFileWatcher | null = null
 let credentialAutofillService: CredentialAutofillService | null = null
 let credentialCaptureService: CredentialCaptureService | null = null
 let windowStateStore: WindowStateStore | null = null
@@ -627,6 +629,8 @@ app.on('before-quit', (event) => {
   }
   userScriptUpdateService?.stop()
   userScriptUpdateService = null
+  userScriptFileWatcher?.stop()
+  userScriptFileWatcher = null
   try {
     closeDb()
   } catch (error) {
@@ -725,6 +729,12 @@ void app.whenReady().then(async () => {
 
   registerNoteAssetProtocol()
   services = await initializeMainServices(() => { windowManager.sendToAll('problems:updated') })
+  userScriptFileWatcher = new UserScriptFileWatcher({
+    directory: path.join(app.getPath('userData'), 'userscripts'),
+    onChanged: () => services?.userScriptRuntime.refresh(),
+    getGeneration: () => services?.userScriptRuntime.generation ?? 0,
+  })
+  userScriptFileWatcher.start()
   userScriptUpdateService = new UserScriptUpdateService({
     fetch: (input, init) => session.defaultSession.fetch(input, init),
     scriptsDirectory: path.join(app.getPath('userData'), 'userscripts'),

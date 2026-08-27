@@ -227,6 +227,125 @@ test('detects import conflicts instead of silently overwriting existing data', (
   }
 })
 
+// Two machines never share a platform_accounts UUID (upsertAccount mints
+// crypto.randomUUID), so a cross-device import always arrives with foreign
+// account ids. The preview must resolve them the same way the import does.
+test('previews rating history duplicates when the local account id differs', () => {
+  const paths = createTestPaths()
+  try {
+    initDbAtPath(paths.sourceDbPath)
+    seedSourceDatabase()
+    const exported = exportLearningData()
+    closeDb()
+
+    initDbAtPath(paths.targetDbPath)
+    assert.strictEqual(importLearningData(exported).success, true)
+
+    const foreign = cloneExport(exported)
+    const foreignAccountId = 'account-from-another-machine'
+    foreign.tables.platform_accounts[0] = { ...foreign.tables.platform_accounts[0], id: foreignAccountId }
+    foreign.tables.rating_history[0] = { ...foreign.tables.rating_history[0], account_id: foreignAccountId }
+
+    const preview = previewLearningDataImport(foreign)
+    const applied = importLearningData(foreign)
+    assert.strictEqual(applied.success, true)
+    assert.strictEqual(applied.inserted.rating_history, 0)
+    assert.strictEqual(applied.skipped.rating_history, 1)
+    assert.strictEqual(preview.duplicate_counts.rating_history, 1)
+    assert.strictEqual(preview.new_counts.rating_history, 0)
+  } finally {
+    closeDb()
+    fs.rmSync(paths.tempDir, { recursive: true, force: true })
+  }
+})
+
+test('does not count a conflicting row twice when previewing new rows', () => {
+  const paths = createTestPaths()
+  try {
+    initDbAtPath(paths.sourceDbPath)
+    seedSourceDatabase()
+    const exported = exportLearningData()
+    closeDb()
+
+    initDbAtPath(paths.targetDbPath)
+    assert.strictEqual(importLearningData(exported).success, true)
+
+    // One row conflicts with an existing problem, one row is genuinely new.
+    const mixed = cloneExport(exported)
+    mixed.tables.problems = [
+      { ...exported.tables.problems[0], id: 'conflicting-problem-id', title: 'Conflicting title' },
+      {
+        ...exported.tables.problems[0],
+        id: 'brand-new-problem-id',
+        platform_problem_id: '2000B',
+        canonical_url: 'https://codeforces.com/problemset/problem/2000/B',
+        title: 'Brand new',
+      },
+    ]
+    mixed.tables.problem_visits = []
+    mixed.tables.submissions = []
+
+    const preview = previewLearningDataImport(mixed)
+    assert.strictEqual(preview.counts.problems, 2)
+    assert.strictEqual(preview.duplicate_counts.problems, 1)
+    assert.strictEqual(preview.conflicts.length, 1)
+    assert.strictEqual(preview.new_counts.problems, 1)
+
+    const applied = importLearningData(mixed, true)
+    assert.strictEqual(applied.success, true)
+    assert.strictEqual(applied.inserted.problems, 1)
+  } finally {
+    closeDb()
+    fs.rmSync(paths.tempDir, { recursive: true, force: true })
+  }
+})
+
+// Overwrite mode writes active_seconds and duration_seconds, so a day whose
+// time-on-task differs must be reported as a conflict. Two devices computing the
+// same day agree on problem counts far more often than on seconds, which is
+// exactly the case a merged archive hits.
+test('reports a daily stats conflict when only the time figures differ', () => {
+  const paths = createTestPaths()
+  try {
+    initDbAtPath(paths.sourceDbPath)
+    seedSourceDatabase()
+    const exported = exportLearningData()
+    closeDb()
+
+    initDbAtPath(paths.targetDbPath)
+    assert.strictEqual(importLearningData(exported).success, true)
+
+    const other = cloneExport(exported)
+    other.tables.user_daily_stats = [{
+      ...exported.tables.user_daily_stats[0],
+      active_seconds: 3600,
+      duration_seconds: 4200,
+    }]
+
+    const preview = previewLearningDataImport(other)
+    assert.strictEqual(preview.duplicate_counts.user_daily_stats, 1)
+    assert.strictEqual(
+      preview.conflicts.filter(item => item.entity_type === 'user_daily_stats').length,
+      1,
+    )
+
+    // And overwrite really does replace the local figures, which is why the
+    // conflict has to surface before the user confirms.
+    assert.strictEqual(importLearningData(other, true).updated.user_daily_stats, 1)
+    const stored = getDb()
+      .prepare('SELECT active_seconds, duration_seconds FROM user_daily_stats WHERE local_day = ?')
+      .get(exported.tables.user_daily_stats[0].local_day) as {
+        active_seconds: number
+        duration_seconds: number
+      }
+    assert.strictEqual(stored.active_seconds, 3600)
+    assert.strictEqual(stored.duration_seconds, 4200)
+  } finally {
+    closeDb()
+    fs.rmSync(paths.tempDir, { recursive: true, force: true })
+  }
+})
+
 function createTestPaths(): TestPaths {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'algo-backup-import-'))
   return {

@@ -1,12 +1,16 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { ConfirmDialog, Icon, IconButton } from '../../components/ui'
 import { UserScriptEditor } from './UserScriptEditor'
 import { UserScriptList } from './UserScriptList'
 import {
   deleteUserScript,
   checkUserScriptUpdates,
+  describeUserScriptCodeView,
+  describeUserScriptOpenEditorResult,
+  getUserScriptCode,
   importUserScriptFile,
   loadUserScriptManagerData,
+  openUserScriptEditor,
   openUserScriptsFolder,
   saveUserScriptSites,
   toggleUserScript,
@@ -19,6 +23,10 @@ export function UserScriptManager({ onClose }: { onClose: () => void }) {
   const [editingScript, setEditingScript] = useState<UserScriptRecord | null>(null)
   const [editName, setEditName] = useState('')
   const [selectedSiteIds, setSelectedSiteIds] = useState<string[]>([])
+  const [scriptCode, setScriptCode] = useState<string | null>(null)
+  const [codeNotice, setCodeNotice] = useState('')
+  const [codeLoading, setCodeLoading] = useState(false)
+  const codeRequestRef = useRef(0)
   const [errorMsg, setErrorMsg] = useState('')
   const [updateMsg, setUpdateMsg] = useState('')
   const [checkingUpdates, setCheckingUpdates] = useState(false)
@@ -45,6 +53,25 @@ export function UserScriptManager({ onClose }: { onClose: () => void }) {
       setSelectedSiteIds([])
     }
     setErrorMsg('')
+    setScriptCode(null)
+    setCodeNotice('')
+    setCodeLoading(true)
+    const requestId = codeRequestRef.current + 1
+    codeRequestRef.current = requestId
+    void getUserScriptCode(script.id)
+      .then(result => {
+        if (requestId !== codeRequestRef.current) return
+        setScriptCode(result.status === 'ok' ? result.code : null)
+        setCodeNotice(describeUserScriptCodeView(result) ?? '')
+      })
+      .catch(() => {
+        if (requestId !== codeRequestRef.current) return
+        setScriptCode(null)
+        setCodeNotice('源码读取失败，请稍后重试。')
+      })
+      .finally(() => {
+        if (requestId === codeRequestRef.current) setCodeLoading(false)
+      })
   }
 
   const handleImport = async () => {
@@ -127,6 +154,14 @@ export function UserScriptManager({ onClose }: { onClose: () => void }) {
           onCancel={() => setEditingScript(null)}
           onSave={handleSave}
           onOpenFolder={openUserScriptsFolder}
+          onOpenEditor={() => {
+            void openUserScriptEditor(editingScript.id).then(result => {
+              setErrorMsg(describeUserScriptOpenEditorResult(result) ?? '')
+            })
+          }}
+          code={scriptCode}
+          codeNotice={codeNotice}
+          codeLoading={codeLoading}
         />
       ) : (
         <UserScriptList
@@ -147,7 +182,7 @@ export function UserScriptManager({ onClose }: { onClose: () => void }) {
       <ConfirmDialog
         open={pendingDeleteId !== null}
         title="删除脚本"
-        description="移除后该脚本不再注入任何站点；不会删除本地源文件。"
+        description="移除后该脚本不再注入任何站点；只清理应用托管副本，不删除原始源文件。"
         danger
         confirmText="删除"
         onConfirm={() => {

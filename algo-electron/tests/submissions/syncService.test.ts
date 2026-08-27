@@ -1,6 +1,14 @@
 import { test } from 'vitest'
 import assert from 'node:assert'
+import { setEnabledSitesFetcher } from '../../electron/parsers/registry.ts'
 import { SyncService } from '../../electron/submissions/syncService.ts'
+
+// URL parsing resolves the page problem from enabled site config. Without this
+// the file only passed when an unrelated suite had already installed a fetcher,
+// so both assertions on pageProblemId silently depended on file execution order.
+setEnabledSitesFetcher(() => [
+  { id: 'acwing', domains: ['acwing.com', 'www.acwing.com'], enabled: true },
+])
 
 test('submissions/syncService.test.ts', async () => {
 

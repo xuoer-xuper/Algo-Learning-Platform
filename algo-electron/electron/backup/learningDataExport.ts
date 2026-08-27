@@ -140,21 +140,15 @@ export function parseLearningDataExport(raw: unknown): LearningDataExport {
 export function previewLearningDataImport(raw: unknown): ImportPreview {
   try {
     const data = parseLearningDataExport(raw)
-    const conflicts = collectConflicts(data)
-    const counts = tableCounts(data)
-    const duplicateCounts = collectDuplicateCounts(data)
-    const newCounts: Record<string, number> = {}
-    for (const table of EXPORT_TABLES) {
-      newCounts[table] = Math.max(0, counts[table] - duplicateCounts[table] - countConflictsForTable(conflicts, table))
-    }
+    const plan = planImport(data)
 
     return {
       valid: true,
       schema_version: data.schema_version,
-      counts,
-      new_counts: newCounts,
-      duplicate_counts: duplicateCounts,
-      conflicts,
+      counts: tableCounts(data),
+      new_counts: plan.inserts,
+      duplicate_counts: plan.duplicates,
+      conflicts: collectConflicts(data),
     }
   } catch (error) {
     return {
@@ -209,35 +203,43 @@ export function importLearningData(data: LearningDataExport, overwriteConflicts 
 function collectConflicts(data: LearningDataExport): ImportConflict[] {
   const conflicts: ImportConflict[] = []
   const db = getDb()
+  const problemByKey = db.prepare(`
+    SELECT id, canonical_url, title, tags_json
+    FROM problems
+    WHERE platform = ? AND platform_problem_id = ?
+  `)
+  const submissionByKey = db.prepare(`
+    SELECT id, verdict, submitted_at, language
+    FROM submissions
+    WHERE platform = ? AND platform_submission_id = ?
+  `)
+  // Must select every column importDailyStats overwrites, because differs() only
+  // compares the columns present here. Omitting the two time figures let a day
+  // whose seconds differed import as a silent overwrite with no conflict shown.
+  const dailyStatByDay = db.prepare(`
+    SELECT local_day, active_seconds, duration_seconds, visited_problem_count,
+      solved_problem_count, submission_count, ac_submission_count,
+      platform_distribution_json
+    FROM user_daily_stats
+    WHERE local_day = ?
+  `)
 
   for (const problem of data.tables.problems) {
-    const existing = db.prepare(`
-      SELECT id, canonical_url, title, tags_json
-      FROM problems
-      WHERE platform = ? AND platform_problem_id = ?
-    `).get(problem.platform, problem.platform_problem_id) as ExistingKeyRow | undefined
+    const existing = problemByKey.get(problem.platform, problem.platform_problem_id) as ExistingKeyRow | undefined
     if (existing && existing.id !== problem.id && differs(existing, problem, ['id'])) {
       conflicts.push(conflict('problems', String(problem.id), '同一平台题目已存在且元数据不同'))
     }
   }
 
   for (const submission of data.tables.submissions) {
-    const existing = db.prepare(`
-      SELECT id, verdict, submitted_at, language
-      FROM submissions
-      WHERE platform = ? AND platform_submission_id = ?
-    `).get(submission.platform, submission.platform_submission_id) as ExistingKeyRow | undefined
+    const existing = submissionByKey.get(submission.platform, submission.platform_submission_id) as ExistingKeyRow | undefined
     if (existing && existing.id !== submission.id && differs(existing, submission, ['id'])) {
       conflicts.push(conflict('submissions', String(submission.id), '同一平台提交已存在且元数据不同'))
     }
   }
 
   for (const dailyStat of data.tables.user_daily_stats) {
-    const existing = db.prepare(`
-      SELECT local_day, visited_problem_count, solved_problem_count, submission_count, ac_submission_count
-      FROM user_daily_stats
-      WHERE local_day = ?
-    `).get(dailyStat.local_day) as ExistingKeyRow | undefined
+    const existing = dailyStatByDay.get(dailyStat.local_day) as ExistingKeyRow | undefined
     if (existing && differs(existing, dailyStat, ['local_day'])) {
       conflicts.push(conflict('user_daily_stats', String(dailyStat.local_day), '同一日期统计已存在且数值不同'))
     }
@@ -246,17 +248,69 @@ function collectConflicts(data: LearningDataExport): ImportConflict[] {
   return conflicts
 }
 
-function collectDuplicateCounts(data: LearningDataExport): Record<string, number> {
+/**
+ * Classifies every exported row the way the import will actually treat it, so
+ * `new_counts` and `duplicate_counts` cannot drift from what the apply does.
+ * Deriving "new" by subtracting duplicates and conflicts from the total used to
+ * double-count rows that are both, and matching rating history on the exported
+ * account id used to miss duplicates entirely — two machines never share a
+ * platform_accounts UUID, so a cross-device import always carries foreign ids.
+ */
+function planImport(data: LearningDataExport): {
+  duplicates: Record<string, number>
+  inserts: Record<string, number>
+} {
   const db = getDb()
-  const counts = emptyCounts()
+  const duplicates = emptyCounts()
+  const inserts = emptyCounts()
+  const record = (table: ExportTableName, exists: boolean): void => {
+    if (exists) duplicates[table] += 1
+    else inserts[table] += 1
+  }
 
-  counts.problems = data.tables.problems.filter(row => existsByProblemKey(db, row)).length
-  counts.problem_visits = data.tables.problem_visits.filter(row => existsById(db, 'problem_visits', String(row.id))).length
-  counts.submissions = data.tables.submissions.filter(row => existsBySubmissionKey(db, row)).length
-  counts.user_daily_stats = data.tables.user_daily_stats.filter(row => existsByLocalDay(db, row)).length
-  counts.platform_accounts = data.tables.platform_accounts.filter(row => existsByAccountKey(db, row)).length
-  counts.rating_history = data.tables.rating_history.filter(row => existsByRatingKey(db, row)).length
-  return counts
+  // Prepared once per table: an archive worth uploading holds tens of thousands
+  // of submissions, and better-sqlite3 recompiles on every prepare() call.
+  const problemByKey = db.prepare('SELECT 1 FROM problems WHERE platform = ? AND platform_problem_id = ?')
+  const submissionByKey = db.prepare('SELECT 1 FROM submissions WHERE platform = ? AND platform_submission_id = ?')
+  const dailyStatByDay = db.prepare('SELECT 1 FROM user_daily_stats WHERE local_day = ?')
+  const visitById = db.prepare('SELECT 1 FROM problem_visits WHERE id = ?')
+  const accountByKey = db.prepare('SELECT id FROM platform_accounts WHERE platform = ? AND handle = ?')
+  const ratingByKey = db.prepare('SELECT 1 FROM rating_history WHERE platform = ? AND account_id = ? AND contest_id = ?')
+
+  for (const row of data.tables.problems) {
+    record('problems', Boolean(problemByKey.get(row.platform, row.platform_problem_id)))
+  }
+  for (const row of data.tables.submissions) {
+    record('submissions', Boolean(submissionByKey.get(row.platform, row.platform_submission_id)))
+  }
+  for (const row of data.tables.user_daily_stats) {
+    record('user_daily_stats', Boolean(dailyStatByDay.get(row.local_day)))
+  }
+
+  // importProblemVisits skips a visit whose problem is not part of the export.
+  const exportedProblemIds = new Set(data.tables.problems.map(row => String(row.id)))
+  for (const row of data.tables.problem_visits) {
+    if (row.problem_id === null || row.problem_id === undefined) continue
+    if (!exportedProblemIds.has(String(row.problem_id))) continue
+    record('problem_visits', Boolean(visitById.get(String(row.id))))
+  }
+
+  // importAccounts matches by (platform, handle) and remaps rating history onto
+  // the local account id, so the preview must resolve ids the same way.
+  const accountIdMap = new Map<string, string>()
+  for (const row of data.tables.platform_accounts) {
+    const existing = accountByKey.get(row.platform, row.handle) as { id: string } | undefined
+    accountIdMap.set(String(row.id), existing?.id ?? String(row.id))
+    record('platform_accounts', existing !== undefined)
+  }
+  for (const row of data.tables.rating_history) {
+    if (row.account_id === null || row.account_id === undefined) continue
+    const accountId = accountIdMap.get(String(row.account_id))
+    if (accountId === undefined) continue
+    record('rating_history', Boolean(ratingByKey.get(row.platform, accountId, row.contest_id)))
+  }
+
+  return { duplicates, inserts }
 }
 
 function importProblems(
@@ -586,47 +640,15 @@ function emptyCounts(): Record<string, number> {
   return Object.fromEntries(EXPORT_TABLES.map(table => [table, 0]))
 }
 
-function countConflictsForTable(conflicts: ImportConflict[], table: ExportTableName): number {
-  return conflicts.filter(conflictItem => conflictItem.entity_type === table).length
-}
-
 function existsById(db: ReturnType<typeof getDb>, tableName: string, id: string): boolean {
   const row = db.prepare(`SELECT 1 as found FROM ${tableName} WHERE id = ?`).get(id) as { found: number } | undefined
   return Boolean(row)
-}
-
-function existsByProblemKey(db: ReturnType<typeof getDb>, row: ExportRow): boolean {
-  const existing = db.prepare(`
-    SELECT 1 as found FROM problems WHERE platform = ? AND platform_problem_id = ?
-  `).get(row.platform, row.platform_problem_id) as { found: number } | undefined
-  return Boolean(existing)
-}
-
-function existsBySubmissionKey(db: ReturnType<typeof getDb>, row: ExportRow): boolean {
-  const existing = db.prepare(`
-    SELECT 1 as found FROM submissions WHERE platform = ? AND platform_submission_id = ?
-  `).get(row.platform, row.platform_submission_id) as { found: number } | undefined
-  return Boolean(existing)
 }
 
 function existsByLocalDay(db: ReturnType<typeof getDb>, row: ExportRow): boolean {
   const existing = db.prepare(`
     SELECT 1 as found FROM user_daily_stats WHERE local_day = ?
   `).get(row.local_day) as { found: number } | undefined
-  return Boolean(existing)
-}
-
-function existsByAccountKey(db: ReturnType<typeof getDb>, row: ExportRow): boolean {
-  const existing = db.prepare(`
-    SELECT 1 as found FROM platform_accounts WHERE platform = ? AND handle = ?
-  `).get(row.platform, row.handle) as { found: number } | undefined
-  return Boolean(existing)
-}
-
-function existsByRatingKey(db: ReturnType<typeof getDb>, row: ExportRow): boolean {
-  const existing = db.prepare(`
-    SELECT 1 as found FROM rating_history WHERE platform = ? AND account_id = ? AND contest_id = ?
-  `).get(row.platform, row.account_id, row.contest_id) as { found: number } | undefined
   return Boolean(existing)
 }
 

@@ -362,6 +362,8 @@ function createApiMock(): ElectronAPI {
     scriptsSave: async () => 'script-1',
     scriptsImportFile: async () => null,
     scriptsOpenFolder: async () => {},
+    scriptsGetCode: async () => ({ status: 'not-found' as const }),
+    scriptsOpenEditor: async () => ({ status: 'ok' as const }),
     scriptsToggle: async () => true,
     scriptsDelete: async () => true,
     scriptsCheckUpdates: async () => ({

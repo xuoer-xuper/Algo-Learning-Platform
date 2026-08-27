@@ -494,6 +494,19 @@ interface UserScriptUpdateSummary {
   results: UserScriptUpdateResult[]
 }
 
+type UserScriptCodeView =
+  | { status: 'ok'; scriptId: string; code: string }
+  | { status: 'not-found' }
+  | { status: 'unmanaged' }
+  | { status: 'unreadable' }
+  | { status: 'too-large'; limitBytes: number }
+
+type UserScriptOpenEditorResult =
+  | { status: 'ok' }
+  | { status: 'not-found' }
+  | { status: 'unmanaged' }
+  | { status: 'open-failed' }
+
 interface UserScriptHostPermissionPrompt {
   promptId: string
   scriptName: string
@@ -952,6 +965,8 @@ interface ElectronAPI {
   scriptsSave: (id: string, data: UserScriptSaveInput) => Promise<string>
   scriptsImportFile: () => Promise<string | null>
   scriptsOpenFolder: () => Promise<string>
+  scriptsGetCode: (id: string) => Promise<UserScriptCodeView>
+  scriptsOpenEditor: (id: string) => Promise<UserScriptOpenEditorResult>
   scriptsToggle: (id: string, enabled: boolean) => Promise<boolean>
   scriptsDelete: (id: string) => Promise<boolean>
   scriptsCheckUpdates: () => Promise<UserScriptUpdateSummary | null>

@@ -268,10 +268,17 @@ export const safeStorage = {
 export const ipcMain = new EventEmitter() as EventEmitter & {
   handle: (channel: string, listener: Listener) => void
   removeHandler: (channel: string) => void
+  /** Invokes a registered handler with an explicit event, so tests can assert sender-scoped behaviour. */
+  invokeHandler: (channel: string, event: unknown, ...args: unknown[]) => Promise<unknown>
 }
 const ipcHandlers = new Map<string, Listener>()
 ipcMain.handle = (channel, listener) => { ipcHandlers.set(channel, listener) }
 ipcMain.removeHandler = (channel) => { ipcHandlers.delete(channel) }
+ipcMain.invokeHandler = async (channel, event, ...args) => {
+  const handler = ipcHandlers.get(channel)
+  if (!handler) throw new Error(`No ipcMain handler registered for ${channel}`)
+  return handler(event, ...args)
+}
 
 export const ipcRenderer = new EventEmitter() as EventEmitter & {
   send: (...args: unknown[]) => void

@@ -45,6 +45,8 @@ const coreContracts: PreloadContract[] = [
   { method: 'confirmRemoteUserScriptInstall', mode: 'invoke', channel: 'scripts:confirmRemoteInstall' },
   { method: 'cancelRemoteUserScriptInstall', mode: 'invoke', channel: 'scripts:cancelRemoteInstall' },
   { method: 'scriptsCheckUpdates', mode: 'invoke', channel: 'scripts:checkUpdates' },
+  { method: 'scriptsGetCode', mode: 'invoke', channel: 'scripts:getCode' },
+  { method: 'scriptsOpenEditor', mode: 'invoke', channel: 'scripts:openEditor' },
   { method: 'getUserScriptHostPermissionPrompt', mode: 'invoke', channel: 'userscript:getHostPermissionPrompt' },
   { method: 'respondUserScriptHostPermission', mode: 'invoke', channel: 'userscript:respondHostPermission' },
   { method: 'onUserScriptHostPermissionPrompt', mode: 'on', channel: 'userscript:hostPermissionRequested' },
