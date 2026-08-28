@@ -30,6 +30,7 @@
 | [DATA_EXPORT_AND_IMPORT](DESIGN/DATA_EXPORT_AND_IMPORT.md) | SQLite 备份、学习数据 JSON 导出导入、导入预览和冲突策略。 |
 | [AI_COACH_ARCHITECTURE](DESIGN/AI_COACH_ARCHITECTURE.md) | AI Coach 分层、数据流、合规硬边界和当前实现状态。 |
 | [BROWSER_SHELL_REFACTOR_PLAN](DESIGN/BROWSER_SHELL_REFACTOR_PLAN.md) | 浏览器化壳层大重构计划：浮层治理、标签页体系、多窗口拆分、账户密码管理、视觉升级的分期方案。 |
+| [QUALITY_HARDENING_PLAN](DESIGN/QUALITY_HARDENING_PLAN.md) | B6 后质量收口计划：评分与扣分归属、读路径错误处理、分层一致性守卫、大文件拆分和多设备同步前置结论。 |
 
 ## 发布与运维
 
