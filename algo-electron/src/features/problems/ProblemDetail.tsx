@@ -10,6 +10,7 @@ import {
 import type { ProblemDetailRecord, SubmissionRecord } from './problemTypes'
 import { SessionTimelineView } from '../coach/SessionTimelineView'
 import { Button, ConfirmDialog, Icon, IconButton } from '../../components/ui'
+import { reportRendererError } from '../../rendererErrors'
 
 interface Props {
   problemId: string
@@ -31,7 +32,9 @@ export function ProblemDetail({ problemId, onClose }: Props) {
   const [alsoDeleteNotes, setAlsoDeleteNotes] = useState(false)
 
   useEffect(() => {
-    loadProblemDetail(problemId).then(setDetail)
+    void loadProblemDetail(problemId)
+      .then(setDetail)
+      .catch((error: unknown) => reportRendererError('题目详情读取', error))
   }, [problemId])
 
   // 切题时重置子视图

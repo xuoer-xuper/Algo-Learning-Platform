@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Button, ConfirmDialog, IconButton } from '../../components/ui'
+import { reportRendererError } from '../../rendererErrors'
 import { AddSiteForm } from './AddSiteForm'
 import { ImportPreviewPanel } from './ImportPreviewPanel'
 import {
@@ -41,7 +42,9 @@ export function SiteManagementPanel() {
   const [pendingDelete, setPendingDelete] = useState<SiteConfigView | null>(null)
 
   const loadSites = () => {
-    loadSiteConfigs().then(setSites)
+    void loadSiteConfigs()
+      .then(setSites)
+      .catch((error: unknown) => reportRendererError('站点列表读取', error))
   }
 
   useEffect(() => {

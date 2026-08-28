@@ -13,6 +13,7 @@ import {
 } from './problemsApi'
 import { useDebouncedNoteTitleSave } from './useDebouncedNoteTitleSave'
 import { Button, ConfirmDialog, Icon, IconButton } from '../../components/ui'
+import { reportRendererError } from '../../rendererErrors'
 
 interface Props {
   problemId: string
@@ -32,12 +33,17 @@ export function NotePanelModal({ problemId, onClose }: Props) {
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
 
   const loadNotes = useCallback(async () => {
-    const list = await listNotesByProblem(problemId)
-    setNotes(list)
+    try {
+      const list = await listNotesByProblem(problemId)
+      setNotes(list)
+    } catch (error: unknown) {
+      // 笔记列表空态与「这题还没记笔记」长得一样。
+      reportRendererError('笔记列表读取', error)
+    }
   }, [problemId])
 
   useEffect(() => {
-    loadNotes()
+    void loadNotes()
   }, [loadNotes])
 
   const {

@@ -19,12 +19,18 @@ import { FindInPageBar } from './components/FindInPageBar'
 import { useBrowserNavigation } from './hooks/useBrowserNavigation'
 import {
   setDownloadNoticeVisible,
+  setErrorNoticeVisible,
   getUserScriptHostPermissionPrompt,
   respondUserScriptHostPermission,
   showBrowserShellContextMenu,
   subscribeDownloadResult,
   subscribeUserScriptHostPermissionPrompt,
 } from './hooks/browserShellApi'
+import {
+  dismissRendererError,
+  subscribeRendererErrors,
+  type RendererErrorReport,
+} from './rendererErrors'
 import './App.css'
 
 function App() {
@@ -35,6 +41,7 @@ function App() {
   const [credentialAutofillPrompt, setCredentialAutofillPrompt] = useState<CredentialAutofillPrompt | null>(null)
   const [credentialCapturePrompt, setCredentialCapturePrompt] = useState<CredentialCapturePrompt | null>(null)
   const [credentialCaptureError, setCredentialCaptureError] = useState(false)
+  const [rendererError, setRendererError] = useState<RendererErrorReport | null>(null)
   const {
     url,
     syncMsg,
@@ -79,6 +86,14 @@ function App() {
   }), [])
 
   useEffect(() => () => setDownloadNoticeVisible(false), [])
+
+  // 订阅时会补发挂载前积压的错误，因此首屏读取失败也能显示。
+  useEffect(() => subscribeRendererErrors((report) => {
+    setRendererError(report)
+    setErrorNoticeVisible(report !== null)
+  }), [])
+
+  useEffect(() => () => setErrorNoticeVisible(false), [])
 
   useEffect(() => {
     let disposed = false
@@ -288,6 +303,18 @@ function App() {
           onDismiss={() => setCredentialCaptureError(false)}
         >
           未能保存登录账户，请稍后重试。
+        </NoticeBar>
+      )}
+      {rendererError && (
+        <NoticeBar
+          tone="danger"
+          title={`${rendererError.scope}失败`}
+          dismissLabel="关闭错误通知"
+          onDismiss={dismissRendererError}
+        >
+          {rendererError.count > 1
+            ? `${rendererError.message}（${rendererError.count} 次）`
+            : rendererError.message}
         </NoticeBar>
       )}
       {contestMode?.isContestMode && (

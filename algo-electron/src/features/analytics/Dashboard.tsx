@@ -8,6 +8,7 @@ import {
   loadRatingHistory,
   recomputeDashboardDailyStats,
 } from './analyticsApi'
+import { reportRendererError } from '../../rendererErrors'
 import { DashboardListsPanel } from './DashboardListsPanel'
 import { PlatformDistributionPanel } from './PlatformDistributionPanel'
 import { RatingPanel } from './RatingPanel'
@@ -40,41 +41,56 @@ export function Dashboard({ onClose, onNavigate }: { onClose: () => void; onNavi
   const [weaknesses, setWeaknesses] = useState<WeaknessItem[]>([])
   const [weaknessNote, setWeaknessNote] = useState('')
 
+  // 读失败在这里兜底而不是在 effect 里，重算路径复用同一处理。
   const loadTrends = useCallback(async () => {
-    const trends = await loadDashboardTrends(trendRange)
-    setVisitedTrend(trends.visitedTrend)
-    setAcTrend(trends.acTrend)
+    try {
+      const trends = await loadDashboardTrends(trendRange)
+      setVisitedTrend(trends.visitedTrend)
+      setAcTrend(trends.acTrend)
+    } catch (error: unknown) {
+      reportRendererError('统计趋势读取', error)
+    }
   }, [trendRange])
 
   const loadAll = useCallback(async () => {
-    const coreData = await loadDashboardCoreData()
-    setStats(coreData.stats)
-    setStreak(coreData.streak)
-    setWrongProblems(coreData.wrongProblems)
-    setUnreviewed(coreData.unreviewed)
-    setTimeline(coreData.timeline)
-    setRevisits(coreData.revisits)
-    setCfAccount(coreData.cfAccount)
+    try {
+      const coreData = await loadDashboardCoreData()
+      setStats(coreData.stats)
+      setStreak(coreData.streak)
+      setWrongProblems(coreData.wrongProblems)
+      setUnreviewed(coreData.unreviewed)
+      setTimeline(coreData.timeline)
+      setRevisits(coreData.revisits)
+      setCfAccount(coreData.cfAccount)
 
-    const aiSuggestions = await loadDashboardAiSuggestions()
-    setRecommendations(aiSuggestions.recommendations)
-    setWeaknesses(aiSuggestions.weaknesses)
-    setWeaknessNote(aiSuggestions.weaknessNote)
+      const aiSuggestions = await loadDashboardAiSuggestions()
+      setRecommendations(aiSuggestions.recommendations)
+      setWeaknesses(aiSuggestions.weaknesses)
+      setWeaknessNote(aiSuggestions.weaknessNote)
 
-    setRatingHistory(await loadRatingHistory(coreData.cfAccount))
+      setRatingHistory(await loadRatingHistory(coreData.cfAccount))
+    } catch (error: unknown) {
+      reportRendererError('学习统计读取', error)
+    }
   }, [])
 
   useEffect(() => {
-    loadAll()
+    void loadAll()
   }, [loadAll])
 
-  useEffect(() => { loadTrends() }, [loadTrends])
+  useEffect(() => { void loadTrends() }, [loadTrends])
 
   const handleRecompute = async () => {
     setRecomputing(true)
-    await recomputeDashboardDailyStats()
-    await loadAll()
-    setRecomputing(false)
+    try {
+      await recomputeDashboardDailyStats()
+      await loadAll()
+    } catch (error: unknown) {
+      reportRendererError('统计重算', error)
+    } finally {
+      // 无论成功失败都要复位，否则「重算」按钮会永久禁用。
+      setRecomputing(false)
+    }
   }
 
   return (

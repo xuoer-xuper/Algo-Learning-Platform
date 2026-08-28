@@ -9,6 +9,8 @@ import { PlatformDistributionSummary } from './PlatformDistributionSummary'
 import { RealtimeSubmissionPanel } from './RealtimeSubmissionPanel'
 import { SearchEnginePanel } from './SearchEnginePanel'
 import { SiteManagementPanel } from './SiteManagementPanel'
+import { reportRendererError } from '../../rendererErrors'
+import { errorMessage } from '../../shared/errors'
 import { loadRealtimeSubmissionStatus, loadSettingsOverviewStats } from './settingsApi'
 import type { RealtimeSubmissionStatus, SettingsOverviewStats } from './settingsTypes'
 
@@ -18,8 +20,11 @@ export function SettingsPage({ onClose }: { onClose: () => void }) {
   const [realtimeStatusText, setRealtimeStatusText] = useState('')
 
   const loadOverviewStats = async () => {
-    const overview = await loadSettingsOverviewStats()
-    setStats(overview)
+    try {
+      setStats(await loadSettingsOverviewStats())
+    } catch (error: unknown) {
+      reportRendererError('设置页概览读取', error)
+    }
   }
 
   const loadRealtimeStatus = async () => {
@@ -29,14 +34,13 @@ export function SettingsPage({ onClose }: { onClose: () => void }) {
       setRealtimeStatus(status)
       setRealtimeStatusText(status ? '' : '实时监听服务未就绪')
     } catch (e: unknown) {
-      const message = e instanceof Error ? e.message : String(e)
-      setRealtimeStatusText(`读取失败: ${message}`)
+      setRealtimeStatusText(`读取失败: ${errorMessage(e)}`)
     }
   }
 
   useEffect(() => {
-    loadOverviewStats()
-    loadRealtimeStatus()
+    void loadOverviewStats()
+    void loadRealtimeStatus()
   }, [])
 
   return (

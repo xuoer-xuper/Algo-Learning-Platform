@@ -17,10 +17,13 @@
   - `STATUS_COLORS`：题目状态颜色。
   - `VERDICT_COLORS`：提交 verdict 颜色。
   - `CHART_COLORS`：统计图表通用颜色序列。
+- `errors.ts`
+  - `errorMessage(error: unknown)`：把未知 reject 原因转成可展示文案。各面板原先各写一遍 `e instanceof Error ? e.message : String(e)`，对主进程返回的普通对象会得到 `[object Object]`；这里补上对象与空 message 分支，作为唯一入口。
 
 ## 3. 边界规则
 
 - 多个 feature 重复使用的展示映射应放到这里。
+- 本目录不得保存模块级可变状态；需要跨组件广播的错误通道放 `src/rendererErrors.ts`。
 - 站点解析、提交解析、数据库状态枚举仍属于主进程模块。
 - 新增平台时，应同步这里的展示名、颜色和快捷入口。
 - 不要把组件 JSX、hooks 或 IPC helper 放进本目录。

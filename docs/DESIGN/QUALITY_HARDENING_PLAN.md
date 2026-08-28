@@ -74,7 +74,9 @@ Q1–Q4 是确定工作量的机械活，不含架构决策，应连续执行。
 
 ### Q1 renderer 读路径错误处理
 
-**问题**：写路径与读路径的错误处理系统性分裂，不是零散疏漏。feature 层 27 处 `try-catch` **全部**位于 save/action handler,而 load-on-mount effect **全部**没有。
+**问题**：写路径与读路径的错误处理系统性分裂，不是零散疏漏。feature 层 27 处 `try-catch` **全部**位于 save/action handler,load-on-mount effect 则大面积缺失。
+
+> 实施期逐文件复核修正：原文"load-on-mount effect **全部**没有"过宽。`SearchEnginePanel`、`SessionTimelineView`、`CoachMetricsView`、`CredentialsPage`、`SettingsPage.loadRealtimeStatus` 以及 `HomePage` 四处调用中的两处已有处理。实际缺口 **12 处,分布在 9 个文件**。
 
 主进程有 `electron/app/mainProcessErrors.ts` 完整处理 `unhandledRejection`,renderer 侧为 **0**。React `ErrorBoundary` 只捕获 render/lifecycle 异常,捕获不到 promise rejection。后果：IPC reject 时面板停在初始 state,显示空值或默认值,不报错不提示,用户无法区分"无数据"与"读取失败"。
 
@@ -97,6 +99,8 @@ Q1–Q4 是确定工作量的机械活，不含架构决策，应连续执行。
 **验证**：`test:unit` 新增用例,模拟 IPC reject,断言面板呈现错误态而非停在空态;`test:core`、`typecheck`、`lint` 全绿。
 
 **边界**：只改 renderer;不动主进程;不改色板、字体、布局基调、按钮形态、动画。
+
+> 实施期偏离说明：**"不动主进程"未能守住**。`TabManager.updateBounds()` 按已知通知条数量累加 `topInset`,主进程不知情的 NoticeBar 会被 `WebContentsView` 直接盖住;`.ui-toast-viewport` 是 `fixed; right/bottom: 16px`,同样落在 web view 矩形内,所以 Toast 也不是免主进程改动的出路。为保证 web 标签活动时错误可见，新增 `browser:setErrorNoticeVisible` 通道,涉及 `TabManager.ts`、`registerBrowserShellIpc.ts`、`preload.ts`、`electron-env.d.ts`、`main.ts` 五处。视觉基线未变。
 
 ### Q2 coach 收回 API 层
 
@@ -210,7 +214,7 @@ Q1–Q4 是确定工作量的机械活，不含架构决策，应连续执行。
 
 | 块 | 状态 | 说明 |
 |---|---|---|
-| Q1 | [ ] | 待实施 |
+| Q1 | [x] | 已完成。12 处读路径补齐;新增 `src/rendererErrors.ts` + `src/shared/errors.ts`;错误通知栏接入主进程 topInset（见上方偏离说明）;顺带修掉 `Dashboard` 重算按钮永久禁用与 `CoachPanel` 乐观更新不回滚两个既存缺陷。新增 21 个用例 |
 | Q2 | [ ] | 待实施,依赖 Q1 无 |
 | Q3 | [ ] | Q3b 依赖 Q2 完成 |
 | Q4 | [ ] | 待实施 |

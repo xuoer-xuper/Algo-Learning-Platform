@@ -16,6 +16,7 @@ import {
 } from './homeApi'
 import type { HomeOverviewStats, HomeProblemRecord, HomeRecommendation } from './homeTypes'
 import { Card } from '../../components/ui'
+import { reportRendererError } from '../../rendererErrors'
 
 interface Props {
   onNavigate: (url: string) => void
@@ -28,15 +29,21 @@ export function HomePage({ onNavigate }: Props) {
   const [homeShortcuts, setHomeShortcuts] = useState<string[]>([])
 
   useEffect(() => {
-    loadHomeOverviewStats().then(setStats)
-    loadHomeRecentProblems(8).then(setRecent)
-    loadHomeShortcuts().then(setHomeShortcuts).catch(() => setHomeShortcuts([]))
-    // 复习建议：失败时降级为空列表，不阻塞首页
-    loadHomeRecommendations(5).then(setRecommendations).catch(() => setRecommendations([]))
+    // 概览与最近题目是首页主体，失败必须提示；快捷入口和复习建议是附属区块，
+    // 沿用原有的降级为空列表，不打断首页。
+    const loadPrimary = () => {
+      void loadHomeOverviewStats().then(setStats)
+        .catch((error: unknown) => reportRendererError('首页概览读取', error))
+      void loadHomeRecentProblems(8).then(setRecent)
+        .catch((error: unknown) => reportRendererError('首页最近题目读取', error))
+    }
+
+    loadPrimary()
+    void loadHomeShortcuts().then(setHomeShortcuts).catch(() => setHomeShortcuts([]))
+    void loadHomeRecommendations(5).then(setRecommendations).catch(() => setRecommendations([]))
     const unsubscribe = subscribeHomeProblemsUpdated(() => {
-      loadHomeOverviewStats().then(setStats)
-      loadHomeRecentProblems(8).then(setRecent)
-      loadHomeRecommendations(5).then(setRecommendations).catch(() => {})
+      loadPrimary()
+      void loadHomeRecommendations(5).then(setRecommendations).catch(() => {})
     })
     return unsubscribe
   }, [])

@@ -31,6 +31,10 @@ export function setDownloadNoticeVisible(visible: boolean): void {
   window.electronAPI.setDownloadNoticeVisible(visible)
 }
 
+export function setErrorNoticeVisible(visible: boolean): void {
+  window.electronAPI.setErrorNoticeVisible(visible)
+}
+
 export function subscribeDownloadResult(
   callback: (result: ManagedDownloadResult) => void,
 ): () => void {

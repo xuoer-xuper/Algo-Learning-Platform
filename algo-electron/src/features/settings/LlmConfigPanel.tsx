@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { Button, Icon, Input } from '../../components/ui'
+import { errorMessage } from '../../shared/errors'
 import { loadLlmConfig, saveLlmApiKey, saveLlmConfig, testLlmConnection } from './settingsApi'
 
 const DEFAULT_BASE_URL = 'https://ark.cn-beijing.volces.com/api/v3'
@@ -14,16 +15,20 @@ export function LlmConfigPanel() {
   const [savedFlag, setSavedFlag] = useState(false)
   const [testing, setTesting] = useState(false)
   const [testResult, setTestResult] = useState<LlmConnectionTestResult | null>(null)
+  const [loadError, setLoadError] = useState('')
   const savedTimerRef = useRef<number | undefined>(undefined)
 
   useEffect(() => {
-    void loadLlmConfig().then((s) => {
-      if (!s) return
-      setStatus(s)
-      setBaseUrl(s.base_url || DEFAULT_BASE_URL)
-      setModel(s.model || DEFAULT_MODEL)
-      setEnabled(s.enabled)
-    })
+    void loadLlmConfig()
+      .then((s) => {
+        if (!s) return
+        setStatus(s)
+        setBaseUrl(s.base_url || DEFAULT_BASE_URL)
+        setModel(s.model || DEFAULT_MODEL)
+        setEnabled(s.enabled)
+      })
+      // 读失败时若不提示，面板会显示「未配置 API Key」，与真正没配置无法区分。
+      .catch((error: unknown) => setLoadError(`读取失败：${errorMessage(error)}`))
     return () => {
       if (savedTimerRef.current) window.clearTimeout(savedTimerRef.current)
     }
@@ -37,25 +42,31 @@ export function LlmConfigPanel() {
 
   const handleSaveApiKey = async () => {
     if (!apiKeyInput.trim()) return
-    const saved = await saveLlmApiKey(apiKeyInput.trim())
-    if (!saved) {
-      setTestResult({
-        success: false,
-        message: '系统安全存储不可用，API Key 未保存',
-      })
-      return
+    try {
+      const saved = await saveLlmApiKey(apiKeyInput.trim())
+      if (!saved) {
+        setTestResult({
+          success: false,
+          message: '系统安全存储不可用，API Key 未保存',
+        })
+        return
+      }
+      setApiKeyInput('')
+      setStatus(await loadLlmConfig())
+      flashSaved()
+    } catch (error: unknown) {
+      setTestResult({ success: false, message: `保存失败：${errorMessage(error)}` })
     }
-    setApiKeyInput('')
-    const s = await loadLlmConfig()
-    setStatus(s)
-    flashSaved()
   }
 
   const handleSaveConfig = async (partial: { base_url?: string; model?: string; enabled?: boolean }) => {
-    await saveLlmConfig(partial)
-    const s = await loadLlmConfig()
-    setStatus(s)
-    flashSaved()
+    try {
+      await saveLlmConfig(partial)
+      setStatus(await loadLlmConfig())
+      flashSaved()
+    } catch (error: unknown) {
+      setTestResult({ success: false, message: `保存失败：${errorMessage(error)}` })
+    }
   }
 
   const handleToggleEnabled = async (checked: boolean) => {
@@ -116,10 +127,16 @@ export function LlmConfigPanel() {
         </label>
       </div>
 
+      {loadError && (
+        <div className="settings-row settings-error-text" role="alert">{loadError}</div>
+      )}
+
       <div className="settings-row settings-hint-text">
-        {status?.has_key
-          ? <>当前 Key: <span className="mono">{status.key_masked}</span></>
-          : '未配置 API Key，请先填写并保存'}
+        {loadError
+          ? '配置状态未知'
+          : status?.has_key
+            ? <>当前 Key: <span className="mono">{status.key_masked}</span></>
+            : '未配置 API Key，请先填写并保存'}
       </div>
 
       <div className="settings-row">

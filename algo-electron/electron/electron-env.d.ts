@@ -899,6 +899,7 @@ interface ElectronAPI {
   setZoom: (tabId: string, command: ZoomCommand) => Promise<ZoomState | null>
   onZoomChanged: (callback: (state: ZoomState) => void) => () => void
   setDownloadNoticeVisible: (visible: boolean) => void
+  setErrorNoticeVisible: (visible: boolean) => void
   onDownloadResult: (callback: (result: ManagedDownloadResult) => void) => () => void
   getUserScriptInstall: (installId: string) => Promise<PendingUserScriptInstall | null>
   cancelUserScriptInstall: (installId: string) => Promise<boolean>

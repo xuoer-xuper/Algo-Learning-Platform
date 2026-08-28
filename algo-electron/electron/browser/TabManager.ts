@@ -193,6 +193,7 @@ export class TabManager {
   private isUserScriptPermissionNoticeVisible = false
   private isCredentialAutofillNoticeVisible = false
   private isCredentialCaptureNoticeVisible = false
+  private isErrorNoticeVisible = false
   private findInPageTabId: string | null = null
   private findInPageState: FindInPageState = { ...INITIAL_FIND_IN_PAGE_STATE }
   private recoveryPendingViews = new Set<WebContentsView>()
@@ -1965,6 +1966,7 @@ export class TabManager {
     if (this.isUserScriptPermissionNoticeVisible) topInset += BROWSER_LAYOUT.noticeBarHeight
     if (this.isCredentialAutofillNoticeVisible) topInset += BROWSER_LAYOUT.noticeBarHeight
     if (this.isCredentialCaptureNoticeVisible) topInset += BROWSER_LAYOUT.noticeBarHeight
+    if (this.isErrorNoticeVisible) topInset += BROWSER_LAYOUT.noticeBarHeight
     if (tab.id === this.findInPageTabId) topInset += BROWSER_LAYOUT.findBarHeight
     setTabViewBounds(tab.view, { width, height }, this.leftOffset, topInset)
   }
@@ -1972,6 +1974,12 @@ export class TabManager {
   setDownloadNoticeVisible(visible: boolean): void {
     if (this.isDownloadNoticeVisible === visible) return
     this.isDownloadNoticeVisible = visible
+    this.updateBounds()
+  }
+
+  setErrorNoticeVisible(visible: boolean): void {
+    if (this.isErrorNoticeVisible === visible) return
+    this.isErrorNoticeVisible = visible
     this.updateBounds()
   }
 
@@ -2239,6 +2247,7 @@ export class TabManager {
     this.isUserScriptPermissionNoticeVisible = false
     this.isCredentialAutofillNoticeVisible = false
     this.isCredentialCaptureNoticeVisible = false
+    this.isErrorNoticeVisible = false
     this.findInPageTabId = null
     this.findInPageState = { ...INITIAL_FIND_IN_PAGE_STATE }
     this.findInPageStateChangedHandler = null

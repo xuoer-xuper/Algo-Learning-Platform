@@ -1,4 +1,5 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react'
+import { reportRendererError } from '../../rendererErrors'
 import { CoachBubble } from './CoachBubble'
 import { PET_STATES, type PetState } from './petStates'
 import './styles/tokens.css'
@@ -31,9 +32,14 @@ export function CoachPet() {
   const dragStartedRef = useRef(false)
 
   useEffect(() => {
-    // 拉取初始状态与配置
-    void window.electronAPI.coachGetPetState().then(setState)
-    void window.electronAPI.coachGetConfig().then(setConfig)
+    // 拉取初始状态与配置。桌宠是独立小窗，没有通知栏可用，读失败只落 console；
+    // 报出区域名是为了在 DevTools 里能直接定位，而不是笼统的「应用」。
+    void window.electronAPI.coachGetPetState()
+      .then(setState)
+      .catch((error: unknown) => reportRendererError('桌宠状态读取', error))
+    void window.electronAPI.coachGetConfig()
+      .then(setConfig)
+      .catch((error: unknown) => reportRendererError('桌宠配置读取', error))
 
     // 订阅主进程推送
     const offState = window.electronAPI.onCoachPetStateChanged(setState)

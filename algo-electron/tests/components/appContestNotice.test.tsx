@@ -66,6 +66,7 @@ vi.mock('../../src/hooks/browserShellApi', () => ({
   getUserScriptHostPermissionPrompt: async () => null,
   respondUserScriptHostPermission: (promptId: string, allow: boolean) => respondPermission(promptId, allow),
   setDownloadNoticeVisible: vi.fn(),
+  setErrorNoticeVisible: vi.fn(),
   showBrowserShellContextMenu: vi.fn(),
   subscribeDownloadResult: () => () => undefined,
   subscribeUserScriptHostPermissionPrompt: (listener: (prompt: UserScriptHostPermissionPrompt) => void) => {

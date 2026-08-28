@@ -441,6 +441,7 @@ async function createWindowOnce(
   win.webContents.on('did-finish-load', () => {
     tabManager.setOmniboxOpen(false)
     tabManager.setDownloadNoticeVisible(false)
+    tabManager.setErrorNoticeVisible(false)
     appWindow.send('browser:urlChanged', tabManager.getUrl())
     appWindow.send('tab:listChanged', tabManager.getTabList())
     const zoomState = tabManager.getActiveZoomState()

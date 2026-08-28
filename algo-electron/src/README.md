@@ -19,7 +19,8 @@ Renderer 不直接访问 Node.js、SQLite、Electron session、Cookie 或文件�
 
 ## 3. 文件职责
 
-- `main.tsx`：React root 挂载。
+- `main.tsx`：React root 挂载，并在挂载前安装全局错误监听。
+- `rendererErrors.ts`：renderer 读路径错误通道。持有模块级状态（故不放 `shared/`），提供 `reportRendererError` / `subscribeRendererErrors` / `dismissRendererError`，以及 `installRendererErrorHandlers` 兜底未处理的 promise rejection。
 - `App.tsx`：renderer 顶层布局、浏览器状态接线和内部页入口编排。
 - `App.css`：按稳定顺序导入 `styles/` 下的应用壳和功能样式。
 - `styles/`：按应用壳、设置、首页、题目、统计、笔记和 Coach 拆分的全局样式。

@@ -53,6 +53,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     }
   },
   setDownloadNoticeVisible: (visible: boolean) => ipcRenderer.send('browser:setDownloadNoticeVisible', visible),
+  setErrorNoticeVisible: (visible: boolean) => ipcRenderer.send('browser:setErrorNoticeVisible', visible),
   onDownloadResult: (callback: (result: ManagedDownloadResult) => void) => {
     const handler = (_event: Electron.IpcRendererEvent, result: ManagedDownloadResult) => callback(result)
     ipcRenderer.on('download:result', handler)

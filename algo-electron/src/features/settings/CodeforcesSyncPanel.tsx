@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Button, Input } from '../../components/ui'
+import { errorMessage } from '../../shared/errors'
 import {
   loadPrimaryCodeforcesAccount,
   syncCodeforcesRatingProfile,
@@ -19,12 +20,15 @@ export function CodeforcesSyncPanel({ onStatsRefresh }: CodeforcesSyncPanelProps
   const [submissionSyncStatus, setSubmissionSyncStatus] = useState('')
 
   useEffect(() => {
-    loadPrimaryCodeforcesAccount().then((account) => {
-      if (account) {
-        setRatingHandle(account.handle)
-        setRatingInfo(account)
-      }
-    })
+    void loadPrimaryCodeforcesAccount()
+      .then((account) => {
+        if (account) {
+          setRatingHandle(account.handle)
+          setRatingInfo(account)
+        }
+      })
+      // 读失败时若不提示，输入框会是空的，与「还没绑定过 Handle」无法区分。
+      .catch((error: unknown) => setRatingStatus(`读取已绑定 Handle 失败: ${errorMessage(error)}`))
   }, [])
 
   const handleSyncCF = async () => {
@@ -43,8 +47,7 @@ export function CodeforcesSyncPanel({ onStatsRefresh }: CodeforcesSyncPanelProps
         await onStatsRefresh()
       }
     } catch (e: unknown) {
-      const message = e instanceof Error ? e.message : String(e)
-      setSubmissionSyncStatus(`错误: ${message}`)
+      setSubmissionSyncStatus(`错误: ${errorMessage(e)}`)
     }
   }
 
@@ -64,8 +67,7 @@ export function CodeforcesSyncPanel({ onStatsRefresh }: CodeforcesSyncPanelProps
         setRatingStatus(`失败: ${result.error}`)
       }
     } catch (e: unknown) {
-      const message = e instanceof Error ? e.message : String(e)
-      setRatingStatus(`错误: ${message}`)
+      setRatingStatus(`错误: ${errorMessage(e)}`)
     }
   }
 

@@ -39,6 +39,7 @@ const coreContracts: PreloadContract[] = [
   { method: 'findInPage', mode: 'invoke', channel: 'browser:findInPage' },
   { method: 'setZoom', mode: 'invoke', channel: 'browser:setZoom' },
   { method: 'setDownloadNoticeVisible', mode: 'send', channel: 'browser:setDownloadNoticeVisible' },
+  { method: 'setErrorNoticeVisible', mode: 'send', channel: 'browser:setErrorNoticeVisible' },
   { method: 'getUserScriptInstall', mode: 'invoke', channel: 'browser:getUserScriptInstall' },
   { method: 'cancelUserScriptInstall', mode: 'invoke', channel: 'browser:cancelUserScriptInstall' },
   { method: 'getRemoteUserScriptInstallPreview', mode: 'invoke', channel: 'scripts:getRemoteInstallPreview' },

@@ -153,6 +153,11 @@ export function registerBrowserShellIpc(options: RegisterBrowserShellIpcOptions)
     getShellWindowOwner(event)?.tabManager.setDownloadNoticeVisible(visible)
   })
 
+  ipcMain.on('browser:setErrorNoticeVisible', (event, visible: unknown) => {
+    if (typeof visible !== 'boolean') return
+    getShellWindowOwner(event)?.tabManager.setErrorNoticeVisible(visible)
+  })
+
   ipcMain.handle('browser:getUserScriptInstall', (_event, installId: unknown) => {
     if (typeof installId !== 'string') return null
     return options.getUserScriptInstallRegistry?.()?.get(installId) ?? null

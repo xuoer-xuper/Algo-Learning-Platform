@@ -1,5 +1,6 @@
-import { useState, useEffect, useRef } from 'react'
+import { useCallback, useState, useEffect, useRef } from 'react'
 import { ConfirmDialog, Icon, IconButton } from '../../components/ui'
+import { errorMessage } from '../../shared/errors'
 import { UserScriptEditor } from './UserScriptEditor'
 import { UserScriptList } from './UserScriptList'
 import {
@@ -33,16 +34,21 @@ export function UserScriptManager({ onClose }: { onClose: () => void }) {
   /* 待删除脚本 id：仅用于驱动 ConfirmDialog（替代原生 confirm） */
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
 
-  const loadScripts = async () => {
+  const loadScripts = useCallback(async () => {
     const data = await loadUserScriptManagerData()
     setScripts(data.scripts)
     setSites(data.sites)
     return data
-  }
+  }, [])
+
+  // loadScripts 会向外抛：调用方要么已在 try 里，要么在这里落到 errorMsg。
+  const loadScriptsGuarded = useCallback(() => {
+    void loadScripts().catch((error: unknown) => setErrorMsg(errorMessage(error)))
+  }, [loadScripts])
 
   useEffect(() => {
-    loadScripts()
-  }, [])
+    loadScriptsGuarded()
+  }, [loadScriptsGuarded])
 
   const handleEdit = (script: UserScriptRecord) => {
     setEditingScript(script)
@@ -85,8 +91,7 @@ export function UserScriptManager({ onClose }: { onClose: () => void }) {
         }
       }
     } catch (e: unknown) {
-      if (e instanceof Error) setErrorMsg(e.message)
-      else setErrorMsg(String(e))
+      setErrorMsg(errorMessage(e))
     }
   }
 
@@ -95,16 +100,19 @@ export function UserScriptManager({ onClose }: { onClose: () => void }) {
       if (!editingScript) return
       await saveUserScriptSites(editingScript.id, editName, selectedSiteIds)
       setEditingScript(null)
-      loadScripts()
+      await loadScripts()
     } catch (e: unknown) {
-      if (e instanceof Error) setErrorMsg(e.message)
-      else setErrorMsg(String(e))
+      setErrorMsg(errorMessage(e))
     }
   }
 
   const handleToggle = async (id: string, enabled: boolean) => {
-    await toggleUserScript(id, enabled)
-    loadScripts()
+    try {
+      await toggleUserScript(id, enabled)
+      await loadScripts()
+    } catch (error: unknown) {
+      setErrorMsg(errorMessage(error))
+    }
   }
 
   const handleCheckUpdates = async () => {
@@ -118,7 +126,7 @@ export function UserScriptManager({ onClose }: { onClose: () => void }) {
       await loadScripts()
       setUpdateMsg(`已检查 ${summary.checked} 个脚本，更新 ${summary.updated} 个，失败 ${summary.failed} 个。`)
     } catch (e: unknown) {
-      setErrorMsg(e instanceof Error ? e.message : String(e))
+      setErrorMsg(errorMessage(e))
     } finally {
       setCheckingUpdates(false)
     }
@@ -188,7 +196,11 @@ export function UserScriptManager({ onClose }: { onClose: () => void }) {
         onConfirm={() => {
           const id = pendingDeleteId
           setPendingDeleteId(null)
-          if (id) deleteUserScript(id).then(loadScripts)
+          if (id) {
+            void deleteUserScript(id)
+              .then(loadScripts)
+              .catch((error: unknown) => setErrorMsg(errorMessage(error)))
+          }
         }}
         onCancel={() => setPendingDeleteId(null)}
       />

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Button, Select } from '../../components/ui'
+import { errorMessage } from '../../shared/errors'
 
 /**
  * Coach 桌宠设置面板。
@@ -19,41 +20,57 @@ export function CoachPanel() {
   const [config, setConfig] = useState<CoachConfig | null>(null)
   const [saved, setSaved] = useState(false)
   const [testMsg, setTestMsg] = useState('')
+  const [loadError, setLoadError] = useState('')
 
   useEffect(() => {
-    void window.electronAPI.coachGetConfig().then(setConfig)
+    void window.electronAPI.coachGetConfig()
+      .then(setConfig)
+      // 读失败时若不提示，面板会永远停在「加载中...」。
+      .catch((error: unknown) => setLoadError(`读取配置失败：${errorMessage(error)}`))
   }, [])
 
   const updateConfig = (partial: Partial<CoachConfig>) => {
     if (!config) return
-    const next = { ...config, ...partial }
-    setConfig(next)
-    void window.electronAPI.coachSaveConfig(partial).then(() => {
-      setSaved(true)
-      window.setTimeout(() => setSaved(false), 1500)
-    })
+    const previous = config
+    setConfig({ ...config, ...partial })
+    void window.electronAPI.coachSaveConfig(partial)
+      .then(() => {
+        setSaved(true)
+        window.setTimeout(() => setSaved(false), 1500)
+      })
+      // 写失败必须回滚，否则界面显示的开关状态与已持久化的配置不一致。
+      .catch((error: unknown) => {
+        setConfig(previous)
+        setTestMsg(`保存失败：${errorMessage(error)}`)
+      })
   }
 
   const handleTestHint = () => {
     setTestMsg('触发中...')
-    void window.electronAPI.coachTestHint().then((payload) => {
-      setTestMsg(`已弹测试气泡：${payload.title}`)
-      window.setTimeout(() => setTestMsg(''), 3000)
-    })
+    void window.electronAPI.coachTestHint()
+      .then((payload) => {
+        setTestMsg(`已弹测试气泡：${payload.title}`)
+        window.setTimeout(() => setTestMsg(''), 3000)
+      })
+      .catch((error: unknown) => setTestMsg(`触发失败：${errorMessage(error)}`))
   }
 
   const handleResetPosition = () => {
-    void window.electronAPI.coachResetPosition().then(() => {
-      setTestMsg('位置已重置')
-      window.setTimeout(() => setTestMsg(''), 2000)
-    })
+    void window.electronAPI.coachResetPosition()
+      .then(() => {
+        setTestMsg('位置已重置')
+        window.setTimeout(() => setTestMsg(''), 2000)
+      })
+      .catch((error: unknown) => setTestMsg(`重置失败：${errorMessage(error)}`))
   }
 
   if (!config) {
     return (
       <div className="settings-section">
         <h3 className="settings-section-title">Coach 桌宠</h3>
-        <div className="settings-row">加载中...</div>
+        {loadError
+          ? <div className="settings-row settings-error-text" role="alert">{loadError}</div>
+          : <div className="settings-row">加载中...</div>}
       </div>
     )
   }

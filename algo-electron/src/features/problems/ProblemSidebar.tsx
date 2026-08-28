@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { PLATFORM_LABELS, STATUS_COLORS } from '../../shared/display'
 import { Icon } from '../../components/ui'
+import { reportRendererError } from '../../rendererErrors'
 import { loadRecentProblems, setProblemSidebarWidth, subscribeProblemsUpdated } from './problemsApi'
 import type { SidebarProblemRecord } from './problemTypes'
 
@@ -19,13 +20,18 @@ export function ProblemSidebar({ onNavigate, onShowDetail, onShowNotes, onWidthC
   const sidebarRef = useRef<HTMLDivElement>(null)
 
   const loadProblems = useCallback(async () => {
-    const list = await loadRecentProblems(200, filterPlatform || undefined, filterStatus || undefined)
-    setProblems(list)
+    try {
+      const list = await loadRecentProblems(200, filterPlatform || undefined, filterStatus || undefined)
+      setProblems(list)
+    } catch (error: unknown) {
+      // 侧栏空态与「筛选无结果」长得一样，静默失败会被当成筛选生效。
+      reportRendererError('题目侧栏读取', error)
+    }
   }, [filterPlatform, filterStatus])
 
   useEffect(() => {
-    loadProblems()
-    const unsubscribe = subscribeProblemsUpdated(() => { loadProblems() })
+    void loadProblems()
+    const unsubscribe = subscribeProblemsUpdated(() => { void loadProblems() })
     return unsubscribe
   }, [loadProblems])
 

@@ -19,6 +19,7 @@
 - 会话恢复：正常启动由应用级快照恢复全部合法完整壳，按稳定 windowId、窗口 normal bounds/maximized、标签顺序和 activeTabId 重建；最近窗口优先创建并激活，其余窗口静默显示。旧 `browser-session.json` 与 `browser-window-state.json` 只在首次缺少应用快照时作为一次性迁移输入。任一窗口恢复失败会记录诊断并继续恢复其余窗口，全部失败时回退内部 home。
 - 会话文件：`applicationSessionStore.ts` 使用同目录临时文件执行 write + fsync + close + rename，失败时清理临时文件并保留旧目标；`ApplicationSessionPersistence` 对任意标签、窗口 bounds/maximized 和最近窗口变化做 250ms 防抖，只保存最新全应用快照，临时空 transfer 壳不落盘。窗口 `close` 与 `before-quit` 在最终 flush 完成后继续关闭，startup smoke 禁用持久化；`TabSessionStore` 仅保留为旧单窗口快照的迁移输入。
 - renderer 健康状态：web 标签 `render-process-gone` 后保留稳定 ID、URL、标题和顺序，摘除坏 view 并显示恢复页；原 view 已销毁时创建同配置替代 view，失败仍保留标签供后续重试。`unresponsive` 只影响运行时列表和活动 view bounds，NoticeBar 可继续等待、按 tabId 重载或关闭，`responsive` 后自动清理；下载 NoticeBar、查找条和无响应条按真实文档流高度累加，任何状态都不进入会话快照。
+- 错误 NoticeBar：renderer 读路径失败（`src/rendererErrors.ts`）通过 `browser:setErrorNoticeVisible` 把通知条高度计入活动 web view bounds，关闭、卸载或 `did-finish-load` 重置后恢复原布局。主进程侧同类错误直接退出进程，renderer 侧只提示，一次读取失败不得让界面变空白。
 - 凭据选择 NoticeBar：多账户自动填充提示由所属壳 renderer 接收脱敏 prompt；`TabManager` 将其高度计入活动 web view bounds，dismiss/响应或窗口销毁后恢复原布局。密码明文不经过壳 renderer。
 - 登录捕获 NoticeBar：`ojPreload` 在隔离世界监听登录表单 `submit`，不阻止页面提交，只把候选用户名/密码送到主进程的短时 pending map；主进程向所属壳只发送一次性 `captureId` 和站点、用户名、displayName、masked、isUpdate 等脱敏摘要。确认后保存/更新 Vault，取消、超时、导航、WebContents 销毁或服务 `dispose` 立即清理；同密码不提示，密码变化才提示更新。捕获和自动填充均复用完整壳的文档流 NoticeBar 布局，不改变冻结的视觉基线。
 - Chrome 基线：`findInPage.ts` 管理受限 query、requestId 和多帧 `found-in-page` 结果；`zoomPreferences.ts` 按 normalized HTTP(S) origin 保存 Chrome 预设档位。查找在导航、切标签、崩溃、关闭和 web/internal 替换时停止并清理；缩放在最终导航、恢复、切换和 Ctrl+滚轮时恢复/保存。
@@ -120,7 +121,7 @@
 
 布局 helper 边界：
 
-- `setTabViewBounds(view, contentSize, leftOffset, topInset?)`：统一 toolbar/tabbar/sidebar 偏移计算；活动标签按无响应/下载/查找条真实文档流高度累加让位。
+- `setTabViewBounds(view, contentSize, leftOffset, topInset?)`：统一 toolbar/tabbar/sidebar 偏移计算；活动标签按无响应/下载/错误/查找条真实文档流高度累加让位。
 - `safeRemoveChildView(window, view)`：切换、隐藏和销毁时安全移除 view。
 - `safeCloseWebContents(view)`：销毁时安全关闭 webContents。
 
