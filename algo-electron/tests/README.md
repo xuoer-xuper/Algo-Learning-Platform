@@ -68,7 +68,9 @@ npm run test:watch
 npm run test:coverage
 ```
 
-覆盖率只统计 `electron/` 与 `src/` 生产代码，报告写入 `tmp/coverage/`。当前全局基线为 statements 28%、branches 34%、functions 24%、lines 29%；新增测试应逐步上调门槛，不能通过把测试文件计入覆盖率来抬高数字。
+覆盖率只统计 `electron/` 与 `src/` 生产代码，报告写入 `tmp/coverage/`。当前实测 statements 59.5%、branches 56.4%、functions 57.7%、lines 62.1%，`vitest.config.ts` 里的门槛压在实测值下方几个点，只能随覆盖率上调、不能下调。新增测试应逐步抬高门槛，不能通过把测试文件计入覆盖率来抬高数字。
+
+排除名单只剩三项，且都是"测不出信息"而非"没测"：`electron/main.ts` 是进程启动装配，真实链路由 `tests/verify.mjs electron` 跑，那在 Vitest 之外收不到覆盖率，改成在替身上 import 它只会让数字涨、信心不涨；`src/main.tsx` 是 17 行 `createRoot` 挂载，渲染树本身由 `tests/components` 覆盖；`src/vite-env.d.ts` 是声明文件。三个 preload 曾以"测试环境无法执行"为由排除，该论据不成立——它们是纯副作用模块，import 即执行，观察点是 `contextBridge` 收到了什么——现已全部纳入并测到 95%+。
 
 类型检查：
 
@@ -184,8 +186,9 @@ npx playwright test tests\ui\rendererScreenshots.pw.spec.ts --grep "narrow conta
 - 长期 Markdown 和模块 README 是否进入 `docs/README.md` 总索引，也由 `tests/docs/` 守卫。
 - 文档中的具体 `npm run <script>` 是否仍存在于 `package.json`，也由 `tests/docs/` 守卫。
 - 打包配置、发布输入白名单和敏感文件排除规则放 `tests/packaging/`。
-- preload 白名单、IPC channel 和主进程 handler 契约放 `tests/ipc/`。
+- preload 白名单、IPC channel 和主进程 handler 契约放 `tests/ipc/`；preload 的运行时转发行为（实参顺序、订阅回调 payload）也在这里，与静态契约检查分开。
 - Electron 启动、窗口和基础 preload IPC smoke 放 `tests/electron/`。
+- 两个页面侧 preload 的模块级测试跟着它们的领域走：OJ 提交桥放 `tests/browser/`，用户脚本运行时装载放 `tests/scripts/`，不集中到 `tests/ipc/`。
 - 跨模块数据流放 `tests/integration/`。
 - Renderer 截图和交互验收放 `tests/ui/`，使用 Playwright Test，生成图片与 trace 只写入 `tmp/`，不得提交。
 - 只有 Electron ABI/safeStorage 测试允许保留临时 bundle，输出统一写到 `tmp/electron-tests/`，不要提交生成产物。

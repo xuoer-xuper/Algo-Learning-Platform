@@ -295,10 +295,29 @@ ipcRenderer.sendSync = (...args) => {
 ipcRenderer.postMessage = (channel, message, transfer = []) => {
   ipcRenderer.emit('post-message', channel, message, transfer)
 }
-ipcRenderer.invoke = async (channel, ...args) => ipcHandlers.get(String(channel))?.({}, ...args)
+// 与 send 一样先广播一条可观察事件再执行：preload 的 invoke 转发对不对，只能
+// 靠这个观察（没有注册 handler 时结果是 undefined，无法据此判断有没有转发）。
+ipcRenderer.invoke = async (channel, ...args) => {
+  ipcRenderer.emit('invoke', channel, ...args)
+  return ipcHandlers.get(String(channel))?.({}, ...args)
+}
+
+/**
+ * exposeInMainWorld 的暴露记录。preload 是纯副作用模块——import 就是执行，
+ * 没有导出可断言，只有这里能拿到它到底往 main world 放了什么。
+ * 真实 contextBridge 会深拷贝并冻结，这里保留原引用：测试要调用暴露出来的函数。
+ */
+export const exposedMainWorld = new Map<string, unknown>()
 
 export const contextBridge = {
-  exposeInMainWorld: (_name: string, _api: unknown) => undefined,
+  exposeInMainWorld: (name: string, api: unknown) => {
+    exposedMainWorld.set(name, api)
+    // 同时真的挂到 globalThis 上。这不是多余的：userscriptBootstrapPreload 先
+    // expose 一个带 nonce 的桥，随后在 executeInMainWorld 里用 globalThis[bridgeKey]
+    // 取回并 Reflect.deleteProperty 掉。只记账不挂载，那条路径在替身下永远走不通，
+    // 而 nonce 是随机的，测试也没法提前替它挂好。resetElectronMock 会清掉。
+    Object.defineProperty(globalThis, name, { value: api, configurable: true, writable: true })
+  },
   executeInMainWorld: ({ func, args = [] }: Electron.ExecutionScript) => func(...args),
 }
 export const dialog = {
@@ -372,6 +391,8 @@ export function resetElectronMock(): void {
   ipcHandlers.clear()
   ipcMain.removeAllListeners()
   ipcRenderer.removeAllListeners()
+  for (const name of exposedMainWorld.keys()) Reflect.deleteProperty(globalThis, name)
+  exposedMainWorld.clear()
   protocolSchemes.length = 0
   protocolHandlers.clear()
   menuPopups.length = 0

@@ -20,6 +20,7 @@
 - `userScriptNetworkProxy.test.ts`：覆盖逐跳授权、敏感 header 过滤、跨 origin 凭据剥离、超时/中止、16 MiB 响应限制、单端口并发和 userinfo/未声明重定向拒绝。
 - `userScriptHostPermissionBroker.test.ts`：覆盖窗口队列、同 host 合并、安全提示字段、持久化/验证失败、拒绝负缓存、超时、generation/窗口清理与异步校验竞态。
 - `userScriptMenuRegistry.test.ts`：覆盖 webContents/端口隔离、重复命令更新、注册上限与清理。
+- `userscriptBootstrapPreloadModule.test.ts`：模块级执行 `electron/scripts/userscriptBootstrapPreload.ts`（jsdom）。覆盖"要不要把特权运行时装进这一帧"的全部判断——非 http(s) 源与超长 frameUrl 压根不握手、`ok:false`/nonce 不匹配/generation 与 scripts 形状不对不装桥、catalog generation 对不上或主世界执行抛错时不交出 MessagePort 且主世界不残留桥对象——以及数据边界（只有 `id/revision/values` 过 IPC，脚本正文从主世界 catalog 按 `id\0revision` 取回，revision 对不上就丢）和桥的两个闭包真的接在交给主进程的那个 port 上。`userScriptRuntimeSmoke.test.ts` 验的是打包后能在真页面跑起来，这里补的是它造不出来的拒绝与清理分支。
 
 ## 3. 运行方式
 

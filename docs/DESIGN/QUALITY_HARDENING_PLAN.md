@@ -197,6 +197,13 @@ Q1–Q4 是确定工作量的机械活，不含架构决策，应连续执行。
 
 **做法**：逐个移出排除名单，按实际可测量结果重设阈值。若某文件确实无法纳入，须在 `vitest.config.ts` 注明具体技术原因，不得只留文件名。
 
+> **实施偏差（2026-08-30）**：
+>
+> 1. **"按实测重设阈值"这条做法本身是错的，没照做。** 实测：三个文件纳入但不补测试时，functions 掉到 **51.21%**，低于当时已有的 52 门槛——"按实测重设"在这里等于**下调**一个 `vitest.config.ts` 明确禁止下调的门槛（"Raise these together with coverage, never lower them"）。所以本块改成"纳入**并**补测试"，最终四项全涨：58.71/56.22/54.73/61.26 → **59.52/56.41/57.67/62.07**（新计入 311 条语句的前提下）。`preload.ts` 与 `ojPreload.ts` 四项 100%，`userscriptBootstrapPreload.ts` 95.55/88.88/100/100。
+> 2. **排除的原论据错得比本计划以为的更基本。** 计划说"该论据已不成立：真实 Electron smoke 现在能驱动打包后的 preload"——但这是另一条链路，Vitest 收不到它的覆盖率。真正的事实是：这三个文件**一直**可以在 Vitest 下执行。它们是纯副作用模块，`import` 即执行，没有导出可断言，唯一的观察点是 `contextBridge` 收到了什么。为此给 electron 替身加了 `exposedMainWorld`（既记账又真的挂到 `globalThis`——`userscriptBootstrapPreload` 会用 `globalThis[bridgeKey]` 取回带随机 nonce 的桥，只记账那条路径在替身下永远走不通）。
+> 3. **`vi.resetModules()` 会连 electron 别名一起重置。** 测试文件顶层 import 来的句柄属于另一个模块图，新加载的 preload 写进的是另一个 `exposedMainWorld` 实例。后果不是报错而是**两条负向断言凭空通过**——压根没接线，"不该发生"自然不发生。现在所有句柄都从 loader helper 的返回值里取，已写进两个测试文件的头注释，受影响的负向用例注明了它的正向对照。
+> 4. 顺带修掉 `tests/README.md` 里陈旧的覆盖率基线（写的是 28/34/24/29）。三项保留排除已逐个注明技术原因，不再只留文件名。
+
 ### Q6 `TabManager.ts` 拆分
 
 2275 行，全项目最大。问题是职责堆积而非过度设计。**需独立设计评审**,不与 Q1–Q5 混提交。拆分前须先补足行为测试作为安全网,拆分本身应为纯搬移。
@@ -264,6 +271,6 @@ Q1–Q4 是确定工作量的机械活，不含架构决策，应连续执行。
 | Q2 | [x] | 已完成。`.tsx` 中 38 处直连全部收口,现为 0 处（`main.tsx` 读布局常量除外,非 IPC）。`coachDataApi.ts` 由 2 个函数扩到 24 个,分六组;`browserShellApi.ts` 新增 7 个凭据提示函数;`settingsApi.ts` 新增 `loadCookieSummaryForSite`。顺带修掉 `CoachPet` 点击处理里 `coachPetClick()` 无 catch 的悬空 promise（Q1 只扫挂载读路径,未覆盖事件处理器）。测试替身改 3 个文件,断言零改动 |
 | Q3 | [x] | 已完成。守卫从 8 条增至 11 条。Q3a 裸 SQL 出 `db/` 层（白名单 12 文件 57 处欠账,建立时 13/61,归位 `trackingRepository.ts` 后即降）;Q3b renderer 只经 `*Api.ts` 触主进程（无白名单,仅 `main.tsx` 豁免）;Q3c 交互控件出 `ui/`（白名单 14 文件,标注长期例外与待清理）。棘轮含"陈旧条目必须报"分支。守卫判定拆到 `guards.mjs`,新增 12 个反向用例常驻 `test:unit`,并经变异检查确认非空转 |
 | Q4 | [x] | 已完成。守卫增至 12 条（新增裸 hex，按文件豁免三个 token 定义文件而非棘轮预算）。`NOTE_TYPE_COLORS` 及 `+ '20'` 拼 alpha 删除，笔记徽标改 CSS 修饰类，对比度从 1.23~1.94:1 提到浅色 6.11~6.70 / 深色 5.54~7.74（原方案的等值替换会保留这个可达性缺陷，见偏差 1）；4 处裸 hex（计划漏了 `#585b70`）收成 `--color-on-fill` / `--color-sys-close` 两个 token，样式文件裸 hex 归零。`ProblemSidebar` / `NoteEditorPane` / `UserScriptEditor` / `ErrorBoundary` 四个文件的裸控件换成 ui/ 原语，棘轮欠账条目由陈旧分支强制清空，`HomePage` 2 处改判长期例外。顺带：`Select` 补 `size="sm"` 缺口、修掉源码框 `rows` 被 `height:30px` 压死的渲染 bug、补 2 处图标按钮缺失的 `aria-label`、`ErrorBoundary` 移出 Tailwind（Tailwind 由此零消费者，是否删依赖单独定）。新增 `controlGovernance.test.ts` 7 例 + 裸 hex 反向验证 4 例 |
-| Q5 | [ ] | 依赖 Q1 完成 |
+| Q5 | [x] | 三个 preload 全部纳入覆盖率并补测试（`preloadSurface` 逐个调用 ~200 个暴露方法验转发、`ojPreloadModule` 11 例、`userscriptBootstrapPreloadModule` 12 例）；四项覆盖率反而全涨到 59.52/56.41/57.67/62.07，门槛上调至 56/53/54/59。原"无法执行"论据不成立，纠正见 §4 Q5 偏差 3 —— `vi.resetModules()` 导致两条负向断言曾凭空通过 |
 | Q6 | [ ] | 需独立设计评审 |
 | Q7 | [ ] | 待实施 |

@@ -7,6 +7,7 @@
 ## 2. 当前覆盖
 
 - `ojBridge.test.ts`：`__algo_submission_v1` channel、同窗口/子 frame message 转发和非法 message 忽略。
+- `ojPreloadModule.test.ts`：模块级执行 `electron/browser/ojPreload.ts`（jsdom）。覆盖 token 由 preload 主动 pull 的那条链——首次 token 非法后重试、重试仍拿不到就静默丢弃、token 请求抛错也丢弃——以及 `pageUrl` 与 `location.href` 一致才回填、表单 submit 才捕获且无密码字段不捕获。`ojSubmissionBridgeSmoke.test.ts` 在真实 Electron 里验的是同一个文件的正向链路，这里补的是它造不出来的拒绝分支。
 - `navigationPolicy.test.ts`：生产 HTTPS、受控 about:blank、开发 loopback HTTP 与未知协议拒绝。
 - `internalPage.test.ts`：canonical `algo://` 地址正反向互逆，以及额外路径/参数/hash/userinfo/非 canonical 编码拒绝。
 - `omnibox.test.ts`：内部页/HTTPS URL/搜索三分流、bare host 推断、开发 loopback、稳定阻断原因、内置搜索 URL 与 custom HTTPS 模板校验。
