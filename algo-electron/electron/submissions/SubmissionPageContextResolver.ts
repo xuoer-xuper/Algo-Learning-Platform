@@ -1,4 +1,4 @@
-import type { ProblemIdentity, SubmissionData } from '../shared/types'
+import type { ProblemIdentity, ScrapedSubmission } from '../shared/types'
 
 export interface SubmissionPageContext {
   pageProblemId?: string
@@ -12,7 +12,7 @@ export interface SubmissionPageContextResolverDeps {
 
 export function resolveSubmissionPageContext(
   url: string,
-  submissions: SubmissionData[],
+  submissions: ScrapedSubmission[],
   deps: SubmissionPageContextResolverDeps,
 ): SubmissionPageContext {
   const pageProblemIdentity = deps.parseUrl(url)
@@ -64,7 +64,7 @@ function resolveVjudgeProblemId(url: string): string | undefined {
 
 function resolveNowcoderProblemId(
   url: string,
-  submissions: SubmissionData[],
+  submissions: ScrapedSubmission[],
   deps: SubmissionPageContextResolverDeps,
 ): string | undefined {
   const contestMatch = url.match(/\/contest\/(\d+)/)
@@ -72,14 +72,14 @@ function resolveNowcoderProblemId(
     const contestId = contestMatch[1]
     const letters = Array.from(new Set(
       submissions
-        .map(submission => (submission as any)?._ncProbLetter)
+        .map(submission => submission._ncProbLetter)
         .filter((letter): letter is string => typeof letter === 'string' && letter.trim().length > 0)
         .map(letter => letter.trim()),
     ))
 
     for (const submission of submissions) {
-      if ((submission as any)._ncProbLetter) {
-        (submission as any)._ncContestId = contestId
+      if (submission._ncProbLetter) {
+        submission._ncContestId = contestId
       }
     }
 
@@ -99,12 +99,22 @@ function resolveNowcoderProblemId(
   return undefined
 }
 
-function hydrateRawProblemId(submissions: SubmissionData[], field: '_ptaProblemId' | '_luoguProblemId'): void {
+/**
+ * 存量数据的线索藏在已落库的 `rawJson` 里，这里把它捞回到线索字段上，
+ * 供 `SubmissionProblemAttacher` 统一读取。`JSON.parse` 的结果是 `unknown`，
+ * 只接受字符串——库里的旧载荷不保证类型。
+ */
+function hydrateRawProblemId(
+  submissions: ScrapedSubmission[],
+  field: '_ptaProblemId' | '_luoguProblemId',
+): void {
   for (const submission of submissions) {
     try {
-      const raw = JSON.parse(submission.rawJson || '{}')
-      if (raw[field]) {
-        (submission as any)[field] = raw[field]
+      const raw: unknown = JSON.parse(submission.rawJson || '{}')
+      if (!raw || typeof raw !== 'object') continue
+      const value = (raw as Record<string, unknown>)[field]
+      if (typeof value === 'string' && value) {
+        submission[field] = value
       }
     } catch { /* ignore */ }
   }

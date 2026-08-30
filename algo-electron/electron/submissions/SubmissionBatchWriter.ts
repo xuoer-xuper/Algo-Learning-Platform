@@ -1,4 +1,4 @@
-import type { ProblemIdentity, SubmissionData } from '../shared/types'
+import type { ProblemIdentity, ScrapedSubmission, SubmissionData } from '../shared/types'
 import { localDayFromTimestamp } from '../db/repositories/stats/date'
 import { SubmissionProblemAttacher } from './SubmissionProblemAttacher'
 
@@ -10,7 +10,7 @@ export interface SubmissionBatchWriteResult {
 
 export interface SubmissionBatchWriteOptions {
   platform: string
-  submissions: SubmissionData[]
+  submissions: ScrapedSubmission[]
   pageProblemId?: string
   pageProblemIdentity?: ProblemIdentity | null
   currentUrl?: string
@@ -19,6 +19,7 @@ export interface SubmissionBatchWriteOptions {
 export interface SubmissionBatchWriterDeps {
   upsertProblem(identity: ProblemIdentity): void
   findProblemId(platform: string, platformProblemId: string): string | undefined
+  /** 入参刻意收窄为 `SubmissionData`：抓取线索用完即弃，不入库。 */
   upsertSubmission(submission: SubmissionData): boolean
   updateFirstAc(problemId: string): Iterable<string> | void
   recomputeStats(dates: Iterable<string>): void

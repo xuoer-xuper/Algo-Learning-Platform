@@ -1,4 +1,4 @@
-import type { ProblemIdentity, SubmissionData } from '../shared/types'
+import type { ProblemIdentity, ScrapedSubmission } from '../shared/types'
 import type { GenericTableData } from '../submissions/scrapers/GenericTableScanner'
 
 export interface ParseContext {
@@ -43,10 +43,15 @@ export interface SiteAdapter {
 
   matchSubmissionResult?(url: string): boolean
   injectHookScript?(): string
-  parseSubmissionResult?(raw: SubmissionDetectionPayload): SubmissionData | null
-  resolveProblemIdentity?(submission: SubmissionData, raw: SubmissionDetectionPayload): ProblemIdentity | null
-  parseSubmissionTables?(tables: GenericTableData[], ctx: TableParseContext): SubmissionData[]
-  scrapeSubmissions?(ctx: SubmissionScrapeContext): Promise<SubmissionData[]>
+  /**
+   * 抓取路径统一返回 `ScrapedSubmission`：站点解析时顺手拿到的题目线索
+   * （`_luoguProblemId` 一类）要一路带到 `SubmissionProblemAttacher` 才被消费。
+   * 声明成 `SubmissionData` 会在这里就把线索类型抹掉，下游只能靠 `as any` 捞回来。
+   */
+  parseSubmissionResult?(raw: SubmissionDetectionPayload): ScrapedSubmission | null
+  resolveProblemIdentity?(submission: ScrapedSubmission, raw: SubmissionDetectionPayload): ProblemIdentity | null
+  parseSubmissionTables?(tables: GenericTableData[], ctx: TableParseContext): ScrapedSubmission[]
+  scrapeSubmissions?(ctx: SubmissionScrapeContext): Promise<ScrapedSubmission[]>
 
-  syncSubmissions?(ctx: SyncContext): Promise<SubmissionData[]>
+  syncSubmissions?(ctx: SyncContext): Promise<ScrapedSubmission[]>
 }

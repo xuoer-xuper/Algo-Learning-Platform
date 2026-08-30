@@ -1,4 +1,4 @@
-import type { ProblemIdentity, SubmissionData } from '../shared/types'
+import type { ProblemIdentity, ScrapedSubmission, SubmissionData } from '../shared/types'
 
 export interface SubmissionProblemAttachmentDeps {
   upsertProblem(identity: ProblemIdentity): void
@@ -10,7 +10,7 @@ export interface SubmissionProblemAttachmentDeps {
 export class SubmissionProblemAttacher {
   constructor(private readonly deps: SubmissionProblemAttachmentDeps) {}
 
-  attachProblem(submission: SubmissionData, platform: string, pageProblemDbId?: string): void {
+  attachProblem(submission: ScrapedSubmission, platform: string, pageProblemDbId?: string): void {
     if (pageProblemDbId) {
       submission.problemId = pageProblemDbId
     }
@@ -93,8 +93,8 @@ export class SubmissionProblemAttacher {
     }
   }
 
-  private attachPtaProblem(submission: SubmissionData): void {
-    const ptaProblemId = (submission as any)._ptaProblemId
+  private attachPtaProblem(submission: ScrapedSubmission): void {
+    const ptaProblemId = submission._ptaProblemId
     if (!ptaProblemId) return
 
     const parts = String(ptaProblemId).split('-')
@@ -110,23 +110,23 @@ export class SubmissionProblemAttacher {
     })
   }
 
-  private attachLuoguProblem(submission: SubmissionData): void {
+  private attachLuoguProblem(submission: ScrapedSubmission): void {
     const rawInfo = this.parseLuoguRawProblemInfo(submission)
-    const luoguProblemId = (submission as any)._luoguProblemId ?? rawInfo.problemId
+    const luoguProblemId = submission._luoguProblemId ?? rawInfo.problemId
     if (!luoguProblemId) return
 
     submission.problemId = this.ensureProblem({
       platform: 'luogu',
       platformProblemId: luoguProblemId,
       canonicalUrl: `https://www.luogu.com.cn/problem/${luoguProblemId}`,
-      title: (submission as any)._luoguProblemTitle ?? rawInfo.title,
+      title: submission._luoguProblemTitle ?? rawInfo.title,
       confidence: 'url',
     })
   }
 
-  private attachNowcoderProblem(submission: SubmissionData): void {
-    const contestId = (submission as any)._ncContestId
-    const problemLetter = (submission as any)._ncProbLetter
+  private attachNowcoderProblem(submission: ScrapedSubmission): void {
+    const contestId = submission._ncContestId
+    const problemLetter = submission._ncProbLetter
     if (!contestId || !problemLetter) return
 
     const problemIndex = String(problemLetter).trim()
@@ -142,9 +142,9 @@ export class SubmissionProblemAttacher {
     })
   }
 
-  private attachVjudgeProblem(submission: SubmissionData): void {
+  private attachVjudgeProblem(submission: ScrapedSubmission): void {
     const rawInfo = this.parseVjudgeRawProblemInfo(submission)
-    const vjudgeProblemId = (submission as any)._vjudgeProblemId ?? rawInfo.problemId
+    const vjudgeProblemId = submission._vjudgeProblemId ?? rawInfo.problemId
     if (!vjudgeProblemId) return
 
     submission.problemId = this.ensureProblem({

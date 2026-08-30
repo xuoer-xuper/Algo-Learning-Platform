@@ -58,7 +58,7 @@ assert.strictEqual(nowcoderSubmissions[0].platformSubmissionId, 'nc-123456')
 assert.strictEqual(nowcoderSubmissions[0].verdict, 'AC')
 assert.strictEqual(nowcoderSubmissions[0].runtimeMs, 4)
 assert.strictEqual(nowcoderSubmissions[0].memoryKb, 9728)
-assert.strictEqual((nowcoderSubmissions[0] as any)._ncProbLetter, 'A')
+assert.strictEqual(nowcoderSubmissions[0]._ncProbLetter, 'A')
 
 const vjudgeRows = {
   headers: ['ID', 'When', 'Who', 'Problem', 'Result', 'Language', 'Time', 'Memory'],

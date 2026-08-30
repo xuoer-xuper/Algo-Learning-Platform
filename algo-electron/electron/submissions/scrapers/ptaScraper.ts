@@ -528,7 +528,7 @@ export function parsePtaFrontendVerdictPayload(raw: SubmissionDetectionPayload):
     submittedAt: nowBeijing(),
     sourceUrl,
     rawJson: JSON.stringify(rawJson),
-  } as any
+  }
 }
 
 export function parsePtaSubmissionData(currentUrl: string, data: any): SubmissionData[] {
@@ -645,7 +645,7 @@ export function parsePtaSubmissionData(currentUrl: string, data: any): Submissio
       submittedAt: nowBeijing(),
       sourceUrl: links.find((link: string) => link) || '',
       rawJson: ptaProblemId ? JSON.stringify({ _ptaProblemId: ptaProblemId }) : undefined,
-    } as any)
+    })
   }
 
   return results

@@ -1,4 +1,4 @@
-import type { SubmissionData } from '../../../shared/types'
+import type { ScrapedSubmission, SubmissionData } from '../../../shared/types'
 import { nowBeijing } from '../../../shared/time'
 import { pickFinalRealtimeSubmission } from '../../../submissions/realtimeSubmissionFilter'
 import { normalizeVerdict } from '../../verdictMap'
@@ -160,7 +160,7 @@ export function parseVjudgeStatusData(raw: SubmissionDetectionPayload): Submissi
           : {}),
       }),
       ...(parsedProblem ? { _vjudgeProblemId: parsedProblem.problemId } : {}),
-    } as SubmissionData & { _vjudgeProblemId?: string })
+    } satisfies ScrapedSubmission)
   }
 
   return pickFinalRealtimeSubmission(submissions)
@@ -225,5 +225,5 @@ export function parseVjudgeSolutionData(raw: SubmissionDetectionPayload): Submis
         : {}),
     }),
     ...(parsedProblem ? { _vjudgeProblemId: parsedProblem.problemId } : {}),
-  } as SubmissionData & { _vjudgeProblemId?: string }
+  } satisfies ScrapedSubmission
 }

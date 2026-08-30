@@ -1,4 +1,4 @@
-import type { ProblemIdentity, SubmissionData } from '../../../shared/types'
+import type { ProblemIdentity, ScrapedSubmission, SubmissionData } from '../../../shared/types'
 import type { SubmissionDetectionPayload } from '../../types'
 import { findColumnIndex, stripHtml } from '../../shared/genericSubmission'
 
@@ -91,7 +91,7 @@ export function parseVjudgeProblemText(value: unknown): VjudgeProblemText | null
   }
 }
 
-export function attachVjudgeRawProblemContext(submission: SubmissionData): SubmissionData {
+export function attachVjudgeRawProblemContext(submission: SubmissionData): ScrapedSubmission {
   try {
     const raw = JSON.parse(submission.rawJson || '{}')
     const headers = Array.isArray(raw.headers) ? raw.headers : []
@@ -110,7 +110,7 @@ export function attachVjudgeRawProblemContext(submission: SubmissionData): Submi
         _vjudgeSourceProblemId: problem.sourceProblemId,
       }),
       _vjudgeProblemId: problem.problemId,
-    } as SubmissionData & { _vjudgeProblemId?: string }
+    } satisfies ScrapedSubmission
   } catch {
     return submission
   }

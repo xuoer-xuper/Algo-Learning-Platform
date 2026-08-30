@@ -361,7 +361,7 @@ function parseInjectedRecords(
       submittedAt: record.submitTime ? toBeijing(new Date(record.submitTime * 1000)) : nowBeijing(),
       sourceUrl: `https://www.luogu.com.cn/record/${record.id}`,
       rawJson: buildLuoguRawJson(record),
-    } as any)
+    })
   }
 
   return results
@@ -403,7 +403,7 @@ function parseDomRows(rows: any[]): SubmissionData[] {
         submittedAt: nowBeijing(),
         sourceUrl: `https://www.luogu.com.cn/record/${submissionId}`,
         rawJson: problemId ? JSON.stringify({ _luoguProblemId: problemId }) : undefined,
-      } as any)
+      })
     }
   }
 

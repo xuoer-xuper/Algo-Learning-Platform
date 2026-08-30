@@ -1,4 +1,4 @@
-import type { SubmissionData } from '../../../shared/types'
+import type { ScrapedSubmission, SubmissionData } from '../../../shared/types'
 import type { TableParseContext } from '../../types'
 import type { GenericTableData } from '../../../submissions/scrapers/GenericTableScanner'
 import { scanGenericSubmissionTable, selectBestSubmissionTable } from '../../../submissions/scrapers/GenericTableScanner'
@@ -24,6 +24,6 @@ export function parseNowcoderSubmissionTables(
     return {
       ...submission,
       _ncProbLetter: probIdx >= 0 ? texts[probIdx] : undefined,
-    } as SubmissionData & { _ncProbLetter?: string }
+    } satisfies ScrapedSubmission
   })
 }

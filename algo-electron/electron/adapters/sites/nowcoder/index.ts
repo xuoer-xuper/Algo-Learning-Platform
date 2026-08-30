@@ -51,7 +51,7 @@ export const nowcoderAdapter: SiteAdapter = {
     const identity = resolveProblemIdentityFromBrowserTitle(this, raw)
     if (identity) return identity
 
-    const problemLetter = (submission as SubmissionData & { _ncProbLetter?: unknown })._ncProbLetter
+    const problemLetter = submission._ncProbLetter
     const contestMatch = raw.pageUrl.match(/\/contest\/(\d+)/)
     if (contestMatch && typeof problemLetter === 'string' && problemLetter.trim()) {
       const contestId = contestMatch[1]

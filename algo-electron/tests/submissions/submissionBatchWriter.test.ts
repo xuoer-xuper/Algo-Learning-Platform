@@ -1,6 +1,6 @@
 import { test } from 'vitest'
 import assert from 'node:assert'
-import type { ProblemIdentity, SubmissionData } from '../../electron/shared/types.ts'
+import type { ProblemIdentity, ScrapedSubmission, SubmissionData } from '../../electron/shared/types.ts'
 import { SubmissionBatchWriter } from '../../electron/submissions/SubmissionBatchWriter.ts'
 
 test('submissions/submissionBatchWriter.test.ts', async () => {
@@ -196,13 +196,13 @@ writer.write({
 
 assert.strictEqual(savedSubmissions[5].problemId, 'db:vjudge:Gym-105173E')
 
-const ptaSubmission: SubmissionData = {
+const ptaSubmission: ScrapedSubmission = {
   platform: 'pta',
   platformSubmissionId: 'pta-1',
   verdict: 'AC',
   submittedAt: '2026-06-29 10:02:00',
+  _ptaProblemId: '994805260223102976-1478636081501847552',
 }
-;(ptaSubmission as any)._ptaProblemId = '994805260223102976-1478636081501847552'
 
 writer.write({
   platform: 'pta',
@@ -248,23 +248,23 @@ assert.strictEqual(
   'A+B Problem',
 )
 
-const nowcoderStatusSubmissionA: SubmissionData = {
+const nowcoderStatusSubmissionA: ScrapedSubmission = {
   platform: 'nowcoder',
   platformSubmissionId: 'nc-2',
   verdict: 'AC',
   submittedAt: '2026-06-29 10:05:00',
+  _ncContestId: '789',
+  _ncProbLetter: 'A',
 }
-;(nowcoderStatusSubmissionA as any)._ncContestId = '789'
-;(nowcoderStatusSubmissionA as any)._ncProbLetter = 'A'
 
-const nowcoderStatusSubmissionB: SubmissionData = {
+const nowcoderStatusSubmissionB: ScrapedSubmission = {
   platform: 'nowcoder',
   platformSubmissionId: 'nc-3',
   verdict: 'WA',
   submittedAt: '2026-06-29 10:05:30',
+  _ncContestId: '789',
+  _ncProbLetter: 'B',
 }
-;(nowcoderStatusSubmissionB as any)._ncContestId = '789'
-;(nowcoderStatusSubmissionB as any)._ncProbLetter = 'B'
 
 writer.write({
   platform: 'nowcoder',
