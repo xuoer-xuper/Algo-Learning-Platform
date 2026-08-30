@@ -119,6 +119,13 @@
   gap: 8px;
 }
 
+/*
+ * 笔记类型徽标：底色区分类型，文字恒为 --text-secondary。
+ * 与 .ui-notice-bar-success/warning/danger 同一配方（soft 底 + secondary 文字），
+ * 浅色 6.1~6.7:1、深色 5.5~7.7:1，10px/600 也满足 WCAG AA 4.5:1。
+ * 类型色不单独承义 —— 徽标里始终有 NOTE_TYPE_LABELS 文字，与 shared/display.ts
+ * 的状态色规则一致。基类底色即未知类型的兜底。
+ */
 .note-item-type {
   font-size: 10px;
   font-weight: 600;
@@ -129,6 +136,10 @@
   color: var(--text-secondary);
   line-height: 1.4;
 }
+
+.note-item-type--solution { background: var(--color-ok-soft); }
+.note-item-type--review { background: var(--color-warn-soft); }
+.note-item-type--summary { background: var(--color-accent-soft); }
 
 .note-item-title {
   font-size: 13px;
@@ -218,45 +229,25 @@
 }
 
 /* 标题输入与类型下拉：视觉对齐 ui-input / ui-select */
+/*
+ * 笔记头部的标题输入与类型选择：底座是 ui/ 的 Input / Select，
+ * 边框、圆角、配色、focus ring 全部来自 .ui-input / .ui-select。
+ * 这里只留布局与放大后的几何 —— 36px 只此一处用到，不进 ui/ 做尺寸变体
+ * （对比 .ui-select-sm：小号是与 Button 的 sm 配套的系统尺寸，会复用）。
+ */
 .note-editor-title {
   flex: 1 1 240px;
-  min-width: 0;
   height: 36px;
   padding: 0 14px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  background: var(--bg-card);
-  color: var(--text);
   font-size: 14px;
   font-weight: 600;
-  transition:
-    border-color var(--duration-fast) var(--ease-out),
-    box-shadow var(--duration-fast) var(--ease-out);
-}
-
-.note-editor-title:focus {
-  outline: none;
-  border-color: var(--color-accent);
-  box-shadow: 0 0 0 3px var(--color-accent-soft);
 }
 
 .note-editor-type {
   height: 36px;
   padding: 0 12px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  background: var(--bg-card);
-  color: var(--text);
-  font-size: 13px;
   cursor: pointer;
   flex-shrink: 0;
-  transition: border-color var(--duration-fast) var(--ease-out);
-}
-
-.note-editor-type:focus {
-  outline: none;
-  border-color: var(--color-accent);
-  box-shadow: 0 0 0 3px var(--color-accent-soft);
 }
 
 .note-save-status {

@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest'
 // @ts-expect-error 守卫判定是 runner 共用的 .mjs，无类型声明；此处只需运行时行为
-import { collectRatchetFailures, countBareControls, countBareSql } from './guards.mjs'
+import { collectRatchetFailures, countBareControls, countBareHex, countBareSql } from './guards.mjs'
 
 /**
  * 守卫的反向验证。
  *
  * check-architecture.mjs 全部 PASS 只说明"当前代码合规"，不说明守卫真的会响。
- * 这里用合成输入把三条新守卫的判定逻辑逐个推到失败侧：违规重新出现时必须被抓到，
+ * 这里用合成输入把新守卫的判定逻辑逐个推到失败侧：违规重新出现时必须被抓到，
  * 否则守卫是装饰。
  */
 
@@ -64,6 +64,33 @@ describe('countBareControls', () => {
   it('豁免只看本标签的 type，不误读后面元素的属性', () => {
     // 前一个 input 无 type，后一个是 checkbox：必须计 1 而不是 0。
     expect(countBareControls('<input value={a} />\n<input type="checkbox" />')).toBe(1)
+  })
+})
+
+describe('countBareHex', () => {
+  it('抓到 CSS 与 TS 里的裸 hex', () => {
+    expect(countBareHex('color: #fff;')).toBe(1)
+    expect(countBareHex('background-color: #e81123;')).toBe(1)
+    expect(countBareHex("solution: '#a6e3a1',")).toBe(1)
+    expect(countBareHex('#fff #ffff #ffffff #ffffffff')).toBe(4)
+  })
+
+  it('不把 token 引用算成裸 hex', () => {
+    expect(countBareHex('color: var(--color-on-fill);')).toBe(0)
+    expect(countBareHex('background: rgb(15 23 42 / 0.92);')).toBe(0)
+  })
+
+  it('不把 HTML 数字实体当颜色', () => {
+    // electron/coach/problemFacts/ConstraintParser.ts 里的实测误报源。
+    expect(countBareHex("text.replace(/&#8804;/g, '≤')")).toBe(0)
+    expect(countBareHex("'&#183;'")).toBe(0)
+  })
+
+  it('只认 CSS 合法长度，超长串不算', () => {
+    // 5 位和 7 位不是合法颜色；若按 {3,8} 贪婪匹配会把 7 位切成 6 位算一处。
+    expect(countBareHex('#12345')).toBe(0)
+    expect(countBareHex('#1234567')).toBe(0)
+    expect(countBareHex('#123456789')).toBe(0)
   })
 })
 

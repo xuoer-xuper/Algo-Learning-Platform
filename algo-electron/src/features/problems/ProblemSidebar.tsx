@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { PLATFORM_LABELS, STATUS_COLORS } from '../../shared/display'
-import { Icon } from '../../components/ui'
+import { IconButton, Select } from '../../components/ui'
 import { reportRendererError } from '../../rendererErrors'
 import { loadRecentProblems, setProblemSidebarWidth, subscribeProblemsUpdated } from './problemsApi'
 import type { SidebarProblemRecord } from './problemTypes'
@@ -66,13 +66,17 @@ export function ProblemSidebar({ onNavigate, onShowDetail, onShowNotes, onWidthC
     <div ref={sidebarRef} className="sidebar">
       <div className="sidebar-header">
         <span className="sidebar-title">题库 ({problems.length})</span>
-        <button className="sidebar-collapse-btn" onClick={() => setCollapsed(true)} title="收起题库" aria-label="收起题库">
-          <Icon name="chevron-left" size={15} />
-        </button>
+        <IconButton
+          icon="chevron-left"
+          size={15}
+          className="sidebar-collapse-btn"
+          title="收起题库"
+          onClick={() => setCollapsed(true)}
+        />
       </div>
 
       <div className="sidebar-filters">
-        <select className="sidebar-select" value={filterPlatform} onChange={e => setFilterPlatform(e.target.value)}>
+        <Select size="sm" className="sidebar-select" value={filterPlatform} onChange={e => setFilterPlatform(e.target.value)}>
           <option value="">全部平台</option>
           <option value="codeforces">Codeforces</option>
           <option value="acwing">AcWing</option>
@@ -81,13 +85,13 @@ export function ProblemSidebar({ onNavigate, onShowDetail, onShowNotes, onWidthC
           <option value="pta">PTA</option>
           <option value="luogu">洛谷</option>
           <option value="leetcode-cn">LeetCode</option>
-        </select>
-        <select className="sidebar-select" value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
+        </Select>
+        <Select size="sm" className="sidebar-select" value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
           <option value="">全部状态</option>
           <option value="solved">已通过</option>
           <option value="attempted">尝试中</option>
           <option value="visited">已访问</option>
-        </select>
+        </Select>
       </div>
 
       <div className="sidebar-list">
@@ -113,20 +117,21 @@ export function ProblemSidebar({ onNavigate, onShowDetail, onShowNotes, onWidthC
               {p.submission_count ? (
                 <span className="sidebar-item-count">{p.submission_count}</span>
               ) : null}
-              <button
+              {/* IconButton 的 title 必填并同时写 aria-label：原来只有 title，读屏取不到名字 */}
+              <IconButton
+                icon="edit"
+                size={13}
                 className="sidebar-item-notes"
-                onClick={e => { e.stopPropagation(); onShowNotes(p.id) }}
                 title="本地笔记"
-              >
-                <Icon name="edit" size={13} />
-              </button>
-              <button
+                onClick={e => { e.stopPropagation(); onShowNotes(p.id) }}
+              />
+              <IconButton
+                icon="more"
+                size={14}
                 className="sidebar-item-detail"
-                onClick={e => { e.stopPropagation(); onShowDetail(p.id) }}
                 title="查看详情"
-              >
-                <Icon name="more" size={14} />
-              </button>
+                onClick={e => { e.stopPropagation(); onShowDetail(p.id) }}
+              />
             </div>
           ))
         )}

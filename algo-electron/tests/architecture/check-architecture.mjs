@@ -1,6 +1,6 @@
 import fs from 'node:fs'
 import path from 'node:path'
-import { collectRatchetFailures, countBareControls, countBareSql } from './guards.mjs'
+import { collectRatchetFailures, countBareControls, countBareHex, countBareSql } from './guards.mjs'
 
 const projectRoot = process.cwd()
 const sourceRoots = [
@@ -14,18 +14,25 @@ function check(name, fn) {
   checks.push({ name, fn })
 }
 
-function walkSourceFiles(rootDir, files = []) {
+const SOURCE_EXT = /\.(?:ts|tsx|js|jsx|mjs)$/
+const STYLE_EXT = /\.css$/
+
+function walkFiles(rootDir, extPattern, files = []) {
   for (const entry of fs.readdirSync(rootDir, { withFileTypes: true })) {
     const entryPath = path.join(rootDir, entry.name)
 
     if (entry.isDirectory()) {
-      walkSourceFiles(entryPath, files)
-    } else if (/\.(?:ts|tsx|js|jsx|mjs)$/.test(entry.name)) {
+      walkFiles(entryPath, extPattern, files)
+    } else if (extPattern.test(entry.name)) {
       files.push(entryPath)
     }
   }
 
   return files
+}
+
+function walkSourceFiles(rootDir, files = []) {
+  return walkFiles(rootDir, SOURCE_EXT, files)
 }
 
 function read(filePath) {
@@ -240,7 +247,10 @@ check('renderer components reach the main process only through *Api.ts', () => {
   if (failures.length > 0) throw new Error(failures.join('\n'))
 })
 
-// 两类合法例外 + 一类待清理欠账，条目里注明属于哪一类。
+// 全部为长期例外，条目里注明属于哪一类。Q4 已清完待办欠账：
+// ProblemSidebar（IconButton + Select size="sm"）、NoteEditorPane（Input/Select）、
+// UserScriptEditor（Textarea）、ErrorBoundary（Button）四个文件归零后由棘轮的
+// 陈旧条目分支强制删除，剩下的三类都有不搬的具体理由。
 const BARE_CONTROL_BUDGET = {
   // 浏览器原生 chrome：几何按像素对齐系统窗口装饰，ui/Button 的内边距与
   // 圆角体系不适用。属长期例外，不是欠账。
@@ -256,12 +266,11 @@ const BARE_CONTROL_BUDGET = {
   'src/features/coach/CoachBubble.tsx': 3,
   'src/features/coach/CoachChatPanel.tsx': 3,
 
-  // 待清理欠账（Q4 目标）。
+  // 卡片磁贴：.home-site-btn 是多行卡片（列向 flex + 省略号 URL），
+  // .ui-btn 的 justify-content: center 与 white-space: nowrap 套上来要再写四条
+  // 声明撤销，可读性反而更差。全项目只此一处，不值得为它加 Button 变体。
+  // 已补 type="button"（走 Button 唯一的实质收益）。属长期例外。
   'src/features/home/HomePage.tsx': 2,
-  'src/features/problems/ProblemSidebar.tsx': 5,
-  'src/features/problems/NoteEditorPane.tsx': 2,
-  'src/features/scripts/UserScriptEditor.tsx': 1,
-  'src/components/ErrorBoundary.tsx': 1,
 }
 
 check('interactive controls come from src/components/ui/', () => {
@@ -275,6 +284,39 @@ check('interactive controls come from src/components/ui/', () => {
     describe: (count) => `有 ${count} 处裸交互控件`,
     cleanupHint: '按钮与表单控件从 src/components/ui 取用（Button/IconButton/Input/Select/Textarea）',
   })
+})
+
+/*
+ * 允许出现裸 hex 的三个文件。这不是棘轮预算 —— 定义 token 不是欠账，
+ * 新增一个合法 token 不该让守卫响，所以按文件豁免而不按数量计数。
+ * 除这三个之外，src/ 下任何 CSS/TS/TSX 出现裸 hex 都是违规
+ * （规则见 docs/REFACTOR_HANDOFF.md 第 40 行，此前只有文字约定没有守卫）。
+ */
+const COLOR_SOURCE_FILES = new Set([
+  'src/index.css',                          // 设计 token 唯一源
+  'src/features/coach/styles/tokens.css',   // Coach 独立视觉域的第二套 token
+  'src/shared/display.ts',                  // 平台品牌色与图表色板（已过 dataviz 校验）
+])
+
+check('colors come from design tokens, not bare hex', () => {
+  const srcRoot = path.join(projectRoot, 'src')
+  const files = [
+    ...walkFiles(srcRoot, SOURCE_EXT),
+    ...walkFiles(srcRoot, STYLE_EXT),
+  ]
+  const failures = []
+
+  for (const file of files) {
+    const rel = relative(file)
+    if (COLOR_SOURCE_FILES.has(rel)) continue
+
+    const count = countBareHex(read(file))
+    if (count > 0) {
+      failures.push(`${rel}: 有 ${count} 处裸 hex 颜色，取值应来自 src/index.css 的设计 token`)
+    }
+  }
+
+  if (failures.length > 0) throw new Error(failures.join('\n'))
 })
 
 check('real-Electron suites stay out of the Vitest run', () => {

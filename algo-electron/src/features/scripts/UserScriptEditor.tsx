@@ -1,4 +1,4 @@
-import { Button, Input } from '../../components/ui'
+import { Button, Input, Textarea } from '../../components/ui'
 import type { ScriptSite, UserScriptRecord } from './types'
 
 interface UserScriptEditorProps {
@@ -73,9 +73,9 @@ export function UserScriptEditor({
         <div className="scripts-field">
           <label className="scripts-label" htmlFor="scripts-code-view">脚本源码（只读）</label>
           {codeNotice && <span className="scripts-field-hint">{codeNotice}</span>}
-          <textarea
+          <Textarea
             id="scripts-code-view"
-            className="ui-input mono"
+            className="mono"
             value={codeLoading ? '正在读取源码...' : (code ?? '')}
             readOnly
             rows={12}

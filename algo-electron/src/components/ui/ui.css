@@ -38,7 +38,7 @@
 
 .ui-btn-primary {
   background: var(--color-accent);
-  color: #fff;
+  color: var(--color-on-fill);
 }
 .ui-btn-primary:hover {
   background: var(--color-accent-strong);
@@ -73,7 +73,7 @@
 }
 .ui-btn-danger:hover {
   background: var(--color-danger);
-  color: #fff;
+  color: var(--color-on-fill);
 }
 
 /* ── IconButton ── */
@@ -121,6 +121,14 @@
   transition:
     border-color var(--duration-fast) var(--ease-out),
     box-shadow var(--duration-fast) var(--ease-out);
+}
+
+/* 密集面板用的小号 select（题库侧栏筛选器）。只改几何，配色仍走基类 */
+.ui-select-sm {
+  height: 24px;
+  padding: 0 6px;
+  border-radius: var(--radius-xs);
+  font-size: 11px;
 }
 
 .ui-input::placeholder {

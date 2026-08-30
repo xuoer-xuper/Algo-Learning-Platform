@@ -1,4 +1,5 @@
 import { Component, ErrorInfo, ReactNode } from 'react'
+import { Button } from './ui'
 
 interface Props {
   children?: ReactNode
@@ -29,26 +30,27 @@ export class ErrorBoundary extends Component<Props, State> {
   public render() {
     if (this.state.hasError) {
       return (
-        <div className="flex flex-col items-center justify-center h-full w-full p-8 bg-red-50 text-red-900">
-          <h2 className="text-2xl font-bold mb-4">应用崩溃了 (React Error)</h2>
-          <div className="bg-white p-4 rounded shadow-sm w-full max-w-4xl overflow-auto border border-red-200">
-            <h3 className="font-semibold text-lg">{this.state.error?.toString()}</h3>
-            <pre className="text-sm mt-4 text-left whitespace-pre-wrap font-mono">
+        <div className="crash-screen">
+          <h2 className="crash-title">应用崩溃了 (React Error)</h2>
+          <div className="crash-detail">
+            <h3 className="crash-message">{this.state.error?.toString()}</h3>
+            <pre className="crash-stack">
               {this.state.errorInfo?.componentStack}
             </pre>
-            <pre className="text-sm mt-4 text-left whitespace-pre-wrap font-mono opacity-70">
+            <pre className="crash-stack crash-stack-raw">
               {this.state.error?.stack}
             </pre>
           </div>
-          <button 
-            className="mt-6 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+          {/* 刷新是恢复动作而非破坏动作，用 primary；危险语义已由底色与标题承担 */}
+          <Button
+            variant="primary"
             onClick={() => {
               this.setState({ hasError: false, error: null, errorInfo: null })
               window.location.reload()
             }}
           >
             刷新页面重试
-          </button>
+          </Button>
         </div>
       )
     }

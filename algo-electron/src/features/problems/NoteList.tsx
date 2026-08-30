@@ -1,9 +1,19 @@
 import {
-  NOTE_TYPE_COLORS,
   NOTE_TYPE_LABELS,
   type NoteItem,
 } from './notesTypes'
 import { IconButton } from '../../components/ui'
+
+/**
+ * 徽标类名与文字。note_type 来自数据库，可能是 NOTE_TYPE_LABELS 之外的值，
+ * 不能直接拼进类名；未知类型只留基类（底色走 --bg-surface 兜底）并原样显示。
+ */
+function noteTypeBadge(noteType: string): { className: string, label: string } {
+  const label = NOTE_TYPE_LABELS[noteType]
+  return label === undefined
+    ? { className: 'note-item-type', label: noteType }
+    : { className: `note-item-type note-item-type--${noteType}`, label }
+}
 
 interface NoteListProps {
   notes: NoteItem[]
@@ -30,22 +40,16 @@ export function NoteList({
             点击「新建笔记」创建
           </div>
         ) : (
-          notes.map((note) => (
+          notes.map((note) => {
+            const badge = noteTypeBadge(note.note_type)
+            return (
             <div
               key={note.id}
               className={`note-item ${activeNoteId === note.id ? 'active' : ''}`}
               onClick={() => onOpenNote(note.id)}
             >
               <div className="note-item-main">
-                <span
-                  className="note-item-type"
-                  style={{
-                    backgroundColor: `${NOTE_TYPE_COLORS[note.note_type] || '#585b70'}20`,
-                    color: NOTE_TYPE_COLORS[note.note_type] || '#585b70',
-                  }}
-                >
-                  {NOTE_TYPE_LABELS[note.note_type] || note.note_type}
-                </span>
+                <span className={badge.className}>{badge.label}</span>
                 <span className="note-item-title">{note.title}</span>
               </div>
               <div className="note-item-meta">
@@ -68,7 +72,8 @@ export function NoteList({
                 />
               </div>
             </div>
-          ))
+            )
+          })
         )}
       </div>
     </div>

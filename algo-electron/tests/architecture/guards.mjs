@@ -39,6 +39,23 @@ export function countBareControls(text) {
 }
 
 /**
+ * 裸 hex 颜色。三处口径都是被实测误报逼出来的：
+ *   - 长度只认 CSS 合法的 3/4/6/8 位，且从长到短排列，否则 7 位串会被
+ *     当成"6 位 + 1 个字符"算成一处；
+ *   - 尾部 (?![0-9a-fA-F]) 挡住超长串；
+ *   - 头部 (?<!&) 排除 HTML 数字实体 —— &#8804; 的 8804 正好是 4 位十六进制，
+ *     后面跟分号也过得了尾部检查，只有前缀能区分。
+ *
+ * token 定义文件不在这里豁免 —— 判定只回答"这段文本里有几处裸 hex"，
+ * 哪些文件允许有由 runner 决定（定义 token 不是欠账，不进棘轮预算）。
+ */
+const BARE_HEX_PATTERN = /(?<!&)#(?:[0-9a-fA-F]{8}|[0-9a-fA-F]{6}|[0-9a-fA-F]{4}|[0-9a-fA-F]{3})(?![0-9a-fA-F])/g
+
+export function countBareHex(text) {
+  return (text.match(BARE_HEX_PATTERN) ?? []).length
+}
+
+/**
  * 棘轮白名单比对：只减不增。
  *
  * `entries` 是 `[{ path, count }]`，count 为 0 的条目视为已清理。

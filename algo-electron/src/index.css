@@ -38,6 +38,18 @@
   --color-danger: #d03b3b;
   --color-danger-soft: #fdeaea;
 
+  /*
+   * 实心填充上的前景色。压在 accent/danger 等饱和底上，深色主题同样是白，
+   * 因此不随主题翻转 —— 不能用 --color-card 代替（那个在深色下变 #1e222c）。
+   */
+  --color-on-fill: #ffffff;
+
+  /*
+   * 系统惯例色：Windows 标题栏关闭键悬停红。取值来自 Windows 自身，
+   * 不属于本设计系统的语义色板，也不随主题变化，只给 .window-control-close 用。
+   */
+  --color-sys-close: #e81123;
+
   /* 字体：界面静音，数据用等宽发声 */
   --font-sans: Inter, "Segoe UI", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
   --font-mono: "Cascadia Code", Consolas, "JetBrains Mono", ui-monospace, monospace;

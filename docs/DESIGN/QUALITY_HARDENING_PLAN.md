@@ -154,6 +154,7 @@ Q1–Q4 是确定工作量的机械活，不含架构决策，应连续执行。
 > - **长期例外 · 浏览器原生 chrome**（15 处）：`BrowserToolbar` 6、`WindowControls` 3、`TabStrip` 3、`Omnibox` 2、`FindInPageBar` 1。几何按像素对齐系统窗口装饰,`ui/Button` 的内边距与圆角体系不适用。
 > - **长期例外 · Coach 独立视觉域**（10 处）：`CoachActions` 4、`CoachBubble` 3、`CoachChatPanel` 3。§5 已定 Coach 的 token 分叉不动。
 > - **待清理欠账**（11 处,Q4 目标）：`ProblemSidebar` 5、`HomePage` 2、`NoteEditorPane` 2、`UserScriptEditor` 1、`ErrorBoundary` 1。
+>   **Q4 结果**：清掉 9 处（四个文件归零，白名单条目由棘轮的陈旧条目分支强制删除），剩 `HomePage` 2 处改判长期例外，理由见 Q4 实施偏差第 3 条。待清理欠账归零。
 >
 > 另有 **6 处 `checkbox` / `range` 按类型豁免**：`ui/fields.tsx` 只有 `Input` / `Select` / `Textarea`,没有 Checkbox/Radio/Range 组件,现在挡住等于逼人手写更差的东西。豁免写在守卫里并注明"补齐组件后删掉,届时有 6 处要改"。
 >
@@ -173,6 +174,20 @@ Q1–Q4 是确定工作量的机械活，不含架构决策，应连续执行。
 | 普通内部页裸 button | `HomePage.tsx` 的 `.home-site-btn`、`ProblemSidebar.tsx` 的 `.sidebar-item-notes`/`.sidebar-item-detail`/`.sidebar-collapse-btn` | 收进 `ui/` 组件 |
 
 **边界**：视觉输出必须与改前一致。token 化是等值替换,不是重新配色。
+
+> **实施偏差（2026-08-30）**：以下五点与上表不同，逐条记录理由。
+>
+> **1. "等值替换"这条边界在笔记徽标上不成立，实测推翻。** 先量了现状：文字色是原 hex，底色是同一 hex 叠 12.5% alpha 压在白卡上 —— solution **1.41:1**、review **1.23:1**、summary **1.94:1**。这是可达性缺陷，不是配色偏好，等值替换会把 bug 一起保留下来。而本表暗示的修法（状态色文字 + soft 底）也仍然不过 AA：4.20 / 4.48 / 4.68。最后用的是代码库里已经验证过的配方 —— `.ui-notice-bar-*` 的 soft 底 + `--text-secondary` 文字，两个主题都量过：浅色 6.11~6.70:1、深色 5.54~7.74:1，10px/600 也满足 4.5:1。类型色也因此不再单独承义（徽标里始终有 `NOTE_TYPE_LABELS` 文字），与 `display.ts` 的既有规则对齐。实现上没走 `color-mix`：改成 `.note-item-type--{type}` 修饰类，未知 `note_type` 只留基类走 `--bg-surface` 兜底 —— 那个值来自数据库，不能直接拼进类名。
+>
+> **2. 本表漏了第四处裸 hex。** `NOTE_TYPE_COLORS` 的 `fallback: '#585b70'` 也是硬编码（这处对比度 5.56:1，本身不违规，但同样是漂移）。删掉整个映射后一并消失。
+>
+> **3. `HomePage.tsx` 的卡片磁贴不收进 `ui/`，改判长期例外。** `.ui-btn` 是单行内联标签的底座（`justify-content: center` + `white-space: nowrap` + 固定高度），而 `.home-site-btn` 是多行卡片（列向 flex + 省略号 URL）。套上去要再写四条声明去撤销基类，可读性反而更差，全项目只此一处也不值得为它加 Button 变体。只补了 `type="button"` —— 那是走 Button 唯一能拿到的实质收益。其余四个文件（`ProblemSidebar` / `NoteEditorPane` / `UserScriptEditor` / `ErrorBoundary`）已清零，由 Q3 棘轮的陈旧条目分支强制删除白名单条目，Q3 §附注里"11 处待清理欠账"的口径随之收成 2 处长期例外。
+>
+> **4. 顺手修掉一个没人报过的渲染 bug。** `UserScriptEditor.tsx` 的只读源码框写的是 `<textarea className="ui-input mono" rows={12}>`，而 `.ui-input` 设了 `height: 30px` —— `rows` 被压死，源码框一直只有 30px 高（已确认 `scripts.css` 里没有覆盖）。换成 `Textarea` 后恢复。这条说明"搬进 `ui/`"的收益不止统一外观。
+>
+> **5. 本块之外的发现：Tailwind 现在零消费者。** `ErrorBoundary.tsx` 是全项目最后一处 Tailwind 工具类（`red-50/600/900`，与设计 token 无关），改成 `.crash-*` + token 后，`@tailwindcss/vite` 与 `src/index.css:1` 的 `@import "tailwindcss"` 已无人使用。删构建依赖超出 Q4 范围，仅记录，留待单独决定。
+>
+> **另外**：本表没提但一并做了 —— 裸 hex 这条规则在 `index.css:8` 和 `REFACTOR_HANDOFF.md` 里都写着"已有守卫"，实际没有。补成第 12 条架构守卫（按文件豁免三个 token 定义文件，不进棘轮预算：定义 token 不是欠账，新增合法 token 不该让守卫响），当前即为零。`Select` 补了 `size="sm"`（24px，密集面板用），是这次暴露出的真实设计系统缺口。
 
 ### Q5 preload 纳入覆盖率
 
@@ -248,7 +263,7 @@ Q1–Q4 是确定工作量的机械活，不含架构决策，应连续执行。
 | Q1 | [x] | 已完成。12 处读路径补齐;新增 `src/rendererErrors.ts` + `src/shared/errors.ts`;错误通知栏接入主进程 topInset（见上方偏离说明）;顺带修掉 `Dashboard` 重算按钮永久禁用与 `CoachPanel` 乐观更新不回滚两个既存缺陷。新增 21 个用例 |
 | Q2 | [x] | 已完成。`.tsx` 中 38 处直连全部收口,现为 0 处（`main.tsx` 读布局常量除外,非 IPC）。`coachDataApi.ts` 由 2 个函数扩到 24 个,分六组;`browserShellApi.ts` 新增 7 个凭据提示函数;`settingsApi.ts` 新增 `loadCookieSummaryForSite`。顺带修掉 `CoachPet` 点击处理里 `coachPetClick()` 无 catch 的悬空 promise（Q1 只扫挂载读路径,未覆盖事件处理器）。测试替身改 3 个文件,断言零改动 |
 | Q3 | [x] | 已完成。守卫从 8 条增至 11 条。Q3a 裸 SQL 出 `db/` 层（白名单 12 文件 57 处欠账,建立时 13/61,归位 `trackingRepository.ts` 后即降）;Q3b renderer 只经 `*Api.ts` 触主进程（无白名单,仅 `main.tsx` 豁免）;Q3c 交互控件出 `ui/`（白名单 14 文件,标注长期例外与待清理）。棘轮含"陈旧条目必须报"分支。守卫判定拆到 `guards.mjs`,新增 12 个反向用例常驻 `test:unit`,并经变异检查确认非空转 |
-| Q4 | [ ] | 待实施 |
+| Q4 | [x] | 已完成。守卫增至 12 条（新增裸 hex，按文件豁免三个 token 定义文件而非棘轮预算）。`NOTE_TYPE_COLORS` 及 `+ '20'` 拼 alpha 删除，笔记徽标改 CSS 修饰类，对比度从 1.23~1.94:1 提到浅色 6.11~6.70 / 深色 5.54~7.74（原方案的等值替换会保留这个可达性缺陷，见偏差 1）；4 处裸 hex（计划漏了 `#585b70`）收成 `--color-on-fill` / `--color-sys-close` 两个 token，样式文件裸 hex 归零。`ProblemSidebar` / `NoteEditorPane` / `UserScriptEditor` / `ErrorBoundary` 四个文件的裸控件换成 ui/ 原语，棘轮欠账条目由陈旧分支强制清空，`HomePage` 2 处改判长期例外。顺带：`Select` 补 `size="sm"` 缺口、修掉源码框 `rows` 被 `height:30px` 压死的渲染 bug、补 2 处图标按钮缺失的 `aria-label`、`ErrorBoundary` 移出 Tailwind（Tailwind 由此零消费者，是否删依赖单独定）。新增 `controlGovernance.test.ts` 7 例 + 裸 hex 反向验证 4 例 |
 | Q5 | [ ] | 依赖 Q1 完成 |
 | Q6 | [ ] | 需独立设计评审 |
 | Q7 | [ ] | 待实施 |

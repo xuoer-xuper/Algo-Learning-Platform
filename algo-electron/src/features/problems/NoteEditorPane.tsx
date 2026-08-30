@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react'
-import { Icon } from '../../components/ui'
+import { Icon, Input, Select } from '../../components/ui'
 
 const MilkdownEditor = lazy(() => import('./MilkdownEditor').then((module) => ({
   default: module.MilkdownEditor,
@@ -33,13 +33,13 @@ export function NoteEditorPane({
       {activeNoteId ? (
         <>
           <div className="note-editor-header">
-            <input
+            <Input
               className="note-editor-title"
               value={editorTitle}
               onChange={(e) => onTitleChange(e.target.value)}
               placeholder="笔记标题"
             />
-            <select
+            <Select
               className="note-editor-type"
               value={editorType}
               onChange={(e) => onTypeChange(e.target.value)}
@@ -47,7 +47,7 @@ export function NoteEditorPane({
               <option value="solution">题解</option>
               <option value="review">复习笔记</option>
               <option value="summary">总结</option>
-            </select>
+            </Select>
             <span className="note-save-status">
               {saving ? '保存中…' : dirty ? '编辑中 *' : '已保存'}
             </span>

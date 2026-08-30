@@ -6,7 +6,7 @@
 
 ## 2. 当前检查
 
-`check-architecture.mjs` 当前覆盖 11 条。
+`check-architecture.mjs` 当前覆盖 12 条。
 
 安全边界：
 
@@ -25,17 +25,23 @@
 - Renderer 组件与 hook 不得直连 `window.electronAPI`，只有 `*Api.ts` 可以。`src/main.tsx` 豁免：它同步读取 preload 注入的布局常量，不是 IPC 调用，且已是入口文件。
 - 交互控件从 `src/components/ui/` 取用。`checkbox` / `radio` / `range` 按类型豁免，因为 `ui/fields.tsx` 还没有对应组件；补齐后删掉豁免，届时有 6 处要改。
 
+按文件豁免（不进棘轮）：
+
+- 颜色只能来自设计 token，`src/` 下任何 CSS/TS/TSX 不得出现裸 hex。白名单是三个颜色定义文件：`src/index.css`（token 唯一源）、`src/features/coach/styles/tokens.css`（Coach 独立视觉域的第二套 token）、`src/shared/display.ts`（平台品牌色与图表色板，已过 dataviz 校验）。这条**不用棘轮预算**：预算条目意味着"应该降到零"，而定义 token 不是欠账，新增一个合法 token 不该让守卫响，所以按文件豁免而不按数量计数。
+
 ## 3. 棘轮白名单
 
-后三条带迁移期白名单，每个条目记录当前命中数作为预算。三类失败：白名单外出现命中、白名单内超出预算、白名单留着已清理的陈旧条目。
+分层与设计系统那三条带迁移期白名单，每个条目记录当前命中数作为预算。三类失败：白名单外出现命中、白名单内超出预算、白名单留着已清理的陈旧条目。
 
-第三类容易被当成洁癖，但它是这套机制能收敛的原因：少了它，白名单会一直挂着已经还完的欠账，下次有人往那个文件加违规时守卫不会响。归位 `problemVisitRepository.ts` 时正是这条把陈旧条目报了出来。
+第三类容易被当成洁癖，但它是这套机制能收敛的原因：少了它，白名单会一直挂着已经还完的欠账，下次有人往那个文件加违规时守卫不会响。归位 `problemVisitRepository.ts` 时正是这条把陈旧条目报了出来；裸控件那四个文件（ProblemSidebar / NoteEditorPane / UserScriptEditor / ErrorBoundary）清零后，也是这条强制把条目删掉的。
 
 白名单条目注明属于哪一类：**长期例外**（浏览器原生 chrome 的像素级几何、Coach 独立视觉域）或**待清理欠账**。只有后者应该随清理下降。
 
 ## 4. 守卫自身的反向验证
 
-守卫全部 PASS 只说明当前代码合规，不说明守卫真的会响。判定逻辑因此拆到 `guards.mjs`，由 `guards.test.ts` 用合成输入推到失败侧：误报源（`regex.exec`）、豁免边界（属性换行、相邻元素的 `type`）、棘轮三类失败分支逐个覆盖。
+守卫全部 PASS 只说明当前代码合规，不说明守卫真的会响。判定逻辑因此拆到 `guards.mjs`，由 `guards.test.ts` 用合成输入推到失败侧：误报源（`regex.exec`、HTML 数字实体 `&#8804;`）、豁免边界（属性换行、相邻元素的 `type`）、棘轮三类失败分支逐个覆盖。
+
+反向用例不是形式主义：`countBareHex` 的 HTML 实体排除本来只写在注释里没实现，是 `guards.test.ts` 把它报出来的（`&#8804;` 的 `8804` 正好 4 位十六进制，后面的分号还能过尾部检查，只有前缀 `(?<!&)` 能区分）。
 
 新增守卫时一并补反向用例，否则守卫是装饰。
 

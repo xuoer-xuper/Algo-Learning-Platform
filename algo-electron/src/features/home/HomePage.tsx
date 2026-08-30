@@ -71,9 +71,16 @@ export function HomePage({ onNavigate }: Props) {
       <div className="home-section">
         <h2 className="home-section-title">快捷入口</h2>
         <div className="home-sites">
+          {/*
+            卡片磁贴刻意不走 ui/Button：.ui-btn 是单行内联标签的底座
+            （justify-content: center + white-space: nowrap + 固定高度），
+            套上来要再写四条声明去撤销它，反而更难读。这里只补 type="button"
+            —— 那是走 Button 唯一能拿到的实质收益。
+          */}
           {Object.entries(PLATFORM_URLS).map(([key, url]) => (
             <button
               key={key}
+              type="button"
               className="home-site-btn"
               onClick={() => onNavigate(url)}
             >
@@ -89,6 +96,7 @@ export function HomePage({ onNavigate }: Props) {
           {customShortcuts.map(({ url, host }) => (
             <button
               key={url}
+              type="button"
               className="home-site-btn"
               onClick={() => onNavigate(url)}
             >

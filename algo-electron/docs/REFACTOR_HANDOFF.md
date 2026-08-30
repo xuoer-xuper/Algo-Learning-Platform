@@ -37,7 +37,7 @@
 
 ## 2. 设计系统使用规范（后续开发必读）
 
-1. **颜色只能来自 token**（`src/index.css`）或 `display.ts` 的语义色表；任何 CSS/TSX 出现新裸 hex 视为违规。
+1. **颜色只能来自 token**（`src/index.css`）或 `display.ts` 的语义色表；任何 CSS/TSX 出现新裸 hex 视为违规。**该规则已有守卫**（`test:architecture` 的 `colors come from design tokens, not bare hex`），此前只是文字约定 —— 白名单是三个颜色定义文件（`index.css`、`coach/styles/tokens.css`、`display.ts`），其余 `src/` 下任何 CSS/TS/TSX 出现裸 hex 即失败。
 2. **按钮/输入/确认框/图标必须用 `src/components/ui/`**；新增图标加进 `icons.tsx` 的 `ICON_PATHS`。
 3. **数据声线**：数字/ID/verdict/计数一律等宽+tabular-nums（`.num` 类或 `var(--font-mono)`）。
 4. **动效**：只用 `var(--duration-*)` + `var(--ease-out)`；不要写死毫秒；reduced-motion 已全局处理。
@@ -65,6 +65,11 @@
 | `npm run test:ui` | **三视口（1280×800 / 1024×720 / 800×600）× 6 页面全部通过**：契约选择器、响应式折叠断点、无横向溢出、无 pageerror、敏感文本扫描、截图体积 |
 
 裸 hex 审计：样式文件仅剩 3 处刻意保留——主按钮/危险按钮白字 `#fff`、窗口关闭键悬停红 `#e81123`（Windows 系统惯例色）。
+
+> **2026-08-30 更新（质量收口 Q4）**：这 3 处已收成 token，样式文件裸 hex 归零。
+> `#fff` → `--color-on-fill`（实心填充上的前景色；不能用 `--bg-card` 代替，后者深色主题下变 `#1e222c`，而压在 accent/danger 饱和底上的前景两个主题都得是白），
+> `#e81123` → `--color-sys-close`（取值不变，注明来自 Windows 自身、不属本设计系统语义色板）。
+> 同时补上了本节缺失的守卫，并清掉 `NOTE_TYPE_COLORS`（3 个 Catppuccin 深色值当浅卡片上的文字色，徽标对比度只有 1.2~1.9:1）与 `ErrorBoundary.tsx` 的 Tailwind `red-50/600/900`。
 
 ## 4.1 本次改动清单（git status 摘要）
 

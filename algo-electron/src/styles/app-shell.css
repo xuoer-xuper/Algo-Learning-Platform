@@ -219,8 +219,8 @@
 }
 
 .window-control-close:hover {
-  background-color: #e81123;
-  color: #fff;
+  background-color: var(--color-sys-close);
+  color: var(--color-on-fill);
 }
 
 /* 工具栏拖动 */
@@ -377,21 +377,12 @@
   font-weight: 600;
 }
 
+/* 同上：底座为 .ui-icon-btn，宽高显式收窄到标题行的高度 */
 .sidebar-collapse-btn {
-  background: none;
-  border: none;
-  color: var(--text-muted);
-  cursor: pointer;
-  padding: 2px;
+  width: 20px;
+  height: 20px;
   border-radius: var(--radius-xs);
-  display: flex;
-  align-items: center;
-  transition: color var(--duration-fast) var(--ease-out), background-color var(--duration-fast) var(--ease-out);
-}
-
-.sidebar-collapse-btn:hover {
-  color: var(--text);
-  background-color: var(--hover-bg);
+  color: var(--text-muted);
 }
 
 .sidebar-filters {
@@ -401,21 +392,16 @@
   border-bottom: 1px solid var(--border-light);
 }
 
+/*
+ * 题库筛选器：几何与配色走 ui/ 的 .ui-select + .ui-select-sm，
+ * 这里只留布局和两处刻意的差异 —— 侧栏是内嵌面，用 inset 底和更浅的线，
+ * 以免两个筛选器在窄栏里显得比列表本身还重。
+ */
 .sidebar-select {
   flex: 1;
   min-width: 0;
-  height: 24px;
-  background-color: var(--color-inset);
-  border: 1px solid var(--border-light);
-  border-radius: var(--radius-xs);
-  color: var(--text);
-  font-size: 11px;
-  outline: none;
-  transition: border-color var(--duration-fast) var(--ease-out);
-}
-
-.sidebar-select:focus {
-  border-color: var(--primary);
+  background: var(--color-inset);
+  border-color: var(--border-light);
 }
 
 .sidebar-list {
@@ -479,16 +465,17 @@
   text-align: right;
 }
 
+/*
+ * 行内操作按钮：底座是 ui/ 的 IconButton（.ui-icon-btn）。
+ * 宽高必须显式写死 —— 基类是 28×28，侧栏行放不下，不能靠 CSS 加载顺序覆盖。
+ * 与 .note-item-del 同一口径（20×20 + --radius-xs）。
+ */
 .sidebar-item-detail {
-  background: none;
-  border: none;
-  color: var(--text-muted);
-  cursor: pointer;
-  padding: 2px;
+  width: 20px;
+  height: 20px;
   border-radius: var(--radius-xs);
+  color: var(--text-muted);
   flex-shrink: 0;
-  display: flex;
-  align-items: center;
   opacity: 0;
   transition: opacity var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out), background-color var(--duration-fast) var(--ease-out);
 }
@@ -504,15 +491,11 @@
 }
 
 .sidebar-item-notes {
-  background: none;
-  border: none;
-  color: var(--text-muted);
-  cursor: pointer;
-  padding: 2px;
+  width: 20px;
+  height: 20px;
   border-radius: var(--radius-xs);
+  color: var(--text-muted);
   flex-shrink: 0;
-  display: flex;
-  align-items: center;
   opacity: 0;
   transition: opacity var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out), background-color var(--duration-fast) var(--ease-out);
 }
@@ -564,4 +547,57 @@
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
   font-size: 11px;
+}
+
+/* ── 崩溃兜底屏（ErrorBoundary） ─────────────────
+ * 原来这里是全项目唯一一处 Tailwind 工具类，配色写死在 red-50/600/900 上，
+ * 与设计 token 无关。改为 token：danger 一档负责语义，卡片沿用 --bg-card。
+ * 仍用普通 CSS 而非内联样式 —— React 组件树崩溃不影响样式表加载。
+ */
+.crash-screen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  padding: 32px;
+  gap: 16px;
+  background: var(--color-danger-soft);
+  color: var(--text);
+}
+
+.crash-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--color-danger);
+}
+
+.crash-detail {
+  width: 100%;
+  max-width: 900px;
+  padding: 16px;
+  overflow: auto;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-surface);
+  box-shadow: var(--shadow-sm);
+  text-align: left;
+}
+
+.crash-message {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.crash-stack {
+  margin-top: 14px;
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  white-space: pre-wrap;
+}
+
+.crash-stack-raw {
+  opacity: 0.7;
 }
