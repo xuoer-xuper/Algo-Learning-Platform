@@ -19,6 +19,8 @@ const suites = new Set(['core', 'ai', 'db', 'electron', 'coach', 'all'])
 const coreVitestFiles = [
   'tests/ai/recommendationRules.test.ts',
   'tests/app',
+  // 守卫的反向用例与 runArchitecture() 同批跑：守卫通过不代表守卫会响。
+  'tests/architecture/guards.test.ts',
   'tests/browser',
   'tests/coach',
   'tests/components',

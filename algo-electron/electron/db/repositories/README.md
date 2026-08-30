@@ -31,6 +31,7 @@
 - `cookieRecord/`：Cookie 元数据类型、幂等保存、按站点/domain 查询和安全摘要。
 - `credentialRepository.ts`：站点凭据 repository 兼容导出口；实际实现位于 `credential/`。
 - `credential/`：版本化 envelope 校验、脱敏查询、upsert、软删除和最近使用时间。
+- `problemVisitRepository.ts`：题目访问开始/结束写入（`problem_visits` 与配套 `visit_start` activity event，事务内保证同时成功）。原为 `electron/tracking/trackingRepository.ts`，名字是 repository 位置却在业务层，SQL 因此落在 db 层之外，已归位。
 
 ## 3. 函数边界
 

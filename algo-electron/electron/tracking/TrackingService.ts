@@ -6,7 +6,7 @@ import type { ProblemIdentity } from '../shared/types'
 import { nowBeijing } from '../shared/time'
 import { appLogger, type Logger } from '../shared/logger'
 import type { BrowserPageEvent } from '../browser/TabManager'
-import { finishProblemVisit, startProblemVisit } from './trackingRepository'
+import { finishProblemVisit, startProblemVisit } from '../db/repositories/problemVisitRepository'
 
 type TrackingPageIdentity = Pick<BrowserPageEvent, 'windowId' | 'tabId' | 'webContentsId'>
 

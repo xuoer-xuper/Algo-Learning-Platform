@@ -1,6 +1,13 @@
-import { getDb } from '../db/connection'
-import { upsertProblem } from '../db/repositories/problemRepository'
-import type { ProblemIdentity } from '../shared/types'
+/**
+ * 题目访问 repository：problem_visits 与配套 activity_events 的写入。
+ *
+ * 原名 electron/tracking/trackingRepository.ts —— 名字是 repository，位置却在
+ * 业务层，SQL 因此落在 db 层之外。这里归位，函数名按写入对象改为 problemVisit，
+ * 不再用 tracking 这个业务侧的名字指代数据访问。
+ */
+import { getDb } from '../connection'
+import { upsertProblem } from './problemRepository'
+import type { ProblemIdentity } from '../../shared/types'
 
 export interface StartProblemVisitInput {
   identity: ProblemIdentity

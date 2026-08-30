@@ -136,12 +136,32 @@ Q1–Q4 是确定工作量的机械活，不含架构决策，应连续执行。
 **新增守卫**：
 
 - Q3a 裸 SQL 只允许出现在 `electron/db/` 下。当前越层 30 处：`NoteService.ts` 12、`tracking/trackingRepository.ts` 4、`weaknessAnalyzer.ts` 4、`contextTagStats.ts` 3、`reviewRecommender.ts` 2、其余各 1。**先加白名单并注明待清理**,避免本块膨胀为大重构;白名单只减不增。
+
+> **实施期修正（本块统计同样有误）**：实测 **61 处 / 13 个文件**,不是 30 处。上表漏了最大的一个：`backup/learningDataExport.ts` **34 处**（泛表导出导入,按表展开的 SELECT/INSERT）。另外上表的 `weaknessAnalyzer.ts` 4、`contextTagStats.ts` 3、`reviewRecommender.ts` 2 实测都是 1,差值来自按 SQL 关键字计数会把同一条语句里的子查询和注释重复计入。
+>
+> 判定口径因此定为"对 `db` / `database` / `getDb()` 调 `prepare` / `exec`",不按关键字：关键字会命中注释和文档字符串,也漏掉动态拼表名的写法;而只限定方法名会把 `regex.exec()`、`installer.prepare()` 算成违规（实测 3 处误报源）。
 - Q3b feature 层不得直连 `window.electronAPI`。依赖 Q2 完成后方可启用。
 - Q3c 设计系统：`ui/` 之外不得新增裸 `<button>`/表单控件。需先确认合法例外（见 §5）,以白名单形式固化。
 
 **验证**：每条守卫须双向验证——删除对应修复后守卫必须失败。这是第 8 条守卫已建立的做法。
 
 **附带**：`tracking/trackingRepository.ts` 命名为 repository 但不在 `db/repositories/` 下,应一并归位或改名。
+
+> **实施期补充**：
+>
+> **Q3c 实测 45 处 / 18 个文件。** 按性质分三类,白名单条目里注明属于哪一类：
+>
+> - **长期例外 · 浏览器原生 chrome**（15 处）：`BrowserToolbar` 6、`WindowControls` 3、`TabStrip` 3、`Omnibox` 2、`FindInPageBar` 1。几何按像素对齐系统窗口装饰,`ui/Button` 的内边距与圆角体系不适用。
+> - **长期例外 · Coach 独立视觉域**（10 处）：`CoachActions` 4、`CoachBubble` 3、`CoachChatPanel` 3。§5 已定 Coach 的 token 分叉不动。
+> - **待清理欠账**（11 处,Q4 目标）：`ProblemSidebar` 5、`HomePage` 2、`NoteEditorPane` 2、`UserScriptEditor` 1、`ErrorBoundary` 1。
+>
+> 另有 **6 处 `checkbox` / `range` 按类型豁免**：`ui/fields.tsx` 只有 `Input` / `Select` / `Textarea`,没有 Checkbox/Radio/Range 组件,现在挡住等于逼人手写更差的东西。豁免写在守卫里并注明"补齐组件后删掉,届时有 6 处要改"。
+>
+> **守卫的反向验证做成了常驻测试。** 计划只说"删除对应修复后守卫必须失败",实施时先用临时脚本改真实文件跑了 9 项端到端反向验证（全部按预期失败）,但这种脚本不能入库。因此把判定逻辑拆到 `tests/architecture/guards.mjs`,由 `tests/architecture/guards.test.ts` 用合成输入覆盖失败侧,12 个用例随 `test:unit` 常驻。又用变异检查确认这 12 个用例不是空转：故意弄坏 5 处判定逻辑,测试全部抓到。
+>
+> **棘轮机制多了一条"陈旧条目必须报"。** 只查"超预算"不够：白名单会一直挂着已经还完的欠账,下次有人往那个文件加违规时守卫不会响。归位 `trackingRepository.ts` 后正是这条把陈旧条目报了出来,白名单随之从 13 个文件 61 处降到 12 个文件 57 处 —— 棘轮在真实清理中验证了一次。
+>
+> **附带项按"归位"处理**：`electron/tracking/trackingRepository.ts` → `electron/db/repositories/problemVisitRepository.ts`,同时改名（`tracking` 是业务侧的名字,不该用来指代数据访问;文件写的是 `problem_visits` 与配套 activity event）。测试内 `describe` 名同步改。
 
 ### Q4 设计系统零散漂移
 
@@ -227,7 +247,7 @@ Q1–Q4 是确定工作量的机械活，不含架构决策，应连续执行。
 |---|---|---|
 | Q1 | [x] | 已完成。12 处读路径补齐;新增 `src/rendererErrors.ts` + `src/shared/errors.ts`;错误通知栏接入主进程 topInset（见上方偏离说明）;顺带修掉 `Dashboard` 重算按钮永久禁用与 `CoachPanel` 乐观更新不回滚两个既存缺陷。新增 21 个用例 |
 | Q2 | [x] | 已完成。`.tsx` 中 38 处直连全部收口,现为 0 处（`main.tsx` 读布局常量除外,非 IPC）。`coachDataApi.ts` 由 2 个函数扩到 24 个,分六组;`browserShellApi.ts` 新增 7 个凭据提示函数;`settingsApi.ts` 新增 `loadCookieSummaryForSite`。顺带修掉 `CoachPet` 点击处理里 `coachPetClick()` 无 catch 的悬空 promise（Q1 只扫挂载读路径,未覆盖事件处理器）。测试替身改 3 个文件,断言零改动 |
-| Q3 | [ ] | Q3b 依赖 Q2 完成 |
+| Q3 | [x] | 已完成。守卫从 8 条增至 11 条。Q3a 裸 SQL 出 `db/` 层（白名单 12 文件 57 处欠账,建立时 13/61,归位 `trackingRepository.ts` 后即降）;Q3b renderer 只经 `*Api.ts` 触主进程（无白名单,仅 `main.tsx` 豁免）;Q3c 交互控件出 `ui/`（白名单 14 文件,标注长期例外与待清理）。棘轮含"陈旧条目必须报"分支。守卫判定拆到 `guards.mjs`,新增 12 个反向用例常驻 `test:unit`,并经变异检查确认非空转 |
 | Q4 | [ ] | 待实施 |
 | Q5 | [ ] | 依赖 Q1 完成 |
 | Q6 | [ ] | 需独立设计评审 |

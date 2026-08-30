@@ -10,7 +10,7 @@
 
 当前包含：
 
-- `TrackingService.ts`：题目访问开始/结束、activity event 和 daily stats 更新。
+- `TrackingService.ts`：题目访问开始/结束、activity event 和 daily stats 更新。写入本身走 `db/repositories/problemVisitRepository.ts`，本目录不构造 SQL。
 - `orphanProblemVisits.ts`：启动时封闭上次异常退出留下的开放访问记录。
 - `problemTitleTracking.ts`：把 `TabManager` 的导航、标题变化和活动 tab 事件接到题目标题补全流程。
 

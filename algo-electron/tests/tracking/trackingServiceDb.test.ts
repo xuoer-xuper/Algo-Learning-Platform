@@ -8,7 +8,7 @@ import { getEnabledSites, seedBuiltinSites } from '../../electron/db/repositorie
 import { setEnabledSitesFetcher } from '../../electron/parsers/registry.ts'
 import type { Logger } from '../../electron/shared/logger.ts'
 import { TrackingService } from '../../electron/tracking/TrackingService.ts'
-import { startProblemVisit } from '../../electron/tracking/trackingRepository.ts'
+import { startProblemVisit } from '../../electron/db/repositories/problemVisitRepository.ts'
 
 const logger: Logger = {
   debug() {},
@@ -127,7 +127,7 @@ describe('TrackingService database lifecycle', () => {
   })
 })
 
-describe('trackingRepository transactions', () => {
+describe('problemVisitRepository transactions', () => {
   it('rolls back the problem and visit when the activity insert fails', () => {
     const db = getDb()
     db.exec(`

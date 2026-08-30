@@ -19,7 +19,9 @@
   - 站点 adapter、registry、实时 hook 字符串、提交 payload/table 解析。
   - 覆盖 Codeforces、AcWing、Nowcoder、VJudge、PTA、Luogu、LeetCode。
 - `architecture/`
-  - BrowserView、preload、renderer IPC、Nowcoder/VJudge 实时入库等架构红线检查。
+  - BrowserView、preload、renderer IPC、Nowcoder/VJudge 实时入库等架构红线检查（`check-architecture.mjs`，11 条）。
+  - 分层与设计系统红线带棘轮白名单（裸 SQL 出 db 层、renderer 只经 `*Api.ts`、交互控件出 `ui/`）。
+  - `guards.mjs` + `guards.test.ts` 是守卫自身的反向验证：守卫全 PASS 只说明当前代码合规，不说明违规重现时会失败。反向用例随 `test:unit` 与 `test:core` 常驻。
 - `ai/`
   - 本地 AI 建议规则、评分 helper、标签解析、可追溯性和敏感信息排除。
 - `browser/`

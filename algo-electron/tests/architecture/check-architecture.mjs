@@ -1,5 +1,6 @@
 import fs from 'node:fs'
 import path from 'node:path'
+import { collectRatchetFailures, countBareControls, countBareSql } from './guards.mjs'
 
 const projectRoot = process.cwd()
 const sourceRoots = [
@@ -177,6 +178,103 @@ check('VJudge realtime path stays strongly associated', () => {
       throw new Error(`VJudge hook must keep ${token} association logic`)
     }
   }
+})
+
+// 棘轮白名单：只减不增。判定逻辑在 ./guards.mjs，由
+// tests/architecture/guards.test.ts 反向验证（违规重现时必须失败）。
+function checkRatchet({ files, budgets, countMatches, describe, cleanupHint }) {
+  const entries = files.map((file) => ({ path: relative(file), count: countMatches(read(file)) }))
+  const failures = collectRatchetFailures({ entries, budgets, describe, cleanupHint })
+  if (failures.length > 0) throw new Error(failures.join('\n'))
+}
+
+// 迁移期欠账。逐个搬进 electron/db/ 后把条目删掉，不要上调数字。
+// 建立守卫时 13 个文件 61 处；已归位 electron/tracking/trackingRepository.ts
+// （4 处，改名 db/repositories/problemVisitRepository.ts），现 12 个文件 57 处。
+const BARE_SQL_BUDGET = {
+  // 泛表导出/导入，34 处按表展开的 SELECT/INSERT。搬迁需要先设计
+  // "按表清单批量读写"的 repository 接口，单独一块做。
+  'electron/backup/learningDataExport.ts': 34,
+  'electron/notes/NoteService.ts': 12,
+  'electron/ai/contextExporter.ts': 2,
+  'electron/ai/contextTagStats.ts': 1,
+  'electron/ai/recommendations/reviewPlanner.ts': 1,
+  'electron/ai/recommendations/reviewRecommender.ts': 1,
+  'electron/ai/recommendations/weaknessAnalyzer.ts': 1,
+  'electron/app/mainServices.ts': 1,
+  'electron/app/recentSitePreconnect.ts': 1,
+  'electron/ipc/registerRatingIpc.ts': 1,
+  'electron/submissions/createDefaultSubmissionBatchWriter.ts': 1,
+  'electron/tracking/orphanProblemVisits.ts': 1,
+}
+
+check('bare SQL stays inside electron/db/', () => {
+  const files = walkSourceFiles(path.join(projectRoot, 'electron'))
+    .filter((file) => !relative(file).startsWith('electron/db/'))
+
+  checkRatchet({
+    files,
+    budgets: BARE_SQL_BUDGET,
+    countMatches: countBareSql,
+    describe: (count) => `在 electron/db/ 之外构造了 ${count} 处 SQL 语句`,
+    cleanupHint: '查询应放进 electron/db/repositories/ 下的 repository，由业务层调用',
+  })
+})
+
+check('renderer components reach the main process only through *Api.ts', () => {
+  // main.tsx 同步读取 preload 注入的布局常量（不是 IPC 调用），且是入口文件，
+  // 没有更上层可以搬。这是唯一豁免。
+  const ENTRY_EXEMPT = new Set(['src/main.tsx'])
+  const failures = []
+
+  for (const file of walkSourceFiles(path.join(projectRoot, 'src'))) {
+    const rel = relative(file)
+    if (ENTRY_EXEMPT.has(rel)) continue
+    // *Api.ts 是约定的数据访问层，通道名只应出现在这里。
+    if (/Api\.ts$/.test(rel)) continue
+    if (!/\bwindow\.electronAPI\b/.test(read(file))) continue
+
+    failures.push(`${rel}: 组件与 hook 不得直连 window.electronAPI，请收进同域的 *Api.ts`)
+  }
+
+  if (failures.length > 0) throw new Error(failures.join('\n'))
+})
+
+// 两类合法例外 + 一类待清理欠账，条目里注明属于哪一类。
+const BARE_CONTROL_BUDGET = {
+  // 浏览器原生 chrome：几何按像素对齐系统窗口装饰，ui/Button 的内边距与
+  // 圆角体系不适用。属长期例外，不是欠账。
+  'src/components/WindowControls.tsx': 3,
+  'src/components/TabStrip.tsx': 3,
+  'src/components/BrowserToolbar.tsx': 6,
+  'src/components/Omnibox.tsx': 2,
+  'src/components/FindInPageBar.tsx': 1,
+
+  // Coach 独立视觉域：styles/tokens.css 与 .coach-action-btn 是刻意分叉的
+  // 深色系统（桌宠窗置顶透明，与主窗浅色壳不共享 token）。属长期例外。
+  'src/features/coach/CoachActions.tsx': 4,
+  'src/features/coach/CoachBubble.tsx': 3,
+  'src/features/coach/CoachChatPanel.tsx': 3,
+
+  // 待清理欠账（Q4 目标）。
+  'src/features/home/HomePage.tsx': 2,
+  'src/features/problems/ProblemSidebar.tsx': 5,
+  'src/features/problems/NoteEditorPane.tsx': 2,
+  'src/features/scripts/UserScriptEditor.tsx': 1,
+  'src/components/ErrorBoundary.tsx': 1,
+}
+
+check('interactive controls come from src/components/ui/', () => {
+  const files = walkSourceFiles(path.join(projectRoot, 'src'))
+    .filter((file) => /\.tsx$/.test(file) && !relative(file).startsWith('src/components/ui/'))
+
+  checkRatchet({
+    files,
+    budgets: BARE_CONTROL_BUDGET,
+    countMatches: countBareControls,
+    describe: (count) => `有 ${count} 处裸交互控件`,
+    cleanupHint: '按钮与表单控件从 src/components/ui 取用（Button/IconButton/Input/Select/Textarea）',
+  })
 })
 
 check('real-Electron suites stay out of the Vitest run', () => {
