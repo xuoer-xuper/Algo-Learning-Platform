@@ -1,5 +1,11 @@
 import { useEffect, useState } from 'react'
 import { Button, Select } from '../../components/ui'
+import {
+  loadCoachConfig,
+  requestCoachTestHint,
+  resetCoachPosition,
+  saveCoachConfig,
+} from '../coach/coachDataApi'
 import { errorMessage } from '../../shared/errors'
 
 /**
@@ -23,7 +29,7 @@ export function CoachPanel() {
   const [loadError, setLoadError] = useState('')
 
   useEffect(() => {
-    void window.electronAPI.coachGetConfig()
+    void loadCoachConfig()
       .then(setConfig)
       // 读失败时若不提示，面板会永远停在「加载中...」。
       .catch((error: unknown) => setLoadError(`读取配置失败：${errorMessage(error)}`))
@@ -33,7 +39,7 @@ export function CoachPanel() {
     if (!config) return
     const previous = config
     setConfig({ ...config, ...partial })
-    void window.electronAPI.coachSaveConfig(partial)
+    void saveCoachConfig(partial)
       .then(() => {
         setSaved(true)
         window.setTimeout(() => setSaved(false), 1500)
@@ -47,7 +53,7 @@ export function CoachPanel() {
 
   const handleTestHint = () => {
     setTestMsg('触发中...')
-    void window.electronAPI.coachTestHint()
+    void requestCoachTestHint()
       .then((payload) => {
         setTestMsg(`已弹测试气泡：${payload.title}`)
         window.setTimeout(() => setTestMsg(''), 3000)
@@ -56,7 +62,7 @@ export function CoachPanel() {
   }
 
   const handleResetPosition = () => {
-    void window.electronAPI.coachResetPosition()
+    void resetCoachPosition()
       .then(() => {
         setTestMsg('位置已重置')
         window.setTimeout(() => setTestMsg(''), 2000)

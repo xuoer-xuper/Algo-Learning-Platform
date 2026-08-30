@@ -30,7 +30,7 @@
 - Codeforces：`loadPrimaryCodeforcesAccount()`、`syncCodeforcesSubmissions()`、`syncCodeforcesRatingProfile()`。
 - 备份导入导出：`createDatabaseBackup()`、`exportLearningData()`、`previewLearningDataImport()`、`confirmLearningDataImport()`。
 - 站点配置：`loadSites()`、`toggleSiteEnabled()`、`deleteSiteConfig()`、`loadSiteById()`、`createSiteFromDraft()`。
-- 账户管理：`loadCredentialSummaries()`、`renameCredential()`、`deleteSavedCredential()`、`openCredentialLoginPage()`。
+- 账户管理：`loadCredentialSummaries()`、`loadCookieSummaryForSite()`、`renameCredential()`、`deleteSavedCredential()`、`openCredentialLoginPage()`。`loadCookieSummaryForSite()` 只返回存在性与过期信息，不含 Cookie 值。
 - 导入导出：`exportSitesConfig()`、`importSitesConfig()`、`confirmImportSites()`。
 
 ## 4. 边界规则

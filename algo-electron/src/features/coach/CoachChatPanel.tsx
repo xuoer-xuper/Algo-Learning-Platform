@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { Icon } from '../../components/ui'
+import { sendCoachChatMessage, toggleCoachIgnoreMouseEvents } from './coachDataApi'
 import './styles/bubble.css'
 
 interface ChatMessage {
@@ -24,10 +25,10 @@ export function CoachChatPanel({ onClose }: CoachChatPanelProps) {
   }, [messages, loading])
 
   const handleMouseEnter = () => {
-    void window.electronAPI.coachToggleIgnoreMouseEvents(false)
+    void toggleCoachIgnoreMouseEvents(false)
   }
   const handleMouseLeave = () => {
-    void window.electronAPI.coachToggleIgnoreMouseEvents(true)
+    void toggleCoachIgnoreMouseEvents(true)
   }
 
   const handleSend = async () => {
@@ -38,7 +39,7 @@ export function CoachChatPanel({ onClose }: CoachChatPanelProps) {
     setLoading(true)
 
     try {
-      const result = await window.electronAPI.coachChat({
+      const result = await sendCoachChatMessage({
         message: userMessage,
         history: messages,
       })

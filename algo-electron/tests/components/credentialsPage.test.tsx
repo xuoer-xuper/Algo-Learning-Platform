@@ -5,6 +5,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 const api = vi.hoisted(() => ({
   loadSites: vi.fn(),
   loadCredentialSummaries: vi.fn(),
+  loadCookieSummaryForSite: vi.fn(),
   loadPrimaryCodeforcesAccount: vi.fn(),
   renameCredential: vi.fn(),
   deleteSavedCredential: vi.fn(),
@@ -26,15 +27,12 @@ beforeEach(() => {
     credentialId: 'credential-1', siteId: 'codeforces', username: 'alice', displayName: 'Primary', masked: '********',
     lastUsedAt: null, createdAt: 'now', updatedAt: 'now',
   }])
+  api.loadCookieSummaryForSite.mockResolvedValue({ has_cookies: true, domains: [] })
   api.loadPrimaryCodeforcesAccount.mockResolvedValue({ handle: 'alice', current_rating: 1400, peak_rating: 1500 })
   api.renameCredential.mockResolvedValue(null)
   api.deleteSavedCredential.mockResolvedValue(true)
   api.openCredentialLoginPage.mockResolvedValue('tab-1')
   api.syncCodeforcesRatingProfile.mockResolvedValue({ result: { success: true, peak: 1500 }, account: { handle: 'alice', current_rating: 1400, peak_rating: 1500 } })
-  Object.defineProperty(window, 'electronAPI', {
-    configurable: true,
-    value: { getCookieSummaryForSite: vi.fn().mockResolvedValue({ has_cookies: true, domains: [] }) },
-  })
 })
 
 afterEach(cleanup)

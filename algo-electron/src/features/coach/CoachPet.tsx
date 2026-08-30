@@ -1,6 +1,18 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import { reportRendererError } from '../../rendererErrors'
 import { CoachBubble } from './CoachBubble'
+import {
+  clickCoachPet,
+  endCoachDrag,
+  loadCoachConfig,
+  loadCoachPetState,
+  startCoachDrag,
+  subscribeCoachConfig,
+  subscribeCoachDismissBubble,
+  subscribeCoachPetState,
+  subscribeCoachShowBubble,
+  toggleCoachIgnoreMouseEvents,
+} from './coachDataApi'
 import { PET_STATES, type PetState } from './petStates'
 import './styles/tokens.css'
 import './styles/pet.css'
@@ -34,18 +46,18 @@ export function CoachPet() {
   useEffect(() => {
     // 拉取初始状态与配置。桌宠是独立小窗，没有通知栏可用，读失败只落 console；
     // 报出区域名是为了在 DevTools 里能直接定位，而不是笼统的「应用」。
-    void window.electronAPI.coachGetPetState()
+    void loadCoachPetState()
       .then(setState)
       .catch((error: unknown) => reportRendererError('桌宠状态读取', error))
-    void window.electronAPI.coachGetConfig()
+    void loadCoachConfig()
       .then(setConfig)
       .catch((error: unknown) => reportRendererError('桌宠配置读取', error))
 
     // 订阅主进程推送
-    const offState = window.electronAPI.onCoachPetStateChanged(setState)
-    const offConfig = window.electronAPI.onCoachConfigChanged(setConfig)
-    const offShowBubble = window.electronAPI.onCoachShowBubble((payload) => setBubble(payload))
-    const offDismissBubble = window.electronAPI.onCoachDismissBubble(() => setBubble(null))
+    const offState = subscribeCoachPetState(setState)
+    const offConfig = subscribeCoachConfig(setConfig)
+    const offShowBubble = subscribeCoachShowBubble((payload) => setBubble(payload))
+    const offDismissBubble = subscribeCoachDismissBubble(() => setBubble(null))
 
     return () => {
       offState()
@@ -57,13 +69,13 @@ export function CoachPet() {
 
   const handleMouseEnter = () => {
     // 进入交互区域：临时关闭点击穿透
-    void window.electronAPI.coachToggleIgnoreMouseEvents(false)
+    void toggleCoachIgnoreMouseEvents(false)
   }
 
   const handleMouseLeave = () => {
     // 离开交互区域：恢复穿透（拖拽中不恢复，由拖拽逻辑管理）
     if (!dragStartedRef.current) {
-      void window.electronAPI.coachToggleIgnoreMouseEvents(true)
+      void toggleCoachIgnoreMouseEvents(true)
     }
   }
 
@@ -76,14 +88,14 @@ export function CoachPet() {
     dragStartedRef.current = true
     setDragging(true)
     // 拖拽期间关闭穿透
-    void window.electronAPI.coachToggleIgnoreMouseEvents(false)
+    void toggleCoachIgnoreMouseEvents(false)
     // 主进程开始轮询移动窗口（坐标由主进程 getCursorScreenPoint 统一获取，避免 DPI 偏移）
-    void window.electronAPI.coachStartDrag()
+    void startCoachDrag()
 
     const onUp = (ev: Event) => {
       dragStartedRef.current = false
       setDragging(false)
-      void window.electronAPI.coachEndDrag()
+      void endCoachDrag()
       document.removeEventListener('mouseup', onUp)
       window.removeEventListener('blur', onUp)
       // 区分 click 和 drag：移动 < 4px 视为点击
@@ -92,12 +104,12 @@ export function CoachPet() {
       const dy = Math.abs((me.screenY ?? 0) - startY)
       if (dx < 4 && dy < 4) {
         // 点击桌宠 → 触发提示（LLM 或本地），气泡由主进程推送
-        void window.electronAPI.coachPetClick().then((result) => {
-          setLlmEnabled(result.llmEnabled)
-        })
+        void clickCoachPet()
+          .then((result) => setLlmEnabled(result.llmEnabled))
+          .catch((error: unknown) => reportRendererError('桌宠点击', error))
       }
       // 恢复穿透
-      void window.electronAPI.coachToggleIgnoreMouseEvents(true)
+      void toggleCoachIgnoreMouseEvents(true)
     }
     document.addEventListener('mouseup', onUp)
     window.addEventListener('blur', onUp)

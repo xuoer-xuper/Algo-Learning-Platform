@@ -18,14 +18,22 @@ import { NoticeBar } from './components/ui'
 import { FindInPageBar } from './components/FindInPageBar'
 import { useBrowserNavigation } from './hooks/useBrowserNavigation'
 import {
+  getCredentialAutofillPrompt,
+  getCredentialCapturePrompt,
+  respondCredentialAutofill,
+  respondCredentialCapture,
   setDownloadNoticeVisible,
   setErrorNoticeVisible,
   getUserScriptHostPermissionPrompt,
   respondUserScriptHostPermission,
   showBrowserShellContextMenu,
+  subscribeCredentialAutofillPrompt,
+  subscribeCredentialCapturePrompt,
+  subscribeCredentialCaptureResult,
   subscribeDownloadResult,
   subscribeUserScriptHostPermissionPrompt,
 } from './hooks/browserShellApi'
+import { loadCoachState, subscribeCoachContestMode } from './features/coach/coachDataApi'
 import {
   dismissRendererError,
   subscribeRendererErrors,
@@ -114,19 +122,19 @@ function App() {
   useEffect(() => {
     let disposed = false
     let receivedLiveUpdate = false
-    const unsubscribePrompt = window.electronAPI.onCredentialCapturePrompt((prompt) => {
+    const unsubscribePrompt = subscribeCredentialCapturePrompt((prompt) => {
       receivedLiveUpdate = true
       if (!disposed) {
         setCredentialCaptureError(false)
         setCredentialCapturePrompt(prompt)
       }
     })
-    const unsubscribeResult = window.electronAPI.onCredentialCaptureResult((result) => {
+    const unsubscribeResult = subscribeCredentialCaptureResult((result) => {
       if (disposed) return
       setCredentialCapturePrompt((current) => current?.captureId === result.captureId ? null : current)
       setCredentialCaptureError(!result.success)
     })
-    void window.electronAPI.getCredentialCapturePrompt()
+    void getCredentialCapturePrompt()
       .then((prompt) => {
         if (!disposed && !receivedLiveUpdate) setCredentialCapturePrompt(prompt)
       })
@@ -141,11 +149,11 @@ function App() {
   useEffect(() => {
     let disposed = false
     let receivedLiveUpdate = false
-    const unsubscribe = window.electronAPI.onCredentialAutofillPrompt((prompt) => {
+    const unsubscribe = subscribeCredentialAutofillPrompt((prompt) => {
       receivedLiveUpdate = true
       if (!disposed) setCredentialAutofillPrompt(prompt)
     })
-    void window.electronAPI.getCredentialAutofillPrompt()
+    void getCredentialAutofillPrompt()
       .then((prompt) => {
         if (!disposed && !receivedLiveUpdate) setCredentialAutofillPrompt(prompt)
       })
@@ -159,12 +167,12 @@ function App() {
   useEffect(() => {
     let disposed = false
     let receivedLiveUpdate = false
-    const unsubscribe = window.electronAPI.onCoachContestModeChanged((payload) => {
+    const unsubscribe = subscribeCoachContestMode((payload) => {
       receivedLiveUpdate = true
       if (!disposed) setContestMode(payload)
     })
 
-    void window.electronAPI.coachGetState()
+    void loadCoachState()
       .then((state) => {
         if (disposed || receivedLiveUpdate) return
         setContestMode({
@@ -199,7 +207,7 @@ function App() {
     const prompt = credentialAutofillPrompt
     if (!prompt) return
     setCredentialAutofillPrompt(null)
-    void window.electronAPI.respondCredentialAutofill(prompt.requestId, credentialId)
+    void respondCredentialAutofill(prompt.requestId, credentialId)
       .catch(() => undefined)
   }, [credentialAutofillPrompt])
 
@@ -208,7 +216,7 @@ function App() {
     if (!prompt) return
     setCredentialCapturePrompt(null)
     setCredentialCaptureError(false)
-    void window.electronAPI.respondCredentialCapture(prompt.captureId, action)
+    void respondCredentialCapture(prompt.captureId, action)
       .catch(() => setCredentialCaptureError(true))
   }, [credentialCapturePrompt])
 

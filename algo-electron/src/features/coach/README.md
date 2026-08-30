@@ -14,7 +14,7 @@
 - `CoachMetricsView.tsx`：干预效果指标页（5 项指标 + 答辩核对面板）。
 - `computeMetrics.ts`：纯函数指标计算。
 - `mockMetricsBundle.ts`：答辩预演模拟数据。
-- `coachDataApi.ts`：renderer 薄封装，走 IPC 拉数据。
+- `coachDataApi.ts`：Coach renderer 侧数据访问层，本目录唯一允许出现 `window.electronAPI` 的文件。按 `load*` / `save*` / `subscribe*` 加动作动词分组：窗口控制（穿透/拖拽/复位）、状态与配置、气泡与提示、自由对话、主进程推送订阅、复盘与指标。
 
 ## 3. 关键文件与封装入口
 
@@ -26,6 +26,7 @@
 ## 4. 边界规则
 
 - 不直接访问 SQLite，全部经 IPC。
+- 组件（`.tsx`）不直接调 `window.electronAPI`，一律经 `coachDataApi.ts`。桌宠窗与设置面板原先各写一遍通道名，换通道要翻遍组件；收口后 IPC 通道名只出现在一处。`App.tsx` 需要 Coach 数据时同样从本文件导入（`loadCoachState` / `subscribeCoachContestMode`）。
 - 不修改核心事实表。
 - Demo 默认不接 LLM。
 - L5 升级需二次确认，不直接给完整答案。

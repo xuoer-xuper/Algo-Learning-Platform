@@ -44,6 +44,17 @@ vi.mock('../../src/hooks/browserShellApi', () => ({
   showBrowserShellContextMenu: vi.fn(),
   subscribeDownloadResult: () => () => undefined,
   subscribeUserScriptHostPermissionPrompt: () => () => undefined,
+  getCredentialAutofillPrompt: async () => null,
+  subscribeCredentialAutofillPrompt: () => () => undefined,
+  respondCredentialAutofill: vi.fn(async () => true),
+  getCredentialCapturePrompt: async () => null,
+  subscribeCredentialCapturePrompt: () => () => undefined,
+  subscribeCredentialCaptureResult: () => () => undefined,
+  respondCredentialCapture: vi.fn(async () => true),
+}))
+vi.mock('../../src/features/coach/coachDataApi', () => ({
+  loadCoachState: async () => null,
+  subscribeCoachContestMode: () => () => undefined,
 }))
 
 import App from '../../src/App'
@@ -56,16 +67,6 @@ beforeEach(() => {
   resetRendererErrorsForTest()
   setErrorNoticeVisible.mockClear()
   vi.spyOn(console, 'error').mockImplementation(() => {})
-  window.electronAPI = {
-    coachGetState: async () => null,
-    getCredentialAutofillPrompt: async () => null,
-    onCredentialAutofillPrompt: () => () => undefined,
-    getCredentialCapturePrompt: async () => null,
-    respondCredentialCapture: async () => true,
-    onCredentialCapturePrompt: () => () => undefined,
-    onCredentialCaptureResult: () => () => undefined,
-    onCoachContestModeChanged: () => () => undefined,
-  } as ElectronAPI
 })
 
 afterEach(() => {

@@ -83,6 +83,50 @@ export function subscribeUserScriptHostPermissionPrompt(
   return window.electronAPI.onUserScriptHostPermissionPrompt(callback)
 }
 
+/**
+ * 凭据提示。壳层只收脱敏摘要（站点、用户名、masked），密码明文不经过 renderer。
+ * 与 userscript host 授权提示同一形状：get 拿当前 pending，subscribe 收后续推送。
+ */
+export function getCredentialAutofillPrompt(): Promise<CredentialAutofillPrompt | null> {
+  return window.electronAPI.getCredentialAutofillPrompt()
+}
+
+export function subscribeCredentialAutofillPrompt(
+  callback: (prompt: CredentialAutofillPrompt) => void,
+): () => void {
+  return window.electronAPI.onCredentialAutofillPrompt(callback)
+}
+
+export function respondCredentialAutofill(
+  requestId: string,
+  credentialId: string | null,
+): Promise<boolean> {
+  return window.electronAPI.respondCredentialAutofill(requestId, credentialId)
+}
+
+export function getCredentialCapturePrompt(): Promise<CredentialCapturePrompt | null> {
+  return window.electronAPI.getCredentialCapturePrompt()
+}
+
+export function subscribeCredentialCapturePrompt(
+  callback: (prompt: CredentialCapturePrompt) => void,
+): () => void {
+  return window.electronAPI.onCredentialCapturePrompt(callback)
+}
+
+export function subscribeCredentialCaptureResult(
+  callback: (result: CredentialCaptureResult) => void,
+): () => void {
+  return window.electronAPI.onCredentialCaptureResult(callback)
+}
+
+export function respondCredentialCapture(
+  captureId: string,
+  action: CredentialCaptureAction,
+): Promise<boolean> {
+  return window.electronAPI.respondCredentialCapture(captureId, action)
+}
+
 export function setBrowserSidebarWidth(width: number): void {
   window.electronAPI.setSidebarWidth(width)
 }

@@ -60,15 +60,16 @@
 
 ## 3. API 调用边界
 
-Feature 只能通过已有 preload 白名单能力调主进程。业务组件应优先调用本 feature 的 `*Api.ts` helper，helper 内部再使用 `window.electronAPI`。常见分组：
+Feature 只能通过已有 preload 白名单能力调主进程。业务组件调用本 feature 的 `*Api.ts` helper，helper 内部再使用 `window.electronAPI`；`.tsx` 里不出现 `window.electronAPI`。常见分组：
 
 - `home`：overview、recent problems、review recommendations。
 - `analytics`：stats、rating、AI rules、navigation。
 - `problems`：problem detail、visit stats、notes、delete problem。
 - `scripts`：scripts IPC、sites list。
-- `settings`：config、sites、rating、submission sync、realtime diagnostics。
+- `settings`：config、sites、rating、submission sync、realtime diagnostics、Cookie 概要。
+- `coach`：桌宠窗口控制、状态与配置、气泡与提示、自由对话、主进程推送订阅、复盘与指标。
 
-新增 feature 时，先确认主进程是否已有 service/repository 能力；不要在 renderer 中复制持久化逻辑，也不要从业务组件直接散落新的 `window.electronAPI` 调用。
+新增 feature 时，先确认主进程是否已有 service/repository 能力；不要在 renderer 中复制持久化逻辑，也不要从业务组件直接散落新的 `window.electronAPI` 调用。这条不是风格偏好：通道名散在组件里时，改一个通道要翻遍 tsx，且测试只能整体 mock `window.electronAPI` 而无法按模块替身。
 
 跨 feature 共享的平台名称、颜色、状态文案等纯展示映射应使用 `src/shared/display.ts`。
 

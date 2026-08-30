@@ -56,6 +56,11 @@ export function loadCredentialSummaries(siteId?: string): Promise<CredentialSumm
   return window.electronAPI.listCredentials(siteId)
 }
 
+/** 站点 Cookie 概要。只含存在性与过期信息，不含 Cookie 值。 */
+export function loadCookieSummaryForSite(siteId: string): Promise<CookieSafeSiteSummary> {
+  return window.electronAPI.getCookieSummaryForSite(siteId)
+}
+
 export function renameCredential(credentialId: string, displayName: string): Promise<CredentialSummary | null> {
   return window.electronAPI.renameCredential(credentialId, displayName)
 }

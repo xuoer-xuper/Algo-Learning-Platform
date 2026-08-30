@@ -1,6 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Icon } from '../../components/ui'
 import { CoachActions } from './CoachActions'
+import {
+  dismissCoachDisclaimer,
+  dismissCoachHint,
+  sendCoachFeedback,
+  toggleCoachIgnoreMouseEvents,
+  triggerCoachHint,
+} from './coachDataApi'
 
 export interface CoachBubbleProps {
   payload: {
@@ -54,16 +61,16 @@ export function CoachBubble({ payload, autoDismissMs = 12000, llmEnabled = false
 
   const handleTriggerHint = () => {
     // 不关闭气泡——主进程会推送新 payload 直接替换内容，避免闪烁
-    void window.electronAPI.coachTriggerHint(payload.id)
+    void triggerCoachHint(payload.id)
   }
 
   const handleDismiss = () => {
-    void window.electronAPI.coachDismissHint(payload.id)
+    void dismissCoachHint(payload.id)
     handleClose('dismiss')
   }
 
   const handleNeverToday = () => {
-    void window.electronAPI.coachFeedback({ bubbleId: payload.id, type: 'never_today' })
+    void sendCoachFeedback({ bubbleId: payload.id, type: 'never_today' })
     handleClose('never_today')
   }
 
@@ -72,20 +79,20 @@ export function CoachBubble({ payload, autoDismissMs = 12000, llmEnabled = false
   }
 
   const handleDismissThisTime = () => {
-    void window.electronAPI.coachDismissDisclaimer(false)
+    void dismissCoachDisclaimer(false)
     handleClose('dismiss')
   }
 
   const handleDismissPermanently = () => {
-    void window.electronAPI.coachDismissDisclaimer(true)
+    void dismissCoachDisclaimer(true)
     handleClose('dismiss')
   }
 
   const handleMouseEnter = () => {
-    void window.electronAPI.coachToggleIgnoreMouseEvents(false)
+    void toggleCoachIgnoreMouseEvents(false)
   }
   const handleMouseLeave = () => {
-    void window.electronAPI.coachToggleIgnoreMouseEvents(true)
+    void toggleCoachIgnoreMouseEvents(true)
   }
 
   return (

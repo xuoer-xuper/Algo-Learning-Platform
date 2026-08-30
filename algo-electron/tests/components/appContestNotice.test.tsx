@@ -73,6 +73,26 @@ vi.mock('../../src/hooks/browserShellApi', () => ({
     permissionListener = listener
     return () => { permissionListener = null }
   },
+  getCredentialAutofillPrompt: async () => null,
+  subscribeCredentialAutofillPrompt: () => () => undefined,
+  respondCredentialAutofill: vi.fn(async () => true),
+  getCredentialCapturePrompt: async () => null,
+  subscribeCredentialCapturePrompt: (listener: (prompt: CredentialCapturePrompt) => void) => {
+    capturePromptListener = listener
+    return () => { capturePromptListener = null }
+  },
+  subscribeCredentialCaptureResult: (listener: (result: CredentialCaptureResult) => void) => {
+    captureResultListener = listener
+    return () => { captureResultListener = null }
+  },
+  respondCredentialCapture: (captureId: string, action: CredentialCaptureAction) => respondCapture(captureId, action),
+}))
+vi.mock('../../src/features/coach/coachDataApi', () => ({
+  loadCoachState: () => getCoachState(),
+  subscribeCoachContestMode: (listener: (payload: CoachContestModePayload) => void) => {
+    contestListener = listener
+    return unsubscribeContest
+  },
 }))
 
 import App from '../../src/App'
@@ -86,25 +106,6 @@ beforeEach(() => {
   respondPermission.mockClear()
   respondCapture.mockClear()
   getCoachState = vi.fn(async () => null)
-  window.electronAPI = {
-    coachGetState: () => getCoachState(),
-    getCredentialAutofillPrompt: async () => null,
-    onCredentialAutofillPrompt: () => () => undefined,
-    getCredentialCapturePrompt: async () => null,
-    respondCredentialCapture: (captureId, action) => respondCapture(captureId, action),
-    onCredentialCapturePrompt: (listener) => {
-      capturePromptListener = listener
-      return () => { capturePromptListener = null }
-    },
-    onCredentialCaptureResult: (listener) => {
-      captureResultListener = listener
-      return () => { captureResultListener = null }
-    },
-    onCoachContestModeChanged: (listener) => {
-      contestListener = listener
-      return unsubscribeContest
-    },
-  } as ElectronAPI
 })
 
 afterEach(() => {

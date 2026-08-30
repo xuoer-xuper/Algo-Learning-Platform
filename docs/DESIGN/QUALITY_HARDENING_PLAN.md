@@ -114,9 +114,20 @@ Q1–Q4 是确定工作量的机械活，不含架构决策，应连续执行。
 | `CoachChatPanel.tsx` | 3 |
 | `CredentialsPage.tsx` | 1 |
 
+> **实施期修正（本块统计有误）**：实测总数是 **164 处**,不是 151;`.tsx` 中是 **38 处**,不是 28。上表漏了 `App.tsx` 的 **9 处**（7 处凭据提示 + 2 处 coach）和 `main.tsx` 的 1 处。coach 小计 27 是对的。
+>
+> `App.tsx` 的 9 处按归属分流：2 处 coach 进 `coachDataApi.ts`,7 处凭据提示进 `hooks/browserShellApi.ts`（与 userscript host 授权同形状,属壳层而非 feature）。`main.tsx` 的 1 处是同步读取 preload 注入的布局常量,不是 IPC 调用,作为入口文件保留并在 Q3b 守卫中显式豁免。
+
 **做法**：全部搬入 `coachDataApi.ts`,签名与命名沿用既有约定（`load*`/`subscribe*`/`save*`）。纯机械搬移。
 
 **验证**：`test:core` 应零改动通过。若有测试失败即说明搬移出错，这正是该块的验证价值。
+
+> **实施期修正（验收口径需放宽）**："零改动"这条对 coach + settings 部分成立,对 `App.tsx` 不成立,已知会改 3 个测试文件的替身,这是搬移的必然结果而非搬移出错：
+>
+> - `appContestNotice.test.tsx`、`appErrorNotice.test.tsx` 原先整体赋值 `window.electronAPI` 来喂 App 的 coach/凭据调用。调用搬走后模块边界移动,替身边界必须跟着移动 —— 改为 `vi.mock` 两个 API 模块。这同时是收口的收益之一：替身从"整个 preload 表面"缩小到"两个具名模块"。
+> - `credentialsPage.test.tsx` 已 `vi.mock` 整个 `settingsApi`,新增的 `loadCookieSummaryForSite` 不在替身里会返回 undefined,需补一条 mock。
+>
+> 断言与用例数量均未改动（12 个用例全部保留、逐条通过）,改的只是替身接线。判据因此细化为：**允许改替身接线,不允许改断言或删用例**。
 
 ### Q3 分层与设计系统守卫
 
@@ -215,7 +226,7 @@ Q1–Q4 是确定工作量的机械活，不含架构决策，应连续执行。
 | 块 | 状态 | 说明 |
 |---|---|---|
 | Q1 | [x] | 已完成。12 处读路径补齐;新增 `src/rendererErrors.ts` + `src/shared/errors.ts`;错误通知栏接入主进程 topInset（见上方偏离说明）;顺带修掉 `Dashboard` 重算按钮永久禁用与 `CoachPanel` 乐观更新不回滚两个既存缺陷。新增 21 个用例 |
-| Q2 | [ ] | 待实施,依赖 Q1 无 |
+| Q2 | [x] | 已完成。`.tsx` 中 38 处直连全部收口,现为 0 处（`main.tsx` 读布局常量除外,非 IPC）。`coachDataApi.ts` 由 2 个函数扩到 24 个,分六组;`browserShellApi.ts` 新增 7 个凭据提示函数;`settingsApi.ts` 新增 `loadCookieSummaryForSite`。顺带修掉 `CoachPet` 点击处理里 `coachPetClick()` 无 catch 的悬空 promise（Q1 只扫挂载读路径,未覆盖事件处理器）。测试替身改 3 个文件,断言零改动 |
 | Q3 | [ ] | Q3b 依赖 Q2 完成 |
 | Q4 | [ ] | 待实施 |
 | Q5 | [ ] | 依赖 Q1 完成 |

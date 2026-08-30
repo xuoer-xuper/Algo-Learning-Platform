@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Button, ConfirmDialog, IconButton, Input } from '../../components/ui'
 import {
   deleteSavedCredential,
+  loadCookieSummaryForSite,
   loadCredentialSummaries,
   loadPrimaryCodeforcesAccount,
   loadSites,
@@ -57,7 +58,7 @@ export function CredentialsPage({ onClose }: CredentialsPageProps) {
       const [credentials, cookieSummaries, account] = await Promise.all([
         loadCredentialSummaries(),
         Promise.all(sites.map(async (site) => {
-          try { return [site.id, await window.electronAPI.getCookieSummaryForSite(site.id)] as const }
+          try { return [site.id, await loadCookieSummaryForSite(site.id)] as const }
           catch { return [site.id, null] as const }
         })),
         loadPrimaryCodeforcesAccount(),
