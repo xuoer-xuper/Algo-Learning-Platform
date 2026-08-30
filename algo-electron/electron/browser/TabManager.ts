@@ -272,6 +272,23 @@ export class TabManager {
     if (notify) this.emitFindInPageState()
   }
 
+  /**
+   * 查找栏归某个标签页独占。以下两个不变量原先各以裸 `if` 散落在十处生命周期分支里，
+   * 谁都没有名字——新增一条标签页销毁/替换路径时，漏掉它只会表现为查找栏的 38px
+   * 留在版面里、或者高亮留在一个已经不存在的文档上，很难在 review 里被看见。
+   *
+   * 不变量一：这个标签页的文档即将失效（崩溃、关闭、过户、被内部页替换、重新导航、重载）
+   * ——如果查找栏归它，必须收掉。
+   */
+  private clearFindInPageForTab(tabId: string): void {
+    if (tabId === this.findInPageTabId) this.clearFindInPage()
+  }
+
+  /** 不变量二：即将切到另一个标签页——查找栏不跟着走，归别人的就收掉。 */
+  private clearFindInPageWhenLeaving(tabId: string): void {
+    if (this.findInPageTabId !== null && this.findInPageTabId !== tabId) this.clearFindInPage()
+  }
+
   openFindInPage(): boolean {
     const tab = this.activeTabId ? this.findTab(this.activeTabId) : null
     if (!this.isWebTab(tab) || tab.isCrashed) return false
@@ -422,7 +439,7 @@ export class TabManager {
     if (this.isDestroying) return
     const tab = this.findTabByView(view)
     if (!tab) return
-    if (tab.id === this.findInPageTabId) this.clearFindInPage()
+    this.clearFindInPageForTab(tab.id)
     this.recoveryPendingViews.delete(view)
     tab.isCrashed = true
     tab.isLoading = false
@@ -529,7 +546,7 @@ export class TabManager {
       const zoomFactor = owner.applyZoomToView(view, url)
       if (!tab) return
       const urlChanged = tab.url !== url
-      if (urlChanged && tab.id === owner.findInPageTabId) owner.clearFindInPage()
+      if (urlChanged) owner.clearFindInPageForTab(tab.id)
       tab.url = url
       if (tab.id === owner.activeTabId) {
         owner.onUrlChange?.(url)
@@ -875,7 +892,7 @@ export class TabManager {
       }
       return
     }
-    if (tab.id === this.findInPageTabId) this.clearFindInPage()
+    this.clearFindInPageForTab(tab.id)
 
     if (!this.isDestroying && tab.isCrashed) {
       try {
@@ -969,7 +986,7 @@ export class TabManager {
     const wasActive = tabId === this.activeTabId
     const nextTabId = wasActive ? this.getAdjacentTabId(tabIndex) : null
 
-    if (tabId === this.findInPageTabId) this.clearFindInPage()
+    this.clearFindInPageForTab(tabId)
     if (tab.kind === 'internal' && tab.page.type === 'script-install') {
       this.userScriptInstallRegistry?.consume(tab.page.installId)
     }
@@ -1036,7 +1053,7 @@ export class TabManager {
     const newTab = this.findTab(tabId)
     if (!newTab) return
 
-    if (this.findInPageTabId && this.findInPageTabId !== tabId) this.clearFindInPage()
+    this.clearFindInPageWhenLeaving(tabId)
 
     if (this.activeTabId) {
       const currentTab = this.findTab(this.activeTabId)
@@ -1138,7 +1155,7 @@ export class TabManager {
     try {
       const wasActive = tab.id === this.activeTabId
       const nextTabId = wasActive ? this.getAdjacentTabId(tabIndex) : null
-      if (tab.id === this.findInPageTabId) this.clearFindInPage()
+      this.clearFindInPageForTab(tab.id)
       if (wasActive && tab.kind === 'web') this.detachTabView(tab)
       if (tab.kind === 'web') {
         this.recoveryPendingViews.delete(tab.view)
@@ -1234,7 +1251,7 @@ export class TabManager {
       }
 
       if (options.activate !== false || !this.activeTabId) {
-        if (this.findInPageTabId && this.findInPageTabId !== tab.id) this.clearFindInPage()
+        this.clearFindInPageWhenLeaving(tab.id)
         if (this.activeTabId) {
           const currentTab = this.findTab(this.activeTabId)
           if (currentTab?.kind === 'web') this.detachTabView(currentTab)
@@ -1391,7 +1408,7 @@ export class TabManager {
     const tabIndex = this.findTabIndex(tab.id)
     if (tabIndex < 0 || this.findTab(tab.id) !== tab) return
     const wasActive = tab.id === this.activeTabId
-    if (tab.id === this.findInPageTabId) this.clearFindInPage()
+    this.clearFindInPageForTab(tab.id)
     if (wasActive) this.detachTabView(tab)
     this.recoveryPendingViews.delete(tab.view)
     try {
@@ -1494,7 +1511,7 @@ export class TabManager {
     }
 
     if (currentTab.kind === 'web') {
-      if (currentTab.id === this.findInPageTabId) this.clearFindInPage()
+      this.clearFindInPageForTab(currentTab.id)
       this.detachTabView(currentTab)
       this.recoveryPendingViews.delete(currentTab.view)
       try {
@@ -1543,7 +1560,7 @@ export class TabManager {
       this.recoverCrashedTab(tab, url)
       return
     }
-    if (tab.id === this.findInPageTabId) this.clearFindInPage()
+    this.clearFindInPageForTab(tab.id)
     void tab.view.webContents.loadURL(url).catch((error) => {
       appLogger.error('browser.navigate-failed', { url, error })
     })
@@ -1656,7 +1673,7 @@ export class TabManager {
       this.recoverCrashedTab(tab)
       return
     }
-    if (tab.id === this.findInPageTabId) this.clearFindInPage()
+    this.clearFindInPageForTab(tab.id)
     const healthChanged = tab.isUnresponsive || tab.isUnresponsiveNoticeDismissed
     tab.isUnresponsive = false
     tab.isUnresponsiveNoticeDismissed = false
