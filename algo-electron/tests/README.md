@@ -193,9 +193,14 @@ npx playwright test tests\ui\rendererScreenshots.pw.spec.ts --grep "narrow conta
 - Renderer 截图和交互验收放 `tests/ui/`，使用 Playwright Test，生成图片与 trace 只写入 `tmp/`，不得提交。
 - 只有 Electron ABI/safeStorage 测试允许保留临时 bundle，输出统一写到 `tmp/electron-tests/`，不要提交生成产物。
 - Electron 绑定模块在 Vitest 中使用 `tests/electron/electronMock.ts`，但不得以 mock 测试替代真实 Electron 专项验证。
+- 不得用 `readFileSync` 读生产源码再 `includes()` 断言字符串来代替行为断言。这种测试两头都会骗人：接线断掉但字符串还在时它照样绿，纯搬移没改行为时它却变红。只有断言文本本身就是产物时才允许（例如 `tests/components/tokenGovernance.test.ts` 检查 CSS token）。
+- 等待异步投递不得靠固定等一轮 `setTimeout(0)` 或固定毫秒数。worker 繁忙时投递会落到下一轮，全套里就变成按分片触发的间歇性失败——单跑和本目录都绿，只在完整 `test:core` 里偶尔红，极难定位。改成按条件轮询（收到就继续，超时才让断言报真实差异），见 `tests/scripts/userscriptBootstrapPreloadModule.test.ts` 的 `waitForDelivery`。
+- 断言前先确认 test-double 的同步性。`tests/electron/electronMock.ts` 里 `close()` 同步发 `destroyed`、`reload()` 同步发 `did-finish-load`，照真实 Electron 的异步时序写断言会得到假绿；需要观测失败路径时先覆盖掉对应方法。
+- 同一处逻辑注册在多个事件名上时（`will-navigate`/`will-redirect`，`did-navigate`/`did-navigate-in-page`），用 `it.each` 参数化跑全部事件名，让一份期望同时约束所有孪生实现。只覆盖其中一个，将来单边修改不会被发现。
 
 ## 5. 当前缺口
 
 - Renderer UI 已有关键页面截图和布局断言，但完整交互路径仍需 `npm run dev` 手测。
 - Electron session、CookieVault、真实 OJ 登录态依赖手测。
 - 打包产物安装/卸载流程依赖人工验收。
+- 还有三处源码字符串断言未行为化：`tests/coach/coachPageOwnershipWiring.test.ts`、`tests/electron/mainResilience.test.ts`、`tests/integration/problemTitleExtractionWiring.test.ts`。它们守的是 `CoachOrchestrator.ts` / `main.ts` 的接线，属于 §4 里禁止的那种写法，需要按各自被测对象改成行为断言。

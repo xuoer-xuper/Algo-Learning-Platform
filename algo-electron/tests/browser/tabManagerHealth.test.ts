@@ -106,4 +106,143 @@ describe('TabManager renderer health', () => {
     assert.strictEqual(manager.getTabList()[0].isCrashed, false)
     assert.strictEqual(manager.getActiveTabId(), manager.getTabList()[0].id)
   })
+
+  test('stops the recovery spinner and broadcasts once when the retry load fails', async () => {
+    resetElectronMock()
+    const window = new MockBrowserWindow()
+    const manager = new TabManager(window as never)
+    const tabId = manager.createTab('https://example.com/flaky')
+    await drainNavigationEvents()
+    const view = window.contentView.children[0]
+    const contents = view.webContents
+    // 静默 reload 把标签页留在"等待恢复"状态；mock 的 reload 默认同步发
+    // did-finish-load，那会让恢复立刻成功，失败路径就永远走不到。
+    contents.reload = (() => undefined) as never
+
+    contents.emit('render-process-gone', {}, { reason: 'crashed', exitCode: 1 })
+    manager.reloadTab(tabId)
+    assert.strictEqual(manager.getTabList()[0].isLoading, true)
+
+    const broadcasts: boolean[] = []
+    manager.setTabListChangedCallback((tabs) => broadcasts.push(tabs[0].isLoading))
+    contents.emit('did-fail-load', {}, -105, 'ERR_NAME_NOT_RESOLVED', 'https://example.com/flaky', true)
+
+    assert.deepStrictEqual(manager.getTabList().map((tab) => ({
+      id: tab.id,
+      isCrashed: tab.isCrashed,
+      isLoading: tab.isLoading,
+    })), [{ id: tabId, isCrashed: true, isLoading: false }])
+    assert.deepStrictEqual(window.contentView.children, [])
+    assert.deepStrictEqual(broadcasts, [false])
+  })
+
+  test('treats a repeated failure on the same recovery view as a no-op', async () => {
+    resetElectronMock()
+    const window = new MockBrowserWindow()
+    const manager = new TabManager(window as never)
+    const tabId = manager.createTab('https://example.com/flaky')
+    await drainNavigationEvents()
+    const contents = window.contentView.children[0].webContents
+    contents.reload = (() => undefined) as never
+
+    contents.emit('render-process-gone', {}, { reason: 'crashed', exitCode: 1 })
+    manager.reloadTab(tabId)
+    contents.emit('did-fail-load', {}, -105, 'ERR_NAME_NOT_RESOLVED', 'https://example.com/flaky', true)
+
+    const broadcasts: unknown[] = []
+    manager.setTabListChangedCallback((tabs) => broadcasts.push(tabs))
+    contents.emit('did-fail-load', {}, -105, 'ERR_NAME_NOT_RESOLVED', 'https://example.com/flaky', true)
+
+    assert.deepStrictEqual(broadcasts, [])
+    assert.deepStrictEqual(manager.getTabList().map((tab) => ({
+      id: tab.id,
+      isCrashed: tab.isCrashed,
+      isLoading: tab.isLoading,
+    })), [{ id: tabId, isCrashed: true, isLoading: false }])
+    assert.deepStrictEqual(window.contentView.children, [])
+  })
+
+  test('keeps waiting when the recovery load is aborted by the user or a subframe', async () => {
+    resetElectronMock()
+    const window = new MockBrowserWindow()
+    const manager = new TabManager(window as never)
+    const tabId = manager.createTab('https://example.com/slow')
+    await drainNavigationEvents()
+    const view = window.contentView.children[0]
+    const contents = view.webContents
+    contents.reload = (() => undefined) as never
+
+    contents.emit('render-process-gone', {}, { reason: 'crashed', exitCode: 1 })
+    manager.reloadTab(tabId)
+
+    // -3 是用户按停止键；把它当恢复失败处理会让停止操作显示成崩溃页。
+    contents.emit('did-fail-load', {}, -3, 'ERR_ABORTED', 'https://example.com/slow', true)
+    // 子框架失败与标签页健康无关，主框架仍在恢复中。
+    contents.emit('did-fail-load', {}, -105, 'ERR_NAME_NOT_RESOLVED', 'https://ads.example/pixel', false)
+
+    assert.strictEqual(manager.getTabList()[0].isLoading, true)
+    assert.strictEqual(manager.getTabList()[0].isCrashed, true)
+
+    contents.emit('did-finish-load')
+
+    assert.deepStrictEqual(manager.getTabList().map((tab) => ({
+      id: tab.id,
+      isCrashed: tab.isCrashed,
+      isLoading: tab.isLoading,
+    })), [{ id: tabId, isCrashed: false, isLoading: false }])
+    assert.deepStrictEqual(window.contentView.children, [view])
+  })
+
+  test('leaves a healthy tab untouched when a plain navigation error arrives', async () => {
+    resetElectronMock()
+    const window = new MockBrowserWindow()
+    const manager = new TabManager(window as never)
+    const tabId = manager.createTab('https://example.com/live')
+    await drainNavigationEvents()
+    const view = window.contentView.children[0]
+
+    view.webContents.emit('did-fail-load', {}, -105, 'ERR_NAME_NOT_RESOLVED', 'https://example.com/live/next', true)
+
+    assert.deepStrictEqual(manager.getTabList().map((tab) => ({
+      id: tab.id,
+      isCrashed: tab.isCrashed,
+    })), [{ id: tabId, isCrashed: false }])
+    assert.deepStrictEqual(window.contentView.children, [view])
+  })
+
+  test('does not crash the replacement view when a stale recovery failure lands late', async () => {
+    resetElectronMock()
+    const window = new MockBrowserWindow()
+    const manager = new TabManager(window as never)
+    const tabId = manager.createTab('https://example.com/stale')
+    await drainNavigationEvents()
+    const staleView = window.contentView.children[0]
+    const staleContents = staleView.webContents
+    let rejectRecovery: (error: Error) => void = () => undefined
+    // 恢复失败的回调挂在 loadURL/reload 返回的 promise 上，所以要把它悬在
+    // 手里，等 view 被换掉之后再让它落地——这就是"迟到的失败"。
+    staleContents.reload = (() => new Promise<void>((_resolve, reject) => { rejectRecovery = reject })) as never
+
+    staleContents.emit('render-process-gone', {}, { reason: 'crashed', exitCode: 1 })
+    manager.reloadTab(tabId)
+
+    // isDestroyed 先翻真、destroyed 事件还没送达，是渲染进程消失时的真实竞态；
+    // 它让下一次恢复换上新 view，而旧 view 仍留在等待恢复的集合里。
+    staleContents.isDestroyed = (() => true) as never
+    manager.navigate('https://example.com/stale/retry')
+    await drainNavigationEvents()
+    const freshView = window.contentView.children[0]
+    assert.notStrictEqual(freshView, staleView)
+    assert.strictEqual(manager.getTabList()[0].isCrashed, false)
+
+    rejectRecovery(new Error('stale recovery load failed'))
+    await drainNavigationEvents()
+
+    assert.deepStrictEqual(manager.getTabList().map((tab) => ({
+      id: tab.id,
+      isCrashed: tab.isCrashed,
+      isLoading: tab.isLoading,
+    })), [{ id: tabId, isCrashed: false, isLoading: false }])
+    assert.deepStrictEqual(window.contentView.children, [freshView])
+  })
 })

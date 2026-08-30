@@ -301,8 +301,16 @@ describe('userscriptBootstrapPreload 传给运行时的数据', () => {
 })
 
 describe('userscriptBootstrapPreload 消息桥', () => {
-  /** MessagePort 的投递排在宏任务里，等一轮 */
-  const flushPorts = (): Promise<unknown> => new Promise((resolve) => { setTimeout(resolve, 0) })
+  /**
+   * MessagePort 的投递排在宏任务里。曾经固定等一轮 `setTimeout(0)`，在 worker
+   * 繁忙时约 1/4 概率投递落到下一轮，全套里就变成间歇性失败。改成按条件轮询：
+   * 收到就立刻继续，超时才让断言去报真实差异。
+   */
+  const waitForDelivery = async (received: unknown[]): Promise<void> => {
+    for (let attempt = 0; attempt < 50 && received.length === 0; attempt += 1) {
+      await new Promise((resolve) => { setTimeout(resolve, 1) })
+    }
+  }
 
   test('运行时拿到的 send/subscribe 接在交给主进程的那个 port 上', async () => {
     // 桥的两个闭包是运行时与主进程之间的唯一通道。交出去的是 port2，
@@ -316,13 +324,13 @@ describe('userscriptBootstrapPreload 消息桥', () => {
     const fromRuntime: unknown[] = []
     port.onmessage = (event) => { fromRuntime.push(event.data) }
     bridge.send({ kind: 'log', text: 'hello' })
-    await flushPorts()
+    await waitForDelivery(fromRuntime)
     assert.deepStrictEqual(fromRuntime, [{ kind: 'log', text: 'hello' }])
 
     const toRuntime: unknown[] = []
     bridge.subscribe((message) => { toRuntime.push(message) })
     port.postMessage({ kind: 'value', key: 'k' })
-    await flushPorts()
+    await waitForDelivery(toRuntime)
     // 交给运行时的是 event.data 而不是 MessageEvent：运行时侧的契约按裸数据写的，
     // 这里回退成传 event 的话，那边读 message.kind 会静默拿到 undefined。
     assert.deepStrictEqual(toRuntime, [{ kind: 'value', key: 'k' }])

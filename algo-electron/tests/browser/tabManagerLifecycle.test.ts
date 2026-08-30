@@ -1,8 +1,11 @@
 import assert from 'node:assert/strict'
 import { test } from 'vitest'
 import { MockBrowserWindow, menuPopups, resetElectronMock } from 'electron'
-import { TabManager } from '../../electron/browser/TabManager.ts'
+import { TabManager, type BrowserPageEvent } from '../../electron/browser/TabManager.ts'
 import { MAX_TABS } from '../../electron/browser/tabManagerConfig.ts'
+import { PendingUserScriptInstallRegistry } from '../../electron/downloads/userScriptNavigation.ts'
+import { checkOjSender, resetTrustedSenderRegistry } from '../../electron/ipc/trustedSender.ts'
+import { ViewRegistry } from '../../electron/windows/ViewRegistry.ts'
 
 test('closing the active tab selects its right neighbor and reopening restores url and title', () => {
   resetElectronMock()
@@ -328,4 +331,57 @@ test('reordering tabs preserves the active tab and mounted web view while persis
   assert.strictEqual(manager.reorderTab(firstId, Number.NaN), false)
   assert.strictEqual(listChanges, 1)
   assert.strictEqual(sessionChanges, 1)
+})
+
+test('a userscript download hands every resource of the replaced web tab back before it is announced', async () => {
+  resetElectronMock()
+  resetTrustedSenderRegistry()
+  const window = new MockBrowserWindow()
+  const viewRegistry = new ViewRegistry()
+  const installRegistry = new PendingUserScriptInstallRegistry({ idFactory: () => 'install-handover' })
+  const manager = new TabManager(window as never, {
+    windowId: 'window-1',
+    viewRegistry,
+    userScriptInstallRegistry: installRegistry,
+  })
+  const tabId = manager.createTab('https://example.com/problem')
+  const view = window.contentView.children[0]
+  const contents = view.webContents
+  const webContentsId = contents.id
+  const senderEvent = { sender: contents, senderFrame: contents.mainFrame } as never
+  assert.strictEqual(checkOjSender(senderEvent).trusted, true)
+
+  const pageEvents: BrowserPageEvent[] = []
+  let trustedWhenAnnounced: boolean | null = null
+  manager.addPageEventListener((event) => {
+    pageEvents.push(event)
+    if (event.reason === 'destroyed') trustedWhenAnnounced = checkOjSender(senderEvent).trusted
+  })
+
+  assert.strictEqual(manager.routeUserScriptDownload('https://example.com/helper.user.js', contents as never), true)
+  await Promise.resolve()
+
+  // The download replaces the tab in place, so the stable tab id has to survive.
+  assert.strictEqual(manager.getTabList().length, 1)
+  assert.strictEqual(manager.getTabList()[0].id, tabId)
+  assert.strictEqual(installRegistry.get('install-handover')?.sourceFileName, 'helper.user.js')
+
+  // Consumers key their per-page state on webContentsId. After the swap the tab
+  // is internal, so findTabByView can no longer resolve it and the later
+  // 'destroyed' event produces nothing — this explicit announcement is the only
+  // notice they get that the page is gone.
+  const destroyed = pageEvents.filter((event) => event.reason === 'destroyed')
+  assert.strictEqual(destroyed.length, 1)
+  assert.strictEqual(destroyed[0].webContentsId, webContentsId)
+  assert.strictEqual(destroyed[0].tabId, tabId)
+
+  // Trust has to be revoked before the announcement, not by the close() that
+  // follows it: in real Electron close() is asynchronous, so a webContents id
+  // still in the OJ set at this point stays trusted for an arbitrary window —
+  // and Electron reuses ids.
+  assert.strictEqual(trustedWhenAnnounced, false)
+  assert.strictEqual(checkOjSender(senderEvent).trusted, false)
+  assert.strictEqual(viewRegistry.get(webContentsId), null)
+  assert.deepStrictEqual(window.contentView.children, [])
+  resetTrustedSenderRegistry()
 })

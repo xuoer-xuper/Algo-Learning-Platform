@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, test, vi } from 'vitest'
 import { MockBrowserWindow, resetElectronMock } from 'electron'
 import { TabManager } from '../../electron/browser/TabManager.ts'
+import { BROWSER_LAYOUT } from '../../electron/browser/browserLayout.ts'
+import type { FindInPageViewState } from '../../electron/browser/findInPage.ts'
 import { PendingUserScriptInstallRegistry } from '../../electron/downloads/userScriptNavigation.ts'
 
 async function drainNavigationEvents(): Promise<void> {
@@ -54,6 +56,55 @@ describe('TabManager find in page', () => {
     expect(view.getBounds().y).toBe(154)
     manager.setContestNoticeVisible(false)
     expect(view.getBounds().y).toBe(116)
+  })
+
+  test('switching away closes the bar, drops the highlight, and frees the inset on return', async () => {
+    const window = new MockBrowserWindow({ width: 1200, height: 800 })
+    const manager = new TabManager(window as never)
+    const firstTabId = manager.createTab('https://example.com/problem/1')
+    const secondTabId = manager.createTab('https://example.com/problem/2')
+    await drainNavigationEvents()
+    manager.switchTab(firstTabId)
+    const firstView = window.contentView.children[0]
+    const states: FindInPageViewState[] = []
+
+    expect(manager.openFindInPage()).toBe(true)
+    manager.findInPage(firstTabId, { type: 'query', query: 'dijkstra' })
+    expect(firstView.getBounds().y).toBe(BROWSER_LAYOUT.topOffset + BROWSER_LAYOUT.findBarHeight)
+    manager.setFindInPageStateChangedHandler((state) => states.push(state))
+
+    manager.switchTab(secondTabId)
+
+    // 查找栏属于某一个标签页。切走时若不主动关闭，renderer 会继续显示搜索框，
+    // 而它指向的已经是一个背景标签页——输入就会打到看不见的页面上。
+    expect(states).toEqual([expect.objectContaining({ open: false, tabId: null, query: '' })])
+    // 旧页的黄色高亮也必须撤掉，否则切回来时残留着上一次的搜索痕迹。
+    expect(firstView.webContents.stopFindInPageCalls.at(-1)).toBe('clearSelection')
+
+    manager.switchTab(firstTabId)
+    expect(window.contentView.children).toEqual([firstView])
+    expect(firstView.getBounds().y).toBe(BROWSER_LAYOUT.topOffset)
+  })
+
+  test('refuses to open on a crashed tab and ignores commands aimed at a background tab', async () => {
+    const window = new MockBrowserWindow({ width: 1200, height: 800 })
+    const manager = new TabManager(window as never)
+    const activeTabId = manager.createTab('https://example.com/live')
+    const backgroundTabId = manager.createTab('https://example.com/background')
+    await drainNavigationEvents()
+    manager.switchTab(activeTabId)
+
+    // 后台标签页的查找命令必须被丢掉：findInPage 是有副作用的（它会滚动并高亮），
+    // 施加在看不见的页面上等于让用户的按键消失。
+    expect(manager.findInPage(backgroundTabId, { type: 'query', query: 'x' })).toBeNull()
+
+    const activeView = window.contentView.children[0]
+    activeView.webContents.emit('render-process-gone', {}, { reason: 'crashed', exitCode: 1 })
+
+    expect(manager.getTabList().find((tab) => tab.id === activeTabId)?.isCrashed).toBe(true)
+    // 崩溃页没有可用的 webContents，开查找栏只会占掉 38px 却什么都搜不到。
+    expect(manager.openFindInPage()).toBe(false)
+    expect(manager.findInPage(activeTabId, { type: 'query', query: 'x' })).toBeNull()
   })
 })
 

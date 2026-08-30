@@ -10,7 +10,7 @@
 - `domScraperGenericIntegration.test.ts`：DOM scraper 与通用扫描组合。
 - `realtimeHookInjector.test.ts`、`realtimeHookScriptLifetime.test.ts`：实时 hook 注入和生命周期。
 - `realtimeSubmissionDiagnostics.test.ts`：实时监听诊断。
-- `realtimeTabActivation.test.ts`：多窗口/多标签精确 page owner、活动页和子 frame 注入接线约束。
+- `realtimeTabActivation.test.ts`：切标签页的 `active-tab-changed` 页面事件、子 frame 迟到加载对 dom-ready 的可见性门、以及实时服务只对能暴露新文档的 reason 转发注入。
 - `submissionBatchWriter.test.ts`：批量写入、去重、最终结果入库和受影响日期定向重算。
 - `submissionPageContextResolver.test.ts`：提交页上下文和题目关联。
 - `submissionWatcherCore.test.ts`：watcher core 状态机。
@@ -20,10 +20,10 @@
 
 ```powershell
 cd algo-electron
-npx --yes tsx tests\submissions\realtimeTabActivation.test.ts
+npm exec vitest -- run tests/submissions
 ```
 
-全量 submissions 测试可按 `tests/README.md` 中的批量 esbuild 命令运行。
+单个文件在后面加路径即可。这里的测试都走 vitest 的 `electron` 别名（`tests/electron/electronMock.ts`），用裸 tsx 直接跑单文件会解析不到。
 
 ## 4. 新增规则
 

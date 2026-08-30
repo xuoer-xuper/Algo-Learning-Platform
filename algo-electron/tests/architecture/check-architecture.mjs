@@ -345,6 +345,40 @@ check('real-Electron suites stay out of the Vitest run', () => {
   if (missing.length > 0) throw new Error(missing.join('\n'))
 })
 
+// 读生产源码再断言字符串的测试两头都会骗人：接线断掉但字符串还在时它照样绿，
+// 纯搬移没改行为时它却变红。名单条目失效后必须删，否则这里会报"已经不需要"。
+const SOURCE_TEXT_AS_ARTIFACT = new Set([
+  // 断言的就是样式文本本身，token 治理没有可替代的行为面。
+  'tests/components/tokenGovernance.test.ts',
+])
+const SOURCE_TEXT_DEBT = new Set([
+  'tests/coach/coachPageOwnershipWiring.test.ts',
+  'tests/electron/mainResilience.test.ts',
+  'tests/integration/problemTitleExtractionWiring.test.ts',
+])
+
+check('tests assert behaviour instead of production source text', () => {
+  const readsProductionSource = /readFileSync\([^)\n]*['"][^'"\n]*(?:\belectron\/|\bsrc\/)[^'"\n]*\.(?:ts|tsx|css)['"]/
+  const failures = []
+  const seen = new Set()
+
+  for (const file of walkFiles(path.join(projectRoot, 'tests'), /\.(?:test|spec)\.tsx?$/)) {
+    const relativePath = relative(file)
+    if (!readsProductionSource.test(read(file))) continue
+    seen.add(relativePath)
+    if (SOURCE_TEXT_AS_ARTIFACT.has(relativePath) || SOURCE_TEXT_DEBT.has(relativePath)) continue
+    failures.push(`${relativePath}: reads production source to assert on its text; assert behaviour instead`)
+  }
+
+  for (const allowed of [...SOURCE_TEXT_AS_ARTIFACT, ...SOURCE_TEXT_DEBT]) {
+    if (!seen.has(allowed)) {
+      failures.push(`${allowed}: no longer reads production source; drop it from the allow list`)
+    }
+  }
+
+  if (failures.length > 0) throw new Error(failures.join('\n'))
+})
+
 let failed = 0
 console.log('Running architecture guard checks...\n')
 for (const item of checks) {
