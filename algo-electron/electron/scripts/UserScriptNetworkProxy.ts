@@ -15,6 +15,7 @@ import {
   type UserScriptXhrRequestDetails,
   type UserScriptXhrResponseSnapshot,
 } from './userScriptRuntimeProtocol'
+import { errorName } from '../shared/errors'
 
 const MAX_REDIRECTS = 10
 const MAX_ACTIVE_REQUESTS = 64
@@ -104,7 +105,7 @@ export class UserScriptNetworkProxy {
         }
         this.dependencies.logger.warn('userscript.network-request-failed', {
           scriptId: context.scriptId,
-          error: error instanceof Error ? error.name : typeof error,
+          error: errorName(error),
         })
         send({ type: 'xhr:failed', requestId, reason: 'error' })
       })

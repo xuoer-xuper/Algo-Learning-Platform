@@ -1,5 +1,6 @@
 import { nowBeijing } from '../shared/time'
 import { appLogger, type Logger } from '../shared/logger'
+import { errorMessage } from '../shared/errors'
 
 export type BrowserDiagnosticArea = 'tracking' | 'title' | 'userscript'
 export type BrowserDiagnosticStatus = 'success' | 'failed' | 'skipped'
@@ -18,10 +19,6 @@ export interface BrowserDiagnosticsSnapshot {
 }
 
 const MAX_ENTRIES = 100
-
-function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error)
-}
 
 /**
  * Bounded, injectable diagnostics for browser-side silent fallbacks.

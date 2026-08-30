@@ -1,6 +1,7 @@
 import type { Rectangle } from 'electron'
 import { BROWSER_LAYOUT } from '../browser/browserLayout'
 import type { AppWindow } from './AppWindow'
+import { errorName } from '../shared/errors'
 
 export interface TabDragPoint {
   x: number
@@ -163,7 +164,7 @@ export class TabTransferCoordinator {
       this.options.onDiagnostic?.(event, {
         sourceWindowId: source.id,
         tabId,
-        errorName: error instanceof Error ? error.name : typeof error,
+        errorName: errorName(error),
       })
     } catch {
       // Diagnostics must never change transfer behavior.

@@ -10,6 +10,7 @@ import type {
   LlmConnectionTestResult,
   LlmConfig,
 } from './LlmHintTypes'
+import { errorMessage } from '../../shared/errors'
 
 const CHAT_TIMEOUT_MS = 15000
 const CONNECTION_TEST_TIMEOUT_MS = 10000
@@ -262,7 +263,7 @@ export class ArkClient {
         model: completion.model ?? config.model,
       }
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : String(err)
+      const message = errorMessage(err)
       return {
         success: false,
         message: `连接失败: ${message}`,

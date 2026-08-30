@@ -4,6 +4,7 @@ import { getAdapter } from '../adapters/registry'
 import type { SubmissionScrapeContext } from '../adapters/types'
 import type { SubmissionBatchWriter } from './SubmissionBatchWriter'
 import { resolveSubmissionPageContext } from './SubmissionPageContextResolver'
+import { errorMessage } from '../shared/errors'
 
 export interface SyncResult {
   platform: string
@@ -30,12 +31,14 @@ export class SyncService {
   }
 
   private async withRetry<T>(fn: () => Promise<T>, maxRetries = 2): Promise<T> {
-    let lastError: Error | null = null
+    // `unknown` 而非 `Error`：被重试的是网络与适配器代码，它们不保证抛 `Error`。
+    // 原先声明成 `Error | null` 只是靠 `catch (e: any)` 骗过检查，真抛字符串时类型是假的。
+    let lastError: unknown = null
     for (let i = 0; i <= maxRetries; i++) {
       try {
         return await fn()
-      } catch (e: any) {
-        lastError = e
+      } catch (error: unknown) {
+        lastError = error
         if (i < maxRetries) await new Promise(r => { setTimeout(r, 1000 * (i + 1)) })
       }
     }
@@ -52,8 +55,8 @@ export class SyncService {
       }
       const submissions = await this.withRetry(() => adapter.syncSubmissions!({ handle }))
       return this.writeSubmissions('codeforces', submissions)
-    } catch (error: any) {
-      return { platform: 'codeforces', fetched: 0, inserted: 0, error: error?.message }
+    } catch (error: unknown) {
+      return { platform: 'codeforces', fetched: 0, inserted: 0, error: errorMessage(error) }
     }
   }
 
@@ -71,8 +74,8 @@ export class SyncService {
         findNowcoderProblemBySearch: this.findNowcoderProblemBySearch,
       })
       return this.writeSubmissions('vjudge', submissions, url, pageProblemId, pageProblemIdentity)
-    } catch (e: any) {
-      return { platform: 'vjudge', fetched: 0, inserted: 0, error: e.message }
+    } catch (error: unknown) {
+      return { platform: 'vjudge', fetched: 0, inserted: 0, error: errorMessage(error) }
     }
   }
 
@@ -99,8 +102,8 @@ export class SyncService {
         pageProblemId,
         pageProblemIdentity,
       )
-    } catch (e: any) {
-      return { platform: 'unknown', fetched: 0, inserted: 0, error: e.message }
+    } catch (error: unknown) {
+      return { platform: 'unknown', fetched: 0, inserted: 0, error: errorMessage(error) }
     }
   }
 

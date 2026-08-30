@@ -29,6 +29,7 @@ import {
 } from './UserScriptRemoteFetch'
 import { resolveUserScriptRequestTarget } from './userScriptConnectPolicy'
 import { parseScriptMetadata, type UserScriptMetadata } from './userScriptMetadata'
+import { errorMessage, errorName } from '../shared/errors'
 
 const SCHEDULER_INTERVAL_MS = 60 * 60 * 1_000
 
@@ -233,11 +234,11 @@ export class UserScriptUpdateService {
       this.dependencies.markError(script.id, error, this.clock())
       this.dependencies.logger.warn('userscript.update-failed', {
         scriptId: script.id,
-        errorName: error instanceof Error ? error.name : 'UnknownError',
+        errorName: errorName(error),
       })
       return {
         ...toResult(script, 'error'),
-        error: error instanceof Error ? error.message : String(error),
+        error: errorMessage(error),
       }
     }
   }

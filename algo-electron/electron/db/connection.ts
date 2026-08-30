@@ -41,6 +41,7 @@ import { migration026 } from './migrations/026_site_credentials'
 import { migration027 } from './migrations/027_userscript_runtime'
 import { migration028 } from './migrations/028_site_login_autofill'
 import { migration029 } from './migrations/029_site_credential_labels'
+import { errorMessage } from '../shared/errors'
 
 let db: Database.Database | null = null
 let dbFilePath: string | null = null
@@ -187,10 +188,6 @@ function assignDatabase(database: Database.Database, dbPath: string): void {
 function closeStartupOrphans(database: Database.Database, logger: Logger = appLogger): void {
   const closedCount = closeOrphanProblemVisits(database)
   if (closedCount > 0) logger.warn('tracking.orphan-visits-closed', { count: closedCount })
-}
-
-function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error)
 }
 
 function clearDatabaseInitialization(): void {

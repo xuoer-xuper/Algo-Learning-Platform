@@ -9,6 +9,7 @@ import {
   USER_SCRIPT_RUNTIME_PORT_CHANNEL,
   type UserScriptRuntimeBootstrapResponse,
 } from './userScriptRuntimeProtocol'
+import { errorMessage } from '../shared/errors'
 
 const frameUrl = location.href
 const targetOrigin = location.origin
@@ -95,7 +96,7 @@ if ((targetOrigin.startsWith('https://') || targetOrigin.startsWith('http://')) 
     catch (error) {
       channel.port1.close()
       channel.port2.close()
-      console.error('[UserScript] Runtime bootstrap failed:', error instanceof Error ? error.message : String(error))
+      console.error('[UserScript] Runtime bootstrap failed:', errorMessage(error))
     }
     })
   }

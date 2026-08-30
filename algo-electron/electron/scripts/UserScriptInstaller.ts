@@ -20,6 +20,7 @@ import {
 } from './userScriptImport'
 import type { PreparedUserScriptResource } from './UserScriptResourceCache'
 import { isManagedScriptArtifactName } from './managedScriptPath'
+import { errorMessage } from '../shared/errors'
 
 const UPDATE_INTERVAL_MS = 24 * 60 * 60 * 1_000
 
@@ -187,7 +188,7 @@ async function removeReplacedManagedFile(
 }
 
 export function markUserScriptUpdateError(scriptId: string, error: unknown, now = new Date()): void {
-  const message = error instanceof Error ? error.message : String(error)
+  const message = errorMessage(error)
   upsertUserScriptUpdateState({
     scriptId,
     lastCheckedAt: toChinaStandardTime(now),

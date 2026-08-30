@@ -1,3 +1,5 @@
+import { errorMessage } from '../shared/errors'
+
 export const USER_SCRIPT_MAIN_WORLD_PARAMETER_NAMES = [
   'GM',
   'GM_info',
@@ -946,8 +948,4 @@ function runtimePrefix(): string {
   const random = globalThis.crypto?.randomUUID?.().replace(/-/g, '')
     ?? Math.random().toString(36).slice(2)
   return `__algoUserscript${runtimeSequence.toString(36)}${random}`
-}
-
-function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error)
 }

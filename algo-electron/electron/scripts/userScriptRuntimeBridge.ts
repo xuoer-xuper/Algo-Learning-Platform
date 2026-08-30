@@ -25,6 +25,7 @@ import {
   type UserScriptRuntimeEvent,
   type UserScriptRuntimeScriptSnapshot,
 } from './userScriptRuntimeProtocol'
+import { errorMessage } from '../shared/errors'
 
 const PENDING_PORT_TTL_MS = 5_000
 const MAX_PENDING_PORTS = 256
@@ -119,7 +120,7 @@ export function installUserScriptRuntimeBridge(
       try { rmSync(combinedPreloadPath, { force: true }) }
       catch { /* fail closed if a stale catalog cannot be removed */ }
       logger.error('userscript.runtime-catalog-build-failed', {
-        error: error instanceof Error ? error.message : error,
+        error: errorMessage(error),
       })
     }
   }
@@ -337,7 +338,7 @@ export function installUserScriptRuntimeBridge(
     }
     catch (error) {
       logger.error('userscript.runtime-init-failed', {
-        error: error instanceof Error ? error.message : error,
+        error: errorMessage(error),
       })
     }
     finally {
@@ -456,7 +457,7 @@ export function installUserScriptRuntimeBridge(
           logger.error('userscript.runtime-value-mutation-failed', {
             scriptId: command.scriptId,
             operation: command.type,
-            error: error instanceof Error ? error.message : error,
+            error: errorMessage(error),
           })
         }
       })
@@ -487,7 +488,7 @@ export function installUserScriptRuntimeBridge(
     catch (error) {
       reject()
       logger.error('userscript.runtime-port-failed', {
-        error: error instanceof Error ? error.message : error,
+        error: errorMessage(error),
       })
     }
   }

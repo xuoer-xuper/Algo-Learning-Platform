@@ -1,5 +1,6 @@
 import type { ProblemIdentity, SubmissionData } from '../shared/types'
 import type { SiteAdapter, SubmissionDetectionPayload } from '../adapters/types'
+import { errorMessage } from '../shared/errors'
 
 function isPayload(value: unknown): value is SubmissionDetectionPayload {
   if (!value || typeof value !== 'object') return false
@@ -86,7 +87,7 @@ export class SubmissionWatcherCore {
       return { inserted }
     } catch (error) {
       this.deps.logError('[SubmissionWatcher] failed to handle detected submission:', error)
-      return { inserted: false, error: error instanceof Error ? error.message : String(error) }
+      return { inserted: false, error: errorMessage(error) }
     }
   }
 

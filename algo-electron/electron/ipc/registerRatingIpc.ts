@@ -12,10 +12,7 @@ import {
   upsertRatingHistory,
 } from '../db/repositories/accountRepository'
 import { fetchCFCurrentRating, fetchCFRatingHistory, formatCFRatingHistory } from '../rating/codeforces'
-
-function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error)
-}
+import { errorMessage } from '../shared/errors'
 
 export function registerRatingIpc(): void {
   ipcMain.handle('rating:bindHandle', (_event, platform: string, handle: string) => {

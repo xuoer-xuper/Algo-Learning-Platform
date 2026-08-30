@@ -15,6 +15,7 @@ import {
   type UserScriptRuntimeResourceSnapshot,
   type UserScriptRuntimeScriptSnapshot,
 } from './userScriptRuntimeProtocol'
+import { errorMessage } from '../shared/errors'
 
 interface UserScriptRuntimeDependencies {
   userScriptService: Pick<
@@ -74,7 +75,7 @@ export class UserScriptRuntime {
         catch (error) {
           this.dependencies.logger.error('userscript.runtime-values-load-failed', {
             scriptId: script.id,
-            error: error instanceof Error ? error.message : error,
+            error: errorMessage(error),
           })
           nextValues.set(script.id, new Map())
         }
@@ -84,7 +85,7 @@ export class UserScriptRuntime {
         catch (error) {
           this.dependencies.logger.error('userscript.runtime-resources-load-failed', {
             scriptId: script.id,
-            error: error instanceof Error ? error.message : error,
+            error: errorMessage(error),
           })
           nextResources.set(script.id, [])
         }

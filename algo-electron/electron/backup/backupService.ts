@@ -15,6 +15,7 @@ import type {
   LearningDataExport,
   LearningDataExportFileResult,
 } from './types'
+import { errorMessage } from '../shared/errors'
 
 export async function createDatabaseBackup(targetDir: string): Promise<DatabaseBackupResult> {
   try {
@@ -90,8 +91,4 @@ export function importLearningDataFromParsedExport(
 
 function backupTimestamp(): string {
   return nowBeijing().replace(/[-:T.]/g, '').slice(0, 14)
-}
-
-function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error)
 }

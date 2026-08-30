@@ -56,6 +56,7 @@ import {
 import { popupPageContextMenu, popupTabContextMenu } from '../contextMenus/browserContextMenu'
 import type { ViewRegistry, ViewRegistryTabTransfer } from '../windows/ViewRegistry'
 import type { UserScriptMenuCommand } from '../scripts/UserScriptMenuRegistry'
+import { errorName } from '../shared/errors'
 
 export type { TabInfo } from './tabManagerTypes'
 
@@ -153,10 +154,6 @@ function isAllowedFaviconUrl(value: string): boolean {
   } catch {
     return false
   }
-}
-
-function getErrorName(error: unknown): string {
-  return error instanceof Error ? error.name : typeof error
 }
 
 export class TabManager {
@@ -324,7 +321,7 @@ export class TabManager {
         )
         this.findInPageState = registerFindInPageRequest(this.findInPageState, requestId)
       } catch (error) {
-        appLogger.warn('browser.find-in-page-failed', { errorName: getErrorName(error) })
+        appLogger.warn('browser.find-in-page-failed', { errorName: errorName(error) })
       }
     }
     this.emitFindInPageState()
@@ -336,12 +333,12 @@ export class TabManager {
     try {
       factor = normalizeZoomFactor(this.getZoomFactorForUrl(url)) ?? DEFAULT_ZOOM_FACTOR
     } catch (error) {
-      appLogger.warn('browser.zoom-read-failed', { errorName: getErrorName(error) })
+      appLogger.warn('browser.zoom-read-failed', { errorName: errorName(error) })
     }
     try {
       view.webContents.setZoomFactor(factor)
     } catch (error) {
-      appLogger.warn('browser.zoom-apply-failed', { errorName: getErrorName(error) })
+      appLogger.warn('browser.zoom-apply-failed', { errorName: errorName(error) })
     }
     return factor
   }
@@ -368,7 +365,7 @@ export class TabManager {
       }) ?? 'blocked'
     } catch (error) {
       appLogger.warn('browser.userscript-install-route-failed', {
-        errorName: getErrorName(error),
+        errorName: errorName(error),
       })
       return 'blocked'
     }
@@ -907,7 +904,7 @@ export class TabManager {
       } catch (error) {
         appLogger.warn('browser.crashed-tab-replacement-failed', {
           tabId: tab.id,
-          errorName: getErrorName(error),
+          errorName: errorName(error),
         })
         this.updateTabHealth(tab)
         return
@@ -1175,7 +1172,7 @@ export class TabManager {
     } catch (error) {
       appLogger.warn('browser.tab-release-failed', {
         tabId,
-        errorName: getErrorName(error),
+        errorName: errorName(error),
       })
       this.rollbackReleasedTab(releasedTab)
       return null
@@ -1284,7 +1281,7 @@ export class TabManager {
     } catch (error) {
       appLogger.warn('browser.tab-adopt-failed', {
         tabId: tab.id,
-        errorName: getErrorName(error),
+        errorName: errorName(error),
       })
       if (inserted) this.removeFailedAdoption(tab, previousActiveTabId)
       if (ownerBinding) ownerBinding.owner = record.source
@@ -1450,7 +1447,7 @@ export class TabManager {
     } catch (error) {
       appLogger.warn('browser.internal-tab-navigation-view-failed', {
         tabId: tab.id,
-        errorName: getErrorName(error),
+        errorName: errorName(error),
       })
       return
     }
@@ -1704,7 +1701,7 @@ export class TabManager {
       } catch (error) {
         appLogger.warn('browser.crashed-tab-recovery-failed', {
           tabId: tab.id,
-          errorName: getErrorName(error),
+          errorName: errorName(error),
         })
         return
       }
@@ -1727,7 +1724,7 @@ export class TabManager {
           if (!this.failTabRecovery(tab, recoveryView)) return
           appLogger.warn('browser.crashed-tab-recovery-failed', {
             tabId: tab.id,
-            errorName: getErrorName(error),
+            errorName: errorName(error),
           })
         })
       }
@@ -1735,7 +1732,7 @@ export class TabManager {
       if (!this.failTabRecovery(tab, recoveryView)) return
       appLogger.warn('browser.crashed-tab-recovery-failed', {
         tabId: tab.id,
-        errorName: getErrorName(error),
+        errorName: errorName(error),
       })
     }
   }
@@ -1758,7 +1755,7 @@ export class TabManager {
     try {
       persisted = this.saveZoomFactorForUrl(url, next)
     } catch (error) {
-      appLogger.warn('browser.zoom-save-failed', { errorName: getErrorName(error) })
+      appLogger.warn('browser.zoom-save-failed', { errorName: errorName(error) })
       return null
     }
     if (persisted === null) return null
@@ -1767,7 +1764,7 @@ export class TabManager {
     try {
       tab.view.webContents.setZoomFactor(factor)
     } catch (error) {
-      appLogger.warn('browser.zoom-apply-failed', { errorName: getErrorName(error) })
+      appLogger.warn('browser.zoom-apply-failed', { errorName: errorName(error) })
       return null
     }
     const state = { tabId, factor }
@@ -1912,7 +1909,7 @@ export class TabManager {
         void tab.view.webContents.loadURL(tab.url).catch((error) => {
           appLogger.warn('browser.session-tab-load-failed', {
             tabId: tab.id,
-            errorName: getErrorName(error),
+            errorName: errorName(error),
           })
         })
       }
@@ -1936,7 +1933,7 @@ export class TabManager {
         } catch { /* ignore rollback failures */ }
       }
       this.isDestroying = wasDestroying
-      appLogger.warn('browser.session-restore-failed', { errorName: getErrorName(error) })
+      appLogger.warn('browser.session-restore-failed', { errorName: errorName(error) })
       return false
     } finally {
       this.isRestoringSession = false

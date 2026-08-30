@@ -9,6 +9,7 @@ import {
   type ImportResult,
   type LearningDataExport,
 } from './types'
+import { errorMessage } from '../shared/errors'
 
 const EXPORT_TABLES = [
   'problems',
@@ -664,8 +665,4 @@ function differs(existing: ExistingKeyRow, incoming: ExportRow, ignoredKeys: str
 
 function conflict(entityType: string, entityId: string, reason: string): ImportConflict {
   return { entity_type: entityType, entity_id: entityId, reason }
-}
-
-function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error)
 }

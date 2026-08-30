@@ -1,4 +1,5 @@
 import { nowBeijing } from '../shared/time'
+import { errorMessage } from '../shared/errors'
 
 export interface RealtimeSubmissionStatus {
   ipcRegistered: boolean
@@ -76,7 +77,7 @@ export class RealtimeSubmissionDiagnostics {
       adapterId,
       url,
       status: 'failed',
-      error: error instanceof Error ? error.message : String(error),
+      error: errorMessage(error),
       at: nowBeijing(),
     }
   }

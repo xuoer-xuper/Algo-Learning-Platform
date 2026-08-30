@@ -13,15 +13,12 @@ import {
   updateSite,
   type SiteConfigData,
 } from '../db/repositories/siteRepository'
+import { errorMessage } from '../shared/errors'
 
 interface RegisterSitesIpcOptions {
   getParentWindow?: (event: IpcMainInvokeEvent) => BrowserWindow | null
   notifyProblemsUpdated?: (event: IpcMainInvokeEvent) => void
   refreshUserScriptRuntime?: () => void
-}
-
-function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error)
 }
 
 export function registerSitesIpc(options: RegisterSitesIpcOptions = {}): void {
