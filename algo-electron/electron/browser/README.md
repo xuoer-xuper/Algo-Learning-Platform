@@ -85,7 +85,6 @@
   - `showTabContextMenu(tabId)`：按标签上下文打开原生菜单，复制、关闭范围、恢复关闭标签和“移到新窗口”由 TabManager/过户协调器执行。
 - 状态读取
   - `getUrl()`
-  - `getTitleForUrl(url)`
   - `getActiveTabId()`
   - `getTabList()`
   - `getSessionSnapshot()`：只返回稳定、安全、可序列化的标签字段。

@@ -226,6 +226,10 @@ Q1–Q4 是确定工作量的机械活，不含架构决策，应连续执行。
 > 合计约 91 行，公开接口零变动。搬移改走窄缝：find-in-page 簇 74 行、耦合面 7 个成员，比 42 窄一个量级。
 >
 > 另记两笔待清：`if (tab.id === this.findInPageTabId) this.clearFindInPage()` 有 8 份拷贝散在生命周期各处，这个不变量没有名字；`failTabRecovery` 的第三道守卫 `!this.findTab(tab.id)` 实际不可达——六条标签页移除路径全部先清 `recoveryPendingViews`，第一道守卫已经吞掉了关闭场景。
+>
+> **执行结果：五项全部完成，`TabManager.ts` 净减 40 行（+78 −118），公开接口一处未动，全套 940 例绿。**
+> 通知条 `Set` 化补了两条断言：六种通知各占一格且独立释放（`show.forEach` 逐条开、逐条关），以及重复投递同一状态不再排版——后者需要在 `MockWebContentsView` 上加 `setBoundsCalls` 计数才可观测。两条变异检查确认承重：把 `credentialCapture` 别名成 `credentialAutofill`，`expected 230 to be 268` 红；把 `contest` 别名成 `download`，`expected 154 to be 192` 红。
+> 一处修正：`setNoticeVisible` 初版用 `visible ? !has(kind) : delete(kind)` 一行同时求变更位与执行删除，可读性换不到任何收益，改回与原 setter 同形的先判后写。
 
 ### Q7 IPC 边界 `any` 收敛
 
@@ -289,5 +293,5 @@ Q1–Q4 是确定工作量的机械活，不含架构决策，应连续执行。
 | Q3 | [x] | 已完成。守卫从 8 条增至 11 条。Q3a 裸 SQL 出 `db/` 层（白名单 12 文件 57 处欠账,建立时 13/61,归位 `trackingRepository.ts` 后即降）;Q3b renderer 只经 `*Api.ts` 触主进程（无白名单,仅 `main.tsx` 豁免）;Q3c 交互控件出 `ui/`（白名单 14 文件,标注长期例外与待清理）。棘轮含"陈旧条目必须报"分支。守卫判定拆到 `guards.mjs`,新增 12 个反向用例常驻 `test:unit`,并经变异检查确认非空转 |
 | Q4 | [x] | 已完成。守卫增至 12 条（新增裸 hex，按文件豁免三个 token 定义文件而非棘轮预算）。`NOTE_TYPE_COLORS` 及 `+ '20'` 拼 alpha 删除，笔记徽标改 CSS 修饰类，对比度从 1.23~1.94:1 提到浅色 6.11~6.70 / 深色 5.54~7.74（原方案的等值替换会保留这个可达性缺陷，见偏差 1）；4 处裸 hex（计划漏了 `#585b70`）收成 `--color-on-fill` / `--color-sys-close` 两个 token，样式文件裸 hex 归零。`ProblemSidebar` / `NoteEditorPane` / `UserScriptEditor` / `ErrorBoundary` 四个文件的裸控件换成 ui/ 原语，棘轮欠账条目由陈旧分支强制清空，`HomePage` 2 处改判长期例外。顺带：`Select` 补 `size="sm"` 缺口、修掉源码框 `rows` 被 `height:30px` 压死的渲染 bug、补 2 处图标按钮缺失的 `aria-label`、`ErrorBoundary` 移出 Tailwind（Tailwind 由此零消费者，是否删依赖单独定）。新增 `controlGovernance.test.ts` 7 例 + 裸 hex 反向验证 4 例 |
 | Q5 | [x] | 三个 preload 全部纳入覆盖率并补测试（`preloadSurface` 逐个调用 ~200 个暴露方法验转发、`ojPreloadModule` 11 例、`userscriptBootstrapPreloadModule` 12 例）；四项覆盖率反而全涨到 59.52/56.41/57.67/62.07，门槛上调至 56/53/54/59。原"无法执行"论据不成立，纠正见 §4 Q5 偏差 3 —— `vi.resetModules()` 导致两条负向断言曾凭空通过 |
-| Q6 | [~] | 安全网已完成，拆分待做。新增 `tabManagerNavigationGuard.test.ts`（14 例）与 4 个文件的补充用例，共 5 条变异检查逐条确认承重。顺带修掉两个既存缺陷：`userscriptBootstrapPreloadModule.test.ts` 里固定等一轮 `setTimeout(0)` 造成的间歇性失败（修前约 1/4 概率红，修后连续 4 轮全绿），以及 `tabManagerFindZoom.test.ts` 缺失的 `FindInPageViewState` import。**侦察结论改变了拆分方案，见 §4 Q6 偏差** |
+| Q6 | [~] | 安全网 + 五项零接口代价清理已完成，窄缝搬移待做。安全网：新增 `tabManagerNavigationGuard.test.ts`（14 例）与 4 个文件的补充用例，共 5 条变异检查逐条确认承重；顺带修掉两个既存缺陷：`userscriptBootstrapPreloadModule.test.ts` 里固定等一轮 `setTimeout(0)` 造成的间歇性失败（修前约 1/4 概率红，修后连续 4 轮全绿），以及 `tabManagerFindZoom.test.ts` 缺失的 `FindInPageViewState` import。清理：删 `getTitleForUrl`、`emitZoomState` 的 `factor` 改必填并删不可达分支、两个导航孪生体合成一个 `handleDocumentNavigation`、六个通知条布尔收成 `visibleNotices: Set`、六个 `add*Listener` 收成一个 `subscribe` 泛型辅助——净减 40 行，公开接口零变动。**侦察结论改变了拆分方案，见 §4 Q6 偏差** |
 | Q7 | [ ] | 待实施 |

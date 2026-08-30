@@ -101,13 +101,18 @@ export class MockWebFrame {
 export class MockWebContentsView {
   private contents: MockWebContents | undefined
   private bounds = { x: 0, y: 0, width: 0, height: 0 }
+  /** 真实的 setBounds 是一次跨进程排版调用；计数让"重复设置同一值应当被跳过"可被断言。 */
+  setBoundsCalls = 0
   constructor(options: { webContents?: MockWebContents } = {}) {
     const contents = options.webContents ?? new MockWebContents()
     this.contents = contents
     contents.once('destroyed', () => { this.contents = undefined })
   }
   get webContents(): MockWebContents { return this.contents as MockWebContents }
-  setBounds(bounds: { x: number; y: number; width: number; height: number }): void { this.bounds = { ...bounds } }
+  setBounds(bounds: { x: number; y: number; width: number; height: number }): void {
+    this.setBoundsCalls += 1
+    this.bounds = { ...bounds }
+  }
   getBounds(): { x: number; y: number; width: number; height: number } { return { ...this.bounds } }
 }
 

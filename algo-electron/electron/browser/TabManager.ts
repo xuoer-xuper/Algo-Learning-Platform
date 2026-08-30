@@ -96,6 +96,15 @@ export interface BrowserPageEvent {
   title?: string
 }
 
+/** 顶部通知条的种类；每种可见时都从内容区顶部让出一格 `noticeBarHeight`。 */
+type BrowserNoticeKind =
+  | 'download'
+  | 'contest'
+  | 'userScriptPermission'
+  | 'credentialAutofill'
+  | 'credentialCapture'
+  | 'error'
+
 type PopupWindowOptions = BrowserWindowConstructorOptions & {
   webContents?: WebContents
 }
@@ -188,12 +197,12 @@ export class TabManager {
   private isDestroying = false
   private isRestoringSession = false
   private isOmniboxOpen = false
-  private isDownloadNoticeVisible = false
-  private isContestNoticeVisible = false
-  private isUserScriptPermissionNoticeVisible = false
-  private isCredentialAutofillNoticeVisible = false
-  private isCredentialCaptureNoticeVisible = false
-  private isErrorNoticeVisible = false
+  /**
+   * 六条通知条各占一格 `noticeBarHeight`，除了名字之外没有任何区别：可见就抬高一格。
+   * 原先是六个布尔字段 + 六段逐字节相同的 setter + 六行 `if` 累加 + 六行重置，加第七条
+   * 通知得同步改四处。改成一个可见集合后，新增只是往联合类型里加一个字面量。
+   */
+  private readonly visibleNotices = new Set<BrowserNoticeKind>()
   private findInPageTabId: string | null = null
   private findInPageState: FindInPageState = { ...INITIAL_FIND_IN_PAGE_STATE }
   private recoveryPendingViews = new Set<WebContentsView>()
@@ -320,18 +329,14 @@ export class TabManager {
     return factor
   }
 
-  private emitZoomState(tab: ManagedWebTab, factor?: number): void {
+  /**
+   * `factor` 必填：五个调用点全部先经 `applyZoomToView`（返回 `number`）拿到已归一化的
+   * 因子再传进来，缺省分支从来走不到。改为让类型系统接管这个约定，省掉一段永不触发的
+   * 回读兜底——回读本身还会在 webContents 已销毁时抛错。
+   */
+  private emitZoomState(tab: ManagedWebTab, factor: number): void {
     if (tab.id !== this.activeTabId) return
-    let resolvedFactor = factor
-    if (resolvedFactor === undefined) {
-      try {
-        resolvedFactor = normalizeZoomFactor(tab.view.webContents.getZoomFactor())
-          ?? DEFAULT_ZOOM_FACTOR
-      } catch {
-        resolvedFactor = DEFAULT_ZOOM_FACTOR
-      }
-    }
-    this.zoomChangedHandler?.({ tabId: tab.id, factor: resolvedFactor })
+    this.zoomChangedHandler?.({ tabId: tab.id, factor })
   }
 
   private resolveUserScriptInstall(url: string): UserScriptInstallRoute | 'blocked' | null {
@@ -509,44 +514,37 @@ export class TabManager {
     contents.on('will-navigate', guardNavigation)
     contents.on('will-redirect', guardNavigation)
 
-    contents.on('did-navigate', (_event, url, _httpResponseCode, _httpStatusText, isMainFrame = true) => {
+    /**
+     * 整页导航与页内导航（history API、hash 变化）对标签页状态的影响完全一致：都换了
+     * 当前文档地址，都要重绑 URL、按新地址重读站点缩放、拆掉属于本页的查找栏。两个事件
+     * 只有签名不同（`did-navigate` 多带 HTTP 响应码与状态文本），所以在注册处吸收签名
+     * 差异，处理体只留一份——此前是两份逐字节相同的拷贝，改一处漏一处不会被发现。
+     */
+    const handleDocumentNavigation = (url: string, isMainFrame: boolean, reason: BrowserPageEventReason): void => {
       const owner = ownerBinding.owner
       const tab = owner.findTabByView(view)
-      if (tab) owner.emitPageEvent(tab, contentsId, url, isMainFrame, 'did-navigate')
+      if (tab) owner.emitPageEvent(tab, contentsId, url, isMainFrame, reason)
       if (!isMainFrame) return
       owner.updateWebContentsUrl(contentsId, url)
       const zoomFactor = owner.applyZoomToView(view, url)
-      if (tab) {
-        const urlChanged = tab.url !== url
-        if (urlChanged && tab.id === owner.findInPageTabId) owner.clearFindInPage()
-        tab.url = url
-        if (tab.id === owner.activeTabId) {
-          owner.onUrlChange?.(url)
-          owner.emitNavigate(url)
-          owner.emitZoomState(tab, zoomFactor)
-        }
-        if (urlChanged) owner.emitSessionChange()
+      if (!tab) return
+      const urlChanged = tab.url !== url
+      if (urlChanged && tab.id === owner.findInPageTabId) owner.clearFindInPage()
+      tab.url = url
+      if (tab.id === owner.activeTabId) {
+        owner.onUrlChange?.(url)
+        owner.emitNavigate(url)
+        owner.emitZoomState(tab, zoomFactor)
       }
+      if (urlChanged) owner.emitSessionChange()
+    }
+
+    contents.on('did-navigate', (_event, url, _httpResponseCode, _httpStatusText, isMainFrame = true) => {
+      handleDocumentNavigation(url, isMainFrame, 'did-navigate')
     })
 
     contents.on('did-navigate-in-page', (_event, url, isMainFrame = true) => {
-      const owner = ownerBinding.owner
-      const tab = owner.findTabByView(view)
-      if (tab) owner.emitPageEvent(tab, contentsId, url, isMainFrame, 'did-navigate-in-page')
-      if (!isMainFrame) return
-      owner.updateWebContentsUrl(contentsId, url)
-      const zoomFactor = owner.applyZoomToView(view, url)
-      if (tab) {
-        const urlChanged = tab.url !== url
-        if (urlChanged && tab.id === owner.findInPageTabId) owner.clearFindInPage()
-        tab.url = url
-        if (tab.id === owner.activeTabId) {
-          owner.onUrlChange?.(url)
-          owner.emitNavigate(url)
-          owner.emitZoomState(tab, zoomFactor)
-        }
-        if (urlChanged) owner.emitSessionChange()
-      }
+      handleDocumentNavigation(url, isMainFrame, 'did-navigate-in-page')
     })
 
     contents.on('did-start-loading', () => {
@@ -1787,25 +1785,6 @@ export class TabManager {
     return tab?.url ?? ''
   }
 
-  getTitleForUrl(url: string): string | undefined {
-    for (const tab of this.tabs) {
-      if (tab.kind !== 'web') continue
-      let currentUrl = ''
-      if (!tab.isCrashed) {
-        try {
-          currentUrl = tab.view.webContents.getURL()
-        } catch {
-          currentUrl = ''
-        }
-      }
-      if (tab.url === url || currentUrl === url || samePageUrl(tab.url, url) || samePageUrl(currentUrl, url)) {
-        if (tab.title || tab.isCrashed) return tab.title || undefined
-        return tab.view.webContents.getTitle()
-      }
-    }
-    return undefined
-  }
-
   getActiveTabId(): string | null {
     return this.activeTabId
   }
@@ -1961,50 +1940,41 @@ export class TabManager {
     if (tab.isUnresponsive && !tab.isUnresponsiveNoticeDismissed) {
       topInset += BROWSER_LAYOUT.noticeBarHeight
     }
-    if (this.isDownloadNoticeVisible) topInset += BROWSER_LAYOUT.noticeBarHeight
-    if (this.isContestNoticeVisible) topInset += BROWSER_LAYOUT.noticeBarHeight
-    if (this.isUserScriptPermissionNoticeVisible) topInset += BROWSER_LAYOUT.noticeBarHeight
-    if (this.isCredentialAutofillNoticeVisible) topInset += BROWSER_LAYOUT.noticeBarHeight
-    if (this.isCredentialCaptureNoticeVisible) topInset += BROWSER_LAYOUT.noticeBarHeight
-    if (this.isErrorNoticeVisible) topInset += BROWSER_LAYOUT.noticeBarHeight
+    topInset += this.visibleNotices.size * BROWSER_LAYOUT.noticeBarHeight
     if (tab.id === this.findInPageTabId) topInset += BROWSER_LAYOUT.findBarHeight
     setTabViewBounds(tab.view, { width, height }, this.leftOffset, topInset)
   }
 
-  setDownloadNoticeVisible(visible: boolean): void {
-    if (this.isDownloadNoticeVisible === visible) return
-    this.isDownloadNoticeVisible = visible
+  /** 只有可见性真的变了才重排版面，避免 IPC 重复投递引起无意义的 setBounds。 */
+  private setNoticeVisible(kind: BrowserNoticeKind, visible: boolean): void {
+    if (this.visibleNotices.has(kind) === visible) return
+    if (visible) this.visibleNotices.add(kind)
+    else this.visibleNotices.delete(kind)
     this.updateBounds()
+  }
+
+  setDownloadNoticeVisible(visible: boolean): void {
+    this.setNoticeVisible('download', visible)
   }
 
   setErrorNoticeVisible(visible: boolean): void {
-    if (this.isErrorNoticeVisible === visible) return
-    this.isErrorNoticeVisible = visible
-    this.updateBounds()
+    this.setNoticeVisible('error', visible)
   }
 
   setContestNoticeVisible(visible: boolean): void {
-    if (this.isContestNoticeVisible === visible) return
-    this.isContestNoticeVisible = visible
-    this.updateBounds()
+    this.setNoticeVisible('contest', visible)
   }
 
   setUserScriptPermissionNoticeVisible(visible: boolean): void {
-    if (this.isUserScriptPermissionNoticeVisible === visible) return
-    this.isUserScriptPermissionNoticeVisible = visible
-    this.updateBounds()
+    this.setNoticeVisible('userScriptPermission', visible)
   }
 
   setCredentialAutofillNoticeVisible(visible: boolean): void {
-    if (this.isCredentialAutofillNoticeVisible === visible) return
-    this.isCredentialAutofillNoticeVisible = visible
-    this.updateBounds()
+    this.setNoticeVisible('credentialAutofill', visible)
   }
 
   setCredentialCaptureNoticeVisible(visible: boolean): void {
-    if (this.isCredentialCaptureNoticeVisible === visible) return
-    this.isCredentialCaptureNoticeVisible = visible
-    this.updateBounds()
+    this.setNoticeVisible('credentialCapture', visible)
   }
 
   async executeScript(code: string, userGesture = false): Promise<any> {
@@ -2059,11 +2029,19 @@ export class TabManager {
     this.onNavigate = callback
   }
 
-  addNavigateListener(callback: (url: string) => void): () => void {
-    this.navigateListeners.add(callback)
+  /**
+   * 六个 `add*Listener` 的订阅/退订逻辑一模一样，只是集合不同。抽成一处后各方法只剩
+   * 一行声明自己订阅哪个集合，退订闭包不会再出现"删错集合"这类只能靠肉眼发现的错误。
+   */
+  private subscribe<T>(listeners: Set<T>, callback: T): () => void {
+    listeners.add(callback)
     return () => {
-      this.navigateListeners.delete(callback)
+      listeners.delete(callback)
     }
+  }
+
+  addNavigateListener(callback: (url: string) => void): () => void {
+    return this.subscribe(this.navigateListeners, callback)
   }
 
   setTitleChangeCallback(callback: (title: string, url: string) => void) {
@@ -2075,41 +2053,28 @@ export class TabManager {
   }
 
   addDomReadyListener(callback: (url: string) => void): () => void {
-    this.domReadyListeners.add(callback)
-    return () => {
-      this.domReadyListeners.delete(callback)
-    }
+    return this.subscribe(this.domReadyListeners, callback)
   }
 
   addActiveTabChangeListener(callback: (url: string) => void): () => void {
-    this.activeTabChangeListeners.add(callback)
-    return () => {
-      this.activeTabChangeListeners.delete(callback)
-    }
+    return this.subscribe(this.activeTabChangeListeners, callback)
   }
 
   addWebContentsUrlListener(callback: (snapshot: WebContentsUrlSnapshot) => void): () => void {
-    this.webContentsUrlListeners.add(callback)
+    const unsubscribe = this.subscribe(this.webContentsUrlListeners, callback)
+    // 订阅方需要当前全量快照才能对齐已存在的 webContents，补发一轮再返回退订句柄。
     for (const [webContentsId, url] of this.webContentsUrls) {
       callback({ webContentsId, url })
     }
-    return () => {
-      this.webContentsUrlListeners.delete(callback)
-    }
+    return unsubscribe
   }
 
   addPageEventListener(callback: (event: BrowserPageEvent) => void): () => void {
-    this.pageEventListeners.add(callback)
-    return () => {
-      this.pageEventListeners.delete(callback)
-    }
+    return this.subscribe(this.pageEventListeners, callback)
   }
 
   addSessionChangeListener(callback: () => void): () => void {
-    this.sessionChangeListeners.add(callback)
-    return () => {
-      this.sessionChangeListeners.delete(callback)
-    }
+    return this.subscribe(this.sessionChangeListeners, callback)
   }
 
   setPageLoadedCallback(callback: (url: string) => void) {
@@ -2242,12 +2207,7 @@ export class TabManager {
   destroy() {
     this.isDestroying = true
     this.isOmniboxOpen = false
-    this.isDownloadNoticeVisible = false
-    this.isContestNoticeVisible = false
-    this.isUserScriptPermissionNoticeVisible = false
-    this.isCredentialAutofillNoticeVisible = false
-    this.isCredentialCaptureNoticeVisible = false
-    this.isErrorNoticeVisible = false
+    this.visibleNotices.clear()
     this.findInPageTabId = null
     this.findInPageState = { ...INITIAL_FIND_IN_PAGE_STATE }
     this.findInPageStateChangedHandler = null

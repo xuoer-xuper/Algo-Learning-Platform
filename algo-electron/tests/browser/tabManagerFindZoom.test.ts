@@ -29,6 +29,11 @@ describe('TabManager find in page', () => {
     expect(view.getBounds().y).toBe(154)
     manager.setContestNoticeVisible(true)
     expect(view.getBounds().y).toBe(192)
+    // 重复投递同一状态不应再排一次版：真实环境下这是一次跨进程 setBounds。
+    const settledCalls = view.setBoundsCalls
+    manager.setContestNoticeVisible(true)
+    expect(view.setBoundsCalls).toBe(settledCalls)
+    expect(view.getBounds().y).toBe(192)
 
     const pending = manager.findInPage(tabId, { type: 'query', query: 'graph' })
     expect(pending?.requestId).toBe(1)
@@ -56,6 +61,36 @@ describe('TabManager find in page', () => {
     expect(view.getBounds().y).toBe(154)
     manager.setContestNoticeVisible(false)
     expect(view.getBounds().y).toBe(116)
+  })
+
+  test('each notice kind occupies its own slot and releases it independently', async () => {
+    const window = new MockBrowserWindow({ width: 1200, height: 800 })
+    const manager = new TabManager(window as never)
+    manager.createTab('https://example.com/problem')
+    await drainNavigationEvents()
+    const view = window.contentView.children[0]
+
+    // 六条通知条共用一个可见集合，这里逐条打开：每条都必须让出自己那一格，
+    // 任意两条被错认成同一种都会让高度停在上一档。
+    const show: ReadonlyArray<(visible: boolean) => void> = [
+      (v) => manager.setDownloadNoticeVisible(v),
+      (v) => manager.setContestNoticeVisible(v),
+      (v) => manager.setUserScriptPermissionNoticeVisible(v),
+      (v) => manager.setCredentialAutofillNoticeVisible(v),
+      (v) => manager.setCredentialCaptureNoticeVisible(v),
+      (v) => manager.setErrorNoticeVisible(v),
+    ]
+    show.forEach((toggle, index) => {
+      toggle(true)
+      expect(view.getBounds().y).toBe(BROWSER_LAYOUT.topOffset + (index + 1) * BROWSER_LAYOUT.noticeBarHeight)
+    })
+
+    // 反向逐条关闭，验证释放的是自己那一格而不是整块清零。
+    show.forEach((toggle, index) => {
+      toggle(false)
+      expect(view.getBounds().y).toBe(BROWSER_LAYOUT.topOffset + (show.length - index - 1) * BROWSER_LAYOUT.noticeBarHeight)
+    })
+    expect(view.getBounds().y).toBe(BROWSER_LAYOUT.topOffset)
   })
 
   test('switching away closes the bar, drops the highlight, and frees the inset on return', async () => {
