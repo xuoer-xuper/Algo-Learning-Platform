@@ -102,6 +102,34 @@ export function themeDirectiveHasTailwindImport(cssSource) {
  * 第三类不是洁癖 —— 少了它，白名单会一直挂着已经还完的欠账，
  * 下次有人往那个文件加违规时守卫不会响。
  */
+/**
+ * 未声明 schema 的 IPC 注册数。
+ *
+ * 判定口径是"第二个实参不是数组字面量"。`ipcMain.handle(ch, [text()], fn)` 声明了
+ * 渠道载荷形状，`ipcMain.handle(ch, fn)` 没有——后者只有 `checkShellSender`（谁能发）
+ * 与 `checkIpcPayload`（结构/体积/成环）两道防线，参数形状仍是渲染进程说什么就是什么。
+ *
+ * 零参 handler（`ipcMain.handle(ch, () => …)`）不算欠账：没有参数就没有形状可校验。
+ * 所以要看 `(` 之后有没有第二个形参——`(_event, x)` 算，`()` 与 `(_event)` 不算。
+ *
+ * 不按"是否出现 typeof 检查"计数：手写检查散落在 handler 体内，跨行、跨嵌套，
+ * 文本判定必然算错；而"有没有 schema 元组"是注册处一眼可见的单一事实。
+ */
+const IPC_REGISTRATION_PATTERN =
+  /\b(?:ipcMain|coachPetIpcMain|ipcMainHandle)\s*\.?\s*(?:handle|on)\(\s*'[^']+'\s*,\s*(\[?)\s*(?:async\s*)?(?:\(([^)]*)\))?/g
+
+export function countUnschemadIpc(text) {
+  let count = 0
+  for (const match of text.matchAll(IPC_REGISTRATION_PATTERN)) {
+    const hasSchemaTuple = match[1] === '['
+    if (hasSchemaTuple) continue
+    const params = (match[2] ?? '').split(',').map(part => part.trim()).filter(Boolean)
+    // 只有形参多于 event 的才算欠账。
+    if (params.length > 1) count += 1
+  }
+  return count
+}
+
 export function collectRatchetFailures({ entries, budgets, describe, cleanupHint }) {
   const failures = []
   const seen = new Set()
@@ -115,6 +143,16 @@ export function collectRatchetFailures({ entries, budgets, describe, cleanupHint
       failures.push(`${filePath}: ${describe(count)}。${cleanupHint}`)
     } else if (count > budget) {
       failures.push(`${filePath}: ${describe(count)}，白名单预算为 ${budget}。白名单只减不增，不要上调预算`)
+    } else if (count < budget) {
+      // 第四类：预算高于实际。
+      //
+      // 少了这一条，棘轮只在"完全清零"时才会提醒删条目，而部分清理是看不见的：
+      // 某文件从 23 处清到 5 处、预算仍留着 23，守卫照样 PASS——于是那 18 处欠账
+      // 又可以悄悄加回来。实测确认过这个漏洞：把某条预算从 2 上调到 3，守卫不响。
+      //
+      // 代价是每次清理都要在同一个提交里把数字改小。这正是想要的效果——
+      // 清了多少必须记下来，而不是攒着当缓冲。
+      failures.push(`${filePath}: 实际只有 ${count} 处，白名单预算仍写着 ${budget}。请把预算降到 ${count}`)
     }
   }
 

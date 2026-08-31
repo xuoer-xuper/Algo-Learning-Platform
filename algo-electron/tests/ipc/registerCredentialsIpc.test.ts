@@ -6,11 +6,20 @@ import type { CredentialVault } from '../../electron/credentials/CredentialVault
 
 const ownerState = vi.hoisted(() => ({ id: 'shell-1' as string | null }))
 
-vi.mock('../../electron/ipc/trustedSender', () => ({
-  ipcMain,
-  onFromOj: (channel: string, listener: (...args: any[]) => void) => ipcMain.on(channel, listener),
-  getShellWindowOwner: () => ownerState.id ? { id: ownerState.id } : null,
-}))
+/*
+ * 本文件刻意绕开 sender 校验（那部分由 tests/security/trustedSender.test.ts 负责），
+ * 只单测注册模块的接线。但绕开 sender 不等于可以绕开载荷校验——替身要连"schema 元组"
+ * 这一形态一起模拟，否则 schema 数组会被当成 listener 存进 handler 表。
+ * 转发逻辑见 trustedSenderDouble（registerScriptsIpc.test.ts 共用同一份）。
+ */
+vi.mock('../../electron/ipc/trustedSender', async () => {
+  const { createTrustedSenderDouble } = await import('./trustedSenderDouble')
+  return {
+    ipcMain: createTrustedSenderDouble(),
+    onFromOj: (channel: string, listener: (...args: any[]) => void) => ipcMain.on(channel, listener),
+    getShellWindowOwner: () => ownerState.id ? { id: ownerState.id } : null,
+  }
+})
 
 const { registerCredentialsIpc } = await import('../../electron/ipc/registerCredentialsIpc')
 
@@ -67,8 +76,28 @@ test('credentials IPC rejects non-string identifiers before reaching the vault',
   } as unknown as CredentialVault
   registerCredentialsIpc(vault)
 
-  await assert.rejects(ipcRenderer.invoke('credentials:list', 42), /siteId must be a string/)
-  await assert.rejects(ipcRenderer.invoke('credentials:delete', 42), /credentialId must be a string/)
+  /*
+   * 拒绝理由从 handler 里手写的 `TypeError('siteId must be a string')` 换成了统一的
+   * 载荷拒绝。断言的承重部分没变——非法参数必须在进 Vault 之前被拦住，下面两条
+   * `mock.calls.length === 0` 才是要守的东西；错误文案本身不是契约。
+   *
+   * 顺带多验两种以前漏掉的形状：空串和 null。原先的手写检查只判 `typeof !== 'string'`，
+   * 空串能过（变成一次查不到的 list 调用），null 会被 `typeof` 挡住但理由含混。
+   */
+  for (const bad of [42, '', null, {}]) {
+    await assert.rejects(
+      ipcRenderer.invoke('credentials:list', bad),
+      /Rejected IPC sender \(payload\)/,
+      `credentials:list 应拒绝 ${JSON.stringify(bad)}`,
+    )
+    await assert.rejects(
+      ipcRenderer.invoke('credentials:delete', bad),
+      /Rejected IPC sender \(payload\)/,
+      `credentials:delete 应拒绝 ${JSON.stringify(bad)}`,
+    )
+  }
+  // undefined 对 list 是合法的（不按站点过滤），对 delete 不是。
+  await assert.rejects(ipcRenderer.invoke('credentials:delete'), /Rejected IPC sender \(payload\)/)
   assert.strictEqual(list.mock.calls.length, 0)
   assert.strictEqual(remove.mock.calls.length, 0)
 })
@@ -147,8 +176,28 @@ test('credentials IPC routes capture prompts and responses by shell owner', asyn
   assert.strictEqual(await ipcRenderer.invoke('credentials:captureRespond', 'capture-1', 'save'), true)
   assert.deepStrictEqual(service.respondCapture.mock.calls, [['shell-1', 'capture-1', 'save']])
 
-  assert.strictEqual(await ipcRenderer.invoke('credentials:captureRespond', 'capture-1', 'nope'), false)
-  assert.strictEqual(await ipcRenderer.invoke('credentials:captureRespond', '', 'save'), false)
+  /*
+   * 形状不对的现在是拒绝，而不是返回 false。
+   *
+   * 改判的理由：captureId 与 action 只可能来自壳 renderer 自己的代码，形状不对说明我们
+   * 有 bug；而返回 false 会和"服务说不"（没有待处理的捕获、owner 已销毁——见下面 owner
+   * 为 null 那条）混在一起，两种情况在调用方看来一模一样。App.tsx 的调用点本来就 catch，
+   * 那处 catch 还会把错误提示显示出来，正是想要的效果。
+   */
+  await assert.rejects(
+    ipcRenderer.invoke('credentials:captureRespond', 'capture-1', 'nope'),
+    /Rejected IPC sender \(payload\)/,
+    '未列出的 action 应被拒绝',
+  )
+  await assert.rejects(
+    ipcRenderer.invoke('credentials:captureRespond', '', 'save'),
+    /Rejected IPC sender \(payload\)/,
+    '空 captureId 应被拒绝',
+  )
+  assert.strictEqual(
+    service.respondCapture.mock.calls.length, 1,
+    '两次非法调用都不应到达 service（此前只有 save 那次合法）',
+  )
   ownerState.id = null
   assert.strictEqual(await ipcRenderer.invoke('credentials:capturePrompt'), null)
   assert.strictEqual(await ipcRenderer.invoke('credentials:captureRespond', 'capture-1', 'cancel'), false)

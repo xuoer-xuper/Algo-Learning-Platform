@@ -9,6 +9,7 @@ import {
   type OpenDialogOptions,
 } from 'electron'
 import { getShellWindowOwner, ipcMain } from './trustedSender'
+import { bool, object, oneOf, pattern, text } from './payloadSchema'
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import {
@@ -61,12 +62,39 @@ interface UserScriptSummary {
   has_file: boolean
 }
 
+/*
+ * 三个复用的界，数字全部沿用本文件原先手写检查里的值，不另立标准：
+ *
+ * - `scriptId()` / `installId()`：上限 200，与原 `validateScriptId`、
+ *   `installId.length > 200` 一致。`scriptId` 用 `pattern(/\S/)` 而不是 `text()`，
+ *   因为原检查是 `id.trim().length === 0`——纯空白要拒。`text({min:1})` 会放过 `'   '`，
+ *   那是一次查不到行的 DB 查询，不是拒绝。
+ * - `installId()` 保持 `text()`（只拒空串），照搬原 `installId.length === 0` 那一版：
+ *   这个 id 由主进程生成并存进 registry，纯空白根本不可能匹配到任何待处理请求。
+ * - 脚本名上限 200，与原 `record.name.length > 200` 一致，同样要求非纯空白。
+ */
+const scriptId = () => pattern(/\S/, 'non-blank-string(1..200)', { max: 200 })
+const installId = () => text({ max: 200 })
+
 export function registerScriptsIpc(options: RegisterScriptsIpcOptions = {}): void {
   const confirmingRemoteInstalls = new Set<string>()
   ipcMain.handle('scripts:getAll', () => getAllScripts().map(toUserScriptSummary))
 
-  ipcMain.handle('scripts:save', (_event, id: unknown, data: unknown) => {
-    const validatedId = validateScriptId(id)
+  /*
+   * schema 只管形状；`site_ids_json` 的**内容**仍由 `validateScriptSaveInput` 判。
+   * 分工的理由：那串是 JSON 文本，要 parse 完才知道是不是"无重复的非空字符串数组"，
+   * 这不是形状问题，本层的组合子也表达不了。schema 接手的是原先那三条形状检查——
+   * 非对象、多余字段（`object` 默认拒绝，等价于原来的 `keys.length !== 2`）、
+   * name 的类型与长度。
+   */
+  ipcMain.handle('scripts:save', [
+    scriptId(),
+    object({
+      name: pattern(/\S/, 'non-blank-string(1..200)', { max: 200 }),
+      // JSON 文本自身的上限：站点 id 按 200 算，配 32 个站点也不到 8 KiB。
+      site_ids_json: text({ max: 8 * 1024 }),
+    }),
+  ], (_event, validatedId, data) => {
     const validatedData = validateScriptSaveInput(data)
     if (!updateScript(validatedId, validatedData)) {
       throw new Error('User script was not found or could not be updated')
@@ -162,8 +190,17 @@ export function registerScriptsIpc(options: RegisterScriptsIpcOptions = {}): voi
     return importedId
   })
 
-  ipcMain.handle('scripts:getRemoteInstallPreview', async (_event, installId: unknown) => {
-    if (typeof installId !== 'string' || installId.length === 0 || installId.length > 200) return null
+  /*
+   * 形状不对现在是拒绝，不再是返回 null / false。
+   *
+   * `installId` 由主进程在拦截远程安装时生成，经 `activeTab.page.installId` 传给
+   * `UserScriptInstallPage`，用户碰不到；形状不对说明我们自己的代码有 bug。而返回 null
+   * 会和"请求已过期 / registry 里没有"混在一起——那是同一个函数体里紧跟着的另一条分支，
+   * 调用方分不出是哪种。三个 renderer 调用点本来就 catch（effect 里 catch 后显示
+   * "读取远程脚本失败"，`finish` 里 catch 后把消息显示出来，cancel 是 `.catch(() => false)`），
+   * 不会产生无人接管的 rejection。
+   */
+  ipcMain.handle('scripts:getRemoteInstallPreview', [installId()], async (_event, installId) => {
     const registry = options.getUserScriptInstallRegistry?.()
     const installer = options.getUserScriptRemoteInstaller?.()
     const request = registry?.get(installId)
@@ -180,9 +217,10 @@ export function registerScriptsIpc(options: RegisterScriptsIpcOptions = {}): voi
     return installer.prepare(request, existing, installId)
   })
 
-  ipcMain.handle('scripts:confirmRemoteInstall', async (_event, installId: unknown, action: unknown) => {
-    if (typeof installId !== 'string' || installId.length === 0 || installId.length > 200) return null
-    if (action !== 'install' && action !== 'copy' && action !== 'cancel') return null
+  ipcMain.handle('scripts:confirmRemoteInstall', [
+    installId(),
+    oneOf(['install', 'copy', 'cancel'] as const),
+  ], async (_event, installId, action) => {
     const registry = options.getUserScriptInstallRegistry?.()
     const installer = options.getUserScriptRemoteInstaller?.()
     const request = registry?.get(installId)
@@ -258,8 +296,7 @@ export function registerScriptsIpc(options: RegisterScriptsIpcOptions = {}): voi
     }
   })
 
-  ipcMain.handle('scripts:cancelRemoteInstall', (_event, installId: unknown) => {
-    if (typeof installId !== 'string' || installId.length === 0 || installId.length > 200) return false
+  ipcMain.handle('scripts:cancelRemoteInstall', [installId()], (_event, installId) => {
     options.getUserScriptRemoteInstaller?.()?.clear(installId)
     return options.getUserScriptInstallRegistry?.()?.consume(installId) !== null
   })
@@ -274,8 +311,8 @@ export function registerScriptsIpc(options: RegisterScriptsIpcOptions = {}): voi
     return shell.openPath(scriptsDir)
   })
 
-  ipcMain.handle('scripts:getCode', async (_event, id: unknown): Promise<UserScriptCodeView> => {
-    const script = getScriptById(validateScriptId(id))
+  ipcMain.handle('scripts:getCode', [scriptId()], async (_event, id): Promise<UserScriptCodeView> => {
+    const script = getScriptById(id)
     if (!script) return { status: 'not-found' }
     const managedPath = resolveManagedScriptPath(script.file_path, userScriptsDirectory())
     if (script.file_path && !managedPath) return { status: 'unmanaged' }
@@ -288,8 +325,8 @@ export function registerScriptsIpc(options: RegisterScriptsIpcOptions = {}): voi
     return { status: 'ok', scriptId: script.id, code }
   })
 
-  ipcMain.handle('scripts:openEditor', async (_event, id: unknown): Promise<UserScriptOpenEditorResult> => {
-    const script = getScriptById(validateScriptId(id))
+  ipcMain.handle('scripts:openEditor', [scriptId()], async (_event, id): Promise<UserScriptOpenEditorResult> => {
+    const script = getScriptById(id)
     if (!script) return { status: 'not-found' }
     const managedPath = resolveManagedScriptPath(script.file_path, userScriptsDirectory())
     if (!managedPath) return { status: 'unmanaged' }
@@ -299,13 +336,18 @@ export function registerScriptsIpc(options: RegisterScriptsIpcOptions = {}): voi
     return failure ? { status: 'open-failed' } : { status: 'ok' }
   })
 
-  ipcMain.handle('scripts:toggle', (_event, id: string, enabled: boolean) => {
+  /*
+   * 这条原先只有类型标注 `(_event, id: string, enabled: boolean)`，没有任何运行时检查——
+   * 是本文件里唯一一条真正裸奔的通道：`toggleScript(id, enabled)` 会把 renderer 给的任何值
+   * 直接绑进 UPDATE 语句。
+   */
+  ipcMain.handle('scripts:toggle', [scriptId(), bool], (_event, id, enabled) => {
     const result = toggleScript(id, enabled)
     if (result) options.refreshUserScriptRuntime?.()
     return result
   })
-  ipcMain.handle('scripts:delete', async (_event, id: unknown) => {
-    const script = getScriptById(validateScriptId(id))
+  ipcMain.handle('scripts:delete', [scriptId()], async (_event, id) => {
+    const script = getScriptById(id)
     if (!script) return false
     const managedPath = resolveManagedScriptPath(script.file_path, userScriptsDirectory())
     const result = deleteScript(script.id)
@@ -420,29 +462,14 @@ export function getUserScriptImportConfirmationOptions(
 }
 
 
-function validateScriptId(id: unknown): string {
-  if (typeof id !== 'string' || id.trim().length === 0) {
-    throw new TypeError('scripts:save requires a non-empty script id')
-  }
-  return id
-}
-
-function validateScriptSaveInput(data: unknown): UserScriptSaveInput {
-  if (!data || typeof data !== 'object' || Array.isArray(data)) {
-    throw new TypeError('scripts:save data must be an object')
-  }
-  const record = data as Record<string, unknown>
-  const keys = Object.keys(record).sort()
-  if (keys.length !== 2 || keys[0] !== 'name' || keys[1] !== 'site_ids_json') {
-    throw new TypeError('scripts:save accepts only name and site_ids_json')
-  }
-  if (typeof record.name !== 'string' || record.name.trim().length === 0 || record.name.length > 200) {
-    throw new TypeError('scripts:save name must be a non-empty string of at most 200 characters')
-  }
-  if (typeof record.site_ids_json !== 'string') {
-    throw new TypeError('scripts:save site_ids_json must be JSON')
-  }
-
+/**
+ * `site_ids_json` 的内容校验。
+ *
+ * 形状那半截（非对象、多余字段、name 的类型与长度、site_ids_json 是不是字符串）已经由
+ * 通道上的 schema 接手，所以这里只剩 schema 表达不了的部分：那串 JSON parse 出来必须是
+ * 一个无重复的非空字符串数组。
+ */
+function validateScriptSaveInput(record: UserScriptSaveInput): UserScriptSaveInput {
   let siteIds: unknown
   try { siteIds = JSON.parse(record.site_ids_json) }
   catch { throw new TypeError('scripts:save site_ids_json must be valid JSON') }

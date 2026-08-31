@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 // @ts-expect-error 守卫判定是 runner 共用的 .mjs，无类型声明；此处只需运行时行为
-import { collectRatchetFailures, coreSuiteRunsEverything, countBareControls, countBareHex, countBareSql, themeDirectiveHasTailwindImport } from './guards.mjs'
+import { collectRatchetFailures, coreSuiteRunsEverything, countBareControls, countBareHex, countBareSql, countUnschemadIpc, themeDirectiveHasTailwindImport } from './guards.mjs'
 
 /**
  * 守卫的反向验证。
@@ -35,6 +35,45 @@ describe('countBareSql', () => {
     expect(countBareSql('while ((match = regex.exec(pattern)) !== null) {}')).toBe(0)
     expect(countBareSql('const m = EXPLICIT_SCHEME_PATTERN.exec(value)')).toBe(0)
     expect(countBareSql('return installer.prepare(request, existing, installId)')).toBe(0)
+  })
+})
+
+describe('countUnschemadIpc', () => {
+  it('接收渲染进程参数却没声明 schema 的算欠账', () => {
+    expect(countUnschemadIpc("ipcMain.handle('a:b', (_event, id: string) => {})")).toBe(1)
+    expect(countUnschemadIpc("ipcMain.on('a:b', (event, x: unknown) => {})")).toBe(1)
+    expect(countUnschemadIpc("coachPetIpcMain.handle('a:b', (_e, x) => {})")).toBe(1)
+    expect(countUnschemadIpc("ipcMain.handle('a:b', async (_event, id: string) => {})")).toBe(1)
+    // 多参数仍然只算这一处注册，不按参数个数累加。
+    expect(countUnschemadIpc("ipcMain.handle('a:b', (_e, a, b, c) => {})")).toBe(1)
+  })
+
+  it('声明了 schema 元组的不算', () => {
+    expect(countUnschemadIpc("ipcMain.handle('a:b', [text()], (_event, id) => {})")).toBe(0)
+    expect(countUnschemadIpc("ipcMain.handle('a:b', [daysRange(), rowLimit()], (_e, d, l) => {})")).toBe(0)
+    expect(countUnschemadIpc("ipcMain.handle(\n  'a:b',\n  [text()],\n  (_event, id) => {},\n)")).toBe(0)
+  })
+
+  it('零参 handler 不算欠账', () => {
+    // 没有参数就没有形状可校验，要求它声明 schema 只会逼出一堆空数组。
+    expect(countUnschemadIpc("ipcMain.handle('a:b', () => {})")).toBe(0)
+    expect(countUnschemadIpc("ipcMain.handle('a:b', (_event) => {})")).toBe(0)
+    expect(countUnschemadIpc("ipcMain.handle('a:b', async () => {})")).toBe(0)
+  })
+
+  it('不误伤同名的其他调用', () => {
+    expect(countUnschemadIpc("emitter.handle('a:b', (_e, x) => {})")).toBe(0)
+    expect(countUnschemadIpc("registry.on('a:b', (_e, x) => {})")).toBe(0)
+  })
+
+  it('多处注册各自计数', () => {
+    const source = [
+      "ipcMain.handle('a:1', (_e, x) => {})",
+      "ipcMain.handle('a:2', [text()], (_e, x) => {})",
+      "ipcMain.handle('a:3', () => {})",
+      "ipcMain.on('a:4', (_e, y) => {})",
+    ].join('\n')
+    expect(countUnschemadIpc(source)).toBe(2)
   })
 })
 
@@ -108,9 +147,17 @@ describe('collectRatchetFailures', () => {
     expect(failures[0]).toContain('白名单只减不增')
   })
 
-  it('等于预算放行，低于预算也放行', () => {
+  it('只有恰好等于预算才放行', () => {
     expect(ratchet([{ path: 'a.ts', count: 2 }], { 'a.ts': 2 })).toEqual([])
-    expect(ratchet([{ path: 'a.ts', count: 1 }], { 'a.ts': 2 })).toEqual([])
+  })
+
+  it('低于预算也要报，逼着把数字改小', () => {
+    // 这条原先断言的是"低于预算放行"。改判的理由：那样棘轮只在完全清零时才提醒，
+    // 部分清理完全看不见——某文件从 23 处清到 5 处、预算仍写 23，守卫照样 PASS，
+    // 于是那 18 处欠账可以悄悄加回来。实测确认过：把一条预算从 2 上调到 3，守卫不响。
+    const failures = ratchet([{ path: 'a.ts', count: 1 }], { 'a.ts': 2 })
+    expect(failures).toHaveLength(1)
+    expect(failures[0]).toContain('请把预算降到 1')
   })
 
   it('已清理的陈旧条目必须报出来', () => {

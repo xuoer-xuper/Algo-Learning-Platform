@@ -50,6 +50,16 @@ export function previewImportSites(data: unknown): ImportPreviewResult {
   return { valid: true, preview }
 }
 
+/**
+ * 提交导入。
+ *
+ * 内置站点在这里**再判一次**，不是重复劳动：`previewImportSites` 会把命中内置站点的项
+ * 路由进 `builtinSkipped`，但那只是预览侧的结论——本函数拿到的是渲染进程回传的数组，
+ * 中间没有任何一环强制它等于刚才那份预览。`updateSite` 自己不看 `is_builtin`，于是一份
+ * 把内置站点 id 同时写进 `sites` 与 `overwriteIds` 的载荷，能覆盖掉内置站点行。
+ *
+ * 通道上的形状校验拦不住这个：id 和字段形状都是合法的，越权发生在语义层。
+ */
 export function confirmImportSites(sites: SiteConfigData[], overwriteIds: string[]): { imported: number; overwritten: number } {
   let imported = 0
   let overwritten = 0
@@ -57,6 +67,7 @@ export function confirmImportSites(sites: SiteConfigData[], overwriteIds: string
   for (const site of sites) {
     const isOverwrite = overwriteIds.includes(site.id)
     if (isOverwrite) {
+      if (getSiteById(site.id)?.isBuiltin) continue
       const ok = updateSite(site.id, site)
       if (ok) overwritten++
     } else {

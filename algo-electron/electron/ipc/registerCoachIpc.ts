@@ -1,5 +1,7 @@
+import type { IpcMainInvokeEvent } from 'electron'
 import { screen } from 'electron'
-import { coachPetIpcMain, ipcMain as shellIpcMain } from './trustedSender'
+import { coachPetIpcMain, ipcMain as shellIpcMain, type IpcListener } from './trustedSender'
+import type { IpcSchemaTuple, ParsedArgs } from './payloadSchema'
 import type { CoachPetWindow } from '../coach/CoachPetWindow'
 import type { CoachOrchestrator } from '../coach/CoachOrchestrator'
 import type { CoachBubblePayload, CoachPetState } from '../coach/types'
@@ -19,14 +21,36 @@ const COACH_PET_CHANNELS = new Set([
   'coach:chat',
 ])
 
-type CoachIpcHandler = Parameters<typeof shellIpcMain.handle>[1]
-
-const ipcMain = {
-  handle(channel: string, handler: CoachIpcHandler): void {
-    const registrar = COACH_PET_CHANNELS.has(channel) ? coachPetIpcMain : shellIpcMain
-    registrar.handle(channel, handler)
-  },
+/**
+ * 按 channel 选注册器：桌宠必需的少数 channel 走 `coachPetIpcMain`（桌宠窗口也能调），
+ * 其余走 `shellIpcMain`（只有完整壳能调）。
+ *
+ * 两种调用形态都要转发，否则本文件无法声明 schema。原先这里写的是
+ * `Parameters<typeof shellIpcMain.handle>[1]`——`handle` 变成重载之后，那个写法取到的是
+ * **最后一个重载**的第二参（schema 元组），于是本文件 16 个 handler 全报"函数不能当元组用"。
+ * 重载的参数类型没法用 `Parameters` 取全，只能照着重载写一遍。
+ */
+function ipcMainHandle(channel: string, listener: IpcListener<IpcMainInvokeEvent>): void
+function ipcMainHandle<const S extends IpcSchemaTuple>(
+  channel: string,
+  schemas: S,
+  listener: (event: IpcMainInvokeEvent, ...args: ParsedArgs<S>) => unknown,
+): void
+function ipcMainHandle(
+  channel: string,
+  second: IpcSchemaTuple | IpcListener<IpcMainInvokeEvent>,
+  third?: IpcListener<IpcMainInvokeEvent>,
+): void {
+  const registrar = COACH_PET_CHANNELS.has(channel) ? coachPetIpcMain : shellIpcMain
+  if (Array.isArray(second)) {
+    if (!third) throw new Error('IPC registration with schemas requires a listener')
+    registrar.handle(channel, second, third)
+    return
+  }
+  registrar.handle(channel, second as IpcListener<IpcMainInvokeEvent>)
 }
+
+const ipcMain = { handle: ipcMainHandle }
 
 /**
  * Coach IPC 注册。

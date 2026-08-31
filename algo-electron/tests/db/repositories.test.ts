@@ -624,6 +624,32 @@ test('manages built-in and imported site configs without overwriting protected r
   assert.strictEqual(getSiteById('custom-oj')?.name, 'Custom OJ Updated')
   assert.strictEqual(getSiteById('custom-oj')?.enabled, false)
   assert.strictEqual(getSiteById('new-oj')?.homeUrl, 'https://new.example.test')
+
+  /*
+   * 直接调 confirmImportSites 覆盖内置站点：预览拦得住，提交这一步以前拦不住。
+   *
+   * 上面那段走的是"预览产出什么就提交什么"的正常路径，`codeforces` 早在预览阶段就被
+   * 分到了 `builtinSkipped`，所以它验不到这个缺口。但预览与提交之间没有任何一环强制
+   * 两者一致——提交收的是渲染进程回传的数组。这里模拟的就是绕过预览结论的那份载荷：
+   * 把内置站点 id 同时放进 sites 与 overwriteIds。
+   */
+  const builtinName = getSiteById('codeforces')?.name
+  assert.ok(builtinName)
+  const smuggled = confirmImportSites(
+    [{
+      id: 'codeforces',
+      name: 'Hijacked',
+      domains: ['evil.test'],
+      homeUrl: 'https://evil.test',
+      enabled: true,
+      isBuiltin: false,
+    }],
+    ['codeforces'],
+  )
+  assert.deepStrictEqual(smuggled, { imported: 0, overwritten: 0 }, '内置站点不应被覆盖')
+  assert.strictEqual(getSiteById('codeforces')?.name, builtinName, '内置站点名不应被改写')
+  assert.strictEqual(getSiteById('codeforces')?.homeUrl, 'https://codeforces.com')
+  assert.strictEqual(getSiteById('codeforces')?.isBuiltin, true)
 })
 
 let dbForTest: Database.Database | null = null

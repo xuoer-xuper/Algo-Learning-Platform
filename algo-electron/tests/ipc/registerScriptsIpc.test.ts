@@ -25,10 +25,15 @@ import {
 import { PendingUserScriptInstallRegistry } from '../../electron/downloads/userScriptNavigation'
 import { UserScriptRemoteInstaller } from '../../electron/scripts/UserScriptRemoteInstaller'
 
-vi.mock('../../electron/ipc/trustedSender', () => ({
-  getShellWindowOwner: () => null,
-  ipcMain,
-}))
+// 替身要连"schema 元组"这一形态一起模拟，见 trustedSenderDouble 的说明。
+// 工厂是 async 的：`vi.mock` 会被提到文件顶，普通工厂里引用不到上面的 import。
+vi.mock('../../electron/ipc/trustedSender', async () => {
+  const { createTrustedSenderDouble } = await import('./trustedSenderDouble')
+  return {
+    getShellWindowOwner: () => null,
+    ipcMain: createTrustedSenderDouble(),
+  }
+})
 
 let tempDirectory = ''
 
@@ -586,6 +591,66 @@ test('scripts:save accepts only display name and unique string site ids', async 
     code: 'blocked',
   }))
   assert.strictEqual(getScriptById(scriptId)?.code, 'code')
+
+  /*
+   * 纯空白的 id 与名字。
+   *
+   * 这两条守的是通道 schema 用 `pattern(/\S/)` 而不是 `text({min:1})` 的那个选择：
+   * `'   '` 长度不为 0，`min:1` 会放它过去，于是变成一次查不到行的 UPDATE——静默无效，
+   * 和"改成功了"在返回值上分不出来。原先的手写检查判的是 `trim().length === 0`，
+   * 迁移后必须仍然拒绝。
+   */
+  await assert.rejects(
+    () => ipcRenderer.invoke('scripts:save', '   ', { name: 'x', site_ids_json: '[]' }),
+    /Rejected IPC sender \(payload\)/,
+    '纯空白 id 应被拒绝',
+  )
+  await assert.rejects(
+    () => ipcRenderer.invoke('scripts:save', scriptId, { name: '  ', site_ids_json: '[]' }),
+    /Rejected IPC sender \(payload\)/,
+    '纯空白脚本名应被拒绝',
+  )
+  assert.strictEqual(getScriptById(scriptId)?.name, 'Custom Label', '两次非法调用都不应改到库里')
+})
+
+test('scripts:toggle rejects malformed arguments before they reach the database', async () => {
+  const scriptId = createScript({
+    name: 'Helper',
+    namespace: '',
+    identity_name: 'Helper',
+    description: null,
+    version: '1.0.0',
+    match_urls_json: '[]',
+    code: 'code',
+    file_path: null,
+    site_ids_json: '[]',
+    enabled: true,
+  })
+  registerScriptsIpc()
+
+  /*
+   * `scripts:toggle` 迁移前是本文件唯一一条完全裸奔的通道：只有类型标注
+   * `(_event, id: string, enabled: boolean)`，没有任何运行时检查，renderer 给什么
+   * `toggleScript` 就往 UPDATE 里绑什么。这里逐个钉住之前能穿过去的形状。
+   */
+  assert.strictEqual(await ipcRenderer.invoke('scripts:toggle', scriptId, false), true)
+  assert.strictEqual(getScriptById(scriptId)?.enabled, false)
+
+  for (const badEnabled of [1, 0, 'true', null, undefined]) {
+    await assert.rejects(
+      () => ipcRenderer.invoke('scripts:toggle', scriptId, badEnabled),
+      /Rejected IPC sender \(payload\)/,
+      `enabled 应拒绝 ${JSON.stringify(badEnabled) ?? 'undefined'}`,
+    )
+  }
+  for (const badId of [42, '', '   ', null, {}]) {
+    await assert.rejects(
+      () => ipcRenderer.invoke('scripts:toggle', badId, true),
+      /Rejected IPC sender \(payload\)/,
+      `id 应拒绝 ${JSON.stringify(badId) ?? 'undefined'}`,
+    )
+  }
+  assert.strictEqual(getScriptById(scriptId)?.enabled, false, '非法调用不应改动 enabled')
 })
 
 function writeSource(fileName: string, content: string): string {

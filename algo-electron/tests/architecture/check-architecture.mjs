@@ -1,6 +1,6 @@
 import fs from 'node:fs'
 import path from 'node:path'
-import { collectRatchetFailures, coreSuiteRunsEverything, countBareControls, countBareHex, countBareSql, themeDirectiveHasTailwindImport } from './guards.mjs'
+import { collectRatchetFailures, coreSuiteRunsEverything, countBareControls, countBareHex, countBareSql, countUnschemadIpc, themeDirectiveHasTailwindImport } from './guards.mjs'
 
 const projectRoot = process.cwd()
 const sourceRoots = [
@@ -214,6 +214,39 @@ const BARE_SQL_BUDGET = {
   'electron/submissions/createDefaultSubmissionBatchWriter.ts': 1,
   'electron/tracking/orphanProblemVisits.ts': 1,
 }
+
+/*
+ * 未声明渠道载荷 schema 的 IPC 注册。迁移期欠账，只减不增。
+ *
+ * 建立守卫时 14 个文件共 103 处；`registerStatsIpc.ts` 作为参考迁移已清零。
+ * 清一个文件就把它的条目删掉，**不要上调数字**——上调等于把"这个渠道不校验参数"
+ * 从欠账改判成设计。
+ *
+ * 为什么这件事值得挂守卫：三道防线里前两道（谁能发、结构是否超限）是全局的，
+ * 第三道（这个 channel 接受什么形状）只能逐个渠道声明。没有棘轮，新加的 handler
+ * 会默默回到"声明了 `days?: number` 就当它真是 number"的状态——类型会被擦除，
+ * 那行声明对运行时没有任何约束力。
+ */
+/*
+ * 迁移进度：103 处收渲染进程参数的 handler，已声明 schema 64 处，剩下 39 处在这两个文件里。
+ * 其余 11 个 register* 文件已清零，条目按棘轮规则删掉了（留着就等于给那些文件留出配额）。
+ */
+const UNSCHEMAD_IPC_BUDGET = {
+  'electron/ipc/registerBrowserShellIpc.ts': 23,
+  'electron/ipc/registerCoachIpc.ts': 16,
+}
+
+check('IPC handlers declare a payload schema', () => {
+  const files = walkSourceFiles(path.join(projectRoot, 'electron', 'ipc'))
+
+  checkRatchet({
+    files,
+    budgets: UNSCHEMAD_IPC_BUDGET,
+    countMatches: countUnschemadIpc,
+    describe: (count) => `有 ${count} 个 IPC handler 接收渲染进程参数但没声明 schema`,
+    cleanupHint: '在 channel 名后加 schema 元组，组合子见 electron/ipc/payloadSchema.ts',
+  })
+})
 
 check('bare SQL stays inside electron/db/', () => {
   const files = walkSourceFiles(path.join(projectRoot, 'electron'))

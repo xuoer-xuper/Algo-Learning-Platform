@@ -1,4 +1,10 @@
 import { ipcMain as electronIpcMain, type IpcMainEvent, type IpcMainInvokeEvent, type WebContents } from 'electron'
+import {
+  IpcPayloadError,
+  parseIpcArgs,
+  type IpcSchemaTuple,
+  type ParsedArgs,
+} from './payloadSchema'
 import { SHELL_ORIGIN } from '../app/appProtocol'
 import { appLogger } from '../shared/logger'
 import type { AppWindow } from '../windows/AppWindow'
@@ -188,8 +194,13 @@ function rejectInvoke(check: TrustedSenderCheck): never {
   throw new Error(`Rejected IPC sender (${check.reason})`)
 }
 
-function rejectSend(channel: string, check: TrustedSenderCheck): void {
-  appLogger.warn('ipc.send-rejected', { channel, reason: check.reason })
+function rejectSend(channel: string, check: TrustedSenderCheck, payloadError?: IpcPayloadError): void {
+  appLogger.warn('ipc.send-rejected', {
+    channel,
+    reason: check.reason,
+    // 只记 path 与 expected，不记实际值——载荷可能含用户数据。
+    ...(payloadError ? { path: payloadError.path, expected: payloadError.expected } : {}),
+  })
 }
 
 export function registerShellWebContents(webContents: RegistrableWebContents, owner?: AppWindow): void {
@@ -247,43 +258,147 @@ export function unregisterOjWebContents(webContents: WebContentsIdentity): void 
   if (id !== null) ojWebContentsIds.delete(id)
 }
 
-export function handleFromShell(channel: string, listener: IpcListener<IpcMainInvokeEvent>): void {
+/**
+ * 把"可选的 schema 元组"这一层从四个注册函数里提出来。
+ *
+ * 两种调用形态都要支持，迁移才能一个文件一个文件地做：
+ * - `handle(channel, listener)`——尚未声明 schema，行为与之前完全一致；
+ * - `handle(channel, schemas, listener)`——按元组校验后把收窄过的实参交给 listener。
+ *
+ * 判别靠 `Array.isArray`：schema 元组是数组，listener 是函数，不会混。
+ */
+type SchemaOrListener<E extends ShellEvent> = IpcSchemaTuple | IpcListener<E>
+
+function splitRegistration<E extends ShellEvent>(
+  second: SchemaOrListener<E>,
+  third?: IpcListener<E>,
+): { schemas: IpcSchemaTuple | null, listener: IpcListener<E> } {
+  if (Array.isArray(second)) {
+    if (!third) throw new Error('IPC registration with schemas requires a listener')
+    return { schemas: second, listener: third }
+  }
+  return { schemas: null, listener: second as IpcListener<E> }
+}
+
+/**
+ * schema 校验失败与 sender 校验失败走同一个出口。
+ *
+ * 之所以把 `IpcPayloadError` 单独接住：它带 path/expected，值得记进日志好定位是哪个字段；
+ * 而 handler 自己抛的业务异常不该被这里改写，原样抛出去由 invoke 的调用方处理。
+ */
+function parseOrReject(channel: string, schemas: IpcSchemaTuple, args: unknown[]): unknown[] {
+  try {
+    return parseIpcArgs(channel, schemas, args) as unknown[]
+  } catch (error) {
+    if (error instanceof IpcPayloadError) {
+      appLogger.warn('ipc.payload-rejected', { channel, path: error.path, expected: error.expected })
+      rejectInvoke({ trusted: false, reason: 'payload' })
+    }
+    throw error
+  }
+}
+
+export function handleFromShell(channel: string, listener: IpcListener<IpcMainInvokeEvent>): void
+export function handleFromShell<const S extends IpcSchemaTuple>(
+  channel: string,
+  schemas: S,
+  listener: (event: IpcMainInvokeEvent, ...args: ParsedArgs<S>) => unknown,
+): void
+export function handleFromShell(
+  channel: string,
+  second: SchemaOrListener<IpcMainInvokeEvent>,
+  third?: IpcListener<IpcMainInvokeEvent>,
+): void {
+  const { schemas, listener } = splitRegistration(second, third)
   electronIpcMain.handle(channel, (event, ...args) => {
     const check = checkShellSender(event)
     if (!check.trusted) rejectInvoke(check)
     const payloadCheck = checkIpcPayload(args)
     if (!payloadCheck.trusted) rejectInvoke(payloadCheck)
-    return listener(event, ...args)
+    return listener(event, ...(schemas ? parseOrReject(channel, schemas, args) : args))
   })
 }
 
-export function onFromShell(channel: string, listener: IpcListener<IpcMainEvent>): void {
+export function onFromShell(channel: string, listener: IpcListener<IpcMainEvent>): void
+export function onFromShell<const S extends IpcSchemaTuple>(
+  channel: string,
+  schemas: S,
+  listener: (event: IpcMainEvent, ...args: ParsedArgs<S>) => unknown,
+): void
+export function onFromShell(
+  channel: string,
+  second: SchemaOrListener<IpcMainEvent>,
+  third?: IpcListener<IpcMainEvent>,
+): void {
+  const { schemas, listener } = splitRegistration(second, third)
   electronIpcMain.on(channel, (event, ...args) => {
     const check = checkShellSender(event)
     if (!check.trusted) return rejectSend(channel, check)
     const payloadCheck = checkIpcPayload(args)
     if (!payloadCheck.trusted) return rejectSend(channel, payloadCheck)
-    listener(event, ...args)
+    // send 没有返回通道，校验失败只能记日志后丢弃——不能像 invoke 那样抛，
+    // 抛出去会变成主进程里一条没人接的异常。
+    let parsed: unknown[]
+    try {
+      parsed = schemas ? parseIpcArgs(channel, schemas, args) as unknown[] : args
+    } catch (error) {
+      if (error instanceof IpcPayloadError) {
+        return rejectSend(channel, { trusted: false, reason: 'payload' }, error)
+      }
+      throw error
+    }
+    listener(event, ...parsed)
   })
 }
 
-export function handleFromCoach(channel: string, listener: IpcListener<IpcMainInvokeEvent>): void {
+export function handleFromCoach(channel: string, listener: IpcListener<IpcMainInvokeEvent>): void
+export function handleFromCoach<const S extends IpcSchemaTuple>(
+  channel: string,
+  schemas: S,
+  listener: (event: IpcMainInvokeEvent, ...args: ParsedArgs<S>) => unknown,
+): void
+export function handleFromCoach(
+  channel: string,
+  second: SchemaOrListener<IpcMainInvokeEvent>,
+  third?: IpcListener<IpcMainInvokeEvent>,
+): void {
+  const { schemas, listener } = splitRegistration(second, third)
   electronIpcMain.handle(channel, (event, ...args) => {
     const check = checkCoachSender(event)
     if (!check.trusted) rejectInvoke(check)
     const payloadCheck = checkIpcPayload(args)
     if (!payloadCheck.trusted) rejectInvoke(payloadCheck)
-    return listener(event, ...args)
+    return listener(event, ...(schemas ? parseOrReject(channel, schemas, args) : args))
   })
 }
 
-export function onFromCoach(channel: string, listener: IpcListener<IpcMainEvent>): void {
+export function onFromCoach(channel: string, listener: IpcListener<IpcMainEvent>): void
+export function onFromCoach<const S extends IpcSchemaTuple>(
+  channel: string,
+  schemas: S,
+  listener: (event: IpcMainEvent, ...args: ParsedArgs<S>) => unknown,
+): void
+export function onFromCoach(
+  channel: string,
+  second: SchemaOrListener<IpcMainEvent>,
+  third?: IpcListener<IpcMainEvent>,
+): void {
+  const { schemas, listener } = splitRegistration(second, third)
   electronIpcMain.on(channel, (event, ...args) => {
     const check = checkCoachSender(event)
     if (!check.trusted) return rejectSend(channel, check)
     const payloadCheck = checkIpcPayload(args)
     if (!payloadCheck.trusted) return rejectSend(channel, payloadCheck)
-    listener(event, ...args)
+    let parsed: unknown[]
+    try {
+      parsed = schemas ? parseIpcArgs(channel, schemas, args) as unknown[] : args
+    } catch (error) {
+      if (error instanceof IpcPayloadError) {
+        return rejectSend(channel, { trusted: false, reason: 'payload' }, error)
+      }
+      throw error
+    }
+    listener(event, ...parsed)
   })
 }
 
