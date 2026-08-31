@@ -136,6 +136,14 @@ export function SiteManagementPanel() {
       return
     }
 
+    // 只判原始串非空是不够的：`createSiteFromDraft` 按逗号切开后会 `.filter(Boolean)`,
+    // 于是 `","` 这种输入在上面那关是真值、切完却是空数组。渠道那侧已经按下限 1 拒收，
+    // 但拒收信息是 `Rejected IPC sender (payload)`——给用户看的话得在这里说清楚。
+    if (domainsStr.split(',').every((domain) => !domain.trim())) {
+      setNewSiteError('请填写至少一个有效域名')
+      return
+    }
+
     if (!/^[a-z0-9_-]+$/.test(id)) {
       setNewSiteError('站点 ID 只能包含小写字母、数字、下划线和连字符')
       return

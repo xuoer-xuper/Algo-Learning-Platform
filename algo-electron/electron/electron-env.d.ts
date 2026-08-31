@@ -260,7 +260,6 @@ interface SiteConfigRecord {
 }
 
 type SiteConfigCreateInput = Omit<SiteConfigRecord, 'isBuiltin'>
-type SiteConfigUpdateInput = Partial<SiteConfigRecord>
 
 interface SiteImportConflict {
   id: string
@@ -954,7 +953,6 @@ interface ElectronAPI {
   getAllSites: () => Promise<SiteConfigRecord[]>
   getSiteById: (id: string) => Promise<SiteConfigRecord | null>
   createSite: (data: SiteConfigCreateInput) => Promise<string>
-  updateSite: (id: string, data: SiteConfigUpdateInput) => Promise<boolean>
   toggleSite: (id: string, enabled: boolean) => Promise<boolean>
   deleteSite: (id: string) => Promise<boolean>
   exportSitesConfig: () => Promise<SiteExportResult>

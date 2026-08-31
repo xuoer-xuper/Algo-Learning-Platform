@@ -147,7 +147,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getAllSites: () => ipcRenderer.invoke('sites:getAll'),
   getSiteById: (id: string) => ipcRenderer.invoke('sites:getById', id),
   createSite: (data: SiteConfigCreateInput) => ipcRenderer.invoke('sites:create', data),
-  updateSite: (id: string, data: SiteConfigUpdateInput) => ipcRenderer.invoke('sites:update', id, data),
   toggleSite: (id: string, enabled: boolean) => ipcRenderer.invoke('sites:toggle', id, enabled),
   deleteSite: (id: string) => ipcRenderer.invoke('sites:delete', id),
   exportSitesConfig: () => ipcRenderer.invoke('sites:exportConfig') as Promise<{ success: boolean; path?: string; count?: number; error?: string }>,

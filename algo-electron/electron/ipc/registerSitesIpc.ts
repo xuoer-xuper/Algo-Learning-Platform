@@ -11,7 +11,6 @@ import {
   getSiteById,
   previewImportSites,
   toggleSite,
-  updateSite,
 } from '../db/repositories/siteRepository'
 import { errorMessage } from '../shared/errors'
 
@@ -44,7 +43,16 @@ interface RegisterSitesIpcOptions {
 const siteId = () => text()
 const siteName = () => text()
 const siteHomeUrl = () => text({ max: 4096 })
-const siteDomains = () => arrayOf(text({ max: 253 }), { max: 32 })
+/*
+ * `domains` 要下限 1，不是形式主义：`createSiteFromDraft` 把输入框按逗号切开再
+ * `.filter(Boolean)`，用户只填一个 `,` 就得到 `[]`——而面板那一侧只判了原始串非空
+ * （`!domainsStr`），`","` 是真值，放行。落库之后 `findMatchingEnabledSite` 用
+ * `.some()` 判定域名，空数组恒为假，于是这条站点在设置页显示"已启用"、实际永远匹配不上。
+ *
+ * update 侧同样按 1 起：`updateSite` 逐字段判 `!== undefined`，传 `domains: []`
+ * 会把一条正常工作的站点的域名清空，症状和上面一样但更隐蔽（原本是好的）。
+ */
+const siteDomains = () => arrayOf(text({ max: 253 }), { min: 1, max: 32 })
 const siteUrlPatterns = () => arrayOf(text({ max: 512 }), { max: 64 })
 const siteSelectors = () => arrayOf(text({ max: 512 }), { max: 32 })
 const siteCookiePolicy = () => text({ max: 64 })
@@ -74,27 +82,20 @@ const siteCreateShape = () => object({
 })
 
 /*
- * `sites:update` 的形状是 `Partial<SiteConfigData>`：`updateSite` 逐字段判
- * `!== undefined` 决定进不进 SET 子句，所以每一项都是 `optional`。
+ * 这里原先有一个 `sites:update` 渠道和它的 `Partial<SiteConfigData>` 形状，已删。
  *
- * `isBuiltin` 同样不在 shape 里，理由与 create 一致（`object()` 拒绝多余字段），
- * 而且更要紧：`updateSite` 不校验 `is_builtin`，若允许这个字段传进来，渲染进程就能把
- * 内置站点改成自建、或反过来。
+ * 删的理由不是"没人用所以碍眼"，是它没人用**且**权限最大：`updateSite` 不看
+ * `is_builtin`，所以这个渠道能改内置站点的 `domains` 与 `loginUrlPatterns`；而
+ * `resolveCredentialAutofillTarget` 正是按这两个字段决定"这一页可以填哪个站点的密码"。
+ * 把 codeforces 的 domains 加上一个自己控制的域名、再配一条匹配的 loginUrlPattern，
+ * 保存的 Codeforces 密码就会被填进那个域名的页面。全站点里只有这一个渠道能做到这件事，
+ * 而 `src/` 下没有任何调用点（`preload.ts` 的 `updateSite` 也一并删了）。
+ *
+ * 将来真要做站点编辑 UI，重新加回来时记得：形状里不能有 `isBuiltin`（`object()` 默认
+ * 拒绝多余字段就够），而且要么在 `updateSite` 里补 `is_builtin` 守卫，要么在 handler 里
+ * 先查一次——参照 `site/importExport.ts` 里 `confirmImportSites` 的那道守卫。
+ * `updateSite` 现在唯一的调用点就是那里，守卫也在那里。
  */
-const siteUpdateShape = () => object({
-  id: optional(siteId()),
-  name: optional(siteName()),
-  domains: optional(siteDomains()),
-  homeUrl: optional(siteHomeUrl()),
-  enabled: optional(bool),
-  problemUrlPatterns: optional(siteUrlPatterns()),
-  submitUrlPatterns: optional(siteUrlPatterns()),
-  loginUrlPatterns: optional(siteUrlPatterns()),
-  loginUsernameSelectors: optional(siteSelectors()),
-  loginPasswordSelectors: optional(siteSelectors()),
-  cookiePolicy: optional(siteCookiePolicy()),
-  adapter: optional(siteAdapter()),
-})
 
 /*
  * `sites:confirmImport` 收的是整份站点数组，所以这里要的是**完整**形状而不是 Partial：
@@ -140,12 +141,6 @@ export function registerSitesIpc(options: RegisterSitesIpcOptions = {}): void {
   ipcMain.handle('sites:create', [siteCreateShape()], (_event, data) => {
     const result = createSite(data)
     options.refreshUserScriptRuntime?.()
-    return result
-  })
-
-  ipcMain.handle('sites:update', [siteId(), siteUpdateShape()], (_event, id, data) => {
-    const result = updateSite(id, data)
-    if (result) options.refreshUserScriptRuntime?.()
     return result
   })
 

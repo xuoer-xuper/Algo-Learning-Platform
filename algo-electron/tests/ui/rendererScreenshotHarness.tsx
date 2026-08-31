@@ -366,7 +366,6 @@ function createApiMock(): ElectronAPI {
     getAllSites: async () => sites,
     getSiteById: async (id) => sites.find((site) => site.id === id) ?? null,
     createSite: async (data) => data.id,
-    updateSite: async () => true,
     toggleSite: async () => true,
     deleteSite: async () => true,
     exportSitesConfig: async () => ({ success: true, count: sites.length, path: 'mock-sites.json' }),

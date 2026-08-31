@@ -80,7 +80,6 @@ const coreContracts: PreloadContract[] = [
   { method: 'getAllSites', mode: 'invoke', channel: 'sites:getAll' },
   { method: 'getSiteById', mode: 'invoke', channel: 'sites:getById' },
   { method: 'createSite', mode: 'invoke', channel: 'sites:create' },
-  { method: 'updateSite', mode: 'invoke', channel: 'sites:update' },
   { method: 'toggleSite', mode: 'invoke', channel: 'sites:toggle' },
   { method: 'deleteSite', mode: 'invoke', channel: 'sites:delete' },
   { method: 'getCookieSummaryForSite', mode: 'invoke', channel: 'cookies:getSiteSummary' },

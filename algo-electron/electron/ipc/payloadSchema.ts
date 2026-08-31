@@ -176,12 +176,25 @@ export function oneOf<const T extends readonly (string | number | boolean)[]>(
   })
 }
 
-/** 数组，必须给出长度上限。元素逐个校验，路径带下标。 */
-export function arrayOf<T>(inner: IpcSchema<T>, options: { max: number }): IpcSchema<T[]> {
-  const describeAs = `${inner.describe}[] (max ${options.max})`
+/**
+ * 数组，必须给出长度上限。元素逐个校验，路径带下标。
+ *
+ * `min` 可选、默认 0：多数数组参数（id 名单、历史记录）空着就是"没有"，是合法输入。
+ * 但有一类不是——空数组会被下游当成"有这个字段、值为空"写进库，而不是"没传"。
+ * `sites:create` 的 `domains` 就是这种：写进 `site_configs` 之后
+ * `findMatchingEnabledSite` 用 `.some()` 判定，空数组恒为假，于是那行站点配置在 UI 里
+ * 显示已启用、却永远匹配不上任何 URL。上限拦不住这个，得有下限。
+ *
+ * 不给 `min` 设默认 1：那会让"空名单"这种正常输入在五个现有调用点上一起变成拒绝。
+ */
+export function arrayOf<T>(inner: IpcSchema<T>, options: { min?: number, max: number }): IpcSchema<T[]> {
+  const min = options.min ?? 0
+  const describeAs = min > 0
+    ? `${inner.describe}[] (${min}..${options.max})`
+    : `${inner.describe}[] (max ${options.max})`
   return schema(describeAs, (value, path) => {
     if (!Array.isArray(value)) throw new IpcPayloadError(path, describeAs, value)
-    if (value.length > options.max) throw new IpcPayloadError(path, describeAs, value)
+    if (value.length > options.max || value.length < min) throw new IpcPayloadError(path, describeAs, value)
     return value.map((entry, index) => inner.parse(entry, `${path}[${index}]`))
   })
 }

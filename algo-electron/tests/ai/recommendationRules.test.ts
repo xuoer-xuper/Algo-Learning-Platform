@@ -57,3 +57,22 @@ test('normalizes review plan priority and duration', () => {
   assert.strictEqual(normalizePlanDays(-1), 7)
   assert.strictEqual(normalizePlanDays(14), 14)
 })
+
+/*
+ * 归一函数的前置条件得自己守，不能指望渠道 schema。
+ *
+ * 渠道那侧（`ai:getReviewPlan`）已经是 `int({ min: 1, max: 3650 })`，但
+ * `getReviewPlan` 还有默认参数这条非渠道入口，将来也可能被主进程内部调用。
+ * 原实现只判 `Number.isFinite(x) && x >= 1`，于是 1.5 原样穿过去，变成
+ * `slice(0, 4.5)`、标题 "1.5 天复习计划"，以及写进 INTEGER 列的一个小数。
+ */
+test('normalizePlanDays 拒非整数与无界值', () => {
+  assert.strictEqual(normalizePlanDays(1.5), 7, '小数不是"稍微不对"，是无意义')
+  assert.strictEqual(normalizePlanDays(0), 7)
+  assert.strictEqual(normalizePlanDays(Number.NaN), 7)
+  assert.strictEqual(normalizePlanDays(Number.POSITIVE_INFINITY), 7)
+  // 上限对齐渠道的 3650：maxItems = planDays * 3，无界天数就是无界 slice。
+  assert.strictEqual(normalizePlanDays(3650), 3650)
+  assert.strictEqual(normalizePlanDays(1e9), 3650)
+  assert.strictEqual(normalizePlanDays(1), 1, '下界本身是合法输入')
+})

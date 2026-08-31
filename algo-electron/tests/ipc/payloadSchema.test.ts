@@ -140,6 +140,20 @@ describe('arrayOf', () => {
     rejects(() => arrayOf(text(), { max: 2 }).parse(['a', 'b', 'c'], 'p'))
     rejects(() => arrayOf(text(), { max: 2 }).parse('not-an-array', 'p'))
   })
+
+  test('min 默认 0，显式给了才拒空数组', () => {
+    // 默认放行空数组：id 名单、历史记录这类参数"空着"就是合法的"没有"。
+    assert.deepStrictEqual(arrayOf(text(), { max: 2 }).parse([], 'p'), [])
+    rejects(() => arrayOf(text(), { min: 1, max: 2 }).parse([], 'p'))
+    assert.deepStrictEqual(arrayOf(text(), { min: 1, max: 2 }).parse(['a'], 'p'), ['a'])
+  })
+
+  test('describe 带上下限，便于从日志看出是哪种拒绝', () => {
+    // `rejectSend` 只记 path/expected，不记实际值。上下限不写进 describe 的话，
+    // "空数组被拒"和"超长被拒"在日志里长得一模一样。
+    assert.strictEqual(arrayOf(text(), { min: 1, max: 2 }).describe, `${text().describe}[] (1..2)`)
+    assert.strictEqual(arrayOf(text(), { max: 2 }).describe, `${text().describe}[] (max 2)`)
+  })
 })
 
 describe('object', () => {

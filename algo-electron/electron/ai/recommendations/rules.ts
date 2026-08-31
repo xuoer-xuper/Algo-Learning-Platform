@@ -66,6 +66,23 @@ export function determineReviewPriority(
   return 3
 }
 
+/**
+ * 计划天数归一。
+ *
+ * 原先只判 `Number.isFinite(x) && x >= 1`，于是 `1.5` 原样通过，一路走到
+ * `maxItems = planDays * 3`（`slice(0, 4.5)`）、标题 `"1.5 天复习计划"`、以及写进
+ * `plan_days` 列的小数——SQLite 的 INTEGER 亲和性存不下小数时会退化成 REAL，
+ * 那一列于是混进非整数。不报错，只是结果没有意义。
+ *
+ * `ai:getReviewPlan` 两个渠道已经用 `int({ min: 1, max: 3650 })` 拦在门口，
+ * 这里再收一次是给非渠道调用点兜底（默认参数、将来的内部调用）——渠道校验管的是
+ * 进程边界，函数自己的前置条件不该指望调用方替它守。
+ *
+ * 上限对齐渠道的 3650：`maxItems` 是天数乘 3，无界的话就是无界的 `slice`。
+ */
+const MAX_PLAN_DAYS = 3650
+
 export function normalizePlanDays(planDays: number): number {
-  return Number.isFinite(planDays) && planDays >= 1 ? planDays : 7
+  if (!Number.isInteger(planDays) || planDays < 1) return 7
+  return Math.min(planDays, MAX_PLAN_DAYS)
 }
