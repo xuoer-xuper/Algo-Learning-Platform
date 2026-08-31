@@ -341,10 +341,20 @@ export const contextBridge = {
   },
   executeInMainWorld: ({ func, args = [] }: Electron.ExecutionScript) => func(...args),
 }
+/**
+ * showErrorBox 的调用记录。
+ *
+ * 补这个方法之前替身的 dialog 上根本没有 showErrorBox，而 main.ts 的致命错误上报把
+ * 它包在 createFatalErrorReporter 的 try/catch 里——于是"给用户弹一个致命错误框"
+ * 这条线在测试里永远是抛 TypeError 后被吞掉，没有任何用例察觉。
+ * 记成数组而不是空实现：弹窗内容是唯一的用户可见产物，空实现会让它继续沉默。
+ */
+export const errorBoxes: Array<{ title: string; content: string }> = []
 export const dialog = {
   showOpenDialog: async () => ({ canceled: true, filePaths: [] }),
   showSaveDialog: async () => ({ canceled: true, filePath: undefined }),
   showMessageBox: async () => ({ response: 0 }),
+  showErrorBox: (title: string, content: string) => { errorBoxes.push({ title, content }) },
 }
 export const powerMonitor = new EventEmitter()
 export const screen = { getPrimaryDisplay: () => ({ workArea: { x: 0, y: 0, width: 1920, height: 1080 } }) }
@@ -417,6 +427,7 @@ export function resetElectronMock(): void {
   protocolSchemes.length = 0
   protocolHandlers.clear()
   menuPopups.length = 0
+  errorBoxes.length = 0
   clipboard.text = ''
   clipboard.images.length = 0
   defaultSession.reset()

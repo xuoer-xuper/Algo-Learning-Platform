@@ -428,8 +428,11 @@ const SOURCE_TEXT_AS_ARTIFACT = new Set([
   'tests/components/tokenGovernance.test.ts',
 ])
 const SOURCE_TEXT_DEBT = new Set([
+  // 能行为化的已经搬去 tests/electron/mainStartupContract.test.ts（真 import main.ts，
+  // 换掉 requestSingleInstanceLock / whenReady 就能验闸门与启动失败上报）。剩下的断言都
+  // 落在 createWindowOnce 和 whenReady 的 async 体里——两者不导出，进不去。
+  // 留在 DEBT 而不是 ARTIFACT：把那两段抽成模块就能退掉，是真欠账，不是"文本即契约"。
   'tests/electron/mainResilience.test.ts',
-  'tests/integration/problemTitleExtractionWiring.test.ts',
 ])
 
 check('tests assert behaviour instead of production source text', () => {
