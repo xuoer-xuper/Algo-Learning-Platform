@@ -20,7 +20,7 @@
 
 ```powershell
 cd algo-electron
-npm exec vitest -- run tests/submissions
+npx vitest run tests/submissions
 ```
 
 单个文件在后面加路径即可。这里的测试都走 vitest 的 `electron` 别名（`tests/electron/electronMock.ts`），用裸 tsx 直接跑单文件会解析不到。

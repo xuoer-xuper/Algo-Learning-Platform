@@ -32,7 +32,7 @@
 
 ```powershell
 cd algo-electron
-npm exec vitest run tests/downloads
+npx vitest run tests/downloads
 npm run typecheck
 npm run test:security
 ```

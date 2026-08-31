@@ -27,7 +27,7 @@ npm run test:security
 Vitest 信任边界用例：
 
 ```powershell
-npx vitest run tests\security\trustedSender.test.ts
+npx vitest run tests/security/trustedSender.test.ts
 ```
 
 发布前使用：

@@ -78,5 +78,5 @@
 ```powershell
 cd algo-electron
 node node_modules\typescript\bin\tsc --noEmit
-npx vitest run tests\shared\logger.test.ts
+npx vitest run tests/shared/logger.test.ts
 ```

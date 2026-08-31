@@ -17,6 +17,7 @@
 - `docs/` 命名检查：除 `README.md` 外，文档文件和子目录必须使用大写和下划线；同时检查 Git 索引中的真实大小写，避免 Windows 本地通过但全新 checkout 失败。
 - `docs/README.md` 总索引覆盖检查：根目录长期 Markdown、`docs/` 成品文档、ADR 和已纳入守卫的 README 必须能从总索引找到。
 - Markdown 中的 `npm run <script>` 引用检查：真实脚本名必须存在于 `algo-electron/package.json`，`npm run test:*` 这类通配说明不作为具体脚本校验。
+- Markdown 中的 `npx vitest run <路径>` 检查：路径必须真实存在，且统一用正斜杠、统一用 `npx vitest run`（`npm exec vitest` 的两种变体不再允许）。加这条的原因是 vitest 对不存在的路径只报 `No test files found` 并以 0 退出——测试改名或移动后 README 会静默失效，读者以为自己跑过了。建立时全仓 16 个文件里有 10 处不合规（3 种写法混用 + 反斜杠路径）。
 
 检查会跳过 `node_modules/`、`tmp/`、`release/`、`dist/` 和 `dist-electron/` 等生成目录。
 

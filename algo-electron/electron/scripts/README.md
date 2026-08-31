@@ -144,7 +144,7 @@
 ```powershell
 cd algo-electron
 npm run typecheck
-npm exec vitest -- run tests/scripts tests/browser/ojSession.test.ts tests/browser/contextMenu.test.ts tests/ipc/registerBrowserShellIpc.test.ts
+npx vitest run tests/scripts tests/browser/ojSession.test.ts tests/browser/contextMenu.test.ts tests/ipc/registerBrowserShellIpc.test.ts
 npm run test:electron
 ```
 

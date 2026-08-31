@@ -21,5 +21,5 @@
 
 ```powershell
 cd algo-electron
-npx vitest run tests\shared
+npx vitest run tests/shared
 ```

@@ -270,6 +270,58 @@ function checkNpmScriptReferences() {
   return errors
 }
 
+/**
+ * README 里写的 `npx vitest run <路径>` 必须真的指向存在的测试路径。
+ *
+ * 与 checkNpmScriptReferences 同理：入口写错时读者会以为自己跑过了，而 vitest 对不存在
+ * 的路径只报 "No test files found" 并以 0 退出——不会有任何人发现。测试文件改名或移动
+ * 之后 README 静默失效，这条负责把它报出来。
+ *
+ * 同时统一写法：`npm exec vitest` 两种变体不再允许，三种写法混用没有任何收益。
+ */
+/**
+ * 取出 Markdown 里所有围栏代码块的内容。
+ *
+ * 命令类检查只看围栏内：行文里提到某个写法（"不要用 npm exec vitest"、
+ * `npx vitest run <路径>` 这样的占位说明）不是命令，否则这条检查会先把解释它自己的
+ * 那份文档判成违规。
+ */
+function extractFencedBlocks(text) {
+  return [...text.matchAll(/```[^\n]*\n([\s\S]*?)```/g)].map(match => match[1])
+}
+
+function checkVitestPathReferences() {
+  const errors = []
+  const markdownFiles = walkFiles(repoRoot, (filePath) => filePath.toLowerCase().endsWith('.md'))
+  const commandPattern = /npx\s+vitest\s+run\s+([^\n]+)/g
+  const legacyPattern = /npm\s+exec\s+vitest\b/
+
+  for (const markdownFile of markdownFiles) {
+    const relativeFile = path.relative(repoRoot, markdownFile)
+    const text = extractFencedBlocks(fs.readFileSync(markdownFile, 'utf8')).join('\n')
+
+    if (legacyPattern.test(text)) {
+      errors.push(`${relativeFile}: 用 npx vitest run，不要用 npm exec vitest`)
+    }
+
+    let match
+    while ((match = commandPattern.exec(text)) !== null) {
+      for (const target of match[1].trim().split(/\s+/)) {
+        if (target.startsWith('-')) continue
+        if (target.includes('\\')) {
+          errors.push(`${relativeFile}: 测试路径用正斜杠，不要用反斜杠：${target}`)
+          continue
+        }
+        if (!fs.existsSync(path.join(projectRoot, target))) {
+          errors.push(`${relativeFile}: 引用的测试路径不存在：${target}`)
+        }
+      }
+    }
+  }
+
+  return errors
+}
+
 function getDocsIndexRequiredTargets() {
   const targets = new Set()
 
@@ -385,6 +437,7 @@ const errors = [
   ...checkReadmeContentQuality(),
   ...checkDocsIndexCoverage(),
   ...checkNpmScriptReferences(),
+  ...checkVitestPathReferences(),
 ]
 
 if (errors.length > 0) {

@@ -164,7 +164,7 @@ npm run test:all
 单个测试：
 
 ```powershell
-npx vitest run tests\coach\arkClient.test.ts
+npx vitest run tests/coach/arkClient.test.ts
 npx playwright test tests\ui\rendererScreenshots.pw.spec.ts --grep "narrow container"
 ```
 

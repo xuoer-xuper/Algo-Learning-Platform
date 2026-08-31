@@ -35,13 +35,13 @@ $env:ELECTRON_RUN_AS_NODE='1'; node_modules\.bin\electron.cmd tmp\db-repositorie
 Omnibox 建议聚焦测试：
 
 ```powershell
-npm exec vitest -- run tests/db/omniboxSuggestions.test.ts
+npx vitest run tests/db/omniboxSuggestions.test.ts
 ```
 
 用户脚本身份聚焦测试：
 
 ```powershell
-npm exec vitest -- run tests/db/userScriptIdentityMigration.test.ts tests/db/userScriptIdentityRepository.test.ts
+npx vitest run tests/db/userScriptIdentityMigration.test.ts tests/db/userScriptIdentityRepository.test.ts
 ```
 
 ## 4. 新增规则

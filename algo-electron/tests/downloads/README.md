@@ -14,10 +14,10 @@
 
 ```powershell
 cd algo-electron
-npm exec vitest run tests/downloads
+npx vitest run tests/downloads
 ```
 
-`tests/verify.mjs` 的 core suite 同时包含本目录。
+`npm run test:core` 跑整个 Vitest 套件，本目录自然包含在内——不需要往任何名单里登记。
 
 ## 4. 边界规则
 

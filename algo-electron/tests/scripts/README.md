@@ -26,7 +26,7 @@
 
 ```powershell
 cd algo-electron
-npm exec vitest -- run tests/scripts
+npx vitest run tests/scripts
 ```
 
 ## 4. 新增规则

@@ -177,7 +177,7 @@ Browser 相关自动测试覆盖提交桥、导航策略、权限策略、Chromi
 
 ```powershell
 cd algo-electron
-npx vitest run tests\browser
+npx vitest run tests/browser
 npm run test:electron
 ```
 

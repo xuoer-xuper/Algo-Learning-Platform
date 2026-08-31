@@ -78,7 +78,7 @@
 ```powershell
 cd algo-electron
 node node_modules\typescript\bin\tsc --noEmit
-npm exec vitest -- run tests/ipc
+npx vitest run tests/ipc
 ```
 
 涉及启动时机或 handler 注册顺序时追加运行：
@@ -90,5 +90,5 @@ npx --yes tsx tests\electron\startupSmoke.test.ts
 信任边界和畸形 payload：
 
 ```powershell
-npx vitest run tests\security\trustedSender.test.ts
+npx vitest run tests/security/trustedSender.test.ts
 ```

@@ -197,7 +197,7 @@ node tmp\submissions-submissionBatchWriter.test.mjs
 
 ```powershell
 cd algo-electron
-npx vitest run tests\scripts tests\browser\ojSession.test.ts tests\browser\contextMenu.test.ts
+npx vitest run tests/scripts tests/browser/ojSession.test.ts tests/browser/contextMenu.test.ts
 ```
 
 ## 12. 统计页异常
