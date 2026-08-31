@@ -251,6 +251,26 @@ Q1–Q4 是确定工作量的机械活，不含架构决策，应连续执行。
 
 45 处 `any` 中,值得收的是 IPC 边界上那些——那里 `any` 会让 `checkIpcPayload` 的校验成果在类型层失效。其余（测试替身、第三方交互）按实际情况保留并注明。
 
+**实施结论**：起始计数应为 **51 处**而非 45（原统计漏了 `as any` 形式）。四批提交后 `electron/` 里只剩 **1 处**，且是刻意保留的。
+
+| 批次 | 提交 | 内容 |
+|---|---|---|
+| 1 | `54bd75d` | 用 `ScrapedSubmission` 承载抓取线索，消掉 12 处 `as any`。原先抓取器把题目线索塞进声明为 `SubmissionData` 的对象，下游只能 `as any` 捞回来 |
+| 2 | `51ff33d` | 8 处 `catch (e: any)` 收敛到新增的 `electron/shared/errors.ts`；顺带合并 19 份重复实现（7 份同名本地副本 + 12 处内联展开） |
+| 3 | `ddf30a7` | 数据库行、外部响应、注入脚本结果补真实类型：`NoteRow`、`AppliedVersionRow`、`CFUserInfoResponse`，6 处 `Promise<any>` → `Promise<unknown>` |
+| 4 | `4f2137d` | 洛谷/PTA 抓取器载荷改用收窄（`LuoguRecord` + `PtaTableRow`），消掉最后 12 处 |
+
+**收窄暴露出的真实缺陷（不只是类型问题）**：
+
+- `syncService` 与 migration 009/011 的 `e.message` 在非 `Error` 抛出时**自己会抛 TypeError**，把真正的失败原因替换成"读不到 undefined 的属性"。
+- `domScraper` 的 `data?.tables` 是对跨进程值的无检查属性访问，`Promise<any>` 让不存在的属性也能编译通过。
+- PTA `cells[problemIdx].match(...)` 在行单元格数少于表头列数时（合并单元格、加载中占位行）抛异常，**中断整批解析**。已加存在性判断并补测试。
+- 洛谷 `runtimeMs: record.time` 把字符串直接赋给声明为 `number` 的字段。已用 `finiteNumber` 统一转换，非数字落为"没这项"而不是 `NaN`。
+
+四条新测试各用一次变异验证过：改回旧写法时恰好一条断言变红。
+
+**刻意保留的 1 处**：`electron/ipc/trustedSender.ts` 的 `IpcListener` 仍是 `any[]`。收紧成 `unknown[]` 会让 12 个 `register*.ts` 里 **73 个处理器**一起报错——它们都把渲染进程传来的参数当成已校验类型用，而实际没有任何一处校验。这个 `any` 掩盖的是**渠道载荷校验缺失**这个真实缺口，不是类型标注问题；只改类型再补 73 处 `as` 只是把谎言搬个地方。已在该处注明当前防线（`checkShellSender` + `checkIpcPayload` 的结构性拦截）与正确补法，列为独立加固项。
+
 ## 5. 明确不做
 
 以下经核查确认为合理设计或实测无收益，**不列为缺陷，不做改动**：
@@ -310,4 +330,4 @@ Q1–Q4 是确定工作量的机械活，不含架构决策，应连续执行。
 | Q4 | [x] | 已完成。守卫增至 12 条（新增裸 hex，按文件豁免三个 token 定义文件而非棘轮预算）。`NOTE_TYPE_COLORS` 及 `+ '20'` 拼 alpha 删除，笔记徽标改 CSS 修饰类，对比度从 1.23~1.94:1 提到浅色 6.11~6.70 / 深色 5.54~7.74（原方案的等值替换会保留这个可达性缺陷，见偏差 1）；4 处裸 hex（计划漏了 `#585b70`）收成 `--color-on-fill` / `--color-sys-close` 两个 token，样式文件裸 hex 归零。`ProblemSidebar` / `NoteEditorPane` / `UserScriptEditor` / `ErrorBoundary` 四个文件的裸控件换成 ui/ 原语，棘轮欠账条目由陈旧分支强制清空，`HomePage` 2 处改判长期例外。顺带：`Select` 补 `size="sm"` 缺口、修掉源码框 `rows` 被 `height:30px` 压死的渲染 bug、补 2 处图标按钮缺失的 `aria-label`、`ErrorBoundary` 移出 Tailwind（Tailwind 由此零消费者，是否删依赖单独定）。新增 `controlGovernance.test.ts` 7 例 + 裸 hex 反向验证 4 例 |
 | Q5 | [x] | 三个 preload 全部纳入覆盖率并补测试（`preloadSurface` 逐个调用 ~200 个暴露方法验转发、`ojPreloadModule` 11 例、`userscriptBootstrapPreloadModule` 12 例）；四项覆盖率反而全涨到 59.52/56.41/57.67/62.07，门槛上调至 56/53/54/59。原"无法执行"论据不成立，纠正见 §4 Q5 偏差 3 —— `vi.resetModules()` 导致两条负向断言曾凭空通过 |
 | Q6 | [x] | 已完成（搬移经测量后判定不做，理由见 §4 Q6 偏差末段）。安全网：新增 `tabManagerNavigationGuard.test.ts`（14 例）与 4 个文件的补充用例，共 5 条变异检查逐条确认承重；顺带修掉两个既存缺陷：`userscriptBootstrapPreloadModule.test.ts` 里固定等一轮 `setTimeout(0)` 造成的间歇性失败（修前约 1/4 概率红，修后连续 4 轮全绿），以及 `tabManagerFindZoom.test.ts` 缺失的 `FindInPageViewState` import。清理：删 `getTitleForUrl`、`emitZoomState` 的 `factor` 改必填并删不可达分支、两个导航孪生体合成一个 `handleDocumentNavigation`、六个通知条布尔收成 `visibleNotices: Set`、六个 `add*Listener` 收成一个 `subscribe` 泛型辅助——净减 40 行，公开接口零变动。**侦察结论改变了拆分方案，见 §4 Q6 偏差** |
-| Q7 | [ ] | 待实施 |
+| Q7 | [x] | 已完成。起始计数纠正为 51 处（原 45 漏了 `as any`），四批提交后 `electron/` 剩 1 处且为刻意保留（`IpcListener`，理由见 §4 Q7）。收窄不是纯类型活：暴露并修掉 4 个真实缺陷——`syncService` 与 migration 009/011 的 `e.message` 在非 `Error` 抛出时自己抛 TypeError 覆盖真实失败原因、`domScraper` 对跨进程值的无检查属性访问、PTA 缺列行让 `.match()` 抛异常中断整批解析、洛谷把字符串赋给声明为 `number` 的字段。顺带把 19 份重复的 `errorMessage`/`errorName` 合并到 `electron/shared/errors.ts`。新增 7 个用例，各经变异验证 |
