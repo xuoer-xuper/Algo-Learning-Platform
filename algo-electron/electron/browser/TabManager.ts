@@ -1991,13 +1991,13 @@ export class TabManager {
     this.setNoticeVisible('credentialCapture', visible)
   }
 
-  async executeScript(code: string, userGesture = false): Promise<any> {
+  async executeScript(code: string, userGesture = false): Promise<unknown> {
     const tab = this.activeTabId ? this.findTab(this.activeTabId) : null
     if (!this.isWebTab(tab) || tab.isCrashed) return null
     return tab.view.webContents.executeJavaScript(code, userGesture)
   }
 
-  async executeScriptOnUrl(url: string, code: string): Promise<any> {
+  async executeScriptOnUrl(url: string, code: string): Promise<unknown> {
     for (const tab of this.tabs) {
       if (tab.kind !== 'web') continue
       if (tab.isCrashed) continue
@@ -2161,12 +2161,12 @@ export class TabManager {
     }
   }
 
-  async executeScriptForPage(event: BrowserPageEvent, code: string, userGesture = false): Promise<any> {
+  async executeScriptForPage(event: BrowserPageEvent, code: string, userGesture = false): Promise<unknown> {
     const tab = this.resolvePageTab(event)
     return tab.view.webContents.executeJavaScript(code, userGesture)
   }
 
-  async executeScriptAcrossFramesForPage(event: BrowserPageEvent, code: string): Promise<any> {
+  async executeScriptAcrossFramesForPage(event: BrowserPageEvent, code: string): Promise<unknown> {
     const tab = this.resolvePageTab(event)
     return executeScriptAcrossFrames(tab, event.url, code)
   }

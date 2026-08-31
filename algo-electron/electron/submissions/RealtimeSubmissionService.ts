@@ -7,7 +7,7 @@ import { RealtimeSubmissionDiagnostics, type RealtimeSubmissionStatus } from './
 import { RealtimeHookInjector } from './RealtimeHookInjector'
 import { SubmissionWatcher, SUBMISSION_WATCHER_DETECTED_EVENT } from './SubmissionWatcher'
 import type { SubmissionNotification } from './SubmissionWatcherCore'
-import { handleFromOj, handleFromShell, onFromOj } from '../ipc/trustedSender'
+import { handleFromOj, handleFromShell, onFromOj, type IpcListener } from '../ipc/trustedSender'
 import { OJ_SUBMISSION_TOKEN_CHANNEL as DOCUMENT_TOKEN_CHANNEL } from '../browser/ojBridge'
 import { appLogger, type Logger } from '../shared/logger'
 
@@ -20,7 +20,11 @@ export class RealtimeSubmissionService {
   private readonly diagnostics = new RealtimeSubmissionDiagnostics()
   private readonly hookInjector: RealtimeHookInjector
   private readonly ipcHandler: (event: IpcMainEvent, payload: unknown) => void
-  private registeredIpcHandler: ((event: IpcMainEvent, ...args: any[]) => any) | null = null
+  /**
+   * 存的是 `onFromOj` 返回的守卫包装器，不是 `ipcHandler` 本身——注销时必须传同一个函数
+   * 引用给 `ipcMain.off`。类型直接引用 `IpcListener`，`any` 收敛到那一个定义处。
+   */
+  private registeredIpcHandler: IpcListener<IpcMainEvent> | null = null
   private readonly tabManagerCleanups = new Map<TabManager, () => void>()
   private readonly pageHosts = new Map<number, {
     tabManager: TabManager

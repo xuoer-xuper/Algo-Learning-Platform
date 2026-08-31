@@ -2,6 +2,11 @@ import type Database from 'better-sqlite3'
 import { nowBeijing } from '../shared/time'
 import { appLogger, type Logger } from '../shared/logger'
 
+/** `schema_migrations` 只查 version 一列时的行形状。 */
+interface AppliedVersionRow {
+  version: number
+}
+
 export interface Migration {
   version: number
   name: string
@@ -20,7 +25,7 @@ export function getPendingMigrations(
   if (!migrationTable) return [...migrations]
 
   const applied = new Set(
-    db.prepare('SELECT version FROM schema_migrations').all().map((row: any) => row.version),
+    db.prepare<[], AppliedVersionRow>('SELECT version FROM schema_migrations').all().map(row => row.version),
   )
   return migrations.filter(migration => !applied.has(migration.version))
 }
@@ -39,7 +44,7 @@ export function runMigrations(
   `)
 
   const applied = new Set(
-    db.prepare('SELECT version FROM schema_migrations').all().map((r: any) => r.version)
+    db.prepare<[], AppliedVersionRow>('SELECT version FROM schema_migrations').all().map(row => row.version)
   )
 
   const insertMigration = db.prepare(

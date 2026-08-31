@@ -18,7 +18,7 @@ export interface TableParseContext {
 
 export interface SubmissionScrapeContext {
   getUrl(): string
-  executeScript(code: string): Promise<any>
+  executeScript(code: string): Promise<unknown>
 }
 
 export interface SubmissionDetectionPayload {

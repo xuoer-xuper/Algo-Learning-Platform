@@ -39,15 +39,36 @@ export interface CreateNoteInput {
   note_type?: NoteType
 }
 
-function rowToNote(row: any): Note {
+/**
+ * `notes` 表的行形状，字段可空性照抄 `docs/DESIGN/DATABASE_SCHEMA.md` §7.1。
+ *
+ * `note_type` 在库里是裸 TEXT，没有 CHECK 约束，所以这里也不谎称它是 `NoteType`
+ * ——收窄发生在 `rowToNote` 里，那是唯一有资格判断的地方。
+ */
+interface NoteRow {
+  id: string
+  problem_id: string | null
+  title: string
+  file_path: string
+  note_type: string
+  content: string
+  word_count: number
+  created_at: string
+  updated_at: string
+}
+
+function rowToNote(row: NoteRow): Note {
   return {
     id: row.id,
     problem_id: row.problem_id,
     title: row.title,
     file_path: row.file_path,
     note_type: row.note_type as NoteType,
-    content: row.content ?? '',
-    word_count: row.word_count ?? 0,
+    // 不再 `?? ''`：migration 011 的 `NOT NULL DEFAULT ''` 会回填存量行，且全仓只有一条
+    // INSERT 路径且必传 content，所以这两列不可能为 null。真正的存量情况是 content 为
+    // 空串——那由 `getNoteWithContent` 里的回读文件分支处理。
+    content: row.content,
+    word_count: row.word_count,
     created_at: row.created_at,
     updated_at: row.updated_at,
   }
@@ -89,7 +110,7 @@ export function getNotesByProblem(problemId: string): Note[] {
   const db = getDb()
   const rows = db.prepare(`
     SELECT * FROM notes WHERE problem_id = ? ORDER BY updated_at DESC
-  `).all(problemId) as any[]
+  `).all(problemId) as NoteRow[]
   return rows.map(rowToNote)
 }
 
@@ -98,14 +119,14 @@ export function getAllNotes(): Note[] {
   const db = getDb()
   const rows = db.prepare(`
     SELECT * FROM notes ORDER BY updated_at DESC
-  `).all() as any[]
+  `).all() as NoteRow[]
   return rows.map(rowToNote)
 }
 
 // 获取单条笔记（优先使用 DB 缓存内容；若缓存为空则回读文件）
 export function getNoteWithContent(noteId: string): NoteWithContent | null {
   const db = getDb()
-  const row = db.prepare(`SELECT * FROM notes WHERE id = ?`).get(noteId) as any | undefined
+  const row = db.prepare(`SELECT * FROM notes WHERE id = ?`).get(noteId) as NoteRow | undefined
   if (!row) return null
   const note = rowToNote(row)
 

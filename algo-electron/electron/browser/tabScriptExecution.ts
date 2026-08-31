@@ -4,7 +4,7 @@ export async function executeScriptAcrossFrames(
   tab: ManagedWebTab,
   topPageUrl: string,
   code: string,
-): Promise<any> {
+): Promise<unknown> {
   const wrappedCode = `try { window.__ALGO_TOP_PAGE_URL = ${JSON.stringify(topPageUrl)}; } catch (_) {}\n${code}`
   const result = await tab.view.webContents.executeJavaScript(wrappedCode)
   const frames = tab.view.webContents.mainFrame?.framesInSubtree ?? []

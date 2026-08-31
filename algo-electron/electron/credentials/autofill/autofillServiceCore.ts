@@ -11,8 +11,10 @@ export interface AutofillWebContents {
   getURL(): string
   isDestroyed?(): boolean
   send(channel: string, payload: OjCredentialFillPayload): void
-  on(event: 'dom-ready' | 'did-navigate' | 'did-navigate-in-page' | 'destroyed', listener: (...args: any[]) => void): void
-  once?(event: 'destroyed', listener: (...args: any[]) => void): void
+  // 监听器一律零参：这四个事件在这里只用来触发失效/清理，从不读事件参数。
+  // 声明成 `(...args: any[]) => void` 会让"以后想读 url"看起来是被允许的，实际并没有。
+  on(event: 'dom-ready' | 'did-navigate' | 'did-navigate-in-page' | 'destroyed', listener: () => void): void
+  once?(event: 'destroyed', listener: () => void): void
 }
 
 export interface CredentialAutofillDependencies {
