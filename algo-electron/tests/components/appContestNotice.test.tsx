@@ -6,10 +6,19 @@ let contestListener: ((payload: CoachContestModePayload) => void) | null = null
 const unsubscribeContest = vi.fn()
 let getCoachState = vi.fn<() => Promise<CoachStateSnapshot | null>>()
 let permissionListener: ((prompt: UserScriptHostPermissionPrompt) => void) | null = null
-const respondPermission = vi.fn(async () => 'allowed' as UserScriptHostPermissionResponse)
+/*
+ * 这两个替身要标上形参，不能只写 `vi.fn(async () => …)`。
+ *
+ * 不标的话它们的类型是"零参函数"，而下面的 mock 实现和 `toHaveBeenCalledWith('prompt-1', true)`
+ * 都在传两个参数——报错是 "Expected 0 arguments, but got 2"。也就是说这两条断言原先在类型上
+ * 根本对不上，只是运行时 vi.fn 照单全收才没暴露。标上签名后参数名和类型写错会当场报错。
+ */
+const respondPermission = vi.fn(
+  async (_promptId: string, _allow: boolean) => 'allowed' as UserScriptHostPermissionResponse,
+)
 let capturePromptListener: ((prompt: CredentialCapturePrompt) => void) | null = null
 let captureResultListener: ((result: CredentialCaptureResult) => void) | null = null
-const respondCapture = vi.fn(async () => true)
+const respondCapture = vi.fn(async (_captureId: string, _action: CredentialCaptureAction) => true)
 
 function createCoachState(isContestMode: boolean): CoachStateSnapshot {
   return {

@@ -2,10 +2,13 @@ import assert from 'node:assert/strict'
 import { EventEmitter } from 'node:events'
 import { test } from 'vitest'
 import type { CredentialVault } from '../../electron/credentials/CredentialVault'
+import type { OjCredentialFillPayload } from '../../electron/credentials/autofill/credentialAutofillBridge'
 import { CredentialAutofillService } from '../../electron/credentials/autofill/CredentialAutofillService'
 
 class FakeContents extends EventEmitter {
-  readonly sent: Array<{ channel: string; payload: unknown }> = []
+  // 载荷记真实类型而不是 unknown：`unknown` 让 `sent[0].payload.credentialId` 报
+  // "Object is of type 'unknown'"，标上以后是有类型的属性访问，字段名写错会当场报错。
+  readonly sent: Array<{ channel: string; payload: OjCredentialFillPayload }> = []
 
   constructor(
     readonly id: number,
@@ -17,7 +20,7 @@ class FakeContents extends EventEmitter {
 
   getURL(): string { return this.url }
   isDestroyed(): boolean { return false }
-  send(channel: string, payload: unknown): void { this.sent.push({ channel, payload }) }
+  send(channel: string, payload: OjCredentialFillPayload): void { this.sent.push({ channel, payload }) }
 }
 
 test('global web-contents-created listener attaches only the persistent OJ session and disposes cleanly', async () => {

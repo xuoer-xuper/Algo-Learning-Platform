@@ -3,7 +3,7 @@ import fs from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import { test, vi } from 'vitest'
-import { MockBrowserWindow } from 'electron'
+import { MockBrowserWindow } from '../electron/electronMock'
 import {
   installWindowStatePersistence,
   normalizeWindowState,

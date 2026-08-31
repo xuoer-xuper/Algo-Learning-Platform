@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { beforeEach, test } from 'vitest'
-import { MockBrowserWindow, resetElectronMock } from 'electron'
+import { MockBrowserWindow, resetElectronMock } from '../electron/electronMock'
 import { TabManager } from '../../electron/browser/TabManager.ts'
 import { ViewRegistry } from '../../electron/windows/ViewRegistry.ts'
 
@@ -36,7 +36,18 @@ test('moves the same web view and stable tab id to the target event owner', asyn
   assert.equal(target.getActiveTabId(), movedId)
   assert.deepEqual(targetWindow.contentView.children, [view])
   assert.equal(registry.get(view.webContents.id)?.windowId, 'target')
-  view.webContents.setTitle('Moved title')
+  /*
+   * 直接 emit 事件，而不是调 `setTitle`。
+   *
+   * `view` 是从 `ViewRegistry` 取的，类型是真实的 `WebContentsView`——而真实 `WebContents`
+   * 上没有 `setTitle`（那是 `BrowserWindow` 的方法），只有替身自己加了一个。要用它就得强转，
+   * 而强转恰好会盖掉这里唯一值得类型检查的东西：事件名和参数位置。
+   *
+   * 生产代码 `TabManager.ts:674` 收的就是 `(_event, title)`，emit 这一行和 Electron 真实
+   * 发出来的形状一致；替身的 `setTitle` 内部也只是 set 字段再 emit 同一个事件，而 title 字段
+   * 在这条断言链上没人读（生产读的是事件参数和 `getURL()`）。
+   */
+  view.webContents.emit('page-title-updated', {}, 'Moved title')
   assert.deepEqual(sourceTitles, [])
   assert.deepEqual(targetTitles, ['Moved title'])
 

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { MockBrowserWindow, type MockWebContents, resetElectronMock } from 'electron'
+import { MockBrowserWindow, type MockWebContents, resetElectronMock } from '../electron/electronMock'
 import { TabManager } from '../../electron/browser/TabManager.ts'
 import {
   ContestUrlAggregator,

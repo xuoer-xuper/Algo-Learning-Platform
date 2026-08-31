@@ -1,7 +1,15 @@
 import path from 'node:path'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest'
 import type { UserScript } from '../../electron/db/repositories/userScriptRepository'
+import type { PersistUserScriptInstallOptions } from '../../electron/scripts/UserScriptInstaller'
 import { UserScriptUpdateService } from '../../electron/scripts/UserScriptUpdateService'
+
+/**
+ * 裸 `vi.fn()` 的类型是 `Mock<Constructable | Procedure>`，带上 Constructable 那一支
+ * 就不满足 persistInstall 的签名了。按生产签名标注替身，顺带让"传错了参数形状"这类
+ * 问题在编译期就露出来。
+ */
+type PersistInstallMock = Mock<(options: PersistUserScriptInstallOptions) => Promise<string>>
 
 function script(overrides: Partial<UserScript> = {}): UserScript {
   return {
@@ -157,7 +165,7 @@ describe('UserScriptUpdateService', () => {
       if (url.endsWith('.meta.js')) return new Response(metadata('Helper', '2.0.0'))
       return new Response(userscript('Different Helper', '2.0.0'))
     })
-    const persistInstall = vi.fn()
+    const persistInstall = vi.fn(async () => installed.id)
     const service = createService(installed, fetch, persistInstall)
 
     const summary = await service.checkAll(true)
@@ -170,7 +178,7 @@ describe('UserScriptUpdateService', () => {
   it('skips automatic checks until next_check_at is due', async () => {
     const installed = script()
     const fetch = vi.fn()
-    const service = createService(installed, fetch, vi.fn(), '2026-08-21T12:00:00.000')
+    const service = createService(installed, fetch, vi.fn(async () => installed.id), '2026-08-21T12:00:00.000')
 
     const summary = await service.checkAll(false)
 
@@ -181,7 +189,7 @@ describe('UserScriptUpdateService', () => {
   function createService(
     installed: UserScript,
     fetch: (input: string, init?: RequestInit) => Promise<Response>,
-    persistInstall: ReturnType<typeof vi.fn>,
+    persistInstall: PersistInstallMock,
     nextCheckAt = '2026-08-19T12:00:00.000',
   ): UserScriptUpdateService {
     return new UserScriptUpdateService({
@@ -208,7 +216,10 @@ describe('UserScriptUpdateService', () => {
         markAvailable: marks.available,
         markCurrent: marks.current,
         markError: marks.error,
-        logger: { warn: vi.fn() } as never,
+        logger: {
+          debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn(), fatal: vi.fn(),
+          getLogFilePath: () => null,
+        },
       },
     })
   }

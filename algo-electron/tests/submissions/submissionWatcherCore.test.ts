@@ -8,7 +8,17 @@ test('submissions/submissionWatcherCore.test.ts', async () => {
 
 const notifications: SubmissionNotification[] = []
 const savedSubmissions: SubmissionData[] = []
-let upsertedProblem: ProblemIdentity | null = null
+/*
+ * 收进数组而不是 `let upsertedProblem: ProblemIdentity | null = null`。
+ *
+ * 赋值发生在 `writeSubmission` 的闭包里，TS 的控制流分析看不见，于是在断言处仍认定它是
+ * `null`，`upsertedProblem?.platformProblemId` 收窄成 `never` 后报"Property 'platformProblemId'
+ * does not exist on type 'never'"——和"可能为 null"完全不像。
+ *
+ * 数组顺带把"到底写了几次"也纳入断言：原先每次 writeSubmission 都覆盖同一个变量，
+ * 多写一次和少写一次都看不出来。
+ */
+const upsertedProblems: Array<ProblemIdentity | null> = []
 
 const core = new SubmissionWatcherCore({
   getAdapter: (id) => id === leetcodeAdapter.id ? leetcodeAdapter : undefined,
@@ -22,7 +32,7 @@ const core = new SubmissionWatcherCore({
   },
   isSiteEnabled: (id) => id === leetcodeAdapter.id,
   writeSubmission: (submission, identity) => {
-    upsertedProblem = identity
+    upsertedProblems.push(identity)
     if (identity) submission.problemId = `${identity.platform}:${identity.platformProblemId}`
     savedSubmissions.push(submission)
     return true
@@ -60,6 +70,8 @@ assert.deepStrictEqual(result.notification, {
   verdict: 'AC',
   problemId: 'leetcode-cn:two-sum',
 }, 'Watcher should return the saved submission notification details')
+assert.strictEqual(upsertedProblems.length, 1, 'Watcher should write the submission exactly once')
+const [upsertedProblem] = upsertedProblems
 assert.strictEqual(upsertedProblem?.platformProblemId, 'two-sum', 'Watcher should upsert the resolved problem identity')
 assert.strictEqual(savedSubmissions.length, 1, 'Watcher should save one submission')
 assert.strictEqual(savedSubmissions[0].problemId, 'leetcode-cn:two-sum', 'Watcher should attach the resolved problem id')

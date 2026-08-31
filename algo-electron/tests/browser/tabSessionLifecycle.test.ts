@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { MockBrowserWindow, resetElectronMock } from 'electron'
+import { MockBrowserWindow, resetElectronMock } from '../electron/electronMock'
 import { installWindowSessionFlush } from '../../electron/browser/tabSessionLifecycle'
 
 interface Deferred {

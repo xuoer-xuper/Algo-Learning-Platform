@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'vitest'
-import { MockBrowserWindow, MockWebContents, clipboard, resetElectronMock } from 'electron'
+import { clipboard } from 'electron'
+import { MockBrowserWindow, MockWebContents, resetElectronMock } from '../electron/electronMock'
 import {
   createPageContextMenuTemplate,
   createShellContextMenuTemplate,

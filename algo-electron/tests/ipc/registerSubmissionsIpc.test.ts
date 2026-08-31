@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import { beforeEach, test } from 'vitest'
-import { ipcMain, MockBrowserWindow, MockWebContents, resetElectronMock } from 'electron'
+import { ipcMain } from 'electron'
+import { MockBrowserWindow, MockWebContents, resetElectronMock } from '../electron/electronMock'
 import { registerSubmissionsIpc } from '../../electron/ipc/registerSubmissionsIpc.ts'
 import { registerShellWebContents, resetTrustedSenderRegistry } from '../../electron/ipc/trustedSender.ts'
 import type { SyncService } from '../../electron/submissions/syncService.ts'

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest'
-import { MockBrowserWindow, resetElectronMock } from 'electron'
+import { MockBrowserWindow, resetElectronMock } from '../electron/electronMock'
 import { TabManager } from '../../electron/browser/TabManager.ts'
 import { AppWindow } from '../../electron/windows/AppWindow.ts'
 import { TabTransferCoordinator } from '../../electron/windows/TabTransferCoordinator.ts'

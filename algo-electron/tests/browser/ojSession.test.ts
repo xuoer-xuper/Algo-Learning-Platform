@@ -8,8 +8,18 @@ afterEach(() => {
   webContents.fromId = () => undefined
 })
 
+/**
+ * 替身要带上它所替代的签名。
+ *
+ * 原先写的是 `vi.fn(async () => undefined)`，形参是空的，`mock.calls` 于是被推成 `[][]`，
+ * 读 `calls[0][0]` 报 "Tuple type '[]' of length '0' has no element at index '0'"——
+ * 也就是说这几处断言一直在对类型上并不存在的位置取值。标上真实签名之后
+ * `calls[0][0]` 是 string、`calls[0][1]` 是 `boolean | undefined`，下标写错会当场报错。
+ */
+const createExecuteJavaScriptSpy = () => vi.fn(async (_code: string, _userGesture?: boolean) => undefined)
+
 test('does not install a global CORS response rewriter and preserves HTML stealth injection', async () => {
-  const executeJavaScript = vi.fn(async () => undefined)
+  const executeJavaScript = createExecuteJavaScriptSpy()
   webContents.fromId = () => ({ executeJavaScript }) as never
   const ojSession = configureOjSession({ getSiteById: () => null }) as unknown as ReturnType<typeof session.fromPartition>
 
@@ -27,7 +37,7 @@ test('does not install a global CORS response rewriter and preserves HTML stealt
 })
 
 test('injects the realtime hook before page scripts run and pins the top page url', async () => {
-  const executeJavaScript = vi.fn(async () => undefined)
+  const executeJavaScript = createExecuteJavaScriptSpy()
   webContents.fromId = () => ({ executeJavaScript }) as never
   const ojSession = configureOjSession({ getSiteById: () => null }) as unknown as ReturnType<typeof session.fromPartition>
 
@@ -52,7 +62,7 @@ test('injects the realtime hook before page scripts run and pins the top page ur
 })
 
 test('honours a disabled site and ignores pages without a realtime adapter', async () => {
-  const executeJavaScript = vi.fn(async () => undefined)
+  const executeJavaScript = createExecuteJavaScriptSpy()
   webContents.fromId = () => ({ executeJavaScript }) as never
   const disabled = configureOjSession({ getSiteById: () => ({ enabled: false }) }) as unknown as ReturnType<typeof session.fromPartition>
 

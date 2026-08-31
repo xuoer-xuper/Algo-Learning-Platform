@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'vitest'
-import { MockBrowserWindow, resetElectronMock } from 'electron'
+import { MockBrowserWindow, resetElectronMock } from '../electron/electronMock'
 import { CoachPetWindow } from '../../electron/coach/CoachPetWindow.ts'
 
 test('Coach pet follows the latest shell parent and detaches before that shell closes', () => {

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'vitest'
-import { MockBrowserWindow, menuPopups, resetElectronMock } from 'electron'
+import { MockBrowserWindow, menuPopups, resetElectronMock } from '../electron/electronMock'
 import {
   createAppMenuTemplate,
   isAppMenuAnchor,

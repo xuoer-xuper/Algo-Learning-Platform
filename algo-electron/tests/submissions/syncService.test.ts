@@ -2,6 +2,22 @@ import { test } from 'vitest'
 import assert from 'node:assert'
 import { setEnabledSitesFetcher } from '../../electron/parsers/registry.ts'
 import { SyncService } from '../../electron/submissions/syncService.ts'
+import type { SubmissionBatchWriteOptions } from '../../electron/submissions/SubmissionBatchWriter.ts'
+
+/*
+ * 记录 write 入参用真实类型，而不是 `any[]` + `write(input: any)`。
+ *
+ * `any` 让下面 20 多条 `writes[0].xxx` 断言全都不受检查——字段名拼错会安静地拿到 undefined，
+ * 再和期望值比较失败，报的却是"undefined !== 'AC'"这种指不到病因的错。
+ * 标上之后 `_ncContestId` / `_ncProbLetter` 也是有类型的（它们在 `SubmissionScraperHints` 里，
+ * `ScrapedSubmission` 已经并进来了），不需要退回 any 才能读。
+ */
+const recordWrites = (sink: SubmissionBatchWriteOptions[]) => ({
+  write(input: SubmissionBatchWriteOptions) {
+    sink.push(input)
+    return { platform: input.platform, fetched: input.submissions.length, inserted: input.submissions.length }
+  },
+})
 
 // URL parsing resolves the page problem from enabled site config. Without this
 // the file only passed when an unrelated suite had already installed a fetcher,
@@ -12,22 +28,13 @@ setEnabledSitesFetcher(() => [
 
 test('submissions/syncService.test.ts', async () => {
 
-const writes: any[] = []
+const writes: SubmissionBatchWriteOptions[] = []
 let problemUpdateCount = 0
 
 const service = new SyncService({
   notifyProblemsUpdated: () => { problemUpdateCount += 1 },
-  batchWriter: {
-    write(input: any) {
-      writes.push(input)
-      return {
-        platform: input.platform,
-        fetched: input.submissions.length,
-        inserted: input.submissions.length,
-      }
-    },
-  },
-} as any)
+  batchWriter: recordWrites(writes),
+})
 
 const currentUrl = 'https://www.acwing.com/problem/content/submission/1/'
 let executedScript = ''
@@ -61,25 +68,19 @@ assert.strictEqual(writes.length, 1)
 assert.strictEqual(writes[0].platform, 'acwing')
 assert.strictEqual(writes[0].currentUrl, currentUrl)
 assert.strictEqual(writes[0].pageProblemId, '1')
+// `pageProblemIdentity` 声明是可空的，先断言它在。原先靠 `any` 直接点进去：
+// 真的传了 null 时读到的是 undefined，报错会是"undefined !== '1'"，指不到"身份根本没解析出来"。
+assert.ok(writes[0].pageProblemIdentity, 'page problem identity should have been resolved')
 assert.strictEqual(writes[0].pageProblemIdentity.platformProblemId, '1')
 assert.strictEqual(writes[0].submissions[0].platformSubmissionId, 'ac-246810')
 assert.strictEqual(writes[0].submissions[0].verdict, 'AC')
 assert.match(executedScript, /document\.querySelectorAll\('table'\)/)
 assert.strictEqual(problemUpdateCount, 1)
 
-const vjudgeWrites: any[] = []
+const vjudgeWrites: SubmissionBatchWriteOptions[] = []
 const vjudgeService = new SyncService({
-  batchWriter: {
-    write(input: any) {
-      vjudgeWrites.push(input)
-      return {
-        platform: input.platform,
-        fetched: input.submissions.length,
-        inserted: input.submissions.length,
-      }
-    },
-  },
-} as any)
+  batchWriter: recordWrites(vjudgeWrites),
+})
 
 const vjudgeHost = {
   getUrl: () => 'https://vjudge.net/contest/123456#status/xuper/K/0/',
@@ -104,19 +105,10 @@ assert.strictEqual(vjudgeWrites.length, 1)
 assert.strictEqual(vjudgeWrites[0].pageProblemId, 'contest-123456-K')
 assert.strictEqual(vjudgeWrites[0].submissions[0].platformSubmissionId, 'vj-998877')
 
-const vjudgeStatusWrites: any[] = []
+const vjudgeStatusWrites: SubmissionBatchWriteOptions[] = []
 const vjudgeStatusService = new SyncService({
-  batchWriter: {
-    write(input: any) {
-      vjudgeStatusWrites.push(input)
-      return {
-        platform: input.platform,
-        fetched: input.submissions.length,
-        inserted: input.submissions.length,
-      }
-    },
-  },
-} as any)
+  batchWriter: recordWrites(vjudgeStatusWrites),
+})
 
 const vjudgeStatusHost = {
   getUrl: () => 'https://vjudge.net/status',
@@ -141,19 +133,10 @@ assert.strictEqual(vjudgeStatusWrites.length, 1)
 assert.strictEqual(vjudgeStatusWrites[0].pageProblemId, undefined)
 assert.strictEqual(JSON.parse(vjudgeStatusWrites[0].submissions[0].rawJson || '{}')._vjudgeProblemId, 'Gym-105173E')
 
-const nowcoderWrites: any[] = []
+const nowcoderWrites: SubmissionBatchWriteOptions[] = []
 const nowcoderService = new SyncService({
-  batchWriter: {
-    write(input: any) {
-      nowcoderWrites.push(input)
-      return {
-        platform: input.platform,
-        fetched: input.submissions.length,
-        inserted: input.submissions.length,
-      }
-    },
-  },
-} as any)
+  batchWriter: recordWrites(nowcoderWrites),
+})
 
 const nowcoderHost = {
   getUrl: () => 'https://ac.nowcoder.com/acm/contest/789/status',
@@ -192,20 +175,11 @@ assert.strictEqual(nowcoderWrites[0].submissions[1]._ncProbLetter, 'B')
 })
 
 test('pins the initiating page URL while DOM scraping is pending', async () => {
-  const writes: any[] = []
+  const writes: SubmissionBatchWriteOptions[] = []
   let currentUrl = 'https://www.acwing.com/problem/content/submission/1/'
   let resolveScript!: (value: unknown) => void
   const service = new SyncService({
-    batchWriter: {
-      write(input: any) {
-        writes.push(input)
-        return {
-          platform: input.platform,
-          fetched: input.submissions.length,
-          inserted: input.submissions.length,
-        }
-      },
-    },
+    batchWriter: recordWrites(writes),
   })
   const pending = service.syncCurrentPage({
     getUrl: () => currentUrl,
@@ -227,6 +201,7 @@ test('pins the initiating page URL while DOM scraping is pending', async () => {
 
   await pending
   assert.strictEqual(writes[0].currentUrl, 'https://www.acwing.com/problem/content/submission/1/')
+  assert.ok(writes[0].pageProblemIdentity, 'page problem identity should have been resolved')
   assert.strictEqual(writes[0].pageProblemIdentity.platform, 'acwing')
   assert.strictEqual(writes[0].pageProblemIdentity.platformProblemId, '1')
 })

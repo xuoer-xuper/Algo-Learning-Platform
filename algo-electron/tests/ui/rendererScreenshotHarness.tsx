@@ -138,6 +138,21 @@ function filterProblems(limit = 50, platform?: string, status?: string): Problem
     .slice(0, limit)
 }
 
+/**
+ * 截图范围之外的接口：调到就抛。
+ *
+ * 抛而不是返回假值，是因为 `rendererScreenshots.pw.spec.ts` 断言 `pageErrors` 为空——
+ * 一旦某张截图的界面真的调了它，测试会带着接口名当场失败，提示"该给这个接口补个真替身了"，
+ * 而不是拿一个编出来的返回值把界面渲染成看似正常的样子。
+ *
+ * 返回 `never` 让这一个实现能顶替所有签名：`never` 可赋给任何返回类型，零参函数也可赋给带参函数。
+ * 已核对过这 32 个接口在被截图的界面里都只挂在点击回调上（如 BackupPanel 的三个按钮），
+ * 没有一个在挂载副作用里调用。
+ */
+const outOfScreenshotScope = (name: string) => (): never => {
+  throw new Error(`rendererScreenshotHarness 未为 ${name} 提供替身：这个接口不在截图建模范围内`)
+}
+
 function createApiMock(): ElectronAPI {
   let currentUrl = 'algo://home'
   const tabListeners = new Set<(tabs: TabInfo[]) => void>()
@@ -361,7 +376,9 @@ function createApiMock(): ElectronAPI {
     scriptsGetAll: async () => [],
     scriptsSave: async () => 'script-1',
     scriptsImportFile: async () => null,
-    scriptsOpenFolder: async () => {},
+    // `shell.openPath` 成功时返回空串、失败时返回错误信息，所以声明的 `Promise<string>` 是准的；
+    // 原先这个替身返回 void，是替身写错了。空串就是"打开成功"。
+    scriptsOpenFolder: async () => '',
     scriptsGetCode: async () => ({ status: 'not-found' as const }),
     scriptsOpenEditor: async () => ({ status: 'ok' as const }),
     scriptsToggle: async () => true,
@@ -576,6 +593,48 @@ function createApiMock(): ElectronAPI {
       model: 'doubao-seed-1-6-flash-250715',
     }),
     onCoachContestModeChanged: () => () => {},
+
+    // 下面这些是截图 harness 不建模的接口。原先它们干脆没写，而 `createApiMock` 的返回类型
+    // 声明的是完整 `ElectronAPI`——`tsc` 一直没看过 tests/，于是这 37 个成员缺了 37 个也没人知道。
+    // 补齐之后，以后 ElectronAPI 加成员会在这里编译失败，而不是等某张截图跑出 TypeError。
+    setErrorNoticeVisible: () => {},
+    onCoachPetStateChanged: () => () => {},
+    onCoachConfigChanged: () => () => {},
+    onCoachShowBubble: () => () => {},
+    onCoachDismissBubble: () => () => {},
+
+    getBrowserDiagnostics: outOfScreenshotScope('getBrowserDiagnostics'),
+    getCookieSummaryForSite: outOfScreenshotScope('getCookieSummaryForSite'),
+    getCookieSummaryForDomain: outOfScreenshotScope('getCookieSummaryForDomain'),
+    listCredentials: outOfScreenshotScope('listCredentials'),
+    deleteCredential: outOfScreenshotScope('deleteCredential'),
+    renameCredential: outOfScreenshotScope('renameCredential'),
+    createDatabaseBackup: outOfScreenshotScope('createDatabaseBackup'),
+    exportLearningData: outOfScreenshotScope('exportLearningData'),
+    previewLearningDataImport: outOfScreenshotScope('previewLearningDataImport'),
+    confirmLearningDataImport: outOfScreenshotScope('confirmLearningDataImport'),
+    coachGetPetState: outOfScreenshotScope('coachGetPetState'),
+    coachSetPetState: outOfScreenshotScope('coachSetPetState'),
+    coachToggleIgnoreMouseEvents: outOfScreenshotScope('coachToggleIgnoreMouseEvents'),
+    coachStartDrag: outOfScreenshotScope('coachStartDrag'),
+    coachEndDrag: outOfScreenshotScope('coachEndDrag'),
+    coachShowBubble: outOfScreenshotScope('coachShowBubble'),
+    coachDismissBubble: outOfScreenshotScope('coachDismissBubble'),
+    coachTriggerHint: outOfScreenshotScope('coachTriggerHint'),
+    coachDismissHint: outOfScreenshotScope('coachDismissHint'),
+    coachFeedback: outOfScreenshotScope('coachFeedback'),
+    coachDismissDisclaimer: outOfScreenshotScope('coachDismissDisclaimer'),
+    coachPetClick: outOfScreenshotScope('coachPetClick'),
+    coachChat: outOfScreenshotScope('coachChat'),
+    coachRequestHint: outOfScreenshotScope('coachRequestHint'),
+    coachGetWorkArea: outOfScreenshotScope('coachGetWorkArea'),
+    coachGetSession: outOfScreenshotScope('coachGetSession'),
+    coachGetSessionHistory: outOfScreenshotScope('coachGetSessionHistory'),
+    coachGetMetrics: outOfScreenshotScope('coachGetMetrics'),
+    coachListEvents: outOfScreenshotScope('coachListEvents'),
+    coachListInterventions: outOfScreenshotScope('coachListInterventions'),
+    coachExportAuditLog: outOfScreenshotScope('coachExportAuditLog'),
+    coachGetProblemTimeline: outOfScreenshotScope('coachGetProblemTimeline'),
   }
 }
 

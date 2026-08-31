@@ -20,7 +20,21 @@ type ShellEvent = IpcMainEvent | IpcMainInvokeEvent
  * `checkIpcPayload` 拦掉超深/超大/带原型污染/成环的载荷。缺的是每个渠道的参数形状校验。
  */
 export type IpcListener<T extends ShellEvent> = (event: T, ...args: any[]) => any
-type RegistrableWebContents = Pick<WebContents, 'id'> & Partial<Pick<WebContents, 'once'>>
+
+/**
+ * 注册时真正需要的能力：一个 id，和一个可选的 `once('destroyed')` 用来自动注销。
+ *
+ * 这里刻意手写签名而不是 `Partial<Pick<WebContents, 'once'>>`。后者会把 Electron 的整套
+ * 链式重载一起要过来——`once` 声明的返回值是 `this`，于是任何替身都得自证是完整的
+ * `WebContents`（94 个成员）才能传进来，测试里 25 处因此报错。而下面三个 register* 全都
+ * 只写 `webContents.once?.('destroyed', cb)` 并丢掉返回值，链式那部分从来没人用。
+ *
+ * 返回 `unknown` 是这层约束的核心：既接受真实 `WebContents` 的 `this`，也接受替身的
+ * `void`，同时禁止本模块拿返回值继续链式调用（真要链式，得先改这里的声明）。
+ */
+type RegistrableWebContents = Pick<WebContents, 'id'> & {
+  once?(event: 'destroyed', listener: () => void): unknown
+}
 type WebContentsIdentity = Pick<WebContents, 'id'> | null | undefined
 
 const shellWebContentsIds = new Set<number>()

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, test, vi } from 'vitest'
-import { MockBrowserWindow, resetElectronMock } from 'electron'
+import { MockBrowserWindow, resetElectronMock } from '../electron/electronMock'
 import { TabManager } from '../../electron/browser/TabManager.ts'
 import { BROWSER_LAYOUT } from '../../electron/browser/browserLayout.ts'
 import type { FindInPageViewState } from '../../electron/browser/findInPage.ts'

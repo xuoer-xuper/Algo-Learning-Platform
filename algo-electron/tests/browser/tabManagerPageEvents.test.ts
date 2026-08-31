@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { MockBrowserWindow, resetElectronMock } from 'electron'
+import { MockBrowserWindow, resetElectronMock } from '../electron/electronMock'
 import { TabManager, type BrowserPageEvent } from '../../electron/browser/TabManager.ts'
 import { BROWSER_LAYOUT } from '../../electron/browser/browserLayout.ts'
 import { ViewRegistry } from '../../electron/windows/ViewRegistry.ts'

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'vitest'
-import { MockBrowserWindow, resetElectronMock } from 'electron'
+import { MockBrowserWindow, resetElectronMock } from '../electron/electronMock'
 import { TabManager } from '../../electron/browser/TabManager.ts'
 import type { TabSessionSnapshot } from '../../electron/browser/tabManagerTypes.ts'
 import { ViewRegistry } from '../../electron/windows/ViewRegistry.ts'

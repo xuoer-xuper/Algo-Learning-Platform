@@ -1,6 +1,9 @@
 import assert from 'node:assert/strict'
 import { test } from 'vitest'
-import { app, BrowserWindow, WebContentsView, commandLineSwitches, resetElectronMock } from 'electron'
+import { BrowserWindow, WebContentsView } from 'electron'
+// app 从替身文件导入：本文件断言的 singleInstanceLockGranted / quitCallCount 等
+// 是替身的观测点，真实 Electron 的 App 类型上并不存在。
+import { app, commandLineSwitches, resetElectronMock } from './electronMock'
 import { configureChromiumCommandLine } from '../../electron/app/chromiumFlags.ts'
 import { setTabViewBounds, safeCloseWebContents, safeRemoveChildView } from '../../electron/browser/tabViewLayout.ts'
 

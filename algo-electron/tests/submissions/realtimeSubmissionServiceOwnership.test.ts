@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict'
 import { afterEach, beforeEach, test } from 'vitest'
-import { ipcMain, MockWebContents, resetElectronMock } from 'electron'
+// ipcMain 从替身文件导入：invokeHandler 是替身用来带上指定 sender 调用 handler 的观测点，
+// 真实 Electron 的 IpcMain 类型上并不存在。
+import { ipcMain, MockWebContents, resetElectronMock } from '../electron/electronMock'
 import type { BrowserPageEvent, TabManager } from '../../electron/browser/TabManager.ts'
 import { registerOjWebContents, resetTrustedSenderRegistry } from '../../electron/ipc/trustedSender.ts'
 import type { Logger } from '../../electron/shared/logger.ts'

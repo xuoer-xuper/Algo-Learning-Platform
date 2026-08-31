@@ -39,7 +39,7 @@ function normalizeVerdict(verdict: string | undefined): string {
  * 多个候选类目用于轮询：同一 verdict 多次触发时换一个类目，
  * 避免用户反复看到同一句话。
  */
-export function verdictToCategories(verdict: string, eventType?: CoachEventType): HintCategory[] {
+export function verdictToCategories(verdict: string | undefined, eventType?: CoachEventType): HintCategory[] {
   const v = normalizeVerdict(verdict)
   // idle_too_long 优先级最高（卡壳专用元认知类）
   if (eventType === 'idle_too_long' || eventType === 'long_session') {
@@ -167,7 +167,9 @@ export class HintSelector {
     // L3+ 才使用 constraints 联动（L1/L2 是元认知层，不需要数值细节）
     const useConstraints = level >= 3 && constraints !== null
 
-    let categories = verdictToCategories(verdict ?? '', eventType)
+    // 直接传 verdict：`normalizeVerdict` 本来就把 undefined 归成 'UNKNOWN'，
+    // 原先的 `?? ''` 是先把 undefined 变成空串、再让它走一遍 falsy 分支变回 'UNKNOWN'，绕了一圈。
+    let categories = verdictToCategories(verdict, eventType)
     if (categories.length === 0) return null
 
     // constraints 覆盖：WA + value>=1e9 → 切到 overflow

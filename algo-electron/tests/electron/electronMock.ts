@@ -16,6 +16,7 @@ export class MockWebContents extends EventEmitter {
   readonly stopFindInPageCalls: Array<'clearSelection' | 'keepSelection' | 'activateSelection'> = []
   readonly copyImageAtCalls: Array<{ x: number; y: number }> = []
   readonly downloadURLCalls: string[] = []
+  readonly sentMessages: Array<{ channel: string; args: unknown[] }> = []
   private windowOpenHandler: ((details: any) => any) | null = null
   readonly navigationHistory = {
     canGoBack: () => false,
@@ -49,6 +50,21 @@ export class MockWebContents extends EventEmitter {
   selectAll(): void { /* no-op */ }
   copyImageAt(x: number, y: number): void { this.copyImageAtCalls.push({ x, y }) }
   downloadURL(url: string): void { this.downloadURLCalls.push(url) }
+  /**
+   * 主进程 → 渲染进程的推送。
+   *
+   * 补这个方法之前替身根本没有 `send`，而 `AppWindow.send()` 把调用包在 try/catch 里失败
+   * 返回 `false` —— 于是它在每一次测试里都抛 TypeError 被吞掉、稳定返回 `false`，没有任何
+   * 用例察觉。已实测确认（临时探针：`send()` 返回 false，`typeof webContents.send` 是
+   * undefined）。`CoachPetWindow` 的六处推送同理。
+   *
+   * 记录成数组而不是空实现：推送的正确性只能从"渲染进程收到了什么"来验，
+   * 空实现会让这条路径继续沉默。
+   */
+  send(channel: string, ...args: unknown[]): void {
+    this.sentMessages.push({ channel, args })
+    this.emit('__mock-send', channel, ...args)
+  }
   simulateFoundInPage(result: Electron.FoundInPageResult): void { this.emit('found-in-page', {}, result) }
   simulateZoomChange(direction: 'in' | 'out'): void {
     this.emit('zoom-changed', { preventDefault: () => undefined }, direction)

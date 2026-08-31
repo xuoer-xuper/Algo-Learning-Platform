@@ -1,6 +1,7 @@
 import assert from 'node:assert'
 import { beforeAll, describe, test } from 'vitest'
-import { exposedMainWorld, ipcRenderer, resetElectronMock } from 'electron'
+import { ipcRenderer } from 'electron'
+import { exposedMainWorld, resetElectronMock } from '../electron/electronMock'
 
 /**
  * preload 暴露面的运行时验证。

@@ -7,6 +7,21 @@ function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message)
 }
 
+/**
+ * 条数断言走这个函数，而不是直接 `assert(reports.length === n, …)`。
+ *
+ * 上面那个 `assert` 是断言函数（`asserts condition`），直接写 `assert(hookReports.length === 0)`
+ * 会把 `hookReports.length` 永久收窄成字面量 `0`——之后每次 `fetch()` 其实都在往数组里 push，
+ * 但 TS 不知道数组被这条路径改过，收窄一直留着，于是后面 `=== 1` 被判成"两个类型无重叠"。
+ * 也就是说这个报错不是断言写错了，是 TS 的收窄过期了。
+ *
+ * 收进函数以后，收窄只发生在形参上，调用方的变量不受影响；顺带把实际条数写进消息里，
+ * 失败时能直接看到差多少，不用再回来加打印。
+ */
+function assertReportCount(reports: readonly unknown[], expected: number, message: string): void {
+  assert(reports.length === expected, `${message} (expected ${expected}, got ${reports.length})`)
+}
+
 const problem = await leetcodeAdapter.parseProblem('https://leetcode.cn/problems/two-sum/', {
   url: 'https://leetcode.cn/problems/two-sum/',
 })
@@ -233,7 +248,7 @@ new Function('window', 'location', hook!)(fakeWindow, fakeLocation)
 await fakeWindow.fetch('https://leetcode.cn/problems/two-sum/interpret_solution/')
 await fakeWindow.fetch('https://leetcode.cn/submissions/detail/333444/check/')
 await new Promise((resolve) => setTimeout(resolve, 0))
-assert(hookReports.length === 0, 'Hooked fetch should ignore LeetCode run-code/self-test results')
+assertReportCount(hookReports, 0, 'Hooked fetch should ignore LeetCode run-code/self-test results')
 
 const pendingHookReports: any[] = []
 const pendingHookWindow: any = {
@@ -257,14 +272,14 @@ new Function('window', 'location', hook!)(pendingHookWindow, fakeLocation)
 await pendingHookWindow.fetch('https://leetcode.cn/problems/two-sum/submit/')
 await pendingHookWindow.fetch('https://leetcode.cn/submissions/detail/223347/check/')
 await new Promise((resolve) => setTimeout(resolve, 0))
-assert(pendingHookReports.length === 0, 'Hooked fetch should ignore nested pending LeetCode check payloads')
+assertReportCount(pendingHookReports, 0, 'Hooked fetch should ignore nested pending LeetCode check payloads')
 
 await fakeWindow.fetch('https://leetcode.cn/problems/two-sum/submit/')
 const wrappedResponse = await fakeWindow.fetch('https://leetcode.cn/submissions/detail/123456/check/')
 await new Promise((resolve) => setTimeout(resolve, 0))
 
 assert(wrappedResponse === fakeResponse, 'Hooked fetch should return the original response')
-assert(hookReports.length === 1, 'Hooked fetch should report one matching submitted check response')
+assertReportCount(hookReports, 1, 'Hooked fetch should report one matching submitted check response')
 assert(hookReports[0].adapterId === 'leetcode-cn', 'Hook report should include adapter id')
 assert(hookReports[0].pageUrl === 'https://leetcode.cn/problems/two-sum/', 'Hook report should include current page URL')
 assert(hookReports[0].requestUrl.includes('/submissions/detail/123456/check/'), 'Hook report should include request URL')
@@ -275,13 +290,13 @@ await fakeWindow.fetch('/problems/add-two-numbers/submit/')
 await fakeWindow.fetch('/submissions/detail/654321/check/')
 await new Promise((resolve) => setTimeout(resolve, 0))
 
-assert(hookReports.length === 2, 'Hooked fetch should keep reporting after SPA page URL changes')
+assertReportCount(hookReports, 2, 'Hooked fetch should keep reporting after SPA page URL changes')
 assert(hookReports[1].pageUrl === 'https://leetcode.cn/problems/add-two-numbers/', 'Hook report should use the live SPA page URL')
 assert(hookReports[1].requestUrl === '/submissions/detail/654321/check/', 'Hook report should preserve relative submission check URLs')
 
 await fakeWindow.fetch('/graphql/')
 await new Promise((resolve) => setTimeout(resolve, 0))
-assert(hookReports.length === 2, 'Hooked fetch should ignore unrelated GraphQL JSON responses')
+assertReportCount(hookReports, 2, 'Hooked fetch should ignore unrelated GraphQL JSON responses')
 
 const graphqlReports: any[] = []
 const graphqlWindow: any = {

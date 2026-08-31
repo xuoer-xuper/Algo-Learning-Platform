@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { MockBrowserWindow, resetElectronMock } from 'electron'
+import { MockBrowserWindow, resetElectronMock } from '../electron/electronMock'
 import type { TabManager } from '../../electron/browser/TabManager.ts'
 import { ProblemSessionTracker } from '../../electron/coach/ProblemSessionTracker.ts'
 import type { ProblemIdentity } from '../../electron/shared/types.ts'

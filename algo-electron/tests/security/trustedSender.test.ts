@@ -2,14 +2,8 @@ import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import { test } from 'vitest'
-import {
-  MockWebContents,
-  MockWebFrame,
-  protocolHandlers,
-  protocolSchemes,
-  resetElectronMock,
-} from 'electron'
+import { test, vi } from 'vitest'
+import { MockWebContents, MockWebFrame, protocolHandlers, protocolSchemes, resetElectronMock } from '../electron/electronMock'
 import {
   SHELL_CSP,
   registerShellSchemeAsPrivileged,
@@ -68,8 +62,15 @@ test('app shell protocol is privileged, origin-stable, CSP-bound, and traversal-
 
 test('trusted shell sender rejects remote views, iframes, forged origins, and non-local dev origins', async () => {
   resetTrustedSenderRegistry()
-  const originalDevUrl = process.env.VITE_DEV_SERVER_URL
 
+  /*
+   * 用 `vi.stubEnv` 而不是直接写 `process.env.VITE_DEV_SERVER_URL`。
+   *
+   * 这个变量由 `vite-plugin-electron/electron-env` 声明成 readonly，手写赋值过不了类型检查
+   * （连 finally 里的 `delete` 也不行）。stubEnv 是 vitest 为这件事提供的入口：能写 readonly
+   * 的 env，`unstubAllEnvs` 负责还原，也就不需要手工存 originalDevUrl 再在 finally 里恢复了——
+   * 少一处"忘了恢复就污染后续测试"的机会。
+   */
   try {
     const shell = new MockWebContents()
     await shell.loadURL('app://shell/index.html')
@@ -93,20 +94,19 @@ test('trusted shell sender rejects remote views, iframes, forged origins, and no
     forged.mainFrame.url = 'app://shell/index.html'
     assert.deepStrictEqual(checkShellSender(eventFor(forged)), { trusted: false, reason: 'origin' })
 
-    process.env.VITE_DEV_SERVER_URL = 'https://evil.example:5173'
+    vi.stubEnv('VITE_DEV_SERVER_URL', 'https://evil.example:5173')
     const evilDev = new MockWebContents()
     await evilDev.loadURL('https://evil.example:5173/')
     registerShellWebContents(evilDev)
     assert.strictEqual(checkShellSender(eventFor(evilDev)).trusted, false)
 
-    process.env.VITE_DEV_SERVER_URL = 'http://localhost:5173'
+    vi.stubEnv('VITE_DEV_SERVER_URL', 'http://localhost:5173')
     const localDev = new MockWebContents()
     await localDev.loadURL('http://localhost:5173/')
     registerShellWebContents(localDev)
     assert.strictEqual(checkShellSender(eventFor(localDev)).trusted, true)
   } finally {
-    if (originalDevUrl === undefined) delete process.env.VITE_DEV_SERVER_URL
-    else process.env.VITE_DEV_SERVER_URL = originalDevUrl
+    vi.unstubAllEnvs()
   }
 })
 

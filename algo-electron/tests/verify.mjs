@@ -94,6 +94,11 @@ function runVitest(files = [], coverage = false) {
 
 function runTypecheck() {
   run(process.execPath, [tscBin, '--noEmit'])
+  // tests/ 不在 tsconfig.json 的 include 里（那份只收 src 与 electron），
+  // 所以这 1043 个测试从来没被 tsc 看过一眼——补上 tsconfig.tests.json 时一次性报出 129 个错，
+  // 其中包括替身缺 send() 导致主进程→渲染进程推送在每次测试里都静默失败这种真缺陷。
+  // 必须挂在门里：不挂的话新写的测试又会慢慢漂回去，和当年手工维护的 15 个文件名单一个下场。
+  run(process.execPath, [tscBin, '-p', 'tsconfig.tests.json', '--noEmit'])
 }
 
 function runLint() {

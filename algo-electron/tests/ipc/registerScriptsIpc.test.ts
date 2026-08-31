@@ -4,15 +4,8 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, test, vi } from 'vitest'
-import {
-  app,
-  BrowserWindow,
-  dialog,
-  ipcMain,
-  ipcRenderer,
-  shell,
-  resetElectronMock,
-} from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, ipcRenderer, shell } from 'electron'
+import { resetElectronMock } from '../electron/electronMock'
 import { closeDb, initDbAtPath } from '../../electron/db/connection'
 import {
   createScript,
@@ -133,7 +126,7 @@ test('resource verification failure leaves the existing script and managed files
     [`// @require https://cdn.example.com/dependency.js#sha256=${'00'.repeat(32)}`],
   ))
   vi.spyOn(dialog, 'showOpenDialog').mockResolvedValue({ canceled: false, filePaths: [sourcePath] })
-  vi.spyOn(dialog, 'showMessageBox').mockResolvedValue({ response: 0 })
+  vi.spyOn(dialog, 'showMessageBox').mockResolvedValue({ response: 0, checkboxChecked: false })
   registerScriptsIpc({ fetchResource: async () => new Response('different') })
 
   await assert.rejects(() => ipcRenderer.invoke('scripts:importFile'), /integrity mismatch/)
@@ -265,6 +258,8 @@ test('scripts:getAll returns a renderer-safe summary without source or absolute 
     name: 'Summary helper',
     namespace: 'https://example.com',
     identity_name: 'Summary helper',
+    description: null,
+    version: null,
     match_urls_json: '["https://example.com/*"]',
     code: 'window.secretSource = true',
     file_path: path.join(tempDirectory, 'userscripts', 'summary.user.js'),
@@ -296,6 +291,8 @@ test('scripts code view and editor stay inside the managed directory, delete rem
     name: 'Managed',
     namespace: '',
     identity_name: 'Managed',
+    description: null,
+    version: null,
     match_urls_json: '[]',
     code: 'fallback',
     file_path: managedPath,
@@ -306,6 +303,8 @@ test('scripts code view and editor stay inside the managed directory, delete rem
     name: 'Outside',
     namespace: '',
     identity_name: 'Outside',
+    description: null,
+    version: null,
     match_urls_json: '[]',
     code: 'outside',
     file_path: unmanagedPath,
@@ -357,6 +356,8 @@ test('deleting one of two rows sharing a managed file keeps the file for the sur
   fs.writeFileSync(sharedPath, userscript('Shared', '1.0.0'))
   const base = {
     namespace: '',
+    description: null,
+    version: null,
     match_urls_json: '[]',
     code: 'shared',
     file_path: sharedPath,
@@ -398,7 +399,7 @@ test('confirmed updates preserve user configuration and remove only the replaced
     userscript('Helper', '1.1.0', 'https://new.example/*', undefined, runtimeMetadataLines()),
   )
   vi.spyOn(dialog, 'showOpenDialog').mockResolvedValue({ canceled: false, filePaths: [sourcePath] })
-  const messageBox = vi.spyOn(dialog, 'showMessageBox').mockResolvedValue({ response: 0 })
+  const messageBox = vi.spyOn(dialog, 'showMessageBox').mockResolvedValue({ response: 0, checkboxChecked: false })
   registerScriptsIpc()
 
   const importedId = await ipcRenderer.invoke('scripts:importFile')
@@ -447,7 +448,7 @@ test('local-copy choice creates an isolated identity with auto-update disabled',
     ),
   )
   vi.spyOn(dialog, 'showOpenDialog').mockResolvedValue({ canceled: false, filePaths: [sourcePath] })
-  vi.spyOn(dialog, 'showMessageBox').mockResolvedValue({ response: 1 })
+  vi.spyOn(dialog, 'showMessageBox').mockResolvedValue({ response: 1, checkboxChecked: false })
   registerScriptsIpc()
 
   const copyId = await ipcRenderer.invoke('scripts:importFile') as string
@@ -455,7 +456,9 @@ test('local-copy choice creates an isolated identity with auto-update disabled',
   const copy = scripts.find(script => script.id === copyId)
 
   assert.strictEqual(scripts.length, 2)
-  assert.ok(copy?.namespace.startsWith('local:'))
+  // namespace 在类型上可空（null 表示旧的 canonical 身份），本地副本必须是 local: 前缀的
+  // 非空字符串；这里用 ?. 让 null 走到断言失败，而不是抛 TypeError。
+  assert.ok(copy?.namespace?.startsWith('local:'))
   assert.strictEqual(copy?.auto_update_enabled, false)
   assert.ok(copy?.code.includes(`// @namespace   ${copy.namespace}`))
   assert.ok(copy)
@@ -480,7 +483,7 @@ test('cancelled legacy claim does not mutate the database or create a managed fi
     userscript('Helper', '1.0.0'),
   )
   vi.spyOn(dialog, 'showOpenDialog').mockResolvedValue({ canceled: false, filePaths: [sourcePath] })
-  vi.spyOn(dialog, 'showMessageBox').mockResolvedValue({ response: 2 })
+  vi.spyOn(dialog, 'showMessageBox').mockResolvedValue({ response: 2, checkboxChecked: false })
   registerScriptsIpc()
 
   assert.strictEqual(await ipcRenderer.invoke('scripts:importFile'), null)
@@ -514,7 +517,7 @@ test('a confirmed no-namespace import claims legacy NULL identity without deleti
     auto_update_enabled: false,
   })
   vi.spyOn(dialog, 'showOpenDialog').mockResolvedValue({ canceled: false, filePaths: [sourcePath] })
-  vi.spyOn(dialog, 'showMessageBox').mockResolvedValue({ response: 0 })
+  vi.spyOn(dialog, 'showMessageBox').mockResolvedValue({ response: 0, checkboxChecked: false })
   registerScriptsIpc()
 
   assert.strictEqual(await ipcRenderer.invoke('scripts:importFile'), legacyId)

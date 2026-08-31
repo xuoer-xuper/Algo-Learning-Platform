@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import { EventEmitter } from 'node:events'
 import { afterEach, test, vi } from 'vitest'
+import type { CredentialSummary } from '../../electron/credentials/credentialVaultCore'
 import type { CredentialVault } from '../../electron/credentials/CredentialVault'
 import { CredentialCaptureService } from '../../electron/credentials/CredentialCaptureService'
 
@@ -30,6 +31,28 @@ function makeSite() {
   }
 }
 
+/**
+ * `vault.save` 成功时返回的摘要。
+ *
+ * 三处替身原先都写 `async () => undefined`，而真实 `CredentialVault.save` 返回
+ * `Promise<CredentialSummary>`——`makeService` 默认值那处被 `as never` 盖住了没报，
+ * 从 `options.vault` 传进去的两处才报出来。服务本身只 `await` 不读返回值（成功失败靠抛异常
+ * 表达），所以返回 undefined 在运行时无害；但类型上是假的，一旦哪天服务开始读返回值，
+ * 替身会在编译期就对不上，而不是在运行时拿到 undefined。
+ */
+function savedSummary(): CredentialSummary {
+  return {
+    credentialId: 'credential-saved',
+    siteId: 'codeforces',
+    username: 'alice',
+    displayName: null,
+    masked: '********',
+    lastUsedAt: null,
+    createdAt: 'now',
+    updatedAt: 'now',
+  }
+}
+
 function makeService(options: {
   vault?: Partial<Pick<CredentialVault, 'list' | 'getForAutofill' | 'save'>>
   showPrompt?: (windowId: string, prompt: unknown) => boolean
@@ -45,7 +68,7 @@ function makeService(options: {
       vault: {
         list: () => [],
         getForAutofill: async () => null,
-        save: async () => undefined,
+        save: async () => savedSummary(),
         ...options.vault,
       } as never,
       getSites: () => [makeSite()],
@@ -86,7 +109,7 @@ test('same username and password is ignored, changed password requests update', 
   const vault = {
     list: () => [{ credentialId: 'credential-1', siteId: 'codeforces', username: 'alice', displayName: 'Main', masked: '********', lastUsedAt: null, createdAt: 'now', updatedAt: 'now' }],
     getForAutofill: async () => ({ credentialId: 'credential-1', siteId: 'codeforces', username: 'alice', password: 'old-secret' }),
-    save: async () => undefined,
+    save: async () => savedSummary(),
   }
   const ctx = makeService({ vault })
   const contents = new FakeContents(2, ctx.ojSession, 'https://codeforces.com/enter')
@@ -100,7 +123,7 @@ test('same username and password is ignored, changed password requests update', 
 })
 
 test('save/update/cancel are one-shot and reject mismatched action', async () => {
-  const save = vi.fn(async () => undefined)
+  const save = vi.fn(async () => savedSummary())
   const ctx = makeService({ vault: { save } })
   const contents = new FakeContents(3, ctx.ojSession, 'https://codeforces.com/enter')
   ctx.app.emit('web-contents-created', {}, contents)

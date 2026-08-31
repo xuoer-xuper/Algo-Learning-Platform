@@ -2,7 +2,25 @@ import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
 import { test, vi } from 'vitest'
 import { UserScriptRuntime } from '../../electron/scripts/UserScriptRuntime'
+import type { Logger } from '../../electron/shared/logger'
 import type { UserScript } from '../../electron/db/repositories/userScript/types'
+
+/**
+ * `Logger` 还要求 fatal 与 getLogFilePath。运行时只用 warn/error，但替身得把接口铺满，
+ * 不然缺的成员只能靠 `as` 遮住——那正是这次类型检查要抓的东西。
+ * 需要断言调用次数的用例把自己的 vi.fn() 从 overrides 传进来。
+ */
+function testLogger(overrides: Partial<Logger> = {}): Logger {
+  return {
+    debug: vi.fn(),
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+    fatal: vi.fn(),
+    getLogFilePath: () => null,
+    ...overrides,
+  }
+}
 
 function script(overrides: Partial<UserScript> = {}): UserScript {
   return {
@@ -60,7 +78,7 @@ test('hydrates values before navigation and isolates snapshots by script id', ()
     }],
     setValue: vi.fn(),
     deleteValue: vi.fn(),
-    logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
+    logger: testLogger(),
   })
 
   runtime.refresh()
@@ -88,7 +106,7 @@ test('filters noframes scripts and updates the in-memory value snapshot after pe
     listValues: () => [],
     setValue,
     deleteValue,
-    logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
+    logger: testLogger(),
   })
 
   runtime.refresh()
@@ -147,7 +165,7 @@ globalThis.order.push("script")`,
     ],
     setValue: vi.fn(),
     deleteValue: vi.fn(),
-    logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
+    logger: testLogger(),
   })
 
   runtime.refresh()
@@ -173,7 +191,7 @@ test('invalid persisted grant JSON fails closed for that script', () => {
     listValues: () => [],
     setValue: vi.fn(),
     deleteValue: vi.fn(),
-    logger: { debug: vi.fn(), info: vi.fn(), warn, error: vi.fn() },
+    logger: testLogger({ warn }),
   })
 
   runtime.refresh()
@@ -193,7 +211,7 @@ test('invalid persisted connect JSON fails closed for that script', () => {
     listValues: () => [],
     setValue: vi.fn(),
     deleteValue: vi.fn(),
-    logger: { debug: vi.fn(), info: vi.fn(), warn, error: vi.fn() },
+    logger: testLogger({ warn }),
   })
 
   runtime.refresh()
@@ -223,7 +241,7 @@ test('refresh failure advances the generation and clears value mutation authorit
     }],
     setValue: vi.fn(),
     deleteValue: vi.fn(),
-    logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
+    logger: testLogger(),
   })
   const generations: number[] = []
   runtime.addGenerationChangeListener(generation => generations.push(generation))

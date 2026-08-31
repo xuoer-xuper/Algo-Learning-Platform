@@ -46,7 +46,16 @@ interface Harness {
  */
 async function loadPreload(tokens: unknown[]): Promise<Harness> {
   vi.resetModules()
-  const electron = await import('electron')
+  /*
+   * 动态 import 替身文件本身，而不是 `await import('electron')`。
+   *
+   * 必须是动态的：`vi.resetModules()` 之后 ojPreload 会拿到一份新的替身实例，
+   * 顶部静态导入的那份就不是同一个对象了，`exposedMainWorld` 会是空的。
+   * 但路径要写替身的真实路径——`resetElectronMock` / `exposedMainWorld` 是替身专有的导出，
+   * 真实 Electron 从来没有它们，借 'electron' 这个名字拿只能让 tsc 报"属性不存在"。
+   * vitest 的 alias 把 'electron' 指向的就是这个文件，所以两种写法拿到的是同一个模块实例。
+   */
+  const electron = await import('../electron/electronMock')
   electron.resetElectronMock()
 
   let call = 0

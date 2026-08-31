@@ -5,6 +5,7 @@ import {
   USER_SCRIPT_COMPILED_CATALOG_KEY,
   type UserScriptCompiledCatalogEntry,
 } from '../../electron/scripts/userScriptCompiledCatalog'
+import { buildUserScriptMainWorldRuntime } from '../../electron/scripts/userScriptMainWorldRuntime'
 import {
   USER_SCRIPT_RUNTIME_INIT_CHANNEL,
   USER_SCRIPT_RUNTIME_PORT_CHANNEL,
@@ -50,7 +51,17 @@ function plantCatalog(generation: number, options: { scriptId?: string, revision
     func: (payload, sendMessage, subscribe) => { invocations.push({ payload, send: sendMessage, subscribe }) },
     // payload 里带 code 的完整 descriptor 只存在于主世界 catalog，不过 IPC。
     // 运行时快照只带 id/revision/values，靠这两项在这里对回来。
-    payload: {
+    /*
+     * 用生产的 builder 造 payload，而不是手写字面量再 `as` 过去。
+     *
+     * 手写那份是**输入形状**（`source` / `grants`），而 catalog 里存的是**产物形状**
+     * （`ScriptDescriptor`：没有 `source`，grants 已编译成 `permissions` 的 26 个布尔）。
+     * `as` 把这个错误盖住了，代价是下面"code 应来自 catalog"那条断言在验一个真实 payload
+     * 里根本不存在的字段——它一直通过，靠的是这里手写时顺手编了一个 `source`。
+     *
+     * 换成 builder 之后不需要任何 cast，也不会再和生产的 payload 形状脱钩。
+     */
+    payload: buildUserScriptMainWorldRuntime({
       handshakeId: 'catalog',
       targetOrigin: 'https://catalog.invalid',
       generation,
@@ -67,7 +78,7 @@ function plantCatalog(generation: number, options: { scriptId?: string, revision
         values: [],
         resources: [],
       }],
-    } as UserScriptCompiledCatalogEntry['payload'],
+    }).execution.args[0],
     body: '',
   }
   Object.defineProperty(globalThis, USER_SCRIPT_COMPILED_CATALOG_KEY, {
@@ -89,7 +100,11 @@ async function loadBootstrap(options: {
   throwOnExecute?: boolean
 }): Promise<BootstrapHarness> {
   vi.resetModules()
-  const electron = await import('electron')
+  // 走替身自己的路径而不是 'electron'：resetElectronMock / exposedMainWorld 只存在于
+  // 替身上，借 'electron' 这个真实模块名拿到的是真 Electron 的类型，这两个名字都不在。
+  // vitest 的 electron 别名指向的就是这个文件，解析后同一个模块 id，实例是同一个——
+  // 上面那条"句柄必须从 loadBootstrap 返回值里取"的约束因此依然成立。
+  const electron = await import('../electron/electronMock')
   electron.resetElectronMock()
 
   const url = options.url ?? 'https://codeforces.com/problemset/problem/1/A'
@@ -275,13 +290,25 @@ describe('userscriptBootstrapPreload 传给运行时的数据', () => {
     const payload = catalog.invocations[0].payload as {
       targetOrigin: string
       generation: number
-      scripts: { id: string, source: string, values: unknown }[]
+      scripts: { id: string, name: string, permissions: object, values: unknown }[]
     }
     assert.strictEqual(payload.targetOrigin, 'https://codeforces.com')
     assert.strictEqual(payload.generation, 7)
     assert.strictEqual(payload.scripts.length, 1)
-    assert.strictEqual(payload.scripts[0].source, 'console.log(1)', 'code 应来自 catalog')
+    // descriptor 侧的字段来自 catalog：快照只送 id/revision/values，name 和 permissions
+    // 只可能是 catalog 给的。原先这里验的是 `source`，而真实 descriptor 上没有这个字段——
+    // 那条断言实际在验测试自己编的 fixture，换成真实存在的字段才算验到合并逻辑。
+    assert.strictEqual(payload.scripts[0].name, 'demo', 'descriptor 应来自 catalog')
+    assert.ok(payload.scripts[0].permissions, 'permissions 应来自 catalog 的编译产物')
     assert.deepStrictEqual(payload.scripts[0].values, [['k', 'v']], 'values 应来自本次快照')
+    // 第 266 行那条设计约束的正向断言：正文既不在 IPC 快照里，也不在主世界 payload 里
+    //（它只存在于 catalog entry 的 body 字符串）。原先靠 fixture 编的 `source` 反而把它掩盖了。
+    for (const key of ['source', 'code']) {
+      assert.strictEqual(
+        Object.hasOwn(payload.scripts[0], key), false,
+        `脚本正文不应出现在 payload 的 ${key} 字段`,
+      )
+    }
   })
 
   test('revision 对不上的脚本被丢掉，不按旧 descriptor 跑', async () => {

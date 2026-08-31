@@ -77,10 +77,14 @@ test('migration 027 backfills separated metadata and creates constrained runtime
     )
 
     insertRuntimeRows(db)
-    assert.deepStrictEqual(
-      Array.from(db.prepare("SELECT content_blob FROM user_script_resources WHERE id = 'resource-1'").get()!.content_blob as Buffer),
-      [0, 127, 255],
-    )
+    // `prepare<Params, Row>` 的第二个类型参数就是行类型；不标的话 `.get()` 返回 unknown，
+    // 读 `.content_blob` 报"Property 'content_blob' does not exist on type '{}'"，
+    // 只能靠 `as Buffer` 硬转过去。标上以后 BLOB 确实是 Buffer，转换也就不需要了。
+    const resourceRow = db
+      .prepare<[], { content_blob: Buffer }>("SELECT content_blob FROM user_script_resources WHERE id = 'resource-1'")
+      .get()
+    assert.ok(resourceRow, 'migration should have inserted the sample resource row')
+    assert.deepStrictEqual(Array.from(resourceRow.content_blob), [0, 127, 255])
     assert.throws(
       () => db.prepare(`
         INSERT INTO user_script_update_state (script_id, status, updated_at)

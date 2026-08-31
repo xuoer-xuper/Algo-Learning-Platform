@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'vitest'
-import { MockBrowserWindow, menuPopups, resetElectronMock } from 'electron'
+import { MockBrowserWindow, menuPopups, resetElectronMock } from '../electron/electronMock'
 import { TabManager, type BrowserPageEvent } from '../../electron/browser/TabManager.ts'
 import { MAX_TABS } from '../../electron/browser/tabManagerConfig.ts'
 import { PendingUserScriptInstallRegistry } from '../../electron/downloads/userScriptNavigation.ts'

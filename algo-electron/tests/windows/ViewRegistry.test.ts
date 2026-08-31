@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'vitest'
-import { MockWebContents, MockWebContentsView } from 'electron'
+import { MockWebContents, MockWebContentsView } from '../electron/electronMock'
 import { ViewRegistry } from '../../electron/windows/ViewRegistry.ts'
 
 test('registers and looks up shell and tab ownership', () => {

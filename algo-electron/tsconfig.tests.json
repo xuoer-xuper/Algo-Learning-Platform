@@ -1,0 +1,34 @@
+/*
+ * 测试代码的类型检查配置。
+ *
+ * 为什么单独一份：`tsconfig.json` 只收 `electron/`，`tsconfig.app.json` 只收 `src/`，
+ * `tests/` 一直在两者之外——也就是说这个项目的 1043 个测试从来没被 tsc 看过一眼。
+ * 补这份配置时暴露的第一个真问题就是这么找到的：`MockWebContents` 少了 `send()`，
+ * 而 `AppWindow.send()` 把调用包在 try/catch 里，于是主进程→渲染进程的推送在每一次
+ * 测试里都抛 TypeError 被吞掉、稳定返回 false，没有任何用例察觉。
+ *
+ * lib 拉到 ES2022（比 `tsconfig.json` 高）：测试里用了 `Object.hasOwn`。只在这里拉，
+ * 生产代码的 lib 不动，免得无意中放宽了生产侧能用的 API。
+ *
+ * noUnusedLocals / noUnusedParameters 只在这里关掉：测试替身经常要实现完整签名却只用
+ * 其中一两个参数（`(event, channel, ...args) => {}`），那是接口契约的一部分，不是死代码。
+ *
+ * include 里必须显式列出两个 .d.ts：tsc 只从 include 覆盖到的文件里收集环境声明，
+ * 而测试 import 会把生产文件一起拖进来。少了它们，`Cannot find namespace 'Electron'`
+ * 和 `Property 'electronAPI' does not exist` 会在生产文件里报出约 470 个假错误。
+ *
+ * 刻意不配 paths 把 'electron' 指向测试替身：类型是会被擦除的，拿替身去检查生产代码
+ * 只会得到假结论——试过一次，`CoachPetWindow` 那个真实的 `send` 缺失错误当场消失了。
+ * 测试里要用替身专有的名字（`MockBrowserWindow`、`resetElectronMock`），
+ * 就从 `../electron/electronMock` 相对路径导入，别借 'electron' 这个真实模块名夹带。
+ */
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "noUnusedLocals": false,
+    "noUnusedParameters": false
+  },
+  "include": ["tests", "electron/electron-env.d.ts", "src/vite-env.d.ts"],
+  "references": [{ "path": "./tsconfig.node.json" }]
+}

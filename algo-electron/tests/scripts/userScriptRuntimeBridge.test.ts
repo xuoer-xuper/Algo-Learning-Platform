@@ -370,7 +370,11 @@ function createRuntime(grants?: string[]) {
   let generationListener: ((generation: number) => void) | null = null
   const runtime = {
     generation: 1,
-    getNavigationSnapshot: vi.fn(() => ({ generation: 1, scripts: [expectScriptSnapshot(grants)] })),
+    // 形参照生产签名写全，哪怕默认实现不看它们：用例要 mockImplementation 成
+    // 按 frameUrl 分支的版本，替身的形参表少一个，那次覆盖就过不了类型检查。
+    getNavigationSnapshot: vi.fn((_frameUrl: string, _isMainFrame: boolean) => (
+      { generation: 1, scripts: [expectScriptSnapshot(grants)] }
+    )),
     setValue: vi.fn(),
     deleteValue: vi.fn(),
     addGenerationChangeListener: vi.fn((listener: (generation: number) => void) => {

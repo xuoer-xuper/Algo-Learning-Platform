@@ -1,6 +1,9 @@
 import assert from 'node:assert/strict'
 import { test } from 'vitest'
-import { session, type MockSession, resetElectronMock } from 'electron'
+// session 从替身导入：它的 fromPartition/defaultSession 本来就返回 MockSession，
+// 走 'electron' 拿到的是真实 Session 类型，只能靠 `as MockSession` 强转回来——
+// 那两处强转除了骗过编译器没别的作用，导入对了就不需要了。
+import { resetElectronMock, session } from '../electron/electronMock'
 import { configureOjSession } from '../../electron/browser/ojSession.ts'
 import { isBrowserPermissionAllowed } from '../../electron/browser/permissionPolicy.ts'
 
@@ -17,8 +20,8 @@ test('default and OJ sessions install permission request and check handlers', ()
   resetElectronMock()
   configureOjSession({ getSiteById: () => null })
 
-  const defaultSession = session.defaultSession as MockSession
-  const ojSession = session.fromPartition('persist:oj-main') as MockSession
+  const defaultSession = session.defaultSession
+  const ojSession = session.fromPartition('persist:oj-main')
   assert.ok(defaultSession.permissionCheckHandler)
   assert.ok(defaultSession.permissionRequestHandler)
   assert.ok(ojSession.permissionCheckHandler)

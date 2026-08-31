@@ -144,15 +144,21 @@ test('isContestActive: 仅 start 无 end → 保守视为进行中', () => {
 // --- 3. 比赛进入/离开生命周期 ---
 
 test('进入比赛页触发 onContestEnter，isContestMode=true', () => {
-  let enterCount = 0
   let endCount = 0
-  let enteredInfo: ContestInfo | null = null
+  /*
+   * 进入事件收进数组而不是 `let enteredInfo: ContestInfo | null`。
+   *
+   * 后者过不了类型检查：赋值发生在 `onContestEnter` 的闭包里，TS 的控制流分析看不见，
+   * 于是在断言处仍认定它是 `null`，`assert.ok(enteredInfo)` 一交就收窄成 `never`，
+   * 后面读 `.platform` 报的是"Property 'platform' does not exist on type 'never'"。
+   * 数组顺带把 enterCount 也省了——次数就是长度，不会出现"计数加了但对象没存"的偏差。
+   */
+  const enterEvents: ContestInfo[] = []
 
   const guard = new ContestGuard({
     now: () => 1700000000000,
     onContestEnter: (info) => {
-      enterCount++
-      enteredInfo = info
+      enterEvents.push(info)
     },
     onContestEnd: () => {
       endCount++
@@ -163,14 +169,14 @@ test('进入比赛页触发 onContestEnter，isContestMode=true', () => {
 
   guard.handleUrlChange('https://codeforces.com/contest/1234')
 
-  assert.strictEqual(enterCount, 1, 'should fire onContestEnter once')
+  assert.strictEqual(enterEvents.length, 1, 'should fire onContestEnter once')
   assert.strictEqual(endCount, 0)
   assert.strictEqual(guard.isContestMode(), true, 'should be in contest mode')
-  assert.ok(enteredInfo)
-  assert.strictEqual(enteredInfo!.platform, 'codeforces')
-  assert.strictEqual(enteredInfo!.contestId, '1234')
-  assert.strictEqual(enteredInfo!.contestUrl, 'https://codeforces.com/contest/1234')
-  assert.strictEqual(enteredInfo!.enteredAt, 1700000000000)
+  const [enteredInfo] = enterEvents
+  assert.strictEqual(enteredInfo.platform, 'codeforces')
+  assert.strictEqual(enteredInfo.contestId, '1234')
+  assert.strictEqual(enteredInfo.contestUrl, 'https://codeforces.com/contest/1234')
+  assert.strictEqual(enteredInfo.enteredAt, 1700000000000)
 })
 
 test('离开比赛页触发 onContestEnd，isContestMode=false', () => {

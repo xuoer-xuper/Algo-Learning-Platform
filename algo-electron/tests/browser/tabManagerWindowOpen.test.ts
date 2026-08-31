@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'vitest'
-import { MockBrowserWindow, MockWebContents, resetElectronMock } from 'electron'
+import { MockBrowserWindow, MockWebContents, resetElectronMock } from '../electron/electronMock'
 import { TabManager } from '../../electron/browser/TabManager.ts'
 
 function popupDetails(url: string, disposition = 'foreground-tab') {

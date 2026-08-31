@@ -526,6 +526,10 @@ interface SampleProblem {
     memoryLimitMb?: number | null
     nUpper?: number | null
     valueUpper?: number | null
+    // 第 14 道样例（洛谷多组数据）写了 testGroupCount，但这里原先没声明这个字段。
+    // 下面遍历 `Object.entries(problem.expected)` 统计准确率，字段声明缺失不影响运行——
+    // 于是那条期望一直在参与统计却没人发现它是不是写对了。补上声明才让 tsc 能替我们盯着。
+    testGroupCount?: number | null
   }
 }
 

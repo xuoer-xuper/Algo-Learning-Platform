@@ -13,14 +13,26 @@ export interface SyncResult {
   error?: string
 }
 
+/**
+ * 本服务真正需要 batchWriter 的能力：只有 `write`。
+ *
+ * 原先声明成完整的 `SubmissionBatchWriter`。那个类有两个 private 字段（`problemAttacher`、
+ * `deps`），private 让类型变成 nominal 的——对象字面量无论写多全都不可能满足它。于是
+ * syncService.test.ts 里 5 个替身有 4 个靠 `as any` 蒙过去，而 `as any` 盖的是整个
+ * options 对象，连 `notifyProblemsUpdated` 拼错都不会报。
+ *
+ * 收窄成 `Pick<…, 'write'>` 之后真实类仍然满足（它有 write），替身也终于能诚实地通过检查。
+ */
+export type SubmissionBatchWriterLike = Pick<SubmissionBatchWriter, 'write'>
+
 export interface SyncServiceDeps {
-  batchWriter: SubmissionBatchWriter
+  batchWriter: SubmissionBatchWriterLike
   findNowcoderProblemBySearch?: (search: string) => string | undefined
   notifyProblemsUpdated?: () => void
 }
 
 export class SyncService {
-  private readonly batchWriter: SubmissionBatchWriter
+  private readonly batchWriter: SubmissionBatchWriterLike
   private readonly findNowcoderProblemBySearch: (search: string) => string | undefined
   private readonly notifyProblemsUpdated: () => void
 

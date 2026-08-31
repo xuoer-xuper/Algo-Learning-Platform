@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'vitest'
-import { MockBrowserWindow, MockWebContentsView, resetElectronMock } from 'electron'
+import { MockBrowserWindow, MockWebContentsView, resetElectronMock } from '../electron/electronMock'
 import { AppWindow } from '../../electron/windows/AppWindow.ts'
 import { ViewRegistry } from '../../electron/windows/ViewRegistry.ts'
 import { WindowManager } from '../../electron/windows/WindowManager.ts'

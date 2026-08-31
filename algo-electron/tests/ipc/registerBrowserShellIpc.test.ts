@@ -1,13 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'vitest'
-import {
-  clipboard,
-  ipcMain,
-  menuPopups,
-  MockBrowserWindow,
-  MockWebContents,
-  resetElectronMock,
-} from 'electron'
+import { clipboard, ipcMain } from 'electron'
+import { menuPopups, MockBrowserWindow, MockWebContents, resetElectronMock } from '../electron/electronMock'
 import { registerBrowserShellIpc } from '../../electron/ipc/registerBrowserShellIpc.ts'
 import {
   registerShellWebContents,
