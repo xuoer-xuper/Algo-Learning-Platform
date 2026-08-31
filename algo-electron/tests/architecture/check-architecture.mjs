@@ -428,7 +428,6 @@ const SOURCE_TEXT_AS_ARTIFACT = new Set([
   'tests/components/tokenGovernance.test.ts',
 ])
 const SOURCE_TEXT_DEBT = new Set([
-  'tests/coach/coachPageOwnershipWiring.test.ts',
   'tests/electron/mainResilience.test.ts',
   'tests/integration/problemTitleExtractionWiring.test.ts',
 ])
