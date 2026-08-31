@@ -713,10 +713,24 @@ test('20 道样例题面抽取准确率 >= 80%', () => {
       console.log(`    - ${f}`)
     }
   }
-  assert.ok(
-    accuracy >= 0.8,
-    `accuracy should be >= 80%, got ${accuracyPct}% (${correctCount}/${totalChecks.length})`,
+  /*
+   * 门原先是 `accuracy >= 0.8`，实测 91.5%。也就是说 59 个字段里有 11 个可以静默变错
+   * 而这条用例照绿——而且当时确实有 5 个是错的（多测题面把数据组数 t 当成主变量 n、
+   * 全角括号收不住区间右端、裸 `a, b` 落不进值域），谁都没看见，因为 91.5% > 80%。
+   *
+   * 那 5 个已经修好（见 `ConstraintParser` 里 `primaryVarRank` 与 `RANGE_END` 的注释），
+   * 现在是 59/59。门就钉在这里：**一个都不许错**。
+   *
+   * 这不是要求正则解析器完美，是要求它对**这 20 道已知样例**不倒退。将来加一道刻意刁钻的
+   * 样例、当场解析不出来，那就把它连同"为什么解析不了"一起写进 expected 里降下来——
+   * 显式记一笔欠账，而不是靠一个宽到看不出问题的百分比替它兜着。
+   */
+  assert.deepStrictEqual(
+    failures,
+    [],
+    `样例抽取出现回退（${correctCount}/${totalChecks.length} = ${accuracyPct}%）`,
   )
+  assert.strictEqual(accuracy, 1, '门是"一个都不许错"，不是某个百分比')
 })
 
 test('20 道样例：每道题至少解析出一个字段', () => {

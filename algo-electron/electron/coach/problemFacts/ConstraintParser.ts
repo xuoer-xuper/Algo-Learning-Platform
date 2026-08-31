@@ -443,6 +443,43 @@ function parseTestGroupCount(text: string): number | null {
  *
  * 返回主变量名 + 下限 + 上限。
  */
+/*
+ * 区间右端的终止符。
+ *
+ * 原来只有 `[\s,，。.\n]`，于是 `n（1 ≤ n ≤ 1e5）` 整条匹配不上——右端 `1e5` 后面紧跟的是
+ * 全角右括号，不在集合里，`[0-9eE·.*^+\-()]+?` 又不含全角括号，所以 lookahead 永远不成立。
+ * 题面里中英文标点混排很常见（时间限制那两行已经在处理全角冒号了），补齐右侧成对符号。
+ */
+const RANGE_END = String.raw`(?=[\s,，。.\n）］】》]|$)`
+
+/**
+ * 主变量候选的优先级。数字越小越优先。
+ *
+ * 原实现是"取第一个匹配到的"，注释写着"主变量通常是第一个出现的 n"。两道样例证明这句话
+ * 在最常见的题面格式上就是错的：Codeforces 风格的多测题面固定先写
+ * `an integer t (1 ≤ t ≤ 1000)`，再写每组的 `n`，于是 nUpper 拿到的是数据组数——
+ * 1000 而不是 2·10^5，差两个数量级。
+ *
+ * 后果不是精度：`buildHint` 里只有 `nUpper >= 1e5` 才建议收到 O(n log n) 以内。
+ * 拿 t 的上限去判，多测题一律走不进那条分支，给出的提示反过来暗示 O(n²) 没问题。
+ *
+ * 三档而不是两个排除名单：
+ * - `t` / `T` 是数据组数，只有整段找不到别的变量时才拿它当主变量（`parseTestGroupCount`
+ *   另有一套判定，这里不重复）。
+ * - `a`/`b`/`x`/`y` 这类裸单字母按惯例是**值**而不是计数（"输入两个整数 a, b"）。
+ *   把它们当主变量会让 A+B 这种题得到 `nUpper = 1e9`，于是提示变成"检查嵌套循环"——
+ *   题里根本没有循环。它们该走 `parseValueRange`。
+ * - 其余（`n`、`m`、`k`、`q`、`len`…）正常优先。
+ *
+ * 只降序不排除：整段只有 `a` 或只有 `t` 时仍然返回它。宁可给一个偏小的界，
+ * 也不要返回 null——"至少解析出一个字段才算成功"是这个解析器的既定约定。
+ */
+function primaryVarRank(varName: string): number {
+  if (varName === 't' || varName === 'T') return 2
+  if (/^[abcxyzvw]$/i.test(varName)) return 1
+  return 0
+}
+
 function parsePrimaryRange(text: string): {
   varName: string
   lower: number | null
@@ -452,24 +489,28 @@ function parsePrimaryRange(text: string): {
   // 支持 ≤ / <= / ≤（全角）
   const patterns = [
     // "1 ≤ n ≤ 2·10^5" / "1 ≤ n ≤ 2e5" / "1 <= n <= 200000"
-    /([0-9]+(?:\.[0-9]+)?)\s*(?:≤|<=)\s*([a-zA-Z][a-zA-Z0-9_]*)\s*(?:≤|<=)\s*([0-9eE·.*^+\-()]+?)(?=[\s,，。.\n]|$)/g,
+    new RegExp(String.raw`([0-9]+(?:\.[0-9]+)?)\s*(?:≤|<=)\s*([a-zA-Z][a-zA-Z0-9_]*)\s*(?:≤|<=)\s*([0-9eE·.*^+\-()]+?)${RANGE_END}`, 'g'),
     // "1 ≤ n, m ≤ 1e5"（取第一个变量）
-    /([0-9]+(?:\.[0-9]+)?)\s*(?:≤|<=)\s*([a-zA-Z][a-zA-Z0-9_]*)\s*,\s*[a-zA-Z][a-zA-Z0-9_]*\s*(?:≤|<=)\s*([0-9eE·.*^+\-()]+?)(?=[\s,，。.\n]|$)/g,
+    new RegExp(String.raw`([0-9]+(?:\.[0-9]+)?)\s*(?:≤|<=)\s*([a-zA-Z][a-zA-Z0-9_]*)\s*,\s*[a-zA-Z][a-zA-Z0-9_]*\s*(?:≤|<=)\s*([0-9eE·.*^+\-()]+?)${RANGE_END}`, 'g'),
   ]
 
   for (const pattern of patterns) {
     const matches = Array.from(text.matchAll(pattern))
     if (matches.length === 0) continue
-    // 选第一个有效的（主变量通常是第一个出现的 n）
+    const candidates: Array<{ varName: string, lower: number, upper: number }> = []
     for (const m of matches) {
-      const lowerStr = m[1]
       const varName = m[2]
-      const upperStr = m[3]
-      const lower = parseLooseInt(lowerStr)
-      const upper = parseLooseInt(upperStr)
+      const lower = parseLooseInt(m[1])
+      const upper = parseLooseInt(m[3])
       if (lower !== null && upper !== null && upper > lower) {
-        return { varName, lower, upper }
+        candidates.push({ varName, lower, upper })
       }
+    }
+    if (candidates.length === 0) continue
+    // 同档之内保持出现顺序（`find` 天然如此），所以只需按档从低到高找第一个命中的。
+    for (const rank of [0, 1, 2]) {
+      const best = candidates.find(candidate => primaryVarRank(candidate.varName) === rank)
+      if (best) return best
     }
   }
 
@@ -489,7 +530,10 @@ function parsePrimaryRange(text: string): {
  */
 function parseValueRange(text: string): { lower: number | null; upper: number | null } | null {
   // 值域变量通常带下标：a_i, a[j], arr[i], x_i, etc.
-  const pattern = /([0-9]+(?:\.[0-9]+)?)\s*(?:≤|<=)\s*(?:a_|a\[|x_|x\[|arr|b_|b\[)[^\s]*(?:≤|<=)\s*([0-9eE·.*^+\-()]+?)(?=[\s,，。.\n]|$)/gi
+  const pattern = new RegExp(
+    String.raw`([0-9]+(?:\.[0-9]+)?)\s*(?:≤|<=)\s*(?:a_|a\[|x_|x\[|arr|b_|b\[)[^\s]*(?:≤|<=)\s*([0-9eE·.*^+\-()]+?)${RANGE_END}`,
+    'gi',
+  )
   const matches = Array.from(text.matchAll(pattern))
   for (const m of matches) {
     const lower = parseLooseInt(m[1])
@@ -498,8 +542,21 @@ function parseValueRange(text: string): { lower: number | null; upper: number | 
       return { lower, upper }
     }
   }
-  // 退化：任意 "1 ≤ X ≤ 1e9" 形式中 X 含下标
-  const fallbackPattern = /([0-9]+(?:\.[0-9]+)?)\s*(?:≤|<=)\s*([a-zA-Z][a-zA-Z0-9_[\]]+)\s*(?:≤|<=)\s*([0-9eE·.*^+\-()]+?)(?=[\s,，。.\n]|$)/g
+  /*
+   * 退化：任意 "1 ≤ X ≤ 1e9"，X 不是计数变量就当值域。
+   *
+   * 两处放宽，都是 `洛谷 P1001`（`输入两个整数 a, b (1 <= a, b <= 1e9)`）逼出来的：
+   * - 变量名量词从 `+` 改成 `*`：原来至少要两个字符，于是裸单字母 `a` 永远匹配不上，
+   *   而"输入两个整数 a, b"恰恰是最常见的值域写法。
+   * - 允许逗号并列的变量组，取第一个。上面那条带下标的主 pattern 也只认单变量。
+   *
+   * 跳过的仍然是计数变量（`parsePrimaryRange` 负责它们），单字母值名不在此列——
+   * 它们在主变量那侧被降档，正是为了落到这里。
+   */
+  const fallbackPattern = new RegExp(
+    String.raw`([0-9]+(?:\.[0-9]+)?)\s*(?:≤|<=)\s*([a-zA-Z][a-zA-Z0-9_[\]]*)(?:\s*,\s*[a-zA-Z][a-zA-Z0-9_[\]]*)*\s*(?:≤|<=)\s*([0-9eE·.*^+\-()]+?)${RANGE_END}`,
+    'g',
+  )
   const fallbackMatches = Array.from(text.matchAll(fallbackPattern))
   for (const m of fallbackMatches) {
     const varName = m[2]
