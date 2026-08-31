@@ -39,7 +39,14 @@ export interface SiteAdapter {
   injectOnProblemPage?: boolean
 
   matchProblem(url: string): boolean
-  parseProblem(url: string, ctx: ParseContext): Promise<ProblemIdentity | null> | ProblemIdentity | null
+  /**
+   * 同步解析。声明过 `Promise<ProblemIdentity | null> | …` 的联合，但 8 个内建适配器全是同步
+   * 实现，自定义适配器的扩展点 `ProblemParserAdapter.parse` 也只声明同步——异步分支没有任何
+   * 实现，却逼着 4 个调用点写 `identity instanceof Promise ? null : identity`，
+   * 也就是为一个不会发生的情况写"静默丢掉解析结果"。谁真要异步解析，届时连调用点一起改，
+   * 比现在留一条没人走、走了就丢数据的路诚实。
+   */
+  parseProblem(url: string, ctx: ParseContext): ProblemIdentity | null
 
   matchSubmissionResult?(url: string): boolean
   injectHookScript?(): string

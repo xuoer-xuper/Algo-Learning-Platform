@@ -35,10 +35,7 @@ export function getAdapter(id: string): ProblemParserAdapter | undefined {
   return {
     id: runtimeAdapter.id,
     match: (url) => runtimeAdapter.matchProblem(url),
-    parse: (url) => {
-      const identity = runtimeAdapter.parseProblem(url, { url })
-      return identity instanceof Promise ? null : identity
-    },
+    parse: (url) => runtimeAdapter.parseProblem(url, { url }),
   }
 }
 
@@ -58,10 +55,7 @@ export function getAdapterForUrl(url: string): ProblemParserAdapter | null {
   return {
     id: runtimeAdapter.id,
     match: (candidateUrl) => runtimeAdapter.matchProblem(candidateUrl),
-    parse: (candidateUrl) => {
-      const identity = runtimeAdapter.parseProblem(candidateUrl, { url: candidateUrl })
-      return identity instanceof Promise ? null : identity
-    },
+    parse: (candidateUrl) => runtimeAdapter.parseProblem(candidateUrl, { url: candidateUrl }),
   }
 }
 
@@ -79,7 +73,7 @@ export function parseUrl(url: string): ProblemIdentity | null {
   const runtimeAdapter = getRuntimeAdapter(adapterId) ?? getRuntimeAdapterForUrl(url)
   if (runtimeAdapter?.matchProblem(url)) {
     const identity = runtimeAdapter.parseProblem(url, { url })
-    if (!(identity instanceof Promise) && identity) return identity
+    if (identity) return identity
   }
 
   if (site.problemUrlPatterns?.length) {

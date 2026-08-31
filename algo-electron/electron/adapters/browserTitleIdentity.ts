@@ -18,7 +18,7 @@ export function resolveProblemIdentityFromBrowserTitle(
     url: raw.pageUrl,
     title: getPageTitle(raw),
   })
-  if (identity instanceof Promise || !identity) return null
+  if (!identity) return null
 
   const title = cleanBrowserProblemTitle(getPageTitle(raw), {
     platform: identity.platform,
