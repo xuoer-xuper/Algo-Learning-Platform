@@ -428,3 +428,35 @@ Q10 **刻意记 +0**。它修掉的是"已有分数的证据不成立"，不是�
 | Q9 | [x] | 计划外新增，commit `ec9b851` + `f449b11`。补掉 Q7 末段记为"最大单项缺口"的渠道载荷校验：103 处收渲染进程参数的 handler 全部声明 schema，棘轮白名单清空，`IpcListener` 随之从 `any[]` 收紧为 `unknown[]` 且零处需要 `as`。暴露 6 个真实缺陷，其中 `coach:saveConfig` 能绕过 safeStorage 往 `llm.encrypted_api_key` 写（读路径是脱敏的）、`confirmImportSites` 能覆盖内置站点行（预览拦得住、提交这步不复判）、三处通道纯裸奔。顺带发现棘轮机制自己漏一类失败（预算高于实际不报，部分清理不可见）和一条我自己写下的未兑现声明（注释称守卫在统计 `raw()`，实际没有）。自造一坑：泛型参数缺 `const` 使异构 schema 元组塌成联合，两个并行 agent 各自撞上并正确诊断。新增 30 个用例，各经变异验证 |
 | Q7 | [x] | 已完成。起始计数纠正为 51 处（原 45 漏了 `as any`），四批提交后 `electron/` 剩 1 处且为刻意保留（`IpcListener`）——**该项已由 Q9 消除**，收紧过程零 `as`，验证了当时"补法是加载荷校验而非改类型"的判断。收窄不是纯类型活：暴露并修掉 4 个真实缺陷——`syncService` 与 migration 009/011 的 `e.message` 在非 `Error` 抛出时自己抛 TypeError 覆盖真实失败原因、`domScraper` 对跨进程值的无检查属性访问、PTA 缺列行让 `.match()` 抛异常中断整批解析、洛谷把字符串赋给声明为 `number` 的字段。顺带把 19 份重复的 `errorMessage`/`errorName` 合并到 `electron/shared/errors.ts`。新增 7 个用例，各经变异验证 |
 | Q10 | [x] | 计划外新增，commit `2f7f438`→`ed17df6`。主题是"证据不成立"，故记 +0（理由见 §3 末）。三份源码字符串测试改成行为测试：`coachPageOwnershipWiring`（`CoachOrchestrator` 首次有行为覆盖，此前该 1248 行文件被当作不可测）、`problemTitleExtractionWiring`、`mainResilience`（54 条断言降到 25，并发现 `main.ts` 能在替身下 import——`whenReady` 挂住不 resolve 时闸门内的同步装配全部可观察，新增 `mainStartupContract.test.ts`；把闸门条件改成恒真，新用例红而剩下 25 条源码断言全绿，正是源码断言的问题所在）。`constraintParser` 那道 80% 阈值实测 91.5%、吸收了 5 个真实错误：多测题面把数据组数 `t` 当主变量使 `nUpper` 差两个数量级，而 `buildHint` 只在 `nUpper >= 1e5` 时才建议收紧复杂度——多测题的提示因此**反向**；另两处是全角括号收不住区间右端、裸 `a, b` 落不进值域。修完 59/59，门改成"零失败"。顺带删掉一个零调用点却权限最大的渠道 `sites:update`（能改内置站点的 `domains`/`loginUrlPatterns`，而那两个字段决定自动填充往哪一页填密码）、给 `arrayOf` 加下限（`","` 输入产生的空 `domains` 会造出永不匹配的"已启用"站点）、`normalizePlanDays` 改判整数、删一处 tsc 探针证明不需要的双重 `as`。测试替身补 `dialog.showErrorBox`——缺它使"致命错误弹窗"在此前每次测试里都抛 TypeError 被吞（与 Q8 的 `send()` 同类）。自造一坑并记账：首版忘了注册 `setEnabledSitesFetcher`，`parseUrl` 恒返回 null，四条用例里三条**空转照绿**——只有正向那条会红。教训写进文件头：只有一条正向用例的套件里，那条正向用例同时是其余反向用例的脚手架检查 |
+
+## 9. 已测量但未处置：暴露而无消费者的 preload 方法（31 个）
+
+Q10 删掉 `sites:update` 之后顺手把同一类问题量了一遍，结论记在这里等决策，**没有动手删**。
+
+测量方法（可重复）：取 `electron/preload.ts` 里 `electronAPI` 的属性键，在 `src/` 下找
+`electronAPI.<方法名>` 的调用点。173 个暴露方法中 **31 个在 `src/` 下没有任何调用点**。
+
+先说不是什么。这**不等于** `sites:update` 那种情况：那个渠道有已完成的站点管理 UI 却没人调
+update，而且它能改内置站点的 `domains` / `loginUrlPatterns`——那两个字段决定凭据自动填充
+往哪一页填密码，所以删掉是明确的。这 31 个绝大多数是**UI 还没做**（AI Coach 仍在规划中），
+删掉等于删正在进行的工作。
+
+按性质分三组：
+
+| 组 | 方法 | 判断 |
+|---|---|---|
+| Coach（11） | `coachSetPetState`、`coachShowBubble`、`coachDismissBubble`、`coachRequestHint`、`coachGetWorkArea`、`coachGetSession`、`coachGetSessionHistory`、`coachGetMetrics`、`coachListEvents`、`coachListInterventions`、`coachExportAuditLog` | 宠物窗口有自己的 preload，壳侧这份是给还没做的 Coach 面板留的。等 UI |
+| AI / 统计（17） | `exportAIContext(+Markdown)`、`getPeriodSummary(+Markdown)`、`getReviewPlan(+Markdown)`、`saveAIOutput`、`getAIOutput`、`listAIOutputs`、`deleteAIOutput`、`updateAIOutput`、`getDailyActiveStats`、`getSubmissionTrend`、`getPlatformDistribution`、`getLastActiveTime`、`recomputeDailyStats`、`getContestResults` | 等 UI。注意 `recomputeDailyStats(date?)` 与在用的 `recomputeAllDailyStats()` **不是**重复：一个重算单日、一个重算全部 |
+| 其他（3） | `getBrowserDiagnostics`、`syncVjudge`、`getCookieSummaryForDomain` | `getCookieSummaryForDomain` 是 `loadCookieSummaryForSite`（在用）的按域名版本。查过它不违反 Cookie 规则：`toCookieMetadataInput` 只存 name / 过期 / httpOnly / secure / sameSite / purpose，**不存值**，摘要读的也是这张元数据表 |
+
+风险量级与 `sites:update` 不同档：31 个里没有一个能改变凭据自动填充的落点，写路径
+（`saveAIOutput` 等）在 Q9 之后全部有 schema 校验。所以这是**表面积欠账**，不是待修缺陷。
+
+要处置的话有两条路，选哪条取决于 AI Coach 的排期：
+1. 等 UI 落地后复测，届时仍无消费者的才删；
+2. 现在就把它们从 `preload.ts` 挪进一个显式的"预留"清单，做 UI 时再逐个放出来。
+
+不建议做的：为这件事加架构守卫。当前违规数是 31 而不是 0，守卫会立刻变成一份 31 条的
+棘轮白名单；而且判定得靠字符串匹配方法名，`ojPreload.ts` 用常量引用 channel 的写法已经
+让第一版脚本误报过一次（`oj-credentials:capture` 被判成无消费者，实际是 `import` 进去的）。
+等违规数降到个位数再自动化更划算。
