@@ -531,13 +531,68 @@ export function parsePtaFrontendVerdictPayload(raw: SubmissionDetectionPayload):
   }
 }
 
-export function parsePtaSubmissionData(currentUrl: string, data: any): SubmissionData[] {
+/**
+ * `EXTRACT_PTA_SUBMISSIONS_SCRIPT` 抽出的表格行：五个等长数组，下标就是列号。
+ *
+ * 这里敢列字段清单、而洛谷那边只敢写 `Record<string, unknown>`，区别在于形状归谁定义
+ * ——PTA 这份是本文件里的注入脚本自己产出的，键名由我们说了算；洛谷读的是对方页面载荷。
+ */
+interface PtaTableRow {
+  texts: string[]
+  links: string[]
+  allLinks: string[][]
+  htmls: string[]
+  classNames: string[]
+}
+
+/**
+ * 收窄成字符串数组。非字符串元素换成空串而不是丢掉：下标即列号，抽掉一个元素会让后面
+ * 所有列错位，把 `cells[verdictIdx]` 读成隔壁列的内容。
+ */
+function toStringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) return []
+  return value.map(item => typeof item === 'string' ? item : '')
+}
+
+function toStringMatrix(value: unknown): string[][] {
+  if (!Array.isArray(value)) return []
+  return value.map(toStringArray)
+}
+
+function toPtaTableRow(value: unknown): PtaTableRow | null {
+  if (!value || typeof value !== 'object') return null
+  const row = value as Record<string, unknown>
+  return {
+    texts: toStringArray(row.texts),
+    links: toStringArray(row.links),
+    allLinks: toStringMatrix(row.allLinks),
+    htmls: toStringArray(row.htmls),
+    classNames: toStringArray(row.classNames),
+  }
+}
+
+/**
+ * 解析 PTA 提交表格。
+ *
+ * 入参 `unknown`：既接注入脚本 `executeScript` 跨进程克隆回来的结果，也接实时钩子从页面
+ * 拦下的响应体（见 `sites/pta/submissions.ts`），后者形状完全由 PTA 决定。收窄一次之后
+ * 下面的 `cells[i].match(...)`、`links.find(...)` 才是真的安全——原先靠 `any`，行数组长短
+ * 不齐时 `cells[problemIdx].match` 会在 `undefined` 上抛异常。
+ */
+export function parsePtaSubmissionData(currentUrl: string, data: unknown): SubmissionData[] {
   const urlSetIdMatch = currentUrl.match(/\/problem-sets\/(\d+)/)
   const urlSetId = urlSetIdMatch ? urlSetIdMatch[1] : null
 
-  if (!data || data.error || !data.rows?.length) return []
+  if (!data || typeof data !== 'object') return []
+  const payload = data as Record<string, unknown>
+  if (payload.error) return []
 
-  const headers = data.headers || []
+  const rows = Array.isArray(payload.rows)
+    ? payload.rows.map(toPtaTableRow).filter((row): row is PtaTableRow => row !== null)
+    : []
+  if (!rows.length) return []
+
+  const headers = toStringArray(payload.headers)
   const idIdx = findColumnIndex(headers, ['提交编号', 'Submission ID', 'ID'])
   let verdictIdx = findColumnIndex(headers, ['评测结果', '结果', 'Score', 'Result', '状态', 'Status', '评判结果', '得分'])
   const languageIdx = findColumnIndex(headers, ['编译器', '语言', 'Language', 'Compiler'])
@@ -545,12 +600,12 @@ export function parsePtaSubmissionData(currentUrl: string, data: any): Submissio
   const memoryIdx = findColumnIndex(headers, ['内存', '使用内存', 'Memory'])
   const problemIdx = findColumnIndex(headers, ['题目', '问题', 'Problem'])
 
-  if (verdictIdx === -1 && data.rows?.length) {
+  if (verdictIdx === -1) {
     const verdictKeywords = ['答案正确', '部分正确', '答案错误', '运行超时', '内存超限', '输出超限', '段错误', '浮点错误', '非零返回', '多种错误', '运行时错误', '编译错误', '格式错误', '等待评测', '正在评测', '已被覆盖', '内部错误', 'accepted', 'wrong', 'time limit', 'memory limit', 'runtime', 'compile', 'presentation', 'output limit']
-    for (let col = 0; col < (data.rows[0].texts?.length || 0); col++) {
+    for (let col = 0; col < rows[0].texts.length; col++) {
       let matchCount = 0
-      for (const row of data.rows) {
-        const cellText = (row.texts?.[col] || '').toLowerCase()
+      for (const row of rows) {
+        const cellText = (row.texts[col] || '').toLowerCase()
         if (verdictKeywords.some(keyword => cellText.includes(keyword.toLowerCase()))) matchCount++
       }
       if (matchCount > 0) {
@@ -560,9 +615,9 @@ export function parsePtaSubmissionData(currentUrl: string, data: any): Submissio
     }
   }
 
-  if (verdictIdx === -1 && data.rows?.length) {
-    for (let col = 0; col < (data.rows[0].classNames?.length || 0); col++) {
-      const className = (data.rows[0].classNames?.[col] || '').toLowerCase()
+  if (verdictIdx === -1) {
+    for (let col = 0; col < rows[0].classNames.length; col++) {
+      const className = (rows[0].classNames[col] || '').toLowerCase()
       if (className.includes('result') || className.includes('verdict') || className.includes('status') || className.includes('score')) {
         verdictIdx = col
         break
@@ -578,11 +633,7 @@ export function parsePtaSubmissionData(currentUrl: string, data: any): Submissio
   const seen = new Set<string>()
   const results: SubmissionData[] = []
 
-  for (let index = 0; index < data.rows.length; index++) {
-    const cells = data.rows[index].texts || []
-    const links = data.rows[index].links || []
-    const allLinks: string[][] = data.rows[index].allLinks || []
-    const htmls: string[] = data.rows[index].htmls || []
+  for (const { texts: cells, links, allLinks, htmls } of rows) {
     const platformSubmissionId = (idIdx >= 0 && cells[idIdx]) ? `pta-${cells[idIdx]}` : extractStableId(links, 'pta')
     if (!platformSubmissionId) continue
     const language = languageIdx >= 0 ? cells[languageIdx] || '' : ''
@@ -624,7 +675,9 @@ export function parsePtaSubmissionData(currentUrl: string, data: any): Submissio
       const setMatch = htmls[problemIdx].match(setIdAttrPattern)
       if (setMatch) extractedSetId = setMatch[1]
     }
-    if (!extractedProblemId && problemIdx >= 0) {
+    // `cells[problemIdx]` 的存在性要单独判：表头列数比某行单元格数多时（合并单元格、
+    // 加载中的占位行）这里是 `undefined`，原先直接 `.match()` 会抛异常中断整批解析。
+    if (!extractedProblemId && problemIdx >= 0 && cells[problemIdx]) {
       const numberMatch = cells[problemIdx].match(/(\d+)/)
       if (numberMatch) extractedProblemId = numberMatch[1]
     }
@@ -643,7 +696,7 @@ export function parsePtaSubmissionData(currentUrl: string, data: any): Submissio
       runtimeMs: runtimeIdx >= 0 ? parseInt(cells[runtimeIdx]) || undefined : undefined,
       memoryKb: memoryIdx >= 0 ? parseInt(cells[memoryIdx]) || undefined : undefined,
       submittedAt: nowBeijing(),
-      sourceUrl: links.find((link: string) => link) || '',
+      sourceUrl: links.find(link => link) || '',
       rawJson: ptaProblemId ? JSON.stringify({ _ptaProblemId: ptaProblemId }) : undefined,
     })
   }

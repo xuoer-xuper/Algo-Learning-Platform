@@ -62,7 +62,59 @@ function collectTestcaseVerdicts(value: unknown, results: Array<{ verdict: Verdi
   }
 }
 
-function collectLuoguTestcaseVerdicts(record: any): Array<{ verdict: Verdict; rawVerdict: string }> {
+/**
+ * 洛谷提交记录在页面里的原始形状。
+ *
+ * 只声明成"键名任意、值未知"而不列字段：同一条记录在列表页、详情页、实时推送三条路径上
+ * 的键名并不一致（status/verdict/result/judgeResult 都出现过，测试点挂在 detail、
+ * details、testCases、subtasks、points 下），下面每个读取函数都在依次试探这些别名。
+ * 列一份"字段清单"会假装我们知道对方的契约，而洛谷从没承诺过。
+ *
+ * 关键是值为 `unknown`：取出来必须先收窄才能用，这正是 `any` 此前放过的地方。
+ */
+type LuoguRecord = Record<string, unknown>
+
+/** 把 `unknown` 收窄成一层记录。`null` 的 `typeof` 也是 `'object'`，所以必须单独排掉。 */
+function asRecord(value: unknown): LuoguRecord | undefined {
+  return value !== null && typeof value === 'object' ? value as LuoguRecord : undefined
+}
+
+/**
+ * 取一层子对象。`record.problem` 这类嵌套对象和外层一样没有契约，可能压根不存在、
+ * 也可能是个字符串（`extractProblemIdFromText(record.problem)` 就是在赌这种情况）。
+ */
+function nestedRecord(record: LuoguRecord, key: string): LuoguRecord | undefined {
+  return asRecord(record[key])
+}
+
+/** 只保留数组里的对象元素。非数组（含 `undefined`）得到空数组，等价于原先的 `?? []`。 */
+function asRecordArray(value: unknown): LuoguRecord[] {
+  if (!Array.isArray(value)) return []
+  const records: LuoguRecord[] = []
+  for (const item of value) {
+    const record = asRecord(item)
+    if (record) records.push(record)
+  }
+  return records
+}
+
+/**
+ * 取有限数字。数字字符串也接受：原先 `runtimeMs: record.time` 靠 `any` 直接赋给 `number`
+ * 字段、`record.submitTime * 1000` 靠隐式转换生效，洛谷不同页面两种形式都给过。
+ *
+ * 非数字（含 `NaN`）返回 `undefined`，落到 `SubmissionData` 的可选字段上就是"没这项"
+ * ——比原先把字符串塞进声明为 `number` 的字段诚实。
+ */
+function finiteNumber(value: unknown): number | undefined {
+  if (typeof value === 'number') return Number.isFinite(value) ? value : undefined
+  if (typeof value === 'string' && value.trim()) {
+    const numeric = Number(value)
+    return Number.isFinite(numeric) ? numeric : undefined
+  }
+  return undefined
+}
+
+function collectLuoguTestcaseVerdicts(record: LuoguRecord): Array<{ verdict: Verdict; rawVerdict: string }> {
   const testcaseVerdicts: Array<{ verdict: Verdict; rawVerdict: string }> = []
   for (const key of ['detail', 'details', 'judgeResult', 'testCases', 'testcases', 'subtasks', 'cases', 'points']) {
     collectTestcaseVerdicts(record?.[key], testcaseVerdicts)
@@ -70,7 +122,7 @@ function collectLuoguTestcaseVerdicts(record: any): Array<{ verdict: Verdict; ra
   return testcaseVerdicts
 }
 
-function hasLuoguDetail(record: any): boolean {
+function hasLuoguDetail(record: LuoguRecord): boolean {
   return ['detail', 'details', 'judgeResult', 'testCases', 'testcases', 'subtasks', 'cases', 'points']
     .some((key) => {
       const value = record?.[key]
@@ -79,7 +131,7 @@ function hasLuoguDetail(record: any): boolean {
     })
 }
 
-function resolveLuoguVerdict(record: any): { verdict: Verdict; rawVerdict: string } {
+function resolveLuoguVerdict(record: LuoguRecord): { verdict: Verdict; rawVerdict: string } {
   const testcaseVerdicts = collectLuoguTestcaseVerdicts(record)
 
   const pending = testcaseVerdicts.find(item => item.verdict === 'TESTING')
@@ -94,7 +146,7 @@ function resolveLuoguVerdict(record: any): { verdict: Verdict; rawVerdict: strin
   return { verdict: 'UNKNOWN', rawVerdict: String(record?.status ?? '') }
 }
 
-function isRealtimeRecordReady(record: any): boolean {
+function isRealtimeRecordReady(record: LuoguRecord): boolean {
   const verdict = resolveLuoguVerdict(record)
   if (verdict.verdict === 'TESTING' || verdict.verdict === 'UNKNOWN') return false
 
@@ -158,7 +210,7 @@ function normalizeLuoguLanguageMap(value: unknown): Record<string, string> {
   return result
 }
 
-function getLuoguLanguageName(record: any, languageMap: Record<string, string>): string {
+function getLuoguLanguageName(record: LuoguRecord, languageMap: Record<string, string>): string {
   const named = firstText([
     record?.languageName,
     record?.languageLabel,
@@ -166,8 +218,8 @@ function getLuoguLanguageName(record: any, languageMap: Record<string, string>):
     record?.langName,
     record?.compiler,
     record?.compilerName,
-    record?.codeLanguage?.name,
-    record?.language?.name,
+    nestedRecord(record, 'codeLanguage')?.name,
+    nestedRecord(record, 'language')?.name,
   ])
   if (named) return named
 
@@ -199,39 +251,41 @@ function extractProblemIdFromText(value: unknown): string | undefined {
   return idMatch?.[1]
 }
 
-function getLuoguProblemId(record: any): string | undefined {
+function getLuoguProblemId(record: LuoguRecord): string | undefined {
+  const problem = nestedRecord(record, 'problem')
   const publicId = firstText([
-    record?.problem?.pid,
-    record?.problem?.displayId,
-    record?.problem?.code,
-    record?.pid,
+    problem?.pid,
+    problem?.displayId,
+    problem?.code,
+    record.pid,
   ])
   if (publicId) return publicId
 
-  const extracted = extractProblemIdFromText(record?.problem?.url)
-    ?? extractProblemIdFromText(record?.problem?.link)
-    ?? extractProblemIdFromText(record?.problemUrl)
-    ?? extractProblemIdFromText(record?.url)
-    ?? extractProblemIdFromText(record?.problem?.title)
-    ?? extractProblemIdFromText(record?.problem?.name)
-    ?? extractProblemIdFromText(record?.problem)
+  const extracted = extractProblemIdFromText(problem?.url)
+    ?? extractProblemIdFromText(problem?.link)
+    ?? extractProblemIdFromText(record.problemUrl)
+    ?? extractProblemIdFromText(record.url)
+    ?? extractProblemIdFromText(problem?.title)
+    ?? extractProblemIdFromText(problem?.name)
+    ?? extractProblemIdFromText(record.problem)
   if (extracted) return extracted
 
   return firstText([
-    record?.problem?.problemId,
-    record?.problem?.id,
-    record?.problemId,
+    problem?.problemId,
+    problem?.id,
+    record.problemId,
   ])
 }
 
-function getLuoguProblemTitle(record: any): string | undefined {
+function getLuoguProblemTitle(record: LuoguRecord): string | undefined {
+  const problem = nestedRecord(record, 'problem')
   const title = firstText([
-    record?.problem?.title,
-    record?.problem?.name,
-    record?.problem?.fullName,
-    record?.problem?.displayTitle,
-    record?.problem?.problemTitle,
-    record?.problemTitle,
+    problem?.title,
+    problem?.name,
+    problem?.fullName,
+    problem?.displayTitle,
+    problem?.problemTitle,
+    record.problemTitle,
   ])
   if (!title) return undefined
 
@@ -242,7 +296,7 @@ function getLuoguProblemTitle(record: any): string | undefined {
   return title
 }
 
-function buildLuoguRawJson(record: any): string | undefined {
+function buildLuoguRawJson(record: LuoguRecord): string | undefined {
   const problemId = getLuoguProblemId(record)
   const problemTitle = getLuoguProblemTitle(record)
   if (!problemId && !problemTitle) return undefined
@@ -321,45 +375,59 @@ export async function scrapeLuogu(browserHost: SubmissionScrapeContext): Promise
   return parseLuoguSubmissionData(data)
 }
 
+/**
+ * 解析注入脚本或实时钩子拿到的载荷。
+ *
+ * 入参是 `unknown` 而不是 `any`：这个值有两个来源——`executeScript` 跨进程克隆回来的结果、
+ * 实时钩子从页面 fetch 拦下的响应体（见 `sites/luogu/submissions.ts` 的 `getResponseRecord`）。
+ * 两者都由页面里的代码决定形状，主进程这边只能收窄后再用。
+ */
 export function parseLuoguSubmissionData(
-  data: any,
+  data: unknown,
   options: { requireRealtimeReady?: boolean } = {},
 ): SubmissionData[] {
-  if (!data) return []
+  const payload = asRecord(data)
+  if (!payload) return []
 
-  if (data.fromInjection) {
+  if (payload.fromInjection) {
     const languageMap = {
       ...LUOGU_LANGUAGE_FALLBACK,
-      ...normalizeLuoguLanguageMap(data.languageMap ?? data.codeLanguages),
+      ...normalizeLuoguLanguageMap(payload.languageMap ?? payload.codeLanguages),
     }
-    if (data.record) return parseInjectedRecords([data.record], options, languageMap)
-    return parseInjectedRecords(data.records || [], options, languageMap)
+    // 单条 `record` 与列表 `records` 是两条互斥路径：详情页/实时推送给前者，列表页给后者。
+    if (payload.record) return parseInjectedRecords(asRecordArray([payload.record]), options, languageMap)
+    return parseInjectedRecords(asRecordArray(payload.records), options, languageMap)
   }
 
-  return parseDomRows(data.rows || [])
+  return parseDomRows(payload.rows)
 }
 
 function parseInjectedRecords(
-  records: any[],
+  records: LuoguRecord[],
   options: { requireRealtimeReady?: boolean } = {},
   languageMap: Record<string, string> = LUOGU_LANGUAGE_FALLBACK,
 ): SubmissionData[] {
   const results: SubmissionData[] = []
 
   for (const record of records) {
-    if (!record?.id) continue
+    if (!record.id) continue
+    // `firstText` 而非原先的 `record.id.toString()`：id 若是对象，`toString()` 会得到
+    // `'[object Object]'` 并当成合法提交号写进库，这里改成直接跳过。
+    const submissionId = firstText([record.id])
+    if (!submissionId) continue
     if (options.requireRealtimeReady && !isRealtimeRecordReady(record)) continue
     const verdict = resolveLuoguVerdict(record)
+    const submitTime = finiteNumber(record.submitTime)
     results.push({
       platform: 'luogu',
-      platformSubmissionId: record.id.toString(),
+      platformSubmissionId: submissionId,
       verdict: verdict.verdict,
       rawVerdict: verdict.rawVerdict,
       language: getLuoguLanguageName(record, languageMap),
-      runtimeMs: record.time,
-      memoryKb: record.memory,
-      submittedAt: record.submitTime ? toBeijing(new Date(record.submitTime * 1000)) : nowBeijing(),
-      sourceUrl: `https://www.luogu.com.cn/record/${record.id}`,
+      runtimeMs: finiteNumber(record.time),
+      memoryKb: finiteNumber(record.memory),
+      submittedAt: submitTime ? toBeijing(new Date(submitTime * 1000)) : nowBeijing(),
+      sourceUrl: `https://www.luogu.com.cn/record/${submissionId}`,
       rawJson: buildLuoguRawJson(record),
     })
   }
@@ -367,12 +435,18 @@ function parseInjectedRecords(
   return results
 }
 
-function parseDomRows(rows: any[]): SubmissionData[] {
+/**
+ * 解析 DOM 兜底路径的行。形状由本文件里的注入脚本自己产出（`{ text, links }`），但一样要收窄：
+ * `row.textContent` 可能是 `null`，而 `link.match(...)` 在非字符串上会直接抛异常。
+ */
+function parseDomRows(rows: unknown): SubmissionData[] {
   const results: SubmissionData[] = []
 
-  for (const row of rows) {
-    const text = (row.text || '').toLowerCase()
-    const links = row.links || []
+  for (const row of asRecordArray(rows)) {
+    const text = (typeof row.text === 'string' ? row.text : '').toLowerCase()
+    const links = Array.isArray(row.links)
+      ? row.links.filter((link): link is string => typeof link === 'string')
+      : []
 
     let verdictText = ''
     if (text.includes('accepted') || text.includes('ac')) verdictText = 'AC'

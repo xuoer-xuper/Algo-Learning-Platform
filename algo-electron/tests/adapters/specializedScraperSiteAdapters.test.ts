@@ -498,6 +498,93 @@ assert.ok(luoguFirstFailedCaseSubmission)
 assert.strictEqual(luoguFirstFailedCaseSubmission.verdict, 'TLE')
 assert.strictEqual(luoguFirstFailedCaseSubmission.rawVerdict, '5')
 
+// 缺列的行：表头有 5 列且"题目"在第 4 列，这一行只给了 3 个单元格（合并单元格、加载中的
+// 占位行都会这样）。于是 `cells[problemIdx]` 是 `undefined`——抓取器必须解析出能解析的部分，
+// 而不是在它上面调 `.match()` 抛异常，把整批结果一起丢掉。
+const ptaRaggedRowSubmissions = await ptaAdapter.scrapeSubmissions!(createHost('https://pintia.cn/problem-sets/994805260223102976/submissions', {
+  headers: ['提交编号', '评测结果', '编译器', '题目', '耗时'],
+  rows: [
+    {
+      texts: ['1234567891', '答案正确', ''],
+      links: ['https://pintia.cn/submissions/1234567891'],
+      allLinks: [['https://pintia.cn/submissions/1234567891']],
+      htmls: [''],
+      classNames: [''],
+    },
+  ],
+}))
+assert.strictEqual(ptaRaggedRowSubmissions.length, 1, 'PTA should still parse a row with fewer cells than headers')
+assert.strictEqual(ptaRaggedRowSubmissions[0].platformSubmissionId, 'pta-1234567891')
+assert.strictEqual(ptaRaggedRowSubmissions[0].verdict, 'AC')
+assert.strictEqual(ptaRaggedRowSubmissions[0].language, '')
+assert.strictEqual(ptaRaggedRowSubmissions[0].rawJson, undefined, 'PTA should report no problem hint when the problem cell is missing')
+
+// 非字符串单元格：PTA 的实时钩子拦的是页面响应体，形状由对方决定，`texts` 里出现 null
+// 或数字都不违反任何契约。收窄时换成空串而不是丢掉，否则后面所有列都会错位。
+const ptaNonStringCellSubmissions = await ptaAdapter.scrapeSubmissions!(createHost('https://pintia.cn/problem-sets/994805260223102976/submissions', {
+  headers: ['提交编号', '题目', '评测结果', '编译器'],
+  rows: [
+    {
+      texts: [1234567892, null, '答案正确', 'C++'],
+      links: ['https://pintia.cn/submissions/1234567892', null],
+      allLinks: [null, ['https://pintia.cn/problem-sets/994805260223102976/exam/problems/type/7?problemSetProblemId=1478636081501847999']],
+      htmls: [null, ''],
+      classNames: [''],
+    },
+  ],
+}))
+assert.strictEqual(ptaNonStringCellSubmissions.length, 1, 'PTA should keep column alignment when a cell is not a string')
+assert.strictEqual(ptaNonStringCellSubmissions[0].verdict, 'AC', 'verdict column must not shift when an earlier cell is dropped')
+assert.strictEqual(ptaNonStringCellSubmissions[0].language, 'C++')
+assert.deepStrictEqual(JSON.parse(ptaNonStringCellSubmissions[0].rawJson || '{}'), {
+  _ptaProblemId: '994805260223102976-1478636081501847999',
+})
+
+// 洛谷的 time/memory 在不同页面上给过字符串形式，而 SubmissionData 声明的是 number。
+// 原先靠 `any` 直接赋值，字符串会原样写进声明为数字的字段。
+const luoguStringMetricsSubmission = luoguAdapter.parseSubmissionResult!({
+  adapterId: 'luogu',
+  pageUrl: 'https://www.luogu.com.cn/record/246820',
+  response: {
+    fromInjection: true,
+    record: {
+      id: 246820,
+      status: 12,
+      language: 11,
+      time: '52',
+      memory: '2048',
+      submitTime: '1760000000',
+      problem: { pid: 'P1001' },
+      detail: { testCases: [{ status: 12 }] },
+    },
+  },
+})
+assert.ok(luoguStringMetricsSubmission)
+assert.strictEqual(luoguStringMetricsSubmission.runtimeMs, 52, 'numeric strings should become numbers, not stay strings')
+assert.strictEqual(luoguStringMetricsSubmission.memoryKb, 2048)
+assert.match(luoguStringMetricsSubmission.submittedAt, /^\d{4}-\d{2}-\d{2}T/)
+
+// 非数字的 time/memory 应该变成"没这项"，而不是 NaN 或原值。
+const luoguBadMetricsSubmission = luoguAdapter.parseSubmissionResult!({
+  adapterId: 'luogu',
+  pageUrl: 'https://www.luogu.com.cn/record/246821',
+  response: {
+    fromInjection: true,
+    record: {
+      id: 246821,
+      status: 12,
+      language: 11,
+      time: '--',
+      memory: null,
+      problem: { pid: 'P1001' },
+      detail: { testCases: [{ status: 12 }] },
+    },
+  },
+})
+assert.ok(luoguBadMetricsSubmission)
+assert.strictEqual(luoguBadMetricsSubmission.runtimeMs, undefined, 'unparseable runtime should be absent, not NaN')
+assert.strictEqual(luoguBadMetricsSubmission.memoryKb, undefined)
+
 assert.strictEqual(ptaAdapter.matchProblem('https://pintia.cn/problem-sets/994805260223102976/exam/problems/type/7?problemSetProblemId=1478636081501847552'), true)
 assert.strictEqual(luoguAdapter.matchProblem('https://www.luogu.com.cn/problem/P1001'), true)
 
