@@ -65,10 +65,13 @@
 | Q5 | preload 纳入覆盖率 | +1.5 | 91.5 | 可验证性 |
 | Q6 | `TabManager.ts` 拆分 | +3 | 94.5 | 结构 |
 | Q7 | IPC 边界 `any` 收敛 | +1 | 95.5 | 类型安全 |
+| Q8 | `tests/` 纳入类型检查 | +1.5 | 97 | 可验证性 |
 
 Q1–Q4 是确定工作量的机械活，不含架构决策，应连续执行。Q5 依赖 Q1 完成（preload 覆盖率需要 renderer 侧错误路径可测）。Q6 需要独立设计评审，不与前面混提交。
 
-剩余约 4.5 分：type-aware lint 缺失约占 1.5 分，卡在上游（TS 7.0.2 与 `typescript-eslint` 兼容性），不由本计划解决。
+Q8 是计划外的：Q7 收尾时想确认"测试替身是否也跟着收窄了"，才发现 `tests/` 从来不在任何 tsconfig 的 `include` 里。它同时补掉了一处**评分口径错误**——此前"1043 个测试全绿"被当作可验证性的证据，而其中至少一条断言恒成立、一条在验不存在的字段、一整类主进程推送在每次测试里都静默失败。
+
+剩余约 3 分：type-aware lint 缺失约占 1.5 分，卡在上游（TS 7.0.2 与 `typescript-eslint` 兼容性），不由本计划解决；渠道载荷校验缺失（见 §4 Q7 末段）约占 1.5 分，是当前最大的单项缺口。
 
 ## 4. 任务清单
 
@@ -277,6 +280,39 @@ Q1–Q4 是确定工作量的机械活，不含架构决策，应连续执行。
 
 **刻意保留的 1 处**：`electron/ipc/trustedSender.ts` 的 `IpcListener` 仍是 `any[]`。收紧成 `unknown[]` 会让 12 个 `register*.ts` 里 **73 个处理器**一起报错——它们都把渲染进程传来的参数当成已校验类型用，而实际没有任何一处校验。这个 `any` 掩盖的是**渠道载荷校验缺失**这个真实缺口，不是类型标注问题；只改类型再补 73 处 `as` 只是把谎言搬个地方。已在该处注明当前防线（`checkShellSender` + `checkIpcPayload` 的结构性拦截）与正确补法，列为独立加固项。
 
+### Q8 `tests/` 纳入类型检查
+
+计划外新增。起因是 Q7 收尾时想确认"测试替身是否也跟着收窄了"，结果发现无从确认：`tsconfig.json` 的 `include` 是 `["src", "electron"]`，`tests/` 落在两者之外——**1043 个测试从来没被 tsc 检查过**。
+
+新增 `tsconfig.tests.json` 后一次性报出 **129 个错**，逐个修到 **0**，并挂进 `tests/verify.mjs` 的 `runTypecheck()`（同时加 `npm run typecheck:tests`）。挂门这一步用"故意改坏一处类型"验证过会真的失败——否则新配置会像当年手工维护的 15 个文件名单一样慢慢腐烂。
+
+**暴露出的真实缺陷（不是类型标注问题）**：
+
+| 缺陷 | 后果 |
+|---|---|
+| `MockWebContents` 缺 `send()` | `AppWindow.send()` 把调用包在 try/catch 里，于是主进程→渲染进程的推送在**每一次测试**里都抛 TypeError 被吞掉、稳定返回 false。1043 个用例没有一个察觉 |
+| `credentialRepository.test.ts` 把 `deleted_at` 和它自己比 | 该半条断言恒成立，软删除实际只验了 `secret_envelope` |
+| `userscriptBootstrapPreloadModule.test.ts` 的 catalog fixture 写成构建输入形状（`source`/`grants`）而非产物形状（`ScriptDescriptor` 的 `permissions`），被 `as` 盖住 | "code 应来自 catalog" 这条断言在验一个真实 payload 里**不存在的字段**——它一直通过，靠的是 fixture 自己编了个 `source`。已改用生产 builder 造 payload（不再需要任何 cast），并补上"脚本正文不进 payload"的正向断言，变异验证通过 |
+| `rendererScreenshotHarness` 声明返回完整 `ElectronAPI`，实际少 37 个成员 | 界面真调到就是 `undefined is not a function` |
+| `constraintParser.test.ts` 第 14 道样例写了 `testGroupCount` 但类型里没这个字段 | 该期望一直参与准确率统计却没人核对过 |
+
+**两处生产侧收窄——都是"声明要得比用得多"**：
+
+- `trustedSender` 的注册参数原写 `Partial<Pick<WebContents,'once'>>`，把 Electron 的链式 `this` 返回一起要了过来，于是任何替身都得自证是完整的 94 成员 `WebContents`。一处牵连 5 个测试文件 **25 个错**。改为手写 `once?(event:'destroyed', listener:()=>void): unknown`——真实与替身都能传，返回 `unknown` 顺带禁止本模块链式调用。
+- `SyncService` 的 `batchWriter` 原写完整 `SubmissionBatchWriter` 类。该类有两个 private 字段，private 让类型变成 nominal 的，**对象字面量无论写多全都不可能满足**；5 个替身有 4 个靠 `as any` 蒙过去，而 `as any` 盖的是整个 options 对象（连 `notifyProblemsUpdated` 拼错都不报）。改为 `Pick<…,'write'>`（本服务只用 `write`），4 处 `as any` 随之删除。
+
+**方向：删 cast 而不是加 cast**。两处 `as never`（`credentialCaptureForm` 的 window 替身改按 `Pick<Window,…>` 声明）、两处 `as MockSession`、若干 `as Record<string, unknown>` 与 `as Buffer`（改用 better-sqlite3 的 `prepare<Params, Row>`，列名写错从此是编译错误）。给无参 `vi.fn` 补真实签名，使 `mock.calls` 的下标不再指向类型上不存在的位置。
+
+**三类 TypeScript 收窄陷阱，各自伪装成别的错误**：
+
+1. **闭包内赋值对控制流分析不可见**。`let h: Fn | null = null` 在回调里赋值，调用点仍认定是 `null`，`h?.()` 收窄成 `never` 后报"This expression is not callable"——和"可能为 null"完全不像。改用数组收集，顺带把"到底调了几次"也纳入断言。
+2. **断言函数的收窄会过期**。`assert(arr.length === 0)` 把 `.length` 永久收窄成字面量 `0`，之后经未被追踪的路径改了数组也不会放宽，于是后面 `=== 1` 被判成"两个类型无重叠"。把断言收进 helper，让收窄落在形参上。
+3. **无参 `vi.fn()` 让 `mock.calls` 推成 `[][]`**，读 `calls[0][0]` 报"长度为 0 的元组没有索引 0"——也就是说那几处断言一直在对类型上不存在的位置取值。
+
+**一条走错的路**：曾想在 `tsconfig.tests.json` 里用 `paths` 把 `'electron'` 指向测试替身。类型会被擦除，拿替身检查生产代码只能得到假结论——试过一次，`CoachPetWindow` 那个真实的 `send` 缺失错误当场消失了。正确做法是替身专有的名字（`MockBrowserWindow`、`resetElectronMock`、`exposedMainWorld`）从替身文件的相对路径导入，只有真实 Electron 的名字才走 `'electron'`。
+
+**已知遗留**：补上 `testGroupCount` 声明后暴露 5 条既有解析失败，被 `accuracy >= 0.8` 的阈值吸收（实测 54/59 = 91.5%）：CF 1343C `nUpper` 期望 200000 实得 1000；洛谷 P1001 `valueUpper` 期望 1e9 实得 null；CF 1343B `nUpper` 期望 2000000 实得 10000；洛谷多组数据 `nUpper` 期望 200000 实得 10000；CF 全角符号混合 `nUpper` 期望 100000 实得 null。属解析器准确率问题，不属本块范围，单独记账。
+
 ## 5. 明确不做
 
 以下经核查确认为合理设计或实测无收益，**不列为缺陷，不做改动**：
@@ -338,4 +374,5 @@ Q1–Q4 是确定工作量的机械活，不含架构决策，应连续执行。
 | Q4 | [x] | 已完成。守卫增至 12 条（新增裸 hex，按文件豁免三个 token 定义文件而非棘轮预算）。`NOTE_TYPE_COLORS` 及 `+ '20'` 拼 alpha 删除，笔记徽标改 CSS 修饰类，对比度从 1.23~1.94:1 提到浅色 6.11~6.70 / 深色 5.54~7.74（原方案的等值替换会保留这个可达性缺陷，见偏差 1）；4 处裸 hex（计划漏了 `#585b70`）收成 `--color-on-fill` / `--color-sys-close` 两个 token，样式文件裸 hex 归零。`ProblemSidebar` / `NoteEditorPane` / `UserScriptEditor` / `ErrorBoundary` 四个文件的裸控件换成 ui/ 原语，棘轮欠账条目由陈旧分支强制清空，`HomePage` 2 处改判长期例外。顺带：`Select` 补 `size="sm"` 缺口、修掉源码框 `rows` 被 `height:30px` 压死的渲染 bug、补 2 处图标按钮缺失的 `aria-label`、`ErrorBoundary` 移出 Tailwind（工具类由此零消费者；**但依赖必须留** —— `@theme` 是 v4 指令，44 个 token 靠它编译，实测删掉后配色全失效，见偏差 5 的纠正）。新增 `controlGovernance.test.ts` 7 例 + 裸 hex 反向验证 4 例 |
 | Q5 | [x] | 三个 preload 全部纳入覆盖率并补测试（`preloadSurface` 逐个调用 ~200 个暴露方法验转发、`ojPreloadModule` 11 例、`userscriptBootstrapPreloadModule` 12 例）；四项覆盖率反而全涨到 59.52/56.41/57.67/62.07，门槛上调至 56/53/54/59。原"无法执行"论据不成立，纠正见 §4 Q5 偏差 3 —— `vi.resetModules()` 导致两条负向断言曾凭空通过 |
 | Q6 | [x] | 已完成（搬移经测量后判定不做，理由见 §4 Q6 偏差末段）。安全网：新增 `tabManagerNavigationGuard.test.ts`（14 例）与 4 个文件的补充用例，共 5 条变异检查逐条确认承重；顺带修掉两个既存缺陷：`userscriptBootstrapPreloadModule.test.ts` 里固定等一轮 `setTimeout(0)` 造成的间歇性失败（修前约 1/4 概率红，修后连续 4 轮全绿），以及 `tabManagerFindZoom.test.ts` 缺失的 `FindInPageViewState` import。清理：删 `getTitleForUrl`、`emitZoomState` 的 `factor` 改必填并删不可达分支、两个导航孪生体合成一个 `handleDocumentNavigation`、六个通知条布尔收成 `visibleNotices: Set`、六个 `add*Listener` 收成一个 `subscribe` 泛型辅助——净减 40 行，公开接口零变动。**侦察结论改变了拆分方案，见 §4 Q6 偏差** |
+| Q8 | [x] | 计划外新增，commit `4b56b1c`。`tests/` 一直在 `tsconfig.json` 的 `include` 之外——1043 个测试从未被 tsc 检查。新增 `tsconfig.tests.json` 报出 129 个错，修到 0 并挂进 `runTypecheck()`（挂门用故意改坏类型验证过会真失败）。暴露 5 个真实缺陷，其中 `MockWebContents` 缺 `send()` 让主进程→渲染进程推送在**每次测试里**都静默失败、`credentialRepository` 有一条恒成立的自比断言、`userscriptBootstrap` 的 fixture 用错形状使一条断言在验不存在的字段。两处生产侧"声明要得比用得多"收窄：`trustedSender` 一处牵连 25 个错、`SyncService` 的 nominal 类型迫使 4 个替身用 `as any`。方向是删 cast（两处 `as never`、两处 `as MockSession`、若干 `as Buffer`）而非加 cast。遗留：`constraintParser` 5 条既有解析失败被 80% 阈值吸收，单独记账 |
 | Q7 | [x] | 已完成。起始计数纠正为 51 处（原 45 漏了 `as any`），四批提交后 `electron/` 剩 1 处且为刻意保留（`IpcListener`，理由见 §4 Q7）。收窄不是纯类型活：暴露并修掉 4 个真实缺陷——`syncService` 与 migration 009/011 的 `e.message` 在非 `Error` 抛出时自己抛 TypeError 覆盖真实失败原因、`domScraper` 对跨进程值的无检查属性访问、PTA 缺列行让 `.match()` 抛异常中断整批解析、洛谷把字符串赋给声明为 `number` 的字段。顺带把 19 份重复的 `errorMessage`/`errorName` 合并到 `electron/shared/errors.ts`。新增 7 个用例，各经变异验证 |
