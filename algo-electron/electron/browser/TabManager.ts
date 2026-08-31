@@ -471,6 +471,26 @@ export class TabManager {
     this.updateTabHealth(tab)
   }
 
+  /**
+   * 恢复失败的收尾。返回值表示"这次失败是否仍然算数"——两个异步调用点都靠它决定要不要记日志。
+   *
+   * 三道判定的分工，以及第三道为什么留着（查过一遍，省得下一个人重查）：
+   *
+   * 1. `recoveryPendingViews.delete(view)` 为假：这次恢复已经被别的路径收尾过了。
+   *    `loadURL` 的 catch 是异步的，期间标签可能已经关掉、崩溃、或被转移到别的窗口。
+   * 2. `tab.view !== view`：标签已经换了一个新 view（`recoverCrashedTab` 在替换 view 那条
+   *    分支上会这样），旧 view 的失败不该把新 view 标成崩溃。
+   * 3. `!this.findTab(tab.id)`：**按当前代码是走不到的**。所有把 web 标签从 `this.tabs`
+   *    摘掉的地方都会同时 `recoveryPendingViews.delete`（`closeTab`、
+   *    `handleViewDestroyed`、转移释放、`removeFailedAdoption`），于是第 1 道先短路；
+   *    唯一不清这个集合的整体替换是 `restoreSession`，而它开头就 `if (this.tabs.length > 0)
+   *    return false`，不可能和一次进行中的恢复共存。
+   *
+   *    留着不是因为不确定，是因为它守的是一条分散在四处的不变量——"摘标签必清 pending"。
+   *    将来任何一处新的 `this.tabs.splice` 漏了那句，这里就是最后一道：少了它，
+   *    `updateTabHealth` 会为一个已经不在列表里的标签推一次健康更新，
+   *    渲染进程收到的是一个幽灵标签的状态。一个表达式换这个，值。
+   */
   private failTabRecovery(tab: ManagedWebTab, view: WebContentsView): boolean {
     if (!this.recoveryPendingViews.delete(view)) return false
     if (tab.view !== view || !this.findTab(tab.id)) return false

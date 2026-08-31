@@ -60,7 +60,12 @@ export class CredentialAutofillService {
     this.ojSession = dependencies.ojSession
     this.listener = (_event, contents) => {
       if (!this.isOjContents(contents)) return
-      this.coordinator.attach(contents as unknown as AutofillWebContents)
+      // 这里原先是 `contents as unknown as AutofillWebContents`。实测不需要：
+      // 真实 `WebContents` 直接可赋给 `AutofillWebContents`（用一个一次性 tsc 探针验过）。
+      // `on` 的那条窄声明也不构成障碍——Electron 声明的重载参数是 `any[]`，双向都通。
+      // 双重 as 的坏处不是难看：它会连**真正**的不兼容一起吞掉，比如哪天给
+      // `AutofillWebContents` 加一个 `WebContents` 上没有的方法，改动会静默通过。
+      this.coordinator.attach(contents)
     }
   }
 
