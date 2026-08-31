@@ -1,10 +1,22 @@
 import type { IpcMainInvokeEvent } from 'electron'
 import { screen } from 'electron'
 import { coachPetIpcMain, ipcMain as shellIpcMain, type IpcListener } from './trustedSender'
-import type { IpcSchemaTuple, ParsedArgs } from './payloadSchema'
+import {
+  arrayOf,
+  bool,
+  decimal,
+  freeText,
+  int,
+  object,
+  oneOf,
+  optional,
+  text,
+  type IpcSchemaTuple,
+  type ParsedArgs,
+} from './payloadSchema'
 import type { CoachPetWindow } from '../coach/CoachPetWindow'
 import type { CoachOrchestrator } from '../coach/CoachOrchestrator'
-import type { CoachBubblePayload, CoachPetState } from '../coach/types'
+import type { CoachBubblePayload } from '../coach/types'
 import { getCoachConfigForRenderer, saveCoachConfig } from '../app/config'
 
 const COACH_PET_CHANNELS = new Set([
@@ -52,6 +64,47 @@ function ipcMainHandle(
 
 const ipcMain = { handle: ipcMainHandle }
 
+/*
+ * 复用的界。数字的来处逐条写在这里，不在每个 channel 重复：
+ *
+ * - `bubbleId` 200：与本目录其它标识符同档（`registerScriptsIpc` 的 200）。
+ *   气泡 id 由主进程生成（`demo-L2-<ts>` / `test-<ts>` / orchestrator 的 uuid），
+ *   渲染进程只是原样回传。
+ * - `petScale` 0.5..2 与 `petOpacity` 0.3..1：直接照抄 `CoachPanel.tsx` 两个 range
+ *   输入的 `min` / `max`。这两个值最终进 CSS `transform: scale()` 与 `opacity`，
+ *   放过 `NaN` 会让桌宠直接不可见——`decimal` 里那句 `Number.isFinite` 就是为此。
+ * - 聊天正文 8 KiB、历史 20 条：正文要拼进 LLM 请求体，历史每条也一样；
+ *   `CoachChatPanel` 的输入框没有 maxLength，上限只能在这里给。20 条约等于
+ *   十轮对话，够用且不至于把单次请求撑到任意大。
+ * - LLM 的 `base_url` 4096：项目里 URL 的既有口径（`MAX_TAB_URL_LENGTH`）。
+ *   `api_key` 与 `model` 512：短凭据与模型名，给个量级上限即可。
+ * - `rowLimit` 1000：与 `registerStatsIpc` / `registerAiIpc` 同档。
+ */
+const bubbleId = () => text({ max: 200 })
+const rowLimit = () => optional(int({ min: 1, max: 1000 }))
+const llmText = () => text({ max: 512 })
+const petState = () => oneOf(['idle', 'thinking', 'alert', 'celebrate', 'sleep', 'focus'] as const)
+
+/*
+ * `coach:saveConfig` 的形状刻意**只有** `CoachPanel.tsx` 真会发的 5 个字段。
+ *
+ * 这不是偷懒，是本文件最要紧的一条：`saveCoachConfig` 把 partial 直接深合并进
+ * config.json，而 `CoachConfig` 里有 `llm.encrypted_api_key`。读路径是脱敏的
+ * （`getCoachConfigForRenderer` 会把那个字段摘掉），写路径此前没有任何过滤——
+ * 也就是说壳 renderer 能往加密 Key 那一格里写东西。`object()` 默认拒绝多余字段，
+ * 这个形状一钉上，那条路就没了。
+ *
+ * `position` 同样不在形状里：它由主进程 `CoachPetWindow` 在拖拽结束时自己写
+ * （`saveCoachConfig({ position })` 是主进程内部调用，不经过本通道）。
+ */
+const coachConfigShape = () => object({
+  enabled: optional(bool),
+  sound: optional(bool),
+  bubbleFrequency: optional(oneOf(['low', 'medium', 'high'] as const)),
+  scale: optional(decimal({ min: 0.5, max: 2 })),
+  opacity: optional(decimal({ min: 0.3, max: 1 })),
+})
+
 /**
  * Coach IPC 注册。
  *
@@ -87,12 +140,12 @@ export function registerCoachIpc(options: RegisterCoachIpcOptions): void {
     return options.getCoachPetWindow()?.getPetState() ?? 'idle'
   })
 
-  ipcMain.handle('coach:setPetState', (_event, state: CoachPetState) => {
+  ipcMain.handle('coach:setPetState', [petState()], (_event, state) => {
     requirePetWindow().setPetState(state)
     return true
   })
 
-  ipcMain.handle('coach:toggleIgnoreMouseEvents', (_event, ignore: boolean) => {
+  ipcMain.handle('coach:toggleIgnoreMouseEvents', [bool], (_event, ignore) => {
     requirePetWindow().setIgnoreMouseEvents(ignore)
     return true
   })
@@ -118,7 +171,7 @@ export function registerCoachIpc(options: RegisterCoachIpcOptions): void {
     return getCoachConfigForRenderer()
   })
 
-  ipcMain.handle('coach:saveConfig', (_event, partial: Parameters<typeof saveCoachConfig>[0]) => {
+  ipcMain.handle('coach:saveConfig', [coachConfigShape()], (_event, partial) => {
     saveCoachConfig(partial)
     // 同步推送给桌宠渲染层（透明度/缩放）
     options.getCoachPetWindow()?.notifyConfigChanged()
@@ -148,7 +201,20 @@ export function registerCoachIpc(options: RegisterCoachIpcOptions): void {
   /**
    * 主进程主动推送气泡（阶段 2 规则引擎触发）。
    */
-  ipcMain.handle('coach:showBubble', (_event, payload: CoachBubblePayload) => {
+  /*
+   * 气泡正文的界：标题 200、正文 4 KiB，与本目录其它文本同档。
+   * `level` 1..5 是提示等级的实际取值范围（见下方演示升级分支的 `Math.min(x, 5)`）。
+   */
+  ipcMain.handle('coach:showBubble', [object({
+    id: bubbleId(),
+    title: text({ max: 200 }),
+    message: freeText({ max: 4 * 1024 }),
+    source: oneOf(['local', 'llm'] as const),
+    problemId: optional(text()),
+    eventId: optional(text()),
+    level: optional(int({ min: 1, max: 5 })),
+    bubble_type: optional(oneOf(['hint', 'disclaimer', 'loading'] as const)),
+  })], (_event, payload) => {
     requirePetWindow().showBubble(payload)
     return true
   })
@@ -163,7 +229,7 @@ export function registerCoachIpc(options: RegisterCoachIpcOptions): void {
    * 阶段 2：委托给 CoachOrchestrator.requestHintUpgrade（受防 abuse 冷却限制）。
    * 若 orchestrator 未初始化，回退到阶段 1 行为。
    */
-  ipcMain.handle('coach:triggerHint', async (_event, bubbleId?: string) => {
+  ipcMain.handle('coach:triggerHint', [optional(bubbleId())], async (_event, bubbleId) => {
     // 演示/测试气泡走演示升级分支（不经过 orchestrator 规则引擎）
     const isDemo = !bubbleId || bubbleId.startsWith('test-') || bubbleId.startsWith('demo-')
     if (isDemo) {
@@ -215,7 +281,7 @@ export function registerCoachIpc(options: RegisterCoachIpcOptions): void {
    * 用户点击"先不用"。
    * 阶段 2：委托给 CoachOrchestrator.dismissHint（更新 intervention user_action + 屏蔽规则）。
    */
-  ipcMain.handle('coach:dismissHint', (_event, bubbleId?: string) => {
+  ipcMain.handle('coach:dismissHint', [optional(bubbleId())], (_event, bubbleId) => {
     const orchestrator = options.getCoachOrchestrator?.()
     if (!orchestrator) {
       console.log('[coach] dismissHint (no orchestrator)', { bubbleId })
@@ -230,11 +296,11 @@ export function registerCoachIpc(options: RegisterCoachIpcOptions): void {
    * 用户反馈（helpful / not_helpful / dismiss / never_today）。
    * 阶段 2：持久化到 coach_feedback 并影响后续频率。
    */
-  ipcMain.handle('coach:feedback', (_event, feedback: {
-    bubbleId?: string
-    interventionId?: string
-    type: 'helpful' | 'not_helpful' | 'dismiss' | 'never_today'
-  }) => {
+  ipcMain.handle('coach:feedback', [object({
+    bubbleId: optional(bubbleId()),
+    interventionId: optional(text()),
+    type: oneOf(['helpful', 'not_helpful', 'dismiss', 'never_today'] as const),
+  })], (_event, feedback) => {
     const orchestrator = options.getCoachOrchestrator?.()
     if (!orchestrator) {
       console.log('[coach] feedback (no orchestrator)', feedback)
@@ -248,7 +314,7 @@ export function registerCoachIpc(options: RegisterCoachIpcOptions): void {
   })
 
   /** 关闭免责声明（permanent=true 永久关闭） */
-  ipcMain.handle('coach:dismissDisclaimer', (_event, permanent: boolean) => {
+  ipcMain.handle('coach:dismissDisclaimer', [bool], (_event, permanent) => {
     const orchestrator = options.getCoachOrchestrator?.()
     if (!orchestrator) {
       options.getCoachPetWindow()?.dismissBubble()
@@ -266,10 +332,13 @@ export function registerCoachIpc(options: RegisterCoachIpcOptions): void {
   })
 
   /** 自由聊天：发送用户消息，获取 LLM 回复 */
-  ipcMain.handle('coach:chat', async (_event, params: {
-    message: string
-    history?: Array<{ role: 'user' | 'assistant'; content: string }>
-  }) => {
+  ipcMain.handle('coach:chat', [object({
+    message: text({ max: 8 * 1024 }),
+    history: optional(arrayOf(object({
+      role: oneOf(['user', 'assistant'] as const),
+      content: text({ max: 8 * 1024 }),
+    }), { max: 20 })),
+  })], async (_event, params) => {
     const o = options.getCoachOrchestrator?.()
     if (!o) return { reply: '', success: false, error: 'Coach 未初始化' }
     const reply = await o.chatWithLlm(params.message, params.history)
@@ -307,7 +376,7 @@ export function registerCoachIpc(options: RegisterCoachIpcOptions): void {
   })
 
   /** 历史会话 */
-  ipcMain.handle('coach:getSessionHistory', (_event, limit?: number) => {
+  ipcMain.handle('coach:getSessionHistory', [rowLimit()], (_event, limit) => {
     const o = options.getCoachOrchestrator?.()
     if (!o) return []
     return o.getSessionHistory(limit)
@@ -321,14 +390,14 @@ export function registerCoachIpc(options: RegisterCoachIpcOptions): void {
   })
 
   /** 最近事件列表（调试面板用） */
-  ipcMain.handle('coach:listEvents', (_event, limit?: number) => {
+  ipcMain.handle('coach:listEvents', [rowLimit()], (_event, limit) => {
     const o = options.getCoachOrchestrator?.()
     if (!o) return []
     return o.listRecentEvents(limit ?? 50)
   })
 
   /** 最近干预列表（调试面板用） */
-  ipcMain.handle('coach:listInterventions', (_event, limit?: number) => {
+  ipcMain.handle('coach:listInterventions', [rowLimit()], (_event, limit) => {
     const o = options.getCoachOrchestrator?.()
     if (!o) return []
     return o.listRecentInterventions(limit ?? 50)
@@ -344,7 +413,7 @@ export function registerCoachIpc(options: RegisterCoachIpcOptions): void {
   // --- 阶段 4：过程复盘 + 答辩数据 ---
 
   /** 单题时间轴复盘数据（Task 18 SessionTimelineView） */
-  ipcMain.handle('coach:getProblemTimeline', (_event, problemId: string) => {
+  ipcMain.handle('coach:getProblemTimeline', [text()], (_event, problemId) => {
     const o = options.getCoachOrchestrator?.()
     if (!o || !problemId) return null
     return o.getProblemTimeline(problemId)
@@ -373,19 +442,29 @@ export function registerCoachIpc(options: RegisterCoachIpcOptions): void {
     return o.getLlmHintService().getConfigStatus()
   })
 
-  /** 保存 API Key（加密存储） */
-  ipcMain.handle('coach:saveLlmApiKey', (_event, apiKey: string) => {
+  /*
+   * 保存 API Key（加密存储）。
+   *
+   * 用 `freeText` 而不是 `text`：空串是"清空已保存的 Key"这个合法操作，
+   * `saveApiKey` 自己判空并走删除分支。收成 `text({min:1})` 会让用户没法解绑。
+   */
+  ipcMain.handle('coach:saveLlmApiKey', [freeText({ max: 512 })], (_event, apiKey) => {
     const o = options.getCoachOrchestrator?.()
     if (!o) return false
     return o.getLlmHintService().saveApiKey(apiKey)
   })
 
   /** 保存非敏感配置（base_url / model / enabled） */
-  ipcMain.handle('coach:saveLlmConfig', (_event, partial: {
-    base_url?: string
-    model?: string
-    enabled?: boolean
-  }) => {
+  /*
+   * 只有这三个字段。`encrypted_api_key` 刻意不在形状里：它只该由
+   * `coach:saveLlmApiKey` 经 safeStorage 加密后写入，`object()` 拒绝多余字段之后，
+   * 壳 renderer 没法绕过加密直接往那一格塞值。
+   */
+  ipcMain.handle('coach:saveLlmConfig', [object({
+    base_url: optional(text({ max: 4096 })),
+    model: optional(llmText()),
+    enabled: optional(bool),
+  })], (_event, partial) => {
     const o = options.getCoachOrchestrator?.()
     if (!o) return false
     o.getLlmHintService().saveConfig(partial)
@@ -393,11 +472,15 @@ export function registerCoachIpc(options: RegisterCoachIpcOptions): void {
   })
 
   /** 测试连接 */
-  ipcMain.handle('coach:testLlmConnection', async (_event, config: {
-    api_key: string
-    base_url: string
-    model: string
-  }) => {
+  /*
+   * `api_key` 用 `freeText`：面板允许留空表示"用已保存的 Key 测"，
+   * 紧接着的 `config.api_key || getDecryptedApiKey()` 就是这个意思。
+   */
+  ipcMain.handle('coach:testLlmConnection', [object({
+    api_key: freeText({ max: 512 }),
+    base_url: text({ max: 4096 }),
+    model: llmText(),
+  })], async (_event, config) => {
     const o = options.getCoachOrchestrator?.()
     if (!o) return { success: false, message: 'Coach 未初始化' }
     // 前端传了 Key 就用前端的，否则用已保存的

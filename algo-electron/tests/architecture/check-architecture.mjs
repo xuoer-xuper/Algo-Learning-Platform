@@ -1,6 +1,6 @@
 import fs from 'node:fs'
 import path from 'node:path'
-import { collectRatchetFailures, coreSuiteRunsEverything, countBareControls, countBareHex, countBareSql, countUnschemadIpc, themeDirectiveHasTailwindImport } from './guards.mjs'
+import { collectRatchetFailures, coreSuiteRunsEverything, countBareControls, countBareHex, countBareSql, countRawIpcSchemas, countUnschemadIpc, themeDirectiveHasTailwindImport } from './guards.mjs'
 
 const projectRoot = process.cwd()
 const sourceRoots = [
@@ -228,12 +228,24 @@ const BARE_SQL_BUDGET = {
  * 那行声明对运行时没有任何约束力。
  */
 /*
- * 迁移进度：103 处收渲染进程参数的 handler，已声明 schema 64 处，剩下 39 处在这两个文件里。
- * 其余 11 个 register* 文件已清零，条目按棘轮规则删掉了（留着就等于给那些文件留出配额）。
+ * 空表 = 13 个 register* 文件全部清零，103 处收渲染进程参数的 handler 都声明了 schema。
+ * 空表不是"关掉了这条守卫"：棘轮对白名单外的任何命中都直接失败，所以现在任何一个
+ * 新增的无 schema handler 都会被抓到，不需要先来这里登记。
  */
-const UNSCHEMAD_IPC_BUDGET = {
-  'electron/ipc/registerBrowserShellIpc.ts': 23,
-  'electron/ipc/registerCoachIpc.ts': 16,
+const UNSCHEMAD_IPC_BUDGET = {}
+
+/*
+ * `raw()` 自己的棘轮。
+ *
+ * `raw()` 的语义是"这个参数由 handler 自己校验"，但它同时是 `countUnschemadIpc` 的
+ * 逃逸口——写上去就能让那条守卫闭嘴。所以它也要只减不增，否则迁移可以靠刷 `raw()` 完成。
+ *
+ * 当前 4 处全在浏览器壳层，且都指向一个真实存在的判别函数：
+ * `isInternalPage`、`isZoomCommand`、`isAppMenuAnchor`、`TabManager.findInPage`。
+ * 要让这个数字降下去，得先给本层加"判别联合"组合子，那是独立的一项。
+ */
+const RAW_IPC_SCHEMA_BUDGET = {
+  'electron/ipc/registerBrowserShellIpc.ts': 4,
 }
 
 check('IPC handlers declare a payload schema', () => {
@@ -245,6 +257,18 @@ check('IPC handlers declare a payload schema', () => {
     countMatches: countUnschemadIpc,
     describe: (count) => `有 ${count} 个 IPC handler 接收渲染进程参数但没声明 schema`,
     cleanupHint: '在 channel 名后加 schema 元组，组合子见 electron/ipc/payloadSchema.ts',
+  })
+})
+
+check('raw() payload escapes stay capped', () => {
+  const files = walkSourceFiles(path.join(projectRoot, 'electron', 'ipc'))
+
+  checkRatchet({
+    files,
+    budgets: RAW_IPC_SCHEMA_BUDGET,
+    countMatches: countRawIpcSchemas,
+    describe: (count) => `用了 ${count} 处 raw()，即 ${count} 个参数的形状校验不在通道上`,
+    cleanupHint: 'raw() 只用于 handler 自己有判别函数的参数；能用组合子表达的请换成组合子',
   })
 })
 

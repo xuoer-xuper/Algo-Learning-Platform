@@ -119,6 +119,26 @@ export function int(options: { min: number, max: number }): IpcSchema<number> {
   })
 }
 
+/**
+ * 有界小数。同样强制给界，理由同 `int`。
+ *
+ * 与 `int` 分开而不是加个 `allowFloat` 开关：绝大多数数值参数（`LIMIT`、天数、索引）
+ * 收到 `1.5` 都是错的，默认就该拒。真正需要小数的只有缩放、透明度这类连续量，
+ * 让它们显式说出来，比让所有 `int` 调用点都记得关掉开关更难写错。
+ *
+ * `Number.isFinite` 一并挡掉 `NaN` 与 `Infinity`——`NaN` 能穿过任何 `<` / `>` 比较，
+ * 只用区间判断是拦不住它的。
+ */
+export function decimal(options: { min: number, max: number }): IpcSchema<number> {
+  const { min, max } = options
+  return schema(`decimal(${min}..${max})`, (value, path) => {
+    if (typeof value !== 'number' || !Number.isFinite(value) || value < min || value > max) {
+      throw new IpcPayloadError(path, `decimal(${min}..${max})`, value)
+    }
+    return value
+  })
+}
+
 /** 布尔值。不接受 0/1/'true' 这类等价物：渠道两端都是我们自己的代码，没有兼容负担。 */
 export const bool: IpcSchema<boolean> = schema('boolean', (value, path) => {
   if (typeof value !== 'boolean') throw new IpcPayloadError(path, 'boolean', value)

@@ -5,6 +5,7 @@ import {
   arrayOf,
   binary,
   bool,
+  decimal,
   freeText,
   int,
   nullable,
@@ -73,6 +74,24 @@ describe('int', () => {
     // 也能算出正确日期，但 `'abc'` 会算出 'NaN-NaN-NaN' 绑进 SQL、查不到任何行。
     // 与其分辨哪些字符串恰好能用，不如一律拒绝。
     rejects(() => int({ min: 1, max: 10 }).parse('3', 'p'))
+  })
+})
+
+describe('decimal', () => {
+  test('接受界内小数与端点', () => {
+    assert.strictEqual(decimal({ min: 0.5, max: 2 }).parse(1.35, 'p'), 1.35)
+    assert.strictEqual(decimal({ min: 0.5, max: 2 }).parse(0.5, 'p'), 0.5)
+    assert.strictEqual(decimal({ min: 0.5, max: 2 }).parse(2, 'p'), 2)
+  })
+
+  test('拒绝越界、NaN、Infinity 和数字字符串', () => {
+    rejects(() => decimal({ min: 0.5, max: 2 }).parse(0.49, 'p'))
+    rejects(() => decimal({ min: 0.5, max: 2 }).parse(2.01, 'p'))
+    // NaN 能穿过任何 `<` / `>` 比较：只写区间判断的话它会被放过去，
+    // 然后变成 CSS 里的 `transform: scale(NaN)`——桌宠直接不可见。
+    rejects(() => decimal({ min: 0.5, max: 2 }).parse(Number.NaN, 'p'))
+    rejects(() => decimal({ min: 0.5, max: 2 }).parse(Number.POSITIVE_INFINITY, 'p'))
+    rejects(() => decimal({ min: 0.5, max: 2 }).parse('1.5', 'p'))
   })
 })
 

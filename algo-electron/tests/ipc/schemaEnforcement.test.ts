@@ -35,9 +35,18 @@ describe('handle 侧', () => {
   test('合法实参被收窄后交给 handler', async () => {
     const seen: unknown[] = []
     handleFromShell('test:ok', [text(), optional(int({ min: 1, max: 10 }))], (_event, id, count) => {
-      // 这两个形参在类型上分别是 string 与 number | undefined，不需要任何 as。
-      seen.push([id, count])
-      return `${id}:${count ?? 0}`
+      /*
+       * 逐位类型在这里被真正用掉，而不是只在注释里声称。
+       *
+       * 这两个局部声明就是断言本身：schema 元组是**异构**的，如果注册函数的类型参数
+       * 丢了 `const` 修饰符，`ParsedArgs` 的每一位都会塌成 `string | number | undefined`，
+       * 下面两行当场 tsc 不过。而 `seen.push([id, count])` 那种写法验不到这件事——
+       * 推进 `unknown[]` 和拼进模板串都不区分位置。
+       */
+      const narrowedId: string = id
+      const narrowedCount: number | undefined = count
+      seen.push([narrowedId, narrowedCount])
+      return `${narrowedId}:${narrowedCount ?? 0}`
     })
     const { event } = shellEvent()
     assert.strictEqual(await mockIpcMain.invokeHandler('test:ok', event, 'problem-1', 3), 'problem-1:3')

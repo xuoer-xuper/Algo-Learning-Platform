@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 // @ts-expect-error 守卫判定是 runner 共用的 .mjs，无类型声明；此处只需运行时行为
-import { collectRatchetFailures, coreSuiteRunsEverything, countBareControls, countBareHex, countBareSql, countUnschemadIpc, themeDirectiveHasTailwindImport } from './guards.mjs'
+import { collectRatchetFailures, coreSuiteRunsEverything, countBareControls, countBareHex, countBareSql, countRawIpcSchemas, countUnschemadIpc, themeDirectiveHasTailwindImport } from './guards.mjs'
 
 /**
  * 守卫的反向验证。
@@ -74,6 +74,32 @@ describe('countUnschemadIpc', () => {
       "ipcMain.on('a:4', (_e, y) => {})",
     ].join('\n')
     expect(countUnschemadIpc(source)).toBe(2)
+  })
+})
+
+describe('countRawIpcSchemas', () => {
+  it('数出 raw() 调用', () => {
+    expect(countRawIpcSchemas("ipcMain.handle('a:b', [raw('由 isFoo 判别')], h)")).toBe(1)
+    expect(countRawIpcSchemas("[raw('x'), text()], [raw(`y`)]")).toBe(2)
+    expect(countRawIpcSchemas('raw(\n  "换行也算",\n)')).toBe(1)
+  })
+
+  it('不把 import 与注释里的提及算进来', () => {
+    // 这两处是实测存在的误报源：按 /\braw\b/ 数会把 import 行和说明文字一起命中。
+    expect(countRawIpcSchemas("import { nullable, raw, text } from './payloadSchema'")).toBe(0)
+    expect(countRawIpcSchemas("import { oneOf, raw } from './payloadSchema'")).toBe(0)
+    expect(countRawIpcSchemas(' * `raw()` 的语义是"在别处校验了"，没有别处就不要用它。')).toBe(0)
+  })
+
+  it('要求首参是字符串字面量，顺带排掉多数同名调用', () => {
+    expect(countRawIpcSchemas("parseRaw('x')")).toBe(0)
+    // 无参或首参非字符串的 raw( 不算：本层的 raw() 强制要求写明理由。
+    expect(countRawIpcSchemas('raw()')).toBe(0)
+    expect(countRawIpcSchemas('raw(reason)')).toBe(0)
+    // 已知限制：`\b` 会让 `obj.raw('x')` 也命中。electron/ipc/ 下没有这种写法
+    // （唯一的 raw 是 payloadSchema 的导出函数），真出现了宁可多报——
+    // 多报会在守卫里当场失败并被看见，漏报则是静默的。
+    expect(countRawIpcSchemas("obj.raw('x')")).toBe(1)
   })
 })
 

@@ -68,10 +68,11 @@
 - `oj-credentials:capture` 是 OJ 专用内部 channel，只能由 `onFromOj()` 接收 `persist:oj-main` 主 frame 的 `{ username, password }`；不得加入 shell preload API 或普通 renderer channel 列表。主进程应在保存前清理 pending，取消、超时、导航、销毁和 `dispose` 均 fail closed，且任何错误不得回传密码或密文。
 - `backup:*` channel 导出的 JSON 不得包含 Cookie、`raw_json`、日志或本机绝对路径；冲突导入必须先预览再确认。
 - `register*.ts` 不得直接从 `electron` 导入 `ipcMain`；新增普通 channel 必须经过 `trustedSender.ts`，并同步 IPC 合约测试。
-- **新增接收渲染进程参数的 channel 必须声明 schema 元组**：`ipcMain.handle('a:b', [text(), bool], handler)`，组合子见 `payloadSchema.ts`。三条防线各管一段，缺一段就有缺口：`checkShellSender` 管"谁能发"，`checkIpcPayload` 管结构上限与原型污染，schema 管"这个 channel 的参数长什么样"。少了第三段的后果不是注入而是静默错误——实测 `stats:getTrends` 传 `'abc'` 时 `localDateDaysAgo` 会算出 `'NaN-NaN-NaN'` 绑进 SQL，图表安静地变成空的，既不报错也不记日志。
+- **所有接收渲染进程参数的 channel 都必须声明 schema 元组**：`ipcMain.handle('a:b', [text(), bool], handler)`，组合子见 `payloadSchema.ts`。当前 13 个 `register*.ts` 共 103 处已全部声明，棘轮白名单为空——新增一个没 schema 的 handler 会直接让守卫失败，不需要先登记。三条防线各管一段，缺一段就有缺口：`checkShellSender` 管"谁能发"，`checkIpcPayload` 管结构上限与原型污染，schema 管"这个 channel 的参数长什么样"。少了第三段的后果不是注入而是静默错误——实测 `stats:getTrends` 传 `'abc'` 时 `localDateDaysAgo` 会算出 `'NaN-NaN-NaN'` 绑进 SQL，图表安静地变成空的，既不报错也不记日志。
   - 只写 TypeScript 形参标注（`(_event, id: string)`）不算校验：那是对渲染进程的假设，运行时没有任何一处兑现它。`tests/architecture/check-architecture.mjs` 的 `UNSCHEMAD_IPC_BUDGET` 棘轮盯着这件事，只减不增。
   - 界要有来处：沿用项目里已有的同类上限（URL 4096、FQDN 253、通用标识符 200），不另立标准，并把来处写在注释里。
-  - schema 只管形状。跨字段判断、要 parse 才知道的内容（如 `site_ids_json` 必须是无重复的非空字符串数组）、需要查库的存在性检查，都留在 handler 或 service 里——`raw()` 的语义是"在别处校验了"，没有别处就不要用它。
+  - schema 只管形状。跨字段判断、要 parse 才知道的内容（如 `site_ids_json` 必须是无重复的非空字符串数组）、需要查库的存在性检查，都留在 handler 或 service 里——`raw()` 的语义是"在别处校验了"，没有别处就不要用它。`raw()` 自己也上了棘轮（当前 4 处，全在浏览器壳层的判别联合参数上），因为它同时是前一条守卫的逃逸口。
+  - 写路径与读路径要一起看。已发现两处"读脱敏、写不设防"的不对称并已堵上：`coach:saveConfig` 能往 `llm.encrypted_api_key` 里写（读路径 `getCoachConfigForRenderer` 是会摘掉这个字段的），`coach:saveLlmConfig` 同理。做法是让 `object()` 的形状只列渲染进程真会发的字段——多余字段默认拒绝，那条路就没了。
   - 形状不对一律拒绝，不要返回 `null`/`false` 兜底：那会和"服务说不"（没有待处理请求、owner 已销毁）在调用方眼里变成同一件事。改判前先确认渲染进程调用点有 `catch`。
 - 窗口、标签、菜单和原生对话框操作必须按 sender owner 路由；禁止注入模块级 `getWindow/getTabManager` 单槽。
 - `ui:command` 只允许受控的判别联合对象，不得把任意脚本、channel、URL 内容或窗口对象透传给 renderer；导航失败只发送枚举原因。

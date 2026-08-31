@@ -130,6 +130,20 @@ export function countUnschemadIpc(text) {
   return count
 }
 
+/**
+ * `raw()` 的用量。
+ *
+ * `raw()` 的语义是"这个参数由 handler 自己校验"，存在的意义是让"没校验"和
+ * "在别处校验"在代码里可区分。但它同时也是一个逃逸口：写上去就能让
+ * `countUnschemadIpc` 闭嘴。所以它自己也得上棘轮，否则迁移可以靠 `raw()` 刷完。
+ *
+ * 只数调用，不数 import 与注释里的提及——`from './payloadSchema'` 那行里的 `raw`
+ * 后面跟的是 `,` 或 `}`，不是 `(`。
+ */
+export function countRawIpcSchemas(text) {
+  return text.match(/\braw\(\s*['"`]/g)?.length ?? 0
+}
+
 export function collectRatchetFailures({ entries, budgets, describe, cleanupHint }) {
   const failures = []
   const seen = new Set()
