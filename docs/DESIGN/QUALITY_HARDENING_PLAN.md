@@ -66,12 +66,15 @@
 | Q6 | `TabManager.ts` 拆分 | +3 | 94.5 | 结构 |
 | Q7 | IPC 边界 `any` 收敛 | +1 | 95.5 | 类型安全 |
 | Q8 | `tests/` 纳入类型检查 | +1.5 | 97 | 可验证性 |
+| Q9 | IPC 渠道载荷校验 | +1.5 | 98.5 | 安全边界 |
 
 Q1–Q4 是确定工作量的机械活，不含架构决策，应连续执行。Q5 依赖 Q1 完成（preload 覆盖率需要 renderer 侧错误路径可测）。Q6 需要独立设计评审，不与前面混提交。
 
 Q8 是计划外的：Q7 收尾时想确认"测试替身是否也跟着收窄了"，才发现 `tests/` 从来不在任何 tsconfig 的 `include` 里。它同时补掉了一处**评分口径错误**——此前"1043 个测试全绿"被当作可验证性的证据，而其中至少一条断言恒成立、一条在验不存在的字段、一整类主进程推送在每次测试里都静默失败。
 
-剩余约 3 分：type-aware lint 缺失约占 1.5 分，卡在上游（TS 7.0.2 与 `typescript-eslint` 兼容性），不由本计划解决；渠道载荷校验缺失（见 §4 Q7 末段）约占 1.5 分，是当前最大的单项缺口。
+Q9 补掉的正是上一版这里记为"当前最大单项缺口"的那 1.5 分（渠道载荷校验，原见 §4 Q7 末段）。
+
+剩余约 1.5 分：type-aware lint 缺失，卡在上游（TS 7.0.2 与 `typescript-eslint` 兼容性），不由本计划解决。这一项能补上之前，98.5 是本计划范围内的上限——把它记成 100 会是虚报。
 
 ## 4. 任务清单
 
@@ -278,7 +281,9 @@ Q8 是计划外的：Q7 收尾时想确认"测试替身是否也跟着收窄了"
 
 四条新测试各用一次变异验证过：改回旧写法时恰好一条断言变红。
 
-**刻意保留的 1 处**：`electron/ipc/trustedSender.ts` 的 `IpcListener` 仍是 `any[]`。收紧成 `unknown[]` 会让 12 个 `register*.ts` 里 **73 个处理器**一起报错——它们都把渲染进程传来的参数当成已校验类型用，而实际没有任何一处校验。这个 `any` 掩盖的是**渠道载荷校验缺失**这个真实缺口，不是类型标注问题；只改类型再补 73 处 `as` 只是把谎言搬个地方。已在该处注明当前防线（`checkShellSender` + `checkIpcPayload` 的结构性拦截）与正确补法，列为独立加固项。
+**刻意保留的 1 处（已由 Q9 消除）**：`electron/ipc/trustedSender.ts` 的 `IpcListener` 当时仍是 `any[]`。收紧成 `unknown[]` 会让 12 个 `register*.ts` 里 **73 个处理器**一起报错——它们都把渲染进程传来的参数当成已校验类型用，而实际没有任何一处校验。这个 `any` 掩盖的是**渠道载荷校验缺失**这个真实缺口，不是类型标注问题；只改类型再补 73 处 `as` 只是把谎言搬个地方。
+
+结论后来被验证：Q9 把 103 处渠道都加上 schema 之后，这一处收紧**零处需要 `as`**，`tsc` 第一次跑就是 0 错。如果当时选了"改类型 + 补 cast"，73 处 `as` 会一直留在那里，而缺口照旧。
 
 ### Q8 `tests/` 纳入类型检查
 
@@ -312,6 +317,37 @@ Q8 是计划外的：Q7 收尾时想确认"测试替身是否也跟着收窄了"
 **一条走错的路**：曾想在 `tsconfig.tests.json` 里用 `paths` 把 `'electron'` 指向测试替身。类型会被擦除，拿替身检查生产代码只能得到假结论——试过一次，`CoachPetWindow` 那个真实的 `send` 缺失错误当场消失了。正确做法是替身专有的名字（`MockBrowserWindow`、`resetElectronMock`、`exposedMainWorld`）从替身文件的相对路径导入，只有真实 Electron 的名字才走 `'electron'`。
 
 **已知遗留**：补上 `testGroupCount` 声明后暴露 5 条既有解析失败，被 `accuracy >= 0.8` 的阈值吸收（实测 54/59 = 91.5%）：CF 1343C `nUpper` 期望 200000 实得 1000；洛谷 P1001 `valueUpper` 期望 1e9 实得 null；CF 1343B `nUpper` 期望 2000000 实得 10000；洛谷多组数据 `nUpper` 期望 200000 实得 10000；CF 全角符号混合 `nUpper` 期望 100000 实得 null。属解析器准确率问题，不属本块范围，单独记账。
+
+### Q9 IPC 渠道载荷校验
+
+补掉 Q7 末段记为"当前最大单项缺口"的那一项，也就是上面那 1 处刻意保留的 `any[]` 真正掩盖的东西。
+
+**缺口的实际形状**。三条防线原本缺最后一段：`checkShellSender` 管"谁能发"，`checkIpcPayload` 管结构上限与原型污染，但没有一处管"这个 channel 的参数长什么样"。156 处注册中 **103 处接收渲染进程参数**（两种数法交叉核对过：迁移 10 处 + 剩余 93 处），全靠 TypeScript 形参标注自述，运行时无人兑现。
+
+后果是**静默错误而非注入**——这一点值得写清楚，因为它决定了优先级。实测 `stats:getTrends` 传 `'abc'`：`localDateDaysAgo` 算出 `'NaN-NaN-NaN'` 当日期绑进 SQL，查询匹配不到任何行，图表安静地变成空的，既不报错也不记日志。SQL 本身是参数化的，所以不是注入面；但"用户看到空图表却查不出为什么"这类问题会一直堆积。
+
+**做法**。手写组合子（`payloadSchema.ts`，14 个：`text`/`freeText`/`pattern`/`localDate`/`int`/`decimal`/`bool`/`optional`/`nullable`/`oneOf`/`arrayOf`/`object`/`binary`/`raw`），不引入新依赖。四个注册函数各加一组重载支持 `handle(channel, schemas, listener)`，于是迁移可以一个文件一个文件做。失败即拒，不给静默默认值；`describe()` 只打印长度不打印内容（载荷可能含用户数据）。
+
+**过程中发现的真实缺陷**（都不是类型标注问题）：
+
+| 缺陷 | 后果 |
+|---|---|
+| `coach:saveConfig` 能写 `llm.encrypted_api_key` | 读路径脱敏（`getCoachConfigForRenderer` 摘掉该字段），写路径 `saveCoachConfig` 把 partial 直接深合并进 `config.json`，无任何过滤——壳 renderer 可绕过 safeStorage 加密直接往那一格塞值。`coach:saveLlmConfig` 同型 |
+| `confirmImportSites` 不复判内置站点 | 预览会把内置站点路由进 `builtinSkipped`，但提交这步不再判，`updateSite` 也不看 `is_builtin`。一份把内置站点 id 同时写进 `sites` 与 `overwriteIds` 的载荷能覆盖内置站点行。形状校验拦不住，越权在语义层——修在 `site/importExport.ts` |
+| `scripts:toggle`、`browser:setSidebarWidth`、`notes:updateType` 三处纯裸奔 | 只有类型标注，值直接进 UPDATE / `WebContentsView` bounds。`notes.note_type` 列是裸 TEXT 无 CHECK（migration 010），`NoteType` 联合此前只是编译期自述，任何字符串都能写进库再 `as` 回来 |
+| `notes:saveImage` 渲染进程侧零检查 | `MilkdownEditor` 把整个文件读成 ArrayBuffer 直接发，既不看体积也不看类型；而**读**路径是硬化过的（`toNoteAssetDomUrl` 拒绝绝对路径、scheme、`..`）。读紧写松的不对称 |
+| 棘轮机制本身漏一类失败 | 只有"超预算/未登记/已清零"三类，`count < budget` 不报。于是某文件从 23 处清到 5 处、预算仍写 23 时守卫照样 PASS，那 18 处欠账可以悄悄加回来。实测确认过：把一条预算从 2 上调到 3，守卫不响 |
+| `payloadSchema.ts` 注释声称守卫在统计 `raw()`，实际没有 | 我自己写下的未兑现声明。`raw()` 是"没声明 schema"那条守卫的逃逸口，不上棘轮的话迁移可以靠刷它完成。已补第 17 条守卫 |
+
+**一个自己造的坑**。`handleFromShell<S extends IpcSchemaTuple>` 推不出**逐位**类型：数组字面量会被推成数组而非元组，于是 `ParsedArgs<S>` 每一位塌成同一个联合。`[siteId(), bool]` 得到两个 `string | boolean` 形参。修法是加 `const` 修饰符。这个 bug 藏得住是因为参考迁移（`registerStatsIpc`）唯一的多参 channel 是 `[daysRange(), rowLimit()]`——**同构**元组塌了也看不出来。两个并行 agent 各自独立撞上并正确诊断出同一个根因。
+
+`schemaEnforcement.test.ts` 里那条"形参分别是 string 与 number | undefined"原先只是注释里的声称，测试体推进 `unknown[]` 再拼模板串，两者都不区分位置，验不到这件事。现改成两个带类型的局部声明——丢了 `const` 当场 tsc 不过。
+
+**收尾**：103/103 全部声明 schema，棘轮白名单清空（空表不等于关掉守卫：白名单外任何命中直接失败）。`IpcListener` 随之从 `any[]` 收紧为 `unknown[]`，**零处需要 `as`**——这正是 Q7 当时判断"补法是加载荷校验而非改类型"的验证。收紧后还多一层作用：新增带参 channel 忘写 schema 时参数是 `unknown`，handler 体内用不了，编译期就会推着人去声明，不必等架构守卫。用探针确认过这条会真的报错。
+
+`raw()` 保留 4 处，全在浏览器壳层且各指向一个真实存在的判别函数（`isInternalPage` / `isZoomCommand` / `isAppMenuAnchor` / `TabManager.findInPage`）。要降下去需要先给本层加"判别联合"组合子，列为独立项。
+
+**改判清单**（形状不对从返回兜底值改为拒绝，逐条确认过渲染进程调用点有 `catch`）：`credentials:rename`/`autofillRespond`/`captureRespond`、`scripts:getRemoteInstallPreview`/`confirmRemoteInstall`/`cancelRemoteInstall`、`tab:moveToNewWindow`/`finishDrag`、`userscript:respondHostPermission`。最后一条最值得记：`'stale'` 是"授权提示已过期，请重申"这个有含义的业务答复，把形状错误也答成它等于告诉渲染进程一件假话。
 
 ## 5. 明确不做
 
@@ -375,4 +411,5 @@ Q8 是计划外的：Q7 收尾时想确认"测试替身是否也跟着收窄了"
 | Q5 | [x] | 三个 preload 全部纳入覆盖率并补测试（`preloadSurface` 逐个调用 ~200 个暴露方法验转发、`ojPreloadModule` 11 例、`userscriptBootstrapPreloadModule` 12 例）；四项覆盖率反而全涨到 59.52/56.41/57.67/62.07，门槛上调至 56/53/54/59。原"无法执行"论据不成立，纠正见 §4 Q5 偏差 3 —— `vi.resetModules()` 导致两条负向断言曾凭空通过 |
 | Q6 | [x] | 已完成（搬移经测量后判定不做，理由见 §4 Q6 偏差末段）。安全网：新增 `tabManagerNavigationGuard.test.ts`（14 例）与 4 个文件的补充用例，共 5 条变异检查逐条确认承重；顺带修掉两个既存缺陷：`userscriptBootstrapPreloadModule.test.ts` 里固定等一轮 `setTimeout(0)` 造成的间歇性失败（修前约 1/4 概率红，修后连续 4 轮全绿），以及 `tabManagerFindZoom.test.ts` 缺失的 `FindInPageViewState` import。清理：删 `getTitleForUrl`、`emitZoomState` 的 `factor` 改必填并删不可达分支、两个导航孪生体合成一个 `handleDocumentNavigation`、六个通知条布尔收成 `visibleNotices: Set`、六个 `add*Listener` 收成一个 `subscribe` 泛型辅助——净减 40 行，公开接口零变动。**侦察结论改变了拆分方案，见 §4 Q6 偏差** |
 | Q8 | [x] | 计划外新增，commit `4b56b1c`。`tests/` 一直在 `tsconfig.json` 的 `include` 之外——1043 个测试从未被 tsc 检查。新增 `tsconfig.tests.json` 报出 129 个错，修到 0 并挂进 `runTypecheck()`（挂门用故意改坏类型验证过会真失败）。暴露 5 个真实缺陷，其中 `MockWebContents` 缺 `send()` 让主进程→渲染进程推送在**每次测试里**都静默失败、`credentialRepository` 有一条恒成立的自比断言、`userscriptBootstrap` 的 fixture 用错形状使一条断言在验不存在的字段。两处生产侧"声明要得比用得多"收窄：`trustedSender` 一处牵连 25 个错、`SyncService` 的 nominal 类型迫使 4 个替身用 `as any`。方向是删 cast（两处 `as never`、两处 `as MockSession`、若干 `as Buffer`）而非加 cast。遗留：`constraintParser` 5 条既有解析失败被 80% 阈值吸收，单独记账 |
-| Q7 | [x] | 已完成。起始计数纠正为 51 处（原 45 漏了 `as any`），四批提交后 `electron/` 剩 1 处且为刻意保留（`IpcListener`，理由见 §4 Q7）。收窄不是纯类型活：暴露并修掉 4 个真实缺陷——`syncService` 与 migration 009/011 的 `e.message` 在非 `Error` 抛出时自己抛 TypeError 覆盖真实失败原因、`domScraper` 对跨进程值的无检查属性访问、PTA 缺列行让 `.match()` 抛异常中断整批解析、洛谷把字符串赋给声明为 `number` 的字段。顺带把 19 份重复的 `errorMessage`/`errorName` 合并到 `electron/shared/errors.ts`。新增 7 个用例，各经变异验证 |
+| Q9 | [x] | 计划外新增，commit `ec9b851` + `f449b11`。补掉 Q7 末段记为"最大单项缺口"的渠道载荷校验：103 处收渲染进程参数的 handler 全部声明 schema，棘轮白名单清空，`IpcListener` 随之从 `any[]` 收紧为 `unknown[]` 且零处需要 `as`。暴露 6 个真实缺陷，其中 `coach:saveConfig` 能绕过 safeStorage 往 `llm.encrypted_api_key` 写（读路径是脱敏的）、`confirmImportSites` 能覆盖内置站点行（预览拦得住、提交这步不复判）、三处通道纯裸奔。顺带发现棘轮机制自己漏一类失败（预算高于实际不报，部分清理不可见）和一条我自己写下的未兑现声明（注释称守卫在统计 `raw()`，实际没有）。自造一坑：泛型参数缺 `const` 使异构 schema 元组塌成联合，两个并行 agent 各自撞上并正确诊断。新增 30 个用例，各经变异验证 |
+| Q7 | [x] | 已完成。起始计数纠正为 51 处（原 45 漏了 `as any`），四批提交后 `electron/` 剩 1 处且为刻意保留（`IpcListener`）——**该项已由 Q9 消除**，收紧过程零 `as`，验证了当时"补法是加载荷校验而非改类型"的判断。收窄不是纯类型活：暴露并修掉 4 个真实缺陷——`syncService` 与 migration 009/011 的 `e.message` 在非 `Error` 抛出时自己抛 TypeError 覆盖真实失败原因、`domScraper` 对跨进程值的无检查属性访问、PTA 缺列行让 `.match()` 抛异常中断整批解析、洛谷把字符串赋给声明为 `number` 的字段。顺带把 19 份重复的 `errorMessage`/`errorName` 合并到 `electron/shared/errors.ts`。新增 7 个用例，各经变异验证 |

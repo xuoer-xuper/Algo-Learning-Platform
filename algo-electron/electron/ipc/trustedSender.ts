@@ -12,20 +12,23 @@ import type { AppWindow } from '../windows/AppWindow'
 type ShellEvent = IpcMainEvent | IpcMainInvokeEvent
 
 /**
- * IPC 处理器签名，与 Electron 自己声明的 `(event, ...args: any[]) => any` 保持一致。
+ * 无 schema 形态的处理器签名。
  *
- * 这个 `any[]` 是**刻意留下的**，不是漏改：收紧成 `unknown[]` 会让 12 个 register*.ts 里
- * 73 个处理器一起报错——它们都写成 `(_event, startDate: string, endDate: string)` 这样，
- * 把渲染进程传来的参数当成已经校验过的类型用，而实际上没有任何一处做过校验。
+ * 这里原先是 `...args: any[]`，并带着一段说明"刻意留下"：当时 12 个 register*.ts 里
+ * 有 73 个处理器写成 `(_event, startDate: string, endDate: string)` 这样，把渲染进程
+ * 传来的参数当成已校验的类型用，而实际上没有任何一处校验过。那个 `any` 掩盖的是一个真实
+ * 缺口，不是类型标注问题；当时的结论是"改成 `unknown[]` 再补 73 个 `as` 只是把谎言
+ * 搬个地方"。
  *
- * 换句话说 `any` 在这里掩盖的是一个真实缺口，而不是一个类型标注问题。补法是给渠道加载荷
- * 校验（每个渠道声明自己的参数形状并在入口收窄），属于独立的加固项；只把类型改成
- * `unknown[]` 再在 73 处补 `as` 只是把谎言搬个地方，不会多一点安全。
+ * 现在缺口补完了（103 处全部声明 schema，走的是下面带 `ParsedArgs` 的重载），
+ * 这个形态只剩零参处理器在用，于是 `unknown[]` 可以真正收紧——没有一处需要 `as`。
+ * 返回值仍是 `unknown`：handler 的返回值经 `ipcRenderer.invoke` 结构化克隆后由
+ * preload 各自声明类型，本层不该也无从收窄。
  *
- * 当前实际防线：`checkShellSender` 保证只有本应用的 shell webContents 能调用，
- * `checkIpcPayload` 拦掉超深/超大/带原型污染/成环的载荷。缺的是每个渠道的参数形状校验。
+ * 收紧之后它还多了一层作用：新增带参 channel 若忘了写 schema 元组，参数会是 `unknown`，
+ * 在 handler 体内用不了——编译期就会推着人去声明 schema，而不是等架构守卫。
  */
-export type IpcListener<T extends ShellEvent> = (event: T, ...args: any[]) => any
+export type IpcListener<T extends ShellEvent> = (event: T, ...args: unknown[]) => unknown
 
 /**
  * 注册时真正需要的能力：一个 id，和一个可选的 `once('destroyed')` 用来自动注销。
