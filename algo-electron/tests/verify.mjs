@@ -16,25 +16,6 @@ const electronBin = process.platform === 'win32'
 
 const suites = new Set(['core', 'ai', 'db', 'electron', 'coach', 'all'])
 
-const coreVitestFiles = [
-  'tests/ai/recommendationRules.test.ts',
-  'tests/app',
-  // 守卫的反向用例与 runArchitecture() 同批跑：守卫通过不代表守卫会响。
-  'tests/architecture/guards.test.ts',
-  'tests/browser',
-  'tests/coach',
-  'tests/components',
-  'tests/downloads',
-  'tests/integration',
-  'tests/ipc',
-  'tests/parsers',
-  'tests/scripts',
-  'tests/security/credentialCaptureForm.test.ts',
-  'tests/security/credentialCaptureService.test.ts',
-  'tests/security/trustedSender.test.ts',
-  'tests/windows',
-]
-
 const dbVitestFiles = [
   'tests/db/codeforcesSubmissionIdMigration.test.ts',
   'tests/db/credentialExport.test.ts',
@@ -205,7 +186,13 @@ function runCoreSuite() {
   runLint()
   runArchitecture()
   runSecurity()
-  runVitest(coreVitestFiles)
+  // 不传文件名单：core 是每块改动的准入门，漏掉哪个目录就等于那个目录的改动没人验。
+  // 曾经手工列过 15 个入口，实际只覆盖 103/150 个文件——tests/adapters、
+  // tests/submissions、tests/shared、tests/diagnostics、tests/shortcuts、
+  // tests/tracking 与 4 个 tests/security 文件一直在名单外，加进来才发现漏了。
+  // 代价是墙钟从 9.9s 到 11.3s（实测），不足以换"门是假的"。
+  // 真实 Electron 那 9 个文件由 vitest.config.ts 的 exclude 挡掉，各自有专属 suite。
+  runVitest()
 }
 
 function runAiSuite() {

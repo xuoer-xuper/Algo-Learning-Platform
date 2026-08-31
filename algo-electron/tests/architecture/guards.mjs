@@ -56,6 +56,19 @@ export function countBareHex(text) {
 }
 
 /**
+ * core 门是否跑整个 Vitest 套件。
+ *
+ * 判定的是"`runCoreSuite()` 里调 `runVitest()` 时没传参数"。传了文件名单就意味着门只看
+ * 名单里的目录——这曾经真的发生过：15 项手工名单覆盖 103/150 个文件，新增目录没人补进去，
+ * 那些目录的改动一直没被验过而命令照样报绿。
+ */
+export function coreSuiteRunsEverything(verifySource) {
+  const body = verifySource.match(/function runCoreSuite\(\) \{([\s\S]*?)\n\}/)
+  if (!body) return false
+  return /\brunVitest\(\s*\)/.test(body[1])
+}
+
+/**
  * 棘轮白名单比对：只减不增。
  *
  * `entries` 是 `[{ path, count }]`，count 为 0 的条目视为已清理。

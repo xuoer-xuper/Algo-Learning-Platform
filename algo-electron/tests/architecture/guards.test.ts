@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 // @ts-expect-error 守卫判定是 runner 共用的 .mjs，无类型声明；此处只需运行时行为
-import { collectRatchetFailures, countBareControls, countBareHex, countBareSql } from './guards.mjs'
+import { collectRatchetFailures, coreSuiteRunsEverything, countBareControls, countBareHex, countBareSql } from './guards.mjs'
 
 /**
  * 守卫的反向验证。
@@ -126,5 +126,31 @@ describe('collectRatchetFailures', () => {
       { 'over.ts': 2, 'stale.ts': 1 },
     )
     expect(failures).toHaveLength(3)
+  })
+})
+
+describe('coreSuiteRunsEverything', () => {
+  it('无参 runVitest() 视为跑全套', () => {
+    expect(coreSuiteRunsEverything('function runCoreSuite() {\n  runLint()\n  runVitest()\n}')).toBe(true)
+    expect(coreSuiteRunsEverything('function runCoreSuite() {\n  runVitest( )\n}')).toBe(true)
+  })
+
+  it('传文件名单就不算', () => {
+    // 这正是漏掉 47 个文件的那种写法：名单式调用必须被判为不合格。
+    expect(coreSuiteRunsEverything("function runCoreSuite() {\n  runVitest(['tests/app'])\n}")).toBe(false)
+    expect(coreSuiteRunsEverything('function runCoreSuite() {\n  runVitest(coreVitestFiles)\n}')).toBe(false)
+  })
+
+  it('只看 runCoreSuite 自己的函数体', () => {
+    // 别的 suite 传名单是正常的（db/coach 都是聚焦套件），不能让它们把判定带偏。
+    const source = [
+      "function runCoreSuite() {\n  runVitest(['tests/app'])\n}",
+      'function runAllSuite() {\n  runVitest()\n}',
+    ].join('\n\n')
+    expect(coreSuiteRunsEverything(source)).toBe(false)
+  })
+
+  it('找不到 runCoreSuite 时判为不合格，而不是默认放行', () => {
+    expect(coreSuiteRunsEverything('function runAllSuite() {\n  runVitest()\n}')).toBe(false)
   })
 })

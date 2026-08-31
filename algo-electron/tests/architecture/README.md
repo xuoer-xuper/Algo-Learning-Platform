@@ -6,7 +6,7 @@
 
 ## 2. 当前检查
 
-`check-architecture.mjs` 当前覆盖 12 条。
+`check-architecture.mjs` 当前覆盖 14 条。
 
 安全边界：
 
@@ -18,6 +18,11 @@
 - Nowcoder 实时提交链路不得引用通用 DOM verdict observer，必须保留 `nowcoder-judge-status` 网络 payload。
 - VJudge 实时提交链路不得引用通用 DOM verdict observer，必须保留 solution/status 强关联 token。
 - 依赖真实 Electron 的用例必须在 `vitest.config.ts` 排除且由 `tests/verify.mjs` 接管。
+
+验证口径本身（测试的测试）：
+
+- `test:core` 必须跑整个 Vitest 套件，`runCoreSuite()` 里不得给 `runVitest()` 传文件名单。这条是补出来的：原先那份手工维护的 15 项名单只覆盖 103/150 个文件，`tests/adapters`、`tests/submissions`、`tests/shared`、`tests/diagnostics`、`tests/shortcuts`、`tests/tracking` 与 4 个 `tests/security` 文件从没进过名单——门是绿的，那些目录的改动却没人验。名单式写法省下 1.4s 墙钟，换来的是门本身不可信。
+- 测试必须断言行为而非生产源码文本。读源码再断言字符串的测试两头都会骗人：接线断了但字符串还在时它照样绿，纯搬移没改行为时它却变红。白名单条目失效后必须删。
 
 分层与设计系统（棘轮白名单，只减不增）：
 
@@ -42,6 +47,8 @@
 守卫全部 PASS 只说明当前代码合规，不说明守卫真的会响。判定逻辑因此拆到 `guards.mjs`，由 `guards.test.ts` 用合成输入推到失败侧：误报源（`regex.exec`、HTML 数字实体 `&#8804;`）、豁免边界（属性换行、相邻元素的 `type`）、棘轮三类失败分支逐个覆盖。
 
 反向用例不是形式主义：`countBareHex` 的 HTML 实体排除本来只写在注释里没实现，是 `guards.test.ts` 把它报出来的（`&#8804;` 的 `8804` 正好 4 位十六进制，后面的分号还能过尾部检查，只有前缀 `(?<!&)` 能区分）。
+
+`coreSuiteRunsEverything` 的四个反向用例里有一个专门钉"找不到 `runCoreSuite` 时判为不合格"：正则匹配不到就默认放行，是这类守卫最常见的静默失效方式——函数改名之后守卫再也不会响，而它仍然报 PASS。
 
 新增守卫时一并补反向用例，否则守卫是装饰。
 

@@ -295,6 +295,8 @@ Q1–Q4 是确定工作量的机械活，不含架构决策，应连续执行。
 3. 收口类任务确认既有测试零改动通过；若需改测试，说明为何原断言不再适用。
 4. 守卫类任务双向验证：删除修复后守卫必须失败。
 5. 每块跑 `npm run typecheck`、`npm run lint`、`npm run test:core`,涉及数据库跑 `npm run test:db`,涉及真实 Electron 跑 `npm run test:electron`,涉及覆盖率跑 `npm run test:coverage`。
+
+   > 实施期修正：`test:core` 原先跑一份手工维护的 15 项文件名单，实际只覆盖 **103/150** 个 Vitest 文件——`tests/adapters`、`tests/submissions`、`tests/shared`、`tests/diagnostics`、`tests/shortcuts`、`tests/tracking` 与 4 个 `tests/security` 文件一直在名单外。也就是说本计划前几块里凡是改到这些目录的，"跑过 `test:core`"并不等于验过。已改为跑整个套件（墙钟 9.9s → 11.3s），并加守卫禁止名单回归（第 14 条，反向用例 4 个）。Q7 的验证按修正后的口径重跑过。
 6. 文档同步：涉及导出导入改 [DATA_EXPORT_AND_IMPORT](DATA_EXPORT_AND_IMPORT.md);涉及 schema 改 [DATABASE_SCHEMA](DATABASE_SCHEMA.md);本计划的完成状态回填 §8。
 7. 提交信息用中文 `类型: 中文说明`,格式见 [COMMIT_RULES](../GOVERNANCE/COMMIT_RULES.md)。
 

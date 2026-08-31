@@ -1,6 +1,6 @@
 import fs from 'node:fs'
 import path from 'node:path'
-import { collectRatchetFailures, countBareControls, countBareHex, countBareSql } from './guards.mjs'
+import { collectRatchetFailures, coreSuiteRunsEverything, countBareControls, countBareHex, countBareSql } from './guards.mjs'
 
 const projectRoot = process.cwd()
 const sourceRoots = [
@@ -317,6 +317,14 @@ check('colors come from design tokens, not bare hex', () => {
   }
 
   if (failures.length > 0) throw new Error(failures.join('\n'))
+})
+
+check('the core gate runs the whole Vitest suite', () => {
+  // core 是每块改动的准入门，名单化过一次就漏了 47 个文件，不要再回来。判定见 guards.mjs。
+  const verify = read(path.join(projectRoot, 'tests', 'verify.mjs'))
+  if (!coreSuiteRunsEverything(verify)) {
+    throw new Error('tests/verify.mjs: runCoreSuite() 必须用 runVitest() 跑整个套件，不能传文件名单')
+  }
 })
 
 check('real-Electron suites stay out of the Vitest run', () => {
