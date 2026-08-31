@@ -69,6 +69,32 @@ export function coreSuiteRunsEverything(verifySource) {
 }
 
 /**
+ * `@theme` 与 `@import "tailwindcss"` 必须同时在场。
+ *
+ * `@theme { … }` 是 Tailwind v4 的指令，不是标准 CSS：44 个设计 token 全写在里面，靠插件
+ * 编译成 `:root` 上的自定义属性，全项目 111 个 `var(--…)` 消费它们。少了 import，浏览器
+ * 会直接忽略整个 `@theme` 块，token 全部变成未定义，配色退回默认值——实测产物从 12841
+ * 字节掉到 3686，`--color-app` 出现 0 次。
+ *
+ * 这条守卫是被一次错误判断逼出来的：工具类确实零消费者（最后一处在 `ErrorBoundary` 里，
+ * Q4 已移除），很容易由此推出"Tailwind 没人用了、可以删依赖"。前半句对，后半句错——
+ * 它现在的身份是 token 编译器与 CSS 重置来源，不是工具类框架。
+ *
+ * 反向也判：留着 import 而 `@theme` 没了，说明 token 源被搬走或删了，同样要报。
+ */
+export function themeDirectiveHasTailwindImport(cssSource) {
+  const hasTheme = /^\s*@theme\b/m.test(cssSource)
+  // 注释掉的 import 不算在场：注掉它正是删除的第一步，也是实测时用过的手法。
+  const hasImport = /^\s*@import\s+["']tailwindcss["']/m.test(cssSource)
+  if (hasTheme !== hasImport) {
+    return hasTheme
+      ? { ok: false, reason: 'missing-import' }
+      : { ok: false, reason: 'missing-theme' }
+  }
+  return { ok: true, reason: 'ok' }
+}
+
+/**
  * 棘轮白名单比对：只减不增。
  *
  * `entries` 是 `[{ path, count }]`，count 为 0 的条目视为已清理。

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 // @ts-expect-error 守卫判定是 runner 共用的 .mjs，无类型声明；此处只需运行时行为
-import { collectRatchetFailures, coreSuiteRunsEverything, countBareControls, countBareHex, countBareSql } from './guards.mjs'
+import { collectRatchetFailures, coreSuiteRunsEverything, countBareControls, countBareHex, countBareSql, themeDirectiveHasTailwindImport } from './guards.mjs'
 
 /**
  * 守卫的反向验证。
@@ -152,5 +152,33 @@ describe('coreSuiteRunsEverything', () => {
 
   it('找不到 runCoreSuite 时判为不合格，而不是默认放行', () => {
     expect(coreSuiteRunsEverything('function runAllSuite() {\n  runVitest()\n}')).toBe(false)
+  })
+})
+
+describe('themeDirectiveHasTailwindImport', () => {
+  it('两者同时在场才算合规', () => {
+    const source = '@import "tailwindcss";\n\n@theme {\n  --color-app: #eef1f6;\n}\n'
+    expect(themeDirectiveHasTailwindImport(source)).toEqual({ ok: true, reason: 'ok' })
+    // 单引号与两者都不在场（纯手写 token 的 CSS）同样合规
+    expect(themeDirectiveHasTailwindImport("@import 'tailwindcss';\n@theme {\n}\n").ok).toBe(true)
+    expect(themeDirectiveHasTailwindImport(':root {\n  --color-app: #eef1f6;\n}\n').ok).toBe(true)
+  })
+
+  it('有 @theme 没 import 必须报', () => {
+    // 这正是那次错误判断会产生的文件状态：以为工具类没人用就把依赖删了，
+    // 结果 @theme 整块被浏览器忽略，44 个 token 全变未定义。
+    const result = themeDirectiveHasTailwindImport('@theme {\n  --color-app: #eef1f6;\n}\n')
+    expect(result).toEqual({ ok: false, reason: 'missing-import' })
+  })
+
+  it('注释掉 import 不算在场', () => {
+    // 实测时就是这么注掉的，产物立刻从 12841 字节掉到 3686。
+    const source = '/* @import "tailwindcss"; */\n@theme {\n  --color-app: #eef1f6;\n}\n'
+    expect(themeDirectiveHasTailwindImport(source).ok).toBe(false)
+  })
+
+  it('有 import 没 @theme 也报：token 源被搬走了', () => {
+    const result = themeDirectiveHasTailwindImport('@import "tailwindcss";\n.foo { color: red; }\n')
+    expect(result).toEqual({ ok: false, reason: 'missing-theme' })
   })
 })

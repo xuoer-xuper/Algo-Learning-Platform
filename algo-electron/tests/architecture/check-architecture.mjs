@@ -1,6 +1,6 @@
 import fs from 'node:fs'
 import path from 'node:path'
-import { collectRatchetFailures, coreSuiteRunsEverything, countBareControls, countBareHex, countBareSql } from './guards.mjs'
+import { collectRatchetFailures, coreSuiteRunsEverything, countBareControls, countBareHex, countBareSql, themeDirectiveHasTailwindImport } from './guards.mjs'
 
 const projectRoot = process.cwd()
 const sourceRoots = [
@@ -317,6 +317,17 @@ check('colors come from design tokens, not bare hex', () => {
   }
 
   if (failures.length > 0) throw new Error(failures.join('\n'))
+})
+
+check('the design-token source keeps its Tailwind import', () => {
+  // `@theme` 是 v4 指令，没有 import 就整块失效、44 个 token 全变未定义。判定见 guards.mjs。
+  const indexCss = read(path.join(projectRoot, 'src', 'index.css'))
+  const result = themeDirectiveHasTailwindImport(indexCss)
+  if (!result.ok) {
+    throw new Error(result.reason === 'missing-import'
+      ? 'src/index.css: 有 @theme 却没有 @import "tailwindcss"，token 会全部失效（工具类零消费者不等于依赖可删）'
+      : 'src/index.css: 有 @import "tailwindcss" 却没有 @theme，设计 token 源不在这里了，请更新守卫')
+  }
 })
 
 check('the core gate runs the whole Vitest suite', () => {

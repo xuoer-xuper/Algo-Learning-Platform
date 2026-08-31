@@ -6,7 +6,7 @@
 
 ## 2. 当前检查
 
-`check-architecture.mjs` 当前覆盖 14 条。
+`check-architecture.mjs` 当前覆盖 15 条。
 
 安全边界：
 
@@ -33,6 +33,9 @@
 按文件豁免（不进棘轮）：
 
 - 颜色只能来自设计 token，`src/` 下任何 CSS/TS/TSX 不得出现裸 hex。白名单是三个颜色定义文件：`src/index.css`（token 唯一源）、`src/features/coach/styles/tokens.css`（Coach 独立视觉域的第二套 token）、`src/shared/display.ts`（平台品牌色与图表色板，已过 dataviz 校验）。这条**不用棘轮预算**：预算条目意味着"应该降到零"，而定义 token 不是欠账，新增一个合法 token 不该让守卫响，所以按文件豁免而不按数量计数。
+- `src/index.css` 里 `@theme` 与 `@import "tailwindcss"` 必须同时在场。`@theme` 是 Tailwind v4 指令而非标准 CSS，44 个 token 靠插件编译成 `:root` 自定义属性，全项目 111 个 `var(--…)` 消费；少了 import 浏览器会整块忽略，配色全退回默认值（实测产物 12841 → 3686 字节，`--color-app` 出现 0 次）。反向也判：留着 import 而 `@theme` 没了说明 token 源被搬走，同样要报。
+
+  这条是被一次错误结论逼出来的：Tailwind 工具类确实零消费者（最后一处在 `ErrorBoundary`，Q4 已移除），但由此推出"可以删依赖"是错的 —— 它现在的身份是 token 编译器与 CSS 重置来源，不是工具类框架。产物里那些 `.flex` / `.filter` / `.table` 是 v4 扫描源码时把 `Array.prototype.filter`、行文里的「table」误判成类名生成的空转结果，不能当作"有人在用工具类"的证据。
 
 ## 3. 棘轮白名单
 
