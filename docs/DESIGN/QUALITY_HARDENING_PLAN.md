@@ -506,6 +506,17 @@ update，而且它能改内置站点的 `domains` / `loginUrlPatterns`——那�
 给 `CoachOrchestrator` 补覆盖时顺出来的。四条都不是"代码写错了"，而是**已建成的模块没有接
 到产品路径上**，取舍属于产品决定，所以只落文档与源码注释，不动行为。
 
+> **已挂到 GitHub 待办**（milestone「AI Coach 接线决策」，无截止日期，标签 `needs-decision`）：
+>
+> | Issue | 对应 |
+> |---|---|
+> | [#1 AI Coach 自动介入未接线](https://github.com/xuoer-xuper/Algo-Learning-Platform/issues/1) | §11.1 + §11.4（同一个决定） |
+> | [#2 提示升级无频次限制](https://github.com/xuoer-xuper/Algo-Learning-Platform/issues/2) | §11.2（可独立决定，有付费调用成本） |
+> | [#3 会话 `problem_id` 恒为 null](https://github.com/xuoer-xuper/Algo-Learning-Platform/issues/3) | §11.3（数据设计，独立） |
+>
+> issue 里写的是同样的查证过程，方便回来时直接从待办列表进入，不必先想起来翻这份文档。
+> 本节仍是详本；改结论时两边一起改。
+
 以下每一条都按"查证方式 → 事实 → 后果 → 为什么不自行改"记，避免下一个人重新查一遍。
 
 ### 11.1 本地规则引擎在生产中是惰性的
