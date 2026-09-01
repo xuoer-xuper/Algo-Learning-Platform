@@ -26,6 +26,20 @@
 - 更新时间使用 `updated_at`。
 - 软删除预留 `deleted_at`。
 
+启用状态标注（B5.6 逐表核实，2026-09-01）：
+
+本文档同时描述**已在用**和**为后续阶段预留**的表，两者混在一起会让人误以为某张表已经有数据。
+因此给尚未接线的表加一行 `> **状态：…**`，判定口径是对 `electron/` 全量 grep 该表名的
+`INSERT` / `UPDATE` / `DELETE`（排除 `db/migrations/`），按实际结果标注，不按表名推测。
+没有状态行的表即为读写路径俱全。当前四张需要标注：
+
+| 表 | 状态 |
+| --- | --- |
+| `study_sessions` | 已建表，无任何读写路径 |
+| `submission_sync_runs` | **本文档记载但 migration 从未建表** |
+| `contest_results` | 已建表，有读出口无写入路径 |
+| `sync_queue` | 已建表，无任何读写路径 |
+
 ## 2. migration 规则
 
 必须存在：
@@ -142,6 +156,15 @@ INDEX activity_events_problem(problem_id)
 ### 3.4 study_sessions
 
 记录一次学习会话。
+
+> **状态：预留未启用。** migration 001 建表，此后 `electron/` 下对 `study_sessions`
+> 的读写均为零处（表名只出现在 migration 里）。会话事实目前由
+> `electron/coach/ProblemSessionTracker.ts` 只放在内存环形缓冲（最近 50 条），
+> 该文件的头注释写明"不直接入库"，时间轴复盘计划从
+> `coach_events` + `problem_visits` + `submissions` 重建。
+> 配套事实：`problemVisitRepository` 的 `INSERT INTO problem_visits` 列清单里没有
+> `session_id`，所以运行时新建的访问记录该列恒为 NULL（只有备份导入会照搬导出文件里的值，
+> 而导出源同样来自这条恒 NULL 的路径）。
 
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
@@ -264,6 +287,13 @@ INDEX submissions_submitted_at(submitted_at)
 
 记录提交同步任务。
 
+> **状态：本文档记载但从未建表。** 全仓 grep `submission_sync_runs` 只命中本节，
+> 没有任何 migration 建过它，代码里也没有引用——也就是说这张表在数据库中不存在，
+> 本节是一份未落地的设计。同步运行的实际信息现由
+> `electron/submissions/syncService.ts` 以 `{ platform, fetched, inserted, error }`
+> 逐次返回给调用方，不落表——历史同步记录目前不可追溯。
+> 真要启用需新开 migration（当前最新 029，新表从 030 起）并同步本节。
+
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
 | id | TEXT PRIMARY KEY | 同步任务 ID |
@@ -352,6 +382,13 @@ UNIQUE(platform, account_id, contest_id)
 
 ### 6.3 contest_results
 
+> **状态：预留未启用（读出口已接、写入路径为零）。** migration 006 建表，
+> `rating:getContestResults` 会 `SELECT * FROM contest_results`，并已在
+> `preload.ts` 暴露为 `rating.getContestResults`——但全仓没有任何
+> `INSERT`/`UPDATE` 落进这张表，所以该通道恒返回空数组；渲染进程当前也没有调用点。
+> 同一 Phase 4 的 `platform_accounts` 与 `rating_history` 都有 `registerRatingIpc`
+> 里的真实写入，只有本表没有，属于抓取链路未覆盖比赛成绩。
+
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
 | id | TEXT PRIMARY KEY | 记录 ID |
@@ -437,6 +474,12 @@ Phase 7 追加 `deleted_at` 字段，用于未来同步和导入覆盖时表达�
 ### 8.1 sync_queue
 
 未来同步队列。
+
+> **状态：预留未启用。** migration 020 建表并建好两个索引，此后
+> `sync_queue` 这个表名在 `electron/` 下只出现在 `connection.ts` 的
+> `import { migration020 }` 一行里，没有任何读写。云端同步按 §1 的原则不提前实现，
+> 本表与 §8.2 的同步兼容列一起属于"schema 先行、逻辑后补"。
+> 下面那份"禁止进入同步队列"的清单是启用时必须先兑现的约束，不是已生效的守卫。
 
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |

@@ -15,6 +15,7 @@ import {
   type ParsedArgs,
 } from './payloadSchema'
 import type { CoachPetWindow } from '../coach/CoachPetWindow'
+import { COACH_PIN_MODES } from '../coach/petPinPolicy'
 import type { CoachOrchestrator } from '../coach/CoachOrchestrator'
 import type { CoachBubblePayload } from '../coach/types'
 import { getCoachConfigForRenderer, saveCoachConfig } from '../app/config'
@@ -86,7 +87,7 @@ const llmText = () => text({ max: 512 })
 const petState = () => oneOf(['idle', 'thinking', 'alert', 'celebrate', 'sleep', 'focus'] as const)
 
 /*
- * `coach:saveConfig` 的形状刻意**只有** `CoachPanel.tsx` 真会发的 5 个字段。
+ * `coach:saveConfig` 的形状刻意**只有** `CoachPanel.tsx` 真会发的 6 个字段。
  *
  * 这不是偷懒，是本文件最要紧的一条：`saveCoachConfig` 把 partial 直接深合并进
  * config.json，而 `CoachConfig` 里有 `llm.encrypted_api_key`。读路径是脱敏的
@@ -103,6 +104,9 @@ const coachConfigShape = () => object({
   bubbleFrequency: optional(oneOf(['low', 'medium', 'high'] as const)),
   scale: optional(decimal({ min: 0.5, max: 2 })),
   opacity: optional(decimal({ min: 0.3, max: 1 })),
+  // B5.5：置顶模式。枚举照抄 petPinPolicy 的 COACH_PIN_MODES，越界值在这里就被拒，
+  // 不靠 normalizeCoachPinMode 兜底——兜底是给手改 config.json 那条路用的。
+  pinMode: optional(oneOf(COACH_PIN_MODES)),
 })
 
 /**

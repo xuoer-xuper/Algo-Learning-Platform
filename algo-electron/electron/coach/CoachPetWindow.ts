@@ -3,12 +3,22 @@ import type { CoachBubblePayload, CoachPetState } from './types'
 import { getCoachConfigForRenderer, loadCoachConfig, saveCoachConfig } from '../app/config'
 import { shellUrl } from '../app/appProtocol'
 import { registerCoachWebContents, unregisterCoachWebContents } from '../ipc/trustedSender'
+import {
+  DEFAULT_COACH_PIN_MODE,
+  normalizeCoachPinMode,
+  resolvePetPinDecision,
+  type CoachPinMode,
+  type PetPinDecision,
+} from './petPinPolicy'
 
 /**
  * Coach 桌宠透明悬浮窗口。
  *
  * 设计要点：
- * - transparent + frame:false + alwaysOnTop + skipTaskbar + hasShadow:false + resizable:false
+ * - transparent + frame:false + skipTaskbar + hasShadow:false + resizable:false
+ * - 置顶策略三档可配（B5.5 / D30）：follow（默认，跟随最近活跃壳且壳失焦即解绑）、
+ *   always（全局置顶，旧行为）、dock（停靠不置顶）。判定在 petPinPolicy.ts，
+ *   本类只负责把决策落到窗口上并在模式/归属/焦点变化时重算
  * - 默认点击穿透（setIgnoreMouseEvents(true, { forward: true })），
  *   renderer hover 到交互区域时通过 IPC 临时关闭穿透，离开恢复
  * - 拖拽移动：renderer 监听 mousedown/mousemove/mouseup，通过 IPC 调用 startDrag/dragTo/endDrag，
@@ -40,6 +50,9 @@ export class CoachPetWindow {
   private dragPollTimer: NodeJS.Timeout | null = null
   private lastCursorPos = { x: 0, y: 0 }
   private lastCursorMoveTime = 0
+  private pinMode: CoachPinMode = DEFAULT_COACH_PIN_MODE
+  /** 被跟随壳当前是否聚焦。原生菜单/模态弹出会让壳失焦，follow 模式据此解绑 parent */
+  private followedWindowFocused = false
 
   constructor(options: CoachPetWindowOptions) {
     this.options = options
@@ -52,6 +65,8 @@ export class CoachPetWindow {
     if (this.win && !this.win.isDestroyed()) return
 
     const cfg = loadCoachConfig()
+    // 重启后恢复用户选的置顶模式；非法值由 normalize 落回 follow
+    this.pinMode = normalizeCoachPinMode(cfg.pinMode)
     const workArea = screen.getPrimaryDisplay().workArea
     const defaultX = workArea.x + workArea.width - PET_WINDOW_WIDTH - 24
     const defaultY = workArea.y + workArea.height - PET_WINDOW_HEIGHT - 24
@@ -73,7 +88,9 @@ export class CoachPetWindow {
       y: Math.round(pos.y),
       transparent: true,
       frame: false,
-      alwaysOnTop: false,
+      // 初值取 always 档的结论；其余模式在下面 applyPinDecision 里统一落地，
+      // 不在构造选项和策略函数两处各写一份判定
+      alwaysOnTop: this.pinMode === 'always',
       skipTaskbar: true,
       hasShadow: false,
       resizable: false,
@@ -88,9 +105,7 @@ export class CoachPetWindow {
         sandbox: true,
       },
     })
-    if (this.followedWindow && !this.followedWindow.isDestroyed()) {
-      this.win.setParentWindow(this.followedWindow)
-    }
+    this.applyPinDecision()
     registerCoachWebContents(this.win.webContents)
 
     this.win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
@@ -162,6 +177,21 @@ export class CoachPetWindow {
   }
 
   /**
+   * 切换置顶模式。即时生效（就地重设窗口），持久化由调用方的
+   * `saveCoachConfig` 负责——本方法不写盘，避免与 `coach:saveConfig` 重复落盘。
+   */
+  setPinMode(mode: CoachPinMode): void {
+    const next = normalizeCoachPinMode(mode)
+    if (next === this.pinMode) return
+    this.pinMode = next
+    this.applyPinDecision()
+  }
+
+  getPinMode(): CoachPinMode {
+    return this.pinMode
+  }
+
+  /**
    * 切换桌宠状态，推送给渲染层。
    */
   setPetState(state: CoachPetState): void {
@@ -203,6 +233,8 @@ export class CoachPetWindow {
     // 同步窗口级透明度
     const cfg = loadCoachConfig()
     this.win?.setOpacity(clamp(cfg.opacity, 0.3, 1))
+    // 置顶模式与透明度走同一条保存通道，这里一并即时生效
+    this.setPinMode(normalizeCoachPinMode(cfg.pinMode))
   }
 
   /**
@@ -292,14 +324,59 @@ export class CoachPetWindow {
     this.setFollowedWindow(null)
   }
 
+  private readonly handleFollowedWindowFocus = (): void => {
+    this.followedWindowFocused = true
+    this.applyPinDecision()
+  }
+
+  private readonly handleFollowedWindowBlur = (): void => {
+    this.followedWindowFocused = false
+    this.applyPinDecision()
+  }
+
   private setFollowedWindow(window: BrowserWindow | null): void {
     if (this.followedWindow === window) return
-    this.followedWindow?.off('close', this.handleFollowedWindowClose)
-    this.followedWindow = window
-    this.followedWindow?.once('close', this.handleFollowedWindowClose)
-    if (this.win && !this.win.isDestroyed()) {
-      this.win.setParentWindow(this.followedWindow)
+    if (this.followedWindow) {
+      this.followedWindow.off('close', this.handleFollowedWindowClose)
+      this.followedWindow.off('focus', this.handleFollowedWindowFocus)
+      this.followedWindow.off('blur', this.handleFollowedWindowBlur)
     }
+    this.followedWindow = window
+    if (window) {
+      window.once('close', this.handleFollowedWindowClose)
+      window.on('focus', this.handleFollowedWindowFocus)
+      window.on('blur', this.handleFollowedWindowBlur)
+      // 切壳时以壳的实际焦点为准：WindowManager 是在 focus 事件里更新"最近活跃"的，
+      // 所以新壳通常已经聚焦，此时不能等下一次 focus 事件才认。
+      this.followedWindowFocused = window.isFocused()
+    } else {
+      this.followedWindowFocused = false
+    }
+    this.applyPinDecision()
+  }
+
+  /**
+   * 按当前模式与归属/焦点事实重设窗口。所有改置顶的路径都汇到这里，
+   * 保证 create / 切壳 / 焦点变化 / 改模式四条入口用的是同一份判定。
+   */
+  private applyPinDecision(): void {
+    if (!this.win || this.win.isDestroyed()) return
+    const decision = this.resolveDecision()
+    const parent = decision.attachToActiveShell
+      && this.followedWindow
+      && !this.followedWindow.isDestroyed()
+      ? this.followedWindow
+      : null
+    this.win.setParentWindow(parent)
+    this.win.setAlwaysOnTop(decision.alwaysOnTop, decision.level)
+  }
+
+  private resolveDecision(): PetPinDecision {
+    return resolvePetPinDecision({
+      mode: this.pinMode,
+      hasActiveShell: !!this.followedWindow && !this.followedWindow.isDestroyed(),
+      activeShellFocused: this.followedWindowFocused,
+    })
   }
 }
 

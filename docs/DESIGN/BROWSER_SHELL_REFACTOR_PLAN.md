@@ -469,7 +469,7 @@ Renderer（同一构建产物，多窗口实例化——桌宠 hash 路由已证
 | B4.4 | [x] | 账户内部标签、登录态摘要、脱敏凭据列表、重命名/删除、登录页新标签跳转、Codeforces rating 绑定和多凭据 NoticeBar 选择已完成；完整记录见 §11.44 |
 | B4.5 | [x] | 登录捕获、保存/覆盖确认与 stale/取消边界已完成；完整记录见 §11.45 |
 | B4.6 | [x] | electron-builder fuses、生产 DevTools/smoke 边界、NSIS 与真实 packaged 双实例 smoke 已完成；完整记录见 §11.46 |
-| B5.1-B5.6 | [ ] | 仅按视觉冻结约束做结构收尾、暗色、无障碍、桌宠策略和 Latex |
+| B5.1-B5.6 | [~] | B5.1 设置页分区导航（§11.54）、B5.4 暗色模式（§11.55）、B5.5 桌宠置顶三模式（§11.52）、B5.6 Latex 与文档矩阵（§11.53）已完成；**B5.2 打磨与 B5.3 全局动效未开始**。四项均未做实机人工验收，留作 B5 整块统一验收 |
 | B6.1 | [x] | `027_userscript_runtime`、完整 metadata 持久化、严格 URL 匹配、site binding/exclude 优先级、values/资源/host/update repository 已完成；完整记录见 §11.38 |
 | B6.2 | [x] | GM 私有桥、固定 frame bootstrap、IIFE/grant 裁剪、主进程值快照与 shell 源码隔离已完成；完整记录见 §11.39 |
 | B6.3 | [x] | `GM_xmlhttpRequest` 主进程受限代理、`@connect` 与逐 host 授权、NoticeBar、剪贴板/菜单/onurlchange、全局 CORS 清理已完成；完整记录见 §11.40 |
@@ -1240,3 +1240,101 @@ Renderer（同一构建产物，多窗口实例化——桌宠 hash 路由已证
 | 精简 | 删除随之失效的 `collectDuplicateCounts`、`countConflictsForTable`、`existsByProblemKey`、`existsBySubmissionKey`、`existsByAccountKey`、`existsByRatingKey`；保留仍被 `importProblemVisits`/`importDailyStats` 使用的 `existsById`、`existsByLocalDay` |
 | 视觉影响 | 无。未触碰任何 renderer 样式、色板、字体、布局基调、按钮形态或动画 |
 | 完成时间 | 北京时间 `2026-08-27` |
+
+### 11.52 B5.5 桌宠置顶策略完成记录
+
+| 字段 | 填写内容 |
+|---|---|
+| 任务 | B5.5 桌宠置顶三模式可配（跟随最近活跃壳 / 全局置顶 / 停靠），解除 `alwaysOnTop` 盖住应用内一切；窗口尺寸与内部元素按 scale 解耦（可选项，见下"可选项判定"） |
+| 状态 | `[x] 已完成` |
+| Commit | `feat: B5 落地分区导航、暗色模式、桌宠置顶三模式与 Latex`（代码、测试、文档与本记录同提交；四项同提交的理由见 §11.54 "提交粒度"行） |
+| 起点澄清 | §2.1 诊断的 `alwaysOnTop: true` 已在 B3.5 改为 `false` + `setParentWindow(最近活跃壳)`。B5.5 的增量是把这件事变成**可配三档**，并解决"子窗口恒在父窗口之上"带来的剩余遮挡 |
+| 三模式语义 | `follow`（默认）：`alwaysOnTop=false`、level `normal`，parent 绑最近活跃壳**且仅在该壳聚焦时绑**；`always`：`alwaysOnTop=true`、level `floating`、不绑 parent（B3.5 之前的旧行为，只有用户显式选择才到达）；`dock`：`alwaysOnTop=false`、level `normal`、不绑 parent |
+| follow 如何不盖住应用内浮层 | 靠"壳失焦即解绑 parent"。B2.8 之后应用内所有菜单都是原生 `Menu.popup()`，文件/消息框都是带 parent 的原生模态，这两类弹出时壳会失焦，桌宠随即退回普通 z 序，盖不住它们。此前无论壳在做什么，子窗口都恒压在壳之上 |
+| 已知边界（如实记录） | 壳内 **DOM 对话框**（`ui/Dialog.tsx` overlay）不是独立 OS 窗口，也不夺走 OS 焦点，因此 follow 模式下若几何重叠仍会被桌宠覆盖。整窗 z 序切不出"盖住壳但不盖住壳内 DOM 浮层"这一档，这是平台事实而非实现取舍；`dock` 就是这一类遮挡的出口，其效果说明写在设置面板上而不只在文档里。桌宠默认点击穿透（`setIgnoreMouseEvents(true, {forward:true})`），所以该重叠只是视觉遮挡，不拦交互 |
+| 纯逻辑拆分 | 新增 `electron/coach/petPinPolicy.ts`：不 import electron，输入「模式 + 是否有活跃壳 + 该壳是否聚焦」，输出「alwaysOnTop / level / 是否绑 parent」。`CoachPetWindow` 只负责把决策设到窗口上，create / 切壳 / 焦点变化 / 改模式四条入口汇到同一个 `applyPinDecision()`，不在两处各写一份判定 |
+| 持久化与即时生效 | 走已有 `CoachConfig.pinMode` → `loadCoachConfig`/`saveCoachConfig`/`getCoachConfigForRenderer` 链路，不新建配置文件、不新建表、不新增 IPC channel（`coach:getConfig`/`coach:saveConfig` 本就是整份 `CoachConfig` 进出）。`coach:saveConfig` 的 schema 白名单加 `pinMode: optional(oneOf(COACH_PIN_MODES))`，保存后 `notifyConfigChanged()` 顺带重新应用一次模式；`create()` 读回配置，重启后恢复 |
+| 非法值收口 | `normalizeCoachPinMode` 在 `loadConfig`（手改 config.json）与 `saveCoachConfig`（合并结果）两处都落回 `follow`；IPC 层则直接拒绝越界值而不兜底——兜底只给本地文本编辑那条路用 |
+| 可选项判定：窗口尺寸不按 scale 解耦（不做） | 实测几何：窗口固定 400×640，`.pet-body` 180×180、`bottom:24px`、`transform-origin: center bottom`。scale=2.0 时本体占 x∈[20,380]、y 自底 24 到 384，**未触边**；scale=0.5 时更小。窗口尺寸没有裁切问题，改成随 scale 变会牵动持久化位置的越界校正（`clampPosition` 按 400×640 算）与拖拽轮询的坐标系，为一个观测不到的问题动两条已验证过的链路，判定不做 |
+| 可选项判定：内部元素解耦（做了一处真缺陷） | 同一次测量发现 `.coach-bubble` 的 `bottom: 220px` 是按 scale=1 的本体高度写死的（注释写着"180px + 间距 40px"）：scale=2.0 时本体顶到 384px，气泡被压在本体身上；scale=0.5 时本体只到 114px，气泡悬空 106px、尖角指着空气。改为 `calc(180px * var(--pet-scale, 1) + 40px)`，scale=1 时仍等于 220px。`.coach-chat-panel`（`bottom:130px`、定高 480px）刻意不动：它是定尺寸交互面板不是桌宠装饰件，本来就设计成盖在桌宠前面 |
+| UI 入口 | 只改 `src/features/settings/CoachPanel.tsx`：复用既有 `settings-row` / `settings-label-row` 结构与 `ui/` 的 `Select`，三档各附一句效果说明。未新增 CSS、未改 `SettingsPage.tsx` 与 `settings.css`（B5.1/B5.4 正在改）。读写走已有 `coach/coachDataApi.ts` 的 `loadCoachConfig`/`saveCoachConfig`，tsx 内无 `window.electronAPI` |
+| 测试 | 新增 `tests/coach/petPinPolicy.test.ts` 9 条（纯策略：三档各自的 alwaysOnTop/level/parent、"always 是唯一置顶档"、默认档不置顶、非法值归一）；`tests/coach/coachPetWindowFollow.test.ts` 从 1 条扩到 10 条（落到真实窗口对象：失焦解绑/重新聚焦恢复、绑未聚焦壳不抬升、模式切换双向、非法模式不改窗口、切壳解绑旧壳 focus/blur 监听、destroy 清零监听）。变异检查两次：把 `attach` 改成不看焦点 → 3 条红；把 follow 的 `alwaysOnTop` 改成 true → 8 条红 |
+| 测试替身 | `tests/electron/electronMock.ts` 的 `MockBrowserWindow` 补 `setAlwaysOnTop`/`isAlwaysOnTop`/`getAlwaysOnTopLevel` 与 `blur()`，并让 `hide()`/`minimize()` 照真实 Electron 发 `blur`——缺这一条，依赖焦点的策略在替身下测不到 |
+| 自动验证 | `typecheck` / `typecheck:tests` / `lint` 全绿；`test:unit` `162 files / 1263 tests` 通过；`test:architecture` `17/17`；`test:security`、`test:docs` 通过；`test:coverage` 通过，statements `67.78%`、branches `63.1%`、functions `65.35%`、lines `70.72%`（门 65/60/62/68），`petPinPolicy.ts` 四项 100% |
+| 人工验收 | 未执行。本机未跑 `npm run dev` 实机验证三模式在真实多窗口/双显示器下的 z 序表现，也未验证原生菜单弹出时的解绑时序——不宣称已验收，留作 B5 整块统一验收项 |
+| 视觉影响 | 两处，均在计划允许范围内：设置面板 Coach 分区新增一个 `Select` 行 + 一行说明文字（复用既有行结构与 token，无新增 CSS）；桌宠气泡偏移改为跟随 scale——**默认 scale=1 时数值与改前完全一致**，仅非默认缩放下的错位被修正。未改色板、字体、圆角、阴影、组件形态、图标或动效基调 |
+| 文档同步 | `electron/coach/README.md`（新增 `petPinPolicy.ts` 条目、`followWindow`/`setPinMode` 语义）、`electron/ipc/README.md`（`coach:saveConfig` 形状白名单当前 6 项及 `pinMode` 取值来处）、`docs/PRODUCT/CHANGELOG.md` |
+| 完成时间 | 北京时间 `2026-09-01` |
+
+### 11.53 B5.6 Latex 开启、schema 状态标注与文档矩阵核对完成记录
+
+| 字段 | 填写内容 |
+|---|---|
+| 任务 | B5.6 按决策 D14 开启 Crepe Latex；给 `DATABASE_SCHEMA.md` 里"建了但没有写入路径"的表加状态标注；逐行核对 §9 文档同步矩阵并补齐缺口 |
+| 状态 | `[x] 已完成` |
+| Commit | `feat: B5 落地分区导航、暗色模式、桌宠置顶三模式与 Latex`（同 §11.52） |
+| Latex 是否真的开了 | 是。`src/features/problems/MilkdownEditor.tsx` 的 `features` 加 `[CrepeFeature.Latex]: true`，`featureConfigs` 加 `{ inlineEditConfirm: '确认', katexOptions: { throwOnError: false, strict: false } }`。`throwOnError: false` 是必需的：题解边写边存，半个公式的中间态必须能留在文档里而不是抛异常 |
+| 顺带显式化的硬前提 | 同时写死 `[CrepeFeature.CodeMirror]: true`。crepe 的 latex 特性在 `loadFeature` 阶段依赖 CodeMirror，缺了直接抛。排查中发现 `defaultFeatures` **只在 `.d.ts` 里声明，运行时没从包入口导出**（`import { defaultFeatures }` 拿到 `undefined`，而 tsc 不报错），所以"CodeMirror 默认开着"这个前提无法从外部读到，只能把它变成本仓可断言的显式值 |
+| D14 前提的实测结论（与预期不同） | 1MB KaTeX 字体**在 Latex 关闭时就已经在产物里了**：`crepe/theme/common/style.css` 有 `@import './latex.css'` → `@import 'katex/dist/katex.min.css'`，主题一引入字体就随 CSS 打包。实测开启前后 `dist/assets` 的 KaTeX 字体完全一致：`1,072,948` bytes / `59` 个文件，`MilkdownEditor` 的 CSS 产物 `81,681` bytes 且 hash 未变（字节相同）。也就是说 D14 的正确表述不是"为了开 Latex 才付 1MB"，而是"1MB 已经在付了，开 Latex 让它产生价值"，成本只有下面那两个数字 |
+| 体积代价（实测） | renderer 入口 `193,430` → `193,733` bytes（**+303**，上限 `1,443,845`，占用 13.4%）；Milkdown 懒加载 chunk `1,039,427` → `1,039,525` bytes（**+98**）。`npm run test:performance` 的入口上限与 5 条懒加载 chunk 正则全部通过，`MilkdownEditor` 仍在独立懒 chunk 里、未被拖进入口 |
+| 测试（行为断言，非源码字符串） | 新增 `tests/components/milkdownLatex.test.tsx` 5 条。做法：`vi.mock('@milkdown/crepe')` 只替 `Crepe` 类（`CrepeFeature` 枚举用真值），把组件**运行时真正传出去**的 `features`/`featureConfigs` 截下来断言——改回 `Latex: false` 或删掉 `featureConfig` 两种倒退都会红。另两条读的是真库不是本仓源码：`katex.renderToString('O(n \\log n)')` 真的产出带 `.katex` 的 DOM 且文本含 `log`（字体的消费者得真在依赖里且能出 DOM，这才兑现了 D14 的理由），以及写坏的公式在 `throwOnError:false` 下不抛。刻意不写源码字符串断言，Q10 刚把三份源码字符串测试改成行为测试，不倒退 |
+| schema 标注（基于 grep 结果，不按表名猜） | `DATABASE_SCHEMA.md` §1 新增状态图例（含判定口径：以 `electron/` 下对该表的 `INSERT`/`UPDATE` 出现次数为准），并给 4 张表加逐表状态块：`study_sessions`（建了，无写入路径，Coach 计时走 `problem_sessions`）、`submission_sync_runs`（**文档里有、但没有任何迁移创建它**——纯文档残留，比"无写入"更严重）、`contest_results`（有写入路径但只在 CF rating 同步链路里）、`sync_queue`（为 Android 只读同步预留，当前无写入方）|
+| 按名猜会猜错的两处 | `deleted_at` 听起来像预留字段，实际 `73` 处引用、读写都在用；`submission_sync_runs` 听起来像正常表，实际连建表语句都不存在。这两处正是"必须 grep"的理由，已写进图例的判定口径 |
+| 迁移号更正 | 任务书写的"当前最新 028、新表从 029 起"已过期：`connection.ts` 里注册的最新是 `029_site_credential_labels.ts`，新表应从 **030** 起。已在 `DATABASE_SCHEMA.md` 更正 |
+| §9 文档矩阵逐行核对结论 | 发现并补齐 2 处缺口：(1) `docs/DESIGN/SITE_ADAPTER_GUIDE.md` 的 §3 SiteConfig 类型块与字段表缺 `loginUrlPatterns` / `loginUsernameSelectors` / `loginPasswordSelectors` 三个已上线字段，已补，并按 `globMatches` 的真实语义写清两种可接受的 pattern 形态（前导 `/` 的 path 匹配、或带 origin 校验的完整 http(s) URL）、`*` 是通用 glob 而非仅限尾部、单条 pattern 512 字符上限；(2) `docs/PRODUCT/CHANGELOG.md` 的 `## 未发布` 是空的，已按本次两项改动填入新增/修复条目（面向用户口径，主 agent 可继续追加 B5.1-B5.4）。另核实一件事：`TASKS.md` 从未跟踪过 B 系列子任务，§11.3 台账才是本次重构的实际记录处，矩阵里不需要为 B 系列补 `TASKS.md` 行 |
+| 自动验证 | `typecheck` / `typecheck:tests` / `lint` 全绿；`test:unit` `162 files / 1263 tests` 通过；`test:architecture` `Failed: 0/17`；`test:security` 通过；`test:docs` 通过；`test:performance` 通过（入口 `193,733` / 上限 `1,443,845`，5 条懒 chunk 正则全中） |
+| 人工验收 | 未执行。未在实机 `npm run dev` 里手打 `$O(n\log n)$` 观察行内/块级公式渲染与"确认"按钮，也未验证打包产物里字体的实际加载——不宣称已验收，留作 B5 整块统一验收项 |
+| 视觉影响 | 无新增样式、色板、字体或组件。笔记编辑器内新增的公式渲染由 crepe 主题自带 CSS 承担（该 CSS 在改动前就已打包），未触碰 `src/index.css`、`ui/` 原语或任何布局基调 |
+| 文档同步 | `docs/DESIGN/DATABASE_SCHEMA.md`（状态图例 + 4 张表状态块 + 迁移号更正）、`docs/DESIGN/SITE_ADAPTER_GUIDE.md`（3 个登录字段）、`docs/PRODUCT/CHANGELOG.md` |
+| 完成时间 | 北京时间 `2026-09-01` |
+
+### 11.54 B5.1 设置页 Chrome 式分区导航完成记录
+
+| 字段 | 填写内容 |
+|---|---|
+| 任务 | B5.1 参照 `chrome://settings` 把 9 个面板双列堆叠改成"左侧分区导航 + 右侧只渲染当前分区" |
+| 状态 | `[x] 已完成` |
+| Commit | `feat: B5 落地分区导航、暗色模式、桌宠置顶三模式与 Latex`（理由见下"提交粒度"行） |
+| 分区清单 | 9 个，单独落在 `src/features/settings/settingsSections.ts`：外观 / Coach 桌宠 / 地址栏搜索 / AI 模型 / 站点管理 / 账户与同步 / 数据与备份 / 学习概览 / 运行诊断。顺序按"改得最频繁的在上"排（日常开关 → 配置期一次性动作 → 只读页），理由写在文件头 |
+| 为什么不用 `role="tab"` | 视觉像标签，语义不能是标签。`role="tab"` 已被浏览器标签条占用，UI 契约测试靠 `getByRole('tab')` 计数校验标签数，设置页再挂 9 个 tab 会直接把那条断言撞坏。改用 `<nav aria-label="设置分区">` + `aria-current="page"`，与 Chrome 设置页语义一致；测试里专门有一条断言"设置页内 `getByRole('tab')` 为 0" |
+| 为什么只渲染当前分区 | 9 个面板各自在 mount 时读主进程。全渲染再靠滚动定位等于每次开设置页就把 9 条读路径全打一遍，改成条件渲染后只打 1 条 |
+| 契约保持 | `.settings-cols` 类名保留，语义从"配置栏/站点栏"改成"导航栏/内容区"——Playwright 的 `≤680px 折叠单列` 断言按这个类名走，改名会静默失效。`.settings-page` / `.settings-header` / `.settings-title` / `.settings-close` / `.site-list` / `.llm-config-section` 全部原样保留（前 5 个还被 ProblemDetail 与 coach 视图跨 feature 借用） |
+| 守卫抓到的一次真实倒退 | 导航项初版是裸 `<button>`，`interactive controls come from src/components/ui/` 当场报 `SettingsPage.tsx: 有 1 处裸交互控件`。考虑过照 `ProblemSidebar` 的 `<div onClick>` 写法绕过——**否掉了**：那能骗过守卫但是键盘无障碍缺陷。改用 `Button variant="ghost" icon={icon}`（它 spread `...rest`，`aria-current`/`data-section` 能透传），本地 CSS 只留两处刻意差异（左对齐占满一列的几何、`aria-current` 选中态），高度显式声明因为靠 CSS 加载顺序盖 `.ui-btn-md` 不可靠 |
+| 测试 | `tests/components/themeAndSettingsNav.test.tsx` 共 17 条，其中导航 6 条：默认落在外观且只渲染它、9 项按序全渲染、无 `role="tab"` 且能按 `navigation` + 名称取到、点击切换且 `aria-current` 恒为 1 个、9 个分区各自渲染出对应面板、契约类名与关闭钮在场。9 个面板用 `vi.hoisted` 探针替掉，单元边界只到导航 |
+| 变异检查抓到我自己写的一条同义反复 | 打乱 `SETTINGS_SECTIONS` 顺序后"按序渲染"那条竟然还是绿的——因为它拿 DOM 和渲染它的同一个数组比。已补第二条把 id 列表字面量钉死（`['appearance','coach',…,'diagnostics']`），重跑同一变异确认转红 |
+| Playwright | `settings.png` 的布局约束改为要求 `.settings-nav` / `.settings-content`、`.settings-nav-item` ≥ 9、`.settings-nav-item[aria-current="page"]` 恰好 1；`.site-list` 与 `.llm-config-section` 的选择器收进 `.settings-content`。用例体现在先断言"未点站点分区时 `.site-list` 计数为 0"，再点 `[data-section="sites"]` 才截图，`llm-settings.png` 同理点 `[data-section="llm"]` |
+| 自动验证 | `typecheck` / `typecheck:tests` / `lint`（`--max-warnings 0`）全绿；`test:unit` `162 files / 1263 tests` 通过；`test:architecture` `Failed: 0/17`；`test:ui` 三视口 `7 passed`（wide 1280x800 / medium 1024x720 / narrow 800x600 各自的 shell surfaces 与六内部页，外加标签条溢出拖拽）；`test:coverage` 通过（数值见 §11.55），`SettingsPage.tsx` 覆盖率 `90.47 / 95.83 / 100 / 90.47` |
+| 人工验收 | 未执行。未在实机 `npm run dev` 里手点九个分区、验证窄窗导航横置条带的滚动手感与 sticky 行为——不宣称已验收，留作 B5 整块统一验收项。截图产物在 `tmp/ui-screenshots/{wide,medium,narrow}/`（`tmp` 已 gitignore，不入库） |
+| 视觉影响 | 设置页布局按计划允许范围重构（B5 明确列出"结构收尾"）：左栏 180px 导航 + 右栏内容，窄窗折叠为单列且导航横置。未改色板、字体、圆角、阴影、按钮形态或动效基调；导航项复用 `.ui-btn-ghost` 配方，选中态用既有 `--color-accent-soft` |
+| 顺带 | `src/components/ui/icons.tsx` 补 `palette` / `search` / `database` 三个图标（`palette` 用半填充圆表达浅/深对比）。图标数量没有守卫，属安全增量 |
+| 提交粒度 | B5.1 与 B5.4 同提交。两者共用设置页这一个改动面——外观分区正是导航的第一项，拆开会产生"导航有个空分区"或"外观面板无处挂载"的中间态。另外 `electron/app/config.ts`、`electron/electron-env.d.ts` 与截图 harness 三个文件同时被本次 B5.5 改动穿插，按 hunk 硬拆 `config.ts` 的加载/回写逻辑风险高于收益，故本提交同时带上 B5.5/B5.6（记录见 §11.52 / §11.53），不再二次拆分。B5.2 / B5.3 各自独立提交 |
+| 文档同步 | `docs/PRODUCT/CHANGELOG.md`（变更段）、`src/styles/settings.css` 头部契约注释、`SettingsPage.tsx` 头部三条刻意选择 |
+| 完成时间 | 北京时间 `2026-09-01` |
+
+### 11.55 B5.4 暗色模式落地完成记录
+
+| 字段 | 填写内容 |
+|---|---|
+| 任务 | B5.4 按决策 D6 落地暗色模式切换（token 双值在 B1.1 已预留），三档：跟随系统 / 浅色 / 深色 |
+| 状态 | `[x] 已完成` |
+| Commit | 同 §11.54（`feat: B5 落地分区导航、暗色模式、桌宠置顶三模式与 Latex`） |
+| 传输方式：为什么用 `nativeTheme.themeSource` | 主进程设一次，每个 renderer 的 `prefers-color-scheme` 就跟着变。三个直接收益：① renderer 在 React 挂载前同步读媒体查询，不闪浅色帧；② 桌宠窗口与拆分出去的窗口自动跟随，不需要任何广播通道；③ `system` 档由 Chromium 自己维护，不用自己监听系统主题。**如实记录代价**：远端 OJ 页面也会收到 `prefers-color-scheme` 信号——与 Chrome 行为一致，是刻意接受的 |
+| 时序是承重的 | `themeController.apply()` 放在 `app.whenReady()` 里、`registerShellProtocol` 之前，必须早于第一个窗口 `loadURL`；`installThemeAttribute` 放在 `src/main.tsx` 里、React 挂载之前。任一处晚一步就是"先渲一帧浅色再跳暗"。两处都写了注释说明晚不得 |
+| 写入顺序也是承重的 | `ThemeController.set()` **先落盘再赋值 `themeSource`**。反过来的话：写盘失败时 UI 已经变了，重启又变回去——用户看到的是"设置没保存"，但当次会话里无法察觉。反向测试专门钉了"写入抛异常时 `themeSource` 不得改变" |
+| 分层与可测性 | 纯逻辑在 `electron/app/themePreference.ts`（不 import electron，node 下可测），electron API 只在 `electron/app/themeController.ts` 这层薄壳里，`nativeTheme` 由构造参数注入。这么分的直接原因：`tests/electron/electronMock.ts` 里**没有 `nativeTheme`**，DI 让我不必去改那个共享替身（同期 B5.5 正在改它，避免撞车） |
+| 档位命名 | 三档名字与 Electron 的 `ThemeSource` 完全同名（`system`/`light`/`dark`），刻意的：省掉一张映射表，而映射表是加档位时第一个忘记同步的东西 |
+| `data-theme` 只写一个值 | 深色写 `data-theme="dark"`，浅色是**移除属性**而不是写 `data-theme="light"`。理由：浅色是 `:root` 的默认档，写第二个值等于同一套配色有两个真值来源 |
+| IPC | 新增 `config:getTheme` / `config:setTheme` 两个通道，后者声明 schema `[oneOf(THEME_PREFERENCES)]`——复用 `as const` 数组，加档位只改一处。渲染侧经 `src/features/settings/settingsApi.ts` 走，未直连 `window.electronAPI`（守卫 Q3b 会抓） |
+| 设置面板行为 | `AppearancePanel` 无保存按钮（即时生效）。`handleChange` 先乐观置为新值，再用主进程回传值覆盖；写失败时**回滚到改前值**并显示 `保存失败：…`——因为主进程是先落盘后赋值，写失败时真实主题从未变过，下拉框不能停在新值上。读失败走 `role="alert"` |
+| 守卫补了一个真实缺口 | 原裸色守卫只认 `#`，于是 4 处 `rgba()` 字面量一直活着——**恰好就是暗色会翻车的那几处**：标签 hover 的加白叠加（暗底上变白块）、新建标签钮的更强加白、Dialog 遮罩、滚动条滑块（暗底上看不见）。新增 `countBareRgb` 判定 + 反向测试 5 条，唯一例外是 `ui.css` 的 primary 按下态内阴影（压在饱和主色上，两档都要变暗），例外写在守卫代码里 |
+| token 翻档的三类"依赖底色"值 | 除色板外还有三类必须翻：叠加层（`--color-overlay-hover` / `-strong`、`--color-scrim`）、阴影（`--shadow-sm/md/lg`）、滚动条滑块（`--color-scrollbar-thumb` / `-hover`）。每一项都是**实测出的具体缺陷**，不是预防性添加；`index.css` 头部注释逐条列了缺陷现象 |
+| token 数 | `@theme` 块 49 个 token，`:root[data-theme="dark"]` 块 37 个（语义色 + 兼容别名 + 5 个叠加/滚动条 + 3 档阴影） |
+| 产物验证（不只是单测） | 跑了真实 `npx vite build`，在 `dist/assets/index-*.css` 里确认 `:root[data-theme=dark]{--color-overlay-hover:#ffffff14;…--shadow-lg:0 18px 50px #0009}` 与浅色对应值都活着通过了 Tailwind v4 编译，且 `color-scheme:dark` 进到了产物（原生控件、滚动条会跟随）。这一步是必要的：`@theme` 是 v4 指令，token 能不能活到产物里单测答不了 |
+| 顺带排查掉的三处疑似风险 | `--color-on-fill` 的 3 个消费者都压在饱和填充上（两档都成立）；`.coach-segment:hover` 的 `filter: brightness(1.08)` 在两档下读起来都对；`pet.css` / `bubble.css` 无裸字面量（11 处 rgba 在白名单内的 `tokens.css`，属 Coach 独立视觉域） |
+| 测试 | `tests/app/themePreference.test.ts` 15 条（档位/默认值、9 种非法输入归一、`isStoredAppearanceConfig` 的键数严格性、配置加载迁移与回写、`ThemeController` 6 条含先落盘后赋值与写失败不改 `themeSource`）；`tests/components/themeAndSettingsNav.test.tsx` 中 11 条属本项（属性写入/移除、install 立即同步、change 事件传播、dispose 退订、查询串钉死、面板回填/即时保存/回传覆盖/写失败回滚/读失败告警）；`tests/components/tokenGovernance.test.ts` 扩到 5 条；`tests/architecture/guards.test.ts` 扩到 37 条 |
+| 一次我自己的前提错了 | `合法存量值原样读出且不触发回写` 用 `mtimeMs` 断言，实测差 2.5ms 变红。根因不是代码：我的 fixture 没写 `search` 段，于是 search 的迁移逻辑正常回写了文件——**我的前提错了，不是实现错了**。改成 `vi.spyOn(fs,'writeFileSync')` 断言 + 完整归一化 fixture，并补一条"只有 `appearance` 未归一时恰好回写 1 次" |
+| 自动验证 | `typecheck` / `typecheck:tests` / `lint` 全绿；`test:unit` `162 files / 1263 tests` 通过；`test:architecture` `Failed: 0/17`；`test:ui` `7 passed`；`test:security`、`test:docs`、`test:performance` 通过；`test:coverage` 通过，statements `67.78%`、branches `63.1%`、functions `65.35%`、lines `70.72%`（门 65/60/62/68） |
+| 人工验收 | 未执行。未在实机切三档观察首帧是否真的不闪、桌宠与拆分窗口的跟随、以及远端 OJ 页面在深色档下的实际观感——不宣称已验收，留作 B5 整块统一验收项 |
+| 视觉影响 | 浅色档下**无任何视觉变化**：新增的 5 个叠加/滚动条 token 取的就是原先那 4 处 `rgba()` 字面量的同值，属等值替换。深色档是新增档位，属计划明确允许的范围（B5.4 即"暗色模式落地"）。设置页外观分区新增一个 `Select` 行，复用既有行结构与 token |
+| 文档同步 | `docs/PRODUCT/CHANGELOG.md`（新增段）、`src/index.css` 头部三类翻档说明、`tests/architecture/guards.mjs` 的 `countBareRgb` 判定注释（列出它本该抓到的 4 处字面量） |
+| 完成时间 | 北京时间 `2026-09-01` |

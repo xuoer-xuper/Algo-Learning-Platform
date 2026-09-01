@@ -10,6 +10,7 @@
 
 ### 阶段 1：桌宠视觉壳
 - `CoachPetWindow.ts`：透明桌宠窗口封装（BrowserWindow 配置、点击穿透、拖拽、生命周期、状态/气泡/配置推送）；默认作为普通子窗口跟随最近活跃完整壳，并在父壳关闭前解绑，不以全局置顶窗口维持应用进程。
+- `petPinPolicy.ts`（B5.5 / D30）：置顶策略纯逻辑。三档 `follow`/`always`/`dock`，输入「模式 + 是否有活跃壳 + 该壳是否聚焦」，输出「alwaysOnTop / level / 是否绑 parent」。不 import electron，在 node 环境直接测；`CoachPetWindow` 只负责把决策设到窗口上。
 
 ### 阶段 2：事件触发 + 比赛模式
 - `ProblemSessionTracker.ts`：三态计时（读题/写码/卡壳），active_seconds 只在任一完整应用壳聚焦且系统未空闲时累计。
@@ -35,7 +36,8 @@
 
 - `types.ts`：模块共享类型（CoachPetState / CoachBubblePayload / CoachEvent / ProblemSession / CoachIntervention / ContestAuditRecord）。
 - `CoachPetWindow.setPetState()` / `showBubble()`：规则引擎驱动桌宠的主入口。
-- `CoachPetWindow.followWindow()`：更新桌宠 parent 到最近活跃完整壳；切换和父壳 close 时成对清理监听。
+- `CoachPetWindow.followWindow()`：更新桌宠归属到最近活跃完整壳；切换与父壳 close/focus/blur 监听成对清理。是否真的设 parent 由当前置顶模式决定。
+- `CoachPetWindow.setPinMode()`：切换置顶模式，即时重设窗口；持久化由 `coach:saveConfig` → `saveCoachConfig` 负责，本方法不写盘。`notifyConfigChanged()` 会顺带把配置里的模式重新应用一次。
 - `CoachOrchestrator.start()` / `stop()`：服务生命周期入口，在 `main.ts` 的 `app.whenReady` 后调用。
 - `ContestGuard.isContestMode()`：比赛模式状态查询。
 - `installContestNavigationTracking()`：把 TabManager 的裸 `webContents` URL/销毁快照接入 ContestGuard，不复用活动标签导航槽。

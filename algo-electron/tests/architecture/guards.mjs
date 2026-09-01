@@ -56,6 +56,24 @@ export function countBareHex(text) {
 }
 
 /**
+ * 裸 rgb()/rgba() 字面量。
+ *
+ * 与裸 hex 同一条规则的另一半，B5.4 补上：hex 被守住之后，剩下的漏洞就是
+ * rgba —— 它同样是写死的颜色，而且更危险，因为半透明值天生依赖底色。暗色模式
+ * 落地时实测到四处：标签悬停的加白 55%、新建标签键的加白 70%、对话框遮罩的
+ * ink 50%、滚动条滑块的 ink-2 28%。前两个压在暗色标签带上会变成近白色块，
+ * 后两个在暗面几乎看不见。它们没被旧守卫拦住，因为旧守卫只看 `#`。
+ *
+ * `var(--x)` 里套 rgb 不算 —— token 定义文件本来就豁免；这里只判文本里有几处
+ * 字面量，哪些文件允许由 runner 决定，口径与 countBareHex 一致。
+ */
+const BARE_RGB_PATTERN = /\brgba?\(\s*[\d.]/g
+
+export function countBareRgb(text) {
+  return (text.match(BARE_RGB_PATTERN) ?? []).length
+}
+
+/**
  * core 门是否跑整个 Vitest 套件。
  *
  * 判定的是"`runCoreSuite()` 里调 `runVitest()` 时没传参数"。传了文件名单就意味着门只看

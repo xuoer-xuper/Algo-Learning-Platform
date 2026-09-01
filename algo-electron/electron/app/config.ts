@@ -13,6 +13,18 @@ import {
   withZoomFactorForUrl,
   type ZoomByOrigin,
 } from '../browser/zoomPreferences'
+import {
+  DEFAULT_APPEARANCE_CONFIG,
+  isStoredAppearanceConfig,
+  normalizeAppearanceConfig,
+  type AppearanceConfig,
+  type ThemePreference,
+} from './themePreference'
+import {
+  DEFAULT_COACH_PIN_MODE,
+  normalizeCoachPinMode,
+  type CoachPinMode,
+} from '../coach/petPinPolicy'
 
 /**
  * Coach 桌宠配置。
@@ -20,6 +32,7 @@ import {
  * - scale: 0.5 ~ 2.0
  * - opacity: 0.3 ~ 1.0
  * - bubbleFrequency: low/medium/high，控制气泡触发频率（阶段 2 规则引擎消费）
+ * - pinMode: follow/always/dock，置顶策略（B5.5，语义见 coach/petPinPolicy.ts）
  */
 export interface CoachConfig {
   enabled: boolean
@@ -28,6 +41,8 @@ export interface CoachConfig {
   position: { x: number; y: number } | null
   scale: number
   opacity: number
+  /** 置顶策略：跟随最近活跃壳 / 全局置顶 / 停靠 */
+  pinMode: CoachPinMode
   /** LLM 配置（API Key 加密存储，其余明文） */
   llm?: CoachLlmConfig
   /** 是否永久关闭"仅供参考"免责声明 */
@@ -51,12 +66,14 @@ export interface AppConfig {
   coach: CoachConfig
   search: SearchEngineConfig
   zoomByOrigin: ZoomByOrigin
+  appearance: AppearanceConfig
 }
 
-interface LegacyAppConfig extends Omit<Partial<AppConfig>, 'search' | 'zoomByOrigin'> {
+interface LegacyAppConfig extends Omit<Partial<AppConfig>, 'search' | 'zoomByOrigin' | 'appearance'> {
   defaultHomeUrl?: unknown
   search?: unknown
   zoomByOrigin?: unknown
+  appearance?: unknown
 }
 
 const DEFAULT_COACH_CONFIG: CoachConfig = {
@@ -66,6 +83,7 @@ const DEFAULT_COACH_CONFIG: CoachConfig = {
   position: null,
   scale: 1,
   opacity: 1,
+  pinMode: DEFAULT_COACH_PIN_MODE,
 }
 
 const DEFAULT_CONFIG: AppConfig = {
@@ -73,6 +91,7 @@ const DEFAULT_CONFIG: AppConfig = {
   coach: DEFAULT_COACH_CONFIG,
   search: { ...DEFAULT_SEARCH_ENGINE_CONFIG },
   zoomByOrigin: {},
+  appearance: { ...DEFAULT_APPEARANCE_CONFIG },
 }
 
 let config: AppConfig | null = null
@@ -100,19 +119,24 @@ export function loadConfig(): AppConfig {
     }
 
     // 兼容旧配置：coach 字段缺失或部分缺失时回填默认值（深合并）
-    const coach: CoachConfig = { ...DEFAULT_COACH_CONFIG, ...(parsed.coach ?? {}) }
+    // pinMode 单独收口：config.json 是用户可编辑的纯文本，浅合并会把手写的
+    // 非法模式原样带进策略函数，那里再兜底就晚了（窗口已按错误分支设过一次）。
+    const mergedCoach: CoachConfig = { ...DEFAULT_COACH_CONFIG, ...(parsed.coach ?? {}) }
+    const coach: CoachConfig = { ...mergedCoach, pinMode: normalizeCoachPinMode(mergedCoach.pinMode) }
     const homeShortcuts = sanitizeHomeShortcuts([
       ...(Array.isArray(parsed.homeShortcuts) ? parsed.homeShortcuts : []),
       parsed.defaultHomeUrl,
     ])
     const search = normalizeSearchEngineConfig(parsed.search)
     const zoomByOrigin = normalizeZoomByOrigin(parsed.zoomByOrigin)
-    config = { homeShortcuts, coach, search, zoomByOrigin }
+    const appearance = normalizeAppearanceConfig(parsed.appearance)
+    config = { homeShortcuts, coach, search, zoomByOrigin, appearance }
 
     if (
       Object.prototype.hasOwnProperty.call(parsed, 'defaultHomeUrl')
       || !isStoredSearchEngineConfig(parsed.search, search)
       || !isStoredZoomByOrigin(parsed.zoomByOrigin, zoomByOrigin)
+      || !isStoredAppearanceConfig(parsed.appearance, appearance)
     ) {
       try {
         writeConfig(config)
@@ -137,6 +161,9 @@ export function saveConfig(partial: Partial<AppConfig>): void {
     zoomByOrigin: Object.prototype.hasOwnProperty.call(partial, 'zoomByOrigin')
       ? normalizeZoomByOrigin(partial.zoomByOrigin)
       : current.zoomByOrigin,
+    appearance: Object.prototype.hasOwnProperty.call(partial, 'appearance')
+      ? normalizeAppearanceConfig(partial.appearance)
+      : current.appearance,
   }
   writeConfig(nextConfig)
   config = nextConfig
@@ -152,6 +179,15 @@ export function getSearchConfig(): SearchEngineConfig {
 
 export function saveSearchConfig(search: SearchEngineConfig): void {
   saveConfig({ search: normalizeSearchEngineConfig(search) })
+}
+
+export function getThemePreference(): ThemePreference {
+  return loadConfig().appearance.theme
+}
+
+export function saveThemePreference(theme: ThemePreference): ThemePreference {
+  saveConfig({ appearance: { theme } })
+  return getThemePreference()
 }
 
 export function getZoomPreferences(): ZoomByOrigin {
@@ -207,6 +243,7 @@ function createDefaultConfig(): AppConfig {
     coach: { ...DEFAULT_CONFIG.coach },
     search: { ...DEFAULT_CONFIG.search },
     zoomByOrigin: { ...DEFAULT_CONFIG.zoomByOrigin },
+    appearance: { ...DEFAULT_CONFIG.appearance },
   }
 }
 
@@ -233,5 +270,5 @@ export function getCoachConfigForRenderer(): CoachConfig {
 export function saveCoachConfig(partial: Partial<CoachConfig>): void {
   const current = loadConfig()
   const merged: CoachConfig = { ...current.coach, ...partial }
-  saveConfig({ coach: merged })
+  saveConfig({ coach: { ...merged, pinMode: normalizeCoachPinMode(merged.pinMode) } })
 }

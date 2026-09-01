@@ -50,6 +50,18 @@
    */
   --color-sys-close: #e81123;
 
+  /*
+   * 半透明叠加值（B5.4）。这几个不能用不透明的语义色代替 —— 它们要透出底下的内容
+   * （标签悬停要透出标签带、遮罩要透出页面、滚动条滑块要透出轨道）。因为是"在底色上
+   * 加一层"，所以必须随主题翻转：浅色面上加白 55% 是恰当的提亮，同样的值压在
+   * #191d26 的暗色标签带上会变成近白色的色块。暗色档见 [data-theme="dark"] 块。
+   */
+  --color-overlay-hover: rgb(255 255 255 / 0.55);
+  --color-overlay-hover-strong: rgb(255 255 255 / 0.7);
+  --color-scrim: rgb(23 28 38 / 0.5);
+  --color-scrollbar-thumb: rgb(76 85 101 / 0.28);
+  --color-scrollbar-thumb-hover: rgb(76 85 101 / 0.45);
+
   /* 字体：界面静音，数据用等宽发声 */
   --font-sans: Inter, "Segoe UI", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
   --font-mono: "Cascadia Code", Consolas, "JetBrains Mono", ui-monospace, monospace;
@@ -115,8 +127,27 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* 深色 token 预留（B5.4 启用：设置 data-theme="dark" 并逐值验证） */
+/*
+ * 深色档（B5.4 启用，决策 D6）。
+ *
+ * `data-theme` 由 src/theme.ts 依据 prefers-color-scheme 设置，而后者由主进程的
+ * `nativeTheme.themeSource` 驱动 —— 偏好的存储与生效链路见 electron/app/themeController.ts。
+ *
+ * 除了色板本身，这里还必须翻三类"不是色板但依赖底色"的值，否则暗色下会出现
+ * 具体的可读性缺陷（每条都实际出现过，不是预防性改动）：
+ *   1. 叠加层：加白 55% 压在暗色标签带上变成近白色块 → 改为加白 8%。
+ *   2. 阴影：ink 底色 6% 的阴影在暗面等于不存在 → 换成纯黑并加大 alpha。
+ *   3. 滚动条滑块：ink-2 在暗轨道上偏暗看不见 → 换成加白。
+ */
 :root[data-theme="dark"] {
+  --color-overlay-hover: rgb(255 255 255 / 0.08);
+  --color-overlay-hover-strong: rgb(255 255 255 / 0.12);
+  --color-scrim: rgb(0 0 0 / 0.6);
+  --color-scrollbar-thumb: rgb(232 235 242 / 0.20);
+  --color-scrollbar-thumb-hover: rgb(232 235 242 / 0.34);
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.4);
+  --shadow-md: 0 4px 14px rgb(0 0 0 / 0.45);
+  --shadow-lg: 0 18px 50px rgb(0 0 0 / 0.6);
   --color-app: #14161c;
   --color-chrome: #191d26;
   --color-card: #1e222c;
@@ -188,13 +219,13 @@ button {
   height: 10px;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(76, 85, 101, 0.28);
+  background: var(--color-scrollbar-thumb);
   border-radius: 999px;
   border: 3px solid transparent;
   background-clip: content-box;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background-color: rgba(76, 85, 101, 0.45);
+  background-color: var(--color-scrollbar-thumb-hover);
   background-clip: content-box;
 }
 ::-webkit-scrollbar-track {

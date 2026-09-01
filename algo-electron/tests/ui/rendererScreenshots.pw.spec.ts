@@ -126,22 +126,29 @@ const layoutChecks: Record<string, LayoutCheckConfig> = {
       ['.dashboard-chart-section', '.dashboard-page'],
     ],
   },
+  // B5.1 起设置页是分区导航：`.site-list` 只在站点分区存在，故截图前先点导航。
   'settings.png': {
-    required: ['.shell-route-settings', '.settings-page', '.settings-cols', '.site-list'],
+    required: [
+      '.shell-route-settings', '.settings-page', '.settings-cols',
+      '.settings-nav', '.settings-content', '.site-list',
+    ],
+    minElements: [['.settings-nav-item', 9], ['.settings-nav-item[aria-current="page"]', 1]],
     withinViewportX: ['.shell-route-settings'],
     withinX: [
       ['.shell-route-settings', '.main-content'],
       ['.settings-page', '.shell-route-settings'],
       ['.settings-header', '.settings-page'],
       ['.settings-cols', '.settings-page'],
-      ['.site-list', '.settings-page'],
+      ['.settings-nav', '.settings-cols'],
+      ['.settings-content', '.settings-cols'],
+      ['.site-list', '.settings-content'],
     ],
   },
   'llm-settings.png': {
     required: ['.shell-route-settings', '.settings-page', '.llm-config-section', '.llm-config-section .settings-input'],
     withinViewportX: ['.shell-route-settings'],
     withinX: [
-      ['.llm-config-section', '.settings-page'],
+      ['.llm-config-section', '.settings-content'],
       ['.llm-config-section .settings-input', '.llm-config-section'],
     ],
   },
@@ -496,10 +503,17 @@ for (const scenario of viewportScenarios) {
 
       const settingsTab = await openInternalPageTab(page, internalPages.settings)
       await expect(page.locator('.settings-title')).toHaveText('设置')
+      // 默认分区是外观：主题下拉在，站点列表还没挂载
+      await expect(page.getByLabel('主题')).toBeVisible()
+      await expect(page.locator('.site-list')).toHaveCount(0)
+
+      await page.locator('.settings-nav-item[data-section="sites"]').click()
       await expect(page.locator('.site-list')).toBeVisible()
       await capture(page, scenario.name, 'settings.png')
 
-      await page.locator('.llm-config-section').scrollIntoViewIfNeeded()
+      await page.locator('.settings-nav-item[data-section="llm"]').click()
+      await expect(page.locator('.llm-config-section')).toBeVisible()
+      await expect(page.locator('.site-list')).toHaveCount(0)
       await capture(page, scenario.name, 'llm-settings.png')
       await closeInternalPageTab(page, internalPages.settings, settingsTab)
 

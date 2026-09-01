@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 // @ts-expect-error 守卫判定是 runner 共用的 .mjs，无类型声明；此处只需运行时行为
-import { collectRatchetFailures, coreSuiteRunsEverything, countBareControls, countBareHex, countBareSql, countRawIpcSchemas, countUnschemadIpc, themeDirectiveHasTailwindImport } from './guards.mjs'
+import { collectRatchetFailures, coreSuiteRunsEverything, countBareControls, countBareHex, countBareRgb, countBareSql, countRawIpcSchemas, countUnschemadIpc, themeDirectiveHasTailwindImport } from './guards.mjs'
 
 /**
  * 守卫的反向验证。
@@ -156,6 +156,33 @@ describe('countBareHex', () => {
     expect(countBareHex('#12345')).toBe(0)
     expect(countBareHex('#1234567')).toBe(0)
     expect(countBareHex('#123456789')).toBe(0)
+  })
+})
+
+describe('countBareRgb', () => {
+  it('抓到 B5.4 实测的四处裸 rgba', () => {
+    // 这四个字面量就是暗色模式落地时逐个改掉的，注释见 guards.mjs。
+    expect(countBareRgb('background-color: rgba(255, 255, 255, 0.55);')).toBe(1)
+    expect(countBareRgb('background-color: rgba(255, 255, 255, 0.7);')).toBe(1)
+    expect(countBareRgb('background: rgba(23, 28, 38, 0.5);')).toBe(1)
+    expect(countBareRgb('background: rgba(76, 85, 101, 0.28);')).toBe(1)
+  })
+
+  it('新旧两种 CSS 语法都算，一段里多处分别计数', () => {
+    expect(countBareRgb('color: rgb(15 23 42 / 0.92);')).toBe(1)
+    expect(countBareRgb('a { color: rgb(1 2 3) } b { color: rgba(4, 5, 6, 1) }')).toBe(2)
+  })
+
+  it('不把 token 引用算进去', () => {
+    expect(countBareRgb('background: var(--color-scrim);')).toBe(0)
+    expect(countBareRgb('box-shadow: 0 1px 2px var(--shadow-sm);')).toBe(0)
+  })
+
+  it('不把 rgb 当变量名或字符串片段的场合算进去', () => {
+    // display.ts 里有 --coach-shadow-rgb 这类命名，pet 的 token 也用 *-rgb 后缀
+    expect(countBareRgb('--coach-shadow-rgb: 0 0 0;')).toBe(0)
+    expect(countBareRgb('const rgbValue = 1')).toBe(0)
+    expect(countBareRgb('rgba(var(--coach-accent-rgb) / 0.4)')).toBe(0)
   })
 })
 

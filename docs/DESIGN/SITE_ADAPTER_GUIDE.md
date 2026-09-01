@@ -51,6 +51,9 @@ type SiteConfig = {
   enabled: boolean
   problemUrlPatterns: string[]
   submitUrlPatterns?: string[]
+  loginUrlPatterns?: string[]
+  loginUsernameSelectors?: string[]
+  loginPasswordSelectors?: string[]
   cookiePolicy?: 'session-only' | 'vault-readable'
   adapter?: string
   isBuiltin: boolean
@@ -66,6 +69,14 @@ type SiteConfig = {
 - `enabled`：是否参与识别。
 - `problemUrlPatterns`：题目 URL 规则。
 - `submitUrlPatterns`：提交相关 URL 规则。
+- `loginUrlPatterns`：登录页 URL 规则（migration 028 起，B4.3 落地）。自动填充只在
+  当前页 URL 命中本列表时才注入，是"往哪一页填密码"的唯一判据，因此这三个登录字段
+  在 `site_configs` 表里是唯一源，内置站点的值不允许由渲染进程改写。
+  两种写法：以 `/` 开头按路径匹配（如 `/user/login*`），或写完整 http(s) URL 并额外校验 origin 一致。
+  `*` 是通配任意字符的 glob（可出现在任意位置），单条上限 512 字符；判定见
+  `electron/credentials/autofill/autofillPolicy.ts`。
+- `loginUsernameSelectors` / `loginPasswordSelectors`：账号与密码输入框的候选选择器，
+  按顺序取第一个命中的元素。只填充、不自动提交（决策 D26），验证码与提交动作始终交给用户。
 - `cookiePolicy`：是否允许 CookieVault 读取。
 - `adapter`：复杂站点使用的专用解析器。
 - `isBuiltin`：是否内置站点。

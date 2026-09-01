@@ -150,11 +150,20 @@ export class MockBrowserWindow extends EventEmitter {
   private maximized = false
   private focused = false
   private parentWindow: MockBrowserWindow | null = null
+  private alwaysOnTop = false
+  private alwaysOnTopLevel = 'normal'
   private bounds = { x: 0, y: 0, width: 1280, height: 800 }
   private normalBounds = { ...this.bounds }
 
-  constructor(options: { x?: number; y?: number; width?: number; height?: number } = {}) {
+  constructor(options: {
+    x?: number
+    y?: number
+    width?: number
+    height?: number
+    alwaysOnTop?: boolean
+  } = {}) {
     super()
+    this.alwaysOnTop = options.alwaysOnTop ?? false
     this.bounds = {
       x: options.x ?? 0,
       y: options.y ?? 0,
@@ -184,16 +193,29 @@ export class MockBrowserWindow extends EventEmitter {
   setPosition(x: number, y: number): void { this.setBounds({ ...this.bounds, x, y }) }
   getParentWindow(): MockBrowserWindow | null { return this.parentWindow }
   setParentWindow(parent: MockBrowserWindow | null): void { this.parentWindow = parent }
+  isAlwaysOnTop(): boolean { return this.alwaysOnTop }
+  /** 替身额外暴露 level，供桌宠置顶策略断言 'normal' / 'floating' */
+  getAlwaysOnTopLevel(): string { return this.alwaysOnTopLevel }
+  setAlwaysOnTop(flag: boolean, level?: string): void {
+    this.alwaysOnTop = flag
+    this.alwaysOnTopLevel = flag ? level ?? 'floating' : 'normal'
+  }
   isDestroyed(): boolean { return this.destroyed }
   isVisible(): boolean { return this.visible }
   isMinimized(): boolean { return this.minimized }
   isFocused(): boolean { return this.focused }
   show(): void { this.visible = true; this.emit('show') }
   showInactive(): void { this.show() }
-  hide(): void { this.visible = false; this.focused = false }
-  minimize(): void { this.minimized = true; this.visible = false; this.focused = false; this.emit('minimize') }
+  hide(): void { this.visible = false; this.blur() }
+  minimize(): void { this.minimized = true; this.visible = false; this.blur(); this.emit('minimize') }
   restore(): void { this.minimized = false; this.visible = true; this.emit('restore') }
   focus(): void { this.visible = true; this.focused = true; this.emit('focus') }
+  /** 真实 Electron 在失焦/隐藏/最小化时都会发 blur，替身照做，否则依赖焦点的策略测不到 */
+  blur(): void {
+    const wasFocused = this.focused
+    this.focused = false
+    if (wasFocused) this.emit('blur')
+  }
   isMaximized(): boolean { return this.maximized }
   maximize(): void {
     if (this.maximized) return
@@ -221,6 +243,8 @@ export class MockBrowserWindow extends EventEmitter {
     this.destroyed = true
     this.focused = false
     MockBrowserWindow.windows = MockBrowserWindow.windows.filter((window) => window !== this)
+    // close 已经清掉 focused，这里不再走 blur()：桌宠的 close 处理会先解绑，
+    // 补一个 blur 只会让顺序断言多一次无意义的重算
     this.emit('closed')
   }
 }

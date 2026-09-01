@@ -76,6 +76,8 @@ const coreContracts: PreloadContract[] = [
   { method: 'getHomeShortcuts', mode: 'invoke', channel: 'config:getHomeShortcuts' },
   { method: 'getSearchEngine', mode: 'invoke', channel: 'config:getSearchEngine' },
   { method: 'setSearchEngine', mode: 'invoke', channel: 'config:setSearchEngine' },
+  { method: 'getTheme', mode: 'invoke', channel: 'config:getTheme' },
+  { method: 'setTheme', mode: 'invoke', channel: 'config:setTheme' },
   { method: 'getRealtimeSubmissionStatus', mode: 'invoke', channel: 'realtimeSubmission:getStatus' },
   { method: 'getAllSites', mode: 'invoke', channel: 'sites:getAll' },
   { method: 'getSiteById', mode: 'invoke', channel: 'sites:getById' },

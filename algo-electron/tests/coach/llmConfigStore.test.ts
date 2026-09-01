@@ -19,6 +19,7 @@ function createHarness(options: StoreHarnessOptions = {}) {
     position: null,
     scale: 1,
     opacity: 1,
+    pinMode: 'follow',
     llm: options.encryptedApiKey === undefined
       ? undefined
       : { encrypted_api_key: options.encryptedApiKey },

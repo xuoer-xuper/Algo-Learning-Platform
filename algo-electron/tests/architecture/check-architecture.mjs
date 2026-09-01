@@ -1,6 +1,6 @@
 import fs from 'node:fs'
 import path from 'node:path'
-import { collectRatchetFailures, coreSuiteRunsEverything, countBareControls, countBareHex, countBareSql, countRawIpcSchemas, countUnschemadIpc, themeDirectiveHasTailwindImport } from './guards.mjs'
+import { collectRatchetFailures, coreSuiteRunsEverything, countBareControls, countBareHex, countBareRgb, countBareSql, countRawIpcSchemas, countUnschemadIpc, themeDirectiveHasTailwindImport } from './guards.mjs'
 
 const projectRoot = process.cwd()
 const sourceRoots = [
@@ -367,9 +367,18 @@ check('colors come from design tokens, not bare hex', () => {
     const rel = relative(file)
     if (COLOR_SOURCE_FILES.has(rel)) continue
 
-    const count = countBareHex(read(file))
+    const source = read(file)
+    const count = countBareHex(source)
     if (count > 0) {
       failures.push(`${rel}: 有 ${count} 处裸 hex 颜色，取值应来自 src/index.css 的设计 token`)
+    }
+
+    // rgba 与 hex 同罪，且半透明值天生依赖底色，暗色档下更容易出错（B5.4）。
+    // 例外只有一处：ui.css 的 primary 按下态内阴影压在饱和主色上，两个主题都要变暗。
+    if (rel === 'src/components/ui/ui.css') continue
+    const rgbCount = countBareRgb(source)
+    if (rgbCount > 0) {
+      failures.push(`${rel}: 有 ${rgbCount} 处裸 rgb()/rgba()，半透明叠加值必须走 token 才能随主题翻转`)
     }
   }
 

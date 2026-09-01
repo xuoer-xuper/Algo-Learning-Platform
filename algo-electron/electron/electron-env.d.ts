@@ -522,6 +522,9 @@ interface SearchEngineConfig {
   customTemplate: string | null
 }
 
+/** 与 electron/app/themePreference.ts 的 ThemePreference 同步（B5.4） */
+type ThemePreference = 'system' | 'light' | 'dark'
+
 interface OmniboxSuggestion {
   problemId: string
   title: string | null
@@ -620,6 +623,9 @@ interface CoachBubblePayload {
 
 type CoachFeedbackType = 'helpful' | 'not_helpful' | 'dismiss' | 'never_today'
 
+/** 桌宠置顶模式（B5.5 / D30）。语义见 electron/coach/petPinPolicy.ts */
+type CoachPinMode = 'follow' | 'always' | 'dock'
+
 interface CoachConfig {
   enabled: boolean
   sound: boolean
@@ -627,6 +633,7 @@ interface CoachConfig {
   position: { x: number; y: number } | null
   scale: number
   opacity: number
+  pinMode: CoachPinMode
   llm?: {
     encrypted_api_key?: string
     base_url?: string
@@ -973,6 +980,8 @@ interface ElectronAPI {
   getHomeShortcuts: () => Promise<string[]>
   getSearchEngine: () => Promise<SearchEngineConfig>
   setSearchEngine: (search: SearchEngineConfig) => Promise<SearchEngineConfig>
+  getTheme: () => Promise<ThemePreference>
+  setTheme: (theme: ThemePreference) => Promise<ThemePreference>
   createDatabaseBackup: () => Promise<DatabaseBackupResult>
   exportLearningData: () => Promise<LearningDataExportFileResult>
   previewLearningDataImport: () => Promise<LearningDataImportPreviewResult>

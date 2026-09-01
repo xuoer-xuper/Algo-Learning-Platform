@@ -6,6 +6,7 @@ import {
   saveSearchConfig,
 } from '../app/config'
 import { SEARCH_ENGINE_IDS } from '../browser/omnibox'
+import { THEME_PREFERENCES, type ThemePreference } from '../app/themePreference'
 
 /*
  * `config:setSearchEngine` 的形状，界都来自 `browser/omnibox.ts`：
@@ -29,7 +30,18 @@ const searchEngineShape = () => object({
   customTemplate: nullable(freeText({ max: 2048 })),
 })
 
-export function registerConfigIpc(): void {
+export interface ConfigIpcOptions {
+  /**
+   * 主题读写。走注入而不是直接 import `ThemeController`：控制器持有 `nativeTheme`，
+   * 而本模块在 vitest 里是被直接 import 的（替身没有 nativeTheme）。
+   */
+  theme: {
+    get: () => ThemePreference
+    set: (value: unknown) => ThemePreference
+  }
+}
+
+export function registerConfigIpc(options: ConfigIpcOptions): void {
   ipcMain.handle('config:getHomeShortcuts', () => {
     return getHomeShortcuts()
   })
@@ -41,5 +53,18 @@ export function registerConfigIpc(): void {
   ipcMain.handle('config:setSearchEngine', [searchEngineShape()], (_event, search) => {
     saveSearchConfig(search)
     return getSearchConfig()
+  })
+
+  ipcMain.handle('config:getTheme', () => {
+    return options.theme.get()
+  })
+
+  /*
+   * `oneOf(THEME_PREFERENCES)` 复用那份 `as const`，与 `engine` 同一手法：
+   * 加档位时只改一处。校验后 `set` 仍会跑一遍 `normalizeThemePreference`——
+   * 那是给非 IPC 调用方（启动路径）兜底的，不是重复校验。
+   */
+  ipcMain.handle('config:setTheme', [oneOf(THEME_PREFERENCES)], (_event, theme) => {
+    return options.theme.set(theme)
   })
 }

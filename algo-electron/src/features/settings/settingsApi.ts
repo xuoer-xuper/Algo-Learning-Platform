@@ -18,6 +18,14 @@ export function saveSearchEngine(search: SearchEngineConfig): Promise<SearchEngi
   return window.electronAPI.setSearchEngine(search)
 }
 
+export function loadThemePreference(): Promise<ThemePreference> {
+  return window.electronAPI.getTheme()
+}
+
+export function saveThemePreference(theme: ThemePreference): Promise<ThemePreference> {
+  return window.electronAPI.setTheme(theme)
+}
+
 export function loadSettingsOverviewStats(): Promise<SettingsOverviewStats> {
   return window.electronAPI.getOverviewStats()
 }

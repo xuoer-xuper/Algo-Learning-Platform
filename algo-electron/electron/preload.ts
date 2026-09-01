@@ -170,6 +170,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getHomeShortcuts: () => ipcRenderer.invoke('config:getHomeShortcuts') as Promise<string[]>,
   getSearchEngine: () => ipcRenderer.invoke('config:getSearchEngine') as Promise<SearchEngineConfig>,
   setSearchEngine: (search: SearchEngineConfig) => ipcRenderer.invoke('config:setSearchEngine', search) as Promise<SearchEngineConfig>,
+  getTheme: () => ipcRenderer.invoke('config:getTheme') as Promise<ThemePreference>,
+  setTheme: (theme: ThemePreference) => ipcRenderer.invoke('config:setTheme', theme) as Promise<ThemePreference>,
 
   // 备份与导入导出
   createDatabaseBackup: () => ipcRenderer.invoke('backup:createDatabaseBackup') as Promise<DatabaseBackupResult>,

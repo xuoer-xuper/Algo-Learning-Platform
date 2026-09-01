@@ -71,6 +71,8 @@ const omniboxSuggestions: OmniboxSuggestion[] = [
   },
 ]
 
+let storedTheme: ThemePreference = 'system'
+
 const overview: OverviewStats = {
   totalProblems: problems.length,
   todayVisited: 2,
@@ -394,6 +396,12 @@ function createApiMock(): ElectronAPI {
     getHomeShortcuts: async () => ['https://codeforces.com/'],
     getSearchEngine: async () => ({ engine: 'bing', customTemplate: null }),
     setSearchEngine: async (search) => search,
+    // 截图基线固定跑浅色：主题偏好在替身里不落盘，改档只影响当次会话。
+    getTheme: async () => storedTheme,
+    setTheme: async (theme) => {
+      storedTheme = theme
+      return storedTheme
+    },
 
     createTab: async (url) => {
       const id = `tab-${tabs.length + 1}`
@@ -564,6 +572,7 @@ function createApiMock(): ElectronAPI {
       position: null,
       scale: 1,
       opacity: 1,
+      pinMode: 'follow' as const,
     }),
     coachSaveConfig: async () => true,
     coachTestHint: async () => ({

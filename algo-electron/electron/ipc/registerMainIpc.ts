@@ -6,7 +6,7 @@ import { registerAiIpc } from './registerAiIpc'
 import { registerBackupIpc } from './registerBackupIpc'
 import { registerBrowserShellIpc } from './registerBrowserShellIpc'
 import { registerCoachIpc } from './registerCoachIpc'
-import { registerConfigIpc } from './registerConfigIpc'
+import { registerConfigIpc, type ConfigIpcOptions } from './registerConfigIpc'
 import { registerCookieIpc } from './registerCookieIpc'
 import { registerCredentialsIpc } from './registerCredentialsIpc'
 import { registerNotesIpc } from './registerNotesIpc'
@@ -58,6 +58,7 @@ interface RegisterMainIpcOptions {
     promptId: string,
     allow: boolean,
   ) => Promise<UserScriptHostPermissionResponse>
+  theme: ConfigIpcOptions['theme']
 }
 
 export function registerMainIpc(options: RegisterMainIpcOptions): void {
@@ -75,7 +76,7 @@ export function registerMainIpc(options: RegisterMainIpcOptions): void {
     getUserScriptHostPermissionPrompt: options.getUserScriptHostPermissionPrompt,
     respondUserScriptHostPermission: options.respondUserScriptHostPermission,
   })
-  registerConfigIpc()
+  registerConfigIpc({ theme: options.theme })
   registerCookieIpc()
   registerCredentialsIpc(options.credentialVault, {
     getAutofillService: options.getCredentialAutofillService,

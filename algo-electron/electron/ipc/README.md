@@ -73,6 +73,7 @@
   - 界要有来处：沿用项目里已有的同类上限（URL 4096、FQDN 253、通用标识符 200），不另立标准，并把来处写在注释里。
   - schema 只管形状。跨字段判断、要 parse 才知道的内容（如 `site_ids_json` 必须是无重复的非空字符串数组）、需要查库的存在性检查，都留在 handler 或 service 里——`raw()` 的语义是"在别处校验了"，没有别处就不要用它。`raw()` 自己也上了棘轮（当前 4 处，全在浏览器壳层的判别联合参数上），因为它同时是前一条守卫的逃逸口。
   - 写路径与读路径要一起看。已发现两处"读脱敏、写不设防"的不对称并已堵上：`coach:saveConfig` 能往 `llm.encrypted_api_key` 里写（读路径 `getCoachConfigForRenderer` 是会摘掉这个字段的），`coach:saveLlmConfig` 同理。做法是让 `object()` 的形状只列渲染进程真会发的字段——多余字段默认拒绝，那条路就没了。
+    因此这个形状是**白名单**：`CoachPanel` 新加一项设置就要同步加一项，反之不加就发不出去。当前 6 项（`enabled`/`sound`/`bubbleFrequency`/`scale`/`opacity`/`pinMode`）。`pinMode` 是 B5.5 的桌宠置顶模式，取值收在 `petPinPolicy.ts` 的 `COACH_PIN_MODES`；`position` 刻意不在形状里，它由主进程拖拽结束时自己写。
   - 形状不对一律拒绝，不要返回 `null`/`false` 兜底：那会和"服务说不"（没有待处理请求、owner 已销毁）在调用方眼里变成同一件事。改判前先确认渲染进程调用点有 `catch`。
 - 窗口、标签、菜单和原生对话框操作必须按 sender owner 路由；禁止注入模块级 `getWindow/getTabManager` 单槽。
 - `ui:command` 只允许受控的判别联合对象，不得把任意脚本、channel、URL 内容或窗口对象透传给 renderer；导航失败只发送枚举原因。

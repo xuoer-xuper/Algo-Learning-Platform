@@ -12,7 +12,14 @@
  */
 .coach-bubble {
   position: absolute;
-  bottom: 220px; /* 桌宠本体 180px + 间距 40px */
+  /* 本体离底 24px + 本体高 180px × --pet-scale + 间距 16px（24 + 16 = 常数 40px）。
+   * 本体用 transform: scale() 且 transform-origin 在 center bottom，
+   * 缩放后实际高度是 180 × scale，而气泡与本体是兄弟节点、拿不到那个 transform。
+   * 原先这里写死 220px（= 180 + 40），只在 scale=1 时对得上：scale=2 时本体顶到
+   * 384px，气泡被压在本体身上；scale=0.5 时本体只到 114px，尖角悬空指着空气。
+   * scale=1 时本式仍等于 220px，默认档视觉不变。
+   */
+  bottom: calc(180px * var(--pet-scale, 1) + 40px);
   left: 50%;
   transform: translateX(-50%);
   width: 340px;

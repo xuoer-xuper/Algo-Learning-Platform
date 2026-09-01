@@ -9,11 +9,22 @@ import {
 import { errorMessage } from '../../shared/errors'
 
 /**
+ * 三档置顶方式的效果说明。写在界面上而不是只写文档：这三档的差别是
+ * 「谁能盖住桌宠」，光看模式名看不出来。
+ */
+const PIN_MODE_HINTS: Record<CoachPinMode, string> = {
+  follow: '桌宠浮在当前活跃窗口之上；该窗口失去焦点（弹出右键菜单、文件对话框或切到别的程序）时自动退到后面。',
+  always: '桌宠始终盖在所有窗口之上，包括本应用的对话框和其他程序。',
+  dock: '桌宠停在桌面上不置顶，任何窗口都能盖住它。',
+}
+
+/**
  * Coach 桌宠设置面板。
  *
  * 接入 SettingsPage.tsx 左栏。提供：
  * - 开关：启用 Coach / 声音
  * - 气泡频率：low / medium / high（阶段 2 规则引擎消费）
+ * - 置顶方式：follow / always / dock（B5.5，即时生效并持久化）
  * - 缩放：0.5 ~ 2.0
  * - 透明度：0.3 ~ 1.0
  * - 位置重置按钮
@@ -125,6 +136,26 @@ export function CoachPanel() {
             <option value="high">高（多提示）</option>
           </Select>
         </label>
+      </div>
+
+      <div className="settings-row">
+        <label className="settings-label-row">
+          <span>置顶方式</span>
+          <Select
+            className="settings-input settings-select"
+            data-testid="coach-pin-mode-select"
+            value={config.pinMode}
+            onChange={(e) => updateConfig({ pinMode: e.target.value as CoachPinMode })}
+          >
+            <option value="follow">跟随窗口（默认）</option>
+            <option value="always">全局置顶</option>
+            <option value="dock">停靠（不置顶）</option>
+          </Select>
+        </label>
+      </div>
+
+      <div className="settings-row settings-hint-text">
+        {PIN_MODE_HINTS[config.pinMode]}
       </div>
 
       <div className="settings-row">

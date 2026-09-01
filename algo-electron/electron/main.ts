@@ -3,6 +3,7 @@ import {
   BrowserWindow,
   dialog,
   Menu,
+  nativeTheme,
   screen,
   session,
   type Input,
@@ -17,10 +18,13 @@ import { BROWSER_LAYOUT } from './browser/browserLayout'
 import { closeDb } from './db/connection'
 import {
   getSearchConfig,
+  getThemePreference,
   getZoomFactorForUrl,
   loadCoachConfig,
+  saveThemePreference,
   saveZoomFactorForUrl,
 } from './app/config'
+import { ThemeController } from './app/themeController'
 import { configureChromiumCommandLine } from './app/chromiumFlags'
 import { preconnectRecentSiteOrigins } from './app/recentSitePreconnect'
 import { initializeMainServices, type MainServices } from './app/mainServices'
@@ -124,6 +128,11 @@ const viewRegistry = new ViewRegistry()
 const windowManager = new WindowManager({ viewRegistry })
 const windowCreationGate = new WindowCreationGate<AppWindow>()
 const credentialVault = new CredentialVault()
+const themeController = new ThemeController({
+  nativeTheme,
+  readPreference: getThemePreference,
+  writePreference: saveThemePreference,
+})
 
 function getMostRecentAppWindow(): AppWindow | null {
   return windowManager.getMostRecent()
@@ -565,6 +574,10 @@ registerMainIpc({
   respondUserScriptHostPermission: (owner, promptId, allow) => (
     userScriptHostPermissionBroker?.respond(owner.id, promptId, allow) ?? Promise.resolve('stale')
   ),
+  theme: {
+    get: () => themeController.get(),
+    set: value => themeController.set(value),
+  },
 })
 
 // --- App 生命周期 ---
@@ -667,6 +680,9 @@ app.on('activate', () => {
 
 void app.whenReady().then(async () => {
   appLogger.info('app.ready')
+  // 必须早于第一个窗口 loadURL：renderer 在 React 挂载前同步读
+  // prefers-color-scheme，themeSource 晚一步就会闪一帧浅色。
+  appLogger.info('theme.apply', { theme: themeController.apply() })
   if (!VITE_DEV_SERVER_URL) {
     registerShellProtocol(RENDERER_DIST)
   }

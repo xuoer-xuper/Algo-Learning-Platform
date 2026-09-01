@@ -33,6 +33,9 @@ export type IconName =
   | 'bolt'
   | 'lightbulb'
   | 'star'
+  | 'palette'
+  | 'search'
+  | 'database'
 
 const ICON_PATHS: Record<IconName, ReactNode> = {
   home: (
@@ -192,6 +195,26 @@ const ICON_PATHS: Record<IconName, ReactNode> = {
     </>
   ),
   star: <path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-2.9-5.6 2.9 1.1-6.2L3 9.6l6.2-.9L12 3Z" />,
+  // 半填充圆：明暗对比，比调色盘更贴"主题"语义，也不需要多色。
+  palette: (
+    <>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 3a9 9 0 0 0 0 18Z" fill="currentColor" stroke="none" />
+    </>
+  ),
+  search: (
+    <>
+      <circle cx="11" cy="11" r="6.5" />
+      <path d="m16 16 4.5 4.5" />
+    </>
+  ),
+  database: (
+    <>
+      <ellipse cx="12" cy="6" rx="7.5" ry="3" />
+      <path d="M4.5 6v12c0 1.7 3.4 3 7.5 3s7.5-1.3 7.5-3V6" />
+      <path d="M4.5 12c0 1.7 3.4 3 7.5 3s7.5-1.3 7.5-3" />
+    </>
+  ),
 }
 
 export interface IconProps extends Omit<SVGProps<SVGSVGElement>, 'name'> {

@@ -47,7 +47,16 @@ export function MilkdownEditor({ noteId, initialValue, onChange, placeholder }: 
       defaultValue: initialValue,
       features: {
         [CrepeFeature.AI]: false,
-        [CrepeFeature.Latex]: false,
+        // B5.6（决策 D14）：开启数学公式。KaTeX 的 CSS 与那 1MB 字体本来就随
+        // crepe 的 theme/common/style.css 一路 @import 进产物（latex.css →
+        // katex/dist/katex.min.css），关着这个开关只是白背这份体积。
+        [CrepeFeature.Latex]: true,
+        // latex 硬依赖 CodeMirror（crepe 的 loadFeature 里直接抛
+        // "You need to enable CodeMirror to use LaTeX feature"）。crepe 的
+        // defaultFeatures 本来就把它设为 true，但那个值没有从包里导出（只在
+        // .d.ts 里声明，运行时 undefined），测不到也读不到。与其依赖一个不可
+        // 观察的默认值，这里显式写出来——升级 crepe 翻默认值时不会静默失效。
+        [CrepeFeature.CodeMirror]: true,
         [CrepeFeature.ImageBlock]: true,
         [CrepeFeature.TopBar]: true,
         [CrepeFeature.Toolbar]: true,
@@ -58,6 +67,20 @@ export function MilkdownEditor({ noteId, initialValue, onChange, placeholder }: 
       featureConfigs: {
         [CrepeFeature.Placeholder]: {
           text: placeholder ?? '开始编写题解…（输入 ## 自动生成标题）',
+        },
+        [CrepeFeature.Latex]: {
+          // 行内公式的确认按钮文案（默认是个勾图标，这里给中文标签对齐其余面板）
+          inlineEditConfirm: '确认',
+          // 写错的公式渲染成红字提示而不是抛异常——题解是一边写一边存的，
+          // 半个公式的中间态必须能留在文档里。crepe 在块级预览与行内 toDOM
+          // 两处已各自硬写 throwOnError:false，这里显式声明是为了让行内
+          // 编辑气泡（唯一真正读 katexOptions 的地方）也走同一口径。
+          // strict:false：题解里常见 `\R`、中文夹在公式中间这类写法，
+          // 严格模式会刷一片 console 警告，但渲染结果本身是对的。
+          katexOptions: {
+            throwOnError: false,
+            strict: false as const,
+          },
         },
         [CrepeFeature.ImageBlock]: {
           blockUploadButton: '上传图片',

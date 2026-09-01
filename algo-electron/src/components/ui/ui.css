@@ -184,7 +184,7 @@
   align-items: center;
   justify-content: center;
   padding: 24px;
-  background: rgba(23, 28, 38, 0.5);
+  background: var(--color-scrim);
   backdrop-filter: blur(2px);
   animation: overlay-in var(--duration-base) var(--ease-out);
 }

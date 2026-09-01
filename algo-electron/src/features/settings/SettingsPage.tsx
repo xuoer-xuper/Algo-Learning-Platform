@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
-import { IconButton } from '../../components/ui'
+import { Button, IconButton } from '../../components/ui'
+import { AppearancePanel } from './AppearancePanel'
 import { BackupPanel } from './BackupPanel'
 import { CodeforcesSyncPanel } from './CodeforcesSyncPanel'
 import { CoachPanel } from './CoachPanel'
@@ -12,12 +13,31 @@ import { SiteManagementPanel } from './SiteManagementPanel'
 import { reportRendererError } from '../../rendererErrors'
 import { errorMessage } from '../../shared/errors'
 import { loadRealtimeSubmissionStatus, loadSettingsOverviewStats } from './settingsApi'
+import { SETTINGS_SECTIONS, type SettingsSectionId } from './settingsSections'
 import type { RealtimeSubmissionStatus, SettingsOverviewStats } from './settingsTypes'
+
+/*
+ * 设置页（B5.1，Chrome 式分区导航）。
+ *
+ * 原先是 9 个面板堆在两栏里，一页到底 —— 找一个设置得靠滚动加肉眼扫描。现在改成
+ * chrome://settings 的形态：左侧分区导航，右侧只渲染当前分区。
+ *
+ * 三个刻意的选择：
+ *
+ * 1. **导航不用 `role="tab"`**。视觉上像标签，语义上却会和浏览器标签条撞车——
+ *    TabStrip 用的就是 `role="tab"`，UI 契约测试靠 `getByRole('tab')` 计数校验
+ *    标签数。这里用 `<nav>` + `aria-current="page"`，与 Chrome 设置页的语义一致。
+ * 2. **只渲染当前分区**，不是全渲染再靠滚动定位。九个面板各自在 mount 时读主进程，
+ *    全渲染等于每次开设置页就把九条读路径全打一遍。
+ * 3. **`.settings-cols` 类名保留**，语义从"配置栏/站点栏"变成"导航栏/内容区"。
+ *    响应式契约不变（容器 ≤680px 折叠为单列），Playwright 的折叠断言继续成立。
+ */
 
 export function SettingsPage({ onClose }: { onClose: () => void }) {
   const [stats, setStats] = useState<SettingsOverviewStats | null>(null)
   const [realtimeStatus, setRealtimeStatus] = useState<RealtimeSubmissionStatus | null>(null)
   const [realtimeStatusText, setRealtimeStatusText] = useState('')
+  const [section, setSection] = useState<SettingsSectionId>('appearance')
 
   const loadOverviewStats = async () => {
     try {
@@ -51,24 +71,45 @@ export function SettingsPage({ onClose }: { onClose: () => void }) {
         </div>
 
         <div className="settings-cols">
-          {/* 左栏：配置类设置 */}
-          <div className="settings-col">
-            <CoachPanel />
-            <SearchEnginePanel />
-            <LlmConfigPanel />
-            <LearningOverviewPanel stats={stats} />
-            <CodeforcesSyncPanel onStatsRefresh={loadOverviewStats} />
-            <BackupPanel />
-            <RealtimeSubmissionPanel
-              status={realtimeStatus}
-              statusText={realtimeStatusText}
-              onRefresh={loadRealtimeStatus}
-            />
-            <PlatformDistributionSummary distribution={stats?.platformDistribution ?? []} />
-          </div>
+          <nav className="settings-nav" aria-label="设置分区">
+            {SETTINGS_SECTIONS.map(({ id, label, icon }) => (
+              <Button
+                key={id}
+                variant="ghost"
+                icon={icon}
+                className="settings-nav-item"
+                data-section={id}
+                aria-current={section === id ? 'page' : undefined}
+                onClick={() => setSection(id)}
+              >
+                <span className="settings-nav-label">{label}</span>
+              </Button>
+            ))}
+          </nav>
 
-          <div className="settings-col">
-            <SiteManagementPanel />
+          <div className="settings-content" data-active-section={section}>
+            {section === 'appearance' && <AppearancePanel />}
+            {section === 'coach' && <CoachPanel />}
+            {section === 'search' && <SearchEnginePanel />}
+            {section === 'llm' && <LlmConfigPanel />}
+            {section === 'sites' && <SiteManagementPanel />}
+            {section === 'sync' && (
+              <CodeforcesSyncPanel onStatsRefresh={loadOverviewStats} />
+            )}
+            {section === 'data' && <BackupPanel />}
+            {section === 'overview' && (
+              <>
+                <LearningOverviewPanel stats={stats} />
+                <PlatformDistributionSummary distribution={stats?.platformDistribution ?? []} />
+              </>
+            )}
+            {section === 'diagnostics' && (
+              <RealtimeSubmissionPanel
+                status={realtimeStatus}
+                statusText={realtimeStatusText}
+                onRefresh={loadRealtimeStatus}
+              />
+            )}
           </div>
         </div>
       </div>

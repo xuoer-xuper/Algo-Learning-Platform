@@ -61,7 +61,7 @@
 }
 
 .tab-item:hover {
-  background-color: rgba(255, 255, 255, 0.55);
+  background-color: var(--color-overlay-hover);
 }
 
 /* 相邻非活动标签之间的细分隔线（Chrome 式） */
@@ -235,7 +235,7 @@
 }
 
 .tab-strip-new:hover {
-  background-color: rgba(255, 255, 255, 0.7);
+  background-color: var(--color-overlay-hover-strong);
   color: var(--text);
 }
 
