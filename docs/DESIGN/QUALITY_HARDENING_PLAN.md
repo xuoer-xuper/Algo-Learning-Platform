@@ -500,3 +500,79 @@ update，而且它能改内置站点的 `domains` / `loginUrlPatterns`——那�
 
 **这一条不自行决定**，因为它改依赖图、可能影响构建，属于需要拍板的范围，不是常规判断。
 在拍板之前，98.5 仍是本计划范围内的上限；把它记成 100 会是虚报。
+
+## 11. Coach 规则引擎的接线状态（待拍板，不自行改产品行为）
+
+给 `CoachOrchestrator` 补覆盖时顺出来的。四条都不是"代码写错了"，而是**已建成的模块没有接
+到产品路径上**，取舍属于产品决定，所以只落文档与源码注释，不动行为。
+
+以下每一条都按"查证方式 → 事实 → 后果 → 为什么不自行改"记，避免下一个人重新查一遍。
+
+### 11.1 本地规则引擎在生产中是惰性的
+
+`electron/` 下 `ruleEngine` 的调用共 4 处，全在 `CoachOrchestrator.ts`（267 / 803 / 809 /
+1038 行），全部是写状态：`notifyNewSubmission` / `markNeverToday` / `markDismissed`。
+这些写进 `lastTrigger` / `currentLevel` / `lastUpgradeAt` 的值，读它们的只有
+`handleEvent`（`RuleEngine.ts:171`、`:211`）、`requestHintUpgrade`（`:243`、`:247`、`:248`）
+与两个 `*ForTest` getter，而**前两个方法在整个 `electron/` 下没有调用点**（只有注释提到）。
+
+所以 `RuleEngine` + `HintSelector` + `hintTemplates` 这条本地链路（三份共约 1000 行、
+单测 117 条、覆盖 92%~94%）目前只被单测驱动。用户真正体验到的：屏蔽走
+`CoachFeedbackStore.shouldSuppress`，比赛硬关闭走 `ContestGuard`，等级走
+`CoachOrchestrator.currentHintLevel`。
+
+**后果**：没配 API Key 的用户拿不到**自动**提示。`handleCoachEvent`
+（`CoachOrchestrator.ts:1072`）在 `!llmHintService.isReady()` 时直接 return，而它全程不碰
+规则引擎。本地阶梯只在用户**主动**点桌宠或点"再给一点"时经 `requestLocalHintUpgrade` 走到。
+
+**为什么不自行接**：接上就等于让"没配 Key 的用户开始收到自动气泡"成为既成事实，这是产品
+行为变更。接不接、接在 `isReady()` 之前还是作为它的 else 分支，需要拍板。
+
+### 11.2 提示升级没有频次限制，而三处文档说它有（已改这三处）
+
+这是 11.1 的直接后果里唯一有成本含义的一条，单列出来。
+
+`HINT_UPGRADE_COOLDOWN_MS`（2 分钟，`rules/rules.ts:65`）只被 `RuleEngine.requestHintUpgrade`
+使用，而那个方法未接线。IPC 打进来的是 `CoachOrchestrator` 的**同名方法**
+（`CoachOrchestrator.ts:830`），它自己维护 `currentHintLevel` 与 `l5PendingConfirmed`、自己
+`buildCoachIntervention`，不委托给引擎。live 路径上只有 `hintInProgress` 一个并发闸，挡的是
+"生成中再点"，不是频次。`coach/llm/` 下也没有任何 rate limit。
+
+L5 上限不构成兜底：`petClick()`（`CoachOrchestrator.ts:978`）把 `currentHintLevel` 归零，
+于是"点桌宠 → 升 5 级 → 再点桌宠 → 再升 5 级"可以一直重复，节奏只受 LLM 往返延迟限制，
+每次都是一次付费 API 调用。
+
+三处文档声称这个保护存在，都已就地改掉（写清没有，而不是删掉了当没说过）：
+
+| 位置 | 原文 | 实情 |
+|---|---|---|
+| `ipc/registerCoachIpc.ts:229` | "委托给 …（受防 abuse 冷却限制）" | 冷却在引擎那个未接线的同名方法里 |
+| `coach/hints/README.md:24` | "升级冷却复用 `RuleEngine.requestHintUpgrade`，不重复实现" | 两半都不成立：既没复用，也确实重做了一遍 |
+| `coach/rules/README.md:12` | "防 hint abuse：升级冷却（每级 ≥ 2 分钟或需一次新提交）" | 能力在，但当前不生效 |
+
+**为什么不自行补**：补上就是让用户的显式点击在 2 分钟内被静默拒绝，有 UX 代价；引擎那份还带
+"有新提交则解锁"的逃生口（`unlockedBySubmission`），要复刻得先把提交事件接进来。是补冷却、
+还是改为按次数/按日额度、还是就这样，取决于对"用户自己的 Key、自己的显式操作"要不要限流。
+
+### 11.3 会话 `problem_id` 恒为 null，介入转化率指标拿不到数据
+
+`ProblemSessionTracker.ts:375` 是 `problem_id` 唯一的赋值处，值写死 `null`。于是
+`coach_interventions` 与 `coach_events` 上的 `problem_id` 也一路为 null（都从 session 取）。
+
+**后果**：设计里"介入 → 后续 AC"的转化率统计没有可用的关联键。
+
+**为什么不自行改**：`ProblemSessionTracker` 全文没有一处 `from '../db` 导入，要填这个字段
+就得给它引入数据库依赖，还要定解析时机（进页面就查、还是等首次提交）。这一步依赖尚未开工的
+Coach 面板的读取方式，先记下不猜。
+
+### 11.4 三处当前不可达的分支（不是死代码，是等接线）
+
+覆盖率上不去的那几处，查明原因如下，避免被当成"忘写测试"：
+
+- `requestLocalHintUpgrade` 的 `content.rejected` 分支（`CoachOrchestrator.ts:1013`）：
+  `getMessageForLevel` 只在 L0 返回 `rejected`，而调用方传的 `nextLevel` 最小为 1。
+- `showIntervention` 的 L0 早退：同上，live 路径构造不出 L0 干预。
+- `bubbleTitleFor` 的 `contest_audit` 标题：比赛模式下 `handleCoachEvent` 在插入事件后就
+  return，永远走不到出气泡那步。
+
+三处都保留：它们是 11.1 接线后立即生效的分支，删掉等于把设计意图也删了。

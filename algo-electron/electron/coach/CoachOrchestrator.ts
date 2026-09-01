@@ -154,6 +154,15 @@ export class CoachOrchestrator {
   private hintInProgress = false
   /** 本次会话是否已关闭免责声明 */
   private disclaimerDismissedThisSession = false
+  /**
+   * 免责声明的延迟句柄，`stop()` 要清掉它。
+   *
+   * 原先是裸 `setTimeout`，句柄丢掉。后果有两条：`stop()` 走在退出流程里
+   * （`main.ts` 的 before-quit，紧接着就 `coachPetWindow?.destroy()`），所以退出发生在
+   * 启动后 2 秒内时，这个回调会在实例已拆掉之后触发——`loadCoachConfig()` 在拆除期间
+   * 读一次磁盘，再去问一个正在销毁的桌宠窗口。另外未清的 timer 会一直持有事件循环引用。
+   */
+  private disclaimerTimer: ReturnType<typeof setTimeout> | null = null
   /** unsubscribe 句柄 */
   private detachFns: Array<() => void> = []
 
@@ -261,7 +270,12 @@ export class CoachOrchestrator {
     }
 
     // 启动后延迟展示"仅供参考"免责声明（等桌宠窗口 React 组件就绪）
-    setTimeout(() => this.maybeShowDisclaimer(), 2000)
+    // 句柄留着给 stop() 清：见 disclaimerTimer 的声明处。
+    if (this.disclaimerTimer) clearTimeout(this.disclaimerTimer)
+    this.disclaimerTimer = setTimeout(() => {
+      this.disclaimerTimer = null
+      this.maybeShowDisclaimer()
+    }, 2000)
   }
 
   /** 将新建窗口接入全局比赛 URL 聚合；重复 attach 是幂等的。 */
@@ -510,6 +524,10 @@ export class CoachOrchestrator {
       try { fn() } catch { /* ignore */ }
     }
     this.detachFns = []
+    if (this.disclaimerTimer) {
+      clearTimeout(this.disclaimerTimer)
+      this.disclaimerTimer = null
+    }
     this.windowFollower.stop()
     this.activeWindowConstraintCleanup?.()
     this.activeWindowConstraintCleanup = null
@@ -1088,10 +1106,31 @@ export class CoachOrchestrator {
     }
   }
 
+  /**
+   * `RuleEngine.onIntervention` 的接收端。**当前没有任何生产路径能走到这里。**
+   *
+   * 原注释写的是"showIntervention 由 handleCoachEvent 调用 handleEvent 后通过返回值触发"。
+   * 那句话不成立。`onIntervention` 在 `RuleEngine` 里有三个触发点，两条死因各不相同：
+   *
+   * - `RuleEngine.ts:217`（`handleEvent` 内）——`handleEvent` 全 `electron/` 无调用点。
+   *   `handleCoachEvent`（本文件 1056 行）落库事件后直接判 `llmHintService.isReady()`，
+   *   不 ready 就 return，ready 就调 LLM，**全程不碰规则引擎**。
+   * - `RuleEngine.ts:281`、`:320`（`requestHintUpgrade` 内）——同名方法在本类也有一个
+   *   （830 行），IPC 打进来的是**本类那个**；它自己维护 `currentHintLevel` 与
+   *   `l5PendingConfirmed`、自己 `buildCoachIntervention`，不委托给引擎那个。
+   *
+   * 后果记在这里而不是留着那句错的：
+   * 1. 本方法、`RuleEngine.handleEvent`、`RuleEngine.requestHintUpgrade` 三者都是死接线；
+   * 2. 没配 API Key 的用户拿不到**自动**提示——本地提示阶梯只在用户点桌宠/点"再给一点"
+   *    时经 `requestLocalHintUpgrade` 走到，事件（多错、卡太久）不会自己触发它；
+   * 3. 引擎那个 `requestHintUpgrade` 里的 2 分钟升级冷却（`RuleEngine.ts:255-260`）
+   *    因此从未生效，见本类 `requestHintUpgrade` 处的说明。
+   *
+   * 不在此处补接线：让"没配 Key 的用户开始收到自动气泡"成为既成事实属于产品行为变更，
+   * 不是缺陷修复。接与不接、以及接在 `isReady()` 之前还是作为它的 else 分支，需要拍板。
+   */
   private handleIntervention(intervention: CoachIntervention, _event: CoachEvent): void {
     insertCoachIntervention(intervention)
-    // showIntervention 由 handleCoachEvent 调用 handleEvent 后通过返回值触发
-    // 这里保留 onIntervention 回调用于阶段 3 HintSelector 接入
   }
 
   private showIntervention(intervention: CoachIntervention): void {

@@ -226,8 +226,13 @@ export function registerCoachIpc(options: RegisterCoachIpcOptions): void {
 
   /**
    * 用户主动请求"再给一点提示"。
-   * 阶段 2：委托给 CoachOrchestrator.requestHintUpgrade（受防 abuse 冷却限制）。
+   * 阶段 2：委托给 CoachOrchestrator.requestHintUpgrade。
    * 若 orchestrator 未初始化，回退到阶段 1 行为。
+   *
+   * 这里原先写着"（受防 abuse 冷却限制）"。**没有这回事**：`HINT_UPGRADE_COOLDOWN_MS`
+   * 那个 2 分钟冷却长在 `RuleEngine.requestHintUpgrade` 里，而本行调到的是
+   * `CoachOrchestrator` 的同名方法，它不委托给引擎（见那边的注释）。live 路径上只有
+   * 一个 `hintInProgress` 并发闸，挡的是"生成中再点"，不是频次。
    */
   ipcMain.handle('coach:triggerHint', [optional(bubbleId())], async (_event, bubbleId) => {
     // 演示/测试气泡走演示升级分支（不经过 orchestrator 规则引擎）

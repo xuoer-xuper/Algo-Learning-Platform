@@ -1157,6 +1157,48 @@ test('免责声明启动 2 秒后弹一次；永久关闭后落盘，重启不�
   second.coach.stop()
 })
 
+test('stop() 取消还没到点的免责声明延迟', async () => {
+  const h = harness()
+  h.coach.start()
+
+  /*
+   * `stop()` 在生产里走的是退出流程（`main.ts` 的 before-quit，紧接着
+   * `coachPetWindow?.destroy()`）。所以只要退出发生在启动后 2 秒内，这个回调就会在
+   * 实例已经拆掉之后触发：`loadCoachConfig()` 在拆除期间读一次磁盘，再去问一个
+   * 正在销毁的桌宠窗口。未清的 timer 还会一直持有事件循环引用。
+   *
+   * 原实现是裸 `setTimeout(...)`、句柄丢掉，`stop()` 里没有对应的 clear。
+   */
+  await vi.advanceTimersByTimeAsync(1_500)
+  h.coach.stop()
+  await vi.advanceTimersByTimeAsync(5_000)
+
+  assert.equal(h.pet.bubbleTitled('仅供参考'), undefined, 'stop() 之后不该再弹免责声明')
+  // 正向锚点：不 stop 的话同一条路径确实会弹——否则上面那条断言可能只是替身没接好。
+  const alive = harness()
+  alive.coach.start()
+  await vi.advanceTimersByTimeAsync(2_500)
+  assert.ok(alive.pet.bubbleTitled('仅供参考'), '未 stop 时应照常弹，证明上面不是空转')
+  alive.coach.stop()
+})
+
+test('重复 start() 不叠加免责声明延迟', async () => {
+  const h = harness()
+  h.coach.start()
+  await vi.advanceTimersByTimeAsync(1_500)
+  // 第二次 start() 会重新排一个延迟；旧的那个必须先清掉，否则两个回调都会到点，
+  // 而 disclaimerDismissedThisSession 只在用户关闭后才置位，拦不住第二次弹。
+  h.coach.start()
+  await vi.advanceTimersByTimeAsync(5_000)
+
+  assert.equal(
+    h.pet.bubbles.filter((bubble) => bubble.title === '仅供参考').length,
+    1,
+    '免责声明只应弹一次',
+  )
+  h.coach.stop()
+})
+
 // --- 查询面（IPC 消费） ---
 
 test('指标口径：干预与事件分开计数，contest_audit 不算进干预总数', async () => {
