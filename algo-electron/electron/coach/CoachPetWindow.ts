@@ -359,9 +359,11 @@ export class CoachPetWindow {
    * 按当前模式与归属/焦点事实重设窗口。所有改置顶的路径都汇到这里，
    * 保证 create / 切壳 / 焦点变化 / 改模式四条入口用的是同一份判定。
    *
-   * 防抖保护：只有决策结果真正变化时才调用 Electron API，避免 focus/blur 频繁触发导致窗口闪烁。
+   * 防抖保护：缓存上次决策与 parent 引用，只有真正变化时才调用 Electron API，
+   * 避免 focus/blur 触发 applyPinDecision 再触发 setParentWindow 再触发 focus/blur 的无限循环。
    */
   private lastDecision: PetPinDecision | null = null
+  private lastParent: BrowserWindow | null = null
 
   private applyPinDecision(): void {
     if (!this.win || this.win.isDestroyed()) return
@@ -372,14 +374,19 @@ export class CoachPetWindow {
       ? this.followedWindow
       : null
 
-    // 只有决策真正变化时才调用 setParentWindow/setAlwaysOnTop，避免无意义重设导致闪烁
-    if (!this.lastDecision
-        || this.lastDecision.alwaysOnTop !== decision.alwaysOnTop
-        || this.lastDecision.level !== decision.level
-        || this.lastDecision.attachToActiveShell !== decision.attachToActiveShell) {
+    // 只有决策或 parent 引用真正变化时才调用 Electron API
+    // 特别注意：setParentWindow 会触发主窗口 focus/blur 事件，必须防止循环触发
+    const decisionChanged = !this.lastDecision
+      || this.lastDecision.alwaysOnTop !== decision.alwaysOnTop
+      || this.lastDecision.level !== decision.level
+      || this.lastDecision.attachToActiveShell !== decision.attachToActiveShell
+    const parentChanged = this.lastParent !== parent
+
+    if (decisionChanged || parentChanged) {
       this.win.setParentWindow(parent)
       this.win.setAlwaysOnTop(decision.alwaysOnTop, decision.level)
       this.lastDecision = decision
+      this.lastParent = parent
     }
   }
 
