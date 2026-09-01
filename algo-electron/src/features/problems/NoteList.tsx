@@ -2,7 +2,7 @@ import {
   NOTE_TYPE_LABELS,
   type NoteItem,
 } from './notesTypes'
-import { IconButton } from '../../components/ui'
+import { Empty, IconButton } from '../../components/ui'
 
 /**
  * 徽标类名与文字。note_type 来自数据库，可能是 NOTE_TYPE_LABELS 之外的值，
@@ -35,10 +35,8 @@ export function NoteList({
       </div>
       <div className="notes-list">
         {notes.length === 0 ? (
-          <div className="notes-empty">
-            暂无笔记<br />
-            点击「新建笔记」创建
-          </div>
+          // 改前是 `<br />` 硬折行；hint 槽位本来就是给这句次要说明的
+          <Empty hint="点击「新建笔记」创建">暂无笔记</Empty>
         ) : (
           notes.map((note) => {
             const badge = noteTypeBadge(note.note_type)

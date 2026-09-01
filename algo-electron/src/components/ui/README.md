@@ -15,6 +15,8 @@
 - `DropdownMenu.tsx`：内部页命令菜单，支持方向键、Home/End、禁用项、外部点击和 Portal 定位。
 - `Toast.tsx`：短时状态反馈，带 live region、自动消退、操作和关闭按钮。
 - `NoticeBar.tsx`：布局让位型通知条，供 web 标签场景使用；不使用 fixed/absolute 浮层。
+- `states.tsx`（B5.2）：`Empty`（读到了且确实没有；`compact` 为列表/卡片内的紧凑档，`hint` 为次要说明）与 `Skeleton`（还没读到；`rows` 占位行数，`inline` 为不改变所在行高度的数值占位档，带 `role="status"` + `aria-busy` + 视觉隐藏的名字）。
+- `ListRow.tsx`（B5.2）：可激活的列表行，`role="button"` + `tabIndex` + Enter/Space。只提供键盘语义与焦点环，几何与配色由调用方的行类名给。
 - `ui.css`：组件样式，全部取值自 `src/index.css` 的设计 token，禁止裸 hex。
 
 ## 封装入口
@@ -30,7 +32,9 @@
 - 新增图标只能加进 `icons.tsx` 的 `ICON_PATHS`；新增组件变体先改本目录再在 feature 使用。
 - 尺寸变体与局部覆盖的分界：会被复用的系统尺寸（如 `Select` 的 `sm`，与 `Button` 的 `sm` 配套）进本目录；只出现一次的几何（如笔记头部的 36px）留在 feature 的局部类里，不为一处调用加变体。
 - feature 的局部类只写布局与刻意的差异，配色/边框/圆角/focus ring 一律由 `.ui-*` 基类给。若局部类需要改宽高，必须显式声明 —— `.ui-icon-btn` 是 28×28，靠 CSS 加载顺序覆盖不可靠。
+- **`Empty` 与 `Skeleton` 不可互换**：`Empty` 是终态（不带 `aria-busy`），`Skeleton` 是"还没读到"。数据状态一律用 `T[] | null` 表达（`null` = 未读到，`[]` = 读到了且为空），别用 `[]` 兼任两者 —— B5.2 之前就有界面把加载中渲染成"暂无记录"和"0"。读失败必须落到 `[]`，否则骨架会永久脉冲。
+- `ListRow` 只包"行内的主操作区域"，不要把 `IconButton` 等可交互元素套进它 —— `role="button"` 里嵌按钮是无效 ARIA。行右侧的操作按钮作为 `ListRow` 的兄弟节点放在行容器里。
 
 ## 验证入口
 
-`npm run test:unit`（`tests/components/uiComponents.test.tsx`，jsdom + @testing-library/react）；接线治理见 `tests/components/controlGovernance.test.ts`（断言 feature 确实消费了原语且样式锚点未丢）；数量守卫见 `npm run test:architecture`；视觉回归走 `npm run test:ui`。
+`npm run test:unit`（`tests/components/uiComponents.test.tsx`，jsdom + @testing-library/react）；B5.2 三原语见 `tests/components/asyncStatePrimitives.test.tsx`，异步界面的"加载中不许伪装成空"契约见 `tests/components/asyncStateSurfaces.test.tsx`；接线治理见 `tests/components/controlGovernance.test.ts`（断言 feature 确实消费了原语且样式锚点未丢）；数量守卫见 `npm run test:architecture`；视觉回归走 `npm run test:ui`。

@@ -14,7 +14,7 @@ import {
 import { loadMetricsBundle } from './coachDataApi'
 import { computeCoachMetrics, formatPercent, type CoachMetricsComputed } from './computeMetrics'
 import { MOCK_METRICS_BUNDLE, MOCK_EXPECTED } from './mockMetricsBundle'
-import { Button, Card, IconButton } from '../../components/ui'
+import { Button, Card, IconButton, Skeleton } from '../../components/ui'
 import { CHART_COLORS } from '../../shared/display'
 
 /**
@@ -170,8 +170,9 @@ export function CoachMetricsView({ onClose }: Props) {
         </div>
       )}
 
-      {loading && <div className="coach-timeline-loading">加载中...</div>}
-      {error && <div className="coach-timeline-error">{error}</div>}
+      {loading && <Skeleton rows={4} label="指标加载中" />}
+      {/* 错误保留独立类名与 role：它不是空态，也不是加载态 */}
+      {error && <div className="coach-timeline-error" role="alert">{error}</div>}
 
       {/* 5 项指标卡片（数据声线：大数字与分子分母等宽 + 表格数字） */}
       {metrics && (

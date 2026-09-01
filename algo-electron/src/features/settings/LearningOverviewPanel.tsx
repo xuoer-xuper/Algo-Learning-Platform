@@ -1,5 +1,5 @@
 import type { SettingsOverviewStats } from './settingsTypes'
-import { Card } from '../../components/ui'
+import { Card, Skeleton } from '../../components/ui'
 
 interface LearningOverviewPanelProps {
   stats: SettingsOverviewStats | null
@@ -29,7 +29,9 @@ export function LearningOverviewPanel({ stats }: LearningOverviewPanelProps) {
           </Card>
         </div>
       ) : (
-        <div className="settings-empty">加载中...</div>
+        // 改前这里用的是 `.settings-empty`（空态类）渲染"加载中..." —— 加载与空
+        // 共用一个类名，正是 B5.2 要收掉的那种含混。
+        <Skeleton rows={3} label="学习概览加载中" />
       )}
     </div>
   )

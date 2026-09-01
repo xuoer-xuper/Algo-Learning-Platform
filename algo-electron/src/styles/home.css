@@ -30,7 +30,7 @@
   font-weight: 650;
   letter-spacing: -0.01em;
   line-height: 1.25;
-  margin: 0 0 8px 0;
+  margin: 0 0 var(--spacing-2) 0;
 }
 
 .home-subtitle {
@@ -55,7 +55,7 @@
   color: var(--text);
   font-size: 13px;
   font-weight: 600;
-  margin: 0 0 12px 0;
+  margin: 0 0 var(--spacing-3) 0;
 }
 
 .home-section-title::after {
@@ -128,7 +128,7 @@
   color: var(--text);
   font-size: 14px;
   font-weight: 600;
-  margin-top: 8px;
+  margin-top: var(--spacing-2);
 }
 
 .home-site-url {
@@ -153,7 +153,7 @@
   border: none;
   border-radius: var(--radius-md);
   box-shadow: none;
-  padding: 12px 14px;
+  padding: var(--spacing-3) 14px;
 }
 
 .home-stat-value {
@@ -184,13 +184,13 @@
 .home-recommendations {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--spacing-2);
 }
 
 .home-rec-item {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--spacing-2);
   padding: 10px 14px;
   background-color: var(--bg-card);
   border: 1px solid var(--border-light);
@@ -255,7 +255,7 @@
 .home-recent-item {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--spacing-2);
   padding: 9px 14px;
   cursor: pointer;
   transition: background-color var(--duration-fast) var(--ease-out);
@@ -302,23 +302,20 @@
 }
 
 /* ── 空态：虚线收纳框，语气友好 ── */
+/*
+ * 首页空态（B5.2）：底座换成 ui/Empty，这里保留首页原有的虚线框与外边距 ——
+ * 它是首屏唯一一块"待填充"的区域，虚线比实线更像占位而不是失败。
+ * 正文仍比 Empty 默认档重一档（secondary + 600），因为它在首屏是一句主文案。
+ * 原先的 `.home-empty-title` / `.home-empty-hint` 两个类随之删除。
+ */
 .home-empty {
   border: 1px dashed var(--border);
   border-radius: var(--radius-lg);
   padding: 28px 20px;
-  text-align: center;
   margin-bottom: 28px;
 }
 
-.home-empty-title {
+.home-empty .ui-empty-message {
   color: var(--text-secondary);
-  font-size: 13px;
   font-weight: 600;
-  margin: 0;
-}
-
-.home-empty-hint {
-  color: var(--text-muted);
-  font-size: 12px;
-  margin: 6px 0 0;
 }

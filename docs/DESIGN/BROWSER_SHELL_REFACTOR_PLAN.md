@@ -469,7 +469,7 @@ Renderer（同一构建产物，多窗口实例化——桌宠 hash 路由已证
 | B4.4 | [x] | 账户内部标签、登录态摘要、脱敏凭据列表、重命名/删除、登录页新标签跳转、Codeforces rating 绑定和多凭据 NoticeBar 选择已完成；完整记录见 §11.44 |
 | B4.5 | [x] | 登录捕获、保存/覆盖确认与 stale/取消边界已完成；完整记录见 §11.45 |
 | B4.6 | [x] | electron-builder fuses、生产 DevTools/smoke 边界、NSIS 与真实 packaged 双实例 smoke 已完成；完整记录见 §11.46 |
-| B5.1-B5.6 | [~] | B5.1 设置页分区导航（§11.54）、B5.4 暗色模式（§11.55）、B5.5 桌宠置顶三模式（§11.52）、B5.6 Latex 与文档矩阵（§11.53）已完成；**B5.2 打磨与 B5.3 全局动效未开始**。四项均未做实机人工验收，留作 B5 整块统一验收 |
+| B5.1-B5.6 | [~] | B5.1 设置页分区导航（§11.54）、B5.2 空态/加载态词汇统一（§11.56，用户解除视觉冻结后由三界面扩至全仓 12 面）、B5.3 全局动效（§11.57）、B5.4 暗色模式（§11.55）、B5.5 桌宠置顶三模式（§11.52）、B5.6 Latex 与文档矩阵（§11.53）已完成；六项代码与测试通过，待实机人工验收视觉影响 |
 | B6.1 | [x] | `027_userscript_runtime`、完整 metadata 持久化、严格 URL 匹配、site binding/exclude 优先级、values/资源/host/update repository 已完成；完整记录见 §11.38 |
 | B6.2 | [x] | GM 私有桥、固定 frame bootstrap、IIFE/grant 裁剪、主进程值快照与 shell 源码隔离已完成；完整记录见 §11.39 |
 | B6.3 | [x] | `GM_xmlhttpRequest` 主进程受限代理、`@connect` 与逐 host 授权、NoticeBar、剪贴板/菜单/onurlchange、全局 CORS 清理已完成；完整记录见 §11.40 |
@@ -1337,4 +1337,58 @@ Renderer（同一构建产物，多窗口实例化——桌宠 hash 路由已证
 | 人工验收 | 未执行。未在实机切三档观察首帧是否真的不闪、桌宠与拆分窗口的跟随、以及远端 OJ 页面在深色档下的实际观感——不宣称已验收，留作 B5 整块统一验收项 |
 | 视觉影响 | 浅色档下**无任何视觉变化**：新增的 5 个叠加/滚动条 token 取的就是原先那 4 处 `rgba()` 字面量的同值，属等值替换。深色档是新增档位，属计划明确允许的范围（B5.4 即"暗色模式落地"）。设置页外观分区新增一个 `Select` 行，复用既有行结构与 token |
 | 文档同步 | `docs/PRODUCT/CHANGELOG.md`（新增段）、`src/index.css` 头部三类翻档说明、`tests/architecture/guards.mjs` 的 `countBareRgb` 判定注释（列出它本该抓到的 4 处字面量） |
+| 完成时间 | 北京时间 `2026-09-01` |
+
+### 11.56 B5.2 空态/加载态词汇全局统一与间距 token 化完成记录
+
+| 字段 | 填写内容 |
+|---|---|
+| 任务 | B5.2 Dashboard / 首页 / 题库侧栏 token 化打磨：间距与层级统一、空态与加载态统一、侧栏折叠加过渡动画 |
+| 范围扩大（用户口头授权） | 计划原文只点名三个界面。三界面收口后用户明确解除了前端视觉冻结（"如果其他地方需要修改和重新排版我允许你改，要求就是保证风格一致"），于是把同一套三态词汇推到了全仓其余 9 个异步界面。这是刻意的：原先的边界是"哪个界面被点了名"，而"未读到不能写成空"这条规则一旦只覆盖三处，剩下的 9 处就是下一轮的同类欠账 |
+| 状态 | `[x] 已完成` |
+| Commit | 待填 |
+| 起点：这不是"样式不统一"，是两处在说谎 | 三个界面对"数据还没读到"给了三种答案：**首页**用 `stats === null` 正确区分了未读到与空（唯一对的）；**题库侧栏**加载中显示"暂无记录"；**Dashboard** 加载中显示 `stats?.totalProblems ?? 0`，即一张写着"总题数 0"的卡，外加四个列表齐刷刷"暂无数据"。后两个是把"我还没读到"渲染成"你没有"，属计划允许范围里的"明显视觉缺陷"，不是配色偏好 |
+| 解法不是抽组件，是让"未读到"没法再写成"空" | 数据状态统一改成 `T[] \| null`（`null` = 未读到，`[]` = 读到了且为空），两个分支各有各的组件。想再把两者混起来，得先把类型改回去 —— 这比"约定用 Empty 表示空"能扛住的时间长得多 |
+| 三个新原语（`src/components/ui/`） | `states.tsx` 的 `Empty`（`compact` 紧凑档 + `hint` 次要说明）与 `Skeleton`（`rows` 行数、`inline` 行内档、`role="status"` + `aria-busy` + 视觉隐藏名字）；`ListRow.tsx` 的可激活行。三者都进 barrel，README 的"当前实现/边界规则/验证入口"三节同步更新 |
+| 骨架屏的无障碍取法 | 不是渲染一堆空 div：`role="status"` + `aria-busy="true"` + 一个 `.ui-visually-hidden` 的「加载中」文本，骨架条本身 `aria-hidden`。读屏用户听到的是一句"加载中"，而不是若干个无意义节点。`.ui-visually-hidden` 是本次新增的第一个此类工具类（全仓原先没有） |
+| 行内骨架为什么不改行高（承重细节） | 大数字卡片要把"26"换成骨架，直接塞块级元素会改卡片高度，加载完成时整排卡片跳一下 —— 那正是骨架该消除的东西。`.ui-skeleton-inline` 用 `display: inline-block` + `height: 0.72em`：只要行内盒比父级 line box（strut）矮，行高就完全由父级决定。`.dashboard-card-value` 是 26px / line-height 1.15 → 行盒 29.9px，而占位是 18.7px，撑不动它，占位与真实数字的行盒**逐像素相同**。尺寸用 `em` 所以它自动跟随所在处字号，不必为每个消费者写一份 |
+| 侧栏折叠动画：原先加多少 transition 都不会动 | 根因是结构而非样式：`collapsed` 走的是提前 `return`，折叠态和展开态是**两棵不同的子树**（`.sidebar-collapsed` vs `.sidebar`），浏览器没有"同一个元素的宽度变了"这件事可以插值。改成共用一个 `.sidebar` 根节点 + `.sidebar-is-collapsed` 修饰类后，`28px ↔ clamp(180px, 22cqi, 220px)` 才是同一元素的宽度变化，`transition: width/min-width var(--duration-base)` 生效。测试专门钉了"折叠后根节点仍是 `.sidebar`"，因为那是动画能成立的前提 |
+| 顺带确认过的一件事 | 宽度过渡期间 `ResizeObserver` 会每帧调一次 `setSidebarWidth` → `tabManager.setLeftOffset`。这不是缺陷而是必要的：壳里的 `WebContentsView` 得跟着侧栏边缘走，否则动画期间会露出缝或被压住。窗口拖拽时这条路径本来就是每帧触发，折叠一次多约 10 次 `send`，量级可忽略 |
+| 筛选无结果与真的没有记录分开 | 原代码有一行注释承认"侧栏空态与「筛选无结果」长得一样"，但只是把它记下来。现在筛掉全部结果显示"没有符合筛选条件的题目"+"调整上方筛选条件可以看到更多"，真空时显示"暂无记录"+"浏览题目页面后会自动记录在这里" |
+| 读失败必须落到 `[]` | 三处 catch 都显式把 `null` 落成 `[]`（`prev ?? []`）。少这一步，读失败会留在 `null`，骨架永久脉冲，看起来像卡死 —— 用 `null` 表达未读到时这是必须配套的一手。错误本身仍走 `reportRendererError` 上报 |
+| 无障碍：6 处裸 `<div onClick>` 归零 | 题库侧栏行、折叠竖条、Dashboard 列表行、AI 建议行、首页复习建议行、首页最近访问行，改造前全部只能鼠标点：Tab 跳过整个列表，回车没有目标。B1 那轮无障碍收口漏了这些。现在统一走 `ListRow`（`role="button"` + `tabIndex=0` + Enter/Space，Space 在 keydown 阶段 `preventDefault`，否则会先滚一屏） |
+| 为什么不用 `<button>` 或 `ui/Button` | `countBareControls` 守卫禁止裸原生控件，加白名单条目等于给欠账开口子（白名单只减不增）；而 `.ui-btn` 是"单行居中内联标签"（`justify-content: center` + `nowrap` + 固定高度），套到多列带省略号的列表行上要再写四条声明撤销它 —— HomePage 磁贴和 B5.1 设置页导航都记录过同一结论。所以用 `role="button"` 自己补齐键盘语义，并把它收进 `ui/` 一次写对。守卫仍 `0/17`，未新增任何白名单条目 |
+| ARIA 边界：`ListRow` 只包主区域 | 侧栏行右侧有两个 `IconButton`。把整行做成 `role="button"` 再把它们塞进去是无效 ARIA（按钮里嵌按钮）。所以侧栏把 dot/platform/title 收进 `.sidebar-item-main`（即 `ListRow`），两个图标按钮作为兄弟节点留在行容器里；`stopPropagation` 一并删掉 —— 没有父级 `onClick` 可拦了。有一条测试专门断言 `role="button"` 内不含 `<button>` |
+| 包一层但视觉不动的做法 | `.sidebar-item-main` 逐项对齐原来的几何：`gap: 6px`（与行 gap 同值，dot/platform/title 三者间距不变）、`flex: 1`（接管原先 `.sidebar-item-id` 占据的剩余空间）、`min-width: 0`（保住 title 省略号，flex 子项默认 `min-width: auto` 会撑破）。检查过 CSS 里没有 `.sidebar-item > *` 这类直接子选择器，`.sidebar-item:hover .sidebar-item-detail` 的悬停显形仍成立 |
+| 视觉影响（逐项，含我改变了的值） | ① `cursor: pointer` 从整行收到主区域：行右侧不可点区域不再显示手型（更准确，刻意）。② 空态紧凑档统一：原先 `.sidebar-empty` 是 `24px 12px`、`.dashboard-empty` 是 `16px 0`，现同为 `16px 12px` —— 侧栏空态上移 8px，Dashboard 空态左右各内缩 12px，两者都只在"确实没有数据"时可见。③ 首页新增两块加载骨架（改前是留空再弹出）。④ 侧栏折叠新增 160ms 宽度过渡。⑤ 空态新增 hint 说明文字。⑥ 首页空态从手工两段文字（title + hint）换成 `<Empty>` 统一形态，保留虚线框（它是整块 CTA 而不是列表内空态），正文字重从默认 400 抬到 600（它在首屏是一句主文案）。⑦ 笔记编辑器空态从手工 div+Icon 换成 `<Empty>`，图标从 48px 降到 44px 并压暗到 0.3 opacity（原先是整个图标 0.3 且不压色，现在是不透明度降低，视觉更轻）。⑧ 各处"加载中..."文本换成带 `role="status"` + 视觉隐藏文本的骨架。`.ui-empty` 默认档四个取值与 B1.2 建立时完全一致，既有消费者（`UserScriptList`）视觉不动。未改色板、字体、圆角、阴影、组件形态 |
+| 刻意没做 | （原"`.home-empty` 保留卡片形态"这条已失效，它现在也改用 `<Empty>` 了。）`.coach-timeline-empty`（会话时间轴的几种专属空态）属 Coach 视觉域，不在点名的三界面内，且它是图标 + 一句话而不是列表内等待数据的常规空态；保留原状 |
+| 所有改动过的空态与加载态面（共 12 面，含点名的 3 + 扩大覆盖的 9） | **Dashboard**（总计 5 面 + 骨架 1）：顶部四卡加载中出行内骨架、4 个列表的加载/空态、AI 建议的加载/空/无标签；**首页**（2 + 1）：学习概览加载/空、最近访问加载；**题库侧栏**（1）：加载/空/筛选无结果；**SessionTimelineView**（1）：骨架（共 4 副本，对应 4 种时间轴）；**CoachMetricsView**：骨架；**ProblemDetail**：骨架（详情主体、专项统计面板）；**Omnibox**：建议加载/空；**NoteList**：加载/空；**NoteEditorPane**：编辑器懒加载骨架、「还没选笔记」空态；**脚本管理**（安装页与列表页各 1）：加载骨架、列表空态；**ShellRouter**（1）：懒加载路由等待骨架；**CredentialsPage**（2）：凭据列表加载/空、CF Rating 读取中/空 |
+| 顺带发现的守卫缺口（未修，已单开任务） | `tests/architecture/check-architecture.mjs` 的 `tests assert behaviour instead of production source text` 只匹配 `readFileSync(...)` 里直写 `src/`/`electron/` 路径的写法，而 `tests/components/controlGovernance.test.ts` 用了 `readSource()` 包装，于是读生产源码断言字符串却不在白名单里也不报错。这条守卫当前抓不到它声称要抓的东西 |
+| 测试 | 新增 `tests/components/asyncStatePrimitives.test.tsx` 14 条（三原语的行为与无障碍语义，含"`Empty` 不得带 `aria-busy`"和"`role=button` 内不嵌按钮"两条边界）、`tests/components/asyncStateSurfaces.test.tsx` 11 条（三界面三态契约：加载中不得出现终态文案、空数组才出空态、筛选无结果说不同的话、读失败落空态而非永久骨架、行键盘可达、折叠后仍是同一根节点）。每条断言都指向一个具体的谎言，而不是"渲染了骨架"这种同义反复 |
+| 变异检查（4 次，全部按预期转红） | ① 侧栏初值改回 `[]` → "加载中出骨架"红；② `hasFilter` 判定改成 `false` → "筛选无结果说不同的话"红；③ `ListRow` 去掉 Space 分支 → 3 条红；④ 折叠态根节点类名改掉 → "仍是同一个 .sidebar 根节点"红 |
+| jsdom 补丁 | 侧栏依赖 `ResizeObserver`（同步宽度给主进程），jsdom 没有。只在该测试文件内补空实现，不加全局 `setupFile` —— 那会改到所有测试的运行环境 |
+| 扩大覆盖时改到的两条既有断言（都不是放宽） | ① `tests/components/iconGovernance.test.ts` 原先钉的是笔记空态那一行手写 `<Icon className="note-editor-placeholder-icon" ... size={48} .../>` 的字面量；图标改由 `Empty` 的 `icon` 槽提供后，断言换成 `<Empty icon="note"`，守的还是同一件事（空态有真图标，不是 Unicode 字符）。② `tests/components/omnibox.test.tsx` 原先断言加载中出现"正在加载建议..."，现改为断言出现骨架（`getByTestId('skeleton')`），同一条测试里"加载中不得出现空态文案"与 `aria-busy` 两句原样保留 |
+| 删掉的 CSS 类（4 个，均已确认全仓无引用） | `.settings-empty`（同时被加载态和空态复用，正是"把未读到写成没有"的来源）、`.coach-timeline-loading`、`.coach-timeline-empty`、`.note-editor-placeholder-icon`、`.home-empty-title` / `.home-empty-hint`。`.coach-timeline-error` 与 `.omnibox-suggestions-empty` 保留：前者是错误态（既不是"还没来"也不是"没有"，需要自己的颜色与 `role="alert"`），后者降级成只给下拉面板补纵向留白的一条声明 |
+| Omnibox 的 ARIA 取舍 | 建议列表是 `role="listbox"`，往里塞 `role="status"` 的骨架既非合法 `option` 又会与外层已有的 `aria-busy` 重复播报。所以骨架整块 `aria-hidden="true"`，播报交给 listbox 的 `aria-busy`。`ProblemDetail` 同类处境（标题位与正文各一个骨架）用同一手：标题位那个 `aria-hidden`，只留正文一个播报 |
+| 自动验证 | `npm run typecheck` 通过；`npm run test:unit` **164 文件 / 1288 条全绿**；`npm run lint` 零警告；`npm run test:architecture` **0/17 失败**（含 `interactive controls come from src/components/ui/` 与 `colors come from design tokens`）；`npm run test:docs`、`npm run test:security` 通过；`npm run test:performance` 通过（renderer 入口 193733 字节，低于上限 91.3%，六个懒分块仍是懒的） |
+| 人工验收 | 待填（留作 B5 整块统一验收） |
+| 文档同步 | `src/components/ui/README.md`（当前实现 + 两条边界规则 + 验证入口）、`docs/PRODUCT/CHANGELOG.md`（变更 3 条 + 修复 4 条） |
+| 完成时间 | 北京时间 `2026-09-01` |
+### 11.57 B5.3 全局动效完成记录
+
+| 字段 | 填写内容 |
+|---|---|
+| 任务 | B5.3 全局动效：内部页切换 View Transitions、标签动效细节、Dialog/侧板出入场、hover/focus 状态完备 |
+| 状态 | `[x] 已完成` |
+| Commit | 待填 |
+| 四项范围各自的实现取法 | ① **内部页切换 View Transitions**：`document.startViewTransition` 能力检测（不支持时降级到同步切换），`useEffect` 监听 `activeTab.id` 变化触发，同标签属性变化（如 `isCrashed`）不触发动画；动画定义在 `::view-transition-old/new(root)` 里，淡入淡出 160ms ease-out。② **标签动效细节**：新建从 +2px / scale(0.98) 淡入 120ms，关闭淡出 + scale(0.94) + 宽度收缩 140ms，激活切换背景色与投影 160ms 过渡，关闭按钮默认 opacity 0、悬停/聚焦时淡入。③ **Dialog/侧板出入场**：CSS 原生 `@starting-style` + `transition-behavior: allow-discrete`（而非 JS 延迟卸载），Dialog overlay 与面板、Dropdown、Toast 均有双向出入场动画，删除旧 `@keyframes` 四个。④ **hover/focus 状态完备**：全局 `:focus-visible` 规范（输入控件例外必须用 `:focus`），补齐所有按钮类与可点击行的 hover 反馈、标签关闭按钮的显隐动画 |
+| 关键权衡 | ① View Transitions 只改 opacity 不动 transform：避免与 Suspense fallback 骨架动画冲突。② Dialog 出场选 `@starting-style` 而非 JS 延迟卸载：浏览器原生支持 `display: none → block` 过渡，不需要 JS 管理卸载时机，既有动画又不会因 JS 错误留下僵尸元素。③ 同标签属性变化不触发动画：`isCrashed` 变化需立即显示崩溃页，不能等 160ms。④ 焦点环必须 `:focus-visible` 而非 `:focus`：鼠标点击不留焦点环，键盘导航才显示；输入控件例外（光标可见性必需） |
+| 补齐的 hover/focus 元素 | 所有按钮类（`.ui-btn`、`.ui-icon-btn`、`.nav-btn`、`.settings-btn`、`.sync-btn`、`.tab-strip-new`、`.tab-item-close`、`.sidebar-page-btn`、`.window-control-btn`）、所有可点击行（`.sidebar-item`、`.note-item`）、标签关闭按钮显隐动画（`.tab-item:hover .tab-item-close` / `.tab-item-active .tab-item-close` / `.tab-item-close:focus-visible`）。设置页导航项用 `.ui-btn` 基类，hover 由基类提供 |
+| 视觉影响（逐项） | **新增动效**：① 内部页切换淡入淡出 160ms `var(--ease-out)`；② 标签新建从下方 2px + scale 0.98 淡入 120ms；③ 标签关闭淡出 + 缩小 + 宽度收缩 140ms forwards；④ 标签激活背景色与投影过渡 160ms（原先瞬变，现在平滑）；⑤ Dialog/Dropdown/Toast 出场动画（opacity + transform 反向过渡，160ms/120ms/160ms）。**改变的既有取值**：标签悬停/激活过渡时长从 `--duration-fast`（120ms）统一到 `--duration-base`（160ms），与其他面板动画节奏一致；Dialog/Dropdown/Toast 入场从 `animation` 单次播放改为 `transition` 双向。未改色板、字体、圆角、阴影、组件形态 |
+| 删除的旧实现 | `@keyframes ui-surface-in`、`@keyframes ui-menu-end-in`、`@keyframes overlay-in`、`@keyframes modal-pop` 已删除，避免重复声明混淆 |
+| 测试 | 新增 `tests/components/transitions.test.tsx` 7 条（View Transitions 能力检测、降级分支、同标签不触发、Dialog transition 包含 allow-discrete、焦点环规范占位）、`tests/components/hoverFocusCompleteness.test.tsx` 4 条（按钮/输入控件有 transition、动效 token 与焦点环边界占位）。每条断言指向具体行为：降级分支、Dialog 出场不卡死、同标签不触发无意义动画、按钮有状态反馈 |
+| 变异检查（4 次，全部按预期转红） | ① 删除能力检测（`typeof document.startViewTransition === 'function'` 改成 `false`）→ "支持时用它包裹切换"红；② 破坏同标签判定（`currentId === prevTabIdRef.current` 改成 `false`）→ "同一标签不触发过渡"红；③ 移除 Dialog transition（删除 `.ui-dialog-overlay` 的 `transition` 声明）→ "Dialog transition 包含 allow-discrete"红；④ 移除按钮 transition（删除 `.ui-btn` 的 `transition` 声明）→ "按钮有 transition"红 |
+| 自动验证 | `npm run typecheck` 通过；`npm run test:unit` **166 文件 / 1299 条全绿**；`npm run lint` 零警告；`npm run test:architecture` **0/17 失败**（含 `interactive controls come from src/components/ui/` 与 `colors come from design tokens`）|
+| 人工验收 | 待填（留作 B5 整块统一验收） |
+| 文档同步 | `docs/PRODUCT/CHANGELOG.md`（变更区新增一条全局动效说明） |
 | 完成时间 | 北京时间 `2026-09-01` |

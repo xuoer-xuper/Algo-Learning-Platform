@@ -1,3 +1,4 @@
+import { Empty } from '../../components/ui'
 import { PLATFORM_NAMES } from '../../shared/display'
 
 interface PlatformDistributionItem {
@@ -23,7 +24,7 @@ export function PlatformDistributionSummary({ distribution }: PlatformDistributi
           ))}
         </div>
       ) : (
-        <div className="settings-empty">暂无数据</div>
+        <Empty compact>暂无数据</Empty>
       )}
     </div>
   )

@@ -1,4 +1,4 @@
-import { Button, Icon, IconButton } from '../../components/ui'
+import { Button, Empty, IconButton } from '../../components/ui'
 import type { ScriptSite, UserScriptRecord } from './types'
 
 interface UserScriptListProps {
@@ -102,13 +102,12 @@ export function UserScriptList({
             {scripts.length === 0 && (
               <tr>
                 <td colSpan={4}>
-                  <div className="ui-empty">
-                    <Icon name="code" size={26} />
-                    <div className="scripts-empty-title">还没有导入任何脚本</div>
-                    <div className="scripts-empty-hint">
-                      点击上方「导入本地脚本文件」选择 .js 用户脚本，导入后可绑定站点并随时启停；源文件统一存放在脚本目录中。
-                    </div>
-                  </div>
+                  <Empty
+                    icon="code"
+                    hint="点击上方「导入本地脚本文件」选择 .js 用户脚本，导入后可绑定站点并随时启停；源文件统一存放在脚本目录中。"
+                  >
+                    还没有导入任何脚本
+                  </Empty>
                 </td>
               </tr>
             )}

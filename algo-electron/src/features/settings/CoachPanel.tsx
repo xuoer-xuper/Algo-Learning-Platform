@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Button, Select } from '../../components/ui'
+import { Button, Select, Skeleton } from '../../components/ui'
 import {
   loadCoachConfig,
   requestCoachTestHint,
@@ -42,7 +42,7 @@ export function CoachPanel() {
   useEffect(() => {
     void loadCoachConfig()
       .then(setConfig)
-      // 读失败时若不提示，面板会永远停在「加载中...」。
+      // 读失败时若不提示，面板会永远停在骨架屏上。
       .catch((error: unknown) => setLoadError(`读取配置失败：${errorMessage(error)}`))
   }, [])
 
@@ -87,7 +87,7 @@ export function CoachPanel() {
         <h3 className="settings-section-title">Coach 桌宠</h3>
         {loadError
           ? <div className="settings-row settings-error-text" role="alert">{loadError}</div>
-          : <div className="settings-row">加载中...</div>}
+          : <Skeleton rows={4} label="Coach 配置读取中" />}
       </div>
     )
   }

@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react'
-import { Icon, Input, Select } from '../../components/ui'
+import { Empty, Input, Select, Skeleton } from '../../components/ui'
 
 const MilkdownEditor = lazy(() => import('./MilkdownEditor').then((module) => ({
   default: module.MilkdownEditor,
@@ -53,7 +53,8 @@ export function NoteEditorPane({
             </span>
           </div>
           <div className="note-editor-container">
-            <Suspense fallback={<div className="note-editor-placeholder">编辑器加载中...</div>}>
+            {/* 编辑器是懒加载的整块，骨架给 6 行占住正文高度，避免挂载时页面往上跳 */}
+            <Suspense fallback={<Skeleton rows={6} className="note-editor-skeleton" label="编辑器加载中" />}>
               <MilkdownEditor
                 key={activeNoteId}
                 noteId={activeNoteId}
@@ -65,10 +66,9 @@ export function NoteEditorPane({
           </div>
         </>
       ) : (
-        <div className="note-editor-placeholder">
-          <Icon className="note-editor-placeholder-icon" name="note" size={48} strokeWidth={1.2} />
-          <div>选择左侧笔记查看，或点击「新建笔记」创建</div>
-        </div>
+        <Empty icon="note" className="note-editor-placeholder">
+          选择左侧笔记查看，或点击「新建笔记」创建
+        </Empty>
       )}
     </div>
   )

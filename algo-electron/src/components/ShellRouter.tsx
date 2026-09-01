@@ -1,7 +1,7 @@
-import { lazy, Suspense } from 'react'
+import React, { lazy, Suspense } from 'react'
 import { HomePage } from '../features/home/HomePage'
 import type { TabStripTabInfo } from './tabApi'
-import { Button, Icon } from './ui'
+import { Button, Icon, Skeleton } from './ui'
 
 const SettingsPage = lazy(() => import('../features/settings/SettingsPage').then((module) => ({ default: module.SettingsPage })))
 const Dashboard = lazy(() => import('../features/analytics/Dashboard').then((module) => ({ default: module.Dashboard })))
@@ -19,8 +19,29 @@ interface ShellRouterProps {
   onReloadActiveTab: () => void
 }
 
+/*
+ * 懒加载路由的等待态。用骨架而不是"加载中..."一行字：内部页是整屏切换，
+ * 一行居中文字读起来像空页面，骨架能表达"这里马上有东西"。
+ * `.modal-loading` 保留做居中容器（min-height 240px），骨架撑宽度。
+ */
 function RouteLoading() {
-  return <div className="modal-loading" role="status">加载中...</div>
+  return (
+    <div className="modal-loading">
+      <Skeleton rows={4} className="route-loading-skeleton" label="页面加载中" />
+    </div>
+  )
+}
+
+/*
+ * View Transitions 能力检测。Electron 内的 Chromium 支持该 API，但必须做运行时检测：
+ * 如果 API 不存在（旧版本或被禁用），直接执行回调，页面切换仍可正常工作，只是没有过渡动画。
+ */
+function maybeTransition(callback: () => void) {
+  if (typeof document.startViewTransition === 'function') {
+    document.startViewTransition(callback)
+  } else {
+    callback()
+  }
 }
 
 export function ShellRouter({
@@ -29,10 +50,30 @@ export function ShellRouter({
   onCloseActiveTab,
   onReloadActiveTab,
 }: ShellRouterProps) {
-  if (!activeTab) return null
+  const [renderTab, setRenderTab] = React.useState<TabStripTabInfo | null>(activeTab)
+  const prevTabIdRef = React.useRef<string | null>(activeTab?.id ?? null)
 
-  if (activeTab.kind === 'web') {
-    if (!activeTab.isCrashed) return null
+  /*
+   * 内部页切换触发 View Transition。只在标签 id 变化时触发动画，
+   * 同一标签的属性变化（如 isCrashed）不触发动画但会立即更新 renderTab。
+   */
+  React.useEffect(() => {
+    const currentId = activeTab?.id ?? null
+    if (currentId === prevTabIdRef.current) {
+      // 同一标签，直接更新不做动画
+      setRenderTab(activeTab)
+      return
+    }
+    maybeTransition(() => {
+      setRenderTab(activeTab)
+      prevTabIdRef.current = currentId
+    })
+  }, [activeTab])
+
+  if (!renderTab) return null
+
+  if (renderTab.kind === 'web') {
+    if (!renderTab.isCrashed) return null
     return (
       <div className="browser-crash-state" role="alert" data-testid="browser-crash-state">
         <Icon name="refresh" size={28} />
@@ -48,7 +89,7 @@ export function ShellRouter({
 
   const close = onCloseActiveTab
   let page: React.ReactNode
-  switch (activeTab.page.type) {
+  switch (renderTab.page.type) {
     case 'home':
       page = <HomePage onNavigate={onNavigate} />
       break
@@ -65,13 +106,13 @@ export function ShellRouter({
       page = <CoachMetricsView onClose={close} />
       break
     case 'problem-detail':
-      page = <ProblemDetail problemId={activeTab.page.problemId} onClose={close} />
+      page = <ProblemDetail problemId={renderTab.page.problemId} onClose={close} />
       break
     case 'notes':
-      page = <NotePanelModal problemId={activeTab.page.problemId} onClose={close} />
+      page = <NotePanelModal problemId={renderTab.page.problemId} onClose={close} />
       break
     case 'script-install':
-      page = <UserScriptInstallPage installId={activeTab.page.installId} onClose={close} />
+      page = <UserScriptInstallPage installId={renderTab.page.installId} onClose={close} />
       break
     case 'credentials':
       page = <CredentialsPage onClose={close} />
@@ -79,7 +120,7 @@ export function ShellRouter({
   }
 
   return (
-    <div className={`shell-route shell-route-${activeTab.page.type}`} data-testid="shell-route">
+    <div className={`shell-route shell-route-${renderTab.page.type}`} data-testid="shell-route">
       <Suspense fallback={<RouteLoading />}>{page}</Suspense>
     </div>
   )

@@ -38,6 +38,8 @@ describe('已治理图标入口', () => {
     }
     expect(timelineSource.match(/icon: '(?:log-in|upload|bolt|lightbulb|star)'/g)).toHaveLength(5)
     expect(detailSource).toContain('<Icon name="external" size={12} />')
-    expect(noteEditorSource).toContain('<Icon className="note-editor-placeholder-icon" name="note" size={48} strokeWidth={1.2} />')
+    // B5.2 起笔记空态的图标由 ui/Empty 的 icon 槽给，不再手搓 <Icon>；
+    // 断言跟着换成 Empty 的调用形态，守的还是同一件事 —— 空态有真图标，不是字符。
+    expect(noteEditorSource).toContain('<Empty icon="note"')
   })
 })

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Button, ConfirmDialog, IconButton, Input } from '../../components/ui'
+import { Button, ConfirmDialog, Empty, IconButton, Input, Skeleton } from '../../components/ui'
 import {
   deleteSavedCredential,
   loadCookieSummaryForSite,
@@ -145,8 +145,8 @@ export function CredentialsPage({ onClose }: CredentialsPageProps) {
         <div className="settings-col">
           <div className="settings-section">
             <h3 className="settings-section-title">平台登录态</h3>
-            {loading && <div className="settings-empty">读取中...</div>}
-            {!loading && siteStates.length === 0 && <div className="settings-empty">暂无站点配置</div>}
+            {loading && <Skeleton rows={3} label="平台登录态读取中" />}
+            {!loading && siteStates.length === 0 && <Empty compact>暂无站点配置</Empty>}
             <div className="site-list">
               {siteStates.map(({ site, credentials, cookieSummary }) => (
                 <div key={site.id} className="site-item">
@@ -186,7 +186,7 @@ export function CredentialsPage({ onClose }: CredentialsPageProps) {
           <div className="settings-section">
             <h3 className="settings-section-title">保存的凭据</h3>
             {status && <div className="sync-status">{status}</div>}
-            {credentialCount === 0 && !loading && <div className="settings-empty">暂无保存的凭据</div>}
+            {credentialCount === 0 && !loading && <Empty compact>暂无保存的凭据</Empty>}
             <div className="site-list">
               {siteStates.flatMap(({ site, credentials }) => credentials.map((credential) => (
                 <div key={credential.credentialId} className="site-item">

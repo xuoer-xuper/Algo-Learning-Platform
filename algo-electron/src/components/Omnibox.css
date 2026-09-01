@@ -81,11 +81,25 @@
   font-size: 11px;
 }
 
+/*
+ * 空态底座换成 ui/Empty 的紧凑档（B5.2），这里只加回下拉面板要的纵向留白 ——
+ * 紧凑档的 16px 在一整块面板里显得挤。配色与字号交给 .ui-empty-compact。
+ */
 .omnibox-suggestions-empty {
-  padding: 28px 18px;
-  color: var(--text-muted);
-  font-size: 12px;
-  text-align: center;
+  padding-block: 28px;
+}
+
+/*
+ * 加载骨架：行高与 .omnibox-suggestion-option 对齐（两行文本 + 上下内边距），
+ * 3 行是常见的建议条数，读完不至于把面板高度整块推一下。
+ */
+.omnibox-suggestions-skeleton {
+  gap: 14px;
+  padding: 14px 18px;
+}
+
+.omnibox-suggestions-skeleton .ui-skeleton-bar {
+  height: 16px;
 }
 
 @media (max-width: 760px) {

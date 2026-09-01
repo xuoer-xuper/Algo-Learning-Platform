@@ -50,9 +50,27 @@
   border-radius: var(--radius-md) var(--radius-md) 0 0;
   margin-left: 2px;
   margin-right: 2px;
+  /*
+   * 标签悬停与激活的颜色过渡（B5.3）：背景色与投影用 ease-out 160ms 柔和切换，
+   * 避免激活标签时突兀的跳变。box-shadow 过渡让活动标签的阴影淡入而非闪现。
+   */
   transition:
-    background-color var(--duration-fast) var(--ease-out),
-    box-shadow var(--duration-fast) var(--ease-out);
+    background-color var(--duration-base) var(--ease-out),
+    box-shadow var(--duration-base) var(--ease-out);
+}
+
+/*
+ * 标签新建动画（B5.3）：从略低位置（+2px）与略小尺寸（scale 0.98）淡入，
+ * 给人一种"标签轻轻落在标签带上"的感觉。时长用 --duration-fast（120ms）保持轻快。
+ */
+@keyframes tab-item-enter {
+  from {
+    opacity: 0;
+    transform: translateY(2px) scale(0.98);
+  }
+}
+
+.tab-item {
   animation: tab-item-enter var(--duration-fast) var(--ease-out);
 }
 
@@ -75,7 +93,10 @@
   background: var(--border);
 }
 
-/* 活动标签：与下方工具栏连成一体 */
+/*
+ * 活动标签：与下方工具栏连成一体。背景色固定（hover 时不变），投影区分激活态。
+ * transition 继承自 .tab-item，切换激活标签时底色与投影都会平滑过渡。
+ */
 .tab-item-active {
   background-color: var(--bg-card);
   z-index: 2;
@@ -174,7 +195,11 @@
   color: var(--text);
 }
 
-/* 关闭按钮 */
+/*
+ * 关闭按钮（B5.3）：默认透明（opacity: 0），标签悬停/激活/键盘聚焦时淡入。
+ * 淡入淡出用 --duration-fast（120ms）与颜色过渡保持一致的节奏。
+ * 按钮本身的 hover 改底色与文字色，过渡让状态切换更柔和。
+ */
 .tab-item-close {
   -webkit-app-region: no-drag;
   width: 18px;
@@ -208,13 +233,34 @@
   color: var(--text);
 }
 
+/*
+ * 标签关闭动画（B5.3）：淡出并缩小（scale 0.94），同时宽度收缩到 0。
+ * 用 forwards 保持最终状态，等动画播完再从 DOM 移除（TabStrip.tsx 里延迟 140ms）。
+ * 时长固定 140ms（与 TAB_CLOSE_ANIMATION_MS 同步），不用 token —— 过快或过慢都不自然。
+ */
+@keyframes tab-item-close {
+  to {
+    opacity: 0;
+    transform: scale(0.94);
+    width: 0;
+    min-width: 0;
+    max-width: 0;
+    flex-basis: 0;
+    margin-left: 0;
+    margin-right: 0;
+  }
+}
+
 .tab-item-closing {
   pointer-events: none;
   overflow: hidden;
   animation: tab-item-close 140ms var(--ease-out) forwards;
 }
 
-/* 新建标签按钮 */
+/*
+ * 新建标签按钮（B5.3）：圆形按钮，悬停时底色与文字色过渡。
+ * 用 --duration-fast 与关闭按钮保持同样的响应速度。
+ */
 .tab-strip-new {
   -webkit-app-region: no-drag;
   width: 26px;
@@ -239,28 +285,9 @@
   color: var(--text);
 }
 
+/* 加载中转圈（独立于出入场动画，保持原状） */
 @keyframes tab-spinner {
   to { transform: rotate(360deg); }
-}
-
-@keyframes tab-item-enter {
-  from {
-    opacity: 0;
-    transform: translateY(2px) scale(0.98);
-  }
-}
-
-@keyframes tab-item-close {
-  to {
-    opacity: 0;
-    transform: scale(0.94);
-    width: 0;
-    min-width: 0;
-    max-width: 0;
-    flex-basis: 0;
-    margin-left: 0;
-    margin-right: 0;
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {

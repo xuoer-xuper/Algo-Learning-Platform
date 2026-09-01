@@ -131,10 +131,11 @@
   font-size: 11px;
 }
 
-.ui-input::placeholder {
-  color: var(--text-muted);
-}
-
+/*
+ * Input/Select 的 :focus 保持不变（B5.3 边界）：输入控件必须用 :focus 而不是 :focus-visible，
+ * 因为用户点击输入框后光标应该始终可见（表明"正在接受输入"），无论是鼠标还是键盘激活。
+ * 只有按钮/链接这类"激活即执行"的控件才用 :focus-visible（鼠标点击不该留焦点环）。
+ */
 .ui-input:hover,
 .ui-select:hover {
   border-color: var(--color-ink-3);
@@ -186,7 +187,33 @@
   padding: 24px;
   background: var(--color-scrim);
   backdrop-filter: blur(2px);
-  animation: overlay-in var(--duration-base) var(--ease-out);
+}
+
+/*
+ * Dialog 出入场（B5.3）：用 CSS 原生 @starting-style + transition-behavior: allow-discrete
+ * 支持从 display:none 到 display:block 的过渡。浏览器会在挂载时应用 @starting-style 的值，
+ * 然后过渡到正常声明的值；卸载时反向播放。这样既有动画，又不需要 JS 延迟卸载。
+ * allow-discrete 让 display/overlay 这类离散属性也参与过渡（默认它们会跳变）。
+ */
+@starting-style {
+  .ui-dialog-overlay {
+    opacity: 0;
+    backdrop-filter: blur(0);
+  }
+
+  .ui-dialog {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.96);
+  }
+}
+
+.ui-dialog-overlay {
+  opacity: 1;
+  transition:
+    opacity var(--duration-base) var(--ease-out),
+    backdrop-filter var(--duration-base) var(--ease-out),
+    display var(--duration-base) var(--ease-out) allow-discrete,
+    overlay var(--duration-base) var(--ease-out) allow-discrete;
 }
 
 .ui-dialog {
@@ -196,7 +223,11 @@
   border-radius: var(--radius-overlay);
   box-shadow: var(--shadow-lg);
   padding: 18px 20px 16px;
-  animation: modal-pop var(--duration-base) var(--ease-out);
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  transition:
+    opacity var(--duration-base) var(--ease-out),
+    transform var(--duration-base) var(--ease-out);
 }
 
 .ui-dialog-title {
@@ -270,6 +301,21 @@
   display: inline-flex;
 }
 
+/*
+ * 下拉菜单出入场（B5.3）：同 Dialog 用 @starting-style，但初始位移改为向上 -3px（轻微上浮感）。
+ */
+@starting-style {
+  .ui-dropdown-menu {
+    opacity: 0;
+    transform: translateY(-3px);
+  }
+
+  .ui-dropdown-menu-end {
+    opacity: 0;
+    transform: translateX(-100%) translateY(-3px);
+  }
+}
+
 .ui-dropdown-menu {
   position: fixed;
   z-index: 220;
@@ -284,11 +330,17 @@
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-md);
-  animation: ui-surface-in var(--duration-fast) var(--ease-out);
+  opacity: 1;
+  transform: translateY(0);
+  transition:
+    opacity var(--duration-fast) var(--ease-out),
+    transform var(--duration-fast) var(--ease-out),
+    display var(--duration-fast) var(--ease-out) allow-discrete,
+    overlay var(--duration-fast) var(--ease-out) allow-discrete;
 }
 
 .ui-dropdown-menu-end {
-  transform: translateX(-100%);
+  transform: translateX(-100%) translateY(0);
   transform-origin: top right;
 }
 
@@ -344,6 +396,16 @@
   pointer-events: none;
 }
 
+/*
+ * Toast 入场动画（B5.3）：同样用 @starting-style。初始从下方 8px 滑入并淡入。
+ */
+@starting-style {
+  .ui-toast {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
 .ui-toast {
   display: flex;
   align-items: center;
@@ -356,7 +418,13 @@
   border-left: 3px solid var(--color-accent);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-lg);
-  animation: ui-surface-in var(--duration-base) var(--ease-out);
+  opacity: 1;
+  transform: translateY(0);
+  transition:
+    opacity var(--duration-base) var(--ease-out),
+    transform var(--duration-base) var(--ease-out),
+    display var(--duration-base) var(--ease-out) allow-discrete,
+    overlay var(--duration-base) var(--ease-out) allow-discrete;
 }
 
 .ui-toast-success { border-left-color: var(--color-ok); }
@@ -437,31 +505,11 @@
   height: 24px;
 }
 
-@keyframes ui-surface-in {
-  from {
-    opacity: 0;
-    transform: translateY(-3px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.ui-dropdown-menu-end {
-  animation-name: ui-menu-end-in;
-}
-
-@keyframes ui-menu-end-in {
-  from {
-    opacity: 0;
-    transform: translateX(-100%) translateY(-3px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(-100%) translateY(0);
-  }
-}
+/*
+ * 删除旧 keyframes（B5.3）：Dialog/Dropdown/Toast 改用 @starting-style 后不再需要
+ * 单次播放的 @keyframes。保留它们会让人误以为还在用，且 animation-name 重复声明
+ * 会导致 CSS 解析混乱。ui-skeleton-pulse 保留（它是无限循环，不是出入场动画）。
+ */
 
 /* ── 状态芯片（数据声线：等宽 + 圆点） ── */
 .ui-chip {
@@ -487,7 +535,10 @@
   flex-shrink: 0;
 }
 
-/* ── 空状态 ── */
+/* ── 空状态 ──
+ * 默认档（面板级）的四个取值与 B1.2 建立时完全一致，既有消费者
+ * （UserScriptList）视觉不动。B5.2 只是在它下面补了紧凑档与 hint 槽位。
+ */
 .ui-empty {
   display: grid;
   place-items: center;
@@ -496,4 +547,113 @@
   color: var(--text-muted);
   font-size: 13px;
   text-align: center;
+}
+
+/*
+ * 紧凑档：列表内 / 卡片分区内的空态。
+ * 统一自原先两处各写一遍的值（.sidebar-empty 的 24px 12px、.dashboard-empty 的
+ * 16px 0），落到间距刻度上取 16px 12px —— 侧栏空态上移 8px，Dashboard 空态左右
+ * 各内缩 12px。两处都只在"确实没有数据"时可见，差异记录在 §11.56。
+ */
+.ui-empty-compact {
+  gap: var(--spacing-1);
+  padding: var(--spacing-4) var(--spacing-3);
+  font-size: 12px;
+}
+
+.ui-empty-hint {
+  color: var(--text-muted);
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+.ui-empty-compact .ui-empty-hint {
+  font-size: 10px;
+}
+
+/* ── 骨架屏 ──
+ * 底色用 --color-inset（暗色档已翻，不会在深色下变成白条）；脉冲只改
+ * opacity，不改尺寸，避免加载中把周围布局推来推去。
+ * 不写 prefers-reduced-motion：index.css 有全局降级，到那边自动变静态条。
+ */
+.ui-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+  padding: var(--spacing-2) 0;
+}
+
+.ui-skeleton-bar {
+  height: 12px;
+  border-radius: var(--radius-xs);
+  background-color: var(--color-inset);
+  animation: ui-skeleton-pulse 1.4s var(--ease-in-out) infinite;
+}
+
+/*
+ * 末条收窄，读起来像一段文本而不是表格。
+ * 刻意用 :last-child 而不是 nth-child(even/3n)：骨架里第一个子节点是给读屏的
+ * 视觉隐藏文本，它会把 nth-child 的计数整体挪一位，按奇偶取就会挑错条。
+ */
+.ui-skeleton-bar:last-child {
+  width: 62%;
+}
+
+@keyframes ui-skeleton-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}
+
+/*
+ * 行内档：占位一个数值而不改变所在行的高度。
+ *
+ * 尺寸用 em 而不是 px，所以它自动跟随所在处的字号（大数字卡片 26px 时是一根
+ * 大条，小标签处是一根小条），不必为每个消费者写一份尺寸。
+ *
+ * 高度刻意压到 0.72em：只要行内盒比父级的 line box（strut）矮，行高就完全由
+ * 父级决定，占位与真实数字的行盒**逐像素相同**，加载完成时不会有跳动。
+ * 例：.dashboard-card-value 是 26px / line-height 1.15 → 行盒 29.9px，
+ * 而这里是 18.7px，撑不动它。
+ */
+.ui-skeleton-inline {
+  display: inline-block;
+  padding: 0;
+  vertical-align: middle;
+}
+
+.ui-skeleton-inline .ui-skeleton-bar {
+  display: inline-block;
+  width: 2.2em;
+  height: 0.72em;
+}
+
+/* 只对读屏可见：给骨架屏一个「加载中」的名字，而不是一堆空盒子 */
+.ui-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/*
+ * 可激活列表行：只提供键盘可达性所需的最小配方（指针样式 + 焦点环）。
+ * 行的几何、配色、hover 全部由调用方的行类名给 —— 这个原语不带视觉主张，
+ * 否则套到既有列表上就会改动视觉。
+ */
+.ui-list-row {
+  cursor: pointer;
+}
+
+/*
+ * 焦点环本身由 index.css 的全局 :focus-visible 给，这里只把 offset 从 +1px
+ * 改成内嵌：列表行是通栏的，外扩的环会被 .sidebar（overflow: hidden）与
+ * .sidebar-list 的滚动容器裁掉左右两边，看起来像只剩上下两条线。
+ */
+.ui-list-row:focus-visible {
+  outline-offset: -2px;
 }

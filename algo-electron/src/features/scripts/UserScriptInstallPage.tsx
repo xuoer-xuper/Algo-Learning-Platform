@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Button, Icon } from '../../components/ui'
+import { Button, Icon, Skeleton } from '../../components/ui'
 import {
   cancelRemoteUserScriptInstall,
   confirmRemoteUserScriptInstall,
@@ -83,7 +83,11 @@ export function UserScriptInstallPage({ installId, onClose }: UserScriptInstallP
   }
 
   if (request === undefined) {
-    return <div className="modal-loading" role="status">正在读取安装请求...</div>
+    return (
+      <div className="modal-loading">
+        <Skeleton rows={3} className="route-loading-skeleton" label="正在读取安装请求" />
+      </div>
+    )
   }
 
   const riskyOverwrite = preview?.action === 'update'

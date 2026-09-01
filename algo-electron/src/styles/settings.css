@@ -215,10 +215,8 @@
   min-width: 140px;
 }
 
-.settings-empty {
-  color: var(--text-muted);
-  font-size: 12px;
-}
+/* `.settings-empty` 已删除（B5.2）：空态归口 ui/Empty，加载态归口 ui/Skeleton。
+ * 它原先同时被两种处境复用，正是"把还没读到写成没有"的来源。 */
 
 /* 复选/滑杆行（Coach 面板等） */
 .settings-label {

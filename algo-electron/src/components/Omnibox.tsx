@@ -1,6 +1,6 @@
 import type { RefObject } from 'react'
 import { PLATFORM_NAMES } from '../shared/display'
-import { Icon } from './ui'
+import { Empty, Icon, Skeleton } from './ui'
 import {
   getOmniboxOptionId,
   OMNIBOX_LISTBOX_ID,
@@ -88,10 +88,16 @@ export function OmniboxSuggestionsPanel({ controller }: OmniboxProps) {
             </button>
           )
         })}
+        {/*
+          "还在查"和"查完了没有"分成两个分支（B5.2）：原先两句话共用
+          `.omnibox-suggestions-empty`，把加载中说成了空。
+          骨架整块 aria-hidden —— 外层 listbox 已经带 aria-busy，
+          role="status" 再塞进 listbox 既重复播报又不是合法的 option。
+        */}
         {controller.suggestions.length === 0 && (
-          <div className="omnibox-suggestions-empty">
-            {controller.loading ? '正在加载建议...' : '暂无本地建议'}
-          </div>
+          controller.loading
+            ? <div aria-hidden="true"><Skeleton rows={3} className="omnibox-suggestions-skeleton" /></div>
+            : <Empty compact className="omnibox-suggestions-empty">暂无本地建议</Empty>
         )}
       </div>
     </section>

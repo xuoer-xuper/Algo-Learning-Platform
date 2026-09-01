@@ -1,3 +1,4 @@
+import { Empty, ListRow } from '../../components/ui'
 import { PLATFORM_NAMES } from '../../shared/display'
 import type { ReviewRecommendation, WeaknessItem } from './types'
 
@@ -20,10 +21,16 @@ export function AiSuggestionsPanel({
         <div className="ai-suggest-card">
           <h3 className="ai-suggest-title">复习建议</h3>
           {recommendations.length === 0 ? (
-            <div className="dashboard-empty">暂无错题数据</div>
+            <Empty compact>暂无错题数据</Empty>
           ) : (
             recommendations.map((r) => (
-              <div key={r.problem_id} className="ai-rec-item" onClick={() => onNavigate(r.canonical_url)}>
+              // 行改为 ui/ListRow：原先裸 `<div onClick>`，键盘到不了
+              <ListRow
+                key={r.problem_id}
+                className="ai-rec-item"
+                onActivate={() => onNavigate(r.canonical_url)}
+                label={`打开 ${r.title || r.platform_problem_id}`}
+              >
                 <div className="ai-rec-head">
                   <span className="ai-rec-platform">{PLATFORM_NAMES[r.platform] || r.platform}</span>
                   <span className="ai-rec-title">{r.title || r.platform_problem_id}</span>
@@ -32,14 +39,14 @@ export function AiSuggestionsPanel({
                 <div className="ai-rec-evidence">
                   {r.source.wrong_count} 次错误 · {r.source.days_since_attempt} 天前 · 访问 {r.source.visit_count} 次
                 </div>
-              </div>
+              </ListRow>
             ))
           )}
         </div>
         <div className="ai-suggest-card">
           <h3 className="ai-suggest-title">薄弱标签</h3>
           {weaknesses.length === 0 ? (
-            <div className="dashboard-empty">{weaknessNote || '暂无标签数据'}</div>
+            <Empty compact>{weaknessNote || '暂无标签数据'}</Empty>
           ) : (
             weaknesses.map((w) => (
               <div key={w.tag} className="ai-weak-item">

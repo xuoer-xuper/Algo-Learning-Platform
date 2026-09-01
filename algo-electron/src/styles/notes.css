@@ -332,22 +332,37 @@
   flex-direction: column;
 }
 
+/*
+ * 「还没选笔记」的空态（B5.2）。底座换成 ui/Empty，这里只补两件事：
+ *   1. flex: 1 —— 父级是纵向 flex，Empty 自己不会撑满编辑区
+ *   2. 图标放大到 44px 并压暗 —— 整块面板级空态，26px 的默认档在这么大的
+ *      留白里像个小疙瘩
+ * 原先的 `.note-editor-placeholder-icon` 随之删除。
+ */
 .note-editor-placeholder {
   flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  color: var(--text-muted);
+  align-content: center;
   font-size: 14px;
-  gap: 8px;
 }
 
-.note-editor-placeholder-icon {
-  display: block;
-  width: 48px;
-  height: 48px;
+.note-editor-placeholder .ui-empty-icon {
+  width: 44px;
+  height: 44px;
   opacity: 0.3;
+}
+
+/*
+ * 懒加载编辑器的骨架：撑满编辑区并留出与正文一致的横向内边距，
+ * 行距比默认档松一档，读起来像文档段落而不是列表。
+ */
+.note-editor-skeleton {
+  flex: 1;
+  gap: 14px;
+  padding: 18px 20px;
+}
+
+.note-editor-skeleton .ui-skeleton-bar {
+  height: 14px;
 }
 
 /* ========== Milkdown Crepe 编辑器适配 ========== */

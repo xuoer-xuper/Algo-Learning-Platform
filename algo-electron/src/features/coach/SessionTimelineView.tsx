@@ -10,7 +10,7 @@ import {
 } from 'recharts'
 import { loadProblemTimeline } from './coachDataApi'
 import { PLATFORM_NAMES, STATUS_COLORS, VERDICT_COLORS } from '../../shared/display'
-import { Icon, IconButton, type IconName } from '../../components/ui'
+import { Empty, Icon, IconButton, Skeleton, type IconName } from '../../components/ui'
 
 /**
  * 单题时间轴复盘视图（阶段 4 Task 18）。
@@ -273,7 +273,7 @@ export function SessionTimelineView({ problemId, onClose }: Props) {
           <span className="settings-title">时间轴复盘</span>
           <IconButton icon="close" title="关闭" className="settings-close" onClick={onClose} />
         </div>
-        <div className="coach-timeline-loading">加载中...</div>
+        <Skeleton rows={5} label="时间轴加载中" />
       </div>
     )
   }
@@ -285,7 +285,8 @@ export function SessionTimelineView({ problemId, onClose }: Props) {
           <span className="settings-title">时间轴复盘</span>
           <IconButton icon="close" title="关闭" className="settings-close" onClick={onClose} />
         </div>
-        <div className="coach-timeline-error">{error}</div>
+        {/* 错误保留独立类名与 role：它不是空态，也不是加载态 */}
+        <div className="coach-timeline-error" role="alert">{error}</div>
       </div>
     )
   }
@@ -297,7 +298,7 @@ export function SessionTimelineView({ problemId, onClose }: Props) {
           <span className="settings-title">时间轴复盘</span>
           <IconButton icon="close" title="关闭" className="settings-close" onClick={onClose} />
         </div>
-        <div className="coach-timeline-empty">未找到该题目的时间轴数据。</div>
+        <Empty compact>未找到该题目的时间轴数据。</Empty>
       </div>
     )
   }
@@ -404,7 +405,7 @@ export function SessionTimelineView({ problemId, onClose }: Props) {
       <div className="coach-timeline-list">
         <h3 className="settings-section-title">完整时间轴（{points.length}）</h3>
         {points.length === 0 ? (
-          <div className="coach-timeline-empty">暂无活动记录。</div>
+          <Empty compact>暂无活动记录。</Empty>
         ) : (
           <ol className="timeline-stream">
             {points.map((p, idx) => (

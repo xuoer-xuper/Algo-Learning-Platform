@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from 'react'
-import { Button, Card, IconButton } from '../../components/ui'
+import { Button, Card, IconButton, Skeleton } from '../../components/ui'
 import { AiSuggestionsPanel } from './AiSuggestionsPanel'
 import {
   loadDashboardAiSuggestions,
@@ -27,10 +27,11 @@ import type {
 export function Dashboard({ onClose, onNavigate }: { onClose: () => void; onNavigate: (url: string) => void }) {
   const [stats, setStats] = useState<OverviewStats | null>(null)
   const [streak, setStreak] = useState({ current: 0, longest: 0 })
-  const [wrongProblems, setWrongProblems] = useState<DashboardProblemListItem[]>([])
-  const [unreviewed, setUnreviewed] = useState<DashboardProblemListItem[]>([])
-  const [timeline, setTimeline] = useState<DashboardTimelineEvent[]>([])
-  const [revisits, setRevisits] = useState<DashboardRevisitItem[]>([])
+  // 四个列表 null = 还没读到，[] = 读到了且为空。见 DashboardListsPanel 头部说明。
+  const [wrongProblems, setWrongProblems] = useState<DashboardProblemListItem[] | null>(null)
+  const [unreviewed, setUnreviewed] = useState<DashboardProblemListItem[] | null>(null)
+  const [timeline, setTimeline] = useState<DashboardTimelineEvent[] | null>(null)
+  const [revisits, setRevisits] = useState<DashboardRevisitItem[] | null>(null)
   const [visitedTrend, setVisitedTrend] = useState<TrendPoint[]>([])
   const [acTrend, setAcTrend] = useState<TrendPoint[]>([])
   const [ratingHistory, setRatingHistory] = useState<RatingHistoryItem[]>([])
@@ -70,6 +71,15 @@ export function Dashboard({ onClose, onNavigate }: { onClose: () => void; onNavi
 
       setRatingHistory(await loadRatingHistory(coreData.cfAccount))
     } catch (error: unknown) {
+      /*
+       * 失败必须把四个列表从 null 落到 []，否则骨架屏会一直脉冲下去，
+       * 看起来像"永远在加载"。错误本身仍然经 reportRendererError 上报，
+       * 用户看到的是空态而不是假的加载态。
+       */
+      setWrongProblems((prev) => prev ?? [])
+      setUnreviewed((prev) => prev ?? [])
+      setTimeline((prev) => prev ?? [])
+      setRevisits((prev) => prev ?? [])
       reportRendererError('学习统计读取', error)
     }
   }, [])
@@ -105,22 +115,39 @@ export function Dashboard({ onClose, onNavigate }: { onClose: () => void; onNavi
         </div>
       </div>
 
-      {/* 概览卡片（数据声线：大数字等宽 + 表格数字） */}
+      {/*
+        概览卡片（数据声线：大数字等宽 + 表格数字）。
+        `stats === null` 时四张卡都出骨架而不是 0：`?? 0` 会把"还没读到"渲染成
+        "总题数 0"，那是一个看起来很确定的假数字，随后又跳到真值。streak 与 stats
+        来自同一次 loadDashboardCoreData，所以共用这一个判定。
+      */}
       <div className="dashboard-cards">
         <Card padded={false} className="dashboard-card">
-          <div className="dashboard-card-value num">{stats?.totalProblems ?? 0}</div>
+          <div className="dashboard-card-value num">
+            {stats === null ? <Skeleton inline label="总题数加载中" /> : stats.totalProblems}
+          </div>
           <div className="dashboard-card-label">总题数</div>
         </Card>
         <Card padded={false} className="dashboard-card">
-          <div className="dashboard-card-value num">{stats?.todayVisited ?? 0}</div>
+          <div className="dashboard-card-value num">
+            {stats === null ? <Skeleton inline label="今日访问加载中" /> : stats.todayVisited}
+          </div>
           <div className="dashboard-card-label">今日访问</div>
         </Card>
         <Card padded={false} className="dashboard-card">
-          <div className="dashboard-card-value num">{streak.current}<span className="dashboard-card-unit">天</span></div>
+          <div className="dashboard-card-value num">
+            {stats === null
+              ? <Skeleton inline label="连续活跃加载中" />
+              : <>{streak.current}<span className="dashboard-card-unit">天</span></>}
+          </div>
           <div className="dashboard-card-label">连续活跃</div>
         </Card>
         <Card padded={false} className="dashboard-card">
-          <div className="dashboard-card-value num">{streak.longest}<span className="dashboard-card-unit">天</span></div>
+          <div className="dashboard-card-value num">
+            {stats === null
+              ? <Skeleton inline label="最长连续加载中" />
+              : <>{streak.longest}<span className="dashboard-card-unit">天</span></>}
+          </div>
           <div className="dashboard-card-label">最长连续</div>
         </Card>
       </div>

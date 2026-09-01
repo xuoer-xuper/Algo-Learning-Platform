@@ -7,6 +7,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts'
+import { Empty } from '../../components/ui'
 import { CHART_COLORS } from '../../shared/display'
 import type { CodeforcesAccount, RatingHistoryItem } from './types'
 
@@ -55,9 +56,9 @@ export function RatingPanel({ account, ratingHistory }: RatingPanelProps) {
           </div>
         </>
       ) : (
-        <div className="dashboard-empty">
+        <Empty compact>
           {account ? '暂无 Rating 数据，请在设置中同步' : '请在设置中绑定 Codeforces Handle'}
-        </div>
+        </Empty>
       )}
     </div>
   )

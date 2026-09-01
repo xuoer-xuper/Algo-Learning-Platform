@@ -1,17 +1,23 @@
+import { Empty, ListRow, Skeleton } from '../../components/ui'
 import { PLATFORM_NAMES } from '../../shared/display'
 import type { DashboardProblemListItem, DashboardRevisitItem, DashboardTimelineEvent } from './types'
 
+/*
+ * 四个列表的数据都用 `T[] | null`（B5.2）：`null` = 还没读到，`[]` = 读到了且为空。
+ * 改这个类型的直接原因是这块原先把两者都渲染成"暂无数据"——Dashboard 一打开，
+ * 四个列表齐刷刷显示"暂无数据"，然后数据到了再跳出来，读起来像"我的记录丢了"。
+ */
 interface DashboardListsPanelProps {
-  timeline: DashboardTimelineEvent[]
-  wrongProblems: DashboardProblemListItem[]
-  unreviewed: DashboardProblemListItem[]
-  revisits: DashboardRevisitItem[]
+  timeline: DashboardTimelineEvent[] | null
+  wrongProblems: DashboardProblemListItem[] | null
+  unreviewed: DashboardProblemListItem[] | null
+  revisits: DashboardRevisitItem[] | null
   onNavigate: (url: string) => void
 }
 
 interface ProblemListSectionProps<T extends DashboardProblemListItem | DashboardRevisitItem> {
   title: string
-  items: T[]
+  items: T[] | null
   getKey: (item: T) => string | number
   getCountLabel: (item: T) => string
   onNavigate: (url: string) => void
@@ -35,15 +41,23 @@ function ProblemListSection<T extends DashboardProblemListItem | DashboardRevisi
   return (
     <div className="dashboard-list-section">
       <h3 className="dashboard-section-title">{title}</h3>
-      {items.length === 0 ? (
-        <div className="dashboard-empty">暂无数据</div>
+      {items === null ? (
+        <Skeleton rows={3} label={`${title}加载中`} />
+      ) : items.length === 0 ? (
+        <Empty compact>暂无数据</Empty>
       ) : (
         items.map((item) => (
-          <div key={getKey(item)} className="dashboard-list-item" onClick={() => onNavigate(item.canonical_url)}>
+          // 行改为 ui/ListRow：原先是裸 `<div onClick>`，Tab 到不了、回车没目标
+          <ListRow
+            key={getKey(item)}
+            className="dashboard-list-item"
+            onActivate={() => onNavigate(item.canonical_url)}
+            label={`打开 ${formatProblemTitle(item)}`}
+          >
             <span className="dashboard-list-platform">{PLATFORM_NAMES[item.platform] || item.platform}</span>
             <span className="dashboard-list-title">{formatProblemTitle(item)}</span>
             <span className="dashboard-list-count">{getCountLabel(item)}</span>
-          </div>
+          </ListRow>
         ))
       )}
     </div>
@@ -61,8 +75,10 @@ export function DashboardListsPanel({
     <div className="dashboard-lists">
       <div className="dashboard-list-section">
         <h3 className="dashboard-section-title">学习轨迹</h3>
-        {timeline.length === 0 ? (
-          <div className="dashboard-empty">暂无数据</div>
+        {timeline === null ? (
+          <Skeleton rows={4} label="学习轨迹加载中" />
+        ) : timeline.length === 0 ? (
+          <Empty compact>暂无数据</Empty>
         ) : (
           <div className="dashboard-timeline">
             {timeline.map((event, index) => (

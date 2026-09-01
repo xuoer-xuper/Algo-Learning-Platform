@@ -21,17 +21,16 @@
   box-sizing: border-box;
 }
 
-.coach-timeline-loading,
-.coach-timeline-empty,
+/*
+ * 加载态与空态已归口到 ui/Skeleton 与 ui/Empty（B5.2），原先的
+ * `.coach-timeline-loading` / `.coach-timeline-empty` 一并删除。
+ * 错误态留在这里：它既不是"还没来"也不是"没有"，需要自己的颜色与 role="alert"。
+ */
 .coach-timeline-error {
   padding: 32px 16px;
   text-align: center;
-  color: var(--text-muted);
-  font-size: 13px;
-}
-
-.coach-timeline-error {
   color: var(--color-danger);
+  font-size: 13px;
 }
 
 .coach-timeline-info {

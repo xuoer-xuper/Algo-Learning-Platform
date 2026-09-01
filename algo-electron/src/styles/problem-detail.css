@@ -44,6 +44,14 @@
   white-space: nowrap;
 }
 
+/*
+ * 加载中标题位的骨架条（B5.2）。行内档默认 2.2em 是给"一个数值"设的，
+ * 放在标题位上像个色块，这里放宽到 12em —— 约等于一条真实题名的长度。
+ */
+.detail-title .ui-skeleton-bar {
+  width: 12em;
+}
+
 .detail-header-actions {
   display: flex;
   align-items: center;

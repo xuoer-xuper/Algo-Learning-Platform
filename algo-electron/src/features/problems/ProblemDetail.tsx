@@ -9,7 +9,7 @@ import {
 } from './problemsApi'
 import type { ProblemDetailRecord, SubmissionRecord } from './problemTypes'
 import { SessionTimelineView } from '../coach/SessionTimelineView'
-import { Button, ConfirmDialog, Icon, IconButton } from '../../components/ui'
+import { Button, ConfirmDialog, Icon, IconButton, Skeleton } from '../../components/ui'
 import { reportRendererError } from '../../rendererErrors'
 
 interface Props {
@@ -72,12 +72,22 @@ export function ProblemDetail({ problemId, onClose }: Props) {
     }
   }
 
+  /*
+   * 加载态（B5.2）：标题位用行内骨架顶住高度，正文给 5 行 —— 对应下方
+   * detail-info 的平台/题号/状态/提交/停留五行，读完不跳。
+   * 关闭按钮照旧渲染：读不出来时用户仍然要能退出去。
+   */
   if (!detail) {
     return (
       <div className="detail-page">
         <div className="detail-header">
-          <span className="detail-title">加载中...</span>
+          {/* 标题位的骨架整块 aria-hidden：播报交给下方那一个 role="status"，
+              否则读屏会把同一句「加载中」念两遍。 */}
+          <span className="detail-title" aria-hidden="true"><Skeleton inline /></span>
           <IconButton icon="close" title="关闭" className="detail-close" onClick={onClose} />
+        </div>
+        <div className="detail-info">
+          <Skeleton rows={5} label="题目详情加载中" />
         </div>
       </div>
     )

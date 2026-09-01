@@ -315,7 +315,47 @@
   font-size: 14px;
 }
 
+/*
+ * 懒加载路由的骨架：父级是 place-items: center 的 grid，不给宽度会缩成一条。
+ * 上限 420px，窄窗下退到容器宽度的 70%，两端都不至于顶满整屏。
+ */
+.route-loading-skeleton {
+  width: min(420px, 70%);
+}
+
+/*
+ * View Transitions（B5.3）：内部页切换的淡入淡出过渡。
+ * 用 ::view-transition-old/new 伪元素定义旧页淡出、新页淡入的曲线与时长。
+ * 只改 opacity，不动 transform，避免与 Suspense fallback 的骨架动画冲突。
+ */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: var(--duration-base);
+  animation-timing-function: var(--ease-out);
+}
+
+::view-transition-old(root) {
+  animation-name: view-fade-out;
+}
+
+::view-transition-new(root) {
+  animation-name: view-fade-in;
+}
+
+@keyframes view-fade-out {
+  to { opacity: 0; }
+}
+
+@keyframes view-fade-in {
+  from { opacity: 0; }
+}
+
 /* ── 侧边栏（题库） ─────────────────────────────── */
+/*
+ * 折叠态是同一个 `.sidebar` 加 `.sidebar-is-collapsed`（B5.2）。
+ * 原先折叠走的是另一个类名 `.sidebar-collapsed` + 提前 return，两棵子树之间
+ * 没有可插值的宽度，所以怎么写 transition 都不动。
+ */
 .sidebar {
   width: clamp(180px, 22cqi, 220px);
   min-width: clamp(180px, 22cqi, 220px);
@@ -324,6 +364,14 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  transition:
+    width var(--duration-base) var(--ease-out),
+    min-width var(--duration-base) var(--ease-out);
+}
+
+.sidebar-is-collapsed {
+  width: 28px;
+  min-width: 28px;
 }
 
 @container app-content (max-width: 860px) {
@@ -340,19 +388,20 @@
   }
 }
 
-.sidebar-collapsed {
-  width: 28px;
-  min-width: 28px;
-  background-color: var(--bg-card);
-  border-right: 1px solid var(--border);
+/*
+ * 折叠态里那条可点的竖条。宽度/底色/右边框现在由 `.sidebar` 给，这里只留
+ * 居中与 hover —— 底座是 ui/ListRow，所以键盘也能聚焦并回车展开（原先是
+ * 裸 `<div onClick>`，Tab 根本到不了）。
+ */
+.sidebar-expand {
+  flex: 1;
   display: flex;
   align-items: center;
   justify-content: center;
-  cursor: pointer;
   transition: background-color var(--duration-fast) var(--ease-out);
 }
 
-.sidebar-collapsed:hover {
+.sidebar-expand:hover {
   background-color: var(--hover-bg);
 }
 
@@ -409,11 +458,13 @@
   overflow-y: auto;
 }
 
-.sidebar-empty {
-  padding: 24px 12px;
-  color: var(--text-muted);
-  font-size: 12px;
-  text-align: center;
+/*
+ * `.sidebar-empty` 已删除，空态改用 ui/Empty 的紧凑档（B5.2）。
+ * 骨架屏的行高对齐真实条目：条目是 6px 上下内边距 + 约 12px 内容，
+ * 这里给同量的横向内边距，让加载完成时列表左缘不跳。
+ */
+.sidebar-skeleton {
+  padding: var(--spacing-2) 10px;
 }
 
 .sidebar-item {
@@ -421,13 +472,30 @@
   align-items: center;
   gap: 6px;
   padding: 6px 10px;
-  cursor: pointer;
   border-bottom: 1px solid var(--border-light);
   transition: background-color var(--duration-fast) var(--ease-out);
 }
 
 .sidebar-item:hover {
   background-color: var(--hover-bg);
+}
+
+/*
+ * 行的主区域（B5.2）：dot + platform + title 收进这一层，让它成为可聚焦的
+ * 主操作，右侧两个 IconButton 留在外面当兄弟节点。
+ *
+ * 几何刻意与原来逐项对齐，视觉不动：
+ *   - `gap: 6px` 与行的 gap 同值 —— dot/platform/title 三者间距不变
+ *   - `flex: 1` 接管原先 `.sidebar-item-id` 在行内占据的剩余空间
+ *   - `min-width: 0` 保住 title 的省略号（flex 子项默认 min-width:auto 会撑破）
+ * `cursor: pointer` 由 .ui-list-row 给。
+ */
+.sidebar-item-main {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
 }
 
 .sidebar-item-dot {

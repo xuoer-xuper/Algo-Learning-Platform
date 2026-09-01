@@ -123,7 +123,8 @@ describe('Omnibox', () => {
 
     fireEvent.focus(input)
     fireEvent.change(input, { target: { value: '' } })
-    expect(screen.getByText('正在加载建议...')).not.toBeNull()
+    // 加载中出骨架，且不能顺手把空态文案也渲染出来（B5.2 的两个分支）
+    expect(screen.getByTestId('skeleton')).not.toBeNull()
     expect(screen.queryByText('暂无本地建议')).toBeNull()
     expect(screen.getByRole('listbox').getAttribute('aria-busy')).toBe('true')
     await advanceDebounce()

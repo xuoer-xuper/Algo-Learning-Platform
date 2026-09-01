@@ -15,7 +15,7 @@ import {
   subscribeHomeProblemsUpdated,
 } from './homeApi'
 import type { HomeOverviewStats, HomeProblemRecord, HomeRecommendation } from './homeTypes'
-import { Card } from '../../components/ui'
+import { Card, Empty, ListRow, Skeleton } from '../../components/ui'
 import { reportRendererError } from '../../rendererErrors'
 
 interface Props {
@@ -24,7 +24,10 @@ interface Props {
 
 export function HomePage({ onNavigate }: Props) {
   const [stats, setStats] = useState<HomeOverviewStats | null>(null)
-  const [recent, setRecent] = useState<HomeProblemRecord[]>([])
+  // null = 还没读到，[] = 读到了且为空。首页原本就用 `stats === null` 正确区分了
+  // 两者（不像侧栏和 Dashboard 会说谎），但加载中整块不渲染，数据到了突然弹出。
+  // 这里把 recent 也纳入同一套表达，好让两块都能出骨架占位。
+  const [recent, setRecent] = useState<HomeProblemRecord[] | null>(null)
   const [recommendations, setRecommendations] = useState<HomeRecommendation[]>([])
   const [homeShortcuts, setHomeShortcuts] = useState<string[]>([])
 
@@ -34,8 +37,12 @@ export function HomePage({ onNavigate }: Props) {
     const loadPrimary = () => {
       void loadHomeOverviewStats().then(setStats)
         .catch((error: unknown) => reportRendererError('首页概览读取', error))
+      // 失败落到 []，否则骨架会一直脉冲，看起来像永远在加载
       void loadHomeRecentProblems(8).then(setRecent)
-        .catch((error: unknown) => reportRendererError('首页最近题目读取', error))
+        .catch((error: unknown) => {
+          setRecent((prev) => prev ?? [])
+          reportRendererError('首页最近题目读取', error)
+        })
     }
 
     loadPrimary()
@@ -111,11 +118,29 @@ export function HomePage({ onNavigate }: Props) {
         </div>
       </div>
 
-      {stats && stats.totalProblems === 0 && (
-        <div className="home-empty">
-          <p className="home-empty-title">还没有学习记录</p>
-          <p className="home-empty-hint">从上方快捷入口打开一个站点，浏览过的题目会自动记录在这里</p>
+      {/*
+        加载中出骨架而不是留空：改前这块在 stats 到达前完全不渲染，首页会先短暂
+        少一整段，然后概览"弹"出来。骨架把高度先占住。
+      */}
+      {stats === null && (
+        <div className="home-section">
+          <h2 className="home-section-title">学习概览</h2>
+          <Skeleton rows={2} label="学习概览加载中" />
         </div>
+      )}
+
+      {/*
+        `stats.totalProblems === 0` 才是真空态 —— 与上面的 `stats === null`
+        分成两个分支，是这一版三态词汇的关键：先前两者都可能显示成"没有记录"。
+      */}
+      {stats && stats.totalProblems === 0 && (
+        <Empty
+          icon="chart"
+          className="home-empty"
+          hint="从上方快捷入口打开一个站点，浏览过的题目会自动记录在这里"
+        >
+          还没有学习记录
+        </Empty>
       )}
 
       {stats && stats.totalProblems > 0 && (
@@ -148,10 +173,12 @@ export function HomePage({ onNavigate }: Props) {
           <h2 className="home-section-title">今日复习建议</h2>
           <div className="home-recommendations">
             {recommendations.map((r) => (
-              <div
+              // 行改为 ui/ListRow：原先裸 `<div onClick>`，键盘到不了
+              <ListRow
                 key={r.problem_id}
                 className="home-rec-item"
-                onClick={() => onNavigate(r.canonical_url)}
+                onActivate={() => onNavigate(r.canonical_url)}
+                label={`打开 ${r.title || r.platform_problem_id}`}
               >
                 <span className="home-rec-dot" style={{ backgroundColor: PLATFORM_COLORS[r.platform] }} />
                 <span className="home-rec-platform num">{PLATFORM_LABELS[r.platform] || r.platform}</span>
@@ -159,21 +186,29 @@ export function HomePage({ onNavigate }: Props) {
                 <span className="home-rec-evidence">
                   <span className="num">{r.source.wrong_count}</span> 次错误 · <span className="num">{r.source.days_since_attempt}</span> 天未复习
                 </span>
-              </div>
+              </ListRow>
             ))}
           </div>
         </div>
       )}
 
-      {recent.length > 0 && (
+      {recent === null && (
+        <div className="home-section">
+          <h2 className="home-section-title">最近访问</h2>
+          <Skeleton rows={4} label="最近访问加载中" />
+        </div>
+      )}
+
+      {recent !== null && recent.length > 0 && (
         <div className="home-section">
           <h2 className="home-section-title">最近访问</h2>
           <div className="home-recent">
             {recent.map(p => (
-              <div
+              <ListRow
                 key={p.id}
                 className="home-recent-item"
-                onClick={() => onNavigate(p.canonical_url)}
+                onActivate={() => onNavigate(p.canonical_url)}
+                label={`打开 ${p.title || p.platform_problem_id}`}
               >
                 <span
                   className="home-recent-dot"
@@ -192,7 +227,7 @@ export function HomePage({ onNavigate }: Props) {
                 >
                   {STATUS_LABELS[p.status] || p.status}
                 </span>
-              </div>
+              </ListRow>
             ))}
           </div>
         </div>
