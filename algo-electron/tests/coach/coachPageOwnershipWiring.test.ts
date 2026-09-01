@@ -59,11 +59,28 @@ class FakeTabManager {
     return this.pageActive && pageEvent.url === this.activePage?.url
   }
 
+  /**
+   * 置为 true 时注入不 resolve，把"抓取仍在飞"这个中间态留住。
+   *
+   * 需要它是因为默认实现同步 resolve，`constraintFetchPending` 在测试观察到之前
+   * 就被 `.then()` 清掉了——那条去重分支于是永远测不到（见下面最后一条用例）。
+   */
+  holdScripts = false
+  private readonly heldResolvers: Array<(value: unknown) => void> = []
+
   async executeScriptForPage(pageEvent: BrowserPageEvent, code: string): Promise<unknown> {
     this.scriptCalls.push({ pageEvent, code })
+    if (this.holdScripts) {
+      return new Promise<unknown>((resolve) => { this.heldResolvers.push(resolve) })
+    }
     // 返回 null 让 ConstraintParser 走"取不到"的静默分支：本测试验的是注入去了哪儿，
     // 不是解析结果对不对（那由 constraintParser.test.ts 负责）。
     return null
+  }
+
+  /** 放行所有挂住的注入，让 `.then()` 收尾跑起来。 */
+  releaseScripts(): void {
+    for (const resolve of this.heldResolvers.splice(0)) resolve(null)
   }
 
   /** 驱动生产代码注册的那个监听器。 */
@@ -192,6 +209,53 @@ test('非主 frame 的事件被忽略', async () => {
   await Promise.resolve()
 
   assert.strictEqual(tabManager.scriptCalls.length, baseline, '子 frame 事件不应触发抽取')
+  coach.stop()
+})
+
+test('抓取还在飞时，同题同页的非导航事件不再重复注入', async () => {
+  const tabManager = new FakeTabManager()
+  const active = pageEvent()
+  tabManager.activePage = active
+  tabManager.holdScripts = true
+  const { coach } = orchestrator(tabManager)
+
+  coach.start()
+  await Promise.resolve()
+  assert.strictEqual(tabManager.scriptCalls.length, 1, '第一次应真的注入')
+
+  /*
+   * 这条守的是 `maybeFetchConstraints` 去重条件末项里的 `constraintFetchPending`
+   * （CoachOrchestrator.ts:382）。它是那个条件的**唯一**在飞态判据：另一半
+   * `currentConstraints !== null` 在抓取完成前恒为 null，指望不上。
+   *
+   * 为什么补这条：把 `constraintFetchPending = true` 改成 `= false`，388 条 coach
+   * 用例全绿——包括那份 1839 行、把这个文件从 30.94% 抬到 94.91% 的生命周期套件。
+   * 覆盖率把这一行算作"已覆盖"（赋值语句确实执行了），但没有任何断言在乎它的值。
+   * 这正是 94.91% 会藏起来的东西：行被跑到 ≠ 行为被固定。
+   *
+   * 事件的 reason 必须是 `active-tab-changed`，这一点是写这条用例时踩出来的：
+   * 页面监听器只放行 `did-navigate` / `did-navigate-in-page` / `active-tab-changed`
+   * 三种（CoachOrchestrator.ts:448）。初版用的 `page-title-updated` 在监听器那一层
+   * 就被挡掉，压根到不了去重判定——断言照过，但过的理由是错的，又是一次空转。
+   * 而前两种都算导航、会跳过整个去重条件，所以能触达这条分支的只有第三种。
+   *
+   * 真实后果：用户切走再切回同一个标签（两次 `active-tab-changed`）时，若抓取还没回来，
+   * 少了这个标志就会对同一个页面再注入一遍，重新拉一次题面。
+   */
+  tabManager.emitPageEvent(pageEvent({ reason: 'active-tab-changed' }))
+  await Promise.resolve()
+  assert.strictEqual(tabManager.scriptCalls.length, 1, '在飞期间不应重复注入')
+
+  // 放行之后 pending 落回 false，此时同一个事件应当能重新触发——否则就是反过来卡死了。
+  // 用 setImmediate 排空而不是数几个 `await Promise.resolve()`：收尾要穿过
+  // `fetchAndParse` 的 await、它的 return、再到 `.then()`，靠数微任务轮次很脆。
+  tabManager.releaseScripts()
+  await new Promise((resolve) => { setImmediate(resolve) })
+  tabManager.holdScripts = false
+  tabManager.emitPageEvent(pageEvent({ reason: 'active-tab-changed' }))
+  await Promise.resolve()
+  assert.strictEqual(tabManager.scriptCalls.length, 2, '抓取收尾后应恢复可触发')
+
   coach.stop()
 })
 
