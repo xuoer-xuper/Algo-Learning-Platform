@@ -460,3 +460,43 @@ update，而且它能改内置站点的 `domains` / `loginUrlPatterns`——那�
 棘轮白名单；而且判定得靠字符串匹配方法名，`ojPreload.ts` 用常量引用 channel 的写法已经
 让第一版脚本误报过一次（`oj-credentials:capture` 被判成无消费者，实际是 `import` 进去的）。
 等违规数降到个位数再自动化更划算。
+
+## 10. 两处口径修正（Q10 之后实测）
+
+### 10.1 覆盖率数字是下界，不是真值
+
+`vitest run --coverage` 报出的数字**不含 9 个真实 Electron 套件**——它们在
+`vitest.config.ts` 的 `exclude` 里，由 `tests/verify.mjs` 用真实 Electron 单独跑
+（`test:db` / `test:ai` / `test:coach` / `test:electron`）。
+
+于是几个"看起来 0 覆盖"的文件其实是被测的，只是测它的那条链路不在 Vitest 里：
+
+| 文件 | Vitest 报的 | 真正测它的 |
+|---|---|---|
+| `backup/learningDataExport.ts`（668 行） | 4.26% | `tests/db/backupImport.test.ts`（`test:db`，10/10 通过） |
+| `ai/recommendations/*`、`ai/contextExporter.ts` 等 | 0% | `tests/ai/traceability.test.ts`（`test:ai`，2/2 通过） |
+| `coach/llm/llmConfigStore.ts` | 24% | `tests/coach/llmConfigStore.test.ts`（`test:coach`，safeStorage 需要真实 Electron） |
+
+结论不是"去把这些数字刷上来"——在 Vitest 里 import 它们要么需要真库、要么需要
+真 safeStorage，硬凑只会把替身的行为算成生产的信心。结论是**读这个数字时记住它是下界**，
+以及别拿"某文件 0%"直接当待办。判断某文件是否真没测，得先查它有没有在那 9 个套件里。
+
+### 10.2 type-aware lint：卡点比原先记的更硬，且有一条代价明确的绕法
+
+原文只写"卡在上游（TS 7.0.2 与 `typescript-eslint` 兼容性）"。查过之后可以给准数：
+
+- 最新 `typescript-eslint@8.69.0` 的 peer 声明是 `typescript: '>=4.8.4 <6.1.0'`，
+  本项目是 **7.0.2**，差两个大版本，`npm ci` 会直接 `ERESOLVE` 失败——不是装上之后
+  规则不好用，是装不上。
+- 根因不是版本范围忘了抬：TS 7.0 把编译器核心换成了 Go 实现（`tsgo`），而
+  `typescript-eslint` 依赖的是 JS 侧的编译器 API，那套 API 在 7.0 里没有稳定版本。
+  上游把 TS 7 支持的请求按 "not planned" 关掉了，替代 API 预计随 7.1 给出。
+  同一个坑里还有 ts-jest、ts-morph，以及 Vue / Svelte / Astro 的模板类型检查。
+
+**唯一可行的绕法及其代价**：把 TypeScript 6.x 作为第二份 devDependency 只给 linter 用，
+构建与 `tsc --noEmit` 继续用 7.0.2。这能解锁 `no-floating-promises` 整套——正是 §4 Q1
+记为漂移根因的那条规则。代价有三：装两份编译器；lint 依据的类型语义与构建的不是同一份
+（对 lint 规则影响小，但确实是两套真值）；以及它动的是"固定技术栈"这条约束。
+
+**这一条不自行决定**，因为它改依赖图、可能影响构建，属于需要拍板的范围，不是常规判断。
+在拍板之前，98.5 仍是本计划范围内的上限；把它记成 100 会是虚报。
