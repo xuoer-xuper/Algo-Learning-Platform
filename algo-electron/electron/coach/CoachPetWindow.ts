@@ -358,7 +358,11 @@ export class CoachPetWindow {
   /**
    * 按当前模式与归属/焦点事实重设窗口。所有改置顶的路径都汇到这里，
    * 保证 create / 切壳 / 焦点变化 / 改模式四条入口用的是同一份判定。
+   *
+   * 防抖保护：只有决策结果真正变化时才调用 Electron API，避免 focus/blur 频繁触发导致窗口闪烁。
    */
+  private lastDecision: PetPinDecision | null = null
+
   private applyPinDecision(): void {
     if (!this.win || this.win.isDestroyed()) return
     const decision = this.resolveDecision()
@@ -367,8 +371,16 @@ export class CoachPetWindow {
       && !this.followedWindow.isDestroyed()
       ? this.followedWindow
       : null
-    this.win.setParentWindow(parent)
-    this.win.setAlwaysOnTop(decision.alwaysOnTop, decision.level)
+
+    // 只有决策真正变化时才调用 setParentWindow/setAlwaysOnTop，避免无意义重设导致闪烁
+    if (!this.lastDecision
+        || this.lastDecision.alwaysOnTop !== decision.alwaysOnTop
+        || this.lastDecision.level !== decision.level
+        || this.lastDecision.attachToActiveShell !== decision.attachToActiveShell) {
+      this.win.setParentWindow(parent)
+      this.win.setAlwaysOnTop(decision.alwaysOnTop, decision.level)
+      this.lastDecision = decision
+    }
   }
 
   private resolveDecision(): PetPinDecision {
