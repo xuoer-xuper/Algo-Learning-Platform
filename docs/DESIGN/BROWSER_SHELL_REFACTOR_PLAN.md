@@ -469,7 +469,7 @@ Renderer（同一构建产物，多窗口实例化——桌宠 hash 路由已证
 | B4.4 | [x] | 账户内部标签、登录态摘要、脱敏凭据列表、重命名/删除、登录页新标签跳转、Codeforces rating 绑定和多凭据 NoticeBar 选择已完成；完整记录见 §11.44 |
 | B4.5 | [x] | 登录捕获、保存/覆盖确认与 stale/取消边界已完成；完整记录见 §11.45 |
 | B4.6 | [x] | electron-builder fuses、生产 DevTools/smoke 边界、NSIS 与真实 packaged 双实例 smoke 已完成；完整记录见 §11.46 |
-| B5.1-B5.6 | [~] | B5.1 设置页分区导航（§11.54）、B5.2 空态/加载态词汇统一（§11.56，用户解除视觉冻结后由三界面扩至全仓 12 面）、B5.3 全局动效（§11.57）、B5.4 暗色模式（§11.55）、B5.5 桌宠置顶三模式（§11.52）、B5.6 Latex 与文档矩阵（§11.53）已完成；六项代码与测试通过，待实机人工验收视觉影响 |
+| B5.1-B5.6 | [x] | B5.1 设置页分区导航（§11.54）、B5.2 空态/加载态词汇统一（§11.56，用户解除视觉冻结后由三界面扩至全仓 12 面）、B5.3 全局动效（§11.57）、B5.4 暗色模式（§11.55）、B5.5 桌宠置顶三模式（§11.52）、B5.6 Latex 与文档矩阵（§11.53）全部完成并于北京时间 2026-09-01 实机验收通过。验收中发现并修复了 B5.5 遗留的桌宠 follow 档置顶振荡（§11.58，真机闪烁/点不动，测试替身表达不出该回路故此前全绿） |
 | B6.1 | [x] | `027_userscript_runtime`、完整 metadata 持久化、严格 URL 匹配、site binding/exclude 优先级、values/资源/host/update repository 已完成；完整记录见 §11.38 |
 | B6.2 | [x] | GM 私有桥、固定 frame bootstrap、IIFE/grant 裁剪、主进程值快照与 shell 源码隔离已完成；完整记录见 §11.39 |
 | B6.3 | [x] | `GM_xmlhttpRequest` 主进程受限代理、`@connect` 与逐 host 授权、NoticeBar、剪贴板/菜单/onurlchange、全局 CORS 清理已完成；完整记录见 §11.40 |
@@ -1346,7 +1346,7 @@ Renderer（同一构建产物，多窗口实例化——桌宠 hash 路由已证
 | 任务 | B5.2 Dashboard / 首页 / 题库侧栏 token 化打磨：间距与层级统一、空态与加载态统一、侧栏折叠加过渡动画 |
 | 范围扩大（用户口头授权） | 计划原文只点名三个界面。三界面收口后用户明确解除了前端视觉冻结（"如果其他地方需要修改和重新排版我允许你改，要求就是保证风格一致"），于是把同一套三态词汇推到了全仓其余 9 个异步界面。这是刻意的：原先的边界是"哪个界面被点了名"，而"未读到不能写成空"这条规则一旦只覆盖三处，剩下的 9 处就是下一轮的同类欠账 |
 | 状态 | `[x] 已完成` |
-| Commit | 待填 |
+| Commit | `1f6ab81`（B5.2 + B5.3 合并提交） |
 | 起点：这不是"样式不统一"，是两处在说谎 | 三个界面对"数据还没读到"给了三种答案：**首页**用 `stats === null` 正确区分了未读到与空（唯一对的）；**题库侧栏**加载中显示"暂无记录"；**Dashboard** 加载中显示 `stats?.totalProblems ?? 0`，即一张写着"总题数 0"的卡，外加四个列表齐刷刷"暂无数据"。后两个是把"我还没读到"渲染成"你没有"，属计划允许范围里的"明显视觉缺陷"，不是配色偏好 |
 | 解法不是抽组件，是让"未读到"没法再写成"空" | 数据状态统一改成 `T[] \| null`（`null` = 未读到，`[]` = 读到了且为空），两个分支各有各的组件。想再把两者混起来，得先把类型改回去 —— 这比"约定用 Empty 表示空"能扛住的时间长得多 |
 | 三个新原语（`src/components/ui/`） | `states.tsx` 的 `Empty`（`compact` 紧凑档 + `hint` 次要说明）与 `Skeleton`（`rows` 行数、`inline` 行内档、`role="status"` + `aria-busy` + 视觉隐藏名字）；`ListRow.tsx` 的可激活行。三者都进 barrel，README 的"当前实现/边界规则/验证入口"三节同步更新 |
@@ -1371,7 +1371,7 @@ Renderer（同一构建产物，多窗口实例化——桌宠 hash 路由已证
 | 删掉的 CSS 类（4 个，均已确认全仓无引用） | `.settings-empty`（同时被加载态和空态复用，正是"把未读到写成没有"的来源）、`.coach-timeline-loading`、`.coach-timeline-empty`、`.note-editor-placeholder-icon`、`.home-empty-title` / `.home-empty-hint`。`.coach-timeline-error` 与 `.omnibox-suggestions-empty` 保留：前者是错误态（既不是"还没来"也不是"没有"，需要自己的颜色与 `role="alert"`），后者降级成只给下拉面板补纵向留白的一条声明 |
 | Omnibox 的 ARIA 取舍 | 建议列表是 `role="listbox"`，往里塞 `role="status"` 的骨架既非合法 `option` 又会与外层已有的 `aria-busy` 重复播报。所以骨架整块 `aria-hidden="true"`，播报交给 listbox 的 `aria-busy`。`ProblemDetail` 同类处境（标题位与正文各一个骨架）用同一手：标题位那个 `aria-hidden`，只留正文一个播报 |
 | 自动验证 | `npm run typecheck` 通过；`npm run test:unit` **164 文件 / 1288 条全绿**；`npm run lint` 零警告；`npm run test:architecture` **0/17 失败**（含 `interactive controls come from src/components/ui/` 与 `colors come from design tokens`）；`npm run test:docs`、`npm run test:security` 通过；`npm run test:performance` 通过（renderer 入口 193733 字节，低于上限 91.3%，六个懒分块仍是懒的） |
-| 人工验收 | 待填（留作 B5 整块统一验收） |
+| 人工验收 | 通过。北京时间 2026-09-01 用户实机验收：桌宠临时禁用期间逐项走查本节界面，确认功能可用、加载与空态表现符合预期；桌宠置顶振荡修复（§11.58）后对 B5 整块给出"验收通过" |
 | 文档同步 | `src/components/ui/README.md`（当前实现 + 两条边界规则 + 验证入口）、`docs/PRODUCT/CHANGELOG.md`（变更 3 条 + 修复 4 条） |
 | 完成时间 | 北京时间 `2026-09-01` |
 ### 11.57 B5.3 全局动效完成记录
@@ -1380,7 +1380,7 @@ Renderer（同一构建产物，多窗口实例化——桌宠 hash 路由已证
 |---|---|
 | 任务 | B5.3 全局动效：内部页切换 View Transitions、标签动效细节、Dialog/侧板出入场、hover/focus 状态完备 |
 | 状态 | `[x] 已完成` |
-| Commit | 待填 |
+| Commit | `1f6ab81`（B5.2 + B5.3 合并提交） |
 | 四项范围各自的实现取法 | ① **内部页切换 View Transitions**：`document.startViewTransition` 能力检测（不支持时降级到同步切换），`useEffect` 监听 `activeTab.id` 变化触发，同标签属性变化（如 `isCrashed`）不触发动画；动画定义在 `::view-transition-old/new(root)` 里，淡入淡出 160ms ease-out。② **标签动效细节**：新建从 +2px / scale(0.98) 淡入 120ms，关闭淡出 + scale(0.94) + 宽度收缩 140ms，激活切换背景色与投影 160ms 过渡，关闭按钮默认 opacity 0、悬停/聚焦时淡入。③ **Dialog/侧板出入场**：CSS 原生 `@starting-style` + `transition-behavior: allow-discrete`（而非 JS 延迟卸载），Dialog overlay 与面板、Dropdown、Toast 均有双向出入场动画，删除旧 `@keyframes` 四个。④ **hover/focus 状态完备**：全局 `:focus-visible` 规范（输入控件例外必须用 `:focus`），补齐所有按钮类与可点击行的 hover 反馈、标签关闭按钮的显隐动画 |
 | 关键权衡 | ① View Transitions 只改 opacity 不动 transform：避免与 Suspense fallback 骨架动画冲突。② Dialog 出场选 `@starting-style` 而非 JS 延迟卸载：浏览器原生支持 `display: none → block` 过渡，不需要 JS 管理卸载时机，既有动画又不会因 JS 错误留下僵尸元素。③ 同标签属性变化不触发动画：`isCrashed` 变化需立即显示崩溃页，不能等 160ms。④ 焦点环必须 `:focus-visible` 而非 `:focus`：鼠标点击不留焦点环，键盘导航才显示；输入控件例外（光标可见性必需） |
 | 补齐的 hover/focus 元素 | 所有按钮类（`.ui-btn`、`.ui-icon-btn`、`.nav-btn`、`.settings-btn`、`.sync-btn`、`.tab-strip-new`、`.tab-item-close`、`.sidebar-page-btn`、`.window-control-btn`）、所有可点击行（`.sidebar-item`、`.note-item`）、标签关闭按钮显隐动画（`.tab-item:hover .tab-item-close` / `.tab-item-active .tab-item-close` / `.tab-item-close:focus-visible`）。设置页导航项用 `.ui-btn` 基类，hover 由基类提供 |
@@ -1389,7 +1389,7 @@ Renderer（同一构建产物，多窗口实例化——桌宠 hash 路由已证
 | 测试 | 新增 `tests/components/transitions.test.tsx` 7 条（View Transitions 能力检测、降级分支、同标签不触发、Dialog transition 包含 allow-discrete、焦点环规范占位）、`tests/components/hoverFocusCompleteness.test.tsx` 4 条（按钮/输入控件有 transition、动效 token 与焦点环边界占位）。每条断言指向具体行为：降级分支、Dialog 出场不卡死、同标签不触发无意义动画、按钮有状态反馈 |
 | 变异检查（4 次，全部按预期转红） | ① 删除能力检测（`typeof document.startViewTransition === 'function'` 改成 `false`）→ "支持时用它包裹切换"红；② 破坏同标签判定（`currentId === prevTabIdRef.current` 改成 `false`）→ "同一标签不触发过渡"红；③ 移除 Dialog transition（删除 `.ui-dialog-overlay` 的 `transition` 声明）→ "Dialog transition 包含 allow-discrete"红；④ 移除按钮 transition（删除 `.ui-btn` 的 `transition` 声明）→ "按钮有 transition"红 |
 | 自动验证 | `npm run typecheck` 通过；`npm run test:unit` **166 文件 / 1299 条全绿**；`npm run lint` 零警告；`npm run test:architecture` **0/17 失败**（含 `interactive controls come from src/components/ui/` 与 `colors come from design tokens`）|
-| 人工验收 | 待填（留作 B5 整块统一验收） |
+| 人工验收 | 通过。北京时间 2026-09-01 用户实机验收：桌宠临时禁用期间逐项走查本节界面，确认功能可用、加载与空态表现符合预期；桌宠置顶振荡修复（§11.58）后对 B5 整块给出"验收通过" |
 | 文档同步 | `docs/PRODUCT/CHANGELOG.md`（变更区新增一条全局动效说明） |
 | 完成时间 | 北京时间 `2026-09-01` |
 
@@ -1405,7 +1405,7 @@ Renderer（同一构建产物，多窗口实例化——桌宠 hash 路由已证
 | 为何测试没拦住 | `tests/electron/electronMock.ts` 的 `setParentWindow` 是**纯 setter**：既不发 focus/blur（表达不出回路），又让"被调了几次"不可观测。于是替身只能看最终 parent 值，振荡在 1299 条全绿下活了下来，两轮错误修复也都没被判错。现已给 `setParentWindow` / `setIgnoreMouseEvents` 加调用计数，并把这条写进 `tests/README.md` §4 作为通用约定：**真实 API 有副作用时，替身不能只做纯 setter** |
 | 新增测试 | `tests/coach/coachPetWindowFollow.test.ts` 6 条：瞬时失焦立刻复焦不解绑（断言 `parentWindowSetCount` 不变）、20 次连续抖动收敛、同结论重算不碰 API、销毁时撤销在途复核、换壳撤销旧壳复核不误解绑新壳、穿透状态去重。既有 5 条断言"失焦后退回普通 z 序"的用例改为先推进定时器——原先的同步断言把 bug 行为当成了契约 |
 | 自动验证 | `npm run typecheck` 通过；`npm run lint` 零警告；`npx vitest run` **166 文件 / 1305 条全绿**（1299 → +6）；`npm run test:architecture` **0/17 失败** |
-| 人工验收 | 待填（桌宠已重新启用，待确认闪烁消失、可点击可拖动、原生右键菜单仍能盖住桌宠） |
+| 人工验收 | 通过。北京时间 2026-09-01 用户实机验收：闪烁消失、桌宠可点击可拖动、原生右键菜单仍能盖住桌宠，延后 120ms 让位无可感知延迟。第二条回路（`WindowManager` mostRecent 回调重进 `followWindow()`）未出现残余症状，暂不需要同样处理 |
 | 遗留 | 根因机制（Win32 owner 变更扰动焦点）由症状三联与代码结构推断，本机无法单独验证该 API 的焦点副作用；桌宠是源头已由用户的禁用实验确证。若复核后仍有残余闪烁，下一步查第二条回路（mostRecent 回调）是否需要同样的延后处理 |
 | 文档同步 | `electron/coach/README.md`（新增两条边界规则）、`electron/coach/petPinPolicy.ts`（补"何时认定失焦不在本函数"）、`tests/README.md` §4（替身计数约定）、`docs/PRODUCT/CHANGELOG.md`（修复区） |
 | 完成时间 | 北京时间 `2026-09-01` |
