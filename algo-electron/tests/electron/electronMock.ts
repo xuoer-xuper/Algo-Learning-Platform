@@ -192,7 +192,16 @@ export class MockBrowserWindow extends EventEmitter {
   getPosition(): [number, number] { return [this.bounds.x, this.bounds.y] }
   setPosition(x: number, y: number): void { this.setBounds({ ...this.bounds, x, y }) }
   getParentWindow(): MockBrowserWindow | null { return this.parentWindow }
-  setParentWindow(parent: MockBrowserWindow | null): void { this.parentWindow = parent }
+  /**
+   * 替身记录调用次数：真实 `setParentWindow` 在 Windows 上改 owner 关系并**扰动焦点**，
+   * 因此"被调了多少次"本身就是要断言的事实——桌宠曾经因为它与焦点事件首尾相接而振荡，
+   * 而纯 setter 的替身表达不出这一点，让那个 bug 在全绿的测试下活了下来。
+   */
+  parentWindowSetCount = 0
+  setParentWindow(parent: MockBrowserWindow | null): void {
+    this.parentWindow = parent
+    this.parentWindowSetCount += 1
+  }
   isAlwaysOnTop(): boolean { return this.alwaysOnTop }
   /** 替身额外暴露 level，供桌宠置顶策略断言 'normal' / 'floating' */
   getAlwaysOnTopLevel(): string { return this.alwaysOnTopLevel }
@@ -230,7 +239,11 @@ export class MockBrowserWindow extends EventEmitter {
     this.emit('unmaximize')
   }
   setTitle(_title: string): void { /* no-op */ }
-  setIgnoreMouseEvents(_ignore: boolean, _options?: { forward: boolean }): void { /* no-op */ }
+  /** 同上：重设命中测试会打断进行中的鼠标捕获，调用次数是要钉的事实 */
+  ignoreMouseEventsSetCount = 0
+  setIgnoreMouseEvents(_ignore: boolean, _options?: { forward: boolean }): void {
+    this.ignoreMouseEventsSetCount += 1
+  }
   setOpacity(_opacity: number): void { /* no-op */ }
   loadURL(url: string): Promise<void> { return this.webContents.loadURL(url) }
   close(): void {

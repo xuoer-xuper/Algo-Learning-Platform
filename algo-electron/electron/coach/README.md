@@ -37,6 +37,8 @@
 - `types.ts`：模块共享类型（CoachPetState / CoachBubblePayload / CoachEvent / ProblemSession / CoachIntervention / ContestAuditRecord）。
 - `CoachPetWindow.setPetState()` / `showBubble()`：规则引擎驱动桌宠的主入口。
 - `CoachPetWindow.followWindow()`：更新桌宠归属到最近活跃完整壳；切换与父壳 close/focus/blur 监听成对清理。是否真的设 parent 由当前置顶模式决定。
+- **`follow` 档的失焦解绑必须延后复核，不能相信单次 blur 事件**：`setParentWindow` 在 Windows 上改 owner 关系并会扰动焦点，而 follow 档的决策又是焦点的纯函数，两者首尾相接会让桌宠在两个 z 序间持续振荡（真机表现：桌宠闪烁、壳的任务栏按钮反复闪、主窗口点不动）。`handleFollowedWindowBlur` 因此延后 `BLUR_DETACH_VERIFY_MS` 再复核 `isFocused()` 的事实；聚焦方向是安全方向，立即生效并顺带撤销在途复核。判据是持续时间：自扰动的失焦一两帧内被抵消，真的原生菜单/对话框会持续几百毫秒。
+- `setIgnoreMouseEvents()` 与 `applyPinDecision()` 都对「结论未变」短路：重设命中测试会打断进行中的鼠标捕获（拖拽中断），重设 owner/z 序会被用户看见。注意这层只挡「结论相同的重复调用」，挡不住「结论反复翻面」——后者只能靠上一条的延后复核。
 - `CoachPetWindow.setPinMode()`：切换置顶模式，即时重设窗口；持久化由 `coach:saveConfig` → `saveCoachConfig` 负责，本方法不写盘。`notifyConfigChanged()` 会顺带把配置里的模式重新应用一次。
 - `CoachOrchestrator.start()` / `stop()`：服务生命周期入口，在 `main.ts` 的 `app.whenReady` 后调用。
 - `ContestGuard.isContestMode()`：比赛模式状态查询。

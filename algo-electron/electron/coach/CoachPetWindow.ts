@@ -41,6 +41,14 @@ export interface CoachPetWindowOptions {
 const PET_WINDOW_WIDTH = 400
 const PET_WINDOW_HEIGHT = 640
 
+/**
+ * 壳失焦后延后多久复核再决定解绑 parent。见 handleFollowedWindowBlur。
+ *
+ * 下界要远大于一帧（16ms），才能盖住 setParentWindow 自己扰动出的瞬时失焦；
+ * 上界要小到用户察觉不到桌宠"晚了一下才让开原生菜单"。120ms 同时满足两侧。
+ */
+const BLUR_DETACH_VERIFY_MS = 120
+
 export class CoachPetWindow {
   private win: BrowserWindow | null = null
   private followedWindow: BrowserWindow | null = null
@@ -53,6 +61,13 @@ export class CoachPetWindow {
   private pinMode: CoachPinMode = DEFAULT_COACH_PIN_MODE
   /** 被跟随壳当前是否聚焦。原生菜单/模态弹出会让壳失焦，follow 模式据此解绑 parent */
   private followedWindowFocused = false
+  /** 上次真正落到窗口上的决策与 parent，用于跳过无变化的重设 */
+  private lastDecision: PetPinDecision | null = null
+  private lastParent: BrowserWindow | null = null
+  /** 待复核的失焦解绑。见 handleFollowedWindowBlur 的说明 */
+  private pendingBlurTimer: NodeJS.Timeout | null = null
+  /** 上次落到窗口上的穿透状态，用于跳过重复的命中测试重设 */
+  private lastIgnoreMouseEvents: boolean | null = null
 
   constructor(options: CoachPetWindowOptions) {
     this.options = options
@@ -115,8 +130,9 @@ export class CoachPetWindow {
       }
     })
 
-    // 默认点击穿透；forward:true 让鼠标事件仍转发到下层窗口
-    this.win.setIgnoreMouseEvents(true, { forward: true })
+    // 默认点击穿透；forward:true 让鼠标事件仍转发到下层窗口。
+    // 走 setter 而非直接调，好让去重缓存从这里起就有正确的初值
+    this.setIgnoreMouseEvents(true)
 
     // 应用透明度（窗口级，与渲染层 CSS 互补）
     this.win.setOpacity(clamp(cfg.opacity, 0.3, 1))
@@ -140,6 +156,12 @@ export class CoachPetWindow {
       this.win = null
       this.dragging = false
       this.stopDragPoll()
+      this.cancelPendingBlur()
+      // 缓存是"已经落到某个窗口上"的记录，窗口没了就必须作废，
+      // 否则重新 create() 时 applyPinDecision 会误判无变化而跳过首次设定
+      this.lastDecision = null
+      this.lastParent = null
+      this.lastIgnoreMouseEvents = null
     })
 
     // 兜底：窗口失焦（Alt+Tab 或点其他窗口）时强制结束拖拽
@@ -155,6 +177,9 @@ export class CoachPetWindow {
    */
   destroy(): void {
     this.setFollowedWindow(null)
+    // setFollowedWindow(null) 已经撤了一次，但 destroy 也可能在没有壳的状态下被调用，
+    // 定时器绝不能活过窗口
+    this.cancelPendingBlur()
     if (this.win && !this.win.isDestroyed()) {
       this.win.close()
     }
@@ -206,9 +231,16 @@ export class CoachPetWindow {
   /**
    * 临时切换点击穿透。renderer hover 到交互区域时调用。
    * ignore=true 时鼠标事件穿透到下层窗口；ignore=false 时本窗口可接收事件。
+   *
+   * 去重：renderer 的 mouseenter/mouseleave 会成对连发（尤其在窗口 z 序变动导致
+   * hover 状态被重算时），而重设命中测试会打断进行中的鼠标捕获——拖拽因此中断。
+   * 值没变就不要碰这个 API。
    */
   setIgnoreMouseEvents(ignore: boolean): void {
-    this.win?.setIgnoreMouseEvents(ignore, { forward: true })
+    if (!this.win || this.win.isDestroyed()) return
+    if (this.lastIgnoreMouseEvents === ignore) return
+    this.win.setIgnoreMouseEvents(ignore, { forward: true })
+    this.lastIgnoreMouseEvents = ignore
   }
 
   /**
@@ -325,17 +357,52 @@ export class CoachPetWindow {
   }
 
   private readonly handleFollowedWindowFocus = (): void => {
+    // 聚焦是安全方向（抬升桌宠），立即生效；同时撤销待复核的解绑——
+    // 这一对就是把"我们自己扰动出来的失焦"吃掉的地方
+    this.cancelPendingBlur()
+    if (this.followedWindowFocused) return
     this.followedWindowFocused = true
     this.applyPinDecision()
   }
 
+  /**
+   * 壳失焦不立即解绑，而是延后复核。
+   *
+   * 必须这样做的原因：`follow` 档的决策是 `activeShellFocused` 的纯函数，而落地
+   * 决策要调 `setParentWindow()`——它在 Windows 上改的是 owner 关系，**本身会扰动
+   * 焦点**。于是 "壳聚焦 → 绑 parent → 扰焦 → 壳失焦 → 解绑 parent → 扰焦 → 壳聚焦"
+   * 首尾相接，桌宠在两个 z 序间持续振荡：表现为桌宠闪烁、壳的任务栏按钮反复闪、
+   * 主窗口点不动（owner 反复重设会打断命中测试与鼠标捕获）。
+   * 这不是"重复调用同一决策"，缓存挡不住——每次决策都在真的翻面。
+   *
+   * 判据是持续时间：我们自己扰动出的失焦在一两帧内就被随之而来的 focus 抵消；
+   * 真的原生菜单/文件对话框会把焦点拿走至少几百毫秒。所以延后一个远大于一帧、
+   * 又远小于人能察觉的窗口再复核 `isFocused()` 的事实，而不是相信这一次事件。
+   */
   private readonly handleFollowedWindowBlur = (): void => {
-    this.followedWindowFocused = false
-    this.applyPinDecision()
+    if (!this.followedWindowFocused) return
+    this.cancelPendingBlur()
+    this.pendingBlurTimer = setTimeout(() => {
+      this.pendingBlurTimer = null
+      const shell = this.followedWindow
+      // 复核事实而非相信事件：期间焦点已经回来就什么都不做
+      if (shell && !shell.isDestroyed() && shell.isFocused()) return
+      this.followedWindowFocused = false
+      this.applyPinDecision()
+    }, BLUR_DETACH_VERIFY_MS)
+  }
+
+  private cancelPendingBlur(): void {
+    if (this.pendingBlurTimer) {
+      clearTimeout(this.pendingBlurTimer)
+      this.pendingBlurTimer = null
+    }
   }
 
   private setFollowedWindow(window: BrowserWindow | null): void {
     if (this.followedWindow === window) return
+    // 换壳后旧壳的失焦复核已经没有意义，且它会读到新壳的焦点做出错误判定
+    this.cancelPendingBlur()
     if (this.followedWindow) {
       this.followedWindow.off('close', this.handleFollowedWindowClose)
       this.followedWindow.off('focus', this.handleFollowedWindowFocus)
@@ -359,12 +426,10 @@ export class CoachPetWindow {
    * 按当前模式与归属/焦点事实重设窗口。所有改置顶的路径都汇到这里，
    * 保证 create / 切壳 / 焦点变化 / 改模式四条入口用的是同一份判定。
    *
-   * 防抖保护：缓存上次决策与 parent 引用，只有真正变化时才调用 Electron API，
-   * 避免 focus/blur 触发 applyPinDecision 再触发 setParentWindow 再触发 focus/blur 的无限循环。
+   * 结论无变化时不碰 Electron API：`setParentWindow` / `setAlwaysOnTop` 都有副作用
+   * （前者扰焦、后者重排 z 序），无谓重设会被用户看见。这层只挡"结论相同"的重复
+   * 调用；"结论反复翻面"的振荡由 handleFollowedWindowBlur 的延后复核挡。
    */
-  private lastDecision: PetPinDecision | null = null
-  private lastParent: BrowserWindow | null = null
-
   private applyPinDecision(): void {
     if (!this.win || this.win.isDestroyed()) return
     const decision = this.resolveDecision()
@@ -374,20 +439,16 @@ export class CoachPetWindow {
       ? this.followedWindow
       : null
 
-    // 只有决策或 parent 引用真正变化时才调用 Electron API
-    // 特别注意：setParentWindow 会触发主窗口 focus/blur 事件，必须防止循环触发
-    const decisionChanged = !this.lastDecision
-      || this.lastDecision.alwaysOnTop !== decision.alwaysOnTop
-      || this.lastDecision.level !== decision.level
-      || this.lastDecision.attachToActiveShell !== decision.attachToActiveShell
-    const parentChanged = this.lastParent !== parent
+    const unchanged = this.lastDecision !== null
+      && this.lastDecision.alwaysOnTop === decision.alwaysOnTop
+      && this.lastDecision.level === decision.level
+      && this.lastParent === parent
+    if (unchanged) return
 
-    if (decisionChanged || parentChanged) {
-      this.win.setParentWindow(parent)
-      this.win.setAlwaysOnTop(decision.alwaysOnTop, decision.level)
-      this.lastDecision = decision
-      this.lastParent = parent
-    }
+    this.win.setParentWindow(parent)
+    this.win.setAlwaysOnTop(decision.alwaysOnTop, decision.level)
+    this.lastDecision = decision
+    this.lastParent = parent
   }
 
   private resolveDecision(): PetPinDecision {

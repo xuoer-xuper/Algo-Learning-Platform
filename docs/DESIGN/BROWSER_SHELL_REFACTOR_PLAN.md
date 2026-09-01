@@ -1392,3 +1392,20 @@ Renderer（同一构建产物，多窗口实例化——桌宠 hash 路由已证
 | 人工验收 | 待填（留作 B5 整块统一验收） |
 | 文档同步 | `docs/PRODUCT/CHANGELOG.md`（变更区新增一条全局动效说明） |
 | 完成时间 | 北京时间 `2026-09-01` |
+
+### 11.58 桌宠 follow 档置顶振荡（真机闪烁）修复
+
+| 项 | 内容 |
+|---|---|
+| 触发 | B5 交付后人工验收：桌宠持续闪烁、点不动也拖不动，且**主窗口的任务栏按钮反复闪、闪烁期间主窗口点不动**。用户按"先禁用桌宠"定位，禁用后症状全消、其余功能正常，确认源头在桌宠窗口 |
+| 根因 | `follow` 档的决策是 `activeShellFocused` 的**纯函数**，而落地决策必须调 `setParentWindow()`——它在 Windows 上改的是 owner 关系，**本身会扰动焦点**。于是「壳聚焦 → 绑 parent → 扰焦 → 壳失焦 → 解绑 parent → 扰焦 → 壳聚焦」首尾相接，桌宠在两个 z 序间持续振荡。第二条更长的回路经由 `WindowManager` 的 mostRecent 变更回调重进 `followWindow()`，同样闭合。反复重设 owner 会打断命中测试与鼠标捕获，这是"点不动、拖不动"的来源；反复扰焦是任务栏按钮闪烁的来源 |
+| 关键教训 | **这不是"重复调用同一决策"，缓存挡不住——每次决策都在真的翻面。** 前两轮修复都按"重复调用"处理（先缓存决策、再补缓存 parent 引用），第二轮因为把 `parentChanged` 也做成触发条件，等于给振荡加了第二个入口，**症状被加重**。用焦点驱动一个会扰动焦点的操作，只能在"何时采信焦点"这一层解决 |
+| 修复 | `handleFollowedWindowBlur` 改为**延后复核**：失焦不立即解绑，延后 `BLUR_DETACH_VERIFY_MS = 120ms` 后复核 `isFocused()` 的事实再决定。聚焦是安全方向，立即生效并顺带撤销在途复核。判据是**持续时间**——自扰动的失焦一两帧内被随之而来的 focus 抵消，真的原生菜单/文件对话框会持续几百毫秒；120ms 同时满足"远大于一帧"与"用户察觉不到延迟让位" |
+| 配套 | `applyPinDecision` 的短路条件改为「结论与 parent 都未变则不碰 API」（`setParentWindow`/`setAlwaysOnTop` 各有副作用，无谓重设会被看见）；`setIgnoreMouseEvents` 同样对未变值短路（renderer 的 mouseenter/mouseleave 会成对连发，重设命中测试会打断进行中的拖拽）；窗口 `closed` 时作废三份缓存，否则重新 `create()` 会被误判无变化而跳过首次设定；`destroy()` 与换壳都撤销在途复核，定时器绝不活过窗口 |
+| 为何测试没拦住 | `tests/electron/electronMock.ts` 的 `setParentWindow` 是**纯 setter**：既不发 focus/blur（表达不出回路），又让"被调了几次"不可观测。于是替身只能看最终 parent 值，振荡在 1299 条全绿下活了下来，两轮错误修复也都没被判错。现已给 `setParentWindow` / `setIgnoreMouseEvents` 加调用计数，并把这条写进 `tests/README.md` §4 作为通用约定：**真实 API 有副作用时，替身不能只做纯 setter** |
+| 新增测试 | `tests/coach/coachPetWindowFollow.test.ts` 6 条：瞬时失焦立刻复焦不解绑（断言 `parentWindowSetCount` 不变）、20 次连续抖动收敛、同结论重算不碰 API、销毁时撤销在途复核、换壳撤销旧壳复核不误解绑新壳、穿透状态去重。既有 5 条断言"失焦后退回普通 z 序"的用例改为先推进定时器——原先的同步断言把 bug 行为当成了契约 |
+| 自动验证 | `npm run typecheck` 通过；`npm run lint` 零警告；`npx vitest run` **166 文件 / 1305 条全绿**（1299 → +6）；`npm run test:architecture` **0/17 失败** |
+| 人工验收 | 待填（桌宠已重新启用，待确认闪烁消失、可点击可拖动、原生右键菜单仍能盖住桌宠） |
+| 遗留 | 根因机制（Win32 owner 变更扰动焦点）由症状三联与代码结构推断，本机无法单独验证该 API 的焦点副作用；桌宠是源头已由用户的禁用实验确证。若复核后仍有残余闪烁，下一步查第二条回路（mostRecent 回调）是否需要同样的延后处理 |
+| 文档同步 | `electron/coach/README.md`（新增两条边界规则）、`electron/coach/petPinPolicy.ts`（补"何时认定失焦不在本函数"）、`tests/README.md` §4（替身计数约定）、`docs/PRODUCT/CHANGELOG.md`（修复区） |
+| 完成时间 | 北京时间 `2026-09-01` |

@@ -12,6 +12,9 @@
  *   **该壳失焦时主动解绑 parent**——原生右键菜单（B2.8 之后应用内菜单全是
  *   `Menu.popup()`）和原生文件/消息对话框都会把焦点从壳上拿走，解绑后桌宠退回
  *   普通 z 序，盖不住它们。这条是本模式解除「alwaysOnTop 盖住应用内一切」的实际手段。
+ *   注意：本函数只是「给定焦点事实 → 该怎么摆」的纯映射，**何时认定失焦**不在这里。
+ *   `activeShellFocused` 转 false 是延后复核的，原因见 `CoachPetWindow.handleFollowedWindowBlur`：
+ *   落地决策要调的 `setParentWindow` 自己会扰动焦点，直接相信每一次 blur 事件会形成振荡。
  * - `always`：全局置顶（B3.5 之前的旧行为），只有用户显式选择才有。level 用
  *   `floating`，不绑 parent——全局置顶本来就不需要父子关系来抬升。
  * - `dock`：停靠。不置顶、不绑 parent，桌宠停在普通 z 序里，应用内任何窗口

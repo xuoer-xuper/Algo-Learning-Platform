@@ -196,6 +196,7 @@ npx playwright test tests\ui\rendererScreenshots.pw.spec.ts --grep "narrow conta
 - 不得用 `readFileSync` 读生产源码再 `includes()` 断言字符串来代替行为断言。这种测试两头都会骗人：接线断掉但字符串还在时它照样绿，纯搬移没改行为时它却变红。只有断言文本本身就是产物时才允许（例如 `tests/components/tokenGovernance.test.ts` 检查 CSS token）。
 - 等待异步投递不得靠固定等一轮 `setTimeout(0)` 或固定毫秒数。worker 繁忙时投递会落到下一轮，全套里就变成按分片触发的间歇性失败——单跑和本目录都绿，只在完整 `test:core` 里偶尔红，极难定位。改成按条件轮询（收到就继续，超时才让断言报真实差异），见 `tests/scripts/userscriptBootstrapPreloadModule.test.ts` 的 `waitForDelivery`。
 - 断言前先确认 test-double 的同步性。`tests/electron/electronMock.ts` 里 `close()` 同步发 `destroyed`、`reload()` 同步发 `did-finish-load`，照真实 Electron 的异步时序写断言会得到假绿；需要观测失败路径时先覆盖掉对应方法。
+- **真实 API 有副作用时，替身不能只做纯 setter，要把调用次数记下来。** 纯 setter 让「被调了几次」不可观测，于是「事件 → 调 API → API 扰动出同类事件」这种回路在测试里完全隐形：桌宠 `follow` 档的置顶振荡就是这么在 1299 条全绿测试下活下来的——`setParentWindow` 在 Windows 上会扰动焦点，而决策又是焦点的纯函数，真机持续闪烁，替身却只看最终 parent 值、次数无从断言，两轮「修复」因此都没被判错。`setParentWindow` / `setIgnoreMouseEvents` 现在都带计数（`parentWindowSetCount` / `ignoreMouseEventsSetCount`），凡是「稳定后不该再动」的性质都要断言次数不变，只断言终值不够。
 - 同一处逻辑注册在多个事件名上时（`will-navigate`/`will-redirect`，`did-navigate`/`did-navigate-in-page`），用 `it.each` 参数化跑全部事件名，让一份期望同时约束所有孪生实现。只覆盖其中一个，将来单边修改不会被发现。
 
 ## 5. 当前缺口

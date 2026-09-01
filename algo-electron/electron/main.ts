@@ -882,9 +882,7 @@ void app.whenReady().then(async () => {
   }
 
   // 初始化 Coach 桌宠窗口（仅在非 smoke 模式且配置启用时）
-  // TEMPORARY: 临时禁用桌宠以排查闪烁问题根源
-  const COACH_TEMPORARY_DISABLED = true
-  if (!STARTUP_SMOKE_MODE && !COACH_TEMPORARY_DISABLED) {
+  if (!STARTUP_SMOKE_MODE) {
     try {
       const coachCfg = loadCoachConfig()
       if (coachCfg.enabled) {
