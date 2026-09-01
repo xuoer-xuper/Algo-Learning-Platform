@@ -47,21 +47,31 @@ export default defineConfig({
       exclude: [
         'tests/**',
         // main.ts：进程启动装配。真实 Electron 冒烟（tests/verify.mjs electron）
-        // 跑的就是它，但那条链路在 Vitest 之外，覆盖率收不到。改成在 Vitest 里
-        // import 它只会在替身上把 app.whenReady 走一遍，涨的是数字不是信心。
+        // 跑的就是它，但那条链路在 Vitest 之外，覆盖率收不到。
+        //
+        // 这里原先还写着"在 Vitest 里 import 它只会走一遍 app.whenReady，涨的是
+        // 数字不是信心"——后半句已被推翻：`tests/electron/mainStartupContract.test.ts`
+        // 正是在替身下 import 它（whenReady 挂住不 resolve），把单实例闸门验成了行为，
+        // 变异检查确认有效（闸门条件改成恒真时它红，而 25 条源码断言全绿）。
+        // 仍然排除，是因为那条 import 只跑到 whenReady 之前，把它计入覆盖率会让
+        // 闸门之后的大段启动链显得"被覆盖"——排除的理由是数字会骗人，不是测不出信息。
         'electron/main.ts',
         // src/main.tsx：createRoot 挂载，17 行。渲染树本身由 tests/components 覆盖。
         'src/main.tsx',
         'src/vite-env.d.ts',
       ],
-      // Kept a few points under the measured numbers (59.52/56.41/57.67/62.07)
+      // Kept a few points under the measured numbers (64.47/60.09/61.66/67.20)
       // so ordinary refactors do not trip the gate, while a real coverage drop
       // still fails. Raise these together with coverage, never lower them.
+      //
+      // 上一档是 56/53/54/59，对应实测 59.52/56.41/57.67/62.07。补 coach 的
+      // LLM 链路与事件桥之后实测涨了约 5 点，门跟着抬——留着不动的话，那 8 点
+      // 空隙会让"覆盖率掉了"变成看不见的事，和棘轮预算高于实际是同一类问题。
       thresholds: {
-        statements: 56,
-        branches: 53,
-        functions: 54,
-        lines: 59,
+        statements: 61,
+        branches: 57,
+        functions: 58,
+        lines: 64,
       },
     },
   },
