@@ -60,18 +60,22 @@ export default defineConfig({
         'src/main.tsx',
         'src/vite-env.d.ts',
       ],
-      // Kept a few points under the measured numbers (64.47/60.09/61.66/67.20)
-      // so ordinary refactors do not trip the gate, while a real coverage drop
+      // Kept ~2 points under the measured numbers (67.37/62.79/64.90/70.27) so
+      // ordinary refactors do not trip the gate, while a real coverage drop
       // still fails. Raise these together with coverage, never lower them.
       //
-      // 上一档是 56/53/54/59，对应实测 59.52/56.41/57.67/62.07。补 coach 的
-      // LLM 链路与事件桥之后实测涨了约 5 点，门跟着抬——留着不动的话，那 8 点
-      // 空隙会让"覆盖率掉了"变成看不见的事，和棘轮预算高于实际是同一类问题。
+      // 档位沿革：56/53/54/59（实测 59.52/56.41/57.67/62.07）→ 61/57/58/64
+      // （实测 64.47/60.09/61.66/67.20）→ 现在这档。每次都是补完测试就把门跟上，
+      // 因为留着空隙会让"覆盖率掉了"变成看不见的事，和棘轮预算高于实际同类。
+      //
+      // 留 2 点而不是更多：这个数字是**下界**——9 个真实 Electron 套件不在
+      // Vitest 里（见上面 exclude 的说明与 QUALITY_HARDENING_PLAN.md §10.1），
+      // 所以余量只需吸收重构噪声，不需要替那部分留位置。
       thresholds: {
-        statements: 61,
-        branches: 57,
-        functions: 58,
-        lines: 64,
+        statements: 65,
+        branches: 60,
+        functions: 62,
+        lines: 68,
       },
     },
   },
