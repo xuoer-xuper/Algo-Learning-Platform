@@ -18,6 +18,7 @@
 | [CONTRIBUTING](GOVERNANCE/CONTRIBUTING.md) | 本地开发、修改边界、PR 检查和 issue 要求。 |
 | [COMMIT_RULES](GOVERNANCE/COMMIT_RULES.md) | Git 提交信息格式和提交粒度约定。 |
 | [SECURITY](GOVERNANCE/SECURITY.md) | Cookie、用户数据、导出、日志和安全报告边界。 |
+| [AI_HANDOFF](../AI_HANDOFF.md) | AI 助手工作交接记录，记录最近完成任务和待办事项。 |
 
 ## 设计契约
 
