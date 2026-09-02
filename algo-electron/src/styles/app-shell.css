@@ -327,19 +327,56 @@
  * View Transitions（B5.3）：内部页切换的淡入淡出过渡。
  * 用 ::view-transition-old/new 伪元素定义旧页淡出、新页淡入的曲线与时长。
  * 只改 opacity，不动 transform，避免与 Suspense fallback 的骨架动画冲突。
+ *
+ * 作用域刻意只给 `.main-content`，不给 root。过渡期间 Chromium 会在被捕获的那块之上
+ * 挂一棵顶层伪元素树并吞掉输入 —— 挂在 root 上就等于整窗口（含标签带、工具栏）
+ * 有 160ms 点不动、标签拖不动。换页要动的本来只有页面内容区，标签带必须全程可点。
  */
-::view-transition-old(root),
-::view-transition-new(root) {
+/*
+ * `view-transition-name: root` 是 UA 给文档元素的默认值，不改它的话每次过渡都会
+ * 连整页一起拍快照 —— 顶层那棵树照样盖住标签带。设成 none 让根不参与，
+ * 只留下面显式命名的内容区。
+ */
+:root {
+  view-transition-name: none;
+}
+
+.main-content {
+  view-transition-name: shell-main;
+}
+
+/*
+ * 覆盖层本身放行输入。`::view-transition` 是整页尺寸的顶层容器，与里面捕获了谁无关，
+ * 不放行的话过渡期间 `elementFromPoint` 一律返回 `<html>`，整窗口点不动。
+ * 快照纯装饰，不需要接事件。
+ */
+::view-transition {
+  pointer-events: none;
+}
+
+::view-transition-old(shell-main),
+::view-transition-new(shell-main) {
   animation-duration: var(--duration-base);
   animation-timing-function: var(--ease-out);
 }
 
-::view-transition-old(root) {
+::view-transition-old(shell-main) {
   animation-name: view-fade-out;
 }
 
-::view-transition-new(root) {
+::view-transition-new(shell-main) {
   animation-name: view-fade-in;
+}
+
+/*
+ * 动效减弱：`*` 选择器匹配不到 `::view-transition-*` 这类伪元素（它们不在
+ * 真实元素树里），所以 index.css 里那条全局 reduced-motion 覆盖不到这里，必须显式写。
+ */
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(shell-main),
+  ::view-transition-new(shell-main) {
+    animation-duration: 1ms;
+  }
 }
 
 @keyframes view-fade-out {

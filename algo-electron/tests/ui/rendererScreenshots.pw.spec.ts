@@ -610,3 +610,63 @@ test('native tab strip overflows horizontally and reorders with a pointer drag',
     await electronApp.close()
   }
 })
+
+/*
+ * 过渡进行中整个窗口必须保持可点。这条守的是三个缺一不可的条件，
+ * 任何一条回退，命中测试都会掉回 `<html>`，界面在动画期间点不动、标签拖不动：
+ *   1. `:root { view-transition-name: none }` —— 否则 UA 默认的 root 把整页一起捕获
+ *   2. `.main-content { view-transition-name: shell-main }` —— 只让内容区参与
+ *   3. `::view-transition { pointer-events: none }` —— 顶层容器是整页尺寸的，与捕获了
+ *      谁无关，不放行就吞输入
+ * 断言写在"过渡活着的同一时刻去命中标签带"上，而不是断言 CSS 文本，
+ * 这样回退时报的是真实后果。
+ */
+test('view transition keeps the tab strip hit-testable while it runs', async () => {
+  const scenario = viewportScenarios.find((candidate) => candidate.name === 'narrow')!
+  const electronApp = await launchScenario(scenario)
+  const page = await electronApp.firstWindow()
+
+  try {
+    await assertNativeViewport(electronApp, page)
+    await page.evaluate(async () => {
+      await window.electronAPI.openInternalTab({ type: 'notes', problemId: 'vt-hit-test' })
+    })
+    await expect(page.getByRole('tab')).toHaveCount(2)
+
+    const target = page.locator('.tab-item').nth(0).locator('.tab-item-main')
+    const box = await target.boundingBox()
+    expect(box).not.toBeNull()
+
+    const probe = await page.evaluate(([x, y]) => {
+      const hit = () => {
+        const element = document.elementFromPoint(x as number, y as number)
+        return element ? `${element.tagName}.${String((element as HTMLElement).className)}` : null
+      }
+      const inStrip = () => {
+        const element = document.elementFromPoint(x as number, y as number)
+        return Boolean(element?.closest('.tab-item'))
+      }
+      return new Promise<{ during: string | null; inStrip: boolean; active: boolean; rootName: string }>((resolve) => {
+        const transition = document.startViewTransition!(() => {
+          document.body.setAttribute('data-vt-probe', 'on')
+        })
+        transition.ready.then(() => {
+          resolve({
+            during: hit(),
+            inStrip: inStrip(),
+            active: Boolean((document as unknown as { activeViewTransition?: unknown }).activeViewTransition),
+            rootName: getComputedStyle(document.documentElement).getPropertyValue('view-transition-name'),
+          })
+        }, () => resolve({ during: hit(), inStrip: inStrip(), active: false, rootName: 'rejected' }))
+      })
+    }, [box!.x + box!.width / 2, box!.y + box!.height / 2])
+
+    // 过渡确实活着的那一刻取的样，否则这条断言没有意义
+    expect(probe.active).toBe(true)
+    expect(probe.rootName).toBe('none')
+    // 回退时这里会是 `HTML.`（伪元素归属根元素），报的就是"整窗口点不动"
+    expect(probe.inStrip, `hit-test landed on ${probe.during}`).toBe(true)
+  } finally {
+    await electronApp.close()
+  }
+})

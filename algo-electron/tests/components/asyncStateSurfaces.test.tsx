@@ -32,7 +32,7 @@ function deferred<T>() {
 }
 
 const loadRecentProblems = vi.fn()
-const subscribeProblemsUpdated = vi.fn(() => () => {})
+const subscribeProblemsUpdated = vi.fn((_callback: () => void) => () => {})
 
 vi.mock('../../src/features/problems/problemsApi', () => ({
   loadRecentProblems: (...args: unknown[]) => loadRecentProblems(...args),
