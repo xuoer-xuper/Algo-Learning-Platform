@@ -71,7 +71,7 @@ export function resolvePetPinDecision(input: PetPinInput): PetPinDecision {
     case 'dock':
       return { alwaysOnTop: false, level: 'normal', attachToActiveShell: false }
     case 'follow':
-    default:
+    default: {
       // 壳聚焦时绑定为子窗口，不需要置顶；壳失焦或无壳时解绑但置顶
       const shouldAttach = input.hasActiveShell && input.activeShellFocused
       return {
@@ -79,5 +79,6 @@ export function resolvePetPinDecision(input: PetPinInput): PetPinDecision {
         level: 'normal',
         attachToActiveShell: shouldAttach,
       }
+    }
   }
 }

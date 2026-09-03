@@ -155,7 +155,7 @@ export function registerCoachIpc(options: RegisterCoachIpcOptions): void {
   })
 
   // 调试用：renderer 输出日志到主进程
-  ipcMain.handle('log-to-main', (_event, message: string) => {
+  ipcMain.handle('log-to-main', [freeText({ max: 10 * 1024 })], (_event, message) => {
     console.log(message)
     return true
   })

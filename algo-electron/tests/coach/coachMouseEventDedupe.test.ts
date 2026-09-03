@@ -14,7 +14,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
  */
 
 describe('桌宠鼠标事件去重', () => {
-  let mockSetIgnoreMouseEvents: ReturnType<typeof vi.fn>
+  let mockSetIgnoreMouseEvents: (ignore: boolean) => { ignore: boolean }
   let mouseEventCount: number
 
   beforeEach(() => {
