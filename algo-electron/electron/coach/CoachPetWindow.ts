@@ -68,6 +68,12 @@ export class CoachPetWindow {
   private pendingBlurTimer: NodeJS.Timeout | null = null
   /** 上次落到窗口上的穿透状态，用于跳过重复的命中测试重设 */
   private lastIgnoreMouseEvents: boolean | null = null
+  /** 防抖计时器：防止 setIgnoreMouseEvents 被疯狂调用 */
+  private ignoreMouseEventsDebounceTimer: NodeJS.Timeout | null = null
+  /** 待应用的穿透状态（防抖期间的最新值） */
+  private pendingIgnoreMouseEvents: boolean | null = null
+  /** 正在应用置顶决策，期间屏蔽焦点事件处理，避免 setParentWindow 自己扰动出的焦点事件触发新决策 */
+  private applyingPinDecision = false
 
   constructor(options: CoachPetWindowOptions) {
     this.options = options
@@ -157,6 +163,11 @@ export class CoachPetWindow {
       this.dragging = false
       this.stopDragPoll()
       this.cancelPendingBlur()
+      // 清理防抖计时器
+      if (this.ignoreMouseEventsDebounceTimer !== null) {
+        clearTimeout(this.ignoreMouseEventsDebounceTimer)
+        this.ignoreMouseEventsDebounceTimer = null
+      }
       // 缓存是"已经落到某个窗口上"的记录，窗口没了就必须作废，
       // 否则重新 create() 时 applyPinDecision 会误判无变化而跳过首次设定
       this.lastDecision = null
@@ -235,10 +246,44 @@ export class CoachPetWindow {
    * 去重：renderer 的 mouseenter/mouseleave 会成对连发（尤其在窗口 z 序变动导致
    * hover 状态被重算时），而重设命中测试会打断进行中的鼠标捕获——拖拽因此中断。
    * 值没变就不要碰这个 API。
+   *
+   * 防抖：在某些情况下（可能是 Electron 的 bug），setIgnoreMouseEvents 本身会
+   * 触发窗口的鼠标事件重新计算，导致新的 mouseenter/mouseleave 循环。
+   * 使用 16ms 防抖来打破这个循环。
    */
   setIgnoreMouseEvents(ignore: boolean): void {
     if (!this.win || this.win.isDestroyed()) return
-    if (this.lastIgnoreMouseEvents === ignore) return
+
+    // 记录待应用的值
+    this.pendingIgnoreMouseEvents = ignore
+
+    // 如果已经有防抖计时器在运行，不做任何事（让计时器完成后应用最新值）
+    if (this.ignoreMouseEventsDebounceTimer !== null) {
+      return
+    }
+
+    // 立即应用（如果值确实变了）
+    this.applyIgnoreMouseEvents(ignore)
+
+    // 设置防抖计时器
+    this.ignoreMouseEventsDebounceTimer = setTimeout(() => {
+      this.ignoreMouseEventsDebounceTimer = null
+      // 如果防抖期间有新值进来，且与当前值不同，应用它
+      if (this.pendingIgnoreMouseEvents !== null && this.pendingIgnoreMouseEvents !== this.lastIgnoreMouseEvents) {
+        this.applyIgnoreMouseEvents(this.pendingIgnoreMouseEvents)
+      }
+      this.pendingIgnoreMouseEvents = null
+    }, 16) // 一帧的时间
+  }
+
+  /**
+   * 实际应用穿透状态到窗口
+   */
+  private applyIgnoreMouseEvents(ignore: boolean): void {
+    if (!this.win || this.win.isDestroyed()) return
+    if (this.lastIgnoreMouseEvents === ignore) {
+      return
+    }
     this.win.setIgnoreMouseEvents(ignore, { forward: true })
     this.lastIgnoreMouseEvents = ignore
   }
@@ -359,10 +404,34 @@ export class CoachPetWindow {
   private readonly handleFollowedWindowFocus = (): void => {
     // 聚焦是安全方向（抬升桌宠），立即生效；同时撤销待复核的解绑——
     // 这一对就是把"我们自己扰动出来的失焦"吃掉的地方
+    if (this.applyingPinDecision) return
     this.cancelPendingBlur()
     if (this.followedWindowFocused) return
     this.followedWindowFocused = true
     this.applyPinDecision()
+  }
+
+  private readonly handleFollowedWindowMinimize = (): void => {
+    // 主窗口最小化时，立即解绑 parent 并开启置顶，否则桌宠会跟着一起最小化或沉底
+    // 在 Windows 上，即使解绑 parent，桌宠可能仍被隐藏，需要显式调用 show()
+    if (this.win && !this.win.isDestroyed()) {
+      this.win.setParentWindow(null)
+      this.win.setAlwaysOnTop(true, 'normal')
+      this.win.show()
+      // 更新缓存，避免后续 applyPinDecision 误判 unchanged
+      this.lastParent = null
+      this.lastDecision = { alwaysOnTop: true, level: 'normal', attachToActiveShell: false }
+    }
+  }
+
+  private readonly handleFollowedWindowRestore = (): void => {
+    // 主窗口恢复时，如果是 follow 模式且有活跃窗口，直接重新绑定
+    // 不等 focus 事件，因为 restore 和 focus 的顺序不确定
+    if (this.pinMode === 'follow' && this.followedWindow && !this.followedWindow.isDestroyed()) {
+      // 直接设置聚焦状态为 true，然后应用决策
+      this.followedWindowFocused = true
+      this.applyPinDecision()
+    }
   }
 
   /**
@@ -380,6 +449,7 @@ export class CoachPetWindow {
    * 又远小于人能察觉的窗口再复核 `isFocused()` 的事实，而不是相信这一次事件。
    */
   private readonly handleFollowedWindowBlur = (): void => {
+    if (this.applyingPinDecision) return
     if (!this.followedWindowFocused) return
     this.cancelPendingBlur()
     this.pendingBlurTimer = setTimeout(() => {
@@ -407,12 +477,16 @@ export class CoachPetWindow {
       this.followedWindow.off('close', this.handleFollowedWindowClose)
       this.followedWindow.off('focus', this.handleFollowedWindowFocus)
       this.followedWindow.off('blur', this.handleFollowedWindowBlur)
+      this.followedWindow.off('minimize', this.handleFollowedWindowMinimize)
+      this.followedWindow.off('restore', this.handleFollowedWindowRestore)
     }
     this.followedWindow = window
     if (window) {
       window.once('close', this.handleFollowedWindowClose)
       window.on('focus', this.handleFollowedWindowFocus)
       window.on('blur', this.handleFollowedWindowBlur)
+      window.on('minimize', this.handleFollowedWindowMinimize)
+      window.on('restore', this.handleFollowedWindowRestore)
       // 切壳时以壳的实际焦点为准：WindowManager 是在 focus 事件里更新"最近活跃"的，
       // 所以新壳通常已经聚焦，此时不能等下一次 focus 事件才认。
       this.followedWindowFocused = window.isFocused()
@@ -442,13 +516,21 @@ export class CoachPetWindow {
     const unchanged = this.lastDecision !== null
       && this.lastDecision.alwaysOnTop === decision.alwaysOnTop
       && this.lastDecision.level === decision.level
+      && this.lastDecision.attachToActiveShell === decision.attachToActiveShell
       && this.lastParent === parent
+
     if (unchanged) return
 
+    // 屏蔽期间的焦点事件，防止 setParentWindow 触发的焦点变化引发新决策
+    this.applyingPinDecision = true
     this.win.setParentWindow(parent)
     this.win.setAlwaysOnTop(decision.alwaysOnTop, decision.level)
     this.lastDecision = decision
     this.lastParent = parent
+    // 延后 50ms 恢复，确保 setParentWindow 触发的焦点事件在屏蔽期内
+    setTimeout(() => {
+      this.applyingPinDecision = false
+    }, 50)
   }
 
   private resolveDecision(): PetPinDecision {

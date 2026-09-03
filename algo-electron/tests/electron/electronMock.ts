@@ -241,8 +241,14 @@ export class MockBrowserWindow extends EventEmitter {
   setTitle(_title: string): void { /* no-op */ }
   /** 同上：重设命中测试会打断进行中的鼠标捕获，调用次数是要钉的事实 */
   ignoreMouseEventsSetCount = 0
-  setIgnoreMouseEvents(_ignore: boolean, _options?: { forward: boolean }): void {
+  private lastIgnoreMouseEvents: boolean | null = null
+  setIgnoreMouseEvents(ignore: boolean, _options?: { forward: boolean }): void {
+    // 模拟真实 Electron 的去重检查：相同值不重复调用底层 API
+    if (this.lastIgnoreMouseEvents === ignore) {
+      return
+    }
     this.ignoreMouseEventsSetCount += 1
+    this.lastIgnoreMouseEvents = ignore
   }
   setOpacity(_opacity: number): void { /* no-op */ }
   loadURL(url: string): Promise<void> { return this.webContents.loadURL(url) }

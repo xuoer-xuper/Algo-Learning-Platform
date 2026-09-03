@@ -12,9 +12,10 @@ import {
  * 桌宠置顶策略的纯逻辑（B5.5 / D30）。不碰 electron，直接在 node 环境跑。
  *
  * 这里钉住的是三档模式各自的承重结论，不是实现细节：
- * - follow 的 alwaysOnTop 必须恒为 false（这是"解除 alwaysOnTop 盖住应用内一切"那条）
- * - follow 在壳失焦时必须解绑 parent（原生菜单/模态弹出时不压住它们的手段）
- * - always 是唯一会置顶的一档，且必须显式选择才能到达
+ * - follow 在壳聚焦时绑定为子窗口且不置顶（通过父子关系自然浮在壳上）
+ * - follow 在壳失焦时解绑 parent 并临时置顶（原生菜单/模态弹出时不压住它们，同时防止桌宠沉底）
+ * - follow 无活跃壳时不绑定但置顶（保持可见）
+ * - always 是唯一会全局置顶的一档，且必须显式选择才能到达
  * - dock 既不置顶也不绑 parent
  */
 
@@ -34,15 +35,17 @@ describe('resolvePetPinDecision', () => {
     })
   })
 
-  test('follow 在壳失焦时解绑 parent——原生菜单与原生模态就是靠这条不被盖住', () => {
+  test('follow 在壳失焦时解绑 parent 并临时置顶——原生菜单与原生模态就是靠解绑不被盖住，置顶防止桌宠沉底', () => {
     assert.strictEqual(decide('follow', true, false).attachToActiveShell, false)
-    // 解绑不等于改置顶：失焦后依然不置顶，否则会变成"盖住别的程序"
-    assert.strictEqual(decide('follow', true, false).alwaysOnTop, false)
+    // 解绑后临时置顶，防止桌宠沉底被其他应用遮挡
+    assert.strictEqual(decide('follow', true, false).alwaysOnTop, true)
   })
 
-  test('follow 没有活跃壳时不绑 parent', () => {
+  test('follow 没有活跃壳时不绑 parent 但置顶保持可见', () => {
     assert.strictEqual(decide('follow', false, true).attachToActiveShell, false)
+    assert.strictEqual(decide('follow', false, true).alwaysOnTop, true)
     assert.strictEqual(decide('follow', false, false).attachToActiveShell, false)
+    assert.strictEqual(decide('follow', false, false).alwaysOnTop, true)
   })
 
   test('always 全局置顶且不依赖壳，level 为 floating', () => {

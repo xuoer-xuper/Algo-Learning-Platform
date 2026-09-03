@@ -39,6 +39,8 @@
     0 8px 24px rgb(var(--coach-shadow-rgb) / 0.4);
   animation: coach-bubble-enter var(--coach-duration-enter) var(--coach-ease-out);
   z-index: 10;
+  /* 强制接收鼠标事件，覆盖窗口级别的 setIgnoreMouseEvents */
+  pointer-events: auto !important;
 }
 
 /* 气泡尖角（指向桌宠本体） */

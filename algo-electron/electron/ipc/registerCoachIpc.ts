@@ -154,6 +154,12 @@ export function registerCoachIpc(options: RegisterCoachIpcOptions): void {
     return true
   })
 
+  // 调试用：renderer 输出日志到主进程
+  ipcMain.handle('log-to-main', (_event, message: string) => {
+    console.log(message)
+    return true
+  })
+
   ipcMain.handle('coach:startDrag', () => {
     requirePetWindow().startDrag()
     return true

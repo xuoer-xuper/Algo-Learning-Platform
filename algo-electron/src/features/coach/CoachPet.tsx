@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useRef, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import { reportRendererError } from '../../rendererErrors'
 import { CoachBubble } from './CoachBubble'
 import {
@@ -67,22 +67,31 @@ export function CoachPet() {
     }
   }, [])
 
-  const handleMouseEnter = () => {
+  // 气泡显示时强制关闭穿透
+  useEffect(() => {
+    if (bubble) {
+      void toggleCoachIgnoreMouseEvents(false)
+    }
+    // 气泡消失时不自动恢复穿透，由 handleMouseLeave 负责
+  }, [bubble])
+
+  const handleMouseEnter = useCallback(() => {
     // 进入交互区域：临时关闭点击穿透
     void toggleCoachIgnoreMouseEvents(false)
-  }
+  }, [])
 
-  const handleMouseLeave = () => {
+  const handleMouseLeave = useCallback(() => {
     // 离开交互区域：恢复穿透（拖拽中不恢复，由拖拽逻辑管理）
     if (!dragStartedRef.current) {
       void toggleCoachIgnoreMouseEvents(true)
     }
-  }
+  }, [])
 
   const handleMouseDown = (e: React.MouseEvent) => {
     // 仅左键触发
     if (e.button !== 0) return
     e.preventDefault()
+
     const startX = e.screenX
     const startY = e.screenY
     dragStartedRef.current = true
@@ -127,11 +136,11 @@ export function CoachPet() {
       className="pet-root"
       data-pet-state={state}
       style={{ '--pet-scale': scale } as React.CSSProperties}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
     >
       <div
         className={`pet-body${dragging ? ' dragging' : ''}`}
-        onMouseEnter={handleMouseEnter}
-        onMouseLeave={handleMouseLeave}
         onMouseDown={handleMouseDown}
         role="img"
         aria-label={`Coach 桌宠 - ${stateConfig.description}`}

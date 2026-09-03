@@ -60,7 +60,9 @@ export function normalizeCoachPinMode(value: unknown): CoachPinMode {
  * 解析当前应该把桌宠窗口设成什么样。
  *
  * `follow` 是唯一会读 `hasActiveShell` / `activeShellFocused` 的模式：
- * 没有活跃壳可绑，或者那个壳已经不是焦点，都退回「不绑、不置顶」。
+ * - 壳聚焦时：绑定为子窗口，不置顶（通过父子关系自然浮在壳上）
+ * - 壳失焦时：解绑 parent（让原生菜单能盖住桌宠），但临时开启置顶（防止沉底消失）
+ * - 没有活跃壳：不绑定，开启置顶（保持可见）
  */
 export function resolvePetPinDecision(input: PetPinInput): PetPinDecision {
   switch (input.mode) {
@@ -70,10 +72,12 @@ export function resolvePetPinDecision(input: PetPinInput): PetPinDecision {
       return { alwaysOnTop: false, level: 'normal', attachToActiveShell: false }
     case 'follow':
     default:
+      // 壳聚焦时绑定为子窗口，不需要置顶；壳失焦或无壳时解绑但置顶
+      const shouldAttach = input.hasActiveShell && input.activeShellFocused
       return {
-        alwaysOnTop: false,
+        alwaysOnTop: !shouldAttach,
         level: 'normal',
-        attachToActiveShell: input.hasActiveShell && input.activeShellFocused,
+        attachToActiveShell: shouldAttach,
       }
   }
 }

@@ -72,31 +72,41 @@ test('Coach pet follows the latest shell parent and detaches before that shell c
 })
 
 describe('桌宠置顶策略三模式', () => {
-  test('默认起点是 follow：桌宠不置顶', () => {
+  test('默认起点是 follow：无壳时桌宠置顶保持可见', () => {
     resetElectronMock()
     const { pet, petWindow } = createPet()
     assert.strictEqual(pet.getPinMode(), 'follow')
-    assert.strictEqual(petWindow.isAlwaysOnTop(), false)
+    // follow 模式下无活跃壳时开启置顶，防止桌宠沉底消失
+    assert.strictEqual(petWindow.isAlwaysOnTop(), true)
     pet.destroy()
   })
 
-  test('follow：壳持续失焦后解绑 parent，重新聚焦即恢复，全程不置顶', () => {
+  test('follow：壳持续失焦后解绑 parent 并临时置顶，重新聚焦即恢复绑定并撤销置顶', () => {
     resetElectronMock()
     const { pet, petWindow } = createPet()
     const shell = focusedShell()
 
     pet.followWindow(shell as never)
+    // 推进 applyPinDecision 的 50ms 屏蔽期
+    vi.advanceTimersByTime(50)
     assert.strictEqual(petWindow.getParentWindow(), shell)
+    assert.strictEqual(petWindow.isAlwaysOnTop(), false)
 
     // 弹原生右键菜单/文件对话框会把焦点从壳上拿走，桌宠必须退回普通 z 序。
     // 解绑延后复核，所以要等过了复核窗口才成立
     shell.blur()
     settleBlur()
+    // 再推进 applyPinDecision 的 50ms 屏蔽期
+    vi.advanceTimersByTime(50)
     assert.strictEqual(petWindow.getParentWindow(), null)
-    assert.strictEqual(petWindow.isAlwaysOnTop(), false)
+    // 壳失焦时临时置顶，防止桌宠沉底被其他应用遮挡
+    assert.strictEqual(petWindow.isAlwaysOnTop(), true)
 
     shell.focus()
+    // 再推进 applyPinDecision 的 50ms 屏蔽期
+    vi.advanceTimersByTime(50)
     assert.strictEqual(petWindow.getParentWindow(), shell)
+    // 壳重新聚焦后撤销置顶，通过父子关系自然浮在壳上
     assert.strictEqual(petWindow.isAlwaysOnTop(), false)
 
     pet.destroy()
@@ -162,16 +172,22 @@ describe('桌宠置顶策略三模式', () => {
     pet.destroy()
   })
 
-  test('follow：绑定未聚焦的壳时不立即抬升，等它真正聚焦', () => {
+  test('follow：绑定未聚焦的壳时不立即绑定 parent，但开启置顶保持可见，等壳聚焦后才绑定并撤销置顶', () => {
     resetElectronMock()
     const { pet, petWindow } = createPet()
     const background = new MockBrowserWindow()
 
     pet.followWindow(background as never)
+    // 推进 applyPinDecision 的 50ms 屏蔽期
+    vi.advanceTimersByTime(50)
     assert.strictEqual(petWindow.getParentWindow(), null)
+    assert.strictEqual(petWindow.isAlwaysOnTop(), true)
 
     background.focus()
+    // 再推进 applyPinDecision 的 50ms 屏蔽期
+    vi.advanceTimersByTime(50)
     assert.strictEqual(petWindow.getParentWindow(), background)
+    assert.strictEqual(petWindow.isAlwaysOnTop(), false)
 
     pet.destroy()
   })
@@ -315,15 +331,31 @@ describe('桌宠点击穿透', () => {
   test('相同穿透状态不重设命中测试——重设会打断进行中的鼠标捕获', () => {
     resetElectronMock()
     const { pet, petWindow } = createPet()
-    // create() 已经设过一次默认穿透，缓存从那里起就有初值
+    // create() 调用了 setIgnoreMouseEvents(true)，启动了 16ms 防抖计时器
+    // 推进计时器让它完成
+    vi.advanceTimersByTime(16)
     const afterCreate = petWindow.ignoreMouseEventsSetCount
 
+    // 设 true：与当前值相同，CoachPetWindow 的 applyIgnoreMouseEvents 去重检查跳过
+    // 但仍会启动 16ms 防抖计时器（虽然不会调用 Mock 的 setIgnoreMouseEvents）
     pet.setIgnoreMouseEvents(true)
     assert.strictEqual(petWindow.ignoreMouseEventsSetCount, afterCreate)
+    // 推进防抖计时器
+    vi.advanceTimersByTime(16)
 
+    // 设 false：值变了 (true -> false)，立即调用 applyIgnoreMouseEvents
+    // 去重检查通过，调用 win.setIgnoreMouseEvents，计数 +1
     pet.setIgnoreMouseEvents(false)
     assert.strictEqual(petWindow.ignoreMouseEventsSetCount, afterCreate + 1)
+
+    // 再次设 false：防抖计时器还在运行中，直接返回，不调用 applyIgnoreMouseEvents
     pet.setIgnoreMouseEvents(false)
+    assert.strictEqual(petWindow.ignoreMouseEventsSetCount, afterCreate + 1)
+
+    // 推进 16ms 防抖计时器
+    // pendingIgnoreMouseEvents (false) === lastIgnoreMouseEvents (false)
+    // applyIgnoreMouseEvents 内部去重检查会跳过，不调用 win.setIgnoreMouseEvents
+    vi.advanceTimersByTime(16)
     assert.strictEqual(petWindow.ignoreMouseEventsSetCount, afterCreate + 1)
 
     pet.destroy()
