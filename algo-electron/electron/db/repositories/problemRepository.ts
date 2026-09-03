@@ -17,6 +17,7 @@ export {
   getProblemDetail,
   getRecentProblems,
   listProblemVisitsByProblem,
+  findProblemIdByPlatformKey,
 } from './problem/queries'
 
 export {

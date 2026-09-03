@@ -643,3 +643,87 @@ test('集成场景：never_today → 当天屏蔽 → 跨天恢复', () => {
   repo.setNeverTodayTypes(new Set())
   assert.strictEqual(store.shouldSuppress('multiple_wrong'), false)
 })
+
+// --- 11. Issue #2: 每日提示升级额度 ---
+
+test('checkDailyUpgradeQuota: 初始状态允许升级', () => {
+  const repo = createMockRepository()
+  const store = new CoachFeedbackStore({
+    repository: repo,
+    today: () => '2024-01-01',
+    dailyUpgradeQuota: 10,
+  })
+  const check = store.checkDailyUpgradeQuota()
+  assert.strictEqual(check.allowed, true)
+  assert.strictEqual(check.remaining, 10)
+})
+
+test('consumeDailyUpgradeQuota: 消耗一次额度', () => {
+  const repo = createMockRepository()
+  const store = new CoachFeedbackStore({
+    repository: repo,
+    today: () => '2024-01-01',
+    dailyUpgradeQuota: 10,
+  })
+  store.consumeDailyUpgradeQuota()
+  const check = store.checkDailyUpgradeQuota()
+  assert.strictEqual(check.allowed, true)
+  assert.strictEqual(check.remaining, 9)
+})
+
+test('checkDailyUpgradeQuota: 额度用尽后不允许', () => {
+  const repo = createMockRepository()
+  const store = new CoachFeedbackStore({
+    repository: repo,
+    today: () => '2024-01-01',
+    dailyUpgradeQuota: 3,
+  })
+  // 消耗 3 次
+  store.consumeDailyUpgradeQuota()
+  store.consumeDailyUpgradeQuota()
+  store.consumeDailyUpgradeQuota()
+  const check = store.checkDailyUpgradeQuota()
+  assert.strictEqual(check.allowed, false)
+  assert.strictEqual(check.remaining, 0)
+})
+
+test('checkDailyUpgradeQuota: 跨天自动重置', () => {
+  let today = '2024-01-01'
+  const repo = createMockRepository()
+  const store = new CoachFeedbackStore({
+    repository: repo,
+    today: () => today,
+    dailyUpgradeQuota: 3,
+  })
+  // 第一天用尽额度
+  store.consumeDailyUpgradeQuota()
+  store.consumeDailyUpgradeQuota()
+  store.consumeDailyUpgradeQuota()
+  assert.strictEqual(store.checkDailyUpgradeQuota().allowed, false)
+
+  // 跨天
+  today = '2024-01-02'
+  const check = store.checkDailyUpgradeQuota()
+  assert.strictEqual(check.allowed, true)
+  assert.strictEqual(check.remaining, 3)
+})
+
+test('consumeDailyUpgradeQuota: 跨天首次消耗重置计数', () => {
+  let today = '2024-01-01'
+  const repo = createMockRepository()
+  const store = new CoachFeedbackStore({
+    repository: repo,
+    today: () => today,
+    dailyUpgradeQuota: 5,
+  })
+  // 第一天消耗 2 次
+  store.consumeDailyUpgradeQuota()
+  store.consumeDailyUpgradeQuota()
+  assert.strictEqual(store.checkDailyUpgradeQuota().remaining, 3)
+
+  // 跨天后消耗 1 次
+  today = '2024-01-02'
+  store.consumeDailyUpgradeQuota()
+  const check = store.checkDailyUpgradeQuota()
+  assert.strictEqual(check.remaining, 4) // 应从 5 减去 1
+})

@@ -38,6 +38,7 @@ import {
 import {
   getProblemDetail,
   listProblemVisitsByProblem,
+  findProblemIdByPlatformKey,
 } from '../db/repositories/problemRepository'
 import {
   getSubmissionsByProblemAsc,
@@ -183,6 +184,10 @@ export class CoachOrchestrator {
     this.sessionTracker = new ProblemSessionTracker({
       trackingService: options.getTrackingService()!,
       parseProblemUrl: parseUrl,
+      // Issue #3: 注入 problem_id 解析回调
+      resolveProblemId: async (platform, platformProblemId) => {
+        return findProblemIdByPlatformKey(platform, platformProblemId)
+      },
       powerMonitor,
       isAnyAppWindowFocused: options.isAnyAppWindowFocused,
     })
@@ -822,6 +827,7 @@ export class CoachOrchestrator {
    * 用户点"再给一点"。返回新的 intervention 或 null（拒绝升级）。
    *
    * 阶段 3：L5 升级需二次确认。
+   * Issue #2：每日升级额度限制（10 次/天）。
    * - 第一次点击升级到 L5：返回 confirmation 干预（needsConfirmation=true），
    *   展示"该提示接近题解方向，确认查看？"气泡
    * - 第二次点击（pending 状态）：真正升级到 L5
@@ -840,6 +846,16 @@ export class CoachOrchestrator {
     void bubbleId
     if (this.contestGuard.isContestMode()) {
       return { accepted: false, level: 0, note: '比赛模式硬关闭' }
+    }
+
+    // Issue #2: 检查每日升级额度
+    const quotaCheck = this.feedbackStore.checkDailyUpgradeQuota()
+    if (!quotaCheck.allowed) {
+      return {
+        accepted: false,
+        level: this.currentHintLevel,
+        note: `今日提示升级次数已用完（${this.feedbackStore['dailyUpgradeQuota']}/天），明天再试吧`,
+      }
     }
 
     const nextLevel = Math.min(this.currentHintLevel + 1, 5) as CoachInterventionLevel
@@ -909,6 +925,8 @@ export class CoachOrchestrator {
             userExplicitAsk: true,
           })
           if (llmResult) {
+            // 消耗一次每日升级额度（Issue #2）
+            this.feedbackStore.consumeDailyUpgradeQuota()
             this.currentHintLevel = nextLevel
             const intervention = buildCoachIntervention({
               event_id: stubEvent.event_id,
@@ -1014,6 +1032,9 @@ export class CoachOrchestrator {
       return { accepted: false, level: 0, note: content.rejectReason ?? '不展示提示' }
     }
 
+    // 消耗一次每日升级额度（Issue #2）
+    this.feedbackStore.consumeDailyUpgradeQuota()
+
     const intervention = buildCoachIntervention({
       event_id: this.currentBubbleInterventionId ?? crypto.randomUUID(),
       trigger_reason: eventType,
@@ -1068,68 +1089,64 @@ export class CoachOrchestrator {
       return
     }
 
-    // 如果 LLM 未启用，不产生任何 intervention（只有桌宠陪伴）
-    if (!this.llmHintService.isReady()) {
-      return
-    }
-
-    // LLM 启用：直接调 LLM 生成提示
-    this.options.getCoachPetWindow()?.setPetState('thinking')
-    try {
-      const llmResult = await this.llmHintService.generateHint({
-        event,
-        session: this.sessionTracker.getCurrentSession(),
-        constraints: this.currentConstraints,
-        targetLevel: 1,
-        userExplicitAsk: false,
-        problemUrl: this.currentProblemUrl,
-      })
-      if (llmResult) {
-        this.feedbackStore.markTriggered(event.event_type)
-        this.currentHintLevel = 1
-        const intervention = buildCoachIntervention({
-          event_id: event.event_id,
-          trigger_reason: event.event_type,
-          intervention_level: llmResult.reveals_solution ? 5 : 1,
-          source_type: 'llm',
-          message: llmResult.message,
-          related_tags: llmResult.related_tags,
-          problem_id: event.problem_id,
-          platform: event.platform,
-          session_id: event.session_id,
+    // LLM 优先 + 本地兜底（Issue #1 接线）
+    if (this.llmHintService.isReady()) {
+      // LLM 可用：直接调 LLM 生成提示
+      this.options.getCoachPetWindow()?.setPetState('thinking')
+      try {
+        const llmResult = await this.llmHintService.generateHint({
+          event,
+          session: this.sessionTracker.getCurrentSession(),
+          constraints: this.currentConstraints,
+          targetLevel: 1,
+          userExplicitAsk: false,
+          problemUrl: this.currentProblemUrl,
         })
-        insertCoachIntervention(intervention)
+        if (llmResult) {
+          this.feedbackStore.markTriggered(event.event_type)
+          this.currentHintLevel = 1
+          const intervention = buildCoachIntervention({
+            event_id: event.event_id,
+            trigger_reason: event.event_type,
+            intervention_level: llmResult.reveals_solution ? 5 : 1,
+            source_type: 'llm',
+            message: llmResult.message,
+            related_tags: llmResult.related_tags,
+            problem_id: event.problem_id,
+            platform: event.platform,
+            session_id: event.session_id,
+          })
+          insertCoachIntervention(intervention)
+          this.showIntervention(intervention)
+        }
+      } catch (err) {
+        appLogger.warn('coach.llm-generate-hint-failed', err)
+      }
+    } else {
+      // LLM 不可用：走本地规则引擎
+      const intervention = this.ruleEngine.handleEvent(event)
+      if (intervention) {
+        this.feedbackStore.markTriggered(event.event_type)
         this.showIntervention(intervention)
       }
-    } catch (err) {
-      appLogger.warn('coach.llm-generate-hint-failed', err)
     }
   }
 
   /**
-   * `RuleEngine.onIntervention` 的接收端。**当前没有任何生产路径能走到这里。**
+   * `RuleEngine.onIntervention` 的接收端。Issue #1 已接线：LLM 不可用时走本地规则引擎。
    *
-   * 原注释写的是"showIntervention 由 handleCoachEvent 调用 handleEvent 后通过返回值触发"。
-   * 那句话不成立。`onIntervention` 在 `RuleEngine` 里有三个触发点，两条死因各不相同：
+   * `RuleEngine.handleEvent` 内部调用 `onIntervention` 回调（RuleEngine.ts:217），
+   * 现在通过 `handleCoachEvent` 的 else 分支连接到生产路径。
    *
-   * - `RuleEngine.ts:217`（`handleEvent` 内）——`handleEvent` 全 `electron/` 无调用点。
-   *   `handleCoachEvent`（本文件 1056 行）落库事件后直接判 `llmHintService.isReady()`，
-   *   不 ready 就 return，ready 就调 LLM，**全程不碰规则引擎**。
-   * - `RuleEngine.ts:281`、`:320`（`requestHintUpgrade` 内）——同名方法在本类也有一个
-   *   （830 行），IPC 打进来的是**本类那个**；它自己维护 `currentHintLevel` 与
-   *   `l5PendingConfirmed`、自己 `buildCoachIntervention`，不委托给引擎那个。
+   * 此方法的职责：落库 intervention（`insertCoachIntervention` 已在 `RuleEngine.handleEvent`
+   * 的返回值构造完成，这里只需持久化）。但当前实现发现 `RuleEngine.handleEvent` 已经
+   * 调用了 `onIntervention` 回调，所以这个方法实际上不需要再插入（否则会重复插入）。
    *
-   * 后果记在这里而不是留着那句错的：
-   * 1. 本方法、`RuleEngine.handleEvent`、`RuleEngine.requestHintUpgrade` 三者都是死接线；
-   * 2. 没配 API Key 的用户拿不到**自动**提示——本地提示阶梯只在用户点桌宠/点"再给一点"
-   *    时经 `requestLocalHintUpgrade` 走到，事件（多错、卡太久）不会自己触发它；
-   * 3. 引擎那个 `requestHintUpgrade` 里的 2 分钟升级冷却（`RuleEngine.ts:255-260`）
-   *    因此从未生效，见本类 `requestHintUpgrade` 处的说明。
-   *
-   * 不在此处补接线：让"没配 Key 的用户开始收到自动气泡"成为既成事实属于产品行为变更，
-   * 不是缺陷修复。接与不接、以及接在 `isReady()` 之前还是作为它的 else 分支，需要拍板。
+   * 保留此方法是为了维持 `RuleEngine` 的回调契约，但实际插入动作已在调用方完成。
    */
   private handleIntervention(intervention: CoachIntervention, _event: CoachEvent): void {
+    // intervention 已由 RuleEngine.buildIntervention 构造完成
+    // 但未落库，这里补充落库（RuleEngine.handleEvent 只是构造，不负责持久化）
     insertCoachIntervention(intervention)
   }
 

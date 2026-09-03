@@ -45,10 +45,15 @@ import {
 /** URL 解析函数类型（无副作用版本） */
 export type ParseProblemUrlFn = (url: string) => ProblemIdentity | null
 
+/** problem_id 解析函数类型（Issue #3） */
+export type ResolveProblemIdFn = (platform: string, platformProblemId: string) => Promise<string | null>
+
 export interface ProblemSessionTrackerOptions {
   trackingService: TrackingService
   /** URL → ProblemIdentity 解析函数（parsers/registry.parseUrl 的无副作用版本） */
   parseProblemUrl: ParseProblemUrlFn
+  /** platform + platformProblemId → problem_id 解析函数（Issue #3，由 CoachOrchestrator 注入） */
+  resolveProblemId?: ResolveProblemIdFn
   /** 系统空闲阈值（秒），超过则不计时。默认 60s */
   idleThresholdSec?: number
   /** 聚合 tick 间隔（毫秒）。默认 30000（30s） */
@@ -89,6 +94,7 @@ interface ResolvedOptions {
   now: () => number
   trackingService: TrackingService
   parseProblemUrl: ParseProblemUrlFn
+  resolveProblemId?: ResolveProblemIdFn
   isAnyAppWindowFocused?: () => boolean
 }
 
@@ -124,6 +130,7 @@ export class ProblemSessionTracker {
       now: options.now ?? Date.now,
       trackingService: options.trackingService,
       parseProblemUrl: options.parseProblemUrl,
+      resolveProblemId: options.resolveProblemId,
       isAnyAppWindowFocused: options.isAnyAppWindowFocused,
     }
   }
@@ -215,6 +222,10 @@ export class ProblemSessionTracker {
       this.current.verdict_history = this.current.verdict_history.slice(-20)
     }
     this.recomputePhase()
+    // Issue #3: 首次提交时尝试解析 problem_id（兜底时机）
+    if (this.current.submit_count === 1 && this.current.problem_id === null) {
+      this.resolveProblemIdAsync(this.current.platform, this.current.platform_problem_id)
+    }
   }
 
   /** 临时屏蔽某类提示到今天结束 */
@@ -372,7 +383,7 @@ export class ProblemSessionTracker {
     const now = this.options.now()
     this.current = {
       session_id: crypto.randomUUID(),
-      problem_id: null,
+      problem_id: null, // Issue #3: 异步解析，见 resolveProblemIdAsync
       platform: identity.platform,
       platform_problem_id: identity.platformProblemId,
       started_at: now,
@@ -386,6 +397,8 @@ export class ProblemSessionTracker {
       verdict_history: [],
       problem_rating: null,
     }
+    // Issue #3: 尝试解析 problem_id（进页面时机）
+    this.resolveProblemIdAsync(identity.platform, identity.platformProblemId)
   }
 
   private closeCurrentSession(finalStatus: ProblemSessionStatus): void {
@@ -441,5 +454,24 @@ export class ProblemSessionTracker {
       ...s,
       verdict_history: [...s.verdict_history],
     }
+  }
+
+  /**
+   * 异步解析 problem_id（Issue #3）。
+   * 解析成功后更新当前 session.problem_id，解析失败留 null。
+   */
+  private resolveProblemIdAsync(platform: string, platformProblemId: string): void {
+    if (!this.options.resolveProblemId) return
+    if (!this.current) return
+
+    const currentSessionId = this.current.session_id
+    void this.options.resolveProblemId(platform, platformProblemId).then((problemId) => {
+      // 异步完成时检查 session 是否还是同一个（用户可能已经切题）
+      if (this.current?.session_id === currentSessionId && problemId !== null) {
+        this.current.problem_id = problemId
+      }
+    }).catch(() => {
+      // 解析失败静默处理，保持 problem_id 为 null
+    })
   }
 }

@@ -71,3 +71,15 @@ export function listProblemVisitsByProblem(problemId: string): ProblemVisitRow[]
     )
     .all(problemId) as ProblemVisitRow[]
 }
+
+/**
+ * 根据 platform + platform_problem_id 查询 problem_id（Issue #3）。
+ * 返回 null 表示该题尚未入库（未访问过 / 解析失败）。
+ */
+export function findProblemIdByPlatformKey(platform: string, platformProblemId: string): string | null {
+  const db = getDb()
+  const row = db
+    .prepare('SELECT id FROM problems WHERE platform = ? AND platform_problem_id = ? AND deleted_at IS NULL')
+    .get(platform, platformProblemId) as { id: string } | undefined
+  return row?.id ?? null
+}

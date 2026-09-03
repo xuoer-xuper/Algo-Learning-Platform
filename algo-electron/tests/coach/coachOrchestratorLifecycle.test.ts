@@ -1296,16 +1296,15 @@ test('单题时间轴把四张表合到一起，first_ac 与最近活动按真�
   await vi.advanceTimersByTimeAsync(0)
 
   /*
-   * 记一笔实测事实：orchestrator 自己产出的事件与干预 **进不了这条轴**。
-   * `ProblemSessionTracker.openNewSession` 把 problem_id 写成 null 且再没别处填过
-   * （ProblemSessionTracker.ts:375），CoachEventBridge 的 getProblemId 读的就是它，
-   * 于是这两次提交产出的事件 problem_id 全是 null。断言写成"仍然是 1 条"而不是"变成 3 条"，
-   * 是在钉住当前真实行为；哪天 problem_id 接上了，这里会红，那是提醒而不是回归。
+   * Issue #3 修复后：orchestrator 产出的事件与干预现在能进时间轴了。
+   * ProblemSessionTracker 异步解析 problem_id（通过 resolveProblemId 回调），
+   * CoachEventBridge 的 getProblemId 读取已解析的 problem_id。
+   * 断言改为"变成 3 条"（初始手动插入的 1 条 + 两次提交触发的 2 条事件）。
    */
   assert.equal(
     listCoachEventsByProblem(problemId).length,
-    1,
-    '会话 problem_id 恒为 null，orchestrator 产出的事件目前挂不到题目上',
+    3,
+    'Issue #3 修复后，orchestrator 产出的事件应能挂到题目上',
   )
 
   const timeline = h.coach.getProblemTimeline(problemId)
@@ -1316,7 +1315,7 @@ test('单题时间轴把四张表合到一起，first_ac 与最近活动按真�
   assert.equal(timeline.visits[0].duration_seconds, 1800)
   assert.deepEqual(timeline.submissions.map((s) => s.verdict), ['WA', 'AC'], '提交应按时间升序')
   assert.equal(timeline.first_ac_at, '2026-08-30T09:25:00.000', 'first_ac 应取第一条 AC 的时间')
-  assert.equal(timeline.events.length, 1, '带 problem_id 的事件应被合进轴')
+  assert.equal(timeline.events.length, 3, 'Issue #3 修复后，带 problem_id 的事件应被合进轴')
   assert.equal(timeline.events[0].evidence.wrong_count, 2, 'evidence 应反序列化后原样带出')
 
   /*
@@ -1341,7 +1340,8 @@ test('单题时间轴把四张表合到一起，first_ac 与最近活动按真�
     platform: 'codeforces',
   }))
   const withIntervention = h.coach.getProblemTimeline(problemId)
-  assert.equal(withIntervention?.interventions.length, 1, '带 problem_id 的干预应进轴')
+  // Issue #3 修复后：前面 WA 触发的 2 个本地规则引擎干预 + 手动插入的 1 个干预 = 3 个
+  assert.equal(withIntervention?.interventions.length, 3, '带 problem_id 的干预应进轴')
   assert.equal(withIntervention?.interventions[0].user_action, 'shown')
 
   const bundle = h.coach.getMetricsBundle()
@@ -1409,20 +1409,19 @@ test('LLM 未配置时事件仍落库但不产生干预，用户主动点击走�
   await vi.advanceTimersByTimeAsync(0)
 
   /*
-   * 设计意图（handleCoachEvent 里那句 `if (!this.llmHintService.isReady()) return`）：
-   * LLM 没配时不主动打扰，只保留桌宠陪伴。所以"事件落库了但没有干预"是正确行为，
-   * 不是缺陷——正向锚点是事件条数，它证明链路走到了那个 return 而不是更早就断了。
+   * Issue #1 修改后行为：LLM 未配置时走本地规则引擎兜底，自动产生干预。
+   * 之前设计"LLM 没配时不主动打扰"，现在改为"始终有自动介入能力"。
    */
   assert.equal(listCoachEvents().length, 1, '未配 LLM 时事件仍须落库')
-  assert.deepEqual(listCoachInterventions(), [], '未配 LLM 时不主动产生干预')
+  const interventions = listCoachInterventions()
+  assert.equal(interventions.length, 1, '未配 LLM 时走本地规则引擎产生干预')
+  assert.equal(interventions[0].source_type, 'local_rule', '干预来源应为 local_rule')
   assert.deepEqual(sdk.requests, [], '未配 LLM 时不应发出任何请求')
-  assert.deepEqual(h.pet.bubbles, [], '未配 LLM 时不应主动弹气泡')
+  assert.equal(h.pet.bubbles.length, 1, '本地规则引擎干预应展示气泡')
   /*
-   * 桌宠状态也必须没动过。少了这条，"未配 LLM 就早退"那句 return 被删掉后
-   * 上面几条仍全绿：generateHint 在未就绪时返回 null，于是干预与气泡照样是空的，
-   * 唯一变化就是桌宠白白转进 thinking 再也没人把它转回来。
+   * 桌宠状态：本地规则引擎直接展示干预，桌宠进入 alert 状态。
    */
-  assert.deepEqual(h.pet.states, [], '未配 LLM 时不该把桌宠转进 thinking')
+  assert.deepEqual(h.pet.states, ['alert'], '本地规则引擎直接展示干预，桌宠进入 alert 状态')
 
   // 但用户主动点击必须有反应：本地 HintLadder 不依赖 LLM。
   const clicked = await h.coach.petClick()

@@ -59,6 +59,8 @@ export interface FeedbackRepositoryAdapter {
 const NOT_HELPFUL_THRESHOLD = 3
 /** 降频后同类型提示的最小间隔（毫秒，默认 6 小时） */
 const THROTTLE_INTERVAL_MS = 6 * 60 * 60 * 1000
+/** 手动提示升级每日额度（Issue #2） */
+const DAILY_UPGRADE_QUOTA = 10
 
 export interface CoachFeedbackStoreOptions {
   /** 注入式 Date.now（测试用） */
@@ -69,6 +71,8 @@ export interface CoachFeedbackStoreOptions {
   notHelpfulThreshold?: number
   /** 降频后同类型提示最小间隔（毫秒） */
   throttleIntervalMs?: number
+  /** 每日手动提示升级额度（Issue #2） */
+  dailyUpgradeQuota?: number
   /** 仓库适配器（测试可注入 mock；默认委托 feedbackRepository） */
   repository?: FeedbackRepositoryAdapter
 }
@@ -86,23 +90,35 @@ interface CategoryCounter {
   lastTriggerAt: number | null
 }
 
+/** 每日提示升级计数（Issue #2） */
+interface DailyUpgradeCounter {
+  /** 今日已使用次数 */
+  count: number
+  /** 记录日期（YYYY-MM-DD） */
+  day: string
+}
+
 export class CoachFeedbackStore {
   private readonly now: () => number
   private readonly today: () => string
   private readonly notHelpfulThreshold: number
   private readonly throttleIntervalMs: number
+  private readonly dailyUpgradeQuota: number
   private readonly repository: FeedbackRepositoryAdapter
   /** 反馈计数器，key = `${eventType}:${category}` */
   private readonly counters = new Map<string, CategoryCounter>()
   /** 内存缓存：never_today 当日已屏蔽的 eventType 集合 */
   private neverTodayCache: Set<CoachEventType> | null = null
   private neverTodayCacheDay: string | null = null
+  /** 每日提示升级计数（Issue #2） */
+  private dailyUpgradeCounter: DailyUpgradeCounter = { count: 0, day: '' }
 
   constructor(options: CoachFeedbackStoreOptions = {}) {
     this.now = options.now ?? Date.now
     this.today = options.today ?? todayBeijing
     this.notHelpfulThreshold = options.notHelpfulThreshold ?? NOT_HELPFUL_THRESHOLD
     this.throttleIntervalMs = options.throttleIntervalMs ?? THROTTLE_INTERVAL_MS
+    this.dailyUpgradeQuota = options.dailyUpgradeQuota ?? DAILY_UPGRADE_QUOTA
     // repository 必须由调用方注入（依赖反转）。
     // 生产环境由 CoachOrchestrator 调用 createDefaultRepository() 注入；
     // 测试环境注入 mock FeedbackRepositoryAdapter。
@@ -218,6 +234,34 @@ export class CoachFeedbackStore {
     const counter = this.counters.get(key) ?? this.emptyCounter()
     counter.lastTriggerAt = this.now()
     this.counters.set(key, counter)
+  }
+
+  /**
+   * 检查并消耗每日提示升级额度（Issue #2）。
+   * @returns { allowed: boolean, remaining: number } - allowed 为 true 表示未超额，remaining 为剩余次数
+   */
+  checkDailyUpgradeQuota(): { allowed: boolean; remaining: number } {
+    const today = this.today()
+    if (this.dailyUpgradeCounter.day !== today) {
+      // 新的一天，重置计数
+      this.dailyUpgradeCounter = { count: 0, day: today }
+    }
+    const allowed = this.dailyUpgradeCounter.count < this.dailyUpgradeQuota
+    const remaining = Math.max(0, this.dailyUpgradeQuota - this.dailyUpgradeCounter.count)
+    return { allowed, remaining }
+  }
+
+  /**
+   * 消耗一次每日提示升级额度（Issue #2）。
+   * 调用前应先用 checkDailyUpgradeQuota 检查是否允许。
+   */
+  consumeDailyUpgradeQuota(): void {
+    const today = this.today()
+    if (this.dailyUpgradeCounter.day !== today) {
+      this.dailyUpgradeCounter = { count: 1, day: today }
+    } else {
+      this.dailyUpgradeCounter.count += 1
+    }
   }
 
   /**
