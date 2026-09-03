@@ -5,7 +5,6 @@ import {
   dismissCoachDisclaimer,
   dismissCoachHint,
   sendCoachFeedback,
-  toggleCoachIgnoreMouseEvents,
   triggerCoachHint,
 } from './coachDataApi'
 
@@ -88,16 +87,8 @@ export function CoachBubble({ payload, autoDismissMs = 12000, llmEnabled = false
     handleClose('dismiss')
   }
 
-  const handleMouseEnter = () => {
-    void toggleCoachIgnoreMouseEvents(false)
-  }
-  const handleMouseLeave = () => {
-    void toggleCoachIgnoreMouseEvents(true)
-  }
-
   return (
-    <div className="coach-bubble" role="alert" aria-live="polite"
-      onMouseEnter={handleMouseEnter} onMouseLeave={handleMouseLeave}>
+    <div className="coach-bubble" role="alert" aria-live="polite">
       <div className="coach-bubble-header">
         <span className="coach-bubble-title">{payload.title}</span>
         {!isDisclaimer && !isLoading && (

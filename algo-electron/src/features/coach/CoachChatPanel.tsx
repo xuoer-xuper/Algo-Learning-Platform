@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { Icon } from '../../components/ui'
-import { sendCoachChatMessage, toggleCoachIgnoreMouseEvents } from './coachDataApi'
+import { sendCoachChatMessage } from './coachDataApi'
 import './styles/bubble.css'
 
 interface ChatMessage {
@@ -23,13 +23,6 @@ export function CoachChatPanel({ onClose }: CoachChatPanelProps) {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, loading])
-
-  const handleMouseEnter = () => {
-    void toggleCoachIgnoreMouseEvents(false)
-  }
-  const handleMouseLeave = () => {
-    void toggleCoachIgnoreMouseEvents(true)
-  }
 
   const handleSend = async () => {
     const userMessage = input.trim()
@@ -64,8 +57,6 @@ export function CoachChatPanel({ onClose }: CoachChatPanelProps) {
   return (
     <div
       className="coach-chat-panel"
-      onMouseEnter={handleMouseEnter}
-      onMouseLeave={handleMouseLeave}
     >
       <div className="coach-chat-header">
         <span className="coach-chat-title">AI 教练对话</span>
