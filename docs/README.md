@@ -1,13 +1,15 @@
 # 文档索引
 
-本文是 Algo Learning Platform `2.0.0-beta.2` 文档入口。当前文档保留项目介绍、协作规则、架构契约、数据结构、发布运维和长期架构决策。
+本文是 Algo Learning Platform `1.1.0-beta.2` 文档入口。当前文档保留项目介绍、协作规则、架构契约、数据结构、发布运维和长期架构决策。
 
 ## 项目与版本
 
 | 文档 | 作用 |
 |---|---|
-| [项目 README](../README.md) | 项目介绍、功能、技术栈、运行方式和文档入口。 |
+| [项目导航](../README.md) | 文档导航、快速开始、核心特性、技术栈。 |
+| [项目介绍](../.github/README.md) | 功能特性、支持平台、快速开始、常用命令。 |
 | [CHANGELOG](PRODUCT/CHANGELOG.md) | 已发布版本的用户可见变化。 |
+| [VERSION_PLAN](../VERSION_PLAN.md) | 版本号规划和发布路线图。 |
 | [LICENSE](../LICENSE) | MIT License。 |
 
 ## 协作与治理
@@ -18,6 +20,7 @@
 | [CONTRIBUTING](GOVERNANCE/CONTRIBUTING.md) | 本地开发、修改边界、PR 检查和 issue 要求。 |
 | [COMMIT_RULES](GOVERNANCE/COMMIT_RULES.md) | Git 提交信息格式和提交粒度约定。 |
 | [SECURITY](GOVERNANCE/SECURITY.md) | Cookie、用户数据、导出、日志和安全报告边界。 |
+| [COLLABORATION](../.github/COLLABORATION.md) | GitHub 协作配置：CI workflow、PR 模板、issue 模板。 |
 | [AI_HANDOFF](../AI_HANDOFF.md) | AI 助手工作交接记录，记录最近完成任务和待办事项。 |
 
 ## 设计契约
