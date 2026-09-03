@@ -249,6 +249,7 @@ async function openInternalPageTab(
   await expect(homeTab).toHaveCount(1)
   await expect(homeTab).toHaveAttribute('aria-selected', 'true')
   const previousTabCount = await tabs.count()
+
   const tabId = await page.evaluate(
     (target) => window.electronAPI.openInternalTab(target),
     contract.page,
@@ -261,6 +262,41 @@ async function openInternalPageTab(
   const tab = tabItem.getByRole('tab', { name: contract.title, exact: true })
   await expect(tab).toHaveAttribute('aria-selected', 'true')
   await expect(page.getByRole('combobox', { name: '地址和搜索栏' })).toHaveValue(contract.url)
+
+  /*
+   * 等待路由切换完成。标签的 aria-selected 和地址栏都已更新，说明 TabStrip 的状态已同步。
+   * 但 ShellRouter 的 useEffect 可能还在执行中（React 批处理 + view transition）。
+   *
+   * 调试：如果10秒后路由还没出现，打印当前 DOM 状态帮助诊断。
+   */
+  const routeAppeared = await page.waitForFunction(
+    (selector) => document.querySelector(selector) !== null,
+    contract.routeSelector,
+    { timeout: 10000 },
+  ).then(() => true, () => false)
+
+  if (!routeAppeared) {
+    const debugInfo = await page.evaluate(() => {
+      const shellRoute = document.querySelector('[class*="shell-route"]')
+      const allTabs = Array.from(document.querySelectorAll('.tab-item')).map((tab) => ({
+        id: tab.getAttribute('data-tab-id'),
+        selected: tab.querySelector('[role="tab"]')?.getAttribute('aria-selected'),
+        title: tab.querySelector('[role="tab"]')?.textContent,
+      }))
+      return {
+        shellRouteClass: shellRoute?.className,
+        shellRouteVisible: shellRoute ? getComputedStyle(shellRoute).display !== 'none' : false,
+        allTabs,
+        contentAreaVisible: document.querySelector('.content-area') !== null,
+        mainContentVisible: document.querySelector('.main-content') !== null,
+      }
+    })
+    throw new Error(
+      `Route ${contract.routeSelector} did not appear after 10s.\n` +
+      `Debug info: ${JSON.stringify(debugInfo, null, 2)}`
+    )
+  }
+
   await expect(page.locator(contract.routeSelector)).toBeVisible()
   await expect(page.locator('.content-area')).toBeVisible()
   await expect(page.locator('.main-content')).toBeVisible()

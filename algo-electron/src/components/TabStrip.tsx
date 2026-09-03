@@ -146,6 +146,7 @@ export function TabStrip({ onTabUrlChange, onActiveTabChange }: TabStripProps) {
     })
 
     const requestRevision = listRevision
+
     void getBrowserTabList().then(
       (initialTabs) => {
         if (listRevision !== requestRevision) return

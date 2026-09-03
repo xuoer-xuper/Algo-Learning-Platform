@@ -41,23 +41,14 @@ function RouteLoading() {
  */
 let liveTransition: ViewTransition | null = null
 
-/*
- * 上一次过渡的开始时刻。比一次动画还快的连续换页属于"突发"，此时动画本来就看不见，
- * 但每次过渡都要挂一次顶层伪元素树，而实测那棵树会在 finished 之后、
- * `document.activeViewTransition` 已经是 null 的情况下继续挂约 200ms 才被拆掉
- * （Chromium 行为，promise 侧无法提前得知）。这 200ms 里整页吞输入。
- * 所以突发换页直接不做动画：省掉的是一帧都看不到的动画，换来的是全程可点。
- */
-let lastTransitionStart = 0
-
 /* 与 --duration-base(160ms) 同量级，略放宽以覆盖过渡收尾。 */
 const TRANSITION_BURST_WINDOW_MS = 200
 
-function now(): number {
-  return typeof performance === 'object' && typeof performance.now === 'function'
-    ? performance.now()
-    : Date.now()
-}
+/*
+ * 过渡版本号。每次启动新过渡时递增，用于取消过时的过渡回调。
+ * skipTransition() 不会阻止回调执行，所以需要在回调内部检查版本号。
+ */
+let transitionVersion = 0
 
 /*
  * View Transitions 能力检测。Electron 内的 Chromium 支持该 API，但必须做运行时检测：
@@ -76,19 +67,11 @@ function maybeTransition(callback: () => void) {
     return
   }
 
-  const startedAt = now()
-  if (startedAt - lastTransitionStart < TRANSITION_BURST_WINDOW_MS) {
-    liveTransition?.skipTransition()
-    liveTransition = null
-    lastTransitionStart = startedAt
-    callback()
-    return
-  }
-
   liveTransition?.skipTransition()
-  lastTransitionStart = startedAt
 
-  const transition = document.startViewTransition(callback)
+  const transition = document.startViewTransition(() => {
+    callback()
+  })
   liveTransition = transition
 
   const ignore = () => {}
@@ -106,6 +89,7 @@ export function ShellRouter({
 }: ShellRouterProps) {
   const [renderTab, setRenderTab] = React.useState<TabStripTabInfo | null>(activeTab)
   const prevTabIdRef = React.useRef<string | null>(activeTab?.id ?? null)
+  const lastUpdateTimeRef = React.useRef<number>(0)
 
   /*
    * 内部页切换触发 View Transition。只在标签 id 变化时触发动画，
@@ -113,12 +97,41 @@ export function ShellRouter({
    */
   React.useEffect(() => {
     const currentId = activeTab?.id ?? null
-    if (currentId === prevTabIdRef.current) {
+    const prevId = prevTabIdRef.current
+
+    // 立即更新 ref，避免快速切换时的时序问题
+    prevTabIdRef.current = currentId
+
+    if (currentId === prevId) {
       // 同一标签，直接更新不做动画
       setRenderTab(activeTab)
       return
     }
+
+    // Burst 检测：如果距离上次更新时间太近，直接同步更新不做动画
+    const now = typeof performance === 'object' && typeof performance.now === 'function'
+      ? performance.now()
+      : Date.now()
+    const timeSinceLastUpdate = now - lastUpdateTimeRef.current
+    lastUpdateTimeRef.current = now
+
+    if (timeSinceLastUpdate < TRANSITION_BURST_WINDOW_MS) {
+      liveTransition?.skipTransition()
+      liveTransition = null
+      transitionVersion += 1  // 取消所有挂起的过渡回调
+      flushSync(() => {
+        setRenderTab(activeTab)
+      })
+      return
+    }
+
+    transitionVersion += 1  // 取消之前的过渡回调
+    const currentVersion = transitionVersion
     maybeTransition(() => {
+      // 检查版本号，如果过时则不执行
+      if (currentVersion !== transitionVersion) {
+        return
+      }
       /*
        * 必须 flushSync。startViewTransition 的回调返回即视为"新状态已就位"，
        * 而 React 的并发更新默认排到回调之后才提交 —— Chromium 于是把旧 DOM 当成新状态
@@ -128,7 +141,6 @@ export function ShellRouter({
       flushSync(() => {
         setRenderTab(activeTab)
       })
-      prevTabIdRef.current = currentId
     })
   }, [activeTab])
 
