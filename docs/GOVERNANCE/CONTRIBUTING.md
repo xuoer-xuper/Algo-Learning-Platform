@@ -21,16 +21,27 @@ npm install
 npm run dev
 ```
 
-常用验证：
+### 2.1 Commit 前必跑检查
+
+**每次 commit 前，必须在本地运行以下命令并全部通过：**
+
+```powershell
+npm run test:core      # typecheck + lint + architecture + security
+npm run test:docs      # 文档链接和覆盖率检查
+npm run test:packaging # 打包配置安全检查
+```
+
+这三条命令对应 CI 中的 `fast-guard` job。本地先验证可以避免反复 push 触发 CI 失败、污染 commit 历史。
+
+### 2.2 其他常用验证
 
 ```powershell
 npm run typecheck
-npm run test:core
 npm run test:architecture
 npm run test:security
-npm run test:docs
-npm run test:packaging
 ```
+
+### 2.3 发布前全量验证
 
 发布前或大范围改动后运行：
 
