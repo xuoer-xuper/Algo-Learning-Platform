@@ -24,7 +24,7 @@ interface MockTrackingServiceOptions {
 function createMockTrackingService(options: MockTrackingServiceOptions = {}): TrackingService {
   const listeners: Array<(identity: ProblemIdentity, source?: any) => void> = []
   return {
-    addProblemDetectedListener: (fn) => {
+    addProblemDetectedListener: (fn: (identity: ProblemIdentity, source?: any) => void) => {
       listeners.push(fn)
       return () => {
         const idx = listeners.indexOf(fn)
@@ -52,7 +52,7 @@ function createMockAppWindow(id: string): AppWindow {
     tabManager: {
       getUrl: () => currentUrl,
       setUrl: (url: string) => { currentUrl = url },
-      addActiveTabChangeListener: (fn) => {
+      addActiveTabChangeListener: (fn: (url: string) => void) => {
         activeTabListeners.push(fn)
         return () => {
           const idx = activeTabListeners.indexOf(fn)
@@ -79,7 +79,12 @@ describe('ProblemSessionTracker - Issue #3: problem_id 异步解析', () => {
       trackingService: createMockTrackingService(),
       parseProblemUrl: (url) => {
         if (url.includes('leetcode.com/problems/two-sum')) {
-          return { platform: 'leetcode', platformProblemId: 'two-sum', url }
+          return {
+            platform: 'leetcode',
+            platformProblemId: 'two-sum',
+            canonicalUrl: url,
+            confidence: 'url' as const,
+          }
         }
         return null
       },
@@ -98,7 +103,8 @@ describe('ProblemSessionTracker - Issue #3: problem_id 异步解析', () => {
     tracker.handleProblemDetectedForTest({
       platform: 'leetcode',
       platformProblemId: 'two-sum',
-      url: 'https://leetcode.com/problems/two-sum',
+      canonicalUrl: 'https://leetcode.com/problems/two-sum',
+      confidence: 'url',
     })
 
     // 立即检查：problem_id 应为 null（异步未完成）
@@ -129,7 +135,12 @@ describe('ProblemSessionTracker - Issue #3: problem_id 异步解析', () => {
       trackingService: createMockTrackingService(),
       parseProblemUrl: (url) => {
         if (url.includes('codeforces.com')) {
-          return { platform: 'codeforces', platformProblemId: '1234A', url }
+          return {
+            platform: 'codeforces',
+            platformProblemId: '1234A',
+            canonicalUrl: url,
+            confidence: 'url' as const,
+          }
         }
         return null
       },
@@ -149,7 +160,8 @@ describe('ProblemSessionTracker - Issue #3: problem_id 异步解析', () => {
     tracker.handleProblemDetectedForTest({
       platform: 'codeforces',
       platformProblemId: '1234A',
-      url: 'https://codeforces.com/problemset/problem/1234/A',
+      canonicalUrl: 'https://codeforces.com/problemset/problem/1234/A',
+      confidence: 'url',
     })
 
     await new Promise(resolve => setTimeout(resolve, 10))
@@ -173,10 +185,20 @@ describe('ProblemSessionTracker - Issue #3: problem_id 异步解析', () => {
       trackingService: createMockTrackingService(),
       parseProblemUrl: (url) => {
         if (url.includes('two-sum')) {
-          return { platform: 'leetcode', platformProblemId: 'two-sum', url }
+          return {
+            platform: 'leetcode',
+            platformProblemId: 'two-sum',
+            canonicalUrl: url,
+            confidence: 'url' as const,
+          }
         }
         if (url.includes('three-sum')) {
-          return { platform: 'leetcode', platformProblemId: 'three-sum', url }
+          return {
+            platform: 'leetcode',
+            platformProblemId: 'three-sum',
+            canonicalUrl: url,
+            confidence: 'url' as const,
+          }
         }
         return null
       },
@@ -194,7 +216,8 @@ describe('ProblemSessionTracker - Issue #3: problem_id 异步解析', () => {
     tracker.handleProblemDetectedForTest({
       platform: 'leetcode',
       platformProblemId: 'two-sum',
-      url: 'https://leetcode.com/problems/two-sum',
+      canonicalUrl: 'https://leetcode.com/problems/two-sum',
+      confidence: 'url',
     })
 
     const firstSessionId = tracker.getCurrentSession()?.session_id
@@ -205,7 +228,8 @@ describe('ProblemSessionTracker - Issue #3: problem_id 异步解析', () => {
     tracker.handleProblemDetectedForTest({
       platform: 'leetcode',
       platformProblemId: 'three-sum',
-      url: 'https://leetcode.com/problems/three-sum',
+      canonicalUrl: 'https://leetcode.com/problems/three-sum',
+      confidence: 'url',
     })
 
     const secondSessionId = tracker.getCurrentSession()?.session_id
@@ -232,7 +256,12 @@ describe('ProblemSessionTracker - Issue #3: problem_id 异步解析', () => {
       trackingService: createMockTrackingService(),
       parseProblemUrl: (url) => {
         if (url.includes('leetcode.com')) {
-          return { platform: 'leetcode', platformProblemId: 'two-sum', url }
+          return {
+            platform: 'leetcode',
+            platformProblemId: 'two-sum',
+            canonicalUrl: url,
+            confidence: 'url' as const,
+          }
         }
         return null
       },
@@ -247,7 +276,8 @@ describe('ProblemSessionTracker - Issue #3: problem_id 异步解析', () => {
       tracker.handleProblemDetectedForTest({
         platform: 'leetcode',
         platformProblemId: 'two-sum',
-        url: 'https://leetcode.com/problems/two-sum',
+        canonicalUrl: 'https://leetcode.com/problems/two-sum',
+        confidence: 'url',
       })
     })
 
@@ -270,7 +300,12 @@ describe('ProblemSessionTracker - Issue #3: problem_id 异步解析', () => {
       trackingService: createMockTrackingService(),
       parseProblemUrl: (url) => {
         if (url.includes('atcoder.jp')) {
-          return { platform: 'atcoder', platformProblemId: 'abc123_a', url }
+          return {
+            platform: 'atcoder',
+            platformProblemId: 'abc123_a',
+            canonicalUrl: url,
+            confidence: 'url' as const,
+          }
         }
         return null
       },
@@ -283,7 +318,8 @@ describe('ProblemSessionTracker - Issue #3: problem_id 异步解析', () => {
     tracker.handleProblemDetectedForTest({
       platform: 'atcoder',
       platformProblemId: 'abc123_a',
-      url: 'https://atcoder.jp/contests/abc123/tasks/abc123_a',
+      canonicalUrl: 'https://atcoder.jp/contests/abc123/tasks/abc123_a',
+      confidence: 'url',
     })
 
     await new Promise(resolve => setTimeout(resolve, 10))
@@ -299,7 +335,12 @@ describe('ProblemSessionTracker - Issue #3: problem_id 异步解析', () => {
       trackingService: createMockTrackingService(),
       parseProblemUrl: (url) => {
         if (url.includes('luogu.com.cn')) {
-          return { platform: 'luogu', platformProblemId: 'P1001', url }
+          return {
+            platform: 'luogu',
+            platformProblemId: 'P1001',
+            canonicalUrl: url,
+            confidence: 'url' as const,
+          }
         }
         return null
       },
@@ -316,7 +357,8 @@ describe('ProblemSessionTracker - Issue #3: problem_id 异步解析', () => {
       tracker.handleProblemDetectedForTest({
         platform: 'luogu',
         platformProblemId: 'P1001',
-        url: 'https://www.luogu.com.cn/problem/P1001',
+        canonicalUrl: 'https://www.luogu.com.cn/problem/P1001',
+        confidence: 'url',
       })
     })
 
