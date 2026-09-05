@@ -1,4 +1,7 @@
 import { getDb } from '../db/connection'
+import { recomputeProblemSubmissionState } from '../db/repositories/submissionRepository'
+import { recomputeDailyStatsForDates } from '../db/repositories/statsRepository'
+import { localDayFromTimestamp } from '../db/repositories/stats/date'
 import { nowBeijing } from '../shared/time'
 import {
   LEARNING_DATA_EXPORT_APP,
@@ -31,6 +34,11 @@ type ExportTableName = typeof EXPORT_TABLES[number]
 interface ExistingKeyRow {
   id?: string
   local_day?: string
+}
+
+interface ImportEffects {
+  problemIds: Set<string>
+  dates: Set<string>
 }
 
 export function exportLearningData(): LearningDataExport {
@@ -182,12 +190,18 @@ export function importLearningData(data: LearningDataExport, overwriteConflicts 
   const skipped = emptyCounts()
 
   const transaction = db.transaction(() => {
-    const problemIdMap = importProblems(data.tables.problems, overwriteConflicts, inserted, updated, skipped)
-    importProblemVisits(data.tables.problem_visits, problemIdMap, overwriteConflicts, inserted, updated, skipped)
-    importSubmissions(data.tables.submissions, problemIdMap, overwriteConflicts, inserted, updated, skipped)
-    importDailyStats(data.tables.user_daily_stats, overwriteConflicts, inserted, updated, skipped)
+    const effects: ImportEffects = { problemIds: new Set(), dates: new Set() }
+    const problemIdMap = importProblems(data.tables.problems, overwriteConflicts, inserted, updated, skipped, effects)
+    importProblemVisits(data.tables.problem_visits, problemIdMap, overwriteConflicts, inserted, updated, skipped, effects)
+    importSubmissions(data.tables.submissions, problemIdMap, overwriteConflicts, inserted, updated, skipped, effects)
+    importDailyStats(data.tables.user_daily_stats, overwriteConflicts, inserted, updated, skipped, effects)
     const accountIdMap = importAccounts(data.tables.platform_accounts, overwriteConflicts, inserted, updated, skipped)
     importRatingHistory(data.tables.rating_history, accountIdMap, overwriteConflicts, inserted, updated, skipped)
+
+    // Imported snapshots cannot describe the union of both databases. Rebuild
+    // after all fact writes, including dates and problem links replaced above.
+    for (const date of recomputeProblemSubmissionState(effects.problemIds)) effects.dates.add(date)
+    recomputeDailyStatsForDates(effects.dates)
   })
 
   transaction()
@@ -204,19 +218,21 @@ export function importLearningData(data: LearningDataExport, overwriteConflicts 
 function collectConflicts(data: LearningDataExport): ImportConflict[] {
   const conflicts: ImportConflict[] = []
   const db = getDb()
+  // Derived state and bookkeeping timestamps do not define metadata conflicts.
   const problemByKey = db.prepare(`
-    SELECT id, canonical_url, title, tags_json
+    SELECT id, canonical_url, title, contest_id, problem_index, source_platform,
+      source_problem_id, difficulty, tags_json, first_seen_at, last_visited_at, deleted_at
     FROM problems
     WHERE platform = ? AND platform_problem_id = ?
   `)
   const submissionByKey = db.prepare(`
-    SELECT id, verdict, submitted_at, language
+    SELECT id, problem_id, verdict, raw_verdict, submitted_at, language,
+      runtime_ms, memory_kb, source_url, deleted_at
     FROM submissions
     WHERE platform = ? AND platform_submission_id = ?
   `)
-  // Must select every column importDailyStats overwrites, because differs() only
-  // compares the columns present here. Omitting the two time figures let a day
-  // whose seconds differed import as a silent overwrite with no conflict shown.
+  // Keep snapshot differences visible for confirmation, including visit time.
+  // After import, the final fact rows determine these aggregates.
   const dailyStatByDay = db.prepare(`
     SELECT local_day, active_seconds, duration_seconds, visited_problem_count,
       solved_problem_count, submission_count, ac_submission_count,
@@ -225,16 +241,22 @@ function collectConflicts(data: LearningDataExport): ImportConflict[] {
     WHERE local_day = ?
   `)
 
+  const problemIdMap = new Map<string, string>()
   for (const problem of data.tables.problems) {
-    const existing = problemByKey.get(problem.platform, problem.platform_problem_id) as ExistingKeyRow | undefined
-    if (existing && existing.id !== problem.id && differs(existing, problem, ['id'])) {
+    const existing = problemByKey.get(problem.platform, problem.platform_problem_id) as ExportRow | undefined
+    problemIdMap.set(String(problem.id), String(existing?.id ?? problem.id))
+    if (existing && differs(sanitizeRows([existing])[0], problem, ['id'])) {
       conflicts.push(conflict('problems', String(problem.id), '同一平台题目已存在且元数据不同'))
     }
   }
 
   for (const submission of data.tables.submissions) {
-    const existing = submissionByKey.get(submission.platform, submission.platform_submission_id) as ExistingKeyRow | undefined
-    if (existing && existing.id !== submission.id && differs(existing, submission, ['id'])) {
+    const existing = submissionByKey.get(submission.platform, submission.platform_submission_id) as ExportRow | undefined
+    const remapped = {
+      ...submission,
+      problem_id: submission.problem_id ? problemIdMap.get(String(submission.problem_id)) ?? null : null,
+    }
+    if (existing && differs(sanitizeRows([existing])[0], remapped, ['id'])) {
       conflicts.push(conflict('submissions', String(submission.id), '同一平台提交已存在且元数据不同'))
     }
   }
@@ -320,6 +342,7 @@ function importProblems(
   inserted: Record<string, number>,
   updated: Record<string, number>,
   skipped: Record<string, number>,
+  effects: ImportEffects,
 ): Map<string, string> {
   const db = getDb()
   const idMap = new Map<string, string>()
@@ -327,12 +350,14 @@ function importProblems(
   for (const row of rows) {
     const exportedId = String(row.id)
     const existing = db.prepare(`
-      SELECT id FROM problems WHERE platform = ? AND platform_problem_id = ?
-    `).get(row.platform, row.platform_problem_id) as { id: string } | undefined
+      SELECT id, first_solved_at FROM problems WHERE platform = ? AND platform_problem_id = ?
+    `).get(row.platform, row.platform_problem_id) as { id: string; first_solved_at: string | null } | undefined
 
     if (existing) {
       idMap.set(exportedId, existing.id)
       if (overwrite) {
+        markAffected(effects, existing.id, existing.first_solved_at)
+        markAffected(effects, existing.id, row.first_solved_at)
         db.prepare(`
           UPDATE problems SET canonical_url = ?, title = ?, status = ?, contest_id = ?,
             problem_index = ?, source_platform = ?, source_problem_id = ?, difficulty = ?,
@@ -367,6 +392,7 @@ function importProblems(
       row.created_at, row.updated_at, row.deleted_at,
     )
     idMap.set(exportedId, exportedId)
+    markAffected(effects, exportedId, row.first_solved_at)
     inserted.problems++
   }
 
@@ -380,10 +406,13 @@ function importProblemVisits(
   inserted: Record<string, number>,
   updated: Record<string, number>,
   skipped: Record<string, number>,
+  effects: ImportEffects,
 ): void {
   const db = getDb()
   for (const row of rows) {
-    const existing = existsById(db, 'problem_visits', String(row.id))
+    const existing = db.prepare(`
+      SELECT problem_id, entered_at FROM problem_visits WHERE id = ?
+    `).get(row.id) as { problem_id: string; entered_at: string } | undefined
     const targetProblemId = row.problem_id ? problemIdMap.get(String(row.problem_id)) : null
     if (!targetProblemId) {
       skipped.problem_visits++
@@ -394,6 +423,8 @@ function importProblemVisits(
         skipped.problem_visits++
         continue
       }
+      markAffected(effects, existing.problem_id, existing.entered_at)
+      markAffected(effects, targetProblemId, row.entered_at)
       db.prepare(`
         UPDATE problem_visits SET problem_id = ?, session_id = ?, platform = ?, url = ?,
           entered_at = ?, left_at = ?, duration_seconds = ?, active_seconds = ?,
@@ -420,6 +451,7 @@ function importProblemVisits(
       row.leave_reason, row.created_at, row.updated_at, row.deleted_at,
     )
     inserted.problem_visits++
+    markAffected(effects, targetProblemId, row.entered_at)
   }
 }
 
@@ -430,12 +462,15 @@ function importSubmissions(
   inserted: Record<string, number>,
   updated: Record<string, number>,
   skipped: Record<string, number>,
+  effects: ImportEffects,
 ): void {
   const db = getDb()
   for (const row of rows) {
     const existing = db.prepare(`
-      SELECT id FROM submissions WHERE platform = ? AND platform_submission_id = ?
-    `).get(row.platform, row.platform_submission_id) as { id: string } | undefined
+      SELECT id, problem_id, submitted_at FROM submissions WHERE platform = ? AND platform_submission_id = ?
+    `).get(row.platform, row.platform_submission_id) as {
+      id: string; problem_id: string | null; submitted_at: string
+    } | undefined
     const targetProblemId = row.problem_id ? problemIdMap.get(String(row.problem_id)) ?? null : null
 
     if (existing) {
@@ -443,6 +478,8 @@ function importSubmissions(
         skipped.submissions++
         continue
       }
+      markAffected(effects, existing.problem_id, existing.submitted_at)
+      markAffected(effects, targetProblemId, row.submitted_at)
       db.prepare(`
         UPDATE submissions SET problem_id = ?, verdict = ?, raw_verdict = ?, language = ?,
           submitted_at = ?, is_first_ac = ?, runtime_ms = ?, memory_kb = ?,
@@ -471,6 +508,7 @@ function importSubmissions(
       row.deleted_at,
     )
     inserted.submissions++
+    markAffected(effects, targetProblemId, row.submitted_at)
   }
 }
 
@@ -480,6 +518,7 @@ function importDailyStats(
   inserted: Record<string, number>,
   updated: Record<string, number>,
   skipped: Record<string, number>,
+  effects: ImportEffects,
 ): void {
   const db = getDb()
   for (const row of rows) {
@@ -502,6 +541,7 @@ function importDailyStats(
         row.deleted_at, row.local_day,
       )
       updated.user_daily_stats++
+      markAffected(effects, null, row.local_day)
       continue
     }
 
@@ -519,6 +559,7 @@ function importDailyStats(
       row.created_at, row.updated_at, row.deleted_at,
     )
     inserted.user_daily_stats++
+    markAffected(effects, null, row.local_day)
   }
 }
 
@@ -641,9 +682,15 @@ function emptyCounts(): Record<string, number> {
   return Object.fromEntries(EXPORT_TABLES.map(table => [table, 0]))
 }
 
-function existsById(db: ReturnType<typeof getDb>, tableName: string, id: string): boolean {
-  const row = db.prepare(`SELECT 1 as found FROM ${tableName} WHERE id = ?`).get(id) as { found: number } | undefined
-  return Boolean(row)
+function markAffected(
+  effects: ImportEffects,
+  problemId: string | null | undefined,
+  timestamp: ExportRow[string] | undefined,
+): void {
+  if (problemId) effects.problemIds.add(problemId)
+  if (typeof timestamp !== 'string') return
+  const date = localDayFromTimestamp(timestamp)
+  if (date) effects.dates.add(date)
 }
 
 function existsByLocalDay(db: ReturnType<typeof getDb>, row: ExportRow): boolean {

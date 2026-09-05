@@ -412,15 +412,13 @@ export class CoachPetWindow {
   }
 
   private readonly handleFollowedWindowMinimize = (): void => {
-    // 主窗口最小化时，立即解绑 parent 并开启置顶，否则桌宠会跟着一起最小化或沉底
-    // 在 Windows 上，即使解绑 parent，桌宠可能仍被隐藏，需要显式调用 show()
+    this.cancelPendingBlur()
+    this.followedWindowFocused = false
+    this.applyPinDecision()
+    // Windows may hide an owned window during minimization; restore visibility
+    // without changing the selected pin policy or stealing focus.
     if (this.win && !this.win.isDestroyed()) {
-      this.win.setParentWindow(null)
-      this.win.setAlwaysOnTop(true, 'normal')
-      this.win.show()
-      // 更新缓存，避免后续 applyPinDecision 误判 unchanged
-      this.lastParent = null
-      this.lastDecision = { alwaysOnTop: true, level: 'normal', attachToActiveShell: false }
+      this.win.showInactive()
     }
   }
 

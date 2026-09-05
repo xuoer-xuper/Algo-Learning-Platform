@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
+import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import { reportRendererError } from '../../rendererErrors'
 import { CoachBubble } from './CoachBubble'
 import {
@@ -11,8 +11,8 @@ import {
   subscribeCoachDismissBubble,
   subscribeCoachPetState,
   subscribeCoachShowBubble,
-  toggleCoachIgnoreMouseEvents,
 } from './coachDataApi'
+import { useCoachMouseCapture } from './useCoachMouseCapture'
 import { PET_STATES, type PetState } from './petStates'
 import './styles/tokens.css'
 import './styles/pet.css'
@@ -28,7 +28,7 @@ const CoachChatPanel = lazy(() => import('./CoachChatPanel').then((module) => ({
  * - SVG 几何体 + 粒子环 + 发光描边渲染
  * - 接收主进程状态推送（coach:petStateChanged）
  * - 接收主进程配置推送（coach:configChanged）
- * - hover 切换点击穿透（mouseenter → 关闭穿透，mouseleave → 恢复）
+ * - 按可见交互区域切换点击穿透，透明空白始终让给下层窗口
  * - 拖拽移动（mousedown → startDrag，mousemove → dragTo，mouseup → endDrag）
  * - 包含气泡与交互按钮（CoachBubble，条件渲染）
  *
@@ -41,7 +41,8 @@ export function CoachPet() {
   const [chatPanelOpen, setChatPanelOpen] = useState(false)
   const [llmEnabled, setLlmEnabled] = useState(false)
   const [dragging, setDragging] = useState(false)
-  const dragStartedRef = useRef(false)
+  const dragCleanupRef = useRef<(() => void) | null>(null)
+  const { rootRef, dragStartedRef, updateMouseCapture } = useCoachMouseCapture()
 
   useEffect(() => {
     // 拉取初始状态与配置。桌宠是独立小窗，没有通知栏可用，读失败只落 console；
@@ -64,28 +65,10 @@ export function CoachPet() {
       offConfig()
       offShowBubble()
       offDismissBubble()
+      dragCleanupRef.current?.()
+      if (dragStartedRef.current) void endCoachDrag()
     }
-  }, [])
-
-  // 气泡显示时强制关闭穿透
-  useEffect(() => {
-    if (bubble) {
-      void toggleCoachIgnoreMouseEvents(false)
-    }
-    // 气泡消失时不自动恢复穿透，由 handleMouseLeave 负责
-  }, [bubble])
-
-  const handleMouseEnter = useCallback(() => {
-    // 进入交互区域：临时关闭点击穿透
-    void toggleCoachIgnoreMouseEvents(false)
-  }, [])
-
-  const handleMouseLeave = useCallback(() => {
-    // 离开交互区域：恢复穿透（拖拽中不恢复，由拖拽逻辑管理）
-    if (!dragStartedRef.current) {
-      void toggleCoachIgnoreMouseEvents(true)
-    }
-  }, [])
+  }, [dragStartedRef])
 
   const handleMouseDown = (e: React.MouseEvent) => {
     // 仅左键触发
@@ -96,8 +79,7 @@ export function CoachPet() {
     const startY = e.screenY
     dragStartedRef.current = true
     setDragging(true)
-    // 拖拽期间关闭穿透
-    void toggleCoachIgnoreMouseEvents(false)
+    updateMouseCapture(e)
     // 主进程开始轮询移动窗口（坐标由主进程 getCursorScreenPoint 统一获取，避免 DPI 偏移）
     void startCoachDrag()
 
@@ -105,23 +87,26 @@ export function CoachPet() {
       dragStartedRef.current = false
       setDragging(false)
       void endCoachDrag()
-      document.removeEventListener('mouseup', onUp)
-      window.removeEventListener('blur', onUp)
+      dragCleanupRef.current?.()
       // 区分 click 和 drag：移动 < 4px 视为点击
-      const me = ev as MouseEvent
-      const dx = Math.abs((me.screenX ?? 0) - startX)
-      const dy = Math.abs((me.screenY ?? 0) - startY)
+      const mouseUp = ev instanceof MouseEvent ? ev : null
+      const dx = mouseUp ? Math.abs(mouseUp.screenX - startX) : Infinity
+      const dy = mouseUp ? Math.abs(mouseUp.screenY - startY) : Infinity
       if (dx < 4 && dy < 4) {
         // 点击桌宠 → 触发提示（LLM 或本地），气泡由主进程推送
         void clickCoachPet()
           .then((result) => setLlmEnabled(result.llmEnabled))
           .catch((error: unknown) => reportRendererError('桌宠点击', error))
       }
-      // 恢复穿透
-      void toggleCoachIgnoreMouseEvents(true)
+      updateMouseCapture(mouseUp ?? undefined)
     }
     document.addEventListener('mouseup', onUp)
     window.addEventListener('blur', onUp)
+    dragCleanupRef.current = () => {
+      document.removeEventListener('mouseup', onUp)
+      window.removeEventListener('blur', onUp)
+      dragCleanupRef.current = null
+    }
   }
 
   const handleBubbleClose = () => {
@@ -133,14 +118,14 @@ export function CoachPet() {
 
   return (
     <div
+      ref={rootRef}
       className="pet-root"
       data-pet-state={state}
       style={{ '--pet-scale': scale } as React.CSSProperties}
-      onMouseEnter={handleMouseEnter}
-      onMouseLeave={handleMouseLeave}
     >
       <div
         className={`pet-body${dragging ? ' dragging' : ''}`}
+        data-coach-interactive
         onMouseDown={handleMouseDown}
         role="img"
         aria-label={`Coach 桌宠 - ${stateConfig.description}`}
@@ -205,7 +190,7 @@ export function CoachPet() {
       </div>
 
       {chatPanelOpen && (
-        <Suspense fallback={<div className="coach-chat-loading">加载对话...</div>}>
+        <Suspense fallback={<div className="coach-chat-loading" data-coach-interactive>加载对话...</div>}>
           <CoachChatPanel onClose={() => setChatPanelOpen(false)} />
         </Suspense>
       )}

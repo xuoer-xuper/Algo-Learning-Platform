@@ -133,6 +133,7 @@ export interface RegisterCoachIpcOptions {
 }
 
 export function registerCoachIpc(options: RegisterCoachIpcOptions): void {
+  const isContestMode = (): boolean => options.getCoachOrchestrator?.()?.getState().is_contest_mode ?? false
   const requirePetWindow = (): CoachPetWindow => {
     const w = options.getCoachPetWindow()
     if (!w) throw new Error('CoachPetWindow not initialized')
@@ -193,6 +194,7 @@ export function registerCoachIpc(options: RegisterCoachIpcOptions): void {
    * 阶段 1 用于演示与手动验证；阶段 2 后由规则引擎接管。
    */
   ipcMain.handle('coach:testHint', () => {
+    if (isContestMode()) throw new Error('比赛模式硬关闭')
     const pet = requirePetWindow()
     pet.setPetState('alert')
     const payload: CoachBubblePayload = {
@@ -225,6 +227,7 @@ export function registerCoachIpc(options: RegisterCoachIpcOptions): void {
     level: optional(int({ min: 1, max: 5 })),
     bubble_type: optional(oneOf(['hint', 'disclaimer', 'loading'] as const)),
   })], (_event, payload) => {
+    if (isContestMode()) throw new Error('比赛模式硬关闭')
     requirePetWindow().showBubble(payload)
     return true
   })
@@ -245,6 +248,7 @@ export function registerCoachIpc(options: RegisterCoachIpcOptions): void {
    * 一个 `hintInProgress` 并发闸，挡的是"生成中再点"，不是频次。
    */
   ipcMain.handle('coach:triggerHint', [optional(bubbleId())], async (_event, bubbleId) => {
+    if (isContestMode()) return { accepted: false, level: 0, note: '比赛模式硬关闭' }
     // 演示/测试气泡走演示升级分支（不经过 orchestrator 规则引擎）
     const isDemo = !bubbleId || bubbleId.startsWith('test-') || bubbleId.startsWith('demo-')
     if (isDemo) {

@@ -15,5 +15,6 @@ export {
 } from './submission/queries'
 
 export {
+  recomputeProblemSubmissionState,
   updateFirstAc,
 } from './submission/firstAc'

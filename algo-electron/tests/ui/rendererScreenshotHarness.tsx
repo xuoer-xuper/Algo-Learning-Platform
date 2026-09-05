@@ -509,7 +509,10 @@ function createApiMock(): ElectronAPI {
     getNote: async () => screenshotNote,
     createNote: async () => screenshotNote,
     updateNoteTitle: async () => true,
-    updateNoteContent: async () => true,
+    updateNoteContent: async (_noteId, content) => {
+      screenshotNote.content = content
+      return true
+    },
     saveNoteImage: async () => ({ markdownUrl: 'note-asset://local/note-1/image.png' }),
     updateNoteType: async () => true,
     deleteNote: async () => true,

@@ -1,104 +1,195 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+// @vitest-environment jsdom
+import React from 'react'
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { CoachPet } from '../../src/features/coach/CoachPet'
 
-/**
- * 桌宠鼠标事件去重测试。
- *
- * 问题：CoachPet、CoachBubble、CoachChatPanel 三层嵌套时都监听 mouseenter/mouseleave
- * 并调用 toggleCoachIgnoreMouseEvents，导致：
- * 1. setIgnoreMouseEvents 改变窗口命中测试状态
- * 2. 命中测试变化触发新的 mouseleave/mouseenter 事件
- * 3. 事件触发又调用 setIgnoreMouseEvents
- * 4. 形成反馈循环 → 桌宠闪烁、任务栏状态条不断切换
- *
- * 修复：只在最外层 CoachPet 控制穿透，移除 CoachBubble 和 CoachChatPanel 的重复控制。
- */
+const api = vi.hoisted(() => ({
+  toggle: vi.fn(),
+  startDrag: vi.fn(),
+  endDrag: vi.fn(),
+  click: vi.fn(),
+  showBubble: null as ((payload: CoachBubblePayload) => void) | null,
+  dismissBubble: null as (() => void) | null,
+}))
 
-describe('桌宠鼠标事件去重', () => {
-  let mockSetIgnoreMouseEvents: (ignore: boolean) => { ignore: boolean }
-  let mouseEventCount: number
+vi.mock('../../src/features/coach/coachDataApi', () => ({
+  loadCoachPetState: async () => 'idle',
+  loadCoachConfig: async () => ({ scale: 1 }),
+  subscribeCoachPetState: () => () => {},
+  subscribeCoachConfig: () => () => {},
+  subscribeCoachShowBubble: (listener: (payload: CoachBubblePayload) => void) => {
+    api.showBubble = listener
+    return () => { api.showBubble = null }
+  },
+  subscribeCoachDismissBubble: (listener: () => void) => {
+    api.dismissBubble = listener
+    return () => { api.dismissBubble = null }
+  },
+  toggleCoachIgnoreMouseEvents: api.toggle,
+  startCoachDrag: api.startDrag,
+  endCoachDrag: api.endDrag,
+  clickCoachPet: api.click,
+  triggerCoachHint: vi.fn(),
+  dismissCoachHint: vi.fn(),
+  sendCoachFeedback: vi.fn(),
+  dismissCoachDisclaimer: vi.fn(),
+  sendCoachChatMessage: vi.fn(),
+}))
 
-  beforeEach(() => {
-    mouseEventCount = 0
-    mockSetIgnoreMouseEvents = vi.fn((ignore: boolean) => {
-      mouseEventCount++
-      // 模拟实际行为：setIgnoreMouseEvents 不应该在同一值下被重复调用
-      return { ignore }
-    })
+const hint: CoachBubblePayload = {
+  id: 'hint-1', title: 'Hint', message: 'Check the constraints.', source: 'local', level: 1,
+}
+let petBounds: DOMRect
+
+function moveTo(clientX: number, clientY: number) {
+  fireEvent.mouseMove(document, { clientX, clientY })
+}
+
+async function mountPet() {
+  const result = render(React.createElement(CoachPet))
+  await act(async () => {})
+  return result
+}
+
+beforeEach(() => {
+  vi.clearAllMocks()
+  petBounds = new DOMRect(110, 436, 180, 180)
+  api.click.mockResolvedValue({ triggered: true, level: 1, llmEnabled: true })
+  vi.stubGlobal('ResizeObserver', class {
+    observe() {}
+    disconnect() {}
   })
-
-  it('单层容器只触发一次穿透切换', () => {
-    // 模拟 CoachPet.handleMouseEnter
-    mockSetIgnoreMouseEvents(false)
-    expect(mouseEventCount).toBe(1)
-
-    // 模拟 CoachPet.handleMouseLeave
-    mockSetIgnoreMouseEvents(true)
-    expect(mouseEventCount).toBe(2)
+  vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
+    if (this.classList.contains('pet-body')) return petBounds
+    if (this.classList.contains('coach-bubble')) return new DOMRect(30, 120, 340, 270)
+    if (this.classList.contains('coach-chat-panel')) return new DOMRect(20, 40, 360, 550)
+    if (this.classList.contains('pet-root')) return new DOMRect(0, 0, 400, 640)
+    return new DOMRect()
   })
-
-  it('修复前：三层嵌套导致多次调用（模拟问题场景）', () => {
-    // 修复前的错误行为：CoachPet + CoachBubble + CoachChatPanel 都监听
-    // 鼠标进入气泡区域
-    mockSetIgnoreMouseEvents(false) // CoachPet.handleMouseEnter
-    mockSetIgnoreMouseEvents(false) // CoachBubble.handleMouseEnter (冗余)
-    mockSetIgnoreMouseEvents(false) // CoachChatPanel.handleMouseEnter (冗余)
-
-    // 问题：即使有去重逻辑，多个监听器也会产生竞态
-    expect(mouseEventCount).toBe(3)
-  })
-
-  it('修复后：只有外层控制穿透', () => {
-    // 修复后：只有 CoachPet 控制
-    mockSetIgnoreMouseEvents(false) // CoachPet.handleMouseEnter
-    // CoachBubble 和 CoachChatPanel 不再监听 mouseenter/mouseleave
-
-    expect(mouseEventCount).toBe(1) // 只调用一次
-  })
-
-  it('拖拽期间保持穿透关闭', () => {
-    // 拖拽开始：关闭穿透
-    mockSetIgnoreMouseEvents(false)
-    expect(mouseEventCount).toBe(1)
-
-    // 拖拽结束前不恢复穿透（即使 mouseleave 触发）
-    // 实际逻辑：dragStartedRef.current 为 true 时，handleMouseLeave 不调用 toggleCoachIgnoreMouseEvents
-
-    // 拖拽结束：恢复穿透
-    mockSetIgnoreMouseEvents(true)
-    expect(mouseEventCount).toBe(2)
-  })
+  HTMLElement.prototype.scrollIntoView = vi.fn()
 })
 
-/**
- * CoachPetWindow.setIgnoreMouseEvents 去重逻辑测试。
- *
- * 主进程侧也有去重：lastIgnoreMouseEvents 缓存，值没变就不调 Electron API。
- */
-describe('CoachPetWindow 主进程去重', () => {
-  it('相同值不重复调用 win.setIgnoreMouseEvents', () => {
-    const mockWinSetIgnoreMouseEvents = vi.fn()
-    let lastIgnoreMouseEvents: boolean | null = null
+afterEach(() => {
+  cleanup()
+  vi.restoreAllMocks()
+  vi.unstubAllGlobals()
+})
 
-    const setIgnoreMouseEvents = (ignore: boolean) => {
-      if (lastIgnoreMouseEvents === ignore) return // 去重
-      mockWinSetIgnoreMouseEvents(ignore, { forward: true })
-      lastIgnoreMouseEvents = ignore
-    }
+describe('CoachPet native mouse capture', () => {
+  it('keeps the transparent window empty area click-through and releases after leaving the pet', async () => {
+    await mountPet()
+    expect(api.toggle).toHaveBeenLastCalledWith(true)
+    api.toggle.mockClear()
 
-    // 第一次调用
-    setIgnoreMouseEvents(true)
-    expect(mockWinSetIgnoreMouseEvents).toHaveBeenCalledTimes(1)
+    moveTo(20, 20)
+    expect(api.toggle).not.toHaveBeenCalled()
+    moveTo(200, 530)
+    expect(api.toggle).toHaveBeenLastCalledWith(false)
+    moveTo(20, 20)
+    expect(api.toggle.mock.calls).toEqual([[false], [true]])
+  })
 
-    // 重复调用相同值（去重生效）
-    setIgnoreMouseEvents(true)
-    expect(mockWinSetIgnoreMouseEvents).toHaveBeenCalledTimes(1)
+  it('ignores synthetic leave events and repeated movement at the same interactive position', async () => {
+    await mountPet()
+    moveTo(200, 530)
+    api.toggle.mockClear()
 
-    // 切换值
-    setIgnoreMouseEvents(false)
-    expect(mockWinSetIgnoreMouseEvents).toHaveBeenCalledTimes(2)
+    moveTo(210, 535)
+    fireEvent.mouseLeave(document, { clientX: 210, clientY: 535 })
+    moveTo(210, 535)
+    expect(api.toggle).not.toHaveBeenCalled()
 
-    // 再次重复
-    setIgnoreMouseEvents(false)
-    expect(mockWinSetIgnoreMouseEvents).toHaveBeenCalledTimes(2)
+    fireEvent.mouseLeave(document, { clientX: 401, clientY: 535 })
+    expect(api.toggle.mock.calls).toEqual([[true]])
+  })
+
+  it('only captures a visible bubble under the pointer and releases when it disappears', async () => {
+    await mountPet()
+    moveTo(20, 20)
+    api.toggle.mockClear()
+    act(() => api.showBubble?.(hint))
+    expect(api.toggle).not.toHaveBeenCalled()
+
+    moveTo(200, 200)
+    expect(api.toggle).toHaveBeenLastCalledWith(false)
+    api.toggle.mockClear()
+    act(() => api.dismissBubble?.())
+    expect(api.toggle.mock.calls).toEqual([[true]])
+  })
+
+  it('captures a newly shown bubble under a stationary pointer, then releases on close', async () => {
+    await mountPet()
+    moveTo(200, 200)
+    api.toggle.mockClear()
+    act(() => api.showBubble?.(hint))
+    expect(api.toggle.mock.calls).toEqual([[false]])
+
+    fireEvent.click(screen.getByRole('button', { name: '关闭气泡' }))
+    expect(api.toggle).toHaveBeenLastCalledWith(true)
+  })
+
+  it('keeps capture during drag through empty space and releases at mouseup outside controls', async () => {
+    await mountPet()
+    const pet = screen.getByRole('img')
+    fireEvent.mouseDown(pet, { button: 0, clientX: 200, clientY: 530, screenX: 200, screenY: 530 })
+    expect(api.startDrag).toHaveBeenCalledOnce()
+    expect(api.toggle).toHaveBeenLastCalledWith(false)
+    api.toggle.mockClear()
+    moveTo(20, 20)
+    expect(api.toggle).not.toHaveBeenCalled()
+
+    fireEvent.mouseUp(document, { clientX: 20, clientY: 20, screenX: 20, screenY: 20 })
+    expect(api.endDrag).toHaveBeenCalledOnce()
+    expect(api.click).not.toHaveBeenCalled()
+    expect(api.toggle.mock.calls).toEqual([[true]])
+  })
+
+  it('keeps a clicked pet interactive and captures only the open chat panel bounds', async () => {
+    await mountPet()
+    const pointer = { button: 0, clientX: 200, clientY: 530, screenX: 200, screenY: 530 }
+    fireEvent.mouseDown(screen.getByRole('img'), pointer)
+    fireEvent.mouseUp(document, pointer)
+    await waitFor(() => expect(api.click).toHaveBeenCalledOnce())
+    expect(api.toggle).toHaveBeenLastCalledWith(false)
+    act(() => api.showBubble?.(hint))
+    fireEvent.click(await screen.findByRole('button', { name: '自由对话' }))
+    await screen.findByRole('button', { name: '关闭对话' })
+
+    moveTo(200, 60)
+    expect(api.toggle).toHaveBeenLastCalledWith(false)
+    moveTo(5, 60)
+    expect(api.toggle).toHaveBeenLastCalledWith(true)
+    moveTo(200, 60)
+    expect(api.toggle).toHaveBeenLastCalledWith(false)
+    fireEvent.click(screen.getByRole('button', { name: '关闭对话' }))
+    expect(api.toggle).toHaveBeenLastCalledWith(true)
+  })
+
+  it('ends a drag on blur without clicking and cleans listeners on unmount', async () => {
+    const { unmount } = await mountPet()
+    fireEvent.mouseDown(screen.getByRole('img'), { button: 0, clientX: 200, clientY: 530 })
+    fireEvent.blur(window)
+    expect(api.endDrag).toHaveBeenCalledOnce()
+    expect(api.click).not.toHaveBeenCalled()
+    expect(api.toggle).toHaveBeenLastCalledWith(true)
+
+    unmount()
+    api.toggle.mockClear()
+    moveTo(200, 530)
+    expect(api.toggle).not.toHaveBeenCalled()
+  })
+
+  it('remeasures a stationary pointer after a scale transition completes', async () => {
+    await mountPet()
+    moveTo(100, 500)
+    expect(api.toggle).toHaveBeenLastCalledWith(true)
+    petBounds = new DOMRect(90, 416, 220, 220)
+    fireEvent(screen.getByRole('img'), new Event('transitionend', { bubbles: true }))
+    expect(api.toggle).toHaveBeenLastCalledWith(false)
+
+    petBounds = new DOMRect(110, 436, 180, 180)
+    fireEvent(screen.getByRole('img'), new Event('transitionend', { bubbles: true }))
+    expect(api.toggle).toHaveBeenLastCalledWith(true)
   })
 })

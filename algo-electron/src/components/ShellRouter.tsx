@@ -183,7 +183,7 @@ export function ShellRouter({
       page = <ProblemDetail problemId={renderTab.page.problemId} onClose={close} />
       break
     case 'notes':
-      page = <NotePanelModal problemId={renderTab.page.problemId} onClose={close} />
+      page = <NotePanelModal key={`${renderTab.id}:${renderTab.page.problemId}`} problemId={renderTab.page.problemId} onClose={close} />
       break
     case 'script-install':
       page = <UserScriptInstallPage installId={renderTab.page.installId} onClose={close} />

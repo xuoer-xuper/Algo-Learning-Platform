@@ -32,3 +32,37 @@ export function updateFirstAc(problemId: string): string[] {
   if (nextDay) affectedDays.add(nextDay)
   return Array.from(affectedDays)
 }
+
+/** Imports can replace or move an AC, unlike the append-only submission writer. */
+export function recomputeProblemSubmissionState(problemIds: Iterable<string>): string[] {
+  const db = getDb()
+  const now = nowBeijing()
+  const findProblem = db.prepare('SELECT status, first_solved_at FROM problems WHERE id = ?')
+  const aggregate = db.prepare(`
+    SELECT COUNT(*) AS total,
+      MIN(CASE WHEN verdict = 'AC' THEN submitted_at END) AS first_ac
+    FROM submissions WHERE problem_id = ?
+  `)
+  const update = db.prepare(`
+    UPDATE problems SET status = ?, first_solved_at = ?, updated_at = ?
+    WHERE id = ? AND (status IS NOT ? OR first_solved_at IS NOT ?)
+  `)
+  const affectedDates = new Set<string>()
+
+  for (const problemId of new Set(problemIds)) {
+    const existing = findProblem.get(problemId) as {
+      status: string; first_solved_at: string | null
+    } | undefined
+    if (!existing) continue
+    const submissions = aggregate.get(problemId) as { total: number; first_ac: string | null }
+    const status = submissions.first_ac ? 'solved'
+      : submissions.total > 0 ? 'attempted'
+        : existing.status === 'unknown' ? 'unknown' : 'visited'
+    update.run(status, submissions.first_ac, now, problemId, status, submissions.first_ac)
+    for (const timestamp of [existing.first_solved_at, submissions.first_ac]) {
+      const date = timestamp ? localDayFromTimestamp(timestamp) : null
+      if (date) affectedDates.add(date)
+    }
+  }
+  return [...affectedDates]
+}

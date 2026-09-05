@@ -30,6 +30,7 @@ AI Coach 是 ALP 的本地优先过程陪练模块。当前 `2.0.0-beta.2` 已�
 - `ContestUrlAggregator` 是应用级共享实例；每个 `TabManager` 独立 attach/detach，任一窗口任一 webContents 仍处于比赛页时，`ContestGuard` 都保持全局静默。
 - `ProblemSessionTracker` 保持单会话，只消费最近活跃窗口的活动题与 Tracking 事件；窗口快速切换经过 200ms 防抖，旧窗口监听在切换后解绑；active_seconds 的 focus 门槛按“任一完整应用壳聚焦”判定。
 - `ConstraintParser` 捕获发起时的 `AppWindow` 与 `TabManager`，并用 generation guard 丢弃窗口或题目切换后的迟到结果。
+- 手动升级、自动提示、自由聊天和直接请求提示也捕获 generation 与会话；进入比赛、切题、切换同 URL 的另一标签、切窗请求、页面/窗口销毁和 `stop()` 都作废在途请求。即使在响应前退出比赛或切回原窗口，旧结果也不能恢复。校验必须位于响应返回后、干预落库/展示/消耗额度之前，并覆盖 LLM 失败后的本地降级路径。
 - 新建窗口在注册到 `WindowManager` 后接入比赛聚合；窗口关闭时移除其 URL 快照和 Coach 监听。
 - 比赛状态通过 `coach:contestModeChanged` 广播全部壳；壳使用现有 NoticeBar 展示不可关闭的比赛静默提示，TabManager 同步增加 view top inset；比赛中新增或 reload 的壳会回放当前状态。
 
@@ -38,6 +39,7 @@ AI Coach 是 ALP 的本地优先过程陪练模块。当前 `2.0.0-beta.2` 已�
 - renderer 不得直接访问 SQLite、Electron IPC 原语或已保存的明文 API Key。
 - LLM 上下文不得包含 Cookie、登录态、CSRF token、完整请求体、本机绝对路径或未授权源码。
 - 比赛模式必须在主进程硬关闭本地干预和 LLM，renderer 设置不能绕过。
+- 普通生产 IPC 的测试气泡、直接气泡展示和演示升级同样受全局比赛状态约束；`stop()` 补全比赛结束审计时不再弹赛后复盘气泡。
 - L5 接近题解方向时必须二次确认；Coach 不自动提交代码或修改用户答案。
 - LLM 超时、网络错误、空响应和解析失败必须回退到本地提示，不影响刷题主流程。
 - 核心事实表只由既有跟踪和提交模块维护，Coach 不反向改写题目、提交、访问或统计事实。

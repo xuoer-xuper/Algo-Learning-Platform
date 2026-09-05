@@ -12,6 +12,7 @@
 - `mutations.ts`：按 `(platform, platform_submission_id)` 去重写入提交。
 - `queries.ts`：按题目和平台查询提交，均按提交时间倒序。
 - `firstAc.ts`：根据最早 AC 提交更新 `problems.status` 和 `first_solved_at`。
+- `recomputeProblemSubmissionState()`：导入覆盖后按最终提交重建状态和首次 AC，返回新旧首次 AC 日期。
 - `../submissionRepository.ts`：兼容导出口，外部调用方继续从原路径 import。
 
 ## 3. 封装函数
@@ -19,12 +20,14 @@
 - 写入：`upsertSubmission(data)`。
 - 查询：`getSubmissionsByProblem(problemId)`、`getSubmissionsByPlatform(platform, limit?)`。
 - 题目元数据刷新：`updateFirstAc(problemId)`。
+- 覆盖导入重建：`recomputeProblemSubmissionState(problemIds)`，由导入事务调用，返回需要重算统计的首次 AC 日期。
 
 ## 4. 边界规则
 
 - `upsertSubmission()` 只做提交去重和插入，不创建题目、不刷新统计。
 - 去重依据是 `(platform, platform_submission_id)`；重复提交返回 `false`，不覆盖旧记录。
 - `updateFirstAc()` 只在存在 AC 提交时更新题目，并保留更早的 `first_solved_at`。
+- `recomputeProblemSubmissionState()` 用于可替换提交的导入路径：首次 AC 可以前移、后移或清空；有提交无 AC 时为 `attempted`，无提交时回到 `visited`（原为 `unknown` 的保留）。提交行的纳入范围与现有查询、统计口径一致。
 - 所有批量写入应通过 `SubmissionBatchWriter`，由它统一处理题目关联、首次 AC 和统计刷新。
 - 不记录 Cookie、用户源码、完整请求体或可复用登录态。
 - Schema 变化必须先写 migration，再同步 `docs/DESIGN/DATABASE_SCHEMA.md` 和本目录 SQL。

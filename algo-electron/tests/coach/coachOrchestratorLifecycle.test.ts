@@ -3,7 +3,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, test, vi } from 'vitest'
-import { MockBrowserWindow, resetElectronMock } from '../electron/electronMock'
+import { MockBrowserWindow, MockWebContents, ipcMain, resetElectronMock } from '../electron/electronMock'
 import { closeDb, initDbAtPath } from '../../electron/db/connection.ts'
 import {
   buildCoachEvent,
@@ -22,6 +22,8 @@ import { getRecentProblems } from '../../electron/db/repositories/problemReposit
 import { upsertSubmission } from '../../electron/db/repositories/submissionRepository.ts'
 import { startProblemVisit, finishProblemVisit } from '../../electron/db/repositories/problemVisitRepository.ts'
 import { CoachOrchestrator } from '../../electron/coach/CoachOrchestrator.ts'
+import { registerCoachIpc } from '../../electron/ipc/registerCoachIpc.ts'
+import { registerShellWebContents, resetTrustedSenderRegistry } from '../../electron/ipc/trustedSender.ts'
 import { AppWindow } from '../../electron/windows/AppWindow.ts'
 import { setEnabledSitesFetcher } from '../../electron/parsers/registry.ts'
 import type { CoachPetWindow } from '../../electron/coach/CoachPetWindow.ts'
@@ -267,13 +269,21 @@ class FakeTabManager {
 class FakePetWindow {
   readonly states: CoachPetState[] = []
   readonly bubbles: CoachBubblePayload[] = []
+  currentBubble: CoachBubblePayload | null = null
   dismissCount = 0
   followed: unknown = undefined
 
   setPetState(state: CoachPetState): void { this.states.push(state) }
   getPetState(): CoachPetState { return this.states[this.states.length - 1] ?? 'idle' }
-  showBubble(payload: CoachBubblePayload): void { this.bubbles.push(payload) }
-  dismissBubble(): void { this.dismissCount += 1 }
+  getCurrentBubble(): CoachBubblePayload | null { return this.currentBubble }
+  showBubble(payload: CoachBubblePayload): void {
+    this.bubbles.push(payload)
+    this.currentBubble = payload
+  }
+  dismissBubble(): void {
+    this.dismissCount += 1
+    this.currentBubble = null
+  }
   followWindow(window: unknown): void { this.followed = window }
 
   bubbleTitled(title: string): CoachBubblePayload | undefined {
@@ -381,6 +391,7 @@ let temporaryDirectory = ''
 
 beforeEach(() => {
   resetElectronMock()
+  resetTrustedSenderRegistry()
   temporaryDirectory = fs.mkdtempSync(path.join(os.tmpdir(), 'algo-coach-orchestrator-'))
   initDbAtPath(path.join(temporaryDirectory, 'coach.sqlite'))
 
@@ -816,6 +827,315 @@ test('比赛期间用户主动要提示也被拒：点桌宠 / 升级 / 聊天�
   const afterClick = await h.coach.petClick()
   assert.equal(afterClick.triggered, true, '离开比赛后点桌宠应真的出提示')
   assert.equal(await h.coach.chatWithLlm('这题怎么做') !== null, true, '离开比赛后聊天应恢复')
+  h.coach.stop()
+})
+
+const hintContextChanges = [
+  'contest',
+  'contest-roundtrip',
+  'stop',
+  'restart',
+  'problem-roundtrip',
+  'same-url-tab',
+  'window-roundtrip',
+  'window-closed',
+  'page-destroyed',
+] as const
+
+function changeHintContext(h: Harness, change: typeof hintContextChanges[number]): void {
+  switch (change) {
+    case 'contest':
+      h.tabManagers[1].emitWebContentsUrl(21, CF_CONTEST)
+      break
+    case 'contest-roundtrip':
+      h.tabManagers[1].emitWebContentsUrl(21, CF_CONTEST)
+      h.tabManagers[1].emitWebContentsUrl(21, CF_PROBLEM_B)
+      break
+    case 'stop':
+      h.coach.stop()
+      break
+    case 'restart':
+      h.coach.stop()
+      h.coach.start()
+      break
+    case 'problem-roundtrip':
+      h.tabManagers[0].switchActiveTab(pageEvent(CF_PROBLEM_B, { reason: 'active-tab-changed' }))
+      h.tabManagers[0].switchActiveTab(pageEvent(CF_PROBLEM_A, { reason: 'active-tab-changed' }))
+      break
+    case 'same-url-tab':
+      h.tabManagers[0].switchActiveTab(pageEvent(CF_PROBLEM_A, {
+        reason: 'active-tab-changed', tabId: 'tab-2', webContentsId: 12,
+      }))
+      break
+    case 'window-roundtrip':
+      h.setMostRecentWindow(h.windows[1])
+      h.setMostRecentWindow(h.windows[0])
+      break
+    case 'window-closed':
+      h.browserWindows[0].emit('closed')
+      break
+    case 'page-destroyed':
+      h.tabManagers[0].emitPageEvent(pageEvent(CF_PROBLEM_A, { reason: 'destroyed' }))
+      break
+  }
+}
+
+test.each(hintContextChanges)('手动提示丢弃上下文失效后的成功结果：%s', async (change) => {
+  const h = harness(2)
+  h.tabManagers[0].activePage = pageEvent(CF_PROBLEM_A)
+  h.coach.start()
+  await vi.advanceTimersByTimeAsync(0)
+  sdk.hold = true
+  const pending = h.coach.requestHintUpgrade()
+  await vi.advanceTimersByTimeAsync(0)
+  assert.equal(sdk.requests.length, 1, '请求必须真的到达 LLM')
+  assert.equal(h.pet.bubbles.at(-1)?.bubble_type, 'loading')
+
+  changeHintContext(h, change)
+  assert.notEqual(h.pet.currentBubble?.bubble_type, 'loading', '失效时立即清理该请求的加载气泡')
+  assert.notEqual(h.pet.getPetState(), 'thinking', '失效请求不能让桌宠停在思考状态')
+  if (change === 'contest') assert.equal(h.pet.getPetState(), 'sleep')
+  const bubblesBefore = h.pet.bubbles.length
+  const statesBefore = h.pet.states.length
+  sdk.hold = false
+  sdk.releaseHold?.()
+  const result = await pending
+
+  assert.equal(result.accepted, false, '迟到结果不得被接受')
+  assert.equal(h.pet.bubbles.length, bubblesBefore, '不得恢复旧提示气泡')
+  assert.equal(h.pet.states.length, statesBefore, '不得覆盖比赛或新页面的桌宠状态')
+  assert.equal(listCoachInterventions().filter((row) => row.source_type !== 'contest_audit').length, 0)
+  h.coach.stop()
+})
+
+test.each(['valid', 'invalid'] as const)('比赛中作废的手动提示不消费每日额度，也不降级展示：%s', async (reply) => {
+  const h = harness(2)
+  h.tabManagers[0].activePage = pageEvent(CF_PROBLEM_A)
+  h.coach.start()
+  await vi.advanceTimersByTimeAsync(0)
+  for (let index = 0; index < 9; index += 1) {
+    assert.equal((await h.coach.petClick()).triggered, true)
+  }
+  sdk.hold = true
+  const pending = h.coach.requestHintUpgrade()
+  await vi.advanceTimersByTimeAsync(0)
+  assert.equal(sdk.requests.length, 10, '额度边界上的请求必须真实发出')
+  changeHintContext(h, 'contest-roundtrip')
+  const bubblesBefore = h.pet.bubbles.length
+  if (reply === 'invalid') sdk.reply = 'invalid hint response'
+  sdk.hold = false
+  sdk.releaseHold?.()
+
+  assert.equal((await pending).accepted, false)
+  assert.equal(h.pet.bubbles.length, bubblesBefore, '失败也不能在新上下文补本地提示')
+  assert.equal(listCoachInterventions().filter((row) => row.source_type !== 'contest_audit').length, 9)
+  assert.equal((await h.coach.petClick()).triggered, true, '作废结果不得用掉最后一次额度')
+  assert.equal((await h.coach.petClick()).triggered, false, '有效提示仍必须正常消耗额度')
+  h.coach.stop()
+})
+
+test.each(hintContextChanges)('自动提示丢弃上下文失效后的结果：%s', async (change) => {
+  const h = harness(2)
+  h.tabManagers[0].activePage = pageEvent(CF_PROBLEM_A)
+  h.coach.start()
+  await vi.advanceTimersByTimeAsync(0)
+  sdk.hold = true
+  h.emitSubmission({ platform: 'codeforces', verdict: 'WA', problemId: 'p1' })
+  h.emitSubmission({ platform: 'codeforces', verdict: 'TLE', problemId: 'p1' })
+  await vi.advanceTimersByTimeAsync(0)
+  assert.equal(sdk.requests.length, 1)
+  assert.equal(listCoachEvents().length, 1, '事件本身仍需落库')
+
+  changeHintContext(h, change)
+  assert.notEqual(h.pet.getPetState(), 'thinking', '自动请求失效时也要释放思考状态')
+  const bubblesBefore = h.pet.bubbles.length
+  const statesBefore = h.pet.states.length
+  sdk.hold = false
+  sdk.releaseHold?.()
+  await vi.advanceTimersByTimeAsync(0)
+
+  assert.equal(h.pet.bubbles.length, bubblesBefore)
+  assert.equal(h.pet.states.length, statesBefore)
+  assert.equal(listCoachInterventions().filter((row) => row.source_type !== 'contest_audit').length, 0)
+  h.coach.stop()
+})
+
+test.each(['invalid', 'error'] as const)('失效请求的失败响应不恢复加载气泡或本地提示：%s', async (failure) => {
+  const h = harness(2)
+  h.tabManagers[0].activePage = pageEvent(CF_PROBLEM_A)
+  h.coach.start()
+  await vi.advanceTimersByTimeAsync(0)
+  sdk.hold = true
+  const pending = h.coach.requestHintUpgrade()
+  await vi.advanceTimersByTimeAsync(0)
+  assert.equal(h.pet.currentBubble?.bubble_type, 'loading')
+
+  changeHintContext(h, 'same-url-tab')
+  assert.equal(h.pet.currentBubble, null)
+  assert.equal(h.pet.getPetState(), 'idle')
+  if (failure === 'invalid') sdk.reply = 'invalid response'
+  else sdk.error = new Error('transport failure')
+  sdk.hold = false
+  sdk.releaseHold?.()
+
+  assert.equal((await pending).accepted, false)
+  assert.equal(h.pet.currentBubble, null)
+  assert.equal(h.pet.getPetState(), 'idle')
+  assert.equal(listCoachInterventions().length, 0)
+  h.coach.stop()
+})
+
+test('旧自动请求完成时不清理新手动请求的加载气泡和思考状态', async () => {
+  const h = harness(2)
+  h.tabManagers[0].activePage = pageEvent(CF_PROBLEM_A)
+  h.coach.start()
+  await vi.advanceTimersByTimeAsync(0)
+  sdk.hold = true
+  h.emitSubmission({ platform: 'codeforces', verdict: 'WA', problemId: 'p1' })
+  h.emitSubmission({ platform: 'codeforces', verdict: 'TLE', problemId: 'p1' })
+  await vi.advanceTimersByTimeAsync(0)
+  assert.equal(sdk.requests.length, 1)
+  const releaseOld = sdk.releaseHold
+  assert.ok(releaseOld)
+  changeHintContext(h, 'problem-roundtrip')
+  assert.equal(h.pet.getPetState(), 'idle')
+
+  const newRequest = h.coach.requestHintUpgrade()
+  await vi.advanceTimersByTimeAsync(0)
+  assert.equal(sdk.requests.length, 2)
+  const newBubble = h.pet.getCurrentBubble()
+  assert.equal(newBubble?.bubble_type, 'loading')
+  const dismissCount = h.pet.dismissCount
+  const releaseNew = sdk.releaseHold
+  assert.ok(releaseNew)
+  releaseOld()
+  await vi.advanceTimersByTimeAsync(0)
+
+  assert.equal(h.pet.currentBubble, newBubble)
+  assert.equal(h.pet.getPetState(), 'thinking')
+  assert.equal(h.pet.dismissCount, dismissCount)
+  sdk.hold = false
+  releaseNew()
+  assert.equal((await newRequest).accepted, true)
+  assert.notEqual(h.pet.currentBubble?.bubble_type, 'loading')
+  assert.equal(listCoachInterventions().length, 1)
+  h.coach.stop()
+})
+
+test('手动加载与自动思考交错时都被清理，旧回调不删除后来的有效提示', async () => {
+  const h = harness(2)
+  h.tabManagers[0].activePage = pageEvent(CF_PROBLEM_A)
+  h.coach.start()
+  await vi.advanceTimersByTimeAsync(0)
+  sdk.hold = true
+  const oldRequest = h.coach.requestHintUpgrade()
+  await vi.advanceTimersByTimeAsync(0)
+  const releaseManual = sdk.releaseHold
+  assert.ok(releaseManual)
+  h.emitSubmission({ platform: 'codeforces', verdict: 'WA', problemId: 'p1' })
+  h.emitSubmission({ platform: 'codeforces', verdict: 'TLE', problemId: 'p1' })
+  await vi.advanceTimersByTimeAsync(0)
+  assert.equal(sdk.requests.length, 2)
+  const releaseAutomatic = sdk.releaseHold
+  assert.ok(releaseAutomatic)
+  assert.equal(h.pet.currentBubble?.bubble_type, 'loading')
+  changeHintContext(h, 'same-url-tab')
+  assert.equal(h.pet.currentBubble, null)
+  assert.equal(h.pet.getPetState(), 'idle')
+
+  sdk.hold = false
+  sdk.reply = 'invalid response'
+  releaseAutomatic()
+  await vi.advanceTimersByTimeAsync(0)
+  sdk.reply = JSON.stringify({ message: 'New valid hint', related_tags: [], reveals_solution: false })
+  h.emitSubmission({ platform: 'codeforces', verdict: 'WA', problemId: 'p1' })
+  await vi.advanceTimersByTimeAsync(0)
+  const newBubble = h.pet.getCurrentBubble()
+  assert.equal(newBubble?.message, 'New valid hint')
+  const state = h.pet.getPetState()
+  const dismissCount = h.pet.dismissCount
+  releaseManual()
+  assert.equal((await oldRequest).accepted, false)
+  assert.equal(h.pet.currentBubble, newBubble)
+  assert.equal(h.pet.getPetState(), state)
+  assert.equal(h.pet.dismissCount, dismissCount)
+  h.coach.stop()
+})
+
+test('自动提示解析失败后释放自己的思考状态', async () => {
+  const h = harness()
+  h.tabManagers[0].activePage = pageEvent(CF_PROBLEM_A)
+  h.coach.start()
+  await vi.advanceTimersByTimeAsync(0)
+  sdk.reply = 'invalid response'
+  h.emitSubmission({ platform: 'codeforces', verdict: 'WA', problemId: 'p1' })
+  h.emitSubmission({ platform: 'codeforces', verdict: 'TLE', problemId: 'p1' })
+  await vi.advanceTimersByTimeAsync(0)
+  assert.equal(sdk.requests.length, 1)
+  assert.equal(h.pet.currentBubble, null)
+  assert.equal(h.pet.getPetState(), 'idle')
+  h.coach.stop()
+})
+
+test.each(['chat', 'requestHint'] as const)('自由聊天和直接提示同样拒绝比赛前发起的迟到内容：%s', async (method) => {
+  const h = harness(2)
+  h.tabManagers[0].activePage = pageEvent(CF_PROBLEM_A)
+  h.coach.start()
+  await vi.advanceTimersByTimeAsync(0)
+  const request = () => method === 'chat'
+    ? h.coach.chatWithLlm('分析一下复杂度')
+    : h.coach.requestHintFromLlm()
+
+  for (const change of ['contest', 'contest-roundtrip', 'stop', 'restart'] as const) {
+    sdk.hold = true
+    const requestCount = sdk.requests.length
+    const pending = request()
+    await vi.advanceTimersByTimeAsync(0)
+    assert.equal(sdk.requests.length, requestCount + 1)
+    changeHintContext(h, change)
+    sdk.hold = false
+    sdk.releaseHold?.()
+    assert.equal(await pending, null, '不能把失效请求正文返回给 renderer')
+    if (change === 'contest') h.tabManagers[1].emitWebContentsUrl(21, CF_PROBLEM_B)
+    if (change === 'stop') h.coach.start()
+    await vi.advanceTimersByTimeAsync(0)
+    assert.ok(await request(), '新上下文中的请求应恢复，不能把并发门锁死')
+  }
+  h.coach.stop()
+})
+
+test('生产 IPC 的测试气泡、直接展示和演示升级都遵守全局比赛模式', async () => {
+  const h = harness(2)
+  h.coach.start()
+  const shell = new MockWebContents()
+  await shell.loadURL('app://shell/index.html')
+  registerShellWebContents(shell)
+  const event = { sender: shell, senderFrame: shell.mainFrame }
+  registerCoachIpc({
+    getCoachPetWindow: () => h.pet as unknown as CoachPetWindow,
+    getCoachOrchestrator: () => h.coach,
+  })
+  const payload = { id: 'manual-bubble', title: 'Hint', message: 'A hint', source: 'local', level: 1 }
+  await ipcMain.invokeHandler('coach:testHint', event)
+  assert.equal(await ipcMain.invokeHandler('coach:showBubble', event, payload), true)
+  const demo = await ipcMain.invokeHandler('coach:triggerHint', event, 'demo-L2-before')
+  assert.equal((demo as { accepted: boolean }).accepted, true)
+  assert.equal(h.pet.bubbles.length, 3, '正向对照：生产注册的三个展示入口均可用')
+
+  h.tabManagers[1].emitWebContentsUrl(21, CF_CONTEST)
+  const bubblesBefore = h.pet.bubbles.length
+  await assert.rejects(() => ipcMain.invokeHandler('coach:testHint', event), /比赛模式/)
+  await assert.rejects(() => ipcMain.invokeHandler('coach:showBubble', event, payload), /比赛模式/)
+  for (const bubbleId of [undefined, 'test-before', 'demo-L2-before', 'ordinary-id']) {
+    const result = await ipcMain.invokeHandler('coach:triggerHint', event, bubbleId)
+    assert.equal((result as { accepted: boolean }).accepted, false)
+  }
+  assert.equal(h.pet.bubbles.length, bubblesBefore)
+  assert.equal(h.pet.getPetState(), 'sleep')
+
+  h.tabManagers[1].emitWebContentsUrl(21, CF_PROBLEM_B)
+  await ipcMain.invokeHandler('coach:testHint', event)
+  assert.equal(h.pet.bubbles.at(-1)?.title, '测试提示', '比赛结束后入口恢复')
   h.coach.stop()
 })
 

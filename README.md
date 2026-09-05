@@ -33,7 +33,7 @@
 
 ## 🚀 当前版本
 
-**v1.1.0-beta.2** - AI Coach Beta 2
+**v2.0.0-rc.1** - 候选发布版本
 
 [查看所有版本](https://github.com/xuoer-xuper/Algo-Learning-Platform/releases)
 
@@ -54,7 +54,7 @@
 
 ## 🛠️ 技术栈
 
-Electron 42 · React 18 · TypeScript · Tailwind CSS · SQLite · Vite
+Electron 43 · React 19 · TypeScript · Tailwind CSS · SQLite · Vite
 
 ## 📄 许可证
 

@@ -577,6 +577,55 @@ for (const scenario of viewportScenarios) {
       await expect(page.locator('.milkdown .ProseMirror')).toBeVisible({ timeout: 20_000 })
       await expect(page.locator('body')).toContainText('边界条件复盘')
       await capture(page, scenario.name, 'note-editor.png')
+      // Let the real editor normalize its initial Markdown before comparing
+      // persisted content across tabs; the fixture must retain that save.
+      await expect.poll(() => page.evaluate(async () => (
+        await window.electronAPI.getNote('note-1')
+      )?.content.endsWith('\n\n'))).toBe(true)
+
+      const otherNotes = await page.evaluate(async () => {
+        const originalNote = await window.electronAPI.getNote('note-1')
+        if (!originalNote) throw new Error('Missing original note fixture')
+        const otherNote = {
+          ...originalNote,
+          id: 'note-isolation-b',
+          problem_id: 'problem-isolation-b',
+          title: 'Isolated note B',
+          content: 'Original body B',
+        }
+        const records = [originalNote, otherNote]
+        window.electronAPI.listNotesByProblem = async problemId => records
+          .filter(note => note.problem_id === problemId).map(note => ({ ...note }))
+        window.electronAPI.getNote = async noteId => {
+          const note = records.find(record => record.id === noteId)
+          return note ? { ...note } : null
+        }
+        window.electronAPI.updateNoteContent = async (noteId, content) => {
+          const note = records.find(record => record.id === noteId)
+          if (!note) return false
+          note.content = content
+          return true
+        }
+        return {
+          originalContent: originalNote.content,
+          tabId: await window.electronAPI.openInternalTab({ type: 'notes', problemId: otherNote.problem_id }),
+        }
+      })
+      await expect(page.locator('.note-item-title')).toHaveText('Isolated note B')
+      await expect(page.locator('.note-editor-title')).toHaveCount(0)
+      await expect(page.locator('.milkdown .ProseMirror')).toHaveCount(0)
+      await page.locator('.note-item').first().click()
+      await expect(page.locator('.note-editor-title')).toHaveValue('Isolated note B')
+      const otherEditor = page.locator('.milkdown .ProseMirror')
+      await expect(otherEditor).toContainText('Original body B')
+      await otherEditor.fill('Edited body B')
+      await expect.poll(() => page.evaluate(async () => (
+        await window.electronAPI.getNote('note-isolation-b')
+      )?.content)).toContain('Edited body B')
+      expect(await page.evaluate(async () => (
+        await window.electronAPI.getNote('note-1')
+      )?.content)).toBe(otherNotes.originalContent)
+      await page.evaluate((tabId) => window.electronAPI.closeTab(tabId), otherNotes.tabId)
       await closeInternalPageTab(page, internalPages.notes, notesTab)
 
       expect(pageErrors).toEqual([])
@@ -592,9 +641,9 @@ for (const scenario of viewportScenarios) {
 test('native tab strip overflows horizontally and reorders with a pointer drag', async () => {
   const scenario = viewportScenarios.find((candidate) => candidate.name === 'narrow')!
   const electronApp = await launchScenario(scenario)
-  const page = await electronApp.firstWindow()
 
   try {
+    const page = await electronApp.firstWindow()
     await assertNativeViewport(electronApp, page)
     await page.evaluate(async () => {
       for (let index = 0; index < 12; index += 1) {
@@ -621,6 +670,8 @@ test('native tab strip overflows horizontally and reorders with a pointer drag',
     const before = await tabItems.evaluateAll((elements) => elements.map((element) => element.getAttribute('data-tab-id')))
     await page.locator('.tab-strip-tabs').evaluate((element) => { element.scrollLeft = 0 })
     const first = tabItems.nth(0).locator('.tab-item-main')
+    // Hover waits for scrolling, animation and hit testing before the raw drag.
+    await first.hover()
     const firstBox = await first.boundingBox()
     const stripBox = await page.locator('.tab-strip-tabs').boundingBox()
     expect(firstBox).not.toBeNull()
@@ -629,7 +680,9 @@ test('native tab strip overflows horizontally and reorders with a pointer drag',
     await page.mouse.move(firstBox!.x + firstBox!.width / 2, firstBox!.y + firstBox!.height / 2)
     await page.mouse.down()
     await page.mouse.move(stripBox!.x + stripBox!.width - 3, firstBox!.y + firstBox!.height / 2, { steps: 8 })
-    await page.waitForTimeout(450)
+    await expect(page.locator('.tab-item-dragging')).toHaveCount(1)
+    await expect.poll(() => page.locator('.tab-strip-tabs').evaluate((element) => element.scrollLeft))
+      .toBeGreaterThan(250)
     await page.mouse.up()
 
     await expect.poll(async () => {
@@ -660,9 +713,9 @@ test('native tab strip overflows horizontally and reorders with a pointer drag',
 test('view transition keeps the tab strip hit-testable while it runs', async () => {
   const scenario = viewportScenarios.find((candidate) => candidate.name === 'narrow')!
   const electronApp = await launchScenario(scenario)
-  const page = await electronApp.firstWindow()
 
   try {
+    const page = await electronApp.firstWindow()
     await assertNativeViewport(electronApp, page)
     await page.evaluate(async () => {
       await window.electronAPI.openInternalTab({ type: 'notes', problemId: 'vt-hit-test' })

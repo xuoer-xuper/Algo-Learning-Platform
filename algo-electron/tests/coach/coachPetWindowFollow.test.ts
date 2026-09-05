@@ -247,6 +247,27 @@ describe('桌宠置顶策略三模式', () => {
     pet.destroy()
   })
 
+  test.each(['follow', 'always', 'dock'] as const)('minimize preserves the %s pin policy', (mode) => {
+    resetElectronMock()
+    const { pet, petWindow } = createPet()
+    const shell = focusedShell()
+    pet.followWindow(shell as never)
+    pet.setPinMode(mode)
+    vi.advanceTimersByTime(50)
+
+    shell.minimize()
+    settleBlur()
+    assert.strictEqual(petWindow.getParentWindow(), null)
+    assert.strictEqual(petWindow.isAlwaysOnTop(), mode !== 'dock')
+    assert.strictEqual(petWindow.getAlwaysOnTopLevel(), mode === 'always' ? 'floating' : 'normal')
+    assert.strictEqual(petWindow.isVisible(), true)
+
+    shell.restore()
+    settleBlur()
+    assert.strictEqual(petWindow.isAlwaysOnTop(), mode === 'always')
+    pet.destroy()
+  })
+
   test('非法模式被拒在 setPinMode，不改动窗口', () => {
     resetElectronMock()
     const { pet, petWindow } = createPet()

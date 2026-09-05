@@ -10,7 +10,7 @@
 
 - `ProblemSidebar.tsx`：题目侧栏、筛选、导航和侧栏宽度通知。
 - `ProblemDetail.tsx`：题目详情、访问统计、提交记录和删除确认。
-- `NotePanelModal.tsx`：题目笔记弹层入口。
+- `NotePanelModal.tsx`：题目笔记内部页入口；`ShellRouter` 按标签 ID 和题目 ID 隔离组件状态。
 - `NoteList.tsx`：笔记列表和新建/选择/删除操作。
 - `NoteEditorPane.tsx`：笔记标题、类型和正文编辑面板。
 - `MilkdownEditor.tsx`：Markdown 编辑器和图片上传接线。
@@ -33,6 +33,7 @@
 - 提交记录只展示主进程返回数据，不在 renderer 中解析提交页。
 - 删除题目需要先处理关联笔记，不能绕开 `problemsApi.ts` 直接调用多个 preload 方法。
 - 笔记标题保存逻辑必须通过 `useDebouncedNoteTitleSave()` 统一处理。
+- 切换笔记标签或替换标签的题目时，卸载旧笔记页并 flush 该笔记待保存的标题和正文，再显示新题目的笔记列表；不能沿用旧页的选中笔记、编辑器内容或迟到读取结果。相同标签和题目的元数据更新保留编辑器。
 - 图片上传不得暴露本地绝对路径给 Markdown 正文，使用主进程返回的 markdown URL。
 - 新增题目/笔记 IPC 时同步 `problemsApi.ts`、类型文件和 `electron-env.d.ts`。
 

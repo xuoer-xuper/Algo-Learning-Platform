@@ -14,8 +14,8 @@
 /**
  * 切换桌宠窗口的点击穿透。
  *
- * 桌宠是全屏无边框置顶窗，默认整窗穿透，否则会挡住底下的编辑器；
- * hover 到可交互区域时临时关闭穿透，离开再恢复。
+ * 桌宠使用透明无边框小窗，默认整窗穿透；只有鼠标位于可见交互区域
+ * 或正在拖拽时捕获点击。区域边界由 useCoachMouseCapture 统一判断。
  */
 export function toggleCoachIgnoreMouseEvents(ignore: boolean): Promise<boolean> {
   return window.electronAPI.coachToggleIgnoreMouseEvents(ignore)

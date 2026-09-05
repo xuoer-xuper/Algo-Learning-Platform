@@ -2,7 +2,7 @@
 
 **职责**：本地优先的个人算法学习追踪桌面应用，用于在内嵌浏览器中刷题、识别题目、记录提交、沉淀笔记并查看学习统计。
 
-项目当前版本为 `1.1.0-beta.2`，面向 Windows 桌面端发布。核心学习数据默认保存在本机 SQLite 数据库中，Cookie 和登录态留在 Electron 持久 session 内，不进入普通导出文件。
+项目当前版本为 `2.0.0-rc.1`，面向 Windows 桌面端发布。核心学习数据默认保存在本机 SQLite 数据库中，Cookie 和登录态留在 Electron 持久 session 内，不进入普通导出文件。
 
 ## 功能特性
 
@@ -33,9 +33,9 @@
 
 | 层级 | 技术 |
 |---|---|
-| 桌面端 | Electron 42 |
+| 桌面端 | Electron 43 |
 | 浏览器容器 | `WebContentsView` |
-| Renderer | React 18, TypeScript, Vite |
+| Renderer | React 19, TypeScript, Vite |
 | Styling | Tailwind CSS |
 | Charts | Recharts |
 | Database | SQLite, `better-sqlite3`, WAL |
@@ -57,7 +57,7 @@
 
 环境要求：
 
-- Node.js
+- Node.js 22.18 及以上、25 以下
 - npm
 - Windows，用于安装包验证
 

@@ -7,6 +7,11 @@ const projectRoot = process.cwd()
 const tmpRoot = path.join(projectRoot, 'tmp')
 const outputDir = path.resolve(process.argv[2] ?? '')
 const uiRoot = path.join(projectRoot, 'tests', 'ui')
+const harnessName = process.argv[3] ?? 'rendererScreenshotHarness'
+
+if (!['rendererScreenshotHarness', 'coachPetHarness'].includes(harnessName)) {
+  throw new Error('Unknown UI harness')
+}
 
 if (!outputDir.startsWith(`${tmpRoot}${path.sep}`)) {
   throw new Error('Refusing to build the screenshot harness outside tmp')
@@ -25,7 +30,7 @@ await build({
     outDir: outputDir,
     emptyOutDir: false,
     rolldownOptions: {
-      input: path.join(uiRoot, 'rendererScreenshotHarness.html'),
+      input: path.join(uiRoot, `${harnessName}.html`),
     },
   },
 })

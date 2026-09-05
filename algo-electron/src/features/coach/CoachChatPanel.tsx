@@ -57,6 +57,7 @@ export function CoachChatPanel({ onClose }: CoachChatPanelProps) {
   return (
     <div
       className="coach-chat-panel"
+      data-coach-interactive
     >
       <div className="coach-chat-header">
         <span className="coach-chat-title">AI 教练对话</span>

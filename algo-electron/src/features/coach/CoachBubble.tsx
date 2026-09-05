@@ -88,7 +88,7 @@ export function CoachBubble({ payload, autoDismissMs = 12000, llmEnabled = false
   }
 
   return (
-    <div className="coach-bubble" role="alert" aria-live="polite">
+    <div className="coach-bubble" data-coach-interactive role="alert" aria-live="polite">
       <div className="coach-bubble-header">
         <span className="coach-bubble-title">{payload.title}</span>
         {!isDisclaimer && !isLoading && (
@@ -118,9 +118,9 @@ export function CoachBubble({ payload, autoDismissMs = 12000, llmEnabled = false
       ) : (
         <>
           {typeof payload.level === 'number' && payload.level > 0 && !isDisclaimer && (
-            <span className="coach-bubble-level" key={payload.id}>L{payload.level}</span>
+            <span className="coach-bubble-level" key={`${payload.id}:level`}>L{payload.level}</span>
           )}
-          <div className="coach-bubble-message" key={payload.id}>{payload.message}</div>
+          <div className="coach-bubble-message" key={`${payload.id}:message`}>{payload.message}</div>
         </>
       )}
 

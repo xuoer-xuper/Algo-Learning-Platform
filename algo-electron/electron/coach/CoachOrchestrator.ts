@@ -107,6 +107,13 @@ export interface CoachOrchestratorOptions {
 const METRICS_LOOKBACK_DAYS = 30
 const WINDOW_SWITCH_DEBOUNCE_MS = 200
 
+interface HintRequestContext {
+  generation: number
+  sessionId: string | null
+  pet?: CoachPetWindow
+  loadingBubbleId?: string
+}
+
 export class CoachOrchestrator {
   private readonly options: CoachOrchestratorOptions
   private readonly sessionTracker: ProblemSessionTracker
@@ -122,6 +129,10 @@ export class CoachOrchestrator {
   private readonly feedbackStore: CoachFeedbackStore
   /** LLM 提示服务（阶段 5 引入） */
   private readonly llmHintService: LlmHintService
+  private running = false
+  private hintContextGeneration = 0
+  private loadingBubbleRequest: HintRequestContext | null = null
+  private thinkingRequest: HintRequestContext | null = null
   /** 所有主动 LLM 请求共享同一并发门，避免聊天和手动提示互相并发。 */
   private llmRequestInProgress = false
   /** 当前题目的 constraints 缓存（由 ConstraintParser 异步填充） */
@@ -246,6 +257,7 @@ export class CoachOrchestrator {
    * 就绪后调用。
    */
   start(): void {
+    this.running = true
     // 启动 session tracker
     this.sessionTracker.start()
 
@@ -314,12 +326,14 @@ export class CoachOrchestrator {
       source: 'local',
       bubble_type: 'disclaimer',
     }
+    this.releaseHintPresentation()
     pet.showBubble(payload)
     this.currentBubbleId = payload.id
   }
 
   /** 关闭免责声明 */
   dismissDisclaimer(permanent: boolean): void {
+    this.releaseHintPresentation()
     this.disclaimerDismissedThisSession = true
     if (permanent) {
       const config = loadCoachConfig()
@@ -335,16 +349,18 @@ export class CoachOrchestrator {
     message: string,
     history?: Array<{ role: 'user' | 'assistant'; content: string }>,
   ): Promise<string | null> {
-    if (this.contestGuard.isContestMode() || this.llmRequestInProgress) return null
+    if (!this.running || this.contestGuard.isContestMode() || this.llmRequestInProgress) return null
+    const request = this.captureHintRequest()
     this.llmRequestInProgress = true
     try {
-      return await this.llmHintService.chat({
+      const reply = await this.llmHintService.chat({
         userMessage: message,
         session: this.sessionTracker.getCurrentSession(),
         constraints: this.currentConstraints,
         history,
         problemUrl: this.currentProblemUrl,
       })
+      return this.isCurrentHintRequest(request) ? reply : null
     } finally {
       this.llmRequestInProgress = false
     }
@@ -352,14 +368,16 @@ export class CoachOrchestrator {
 
   /** 请求针对当前题目的提示 */
   async requestHintFromLlm(): Promise<string | null> {
-    if (this.contestGuard.isContestMode() || this.llmRequestInProgress) return null
+    if (!this.running || this.contestGuard.isContestMode() || this.llmRequestInProgress) return null
+    const request = this.captureHintRequest()
     this.llmRequestInProgress = true
     try {
-      return await this.llmHintService.requestHint({
+      const reply = await this.llmHintService.requestHint({
         session: this.sessionTracker.getCurrentSession(),
         constraints: this.currentConstraints,
         problemUrl: this.currentProblemUrl,
       })
+      return this.isCurrentHintRequest(request) ? reply : null
     } finally {
       this.llmRequestInProgress = false
     }
@@ -398,11 +416,14 @@ export class CoachOrchestrator {
       this.currentProblemWindowId === appWindow.id
       && this.currentProblemKey === problemKey
       && this.currentProblemUrl === url
+      && this.currentProblemPage !== null
+      && this.samePageOwner(this.currentProblemPage, pageEvent)
       && (this.currentConstraints !== null || this.constraintFetchPending)
     ) {
       return
     }
 
+    this.invalidateHintRequests()
     const generation = this.constraintGenerationGate.next()
     const windowId = appWindow.id
     const tabManager = appWindow.tabManager
@@ -485,6 +506,7 @@ export class CoachOrchestrator {
   }
 
   private invalidateCurrentConstraints(): void {
+    this.invalidateHintRequests()
     this.constraintGenerationGate.next()
     this.constraintFetchPending = false
     this.currentConstraints = null
@@ -492,6 +514,54 @@ export class CoachOrchestrator {
     this.currentProblemUrl = null
     this.currentProblemPage = null
     this.currentProblemWindowId = null
+  }
+
+  private captureHintRequest(): HintRequestContext {
+    return {
+      generation: this.hintContextGeneration,
+      sessionId: this.sessionTracker.getCurrentSession()?.session_id ?? null,
+    }
+  }
+
+  private isCurrentHintRequest(request: HintRequestContext): boolean {
+    // A contest or page/window round trip must not revive an earlier response.
+    return this.running
+      && !this.contestGuard.isContestMode()
+      && request.generation === this.hintContextGeneration
+      && request.sessionId === (this.sessionTracker.getCurrentSession()?.session_id ?? null)
+      && !this.activeAppWindow?.isDestroyed()
+  }
+
+  private invalidateHintRequests(): void {
+    this.hintContextGeneration += 1
+    const loading = this.loadingBubbleRequest
+    const thinking = this.thinkingRequest
+    if (loading) this.finishHintPresentation(loading)
+    if (thinking && thinking !== loading) this.finishHintPresentation(thinking)
+  }
+
+  private finishHintPresentation(request: HintRequestContext): void {
+    const pet = this.options.getCoachPetWindow()
+    if (this.loadingBubbleRequest === request) {
+      this.loadingBubbleRequest = null
+      if (pet === request.pet && this.currentBubbleId === request.loadingBubbleId) {
+        pet?.dismissBubble()
+        this.currentBubbleId = null
+      }
+    }
+    if (this.thinkingRequest === request) {
+      this.thinkingRequest = null
+      if (pet === request.pet && pet?.getPetState() === 'thinking' && !this.contestGuard.isContestMode()) {
+        pet.setPetState('idle')
+      }
+    }
+  }
+
+  private releaseHintPresentation(): void {
+    // A replacement bubble or explicit state now owns the pet; late cleanup
+    // from an earlier request must not dismiss it or change its state.
+    this.loadingBubbleRequest = null
+    this.thinkingRequest = null
   }
 
   private isCurrentConstraintRequest(
@@ -519,12 +589,16 @@ export class CoachOrchestrator {
   private detachAppWindow(windowId: string): void {
     const cleanup = this.attachedWindowCleanups.get(windowId)
     if (!cleanup) return
+    if (this.activeAppWindow?.id === windowId || this.requestedWindowId === windowId) {
+      this.invalidateCurrentConstraints()
+    }
     this.attachedWindowCleanups.delete(windowId)
     cleanup()
   }
 
   /** 停止所有子服务 */
   stop(): void {
+    this.running = false
     for (const fn of this.detachFns) {
       try { fn() } catch { /* ignore */ }
     }
@@ -817,6 +891,7 @@ export class CoachOrchestrator {
 
     // 关气泡 + 切回 idle
     if (input.feedbackType !== 'helpful') {
+      this.releaseHintPresentation()
       this.options.getCoachPetWindow()?.dismissBubble()
       this.options.getCoachPetWindow()?.setPetState('idle')
     }
@@ -840,6 +915,7 @@ export class CoachOrchestrator {
     interventionId?: string
     needsConfirmation?: boolean
   }> {
+    if (!this.running) return { accepted: false, level: 0, note: 'Coach 已停止' }
     if (this.hintInProgress) {
       return { accepted: false, level: this.currentHintLevel, note: '正在生成提示中' }
     }
@@ -860,6 +936,7 @@ export class CoachOrchestrator {
 
     const nextLevel = Math.min(this.currentHintLevel + 1, 5) as CoachInterventionLevel
     const llmReady = this.llmHintService.isReady()
+    const request = this.captureHintRequest()
 
     // L5 二次确认（LLM 和本地模式都需要）
     if (nextLevel === 5 && !this.l5PendingConfirmed) {
@@ -906,9 +983,17 @@ export class CoachOrchestrator {
 
         // 立即展示加载气泡，避免用户以为点击无效
         const pet = this.options.getCoachPetWindow()
+        const loadingBubbleId = `loading-${crypto.randomUUID()}`
+        if (pet) {
+          request.pet = pet
+          request.loadingBubbleId = loadingBubbleId
+          this.loadingBubbleRequest = request
+          this.thinkingRequest = request
+          this.currentBubbleId = loadingBubbleId
+        }
         pet?.setPetState('thinking')
         pet?.showBubble({
-          id: `loading-${Date.now()}`,
+          id: loadingBubbleId,
           title: nextLevel > 1 ? `正在思考 L${nextLevel} 提示` : '正在思考',
           message: '让我想想该怎么引导你...',
           source: 'llm',
@@ -924,6 +1009,9 @@ export class CoachOrchestrator {
             targetLevel: nextLevel,
             userExplicitAsk: true,
           })
+          if (!this.isCurrentHintRequest(request)) {
+            return { accepted: false, level: this.currentHintLevel, note: '提示上下文已变更' }
+          }
           if (llmResult) {
             // 消耗一次每日升级额度（Issue #2）
             this.feedbackStore.consumeDailyUpgradeQuota()
@@ -953,8 +1041,12 @@ export class CoachOrchestrator {
       }
 
       // 本地 HintLadder 路径（LLM 未启用或 LLM 失败时降级）
+      if (!this.isCurrentHintRequest(request)) {
+        return { accepted: false, level: this.currentHintLevel, note: '提示上下文已变更' }
+      }
       return this.requestLocalHintUpgrade(nextLevel)
     } finally {
+      this.finishHintPresentation(request)
       this.hintInProgress = false
     }
   }
@@ -971,6 +1063,9 @@ export class CoachOrchestrator {
     llmEnabled: boolean
     note?: string
   }> {
+    if (!this.running) {
+      return { triggered: false, level: 0, llmEnabled: this.llmHintService.isReady(), note: 'Coach 已停止' }
+    }
     if (this.hintInProgress) {
       return { triggered: false, level: this.currentHintLevel, llmEnabled: this.llmHintService.isReady(), note: '正在生成提示中' }
     }
@@ -981,6 +1076,7 @@ export class CoachOrchestrator {
     const session = this.sessionTracker.getCurrentSession()
     if (!session) {
       const pet = this.options.getCoachPetWindow()
+      this.releaseHintPresentation()
       pet?.setPetState('alert')
       pet?.showBubble({
         id: `no-problem-${Date.now()}`,
@@ -1055,6 +1151,7 @@ export class CoachOrchestrator {
 
   /** 用户点"先不用" */
   dismissHint(bubbleId?: string): boolean {
+    this.releaseHintPresentation()
     if (this.currentBubbleEventType) {
       this.ruleEngine.markDismissed(this.currentBubbleEventType)
       this.hintLadder.resetL5State(this.currentBubbleEventType)
@@ -1075,6 +1172,7 @@ export class CoachOrchestrator {
   // --- 内部 ---
 
   private async handleCoachEvent(event: CoachEvent): Promise<void> {
+    if (!this.running) return
     // 比赛模式硬关闭：事件仍记录到 coach_events（用于审计"零介入"事实对比），
     // 但不触发任何提示。审计日志可证明"虽然有事件，但比赛期间无任何 intervention"。
     if (this.contestGuard.isContestMode()) {
@@ -1091,8 +1189,14 @@ export class CoachOrchestrator {
 
     // LLM 优先 + 本地兜底（Issue #1 接线）
     if (this.llmHintService.isReady()) {
+      const request = this.captureHintRequest()
       // LLM 可用：直接调 LLM 生成提示
-      this.options.getCoachPetWindow()?.setPetState('thinking')
+      const pet = this.options.getCoachPetWindow()
+      if (pet) {
+        request.pet = pet
+        this.thinkingRequest = request
+        pet.setPetState('thinking')
+      }
       try {
         const llmResult = await this.llmHintService.generateHint({
           event,
@@ -1102,6 +1206,7 @@ export class CoachOrchestrator {
           userExplicitAsk: false,
           problemUrl: this.currentProblemUrl,
         })
+        if (!this.isCurrentHintRequest(request)) return
         if (llmResult) {
           this.feedbackStore.markTriggered(event.event_type)
           this.currentHintLevel = 1
@@ -1121,6 +1226,8 @@ export class CoachOrchestrator {
         }
       } catch (err) {
         appLogger.warn('coach.llm-generate-hint-failed', err)
+      } finally {
+        this.finishHintPresentation(request)
       }
     } else {
       // LLM 不可用：走本地规则引擎
@@ -1156,6 +1263,7 @@ export class CoachOrchestrator {
 
     // L0 不展示
     if (intervention.intervention_level === 0) return
+    this.releaseHintPresentation()
 
     // 根据来源切换状态
     if (intervention.event_id && intervention.source_type === 'local_rule') {
@@ -1206,6 +1314,8 @@ export class CoachOrchestrator {
   }
 
   private handleContestEnter(info: { platform: string; contestId: string; contestUrl: string; enteredAt: number }): void {
+    this.hintContextGeneration += 1
+    this.releaseHintPresentation()
     const pet = this.options.getCoachPetWindow()
     // 切换桌宠到 alert/sleep（不展示气泡）；contest 状态用独立 channel 通知（避免破坏 6 状态）
     pet?.setPetState('sleep')
@@ -1240,7 +1350,8 @@ export class CoachOrchestrator {
   }
 
   private handleContestEnd(info: { platform: string; contestId: string; contestUrl: string; enteredAt: number }, durationSec: number): void {
-    const pet = this.options.getCoachPetWindow()
+    this.releaseHintPresentation()
+    const pet = this.running ? this.options.getCoachPetWindow() : null
     pet?.setPetState('idle')
     for (const appWindow of this.options.getAppWindows()) {
       this.sendContestModeState(appWindow, {

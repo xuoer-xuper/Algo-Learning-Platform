@@ -68,7 +68,7 @@ npm run test:watch
 npm run test:coverage
 ```
 
-覆盖率只统计 `electron/` 与 `src/` 生产代码，报告写入 `tmp/coverage/`。当前实测 statements 59.5%、branches 56.4%、functions 57.7%、lines 62.1%，`vitest.config.ts` 里的门槛压在实测值下方几个点，只能随覆盖率上调、不能下调。新增测试应逐步抬高门槛，不能通过把测试文件计入覆盖率来抬高数字。
+覆盖率只统计 `electron/` 与 `src/` 生产代码，报告写入 `tmp/coverage/`，实测值以最近一次全量验证报告为准。`vitest.config.ts` 当前门槛为 statements 65%、branches 60%、functions 62%、lines 68%，只能随覆盖率上调、不能下调。新增测试应逐步抬高门槛，不能通过把测试文件计入覆盖率来抬高数字。
 
 排除名单只剩三项，且都是"测不出信息"而非"没测"：`electron/main.ts` 是进程启动装配，真实链路由 `tests/verify.mjs electron` 跑，那在 Vitest 之外收不到覆盖率，改成在替身上 import 它只会让数字涨、信心不涨；`src/main.tsx` 是 17 行 `createRoot` 挂载，渲染树本身由 `tests/components` 覆盖；`src/vite-env.d.ts` 是声明文件。三个 preload 曾以"测试环境无法执行"为由排除，该论据不成立——它们是纯副作用模块，import 即执行，观察点是 `contextBridge` 收到了什么——现已全部纳入并测到 95%+。
 
@@ -204,4 +204,4 @@ npx playwright test tests\ui\rendererScreenshots.pw.spec.ts --grep "narrow conta
 - Renderer UI 已有关键页面截图和布局断言，但完整交互路径仍需 `npm run dev` 手测。
 - Electron session、CookieVault、真实 OJ 登录态依赖手测。
 - 打包产物安装/卸载流程依赖人工验收。
-- 还有三处源码字符串断言未行为化：`tests/coach/coachPageOwnershipWiring.test.ts`、`tests/electron/mainResilience.test.ts`、`tests/integration/problemTitleExtractionWiring.test.ts`。它们守的是 `CoachOrchestrator.ts` / `main.ts` 的接线，属于 §4 里禁止的那种写法，需要按各自被测对象改成行为断言。
+- Q10 已完成 Coach、题目标题提取和启动接线的行为测试补充；架构守卫持续检查新增源码字符串断言，不能用历史测试数量代替新用户路径的回归。

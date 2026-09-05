@@ -15,6 +15,7 @@ app.whenReady().then(async () => {
     useContentSize: true,
     frame: false,
     show: false,
+    transparent: process.env.ALP_SCREENSHOT_TRANSPARENT === 'true',
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: false,

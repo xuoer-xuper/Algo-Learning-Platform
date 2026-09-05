@@ -41,6 +41,7 @@
 - `setIgnoreMouseEvents()` 与 `applyPinDecision()` 都对「结论未变」短路：重设命中测试会打断进行中的鼠标捕获（拖拽中断），重设 owner/z 序会被用户看见。注意这层只挡「结论相同的重复调用」，挡不住「结论反复翻面」——后者只能靠上一条的延后复核。
 - `CoachPetWindow.setPinMode()`：切换置顶模式，即时重设窗口；持久化由 `coach:saveConfig` → `saveCoachConfig` 负责，本方法不写盘。`notifyConfigChanged()` 会顺带把配置里的模式重新应用一次。
 - `CoachOrchestrator.start()` / `stop()`：服务生命周期入口，在 `main.ts` 的 `app.whenReady` 后调用。
+- `CoachOrchestrator` 的手动提示、自动提示、聊天和直接 LLM 提示都捕获请求时的 generation 与会话。进入比赛、切题、切换同 URL 的另一标签、切窗请求、页面/窗口销毁及停止服务会作废旧 generation；比赛或页面往返也不能恢复旧请求。迟到结果不展示、不落干预记录、不消耗每日升级额度，也不再降级成本地提示。
 - `ContestGuard.isContestMode()`：比赛模式状态查询。
 - `installContestNavigationTracking()`：把 TabManager 的裸 `webContents` URL/销毁快照接入 ContestGuard，不复用活动标签导航槽。
 - IPC channel：`coach:getState` / `coach:triggerHint` / `coach:dismissHint` / `coach:feedback` / `coach:getSession` / `coach:getMetrics` / `coach:exportAuditLog` / `coach:getProblemTimeline` / `coach:getMetricsBundle`。
@@ -51,6 +52,7 @@
 - 不在 renderer 直接访问 SQLite。
 - Demo 默认不接 LLM，所有提示由本地规则 + 模板 + ConstraintParser 生成。
 - 比赛模式硬关闭不可绕过，审计日志可导出。
+- `coach:testHint`、`coach:showBubble` 和 `coach:triggerHint` 的演示分支也必须检查全局比赛状态；停止服务仅补比赛结束审计，不展示赛后气泡。
 - 不直接给完整答案，L5 升级需二次确认。
 - 卡壳判定宁可漏报不误报。
 - `coach_interventions` 表同时承载干预记录与比赛模式审计日志。
@@ -63,6 +65,7 @@ npm run typecheck
 npm run lint
 npm run test:coach
 npm run test:all
+npx vitest run tests/coach/coachOrchestratorLifecycle.test.ts
 ```
 
 运行时手动验证：
