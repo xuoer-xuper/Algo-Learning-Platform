@@ -21,9 +21,19 @@ the rest conversationally.
 
 ## Status (update the checkboxes as you complete each item)
 
-- [ ] Fill backend guidelines
-- [ ] Fill frontend guidelines
+- [x] Audit codebase against the template spec (2026-09-17, see `research/`)
+- [x] Produce phased alignment plan (`research/spec-alignment-plan.md`)
+- [ ] Confirm project-specific conventions with the developer (pending answers, see session summary)
+- [ ] Fill backend guidelines (as `project-overrides` overlay; template files kept intact)
+- [ ] Fill frontend guidelines (same)
 - [ ] Add code examples
+
+## Session log
+
+- 2026-09-17: Three read-only audits (backend / frontend / tooling-tests-git) + consolidated report
+  `research/spec-alignment-report.md` (9 high / 23 medium / 22 low) + 6-phase plan. Decision recorded:
+  template spec files stay unmodified; project deviations go into overlay docs after developer confirmation.
+  Work happens on branch `dev` (created this session; master was previously the only branch).
 
 ---
 

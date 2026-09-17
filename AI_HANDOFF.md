@@ -2,6 +2,16 @@
 
 > 本文件记录 AI 助手之间的工作交接状态，便于后续 AI 快速了解当前进展与待办事项。
 
+## 最近完成（2026-09-17）
+
+### Trellis 初始化与规范对齐审计
+
+- 引入 Trellis 工作流（`.trellis/`、`AGENTS.md`、`.agents/`、`.codex/`、`.grok/`），spec 采用 electron-fullstack 官方模板并保持原文未改；激活任务 `00-bootstrap-guidelines`。
+- 新建 `dev` 分支并在其上提交；此前 248 个 commit 全部直接落在 master。后续开发在 dev / feature 分支进行，master 只接收合并。
+- 以模板规范为基准完成三份只读审计（主进程、渲染进程、测试/工具链/仓库/Git），合并为 `.trellis/tasks/00-bootstrap-guidelines/research/spec-alignment-report.md`：高优先级 9 条（IPC channel 字面量 158 处、跨进程类型三处手抄、`main.ts` 945 行、超长核心文件、时间格式在约定内混用、dev/prod 共用 userData、15 个组件不订阅刷新、无工具门、无分支模型），中 23 条，低 22 条；亮点 10 条。
+- 分阶段对齐计划在 `research/spec-alignment-plan.md`：阶段 0 建门（分支保护 + commitlint/husky + 类型棘轮，typescript-eslint 因 TS 7 不兼容改用架构守卫正则）→ 1 核心稳定性 → 2 IPC 契约收口 → 3 主进程拆分 → 4 渲染层结构 → 5 测试细节 → 6 spec 落地，约 19–25 个工作日。
+- 待开发者确认项目特有约定后再写 spec overlay；本次未改任何业务代码。
+
 ## 最近完成（2026-09-11）
 
 ### 项目审计第一批

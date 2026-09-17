@@ -12,7 +12,7 @@
   "assignee": "xuper",
   "createdAt": "2026-09-16",
   "completedAt": null,
-  "branch": null,
+  "branch": "dev",
   "base_branch": null,
   "worktree_path": null,
   "commit": null,
