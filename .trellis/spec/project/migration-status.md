@@ -4,7 +4,7 @@
 > it must live. New code always goes to the template location, even when the surrounding module is still
 > legacy. Update the table in the same PR that moves a module.
 >
-> Plan and evidence: `.trellis/tasks/00-bootstrap-guidelines/research/spec-alignment-plan.md`,
+> Plan and evidence: `.trellis/tasks/archive/2026-09/00-bootstrap-guidelines/research/spec-alignment-plan.md`,
 > `spec-alignment-report.md`, `reinvented-wheels-audit.md`.
 
 Last updated: 2026-09-17 (phase 0 not started).
