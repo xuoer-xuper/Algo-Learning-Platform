@@ -73,5 +73,10 @@
   "statusLine": {
     "type": "command",
     "command": "python .claude/hooks/statusline.py"
+  },
+  "attribution": {
+    "commit": "",
+    "pr": "",
+    "sessionUrl": false
   }
 }

@@ -28,7 +28,7 @@ master   ── stable only; receives --no-ff merges from dev; tags live here
 | dev → master | **Merge commit with `--no-ff`** via PR. Tag `vX.Y.Z` on that merge commit. |
 | Branch names | English, kebab-case, `type/description` as in the template. Trellis task ids may be used: `feat/00-bootstrap-guidelines`. |
 | CI | `.github/workflows/ci.yml` runs `fast-guard` on push to `dev` and `master`, and the full matrix on pull requests. Pushing to a feature branch alone does not run CI; open the PR. |
-| Push | **Push immediately after every commit** (developer rule 2026-09-17: no local backlog). Always the developer's identity; no AI co-author trailers. Repo merge settings: squash (title = PR title) and merge commit allowed, rebase merge disabled, branches auto-deleted after merge. |
+| Push | **Push immediately after every commit** (developer rule 2026-09-17: no local backlog). Always the developer's identity; no AI co-author trailers. `.claude/settings.json` sets `attribution` (`commit` and `pr` empty, `sessionUrl` false) so Claude Code stops requesting the trailer at the source (added 2026-09-17 after commit `ffba568` slipped through, had to be rewritten, and left a stale contributor avatar on GitHub). Repo merge settings: squash (title = PR title) and merge commit allowed, rebase merge disabled, branches auto-deleted after merge. |
 
 ---
 

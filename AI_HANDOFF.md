@@ -18,6 +18,12 @@
 - **Trellis 任务树已建**：父任务 `09-17-spec-alignment`（决策、任务地图、跨阶段验收）+ 7 个子任务 `09-17-phase-0-tooling-gates` … `09-17-phase-6-cleanup-release`。每个子任务有 `prd.md`（需求 + 验收标准）和 `implement.md`（分支、checklist、验证命令、回滚点）；阶段 1/2/3 另有 `design.md`（契约、目录映射、Drizzle 基线引导、migration 030 转换规则、TabManager/CoachOrchestrator 拆分边界）。`implement.jsonl`/`check.jsonl` 已登记 spec 与审计报告上下文。**全部为规划，未实施任何代码改动。**
 - 开工方式：`python ./.trellis/scripts/task.py start .trellis/tasks/09-17-phase-0-tooling-gates`，从 `dev` 切 `chore/phase-0-tooling-gates` 分支，按 `implement.md` 顺序执行（R2 pnpm → R3 TS 6.0.3 → R4 typescript-eslint → R5 prettier → R6 husky/commitlint → R7 jscpd → R8 alias → R9 release-it → R1 分支保护 → R10 COMMIT_RULES）。
 
+### 署名开关落地与贡献者侧栏刷新
+
+- 9 月 3 日的提交 `ffba568` 又带上了 `Co-Authored-By: Claude Opus 5`，改写为 `5dfbf70` 并 force push 后 GitHub 仍保留旧对象（`gh api .../commits/ffba568` 可取到），首页侧栏再次显示两个贡献者，而 `contributors` / `stats/contributors` 接口早已只剩 `xuoer-xuper`。
+- 根因：Claude Code 每个会话都注入"提交末尾加 Co-Authored-By"的提醒，记忆规则只是软约束。已在 `.claude/settings.json` 加 `attribution`（`commit` / `pr` 置空、`sessionUrl` 为 false），写入后提醒即时变为"不要加署名"。
+- 侧栏刷新：默认分支先切到 `dev` 再切回 `master`，有 dev 后不再需要临时分支。前提已核对：master 保护是按分支名的经典规则、无 rulesets、0 fork、0 PR、CI 只在 push master 与 PR 时触发；切换窗口内不要新开 PR。
+
 ## 最近完成（2026-09-11）
 
 ### 项目审计第一批
@@ -171,8 +177,8 @@ B5 验收中暴露的真机 bug：桌宠持续闪烁、点不动拖不动、主�
 
 ### 必须遵守的约束
 
-1. **Git 身份**: 只用 `xuper <dr.xuoer@gmail.com>` / GitHub `xuoer-xuper`，不加 `Co-Authored-By` trailer
-2. **推送权限**: 明确要求才 push，否则只 commit
+1. **Git 身份**: 只用 `xuper <dr.xuoer@gmail.com>` / GitHub `xuoer-xuper`，不加 `Co-Authored-By` trailer；`.claude/settings.json` 的 `attribution` 已置空（2026-09-17），harness 不再注入署名提醒
+2. **推送规则**: 每次 commit 后立即 push（2026-09-17 起）；master 受保护，只能经 PR 合入
 3. **工作目录**: 直接在 `D:\Algo-Learning-Platform\` 修改，不用 worktree
 4. **时间处理**: 数据库时间用北京本地时间，不用 UTC
 5. **Cookie 规则**: 不写日志、不进 Renderer、不进导出、不进 sync_queue
