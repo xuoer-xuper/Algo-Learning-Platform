@@ -41,6 +41,8 @@
 | 文档 | 作用 |
 |---|---|
 | [RELEASE_PROCESS](OPERATIONS/RELEASE_PROCESS.md) | Windows 发布前版本、验证、打包、产物检查和人工验收流程。 |
+| [PROJECT_AUDIT_CHECKLIST](OPERATIONS/PROJECT_AUDIT_CHECKLIST.md) | 全项目问题排查范围、初查证据、风险优先级、详细检查项和验证方法。 |
+| [PROJECT_AUDIT_BATCH1_2026_09_11](OPERATIONS/PROJECT_AUDIT_BATCH1_2026_09_11.md) | 第一批审计：8 项确认问题、隔离复现、证据边界和未验证安全线索。 |
 | [ALP_HARDENING_VALIDATION_2026_08_12](OPERATIONS/ALP_HARDENING_VALIDATION_2026_08_12.md) | 2.0.0-beta.2 治理、测试、审计、性能和 Windows 打包验证记录。 |
 | [TROUBLESHOOTING](OPERATIONS/TROUBLESHOOTING.md) | 登录、页面加载、提交监测、同步、数据库、笔记、脚本、统计和打包排障。 |
 | [DATABASE_MIGRATION_ROLLBACK](OPERATIONS/DATABASE_MIGRATION_ROLLBACK.md) | SQLite migration 失败识别、备份、恢复、修复和禁止事项。 |

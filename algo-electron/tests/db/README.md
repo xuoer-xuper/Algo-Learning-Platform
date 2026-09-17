@@ -21,6 +21,7 @@
 - `userScriptRuntimeRepository.test.ts`：用户脚本 027 字段 round-trip、GM values、资源缓存、host 授权 revoke/revive 和更新状态合并。
 - `siteLoginAutofillMigration.test.ts`：migration 028 的登录 URL pattern、用户名/密码选择器字段和七站 seed 回填。
 - `siteCredentialLabelMigration.test.ts`：migration 029 的凭据可选显示名字段和幂等升级。
+- `auditDataIntegrity.repro.ts`：2026-09-11 审计证据，包含备份附件、笔记双写、导入路径/删除标记/冲突/负时长、题库筛选和回滚对照；断言当前异常，不属于默认回归集合。
 
 ## 3. 运行方式
 
@@ -47,3 +48,5 @@ npx vitest run tests/db/userScriptIdentityMigration.test.ts tests/db/userScriptI
 ## 4. 新增规则
 
 数据库 schema、repository 写入规则或统计口径变更必须补这里。每个用例应使用临时 DB，不读取或修改用户真实数据。
+
+第一批审计可单独执行 `node tests/db/runAuditDataIntegrity.mjs`。它启动真实 Electron 并在 `tmp/audit-20260911/` 新建 profile，保留合成证据；修复后需将对应 `.repro` 的异常断言转换为正确行为的回归用例。详见 [第一批审计报告](../../../docs/OPERATIONS/PROJECT_AUDIT_BATCH1_2026_09_11.md)。
