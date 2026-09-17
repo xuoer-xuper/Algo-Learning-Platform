@@ -14,7 +14,9 @@
 - 重复造轮子审计 `research/reinvented-wheels-audit.md`：jscpd 重复率 1.76%（健康），真正的问题是 6 个自研基础设施模块约 1,600 行可被库替代，以及 `tabSessionStore` / `applicationSessionStore` 522 行双胞胎。
 - spec 落地：模板文件一字未改；新增 `.trellis/spec/project/{index,domain-rules,git-workflow,migration-status}.md` 并从 `spec/README.md` 链接。`.gitignore` 不再忽略 `.claude/`（Trellis 的 hooks/skills/agents 需入库），只忽略 `settings.local.json`。
 - 追加决策：TS 目标改为 **6.0.3**（6.1 之前最后稳定版，typescript-eslint peer 覆盖；不行再退 5.9.3）。版本管理审计 V1–V10 写入计划附录：tag 与 package.json 错位（`v1.1.0-beta.*` 指向 `2.0.0-beta.*` 代码）、版本号倒退、CHANGELOG 日期错、版本号散落 5 处、tag 类型混用、Release 缺 blockmap、三份发布文档互相矛盾。措施 D24：release-it + conventional-changelog 一条命令发布，package.json 单一来源，历史 tag 不重写；对齐完成后因数据格式不可回滚发 **v3.0.0**。
-- bootstrap 任务已归档；`.trellis/config.yaml` 关闭脚本自动提交（内置文案英文且 scope 不在词表）。所有事项只写入计划，尚未实施。下一步：用户确认后按阶段 0 建子任务。
+- bootstrap 任务已归档；`.trellis/config.yaml` 关闭脚本自动提交（内置文案英文且 scope 不在词表）。
+- **Trellis 任务树已建**：父任务 `09-17-spec-alignment`（决策、任务地图、跨阶段验收）+ 7 个子任务 `09-17-phase-0-tooling-gates` … `09-17-phase-6-cleanup-release`。每个子任务有 `prd.md`（需求 + 验收标准）和 `implement.md`（分支、checklist、验证命令、回滚点）；阶段 1/2/3 另有 `design.md`（契约、目录映射、Drizzle 基线引导、migration 030 转换规则、TabManager/CoachOrchestrator 拆分边界）。`implement.jsonl`/`check.jsonl` 已登记 spec 与审计报告上下文。**全部为规划，未实施任何代码改动。**
+- 开工方式：`python ./.trellis/scripts/task.py start .trellis/tasks/09-17-phase-0-tooling-gates`，从 `dev` 切 `chore/phase-0-tooling-gates` 分支，按 `implement.md` 顺序执行（R2 pnpm → R3 TS 6.0.3 → R4 typescript-eslint → R5 prettier → R6 husky/commitlint → R7 jscpd → R8 alias → R9 release-it → R1 分支保护 → R10 COMMIT_RULES）。
 
 ## 最近完成（2026-09-11）
 

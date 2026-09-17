@@ -1,0 +1,5 @@
+{"file": ".trellis/spec/shared/code-quality.md", "reason": "检查清单"}
+{"file": ".trellis/spec/project/git-workflow.md", "reason": "commit 格式与 PR 门"}
+{"file": ".trellis/spec/project/domain-rules.md", "reason": "红线不得回退"}
+{"file": ".trellis/spec/frontend/ipc-electron.md", "reason": "契约检查"}
+{"file": ".trellis/spec/shared/timestamp.md", "reason": "时间格式检查"}

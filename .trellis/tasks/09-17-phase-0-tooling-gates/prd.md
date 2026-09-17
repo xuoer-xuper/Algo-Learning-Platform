@@ -1,0 +1,78 @@
+# 阶段 0 工具门与工程底座
+
+## Goal
+
+把"规范靠自觉"变成"过不了门就提交不了"，并把工程底座（包管理、TS 版本、格式化、版本发布）切到模板标准。**不动业务代码**；业务代码只在为通过新 lint 规则而做的最小修改范围内变化（13 处非空断言）。
+
+## Requirements
+
+### R1 分支模型与 CI（D6）
+- 推送 `dev` 到 origin。
+- GitHub `master` 分支保护：仅 PR 合并、要求 CI `fast-guard` + `renderer-smoke` 通过、禁止 force push、禁止直接 push。
+- `.github/workflows/ci.yml`：`on.push.branches` 增加 `dev`；`pull_request` 触发全部 job。
+
+### R2 pnpm（D17）
+- `algo-electron/.npmrc`：`node-linker=hoisted`、`shamefully-hoist=true`、`strict-peer-dependencies=false`。
+- `package.json` 增加 `"packageManager": "pnpm@<当前 latest>"`；删除 `package-lock.json`，生成 `pnpm-lock.yaml`。
+- `postinstall` 改为 pnpm 等价（`install-electron --no && electron-builder install-app-deps`）。
+- CI 改 `pnpm/action-setup` + `pnpm install --frozen-lockfile`，缓存 pnpm store。
+- `docs/GOVERNANCE/CONTRIBUTING.md`、`.github/COLLABORATION.md`、各 README 中 `npm run` → `pnpm`。
+
+### R3 TypeScript 6.0.3（D19）
+- `typescript` 7.0.2 → 6.0.3；`vite-plugin-electron` 1.1.1 → 1.1.2。
+- `tsc --noEmit` 与 `tsc -p tsconfig.tests.json --noEmit` 0 error、0 弃用提示（6.0 对将在 7 移除的选项报提示，逐条改）。
+- 若 vite-plugin-electron / vitest / esbuild 在 6.0 下有无法绕过的问题，回退 5.9.3，并在本 PRD Notes 记录原因。
+
+### R4 typescript-eslint（D19、高-8）
+- 替换 `@babel/eslint-parser` 为 `typescript-eslint` 8.x，`tseslint.configs.recommendedTypeChecked`，`parserOptions.projectService: true`。
+- 规则：`@typescript-eslint/no-non-null-assertion` error、`no-explicit-any` error、`consistent-type-imports` error、`explicit-module-boundary-types` error、`no-floating-promises` error、`no-unused-vars`（`argsIgnorePattern: '^_'`）error、`no-console` error（override：`electron/app/startupSmoke.ts`、`electron/scripts/userscriptBootstrapPreload.ts` 允许）。
+- 先修掉现有 13 处非空断言与 40 处渲染层缺返回类型，再开门；`eslint . --max-warnings 0` 0 error。
+- 删除 `@babel/*` eslint 相关依赖。
+
+### R5 prettier（D20）
+- `prettier` + `.prettierrc`：`semi: false`、`singleQuote: true`、`printWidth: 100`、`trailingComma: 'all'`；`.prettierignore` 含 `dist*`、`release`、`tmp`、`pnpm-lock.yaml`。
+- `eslint-config-prettier` 关闭冲突规则。
+- 全仓一次性格式化，单独 commit `style: 全仓 prettier 格式化`（不与其他改动混合）。
+
+### R6 husky + commitlint + lint-staged（D5、高-8）
+- `commitlint.config.js`：extends `@commitlint/config-conventional`；`type-enum` = feat/fix/docs/refactor/test/chore/style/perf/ci；`scope-enum` = `git-workflow.md` 词表；`subject-case` 关闭（中文）。
+- husky：`commit-msg` → `commitlint --edit`；`pre-commit` → 当前分支为 `master` 时拒绝 + `lint-staged`（prettier + eslint）+ `pnpm typecheck && pnpm typecheck:tests`；`pre-push` → `pnpm test:core`。
+
+### R7 jscpd 门（低-22 补强）
+- `jscpd` 进 `test:core`：`--threshold 3`，范围 `electron src`，报告到 `tmp/jscpd`。
+
+### R8 路径别名（D9）
+- `tsconfig.json` `paths: { "@shared/*": ["src/shared/*"] }`（目录在阶段 2 才有内容，先建空目录与 `index.ts`）；`vite.config.ts` renderer `resolve.alias`、`vitest.config.ts` alias 同步。
+- `tsconfig.json` 增加 `verbatimModuleSyntax: true`。
+
+### R9 release-it（D24）
+- `release-it` + `@release-it/conventional-changelog`；`.release-it.json`：`git.commitMessage = "chore(release): 发布 v${version}"`、`git.tagName = "v${version}"`、`git.tagAnnotation = "v${version}"`、`git.requireBranch = master`、`git.requireCleanWorkingDir`、`github.release = true`、`github.assets = ["release/${version}/*.exe", "release/${version}/*.blockmap", "release/${version}/latest.yml"]`、`plugins.@release-it/conventional-changelog.infile = docs/PRODUCT/CHANGELOG.md`、`preset: conventionalcommits`、`hooks.before:init = ["pnpm test:all", "pnpm build:win"]`。
+- scripts：`"release": "release-it"`；预发布 `pnpm release -- --preRelease=rc`。
+- 只做配置与 `--dry-run` 验证，本阶段不发布。
+
+### R10 COMMIT_RULES 重写
+- `docs/GOVERNANCE/COMMIT_RULES.md` 与 `.trellis/spec/project/git-workflow.md` 一致：格式、type 表、scope 词表、必带规则、分支模型、合并方式、husky 门、release-it。
+
+## Acceptance Criteria
+
+- [ ] `git push origin dev` 触发 CI 且 `fast-guard` 通过；对 `master` 直接 push 被 GitHub 拒绝。
+- [ ] 干净目录 `pnpm install --frozen-lockfile && pnpm test:all && pnpm build:win` 全绿；`test:packaged-main` 确认 better-sqlite3 在 hoisted 布局下可加载。
+- [ ] `node_modules/typescript/package.json` 版本 6.0.3；`pnpm typecheck` / `pnpm typecheck:tests` 0 error 0 deprecation。
+- [ ] `pnpm lint` 0 error 0 warning，且 `eslint.config.js` 含 R4 全部规则；故意加一行 `const x = y!.z` 使 lint 红。
+- [ ] `pnpm prettier --check .` 通过。
+- [ ] `git commit -m "update"` 被 commit-msg 钩子拒绝；`git commit -m "feat(coach): x"` 通过；在 `master` 上 commit 被 pre-commit 拒绝。
+- [ ] `pnpm test:core` 包含 jscpd 且通过（当前 1.76%）。
+- [ ] `import x from '@shared/index'` 在 renderer 与 vitest 中可解析。
+- [ ] `pnpm release --dry-run` 输出下一版本、CHANGELOG 片段与将上传的资产列表，无错误。
+- [ ] `COMMIT_RULES.md` 更新；`test:docs` 通过。
+
+## Out of Scope
+
+- 任何业务逻辑修改；目录搬迁；换库（阶段 1）。
+- 实际发布版本。
+
+## Notes
+
+- 前置：无。这是所有后续阶段的门。
+- 顺序建议：R2 → R3 → R4 → R5（格式化在 lint 规则定稿后做一次）→ R6 → R7 → R8 → R9 → R1 → R10。R1 放最后是因为分支保护开启后本阶段的 PR 才好走通。
+- 风险：pnpm hoist 对 electron-builder `asarUnpack` 白名单的影响，用 `test:packaging` + `test:packaged-app` 验。

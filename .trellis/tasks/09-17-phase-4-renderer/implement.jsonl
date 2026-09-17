@@ -1,0 +1,11 @@
+{"file": ".trellis/spec/shared/code-quality.md", "reason": "强制规则：无 !、无 any、命名、错误处理"}
+{"file": ".trellis/spec/project/domain-rules.md", "reason": "不可放松的产品/安全红线"}
+{"file": ".trellis/spec/project/migration-status.md", "reason": "当前位置与目标位置对照"}
+{"file": ".trellis/tasks/archive/2026-09/00-bootstrap-guidelines/research/spec-alignment-plan.md", "reason": "本阶段步骤与决策编号"}
+{"file": ".trellis/spec/frontend/directory-structure.md", "reason": "renderer 布局"}
+{"file": ".trellis/spec/frontend/components.md", "reason": "组件规范"}
+{"file": ".trellis/spec/frontend/state-management.md", "reason": "Context"}
+{"file": ".trellis/spec/frontend/css-design.md", "reason": "单入口、token、BEM"}
+{"file": ".trellis/spec/frontend/quality.md", "reason": "行数与性能"}
+{"file": ".trellis/spec/frontend/react-pitfalls.md", "reason": "React 陷阱"}
+{"file": ".trellis/tasks/archive/2026-09/00-bootstrap-guidelines/research/frontend-audit.md", "reason": "渲染层审计证据"}

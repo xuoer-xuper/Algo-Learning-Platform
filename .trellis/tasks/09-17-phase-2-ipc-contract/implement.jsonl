@@ -1,0 +1,11 @@
+{"file": ".trellis/spec/shared/code-quality.md", "reason": "强制规则：无 !、无 any、命名、错误处理"}
+{"file": ".trellis/spec/project/domain-rules.md", "reason": "不可放松的产品/安全红线"}
+{"file": ".trellis/spec/project/migration-status.md", "reason": "当前位置与目标位置对照"}
+{"file": ".trellis/tasks/archive/2026-09/00-bootstrap-guidelines/research/spec-alignment-plan.md", "reason": "本阶段步骤与决策编号"}
+{"file": ".trellis/spec/frontend/ipc-electron.md", "reason": "window.api、channel 常量、数据刷新订阅"}
+{"file": ".trellis/spec/frontend/hooks.md", "reason": "useData 形状"}
+{"file": ".trellis/spec/frontend/react-pitfalls.md", "reason": "初载与 refetch 区分"}
+{"file": ".trellis/spec/shared/timestamp.md", "reason": "Unix 毫秒全栈规范"}
+{"file": ".trellis/spec/guides/db-schema-change-guide.md", "reason": "migration 030 检查项"}
+{"file": ".trellis/spec/guides/cross-layer-thinking-guide.md", "reason": "跨层契约"}
+{"file": ".trellis/tasks/archive/2026-09/00-bootstrap-guidelines/research/frontend-audit.md", "reason": "类型重复与 channel 字面量清单"}
