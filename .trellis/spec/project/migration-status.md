@@ -21,9 +21,10 @@ Last updated: 2026-09-17 (phase 0 not started).
 | Renderer | `src/{App.tsx, components/, features/, hooks/, shared/, styles/}` flat features | `src/renderer/src/{components/{ui,layout}, features/, modules/{name}/{components,hooks,context,constants.ts,types.ts,index.ts}, hooks/, context/, lib/, styles/}` | 4.1 |
 | Shared | none cross-process; `electron-env.d.ts` ambient types (112), `electron/shared/`, `src/shared/` | `src/shared/{types/*.ts (zod), constants/channels.ts}`; renderer imports `@shared/*`, main uses relative paths | 2.1, 2.2 |
 | Tests | `tests/<module>/` × 26 dirs, `electronMock.ts` in `tests/electron/`, no factories | `tests/{setup,factories,mocks,unit/services/{domain},integration}` | 5.1, 5.2 |
-| TypeScript | 7.0.2, babel eslint parser, no path alias | 5.9.x, typescript-eslint, `@shared` alias in tsconfig + vite + vitest | 0.3, 0.4, 0.8 |
+| TypeScript | 7.0.2, babel eslint parser, no path alias | 6.0.3 (last stable before 6.1; fallback 5.9.3), typescript-eslint, `@shared` alias in tsconfig + vite + vitest | 0.3, 0.4, 0.8 |
 | Formatting | `.editorconfig` only | prettier + `.editorconfig` | 0.5 |
 | Commit gates | none locally | husky + commitlint + lint-staged | 0.6 |
+| Versioning | hand-edited in 5 places; tags partly lightweight; `v1.1.0-beta.*` tags point at `2.0.0-beta.*` code; CHANGELOG dates wrong | release-it + conventional-changelog, annotated tags, package.json single source, app-semver rule (major = irreversible data change) | 0.10, 6.3 |
 
 ## Infrastructure libraries
 

@@ -13,7 +13,8 @@
 - 开发者决策：**模板是唯一标准，不为旧习惯保留**。计划改为 v2（D1–D23 决策：TS 降到 5.9 + typescript-eslint、pnpm、prettier、husky/commitlint、zod 替换 payloadSchema、electron-log 替换自研 logger、electron-store 替换 config.ts、Drizzle 替换裸 SQL、时间改 Unix 毫秒、目录改 `src/main|preload|renderer|shared`、文件 kebab-case、BEM、`window.api`），7 阶段约 38 个工作日。
 - 重复造轮子审计 `research/reinvented-wheels-audit.md`：jscpd 重复率 1.76%（健康），真正的问题是 6 个自研基础设施模块约 1,600 行可被库替代，以及 `tabSessionStore` / `applicationSessionStore` 522 行双胞胎。
 - spec 落地：模板文件一字未改；新增 `.trellis/spec/project/{index,domain-rules,git-workflow,migration-status}.md` 并从 `spec/README.md` 链接。`.gitignore` 不再忽略 `.claude/`（Trellis 的 hooks/skills/agents 需入库），只忽略 `settings.local.json`。
-- 本次未改任何业务代码。下一步：归档 bootstrap 任务，按阶段 0 建子任务开工。
+- 追加决策：TS 目标改为 **6.0.3**（6.1 之前最后稳定版，typescript-eslint peer 覆盖；不行再退 5.9.3）。版本管理审计 V1–V10 写入计划附录：tag 与 package.json 错位（`v1.1.0-beta.*` 指向 `2.0.0-beta.*` 代码）、版本号倒退、CHANGELOG 日期错、版本号散落 5 处、tag 类型混用、Release 缺 blockmap、三份发布文档互相矛盾。措施 D24：release-it + conventional-changelog 一条命令发布，package.json 单一来源，历史 tag 不重写；对齐完成后因数据格式不可回滚发 **v3.0.0**。
+- bootstrap 任务已归档；`.trellis/config.yaml` 关闭脚本自动提交（内置文案英文且 scope 不在词表）。所有事项只写入计划，尚未实施。下一步：用户确认后按阶段 0 建子任务。
 
 ## 最近完成（2026-09-11）
 

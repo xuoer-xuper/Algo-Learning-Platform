@@ -82,7 +82,7 @@ Common issues and solutions:
 ## Tech Stack
 
 > Target stack for this repository (see `project/migration-status.md` for what is still legacy):
-> Electron 43 + React 19 + TypeScript 5.9 + Vite 8 + electron-builder, better-sqlite3 via Drizzle ORM,
+> Electron 43 + React 19 + TypeScript 6.0 + Vite 8 + electron-builder, better-sqlite3 via Drizzle ORM,
 > zod, electron-log, electron-store, Tailwind CSS 4, Vitest + Playwright, pnpm.
 
 

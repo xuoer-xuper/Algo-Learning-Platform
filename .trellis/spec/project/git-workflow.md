@@ -125,8 +125,17 @@ Use `.github/pull_request_template.md` (Chinese). In addition to the template's 
 
 ## Tags and Releases
 
-- Semver with `v` prefix; pre-releases `-beta.N` / `-rc.N`. Existing tags: `v0.1.0-alpha` … `v2.0.0-rc.1`.
-- Tag only the `--no-ff` merge commit on `master`. `git push --follow-tags`.
-- Release notes live in `docs/PRODUCT/CHANGELOG.md` ("未发布" section becomes the version heading at
-  release time). No separate `release-notes.txt`.
-- Full procedure: `docs/OPERATIONS/RELEASE_PROCESS.md`.
+- Single source of the version number: `algo-electron/package.json`. Nothing else is hand-edited
+  (README badge reads GitHub Releases; CHANGELOG is generated).
+- Releases are cut with **release-it** (`pnpm release`, `pnpm release -- --preRelease=rc`) which bumps
+  from conventional commits, regenerates `docs/PRODUCT/CHANGELOG.md`, commits
+  `chore(release): 发布 v${version}`, creates an **annotated** tag `v${version}`, pushes with
+  `--follow-tags`, and uploads `.exe` + `.blockmap` + `latest.yml` to the GitHub Release.
+- Semver for a desktop app: **major** = data format / migration that cannot be rolled back or needs the
+  user to act; **minor** = new feature; **patch** = fix. Pre-releases `-alpha.N` / `-beta.N` / `-rc.N`.
+- Tag only the `--no-ff` merge commit on `master`. Hotfixes for a shipped line go on
+  `release/<major.minor>` branches.
+- Version numbers are monotonic from `v2.1.0` on. Older tags (`v1.1.0-beta.*` pointing at
+  `2.0.0-beta.*` code, `0.0.0` in early tags) are historical and are never rewritten; the CHANGELOG
+  carries a note explaining them.
+- Full procedure: `docs/OPERATIONS/RELEASE_PROCESS.md` (rewritten in alignment phase 0.10 / 6.3).
