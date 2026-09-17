@@ -60,8 +60,8 @@
 
 ### 0.1 分支保护与 CI（放最后）
 - [ ] `ci.yml` `on.push.branches: [main, master, dev]`。
-- [ ] `git push -u origin dev`（**由用户执行**）。
-- [ ] GitHub 设置 master 保护（**由用户在网页执行**，或 `gh api -X PUT repos/{owner}/{repo}/branches/master/protection`，命令写在 PR 描述里）。
+- [x] `git push -u origin dev`（2026-09-17 已完成）。
+- [x] master 分支保护与仓库合并策略（2026-09-17 经 `gh api` 完成；用户已授权 gh 操作，见记忆 feedback_push_after_commit）。
 - 验证：push dev 触发 CI。
 
 ### 0.10 COMMIT_RULES

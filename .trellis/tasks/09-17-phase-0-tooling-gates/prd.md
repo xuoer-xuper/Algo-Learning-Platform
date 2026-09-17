@@ -7,9 +7,9 @@
 ## Requirements
 
 ### R1 分支模型与 CI（D6）
-- 推送 `dev` 到 origin。
-- GitHub `master` 分支保护：仅 PR 合并、要求 CI `fast-guard` + `renderer-smoke` 通过、禁止 force push、禁止直接 push。
-- `.github/workflows/ci.yml`：`on.push.branches` 增加 `dev`；`pull_request` 触发全部 job。
+- ~~推送 `dev` 到 origin~~ **已完成 2026-09-17**（`dev` track `origin/dev`）。
+- ~~GitHub `master` 分支保护~~ **已完成 2026-09-17**（`gh api`）：必须 PR；required checks = `Fast core, packaging and docs guard` + `Electron and renderer smoke`（strict）；禁 force push / 删除；对话须解决；`enforce_admins=false`（solo 开发保留 admin 绕过，用于 release-it 在 master 提交）。仓库合并策略：squash（标题=PR 标题）+ merge commit，rebase 禁用，合并后删分支。
+- 待做：`.github/workflows/ci.yml` `on.push.branches` 增加 `dev`；`pull_request` 触发全部 job。
 
 ### R2 pnpm（D17）
 - `algo-electron/.npmrc`：`node-linker=hoisted`、`shamefully-hoist=true`、`strict-peer-dependencies=false`。
@@ -55,7 +55,7 @@
 
 ## Acceptance Criteria
 
-- [ ] `git push origin dev` 触发 CI 且 `fast-guard` 通过；对 `master` 直接 push 被 GitHub 拒绝。
+- [ ] `git push origin dev` 触发 CI 且 `fast-guard` 通过；对 `master` 直接 push 被 GitHub 拒绝（保护已开，待 ci.yml 加 dev 后验证触发）。
 - [ ] 干净目录 `pnpm install --frozen-lockfile && pnpm test:all && pnpm build:win` 全绿；`test:packaged-main` 确认 better-sqlite3 在 hoisted 布局下可加载。
 - [ ] `node_modules/typescript/package.json` 版本 6.0.3；`pnpm typecheck` / `pnpm typecheck:tests` 0 error 0 deprecation。
 - [ ] `pnpm lint` 0 error 0 warning，且 `eslint.config.js` 含 R4 全部规则；故意加一行 `const x = y!.z` 使 lint 红。

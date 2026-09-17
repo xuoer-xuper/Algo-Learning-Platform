@@ -22,13 +22,13 @@ master   ── stable only; receives --no-ff merges from dev; tags live here
 
 | Rule | Detail |
 | --- | --- |
-| Never commit on `master` | GitHub branch protection: PR only, CI required, no force push. A local `pre-commit` hook refuses when `git branch --show-current` is `master`. |
+| Never commit on `master` | GitHub branch protection **enabled 2026-09-17**: PR required, checks `Fast core, packaging and docs guard` + `Electron and renderer smoke` (strict), no force push, no deletion, conversations resolved; `enforce_admins` off so `release-it` can commit on master. A local `pre-commit` hook (phase 0) refuses when `git branch --show-current` is `master`. |
 | Small edits may land on `dev` directly | Typo, doc line, single-line fix. Anything that needs more than one commit gets a branch. |
 | feature → dev | **Squash merge** via PR. The PR title becomes the commit subject and must follow the commit format below. |
 | dev → master | **Merge commit with `--no-ff`** via PR. Tag `vX.Y.Z` on that merge commit. |
 | Branch names | English, kebab-case, `type/description` as in the template. Trellis task ids may be used: `feat/00-bootstrap-guidelines`. |
 | CI | `.github/workflows/ci.yml` runs `fast-guard` on push to `dev` and `master`, and the full matrix on pull requests. Pushing to a feature branch alone does not run CI; open the PR. |
-| Push | Pushing is done by the developer, with the developer's identity only. No AI co-author trailers in commit messages. |
+| Push | **Push immediately after every commit** (developer rule 2026-09-17: no local backlog). Always the developer's identity; no AI co-author trailers. Repo merge settings: squash (title = PR title) and merge commit allowed, rebase merge disabled, branches auto-deleted after merge. |
 
 ---
 
