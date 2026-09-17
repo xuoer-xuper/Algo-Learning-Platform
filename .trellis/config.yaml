@@ -9,7 +9,7 @@
 
 # Commit message used when auto-committing journal/index changes
 # after running add_session.py
-session_commit_message: "chore: record journal"
+session_commit_message: "chore(trellis): 记录会话日志"
 
 # Maximum lines per journal file before rotating to a new one
 max_journal_lines: 2000
@@ -30,7 +30,9 @@ max_journal_lines: 2000
 #
 # Accepts: true / false / yes / no / 1 / 0 / on / off (case-insensitive).
 #
-# session_auto_commit: true
+# 本项目关闭：归档/日志的自动提交文案是硬编码英文（chore(task): archive x），
+# 与 spec/project/git-workflow.md 的中文描述规则冲突，改为手动提交。
+session_auto_commit: false
 
 #-------------------------------------------------------------------------------
 # Task Lifecycle Hooks

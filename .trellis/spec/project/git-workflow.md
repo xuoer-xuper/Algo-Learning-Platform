@@ -105,6 +105,13 @@ style: 全仓 prettier 格式化
 
 ---
 
+## Trellis auto-commits
+
+`.trellis/config.yaml` sets `session_auto_commit: false`. `task.py archive` and `add_session.py` write to disk
+only; commit them by hand as `chore(trellis): 归档 <task-id> 任务` / `chore(trellis): 记录会话日志`.
+Reason: the scripts' built-in message (`chore(task): archive <id>`) is English and `task` is not in the
+scope enum, so commitlint would reject it once the gate is on.
+
 ## Pull Request Checklist
 
 Use `.github/pull_request_template.md` (Chinese). In addition to the template's PR guidelines:
