@@ -56,6 +56,14 @@ Development thinking guides:
 - [Transaction Consistency Guide](./guides/transaction-consistency-guide.md)
 - [Semantic Change Checklist](./guides/semantic-change-checklist.md)
 
+### [Project Layer](./project/index.md)
+
+Algo Learning Platform specifics that sit on top of the template (the template files above are kept verbatim):
+
+- [Domain Rules](./project/domain-rules.md) — security and product red lines (WebContentsView only, cookie/credential boundary, rated-contest silence)
+- [Git Workflow](./project/git-workflow.md) — master ← dev ← feature, squash / `--no-ff`, `type(scope): 中文描述`, scope enum, husky gates
+- [Migration Status](./project/migration-status.md) — legacy path → template path per concern, and which alignment phase moves it
+
 ### [Big Questions / Pitfalls](./big-question/index.md)
 
 Common issues and solutions:
@@ -72,6 +80,11 @@ Common issues and solutions:
 - [Global Keyboard Hooks](./big-question/global-keyboard-hooks.md)
 
 ## Tech Stack
+
+> Target stack for this repository (see `project/migration-status.md` for what is still legacy):
+> Electron 43 + React 19 + TypeScript 5.9 + Vite 8 + electron-builder, better-sqlite3 via Drizzle ORM,
+> zod, electron-log, electron-store, Tailwind CSS 4, Vitest + Playwright, pnpm.
+
 
 - **Frontend**: React 18, TypeScript, TanStack Query, Tailwind CSS
 - **Backend**: Electron (Main Process), better-sqlite3, TypeScript

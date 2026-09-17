@@ -10,7 +10,10 @@
 - 新建 `dev` 分支并在其上提交；此前 248 个 commit 全部直接落在 master。后续开发在 dev / feature 分支进行，master 只接收合并。
 - 以模板规范为基准完成三份只读审计（主进程、渲染进程、测试/工具链/仓库/Git），合并为 `.trellis/tasks/00-bootstrap-guidelines/research/spec-alignment-report.md`：高优先级 9 条（IPC channel 字面量 158 处、跨进程类型三处手抄、`main.ts` 945 行、超长核心文件、时间格式在约定内混用、dev/prod 共用 userData、15 个组件不订阅刷新、无工具门、无分支模型），中 23 条，低 22 条；亮点 10 条。
 - 分阶段对齐计划在 `research/spec-alignment-plan.md`：阶段 0 建门（分支保护 + commitlint/husky + 类型棘轮，typescript-eslint 因 TS 7 不兼容改用架构守卫正则）→ 1 核心稳定性 → 2 IPC 契约收口 → 3 主进程拆分 → 4 渲染层结构 → 5 测试细节 → 6 spec 落地，约 19–25 个工作日。
-- 待开发者确认项目特有约定后再写 spec overlay；本次未改任何业务代码。
+- 开发者决策：**模板是唯一标准，不为旧习惯保留**。计划改为 v2（D1–D23 决策：TS 降到 5.9 + typescript-eslint、pnpm、prettier、husky/commitlint、zod 替换 payloadSchema、electron-log 替换自研 logger、electron-store 替换 config.ts、Drizzle 替换裸 SQL、时间改 Unix 毫秒、目录改 `src/main|preload|renderer|shared`、文件 kebab-case、BEM、`window.api`），7 阶段约 38 个工作日。
+- 重复造轮子审计 `research/reinvented-wheels-audit.md`：jscpd 重复率 1.76%（健康），真正的问题是 6 个自研基础设施模块约 1,600 行可被库替代，以及 `tabSessionStore` / `applicationSessionStore` 522 行双胞胎。
+- spec 落地：模板文件一字未改；新增 `.trellis/spec/project/{index,domain-rules,git-workflow,migration-status}.md` 并从 `spec/README.md` 链接。`.gitignore` 不再忽略 `.claude/`（Trellis 的 hooks/skills/agents 需入库），只忽略 `settings.local.json`。
+- 本次未改任何业务代码。下一步：归档 bootstrap 任务，按阶段 0 建子任务开工。
 
 ## 最近完成（2026-09-11）
 

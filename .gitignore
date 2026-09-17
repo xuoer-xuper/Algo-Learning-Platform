@@ -26,8 +26,9 @@ npm-debug.log*
 yarn-debug.log*
 pnpm-debug.log*
 
-# === Claude Code 内部目录 ===
-.claude/
+# === Claude Code：Trellis 生成的 hooks/skills/agents/settings.json 需要入库，只忽略本机私有配置 ===
+.claude/settings.local.json
+.claude/*.local.*
 
 # === AI 工具与临时上传目录 ===
 .trae/

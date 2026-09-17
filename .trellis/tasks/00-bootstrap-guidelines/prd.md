@@ -23,10 +23,11 @@ the rest conversationally.
 
 - [x] Audit codebase against the template spec (2026-09-17, see `research/`)
 - [x] Produce phased alignment plan (`research/spec-alignment-plan.md`)
-- [ ] Confirm project-specific conventions with the developer (pending answers, see session summary)
-- [ ] Fill backend guidelines (as `project-overrides` overlay; template files kept intact)
-- [ ] Fill frontend guidelines (same)
-- [ ] Add code examples
+- [x] Confirm project-specific conventions with the developer (2026-09-17: template is the single standard, no legacy retained; TS downgrade + tool gates; replace self-built logger/validation/config/ORM with library; all AI tool dirs tracked minus caches)
+- [x] Reinvented-wheel audit (`research/reinvented-wheels-audit.md`: jscpd 1.76%, A-class 13 items ≈1,600 replaceable lines, B-class 15 items)
+- [x] Fill backend guidelines — template files kept verbatim as the standard; project layer added at `.trellis/spec/project/`
+- [x] Fill frontend guidelines — same
+- [x] Add code examples — `domain-rules.md` and `migration-status.md` reference real files with line counts/paths
 
 ## Session log
 
@@ -34,6 +35,10 @@ the rest conversationally.
   `research/spec-alignment-report.md` (9 high / 23 medium / 22 low) + 6-phase plan. Decision recorded:
   template spec files stay unmodified; project deviations go into overlay docs after developer confirmation.
   Work happens on branch `dev` (created this session; master was previously the only branch).
+- 2026-09-17 (later): developer decided "template is the only standard, no cost-based retention". Plan rewritten as v2
+  (7 phases, ~38 working days, decisions D1–D23). Spec project layer written: `project/{index,domain-rules,git-workflow,migration-status}.md`,
+  linked from `spec/README.md`. `.gitignore` no longer ignores `.claude/` (Trellis hooks/skills must be tracked; only `settings.local.json` stays private).
+  Next: `task.py finish` + archive, then create child tasks per phase starting with phase 0 (tool gates).
 
 ---
 
