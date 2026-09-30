@@ -16,7 +16,7 @@
 - 上述 README 的内容质量检查：至少说明职责、当前实现或覆盖范围、封装入口或关键文件、边界规则和验证入口。
 - `docs/` 命名检查：除 `README.md` 外，文档文件和子目录必须使用大写和下划线；同时检查 Git 索引中的真实大小写，避免 Windows 本地通过但全新 checkout 失败。
 - `docs/README.md` 总索引覆盖检查：根目录长期 Markdown、`docs/` 成品文档、ADR 和已纳入守卫的 README 必须能从总索引找到。
-- Markdown 中的 `npm run <script>` 引用检查：真实脚本名必须存在于 `algo-electron/package.json`，`npm run test:*` 这类通配说明不作为具体脚本校验。
+- Markdown 中的 `pnpm run <script>` 引用检查（历史文档里的 `npm run <script>` 同样检查）：真实脚本名必须存在于 `algo-electron/package.json`，`pnpm run test:*` 这类通配说明不作为具体脚本校验。
 - Markdown 中的 `npx vitest run <路径>` 检查：路径必须真实存在，且统一用正斜杠、统一用 `npx vitest run`（`npm exec vitest` 的两种变体不再允许）。加这条的原因是 vitest 对不存在的路径只报 `No test files found` 并以 0 退出——测试改名或移动后 README 会静默失效，读者以为自己跑过了。建立时全仓 16 个文件里有 10 处不合规（3 种写法混用 + 反斜杠路径）。
 
 检查会跳过 `node_modules/`、`tmp/`、`release/`、`dist/` 和 `dist-electron/` 等生成目录。
@@ -25,13 +25,13 @@
 
 ```powershell
 cd algo-electron
-npm run test:docs
+pnpm run test:docs
 ```
 
 发布前使用：
 
 ```powershell
-npm run test:all
+pnpm run test:all
 ```
 
 ## 4. 维护边界
@@ -39,6 +39,6 @@ npm run test:all
 - 新增长期维护目录时，应先补 README，再把目录加入 `check-docs.mjs` 的覆盖目标。
 - README 不能只写目录存在原因；必须写清职责、当前实现或覆盖范围、封装入口或关键文件、边界规则和验证入口。
 - 新增长期 Markdown 或被覆盖目录 README 后，必须同步 `docs/README.md`，保持总索引可导航。
-- 新增或改名 npm script 后，必须同步相关文档；文档里不要引用不存在的 `npm run` 命令。
+- 新增或改名 package script 后，必须同步相关文档；文档里不要引用不存在的 `pnpm run` 命令。
 - 新增文档链接时优先使用相对路径，保持本脚本可验证。
 - 不把 Cookie、用户源码、完整请求体、本机数据库或可复用登录态写入文档示例。

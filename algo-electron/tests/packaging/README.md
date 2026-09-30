@@ -15,7 +15,8 @@
 - `electronFuses` 固定生产安全基线：禁用 `runAsNode`、`NODE_OPTIONS` 和 Node inspect 参数，启用 Cookie 加密、ASAR 完整性校验与 `onlyLoadAppFromAsar`，并关闭 `grantFileProtocolExtraPrivileges`。
 - Windows 目标为 NSIS x64，并使用 `build/icon.ico`。
 - NSIS 卸载不删除用户数据。
-- `build` 和 `build:win` scripts 保持标准命令。
+- `postinstall` 先装 Electron 二进制再重建 native 依赖，`build` / `build:win` 保持标准命令且在 `electron-builder` 之前先跑 `test:packaged-main`（只断言顺序，不钉死包管理器写法）。
+- `pnpm-workspace.yaml` 保持 `nodeLinker: hoisted`、`shamefullyHoist: true` 和 `allowBuilds` 白名单：pnpm 12 只从这里读项目设置，缺条目会以 `ERR_PNPM_IGNORED_BUILDS` 直接安装失败而不是警告。
 - Vite 8 主进程产物保持 `better-sqlite3` 为运行时 external，不内联依赖 `__dirname` 的 native loader。
 - Windows `win-unpacked` 使用隔离的临时 `userData` 启动，确认主窗口、preload、SQLite 和迁移可以工作。
 - 同一隔离 `userData` 下真实启动第二个 `win-unpacked` 进程，确认失败实例快速退出、主实例保持运行并恢复聚焦，且失败实例不写共享日志。
@@ -25,9 +26,9 @@
 
 ```powershell
 cd algo-electron
-npm run test:packaging
-npm run test:packaged-main
-npm run test:packaged-app
+pnpm run test:packaging
+pnpm run test:packaged-main
+pnpm run test:packaged-app
 ```
 
 `test:packaged-app` 需要先生成 `release/${version}/win-unpacked`。网络不可用时，可使用仓库中版本匹配的 `node_modules/electron/dist` 作为 `--config.electronDist` 做离线构建，但仍必须读取真实 executable 并完成双实例 smoke。
@@ -35,8 +36,8 @@ npm run test:packaged-app
 发布前使用：
 
 ```powershell
-npm run test:all
-npm run build:win
+pnpm run test:all
+pnpm run build:win
 ```
 
 ## 4. 维护边界

@@ -1,0 +1,18 @@
+# pnpm 12 的项目设置入口：只有认证/registry 设置还从 .npmrc 读，其余全部在
+# pnpm-workspace.yaml（含 nodeLinker / shamefullyHoist，它们只能在这里设）。
+# .trellis/spec/shared/pnpm-electron-setup.md 写的是 pnpm 8/9 时代的 .npmrc 方案，
+# 阶段 0 按官方 pnpm 12 机制落地，spec 在 3.3 同步。
+#
+# Electron 打包与 native 模块（better-sqlite3）的路径解析要求扁平的 node_modules，
+# 符号链接布局会让 asarUnpack 与 require 解析失败。
+nodeLinker: hoisted
+shamefullyHoist: true
+strictPeerDependencies: false
+
+# pnpm 10+ 默认不执行依赖的构建脚本。这两项是本仓库唯一带 install/postinstall 的依赖
+# （esbuild 的 postinstall 装平台二进制，electron-winstaller 的 install 选 7z 架构）；
+# electron 与 better-sqlite3 本身不带脚本，由根 postinstall 显式处理。
+# 由 `pnpm approve-builds --all` 写入。
+allowBuilds:
+  electron-winstaller: true
+  esbuild: true

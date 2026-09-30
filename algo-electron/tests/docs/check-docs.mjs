@@ -45,7 +45,7 @@ const readmeContentRules = [
   },
   {
     label: '验证入口',
-    patterns: [/验证/, /测试/, /运行方式/, /命令/, /npm run/, /test:/],
+    patterns: [/验证/, /测试/, /运行方式/, /命令/, /(?:npm|pnpm) run/, /test:/],
   },
 ]
 
@@ -249,7 +249,7 @@ function checkNpmScriptReferences() {
     repoRoot,
     (filePath) => filePath.toLowerCase().endsWith('.md'),
   )
-  const scriptPattern = /npm\s+run\s+([A-Za-z0-9:_*-]+)/g
+  const scriptPattern = /(?:npm|pnpm)\s+run\s+([A-Za-z0-9:_*-]+)/g
 
   for (const markdownFile of markdownFiles) {
     const text = fs.readFileSync(markdownFile, 'utf8')
@@ -262,7 +262,7 @@ function checkNpmScriptReferences() {
       }
 
       if (!scripts.has(scriptName)) {
-        errors.push(`${path.relative(repoRoot, markdownFile)}: npm script ${scriptName} is not defined`)
+        errors.push(`${path.relative(repoRoot, markdownFile)}: package script ${scriptName} is not defined`)
       }
     }
   }
