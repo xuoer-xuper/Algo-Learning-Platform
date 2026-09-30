@@ -66,11 +66,10 @@
 
 ### 0.10 COMMIT_RULES
 - [ ] 重写 `docs/GOVERNANCE/COMMIT_RULES.md`；`pnpm test:docs`。
-- [ ] 清掉 `pnpm test:docs` 在阶段 0 之前就存在的 6 条红灯（2026-09-17 在 HEAD `093df52` 的临时 worktree 里实测，`0.2` 只修掉其中由自己造成的 2 条死链）。它们让"阶段结束 `pnpm test:all` 全绿"这条 Review Gate 无法成立，必须在本阶段关掉：
-  - `.claude/agents/trellis-research.md`、`.grok/agents/trellis-research.md`：missing url（Trellis 生成的 AI 工具目录，判据是"是否该纳入文档守卫范围"，不是补一行 url）。
-  - `.trellis/tasks/archive/2026-09/00-bootstrap-guidelines/research/frontend-audit.md`：missing `electron|fs|path|os|node:`（模板 spec 文档的措辞问题）。
-  - `docs/README.md` 未索引根 `AGENTS.md`。
-  - `.trellis/spec/big-question/native-module-complex-deps.md`、`native-module-packaging.md`：正文示例里的 npm `package` 脚本调用不是本仓库脚本（示例文本与守卫意图冲突）。
+- [x] `pnpm test:docs` 在阶段 0 之前就存在的 6 条红灯已随 0.2 清掉（2026-09-17）。口径：
+  - 3 条链接误报走守卫侧修复——扫描前去掉 fenced code 与行内代码（`grep -rnE "from ['\"](electron|fs|path|os|node:)"` 里的 `](...)` 被误读成相对链接），并排除平台工具生成、`trellis update` 会覆盖的 `.agents/`、`.claude/`、`.codex/`、`.dsh/`、`.grok/`（模板占位符 `[Library X docs](url)` 手工修会在下次生成时丢失）。
+  - 2 条模板文档正文里的假脚本名（`.trellis/spec/big-question/native-module-{complex-deps,packaging}.md`）改为不写具体命令，保留守卫对所有项目文档的统一检查。
+  - `AGENTS.md` 补进 `docs/README.md` 索引。
 
 ## Review Gates
 - 每个小节结束 `pnpm test:core`。
