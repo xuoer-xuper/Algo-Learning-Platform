@@ -101,17 +101,46 @@ function normalizeMarkdownTarget(target) {
   return decodeURIComponent(withoutAnchor)
 }
 
+/**
+ * 平台工具生成、`trellis update` 会覆盖的目录：里面的 markdown 是模板而不是项目文档
+ * （例如 agent 模板里的 `[Library X docs](url)` 占位符）。手工修会在下次生成时丢失，
+ * 所以这些目录整体不纳入文档守卫，而不是给占位符补一行假链接。
+ */
+const toolGeneratedMarkdownDirs = ['.agents', '.claude', '.codex', '.dsh', '.grok']
+
+function isToolGeneratedMarkdown(filePath) {
+  const relativePath = path.relative(repoRoot, filePath)
+  return toolGeneratedMarkdownDirs.some(
+    (dir) => relativePath === dir || relativePath.startsWith(`${dir}${path.sep}`),
+  )
+}
+
+/**
+ * 链接扫描前先去掉代码片段。
+ *
+ * 本仓库文档里有大量 shell 与正则示例，例如
+ * `grep -rnE "from ['\"](electron|fs|path|os|node:)" src`：其中的 `](...)` 会被
+ * markdown 链接正则误读成相对链接，报出一条并不存在的死链。丢掉代码片段后，
+ * 真正写在正文里的链接照旧检查。
+ */
+function stripCodeSegments(text) {
+  return text
+    .replace(/```[\s\S]*?```/g, '')
+    .replace(/~~~[\s\S]*?~~~/g, '')
+    .replace(/`[^`\n]*`/g, '')
+}
+
 function checkMarkdownLinks() {
   const markdownFiles = walkFiles(
     repoRoot,
-    (filePath) => filePath.toLowerCase().endsWith('.md'),
+    (filePath) => filePath.toLowerCase().endsWith('.md') && !isToolGeneratedMarkdown(filePath),
   )
 
   const errors = []
   const linkPattern = /!?\[[^\]]*]\(([^)]+)\)/g
 
   for (const markdownFile of markdownFiles) {
-    const text = fs.readFileSync(markdownFile, 'utf8')
+    const text = stripCodeSegments(fs.readFileSync(markdownFile, 'utf8'))
     let match
 
     while ((match = linkPattern.exec(text)) !== null) {
@@ -131,7 +160,7 @@ function checkMarkdownLinks() {
 }
 
 function getMarkdownLinkTargets(markdownFile) {
-  const text = fs.readFileSync(markdownFile, 'utf8')
+  const text = stripCodeSegments(fs.readFileSync(markdownFile, 'utf8'))
   const targets = new Set()
   const linkPattern = /!?\[[^\]]*]\(([^)]+)\)/g
   let match
@@ -247,7 +276,7 @@ function checkNpmScriptReferences() {
   const scripts = new Set(Object.keys(packageJson.scripts ?? {}))
   const markdownFiles = walkFiles(
     repoRoot,
-    (filePath) => filePath.toLowerCase().endsWith('.md'),
+    (filePath) => filePath.toLowerCase().endsWith('.md') && !isToolGeneratedMarkdown(filePath),
   )
   const scriptPattern = /(?:npm|pnpm)\s+run\s+([A-Za-z0-9:_*-]+)/g
 

@@ -8,7 +8,7 @@
 
 `check-docs.mjs` 当前覆盖：
 
-- Markdown 相对链接存在性检查。
+- Markdown 相对链接存在性检查：扫描前先去掉 fenced code 与行内代码片段，避免把文档里的正则或 shell 示例（`grep -rnE "from ['\"](electron|fs|path|os|node:)"`）里的 `](...)` 当成相对链接报出假死链。
 - `src/`、`electron/`、`tests/` 根目录及其子目录 README 覆盖。
 - `.github/`、`.github/ISSUE_TEMPLATE/`、`.github/workflows/` README 覆盖。
 - `algo-electron/build/`、`algo-electron/public/` README 覆盖。
@@ -19,7 +19,7 @@
 - Markdown 中的 `pnpm run <script>` 引用检查（历史文档里的 `npm run <script>` 同样检查）：真实脚本名必须存在于 `algo-electron/package.json`，`pnpm run test:*` 这类通配说明不作为具体脚本校验。
 - Markdown 中的 `npx vitest run <路径>` 检查：路径必须真实存在，且统一用正斜杠、统一用 `npx vitest run`（`npm exec vitest` 的两种变体不再允许）。加这条的原因是 vitest 对不存在的路径只报 `No test files found` 并以 0 退出——测试改名或移动后 README 会静默失效，读者以为自己跑过了。建立时全仓 16 个文件里有 10 处不合规（3 种写法混用 + 反斜杠路径）。
 
-检查会跳过 `node_modules/`、`tmp/`、`release/`、`dist/` 和 `dist-electron/` 等生成目录。
+检查会跳过 `node_modules/`、`tmp/`、`release/`、`dist/` 和 `dist-electron/` 等生成目录，以及平台工具生成、`trellis update` 会覆盖的目录（`.agents/`、`.claude/`、`.codex/`、`.dsh/`、`.grok/`）——那些 markdown 是工具模板而非项目文档，手工修会在下次生成时丢失。
 
 ## 3. 验证入口
 
