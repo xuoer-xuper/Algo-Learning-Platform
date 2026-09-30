@@ -22,6 +22,7 @@
 | [SECURITY](GOVERNANCE/SECURITY.md) | Cookie、用户数据、导出、日志和安全报告边界。 |
 | [COLLABORATION](../.github/COLLABORATION.md) | GitHub 协作配置：CI workflow、PR 模板、issue 模板。 |
 | [AI_HANDOFF](../AI_HANDOFF.md) | AI 助手工作交接记录，记录最近完成任务和待办事项。 |
+| [AGENTS](../AGENTS.md) | 面向 AI 编码代理的项目说明与 Trellis 工作流入口。 |
 
 ## 设计契约
 
