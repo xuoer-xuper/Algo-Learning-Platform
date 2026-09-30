@@ -32,7 +32,7 @@ export type UserScriptHostPermissionResponse =
   | 'stale'
 
 export interface UserScriptHostPermissionBrokerOptions {
-  grantUserScriptHost: (scriptId: string, exactHost: string) => unknown | Promise<unknown>
+  grantUserScriptHost: (scriptId: string, exactHost: string) => unknown
   send: (windowId: string, prompt: UserScriptHostPermissionPrompt) => boolean | void
   show: (windowId: string) => void
   hide: (windowId: string) => void
@@ -209,7 +209,9 @@ export class UserScriptHostPermissionBroker {
   private pump(queue: WindowPermissionQueue): void {
     if (this.disposed || queue.current) return
     while (queue.pending.length > 0) {
-      const pending = queue.pending.shift()!
+      const pending = queue.pending[0]
+      if (!pending) break
+      queue.pending.shift()
       if (pending.completed) continue
       queue.current = pending
       try {

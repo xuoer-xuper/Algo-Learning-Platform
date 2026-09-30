@@ -290,7 +290,7 @@ export function installUserScriptRuntimeBridge(
       if (pending.expiresAt <= currentTime) pendingPorts.delete(frameKey)
     }
     while (pendingPorts.size >= MAX_PENDING_PORTS) {
-      const oldestKey = pendingPorts.keys().next().value as string | undefined
+      const oldestKey = pendingPorts.keys().next().value
       if (!oldestKey) break
       pendingPorts.delete(oldestKey)
     }

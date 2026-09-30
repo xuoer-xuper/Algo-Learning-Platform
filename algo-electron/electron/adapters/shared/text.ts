@@ -1,7 +1,9 @@
+import { unknownToText } from '../../shared/textCoercion'
+
 export function stripHtml(value: unknown): string {
-  return typeof value === 'string'
-    ? value.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim()
-    : String(value ?? '').trim()
+  // 非字符串走显式取值：null/undefined 沿用空串（与原先 `value ?? ''` 一致），
+  // 对象取 JSON 形式，避免落到默认的 `[object Object]` 上。
+  return unknownToText(value).replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim()
 }
 
 export function parseRuntimeMs(raw: string): number | undefined {

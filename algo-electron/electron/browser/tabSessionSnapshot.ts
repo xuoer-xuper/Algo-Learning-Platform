@@ -193,7 +193,7 @@ export function parseTabSessionSnapshot(
     ok: true,
     snapshot: {
       version: 1,
-      activeTabId: value.activeTabId as string | null,
+      activeTabId: value.activeTabId,
       tabs,
     },
   }

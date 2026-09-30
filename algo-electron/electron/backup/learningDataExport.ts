@@ -109,12 +109,14 @@ export function exportLearningData(): LearningDataExport {
 }
 
 function sanitizeRows(rows: ExportRow[]): ExportRow[] {
+  // 显式标注条目类型（而不是断言返回值）：条目值可能是 string | number | null，
+  // 断言成 ExportRow 只会掩盖这一点，写清键值类型才能让下游的取值检查生效。
   return rows.map(row => Object.fromEntries(
-    Object.entries(row).map(([key, value]) => [
+    Object.entries(row).map(([key, value]): [string, string | number | null] => [
       key,
       typeof value === 'string' && isLocalPathLike(value) ? null : value,
     ]),
-  ) as ExportRow)
+  ))
 }
 
 function isLocalPathLike(value: string): boolean {

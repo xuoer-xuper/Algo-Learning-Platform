@@ -19,6 +19,7 @@ import { COACH_PIN_MODES } from '../coach/petPinPolicy'
 import type { CoachOrchestrator } from '../coach/CoachOrchestrator'
 import type { CoachBubblePayload } from '../coach/types'
 import { getCoachConfigForRenderer, saveCoachConfig } from '../app/config'
+import { appLogger } from '../shared/logger'
 
 const COACH_PET_CHANNELS = new Set([
   'coach:getPetState',
@@ -157,7 +158,7 @@ export function registerCoachIpc(options: RegisterCoachIpcOptions): void {
 
   // 调试用：renderer 输出日志到主进程
   ipcMain.handle('log-to-main', [freeText({ max: 10 * 1024 })], (_event, message) => {
-    console.log(message)
+    appLogger.debug('coach.renderer-log', { message })
     return true
   })
 
@@ -303,7 +304,7 @@ export function registerCoachIpc(options: RegisterCoachIpcOptions): void {
   ipcMain.handle('coach:dismissHint', [optional(bubbleId())], (_event, bubbleId) => {
     const orchestrator = options.getCoachOrchestrator?.()
     if (!orchestrator) {
-      console.log('[coach] dismissHint (no orchestrator)', { bubbleId })
+      appLogger.debug('coach.dismiss-hint-skipped', { reason: 'no-orchestrator', bubbleId })
       options.getCoachPetWindow()?.dismissBubble()
       options.getCoachPetWindow()?.setPetState('idle')
       return true
@@ -322,7 +323,7 @@ export function registerCoachIpc(options: RegisterCoachIpcOptions): void {
   })], (_event, feedback) => {
     const orchestrator = options.getCoachOrchestrator?.()
     if (!orchestrator) {
-      console.log('[coach] feedback (no orchestrator)', feedback)
+      appLogger.debug('coach.feedback-skipped', { reason: 'no-orchestrator', feedback })
       return true
     }
     return orchestrator.recordFeedback({

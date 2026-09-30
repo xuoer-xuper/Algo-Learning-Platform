@@ -157,7 +157,7 @@ export function createPageContextMenuTemplate(options: PageContextMenuActions): 
       label: '用户脚本',
       submenu: options.userScriptCommands.map(command => ({
         label: `${command.scriptName}: ${command.name}`,
-        click: command.invoke,
+        click: () => command.invoke(),
       })),
     })
   }

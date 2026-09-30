@@ -1,4 +1,5 @@
 import { nowBeijing } from '../../../shared/time'
+import { unknownToText } from '../../../shared/textCoercion'
 import { createSite, getAllSites, getSiteById, updateSite } from './crud'
 import type { ImportConflict, ImportPreview, ImportPreviewResult, SiteConfigData, SitesExportData } from './types'
 import { parseImportedSite } from './types'
@@ -18,7 +19,7 @@ export function previewImportSites(data: unknown): ImportPreviewResult {
 
   const payload = data as { version?: unknown; sites?: unknown }
   if (payload.version !== 1) {
-    return { valid: false, error: `不支持的配置版本: ${payload.version}` }
+    return { valid: false, error: `不支持的配置版本: ${unknownToText(payload.version)}` }
   }
 
   if (!Array.isArray(payload.sites)) {

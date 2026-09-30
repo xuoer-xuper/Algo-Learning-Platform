@@ -823,7 +823,7 @@ function executeSerializedRuntime(
 }
 
 function createExecutionFunction(_scripts: readonly CompiledScript[]): UserScriptMainWorldExecution['func'] {
-  return executeSerializedRuntime as UserScriptMainWorldExecution['func']
+  return executeSerializedRuntime
 }
 
 function resolvePermissions(grants: readonly string[]): GrantPermissions {

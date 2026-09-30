@@ -1,4 +1,5 @@
 import type { BrowserWindow } from 'electron'
+import { toRejectionError } from '../shared/errors'
 
 export interface WindowSessionFlushOptions {
   shouldFlush(): boolean
@@ -26,7 +27,8 @@ export function installWindowSessionFlush(
     try {
       requestedFlush = options.flush()
     } catch (error) {
-      requestedFlush = Promise.reject(error)
+      // 同步抛出的原因不一定已经是 Error：包一层，保留原始描述供 onFailure 排查。
+      requestedFlush = Promise.reject(toRejectionError(error))
     }
     flushPromise = requestedFlush
       .catch(() => {

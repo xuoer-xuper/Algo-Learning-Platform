@@ -44,10 +44,11 @@ export function getWeaknessAnalysis(limit = 10): WeaknessAnalysisResult {
 
   for (const row of rows) {
     for (const key of parseTagsJson(row.tags_json)) {
-      if (!tagMap.has(key)) {
-        tagMap.set(key, { total: 0, solved: 0, attempted: 0, wrong_submissions: 0, total_duration_seconds: 0 })
+      let entry = tagMap.get(key)
+      if (!entry) {
+        entry = { total: 0, solved: 0, attempted: 0, wrong_submissions: 0, total_duration_seconds: 0 }
+        tagMap.set(key, entry)
       }
-      const entry = tagMap.get(key)!
       entry.total++
       if (row.status === 'solved') entry.solved++
       else if (row.status === 'attempted') entry.attempted++

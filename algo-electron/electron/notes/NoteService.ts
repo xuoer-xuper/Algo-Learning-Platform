@@ -28,9 +28,9 @@ export interface Note {
   updated_at: string
 }
 
-export interface NoteListItem extends Note {}
+export type NoteListItem = Note
 
-export interface NoteWithContent extends Note {}
+export type NoteWithContent = Note
 
 export interface CreateNoteInput {
   problem_id?: string | null

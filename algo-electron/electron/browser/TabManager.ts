@@ -1,7 +1,8 @@
+import type {
+  BrowserWindow} from 'electron';
 import {
   clipboard,
   WebContentsView,
-  BrowserWindow,
   type BrowserWindowConstructorOptions,
   type Input,
   type WebContents,
@@ -543,7 +544,7 @@ export class TabManager {
       const decision = owner.evaluateNavigation(url, true)
       if (decision.allowed) return
       event.preventDefault()
-      owner.notifyNavigationBlocked(decision.reason!)
+      owner.notifyNavigationBlocked(decision.reason)
     }
     contents.on('will-navigate', guardNavigation)
     contents.on('will-redirect', guardNavigation)
@@ -660,7 +661,7 @@ export class TabManager {
       }
       const decision = owner.evaluateNavigation(details.url, true)
       if (!decision.allowed) {
-        owner.notifyNavigationBlocked(decision.reason!)
+        owner.notifyNavigationBlocked(decision.reason)
         return { action: 'deny' }
       }
       if (!owner.canCreateTab()) return { action: 'deny' }
@@ -901,8 +902,8 @@ export class TabManager {
         const record = RELEASED_TAB_RECORDS.get(releasedTab)
         return record?.tab.kind === 'web' && record.tab.view === view
       })
-      if (pendingTransfer) {
-        const record = RELEASED_TAB_RECORDS.get(pendingTransfer)!
+      const record = pendingTransfer ? RELEASED_TAB_RECORDS.get(pendingTransfer) : undefined
+      if (pendingTransfer && record) {
         this.emitPageDestroyed(record.tab as ManagedWebTab, contentsId)
         record.state = 'invalid'
         this.pendingTabTransfers.delete(record.tab.id)
@@ -981,7 +982,7 @@ export class TabManager {
 
     const decision = this.evaluateNavigation(url, true)
     if (!decision.allowed) {
-      this.notifyNavigationBlocked(decision.reason!)
+      this.notifyNavigationBlocked(decision.reason)
       return ''
     }
 
@@ -1158,8 +1159,7 @@ export class TabManager {
       registryTransfer,
       state: 'released',
     }
-    let releasedTab!: ReleasedTab
-    releasedTab = Object.freeze({
+    const releasedTab: ReleasedTab = Object.freeze({
       tabId: tab.id,
       kind: tab.kind,
       sourceWindowId: this.windowId,
@@ -1247,11 +1247,13 @@ export class TabManager {
     }
 
     const previousActiveTabId = this.activeTabId
+    const viewRegistry = this.viewRegistry
     let registryMoved = false
     let inserted = false
     try {
       if (record.registryTransfer) {
-        registryMoved = this.viewRegistry!.moveTabTransfer(
+        if (!viewRegistry) throw new Error('Tab ownership transfer requires a view registry')
+        registryMoved = viewRegistry.moveTabTransfer(
           record.registryTransfer,
           this.windowId,
           tab.id,
@@ -1292,7 +1294,7 @@ export class TabManager {
       this.notifyTabListChanged()
       this.emitSessionChange()
 
-      if (record.registryTransfer && !this.viewRegistry!.completeTabTransfer(record.registryTransfer)) {
+      if (record.registryTransfer && !viewRegistry?.completeTabTransfer(record.registryTransfer)) {
         throw new Error('Tab ownership transfer could not be committed')
       }
       record.source.pendingTabTransfers.delete(tab.id)
@@ -1306,6 +1308,7 @@ export class TabManager {
       if (inserted) this.removeFailedAdoption(tab, previousActiveTabId)
       if (ownerBinding) ownerBinding.owner = record.source
       if (registryMoved && record.registryTransfer) {
+        // 回滚必须落到**源**窗口的 registry：收养是跨窗口的，this.viewRegistry 是目标窗口的。
         record.source.viewRegistry?.rollbackTabTransfer(record.registryTransfer)
       }
       record.source.restoreReleasedTab(releasedTab, record, registryMoved)
@@ -1561,14 +1564,15 @@ export class TabManager {
     }
     const decision = this.evaluateNavigation(url, true)
     if (!decision.allowed) {
-      this.notifyNavigationBlocked(decision.reason!)
+      this.notifyNavigationBlocked(decision.reason)
       return
     }
-    if (!this.activeTabId || !this.findTab(this.activeTabId)) {
+    const activeTab = this.activeTabId ? this.findTab(this.activeTabId) : null
+    if (!activeTab) {
       this.createTab(url)
       return
     }
-    const tab = this.findTab(this.activeTabId)!
+    const tab = activeTab
     if (tab.kind === 'internal') {
       this.replaceInternalTabWithWeb(tab, url)
       return
@@ -1739,8 +1743,8 @@ export class TabManager {
       const load = recoveryUrl
         ? recoveryView.webContents.loadURL(recoveryUrl)
         : recoveryView.webContents.reload()
-      if (load && typeof (load as Promise<void>).catch === 'function') {
-        void (load as Promise<void>).catch((error) => {
+      if (load && typeof (load).catch === 'function') {
+        void (load).catch((error) => {
           if (!this.failTabRecovery(tab, recoveryView)) return
           appLogger.warn('browser.crashed-tab-recovery-failed', {
             tabId: tab.id,
@@ -1933,8 +1937,10 @@ export class TabManager {
           })
         })
       }
-      const activeTabId = restoredTabs.some((tab) => tab.id === parsed.snapshot.activeTabId)
-        ? parsed.snapshot.activeTabId!
+      const requestedActiveTabId = parsed.snapshot.activeTabId
+      const activeTabId = requestedActiveTabId
+        && restoredTabs.some((tab) => tab.id === requestedActiveTabId)
+        ? requestedActiveTabId
         : restoredTabs[0].id
       this.switchTab(activeTabId)
       return true

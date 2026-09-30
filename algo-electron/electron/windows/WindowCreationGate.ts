@@ -19,8 +19,7 @@ export class WindowCreationGate<T> {
     if (!this.enabled || this.stopped) return Promise.resolve(null)
     if (this.inFlight) return this.inFlight
 
-    let trackedPromise: Promise<T | null>
-    trackedPromise = Promise.resolve()
+    const trackedPromise: Promise<T | null> = Promise.resolve()
       .then(() => create(() => this.stopped))
       .finally(() => {
         if (this.inFlight === trackedPromise) this.inFlight = null

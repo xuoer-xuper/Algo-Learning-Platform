@@ -15,7 +15,7 @@ import {
   type UserScriptXhrRequestDetails,
   type UserScriptXhrResponseSnapshot,
 } from './userScriptRuntimeProtocol'
-import { errorName } from '../shared/errors'
+import { errorName, toRejectionError } from '../shared/errors'
 
 const MAX_REDIRECTS = 10
 const MAX_ACTIVE_REQUESTS = 64
@@ -306,7 +306,8 @@ function waitForAbort<T>(operation: Promise<T>, signal: AbortSignal): Promise<T>
       },
       (error: unknown) => {
         signal.removeEventListener('abort', handleAbort)
-        reject(error)
+        // 上游拒绝原因可能是非 Error（字符串/普通对象），包成 Error 才能让调用方拿到 message。
+        reject(toRejectionError(error))
       },
     )
   })

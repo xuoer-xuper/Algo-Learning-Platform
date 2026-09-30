@@ -197,8 +197,10 @@ export class SubmissionProblemAttacher {
   }
 
   private attachProblemFromSourceUrl(submission: SubmissionData, platform: string): void {
+    const sourceUrl = submission.sourceUrl
+    if (!sourceUrl) return
     try {
-      const sourceIdentity = this.deps.parseUrl(submission.sourceUrl!)
+      const sourceIdentity = this.deps.parseUrl(sourceUrl)
       if (!sourceIdentity) return
 
       this.deps.upsertProblem(sourceIdentity)

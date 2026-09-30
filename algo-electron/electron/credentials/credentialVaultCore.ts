@@ -312,7 +312,7 @@ function validateSaveInput(input: CredentialSaveInput): CredentialSaveInput {
   if (!input || typeof input !== 'object' || Array.isArray(input)) {
     throw new CredentialVaultError('invalid-input', 'Credential input is invalid')
   }
-  const keys = Object.keys(input as object).sort()
+  const keys = Object.keys(input).sort()
   if (keys.length !== 3 || keys.join(',') !== 'password,siteId,username') {
     throw new CredentialVaultError('invalid-input', 'Credential input is invalid')
   }

@@ -107,6 +107,16 @@ export interface CoachOrchestratorOptions {
 const METRICS_LOOKBACK_DAYS = 30
 const WINDOW_SWITCH_DEBOUNCE_MS = 200
 
+/**
+ * 会话跟踪必须有存储服务才能工作：把「非空」这一前置条件在解析处显式化，
+ * 避免在调用点用非空断言掩盖缺失。此前的 `!` 在这里失败同样是抛错（TypeError）。
+ */
+function requireTrackingService(getTrackingService: () => TrackingService | null): TrackingService {
+  const trackingService = getTrackingService()
+  if (!trackingService) throw new Error('CoachOrchestrator requires a tracking service')
+  return trackingService
+}
+
 interface HintRequestContext {
   generation: number
   sessionId: string | null
@@ -193,11 +203,11 @@ export class CoachOrchestrator {
 
     // 2. ProblemSessionTracker
     this.sessionTracker = new ProblemSessionTracker({
-      trackingService: options.getTrackingService()!,
+      trackingService: requireTrackingService(options.getTrackingService),
       parseProblemUrl: parseUrl,
-      // Issue #3: 注入 problem_id 解析回调
+      // Issue #3: 注入 problem_id 解析回调（保持 async：解析抛错要变成 rejection 而不是同步异常）
       resolveProblemId: async (platform, platformProblemId) => {
-        return findProblemIdByPlatformKey(platform, platformProblemId)
+        return await Promise.resolve(findProblemIdByPlatformKey(platform, platformProblemId))
       },
       powerMonitor,
       isAnyAppWindowFocused: options.isAnyAppWindowFocused,
@@ -624,15 +634,16 @@ export class CoachOrchestrator {
   // --- 状态查询（IPC 消费） ---
 
   getState(): CoachStateSnapshot {
+    const contest = this.contestGuard.getCurrentContest()
     return {
       current_session: this.sessionTracker.getCurrentSession(),
       is_contest_mode: this.contestGuard.isContestMode(),
-      contest: this.contestGuard.getCurrentContest()
+      contest: contest
         ? {
-            url: this.contestGuard.getCurrentContest()!.contestUrl,
-            platform: this.contestGuard.getCurrentContest()!.platform,
-            contest_id: this.contestGuard.getCurrentContest()!.contestId,
-            entered_at: new Date(this.contestGuard.getCurrentContest()!.enteredAt).toISOString(),
+            url: contest.contestUrl,
+            platform: contest.platform,
+            contest_id: contest.contestId,
+            entered_at: new Date(contest.enteredAt).toISOString(),
           }
         : null,
       pet_state: this.options.getCoachPetWindow()?.getPetState() ?? 'idle',

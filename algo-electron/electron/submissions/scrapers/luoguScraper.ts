@@ -1,5 +1,6 @@
 import type { SubmissionData, Verdict } from '../../shared/types'
 import { nowBeijing, toBeijing } from '../../shared/time'
+import { unknownToText } from '../../shared/textCoercion'
 import type { SubmissionScrapeContext } from '../../adapters/types'
 
 function mapTextVerdict(text: string): Verdict {
@@ -143,7 +144,7 @@ function resolveLuoguVerdict(record: LuoguRecord): { verdict: Verdict; rawVerdic
   const aggregate = mapRawVerdict(record?.status)
   if (aggregate) return aggregate
 
-  return { verdict: 'UNKNOWN', rawVerdict: String(record?.status ?? '') }
+  return { verdict: 'UNKNOWN', rawVerdict: unknownToText(record?.status) }
 }
 
 function isRealtimeRecordReady(record: LuoguRecord): boolean {

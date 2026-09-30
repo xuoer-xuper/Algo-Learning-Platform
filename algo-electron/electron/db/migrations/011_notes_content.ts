@@ -1,4 +1,4 @@
-import { Database } from 'better-sqlite3'
+import type { Database } from 'better-sqlite3'
 import { errorMessage } from '../../shared/errors'
 
 /** 同 009：只吞"列已存在"，其余抛出。见 `009_user_scripts_file.ts` 里的完整说明。 */

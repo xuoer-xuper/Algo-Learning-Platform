@@ -30,7 +30,7 @@ import {
   prepareUserScriptResources,
 } from '../scripts/UserScriptResourceCache'
 import type { PendingUserScriptInstallRegistry } from '../downloads/userScriptNavigation'
-import {
+import type {
   UserScriptRemoteInstaller,
 } from '../scripts/UserScriptRemoteInstaller'
 import { persistUserScriptInstall } from '../scripts/UserScriptInstaller'

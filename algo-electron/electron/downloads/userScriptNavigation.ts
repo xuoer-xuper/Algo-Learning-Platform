@@ -137,7 +137,7 @@ export class PendingUserScriptInstallRegistry {
     const now = this.clock()
     this.prune(now)
     while (this.requests.size >= this.maxPending) {
-      const oldestId = this.requests.keys().next().value as string | undefined
+      const oldestId = this.requests.keys().next().value
       if (!oldestId) break
       this.remove(oldestId)
     }
