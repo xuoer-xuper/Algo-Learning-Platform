@@ -11,7 +11,8 @@
 - [ ] `ci.yml`：`pnpm/action-setup@v4` + `actions/setup-node cache: pnpm`；`pnpm install --frozen-lockfile`。
 - [ ] 文档 `npm run` → `pnpm`（`grep -rl "npm run" docs algo-electron/**/README.md .github`）。
 - 验证：`pnpm test:all`。回滚点：commit `chore(deps): 切换到 pnpm`。
-  - 追加（2026-09-17）：`test:all` 里的 `test:docs` 与 `test:coverage` 两处既有红灯已一并清掉（前者见 0.10，后者见 `prd.md` Notes 的 `tests/setup` 说明），因此本节可以真的用 `test:all` 收口，而不是"跳过已知红"。
+  - 追加（2026-09-17）：`test:all` 里的 `test:docs` 与 `test:coverage` 两处既有红灯已一并清掉（前者见 0.10，后者见 `prd.md` Notes 的 `tests/setup` 说明）。
+  - `test:all` 仍会停在 `test:coach` 的 `coach-llmConfigStore`：该测试由 `runElectronAppTest` 打成 ESM 后在真实 Electron 应用态运行，`import { app } from "electron"` 报 "does not provide an export named 'app'"。**在基线 npm 图上同样复现**（`093df52` worktree + `npm ci` + 同样的 esbuild/electron 两步），改成 CJS 打包后换成 `app` undefined，说明是夹具设计问题而非依赖问题，属阶段 5（测试体系对齐）范围。因此 0.2 不用 `test:all` 全绿收口，改用：`pnpm install --frozen-lockfile` + `pnpm test:core` + `pnpm test:coverage`（3 次）+ `pnpm test:packaging` + `pnpm build:check` + 分支保护要求的两个 CI check。
 
 ### 0.3 TypeScript 6.0.3
 - [ ] `pnpm add -D typescript@6.0.3 vite-plugin-electron@1.1.2`。
