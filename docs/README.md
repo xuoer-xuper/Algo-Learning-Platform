@@ -162,6 +162,7 @@
 | test performance | [tests/performance/README](../algo-electron/tests/performance/README.md) |
 | test scripts | [tests/scripts/README](../algo-electron/tests/scripts/README.md) |
 | test security | [tests/security/README](../algo-electron/tests/security/README.md) |
+| test setup | [tests/setup/README](../algo-electron/tests/setup/README.md) |
 | test shared | [tests/shared/README](../algo-electron/tests/shared/README.md) |
 | test shortcuts | [tests/shortcuts/README](../algo-electron/tests/shortcuts/README.md) |
 | test submissions | [tests/submissions/README](../algo-electron/tests/submissions/README.md) |
