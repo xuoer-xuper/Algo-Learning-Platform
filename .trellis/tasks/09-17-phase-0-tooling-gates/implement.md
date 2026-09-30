@@ -15,11 +15,11 @@
   - `test:all` 仍会停在 `test:coach` 的 `coach-llmConfigStore`：该测试由 `runElectronAppTest` 打成 ESM 后在真实 Electron 应用态运行，`import { app } from "electron"` 报 "does not provide an export named 'app'"。**在基线 npm 图上同样复现**（`093df52` worktree + `npm ci` + 同样的 esbuild/electron 两步），改成 CJS 打包后换成 `app` undefined，说明是夹具设计问题而非依赖问题，属阶段 5（测试体系对齐）范围。因此 0.2 不用 `test:all` 全绿收口，改用：`pnpm install --frozen-lockfile` + `pnpm test:core` + `pnpm test:coverage`（3 次）+ `pnpm test:packaging` + `pnpm build:check` + 分支保护要求的两个 CI check。
 
 ### 0.3 TypeScript 6.0.3
-- [ ] `pnpm add -D typescript@6.0.3 vite-plugin-electron@1.1.2`。
-- [ ] `pnpm typecheck`、`pnpm typecheck:tests`；逐条处理 6.0 弃用提示（预期：`tsconfig.node.json` 的 `composite` / `moduleResolution` 提示）。
-- [ ] `pnpm build:check`（确认 vite-plugin-electron 与 esbuild 正常）。
-- [ ] 失败则回退 5.9.3 并在 `prd.md` Notes 记录。
-- 验证：`pnpm test:core`。回滚点：commit `chore(deps): TypeScript 降级到 6.0.3`。
+- [x] `pnpm add -D typescript@6.0.3 vite-plugin-electron@1.1.2`（2026-09-17 完成，实测版本分别为 6.0.3 与 1.1.2）。
+- [x] `pnpm typecheck`、`pnpm typecheck:tests`：两者均 0 error，且**没有**出现预期中的弃用提示——6.0.3 对 `tsconfig.node.json` 的 `composite` / `moduleResolution: bundler` 不报提示，因此没有需要逐条处理的项（不是"忽略了提示"：两份命令的输出为空且退出码为 0）。
+- [x] `pnpm build:check` 通过：vite-plugin-electron 1.1.2 与 esbuild 0.28.2 正常，`Packaged main keeps better-sqlite3 external`。
+- [x] 未回退：没有出现无法绕过的第三方类型错误（`@types/*`、vite、vitest、electron 的类型定义在 6.0.3 下均通过）。
+- 验证：`pnpm test:core` 全绿（169 文件 / 1362 用例）。回滚点：commit `chore(deps): TypeScript 降级到 6.0.3`。
 
 ### 0.4 typescript-eslint
 - [ ] `pnpm add -D typescript-eslint eslint-config-prettier`；`pnpm remove @babel/core @babel/eslint-parser @babel/plugin-syntax-jsx @babel/preset-typescript`。
