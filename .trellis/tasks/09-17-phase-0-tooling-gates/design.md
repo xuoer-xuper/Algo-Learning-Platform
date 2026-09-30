@@ -128,12 +128,49 @@ export default tseslint.config(
 
 处理方式（择一，实现时按报错清单决定并写进 PR 描述）：把根级配置文件补进 `tsconfig.node.json` 的 `include`；或对这批文件单独一段 config 用 `projectService: { allowDefaultProject: [...] }`。**不能**用 `parserOptions.project` 逐项目罗列后漏掉文件——那是同类问题的复发形态。
 
-### 开门顺序（避免"门一开全红，改不完就关掉"）
-1. 先按 R4 修完：13 处非空断言（点位见 `implement.md` 0.4；`NavigationDecision` 改判别联合一次消 5 处）、40 处渲染层导出组件/hook 缺返回类型、`no-floating-promises`、`registerCoachIpc.ts:160,306,325` 三处 `console.*` → `appLogger`。
-2. 再把规则设为 `error` 并跑 `pnpm lint --max-warnings 0`。
-3. 最后删除 `@babel/*` eslint 相关四个依赖。
+### 实测违规清单（2026-09-17，typescript-eslint 8.71.0 / TypeScript 6.0.3，`eslint .`）
 
-`no-undef` 关闭（TS 已覆盖），`globals` 只对 `.js/.mjs/.cjs` 有意义；`no-console` 的 override 必须与 PRD 字面一致——PRD 允许的两个文件以外的 `console.*`（其余 6 处）走 override 还是改代码，以实现时的报错清单为准并在 `implement.md` 勾选时记录。
+PRD R4 的估数是"13 处非空断言 + 40 处渲染层缺返回类型"。按 R4 的配置实际跑一遍后（613 文件、`--format json` 聚合），**生产代码 367 error 分布在 16+ 条规则**，与估数相差约 5 倍，且包含 R4 未预算的规则：
+
+| 规则 | 合计 | 分布 |
+| --- | --- | --- |
+| `explicit-module-boundary-types` | 128 | renderer 66（59 文件）/ main 62（32 文件） |
+| `no-unsafe-member-access` | 50 | main 48（**7 文件**）/ renderer 2 |
+| `no-unsafe-assignment` | 40 | main 40（14 文件） |
+| `no-non-null-assertion` | 30 | main 28（12 文件）/ renderer 2（PRD 说 13） |
+| `no-misused-promises` | 30 | renderer 29（10 文件）/ main 1 |
+| `no-unsafe-call` | 19 | main 17（3 文件）/ renderer 2 |
+| `no-unnecessary-type-assertion` | 12 | main 12 |
+| `consistent-type-imports` | 9 | main 8 / renderer 1 |
+| `no-base-to-string` | 7 | main 5 / renderer 2 |
+| `no-unsafe-argument` | 7 | main 6 / renderer 1 |
+| `no-console` | 7 | renderer 4（4 文件）/ main 3（1 文件，`registerCoachIpc.ts`） |
+| `no-empty-object-type` | 5 | main 5 |
+| `no-unsafe-return` | 5 | main 3 / renderer 2 |
+| `no-floating-promises` | 4 | main 2 / renderer 2 |
+| `prefer-const` | 3 | main 3 |
+| `no-implied-eval` | 3 | main 2 |
+| 其余（尾部） | 8 | — |
+
+另有 **192 个 `tests/**` 文件报 "was not found by the project service"**：`tests/` 只被 `tsconfig.tests.json` 收录，而 projectService 不把 `tsconfig.tests.json` 当作可发现的项目（它只找 `tsconfig.json`）。上游文档明确 `allowDefaultProject` 只适合少量配置文件（默认上限 8 个文件、glob 不允许 `**`），因此不给 192 个测试文件用它；测试侧维持 0.4 之前的规则面，其规则升级（`no-explicit-any` 94、`no-unused-vars` 9、`prefer-const` 1）与项目归属方案一起放进阶段 5 与偿还任务。
+
+三组工作量差异很大，不能一锅端：
+
+- **机械、类型层、可审计（≈65 处）**：`no-non-null-assertion` 30、`consistent-type-imports` 9、`no-unnecessary-type-assertion` 12、`no-floating-promises` 4、`no-console` 7（其中 3 处改 `appLogger`，renderer 4 处按 AC"main 中 0"不属本门）、`prefer-const` 3。改完不改变运行时行为。
+- **需要逐点判断类型流（≈121 处，集中在约 20 个文件）**：`no-unsafe-*` 系列来自 `any` 传播（JSON.parse、数据库行、IPC 载荷），修法是补类型或改 `unknown` + 收窄，属真实类型债。
+- **会改动代码形状（≈170 处）**：`explicit-module-boundary-types` 128（给导出函数/回调补返回类型，面广但机械）、`no-misused-promises` 30（async 传给 void 位置，需 `void` 包装或改签名）、`no-base-to-string`/`no-empty-object-type`/`no-implied-eval` 15。
+
+因此 0.4 的实际范围与 R4 原文不一致，需要先定策略（见 `implement.md` 0.4 的待决记录）。
+
+### 开门顺序（避免"门一开全红，改不完就关掉"）
+
+`no-undef` 关闭（TS 已覆盖），`globals` 只对 `.js/.mjs/.cjs` 有意义。`no-console` 的适用范围按父任务 AC 的原文收窄为 main（`electron/**`）：renderer 的 4 处不在"main 中 0"的承诺内，不为了凑绿去改渲染层日志。
+
+实现要点（已实测，写进配置注释）：
+
+1. `tseslint.configs.recommendedTypeChecked` **必须加 `files: ['**/*.{ts,tsx}']`**：不加会让类型感知规则作用到 `eslint.config.js` / `tests/*.mjs` 这类不在任何项目里的 JS 文件，直接以 "You have used a rule which requires type information" 崩溃（不是逐条报错，是整个 lint 中止）。
+2. 根级配置文件补进 `tsconfig.node.json` 的 `include`：`vite.config.ts`、`vitest.config.ts`、`playwright.config.ts`。
+3. `tests/**` 的类型归属要单独决定：要么 `projectService.allowDefaultProject`（192 个文件会撞默认上限，需要抬高 `maximumDefaultProjectFileMatchCount_THIS_WILL_SLOW_DOWN_LINTING` 且明显拖慢 lint），要么测试只跑非类型感知的 `recommended`（类型正确性已由 `pnpm typecheck:tests` 单独守）。
 
 ### 验收
 `prd.md` AC4，含"故意写一行 `const x = y!.z` 使 lint 变红"的反向验证——只跑绿灯的门等于没门。

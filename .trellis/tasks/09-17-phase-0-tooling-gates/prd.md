@@ -23,10 +23,12 @@
 - `tsc --noEmit` 与 `tsc -p tsconfig.tests.json --noEmit` 0 error、0 弃用提示（6.0 对将在 7 移除的选项报提示，逐条改）。
 - 若 vite-plugin-electron / vitest / esbuild 在 6.0 下有无法绕过的问题，回退 5.9.3，并在本 PRD Notes 记录原因。
 
-### R4 typescript-eslint（D19、高-8）
-- 替换 `@babel/eslint-parser` 为 `typescript-eslint` 8.x，`tseslint.configs.recommendedTypeChecked`，`parserOptions.projectService: true`。
-- 规则：`@typescript-eslint/no-non-null-assertion` error、`no-explicit-any` error、`consistent-type-imports` error、`explicit-module-boundary-types` error、`no-floating-promises` error、`no-unused-vars`（`argsIgnorePattern: '^_'`）error、`no-console` error（override：`electron/app/startupSmoke.ts`、`electron/scripts/userscriptBootstrapPreload.ts` 允许）。
-- 先修掉现有 13 处非空断言与 40 处渲染层缺返回类型，再开门；`eslint . --max-warnings 0` 0 error。
+### R4 typescript-eslint（D19、高-8）——2026-09-17 按实测修订
+- 替换 `@babel/eslint-parser` 为 `typescript-eslint`（实测 8.71.0），`tseslint.configs.recommended` + `recommendedTypeChecked`，`parserOptions.projectService: true`。
+- **作用范围分档**：生产代码 `src/**` + `electron/**` 跑 TS 规则（含类型感知）；`tests/**` 与根级 `*.config.ts` 维持 0.4 之前的规则面。原因：typed lint 要求文件属于某个 tsconfig 项目，而 `tests/` 只被 `tsconfig.tests.json` 收录、projectService 不把它当可发现项目；上游文档明确 `allowDefaultProject` 只适合少量配置文件（默认上限 8 文件、glob 不允许 `**`），192 个测试文件属于误用。
+- 类型感知规则必须用 `files` 限定到进入 tsconfig 项目的文件，否则连 `eslint.config.js` / `tests/*.mjs` 一起套用，会以 "You have used a rule which requires type information" 中止整个 lint。
+- 启用的规则：`no-non-null-assertion`、`no-explicit-any`、`consistent-type-imports`、`no-floating-promises`、`no-unnecessary-type-assertion`、`no-unused-vars`（`argsIgnorePattern`/`varsIgnorePattern: '^_'`、`ignoreRestSiblings`）全为 error；`no-console` error 仅作用于 `electron/**`（父任务 AC 只承诺 "main 中 0"，渲染层 4 处不为凑绿而改）；override 例外仍是 `electron/app/startupSmoke.ts`、`electron/scripts/userscriptBootstrapPreload.ts`。
+- **实测违规量远超原估**：原估"13 处非空断言 + 40 处返回类型"，实际生产代码 367 error / 22 条规则（613 文件）。按风险分三组：机械型约 73 处本节修完；`explicit-module-boundary-types` 128、`no-unsafe-*` 121、`no-misused-promises` 30 共 279 处在配置里**显式关闭并注明**，单独立项偿还：`.trellis/tasks/09-30-typed-lint-debt`。清单与分布见 `design.md` §4。
 - 删除 `@babel/*` eslint 相关依赖。
 
 ### R5 prettier（D20）
