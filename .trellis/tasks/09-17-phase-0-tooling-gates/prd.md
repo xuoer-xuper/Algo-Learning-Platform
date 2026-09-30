@@ -12,11 +12,11 @@
 - 待做：`.github/workflows/ci.yml` `on.push.branches` 增加 `dev`；`pull_request` 触发全部 job。
 
 ### R2 pnpm（D17）
-- `algo-electron/.npmrc`：`node-linker=hoisted`、`shamefully-hoist=true`、`strict-peer-dependencies=false`。
-- `package.json` 增加 `"packageManager": "pnpm@<当前 latest>"`；删除 `package-lock.json`，生成 `pnpm-lock.yaml`。
-- `postinstall` 改为 pnpm 等价（`install-electron --no && electron-builder install-app-deps`）。
-- CI 改 `pnpm/action-setup` + `pnpm install --frozen-lockfile`，缓存 pnpm store。
-- `docs/GOVERNANCE/CONTRIBUTING.md`、`.github/COLLABORATION.md`、各 README 中 `npm run` → `pnpm`。
+- 项目设置写在 `algo-electron/pnpm-workspace.yaml`：`nodeLinker: hoisted`、`shamefullyHoist: true`、`strictPeerDependencies: false`、`allowBuilds`（`esbuild`、`electron-winstaller`）。**2026-09-17 修订**：pnpm 12 只从 `.npmrc` 读认证/registry 设置，`nodeLinker`/`shamefullyHoist` 只能在 `pnpm-workspace.yaml` 设置，原 `.npmrc` 方案已失效。
+- `package.json` 增加 `"packageManager": "pnpm@12.8.1"`（`npm view pnpm version` 的 latest）；删除 `package-lock.json`，生成 `pnpm-lock.yaml`。
+- `postinstall` 内联（`install-electron --no && electron-builder install-app-deps`），**不**嵌套 `pnpm run`：pnpm 生命周期里嵌套调用会撞 `packageManager` 版本门。
+- CI 改 `pnpm/action-setup@v4`（带 `package_json_file: algo-electron/package.json`，且置于 `setup-node` 之前）+ `pnpm install --frozen-lockfile`，缓存改 pnpm store（`cache: pnpm` + `pnpm-lock.yaml`）。
+- `docs/GOVERNANCE/CONTRIBUTING.md`、`.github/COLLABORATION.md`、各 README 中 `npm run` → `pnpm run`；同时更新因此变红的守卫 `tests/packaging/check-packaging.mjs`（改为断言命令顺序 + 新增 `pnpm-workspace.yaml` 配置守卫）、`tests/docs/check-docs.mjs`（脚本引用检查接受 `pnpm run`）与它们的 README。
 
 ### R3 TypeScript 6.0.3（D19）
 - `typescript` 7.0.2 → 6.0.3；`vite-plugin-electron` 1.1.1 → 1.1.2。
@@ -76,3 +76,8 @@
 - 前置：无。这是所有后续阶段的门。
 - 顺序建议：R2 → R3 → R4 → R5（格式化在 lint 规则定稿后做一次）→ R6 → R7 → R8 → R9 → R1 → R10。R1 放最后是因为分支保护开启后本阶段的 PR 才好走通。
 - 风险：pnpm hoist 对 electron-builder `asarUnpack` 白名单的影响，用 `test:packaging` + `test:packaged-app` 验。
+- R2 实施发现（2026-09-17，细节见 `design.md` §2）：
+  - `corepack enable` 在本机被 `EPERM`（需管理员权限写 `C:\Program Files\nodejs`）拒绝；改用 pnpm 自身的 `packageManager` 版本切换（裸 `pnpm` 在项目内 11.21.0 → 12.8.1）与 `corepack prepare`，仓库不依赖 corepack 已 enable。
+  - pnpm 12 把被忽略的依赖构建脚本从警告升级为 `ERR_PNPM_IGNORED_BUILDS` **安装失败**；`allowBuilds` 是必需配置而非可选优化。
+  - `electron` 与 `better-sqlite3` 自身没有 install/postinstall 脚本，Electron 二进制与 native ABI 重建全靠根 `postinstall`；`better-sqlite3` 使用 `prebuilds/*.node`。
+  - 文档范围只改 `CONTRIBUTING.md`、`.github/COLLABORATION.md` 与各 README；历史叙述类文档（CHANGELOG、`*PLAN`、审计、TASKS、`AI_HANDOFF.md`、`VERSION_PLAN.md`、`RELEASE_PROCESS.md`）随 6.3 文档重写处理，不改写历史（`migration-status.md` 已记）。

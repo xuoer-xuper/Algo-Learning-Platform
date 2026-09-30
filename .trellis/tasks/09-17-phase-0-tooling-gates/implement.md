@@ -66,6 +66,11 @@
 
 ### 0.10 COMMIT_RULES
 - [ ] 重写 `docs/GOVERNANCE/COMMIT_RULES.md`；`pnpm test:docs`。
+- [ ] 清掉 `pnpm test:docs` 在阶段 0 之前就存在的 6 条红灯（2026-09-17 在 HEAD `093df52` 的临时 worktree 里实测，`0.2` 只修掉其中由自己造成的 2 条死链）。它们让"阶段结束 `pnpm test:all` 全绿"这条 Review Gate 无法成立，必须在本阶段关掉：
+  - `.claude/agents/trellis-research.md`、`.grok/agents/trellis-research.md`：missing url（Trellis 生成的 AI 工具目录，判据是"是否该纳入文档守卫范围"，不是补一行 url）。
+  - `.trellis/tasks/archive/2026-09/00-bootstrap-guidelines/research/frontend-audit.md`：missing `electron|fs|path|os|node:`（模板 spec 文档的措辞问题）。
+  - `docs/README.md` 未索引根 `AGENTS.md`。
+  - `.trellis/spec/big-question/native-module-complex-deps.md`、`native-module-packaging.md`：正文示例里的 npm `package` 脚本调用不是本仓库脚本（示例文本与守卫意图冲突）。
 
 ## Review Gates
 - 每个小节结束 `pnpm test:core`。

@@ -52,17 +52,33 @@ R2 pnpm ──► R3 TS 6.0.3 ──► R4 typescript-eslint ──► R5 pretti
 
 ## 2. R2 pnpm：契约与风险
 
-### 契约
-- `algo-electron/.npmrc`：`node-linker=hoisted`、`shamefully-hoist=true`、`strict-peer-dependencies=false`（依据 `spec/shared/pnpm-electron-setup.md`）。Electron 打包与 native 模块路径解析要求扁平 `node_modules`，符号链接布局会让 `asarUnpack` 与 `better-sqlite3` 解析出问题。
-- `package.json` 加 `"packageManager": "pnpm@11.21.0"`（与本机/corepack 一致；CI 由 `pnpm/action-setup@v4` 读取该字段，**不要**在 workflow 里再写死一个版本号，避免双源）。
-- `postinstall` 保持两步语义，只换调用方式：`pnpm run install:electron && pnpm run install:app-deps`。`install-electron` 由 `electron` 包提供（已确认 `node_modules/electron/package.json` 的 `bin`）。
+### 契约（2026-09-17 实施中按 pnpm 12 官方机制核实后的最终形态）
+- **设置入口是 `algo-electron/pnpm-workspace.yaml`，不是 `.npmrc`**：pnpm 12 只从 `.npmrc` 读认证/registry 设置，其余项目设置全部在 `pnpm-workspace.yaml`（其中 `nodeLinker`、`shamefullyHoist` **只能**在这里设）。内容：
+  ```yaml
+  nodeLinker: hoisted
+  shamefullyHoist: true
+  strictPeerDependencies: false
+  allowBuilds:
+    electron-winstaller: true
+    esbuild: true
+  ```
+  `spec/shared/pnpm-electron-setup.md` 写的是 pnpm 8/9 时代的 `.npmrc` 方案，本阶段按官方机制落地，spec 在 3.3 同步（`migration-status.md` 已记）。
+- `package.json` 加 `"packageManager": "pnpm@12.8.1"`（`npm view pnpm version` 的 latest）。CI 由 `pnpm/action-setup@v4` 读该字段，**不**在 workflow 里再写版本号。
+- `postinstall` 内联为 `install-electron --no && electron-builder install-app-deps`（与 PRD R2 原文一致）。`install-electron` 由 `electron` 包提供（已确认 `node_modules/electron/package.json` 的 `bin`）。**不能**写成嵌套的 `pnpm run install:electron && …`：pnpm 生命周期里 `pnpm` 解析到 PATH 上的其它版本时会撞 `packageManager` 版本门（实测 `ERR_PNPM_...` + "Corepack invoked pnpm with this version, and pnpm does not switch versions when running under corepack"）。
 - 删除 `package-lock.json`，提交 `pnpm-lock.yaml`。
-- CI 四处改动：`pnpm/action-setup@v4`、`setup-node` 的 `cache: pnpm` + `cache-dependency-path: algo-electron/pnpm-lock.yaml`、`pnpm install --frozen-lockfile`、Electron 下载缓存 key 的 `hashFiles` 换成 `pnpm-lock.yaml`。
+- CI 四处改动：`pnpm/action-setup@v4`（**必须在 `actions/setup-node` 之前**，否则 `cache: pnpm` 无法定位；本仓库 `package.json` 在 `algo-electron/` 而非仓库根，所以必须传 `package_json_file: algo-electron/package.json`）、`setup-node` 的 `cache: pnpm` + `cache-dependency-path: algo-electron/pnpm-lock.yaml`、`pnpm install --frozen-lockfile`、Electron 下载缓存 key 的 `hashFiles` 换成 `pnpm-lock.yaml`。
 
-### 风险（实现时必须验证，不得假设）
-- **依赖构建脚本被静默跳过**：pnpm 10+ 默认不执行依赖的 build 脚本，需要 `pnpm.onlyBuiltDependencies` 白名单。本仓库至少涉及 `electron`（下载 Electron 二进制）、`better-sqlite3`（原生编译）、`esbuild`。症状是安装"成功"但打包后 `better-sqlite3` 加载失败——正好由 `test:packaged-main` 捕获，所以 0.2 的验证命令不能只跑 `pnpm install`，必须跑 `pnpm test:packaged-main` 与 `pnpm test:packaging`（`prd.md` AC2）。
-- **hoisted 布局对 `electron-builder.json5` 的 `asarUnpack`/`files` 白名单的影响**：npm 与 pnpm 的目录层级不同，白名单里的 glob 可能失配。判定命令：`pnpm build:win` 后 `test:packaged-app`。
-- **旧 `node_modules` 残留**：切换 linker 前必须整体删除 `algo-electron/node_modules`，否则混合布局难以诊断。
+### 环境偏差（已实测，记录以备复核）
+- `corepack enable` 在本机失败：`EPERM: operation not permitted, open 'C:\Program Files\nodejs\yarnpkg'`（需管理员权限写 Node 安装目录）。替代路径：pnpm 自身会按 `packageManager` 切换版本（实测裸 `pnpm` 11.21.0 在项目内切到 12.8.1），`corepack prepare pnpm@12.8.1` 也可用且无需提权。仓库不依赖 corepack 已被 enable。
+- 副作用：`corepack pnpm <cmd>` 调用链下的嵌套 `pnpm` 会失败（见上），因此本机一律用裸 `pnpm`；CI 里 PATH 上的 pnpm 就是 12.8.1，不存在该问题。
+- store 跨盘 hardlink 警告（`C:` 上的 store 与 `D:` 上的项目不同盘）由 pnpm 自动改用 `D:\.pnpm-store`，属机器级状态，不入库。
+
+### 风险（实测结论）
+- **`ERR_PNPM_IGNORED_BUILDS`**：pnpm 10+ 不执行依赖的构建脚本，pnpm 12 把它从警告升级为**安装直接失败**，列出 `esbuild@0.28.2`、`electron-winstaller@5.4.0`。解法是上面的 `allowBuilds`（由 `pnpm approve-builds --all` 写入）。已在 `tests/packaging/check-packaging.mjs` 加守卫：该配置或 `nodeLinker: hoisted` 缺失即红灯。
+- `electron@43.4.0` 与 `better-sqlite3@13.0.3` **本身不带 install/postinstall 脚本**（已核对包内 `scripts`），Electron 二进制与 native ABI 重建完全由根 `postinstall` 负责；`better-sqlite3` 走 `prebuilds/*.node`，不需要 `build/Release`。
+- **hoisted 布局对 `electron-builder.json5` 的 `asarUnpack`/`files` 白名单的影响**：判定命令是 `pnpm build:win` 后的 `test:packaged-app`；`test:packaging` 只验静态配置。
+- **旧 `node_modules` 残留**：切换 linker 前必须整体删除 `algo-electron/node_modules`。本次即按"删 `node_modules` + 删 `package-lock.json` → `pnpm install`"验证。
+- 守卫不能用字面量断言包管理器写法：`tests/packaging/check-packaging.mjs` 原来的 `postinstall === 'npm run install:electron && npm run install:app-deps'` 这类断言在本阶段必然变红，已改为断言**顺序**（先装 Electron 二进制、再重建 native 依赖；`build`/`build:win` 在 `electron-builder` 之前跑 `test:packaged-main`）。
 
 ### 回滚
 revert 0.2 的单个 commit，恢复 `package-lock.json`，其余小节都不依赖 pnpm（R3–R10 只用 npm 也能跑），因此 pnpm 若阻塞打包不会拖垮整个阶段。
