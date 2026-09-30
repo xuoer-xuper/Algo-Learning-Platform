@@ -37,9 +37,9 @@
 
 ```powershell
 cd algo-electron
-npm run typecheck
-npm run lint
-npm run test:all
+pnpm run typecheck
+pnpm run lint
+pnpm run test:all
 ```
 
 运行时手动验证：启动应用后桌宠出现在右下角，DevTools 调用 `window.electronAPI.coachSetPetState('celebrate')` 验证状态切换。

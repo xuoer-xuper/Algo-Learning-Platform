@@ -25,5 +25,5 @@
 ```powershell
 cd algo-electron
 npx vitest run tests/app
-npm run test:electron
+pnpm run test:electron
 ```

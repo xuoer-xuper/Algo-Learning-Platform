@@ -84,23 +84,23 @@ Renderer 不能直接访问本目录能力，只能通过 `preload.ts` 暴露的
 
 ```powershell
 cd algo-electron
-npm run typecheck
-npm run test:core
+pnpm run typecheck
+pnpm run test:core
 ```
 
 按影响范围追加：
 
 ```powershell
-npm run test:adapters
-npm run test:submissions
-npm run test:db
-npm run test:electron
+pnpm run test:adapters
+pnpm run test:submissions
+pnpm run test:db
+pnpm run test:electron
 ```
 
 发布前运行：
 
 ```powershell
-npm run test:all
+pnpm run test:all
 ```
 
 真实站点和安装包验收按 `docs/OPERATIONS/RELEASE_PROCESS.md` 执行。

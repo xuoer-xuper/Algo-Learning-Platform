@@ -49,7 +49,7 @@
 ```powershell
 cd algo-electron
 node node_modules\typescript\bin\tsc --noEmit
-npm run test:ui
+pnpm run test:ui
 ```
 
-涉及配置写入时启动 `npm run dev`，手测站点启停、导入导出、Codeforces 同步和实时诊断刷新。
+涉及配置写入时启动 `pnpm run dev`，手测站点启停、导入导出、Codeforces 同步和实时诊断刷新。

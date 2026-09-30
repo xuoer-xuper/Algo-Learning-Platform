@@ -14,7 +14,7 @@
 `electron-builder.json5` 通过 `directories.buildResources: "build"` 读取本目录资源，Windows 配置使用 `build/icon.ico`。打包命令为：
 
 ```powershell
-npm run build:win
+pnpm run build:win
 ```
 
 输出目录为 `release/${version}`，不属于源码维护范围。
@@ -23,18 +23,18 @@ npm run build:win
 
 - 本目录只放可公开发布的应用资源。
 - 不放 Cookie、session、`.env`、本地数据库、测试截图、用户源码或临时构建缓存。
-- 替换图标后必须重新运行 `npm run build:win`，并按 `docs/OPERATIONS/RELEASE_PROCESS.md` 检查安装包图标、开始菜单和卸载入口。
+- 替换图标后必须重新运行 `pnpm run build:win`，并按 `docs/OPERATIONS/RELEASE_PROCESS.md` 检查安装包图标、开始菜单和卸载入口。
 - 新增平台资源时同步 `electron-builder.json5`、`algo-electron/README.md` 和 `docs/OPERATIONS/RELEASE_PROCESS.md`。
 
 ## 5. 验证入口
 
 ```powershell
 cd algo-electron
-npm run build:win
+pnpm run build:win
 ```
 
 发布前还需要执行：
 
 ```powershell
-npm run test:all
+pnpm run test:all
 ```

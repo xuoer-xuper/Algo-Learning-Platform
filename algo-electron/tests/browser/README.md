@@ -37,7 +37,7 @@
 ```powershell
 cd algo-electron
 npx vitest run tests/browser
-npm run test:electron
+pnpm run test:electron
 ```
 
 ## 4. 新增规则

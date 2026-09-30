@@ -30,8 +30,8 @@
 ## 5. 验证入口
 
 ```powershell
-npm run test:ui
-npm run test:performance
+pnpm run test:ui
+pnpm run test:performance
 ```
 
 截图测试必须覆盖题库、统计、设置、LLM 设置、Coach 指标和笔记编辑器，并确认没有空白内容、ErrorBoundary、裁切或重叠。

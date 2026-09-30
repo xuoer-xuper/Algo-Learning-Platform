@@ -27,6 +27,6 @@
 
 ```powershell
 cd algo-electron
-npm run test:db
-npm run typecheck
+pnpm run test:db
+pnpm run typecheck
 ```

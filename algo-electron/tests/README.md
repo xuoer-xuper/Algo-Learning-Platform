@@ -63,9 +63,9 @@
 
 ```powershell
 cd algo-electron
-npm run test:unit
-npm run test:watch
-npm run test:coverage
+pnpm run test:unit
+pnpm run test:watch
+pnpm run test:coverage
 ```
 
 覆盖率只统计 `electron/` 与 `src/` 生产代码，报告写入 `tmp/coverage/`，实测值以最近一次全量验证报告为准。`vitest.config.ts` 当前门槛为 statements 65%、branches 60%、functions 62%、lines 68%，只能随覆盖率上调、不能下调。新增测试应逐步抬高门槛，不能通过把测试文件计入覆盖率来抬高数字。
@@ -76,85 +76,85 @@ npm run test:coverage
 
 ```powershell
 cd algo-electron
-npm run typecheck
+pnpm run typecheck
 ```
 
 核心验证：
 
 ```powershell
-npm run test:core
+pnpm run test:core
 ```
 
 架构红线检查：
 
 ```powershell
-npm run test:architecture
+pnpm run test:architecture
 ```
 
 敏感文件检查：
 
 ```powershell
-npm run test:security
+pnpm run test:security
 ```
 
 AI 规则和追溯测试：
 
 ```powershell
-npm run test:ai
+pnpm run test:ai
 ```
 
 Adapter 测试：
 
 ```powershell
-npm run test:adapters
+pnpm run test:adapters
 ```
 
 Submissions 测试：
 
 ```powershell
-npm run test:submissions
+pnpm run test:submissions
 ```
 
 DB repository 测试：
 
 ```powershell
-npm run test:db
+pnpm run test:db
 ```
 
 文档一致性检查：
 
 ```powershell
-npm run test:docs
+pnpm run test:docs
 ```
 
 打包配置检查：
 
 ```powershell
-npm run test:packaging
+pnpm run test:packaging
 ```
 
 Renderer 性能门槛：
 
 ```powershell
-npm run test:performance
+pnpm run test:performance
 ```
 
 Electron 启动 smoke test：
 
 ```powershell
-npm run test:electron
+pnpm run test:electron
 ```
 
 Renderer 关键页面截图验收：
 
 ```powershell
-npm run test:ui
+pnpm run test:ui
 ```
 
 全量验证：
 
 ```powershell
-npm run test:all
+pnpm run test:all
 ```
 
 `test:core` 会运行 typecheck、lint、architecture guard、security guard，以及核心 Vitest 用例。`test:ai` 会额外运行 AI 输出可追溯性临时数据库测试。`test:all` 会执行带覆盖率门槛的全部 Vitest 用例，再追加 Electron ABI、docs、packaging、performance、Electron smoke 和 Playwright UI 测试。
@@ -184,7 +184,7 @@ npx playwright test tests\ui\rendererScreenshots.pw.spec.ts --grep "narrow conta
 - 文档链接和 README 覆盖规则放 `tests/docs/`。
 - 长期目录 README 的职责、实现程度、封装入口、边界和验证入口规则也放 `tests/docs/`。
 - 长期 Markdown 和模块 README 是否进入 `docs/README.md` 总索引，也由 `tests/docs/` 守卫。
-- 文档中的具体 `npm run <script>` 是否仍存在于 `package.json`，也由 `tests/docs/` 守卫。
+- 文档中的具体 `pnpm run <script>` 是否仍存在于 `package.json`，也由 `tests/docs/` 守卫。
 - 打包配置、发布输入白名单和敏感文件排除规则放 `tests/packaging/`。
 - preload 白名单、IPC channel 和主进程 handler 契约放 `tests/ipc/`；preload 的运行时转发行为（实参顺序、订阅回调 payload）也在这里，与静态契约检查分开。
 - Electron 启动、窗口和基础 preload IPC smoke 放 `tests/electron/`。
@@ -201,7 +201,7 @@ npx playwright test tests\ui\rendererScreenshots.pw.spec.ts --grep "narrow conta
 
 ## 5. 当前缺口
 
-- Renderer UI 已有关键页面截图和布局断言，但完整交互路径仍需 `npm run dev` 手测。
+- Renderer UI 已有关键页面截图和布局断言，但完整交互路径仍需 `pnpm run dev` 手测。
 - Electron session、CookieVault、真实 OJ 登录态依赖手测。
 - 打包产物安装/卸载流程依赖人工验收。
 - Q10 已完成 Coach、题目标题提取和启动接线的行为测试补充；架构守卫持续检查新增源码字符串断言，不能用历史测试数量代替新用户路径的回归。
