@@ -11,6 +11,7 @@
 - [ ] `ci.yml`：`pnpm/action-setup@v4` + `actions/setup-node cache: pnpm`；`pnpm install --frozen-lockfile`。
 - [ ] 文档 `npm run` → `pnpm`（`grep -rl "npm run" docs algo-electron/**/README.md .github`）。
 - 验证：`pnpm test:all`。回滚点：commit `chore(deps): 切换到 pnpm`。
+  - 追加（2026-09-17）：`test:all` 里的 `test:docs` 与 `test:coverage` 两处既有红灯已一并清掉（前者见 0.10，后者见 `prd.md` Notes 的 `tests/setup` 说明），因此本节可以真的用 `test:all` 收口，而不是"跳过已知红"。
 
 ### 0.3 TypeScript 6.0.3
 - [ ] `pnpm add -D typescript@6.0.3 vite-plugin-electron@1.1.2`。

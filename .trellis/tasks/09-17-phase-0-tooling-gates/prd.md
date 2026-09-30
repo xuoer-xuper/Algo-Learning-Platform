@@ -81,3 +81,7 @@
   - pnpm 12 把被忽略的依赖构建脚本从警告升级为 `ERR_PNPM_IGNORED_BUILDS` **安装失败**；`allowBuilds` 是必需配置而非可选优化。
   - `electron` 与 `better-sqlite3` 自身没有 install/postinstall 脚本，Electron 二进制与 native ABI 重建全靠根 `postinstall`；`better-sqlite3` 使用 `prebuilds/*.node`。
   - 文档范围只改 `CONTRIBUTING.md`、`.github/COLLABORATION.md` 与各 README；历史叙述类文档（CHANGELOG、`*PLAN`、审计、TASKS、`AI_HANDOFF.md`、`VERSION_PLAN.md`、`RELEASE_PROCESS.md`）随 6.3 文档重写处理，不改写历史（`migration-status.md` 已记）。
+- 顺带治本的既有缺陷（不属 0.2 产出，但阻塞 0.2 的验收命令 `pnpm test:all`）：
+  - `pnpm test:coverage` 在"覆盖率插桩 + forks 池全量并行"下会红：Testing Library 的 `findBy*`/`waitFor` 默认只轮询 1000ms，`tests/coach/coachMouseEventDedupe.test.ts` 里等「关闭对话」按钮的断言单独跑 345ms 通过、全量跑 1157ms 才就绪，于是超时。**换包管理器之前的 npm 依赖图上同样失败（基线 2/2）**，是既有缺陷。
+  - 处理：新增 `tests/setup/testing-library-timeout.ts`（`asyncUtilTimeout` → 5000ms，仅 jsdom 生效）挂到 `vitest.config.ts` 的 `setupFiles`，并把 `@testing-library/dom`（`configure` 的宿主）提升为直接 devDependency，不再借传递依赖。不放松任何断言，连续 3 次 `pnpm test:coverage` 全绿（169 文件 / 1362 用例）。
+  - `pnpm test:docs` 的 6 条既有红灯同批清掉，口径见 0.10。

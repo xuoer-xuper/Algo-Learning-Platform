@@ -72,6 +72,7 @@ R2 pnpm ──► R3 TS 6.0.3 ──► R4 typescript-eslint ──► R5 pretti
 - `corepack enable` 在本机失败：`EPERM: operation not permitted, open 'C:\Program Files\nodejs\yarnpkg'`（需管理员权限写 Node 安装目录）。替代路径：pnpm 自身会按 `packageManager` 切换版本（实测裸 `pnpm` 11.21.0 在项目内切到 12.8.1），`corepack prepare pnpm@12.8.1` 也可用且无需提权。仓库不依赖 corepack 已被 enable。
 - 副作用：`corepack pnpm <cmd>` 调用链下的嵌套 `pnpm` 会失败（见上），因此本机一律用裸 `pnpm`；CI 里 PATH 上的 pnpm 就是 12.8.1，不存在该问题。
 - store 跨盘 hardlink 警告（`C:` 上的 store 与 `D:` 上的项目不同盘）由 pnpm 自动改用 `D:\.pnpm-store`，属机器级状态，不入库。
+- **换 PM 会重新解析传递依赖**：npm 锁文件是几周前生成的，pnpm 今天对同一批 range 重新求解，于是约百条传递依赖拿到期间发布的 patch（例：`@testing-library/dom` 10.4.1 → 10.4.2）。实测**直接依赖版本全部一致**。没有为此固定上百条传递依赖（那等于把"当时恰好装到什么"固化下来，与既定决策相反）；风险由测试与 CI 兜底，若日后要复现旧图，用 `git show <rev>:algo-electron/package-lock.json` 作对照。
 
 ### 风险（实测结论）
 - **`ERR_PNPM_IGNORED_BUILDS`**：pnpm 10+ 不执行依赖的构建脚本，pnpm 12 把它从警告升级为**安装直接失败**，列出 `esbuild@0.28.2`、`electron-winstaller@5.4.0`。解法是上面的 `allowBuilds`（由 `pnpm approve-builds --all` 写入）。已在 `tests/packaging/check-packaging.mjs` 加守卫：该配置或 `nodeLinker: hoisted` 缺失即红灯。
