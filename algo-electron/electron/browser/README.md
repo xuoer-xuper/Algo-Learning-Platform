@@ -178,7 +178,7 @@ Browser 相关自动测试覆盖提交桥、导航策略、权限策略、Chromi
 ```powershell
 cd algo-electron
 npx vitest run tests/browser
-npm run test:electron
+pnpm run test:electron
 ```
 
 真实 Electron smoke 使用临时 localhost 服务验证默认/ OJ session 权限拒绝，以及 about:blank、GET、POST、OAuth opener/postMessage 弹窗链路。`tabManagerHealth.test.ts` 覆盖活动/后台无响应、等待/恢复、崩溃 view 摘除/替换和关闭竞态；布局契约在 `tests/browser/browserLayout.test.ts` 中覆盖；与实时提交联动的 TabManager 约束在 `tests/submissions/realtimeTabActivation.test.ts` 中覆盖；ContestGuard 的后台标签与销毁聚合路径在 `tests/coach/contestUrlAggregator.test.ts` 中覆盖。

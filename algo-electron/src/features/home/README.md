@@ -35,7 +35,7 @@
 ```powershell
 cd algo-electron
 node node_modules\typescript\bin\tsc --noEmit
-npm run test:ui
+pnpm run test:ui
 ```
 
-涉及交互时启动 `npm run dev`，手测首页加载、题目更新后刷新、空数据和导航入口。
+涉及交互时启动 `pnpm run dev`，手测首页加载、题目更新后刷新、空数据和导航入口。

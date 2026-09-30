@@ -1,6 +1,7 @@
 import type { ScrapedSubmission, SubmissionData } from '../../../shared/types'
 import { nowBeijing } from '../../../shared/time'
 import { pickFinalRealtimeSubmission } from '../../../submissions/realtimeSubmissionFilter'
+import { unknownToText } from '../../../shared/textCoercion'
 import { normalizeVerdict } from '../../verdictMap'
 import type { SubmissionDetectionPayload } from '../../types'
 import {
@@ -169,7 +170,7 @@ export function parseVjudgeStatusData(raw: SubmissionDetectionPayload): Submissi
 export function parseVjudgeSolutionData(raw: SubmissionDetectionPayload): SubmissionData | null {
   const response = asRecord(raw.response)
   if (!response) return null
-  const source = String(response?._source || '')
+  const source = unknownToText(response?._source)
   if (source !== 'vjudge-solution-data' && source !== 'vjudge-solution-detail-dom') return null
 
   const result = asRecord(response.result)

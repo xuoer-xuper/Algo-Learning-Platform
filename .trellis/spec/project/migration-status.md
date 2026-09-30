@@ -7,7 +7,7 @@
 > Plan and evidence: `.trellis/tasks/archive/2026-09/00-bootstrap-guidelines/research/spec-alignment-plan.md`,
 > `spec-alignment-report.md`, `reinvented-wheels-audit.md`.
 
-Last updated: 2026-09-17 (phase 0 not started).
+Last updated: 2026-09-17 (phase 0.2 in progress on `chore/phase-0-tooling-gates`).
 
 ---
 
@@ -15,7 +15,7 @@ Last updated: 2026-09-17 (phase 0 not started).
 
 | Concern | Today | Template target | Phase |
 | --- | --- | --- | --- |
-| App root | `algo-electron/` (single package, npm) | same directory, **pnpm** with `.npmrc` hoisting, `packageManager` field | 0.2 |
+| App root | `algo-electron/` (single package, **pnpm 12.8.1** via `packageManager`; settings in `pnpm-workspace.yaml`: `nodeLinker: hoisted`, `allowBuilds`) | same directory, **pnpm** with hoisting and `packageManager` field | 0.2 |
 | Main process | `algo-electron/electron/` (26 flat domain dirs + `main.ts` 945 lines) | `src/main/{index.ts, db/, ipc/, services/{domain}/{types.ts,procedures/,lib/}}` | 3.2, 3.3 |
 | Preload | `electron/preload.ts` exposing `window.electronAPI` (158 string channels, 85 `as Promise<>` casts) | `src/preload/index.ts` exposing `window.api`, typed via `typeof api`, channels from `@shared/constants/channels` | 2.1, 2.3 |
 | Renderer | `src/{App.tsx, components/, features/, hooks/, shared/, styles/}` flat features | `src/renderer/src/{components/{ui,layout}, features/, modules/{name}/{components,hooks,context,constants.ts,types.ts,index.ts}, hooks/, context/, lib/, styles/}` | 4.1 |
@@ -75,3 +75,8 @@ Last updated: 2026-09-17 (phase 0 not started).
 `algo-coach-showcase.html`, `release-notes.txt`, `algo-electron/docs/ai coach技术栈.md` (rename to ASCII),
 `algo-electron/docs/REFACTOR_HANDOFF.md`, `algo-electron/docs/TASKS.md`, root `AI_HANDOFF.md`,
 `VERSION_PLAN.md` → `docs/ARCHIVE/`. `.trellis/` and `docs/PRODUCT/CHANGELOG.md` take over their role.
+
+Stale `npm` command prose outside READMEs (`docs/OPERATIONS/RELEASE_PROCESS.md`, historical CHANGELOG / PLAN /
+audit / handoff documents, `VERSION_PLAN.md`, `AI_HANDOFF.md`): phase 0.2 converted `CONTRIBUTING.md`,
+`.github/COLLABORATION.md` and every covered `README.md` only; the rest is rewritten together with the
+documents in 6.3, because those files describe what was run at the time and must not be rewritten as history.

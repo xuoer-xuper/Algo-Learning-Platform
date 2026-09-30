@@ -24,8 +24,11 @@ export function aggregateContextTagStats(): ContextTagStat[] {
   const tagMap = new Map<string, ContextTagAggregate>()
   for (const row of rows) {
     for (const tag of parseTagsJson(row.tags_json)) {
-      if (!tagMap.has(tag)) tagMap.set(tag, { total: 0, solved: 0, attempted: 0 })
-      const entry = tagMap.get(tag)!
+      let entry = tagMap.get(tag)
+      if (!entry) {
+        entry = { total: 0, solved: 0, attempted: 0 }
+        tagMap.set(tag, entry)
+      }
       entry.total++
       if (row.status === 'solved') entry.solved++
       else if (row.status === 'attempted') entry.attempted++

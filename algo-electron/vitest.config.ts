@@ -26,6 +26,9 @@ export default defineConfig({
       'tests/electron/userScriptRuntimeSmoke.test.ts',
     ],
     environment: 'node',
+    // Testing Library 的默认 1s 轮询预算低于本仓库的运行环境（覆盖率插桩 + forks 池
+    // 全量并行），设置文件与理由见 tests/setup/README.md。
+    setupFiles: ['./tests/setup/testing-library-timeout.ts'],
     pool: 'forks',
     isolate: true,
     fileParallelism: true,

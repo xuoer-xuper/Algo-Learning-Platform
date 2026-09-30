@@ -25,7 +25,8 @@
     "09-17-phase-3-main-process",
     "09-17-phase-4-renderer",
     "09-17-phase-5-tests",
-    "09-17-phase-6-cleanup-release"
+    "09-17-phase-6-cleanup-release",
+    "09-30-typed-lint-debt"
   ],
   "parent": null,
   "relatedFiles": [],

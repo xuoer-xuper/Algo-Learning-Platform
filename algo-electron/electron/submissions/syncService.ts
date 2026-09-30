@@ -62,10 +62,12 @@ export class SyncService {
     if (!handle) return { platform: 'codeforces', fetched: 0, inserted: 0, error: '请输入 Codeforces Handle' }
     try {
       const adapter = getAdapter('codeforces')
-      if (!adapter?.syncSubmissions) {
+      const syncSubmissions = adapter?.syncSubmissions
+      if (!syncSubmissions) {
         return { platform: 'codeforces', fetched: 0, inserted: 0, error: 'Codeforces adapter not ready' }
       }
-      const submissions = await this.withRetry(() => adapter.syncSubmissions!({ handle }))
+      // 按契约该方法不依赖 this，先取引用再调用；guard 保证引用存在。
+      const submissions = await this.withRetry(() => syncSubmissions({ handle }))
       return this.writeSubmissions('codeforces', submissions)
     } catch (error: unknown) {
       return { platform: 'codeforces', fetched: 0, inserted: 0, error: errorMessage(error) }

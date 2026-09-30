@@ -15,7 +15,7 @@
 
 ```powershell
 cd algo-electron
-npm run test:ai
+pnpm run test:ai
 ```
 
 ## 4. 新增规则

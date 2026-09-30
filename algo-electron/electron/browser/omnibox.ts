@@ -144,9 +144,16 @@ export function normalizeSearchEngineConfig(value: unknown): SearchEngineConfig 
 
 export function buildSearchUrl(query: string, config: SearchEngineConfig): string {
   const normalizedConfig = normalizeSearchEngineConfig(config)
-  const template = normalizedConfig.engine === 'custom'
-    ? normalizedConfig.customTemplate!
-    : BUILT_IN_SEARCH_TEMPLATES[normalizedConfig.engine]
+  let template: string
+  if (normalizedConfig.engine === 'custom') {
+    // normalizeSearchEngineConfig 保证 custom 分支一定带模板；直接传未归一化的配置时
+    // 沿用原先 `customTemplate!` 后立刻调用 .replace 的抛错行为（这里换成显式 throw）。
+    const customTemplate = normalizedConfig.customTemplate
+    if (!customTemplate) throw new Error('自定义搜索引擎缺少 URL 模板')
+    template = customTemplate
+  } else {
+    template = BUILT_IN_SEARCH_TEMPLATES[normalizedConfig.engine]
+  }
   return template.replace(QUERY_PLACEHOLDER, encodeURIComponent(query))
 }
 
@@ -192,7 +199,7 @@ function resolveWebUrl(value: string, allowInsecureLocalhost: boolean): OmniboxR
   const decision = evaluateBrowserNavigation(parsed.toString(), { allowInsecureLocalhost })
   return decision.allowed
     ? { kind: 'url', url: parsed.toString() }
-    : { kind: 'blocked', reason: decision.reason! }
+    : { kind: 'blocked', reason: decision.reason }
 }
 
 export function resolveOmniboxInput(

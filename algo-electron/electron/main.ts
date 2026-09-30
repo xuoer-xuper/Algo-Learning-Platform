@@ -301,7 +301,6 @@ async function createWindowOnce(
   })
 
   const allowInsecureLocalhost = Boolean(VITE_DEV_SERVER_URL || STARTUP_SMOKE_MODE)
-  let tabManager: TabManager
   const notifyNavigationBlocked = (reason: NavigationBlockReason): void => {
     if (!win.isDestroyed()) win.webContents.send('ui:command', { type: 'navigation-blocked', reason })
   }
@@ -311,7 +310,7 @@ async function createWindowOnce(
       allowInsecureLocalhost,
     })
     if (!decision.allowed) {
-      notifyNavigationBlocked(decision.reason!)
+      notifyNavigationBlocked(decision.reason)
       return
     }
     tabManager.createTab(url)
@@ -328,8 +327,10 @@ async function createWindowOnce(
     openInManagedTab(url)
   })
 
-  // 创建多标签页宿主
-  tabManager = new TabManager(win, {
+  // 创建多标签页宿主。构造位置没有变，仍在上面两个事件闭包注册之后：它们捕获的是绑定，
+  // 调用发生在构造之后。原本写成 `let tabManager: TabManager` + 延迟赋值只是为了绕开
+  // "声明处必须初始化"，改成 `const` 后语义不变，同时消掉 prefer-const 的告警。
+  const tabManager = new TabManager(win, {
     allowInsecureLocalhost,
     getZoomFactorForUrl,
     saveZoomFactorForUrl,
@@ -459,9 +460,9 @@ async function createWindowOnce(
   })
 
   if (VITE_DEV_SERVER_URL) {
-    win.loadURL(VITE_DEV_SERVER_URL)
+    void win.loadURL(VITE_DEV_SERVER_URL)
   } else {
-    win.loadURL(shellUrl('/index.html'))
+    void win.loadURL(shellUrl('/index.html'))
   }
 
   win.once('ready-to-show', () => {

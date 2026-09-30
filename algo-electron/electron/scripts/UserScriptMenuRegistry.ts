@@ -58,7 +58,7 @@ export class UserScriptMenuRegistry {
       .map(command => ({
         scriptName: command.scriptName,
         name: command.name,
-        invoke: command.invoke,
+        invoke: () => command.invoke(),
       }))
   }
 

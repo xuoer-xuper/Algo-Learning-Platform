@@ -152,7 +152,7 @@ node node_modules\typescript\bin\tsc --noEmit
 Repository 和备份导入临时数据库测试：
 
 ```powershell
-npm run test:db
+pnpm run test:db
 ```
 
 说明：`better-sqlite3` 当前按 Electron ABI 编译，真实 SQLite 测试需要用 Electron 自带 Node 运行；普通 `node`/`tsx` 会因 native module ABI 不匹配失败。

@@ -61,10 +61,10 @@
 
 ```powershell
 cd algo-electron
-npm run typecheck
-npm run lint
-npm run test:coach
-npm run test:all
+pnpm run typecheck
+pnpm run lint
+pnpm run test:coach
+pnpm run test:all
 npx vitest run tests/coach/coachOrchestratorLifecycle.test.ts
 ```
 

@@ -87,6 +87,6 @@ export function registerRatingIpc(): void {
     const db = getDb()
     return db.prepare(`
       SELECT * FROM contest_results WHERE account_id = ? ORDER BY contest_at DESC LIMIT 20
-    `).all(accountId) as Record<string, unknown>[]
+    `).all(accountId)
   })
 }

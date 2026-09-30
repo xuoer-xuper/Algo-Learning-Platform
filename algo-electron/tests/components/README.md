@@ -28,6 +28,6 @@ renderer 基础 UI 组件及壳层共享组件的 jsdom 测试：渲染结构、
 
 ## 验证入口
 
-`npm run test:unit` / `npm run test:coverage`。
+`pnpm run test:unit` / `pnpm run test:coverage`。
 
 独立审计入口：`node tests/components/runAuditNoteSave.mjs`，结果写入 `tmp/audit-20260911/note-save-ui-results.json`。修复时应转换为正确行为的回归测试，详见 [第一批审计报告](../../../docs/OPERATIONS/PROJECT_AUDIT_BATCH1_2026_09_11.md)。

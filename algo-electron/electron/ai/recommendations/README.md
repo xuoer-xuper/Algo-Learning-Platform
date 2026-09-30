@@ -43,7 +43,7 @@
 ```powershell
 cd algo-electron
 node node_modules\typescript\bin\tsc --noEmit
-npm run test:ai
+pnpm run test:ai
 ```
 
 涉及建议口径时补充 AI/repository 相关测试，并手测首页和统计页的降级展示。

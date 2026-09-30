@@ -241,7 +241,7 @@ interface RatingHistoryRecord {
   contest_at?: string | null
 }
 
-interface ContestResultRecord extends RatingHistoryRecord {}
+type ContestResultRecord = RatingHistoryRecord
 
 interface SiteConfigRecord {
   id: string

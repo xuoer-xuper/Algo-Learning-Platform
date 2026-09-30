@@ -14,13 +14,13 @@
 
 ## 3. 实现程度
 
-当前 CI 使用 Windows runner、Node.js 22 和干净的 `npm ci`。自动 fast guard 执行 `npm run test:core` + `npm run test:packaging` + `npm run test:docs`，因此每个 PR/push 都会检查 electron-builder 的 fuses、asar 输入白名单和 better-sqlite3 解包边界；集中验收时手动运行 workflow，追加 `npm run test:all`、`npm run build:check` 与隔离 userData 的 packaged app smoke。完整覆盖 TypeScript、lint、Vitest 单元/集成与覆盖率门槛、IPC contract、adapter、submission、DB repository、Electron smoke、Playwright renderer 和生产主进程构建验证。
+当前 CI 使用 Windows runner、Node.js 22 和干净的 `pnpm install --frozen-lockfile`。自动 fast guard 执行 `pnpm run test:core` + `pnpm run test:packaging` + `pnpm run test:docs`，因此每个 PR/push 都会检查 electron-builder 的 fuses、asar 输入白名单和 better-sqlite3 解包边界；集中验收时手动运行 workflow，追加 `pnpm run test:all`、`pnpm run build:check` 与隔离 userData 的 packaged app smoke。完整覆盖 TypeScript、lint、Vitest 单元/集成与覆盖率门槛、IPC contract、adapter、submission、DB repository、Electron smoke、Playwright renderer 和生产主进程构建验证。
 
 CI 不访问真实 OJ 登录态，不提交代码，不读取 Cookie，也不替代七站实时提交手测、站点风控验证或安装包安装/卸载验收。
 
 ## 4. 修改边界
 
-- 新增 workflow 时优先复用 `algo-electron/package.json` 中的 `npm run test:*` 入口。
+- 新增 workflow 时优先复用 `algo-electron/package.json` 中的 `pnpm run test:*` 入口。
 - 不在 workflow、issue 或 PR 模板中要求上传 Cookie、session、csrf token、用户源码、完整请求体、本机数据库内容或可复用登录态。
 - 提交监测模板只能要求安全诊断文本、公开页面 URL 和最终表现。
 - 发布相关自动化必须继续遵守 `docs/OPERATIONS/RELEASE_PROCESS.md`，不能绕过安装、升级、卸载和敏感文件检查。
@@ -31,8 +31,8 @@ CI 不访问真实 OJ 登录态，不提交代码，不读取 Cookie，也不替
 
 ```powershell
 cd algo-electron
-npm ci
-npm run test:all
+pnpm install --frozen-lockfile
+pnpm run test:all
 ```
 
 文档和模板改动后还应检查 Markdown 链接和 `git diff --check`。

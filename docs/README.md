@@ -22,6 +22,7 @@
 | [SECURITY](GOVERNANCE/SECURITY.md) | Cookie、用户数据、导出、日志和安全报告边界。 |
 | [COLLABORATION](../.github/COLLABORATION.md) | GitHub 协作配置：CI workflow、PR 模板、issue 模板。 |
 | [AI_HANDOFF](../AI_HANDOFF.md) | AI 助手工作交接记录，记录最近完成任务和待办事项。 |
+| [AGENTS](../AGENTS.md) | 面向 AI 编码代理的项目说明与 Trellis 工作流入口。 |
 
 ## 设计契约
 
@@ -161,6 +162,7 @@
 | test performance | [tests/performance/README](../algo-electron/tests/performance/README.md) |
 | test scripts | [tests/scripts/README](../algo-electron/tests/scripts/README.md) |
 | test security | [tests/security/README](../algo-electron/tests/security/README.md) |
+| test setup | [tests/setup/README](../algo-electron/tests/setup/README.md) |
 | test shared | [tests/shared/README](../algo-electron/tests/shared/README.md) |
 | test shortcuts | [tests/shortcuts/README](../algo-electron/tests/shortcuts/README.md) |
 | test submissions | [tests/submissions/README](../algo-electron/tests/submissions/README.md) |
@@ -175,7 +177,7 @@
 
 - `docs/` 下除 `README.md` 外，Markdown 文件名必须使用大写和下划线。
 - 新增长期 Markdown、ADR 或被覆盖目录 README 后，必须同步本文索引。
-- 文档中引用具体 `npm run <script>` 时，该脚本必须存在于 `algo-electron/package.json`。
+- 文档中引用具体 `pnpm run <script>` 时，该脚本必须存在于 `algo-electron/package.json`。
 - 数据库 schema 变化必须同步 [DATABASE_SCHEMA](DESIGN/DATABASE_SCHEMA.md)。
 - 提交监测、站点 adapter、实时 hook 变化必须同步 [SUBMISSION_MONITORING_DESIGN](DESIGN/SUBMISSION_MONITORING_DESIGN.md) 和 [SITE_ADAPTER_GUIDE](DESIGN/SITE_ADAPTER_GUIDE.md)。
 - 文档和示例不得记录 Cookie、用户源码、完整请求体、本机数据库内容或可复用登录态。

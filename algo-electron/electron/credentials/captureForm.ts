@@ -43,7 +43,7 @@ function findValue(
 ): string | null {
   for (const selector of selectors) {
     try {
-      const field = form.querySelector(selector) as HTMLInputElement | null
+      const field = form.querySelector<HTMLInputElement>(selector)
       if (!field || field.disabled || field.readOnly || field.type === 'hidden') continue
       const value = field.value.trim()
       if (value.length > 0) return value

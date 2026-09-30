@@ -1,4 +1,4 @@
-import { Database } from 'better-sqlite3'
+import type { Database } from 'better-sqlite3'
 
 // P6-003: 提交记录关联代码片段或文件路径
 // 不强制复制用户本地代码，支持内联片段或外部文件路径引用

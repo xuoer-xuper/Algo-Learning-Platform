@@ -130,7 +130,7 @@ export function NotePanelModal({ problemId, onClose }: Props) {
   }
 
   const handleOpenDir = () => {
-    openNotesDirectory()
+    void openNotesDirectory()
   }
 
   return (

@@ -58,7 +58,7 @@
 
 ```powershell
 cd algo-electron
-npm run test:coach
+pnpm run test:coach
 ```
 
 覆盖测试：24 个单元测试，覆盖核心规则、节流、防 abuse、比赛硬关闭、never_today、难度自适应。

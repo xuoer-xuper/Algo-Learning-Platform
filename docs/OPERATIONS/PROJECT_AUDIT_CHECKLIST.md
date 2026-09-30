@@ -96,7 +96,7 @@
 | F-05 | [CoachFeedbackStore.ts](../../algo-electron/electron/coach/CoachFeedbackStore.ts) 的每日升级计数在进程内；[AI_HANDOFF.md](../../AI_HANDOFF.md) 已记录重启清零。 | 已确认属于已知限制。是否为功能 bug 取决于“每日额度”是否要求跨重启持续；不能当成本轮新发现。 | 对照 UI 和成本控制用途，复验重启/跨日；关联 AI-08。 |
 | F-06 | [vite.config.ts](../../algo-electron/vite.config.ts) 将 `ARK_DEMO_KEY` 构建时替换为字符串；[LlmConfigStore.ts](../../algo-electron/electron/coach/llm/LlmConfigStore.ts) 可降级使用它。 | 已确认有把环境变量编进产物的路径。未检查到或输出任何真实密钥，未证明实际发行包含有效 Key。 | 只用假标记值构建并检查产物，再核对发行策略；关联 SEC-10。 |
 | F-07 | [registerCoachIpc.ts](../../algo-electron/electron/ipc/registerCoachIpc.ts) 对 `base_url` 做长度/类型校验；连接测试允许空 Key 时读取已保存 Key；[ArkClient.ts](../../algo-electron/electron/coach/llm/ArkClient.ts) 将其交给 SDK。 | 已确认配置来源与密钥出站目标需一起审查。自定义 LLM 地址是合法功能，不能单凭可改地址判定远程攻击成功。 | 用假 Key 和本地受控服务验证 HTTP、重定向、换 host 与授权提示；关联 SEC-09。 |
-| F-08 | 官方 npm audit 与 `npm explain`；[package-lock.json](../../algo-electron/package-lock.json) 锁定两个受影响版本。 | 已确认构建依赖含公告影响版本。`fast-uri` 经 electron-builder/app-builder-lib/ajv 引入；xmldom 经 plist 和 macOS 打包相关依赖引入。公告评级不直接等于桌面应用风险评级。 | 分析输入可控性、打包平台和发行包可达性，评估升级验证；关联 REL-03。 |
+| F-08 | 官方 npm audit 与 `npm explain`（审计当时用 npm 锁文件；阶段 0.2 起锁文件为 pnpm）；[pnpm-lock.yaml](../../algo-electron/pnpm-lock.yaml) 锁定两个受影响版本。 | 已确认构建依赖含公告影响版本。`fast-uri` 经 electron-builder/app-builder-lib/ajv 引入；xmldom 经 plist 和 macOS 打包相关依赖引入。公告评级不直接等于桌面应用风险评级。 | 分析输入可控性、打包平台和发行包可达性，评估升级验证；关联 REL-03。 |
 | F-09 | [checkRendererBundle.mjs](../../algo-electron/tests/performance/checkRendererBundle.mjs) 检查入口及 lazy chunk 名称；入口门槛为旧 2,221,300 bytes 基线的 65%，约 1.44 MB。 | 已确认“性能测试”覆盖范围窄，门槛显著高于本次约 194 KB 入口，不能有效约束所有实际性能退化。 | 测传递依赖加载、总 JS/CSS 和运行时资源；关联 PERF-01/02、QA-06。 |
 | F-10 | [ci.yml](../../.github/workflows/ci.yml) 普通 PR 运行 core、配置/docs 和 renderer smoke；完整验证与 packaged smoke 是手动任务；[verify.mjs](../../algo-electron/tests/verify.mjs) 的真实 DB/AI/safeStorage 专项未全部纳入普通 PR。 | 已确认 CI 覆盖边界。部分 README 仍将 CI 概括为运行 `test:all`，需要核对和校正；不能说项目没有相关测试。 | 建立 PR 与发布检查映射；关联 QA-01/02、PROD-07。 |
 | F-11 | 全量 Vitest 通过时，路由过渡和笔记隔离测试输出 `flushSync was called from inside a lifecycle method`；[ShellRouter.tsx](../../algo-electron/src/components/ShellRouter.tsx) 有 effect 内同步刷新分支。 | 已确认警告可见；尚未证明生产页面卡死或丢失输入。 | 在真实 Electron 快速切页、懒加载和降级路径记录命中与控制台；关联 UI-04、QA-04。 |
@@ -435,7 +435,7 @@
 
 ### 6.14 依赖、构建、发布与运维
 
-入口：[package.json](../../algo-electron/package.json)、[package-lock.json](../../algo-electron/package-lock.json)、[electron-builder.json5](../../algo-electron/electron-builder.json5)、[RELEASE_PROCESS](RELEASE_PROCESS.md)、CI 与发布流程。
+入口：[package.json](../../algo-electron/package.json)、[pnpm-lock.yaml](../../algo-electron/pnpm-lock.yaml)、[electron-builder.json5](../../algo-electron/electron-builder.json5)、[RELEASE_PROCESS](RELEASE_PROCESS.md)、CI 与发布流程。
 
 | ID | 顺序 | 检查什么 | 方法与判定标准 |
 |---|---|---|---|

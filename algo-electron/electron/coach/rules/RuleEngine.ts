@@ -4,7 +4,6 @@ import type {
   CoachEventType,
   CoachIntervention,
   CoachInterventionLevel,
-  CoachInterventionSourceType,
   CoachInterventionUserAction,
   ProblemSession,
 } from '../types'
@@ -181,6 +180,7 @@ export class RuleEngine {
 
     // 6. 产出 RuleResult
     const built = rule.build(ctx)
+    if (!built) return null
     const result: RuleResult = {
       triggered: true,
       trigger_reason: built.trigger_reason,
@@ -393,7 +393,7 @@ export class RuleEngine {
       event_id: event.event_id,
       trigger_reason: result.trigger_reason,
       intervention_level: result.intervention_level,
-      source_type: 'local_rule' as CoachInterventionSourceType,
+      source_type: 'local_rule',
       message: result.message,
       related_tags: result.related_tags,
       user_action: overrides?.user_action ?? 'shown',

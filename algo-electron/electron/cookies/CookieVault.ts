@@ -1,4 +1,5 @@
-import { session, Session } from 'electron'
+import type { Session } from 'electron';
+import { session } from 'electron'
 import { getSiteById } from '../db/repositories/siteRepository'
 import {
   getCookieSummaryByDomain,

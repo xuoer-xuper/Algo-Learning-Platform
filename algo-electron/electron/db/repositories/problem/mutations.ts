@@ -20,7 +20,11 @@ export function upsertProblem(identity: ProblemIdentity): void {
     'SELECT id, title FROM problems WHERE platform = ? AND platform_problem_id = ?',
   ).get(identity.platform, identity.platformProblemId) as ExistingProblemTitleRow | undefined
 
-  const title = isValidScrapedTitle(identity.title) ? identity.title!.trim() : null
+  const scrapedTitle = identity.title
+  let title: string | null = null
+  if (isValidScrapedTitle(scrapedTitle)) {
+    title = scrapedTitle.trim()
+  }
 
   if (existing) {
     const shouldUpdateTitle = shouldReplaceScrapedTitle(existing.title, title)

@@ -1,9 +1,12 @@
 export type NavigationBlockReason = 'invalid-url' | 'insecure-http' | 'unsupported-protocol'
 
-export interface NavigationDecision {
-  allowed: boolean
-  reason?: NavigationBlockReason
-}
+/**
+ * 被拒绝时必然给出原因，允许时必然没有原因：用可辨识联合把这一不变量写进类型，
+ * 调用点无需再对被拒分支的 reason 做非空断言。
+ */
+export type NavigationDecision =
+  | { allowed: true }
+  | { allowed: false; reason: NavigationBlockReason }
 
 export interface NavigationPolicyOptions {
   allowInsecureLocalhost?: boolean

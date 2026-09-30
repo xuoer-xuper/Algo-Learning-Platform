@@ -22,8 +22,8 @@ Vite 构建时会把本目录文件复制到 `dist/`。Electron 运行时代码�
 
 ```powershell
 cd algo-electron
-npm run test:ui
-npm run build
+pnpm run test:ui
+pnpm run build
 ```
 
-发布前使用 `npm run test:all` 和 `docs/OPERATIONS/RELEASE_PROCESS.md` 的打包检查。
+发布前使用 `pnpm run test:all` 和 `docs/OPERATIONS/RELEASE_PROCESS.md` 的打包检查。

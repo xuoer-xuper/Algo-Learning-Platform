@@ -115,12 +115,11 @@ export function computeCoachMetrics(
   }
   const interventionProblemIds = Array.from(earliestInterventionByProblem.keys())
   let postInterventionAcCount = 0
-  for (const pid of interventionProblemIds) {
+  for (const [pid, earliest] of earliestInterventionByProblem) {
     const firstAcAt = acMap.get(pid) ?? null
     if (!firstAcAt) continue
     const acTs = Date.parse(firstAcAt)
     if (Number.isNaN(acTs)) continue
-    const earliest = earliestInterventionByProblem.get(pid)!
     if (acTs >= earliest) postInterventionAcCount++
   }
   const interventionProblemCount = interventionProblemIds.length

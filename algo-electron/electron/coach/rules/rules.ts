@@ -54,8 +54,8 @@ export interface Rule {
   matches(ctx: RuleContext): boolean
   /** 评分函数：返回 0-100 */
   score(ctx: RuleContext): number
-  /** 生成触发结果（消息/标签等） */
-  build(ctx: RuleContext): Omit<RuleResult, 'triggered' | 'score'>
+  /** 生成触发结果（消息/标签等）；上下文缺少必需字段时返回 null，调用方据此跳过 */
+  build(ctx: RuleContext): Omit<RuleResult, 'triggered' | 'score'> | null
 }
 
 /** 节流窗口：同类型事件 30 分钟内不重复触发 */
@@ -95,7 +95,8 @@ const idleTooLongRule: Rule = {
     return session.detected_stuck_level > 0 || session.active_seconds >= 600
   },
   score(ctx) {
-    const session = ctx.session!
+    const session = ctx.session
+    if (!session) return 0
     const level = session.detected_stuck_level
     let base = 30
     base += level * 15
@@ -106,7 +107,8 @@ const idleTooLongRule: Rule = {
     return clamp(base, 0, 100)
   },
   build(ctx) {
-    const session = ctx.session!
+    const session = ctx.session
+    if (!session) return null
     const level = session.detected_stuck_level
     const messages = {
       1: '已经 10 分钟没提交了。要不要先把思路写下来？',
@@ -207,12 +209,14 @@ const longSessionRule: Rule = {
     return session.active_seconds >= 90 * 60
   },
   score(ctx) {
-    const session = ctx.session!
+    const session = ctx.session
+    if (!session) return 0
     const overMin = Math.floor((session.active_seconds - 90 * 60) / 60)
     return clamp(40 + overMin, 0, 100)
   },
   build(ctx) {
-    const session = ctx.session!
+    const session = ctx.session
+    if (!session) return null
     const minutes = Math.floor(session.active_seconds / 60)
     return {
       trigger_reason: `long_session (${minutes}min active)`,

@@ -12,7 +12,7 @@ export function isBadScrapedTitle(title: string | null | undefined): boolean {
   return false
 }
 
-export function isValidScrapedTitle(title: string | null | undefined): boolean {
+export function isValidScrapedTitle(title: string | null | undefined): title is string {
   if (!title?.trim()) return false
   const t = title.trim()
   if (t.length > 200) return false

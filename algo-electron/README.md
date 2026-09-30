@@ -19,20 +19,22 @@
 
 ## 3. 开发命令
 
+前置：Node.js `>=22.18.0 <25`（`engines`）；包管理器固定为 pnpm `12.8.1`（`package.json` 的 `packageManager`，已有 pnpm 会按该字段自行切换到该版本，corepack 环境由 corepack 解析）。项目设置写在 `pnpm-workspace.yaml`（扁平 `nodeLinker: hoisted` 与依赖构建脚本白名单），不再使用 `.npmrc`；`package-lock.json` 已删除，仓库只维护 `pnpm-lock.yaml`。
+
 ```powershell
-npm run dev
+pnpm run dev
 ```
 
 启动 Vite + Electron 开发环境。
 
 ```powershell
-npm run typecheck
+pnpm run typecheck
 ```
 
 执行 TypeScript 类型检查。
 
 ```powershell
-npm run lint
+pnpm run lint
 ```
 
 执行 ESLint。当前 lint 门槛要求零 warning；规则允许 DB row、网络 payload、测试 mock 等动态边界保留显式 `any`，收窄这些类型时应按模块逐步推进。
@@ -40,90 +42,90 @@ npm run lint
 测试栈按运行环境分工：Vitest 是纯 Node TypeScript 单元/集成测试 runner；Playwright Test 驱动真实 Electron 完成 renderer UI/E2E 验收；`tests/verify.mjs` 只是验证编排器，负责组合类型、lint、守卫和标准测试，并启动必须匹配 Electron ABI 或使用 `safeStorage` 的少数专项测试。新增普通测试不得扩展为自研断言或发现机制，具体规则见 `tests/README.md`。
 
 ```powershell
-npm run test:unit
-npm run test:watch
-npm run test:coverage
+pnpm run test:unit
+pnpm run test:watch
+pnpm run test:coverage
 ```
 
 分别执行全部纯 Node Vitest 用例、开发期 watch，以及带全局门槛的 V8 覆盖率检查。覆盖率报告写入 `tmp/coverage/`。
 
 ```powershell
-npm run test:core
+pnpm run test:core
 ```
 
 执行核心验证，包括类型检查、lint、architecture guard、IPC contract、AI 规则、用户脚本 metadata、browser、parser 和 integration 测试。
 
 ```powershell
-npm run test:ai
+pnpm run test:ai
 ```
 
 执行 AI 规则和可追溯性验证，包括临时数据库中的复习建议、薄弱标签、复习计划依据检查和敏感 payload 排除。
 
 ```powershell
-npm run test:architecture
+pnpm run test:architecture
 ```
 
 单独执行架构红线检查，覆盖 BrowserView、preload、renderer IPC、Nowcoder/VJudge 实时入库等禁止回归规则。
 
 ```powershell
-npm run test:security
+pnpm run test:security
 ```
 
 单独执行敏感文件检查，覆盖 `.env`、本地数据库、日志和高置信 Cookie/header 明文模式。
 
 ```powershell
-npm run test:electron
+pnpm run test:electron
 ```
 
 执行 Electron 启动 smoke test。该测试使用临时 `userData`，验证主窗口、默认 URL 标签和基础 preload IPC。
 
 ```powershell
-npm run test:ui
+pnpm run test:ui
 ```
 
 使用 Playwright Test 驱动真实 Electron 完成 renderer 关键交互和截图验收。截图输出到 `tmp/ui-screenshots/`，覆盖题库侧栏、统计页、设置/LLM、Coach 指标和笔记编辑器，并按实际容器宽度检查响应式布局。
 
 ```powershell
-npm run test:adapters
-npm run test:submissions
-npm run test:db
-npm run test:docs
-npm run test:packaging
-npm run test:performance
+pnpm run test:adapters
+pnpm run test:submissions
+pnpm run test:db
+pnpm run test:docs
+pnpm run test:packaging
+pnpm run test:performance
 ```
 
 分别执行站点 adapter、提交监测、数据库 repository、文档一致性、打包配置和 renderer 性能门槛测试。提交监测、repository、文档索引、打包配置或 lazy chunk 相关改动必须跑对应 suite。
 
 ```powershell
-npm run test:all
+pnpm run test:all
 ```
 
 执行当前自动测试全集；包含 Vitest 覆盖率门槛、文档一致性、打包配置、Electron smoke 和 Playwright UI 验收，耗时比 `test:core` 更长。
 
-仓库 CI 使用 `.github/workflows/ci.yml` 在 Windows runner 上执行 `npm ci` 和 `npm run test:all`。CI 不覆盖真实 OJ 登录态、七站提交手测或安装包安装/卸载验收。
+仓库 CI 使用 `.github/workflows/ci.yml` 在 Windows runner 上执行 `pnpm install --frozen-lockfile` 和 `pnpm run test:all`。CI 不覆盖真实 OJ 登录态、七站提交手测或安装包安装/卸载验收。
 
-`npm install` 和 `npm ci` 会通过 `postinstall` 先显式下载 Electron 二进制，再运行 `electron-builder install-app-deps`，将 `better-sqlite3` 重建为当前 Electron ABI。切换 Electron 版本或原生依赖后，也可以手动运行：
+`pnpm install` 和 `pnpm install --frozen-lockfile` 会通过 `postinstall` 先显式下载 Electron 二进制，再运行 `electron-builder install-app-deps`，将 `better-sqlite3` 重建为当前 Electron ABI。切换 Electron 版本或原生依赖后，也可以手动运行：
 
 ```powershell
-npm run install:electron
-npm run install:app-deps
+pnpm run install:electron
+pnpm run install:app-deps
 ```
 
 ```powershell
-npm run build
+pnpm run build
 ```
 
 执行 `tsc && vite build && electron-builder`，生成发行包。
 
 ```powershell
-npm run build:win
+pnpm run build:win
 ```
 
 显式执行 Windows NSIS x64 打包，输出到 `release/${version}`。
 发布前必须按根目录 `docs/OPERATIONS/RELEASE_PROCESS.md` 完成版本/changelog、自动验证、产物检查、安装升级卸载验收和交接记录。
 
 ```powershell
-npm run preview
+pnpm run preview
 ```
 
 预览 Vite renderer 构建产物，不等价于完整 Electron 运行验收。

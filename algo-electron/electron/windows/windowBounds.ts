@@ -12,7 +12,7 @@ export const MAIN_WINDOW_BOUNDS = {
 const WINDOW_STATE_VERSION = 1
 const MAX_WINDOW_STATE_BYTES = 16 * 1024
 
-export interface WindowDisplayArea extends Rectangle {}
+export type WindowDisplayArea = Rectangle
 
 export interface PersistedWindowState {
   version: 1
@@ -20,7 +20,7 @@ export interface PersistedWindowState {
   maximized: boolean
 }
 
-interface WindowStateWindow extends Pick<BrowserWindow, 'getNormalBounds' | 'isDestroyed' | 'isMaximized' | 'on' | 'off'> {}
+type WindowStateWindow = Pick<BrowserWindow, 'getNormalBounds' | 'isDestroyed' | 'isMaximized' | 'on' | 'off'>
 
 function isFiniteInteger(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value) && Number.isInteger(value)
@@ -71,18 +71,19 @@ export function normalizeWindowState(
   if (!value || typeof value !== 'object') return fallback
   const candidate = value as Partial<PersistedWindowState>
   if (candidate.version !== WINDOW_STATE_VERSION || !isRectangle(candidate.bounds)) return fallback
+  const persistedBounds = candidate.bounds
 
   const availableDisplays = displayAreas.length > 0 ? displayAreas : [primaryDisplayArea]
   const targetDisplay = availableDisplays.reduce<{ area: WindowDisplayArea; overlap: number }>(
     (best, area) => {
-      const overlap = intersectionArea(candidate.bounds!, area)
+      const overlap = intersectionArea(persistedBounds, area)
       return overlap > best.overlap ? { area, overlap } : best
     },
     { area: primaryDisplayArea, overlap: 0 },
   )
   const area = targetDisplay.overlap > 0 ? targetDisplay.area : primaryDisplayArea
-  const width = Math.min(Math.max(candidate.bounds.width, MAIN_WINDOW_BOUNDS.minWidth), area.width)
-  const height = Math.min(Math.max(candidate.bounds.height, MAIN_WINDOW_BOUNDS.minHeight), area.height)
+  const width = Math.min(Math.max(persistedBounds.width, MAIN_WINDOW_BOUNDS.minWidth), area.width)
+  const height = Math.min(Math.max(persistedBounds.height, MAIN_WINDOW_BOUNDS.minHeight), area.height)
   const maximumX = area.x + Math.max(0, area.width - width)
   const maximumY = area.y + Math.max(0, area.height - height)
 

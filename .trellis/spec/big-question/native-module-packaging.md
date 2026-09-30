@@ -12,7 +12,7 @@ Require stack:
 - /path/to/app.asar/.vite/build/main.js
 ```
 
-Development (`npm start`) works fine, but packaged app (`npm run package`) fails.
+Development (`npm start`) works fine, but the packaged-app build fails.
 
 ## Common Native Modules Affected
 

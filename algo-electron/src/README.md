@@ -102,7 +102,7 @@ node node_modules\typescript\bin\tsc --noEmit
 涉及 UI 行为时还需要运行：
 
 ```powershell
-npm run dev
+pnpm run dev
 ```
 
 并手测对应页面、modal、浏览器 view 显隐和 IPC 返回。

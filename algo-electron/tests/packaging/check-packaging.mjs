@@ -99,13 +99,52 @@ check('NSIS settings keep user data on uninstall', () => {
 
 check('package scripts expose standard build commands', () => {
   assert(packageJson.main === 'dist-electron/main.js', 'package main must point to dist-electron/main.js')
-  assert(packageJson.scripts?.postinstall === 'npm run install:electron && npm run install:app-deps', 'postinstall must install the Electron binary before rebuilding native dependencies')
+
+  // 只断言"先装 Electron 二进制、再重建 native 依赖"的顺序，不钉死包管理器与嵌套写法：
+  // 阶段 0 把 postinstall 内联为两个可执行命令（pnpm 生命周期里嵌套调用 pnpm 会撞
+  // packageManager 版本门），顺序本身才是契约。
+  const postinstall = packageJson.scripts?.postinstall ?? ''
+  const electronStep = postinstall.indexOf('install-electron')
+  const rebuildStep = postinstall.indexOf('electron-builder install-app-deps')
+  assert(electronStep !== -1, 'postinstall must install the Electron binary')
+  assert(rebuildStep !== -1, 'postinstall must rebuild native dependencies')
+  assert(electronStep < rebuildStep, 'postinstall must install the Electron binary before rebuilding native dependencies')
+
   assert(packageJson.scripts?.['install:electron'] === 'install-electron --no', 'install:electron must explicitly download the Electron binary')
   assert(packageJson.scripts?.['install:app-deps'] === 'electron-builder install-app-deps', 'install:app-deps must expose the native dependency rebuild command')
   assert(packageJson.scripts?.['test:packaged-main'] === 'node tests/packaging/checkPackagedMain.mjs', 'test:packaged-main must verify native modules stay external')
   assert(packageJson.scripts?.['test:packaged-app'] === 'node tests/packaging/checkPackagedApp.mjs', 'test:packaged-app must smoke test the unpacked application')
-  assert(packageJson.scripts?.build === 'tsc && vite build && npm run test:packaged-main && electron-builder', 'build script must verify the main bundle before electron-builder')
-  assert(packageJson.scripts?.['build:win'] === 'tsc && vite build && npm run test:packaged-main && electron-builder --win nsis && npm run test:packaged-app', 'build:win script must verify the main bundle and smoke test Windows output')
+
+  const build = packageJson.scripts?.build ?? ''
+  assert(
+    build.startsWith('tsc && vite build') && build.includes('test:packaged-main') && build.endsWith('electron-builder'),
+    'build script must verify the main bundle before electron-builder',
+  )
+
+  const buildWin = packageJson.scripts?.['build:win'] ?? ''
+  assert(
+    buildWin.includes('test:packaged-main') && buildWin.includes('--win nsis') && buildWin.includes('test:packaged-app'),
+    'build:win script must verify the main bundle and smoke test Windows output',
+  )
+  assert(
+    buildWin.indexOf('test:packaged-main') < buildWin.indexOf('electron-builder'),
+    'build:win must verify the main bundle before electron-builder',
+  )
+})
+
+check('pnpm settings keep the flat layout and allow dependency build scripts', () => {
+  // pnpm 12 只从 pnpm-workspace.yaml 读项目设置：nodeLinker=hoisted 是 Electron 打包与
+  // better-sqlite3 解析的前提；allowBuilds 缺少条目会让 pnpm 直接以 ERR_PNPM_IGNORED_BUILDS
+  // 失败（不是警告），所以这条配置必须有守卫，否则下次升级依赖时会以"安装失败"的形式才暴露。
+  const workspaceSettings = fs.readFileSync(path.join(projectRoot, 'pnpm-workspace.yaml'), 'utf8')
+  assert(/^nodeLinker:\s*hoisted$/m.test(workspaceSettings), 'pnpm-workspace.yaml must keep nodeLinker: hoisted')
+  assert(/^shamefullyHoist:\s*true$/m.test(workspaceSettings), 'pnpm-workspace.yaml must keep shamefullyHoist: true')
+  for (const dependency of ['esbuild', 'electron-winstaller']) {
+    assert(
+      new RegExp(`^\\s{2}${dependency}:\\s*true$`, 'm').test(workspaceSettings),
+      `pnpm-workspace.yaml must allow the ${dependency} build script`,
+    )
+  }
 })
 
 let failed = 0

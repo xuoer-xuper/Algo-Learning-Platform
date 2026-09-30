@@ -204,7 +204,7 @@ export function parseApplicationSessionSnapshot(
     ok: true,
     snapshot: {
       version: 1,
-      mostRecentWindowId: value.mostRecentWindowId as string | null,
+      mostRecentWindowId: value.mostRecentWindowId,
       windows,
     },
   }
