@@ -29,6 +29,16 @@ export class MockWebContents extends EventEmitter {
   getURL(): string { return this.url }
   getTitle(): string { return this.title }
   isDestroyed(): boolean { return this.destroyed }
+  /** 焦点归还测试关注"focus() 是否被调、调了几次"；emit('focus') 与真实 API 行为一致。 */
+  focusCalls = 0
+  private focused = false
+  focus(): void {
+    this.focusCalls += 1
+    this.focused = true
+    this.emit('focus')
+  }
+  isFocused(): boolean { return this.focused }
+  blur(): void { this.focused = false }
   isLoadingMainFrame(): boolean { return this.loading }
   isDevToolsOpened(): boolean { return this.devToolsOpen }
   openDevTools(_options?: unknown): void { this.devToolsOpen = true }
