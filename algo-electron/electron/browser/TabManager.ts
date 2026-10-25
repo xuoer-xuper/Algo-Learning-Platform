@@ -1610,6 +1610,16 @@ export class TabManager {
     }
   }
 
+  /**
+   * 首页按钮：把当前标签页原地带到首页（对齐 Chrome 的 home 键行为），
+   * 不新开标签。已在首页时为幂等 no-op——避免无意义的整页重挂载。
+   */
+  goHome(): void {
+    const tab = this.activeTabId ? this.findTab(this.activeTabId) : null
+    if (tab?.kind === 'internal' && tab.page.type === 'home') return
+    this.navigateInternal({ type: 'home' })
+  }
+
   canGoBack(): boolean {
     const tab = this.activeTabId ? this.findTab(this.activeTabId) : null
     if (this.isWebTab(tab) && !tab.isCrashed) {
