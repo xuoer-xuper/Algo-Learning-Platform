@@ -39,7 +39,22 @@ export function installConditionalWebauthnGuard(): void {
     if (options && typeof options === 'object'
       && (options as { mediation?: unknown }).mediation === 'conditional'
       && performance.now() - lastUserGestureAt > 5000) {
-      return Promise.reject(new DOMException('Conditional mediation is not available.', 'NotAllowedError'))
+      /*
+       * 对齐 Chrome 的静默形态：条件式请求在用户交互前保持 pending、
+       * 不决议。任何 rejection 都会被站点捕获当作错误展示（洛谷实测把
+       * message toast 到页面右上角），"拒绝"从来不是安静的选择。
+       * 唯一的出口是页面自己 abort（按协议给 AbortError）。
+       */
+      return new Promise((_resolve, reject) => {
+        const signal = (options as { signal?: AbortSignal | undefined }).signal
+        if (signal?.aborted) {
+          reject(new DOMException('The operation was aborted.', 'AbortError'))
+          return
+        }
+        signal?.addEventListener('abort', () => {
+          reject(new DOMException('The operation was aborted.', 'AbortError'))
+        }, { once: true })
+      })
     }
     return originalGet(options)
   }

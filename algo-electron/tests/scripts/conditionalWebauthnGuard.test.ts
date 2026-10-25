@@ -27,13 +27,28 @@ function dispatchTrustedPointerDown(): void {
   window.dispatchEvent(event)
 }
 
-test('conditional webauthn without user gesture is rejected silently', async () => {
+test('conditional webauthn without user gesture stays pending without settling', async () => {
   const { calls } = install()
-  await assert.rejects(
-    navigator.credentials.get({ mediation: 'conditional', publicKey: { challenge: new Uint8Array(4) } as PublicKeyCredentialRequestOptions }),
-    (error: DOMException) => error.name === 'NotAllowedError',
-  )
+  const pending = navigator.credentials.get({ mediation: 'conditional', publicKey: { challenge: new Uint8Array(4) } as PublicKeyCredentialRequestOptions })
+  const settled = await Promise.race([
+    pending.then(() => 'settled', () => 'settled'),
+    new Promise(resolve => setTimeout(() => resolve('pending'), 20)),
+  ])
+  assert.strictEqual(settled, 'pending', 'silence means never settling — any rejection gets toasted by the page')
   assert.strictEqual(calls.length, 0, 'native get must not be invoked')
+})
+
+test('conditional webauthn rejects with AbortError when the page aborts its own signal', async () => {
+  const { calls } = install()
+  const controller = new AbortController()
+  const request = navigator.credentials.get({
+    mediation: 'conditional',
+    signal: controller.signal,
+    publicKey: { challenge: new Uint8Array(4) } as PublicKeyCredentialRequestOptions,
+  })
+  controller.abort()
+  await assert.rejects(request, (error: DOMException) => error.name === 'AbortError')
+  assert.strictEqual(calls.length, 0)
 })
 
 test('explicit (non-conditional) webauthn passes through to the platform', async () => {
