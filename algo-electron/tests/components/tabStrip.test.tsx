@@ -282,6 +282,14 @@ describe('TabStrip', () => {
     expect(tabApi.moveBrowserTabToNewWindow).not.toHaveBeenCalled()
   })
 
+  it('closing the solo tab closes immediately without the collapse animation', () => {
+    render(<TabStrip />)
+
+    fireEvent.click(screen.getByRole('button', { name: '关闭 Example' }))
+
+    expect(tabApi.closeBrowserTab).toHaveBeenCalledWith('tab-1')
+  })
+
   it('solo tab drags the window instead of starting a tab drag', () => {
     const { container } = render(<TabStrip />)
 

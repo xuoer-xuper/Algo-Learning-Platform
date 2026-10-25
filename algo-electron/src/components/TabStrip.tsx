@@ -177,6 +177,15 @@ export function TabStrip({ onTabUrlChange, onActiveTabChange }: TabStripProps) {
 
   const requestClose = (tabId: string) => {
     if (closeTimersRef.current.has(tabId)) return
+    /*
+     * 独苗标签的关闭就是关闭应用：跳过标签收起动画立即关闭——窗口本身
+     * 的关闭过程已是足够反馈（对齐主流浏览器）。动画的价值在多标签下
+     * 其余标签平滑补位，独苗场景它只是额外延迟。
+     */
+    if (tabs.length === 1) {
+      closeBrowserTab(tabId)
+      return
+    }
     setClosingTabIds((current) => new Set(current).add(tabId))
     const delay = prefersReducedMotion() ? 0 : TAB_CLOSE_ANIMATION_MS
     const timer = setTimeout(() => {
