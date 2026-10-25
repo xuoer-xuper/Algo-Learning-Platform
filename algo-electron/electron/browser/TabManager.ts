@@ -195,6 +195,13 @@ export class TabManager {
   private isRestoringSession = false
   private isOmniboxOpen = false
   /**
+   * 正处于 HTML 全屏（页面内视频等元素全屏）的标签视图。多视图标签架构下，
+   * Chromium 只会把全屏元素铺满该视图自己的 bounds——bounds 由应用排版，
+   * 不接管就呈现"小窗 + 黑边"的假全屏。进入时把视图撑满整窗盖住壳层 UI，
+   * 退出或视图销毁时清空并恢复常规内容区布局。
+   */
+  private htmlFullScreenView: WebContentsView | null = null
+  /**
    * 六条通知条各占一格 `noticeBarHeight`，除了名字之外没有任何区别：可见就抬高一格。
    * 原先是六个布尔字段 + 六段逐字节相同的 setter + 六行 `if` 累加 + 六行重置，加第七条
    * 通知得同步改四处。改成一个可见集合后，新增只是往联合类型里加一个字面量。
@@ -643,6 +650,14 @@ export class TabManager {
       owner.setZoom(tab.id, direction)
     })
 
+    contents.on('enter-html-full-screen', () => {
+      ownerBinding.owner.handleEnterHtmlFullScreen(view)
+    })
+
+    contents.on('leave-html-full-screen', () => {
+      ownerBinding.owner.handleLeaveHtmlFullScreen(view)
+    })
+
     contents.setWindowOpenHandler((details) => {
       const owner = ownerBinding.owner
       const userScriptNavigation = resolveUserScriptNavigation(details.url, {
@@ -910,6 +925,7 @@ export class TabManager {
     unregisterOjWebContents({ id: contentsId })
     this.unregisterTabView(contentsId)
     this.recoveryPendingViews.delete(view)
+    if (this.htmlFullScreenView === view) this.htmlFullScreenView = null
     TAB_VIEW_OWNER_BINDINGS.delete(view)
     const tab = this.findTabByView(view)
     if (!tab) {
@@ -1995,6 +2011,10 @@ export class TabManager {
     if (!this.activeTabId) return
     const tab = this.findTab(this.activeTabId)
     if (!this.isWebTab(tab)) return
+    if (tab.view === this.htmlFullScreenView) {
+      this.applyHtmlFullScreenBounds()
+      return
+    }
     const [width, height] = this.window.getContentSize()
     let topInset = 0
     if (tab.isUnresponsive && !tab.isUnresponsiveNoticeDismissed) {
@@ -2003,6 +2023,31 @@ export class TabManager {
     topInset += this.visibleNotices.size * BROWSER_LAYOUT.noticeBarHeight
     if (tab.id === this.findInPageTabId) topInset += BROWSER_LAYOUT.findBarHeight
     setTabViewBounds(tab.view, { width, height }, this.leftOffset, topInset)
+  }
+
+  /**
+   * HTML 全屏接管（视频等页面内全屏）：只有当前活动标签的全屏请求才扩展视图，
+   * 后台标签的全屏保持潜伏——切回该标签时 attachTabView → updateBounds 会
+   * 经由 htmlFullScreenView 判断重新套用全窗边界。
+   */
+  private handleEnterHtmlFullScreen(view: WebContentsView): void {
+    const tab = this.findTabByView(view)
+    if (!tab || tab.id !== this.activeTabId) return
+    this.htmlFullScreenView = view
+    this.applyHtmlFullScreenBounds()
+  }
+
+  private handleLeaveHtmlFullScreen(view: WebContentsView): void {
+    if (this.htmlFullScreenView !== view) return
+    this.htmlFullScreenView = null
+    this.updateBounds()
+  }
+
+  private applyHtmlFullScreenBounds(): void {
+    const view = this.htmlFullScreenView
+    if (!view) return
+    const [width, height] = this.window.getContentSize()
+    view.setBounds({ x: 0, y: 0, width, height })
   }
 
   /** 只有可见性真的变了才重排版面，避免 IPC 重复投递引起无意义的 setBounds。 */
