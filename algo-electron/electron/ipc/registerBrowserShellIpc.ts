@@ -263,7 +263,7 @@ export function registerBrowserShellIpc(options: RegisterBrowserShellIpcOptions)
   })
 
   ipcMain.on('browser:goHome', (event) => {
-    getShellWindowOwner(event)?.tabManager.openInternalTab({ type: 'home' }, { reuseExisting: true })
+    getShellWindowOwner(event)?.tabManager.goHome()
   })
 
   /*
