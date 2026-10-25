@@ -10,9 +10,22 @@ import {
   type UserScriptRuntimeBootstrapResponse,
 } from './userScriptRuntimeProtocol'
 import { errorMessage } from '../shared/errors'
+import { installConditionalWebauthnGuard } from './conditionalWebauthnGuard'
 
 const frameUrl = location.href
 const targetOrigin = location.origin
+
+/*
+ * WebAuthn 条件式请求守卫：document-start 阶段先于页面脚本装进主世界。
+ * 洛谷等站登录页一加载就发起 conditional 通行密钥预查询，Electron 会直接
+ * 弹 Windows Hello。守卫与下方的 userscript 握手相互独立——守卫失败只退回
+ * 无守卫行为，绝不阻断脚本运行时的建立。
+ */
+try {
+  contextBridge.executeInMainWorld({ func: installConditionalWebauthnGuard })
+} catch {
+  // 旧版 Electron 无 executeInMainWorld 时静默跳过
+}
 
 if ((targetOrigin.startsWith('https://') || targetOrigin.startsWith('http://')) && frameUrl.length <= 8_192) {
   const nonce = createNonce()
