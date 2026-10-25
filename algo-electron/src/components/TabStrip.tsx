@@ -407,8 +407,9 @@ export function TabStrip({ onTabUrlChange, onActiveTabChange }: TabStripProps) {
                 <TabIcon tab={tab} />
                 <span className="tab-item-title">{title}</span>
               </button>
-              {tabs.length > 1 && (
-                <button
+              {/* 独苗标签同样显示 ×：关闭最后一个标签 = 关闭应用（主进程
+                  lastTabClosedHandler → win.close()），对齐 Chrome。 */}
+              <button
                   type="button"
                   className="tab-item-close"
                   onClick={(event) => {
@@ -420,7 +421,6 @@ export function TabStrip({ onTabUrlChange, onActiveTabChange }: TabStripProps) {
                 >
                   <Icon name="close" size={11} strokeWidth={2} />
                 </button>
-              )}
             </div>
           )
         })}

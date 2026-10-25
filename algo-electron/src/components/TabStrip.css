@@ -69,6 +69,11 @@
   -webkit-app-region: drag;
 }
 
+/* 独苗标签的关闭按钮豁免出拖动区：× 必须可点击（点击 = 关闭应用）。 */
+.tab-item.tab-item-solo .tab-item-close {
+  -webkit-app-region: no-drag;
+}
+
 /*
  * 标签新建动画（B5.3）：从略低位置（+2px）与略小尺寸（scale 0.98）淡入，
  * 给人一种"标签轻轻落在标签带上"的感觉。时长用 --duration-fast（120ms）保持轻快。
