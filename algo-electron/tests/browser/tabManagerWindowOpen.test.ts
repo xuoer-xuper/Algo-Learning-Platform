@@ -28,6 +28,7 @@ test('window.open adopts Chromium-created contents as managed tabs', () => {
 
   assert.strictEqual(popup.response.action, 'allow')
   assert.strictEqual(typeof popup.response.createWindow, 'function')
+  assert.ok(popup.response.outlivesOpener !== false)
   assert.ok(popup.webContents)
   assert.notStrictEqual(popup.webContents, parent)
   assert.strictEqual(manager.getTabList().length, 2)
@@ -36,6 +37,27 @@ test('window.open adopts Chromium-created contents as managed tabs', () => {
   popup.webContents?.close()
   assert.strictEqual(manager.getTabList().length, 1)
   assert.strictEqual(manager.getTabList()[0].isActive, true)
+})
+
+test('ctrl+click popups build their own contents when Electron supplies none', () => {
+  resetElectronMock()
+  const window = new MockBrowserWindow({ width: 1200, height: 800 })
+  const manager = new TabManager(window as never)
+  manager.createTab('https://codeforces.com/problemset')
+
+  const parent = window.contentView.children[0].webContents as MockWebContents
+  // Ctrl+点击走 `-new-window` 通道：options.webContents 为空（回归：旧实现直接 throw 崩主进程）
+  const popup = parent.simulateWindowOpen(
+    popupDetails('https://codeforces.com/problemset/problem/1/A'),
+    { supplyGuestWebContents: false },
+  )
+
+  assert.strictEqual(popup.response.action, 'allow')
+  const tabs = manager.getTabList()
+  assert.strictEqual(tabs.length, 2)
+  const opened = tabs.find((tab) => tab.url === 'https://codeforces.com/problemset/problem/1/A')
+  assert.ok(opened, 'ctrl+clicked link should open as a new tab')
+  assert.strictEqual(opened.isActive, true)
 })
 
 test('window.open preserves about:blank, background tabs, and rejects unsafe protocols', () => {

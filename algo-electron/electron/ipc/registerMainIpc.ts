@@ -58,6 +58,8 @@ interface RegisterMainIpcOptions {
     promptId: string,
     allow: boolean,
   ) => Promise<UserScriptHostPermissionResponse>
+  /** 手动恢复上次会话；缺席时三点菜单不显示该项。 */
+  reopenLastSession?: () => void
   theme: ConfigIpcOptions['theme']
 }
 
@@ -75,6 +77,7 @@ export function registerMainIpc(options: RegisterMainIpcOptions): void {
     finishTabDrag: options.finishTabDrag,
     getUserScriptHostPermissionPrompt: options.getUserScriptHostPermissionPrompt,
     respondUserScriptHostPermission: options.respondUserScriptHostPermission,
+    reopenLastSession: options.reopenLastSession,
   })
   registerConfigIpc({ theme: options.theme })
   registerCookieIpc()

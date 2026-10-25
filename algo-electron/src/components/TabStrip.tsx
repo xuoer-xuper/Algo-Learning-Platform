@@ -4,7 +4,6 @@ import {
   createBrowserTab,
   finishBrowserTabDrag,
   getBrowserTabList,
-  moveBrowserTabToNewWindow,
   subscribeTabListChanged,
   switchBrowserTab,
   type TabStripTabInfo,
@@ -178,6 +177,15 @@ export function TabStrip({ onTabUrlChange, onActiveTabChange }: TabStripProps) {
 
   const requestClose = (tabId: string) => {
     if (closeTimersRef.current.has(tabId)) return
+    /*
+     * 独苗标签的关闭就是关闭应用：跳过标签收起动画立即关闭——窗口本身
+     * 的关闭过程已是足够反馈（对齐主流浏览器）。动画的价值在多标签下
+     * 其余标签平滑补位，独苗场景它只是额外延迟。
+     */
+    if (tabs.length === 1) {
+      closeBrowserTab(tabId)
+      return
+    }
     setClosingTabIds((current) => new Set(current).add(tabId))
     const delay = prefersReducedMotion() ? 0 : TAB_CLOSE_ANIMATION_MS
     const timer = setTimeout(() => {
@@ -282,6 +290,8 @@ export function TabStrip({ onTabUrlChange, onActiveTabChange }: TabStripProps) {
 
   const handlePointerDown = (event: React.PointerEvent<HTMLButtonElement>, tabId: string) => {
     if (event.button !== 0 || event.isPrimary === false) return
+    // 仅剩一个标签时拖动 = 拖动窗口（app-region: drag 接管，JS 拖拽不启动）
+    if (tabs.length <= 1) return
     const sourceIndex = tabs.findIndex((tab) => tab.id === tabId)
     if (sourceIndex < 0) return
     event.currentTarget.setPointerCapture?.(event.pointerId)
@@ -357,14 +367,22 @@ export function TabStrip({ onTabUrlChange, onActiveTabChange }: TabStripProps) {
         onWheel={handleWheel}
       >
         {tabs.map((tab) => {
-          const title = tab.title || '首页'
+          // 页面标题未上报且加载中：显示"正在加载"（图标位同时是转圈），
+          // 不再兜底"首页"——Ctrl+点开的新标签在标题到达前会闪现"首页"。
+          const title = tab.title || (tab.isLoading ? '正在加载' : '首页')
           const isDragging = dragState?.dragging && dragState.tabId === tab.id
           const markerEdge = dropMarker?.tabId === tab.id ? dropMarker.edge : null
+          /*
+           * 仅剩一个标签时：整个标签成为窗口拖动区——对齐主流浏览器
+           * "独苗标签拖动即拖窗"。× 恒可见且以 no-drag 豁免，点击即关闭应用。
+           */
+          const solo = tabs.length === 1
           return (
             <div
               key={tab.id}
               className={[
                 'tab-item',
+                solo ? 'tab-item-solo' : '',
                 tab.isActive ? 'tab-item-active' : '',
                 closingTabIds.has(tab.id) ? 'tab-item-closing' : '',
                 isDragging ? 'tab-item-dragging' : '',
@@ -388,7 +406,6 @@ export function TabStrip({ onTabUrlChange, onActiveTabChange }: TabStripProps) {
                 draggable={false}
                 onClick={() => handleSwitch(tab.id)}
                 onAuxClick={(event) => handleAuxClick(event, tab.id)}
-                onDoubleClick={() => { void moveBrowserTabToNewWindow(tab.id).catch(() => false) }}
                 onPointerDown={(event) => handlePointerDown(event, tab.id)}
                 onPointerMove={handlePointerMove}
                 onPointerUp={(event) => finishPointerDrag(event, true)}
@@ -399,8 +416,9 @@ export function TabStrip({ onTabUrlChange, onActiveTabChange }: TabStripProps) {
                 <TabIcon tab={tab} />
                 <span className="tab-item-title">{title}</span>
               </button>
-              {tabs.length > 1 && (
-                <button
+              {/* 独苗标签同样显示 ×：关闭最后一个标签 = 关闭应用（主进程
+                  lastTabClosedHandler → win.close()），对齐 Chrome。 */}
+              <button
                   type="button"
                   className="tab-item-close"
                   onClick={(event) => {
@@ -412,7 +430,6 @@ export function TabStrip({ onTabUrlChange, onActiveTabChange }: TabStripProps) {
                 >
                   <Icon name="close" size={11} strokeWidth={2} />
                 </button>
-              )}
             </div>
           )
         })}

@@ -144,6 +144,11 @@ describe('TabStrip', () => {
     expect(screen.getByLabelText('正在加载')).not.toBeNull()
 
     act(() => {
+      tabApi.listener?.([{ ...initialTab, title: '', isLoading: true }])
+    })
+    expect(screen.getByRole('tab').getAttribute('aria-label')).toBe('正在加载')
+
+    act(() => {
       tabApi.listener?.([{ ...initialTab, favicon: 'https://example.com/favicon.ico' }])
     })
     const favicon = container.querySelector<HTMLImageElement>('.tab-item-favicon')
@@ -162,16 +167,19 @@ describe('TabStrip', () => {
     expect(container.querySelector('[data-icon="home"]')).not.toBeNull()
   })
 
-  it('closes a tab with the middle mouse button after the close animation', () => {
+  it('closes a non-last tab with the middle mouse button after the close animation', () => {
     vi.useFakeTimers()
     render(<TabStrip />)
-    const tabElement = screen.getByRole('tab', { name: 'Example' })
+    act(() => {
+      tabApi.listener?.([initialTab, tab('tab-2', 'Second'), tab('tab-3', 'Third')])
+    })
+    const tabElement = screen.getByRole('tab', { name: 'Second' })
 
     fireEvent(tabElement, new MouseEvent('auxclick', { bubbles: true, button: 1 }))
     expect(tabApi.closeBrowserTab).not.toHaveBeenCalled()
 
     act(() => { vi.advanceTimersByTime(140) })
-    expect(tabApi.closeBrowserTab).toHaveBeenCalledWith('tab-1')
+    expect(tabApi.closeBrowserTab).toHaveBeenCalledWith('tab-2')
   })
 
   it('does not close a tab for other auxiliary buttons', () => {
@@ -269,11 +277,33 @@ describe('TabStrip', () => {
     expect(strip.scrollLeft).toBe(80)
   })
 
-  it('moves a tab to a complete new shell on double click', () => {
+  it('double click no longer detaches a tab (drag is the only detach gesture)', () => {
     render(<TabStrip />)
 
     fireEvent.doubleClick(screen.getByRole('tab', { name: 'Example' }))
 
-    expect(tabApi.moveBrowserTabToNewWindow).toHaveBeenCalledWith('tab-1')
+    expect(tabApi.moveBrowserTabToNewWindow).not.toHaveBeenCalled()
+  })
+
+  it('closing the solo tab closes immediately without the collapse animation', () => {
+    render(<TabStrip />)
+
+    fireEvent.click(screen.getByRole('button', { name: '关闭 Example' }))
+
+    expect(tabApi.closeBrowserTab).toHaveBeenCalledWith('tab-1')
+  })
+
+  it('solo tab drags the window instead of starting a tab drag', () => {
+    const { container } = render(<TabStrip />)
+
+    const soloItem = container.querySelector<HTMLElement>('.tab-item')!
+    expect(soloItem.classList.contains('tab-item-solo')).toBe(true)
+
+    const tab = screen.getByRole('tab', { name: 'Example' })
+    fireEvent.pointerDown(tab, { button: 0, isPrimary: true, pointerId: 1 })
+    fireEvent.pointerMove(tab, { clientX: 60, clientY: 10, pointerId: 1 })
+    fireEvent.pointerUp(tab, { pointerId: 1 })
+
+    expect(tabApi.finishBrowserTabDrag).not.toHaveBeenCalled()
   })
 })
