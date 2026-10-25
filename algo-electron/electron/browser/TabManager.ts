@@ -1959,8 +1959,8 @@ export class TabManager {
     })
   }
 
-  restoreSession(snapshot: TabSessionSnapshot): boolean {
-    if (this.tabs.length > 0) return false
+  restoreSession(snapshot: TabSessionSnapshot, options: { replaceExisting?: boolean } = {}): boolean {
+    if (this.tabs.length > 0 && !options.replaceExisting) return false
     const parsed = parseTabSessionSnapshot(snapshot, {
       allowInsecureLocalhost: this.allowInsecureLocalhost,
     })
@@ -2003,6 +2003,14 @@ export class TabManager {
 
       if (restoredTabs.length === 0) return false
 
+      /*
+       * 替换模式：新标签全部构建成功后才拆除旧标签——解析或建视图失败时
+       * 现有标签原样保留。拆除不走 closeTab：那会触发 lastTabClosedHandler
+       * （可能连带给窗口动画甚至关窗）或自动开新标签，"原地换标签"才是
+       * 手动恢复会话应有的静默形态。
+       */
+      if (options.replaceExisting && this.tabs.length > 0) this.discardTabsForSessionRestore()
+
       this.tabs = restoredTabs
       this.activeTabId = null
       for (const tab of restoredTabs) {
@@ -2040,6 +2048,30 @@ export class TabManager {
       return false
     } finally {
       this.isRestoringSession = false
+    }
+  }
+
+  /** 会话原地替换的旧标签拆除：与 closeTab 同款清理，但不触发任何关闭连锁。 */
+  private discardTabsForSessionRestore(): void {
+    const closing = this.tabs
+    this.tabs = []
+    this.activeTabId = null
+    for (const tab of closing) {
+      this.clearFindInPageForTab(tab.id)
+      if (tab.kind === 'internal' && tab.page.type === 'script-install') {
+        this.userScriptInstallRegistry?.consume(tab.page.installId)
+      }
+      if (tab.kind !== 'web') continue
+      this.emitPageDestroyed(tab, tab.view.webContents.id)
+      this.recoveryPendingViews.delete(tab.view)
+      try {
+        unregisterOjWebContents(tab.view.webContents)
+      } catch {
+        // 视图可能已在崩溃/导航竞速中失去 webContents 对象
+      }
+      this.unregisterTabView(tab.view)
+      safeRemoveChildView(this.window, tab.view)
+      safeCloseWebContents(tab.view)
     }
   }
 

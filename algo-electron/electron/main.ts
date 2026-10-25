@@ -578,18 +578,32 @@ const tabTransferCoordinator = new TabTransferCoordinator({
 })
 
 /**
- * 手动恢复上次会话（三点菜单入口）。正常退出后的快照同样从这里加载；
- * 恢复前就开着、且仍是未动过的纯首页窗口会被收掉，对齐 Chrome"合并进
- * 当前窗口"的观感，避免每次恢复都多出一个空白首页窗。
+ * 手动恢复上次会话（三点菜单入口）。最近使用的会话窗口原地合并进当前
+ * 窗口（只换标签，窗口本身不动——避免窗口关闭/打开动画，对齐 Chrome 的
+ * 观感）；会话里的其余窗口按快照重建为新窗口。
  */
 async function reopenLastSession(): Promise<boolean> {
   if (!lastClosedSessionSnapshot || isQuitting) return false
   const windows = getApplicationWindowsInRestoreOrder(lastClosedSessionSnapshot)
     .filter((window) => window.tabs.length > 0)
   if (windows.length === 0) return false
-  const windowsBeforeReopen = windowManager.getAll()
+
+  const [primarySnapshot, ...otherSnapshots] = windows
+  const current = windowManager.getMostRecent()
+  let merged = false
+  if (current && !current.isDestroyed()) {
+    merged = current.tabManager.restoreSession(
+      {
+        version: 1,
+        activeTabId: primarySnapshot.activeTabId,
+        tabs: primarySnapshot.tabs,
+      },
+      { replaceExisting: true },
+    )
+  }
+
   let created = 0
-  for (const snapshot of windows) {
+  for (const snapshot of merged ? otherSnapshots : windows) {
     try {
       await createWindow({
         restoreSnapshot: snapshot,
@@ -600,16 +614,8 @@ async function reopenLastSession(): Promise<boolean> {
       appLogger.warn('browser.application-session-reopen-window-failed', { windowId: snapshot.id })
     }
   }
-  if (created === 0) return false
-  for (const existing of windowsBeforeReopen) {
-    if (existing.isDestroyed()) continue
-    const tabs = existing.tabManager.getTabList()
-    const pristineHome = tabs.length === 1
-      && tabs[0].kind === 'internal'
-      && tabs[0].page.type === 'home'
-    if (pristineHome) existing.browserWindow.close()
-  }
-  appLogger.info('browser.application-session-reopened', { windowCount: created })
+  if (!merged && created === 0) return false
+  appLogger.info('browser.application-session-reopened', { merged, windowCount: created })
   return true
 }
 
