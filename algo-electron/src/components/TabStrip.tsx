@@ -4,7 +4,6 @@ import {
   createBrowserTab,
   finishBrowserTabDrag,
   getBrowserTabList,
-  moveBrowserTabToNewWindow,
   subscribeTabListChanged,
   switchBrowserTab,
   type TabStripTabInfo,
@@ -282,6 +281,8 @@ export function TabStrip({ onTabUrlChange, onActiveTabChange }: TabStripProps) {
 
   const handlePointerDown = (event: React.PointerEvent<HTMLButtonElement>, tabId: string) => {
     if (event.button !== 0 || event.isPrimary === false) return
+    // 仅剩一个标签时拖动 = 拖动窗口（app-region: drag 接管，JS 拖拽不启动）
+    if (tabs.length <= 1) return
     const sourceIndex = tabs.findIndex((tab) => tab.id === tabId)
     if (sourceIndex < 0) return
     event.currentTarget.setPointerCapture?.(event.pointerId)
@@ -362,11 +363,17 @@ export function TabStrip({ onTabUrlChange, onActiveTabChange }: TabStripProps) {
           const title = tab.title || (tab.isLoading ? '正在加载' : '首页')
           const isDragging = dragState?.dragging && dragState.tabId === tab.id
           const markerEdge = dropMarker?.tabId === tab.id ? dropMarker.edge : null
+          /*
+           * 仅剩一个标签时：关闭按钮隐藏（关闭它等于关应用，用窗口控制钮），
+           * 整个标签成为窗口拖动区——对齐主流浏览器"独苗标签拖动即拖窗"。
+           */
+          const solo = tabs.length === 1
           return (
             <div
               key={tab.id}
               className={[
                 'tab-item',
+                solo ? 'tab-item-solo' : '',
                 tab.isActive ? 'tab-item-active' : '',
                 closingTabIds.has(tab.id) ? 'tab-item-closing' : '',
                 isDragging ? 'tab-item-dragging' : '',
@@ -390,7 +397,6 @@ export function TabStrip({ onTabUrlChange, onActiveTabChange }: TabStripProps) {
                 draggable={false}
                 onClick={() => handleSwitch(tab.id)}
                 onAuxClick={(event) => handleAuxClick(event, tab.id)}
-                onDoubleClick={() => { void moveBrowserTabToNewWindow(tab.id).catch(() => false) }}
                 onPointerDown={(event) => handlePointerDown(event, tab.id)}
                 onPointerMove={handlePointerMove}
                 onPointerUp={(event) => finishPointerDrag(event, true)}

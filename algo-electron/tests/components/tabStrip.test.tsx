@@ -274,11 +274,25 @@ describe('TabStrip', () => {
     expect(strip.scrollLeft).toBe(80)
   })
 
-  it('moves a tab to a complete new shell on double click', () => {
+  it('double click no longer detaches a tab (drag is the only detach gesture)', () => {
     render(<TabStrip />)
 
     fireEvent.doubleClick(screen.getByRole('tab', { name: 'Example' }))
 
-    expect(tabApi.moveBrowserTabToNewWindow).toHaveBeenCalledWith('tab-1')
+    expect(tabApi.moveBrowserTabToNewWindow).not.toHaveBeenCalled()
+  })
+
+  it('solo tab drags the window instead of starting a tab drag', () => {
+    const { container } = render(<TabStrip />)
+
+    const soloItem = container.querySelector<HTMLElement>('.tab-item')!
+    expect(soloItem.classList.contains('tab-item-solo')).toBe(true)
+
+    const tab = screen.getByRole('tab', { name: 'Example' })
+    fireEvent.pointerDown(tab, { button: 0, isPrimary: true, pointerId: 1 })
+    fireEvent.pointerMove(tab, { clientX: 60, clientY: 10, pointerId: 1 })
+    fireEvent.pointerUp(tab, { pointerId: 1 })
+
+    expect(tabApi.finishBrowserTabDrag).not.toHaveBeenCalled()
   })
 })
