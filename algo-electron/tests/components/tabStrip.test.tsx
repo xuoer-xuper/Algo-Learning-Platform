@@ -167,16 +167,19 @@ describe('TabStrip', () => {
     expect(container.querySelector('[data-icon="home"]')).not.toBeNull()
   })
 
-  it('closes a tab with the middle mouse button after the close animation', () => {
+  it('closes a non-last tab with the middle mouse button after the close animation', () => {
     vi.useFakeTimers()
     render(<TabStrip />)
-    const tabElement = screen.getByRole('tab', { name: 'Example' })
+    act(() => {
+      tabApi.listener?.([initialTab, tab('tab-2', 'Second'), tab('tab-3', 'Third')])
+    })
+    const tabElement = screen.getByRole('tab', { name: 'Second' })
 
     fireEvent(tabElement, new MouseEvent('auxclick', { bubbles: true, button: 1 }))
     expect(tabApi.closeBrowserTab).not.toHaveBeenCalled()
 
     act(() => { vi.advanceTimersByTime(140) })
-    expect(tabApi.closeBrowserTab).toHaveBeenCalledWith('tab-1')
+    expect(tabApi.closeBrowserTab).toHaveBeenCalledWith('tab-2')
   })
 
   it('does not close a tab for other auxiliary buttons', () => {
