@@ -77,6 +77,11 @@ import {
   type ApplicationSessionLoadResult,
 } from './windows/applicationSessionStore'
 import {
+  clearSessionRunningMarkerSync,
+  createSessionRunningMarker,
+  wasLastSessionInterrupted,
+} from './windows/sessionExitMarker'
+import {
   MAIN_WINDOW_BOUNDS,
   WindowStateStore,
   normalizeWindowState,
@@ -552,6 +557,44 @@ const tabTransferCoordinator = new TabTransferCoordinator({
   },
 })
 
+/**
+ * 手动恢复上次会话（三点菜单入口）。正常退出后的快照同样从这里加载；
+ * 恢复前就开着、且仍是未动过的纯首页窗口会被收掉，对齐 Chrome"合并进
+ * 当前窗口"的观感，避免每次恢复都多出一个空白首页窗。
+ */
+async function reopenLastSession(): Promise<boolean> {
+  if (!applicationSessionStore || isQuitting) return false
+  const result = await applicationSessionStore.load()
+  if (result.kind !== 'restore') return false
+  const windows = getApplicationWindowsInRestoreOrder(result.snapshot)
+    .filter((window) => window.tabs.length > 0)
+  if (windows.length === 0) return false
+  const windowsBeforeReopen = windowManager.getAll()
+  let created = 0
+  for (const snapshot of windows) {
+    try {
+      await createWindow({
+        restoreSnapshot: snapshot,
+        activateOnShow: snapshot.id === result.snapshot.mostRecentWindowId,
+      })
+      created += 1
+    } catch {
+      appLogger.warn('browser.application-session-reopen-window-failed', { windowId: snapshot.id })
+    }
+  }
+  if (created === 0) return false
+  for (const existing of windowsBeforeReopen) {
+    if (existing.isDestroyed()) continue
+    const tabs = existing.tabManager.getTabList()
+    const pristineHome = tabs.length === 1
+      && tabs[0].kind === 'internal'
+      && tabs[0].page.type === 'home'
+    if (pristineHome) existing.browserWindow.close()
+  }
+  appLogger.info('browser.application-session-reopened', { windowCount: created })
+  return true
+}
+
 registerMainIpc({
   credentialVault,
   getCredentialAutofillService: () => credentialAutofillService,
@@ -574,6 +617,7 @@ registerMainIpc({
   respondUserScriptHostPermission: (owner, promptId, allow) => (
     userScriptHostPermissionBroker?.respond(owner.id, promptId, allow) ?? Promise.resolve('stale')
   ),
+  reopenLastSession: () => { void reopenLastSession() },
   theme: {
     get: () => themeController.get(),
     set: value => themeController.set(value),
@@ -610,6 +654,8 @@ app.on('before-quit', (event) => {
       quitSessionFlushPromise = windowCreationGate.waitForIdle()
         .then(async () => {
           await applicationSessionPersistence?.dispose()
+          // 会话落盘完成后才算"正常退出"，删运行标记供下次启动判别
+          clearSessionRunningMarkerSync(app.getPath('userData'))
         })
         .finally(() => {
           isQuitSessionFlushComplete = true
@@ -618,6 +664,7 @@ app.on('before-quit', (event) => {
     }
     return
   }
+  if (!STARTUP_SMOKE_MODE) clearSessionRunningMarkerSync(app.getPath('userData'))
   try {
     credentialAutofillService?.dispose()
     credentialAutofillService = null
@@ -821,6 +868,19 @@ void app.whenReady().then(async () => {
     const loadedStartupSession = await loadStartupApplicationSession()
     startupSession = loadedStartupSession.result
     migratedLegacySession = loadedStartupSession.migratedLegacy
+    /*
+     * 会话恢复语义对齐 Chrome：只有上次异常退出（运行标记仍在——崩溃、
+     * 被杀、断电）才自动恢复；正常退出走干净启动，快照文件保留，供三点
+     * 菜单"恢复上次会话"手动加载。先读标记再写入本次运行标记，顺序不可
+     * 颠倒。
+     */
+    const userDataDir = app.getPath('userData')
+    const lastSessionInterrupted = await wasLastSessionInterrupted(userDataDir)
+    if (startupSession?.kind === 'restore' && !lastSessionInterrupted) {
+      appLogger.info('browser.application-session-skip-clean-exit')
+      startupSession = { kind: 'fallback', reason: 'clean-exit' }
+    }
+    await createSessionRunningMarker(userDataDir)
   }
 
   windowCreationGate.enable()
