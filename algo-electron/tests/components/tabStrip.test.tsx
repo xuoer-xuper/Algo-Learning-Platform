@@ -144,6 +144,11 @@ describe('TabStrip', () => {
     expect(screen.getByLabelText('正在加载')).not.toBeNull()
 
     act(() => {
+      tabApi.listener?.([{ ...initialTab, title: '', isLoading: true }])
+    })
+    expect(screen.getByRole('tab').getAttribute('aria-label')).toBe('正在加载')
+
+    act(() => {
       tabApi.listener?.([{ ...initialTab, favicon: 'https://example.com/favicon.ico' }])
     })
     const favicon = container.querySelector<HTMLImageElement>('.tab-item-favicon')
