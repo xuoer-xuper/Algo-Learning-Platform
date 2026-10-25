@@ -373,8 +373,8 @@ export function TabStrip({ onTabUrlChange, onActiveTabChange }: TabStripProps) {
           const isDragging = dragState?.dragging && dragState.tabId === tab.id
           const markerEdge = dropMarker?.tabId === tab.id ? dropMarker.edge : null
           /*
-           * 仅剩一个标签时：关闭按钮隐藏（关闭它等于关应用，用窗口控制钮），
-           * 整个标签成为窗口拖动区——对齐主流浏览器"独苗标签拖动即拖窗"。
+           * 仅剩一个标签时：整个标签成为窗口拖动区——对齐主流浏览器
+           * "独苗标签拖动即拖窗"。× 恒可见且以 no-drag 豁免，点击即关闭应用。
            */
           const solo = tabs.length === 1
           return (

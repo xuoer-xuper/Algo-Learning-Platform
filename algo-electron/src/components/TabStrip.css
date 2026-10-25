@@ -61,8 +61,7 @@
 
 /*
  * 独苗标签：整个标签成为窗口拖动区（对齐主流浏览器——仅剩一个标签时
- * 拖动标签即拖动窗口）。关闭按钮此时隐藏（关闭它等于关应用），
- * 点击/双击都无副作用，app-region: drag 接管指针是安全的。
+ * 拖动标签即拖动窗口）。× 按钮以 no-drag 单独豁免，保持可点击。
  */
 .tab-item.tab-item-solo,
 .tab-item.tab-item-solo .tab-item-main {

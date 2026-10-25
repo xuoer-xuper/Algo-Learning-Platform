@@ -446,10 +446,17 @@ async function createWindowOnce(
    * 最大化窗口记录还原后的常规尺寸，配合 maximized 标志一起还原。
    */
   win.on('close', () => {
-    void windowStateStore?.save({
+    /*
+     * 窗口状态只是锦上添花：保存失败（磁盘错误/杀软短暂锁文件在 Windows
+     * 原子写的 rename 上并不罕见）绝不能升级为致命错误——本项目把
+     * unhandledRejection 定义为弹框退出的致命路径，这里必须吃掉 rejection。
+     */
+    windowStateStore?.save({
       version: 1,
       bounds: win.getNormalBounds(),
       maximized: win.isMaximized(),
+    }).catch((error) => {
+      appLogger.warn('browser.window-state-save-failed', { error })
     })
   })
 
