@@ -141,7 +141,7 @@ export function CredentialsPage({ onClose }: CredentialsPageProps) {
         <IconButton icon="close" title="关闭" className="settings-close" onClick={onClose} />
       </div>
 
-      <div className="settings-cols">
+      <div className="credentials-cols">
         <div className="settings-col">
           <div className="settings-section">
             <h3 className="settings-section-title">平台登录态</h3>
