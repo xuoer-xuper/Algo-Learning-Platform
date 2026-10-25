@@ -34,6 +34,8 @@ interface RegisterBrowserShellIpcOptions {
     promptId: string,
     allow: boolean,
   ) => Promise<UserScriptHostPermissionResponse>
+  /** 手动恢复上次会话；缺席时三点菜单不显示该项。 */
+  reopenLastSession?: () => void
 }
 
 function toNavigationBlockReason(
@@ -214,6 +216,7 @@ export function registerBrowserShellIpc(options: RegisterBrowserShellIpcOptions)
       window,
       anchor,
       openInternalPage: (page) => { tabManager.openInternalTab(page) },
+      reopenLastSession: options.reopenLastSession,
       zoom: zoomState ? {
         factor: zoomState.factor,
         set: (command) => { tabManager.setZoom(zoomState.tabId, command) },

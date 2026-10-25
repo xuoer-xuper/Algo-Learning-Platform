@@ -77,6 +77,11 @@ import {
   type ApplicationSessionLoadResult,
 } from './windows/applicationSessionStore'
 import {
+  clearSessionRunningMarkerSync,
+  createSessionRunningMarker,
+  wasLastSessionInterrupted,
+} from './windows/sessionExitMarker'
+import {
   MAIN_WINDOW_BOUNDS,
   WindowStateStore,
   normalizeWindowState,
@@ -120,6 +125,12 @@ let userScriptFileWatcher: UserScriptFileWatcher | null = null
 let credentialAutofillService: CredentialAutofillService | null = null
 let credentialCaptureService: CredentialCaptureService | null = null
 let windowStateStore: WindowStateStore | null = null
+/**
+ * 上一次会话的快照（启动时暂存）。启动后实时会话持久化会立刻把当前
+ * （纯首页）会话覆写进快照文件——"恢复上次会话"必须读这份暂存，读文件
+ * 只会恢复出当前会话自己。
+ */
+let lastClosedSessionSnapshot: ApplicationSessionSnapshot | null = null
 let isQuitting = false
 let isQuitSessionFlushComplete = false
 let quitSessionFlushPromise: Promise<void> | null = null
@@ -427,6 +438,20 @@ async function createWindowOnce(
   win.on('resize', scheduleApplicationSession)
   win.on('maximize', scheduleApplicationSession)
   win.on('unmaximize', scheduleApplicationSession)
+  /*
+   * 窗口状态独立于会话快照落盘：干净启动（无快照恢复）时 createWindow
+   * 依赖 windowStateStore 还原上次的尺寸/位置。这个 store 原先只读不写
+   * ——老流程每次启动都走会话快照恢复，bounds 总来自快照，死 store 被
+   * 掩盖；会话改为"仅异常退出恢复"后必须真正保存。getNormalBounds 让
+   * 最大化窗口记录还原后的常规尺寸，配合 maximized 标志一起还原。
+   */
+  win.on('close', () => {
+    void windowStateStore?.save({
+      version: 1,
+      bounds: win.getNormalBounds(),
+      maximized: win.isMaximized(),
+    })
+  })
 
   if (options.restoreSnapshot) {
     const restored = tabManager.restoreSession({
@@ -552,6 +577,48 @@ const tabTransferCoordinator = new TabTransferCoordinator({
   },
 })
 
+/**
+ * 手动恢复上次会话（三点菜单入口）。最近使用的会话窗口原地合并进当前
+ * 窗口（只换标签，窗口本身不动——避免窗口关闭/打开动画，对齐 Chrome 的
+ * 观感）；会话里的其余窗口按快照重建为新窗口。
+ */
+async function reopenLastSession(): Promise<boolean> {
+  if (!lastClosedSessionSnapshot || isQuitting) return false
+  const windows = getApplicationWindowsInRestoreOrder(lastClosedSessionSnapshot)
+    .filter((window) => window.tabs.length > 0)
+  if (windows.length === 0) return false
+
+  const [primarySnapshot, ...otherSnapshots] = windows
+  const current = windowManager.getMostRecent()
+  let merged = false
+  if (current && !current.isDestroyed()) {
+    merged = current.tabManager.restoreSession(
+      {
+        version: 1,
+        activeTabId: primarySnapshot.activeTabId,
+        tabs: primarySnapshot.tabs,
+      },
+      { replaceExisting: true },
+    )
+  }
+
+  let created = 0
+  for (const snapshot of merged ? otherSnapshots : windows) {
+    try {
+      await createWindow({
+        restoreSnapshot: snapshot,
+        activateOnShow: snapshot.id === lastClosedSessionSnapshot.mostRecentWindowId,
+      })
+      created += 1
+    } catch {
+      appLogger.warn('browser.application-session-reopen-window-failed', { windowId: snapshot.id })
+    }
+  }
+  if (!merged && created === 0) return false
+  appLogger.info('browser.application-session-reopened', { merged, windowCount: created })
+  return true
+}
+
 registerMainIpc({
   credentialVault,
   getCredentialAutofillService: () => credentialAutofillService,
@@ -574,6 +641,7 @@ registerMainIpc({
   respondUserScriptHostPermission: (owner, promptId, allow) => (
     userScriptHostPermissionBroker?.respond(owner.id, promptId, allow) ?? Promise.resolve('stale')
   ),
+  reopenLastSession: () => { void reopenLastSession() },
   theme: {
     get: () => themeController.get(),
     set: value => themeController.set(value),
@@ -610,6 +678,8 @@ app.on('before-quit', (event) => {
       quitSessionFlushPromise = windowCreationGate.waitForIdle()
         .then(async () => {
           await applicationSessionPersistence?.dispose()
+          // 会话落盘完成后才算"正常退出"，删运行标记供下次启动判别
+          clearSessionRunningMarkerSync(app.getPath('userData'))
         })
         .finally(() => {
           isQuitSessionFlushComplete = true
@@ -618,6 +688,7 @@ app.on('before-quit', (event) => {
     }
     return
   }
+  if (!STARTUP_SMOKE_MODE) clearSessionRunningMarkerSync(app.getPath('userData'))
   try {
     credentialAutofillService?.dispose()
     credentialAutofillService = null
@@ -821,6 +892,22 @@ void app.whenReady().then(async () => {
     const loadedStartupSession = await loadStartupApplicationSession()
     startupSession = loadedStartupSession.result
     migratedLegacySession = loadedStartupSession.migratedLegacy
+    lastClosedSessionSnapshot = loadedStartupSession.result.kind === 'restore'
+      ? loadedStartupSession.result.snapshot
+      : null
+    /*
+     * 会话恢复语义对齐 Chrome：只有上次异常退出（运行标记仍在——崩溃、
+     * 被杀、断电）才自动恢复；正常退出走干净启动，快照文件保留，供三点
+     * 菜单"恢复上次会话"手动加载。先读标记再写入本次运行标记，顺序不可
+     * 颠倒。
+     */
+    const userDataDir = app.getPath('userData')
+    const lastSessionInterrupted = await wasLastSessionInterrupted(userDataDir)
+    if (startupSession?.kind === 'restore' && !lastSessionInterrupted) {
+      appLogger.info('browser.application-session-skip-clean-exit')
+      startupSession = { kind: 'fallback', reason: 'clean-exit' }
+    }
+    await createSessionRunningMarker(userDataDir)
   }
 
   windowCreationGate.enable()

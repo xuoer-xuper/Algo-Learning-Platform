@@ -40,6 +40,7 @@ export const nodeApplicationSessionFileSystem: ApplicationSessionFileSystem = {
 export type ApplicationSessionLoadFallbackReason =
   | 'missing'
   | 'read-failed'
+  | 'clean-exit'
   | ApplicationSessionValidationReason
 
 export type ApplicationSessionLoadResult =
