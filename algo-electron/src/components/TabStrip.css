@@ -50,6 +50,13 @@
   border-radius: var(--radius-md) var(--radius-md) 0 0;
   margin-left: 2px;
   margin-right: 2px;
+  /*
+   * 标签悬停与激活的颜色过渡（B5.3）：背景色与投影用 ease-out 160ms 柔和切换，
+   * 避免激活标签时突兀的跳变。box-shadow 过渡让活动标签的阴影淡入而非闪现。
+   */
+  transition:
+    background-color var(--duration-base) var(--ease-out),
+    box-shadow var(--duration-base) var(--ease-out);
 }
 
 /*
@@ -60,14 +67,6 @@
 .tab-item.tab-item-solo,
 .tab-item.tab-item-solo .tab-item-main {
   -webkit-app-region: drag;
-}
-  /*
-   * 标签悬停与激活的颜色过渡（B5.3）：背景色与投影用 ease-out 160ms 柔和切换，
-   * 避免激活标签时突兀的跳变。box-shadow 过渡让活动标签的阴影淡入而非闪现。
-   */
-  transition:
-    background-color var(--duration-base) var(--ease-out),
-    box-shadow var(--duration-base) var(--ease-out);
 }
 
 /*
