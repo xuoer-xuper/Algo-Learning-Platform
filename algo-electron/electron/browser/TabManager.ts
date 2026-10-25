@@ -223,6 +223,41 @@ export class TabManager {
     this.viewRegistry = options.viewRegistry ?? null
     this.getUserScriptMenuCommands = options.getUserScriptMenuCommands ?? (() => [])
     this.window.on('resize', () => this.updateBounds())
+    /*
+     * 焦点归还（对齐 Chrome）：窗口重新激活时 Electron 只把焦点还给窗口自身的
+     * webContents（壳层 UI），不会给叠加其上的标签 WebContentsView——网页里的
+     * 输入框因此失焦，用户必须点一下才能继续输入。blur 时冻结"最后持有焦点
+     * 的标签视图"快照，focus 时若它仍是活动网页标签则归还焦点；壳层持有焦点
+     * （地址栏、查找栏、内部页）的情形快照为空，走 Electron 的自然恢复。
+     */
+    this.window.webContents.on('focus', () => {
+      this.lastFocusedWebView = null
+    })
+    this.window.on('blur', () => {
+      this.pendingFocusRestoreView = this.lastFocusedWebView
+    })
+    this.window.on('focus', () => {
+      void this.restoreFocusToWebTab()
+    })
+  }
+
+  /** 最近一次持有焦点的标签视图；壳层拿回焦点时清空。 */
+  private lastFocusedWebView: WebContentsView | null = null
+  /** 窗口 blur 时冻结的快照，focus 时一次性消费。 */
+  private pendingFocusRestoreView: WebContentsView | null = null
+
+  private restoreFocusToWebTab(): void {
+    const view = this.pendingFocusRestoreView
+    this.pendingFocusRestoreView = null
+    if (!view) return
+    // 微任务延后：让窗口激活伴随的壳层自动聚焦先落定，再按快照归还。
+    queueMicrotask(() => {
+      if (this.isDestroying || this.pendingFocusRestoreView) return
+      if (this.isOmniboxOpen) return
+      const tab = this.findTabByView(view)
+      if (!tab || tab.id !== this.activeTabId || tab.view !== view) return
+      view.webContents.focus()
+    })
   }
 
   private registerTabView(tabId: string, view: WebContentsView): void {
@@ -650,6 +685,10 @@ export class TabManager {
       owner.setZoom(tab.id, direction)
     })
 
+    contents.on('focus', () => {
+      ownerBinding.owner.lastFocusedWebView = view
+    })
+
     contents.on('enter-html-full-screen', () => {
       ownerBinding.owner.handleEnterHtmlFullScreen(view)
     })
@@ -926,6 +965,8 @@ export class TabManager {
     this.unregisterTabView(contentsId)
     this.recoveryPendingViews.delete(view)
     if (this.htmlFullScreenView === view) this.htmlFullScreenView = null
+    if (this.lastFocusedWebView === view) this.lastFocusedWebView = null
+    if (this.pendingFocusRestoreView === view) this.pendingFocusRestoreView = null
     TAB_VIEW_OWNER_BINDINGS.delete(view)
     const tab = this.findTabByView(view)
     if (!tab) {
