@@ -667,7 +667,9 @@ export class TabManager {
 
       return {
         action: 'allow',
-        createWindow: (options) => owner.createPopupTab(options, details.url, details.disposition),
+        createWindow: (options) => owner.createPopupTab(options, details),
+        // Chrome 行为：Ctrl+点开的新标签页独立于来源页存活，关来源页不应连带关闭它。
+        outlivesOpener: true,
       }
     })
 
@@ -776,19 +778,33 @@ export class TabManager {
     return view
   }
 
+  /**
+   * Electron 对"开新页"有两条内部通道，传进来的 options 不同：
+   * 1. 页面 JS 调 `window.open()`：Chromium 已建好子页面，`options.webContents`
+   *    就是它，URL 由 Chromium 继续加载，这里只负责收编成标签页；
+   * 2. Ctrl+点击链接 / `target=_blank`：走 `-new-window` 通道，Electron 43 不预建
+   *    子页面，`options.webContents` 为空，也不会代为加载 URL——必须自建 view 并
+   *    loadURL。早期实现在这里直接 throw，Ctrl+点击一次就崩掉整个主进程。
+   */
   private createPopupTab(
     options: BrowserWindowConstructorOptions,
-    url: string,
-    disposition: Electron.HandlerDetails['disposition'],
+    details: Electron.HandlerDetails,
   ): WebContents {
+    const url = details.url
     const suppliedWebContents = (options as PopupWindowOptions).webContents
-    if (!suppliedWebContents) {
-      throw new Error('Electron did not supply popup webContents')
-    }
-
     const popupView = this.createView(undefined, suppliedWebContents)
-    const activate = disposition !== 'background-tab'
+    const activate = details.disposition !== 'background-tab'
     this.addManagedTab(popupView, url, { activate })
+    if (!suppliedWebContents) {
+      void popupView.webContents
+        .loadURL(url, {
+          httpReferrer: details.referrer.url,
+          postData: details.postBody?.data,
+        })
+        .catch((error) => {
+          appLogger.error('browser.load-url-failed', { url, error })
+        })
+    }
     return popupView.webContents
   }
 

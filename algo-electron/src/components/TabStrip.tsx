@@ -357,7 +357,9 @@ export function TabStrip({ onTabUrlChange, onActiveTabChange }: TabStripProps) {
         onWheel={handleWheel}
       >
         {tabs.map((tab) => {
-          const title = tab.title || '首页'
+          // 页面标题未上报且加载中：显示"正在加载"（图标位同时是转圈），
+          // 不再兜底"首页"——Ctrl+点开的新标签在标题到达前会闪现"首页"。
+          const title = tab.title || (tab.isLoading ? '正在加载' : '首页')
           const isDragging = dragState?.dragging && dragState.tabId === tab.id
           const markerEdge = dropMarker?.tabId === tab.id ? dropMarker.edge : null
           return (

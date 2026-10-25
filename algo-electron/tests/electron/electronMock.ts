@@ -71,10 +71,24 @@ export class MockWebContents extends EventEmitter {
   }
   setTitle(title: string): void { this.title = title; this.emit('page-title-updated', {}, title) }
   setWindowOpenHandler(handler: (details: any) => any): void { this.windowOpenHandler = handler }
-  simulateWindowOpen(details: any): { response: any; webContents?: MockWebContents } {
+  /**
+   * 模拟两条开新页通道（对齐 Electron 43 真实行为，见 TabManager.createPopupTab）：
+   * - `supplyGuestWebContents: true`（默认）：JS `window.open()` 通道，Chromium 预建
+   *   子页面并代为加载 URL，回调收到的 options 里带 webContents；
+   * - `supplyGuestWebContents: false`：Ctrl+点击 / `target=_blank` 通道
+   *   （`-new-window`），options 里没有 webContents，Electron 也不代为 loadURL。
+   */
+  simulateWindowOpen(
+    details: any,
+    opts: { supplyGuestWebContents?: boolean } = {},
+  ): { response: any; webContents?: MockWebContents } {
     if (!this.windowOpenHandler) return { response: { action: 'deny' } }
     const response = this.windowOpenHandler(details)
     if (response.action !== 'allow' || !response.createWindow) return { response }
+    if (opts.supplyGuestWebContents === false) {
+      response.createWindow({ webPreferences: {} })
+      return { response }
+    }
     const child = new MockWebContents()
     const returned = response.createWindow({ webPreferences: {}, webContents: child }) as MockWebContents
     if (returned !== child) {
@@ -83,7 +97,7 @@ export class MockWebContents extends EventEmitter {
     if (details.url) void child.loadURL(details.url)
     return { response, webContents: child }
   }
-  loadURL(url: string): Promise<void> {
+  loadURL(url: string, _options?: Electron.LoadURLOptions): Promise<void> {
     this.url = url
     this.mainFrame.url = url
     this.loading = false
