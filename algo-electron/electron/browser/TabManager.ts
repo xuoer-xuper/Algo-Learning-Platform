@@ -196,6 +196,13 @@ export class TabManager {
   private isRestoringSession = false
   private isOmniboxOpen = false
   /**
+   * 正处于 HTML 全屏（页面内视频等元素全屏）的标签视图。多视图标签架构下，
+   * Chromium 只会把全屏元素铺满该视图自己的 bounds——bounds 由应用排版，
+   * 不接管就呈现"小窗 + 黑边"的假全屏。进入时把视图撑满整窗盖住壳层 UI，
+   * 退出或视图销毁时清空并恢复常规内容区布局。
+   */
+  private htmlFullScreenView: WebContentsView | null = null
+  /**
    * 六条通知条各占一格 `noticeBarHeight`，除了名字之外没有任何区别：可见就抬高一格。
    * 原先是六个布尔字段 + 六段逐字节相同的 setter + 六行 `if` 累加 + 六行重置，加第七条
    * 通知得同步改四处。改成一个可见集合后，新增只是往联合类型里加一个字面量。
@@ -217,6 +224,41 @@ export class TabManager {
     this.viewRegistry = options.viewRegistry ?? null
     this.getUserScriptMenuCommands = options.getUserScriptMenuCommands ?? (() => [])
     this.window.on('resize', () => this.updateBounds())
+    /*
+     * 焦点归还（对齐 Chrome）：窗口重新激活时 Electron 只把焦点还给窗口自身的
+     * webContents（壳层 UI），不会给叠加其上的标签 WebContentsView——网页里的
+     * 输入框因此失焦，用户必须点一下才能继续输入。blur 时冻结"最后持有焦点
+     * 的标签视图"快照，focus 时若它仍是活动网页标签则归还焦点；壳层持有焦点
+     * （地址栏、查找栏、内部页）的情形快照为空，走 Electron 的自然恢复。
+     */
+    this.window.webContents.on('focus', () => {
+      this.lastFocusedWebView = null
+    })
+    this.window.on('blur', () => {
+      this.pendingFocusRestoreView = this.lastFocusedWebView
+    })
+    this.window.on('focus', () => {
+      void this.restoreFocusToWebTab()
+    })
+  }
+
+  /** 最近一次持有焦点的标签视图；壳层拿回焦点时清空。 */
+  private lastFocusedWebView: WebContentsView | null = null
+  /** 窗口 blur 时冻结的快照，focus 时一次性消费。 */
+  private pendingFocusRestoreView: WebContentsView | null = null
+
+  private restoreFocusToWebTab(): void {
+    const view = this.pendingFocusRestoreView
+    this.pendingFocusRestoreView = null
+    if (!view) return
+    // 微任务延后：让窗口激活伴随的壳层自动聚焦先落定，再按快照归还。
+    queueMicrotask(() => {
+      if (this.isDestroying || this.pendingFocusRestoreView) return
+      if (this.isOmniboxOpen) return
+      const tab = this.findTabByView(view)
+      if (!tab || tab.id !== this.activeTabId || tab.view !== view) return
+      view.webContents.focus()
+    })
   }
 
   private registerTabView(tabId: string, view: WebContentsView): void {
@@ -644,6 +686,18 @@ export class TabManager {
       owner.setZoom(tab.id, direction)
     })
 
+    contents.on('focus', () => {
+      ownerBinding.owner.lastFocusedWebView = view
+    })
+
+    contents.on('enter-html-full-screen', () => {
+      ownerBinding.owner.handleEnterHtmlFullScreen(view)
+    })
+
+    contents.on('leave-html-full-screen', () => {
+      ownerBinding.owner.handleLeaveHtmlFullScreen(view)
+    })
+
     contents.setWindowOpenHandler((details) => {
       const owner = ownerBinding.owner
       const userScriptNavigation = resolveUserScriptNavigation(details.url, {
@@ -668,7 +722,9 @@ export class TabManager {
 
       return {
         action: 'allow',
-        createWindow: (options) => owner.createPopupTab(options, details.url, details.disposition),
+        createWindow: (options) => owner.createPopupTab(options, details),
+        // Chrome 行为：Ctrl+点开的新标签页独立于来源页存活，关来源页不应连带关闭它。
+        outlivesOpener: true,
       }
     })
 
@@ -777,19 +833,33 @@ export class TabManager {
     return view
   }
 
+  /**
+   * Electron 对"开新页"有两条内部通道，传进来的 options 不同：
+   * 1. 页面 JS 调 `window.open()`：Chromium 已建好子页面，`options.webContents`
+   *    就是它，URL 由 Chromium 继续加载，这里只负责收编成标签页；
+   * 2. Ctrl+点击链接 / `target=_blank`：走 `-new-window` 通道，Electron 43 不预建
+   *    子页面，`options.webContents` 为空，也不会代为加载 URL——必须自建 view 并
+   *    loadURL。早期实现在这里直接 throw，Ctrl+点击一次就崩掉整个主进程。
+   */
   private createPopupTab(
     options: BrowserWindowConstructorOptions,
-    url: string,
-    disposition: Electron.HandlerDetails['disposition'],
+    details: Electron.HandlerDetails,
   ): WebContents {
+    const url = details.url
     const suppliedWebContents = (options as PopupWindowOptions).webContents
-    if (!suppliedWebContents) {
-      throw new Error('Electron did not supply popup webContents')
-    }
-
     const popupView = this.createView(undefined, suppliedWebContents)
-    const activate = disposition !== 'background-tab'
+    const activate = details.disposition !== 'background-tab'
     this.addManagedTab(popupView, url, { activate })
+    if (!suppliedWebContents) {
+      void popupView.webContents
+        .loadURL(url, {
+          httpReferrer: details.referrer.url,
+          postData: details.postBody?.data,
+        })
+        .catch((error) => {
+          appLogger.error('browser.load-url-failed', { url, error })
+        })
+    }
     return popupView.webContents
   }
 
@@ -895,6 +965,9 @@ export class TabManager {
     unregisterOjWebContents({ id: contentsId })
     this.unregisterTabView(contentsId)
     this.recoveryPendingViews.delete(view)
+    if (this.htmlFullScreenView === view) this.htmlFullScreenView = null
+    if (this.lastFocusedWebView === view) this.lastFocusedWebView = null
+    if (this.pendingFocusRestoreView === view) this.pendingFocusRestoreView = null
     TAB_VIEW_OWNER_BINDINGS.delete(view)
     const tab = this.findTabByView(view)
     if (!tab) {
@@ -1598,6 +1671,16 @@ export class TabManager {
     }
   }
 
+  /**
+   * 首页按钮：把当前标签页原地带到首页（对齐 Chrome 的 home 键行为），
+   * 不新开标签。已在首页时为幂等 no-op——避免无意义的整页重挂载。
+   */
+  goHome(): void {
+    const tab = this.activeTabId ? this.findTab(this.activeTabId) : null
+    if (tab?.kind === 'internal' && tab.page.type === 'home') return
+    this.navigateInternal({ type: 'home' })
+  }
+
   canGoBack(): boolean {
     const tab = this.activeTabId ? this.findTab(this.activeTabId) : null
     if (this.isWebTab(tab) && !tab.isCrashed) {
@@ -1880,8 +1963,8 @@ export class TabManager {
     })
   }
 
-  restoreSession(snapshot: TabSessionSnapshot): boolean {
-    if (this.tabs.length > 0) return false
+  restoreSession(snapshot: TabSessionSnapshot, options: { replaceExisting?: boolean } = {}): boolean {
+    if (this.tabs.length > 0 && !options.replaceExisting) return false
     const parsed = parseTabSessionSnapshot(snapshot, {
       allowInsecureLocalhost: this.allowInsecureLocalhost,
     })
@@ -1923,6 +2006,14 @@ export class TabManager {
       }
 
       if (restoredTabs.length === 0) return false
+
+      /*
+       * 替换模式：新标签全部构建成功后才拆除旧标签——解析或建视图失败时
+       * 现有标签原样保留。拆除不走 closeTab：那会触发 lastTabClosedHandler
+       * （可能连带给窗口动画甚至关窗）或自动开新标签，"原地换标签"才是
+       * 手动恢复会话应有的静默形态。
+       */
+      if (options.replaceExisting && this.tabs.length > 0) this.discardTabsForSessionRestore()
 
       this.tabs = restoredTabs
       this.activeTabId = null
@@ -1966,6 +2057,30 @@ export class TabManager {
     }
   }
 
+  /** 会话原地替换的旧标签拆除：与 closeTab 同款清理，但不触发任何关闭连锁。 */
+  private discardTabsForSessionRestore(): void {
+    const closing = this.tabs
+    this.tabs = []
+    this.activeTabId = null
+    for (const tab of closing) {
+      this.clearFindInPageForTab(tab.id)
+      if (tab.kind === 'internal' && tab.page.type === 'script-install') {
+        this.userScriptInstallRegistry?.consume(tab.page.installId)
+      }
+      if (tab.kind !== 'web') continue
+      this.emitPageDestroyed(tab, tab.view.webContents.id)
+      this.recoveryPendingViews.delete(tab.view)
+      try {
+        unregisterOjWebContents(tab.view.webContents)
+      } catch {
+        // 视图可能已在崩溃/导航竞速中失去 webContents 对象
+      }
+      this.unregisterTabView(tab.view)
+      safeRemoveChildView(this.window, tab.view)
+      safeCloseWebContents(tab.view)
+    }
+  }
+
   setLeftOffset(offset: number) {
     this.leftOffset = offset
     this.updateBounds()
@@ -1975,6 +2090,10 @@ export class TabManager {
     if (!this.activeTabId) return
     const tab = this.findTab(this.activeTabId)
     if (!this.isWebTab(tab)) return
+    if (tab.view === this.htmlFullScreenView) {
+      this.applyHtmlFullScreenBounds()
+      return
+    }
     const [width, height] = this.window.getContentSize()
     let topInset = 0
     if (tab.isUnresponsive && !tab.isUnresponsiveNoticeDismissed) {
@@ -1983,6 +2102,31 @@ export class TabManager {
     topInset += this.visibleNotices.size * BROWSER_LAYOUT.noticeBarHeight
     if (tab.id === this.findInPageTabId) topInset += BROWSER_LAYOUT.findBarHeight
     setTabViewBounds(tab.view, { width, height }, this.leftOffset, topInset)
+  }
+
+  /**
+   * HTML 全屏接管（视频等页面内全屏）：只有当前活动标签的全屏请求才扩展视图，
+   * 后台标签的全屏保持潜伏——切回该标签时 attachTabView → updateBounds 会
+   * 经由 htmlFullScreenView 判断重新套用全窗边界。
+   */
+  private handleEnterHtmlFullScreen(view: WebContentsView): void {
+    const tab = this.findTabByView(view)
+    if (!tab || tab.id !== this.activeTabId) return
+    this.htmlFullScreenView = view
+    this.applyHtmlFullScreenBounds()
+  }
+
+  private handleLeaveHtmlFullScreen(view: WebContentsView): void {
+    if (this.htmlFullScreenView !== view) return
+    this.htmlFullScreenView = null
+    this.updateBounds()
+  }
+
+  private applyHtmlFullScreenBounds(): void {
+    const view = this.htmlFullScreenView
+    if (!view) return
+    const [width, height] = this.window.getContentSize()
+    view.setBounds({ x: 0, y: 0, width, height })
   }
 
   /** 只有可见性真的变了才重排版面，避免 IPC 重复投递引起无意义的 setBounds。 */

@@ -238,12 +238,36 @@ describe('ojPreload 凭据捕获', () => {
       </form>
     `
     const recorder = harness.recordSends()
+    // 模拟用户亲手输入过密码。jsdom 造不出真·可信事件——isTrusted 是实例上不可
+    // 重配的 getter，且 dispatchEvent 会把内部值重置为 false（符合 DOM 规范）。
+    // 把内部 impl 槽位改成恒真访问器：dispatch 阶段的赋值静默失效，读取恒为 true。
+    const typed = new Event('input', { bubbles: true })
+    const [implSymbol] = Object.getOwnPropertySymbols(typed)
+    const impl = (typed as never as Record<symbol, { isTrusted: boolean }>)[implSymbol]
+    Object.defineProperty(impl, 'isTrusted', { configurable: true, get: () => true, set: () => {} })
+    document.querySelector('input[name="password"]')?.dispatchEvent(typed)
     document.querySelector('form')?.dispatchEvent(new Event('submit', { bubbles: true }))
     recorder.stop()
     assert.deepStrictEqual(recorder.calls, [{
       channel: OJ_CREDENTIAL_CAPTURE_CHANNEL,
       payload: { username: 'tourist', password: 'secret-value' },
     }])
+  })
+
+  test('用户从未亲手输入的提交不上报', async () => {
+    // 洛谷场景：账密为自动填充/站点预填，用户点第三方登录按钮（如微信登录）
+    // 同样触发 form submit——不是密码登录，不得捕获。
+    const harness = await loadPreload([VALID_TOKEN])
+    document.body.innerHTML = `
+      <form>
+        <input name="username" value="tourist" />
+        <input name="password" type="password" value="secret-value" />
+      </form>
+    `
+    const recorder = harness.recordSends()
+    document.querySelector('form')?.dispatchEvent(new Event('submit', { bubbles: true }))
+    recorder.stop()
+    assert.deepStrictEqual(recorder.calls, [])
   })
 
   test('缺密码的表单不上报', async () => {

@@ -96,6 +96,11 @@ test('captures a login submit into a redacted, window-scoped prompt', async () =
   const contents = new FakeContents(1, ctx.ojSession, 'https://codeforces.com/enter')
   ctx.app.emit('web-contents-created', {}, contents)
   assert.strictEqual(await ctx.service.receiveCapture(contents as never, { username: 'alice', password: 'secret' }), true)
+  // 提交后尚未导航：捕获挂起，不弹提示
+  assert.strictEqual(ctx.service.getCurrentPrompt('shell-1'), null)
+  assert.deepStrictEqual(ctx.shown, [])
+  // 登录成功、导航离开登录页后才展示
+  contents.emit('did-navigate', {}, 'https://codeforces.com/')
   const prompt = ctx.service.getCurrentPrompt('shell-1')!
   assert.strictEqual(prompt.username, 'alice')
   assert.strictEqual(prompt.siteName, 'Codeforces')
@@ -117,6 +122,7 @@ test('same username and password is ignored, changed password requests update', 
   assert.strictEqual(await ctx.service.receiveCapture(contents as never, { username: 'alice', password: 'old-secret' }), false)
   assert.strictEqual(ctx.service.getCurrentPrompt('shell-1'), null)
   assert.strictEqual(await ctx.service.receiveCapture(contents as never, { username: 'alice', password: 'new-secret' }), true)
+  contents.emit('did-navigate', {}, 'https://codeforces.com/')
   assert.strictEqual(ctx.service.getCurrentPrompt('shell-1')?.isUpdate, true)
   assert.strictEqual(ctx.service.getCurrentPrompt('shell-1')?.displayName, 'Main')
   ctx.service.dispose()
@@ -128,6 +134,7 @@ test('save/update/cancel are one-shot and reject mismatched action', async () =>
   const contents = new FakeContents(3, ctx.ojSession, 'https://codeforces.com/enter')
   ctx.app.emit('web-contents-created', {}, contents)
   await ctx.service.receiveCapture(contents as never, { username: 'alice', password: 'secret' })
+  contents.emit('did-navigate', {}, 'https://codeforces.com/')
   const captureId = ctx.service.getCurrentPrompt('shell-1')!.captureId
   assert.strictEqual(await ctx.service.respondCapture('shell-1', captureId, 'update'), false)
   assert.strictEqual(ctx.service.getCurrentPrompt('shell-1')?.captureId, captureId)
@@ -145,26 +152,32 @@ test('navigation, destroy, timeout and failed save clear pending state without s
   const ctx = makeService({ vault: { save } })
   const contents = new FakeContents(4, ctx.ojSession, 'https://codeforces.com/enter')
   ctx.app.emit('web-contents-created', {}, contents)
-  await ctx.service.receiveCapture(contents as never, { username: 'alice', password: 'secret' })
-  const captureId = ctx.service.getCurrentPrompt('shell-1')!.captureId
-  contents.emit('did-navigate')
-  assert.strictEqual(ctx.service.getCurrentPrompt('shell-1'), null)
-  assert.strictEqual(await ctx.service.respondCapture('shell-1', captureId, 'save'), false)
 
+  // 登录失败（验证码错误重渲染，导航仍停在登录页）：静默丢弃，不弹提示
+  await ctx.service.receiveCapture(contents as never, { username: 'alice', password: 'secret' })
+  contents.emit('did-navigate', {}, 'https://codeforces.com/enter')
+  assert.strictEqual(ctx.service.getCurrentPrompt('shell-1'), null)
+  assert.deepStrictEqual(ctx.shown, [])
+
+  // 登录成功导航展示提示后，页面销毁清理
   await ctx.service.receiveCapture(contents as never, { username: 'alice', password: 'secret-2' })
-  assert.ok(ctx.service.getCurrentPrompt('shell-1'))
+  contents.emit('did-navigate', {}, 'https://codeforces.com/')
+  const destroyedId = ctx.service.getCurrentPrompt('shell-1')!.captureId
   contents.emit('destroyed')
   assert.strictEqual(ctx.service.getCurrentPrompt('shell-1'), null)
+  assert.strictEqual(await ctx.service.respondCapture('shell-1', destroyedId, 'save'), false)
 
   const next = new FakeContents(5, ctx.ojSession, 'https://codeforces.com/enter')
   ctx.app.emit('web-contents-created', {}, next)
   await ctx.service.receiveCapture(next as never, { username: 'bob', password: 'secret-3' })
+  next.emit('did-navigate', {}, 'https://codeforces.com/')
   const timeoutId = ctx.service.getCurrentPrompt('shell-1')!.captureId
   vi.advanceTimersByTime(30_001)
   assert.strictEqual(ctx.service.getCurrentPrompt('shell-1'), null)
   assert.strictEqual(await ctx.service.respondCapture('shell-1', timeoutId, 'save'), false)
 
   await ctx.service.receiveCapture(next as never, { username: 'carol', password: 'secret-4' })
+  next.emit('did-navigate', {}, 'https://codeforces.com/')
   const failedId = ctx.service.getCurrentPrompt('shell-1')!.captureId
   assert.strictEqual(await ctx.service.respondCapture('shell-1', failedId, 'save'), false)
   assert.deepStrictEqual(ctx.results.at(-1), { captureId: failedId, success: false, error: 'save-failed' })
