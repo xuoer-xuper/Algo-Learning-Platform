@@ -105,7 +105,9 @@ interface CredentialAutofillPrompt {
   requestId: string
   siteId: string
   pageUrl: string
-  credentials: Array<Pick<CredentialSummary, 'credentialId' | 'siteId' | 'username' | 'displayName' | 'masked'>>
+  credentials: Array<
+    Pick<CredentialSummary, 'credentialId' | 'siteId' | 'username' | 'displayName' | 'masked'>
+  >
 }
 
 type CredentialCaptureAction = 'save' | 'update' | 'cancel'
@@ -402,10 +404,7 @@ type UiCommand =
   | { type: 'tab-limit-reached'; limit: number }
 
 type FindInPageCommand =
-  | { type: 'query'; query: string }
-  | { type: 'next' }
-  | { type: 'previous' }
-  | { type: 'close' }
+  { type: 'query'; query: string } | { type: 'next' } | { type: 'previous' } | { type: 'close' }
 
 interface FindInPageViewState {
   open: boolean
@@ -501,10 +500,7 @@ type UserScriptCodeView =
   | { status: 'too-large'; limitBytes: number }
 
 type UserScriptOpenEditorResult =
-  | { status: 'ok' }
-  | { status: 'not-found' }
-  | { status: 'unmanaged' }
-  | { status: 'open-failed' }
+  { status: 'ok' } | { status: 'not-found' } | { status: 'unmanaged' } | { status: 'open-failed' }
 
 interface UserScriptHostPermissionPrompt {
   promptId: string
@@ -677,19 +673,10 @@ type CoachScore = number
 
 type CoachInterventionLevel = 0 | 1 | 2 | 3 | 4 | 5
 
-type CoachInterventionSourceType =
-  | 'local_rule'
-  | 'local_hint'
-  | 'llm'
-  | 'contest_audit'
+type CoachInterventionSourceType = 'local_rule' | 'local_hint' | 'llm' | 'contest_audit'
 
 type CoachInterventionUserAction =
-  | 'shown'
-  | 'hint_requested'
-  | 'dismissed'
-  | 'never_today'
-  | 'feedback'
-  | 'no_action'
+  'shown' | 'hint_requested' | 'dismissed' | 'never_today' | 'feedback' | 'no_action'
 
 type ProblemSessionPhase = 'reading' | 'coding' | 'stuck'
 
@@ -910,12 +897,24 @@ interface ElectronAPI {
   getUserScriptInstall: (installId: string) => Promise<PendingUserScriptInstall | null>
   cancelUserScriptInstall: (installId: string) => Promise<boolean>
   getRemoteUserScriptInstallPreview: (installId: string) => Promise<UserScriptInstallPreview | null>
-  confirmRemoteUserScriptInstall: (installId: string, action: UserScriptInstallAction) => Promise<UserScriptInstallInstallResult | null>
+  confirmRemoteUserScriptInstall: (
+    installId: string,
+    action: UserScriptInstallAction,
+  ) => Promise<UserScriptInstallInstallResult | null>
   cancelRemoteUserScriptInstall: (installId: string) => Promise<boolean>
   getUserScriptHostPermissionPrompt: () => Promise<UserScriptHostPermissionPrompt | null>
-  respondUserScriptHostPermission: (promptId: string, allow: boolean) => Promise<UserScriptHostPermissionResponse>
-  onUserScriptHostPermissionPrompt: (callback: (prompt: UserScriptHostPermissionPrompt) => void) => () => void
-  listRecentProblems: (limit?: number, platform?: string, status?: string) => Promise<ProblemRecord[]>
+  respondUserScriptHostPermission: (
+    promptId: string,
+    allow: boolean,
+  ) => Promise<UserScriptHostPermissionResponse>
+  onUserScriptHostPermissionPrompt: (
+    callback: (prompt: UserScriptHostPermissionPrompt) => void,
+  ) => () => void
+  listRecentProblems: (
+    limit?: number,
+    platform?: string,
+    status?: string,
+  ) => Promise<ProblemRecord[]>
   getProblemDetail: (problemId: string) => Promise<ProblemDetailRecord | null>
   deleteProblem: (problemId: string) => Promise<boolean>
   onProblemsUpdated: (callback: () => void) => () => void
@@ -953,7 +952,13 @@ interface ElectronAPI {
   bindHandle: (platform: string, handle: string) => Promise<{ id: string; handle: string }>
   getAccount: (platform: string, handle: string) => Promise<PlatformAccount | null>
   getAccounts: (platform: string) => Promise<PlatformAccount[]>
-  syncCodeforcesRating: (handle: string) => Promise<{ success: boolean; historyCount?: number; inserted?: number; peak?: number; error?: string }>
+  syncCodeforcesRating: (handle: string) => Promise<{
+    success: boolean
+    historyCount?: number
+    inserted?: number
+    peak?: number
+    error?: string
+  }>
   getRatingHistory: (accountId: string) => Promise<RatingHistoryRecord[]>
   getCodeforcesAccount: () => Promise<PlatformAccount | null>
   getContestResults: (accountId: string) => Promise<ContestResultRecord[]>
@@ -964,7 +969,10 @@ interface ElectronAPI {
   deleteSite: (id: string) => Promise<boolean>
   exportSitesConfig: () => Promise<SiteExportResult>
   importSitesConfig: () => Promise<SiteImportResult>
-  confirmImportSites: (sites: SiteConfigRecord[], overwriteIds: string[]) => Promise<SiteConfirmImportResult>
+  confirmImportSites: (
+    sites: SiteConfigRecord[],
+    overwriteIds: string[],
+  ) => Promise<SiteConfirmImportResult>
 
   // Scripts
   scriptsGetAll: () => Promise<UserScriptRecord[]>
@@ -1016,10 +1024,20 @@ interface ElectronAPI {
   // 笔记（本地题解 Markdown）
   listNotesByProblem: (problemId: string) => Promise<NoteRecord[]>
   getNote: (noteId: string) => Promise<NoteRecord | null>
-  createNote: (problemId: string | null, title: string, content: string | null, noteType: string) => Promise<NoteRecord>
+  createNote: (
+    problemId: string | null,
+    title: string,
+    content: string | null,
+    noteType: string,
+  ) => Promise<NoteRecord>
   updateNoteTitle: (noteId: string, title: string) => Promise<boolean>
   updateNoteContent: (noteId: string, content: string) => Promise<boolean>
-  saveNoteImage: (noteId: string, fileName: string, mimeType: string, data: ArrayBuffer) => Promise<SaveNoteImageResult>
+  saveNoteImage: (
+    noteId: string,
+    fileName: string,
+    mimeType: string,
+    data: ArrayBuffer,
+  ) => Promise<SaveNoteImageResult>
   updateNoteType: (noteId: string, noteType: string) => Promise<boolean>
   deleteNote: (noteId: string) => Promise<boolean>
   getNotesForDelete: (problemId: string) => Promise<NoteRecord[]>
@@ -1043,7 +1061,10 @@ interface ElectronAPI {
   getAIOutput: (id: string) => Promise<AIOutputRecord | null>
   listAIOutputs: (outputType?: string, limit?: number) => Promise<AIOutputRecord[]>
   deleteAIOutput: (id: string) => Promise<boolean>
-  updateAIOutput: (id: string, updates: Partial<Pick<AIOutputSaveInput, 'title' | 'content' | 'content_markdown'>>) => Promise<boolean>
+  updateAIOutput: (
+    id: string,
+    updates: Partial<Pick<AIOutputSaveInput, 'title' | 'content' | 'content_markdown'>>,
+  ) => Promise<boolean>
 
   // Coach 桌宠（阶段 1 视觉壳 + 阶段 2 规则引擎预留接口）
   coachGetPetState: () => Promise<CoachPetState>
@@ -1057,12 +1078,26 @@ interface ElectronAPI {
   coachTestHint: () => Promise<CoachBubblePayload>
   coachShowBubble: (payload: CoachBubblePayload) => Promise<boolean>
   coachDismissBubble: () => Promise<boolean>
-  coachTriggerHint: (bubbleId?: string) => Promise<{ accepted: boolean; level: number; note?: string; interventionId?: string }>
+  coachTriggerHint: (
+    bubbleId?: string,
+  ) => Promise<{ accepted: boolean; level: number; note?: string; interventionId?: string }>
   coachDismissHint: (bubbleId?: string) => Promise<boolean>
-  coachFeedback: (feedback: { bubbleId?: string; interventionId?: string; type: CoachFeedbackType }) => Promise<boolean>
+  coachFeedback: (feedback: {
+    bubbleId?: string
+    interventionId?: string
+    type: CoachFeedbackType
+  }) => Promise<boolean>
   coachDismissDisclaimer: (permanent: boolean) => Promise<boolean>
-  coachPetClick: () => Promise<{ triggered: boolean; level: number; llmEnabled: boolean; note?: string }>
-  coachChat: (params: { message: string; history?: Array<{ role: 'user' | 'assistant'; content: string }> }) => Promise<{ reply: string; success: boolean; error?: string }>
+  coachPetClick: () => Promise<{
+    triggered: boolean
+    level: number
+    llmEnabled: boolean
+    note?: string
+  }>
+  coachChat: (params: {
+    message: string
+    history?: Array<{ role: 'user' | 'assistant'; content: string }>
+  }) => Promise<{ reply: string; success: boolean; error?: string }>
   coachRequestHint: () => Promise<{ message: string; success: boolean; error?: string }>
   coachGetWorkArea: () => Promise<{ x: number; y: number; width: number; height: number }>
 
@@ -1080,8 +1115,16 @@ interface ElectronAPI {
   // 阶段 5：LLM 配置
   coachGetLlmConfig: () => Promise<LlmConfigStatus | null>
   coachSaveLlmApiKey: (apiKey: string) => Promise<boolean>
-  coachSaveLlmConfig: (partial: { base_url?: string; model?: string; enabled?: boolean }) => Promise<boolean>
-  coachTestLlmConnection: (config: { api_key: string; base_url: string; model: string }) => Promise<LlmConnectionTestResult>
+  coachSaveLlmConfig: (partial: {
+    base_url?: string
+    model?: string
+    enabled?: boolean
+  }) => Promise<boolean>
+  coachTestLlmConnection: (config: {
+    api_key: string
+    base_url: string
+    model: string
+  }) => Promise<LlmConnectionTestResult>
 
   onCoachPetStateChanged: (callback: (state: CoachPetState) => void) => () => void
   onCoachConfigChanged: (callback: (config: CoachConfig) => void) => () => void

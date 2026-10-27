@@ -56,7 +56,10 @@ export interface SiteAdapter {
    * 声明成 `SubmissionData` 会在这里就把线索类型抹掉，下游只能靠 `as any` 捞回来。
    */
   parseSubmissionResult?(raw: SubmissionDetectionPayload): ScrapedSubmission | null
-  resolveProblemIdentity?(submission: ScrapedSubmission, raw: SubmissionDetectionPayload): ProblemIdentity | null
+  resolveProblemIdentity?(
+    submission: ScrapedSubmission,
+    raw: SubmissionDetectionPayload,
+  ): ProblemIdentity | null
   parseSubmissionTables?(tables: GenericTableData[], ctx: TableParseContext): ScrapedSubmission[]
   scrapeSubmissions?(ctx: SubmissionScrapeContext): Promise<ScrapedSubmission[]>
 

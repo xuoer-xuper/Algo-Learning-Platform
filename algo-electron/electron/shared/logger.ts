@@ -55,7 +55,10 @@ function redactUrl(value: string): string {
 function redactString(value: string): string {
   return redactUrl(value)
     .replace(/\b(Bearer|Basic)\s+[A-Za-z0-9._~+\-/=]+/gi, '$1 [redacted]')
-    .replace(/\b(password|passwd|secret|token|api[_-]?key|csrf)\s*[:=]\s*[^\s,;]+/gi, '$1=[redacted]')
+    .replace(
+      /\b(password|passwd|secret|token|api[_-]?key|csrf)\s*[:=]\s*[^\s,;]+/gi,
+      '$1=[redacted]',
+    )
 }
 
 function serializeValue(value: unknown): string {
@@ -130,11 +133,21 @@ export class AppLogger implements Logger {
     }
   }
 
-  debug(message: string, ...data: unknown[]): void { this.write('debug', message, data) }
-  info(message: string, ...data: unknown[]): void { this.write('info', message, data) }
-  warn(message: string, ...data: unknown[]): void { this.write('warn', message, data) }
-  error(message: string, ...data: unknown[]): void { this.write('error', message, data) }
-  fatal(message: string, ...data: unknown[]): void { this.write('fatal', message, data) }
+  debug(message: string, ...data: unknown[]): void {
+    this.write('debug', message, data)
+  }
+  info(message: string, ...data: unknown[]): void {
+    this.write('info', message, data)
+  }
+  warn(message: string, ...data: unknown[]): void {
+    this.write('warn', message, data)
+  }
+  error(message: string, ...data: unknown[]): void {
+    this.write('error', message, data)
+  }
+  fatal(message: string, ...data: unknown[]): void {
+    this.write('fatal', message, data)
+  }
 
   getLogFilePath(): string | null {
     return this.filePath

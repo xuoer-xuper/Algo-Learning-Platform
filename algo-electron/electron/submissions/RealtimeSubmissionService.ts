@@ -3,7 +3,10 @@ import { randomBytes } from 'node:crypto'
 import type { BrowserPageEvent, TabManager } from '../browser/TabManager'
 import { getRealtimeAdapterForUrl, getRealtimeAdapterIds } from '../adapters/registry'
 import { getSiteById } from '../db/repositories/siteRepository'
-import { RealtimeSubmissionDiagnostics, type RealtimeSubmissionStatus } from './RealtimeSubmissionDiagnostics'
+import {
+  RealtimeSubmissionDiagnostics,
+  type RealtimeSubmissionStatus,
+} from './RealtimeSubmissionDiagnostics'
 import { RealtimeHookInjector } from './RealtimeHookInjector'
 import { SubmissionWatcher, SUBMISSION_WATCHER_DETECTED_EVENT } from './SubmissionWatcher'
 import type { SubmissionNotification } from './SubmissionWatcherCore'
@@ -26,10 +29,13 @@ export class RealtimeSubmissionService {
    */
   private registeredIpcHandler: IpcListener<IpcMainEvent> | null = null
   private readonly tabManagerCleanups = new Map<TabManager, () => void>()
-  private readonly pageHosts = new Map<number, {
-    tabManager: TabManager
-    event: BrowserPageEvent
-  }>()
+  private readonly pageHosts = new Map<
+    number,
+    {
+      tabManager: TabManager
+      event: BrowserPageEvent
+    }
+  >()
   /**
    * One token per OJ webContents, minted lazily when its preload asks. It is
    * deliberately not rotated per navigation: the sender-URL check already
@@ -66,7 +72,11 @@ export class RealtimeSubmissionService {
         })
         return
       }
-      const enrichedPayload = this.withPageTitle(envelope.payload, pageHost, event.sender.getTitle())
+      const enrichedPayload = this.withPageTitle(
+        envelope.payload,
+        pageHost,
+        event.sender.getTitle(),
+      )
       const result = this.watcher.handleDetected(enrichedPayload, { senderUrl })
       this.diagnostics.recordDetection(senderUrl, result)
     }
@@ -84,12 +94,12 @@ export class RealtimeSubmissionService {
       }
       if (event.isMainFrame) this.pageHosts.set(event.webContentsId, { tabManager, event })
       if (
-        event.reason === 'did-navigate'
-        || event.reason === 'did-navigate-in-page'
-        || event.reason === 'dom-ready'
-        || event.reason === 'did-frame-finish-load'
-        || event.reason === 'did-finish-load'
-        || event.reason === 'active-tab-changed'
+        event.reason === 'did-navigate' ||
+        event.reason === 'did-navigate-in-page' ||
+        event.reason === 'dom-ready' ||
+        event.reason === 'did-frame-finish-load' ||
+        event.reason === 'did-finish-load' ||
+        event.reason === 'active-tab-changed'
       ) {
         this.injectHook(tabManager, event)
       }
@@ -124,7 +134,7 @@ export class RealtimeSubmissionService {
   registerIpc(): void {
     if (this.isIpcRegistered) return
     this.registeredIpcHandler = onFromOj(SUBMISSION_DETECTED_CHANNEL, this.ipcHandler)
-    handleFromOj(DOCUMENT_TOKEN_CHANNEL, event => this.issueDocumentToken(event.sender.id))
+    handleFromOj(DOCUMENT_TOKEN_CHANNEL, (event) => this.issueDocumentToken(event.sender.id))
     handleFromShell(STATUS_CHANNEL, () => this.getStatus())
     this.isIpcRegistered = true
     this.diagnostics.setIpcRegistered(true)
@@ -170,13 +180,14 @@ export class RealtimeSubmissionService {
     if (!payload || typeof payload !== 'object') return payload
 
     const record = payload as Record<string, unknown>
-    const meta = record.meta && typeof record.meta === 'object'
-      ? { ...(record.meta as Record<string, unknown>) }
-      : {}
+    const meta =
+      record.meta && typeof record.meta === 'object'
+        ? { ...(record.meta as Record<string, unknown>) }
+        : {}
     const existingTitle = typeof meta.pageTitle === 'string' ? meta.pageTitle : ''
     const pageTitle = existingTitle.trim()
       ? existingTitle
-      : pageHost.tabManager.getTitleForPage(pageHost.event) ?? senderTitle
+      : (pageHost.tabManager.getTitleForPage(pageHost.event) ?? senderTitle)
 
     if (!pageTitle?.trim()) return payload
 
@@ -194,10 +205,11 @@ function parseSubmissionEnvelope(value: unknown): { token: string; payload: unkn
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null
   const record = value as Record<string, unknown>
   if (
-    Object.keys(record).length !== 2
-    || typeof record.token !== 'string'
-    || !DOCUMENT_TOKEN_PATTERN.test(record.token)
-    || !Object.prototype.hasOwnProperty.call(record, 'payload')
-  ) return null
+    Object.keys(record).length !== 2 ||
+    typeof record.token !== 'string' ||
+    !DOCUMENT_TOKEN_PATTERN.test(record.token) ||
+    !Object.prototype.hasOwnProperty.call(record, 'payload')
+  )
+    return null
   return { token: record.token, payload: record.payload }
 }

@@ -16,8 +16,9 @@ vi.mock('../../electron/ipc/trustedSender', async () => {
   const { createTrustedSenderDouble } = await import('./trustedSenderDouble')
   return {
     ipcMain: createTrustedSenderDouble(),
-    onFromOj: (channel: string, listener: (...args: any[]) => void) => ipcMain.on(channel, listener),
-    getShellWindowOwner: () => ownerState.id ? { id: ownerState.id } : null,
+    onFromOj: (channel: string, listener: (...args: any[]) => void) =>
+      ipcMain.on(channel, listener),
+    getShellWindowOwner: () => (ownerState.id ? { id: ownerState.id } : null),
   }
 })
 
@@ -32,32 +33,36 @@ test('credentials IPC exposes only masked list and delete operations', async () 
   // vi.fn 必须留在局部常量上：写进对象字面量、整个对象再断言成 CredentialVault 之后，
   // 字段类型会退化成类的方法签名，mock.calls 就读不到了。签名用 CredentialVault['list']
   // 这种索引写法从真实类上取，替身实现和真实契约不会各自漂移。
-  const list = vi.fn<CredentialVault['list']>(siteId => [{
-    credentialId: 'credential-1',
-    siteId: siteId ?? 'codeforces',
-    username: 'alice',
-    displayName: null,
-    masked: '********',
-    lastUsedAt: null,
-    createdAt: '2026-08-19 10:00:00',
-    updatedAt: '2026-08-19 10:00:00',
-  }])
+  const list = vi.fn<CredentialVault['list']>((siteId) => [
+    {
+      credentialId: 'credential-1',
+      siteId: siteId ?? 'codeforces',
+      username: 'alice',
+      displayName: null,
+      masked: '********',
+      lastUsedAt: null,
+      createdAt: '2026-08-19 10:00:00',
+      updatedAt: '2026-08-19 10:00:00',
+    },
+  ])
   const remove = vi.fn<CredentialVault['delete']>(() => true)
   const vault = { list, delete: remove } as unknown as CredentialVault
 
   registerCredentialsIpc(vault)
 
   const listed = await ipcRenderer.invoke('credentials:list', 'codeforces')
-  assert.deepStrictEqual(listed, [{
-    credentialId: 'credential-1',
-    siteId: 'codeforces',
-    username: 'alice',
-    displayName: null,
-    masked: '********',
-    lastUsedAt: null,
-    createdAt: '2026-08-19 10:00:00',
-    updatedAt: '2026-08-19 10:00:00',
-  }])
+  assert.deepStrictEqual(listed, [
+    {
+      credentialId: 'credential-1',
+      siteId: 'codeforces',
+      username: 'alice',
+      displayName: null,
+      masked: '********',
+      lastUsedAt: null,
+      createdAt: '2026-08-19 10:00:00',
+      updatedAt: '2026-08-19 10:00:00',
+    },
+  ])
   assert.deepStrictEqual(list.mock.calls, [['codeforces']])
   assert.strictEqual(JSON.stringify(listed).includes('password'), false)
   assert.strictEqual(JSON.stringify(listed).includes('secret'), false)
@@ -119,34 +124,52 @@ test('credentials IPC renames credentials and routes autofill prompt responses b
     rename,
   } as unknown as CredentialVault
   const service = {
-    getCurrentPrompt: vi.fn((windowId: string) => windowId === 'shell-1' ? {
-      requestId: 'request-1',
-      siteId: 'codeforces',
-      pageUrl: 'https://codeforces.com/enter',
-      credentials: [],
-    } : null),
+    getCurrentPrompt: vi.fn((windowId: string) =>
+      windowId === 'shell-1'
+        ? {
+            requestId: 'request-1',
+            siteId: 'codeforces',
+            pageUrl: 'https://codeforces.com/enter',
+            credentials: [],
+          }
+        : null,
+    ),
     respondSelection: vi.fn(() => true),
   }
   registerCredentialsIpc(vault, { getAutofillService: () => service as never })
 
-  assert.deepStrictEqual(await ipcRenderer.invoke('credentials:rename', 'credential-1', 'Primary'), {
-    credentialId: 'credential-1',
-    siteId: 'codeforces',
-    username: 'alice',
-    displayName: 'Primary',
-    masked: '********',
-    lastUsedAt: null,
-    createdAt: 'now',
-    updatedAt: 'now',
-  })
+  assert.deepStrictEqual(
+    await ipcRenderer.invoke('credentials:rename', 'credential-1', 'Primary'),
+    {
+      credentialId: 'credential-1',
+      siteId: 'codeforces',
+      username: 'alice',
+      displayName: 'Primary',
+      masked: '********',
+      lastUsedAt: null,
+      createdAt: 'now',
+      updatedAt: 'now',
+    },
+  )
   assert.deepStrictEqual(rename.mock.calls, [['credential-1', 'Primary']])
-  assert.strictEqual((await ipcRenderer.invoke('credentials:autofillPrompt')).requestId, 'request-1')
-  assert.strictEqual(await ipcRenderer.invoke('credentials:autofillRespond', 'request-1', 'credential-1'), true)
-  assert.deepStrictEqual(service.respondSelection.mock.calls, [['shell-1', 'request-1', 'credential-1']])
+  assert.strictEqual(
+    (await ipcRenderer.invoke('credentials:autofillPrompt')).requestId,
+    'request-1',
+  )
+  assert.strictEqual(
+    await ipcRenderer.invoke('credentials:autofillRespond', 'request-1', 'credential-1'),
+    true,
+  )
+  assert.deepStrictEqual(service.respondSelection.mock.calls, [
+    ['shell-1', 'request-1', 'credential-1'],
+  ])
 
   ownerState.id = null
   assert.strictEqual(await ipcRenderer.invoke('credentials:autofillPrompt'), null)
-  assert.strictEqual(await ipcRenderer.invoke('credentials:autofillRespond', 'request-1', null), false)
+  assert.strictEqual(
+    await ipcRenderer.invoke('credentials:autofillRespond', 'request-1', null),
+    false,
+  )
 })
 
 test('credentials IPC routes capture prompts and responses by shell owner', async () => {
@@ -156,15 +179,19 @@ test('credentials IPC routes capture prompts and responses by shell owner', asyn
     rename: vi.fn<CredentialVault['rename']>(() => null),
   } as unknown as CredentialVault
   const service = {
-    getCurrentPrompt: vi.fn((windowId: string) => windowId === 'shell-1' ? {
-      captureId: 'capture-1',
-      siteId: 'codeforces',
-      siteName: 'Codeforces',
-      username: 'alice',
-      displayName: null,
-      masked: '********',
-      isUpdate: false,
-    } : null),
+    getCurrentPrompt: vi.fn((windowId: string) =>
+      windowId === 'shell-1'
+        ? {
+            captureId: 'capture-1',
+            siteId: 'codeforces',
+            siteName: 'Codeforces',
+            username: 'alice',
+            displayName: null,
+            masked: '********',
+            isUpdate: false,
+          }
+        : null,
+    ),
     respondCapture: vi.fn(async () => true),
     receiveCapture: vi.fn(async () => true),
   }
@@ -173,7 +200,10 @@ test('credentials IPC routes capture prompts and responses by shell owner', asyn
   const prompt = await ipcRenderer.invoke('credentials:capturePrompt')
   assert.strictEqual(prompt.captureId, 'capture-1')
   assert.strictEqual(JSON.stringify(prompt).includes('password'), false)
-  assert.strictEqual(await ipcRenderer.invoke('credentials:captureRespond', 'capture-1', 'save'), true)
+  assert.strictEqual(
+    await ipcRenderer.invoke('credentials:captureRespond', 'capture-1', 'save'),
+    true,
+  )
   assert.deepStrictEqual(service.respondCapture.mock.calls, [['shell-1', 'capture-1', 'save']])
 
   /*
@@ -195,10 +225,14 @@ test('credentials IPC routes capture prompts and responses by shell owner', asyn
     '空 captureId 应被拒绝',
   )
   assert.strictEqual(
-    service.respondCapture.mock.calls.length, 1,
+    service.respondCapture.mock.calls.length,
+    1,
     '两次非法调用都不应到达 service（此前只有 save 那次合法）',
   )
   ownerState.id = null
   assert.strictEqual(await ipcRenderer.invoke('credentials:capturePrompt'), null)
-  assert.strictEqual(await ipcRenderer.invoke('credentials:captureRespond', 'capture-1', 'cancel'), false)
+  assert.strictEqual(
+    await ipcRenderer.invoke('credentials:captureRespond', 'capture-1', 'cancel'),
+    false,
+  )
 })

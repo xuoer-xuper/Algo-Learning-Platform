@@ -1,4 +1,5 @@
-export type AIOutputType = 'review_recommendation' | 'review_plan' | 'period_summary' | 'weakness_analysis'
+export type AIOutputType =
+  'review_recommendation' | 'review_plan' | 'period_summary' | 'weakness_analysis'
 
 export type AIOutputMetadata = Record<string, unknown>
 

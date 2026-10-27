@@ -22,13 +22,27 @@ export function registerProblemIpc(options: RegisterProblemIpcOptions = {}): voi
    * `undefined` 了，`''` 不会上线——真上线了也该拒，因为 repository 侧把
    * "没传"当成不过滤，空串会变成一次匹配不到任何行的等值比较。
    */
-  ipcMain.handle('problem:listRecent', [
-    optional(int({ min: 1, max: 1000 })),
-    optional(oneOf(['acwing', 'codeforces', 'leetcode-cn', 'luogu', 'nowcoder', 'pta', 'vjudge'] as const)),
-    optional(oneOf(['solved', 'attempted', 'visited'] as const)),
-  ], (_event, limit, platform, status) => {
-    return getRecentProblems(limit, platform, status)
-  })
+  ipcMain.handle(
+    'problem:listRecent',
+    [
+      optional(int({ min: 1, max: 1000 })),
+      optional(
+        oneOf([
+          'acwing',
+          'codeforces',
+          'leetcode-cn',
+          'luogu',
+          'nowcoder',
+          'pta',
+          'vjudge',
+        ] as const),
+      ),
+      optional(oneOf(['solved', 'attempted', 'visited'] as const)),
+    ],
+    (_event, limit, platform, status) => {
+      return getRecentProblems(limit, platform, status)
+    },
+  )
 
   ipcMain.handle('problem:getDetail', [text()], (_event, problemId) => {
     return getProblemDetail(problemId)

@@ -28,7 +28,9 @@ describe('Dialog', () => {
       </Dialog>,
     )
 
-    await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('button', { name: '关闭' })))
+    await waitFor(() =>
+      expect(document.activeElement).toBe(screen.getByRole('button', { name: '关闭' })),
+    )
     screen.getByRole('button', { name: '保存' }).focus()
     fireEvent.keyDown(document, { key: 'Tab' })
     expect(document.activeElement).toBe(screen.getByRole('button', { name: '关闭' }))
@@ -42,7 +44,11 @@ describe('Dialog', () => {
 
   it('supports overlay dismissal without bubbling panel clicks', () => {
     const onClose = vi.fn()
-    render(<Dialog open title="确认" onClose={onClose}>内容</Dialog>)
+    render(
+      <Dialog open title="确认" onClose={onClose}>
+        内容
+      </Dialog>,
+    )
     fireEvent.mouseDown(screen.getByTestId('dialog-overlay'))
     expect(onClose).toHaveBeenCalledTimes(1)
     fireEvent.mouseDown(screen.getByTestId('dialog'))
@@ -66,7 +72,9 @@ describe('DropdownMenu', () => {
     const trigger = screen.getByRole('button', { name: '更多操作' })
     fireEvent.click(trigger)
     const menu = await screen.findByRole('menu', { name: '更多操作' })
-    await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('menuitem', { name: '运行' })))
+    await waitFor(() =>
+      expect(document.activeElement).toBe(screen.getByRole('menuitem', { name: '运行' })),
+    )
     fireEvent.keyDown(menu, { key: 'Escape' })
     expect(screen.queryByRole('menu')).toBeNull()
     expect(document.activeElement).toBe(trigger)

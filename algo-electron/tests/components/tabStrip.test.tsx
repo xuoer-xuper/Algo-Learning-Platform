@@ -41,11 +41,13 @@ beforeEach(() => {
   tabApi.getBrowserTabList.mockResolvedValue([initialTab])
   tabApi.finishBrowserTabDrag.mockResolvedValue(true)
   tabApi.moveBrowserTabToNewWindow.mockResolvedValue(true)
-  tabApi.subscribeTabListChanged.mockImplementation((callback: (tabs: TabStripTabInfo[]) => void) => {
-    tabApi.listener = callback
-    callback([initialTab])
-    return tabApi.unsubscribe
-  })
+  tabApi.subscribeTabListChanged.mockImplementation(
+    (callback: (tabs: TabStripTabInfo[]) => void) => {
+      tabApi.listener = callback
+      callback([initialTab])
+      return tabApi.unsubscribe
+    },
+  )
   Object.defineProperty(window, 'matchMedia', {
     configurable: true,
     value: vi.fn(() => ({ matches: false })),
@@ -74,29 +76,36 @@ describe('TabStrip', () => {
   })
 
   it('subscribes before requesting the current restored tab list', async () => {
-    tabApi.subscribeTabListChanged.mockImplementation((callback: (tabs: TabStripTabInfo[]) => void) => {
-      tabApi.listener = callback
-      return tabApi.unsubscribe
-    })
+    tabApi.subscribeTabListChanged.mockImplementation(
+      (callback: (tabs: TabStripTabInfo[]) => void) => {
+        tabApi.listener = callback
+        return tabApi.unsubscribe
+      },
+    )
 
     render(<TabStrip />)
 
     expect(tabApi.subscribeTabListChanged).toHaveBeenCalledOnce()
     expect(tabApi.getBrowserTabList).toHaveBeenCalledOnce()
-    expect(tabApi.subscribeTabListChanged.mock.invocationCallOrder[0])
-      .toBeLessThan(tabApi.getBrowserTabList.mock.invocationCallOrder[0])
+    expect(tabApi.subscribeTabListChanged.mock.invocationCallOrder[0]).toBeLessThan(
+      tabApi.getBrowserTabList.mock.invocationCallOrder[0],
+    )
     expect(await screen.findByRole('tab', { name: 'Example' })).not.toBeNull()
   })
 
   it('does not let a late initial list overwrite a newer list-changed event', async () => {
     let resolveInitial: ((tabs: TabStripTabInfo[]) => void) | undefined
-    tabApi.getBrowserTabList.mockReturnValue(new Promise((resolve) => {
-      resolveInitial = resolve
-    }))
-    tabApi.subscribeTabListChanged.mockImplementation((callback: (tabs: TabStripTabInfo[]) => void) => {
-      tabApi.listener = callback
-      return tabApi.unsubscribe
-    })
+    tabApi.getBrowserTabList.mockReturnValue(
+      new Promise((resolve) => {
+        resolveInitial = resolve
+      }),
+    )
+    tabApi.subscribeTabListChanged.mockImplementation(
+      (callback: (tabs: TabStripTabInfo[]) => void) => {
+        tabApi.listener = callback
+        return tabApi.unsubscribe
+      },
+    )
     render(<TabStrip />)
 
     act(() => {
@@ -116,13 +125,17 @@ describe('TabStrip', () => {
   it('unsubscribes and ignores the initial list after unmount', async () => {
     let resolveInitial: ((tabs: TabStripTabInfo[]) => void) | undefined
     const onTabUrlChange = vi.fn()
-    tabApi.getBrowserTabList.mockReturnValue(new Promise((resolve) => {
-      resolveInitial = resolve
-    }))
-    tabApi.subscribeTabListChanged.mockImplementation((callback: (tabs: TabStripTabInfo[]) => void) => {
-      tabApi.listener = callback
-      return tabApi.unsubscribe
-    })
+    tabApi.getBrowserTabList.mockReturnValue(
+      new Promise((resolve) => {
+        resolveInitial = resolve
+      }),
+    )
+    tabApi.subscribeTabListChanged.mockImplementation(
+      (callback: (tabs: TabStripTabInfo[]) => void) => {
+        tabApi.listener = callback
+        return tabApi.unsubscribe
+      },
+    )
     const { unmount } = render(<TabStrip onTabUrlChange={onTabUrlChange} />)
 
     unmount()
@@ -156,13 +169,15 @@ describe('TabStrip', () => {
     expect(favicon?.getAttribute('referrerpolicy')).toBe('no-referrer')
 
     act(() => {
-      tabApi.listener?.([{
-        ...initialTab,
-        kind: 'internal',
-        page: { type: 'home' },
-        url: 'algo://home',
-        favicon: null,
-      }])
+      tabApi.listener?.([
+        {
+          ...initialTab,
+          kind: 'internal',
+          page: { type: 'home' },
+          url: 'algo://home',
+          favicon: null,
+        },
+      ])
     })
     expect(container.querySelector('[data-icon="home"]')).not.toBeNull()
   })
@@ -178,7 +193,9 @@ describe('TabStrip', () => {
     fireEvent(tabElement, new MouseEvent('auxclick', { bubbles: true, button: 1 }))
     expect(tabApi.closeBrowserTab).not.toHaveBeenCalled()
 
-    act(() => { vi.advanceTimersByTime(140) })
+    act(() => {
+      vi.advanceTimersByTime(140)
+    })
     expect(tabApi.closeBrowserTab).toHaveBeenCalledWith('tab-2')
   })
 
@@ -193,11 +210,13 @@ describe('TabStrip', () => {
 
   it('reorders with a pointer drag and suppresses the click released after dragging', () => {
     const tabs = [tab('tab-1', 'First', true), tab('tab-2', 'Second'), tab('tab-3', 'Third')]
-    tabApi.subscribeTabListChanged.mockImplementation((callback: (tabs: TabStripTabInfo[]) => void) => {
-      tabApi.listener = callback
-      callback(tabs)
-      return tabApi.unsubscribe
-    })
+    tabApi.subscribeTabListChanged.mockImplementation(
+      (callback: (tabs: TabStripTabInfo[]) => void) => {
+        tabApi.listener = callback
+        callback(tabs)
+        return tabApi.unsubscribe
+      },
+    )
     const { container } = render(<TabStrip />)
     const items = Array.from(container.querySelectorAll<HTMLElement>('[data-tab-id]'))
     items.forEach((item, index) => {
@@ -237,11 +256,13 @@ describe('TabStrip', () => {
 
   it('navigates tabs with arrow, Home and End keys', () => {
     const tabs = [tab('tab-1', 'First', true), tab('tab-2', 'Second'), tab('tab-3', 'Third')]
-    tabApi.subscribeTabListChanged.mockImplementation((callback: (tabs: TabStripTabInfo[]) => void) => {
-      tabApi.listener = callback
-      callback(tabs)
-      return tabApi.unsubscribe
-    })
+    tabApi.subscribeTabListChanged.mockImplementation(
+      (callback: (tabs: TabStripTabInfo[]) => void) => {
+        tabApi.listener = callback
+        callback(tabs)
+        return tabApi.unsubscribe
+      },
+    )
     render(<TabStrip />)
     const first = screen.getByRole('tab', { name: 'First' })
     const second = screen.getByRole('tab', { name: 'Second' })

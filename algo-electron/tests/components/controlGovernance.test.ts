@@ -1,7 +1,8 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 
-const readSource = (relativePath: string) => readFileSync(new URL(relativePath, import.meta.url), 'utf8')
+const readSource = (relativePath: string) =>
+  readFileSync(new URL(relativePath, import.meta.url), 'utf8')
 
 /**
  * 交互控件与颜色的治理。

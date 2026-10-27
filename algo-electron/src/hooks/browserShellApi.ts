@@ -51,7 +51,9 @@ export function cancelPendingUserScriptInstall(installId: string): Promise<boole
   return window.electronAPI.cancelUserScriptInstall(installId)
 }
 
-export function getRemoteUserScriptInstallPreview(installId: string): Promise<UserScriptInstallPreview | null> {
+export function getRemoteUserScriptInstallPreview(
+  installId: string,
+): Promise<UserScriptInstallPreview | null> {
   return window.electronAPI.getRemoteUserScriptInstallPreview(installId)
 }
 

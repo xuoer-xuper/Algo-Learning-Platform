@@ -10,11 +10,7 @@ import { aggregateFromSnapshots, getSnapshotsInPeriod } from './periodSummaryAgg
 import { countInclusiveDays, getPeriodType, getPreviousPeriod } from './periodSummaryDates'
 import type { PeriodSummary, PeriodSummaryInput } from './periodSummaryTypes'
 
-export type {
-  PeriodSummary,
-  PeriodSummaryInput,
-  PeriodType,
-} from './periodSummaryTypes'
+export type { PeriodSummary, PeriodSummaryInput, PeriodType } from './periodSummaryTypes'
 export { renderSummaryAsMarkdown } from './periodSummaryMarkdown'
 
 const RULE_VERSION = 1
@@ -91,7 +87,7 @@ export function getPeriodSummary(input: PeriodSummaryInput): PeriodSummary {
     weak_tags: aggregated.weakTags,
     comparison,
     evidence: evidenceParts.join('，'),
-    source_snapshots: periodSnapshots.map(s => ({
+    source_snapshots: periodSnapshots.map((s) => ({
       snapshot_date: s.snapshot_date,
       created_at: s.created_at,
     })),

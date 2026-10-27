@@ -20,8 +20,13 @@ import { LlmHintService } from '../../electron/coach/llm/LlmHintService.ts'
 const API_KEY = 'ark-SENTINEL-APIKEY-0123456789'
 
 const sdk = vi.hoisted(() => ({
-  constructorOptions: [] as Array<{ apiKey?: string, baseURL?: string, timeout?: number, maxRetries?: number }>,
-  requests: [] as Array<{ model?: string, messages?: Array<{ role: string, content: string }> }>,
+  constructorOptions: [] as Array<{
+    apiKey?: string
+    baseURL?: string
+    timeout?: number
+    maxRetries?: number
+  }>,
+  requests: [] as Array<{ model?: string; messages?: Array<{ role: string; content: string }> }>,
   reply: '' as string,
   error: null as Error | null,
   usage: { prompt_tokens: 100, completion_tokens: 20 },
@@ -32,7 +37,10 @@ vi.mock('openai', () => ({
   default: class FakeOpenAI {
     readonly chat = {
       completions: {
-        create: async (request: { model?: string, messages?: Array<{ role: string, content: string }> }) => {
+        create: async (request: {
+          model?: string
+          messages?: Array<{ role: string; content: string }>
+        }) => {
           sdk.requests.push(request)
           if (sdk.error) throw sdk.error
           return {
@@ -44,7 +52,12 @@ vi.mock('openai', () => ({
       },
     }
 
-    constructor(options: { apiKey?: string, baseURL?: string, timeout?: number, maxRetries?: number }) {
+    constructor(options: {
+      apiKey?: string
+      baseURL?: string
+      timeout?: number
+      maxRetries?: number
+    }) {
       sdk.constructorOptions.push(options)
     }
   },
@@ -93,24 +106,26 @@ const repo = vi.hoisted(() => ({
 }))
 
 vi.mock('../../electron/db/repositories/submissionRepository', () => ({
-  getSubmissionsByProblemAsc: () => [{
-    id: 'row-1',
-    problem_id: 'problem-1',
-    platform: 'codeforces',
-    platform_submission_id: 'SENTINEL_SUBMISSION_ID',
-    verdict: 'WA',
-    raw_verdict: null,
-    language: 'C++17',
-    submitted_at: '2026-08-31 10:00:00',
-    runtime_ms: 15,
-    memory_kb: 65536,
-    source_url: 'https://codeforces.com/contest/1/submission/9?sessionId=SENTINEL_SESSION_COOKIE',
-    // 同 contextGatherer.test.ts：cookie 名后只留 3 个字符，避开敏感文件守卫的
-    // "会话 cookie = 12 位以上值"判定，泄漏探针交给不挨着 cookie 名的 SENTINEL_COOKIE_VALUE。
-    raw_json: '{"cookie":"JSESSIONID=abc; auth=SENTINEL_COOKIE_VALUE"}',
-    created_at: '2026-08-31 10:00:00',
-    updated_at: '2026-08-31 10:00:00',
-  }],
+  getSubmissionsByProblemAsc: () => [
+    {
+      id: 'row-1',
+      problem_id: 'problem-1',
+      platform: 'codeforces',
+      platform_submission_id: 'SENTINEL_SUBMISSION_ID',
+      verdict: 'WA',
+      raw_verdict: null,
+      language: 'C++17',
+      submitted_at: '2026-08-31 10:00:00',
+      runtime_ms: 15,
+      memory_kb: 65536,
+      source_url: 'https://codeforces.com/contest/1/submission/9?sessionId=SENTINEL_SESSION_COOKIE',
+      // 同 contextGatherer.test.ts：cookie 名后只留 3 个字符，避开敏感文件守卫的
+      // "会话 cookie = 12 位以上值"判定，泄漏探针交给不挨着 cookie 名的 SENTINEL_COOKIE_VALUE。
+      raw_json: '{"cookie":"JSESSIONID=abc; auth=SENTINEL_COOKIE_VALUE"}',
+      created_at: '2026-08-31 10:00:00',
+      updated_at: '2026-08-31 10:00:00',
+    },
+  ],
 }))
 
 vi.mock('../../electron/db/repositories/problemRepository', () => ({
@@ -134,13 +149,15 @@ vi.mock('../../electron/ai/contextExporter', () => ({
   renderContextAsMarkdown: () => repo.markdown,
 }))
 
-const logs = vi.hoisted(() => ({ entries: [] as Array<{ message: string, data: unknown[] }> }))
+const logs = vi.hoisted(() => ({ entries: [] as Array<{ message: string; data: unknown[] }> }))
 
 vi.mock('../../electron/shared/logger', () => ({
   appLogger: {
     debug: () => {},
     info: () => {},
-    warn: (message: string, ...data: unknown[]) => { logs.entries.push({ message, data }) },
+    warn: (message: string, ...data: unknown[]) => {
+      logs.entries.push({ message, data })
+    },
     error: () => {},
     fatal: () => {},
     getLogFilePath: () => null,
@@ -281,7 +298,10 @@ test('未初始化 / 未启用 / 无 Key 时不发请求', async () => {
   const uninitialized = new LlmHintService()
   assert.equal(uninitialized.isReady(), false)
   assert.equal(await uninitialized.generateHint(hintParams()), null)
-  assert.equal(await uninitialized.chat({ userMessage: '在吗', session: session(), constraints: null }), null)
+  assert.equal(
+    await uninitialized.chat({ userMessage: '在吗', session: session(), constraints: null }),
+    null,
+  )
   assert.equal(await uninitialized.requestHint({ session: session(), constraints: null }), null)
   assert.deepEqual(sdk.requests, [], 'init() 之前一次网络调用都不该有')
 
@@ -343,9 +363,11 @@ test('同题同等级命中缓存，不重复外发', async () => {
   assert.match(lastOutboundText(), /目标提示等级: L4/)
 
   // 换题目同理。
-  await service.generateHint(hintParams({
-    session: session({ platform_problem_id: '5678B' }),
-  }))
+  await service.generateHint(
+    hintParams({
+      session: session({ platform_problem_id: '5678B' }),
+    }),
+  )
   assert.equal(sdk.requests.length, 3)
 })
 
@@ -433,7 +455,10 @@ test('自由聊天把学生原话发出去，回复原样返回', async () => {
 
   assert.equal(reply, '先把状态定义写下来。')
   const request = sdk.requests[0]
-  assert.deepEqual(request?.messages?.map((message) => message.role), ['system', 'user', 'assistant', 'user'])
+  assert.deepEqual(
+    request?.messages?.map((message) => message.role),
+    ['system', 'user', 'assistant', 'user'],
+  )
   const outbound = lastOutboundText()
   assert.match(outbound, /<student_message>\n这题和我上周那道很像？\n<\/student_message>/)
   // 聊天走的是当前页 URL 而不是 canonical：比赛页与题库页不是同一个地址。
@@ -459,9 +484,15 @@ test('聊天失败返回 null 并记 llm.chat-failed', async () => {
   const service = readyService()
   sdk.error = new Error('socket hang up')
 
-  assert.equal(await service.chat({ userMessage: '在吗', session: session(), constraints: null }), null)
+  assert.equal(
+    await service.chat({ userMessage: '在吗', session: session(), constraints: null }),
+    null,
+  )
   assert.equal(sdk.requests.length, 1, '正向锚点：请求确实发出过')
-  assert.deepEqual(logs.entries.map((entry) => entry.message), ['llm.chat-failed'])
+  assert.deepEqual(
+    logs.entries.map((entry) => entry.message),
+    ['llm.chat-failed'],
+  )
 })
 
 test('requestHint 只返回提示正文，默认 L1 且绕过缓存', async () => {
@@ -486,7 +517,10 @@ test('requestHint 失败返回 null 并记 llm.request-hint-failed', async () =>
 
   assert.equal(await service.requestHint({ session: session(), constraints: null }), null)
   assert.equal(sdk.requests.length, 1, '正向锚点：请求确实发出过')
-  assert.deepEqual(logs.entries.map((entry) => entry.message), ['llm.request-hint-failed'])
+  assert.deepEqual(
+    logs.entries.map((entry) => entry.message),
+    ['llm.request-hint-failed'],
+  )
 })
 
 test('getConfigStatus 给 UI 的是脱敏摘要，不含完整 Key', () => {
@@ -537,8 +571,10 @@ test('saveApiKey 成功后立刻生效，空串解绑后不再发请求', async 
       enabled: true,
     },
   })
-  assert.ok(store.saved.every((entry) => !JSON.stringify(entry).includes('ark-NEW-KEY')),
-    '落盘的必须是密文，不能出现明文 Key')
+  assert.ok(
+    store.saved.every((entry) => !JSON.stringify(entry).includes('ark-NEW-KEY')),
+    '落盘的必须是密文，不能出现明文 Key',
+  )
 
   // 解绑：写回空串后 load() 拿不到 Key，服务应转为未就绪。
   store.encryptedApiKey = ''

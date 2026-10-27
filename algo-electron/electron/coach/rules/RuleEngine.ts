@@ -15,10 +15,7 @@ import {
   HINT_UPGRADE_COOLDOWN_MS,
   DEFAULT_TRIGGER_SCORE_THRESHOLD,
 } from './rules'
-import {
-  type LadderHintContent,
-  type GetMessageForLevelContext,
-} from '../hints/HintLadder'
+import { type LadderHintContent, type GetMessageForLevelContext } from '../hints/HintLadder'
 import type { ProblemConstraints } from '../problemFacts/ConstraintParser'
 
 /**
@@ -88,7 +85,19 @@ interface LastTriggerRecord {
 }
 
 export class RuleEngine {
-  private readonly options: Required<Omit<RuleEngineOptions, 'getSession' | 'getProblemRating' | 'getIsContestMode' | 'getSuppressedTypes' | 'onIntervention' | 'getHintForUpgrade' | 'getConstraints' | 'getProblemTags'>> & {
+  private readonly options: Required<
+    Omit<
+      RuleEngineOptions,
+      | 'getSession'
+      | 'getProblemRating'
+      | 'getIsContestMode'
+      | 'getSuppressedTypes'
+      | 'onIntervention'
+      | 'getHintForUpgrade'
+      | 'getConstraints'
+      | 'getProblemTags'
+    >
+  > & {
     getSession?: () => ProblemSession | null
     getProblemRating?: () => number | null
     getIsContestMode?: () => boolean
@@ -254,7 +263,11 @@ export class RuleEngine {
     // 注意：L5 二次确认（isConfirmation=true）跳过冷却（用户已主动确认）
     if (!isConfirmation) {
       const cooldownStart = lastUpgrade ?? last?.at
-      if (cooldownStart != null && now - cooldownStart < this.options.upgradeCooldownMs && !hasNewSubmission) {
+      if (
+        cooldownStart != null &&
+        now - cooldownStart < this.options.upgradeCooldownMs &&
+        !hasNewSubmission
+      ) {
         return null
       }
     }
@@ -322,7 +335,10 @@ export class RuleEngine {
   }
 
   /** 构建 HintLadder 上下文 */
-  private buildLadderContext(event: CoachEvent, eventType: CoachEventType): GetMessageForLevelContext {
+  private buildLadderContext(
+    event: CoachEvent,
+    eventType: CoachEventType,
+  ): GetMessageForLevelContext {
     return {
       eventType,
       verdict: event.evidence.verdict,

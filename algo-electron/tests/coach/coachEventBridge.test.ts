@@ -1,6 +1,10 @@
 import assert from 'node:assert/strict'
 import { beforeEach, test } from 'vitest'
-import { CoachEventBridge, isAcVerdict, isWrongVerdict } from '../../electron/coach/CoachEventBridge.ts'
+import {
+  CoachEventBridge,
+  isAcVerdict,
+  isWrongVerdict,
+} from '../../electron/coach/CoachEventBridge.ts'
 import type { SubmissionNotification } from '../../electron/submissions/SubmissionWatcherCore.ts'
 import type { CoachEvent } from '../../electron/coach/types.ts'
 
@@ -40,7 +44,9 @@ beforeEach(() => {
     getSessionId: () => 'session-1',
     getProblemId: () => 'problem-db-1',
     getProblemRating: () => 1500,
-    onCoachEvent: (event) => { dispatched.push(event) },
+    onCoachEvent: (event) => {
+      dispatched.push(event)
+    },
   })
 })
 
@@ -131,13 +137,17 @@ test('AC 不清零同题的 wrongCount：AC 之后再错一次仍算累计第二
 
 test('不同 problemId 各自独立累计，互不触发', () => {
   bridge.handleSubmission(notification({ problemId: 'problem-a', verdict: 'WA' }))
-  const otherProblem = bridge.handleSubmission(notification({ problemId: 'problem-b', verdict: 'WA' }))
+  const otherProblem = bridge.handleSubmission(
+    notification({ problemId: 'problem-b', verdict: 'WA' }),
+  )
 
   // 两道题各错一次，都不该到阈值——状态是按 problemKey 分桶的。
   assert.deepEqual(types(otherProblem), [], '另一道题的第一次错误不该被算进前一道')
 
   // 正向脚手架：同一道题再错一次立刻触发，证明阈值判定本身是活的。
-  const sameProblemAgain = bridge.handleSubmission(notification({ problemId: 'problem-a', verdict: 'WA' }))
+  const sameProblemAgain = bridge.handleSubmission(
+    notification({ problemId: 'problem-a', verdict: 'WA' }),
+  )
   assert.ok(types(sameProblemAgain).includes('multiple_wrong'), '同题第二次错误应触发')
   assert.equal(bridge.getProblemStateForTest('problem-a')?.wrongCount, 2)
   assert.equal(bridge.getProblemStateForTest('problem-b')?.wrongCount, 1)
@@ -155,7 +165,11 @@ test('缺 problemId 时按 unknown:平台 分桶，不会与真实题目串味',
 test('verdict 大小写归一，空 verdict 落为 UNKNOWN 且不计入错误', () => {
   const lower = bridge.handleSubmission(notification({ verdict: 'wa' }))
   assert.deepEqual(types(lower), [], '首次错误仍不触发')
-  assert.deepEqual(bridge.getProblemStateForTest('problem-1')?.verdictHistory, ['WA'], '小写 verdict 应存成大写')
+  assert.deepEqual(
+    bridge.getProblemStateForTest('problem-1')?.verdictHistory,
+    ['WA'],
+    '小写 verdict 应存成大写',
+  )
 
   // 空串走 `notification.verdict || 'UNKNOWN'`，UNKNOWN 不在错误清单里。
   const unknown = bridge.handleSubmission(notification({ verdict: '' }))
@@ -181,10 +195,18 @@ test('会话与题目上下文由注入的 provider 决定，缺 provider 时落
   bridge.handleSubmission(notification({ verdict: 'WA' }))
   const event = bridge.handleSubmission(notification({ verdict: 'WA' }))[0]
   assert.equal(event.session_id, 'session-1', 'session_id 取自 getSessionId')
-  assert.equal(event.problem_id, 'problem-db-1', 'problem_id 取自 getProblemId（不是 notification 的 key）')
+  assert.equal(
+    event.problem_id,
+    'problem-db-1',
+    'problem_id 取自 getProblemId（不是 notification 的 key）',
+  )
   assert.equal(event.platform, 'codeforces', 'platform 取自 notification')
   assert.equal(event.evidence.problem_rating, 1500)
-  assert.match(event.created_at, /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}$/, '时间戳用本地时间，不带 Z 后缀')
+  assert.match(
+    event.created_at,
+    /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}$/,
+    '时间戳用本地时间，不带 Z 后缀',
+  )
   assert.match(event.event_id, /^[0-9a-f-]{36}$/, 'event_id 应是 uuid')
 
   // 无 provider 的实例：三项都必须是 null，而不是 undefined——落库列不允许 undefined。
@@ -202,7 +224,10 @@ test('attach 接上订阅、返回的 disposer 断开订阅，detach 可重复�
   const detach = bridge.attach((callback) => {
     subscriberCount += 1
     emit = callback
-    return () => { subscriberCount -= 1; emit = null }
+    return () => {
+      subscriberCount -= 1
+      emit = null
+    }
   })
   assert.equal(subscriberCount, 1, 'attach 应订阅一次')
 

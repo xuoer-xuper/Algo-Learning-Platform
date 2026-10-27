@@ -4,9 +4,7 @@ import {
   getScriptById,
   type UserScript,
 } from '../db/repositories/userScriptRepository'
-import {
-  getUserScriptUpdateState,
-} from '../db/repositories/userScriptRuntimeRepository'
+import { getUserScriptUpdateState } from '../db/repositories/userScriptRuntimeRepository'
 import { appLogger, type Logger } from '../shared/logger'
 import { toChinaStandardTime } from '../shared/time'
 import {
@@ -115,7 +113,9 @@ export class UserScriptUpdateService {
   start(): void {
     if (this.timer) return
     void this.checkAll(false)
-    this.timer = setInterval(() => { void this.checkAll(false) }, this.schedulerIntervalMs)
+    this.timer = setInterval(() => {
+      void this.checkAll(false)
+    }, this.schedulerIntervalMs)
     this.timer.unref?.()
   }
 
@@ -135,11 +135,11 @@ export class UserScriptUpdateService {
       results.push(await this.checkScript(script.id))
     }
     return {
-      checked: results.filter(result => result.status !== 'skipped').length,
-      updated: results.filter(result => result.status === 'updated').length,
-      current: results.filter(result => result.status === 'current').length,
-      skipped: results.filter(result => result.status === 'skipped').length,
-      failed: results.filter(result => result.status === 'error').length,
+      checked: results.filter((result) => result.status !== 'skipped').length,
+      updated: results.filter((result) => result.status === 'updated').length,
+      current: results.filter((result) => result.status === 'current').length,
+      skipped: results.filter((result) => result.status === 'skipped').length,
+      failed: results.filter((result) => result.status === 'error').length,
       results,
     }
   }
@@ -155,7 +155,11 @@ export class UserScriptUpdateService {
   }
 
   private shouldCheck(script: UserScript, force: boolean): boolean {
-    if (!script.auto_update_enabled || getUpdateUrls(script, this.allowInsecureLocalhost).length === 0) return false
+    if (
+      !script.auto_update_enabled ||
+      getUpdateUrls(script, this.allowInsecureLocalhost).length === 0
+    )
+      return false
     if (force) return true
     const state = this.dependencies.getUpdateState(script.id)
     return !state?.next_check_at || state.next_check_at <= toChinaStandardTime(this.clock())
@@ -164,20 +168,26 @@ export class UserScriptUpdateService {
   private async checkScriptOnce(scriptId: string): Promise<UserScriptUpdateResult> {
     const script = this.dependencies.getScriptById(scriptId)
     if (!script || !script.auto_update_enabled) {
-      return script ? toResult(script, 'skipped') : {
-        scriptId,
-        name: '',
-        status: 'skipped',
-        previousVersion: null,
-        version: null,
-      }
+      return script
+        ? toResult(script, 'skipped')
+        : {
+            scriptId,
+            name: '',
+            status: 'skipped',
+            previousVersion: null,
+            version: null,
+          }
     }
     const urls = getUpdateUrls(script, this.allowInsecureLocalhost)
     if (urls.length === 0) return toResult(script, 'skipped')
     const state = this.dependencies.getUpdateState(script.id)
     this.dependencies.markChecking(script.id)
     try {
-      const { checkUrl, checked, metadata: checkedMetadata } = await this.fetchUpdateMetadata(urls, state)
+      const {
+        checkUrl,
+        checked,
+        metadata: checkedMetadata,
+      } = await this.fetchUpdateMetadata(urls, state)
       if (checked.status === 'not-modified') {
         this.markCurrent(script, checkUrl, checked)
         return toResult(script, 'current')
@@ -206,14 +216,18 @@ export class UserScriptUpdateService {
         checkedMetadata.downloadURL,
       )
       const { resolved, resources, downloadUrl } = prepared
-      const nextCheckUrl = firstSafeUrl([
-        resolved.decision.metadata.updateURL,
-        resolved.decision.metadata.downloadURL,
-        script.last_install_url,
-      ], this.allowInsecureLocalhost)
-      const validatorsApply = nextCheckUrl !== null
-        && sameRequestUrl(nextCheckUrl, checkUrl, checked.finalUrl)
-        && new URL(checkUrl).origin === new URL(checked.finalUrl).origin
+      const nextCheckUrl = firstSafeUrl(
+        [
+          resolved.decision.metadata.updateURL,
+          resolved.decision.metadata.downloadURL,
+          script.last_install_url,
+        ],
+        this.allowInsecureLocalhost,
+      )
+      const validatorsApply =
+        nextCheckUrl !== null &&
+        sameRequestUrl(nextCheckUrl, checkUrl, checked.finalUrl) &&
+        new URL(checkUrl).origin === new URL(checked.finalUrl).origin
       await this.dependencies.persistInstall({
         decision: resolved.decision,
         resources,
@@ -229,8 +243,7 @@ export class UserScriptUpdateService {
         ...toResult(script, 'updated'),
         version: resolved.decision.metadata.version ?? null,
       }
-    }
-    catch (error) {
+    } catch (error) {
       this.dependencies.markError(script.id, error, this.clock())
       this.dependencies.logger.warn('userscript.update-failed', {
         scriptId: script.id,
@@ -243,10 +256,15 @@ export class UserScriptUpdateService {
     }
   }
 
-  private markCurrent(script: UserScript, checkUrl: string, response: UserScriptDocumentResponse): void {
+  private markCurrent(
+    script: UserScript,
+    checkUrl: string,
+    response: UserScriptDocumentResponse,
+  ): void {
     const nextCheckUrl = getUpdateUrls(script, this.allowInsecureLocalhost)[0]
-    const validatorsApply = sameRequestUrl(nextCheckUrl, checkUrl, response.finalUrl)
-      && new URL(checkUrl).origin === new URL(response.finalUrl).origin
+    const validatorsApply =
+      sameRequestUrl(nextCheckUrl, checkUrl, response.finalUrl) &&
+      new URL(checkUrl).origin === new URL(response.finalUrl).origin
     this.dependencies.markCurrent(script.id, {
       etag: validatorsApply ? response.etag : null,
       lastModified: validatorsApply ? response.lastModified : null,
@@ -258,10 +276,10 @@ export class UserScriptUpdateService {
     urls: readonly string[],
     state: ReturnType<typeof getUserScriptUpdateState>,
   ): Promise<{
-      checkUrl: string
-      checked: UserScriptDocumentResponse
-      metadata: UserScriptMetadata | null
-    }> {
+    checkUrl: string
+    checked: UserScriptDocumentResponse
+    metadata: UserScriptMetadata | null
+  }> {
     let lastError: unknown = new Error('No userscript update source is available')
     for (let index = 0; index < urls.length; index += 1) {
       const checkUrl = urls[index]
@@ -274,8 +292,7 @@ export class UserScriptUpdateService {
         })
         if (checked.status === 'not-modified') return { checkUrl, checked, metadata: null }
         return { checkUrl, checked, metadata: parseUpdateMetadata(checked.code) }
-      }
-      catch (error) {
+      } catch (error) {
         lastError = error
       }
     }
@@ -289,10 +306,10 @@ export class UserScriptUpdateService {
     checked: Extract<UserScriptDocumentResponse, { status: 'ok' }>,
     advertisedDownloadUrl: string | undefined,
   ): Promise<{
-      resolved: ReturnType<typeof resolveUserScriptImportDecision>
-      resources: Awaited<ReturnType<typeof prepareUserScriptResources>>
-      downloadUrl: string
-    }> {
+    resolved: ReturnType<typeof resolveUserScriptImportDecision>
+    resources: Awaited<ReturnType<typeof prepareUserScriptResources>>
+    downloadUrl: string
+  }> {
     const candidates = getDownloadUrls(
       script,
       checkUrl,
@@ -327,8 +344,7 @@ export class UserScriptUpdateService {
           allowInsecureLocalhost: this.allowInsecureLocalhost,
         })
         return { resolved, resources, downloadUrl }
-      }
-      catch (error) {
+      } catch (error) {
         lastError = error
       }
     }
@@ -392,8 +408,11 @@ function hasExecutableBody(code: string): boolean {
 }
 
 function isUserScriptUrl(value: string): boolean {
-  try { return decodeURIComponent(new URL(value).pathname).toLowerCase().endsWith('.user.js') }
-  catch { return false }
+  try {
+    return decodeURIComponent(new URL(value).pathname).toLowerCase().endsWith('.user.js')
+  } catch {
+    return false
+  }
 }
 
 function sameRequestUrl(candidate: string, requested: string, finalUrl: string): boolean {
@@ -401,11 +420,17 @@ function sameRequestUrl(candidate: string, requested: string, finalUrl: string):
 }
 
 function fileNameFromUrl(value: string): string {
-  try { return decodeURIComponent(new URL(value).pathname.split('/').at(-1) || 'script.user.js') }
-  catch { return 'script.user.js' }
+  try {
+    return decodeURIComponent(new URL(value).pathname.split('/').at(-1) || 'script.user.js')
+  } catch {
+    return 'script.user.js'
+  }
 }
 
-function toResult(script: UserScript, status: UserScriptUpdateResultStatus): UserScriptUpdateResult {
+function toResult(
+  script: UserScript,
+  status: UserScriptUpdateResultStatus,
+): UserScriptUpdateResult {
   return {
     scriptId: script.id,
     name: script.name,

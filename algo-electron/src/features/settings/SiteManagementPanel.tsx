@@ -100,7 +100,10 @@ export function SiteManagementPanel() {
 
   const handleConfirmImport = async () => {
     if (!importPreview) return
-    const allSites: ImportPreviewSite[] = [...importPreview.newSites, ...importPreview.conflicts.map((c) => c.incoming)]
+    const allSites: ImportPreviewSite[] = [
+      ...importPreview.newSites,
+      ...importPreview.conflicts.map((c) => c.incoming),
+    ]
     try {
       const result = await confirmImportSites(allSites, importOverwriteIds)
       if (result.success) {
@@ -120,7 +123,7 @@ export function SiteManagementPanel() {
 
   const toggleOverwrite = (id: string) => {
     setImportOverwriteIds((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
     )
   }
 
@@ -235,7 +238,9 @@ export function SiteManagementPanel() {
       <ConfirmDialog
         open={pendingDelete !== null}
         title="删除站点"
-        description={pendingDelete ? `确定删除站点「${pendingDelete.name}」？删除后需重新添加才能恢复。` : ''}
+        description={
+          pendingDelete ? `确定删除站点「${pendingDelete.name}」？删除后需重新添加才能恢复。` : ''
+        }
         danger
         confirmText="删除"
         onConfirm={() => {

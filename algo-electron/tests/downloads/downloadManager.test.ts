@@ -40,10 +40,15 @@ class MockDownloadSession implements DownloadSessionLike {
     if (this.listener === listener) this.listener = null
   }
 
-  start(item: MockDownloadItem, webContents?: unknown): DownloadWillStartEvent & { prevented: boolean } {
+  start(
+    item: MockDownloadItem,
+    webContents?: unknown,
+  ): DownloadWillStartEvent & { prevented: boolean } {
     const event = {
       prevented: false,
-      preventDefault() { this.prevented = true },
+      preventDefault() {
+        this.prevented = true
+      },
     }
     this.listener?.(event, item, webContents)
     return event
@@ -61,15 +66,27 @@ class MockDownloadItem implements ManagedDownloadItem {
     private readonly sourceUrl = '',
   ) {}
 
-  getFilename(): string { return this.fileName }
-  getURL(): string { return this.sourceUrl }
-  setSavePath(filePath: string): void { this.savePath = filePath }
+  getFilename(): string {
+    return this.fileName
+  }
+  getURL(): string {
+    return this.sourceUrl
+  }
+  setSavePath(filePath: string): void {
+    this.savePath = filePath
+  }
   once(_event: 'done', listener: (event: unknown, state: NativeDownloadState) => void): void {
     this.doneListener = listener
   }
-  getReceivedBytes(): number { return this.receivedBytes }
-  getTotalBytes(): number { return this.totalBytes }
-  finish(state: NativeDownloadState): void { this.doneListener?.({}, state) }
+  getReceivedBytes(): number {
+    return this.receivedBytes
+  }
+  getTotalBytes(): number {
+    return this.totalBytes
+  }
+  finish(state: NativeDownloadState): void {
+    this.doneListener?.({}, state)
+  }
 }
 
 describe('DownloadManager', () => {
@@ -93,15 +110,17 @@ describe('DownloadManager', () => {
     expect(second.savePath).toBe(path.join(downloadDirectory, 'report (1).pdf'))
 
     first.finish('completed')
-    expect(results).toEqual([{
-      downloadId: 'download-1',
-      fileName: 'report.pdf',
-      savePath: first.savePath,
-      state: 'completed',
-      receivedBytes: 10,
-      totalBytes: 10,
-      finishedAt: '2026-08-18T12:00:00.000Z',
-    }])
+    expect(results).toEqual([
+      {
+        downloadId: 'download-1',
+        fileName: 'report.pdf',
+        savePath: first.savePath,
+        state: 'completed',
+        receivedBytes: 10,
+        totalBytes: 10,
+        finishedAt: '2026-08-18T12:00:00.000Z',
+      },
+    ])
   })
 
   it('cancels setup failures and emits a stable failure code without an escaped path', () => {
@@ -110,7 +129,9 @@ describe('DownloadManager', () => {
       idFactory: () => 'download-failed',
       clock: () => 0,
       fileSystem: {
-        mkdirSync: () => { throw new Error('read only') },
+        mkdirSync: () => {
+          throw new Error('read only')
+        },
         existsSync: () => false,
       },
     })
@@ -138,7 +159,9 @@ describe('DownloadManager', () => {
     const manager = new DownloadManager({ downloadDirectory: createTemporaryDirectory() })
     const session = new MockDownloadSession()
     const detach = manager.attachSession(session)
-    manager.addResultListener(() => { throw new Error('observer failed') })
+    manager.addResultListener(() => {
+      throw new Error('observer failed')
+    })
     const listener = vi.fn()
     manager.addResultListener(listener)
     const item = new MockDownloadItem('answer.txt')
@@ -155,9 +178,8 @@ describe('DownloadManager', () => {
   it('allows a navigation interceptor to cancel userscripts before path allocation', () => {
     const manager = new DownloadManager({
       downloadDirectory: createTemporaryDirectory(),
-      interceptDownload: ({ sourceUrl, fileName }) => (
-        sourceUrl.endsWith('.user.js') && fileName === 'helper.user.js'
-      ),
+      interceptDownload: ({ sourceUrl, fileName }) =>
+        sourceUrl.endsWith('.user.js') && fileName === 'helper.user.js',
     })
     const session = new MockDownloadSession()
     manager.attachSession(session)
@@ -191,16 +213,17 @@ describe('DownloadManager', () => {
     resetElectronMock()
     const windowManager = new WindowManager({ viewRegistry: new ViewRegistry() })
     const browserWindow = new MockBrowserWindow()
-    windowManager.register(new AppWindow({
-      id: 'window-1',
-      browserWindow: browserWindow as never,
-      tabManager: {} as never,
-    }))
+    windowManager.register(
+      new AppWindow({
+        id: 'window-1',
+        browserWindow: browserWindow as never,
+        tabManager: {} as never,
+      }),
+    )
     const manager = new DownloadManager({
       downloadDirectory: createTemporaryDirectory(),
-      captureResultContext: (source) => (
-        windowManager.resolveDownloadSource(source as { id: number } | undefined)?.id
-      ),
+      captureResultContext: (source) =>
+        windowManager.resolveDownloadSource(source as { id: number } | undefined)?.id,
     })
     const session = new MockDownloadSession()
     const listener = vi.fn()

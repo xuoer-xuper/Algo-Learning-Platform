@@ -115,9 +115,12 @@ describe('Omnibox', () => {
 
   it('debounces empty queries and ignores stale suggestion responses', async () => {
     const resolvers: Array<(suggestions: OmniboxSuggestion[]) => void> = []
-    shellApi.getBrowserOmniboxSuggestions.mockImplementation(() => new Promise((resolve) => {
-      resolvers.push(resolve)
-    }))
+    shellApi.getBrowserOmniboxSuggestions.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolvers.push(resolve)
+        }),
+    )
     render(<Harness />)
     const input = screen.getByRole('combobox')
 
@@ -165,7 +168,9 @@ describe('Omnibox', () => {
 
     fireEvent.keyDown(input, { key: 'ArrowDown' })
     expect(input.getAttribute('aria-activedescendant')).toBe('omnibox-suggestion-0')
-    expect(screen.getByRole('option', { name: /Two Sum/ }).getAttribute('aria-selected')).toBe('true')
+    expect(screen.getByRole('option', { name: /Two Sum/ }).getAttribute('aria-selected')).toBe(
+      'true',
+    )
     fireEvent.keyDown(input, { key: 'Enter' })
     expect(onNavigate).toHaveBeenCalledWith(historySuggestion.url)
     expect(shellApi.setBrowserOmniboxOpen).toHaveBeenLastCalledWith(false)

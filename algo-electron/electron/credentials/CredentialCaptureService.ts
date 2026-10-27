@@ -81,10 +81,17 @@ export class CredentialCaptureService {
 
   async receiveCapture(contents: WebContents, payload: unknown): Promise<boolean> {
     try {
-      if (!this.isOjContents(contents) || !isOjCredentialCapturePayload(payload) || contents.isDestroyed()) return false
+      if (
+        !this.isOjContents(contents) ||
+        !isOjCredentialCapturePayload(payload) ||
+        contents.isDestroyed()
+      )
+        return false
       const url = safeGetUrl(contents)
       const sites = this.getSites()
-      const site = sites.find(candidate => resolveCredentialAutofillTarget(url, candidate)?.siteId === candidate.id)
+      const site = sites.find(
+        (candidate) => resolveCredentialAutofillTarget(url, candidate)?.siteId === candidate.id,
+      )
       if (!site || !site.enabled) return false
       const username = payload.username.trim()
       const password = payload.password
@@ -96,14 +103,19 @@ export class CredentialCaptureService {
       const windowId = this.captureHost?.getWindowId(contents)
       if (!windowId) return false
 
-      const existing = this.vault.list(site.id).find(entry => entry.username === username) ?? null
+      const existing = this.vault.list(site.id).find((entry) => entry.username === username) ?? null
       let isUpdate = false
       if (existing) {
         const current = await this.vault.getForAutofill(existing.credentialId)
         if (!current || current.password === password) return false
         isUpdate = true
       }
-      if (generation !== this.generations.get(contentsId) || contents.isDestroyed() || safeGetUrl(contents) !== url) return false
+      if (
+        generation !== this.generations.get(contentsId) ||
+        contents.isDestroyed() ||
+        safeGetUrl(contents) !== url
+      )
+        return false
 
       for (const [captureId, capture] of this.pending) {
         if (capture.windowId === windowId) this.finish(captureId, true)
@@ -137,16 +149,25 @@ export class CredentialCaptureService {
     }
   }
 
-  async respondCapture(windowId: string, captureId: string, action: CredentialCaptureAction): Promise<boolean> {
+  async respondCapture(
+    windowId: string,
+    captureId: string,
+    action: CredentialCaptureAction,
+  ): Promise<boolean> {
     const capture = this.pending.get(captureId)
     if (!capture || capture.windowId !== windowId) return false
     if (!['save', 'update', 'cancel'].includes(action)) return false
-    if (action !== 'cancel' && (capture.prompt.isUpdate ? action !== 'update' : action !== 'save')) return false
+    if (action !== 'cancel' && (capture.prompt.isUpdate ? action !== 'update' : action !== 'save'))
+      return false
     this.finish(captureId)
     if (action === 'cancel') return true
 
     try {
-      await this.vault.save({ siteId: capture.siteId, username: capture.username, password: capture.password })
+      await this.vault.save({
+        siteId: capture.siteId,
+        username: capture.username,
+        password: capture.password,
+      })
       this.captureHost?.sendResult(windowId, { captureId, success: true })
       return true
     } catch {
@@ -187,7 +208,7 @@ export class CredentialCaptureService {
     this.generations.set(contentsId, (this.generations.get(contentsId) ?? 0) + 1)
     for (const [captureId, capture] of this.pending) {
       if (capture.contentsId !== contentsId || capture.shown) continue
-      const site = this.getSites().find(candidate => candidate.id === capture.siteId)
+      const site = this.getSites().find((candidate) => candidate.id === capture.siteId)
       if (!site || !resolveCredentialAutofillTarget(url, site)) {
         if (!site) {
           this.finish(captureId, true)
@@ -218,12 +239,18 @@ export class CredentialCaptureService {
   }
 
   private isOjContents(contents: WebContents): boolean {
-    try { return contents.session === this.ojSession }
-    catch { return false }
+    try {
+      return contents.session === this.ojSession
+    } catch {
+      return false
+    }
   }
 }
 
 function safeGetUrl(contents: Pick<WebContents, 'getURL'>): string {
-  try { return contents.getURL() }
-  catch { return '' }
+  try {
+    return contents.getURL()
+  } catch {
+    return ''
+  }
 }

@@ -136,7 +136,11 @@ export function buildUserScriptMainWorldRuntime(
   const handshakeId = requireString(input.handshakeId, 'handshakeId', 200)
   const targetOrigin = requireExactOrigin(input.targetOrigin)
   const generation = requireGeneration(input.generation)
-  const handlerName = requireString(input.handlerName ?? 'Algo Learning Platform', 'handlerName', 200)
+  const handlerName = requireString(
+    input.handlerName ?? 'Algo Learning Platform',
+    'handlerName',
+    200,
+  )
   const handlerVersion = requireString(input.handlerVersion ?? '', 'handlerVersion', 100, true)
   const compiledScripts: CompiledScript[] = []
   const rejectedScripts: UserScriptMainWorldRejectedScript[] = []
@@ -147,8 +151,9 @@ export function buildUserScriptMainWorldRuntime(
     const name = requireString(script.name, 'script.name', 500)
     if (ids.has(id)) throw new TypeError(`Duplicate userscript id: ${id}`)
     ids.add(id)
-    if (typeof script.source !== 'string') throw new TypeError(`Userscript ${id} source must be a string`)
-    if (!Array.isArray(script.grants) || script.grants.some(grant => typeof grant !== 'string')) {
+    if (typeof script.source !== 'string')
+      throw new TypeError(`Userscript ${id} source must be a string`)
+    if (!Array.isArray(script.grants) || script.grants.some((grant) => typeof grant !== 'string')) {
       throw new TypeError(`Userscript ${id} grants must be a string array`)
     }
 
@@ -170,9 +175,12 @@ export function buildUserScriptMainWorldRuntime(
         ...USER_SCRIPT_MAIN_WORLD_PARAMETER_NAMES,
         `"use strict";\n${script.source}\n`,
       )
-      compiledScripts.push({ descriptor, functionSource: compiled.toString(), deferredSource: false })
-    }
-    catch (error) {
+      compiledScripts.push({
+        descriptor,
+        functionSource: compiled.toString(),
+        deferredSource: false,
+      })
+    } catch (error) {
       if (error instanceof EvalError && descriptor) {
         compiledScripts.push({ descriptor, functionSource: script.source, deferredSource: true })
       } else {
@@ -190,10 +198,13 @@ export function buildUserScriptMainWorldRuntime(
     ...(input.exposeInvalidationMarker ? { exposeInvalidationMarker: true } : {}),
     // Resources already live in the compiled catalog entry. Keeping them out
     // of the candidate payload avoids duplicating large base64 blobs.
-    scripts: compiledScripts.map(script => ({ ...script.descriptor, resources: [] })),
+    scripts: compiledScripts.map((script) => ({ ...script.descriptor, resources: [] })),
   }
   return {
-    execution: { func: createExecutionFunction(compiledScripts), args: [payload, createExecutionBody(compiledScripts)] },
+    execution: {
+      func: createExecutionFunction(compiledScripts),
+      args: [payload, createExecutionBody(compiledScripts)],
+    },
     rejectedScripts,
   }
 }
@@ -220,12 +231,14 @@ function createExecutionBody(scripts: readonly CompiledScript[]): string {
   const deactivateScript = `${prefix}DeactivateScript`
   const catalog = `${prefix}Catalog`
   const scheduleCatalogScript = `${prefix}ScheduleCatalogScript`
-  const catalogEntries = scripts.map((script) => {
-    const executable = script.deferredSource
-      ? `new Function(...${JSON.stringify(USER_SCRIPT_MAIN_WORLD_PARAMETER_NAMES)}, ${JSON.stringify(`"use strict";\n${script.functionSource}\n`)})`
-      : `(${script.functionSource})`
-    return `[${JSON.stringify(scriptKey(script.descriptor))},{descriptor:${JSON.stringify(script.descriptor)},executable:${executable}}]`
-  }).join(',')
+  const catalogEntries = scripts
+    .map((script) => {
+      const executable = script.deferredSource
+        ? `new Function(...${JSON.stringify(USER_SCRIPT_MAIN_WORLD_PARAMETER_NAMES)}, ${JSON.stringify(`"use strict";\n${script.functionSource}\n`)})`
+        : `(${script.functionSource})`
+      return `[${JSON.stringify(scriptKey(script.descriptor))},{descriptor:${JSON.stringify(script.descriptor)},executable:${executable}}]`
+    })
+    .join(',')
 
   const body = `
     "use strict";
@@ -813,9 +826,9 @@ function executeSerializedRuntime(
   if (typeof sendMessageOrPort === 'function') {
     sendMessage = sendMessageOrPort
   } else if (sendMessageOrPort && typeof sendMessageOrPort.postMessage === 'function') {
-    sendMessage = message => sendMessageOrPort.postMessage(message)
-    subscribe ??= listener => {
-      sendMessageOrPort.addEventListener('message', event => listener(event.data))
+    sendMessage = (message) => sendMessageOrPort.postMessage(message)
+    subscribe ??= (listener) => {
+      sendMessageOrPort.addEventListener('message', (event) => listener(event.data))
       sendMessageOrPort.start()
     }
   } else {
@@ -830,7 +843,9 @@ function executeSerializedRuntime(
   execute(payload, sendMessage, subscribe)
 }
 
-function createExecutionFunction(_scripts: readonly CompiledScript[]): UserScriptMainWorldExecution['func'] {
+function createExecutionFunction(
+  _scripts: readonly CompiledScript[],
+): UserScriptMainWorldExecution['func'] {
   return executeSerializedRuntime
 }
 
@@ -879,7 +894,10 @@ function normalizeResources(
     if (resource.contentType !== null && typeof resource.contentType !== 'string') {
       throw new TypeError('Userscript resource contentType must be a string or null')
     }
-    if (typeof resource.dataBase64 !== 'string' || !/^[A-Za-z0-9+/]*={0,2}$/.test(resource.dataBase64)) {
+    if (
+      typeof resource.dataBase64 !== 'string' ||
+      !/^[A-Za-z0-9+/]*={0,2}$/.test(resource.dataBase64)
+    ) {
       throw new TypeError('Userscript resource data must be base64')
     }
     return {
@@ -933,8 +951,14 @@ function requireGeneration(value: unknown): number {
 }
 
 function requireString(value: unknown, field: string, max: number, allowEmpty = false): string {
-  if (typeof value !== 'string' || value.length > max || (!allowEmpty && value.trim().length === 0)) {
-    throw new TypeError(`${field} must be a ${allowEmpty ? '' : 'non-empty '}string of at most ${max} characters`)
+  if (
+    typeof value !== 'string' ||
+    value.length > max ||
+    (!allowEmpty && value.trim().length === 0)
+  ) {
+    throw new TypeError(
+      `${field} must be a ${allowEmpty ? '' : 'non-empty '}string of at most ${max} characters`,
+    )
   }
   return value
 }
@@ -943,8 +967,11 @@ function requireExactOrigin(value: unknown): string {
   const origin = requireString(value, 'targetOrigin', 2_048)
   if (origin === '*') throw new TypeError('targetOrigin must not be a wildcard')
   let parsed: URL
-  try { parsed = new URL(origin) }
-  catch { throw new TypeError('targetOrigin must be a valid origin') }
+  try {
+    parsed = new URL(origin)
+  } catch {
+    throw new TypeError('targetOrigin must be a valid origin')
+  }
   if (parsed.origin !== origin || (parsed.protocol !== 'https:' && parsed.protocol !== 'http:')) {
     throw new TypeError('targetOrigin must be an exact HTTP(S) origin')
   }
@@ -953,7 +980,7 @@ function requireExactOrigin(value: unknown): string {
 
 function runtimePrefix(): string {
   runtimeSequence += 1
-  const random = globalThis.crypto?.randomUUID?.().replace(/-/g, '')
-    ?? Math.random().toString(36).slice(2)
+  const random =
+    globalThis.crypto?.randomUUID?.().replace(/-/g, '') ?? Math.random().toString(36).slice(2)
   return `__algoUserscript${runtimeSequence.toString(36)}${random}`
 }

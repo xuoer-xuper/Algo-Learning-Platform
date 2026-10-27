@@ -9,7 +9,9 @@ vi.mock('../../src/features/home/HomePage', () => ({
   ),
 }))
 vi.mock('../../src/features/settings/SettingsPage', () => ({
-  SettingsPage: ({ onClose }: { onClose: () => void }) => <button onClick={onClose}>Settings route</button>,
+  SettingsPage: ({ onClose }: { onClose: () => void }) => (
+    <button onClick={onClose}>Settings route</button>
+  ),
 }))
 vi.mock('../../src/features/analytics/Dashboard', () => ({
   Dashboard: () => <div>Dashboard route</div>,

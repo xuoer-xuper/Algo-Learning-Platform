@@ -1,4 +1,4 @@
-import type { Session } from 'electron';
+import type { Session } from 'electron'
 import { session } from 'electron'
 import { getSiteById } from '../db/repositories/siteRepository'
 import {
@@ -46,9 +46,7 @@ export class CookieVault {
 
   async hasSessionCookie(domain: string, sessionCookieNames: string[]): Promise<boolean> {
     const cookies = await this.getCookiesByDomain(domain)
-    return sessionCookieNames.some((name) =>
-      cookies.some((c) => c.name === name)
-    )
+    return sessionCookieNames.some((name) => cookies.some((c) => c.name === name))
   }
 
   async getSafeSummaryForSite(siteId: string): Promise<CookieSafeSiteSummary> {
@@ -66,19 +64,24 @@ export class CookieVault {
     replaceCookieMetadataForDomain(
       siteId,
       domain,
-      cookies.map(entry => toCookieMetadataInput(siteId, domain, entry)),
+      cookies.map((entry) => toCookieMetadataInput(siteId, domain, entry)),
     )
   }
 }
 
-function toCookieMetadataInput(siteId: string, domain: string, entry: Electron.Cookie): CookieMetadataInput {
+function toCookieMetadataInput(
+  siteId: string,
+  domain: string,
+  entry: Electron.Cookie,
+): CookieMetadataInput {
   return {
     siteId,
     domain,
     name: entry.name,
-    expiresAt: typeof entry.expirationDate === 'number'
-      ? new Date(entry.expirationDate * 1000).toISOString()
-      : null,
+    expiresAt:
+      typeof entry.expirationDate === 'number'
+        ? new Date(entry.expirationDate * 1000).toISOString()
+        : null,
     httpOnly: entry.httpOnly,
     secure: entry.secure,
     sameSite: entry.sameSite,

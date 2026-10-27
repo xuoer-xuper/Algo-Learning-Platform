@@ -67,11 +67,17 @@ export function registerShellProtocol(rendererDist: string): void {
     try {
       const assetPath = resolveShellAsset(root, request.url)
       if (!assetPath || !fs.existsSync(assetPath) || !fs.statSync(assetPath).isFile()) {
-        return new Response('Not Found', { status: 404, headers: { 'Content-Security-Policy': SHELL_CSP } })
+        return new Response('Not Found', {
+          status: 404,
+          headers: { 'Content-Security-Policy': SHELL_CSP },
+        })
       }
       return responseWithCsp(await net.fetch(pathToFileURL(assetPath).toString()))
     } catch {
-      return new Response('Not Found', { status: 404, headers: { 'Content-Security-Policy': SHELL_CSP } })
+      return new Response('Not Found', {
+        status: 404,
+        headers: { 'Content-Security-Policy': SHELL_CSP },
+      })
     }
   })
   protocolRegistered = true

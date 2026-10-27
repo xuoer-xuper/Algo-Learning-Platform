@@ -25,7 +25,8 @@ const highConfidenceSecretPatterns = [
     reason: 'Authorization bearer token-like value',
   },
   {
-    regex: /\b(?:LEETCODE_SESSION|JSESSIONID|sessionid|csrftoken|csrf_token|csrfToken)\s*=\s*[A-Za-z0-9._~+/=-]{12,}/,
+    regex:
+      /\b(?:LEETCODE_SESSION|JSESSIONID|sessionid|csrftoken|csrf_token|csrfToken)\s*=\s*[A-Za-z0-9._~+/=-]{12,}/,
     reason: 'session or csrf token-like assignment',
   },
 ]
@@ -47,10 +48,14 @@ const binaryExtensions = new Set([
 ])
 
 function listRepositoryFiles() {
-  const result = spawnSync('git', ['ls-files', '--cached', '--others', '--exclude-standard', '-z'], {
-    cwd: repoRoot,
-    encoding: 'utf8',
-  })
+  const result = spawnSync(
+    'git',
+    ['ls-files', '--cached', '--others', '--exclude-standard', '-z'],
+    {
+      cwd: repoRoot,
+      encoding: 'utf8',
+    },
+  )
 
   if (result.status !== 0) {
     throw new Error(result.stderr || 'git ls-files failed')
@@ -105,11 +110,18 @@ function checkSecurityRegressions() {
   const configStoreFile = 'algo-electron/electron/coach/llm/LlmConfigStore.ts'
   const configStoreText = fs.readFileSync(path.join(repoRoot, configStoreFile), 'utf8')
 
-  if (/encrypted\s*=\s*[`'"]plain:/i.test(configStoreText) || /savePartial\([^)]*plain:/is.test(configStoreText)) {
+  if (
+    /encrypted\s*=\s*[`'"]plain:/i.test(configStoreText) ||
+    /savePartial\([^)]*plain:/is.test(configStoreText)
+  ) {
     failures.push(`${configStoreFile}: must not persist an API key as plaintext fallback`)
   }
-  if (!/if \(!safeStorage\.isEncryptionAvailable\(\)\) \{\s*return false\s*\}/m.test(configStoreText)) {
-    failures.push(`${configStoreFile}: must reject API key persistence when safeStorage is unavailable`)
+  if (
+    !/if \(!safeStorage\.isEncryptionAvailable\(\)\) \{\s*return false\s*\}/m.test(configStoreText)
+  ) {
+    failures.push(
+      `${configStoreFile}: must reject API key persistence when safeStorage is unavailable`,
+    )
   }
   if (!configStoreText.includes("encryptedKey?.startsWith('plain:')")) {
     failures.push(`${configStoreFile}: must migrate or clear legacy plaintext API key values`)
@@ -126,23 +138,45 @@ function checkSecurityRegressions() {
 
   const mainFile = 'algo-electron/electron/main.ts'
   const mainText = fs.readFileSync(path.join(repoRoot, mainFile), 'utf8')
-  if (!mainText.includes('registerShellSchemeAsPrivileged()') || !mainText.includes('registerShellProtocol(RENDERER_DIST)')) {
-    failures.push(`${mainFile}: production shell protocol must be registered before loading renderer content`)
+  if (
+    !mainText.includes('registerShellSchemeAsPrivileged()') ||
+    !mainText.includes('registerShellProtocol(RENDERER_DIST)')
+  ) {
+    failures.push(
+      `${mainFile}: production shell protocol must be registered before loading renderer content`,
+    )
   }
-  if (!mainText.includes("win.loadURL(shellUrl('/index.html'))") || /win\.loadFile\(path\.join\(RENDERER_DIST/.test(mainText)) {
+  if (
+    !mainText.includes("win.loadURL(shellUrl('/index.html'))") ||
+    /win\.loadFile\(path\.join\(RENDERER_DIST/.test(mainText)
+  ) {
     failures.push(`${mainFile}: production shell must load from app://shell instead of file://`)
   }
 
   const protocolFile = 'algo-electron/electron/app/appProtocol.ts'
   const protocolText = fs.readFileSync(path.join(repoRoot, protocolFile), 'utf8')
-  for (const directive of ["default-src 'self'", "script-src 'self'", "object-src 'none'", "frame-ancestors 'none'"]) {
-    if (!protocolText.includes(directive)) failures.push(`${protocolFile}: CSP is missing ${directive}`)
+  for (const directive of [
+    "default-src 'self'",
+    "script-src 'self'",
+    "object-src 'none'",
+    "frame-ancestors 'none'",
+  ]) {
+    if (!protocolText.includes(directive))
+      failures.push(`${protocolFile}: CSP is missing ${directive}`)
   }
 
   const trustedSenderFile = 'algo-electron/electron/ipc/trustedSender.ts'
   const trustedSenderText = fs.readFileSync(path.join(repoRoot, trustedSenderFile), 'utf8')
-  for (const token of ['checkShellSender', 'checkOjSender', 'checkIpcPayload', 'registerShellWebContents', 'getShellWindowOwner', 'registerOjWebContents']) {
-    if (!trustedSenderText.includes(token)) failures.push(`${trustedSenderFile}: missing ${token} trust boundary`)
+  for (const token of [
+    'checkShellSender',
+    'checkOjSender',
+    'checkIpcPayload',
+    'registerShellWebContents',
+    'getShellWindowOwner',
+    'registerOjWebContents',
+  ]) {
+    if (!trustedSenderText.includes(token))
+      failures.push(`${trustedSenderFile}: missing ${token} trust boundary`)
   }
 
   return failures

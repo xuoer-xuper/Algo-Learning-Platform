@@ -52,7 +52,9 @@ export function ProblemDetail({ problemId, onClose }: Props) {
     try {
       const notes = await loadNotesForDelete(problemId)
       count = notes.length
-    } catch { /* 查询失败时按无笔记处理 */ }
+    } catch {
+      /* 查询失败时按无笔记处理 */
+    }
     setNoteCount(count)
     setAlsoDeleteNotes(false)
     setConfirmOpen(true)
@@ -83,7 +85,9 @@ export function ProblemDetail({ problemId, onClose }: Props) {
         <div className="detail-header">
           {/* 标题位的骨架整块 aria-hidden：播报交给下方那一个 role="status"，
               否则读屏会把同一句「加载中」念两遍。 */}
-          <span className="detail-title" aria-hidden="true"><Skeleton inline /></span>
+          <span className="detail-title" aria-hidden="true">
+            <Skeleton inline />
+          </span>
           <IconButton icon="close" title="关闭" className="detail-close" onClick={onClose} />
         </div>
         <div className="detail-info">
@@ -136,25 +140,31 @@ export function ProblemDetail({ problemId, onClose }: Props) {
         </div>
         <div className="detail-row">
           <span className="detail-label">提交</span>
-          <span className="detail-value num">{detail.submission_count} 次（AC {detail.ac_count} 次）</span>
+          <span className="detail-value num">
+            {detail.submission_count} 次（AC {detail.ac_count} 次）
+          </span>
         </div>
         {detail.visitStats && detail.visitStats.total_visits > 0 && (
           <div className="detail-row">
             <span className="detail-label">停留</span>
             <span className="detail-value num">
-              {detail.visitStats.total_visits} 次访问，
-              累计 {Math.round(detail.visitStats.total_duration / 60)} 分钟
+              {detail.visitStats.total_visits} 次访问， 累计{' '}
+              {Math.round(detail.visitStats.total_duration / 60)} 分钟
             </span>
           </div>
         )}
         <div className="detail-row">
           <span className="detail-label">首次访问</span>
-          <span className="detail-value num">{detail.first_seen_at?.replace('T', ' ').slice(0, 19)}</span>
+          <span className="detail-value num">
+            {detail.first_seen_at?.replace('T', ' ').slice(0, 19)}
+          </span>
         </div>
         {detail.last_visited_at && (
           <div className="detail-row">
             <span className="detail-label">最近访问</span>
-            <span className="detail-value num">{detail.last_visited_at?.replace('T', ' ').slice(0, 19)}</span>
+            <span className="detail-value num">
+              {detail.last_visited_at?.replace('T', ' ').slice(0, 19)}
+            </span>
           </div>
         )}
         <div className="detail-row">
@@ -190,7 +200,9 @@ export function ProblemDetail({ problemId, onClose }: Props) {
                   {s.verdict}
                 </span>
                 <span className="submission-lang">{s.language || '-'}</span>
-                <span className="submission-time num">{s.submitted_at?.replace('T', ' ').slice(0, 19)}</span>
+                <span className="submission-time num">
+                  {s.submitted_at?.replace('T', ' ').slice(0, 19)}
+                </span>
               </div>
             ))}
           </div>

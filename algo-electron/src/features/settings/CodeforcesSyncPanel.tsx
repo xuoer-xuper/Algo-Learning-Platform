@@ -83,13 +83,19 @@ export function CodeforcesSyncPanel({ onStatsRefresh }: CodeforcesSyncPanelProps
             onChange={(e) => setRatingHandle(e.target.value)}
             placeholder="Codeforces Handle"
           />
-          <Button variant="primary" onClick={handleSyncRating}>同步 Rating</Button>
+          <Button variant="primary" onClick={handleSyncRating}>
+            同步 Rating
+          </Button>
         </div>
         {ratingStatus && <div className="sync-status">{ratingStatus}</div>}
         {ratingInfo && (
           <div className="rating-info">
-            <span className="rating-current">当前: <span className="num">{ratingInfo.current_rating ?? '-'}</span></span>
-            <span className="rating-peak">最高: <span className="num">{ratingInfo.peak_rating ?? '-'}</span></span>
+            <span className="rating-current">
+              当前: <span className="num">{ratingInfo.current_rating ?? '-'}</span>
+            </span>
+            <span className="rating-peak">
+              最高: <span className="num">{ratingInfo.peak_rating ?? '-'}</span>
+            </span>
           </div>
         )}
       </div>
@@ -104,10 +110,14 @@ export function CodeforcesSyncPanel({ onStatsRefresh }: CodeforcesSyncPanelProps
             onChange={(e) => setCfHandle(e.target.value)}
             placeholder="Codeforces Handle"
           />
-          <Button variant="primary" onClick={handleSyncCF}>同步 CF</Button>
+          <Button variant="primary" onClick={handleSyncCF}>
+            同步 CF
+          </Button>
         </div>
         {submissionSyncStatus && <div className="sync-status">{submissionSyncStatus}</div>}
-        <div className="sync-hint">AcWing / 牛客 / VJudge / 洛谷：在浏览器打开提交页面后点工具栏抓取按钮</div>
+        <div className="sync-hint">
+          AcWing / 牛客 / VJudge / 洛谷：在浏览器打开提交页面后点工具栏抓取按钮
+        </div>
       </div>
     </>
   )

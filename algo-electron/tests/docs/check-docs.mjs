@@ -33,11 +33,33 @@ const readmeContentRules = [
   },
   {
     label: '当前实现或覆盖范围',
-    patterns: [/当前实现/, /当前覆盖/, /当前内容/, /目录覆盖/, /实现程度/, /当前功能域/, /当前状态/, /模板/],
+    patterns: [
+      /当前实现/,
+      /当前覆盖/,
+      /当前内容/,
+      /目录覆盖/,
+      /实现程度/,
+      /当前功能域/,
+      /当前状态/,
+      /模板/,
+    ],
   },
   {
     label: '封装入口或关键文件',
-    patterns: [/关键函数/, /封装/, /\bAPI\b/, /入口/, /核心类型/, /当前内容/, /目录覆盖/, /运行方式/, /关键文件/, /脚本/, /文件/, /模板/],
+    patterns: [
+      /关键函数/,
+      /封装/,
+      /\bAPI\b/,
+      /入口/,
+      /核心类型/,
+      /当前内容/,
+      /目录覆盖/,
+      /运行方式/,
+      /关键文件/,
+      /脚本/,
+      /文件/,
+      /模板/,
+    ],
   },
   {
     label: '边界或维护规则',
@@ -54,9 +76,7 @@ const docsRootPath = path.join(repoRoot, 'docs')
 const packageJsonPath = path.join(projectRoot, 'package.json')
 
 function hasExcludedPart(filePath) {
-  return filePath
-    .split(path.sep)
-    .some((part) => excludedPathParts.has(part))
+  return filePath.split(path.sep).some((part) => excludedPathParts.has(part))
 }
 
 function walkFiles(rootDir, predicate, files = []) {
@@ -88,9 +108,10 @@ function normalizeMarkdownTarget(target) {
     return null
   }
 
-  const withoutTitle = trimmed.startsWith('<') && trimmed.endsWith('>')
-    ? trimmed.slice(1, -1)
-    : trimmed.split(/\s+/)[0]
+  const withoutTitle =
+    trimmed.startsWith('<') && trimmed.endsWith('>')
+      ? trimmed.slice(1, -1)
+      : trimmed.split(/\s+/)[0]
 
   const withoutAnchor = withoutTitle.split('#')[0]
 
@@ -222,7 +243,11 @@ function checkDocsNaming() {
         }
       }
 
-      if (fileName !== 'README.md' && fileName?.toLowerCase().endsWith('.md') && !/^[A-Z0-9_]+\.md$/.test(fileName)) {
+      if (
+        fileName !== 'README.md' &&
+        fileName?.toLowerCase().endsWith('.md') &&
+        !/^[A-Z0-9_]+\.md$/.test(fileName)
+      ) {
         invalidFiles.add(trackedPath)
       }
     }
@@ -241,9 +266,8 @@ function checkDocsNaming() {
     }
   }
 
-  for (const file of walkFiles(
-    docsRootPath,
-    (filePath) => filePath.toLowerCase().endsWith('.md'),
+  for (const file of walkFiles(docsRootPath, (filePath) =>
+    filePath.toLowerCase().endsWith('.md'),
   )) {
     const name = path.basename(file)
     if (name === 'README.md') {
@@ -256,12 +280,12 @@ function checkDocsNaming() {
   }
 
   return [
-    ...Array.from(invalidDirectories).sort().map(
-      (dir) => `${dir}: docs directory names must use UPPER_SNAKE_CASE`,
-    ),
-    ...Array.from(invalidFiles).sort().map(
-      (file) => `${file}: docs markdown names must use UPPER_SNAKE_CASE.md`,
-    ),
+    ...Array.from(invalidDirectories)
+      .sort()
+      .map((dir) => `${dir}: docs directory names must use UPPER_SNAKE_CASE`),
+    ...Array.from(invalidFiles)
+      .sort()
+      .map((file) => `${file}: docs markdown names must use UPPER_SNAKE_CASE.md`),
   ]
 }
 
@@ -291,7 +315,9 @@ function checkNpmScriptReferences() {
       }
 
       if (!scripts.has(scriptName)) {
-        errors.push(`${path.relative(repoRoot, markdownFile)}: package script ${scriptName} is not defined`)
+        errors.push(
+          `${path.relative(repoRoot, markdownFile)}: package script ${scriptName} is not defined`,
+        )
       }
     }
   }
@@ -316,7 +342,7 @@ function checkNpmScriptReferences() {
  * 那份文档判成违规。
  */
 function extractFencedBlocks(text) {
-  return [...text.matchAll(/```[^\n]*\n([\s\S]*?)```/g)].map(match => match[1])
+  return [...text.matchAll(/```[^\n]*\n([\s\S]*?)```/g)].map((match) => match[1])
 }
 
 function checkVitestPathReferences() {
@@ -364,9 +390,8 @@ function getDocsIndexRequiredTargets() {
     }
   }
 
-  for (const file of walkFiles(
-    docsRootPath,
-    (filePath) => filePath.toLowerCase().endsWith('.md'),
+  for (const file of walkFiles(docsRootPath, (filePath) =>
+    filePath.toLowerCase().endsWith('.md'),
   )) {
     if (path.resolve(file) !== path.resolve(docsIndexPath)) {
       targets.add(file)
@@ -374,7 +399,9 @@ function getDocsIndexRequiredTargets() {
   }
 
   targets.delete(docsIndexPath)
-  return Array.from(targets).map((target) => path.resolve(target)).sort()
+  return Array.from(targets)
+    .map((target) => path.resolve(target))
+    .sort()
 }
 
 function checkReadmeCoverage() {
@@ -390,7 +417,11 @@ function checkReadmeCoverage() {
       errors.push(`Missing README.md: ${path.relative(repoRoot, target)}`)
     }
 
-    if (target.endsWith(`${path.sep}src`) || target.endsWith(`${path.sep}electron`) || target.endsWith(`${path.sep}tests`)) {
+    if (
+      target.endsWith(`${path.sep}src`) ||
+      target.endsWith(`${path.sep}electron`) ||
+      target.endsWith(`${path.sep}tests`)
+    ) {
       for (const dir of walkDirectories(target)) {
         if (!fs.existsSync(path.join(dir, 'README.md'))) {
           errors.push(`Missing README.md: ${path.relative(repoRoot, dir)}`)
@@ -431,7 +462,11 @@ function getReadmeCoverageFiles() {
       files.add(targetReadme)
     }
 
-    if (target.endsWith(`${path.sep}src`) || target.endsWith(`${path.sep}electron`) || target.endsWith(`${path.sep}tests`)) {
+    if (
+      target.endsWith(`${path.sep}src`) ||
+      target.endsWith(`${path.sep}electron`) ||
+      target.endsWith(`${path.sep}tests`)
+    ) {
       for (const dir of walkDirectories(target)) {
         const readme = path.join(dir, 'README.md')
         if (fs.existsSync(readme)) {

@@ -19,28 +19,41 @@ let dismissBubble: (() => void) | null = null
 
 window.__coachHarness = {
   ignore: true,
-  showBubble: () => showBubble?.({
-    id: 'test-hint', title: 'Hint', message: 'Check the boundary cases.',
-    source: 'local', level: 1,
-  }),
+  showBubble: () =>
+    showBubble?.({
+      id: 'test-hint',
+      title: 'Hint',
+      message: 'Check the boundary cases.',
+      source: 'local',
+      level: 1,
+    }),
   dismissBubble: () => dismissBubble?.(),
 }
 
 const api = {
   coachGetPetState: async () => 'idle',
   coachGetConfig: async () => ({
-    enabled: true, sound: false, bubbleFrequency: 'medium', position: null,
-    scale: 1, opacity: 1, pinMode: 'follow',
+    enabled: true,
+    sound: false,
+    bubbleFrequency: 'medium',
+    position: null,
+    scale: 1,
+    opacity: 1,
+    pinMode: 'follow',
   }),
   onCoachPetStateChanged: () => () => {},
   onCoachConfigChanged: () => () => {},
   onCoachShowBubble: (listener: (payload: CoachBubblePayload) => void) => {
     showBubble = listener
-    return () => { showBubble = null }
+    return () => {
+      showBubble = null
+    }
   },
   onCoachDismissBubble: (listener: () => void) => {
     dismissBubble = listener
-    return () => { dismissBubble = null }
+    return () => {
+      dismissBubble = null
+    }
   },
   coachToggleIgnoreMouseEvents: async (ignore: boolean) => {
     window.__coachHarness.ignore = ignore

@@ -16,9 +16,9 @@ export function upsertProblem(identity: ProblemIdentity): void {
   const now = nowBeijing()
   const canonicalUrl = identity.canonicalUrl
 
-  const existing = db.prepare(
-    'SELECT id, title FROM problems WHERE platform = ? AND platform_problem_id = ?',
-  ).get(identity.platform, identity.platformProblemId) as ExistingProblemTitleRow | undefined
+  const existing = db
+    .prepare('SELECT id, title FROM problems WHERE platform = ? AND platform_problem_id = ?')
+    .get(identity.platform, identity.platformProblemId) as ExistingProblemTitleRow | undefined
 
   const scrapedTitle = identity.title
   let title: string | null = null
@@ -28,7 +28,8 @@ export function upsertProblem(identity: ProblemIdentity): void {
 
   if (existing) {
     const shouldUpdateTitle = shouldReplaceScrapedTitle(existing.title, title)
-    db.prepare(`
+    db.prepare(
+      `
       UPDATE problems SET
         canonical_url = ?,
         contest_id = COALESCE(?, contest_id),
@@ -37,7 +38,8 @@ export function upsertProblem(identity: ProblemIdentity): void {
         last_visited_at = ?,
         updated_at = ?
       WHERE id = ?
-    `).run(
+    `,
+    ).run(
       canonicalUrl,
       identity.contestId ?? null,
       identity.problemIndex ?? null,
@@ -50,10 +52,12 @@ export function upsertProblem(identity: ProblemIdentity): void {
     return
   }
 
-  db.prepare(`
+  db.prepare(
+    `
     INSERT INTO problems (id, platform, platform_problem_id, canonical_url, title, status, contest_id, problem_index, source_platform, source_problem_id, first_seen_at, last_visited_at, created_at, updated_at)
     VALUES (?, ?, ?, ?, ?, 'visited', ?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(
+  `,
+  ).run(
     crypto.randomUUID(),
     identity.platform,
     identity.platformProblemId,
@@ -73,7 +77,9 @@ export function upsertProblem(identity: ProblemIdentity): void {
 export function deleteProblem(problemId: string, logger: Logger = appLogger): boolean {
   const db = getDb()
   const affectedDates = new Set<string>()
-  const rows = db.prepare(`
+  const rows = db
+    .prepare(
+      `
     SELECT substr(entered_at, 1, 10) AS local_day
     FROM problem_visits WHERE problem_id = ?
     UNION
@@ -85,7 +91,9 @@ export function deleteProblem(problemId: string, logger: Logger = appLogger): bo
     UNION
     SELECT substr(first_solved_at, 1, 10) AS local_day
     FROM problems WHERE id = ? AND first_solved_at IS NOT NULL
-  `).all(problemId, problemId, problemId, problemId) as Array<{ local_day: string | null }>
+  `,
+    )
+    .all(problemId, problemId, problemId, problemId) as Array<{ local_day: string | null }>
   for (const row of rows) {
     if (row.local_day) affectedDates.add(row.local_day)
   }

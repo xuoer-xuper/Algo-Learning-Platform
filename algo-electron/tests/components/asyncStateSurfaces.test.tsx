@@ -27,7 +27,9 @@ globalThis.ResizeObserver ??= ResizeObserverStub as unknown as typeof ResizeObse
 
 function deferred<T>() {
   let resolve!: (value: T) => void
-  const promise = new Promise<T>((r) => { resolve = r })
+  const promise = new Promise<T>((r) => {
+    resolve = r
+  })
   return { promise, resolve }
 }
 
@@ -122,7 +124,9 @@ describe('题库侧栏的三态', () => {
   it('题目行键盘可达，且主区域里不嵌图标按钮', async () => {
     const onNavigate = vi.fn()
     loadRecentProblems.mockResolvedValue([problem])
-    render(<ProblemSidebar onNavigate={onNavigate} onShowDetail={() => {}} onShowNotes={() => {}} />)
+    render(
+      <ProblemSidebar onNavigate={onNavigate} onShowDetail={() => {}} onShowNotes={() => {}} />,
+    )
 
     const row = await waitFor(() => screen.getByRole('button', { name: '打开 两数之和' }))
     fireEvent.keyDown(row, { key: 'Enter' })
@@ -164,7 +168,15 @@ describe('Dashboard 列表的三态', () => {
   })
 
   it('空数组才是"暂无数据"', () => {
-    render(<DashboardListsPanel {...props} timeline={[]} wrongProblems={[]} unreviewed={[]} revisits={[]} />)
+    render(
+      <DashboardListsPanel
+        {...props}
+        timeline={[]}
+        wrongProblems={[]}
+        unreviewed={[]}
+        revisits={[]}
+      />,
+    )
     expect(screen.getAllByText('暂无数据')).toHaveLength(4)
     expect(screen.queryByRole('status')).toBeNull()
   })
@@ -203,7 +215,11 @@ describe('首页的加载态', () => {
 
   it('最近访问加载完成后行是键盘可达的', async () => {
     const onNavigate = vi.fn()
-    loadHomeOverviewStats.mockResolvedValue({ totalProblems: 1, todayVisited: 1, platformDistribution: [] })
+    loadHomeOverviewStats.mockResolvedValue({
+      totalProblems: 1,
+      todayVisited: 1,
+      platformDistribution: [],
+    })
     loadHomeRecentProblems.mockResolvedValue([problem])
 
     render(<HomePage onNavigate={onNavigate} />)

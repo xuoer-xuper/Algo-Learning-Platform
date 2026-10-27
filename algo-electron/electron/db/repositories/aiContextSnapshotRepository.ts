@@ -10,6 +10,4 @@ export {
   getLatestSnapshotWithContext,
 } from './aiContextSnapshot/queries'
 
-export {
-  ensureTodaySnapshot,
-} from './aiContextSnapshot/mutations'
+export { ensureTodaySnapshot } from './aiContextSnapshot/mutations'

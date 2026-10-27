@@ -40,10 +40,12 @@ interface StoredInstallRequest extends PendingUserScriptInstall {
 
 function isLoopbackHost(hostname: string): boolean {
   const normalized = hostname.toLowerCase()
-  return normalized === 'localhost'
-    || normalized === '127.0.0.1'
-    || normalized === '[::1]'
-    || normalized === '::1'
+  return (
+    normalized === 'localhost' ||
+    normalized === '127.0.0.1' ||
+    normalized === '[::1]' ||
+    normalized === '::1'
+  )
 }
 
 function containsControlCharacter(value: string): boolean {
@@ -58,10 +60,10 @@ export function resolveUserScriptNavigation(
   options: UserScriptNavigationOptions = {},
 ): UserScriptNavigation | null {
   if (
-    !value
-    || value.length > MAX_NAVIGATION_URL_LENGTH
-    || value.trim() !== value
-    || containsControlCharacter(value)
+    !value ||
+    value.length > MAX_NAVIGATION_URL_LENGTH ||
+    value.trim() !== value ||
+    containsControlCharacter(value)
   ) {
     return null
   }
@@ -73,12 +75,11 @@ export function resolveUserScriptNavigation(
     return null
   }
   if (parsed.username || parsed.password) return null
-  const protocolAllowed = parsed.protocol === 'https:'
-    || (
-      parsed.protocol === 'http:'
-      && options.allowInsecureLocalhost === true
-      && isLoopbackHost(parsed.hostname)
-    )
+  const protocolAllowed =
+    parsed.protocol === 'https:' ||
+    (parsed.protocol === 'http:' &&
+      options.allowInsecureLocalhost === true &&
+      isLoopbackHost(parsed.hostname))
   if (!protocolAllowed) return null
 
   let decodedPathname: string
@@ -190,7 +191,10 @@ export class PendingUserScriptInstallRegistry {
 
   private remove(installId: string): void {
     if (!this.requests.delete(installId)) return
-    try { this.onRemove?.(installId) }
-    catch { /* Registry cleanup must remain deterministic. */ }
+    try {
+      this.onRemove?.(installId)
+    } catch {
+      /* Registry cleanup must remain deterministic. */
+    }
   }
 }

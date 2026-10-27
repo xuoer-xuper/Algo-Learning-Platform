@@ -1,7 +1,10 @@
 import type { ScrapedSubmission, SubmissionData } from '../../../shared/types'
 import type { TableParseContext } from '../../types'
 import type { GenericTableData } from '../../../submissions/scrapers/GenericTableScanner'
-import { scanGenericSubmissionTable, selectBestSubmissionTable } from '../../../submissions/scrapers/GenericTableScanner'
+import {
+  scanGenericSubmissionTable,
+  selectBestSubmissionTable,
+} from '../../../submissions/scrapers/GenericTableScanner'
 import { findColumnIndex } from '../../shared/genericSubmission'
 
 export function parseNowcoderSubmissionTables(
@@ -20,7 +23,9 @@ export function parseNowcoderSubmissionTables(
     let texts: string[] = []
     try {
       texts = JSON.parse(submission.rawJson || '{}')?.row?.texts || []
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
     return {
       ...submission,
       _ncProbLetter: probIdx >= 0 ? texts[probIdx] : undefined,

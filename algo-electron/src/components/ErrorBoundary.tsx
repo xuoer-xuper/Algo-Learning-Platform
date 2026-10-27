@@ -1,4 +1,4 @@
-import type { ErrorInfo, ReactNode } from 'react';
+import type { ErrorInfo, ReactNode } from 'react'
 import { Component } from 'react'
 import { Button } from './ui'
 
@@ -16,7 +16,7 @@ export class ErrorBoundary extends Component<Props, State> {
   public state: State = {
     hasError: false,
     error: null,
-    errorInfo: null
+    errorInfo: null,
   }
 
   public static getDerivedStateFromError(error: Error): State {
@@ -35,12 +35,8 @@ export class ErrorBoundary extends Component<Props, State> {
           <h2 className="crash-title">应用崩溃了 (React Error)</h2>
           <div className="crash-detail">
             <h3 className="crash-message">{this.state.error?.toString()}</h3>
-            <pre className="crash-stack">
-              {this.state.errorInfo?.componentStack}
-            </pre>
-            <pre className="crash-stack crash-stack-raw">
-              {this.state.error?.stack}
-            </pre>
+            <pre className="crash-stack">{this.state.errorInfo?.componentStack}</pre>
+            <pre className="crash-stack crash-stack-raw">{this.state.error?.stack}</pre>
           </div>
           {/* 刷新是恢复动作而非破坏动作，用 primary；危险语义已由底色与标题承担 */}
           <Button

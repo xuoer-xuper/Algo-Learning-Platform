@@ -1,8 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import {
-  getInternalPageUrl,
-  parseInternalPageUrl,
-} from '../../electron/browser/internalPage.ts'
+import { getInternalPageUrl, parseInternalPageUrl } from '../../electron/browser/internalPage.ts'
 import type { InternalPage } from '../../electron/browser/tabManagerTypes.ts'
 
 describe('internal page URL parsing', () => {

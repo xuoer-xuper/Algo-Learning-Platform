@@ -11,7 +11,8 @@ const screenshotNote = {
   id: 'note-1',
   problem_id: 'problem-cf-1',
   title: '边界条件复盘',
-  content: '## 核心思路\n\n先检查最小规模和重复元素。\n\n```cpp\nfor (int i = 0; i < n; ++i) {\n  // keep the invariant\n}\n```',
+  content:
+    '## 核心思路\n\n先检查最小规模和重复元素。\n\n```cpp\nfor (int i = 0; i < n; ++i) {\n  // keep the invariant\n}\n```',
   note_type: 'solution',
   word_count: 42,
   updated_at: now,
@@ -158,19 +159,21 @@ const outOfScreenshotScope = (name: string) => (): never => {
 function createApiMock(): ElectronAPI {
   let currentUrl = 'algo://home'
   const tabListeners = new Set<(tabs: TabInfo[]) => void>()
-  const tabs: TabInfo[] = [{
-    id: 'home',
-    kind: 'internal',
-    page: { type: 'home' },
-    url: 'algo://home',
-    title: '首页',
-    favicon: null,
-    isLoading: false,
-    isCrashed: false,
-    isUnresponsive: false,
-    isUnresponsiveNoticeDismissed: false,
-    isActive: true,
-  }]
+  const tabs: TabInfo[] = [
+    {
+      id: 'home',
+      kind: 'internal',
+      page: { type: 'home' },
+      url: 'algo://home',
+      title: '首页',
+      favicon: null,
+      isLoading: false,
+      isCrashed: false,
+      isUnresponsive: false,
+      isUnresponsiveNoticeDismissed: false,
+      isActive: true,
+    },
+  ]
 
   const emitTabs = () => {
     const snapshot = tabs.map((tab) => ({ ...tab }))
@@ -185,8 +188,16 @@ function createApiMock(): ElectronAPI {
   }
 
   return {
-    browserLayout: { toolbarHeight: 42, tabBarHeight: 36, noticeBarHeight: 38, findBarHeight: 38, topOffset: 78 },
-    navigate: (url) => { currentUrl = url },
+    browserLayout: {
+      toolbarHeight: 42,
+      tabBarHeight: 36,
+      noticeBarHeight: 38,
+      findBarHeight: 38,
+      topOffset: 78,
+    },
+    navigate: (url) => {
+      currentUrl = url
+    },
     goBack: () => {},
     goForward: () => {},
     reload: () => {},
@@ -212,7 +223,10 @@ function createApiMock(): ElectronAPI {
       finalUpdate: true,
     }),
     onFindInPageResult: () => () => {},
-    setZoom: async (tabId, command) => ({ tabId, factor: command === 'in' ? 1.1 : command === 'out' ? 0.9 : 1 }),
+    setZoom: async (tabId, command) => ({
+      tabId,
+      factor: command === 'in' ? 1.1 : command === 'out' ? 0.9 : 1,
+    }),
     onZoomChanged: () => () => {},
     setDownloadNoticeVisible: () => {},
     onDownloadResult: () => () => {},
@@ -261,7 +275,15 @@ function createApiMock(): ElectronAPI {
     syncCurrentPage: async () => ({ platform: 'current', fetched: 1, inserted: 1 }),
     getRealtimeSubmissionStatus: async () => ({
       ipcRegistered: true,
-      supportedAdapterIds: ['codeforces', 'acwing', 'nowcoder', 'vjudge', 'pta', 'luogu', 'leetcode-cn'],
+      supportedAdapterIds: [
+        'codeforces',
+        'acwing',
+        'nowcoder',
+        'vjudge',
+        'pta',
+        'luogu',
+        'leetcode-cn',
+      ],
       lastPage: {
         url: 'https://codeforces.com/contest/1000/problem/A',
         realtimeAdapterId: 'codeforces',
@@ -285,15 +307,17 @@ function createApiMock(): ElectronAPI {
     }),
 
     getOverviewStats: async () => overview,
-    getDailyActiveStats: async () => [{
-      local_day: '2026-07-03',
-      active_seconds: 1800,
-      duration_seconds: 2400,
-      visited: 2,
-      solved: 1,
-      submissions: 3,
-      ac: 1,
-    }],
+    getDailyActiveStats: async () => [
+      {
+        local_day: '2026-07-03',
+        active_seconds: 1800,
+        duration_seconds: 2400,
+        visited: 2,
+        solved: 1,
+        submissions: 3,
+        ac: 1,
+      },
+    ],
     getVisitedTrend: async () => [
       { local_day: '2026-07-01', count: 1 },
       { local_day: '2026-07-02', count: 2 },
@@ -323,35 +347,41 @@ function createApiMock(): ElectronAPI {
       },
     ],
     getLastActiveTime: async () => now,
-    getRevisitStats: async () => [{
-      problem_id: 'problem-cf-1',
-      platform: 'codeforces',
-      platform_problem_id: '1000A',
-      title: 'A. Example Problem',
-      canonical_url: 'https://codeforces.com/contest/1000/problem/A',
-      visit_count: 3,
-      last_visit: now,
-    }],
+    getRevisitStats: async () => [
+      {
+        problem_id: 'problem-cf-1',
+        platform: 'codeforces',
+        platform_problem_id: '1000A',
+        title: 'A. Example Problem',
+        canonical_url: 'https://codeforces.com/contest/1000/problem/A',
+        visit_count: 3,
+        last_visit: now,
+      },
+    ],
     recomputeDailyStats: async () => true,
     getStreakDays: async () => ({ current: 3, longest: 5 }),
-    getWrongProblems: async () => [{
-      id: 'problem-acwing-1',
-      platform: 'acwing',
-      platform_problem_id: '123',
-      title: 'AcWing Test',
-      canonical_url: 'https://www.acwing.com/problem/content/123/',
-      wrong_count: 2,
-      last_attempt: now,
-    }],
-    getUnreviewedProblems: async () => [{
-      id: 'problem-nowcoder-1',
-      platform: 'nowcoder',
-      platform_problem_id: 'contest-132048-A',
-      title: '牛客竞赛 A',
-      canonical_url: 'https://ac.nowcoder.com/acm/contest/132048/A',
-      last_visited_at: now,
-      days_since: 7,
-    }],
+    getWrongProblems: async () => [
+      {
+        id: 'problem-acwing-1',
+        platform: 'acwing',
+        platform_problem_id: '123',
+        title: 'AcWing Test',
+        canonical_url: 'https://www.acwing.com/problem/content/123/',
+        wrong_count: 2,
+        last_attempt: now,
+      },
+    ],
+    getUnreviewedProblems: async () => [
+      {
+        id: 'problem-nowcoder-1',
+        platform: 'nowcoder',
+        platform_problem_id: 'contest-132048-A',
+        title: '牛客竞赛 A',
+        canonical_url: 'https://ac.nowcoder.com/acm/contest/132048/A',
+        last_visited_at: now,
+        days_since: 7,
+      },
+    ],
     recomputeAllDailyStats: async () => 1,
 
     bindHandle: async (_platform, handle) => ({ id: codeforcesAccount.id, handle }),
@@ -359,8 +389,20 @@ function createApiMock(): ElectronAPI {
     getAccounts: async () => [codeforcesAccount],
     syncCodeforcesRating: async () => ({ success: true, historyCount: 2, inserted: 1, peak: 1510 }),
     getRatingHistory: async () => [
-      { contest_name: 'Codeforces Round 1', rating_before: 1200, rating_after: 1300, delta: 100, contest_at: now },
-      { contest_name: 'Codeforces Round 2', rating_before: 1300, rating_after: 1420, delta: 120, contest_at: now },
+      {
+        contest_name: 'Codeforces Round 1',
+        rating_before: 1200,
+        rating_after: 1300,
+        delta: 100,
+        contest_at: now,
+      },
+      {
+        contest_name: 'Codeforces Round 2',
+        rating_before: 1300,
+        rating_after: 1420,
+        delta: 120,
+        contest_at: now,
+      },
     ],
     getCodeforcesAccount: async () => codeforcesAccount,
     getContestResults: async () => [],
@@ -370,7 +412,11 @@ function createApiMock(): ElectronAPI {
     createSite: async (data) => data.id,
     toggleSite: async () => true,
     deleteSite: async () => true,
-    exportSitesConfig: async () => ({ success: true, count: sites.length, path: 'mock-sites.json' }),
+    exportSitesConfig: async () => ({
+      success: true,
+      count: sites.length,
+      path: 'mock-sites.json',
+    }),
     importSitesConfig: async () => ({ success: false, error: '未选择文件' }),
     confirmImportSites: async () => ({ success: true, imported: 0, overwritten: 0 }),
 
@@ -406,30 +452,34 @@ function createApiMock(): ElectronAPI {
     createTab: async (url) => {
       const id = `tab-${tabs.length + 1}`
       for (const tab of tabs) tab.isActive = false
-      tabs.push(url ? {
-        id,
-        kind: 'web',
-        url,
-        title: url,
-        favicon: null,
-        isLoading: false,
-        isCrashed: false,
-        isUnresponsive: false,
-        isUnresponsiveNoticeDismissed: false,
-        isActive: true,
-      } : {
-        id,
-        kind: 'internal',
-        page: { type: 'home' },
-        url: 'algo://home',
-        title: '首页',
-        favicon: null,
-        isLoading: false,
-        isCrashed: false,
-        isUnresponsive: false,
-        isUnresponsiveNoticeDismissed: false,
-        isActive: true,
-      })
+      tabs.push(
+        url
+          ? {
+              id,
+              kind: 'web',
+              url,
+              title: url,
+              favicon: null,
+              isLoading: false,
+              isCrashed: false,
+              isUnresponsive: false,
+              isUnresponsiveNoticeDismissed: false,
+              isActive: true,
+            }
+          : {
+              id,
+              kind: 'internal',
+              page: { type: 'home' },
+              url: 'algo://home',
+              title: '首页',
+              favicon: null,
+              isLoading: false,
+              isCrashed: false,
+              isUnresponsive: false,
+              isUnresponsiveNoticeDismissed: false,
+              isActive: true,
+            },
+      )
       currentUrl = tabs[tabs.length - 1].url
       emitTabs()
       return id
@@ -489,16 +539,19 @@ function createApiMock(): ElectronAPI {
     onTabListChanged: (callback) => {
       callback(tabs)
       tabListeners.add(callback)
-      return () => { tabListeners.delete(callback) }
+      return () => {
+        tabListeners.delete(callback)
+      }
     },
     getOmniboxSuggestions: async (query) => {
       const normalizedQuery = query.trim().toLocaleLowerCase()
       if (!normalizedQuery) return omniboxSuggestions
-      return omniboxSuggestions.filter((suggestion) => (
-        suggestion.title?.toLocaleLowerCase().includes(normalizedQuery)
-        || suggestion.platformProblemId.toLocaleLowerCase().includes(normalizedQuery)
-        || suggestion.url.toLocaleLowerCase().includes(normalizedQuery)
-      ))
+      return omniboxSuggestions.filter(
+        (suggestion) =>
+          suggestion.title?.toLocaleLowerCase().includes(normalizedQuery) ||
+          suggestion.platformProblemId.toLocaleLowerCase().includes(normalizedQuery) ||
+          suggestion.url.toLocaleLowerCase().includes(normalizedQuery),
+      )
     },
     setOmniboxOpen: () => {},
     showAppMenu: () => {},
@@ -525,38 +578,42 @@ function createApiMock(): ElectronAPI {
     getReviewRecommendations: async () => ({
       generated_at: now,
       rule_version: 1,
-      recommendations: [{
-        problem_id: 'problem-acwing-1',
-        platform: 'acwing',
-        platform_problem_id: '123',
-        title: 'AcWing Test',
-        canonical_url: 'https://www.acwing.com/problem/content/123/',
-        reason: '最近错误较多',
-        score: 72,
-        source: {
-          wrong_count: 2,
-          last_attempt: now,
-          days_since_attempt: 3,
-          visit_count: 2,
-          has_ac: false,
+      recommendations: [
+        {
+          problem_id: 'problem-acwing-1',
+          platform: 'acwing',
+          platform_problem_id: '123',
+          title: 'AcWing Test',
+          canonical_url: 'https://www.acwing.com/problem/content/123/',
+          reason: '最近错误较多',
+          score: 72,
+          source: {
+            wrong_count: 2,
+            last_attempt: now,
+            days_since_attempt: 3,
+            visit_count: 2,
+            has_ac: false,
+          },
         },
-      }],
+      ],
     }),
     getWeaknessAnalysis: async () => ({
       generated_at: now,
       rule_version: 1,
       data_note: '截图测试数据',
-      weaknesses: [{
-        tag: 'dynamic-programming',
-        total: 3,
-        solved: 1,
-        attempted: 2,
-        ac_rate: 33,
-        wrong_submissions: 4,
-        total_duration_seconds: 3600,
-        weakness_score: 68,
-        evidence: '错误提交较多，AC 率偏低',
-      }],
+      weaknesses: [
+        {
+          tag: 'dynamic-programming',
+          total: 3,
+          solved: 1,
+          attempted: 2,
+          ac_rate: 33,
+          wrong_submissions: 4,
+          total_duration_seconds: 3600,
+          weakness_score: 68,
+          evidence: '错误提交较多，AC 率偏低',
+        },
+      ],
     }),
     getPeriodSummary: async () => ({}),
     getPeriodSummaryMarkdown: async () => '# 阶段总结',
@@ -663,5 +720,6 @@ async function bootstrap(): Promise<void> {
 }
 
 void bootstrap().catch((error) => {
-  document.body.textContent = error instanceof Error ? error.stack ?? error.message : String(error)
+  document.body.textContent =
+    error instanceof Error ? (error.stack ?? error.message) : String(error)
 })

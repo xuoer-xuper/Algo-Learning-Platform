@@ -117,11 +117,7 @@ export type CoachInterventionLevel = 0 | 1 | 2 | 3 | 4 | 5
  * - llm: LLM 生成（Demo 默认关闭）
  * - contest_audit: 比赛模式审计记录（不展示给用户）
  */
-export type CoachInterventionSourceType =
-  | 'local_rule'
-  | 'local_hint'
-  | 'llm'
-  | 'contest_audit'
+export type CoachInterventionSourceType = 'local_rule' | 'local_hint' | 'llm' | 'contest_audit'
 
 /**
  * Coach 事件（ coach_events 表的内存表示）。
@@ -246,12 +242,12 @@ export interface ProblemSession {
  * 用户对某次干预的动作记录（用于审计与频率学习）。
  */
 export type CoachInterventionUserAction =
-  | 'shown'        // 已展示
+  | 'shown' // 已展示
   | 'hint_requested' // 用户点"再给一点"
-  | 'dismissed'    // 用户点"先不用"
-  | 'never_today'  // 用户点"今天别提醒"
-  | 'feedback'     // 用户反馈 helpful/not_helpful
-  | 'no_action'    // 用户未操作（自动消失）
+  | 'dismissed' // 用户点"先不用"
+  | 'never_today' // 用户点"今天别提醒"
+  | 'feedback' // 用户反馈 helpful/not_helpful
+  | 'no_action' // 用户未操作（自动消失）
 
 /**
  * CoachIntervention：规则引擎触发的干预记录（coach_interventions 表的内存表示）。

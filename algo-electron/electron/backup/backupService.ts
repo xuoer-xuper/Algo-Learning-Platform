@@ -20,7 +20,10 @@ import { errorMessage } from '../shared/errors'
 export async function createDatabaseBackup(targetDir: string): Promise<DatabaseBackupResult> {
   try {
     fs.mkdirSync(targetDir, { recursive: true })
-    const backupPath = path.join(targetDir, `AlgoLearningPlatform-backup-${backupTimestamp()}.sqlite`)
+    const backupPath = path.join(
+      targetDir,
+      `AlgoLearningPlatform-backup-${backupTimestamp()}.sqlite`,
+    )
     await getDb().backup(backupPath)
     return { success: true, path: backupPath }
   } catch (error) {
@@ -53,7 +56,10 @@ export function readLearningDataExportFile(filePath: string): LearningDataExport
   return parseLearningDataExport(JSON.parse(raw) as unknown)
 }
 
-export function previewLearningDataImportFile(filePath: string): { data?: LearningDataExport; preview: ImportPreview } {
+export function previewLearningDataImportFile(filePath: string): {
+  data?: LearningDataExport
+  preview: ImportPreview
+} {
   try {
     const data = readLearningDataExportFile(filePath)
     return { data, preview: previewLearningDataImport(data) }
@@ -90,5 +96,7 @@ export function importLearningDataFromParsedExport(
 }
 
 function backupTimestamp(): string {
-  return nowBeijing().replace(/[-:T.]/g, '').slice(0, 14)
+  return nowBeijing()
+    .replace(/[-:T.]/g, '')
+    .slice(0, 14)
 }

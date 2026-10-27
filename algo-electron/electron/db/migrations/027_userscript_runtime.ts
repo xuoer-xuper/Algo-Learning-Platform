@@ -49,7 +49,12 @@ export const migration027 = {
       'connect_json',
       "TEXT NOT NULL DEFAULT '[]' CHECK (json_valid(connect_json) AND json_type(connect_json) = 'array')",
     )
-    addColumnIfMissing(db, 'user_scripts', 'noframes', 'INTEGER NOT NULL DEFAULT 0 CHECK (noframes IN (0, 1))')
+    addColumnIfMissing(
+      db,
+      'user_scripts',
+      'noframes',
+      'INTEGER NOT NULL DEFAULT 0 CHECK (noframes IN (0, 1))',
+    )
     addColumnIfMissing(db, 'user_scripts', 'run_at', "TEXT NOT NULL DEFAULT 'document-idle'")
     addColumnIfMissing(db, 'user_scripts', 'update_url', 'TEXT')
     addColumnIfMissing(db, 'user_scripts', 'download_url', 'TEXT')
@@ -145,7 +150,10 @@ export const migration027 = {
 }
 
 function backfillMetadata(db: Database.Database): void {
-  const rows = db.prepare('SELECT id, code FROM user_scripts').all() as Array<{ id: string; code: string }>
+  const rows = db.prepare('SELECT id, code FROM user_scripts').all() as Array<{
+    id: string
+    code: string
+  }>
   const update = db.prepare(`
     UPDATE user_scripts
     SET
@@ -237,6 +245,6 @@ function addColumnIfMissing(
   definition: string,
 ): void {
   const columns = db.prepare(`PRAGMA table_info(${tableName})`).all() as { name: string }[]
-  if (columns.some(column => column.name === columnName)) return
+  if (columns.some((column) => column.name === columnName)) return
   db.exec(`ALTER TABLE ${tableName} ADD COLUMN ${columnName} ${definition};`)
 }

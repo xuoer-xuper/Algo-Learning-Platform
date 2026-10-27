@@ -27,10 +27,13 @@ afterEach(() => {
 describe('app config migration', () => {
   it('moves the legacy default home URL into shortcuts and removes the old field', async () => {
     const configPath = path.join(harness.userDataDir, 'config.json')
-    fs.writeFileSync(configPath, JSON.stringify({
-      defaultHomeUrl: 'https://legacy.example/problemset',
-      coach: { enabled: false },
-    }))
+    fs.writeFileSync(
+      configPath,
+      JSON.stringify({
+        defaultHomeUrl: 'https://legacy.example/problemset',
+        coach: { enabled: false },
+      }),
+    )
 
     const configModule = await import('../../electron/app/config.ts')
     const config = configModule.loadConfig()
@@ -47,15 +50,18 @@ describe('app config migration', () => {
 
   it('deduplicates valid HTTP shortcuts and drops unsupported legacy values', async () => {
     const configPath = path.join(harness.userDataDir, 'config.json')
-    fs.writeFileSync(configPath, JSON.stringify({
-      defaultHomeUrl: 'https://legacy.example/',
-      homeShortcuts: [
-        'https://legacy.example/',
-        'not a url',
-        'ftp://legacy.example/file',
-        'https://user:password@private.example/problemset',
-      ],
-    }))
+    fs.writeFileSync(
+      configPath,
+      JSON.stringify({
+        defaultHomeUrl: 'https://legacy.example/',
+        homeShortcuts: [
+          'https://legacy.example/',
+          'not a url',
+          'ftp://legacy.example/file',
+          'https://user:password@private.example/problemset',
+        ],
+      }),
+    )
 
     const { loadConfig } = await import('../../electron/app/config.ts')
     expect(loadConfig().homeShortcuts).toEqual(['https://legacy.example/'])
@@ -63,10 +69,13 @@ describe('app config migration', () => {
 
   it('keeps the migrated config in memory when legacy writeback fails', async () => {
     const configPath = path.join(harness.userDataDir, 'config.json')
-    fs.writeFileSync(configPath, JSON.stringify({
-      defaultHomeUrl: 'https://legacy.example/problemset',
-      coach: { enabled: false },
-    }))
+    fs.writeFileSync(
+      configPath,
+      JSON.stringify({
+        defaultHomeUrl: 'https://legacy.example/problemset',
+        coach: { enabled: false },
+      }),
+    )
 
     const writeSpy = vi.spyOn(fs, 'writeFileSync').mockImplementationOnce(() => {
       throw new Error('read-only config')
@@ -112,12 +121,15 @@ describe('app config migration', () => {
 
   it('sanitizes an unsafe custom search template to the Bing default', async () => {
     const configPath = path.join(harness.userDataDir, 'config.json')
-    fs.writeFileSync(configPath, JSON.stringify({
-      search: {
-        engine: 'custom',
-        customTemplate: 'http://user:password@search.example/?q={query}',
-      },
-    }))
+    fs.writeFileSync(
+      configPath,
+      JSON.stringify({
+        search: {
+          engine: 'custom',
+          customTemplate: 'http://user:password@search.example/?q={query}',
+        },
+      }),
+    )
 
     const configModule = await import('../../electron/app/config.ts')
     expect(configModule.loadConfig().search).toEqual({ engine: 'bing', customTemplate: null })
@@ -152,10 +164,12 @@ describe('app config migration', () => {
       throw new Error('read-only config')
     })
     try {
-      expect(() => configModule.saveSearchConfig({
-        engine: 'custom',
-        customTemplate: 'https://search.example/?q={query}',
-      })).toThrow('read-only config')
+      expect(() =>
+        configModule.saveSearchConfig({
+          engine: 'custom',
+          customTemplate: 'https://search.example/?q={query}',
+        }),
+      ).toThrow('read-only config')
     } finally {
       writeSpy.mockRestore()
     }
@@ -167,17 +181,20 @@ describe('app config migration', () => {
 
   it('does not expose the encrypted LLM envelope in renderer Coach config', async () => {
     const configPath = path.join(harness.userDataDir, 'config.json')
-    fs.writeFileSync(configPath, JSON.stringify({
-      coach: {
-        enabled: true,
-        llm: {
-          encrypted_api_key: 'encrypted-envelope',
-          base_url: 'https://llm.example/v1',
-          model: 'model-a',
+    fs.writeFileSync(
+      configPath,
+      JSON.stringify({
+        coach: {
           enabled: true,
+          llm: {
+            encrypted_api_key: 'encrypted-envelope',
+            base_url: 'https://llm.example/v1',
+            model: 'model-a',
+            enabled: true,
+          },
         },
-      },
-    }))
+      }),
+    )
 
     const configModule = await import('../../electron/app/config.ts')
     expect(configModule.loadCoachConfig().llm?.encrypted_api_key).toBe('encrypted-envelope')

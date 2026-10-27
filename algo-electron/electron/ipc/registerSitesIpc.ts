@@ -1,4 +1,10 @@
-import { dialog, type BrowserWindow, type IpcMainInvokeEvent, type OpenDialogOptions, type SaveDialogOptions } from 'electron'
+import {
+  dialog,
+  type BrowserWindow,
+  type IpcMainInvokeEvent,
+  type OpenDialogOptions,
+  type SaveDialogOptions,
+} from 'electron'
 import { getShellWindowOwner, ipcMain } from './trustedSender'
 import { arrayOf, bool, object, optional, text } from './payloadSchema'
 import fs from 'node:fs'
@@ -66,20 +72,21 @@ const siteAdapter = () => text({ max: 64 })
  * `isBuiltin` 刻意不在 shape 里：`object()` 默认拒绝多余字段，于是渲染进程没法把自建
  * 站点标成内置站点——与 `createSite` 把 `is_builtin` 写死成 0 的 SQL 是同一个结论。
  */
-const siteCreateShape = () => object({
-  id: siteId(),
-  name: siteName(),
-  domains: siteDomains(),
-  homeUrl: siteHomeUrl(),
-  enabled: bool,
-  problemUrlPatterns: optional(siteUrlPatterns()),
-  submitUrlPatterns: optional(siteUrlPatterns()),
-  loginUrlPatterns: optional(siteUrlPatterns()),
-  loginUsernameSelectors: optional(siteSelectors()),
-  loginPasswordSelectors: optional(siteSelectors()),
-  cookiePolicy: optional(siteCookiePolicy()),
-  adapter: optional(siteAdapter()),
-})
+const siteCreateShape = () =>
+  object({
+    id: siteId(),
+    name: siteName(),
+    domains: siteDomains(),
+    homeUrl: siteHomeUrl(),
+    enabled: bool,
+    problemUrlPatterns: optional(siteUrlPatterns()),
+    submitUrlPatterns: optional(siteUrlPatterns()),
+    loginUrlPatterns: optional(siteUrlPatterns()),
+    loginUsernameSelectors: optional(siteSelectors()),
+    loginPasswordSelectors: optional(siteSelectors()),
+    cookiePolicy: optional(siteCookiePolicy()),
+    adapter: optional(siteAdapter()),
+  })
 
 /*
  * 这里原先有一个 `sites:update` 渠道和它的 `Partial<SiteConfigData>` 形状，已删。
@@ -110,26 +117,29 @@ const siteCreateShape = () => object({
  *
  * 50 条上限：导出文件是本应用自己产出的，内置站点 7 个，加上自建的量级远不到这个数。
  */
-const siteImportShape = () => arrayOf(object({
-  id: siteId(),
-  name: siteName(),
-  domains: siteDomains(),
-  homeUrl: siteHomeUrl(),
-  enabled: bool,
-  isBuiltin: bool,
-  problemUrlPatterns: optional(siteUrlPatterns()),
-  submitUrlPatterns: optional(siteUrlPatterns()),
-  loginUrlPatterns: optional(siteUrlPatterns()),
-  loginUsernameSelectors: optional(siteSelectors()),
-  loginPasswordSelectors: optional(siteSelectors()),
-  cookiePolicy: optional(siteCookiePolicy()),
-  adapter: optional(siteAdapter()),
-}), { max: 50 })
+const siteImportShape = () =>
+  arrayOf(
+    object({
+      id: siteId(),
+      name: siteName(),
+      domains: siteDomains(),
+      homeUrl: siteHomeUrl(),
+      enabled: bool,
+      isBuiltin: bool,
+      problemUrlPatterns: optional(siteUrlPatterns()),
+      submitUrlPatterns: optional(siteUrlPatterns()),
+      loginUrlPatterns: optional(siteUrlPatterns()),
+      loginUsernameSelectors: optional(siteSelectors()),
+      loginPasswordSelectors: optional(siteSelectors()),
+      cookiePolicy: optional(siteCookiePolicy()),
+      adapter: optional(siteAdapter()),
+    }),
+    { max: 50 },
+  )
 
 export function registerSitesIpc(options: RegisterSitesIpcOptions = {}): void {
-  const getParentWindow = (event: IpcMainInvokeEvent): BrowserWindow | null => (
+  const getParentWindow = (event: IpcMainInvokeEvent): BrowserWindow | null =>
     options.getParentWindow?.(event) ?? getShellWindowOwner(event)?.browserWindow ?? null
-  )
   ipcMain.handle('sites:getAll', () => {
     return getAllSites()
   })
@@ -188,7 +198,8 @@ export function registerSitesIpc(options: RegisterSitesIpcOptions = {}): void {
       const result = parentWindow
         ? await dialog.showOpenDialog(parentWindow, dialogOptions)
         : await dialog.showOpenDialog(dialogOptions)
-      if (result.canceled || result.filePaths.length === 0) return { success: false, error: '取消导入' }
+      if (result.canceled || result.filePaths.length === 0)
+        return { success: false, error: '取消导入' }
 
       const raw = fs.readFileSync(result.filePaths[0], 'utf-8')
       const data = JSON.parse(raw) as unknown
@@ -199,17 +210,18 @@ export function registerSitesIpc(options: RegisterSitesIpcOptions = {}): void {
     }
   })
 
-  ipcMain.handle('sites:confirmImport', [
-    siteImportShape(),
-    arrayOf(siteId(), { max: 50 }),
-  ], (event, sites, overwriteIds) => {
-    try {
-      const result = confirmImportSites(sites, overwriteIds)
-      options.refreshUserScriptRuntime?.()
-      options.notifyProblemsUpdated?.(event)
-      return { success: true, ...result }
-    } catch (error) {
-      return { success: false, error: errorMessage(error) }
-    }
-  })
+  ipcMain.handle(
+    'sites:confirmImport',
+    [siteImportShape(), arrayOf(siteId(), { max: 50 })],
+    (event, sites, overwriteIds) => {
+      try {
+        const result = confirmImportSites(sites, overwriteIds)
+        options.refreshUserScriptRuntime?.()
+        options.notifyProblemsUpdated?.(event)
+        return { success: true, ...result }
+      } catch (error) {
+        return { success: false, error: errorMessage(error) }
+      }
+    },
+  )
 }

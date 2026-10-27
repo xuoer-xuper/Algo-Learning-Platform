@@ -39,7 +39,10 @@ function normalizeVerdict(verdict: string | undefined): string {
  * 多个候选类目用于轮询：同一 verdict 多次触发时换一个类目，
  * 避免用户反复看到同一句话。
  */
-export function verdictToCategories(verdict: string | undefined, eventType?: CoachEventType): HintCategory[] {
+export function verdictToCategories(
+  verdict: string | undefined,
+  eventType?: CoachEventType,
+): HintCategory[] {
   const v = normalizeVerdict(verdict)
   // idle_too_long 优先级最高（卡壳专用元认知类）
   if (eventType === 'idle_too_long' || eventType === 'long_session') {
@@ -82,10 +85,7 @@ export function verdictToCategories(verdict: string | undefined, eventType?: Coa
  * - WA + value 上限 >= 1e9 → 切到 overflow 类
  * - RE → 无 constraints 联动
  */
-function deriveTagsForVerdict(
-  verdict: string,
-  constraints: ProblemConstraints | null,
-): string[] {
+function deriveTagsForVerdict(verdict: string, constraints: ProblemConstraints | null): string[] {
   const tags: string[] = []
   const v = normalizeVerdict(verdict)
   if (v === 'WA' && constraints) {
@@ -187,14 +187,15 @@ export class HintSelector {
     if (!template) return null
 
     // 填充占位符（需要 constraints）
-    const text = useConstraints && constraints
-      ? fillTemplatePlaceholders(template.text, {
-          nUpper: constraints.nUpper ?? undefined,
-          nLower: constraints.nLower ?? undefined,
-          timeLimitSec: constraints.timeLimitSec ?? undefined,
-          valueUpper: constraints.valueUpper ?? undefined,
-        })
-      : template.text
+    const text =
+      useConstraints && constraints
+        ? fillTemplatePlaceholders(template.text, {
+            nUpper: constraints.nUpper ?? undefined,
+            nLower: constraints.nLower ?? undefined,
+            timeLimitSec: constraints.timeLimitSec ?? undefined,
+            valueUpper: constraints.valueUpper ?? undefined,
+          })
+        : template.text
 
     return {
       templateId: template.id,
@@ -205,7 +206,10 @@ export class HintSelector {
   }
 
   /** 直接按类目选模板（HintLadder 在 L3/L4 阶段会调用） */
-  selectByCategory(category: HintCategory, constraints?: ProblemConstraints | null): SelectedHint | null {
+  selectByCategory(
+    category: HintCategory,
+    constraints?: ProblemConstraints | null,
+  ): SelectedHint | null {
     const template = this.pickTemplate(category, [])
     if (!template) return null
     const text = constraints

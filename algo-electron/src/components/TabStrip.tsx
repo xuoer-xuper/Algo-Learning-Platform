@@ -41,15 +41,23 @@ const TAB_CLOSE_ANIMATION_MS = 140
 
 function getInternalIcon(page: InternalPage): IconName {
   switch (page.type) {
-    case 'home': return 'home'
-    case 'settings': return 'settings'
-    case 'dashboard': return 'chart'
+    case 'home':
+      return 'home'
+    case 'settings':
+      return 'settings'
+    case 'dashboard':
+      return 'chart'
     case 'scripts':
-    case 'script-install': return 'code'
-    case 'coach-metrics': return 'bot'
-    case 'problem-detail': return 'external'
-    case 'notes': return 'note'
-    case 'credentials': return 'log-in'
+    case 'script-install':
+      return 'code'
+    case 'coach-metrics':
+      return 'bot'
+    case 'problem-detail':
+      return 'external'
+    case 'notes':
+      return 'note'
+    case 'credentials':
+      return 'log-in'
   }
 }
 
@@ -128,7 +136,9 @@ export function TabStrip({ onTabUrlChange, onActiveTabChange }: TabStripProps) {
         clearTimeout(timer)
         closeTimers.delete(tabId)
       }
-      setClosingTabIds((current) => new Set([...current].filter((tabId) => survivingIds.has(tabId))))
+      setClosingTabIds(
+        (current) => new Set([...current].filter((tabId) => survivingIds.has(tabId))),
+      )
       setTabs(newTabs)
 
       const active = newTabs.find((tab) => tab.isActive)
@@ -386,7 +396,9 @@ export function TabStrip({ onTabUrlChange, onActiveTabChange }: TabStripProps) {
                 tab.isActive ? 'tab-item-active' : '',
                 closingTabIds.has(tab.id) ? 'tab-item-closing' : '',
                 isDragging ? 'tab-item-dragging' : '',
-              ].filter(Boolean).join(' ')}
+              ]
+                .filter(Boolean)
+                .join(' ')}
               data-tab-id={tab.id}
               style={isDragging ? { transform: `translateX(${dragState.deltaX}px)` } : undefined}
               onContextMenu={(event) => {
@@ -395,7 +407,9 @@ export function TabStrip({ onTabUrlChange, onActiveTabChange }: TabStripProps) {
                 showBrowserTabContextMenu(tab.id)
               }}
             >
-              {markerEdge && <span className={`tab-drop-indicator tab-drop-indicator-${markerEdge}`} />}
+              {markerEdge && (
+                <span className={`tab-drop-indicator tab-drop-indicator-${markerEdge}`} />
+              )}
               <button
                 type="button"
                 className="tab-item-main"
@@ -419,17 +433,17 @@ export function TabStrip({ onTabUrlChange, onActiveTabChange }: TabStripProps) {
               {/* 独苗标签同样显示 ×：关闭最后一个标签 = 关闭应用（主进程
                   lastTabClosedHandler → win.close()），对齐 Chrome。 */}
               <button
-                  type="button"
-                  className="tab-item-close"
-                  onClick={(event) => {
-                    event.stopPropagation()
-                    requestClose(tab.id)
-                  }}
-                  title="关闭标签"
-                  aria-label={`关闭 ${title}`}
-                >
-                  <Icon name="close" size={11} strokeWidth={2} />
-                </button>
+                type="button"
+                className="tab-item-close"
+                onClick={(event) => {
+                  event.stopPropagation()
+                  requestClose(tab.id)
+                }}
+                title="关闭标签"
+                aria-label={`关闭 ${title}`}
+              >
+                <Icon name="close" size={11} strokeWidth={2} />
+              </button>
             </div>
           )
         })}
@@ -437,7 +451,9 @@ export function TabStrip({ onTabUrlChange, onActiveTabChange }: TabStripProps) {
       <button
         type="button"
         className="tab-strip-new"
-        onClick={() => { void createBrowserTab() }}
+        onClick={() => {
+          void createBrowserTab()
+        }}
         title="新建标签"
         aria-label="新建标签"
       >

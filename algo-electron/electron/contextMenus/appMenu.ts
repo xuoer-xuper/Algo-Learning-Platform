@@ -26,12 +26,12 @@ export function isAppMenuAnchor(value: unknown): value is AppMenuAnchor {
   const candidate = value as Record<string, unknown>
   if (Object.keys(candidate).length !== 2) return false
   return (
-    Number.isInteger(candidate.x)
-    && Number.isInteger(candidate.y)
-    && (candidate.x as number) >= 0
-    && (candidate.y as number) >= 0
-    && (candidate.x as number) <= MAX_ANCHOR_COORDINATE
-    && (candidate.y as number) <= MAX_ANCHOR_COORDINATE
+    Number.isInteger(candidate.x) &&
+    Number.isInteger(candidate.y) &&
+    (candidate.x as number) >= 0 &&
+    (candidate.y as number) >= 0 &&
+    (candidate.x as number) <= MAX_ANCHOR_COORDINATE &&
+    (candidate.y as number) <= MAX_ANCHOR_COORDINATE
   )
 }
 
@@ -41,14 +41,19 @@ export function createAppMenuTemplate(
   reopenLastSession?: () => void,
 ): MenuItemConstructorOptions[] {
   return [
-    ...(zoom ? [{
-      label: `缩放 (${Math.round(zoom.factor * 100)}%)`,
-      submenu: [
-        { label: '放大', click: () => zoom.set('in') },
-        { label: '缩小', click: () => zoom.set('out') },
-        { label: '恢复 100%', click: () => zoom.set('reset') },
-      ],
-    }, { type: 'separator' as const }] : []),
+    ...(zoom
+      ? [
+          {
+            label: `缩放 (${Math.round(zoom.factor * 100)}%)`,
+            submenu: [
+              { label: '放大', click: () => zoom.set('in') },
+              { label: '缩小', click: () => zoom.set('out') },
+              { label: '恢复 100%', click: () => zoom.set('reset') },
+            ],
+          },
+          { type: 'separator' as const },
+        ]
+      : []),
     /*
      * 手动恢复上次会话（对齐 Chrome 的"打开上次会话"）：正常退出不自动
      * 恢复，但快照保留，由此入口加载。回调缺席（旧调用方/测试）时隐藏。

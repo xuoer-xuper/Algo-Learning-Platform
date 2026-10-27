@@ -13,17 +13,7 @@ export interface ProblemIdentity {
 
 // 统一提交结果
 export type Verdict =
-  | 'AC'
-  | 'WA'
-  | 'TLE'
-  | 'MLE'
-  | 'RE'
-  | 'CE'
-  | 'PE'
-  | 'OLE'
-  | 'SKIPPED'
-  | 'TESTING'
-  | 'UNKNOWN'
+  'AC' | 'WA' | 'TLE' | 'MLE' | 'RE' | 'CE' | 'PE' | 'OLE' | 'SKIPPED' | 'TESTING' | 'UNKNOWN'
 
 export interface SubmissionData {
   platform: string

@@ -29,9 +29,10 @@ function isListener(value: unknown): value is ProcessErrorListener {
 // 分支写开而不是把 event 直接传进去：process.listeners 的重载里有一支收 Signals，
 // 联合类型会被解析到那一支上编译不过。
 function errorListeners(event: 'uncaughtException' | 'unhandledRejection'): ProcessErrorListener[] {
-  const listeners = event === 'uncaughtException'
-    ? process.listeners('uncaughtException')
-    : process.listeners('unhandledRejection')
+  const listeners =
+    event === 'uncaughtException'
+      ? process.listeners('uncaughtException')
+      : process.listeners('unhandledRejection')
   return listeners.filter(isListener)
 }
 
@@ -81,7 +82,10 @@ async function startMain(options: StartOptions = {}): Promise<StartedMain> {
   mock.app.getPath = () => tempDir
   let whenReadyCalls = 0
   const suspended = options.whenReady ?? (() => new Promise<void>(() => {}))
-  mock.app.whenReady = () => { whenReadyCalls += 1; return suspended() }
+  mock.app.whenReady = () => {
+    whenReadyCalls += 1
+    return suspended()
+  }
 
   const ipcChannels: string[] = []
   const realHandle = mock.ipcMain.handle
@@ -104,8 +108,8 @@ beforeEach(() => {
   tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'algo-main-startup-'))
   baselineUncaught = errorListeners('uncaughtException')
   baselineRejection = errorListeners('unhandledRejection')
-  savedEnv = new Map(SMOKE_ENV_KEYS.map(key => [key, process.env[key]]))
-  setEnv(Object.fromEntries(SMOKE_ENV_KEYS.map(key => [key, undefined])))
+  savedEnv = new Map(SMOKE_ENV_KEYS.map((key) => [key, process.env[key]]))
+  setEnv(Object.fromEntries(SMOKE_ENV_KEYS.map((key) => [key, undefined])))
 })
 
 /*
@@ -136,7 +140,11 @@ test('抢锁失败的进程直接退出，不碰日志、协议、IPC 与生命�
   assert.strictEqual(started.mock.protocolSchemes.length, 0, '败者不得注册特权协议')
   assert.deepStrictEqual(started.ipcChannels, [], '败者不得注册 IPC 频道')
   assert.strictEqual(started.mock.app.listenerCount('window-all-closed'), 0)
-  assert.strictEqual(started.mock.app.listenerCount('before-quit'), 0, '败者挂 before-quit 会替赢者写会话')
+  assert.strictEqual(
+    started.mock.app.listenerCount('before-quit'),
+    0,
+    '败者挂 before-quit 会替赢者写会话',
+  )
   assert.strictEqual(started.mock.app.listenerCount('activate'), 0)
   assert.strictEqual(started.mock.app.listenerCount('second-instance'), 0)
 
@@ -165,7 +173,11 @@ test('拿到锁后才装配协议、IPC、生命周期与进程级错误处理',
 
   // 抽查三个不同注册器的频道，证明 registerMainIpc 整包真的跑了；断言总数会被
   // 任何一次增删频道弄红，那是噪声不是回归。
-  for (const channel of ['credentials:list', 'submissions:syncCodeforces', 'backup:createDatabaseBackup']) {
+  for (const channel of [
+    'credentials:list',
+    'submissions:syncCodeforces',
+    'backup:createDatabaseBackup',
+  ]) {
     assert.ok(started.ipcChannels.includes(channel), `${channel} 应在闸门内注册`)
   }
 
@@ -199,7 +211,7 @@ test('启动链失败按 startup 上报致命错误，而不是烂成 unhandledR
   assert.doesNotMatch(log, /"source":"unhandledRejection"/, '不得退化成兜底路径')
 
   assert.deepStrictEqual(
-    started.mock.errorBoxes.map(box => box.title),
+    started.mock.errorBoxes.map((box) => box.title),
     ['Algo Learning Platform'],
     '致命错误要给用户看见一个弹窗',
   )
@@ -211,17 +223,18 @@ test('关掉最后一个窗口后非 macOS 直接退出', async () => {
   started.mock.app.emit('window-all-closed')
 
   // darwin 上关窗不退出是平台约定；这里按当前平台分别断言，避免把测试钉死在 win32。
-  assert.strictEqual(
-    started.mock.app.quitCallCount,
-    process.platform === 'darwin' ? 0 : 1,
-  )
+  assert.strictEqual(started.mock.app.quitCallCount, process.platform === 'darwin' ? 0 : 1)
 })
 
 test('没有待写会话时 before-quit 不拦截退出', async () => {
   const started = await startMain({ granted: true })
 
   let preventDefaultCalls = 0
-  started.mock.app.emit('before-quit', { preventDefault: () => { preventDefaultCalls += 1 } })
+  started.mock.app.emit('before-quit', {
+    preventDefault: () => {
+      preventDefaultCalls += 1
+    },
+  })
 
   /*
    * whenReady 挂住 ⇒ applicationSessionPersistence 仍是 null、没有已开窗口、
@@ -261,5 +274,8 @@ test('smoke 专用的 preload / renderer 覆盖在非 smoke 构建里失效', as
 
   assert.strictEqual(smoke.main.RENDERER_DIST, path.join(injected, 'renderer'))
   assert.strictEqual(smokeOj.OJ_PRELOAD_PATH, path.join(injected, 'oj.mjs'))
-  assert.strictEqual(smokeUserScript.USER_SCRIPT_BOOTSTRAP_PRELOAD_PATH, path.join(injected, 'us.mjs'))
+  assert.strictEqual(
+    smokeUserScript.USER_SCRIPT_BOOTSTRAP_PRELOAD_PATH,
+    path.join(injected, 'us.mjs'),
+  )
 })

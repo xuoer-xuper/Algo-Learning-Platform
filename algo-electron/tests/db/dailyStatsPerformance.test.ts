@@ -14,12 +14,16 @@ try {
   initDbAtPath(dbPath)
   const database = getDb()
   const createdAt = '2025-01-01T00:00:00.000'
-  database.prepare(`
+  database
+    .prepare(
+      `
     INSERT INTO problems (
       id, platform, platform_problem_id, canonical_url, status,
       first_seen_at, created_at, updated_at
     ) VALUES ('problem-1', 'codeforces', '1A', 'https://codeforces.com/problemset/problem/1/A', 'solved', ?, ?, ?)
-  `).run(createdAt, createdAt, createdAt)
+  `,
+    )
+    .run(createdAt, createdAt, createdAt)
 
   const insertVisit = database.prepare(`
     INSERT INTO problem_visits (
@@ -47,7 +51,14 @@ try {
         const timestamp = `${localDay}T10:${String(row).padStart(2, '0')}:00.000`
         const id = `${dayOffset}-${row}`
         insertVisit.run(`visit-${id}`, timestamp, timestamp, timestamp, timestamp)
-        insertSubmission.run(`submission-${id}`, `platform-${id}`, row % 4 === 0 ? 'AC' : 'WA', timestamp, timestamp, timestamp)
+        insertSubmission.run(
+          `submission-${id}`,
+          `platform-${id}`,
+          row % 4 === 0 ? 'AC' : 'WA',
+          timestamp,
+          timestamp,
+          timestamp,
+        )
       }
     }
   })
@@ -58,10 +69,14 @@ try {
   recomputeDailyStats(targetDay)
   const elapsedMs = performance.now() - startedAt
 
-  const stats = database.prepare(`
+  const stats = database
+    .prepare(
+      `
     SELECT visited_problem_count, submission_count, ac_submission_count
     FROM user_daily_stats WHERE local_day = ?
-  `).get(targetDay) as Record<string, number>
+  `,
+    )
+    .get(targetDay) as Record<string, number>
   assert.deepStrictEqual(stats, {
     visited_problem_count: 1,
     submission_count: 20,

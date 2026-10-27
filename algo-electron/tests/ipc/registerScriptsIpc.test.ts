@@ -52,7 +52,13 @@ afterEach(() => {
 
 test('new imports persist complete runtime metadata and create an explicit empty namespace canonical', async () => {
   const parent = new BrowserWindow()
-  const source = userscript('Helper', '1.0.0', 'https://example.com/*', undefined, runtimeMetadataLines())
+  const source = userscript(
+    'Helper',
+    '1.0.0',
+    'https://example.com/*',
+    undefined,
+    runtimeMetadataLines(),
+  )
   const sourcePath = writeSource('new.user.js', source)
   const openDialog = vi.spyOn(dialog, 'showOpenDialog').mockResolvedValue({
     canceled: false,
@@ -61,7 +67,7 @@ test('new imports persist complete runtime metadata and create an explicit empty
   const messageBox = vi.spyOn(dialog, 'showMessageBox')
   registerScriptsIpc({ getParentWindow: () => parent })
 
-  const id = await ipcRenderer.invoke('scripts:importFile') as string
+  const id = (await ipcRenderer.invoke('scripts:importFile')) as string
   const imported = getScriptById(id)
 
   assert.ok(imported)
@@ -86,26 +92,39 @@ test('imports download and atomically persist verified require and resource cach
   ])
   const sourcePath = writeSource('resource.user.js', source)
   vi.spyOn(dialog, 'showOpenDialog').mockResolvedValue({ canceled: false, filePaths: [sourcePath] })
-  const fetchResource = vi.fn(async (url: string) => new Response(
-    url.endsWith('.js') ? dependency : style,
-    { headers: { 'content-type': url.endsWith('.js') ? 'application/javascript' : 'text/css' } },
-  ))
+  const fetchResource = vi.fn(
+    async (url: string) =>
+      new Response(url.endsWith('.js') ? dependency : style, {
+        headers: { 'content-type': url.endsWith('.js') ? 'application/javascript' : 'text/css' },
+      }),
+  )
   registerScriptsIpc({ fetchResource })
 
-  const scriptId = await ipcRenderer.invoke('scripts:importFile') as string
+  const scriptId = (await ipcRenderer.invoke('scripts:importFile')) as string
   const resources = listUserScriptResources(scriptId)
-  assert.deepStrictEqual(resources.map(resource => [
-    resource.resource_kind,
-    resource.resource_key,
-    resource.declaration_order,
-    resource.source_url,
-    resource.content_encoding,
-    resource.content_type,
-    Boolean(resource.integrity),
-  ]), [
-    ['require', 'require-0', 0, 'https://cdn.example.com/dependency.js', 'utf8', 'application/javascript', true],
-    ['resource', 'theme', 0, 'https://cdn.example.com/theme.css', 'binary', 'text/css', true],
-  ])
+  assert.deepStrictEqual(
+    resources.map((resource) => [
+      resource.resource_kind,
+      resource.resource_key,
+      resource.declaration_order,
+      resource.source_url,
+      resource.content_encoding,
+      resource.content_type,
+      Boolean(resource.integrity),
+    ]),
+    [
+      [
+        'require',
+        'require-0',
+        0,
+        'https://cdn.example.com/dependency.js',
+        'utf8',
+        'application/javascript',
+        true,
+      ],
+      ['resource', 'theme', 0, 'https://cdn.example.com/theme.css', 'binary', 'text/css', true],
+    ],
+  )
   assert.strictEqual(Buffer.from(resources[0].content_blob ?? []).toString('utf8'), dependency)
   assert.strictEqual(fetchResource.mock.calls.length, 2)
 })
@@ -123,13 +142,12 @@ test('resource verification failure leaves the existing script and managed files
     site_ids_json: '[]',
     enabled: true,
   })
-  const sourcePath = writeSource('failed-update.user.js', userscript(
-    'Helper',
-    '1.1.0',
-    'https://example.com/*',
-    undefined,
-    [`// @require https://cdn.example.com/dependency.js#sha256=${'00'.repeat(32)}`],
-  ))
+  const sourcePath = writeSource(
+    'failed-update.user.js',
+    userscript('Helper', '1.1.0', 'https://example.com/*', undefined, [
+      `// @require https://cdn.example.com/dependency.js#sha256=${'00'.repeat(32)}`,
+    ]),
+  )
   vi.spyOn(dialog, 'showOpenDialog').mockResolvedValue({ canceled: false, filePaths: [sourcePath] })
   vi.spyOn(dialog, 'showMessageBox').mockResolvedValue({ response: 0, checkboxChecked: false })
   registerScriptsIpc({ fetchResource: async () => new Response('different') })
@@ -154,7 +172,9 @@ test('remote preview and confirmation install through the same atomic resource t
   assert.ok(route)
   const fetch = vi.fn(async (url: string) => {
     if (url.includes('dependency.js')) return new Response(dependency)
-    return new Response(source, { headers: { etag: '"remote-v2"', 'last-modified': 'Thu, 20 Aug 2026 12:00:00 GMT' } })
+    return new Response(source, {
+      headers: { etag: '"remote-v2"', 'last-modified': 'Thu, 20 Aug 2026 12:00:00 GMT' },
+    })
   })
   const installer = new UserScriptRemoteInstaller({ fetch })
   registerScriptsIpc({
@@ -162,16 +182,19 @@ test('remote preview and confirmation install through the same atomic resource t
     getUserScriptRemoteInstaller: () => installer,
   })
 
-  const preview = await ipcRenderer.invoke('scripts:getRemoteInstallPreview', route.request.installId) as UserScriptInstallPreview
+  const preview = (await ipcRenderer.invoke(
+    'scripts:getRemoteInstallPreview',
+    route.request.installId,
+  )) as UserScriptInstallPreview
   assert.strictEqual(preview.name, 'Remote Helper')
   assert.strictEqual(preview.version, '2.0.0')
   assert.strictEqual(preview.requires, 1)
 
-  const result = await ipcRenderer.invoke(
+  const result = (await ipcRenderer.invoke(
     'scripts:confirmRemoteInstall',
     route.request.installId,
     'install',
-  ) as UserScriptInstallInstallResult
+  )) as UserScriptInstallInstallResult
   assert.strictEqual(result.status, 'installed')
   const installed = getScriptById(result.scriptId!)
   assert.strictEqual(installed?.last_install_url, sourceUrl)
@@ -197,7 +220,9 @@ test('remote confirmation claims a legacy identity and rejects a concurrent repl
     site_ids_json: '["codeforces"]',
     enabled: false,
   })
-  const registry = new PendingUserScriptInstallRegistry({ idFactory: () => 'legacy-remote-install' })
+  const registry = new PendingUserScriptInstallRegistry({
+    idFactory: () => 'legacy-remote-install',
+  })
   const route = registry.register('https://example.com/remote.user.js')
   assert.ok(route)
   const installer = new UserScriptRemoteInstaller({
@@ -207,15 +232,18 @@ test('remote confirmation claims a legacy identity and rejects a concurrent repl
     getUserScriptInstallRegistry: () => registry,
     getUserScriptRemoteInstaller: () => installer,
   })
-  const preview = await ipcRenderer.invoke('scripts:getRemoteInstallPreview', route.request.installId) as UserScriptInstallPreview
+  const preview = (await ipcRenderer.invoke(
+    'scripts:getRemoteInstallPreview',
+    route.request.installId,
+  )) as UserScriptInstallPreview
   assert.strictEqual(preview.existingScriptId, legacyId)
 
-  const results = await Promise.all([
+  const results = (await Promise.all([
     ipcRenderer.invoke('scripts:confirmRemoteInstall', route.request.installId, 'install'),
     ipcRenderer.invoke('scripts:confirmRemoteInstall', route.request.installId, 'install'),
-  ]) as Array<UserScriptInstallInstallResult | null>
-  assert.strictEqual(results.filter(result => result?.status === 'installed').length, 1)
-  assert.strictEqual(results.filter(result => result === null).length, 1)
+  ])) as Array<UserScriptInstallInstallResult | null>
+  assert.strictEqual(results.filter((result) => result?.status === 'installed').length, 1)
+  assert.strictEqual(results.filter((result) => result === null).length, 1)
   assert.strictEqual(getAllScripts().length, 1)
   assert.strictEqual(getScriptById(legacyId)?.namespace, '')
   assert.strictEqual(getScriptById(legacyId)?.site_ids_json, '["codeforces"]')
@@ -249,11 +277,11 @@ test('remote confirmation invalidates a preview when the installed version chang
   assert.strictEqual(getScriptById(scriptId)?.version, '1.0.0')
   updateScript(scriptId, { version: '1.5.0' })
 
-  const result = await ipcRenderer.invoke(
+  const result = (await ipcRenderer.invoke(
     'scripts:confirmRemoteInstall',
     route.request.installId,
     'install',
-  ) as UserScriptInstallInstallResult
+  )) as UserScriptInstallInstallResult
   assert.strictEqual(result.status, 'stale')
   assert.strictEqual(getScriptById(scriptId)?.version, '1.5.0')
 })
@@ -273,14 +301,16 @@ test('scripts:getAll returns a renderer-safe summary without source or absolute 
   })
   registerScriptsIpc()
 
-  const result = await ipcRenderer.invoke('scripts:getAll') as Array<Record<string, unknown>>
-  assert.deepStrictEqual(result, [{
-    id: result[0].id,
-    name: 'Summary helper',
-    enabled: true,
-    site_ids_json: '["codeforces"]',
-    has_file: true,
-  }])
+  const result = (await ipcRenderer.invoke('scripts:getAll')) as Array<Record<string, unknown>>
+  assert.deepStrictEqual(result, [
+    {
+      id: result[0].id,
+      name: 'Summary helper',
+      enabled: true,
+      site_ids_json: '["codeforces"]',
+      has_file: true,
+    },
+  ])
   assert.strictEqual(Object.hasOwn(result[0], 'code'), false)
   assert.strictEqual(Object.hasOwn(result[0], 'file_path'), false)
 })
@@ -326,28 +356,24 @@ test('scripts code view and editor stay inside the managed directory, delete rem
   })
   // Each failure mode is distinguishable so the UI can explain it instead of
   // rendering one undifferentiated "unavailable".
-  assert.deepStrictEqual(
-    await ipcRenderer.invoke('scripts:getCode', outsideId),
-    { status: 'unmanaged' },
-  )
+  assert.deepStrictEqual(await ipcRenderer.invoke('scripts:getCode', outsideId), {
+    status: 'unmanaged',
+  })
   assert.deepStrictEqual(
     await ipcRenderer.invoke('scripts:getCode', '00000000-0000-4000-8000-00000000dead'),
     { status: 'not-found' },
   )
-  assert.deepStrictEqual(
-    await ipcRenderer.invoke('scripts:openEditor', managedId),
-    { status: 'ok' },
-  )
+  assert.deepStrictEqual(await ipcRenderer.invoke('scripts:openEditor', managedId), {
+    status: 'ok',
+  })
   assert.strictEqual(openPath.mock.calls[0][0], managedPath)
-  assert.deepStrictEqual(
-    await ipcRenderer.invoke('scripts:openEditor', outsideId),
-    { status: 'unmanaged' },
-  )
+  assert.deepStrictEqual(await ipcRenderer.invoke('scripts:openEditor', outsideId), {
+    status: 'unmanaged',
+  })
   openPath.mockResolvedValueOnce('Windows cannot open this file')
-  assert.deepStrictEqual(
-    await ipcRenderer.invoke('scripts:openEditor', managedId),
-    { status: 'open-failed' },
-  )
+  assert.deepStrictEqual(await ipcRenderer.invoke('scripts:openEditor', managedId), {
+    status: 'open-failed',
+  })
   assert.strictEqual(await ipcRenderer.invoke('scripts:delete', managedId), true)
   assert.strictEqual(fs.existsSync(managedPath), false)
   assert.strictEqual(await ipcRenderer.invoke('scripts:delete', outsideId), true)
@@ -404,7 +430,9 @@ test('confirmed updates preserve user configuration and remove only the replaced
     userscript('Helper', '1.1.0', 'https://new.example/*', undefined, runtimeMetadataLines()),
   )
   vi.spyOn(dialog, 'showOpenDialog').mockResolvedValue({ canceled: false, filePaths: [sourcePath] })
-  const messageBox = vi.spyOn(dialog, 'showMessageBox').mockResolvedValue({ response: 0, checkboxChecked: false })
+  const messageBox = vi
+    .spyOn(dialog, 'showMessageBox')
+    .mockResolvedValue({ response: 0, checkboxChecked: false })
   registerScriptsIpc()
 
   const importedId = await ipcRenderer.invoke('scripts:importFile')
@@ -456,9 +484,9 @@ test('local-copy choice creates an isolated identity with auto-update disabled',
   vi.spyOn(dialog, 'showMessageBox').mockResolvedValue({ response: 1, checkboxChecked: false })
   registerScriptsIpc()
 
-  const copyId = await ipcRenderer.invoke('scripts:importFile') as string
+  const copyId = (await ipcRenderer.invoke('scripts:importFile')) as string
   const scripts = getAllScripts()
-  const copy = scripts.find(script => script.id === copyId)
+  const copy = scripts.find((script) => script.id === copyId)
 
   assert.strictEqual(scripts.length, 2)
   // namespace 在类型上可空（null 表示旧的 canonical 身份），本地副本必须是 local: 前缀的
@@ -483,10 +511,7 @@ test('cancelled legacy claim does not mutate the database or create a managed fi
     site_ids_json: '[]',
     enabled: true,
   })
-  const sourcePath = writeSource(
-    'claim.user.js',
-    userscript('Helper', '1.0.0'),
-  )
+  const sourcePath = writeSource('claim.user.js', userscript('Helper', '1.0.0'))
   vi.spyOn(dialog, 'showOpenDialog').mockResolvedValue({ canceled: false, filePaths: [sourcePath] })
   vi.spyOn(dialog, 'showMessageBox').mockResolvedValue({ response: 2, checkboxChecked: false })
   registerScriptsIpc()
@@ -501,13 +526,10 @@ test('a confirmed no-namespace import claims legacy NULL identity without deleti
   const scriptsDirectory = path.join(tempDirectory, 'userscripts')
   fs.mkdirSync(scriptsDirectory, { recursive: true })
   const sourcePath = path.join(scriptsDirectory, '00000000-0000-4000-8000-000000000002.js')
-  fs.writeFileSync(sourcePath, userscript(
-    'Helper',
-    '1.1.0',
-    'https://example.com/*',
-    undefined,
-    runtimeMetadataLines(),
-  ))
+  fs.writeFileSync(
+    sourcePath,
+    userscript('Helper', '1.1.0', 'https://example.com/*', undefined, runtimeMetadataLines()),
+  )
   const legacyId = createScript({
     name: 'Legacy Display',
     namespace: null,
@@ -571,25 +593,34 @@ test('scripts:save accepts only display name and unique string site ids', async 
   })
   registerScriptsIpc()
 
-  assert.strictEqual(await ipcRenderer.invoke('scripts:save', scriptId, {
-    name: 'Custom Label',
-    site_ids_json: '["codeforces","atcoder"]',
-  }), scriptId)
+  assert.strictEqual(
+    await ipcRenderer.invoke('scripts:save', scriptId, {
+      name: 'Custom Label',
+      site_ids_json: '["codeforces","atcoder"]',
+    }),
+    scriptId,
+  )
   assert.strictEqual(getScriptById(scriptId)?.name, 'Custom Label')
 
-  await assert.rejects(() => ipcRenderer.invoke('scripts:save', null, {
-    name: 'Invalid',
-    site_ids_json: '[]',
-  }))
-  await assert.rejects(() => ipcRenderer.invoke('scripts:save', scriptId, {
-    name: 'Invalid',
-    site_ids_json: '["codeforces","codeforces"]',
-  }))
-  await assert.rejects(() => ipcRenderer.invoke('scripts:save', scriptId, {
-    name: 'Invalid',
-    site_ids_json: '[]',
-    code: 'blocked',
-  }))
+  await assert.rejects(() =>
+    ipcRenderer.invoke('scripts:save', null, {
+      name: 'Invalid',
+      site_ids_json: '[]',
+    }),
+  )
+  await assert.rejects(() =>
+    ipcRenderer.invoke('scripts:save', scriptId, {
+      name: 'Invalid',
+      site_ids_json: '["codeforces","codeforces"]',
+    }),
+  )
+  await assert.rejects(() =>
+    ipcRenderer.invoke('scripts:save', scriptId, {
+      name: 'Invalid',
+      site_ids_json: '[]',
+      code: 'blocked',
+    }),
+  )
   assert.strictEqual(getScriptById(scriptId)?.code, 'code')
 
   /*
@@ -699,7 +730,9 @@ function runtimeMetadataLines(): string[] {
 function assertRuntimeMetadata(script: UserScript): void {
   assert.deepStrictEqual(JSON.parse(script.include_rules_json), ['https://include.example/*'])
   assert.deepStrictEqual(JSON.parse(script.exclude_rules_json), ['https://example.com/private/*'])
-  assert.deepStrictEqual(JSON.parse(script.exclude_match_rules_json), ['https://example.com/strict-private/*'])
+  assert.deepStrictEqual(JSON.parse(script.exclude_match_rules_json), [
+    'https://example.com/strict-private/*',
+  ])
   assert.deepStrictEqual(JSON.parse(script.grant_json), ['GM_getValue', 'GM_setValue'])
   assert.deepStrictEqual(JSON.parse(script.connect_json), ['api.example.com'])
   assert.strictEqual(script.noframes, true)

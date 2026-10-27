@@ -47,7 +47,7 @@ export function buildUserScriptCompiledCatalogPreload(
   const compiled = new Function('payloadArg', 'sendArg', 'subscribeArg', body)
   const entry = `[${JSON.stringify(catalogGenerationKey(snapshot.generation))},{func:${compiled.toString()},payload:${JSON.stringify(built.execution.args[0])},body:${JSON.stringify(body)}}]`
 
-  const rejectedScriptIds = built.rejectedScripts.map(script => script.id)
+  const rejectedScriptIds = built.rejectedScripts.map((script) => script.id)
 
   return {
     source: [

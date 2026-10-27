@@ -56,10 +56,11 @@ export class WindowManager {
     if (recencyIndex >= 0) this.windowRecency.splice(recencyIndex, 1)
     this.viewRegistry.unregisterWindow(windowId)
     if (this.mostRecentWindowId === windowId) {
-      const nextWindow = [...this.windowRecency]
-        .reverse()
-        .map((candidateId) => this.windows.get(candidateId) ?? null)
-        .find((candidate) => candidate !== null && !candidate.isDestroyed()) ?? null
+      const nextWindow =
+        [...this.windowRecency]
+          .reverse()
+          .map((candidateId) => this.windows.get(candidateId) ?? null)
+          .find((candidate) => candidate !== null && !candidate.isDestroyed()) ?? null
       this.setMostRecentWindowId(nextWindow?.id ?? null)
     }
     return appWindow
@@ -105,13 +106,18 @@ export class WindowManager {
     }
   }
 
-  resolveWebContents(webContents: Pick<WebContents, 'id'> | number | null | undefined): AppWindow | null {
+  resolveWebContents(
+    webContents: Pick<WebContents, 'id'> | number | null | undefined,
+  ): AppWindow | null {
     const entry = this.viewRegistry.get(webContents)
     return entry ? this.get(entry.windowId) : null
   }
 
-  resolveDownloadSource(webContents: Pick<WebContents, 'id'> | number | null | undefined): AppWindow | null {
-    if (webContents !== null && webContents !== undefined) return this.resolveWebContents(webContents)
+  resolveDownloadSource(
+    webContents: Pick<WebContents, 'id'> | number | null | undefined,
+  ): AppWindow | null {
+    if (webContents !== null && webContents !== undefined)
+      return this.resolveWebContents(webContents)
     const candidates = this.getAll().filter((candidate) => !candidate.isDestroyed())
     return candidates.length === 1 ? candidates[0] : null
   }
@@ -123,7 +129,7 @@ export class WindowManager {
   private setMostRecentWindowId(windowId: string | null): void {
     if (windowId === this.mostRecentWindowId) return
     this.mostRecentWindowId = windowId
-    const appWindow = windowId ? this.windows.get(windowId) ?? null : null
+    const appWindow = windowId ? (this.windows.get(windowId) ?? null) : null
     for (const listener of this.mostRecentWindowChangeListeners) listener(appWindow)
   }
 

@@ -85,7 +85,10 @@ export class SubmissionProblemAttacher {
         const identity = this.deps.parseUrl(link)
         if (identity?.platform !== 'codeforces') continue
         this.deps.upsertProblem(identity)
-        submission.problemId = this.deps.findProblemId(identity.platform, identity.platformProblemId)
+        submission.problemId = this.deps.findProblemId(
+          identity.platform,
+          identity.platformProblemId,
+        )
         if (submission.problemId) return
       }
     } catch {
@@ -101,9 +104,10 @@ export class SubmissionProblemAttacher {
     submission.problemId = this.ensureProblem({
       platform: 'pta',
       platformProblemId: ptaProblemId,
-      canonicalUrl: parts.length >= 2
-        ? `https://pintia.cn/problem-sets/${parts[0]}/exam/problems/type/7?problemSetProblemId=${parts[1]}`
-        : `https://pintia.cn/problem-sets/${ptaProblemId}`,
+      canonicalUrl:
+        parts.length >= 2
+          ? `https://pintia.cn/problem-sets/${parts[0]}/exam/problems/type/7?problemSetProblemId=${parts[1]}`
+          : `https://pintia.cn/problem-sets/${ptaProblemId}`,
       contestId: parts[0],
       problemIndex: parts.length >= 2 ? parts[1] : undefined,
       confidence: 'url',
@@ -165,31 +169,39 @@ export class SubmissionProblemAttacher {
     try {
       const raw = JSON.parse(submission.rawJson || '{}')
       return {
-        problemId: typeof raw?._vjudgeProblemId === 'string' && raw._vjudgeProblemId.trim()
-          ? raw._vjudgeProblemId.trim()
-          : undefined,
-        sourcePlatform: typeof raw?._vjudgeSourcePlatform === 'string' && raw._vjudgeSourcePlatform.trim()
-          ? raw._vjudgeSourcePlatform.trim()
-          : undefined,
-        sourceProblemId: typeof raw?._vjudgeSourceProblemId === 'string' && raw._vjudgeSourceProblemId.trim()
-          ? raw._vjudgeSourceProblemId.trim()
-          : undefined,
+        problemId:
+          typeof raw?._vjudgeProblemId === 'string' && raw._vjudgeProblemId.trim()
+            ? raw._vjudgeProblemId.trim()
+            : undefined,
+        sourcePlatform:
+          typeof raw?._vjudgeSourcePlatform === 'string' && raw._vjudgeSourcePlatform.trim()
+            ? raw._vjudgeSourcePlatform.trim()
+            : undefined,
+        sourceProblemId:
+          typeof raw?._vjudgeSourceProblemId === 'string' && raw._vjudgeSourceProblemId.trim()
+            ? raw._vjudgeSourceProblemId.trim()
+            : undefined,
       }
     } catch {
       return {}
     }
   }
 
-  private parseLuoguRawProblemInfo(submission: SubmissionData): { problemId?: string; title?: string } {
+  private parseLuoguRawProblemInfo(submission: SubmissionData): {
+    problemId?: string
+    title?: string
+  } {
     try {
       const raw = JSON.parse(submission.rawJson || '{}')
       return {
-        problemId: typeof raw?._luoguProblemId === 'string' && raw._luoguProblemId.trim()
-          ? raw._luoguProblemId.trim()
-          : undefined,
-        title: typeof raw?._luoguProblemTitle === 'string' && raw._luoguProblemTitle.trim()
-          ? raw._luoguProblemTitle.trim()
-          : undefined,
+        problemId:
+          typeof raw?._luoguProblemId === 'string' && raw._luoguProblemId.trim()
+            ? raw._luoguProblemId.trim()
+            : undefined,
+        title:
+          typeof raw?._luoguProblemTitle === 'string' && raw._luoguProblemTitle.trim()
+            ? raw._luoguProblemTitle.trim()
+            : undefined,
       }
     } catch {
       return {}
@@ -214,16 +226,18 @@ export class SubmissionProblemAttacher {
     try {
       const raw = JSON.parse(submission.rawJson || '{}')
       const rowLinks = Array.isArray(raw.row?.links) ? raw.row.links : []
-      const links = [
-        ...rowLinks,
-        submission.sourceUrl,
-      ].filter((link): link is string => typeof link === 'string' && link.length > 0)
+      const links = [...rowLinks, submission.sourceUrl].filter(
+        (link): link is string => typeof link === 'string' && link.length > 0,
+      )
 
       for (const link of links) {
         const identity = this.deps.parseUrl(link)
         if (!identity || identity.platform !== submission.platform) continue
         this.deps.upsertProblem(identity)
-        submission.problemId = this.deps.findProblemId(identity.platform, identity.platformProblemId)
+        submission.problemId = this.deps.findProblemId(
+          identity.platform,
+          identity.platformProblemId,
+        )
         if (submission.problemId) return
       }
     } catch {

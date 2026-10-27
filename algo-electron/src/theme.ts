@@ -40,8 +40,12 @@ export function installThemeAttribute(
   query: ColorSchemeQuery,
   target: ThemeAttributeTarget,
 ): () => void {
-  const sync = () => { applyThemeAttribute(query.matches, target) }
+  const sync = () => {
+    applyThemeAttribute(query.matches, target)
+  }
   sync()
   query.addEventListener('change', sync)
-  return () => { query.removeEventListener('change', sync) }
+  return () => {
+    query.removeEventListener('change', sync)
+  }
 }

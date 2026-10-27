@@ -25,11 +25,7 @@ export interface UserScriptHostPermissionRequest {
   webContentsId?: number
 }
 
-export type UserScriptHostPermissionResponse =
-  | 'allowed'
-  | 'denied'
-  | 'persist-failed'
-  | 'stale'
+export type UserScriptHostPermissionResponse = 'allowed' | 'denied' | 'persist-failed' | 'stale'
 
 export interface UserScriptHostPermissionBrokerOptions {
   grantUserScriptHost: (scriptId: string, exactHost: string) => unknown
@@ -78,21 +74,24 @@ export class UserScriptHostPermissionBroker {
   public request(input: UserScriptHostPermissionRequest): Promise<boolean> {
     if (this.disposed) return Promise.resolve(false)
     const request = normalizePermissionRequest(input)
-    if (!request || this.negativePermissions.has(request.permissionKey)) return Promise.resolve(false)
+    if (!request || this.negativePermissions.has(request.permissionKey))
+      return Promise.resolve(false)
 
     const existing = this.requestsByKey.get(request.dedupeKey)
     if (existing) return existing.promise
     const queue = this.getOrCreateQueue(request.windowId)
     if (
-      !queue
-      || this.pendingCount >= MAX_TOTAL_PENDING
-      || Number(Boolean(queue.current)) + queue.pending.length >= MAX_PENDING_PER_WINDOW
+      !queue ||
+      this.pendingCount >= MAX_TOTAL_PENDING ||
+      Number(Boolean(queue.current)) + queue.pending.length >= MAX_PENDING_PER_WINDOW
     ) {
       return Promise.resolve(false)
     }
 
     let resolvePermission: (allowed: boolean) => void = () => undefined
-    const promise = new Promise<boolean>((resolve) => { resolvePermission = resolve })
+    const promise = new Promise<boolean>((resolve) => {
+      resolvePermission = resolve
+    })
     const pending: PendingPermission = {
       request,
       prompt: Object.freeze({
@@ -144,12 +143,11 @@ export class UserScriptHostPermissionBroker {
     }
 
     try {
-      if (this.options.validate && !await this.options.validate(current.request)) {
+      if (this.options.validate && !(await this.options.validate(current.request))) {
         if (!current.completed) this.settleEntry(current, false)
         return 'stale'
       }
-    }
-    catch {
+    } catch {
       if (!current.completed) this.settleEntry(current, false)
       return 'stale'
     }
@@ -157,8 +155,7 @@ export class UserScriptHostPermissionBroker {
 
     try {
       await this.options.grantUserScriptHost(current.request.scriptId, current.request.targetHost)
-    }
-    catch {
+    } catch {
       if (!current.completed) this.settleEntry(current, false)
       return 'persist-failed'
     }
@@ -219,8 +216,7 @@ export class UserScriptHostPermissionBroker {
         if (this.options.send(queue.windowId, { ...pending.prompt }) === false) {
           throw new Error('Userscript host permission prompt could not be delivered')
         }
-      }
-      catch {
+      } catch {
         this.safeHide(queue.windowId)
         queue.current = null
         this.completeEntry(pending, false, false)
@@ -237,8 +233,9 @@ export class UserScriptHostPermissionBroker {
   }
 
   private settlePermissionKey(permissionKey: string, allowed: boolean): void {
-    const matching = [...this.requestsByKey.values()]
-      .filter(pending => pending.request.permissionKey === permissionKey)
+    const matching = [...this.requestsByKey.values()].filter(
+      (pending) => pending.request.permissionKey === permissionKey,
+    )
     for (const pending of matching) this.settleEntry(pending, allowed)
   }
 
@@ -252,8 +249,7 @@ export class UserScriptHostPermissionBroker {
     if (queue.current === pending) {
       queue.current = null
       this.safeHide(queue.windowId)
-    }
-    else {
+    } else {
       const index = queue.pending.indexOf(pending)
       if (index >= 0) queue.pending.splice(index, 1)
     }
@@ -261,7 +257,11 @@ export class UserScriptHostPermissionBroker {
     this.pump(queue)
   }
 
-  private completeEntry(pending: PendingPermission, allowed: boolean, removeFromQueue: boolean): void {
+  private completeEntry(
+    pending: PendingPermission,
+    allowed: boolean,
+    removeFromQueue: boolean,
+  ): void {
     if (pending.completed) return
     pending.completed = true
     this.clearTimer(pending)
@@ -285,8 +285,11 @@ export class UserScriptHostPermissionBroker {
   }
 
   private safeHide(windowId: string): void {
-    try { this.options.hide(windowId) }
-    catch { /* a destroyed shell window is already effectively hidden */ }
+    try {
+      this.options.hide(windowId)
+    } catch {
+      /* a destroyed shell window is already effectively hidden */
+    }
   }
 }
 
@@ -301,15 +304,16 @@ function normalizePermissionRequest(
   const sourceHost = normalizeExactHost(input.sourceHost)
   const webContentsId = input.webContentsId
   if (
-    !windowId
-    || !scriptId
-    || !scriptName
-    || !targetHost
-    || !sourceHost
-    || !Number.isSafeInteger(input.generation)
-    || input.generation < 0
-    || (webContentsId !== undefined && (!Number.isSafeInteger(webContentsId) || webContentsId <= 0))
-  ) return null
+    !windowId ||
+    !scriptId ||
+    !scriptName ||
+    !targetHost ||
+    !sourceHost ||
+    !Number.isSafeInteger(input.generation) ||
+    input.generation < 0 ||
+    (webContentsId !== undefined && (!Number.isSafeInteger(webContentsId) || webContentsId <= 0))
+  )
+    return null
   const permissionKey = `${input.generation}\u0000${scriptId}\u0000${targetHost}`
   return {
     windowId,
@@ -325,15 +329,18 @@ function normalizePermissionRequest(
 }
 
 function normalizeIdentifier(value: unknown): string | null {
-  if (typeof value !== 'string' || value.length === 0 || value.length > MAX_IDENTIFIER_LENGTH) return null
-  if (value.trim() !== value || /\s/u.test(value) || hasDisallowedDisplayCharacters(value)) return null
+  if (typeof value !== 'string' || value.length === 0 || value.length > MAX_IDENTIFIER_LENGTH)
+    return null
+  if (value.trim() !== value || /\s/u.test(value) || hasDisallowedDisplayCharacters(value))
+    return null
   return value
 }
 
 function normalizeDisplayText(value: unknown, maxLength: number): string | null {
   if (typeof value !== 'string') return null
   const normalized = value.trim()
-  if (!normalized || normalized.length > maxLength || hasDisallowedDisplayCharacters(normalized)) return null
+  if (!normalized || normalized.length > maxLength || hasDisallowedDisplayCharacters(normalized))
+    return null
   return normalized
 }
 
@@ -341,17 +348,17 @@ function normalizeExactHost(value: unknown): string | null {
   if (typeof value !== 'string' || value.length === 0 || value.length > MAX_HOST_LENGTH) return null
   const normalized = value.trim().toLowerCase()
   if (
-    normalized !== value.toLowerCase()
-    || /\s/u.test(normalized)
-    || hasDisallowedDisplayCharacters(normalized)
-    || /[/\\@?#]/u.test(normalized)
-  ) return null
+    normalized !== value.toLowerCase() ||
+    /\s/u.test(normalized) ||
+    hasDisallowedDisplayCharacters(normalized) ||
+    /[/\\@?#]/u.test(normalized)
+  )
+    return null
   try {
     const parsed = new URL(`https://${normalized}/`)
     if (parsed.host !== normalized || !isCanonicalHostname(parsed.hostname)) return null
     return normalized
-  }
-  catch {
+  } catch {
     return null
   }
 }
@@ -359,7 +366,9 @@ function normalizeExactHost(value: unknown): string | null {
 function normalizeTimeout(value: number | undefined): number {
   if (value === undefined) return DEFAULT_TIMEOUT_MS
   if (!Number.isSafeInteger(value) || value <= 0 || value > MAX_TIMEOUT_MS) {
-    throw new TypeError(`Userscript host permission timeout must be between 1 and ${MAX_TIMEOUT_MS} ms`)
+    throw new TypeError(
+      `Userscript host permission timeout must be between 1 and ${MAX_TIMEOUT_MS} ms`,
+    )
   }
   return value
 }
@@ -367,19 +376,21 @@ function normalizeTimeout(value: number | undefined): number {
 function hasDisallowedDisplayCharacters(value: string): boolean {
   return [...value].some((character) => {
     const codePoint = character.codePointAt(0) ?? 0
-    return codePoint < 32
-      || codePoint === 127
-      || (codePoint >= 0x202a && codePoint <= 0x202e)
-      || (codePoint >= 0x2066 && codePoint <= 0x2069)
+    return (
+      codePoint < 32 ||
+      codePoint === 127 ||
+      (codePoint >= 0x202a && codePoint <= 0x202e) ||
+      (codePoint >= 0x2066 && codePoint <= 0x2069)
+    )
   })
 }
 
 function isCanonicalHostname(hostname: string): boolean {
   if (hostname.startsWith('[') && hostname.endsWith(']')) return true
-  if (!hostname || hostname.length > 253 || hostname.includes('..') || hostname.endsWith('.')) return false
+  if (!hostname || hostname.length > 253 || hostname.includes('..') || hostname.endsWith('.'))
+    return false
   if (!hostname.includes('.') && hostname !== 'localhost') return false
-  return hostname.split('.').every(label => (
-    label.length <= 63
-    && /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/u.test(label)
-  ))
+  return hostname
+    .split('.')
+    .every((label) => label.length <= 63 && /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/u.test(label))
 }

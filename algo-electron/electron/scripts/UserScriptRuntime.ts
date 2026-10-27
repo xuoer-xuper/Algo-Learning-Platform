@@ -41,9 +41,11 @@ export class UserScriptRuntime {
   private readonly generationChangeListeners = new Set<(generation: number) => void>()
   private runtimeGeneration = 0
 
-  public constructor(dependencies: Partial<UserScriptRuntimeDependencies> & {
-    userScriptService: UserScriptRuntimeDependencies['userScriptService']
-  }) {
+  public constructor(
+    dependencies: Partial<UserScriptRuntimeDependencies> & {
+      userScriptService: UserScriptRuntimeDependencies['userScriptService']
+    },
+  ) {
     this.dependencies = {
       listValues: listUserScriptValues,
       listResources: listUserScriptResources,
@@ -68,11 +70,15 @@ export class UserScriptRuntime {
       const nextResources = new Map<string, UserScriptResource[]>()
       for (const script of this.dependencies.userScriptService.getEnabledScriptsSnapshot()) {
         try {
-          nextValues.set(script.id, new Map(
-            this.dependencies.listValues(script.id).map(value => [value.value_key, value.value]),
-          ))
-        }
-        catch (error) {
+          nextValues.set(
+            script.id,
+            new Map(
+              this.dependencies
+                .listValues(script.id)
+                .map((value) => [value.value_key, value.value]),
+            ),
+          )
+        } catch (error) {
           this.dependencies.logger.error('userscript.runtime-values-load-failed', {
             scriptId: script.id,
             error: errorMessage(error),
@@ -81,8 +87,7 @@ export class UserScriptRuntime {
         }
         try {
           nextResources.set(script.id, this.dependencies.listResources(script.id))
-        }
-        catch (error) {
+        } catch (error) {
           this.dependencies.logger.error('userscript.runtime-resources-load-failed', {
             scriptId: script.id,
             error: errorMessage(error),
@@ -91,28 +96,33 @@ export class UserScriptRuntime {
         }
       }
       for (const [scriptId, values] of nextValues) this.valuesByScript.set(scriptId, values)
-      for (const [scriptId, resources] of nextResources) this.resourcesByScript.set(scriptId, resources)
-    }
-    finally {
+      for (const [scriptId, resources] of nextResources)
+        this.resourcesByScript.set(scriptId, resources)
+    } finally {
       for (const listener of this.generationChangeListeners) listener(this.runtimeGeneration)
     }
   }
 
-  public getNavigationSnapshot(url: string, isMainFrame: boolean): UserScriptRuntimeNavigationSnapshot {
-    const scripts = this.dependencies.userScriptService.getMatchingScriptsWithMeta(url)
+  public getNavigationSnapshot(
+    url: string,
+    isMainFrame: boolean,
+  ): UserScriptRuntimeNavigationSnapshot {
+    const scripts = this.dependencies.userScriptService
+      .getMatchingScriptsWithMeta(url)
       .filter(({ script }) => isMainFrame || !script.noframes)
-      .flatMap(({ script, requires, resources }) => this.buildScriptSnapshot(script, { requires, resources }))
+      .flatMap(({ script, requires, resources }) =>
+        this.buildScriptSnapshot(script, { requires, resources }),
+      )
     return { generation: this.runtimeGeneration, scripts }
   }
 
   public getCatalogSnapshot(): UserScriptRuntimeNavigationSnapshot {
     return {
       generation: this.runtimeGeneration,
-      scripts: this.dependencies.userScriptService.getEnabledScriptsSnapshot()
-        .flatMap((script) => {
-          const metadata = parseScriptMetadata(script.code)
-          return this.buildScriptSnapshot(script, metadata)
-        }),
+      scripts: this.dependencies.userScriptService.getEnabledScriptsSnapshot().flatMap((script) => {
+        const metadata = parseScriptMetadata(script.code)
+        return this.buildScriptSnapshot(script, metadata)
+      }),
     }
   }
 
@@ -130,15 +140,20 @@ export class UserScriptRuntime {
 
   public addGenerationChangeListener(listener: (generation: number) => void): () => void {
     this.generationChangeListeners.add(listener)
-    return () => { this.generationChangeListeners.delete(listener) }
+    return () => {
+      this.generationChangeListeners.delete(listener)
+    }
   }
 
   private requireEnabledScript(scriptId: string): void {
-    if (!this.valuesByScript.has(scriptId)) throw new Error('Userscript is not enabled in the runtime cache')
+    if (!this.valuesByScript.has(scriptId))
+      throw new Error('Userscript is not enabled in the runtime cache')
   }
 
   private buildScriptSnapshot(
-    script: ReturnType<UserScriptRuntimeDependencies['userScriptService']['getEnabledScriptsSnapshot']>[number],
+    script: ReturnType<
+      UserScriptRuntimeDependencies['userScriptService']['getEnabledScriptsSnapshot']
+    >[number],
     metadata: {
       requires: UserScriptResourceReference[]
       resources: Array<UserScriptResourceReference & { name: string }>
@@ -146,7 +161,9 @@ export class UserScriptRuntime {
   ): UserScriptRuntimeScriptSnapshot[] {
     const materialized = materializeResources(metadata, this.resourcesByScript.get(script.id) ?? [])
     if (!materialized) {
-      this.dependencies.logger.warn('userscript.runtime-resource-cache-invalid', { scriptId: script.id })
+      this.dependencies.logger.warn('userscript.runtime-resource-cache-invalid', {
+        scriptId: script.id,
+      })
       return []
     }
     const code = [...materialized.requires, script.code].join('\n;\n')
@@ -157,46 +174,68 @@ export class UserScriptRuntime {
     const grants = parseStringArray(script.grant_json)
     const connects = parseStringArray(script.connect_json)
     if (!grants || !connects) {
-      this.dependencies.logger.warn('userscript.runtime-permissions-invalid', { scriptId: script.id })
+      this.dependencies.logger.warn('userscript.runtime-permissions-invalid', {
+        scriptId: script.id,
+      })
       return []
     }
     const runAt = normalizeRunAt(script.run_at)
-    return [{
-      id: script.id,
-      revision: scriptRevision(script, { grants, connects, runAt }, code, materialized.resources),
-      name: script.name,
-      namespace: script.namespace,
-      description: script.description,
-      version: script.version,
-      runAt,
-      grants,
-      connects,
-      values: Array.from(this.valuesByScript.get(script.id) ?? []),
-      resources: materialized.resources,
-      code,
-    }]
+    return [
+      {
+        id: script.id,
+        revision: scriptRevision(script, { grants, connects, runAt }, code, materialized.resources),
+        name: script.name,
+        namespace: script.namespace,
+        description: script.description,
+        version: script.version,
+        runAt,
+        grants,
+        connects,
+        values: Array.from(this.valuesByScript.get(script.id) ?? []),
+        resources: materialized.resources,
+        code,
+      },
+    ]
   }
 }
 
 function scriptRevision(
-  script: { id: string; name: string; namespace: string | null; description: string | null; version: string | null; noframes: boolean; code: string },
-  contract: { grants: string[]; connects: string[]; runAt: 'document-start' | 'document-end' | 'document-idle' },
+  script: {
+    id: string
+    name: string
+    namespace: string | null
+    description: string | null
+    version: string | null
+    noframes: boolean
+    code: string
+  },
+  contract: {
+    grants: string[]
+    connects: string[]
+    runAt: 'document-start' | 'document-end' | 'document-idle'
+  },
   code: string,
   resources: UserScriptRuntimeResourceSnapshot[],
 ): string {
-  return createHash('sha256').update(JSON.stringify({
-    id: script.id,
-    name: script.name,
-    namespace: script.namespace,
-    description: script.description,
-    version: script.version,
-    noframes: script.noframes,
-    runAt: contract.runAt,
-    grants: contract.grants,
-    connects: contract.connects,
-    code,
-    resources,
-  }), 'utf8').digest('hex').slice(0, 32)
+  return createHash('sha256')
+    .update(
+      JSON.stringify({
+        id: script.id,
+        name: script.name,
+        namespace: script.namespace,
+        description: script.description,
+        version: script.version,
+        noframes: script.noframes,
+        runAt: contract.runAt,
+        grants: contract.grants,
+        connects: contract.connects,
+        code,
+        resources,
+      }),
+      'utf8',
+    )
+    .digest('hex')
+    .slice(0, 32)
 }
 
 function materializeResources(
@@ -206,9 +245,13 @@ function materializeResources(
   },
   cached: readonly UserScriptResource[],
 ): { requires: string[]; resources: UserScriptRuntimeResourceSnapshot[] } | null {
-  const requires = cached.filter(resource => resource.resource_kind === 'require')
-  const resources = cached.filter(resource => resource.resource_kind === 'resource')
-  if (requires.length !== metadata.requires.length || resources.length !== metadata.resources.length) return null
+  const requires = cached.filter((resource) => resource.resource_kind === 'require')
+  const resources = cached.filter((resource) => resource.resource_kind === 'resource')
+  if (
+    requires.length !== metadata.requires.length ||
+    resources.length !== metadata.resources.length
+  )
+    return null
 
   const requireSource: string[] = []
   for (let index = 0; index < metadata.requires.length; index += 1) {
@@ -216,8 +259,13 @@ function materializeResources(
     const cachedResource = requires[index]
     if (!matchesCachedResource(cachedResource, declaration, `require-${index}`, index)) return null
     if (!cachedResource.content_blob || cachedResource.content_encoding !== 'utf8') return null
-    try { requireSource.push(new TextDecoder('utf-8', { fatal: true }).decode(cachedResource.content_blob)) }
-    catch { return null }
+    try {
+      requireSource.push(
+        new TextDecoder('utf-8', { fatal: true }).decode(cachedResource.content_blob),
+      )
+    } catch {
+      return null
+    }
   }
 
   const snapshots: UserScriptRuntimeResourceSnapshot[] = []
@@ -245,16 +293,18 @@ function matchesCachedResource(
   order: number,
 ): boolean {
   if (
-    !cached
-    || cached.resource_key !== key
-    || cached.declaration_order !== order
-    || cached.source_url !== declaration.url
-    || cached.fetched_at === null
-  ) return false
+    !cached ||
+    cached.resource_key !== key ||
+    cached.declaration_order !== order ||
+    cached.source_url !== declaration.url ||
+    cached.fetched_at === null
+  )
+    return false
   try {
-    return cached.integrity === (selectUserScriptIntegrity(declaration.integrity)?.canonical ?? null)
-  }
-  catch {
+    return (
+      cached.integrity === (selectUserScriptIntegrity(declaration.integrity)?.canonical ?? null)
+    )
+  } catch {
     return false
   }
 }
@@ -267,10 +317,9 @@ function normalizeRunAt(value: string): 'document-start' | 'document-end' | 'doc
 function parseStringArray(value: string): string[] | null {
   try {
     const parsed: unknown = JSON.parse(value)
-    if (!Array.isArray(parsed) || parsed.some(item => typeof item !== 'string')) return null
+    if (!Array.isArray(parsed) || parsed.some((item) => typeof item !== 'string')) return null
     return parsed
-  }
-  catch {
+  } catch {
     return null
   }
 }

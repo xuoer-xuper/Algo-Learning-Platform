@@ -3,7 +3,12 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, test, vi } from 'vitest'
-import { MockBrowserWindow, MockWebContents, ipcMain, resetElectronMock } from '../electron/electronMock'
+import {
+  MockBrowserWindow,
+  MockWebContents,
+  ipcMain,
+  resetElectronMock,
+} from '../electron/electronMock'
 import { closeDb, initDbAtPath } from '../../electron/db/connection.ts'
 import {
   buildCoachEvent,
@@ -20,10 +25,16 @@ import {
 import { listCoachFeedback } from '../../electron/db/repositories/coach/feedbackRepository.ts'
 import { getRecentProblems } from '../../electron/db/repositories/problemRepository.ts'
 import { upsertSubmission } from '../../electron/db/repositories/submissionRepository.ts'
-import { startProblemVisit, finishProblemVisit } from '../../electron/db/repositories/problemVisitRepository.ts'
+import {
+  startProblemVisit,
+  finishProblemVisit,
+} from '../../electron/db/repositories/problemVisitRepository.ts'
 import { CoachOrchestrator } from '../../electron/coach/CoachOrchestrator.ts'
 import { registerCoachIpc } from '../../electron/ipc/registerCoachIpc.ts'
-import { registerShellWebContents, resetTrustedSenderRegistry } from '../../electron/ipc/trustedSender.ts'
+import {
+  registerShellWebContents,
+  resetTrustedSenderRegistry,
+} from '../../electron/ipc/trustedSender.ts'
 import { AppWindow } from '../../electron/windows/AppWindow.ts'
 import { setEnabledSitesFetcher } from '../../electron/parsers/registry.ts'
 import type { CoachPetWindow } from '../../electron/coach/CoachPetWindow.ts'
@@ -68,7 +79,7 @@ const LLM_KEY = 'ark-SENTINEL-ORCHESTRATOR-KEY'
  * `hold` 打开时请求挂住不 resolve，用于验并发门（hintInProgress / llmRequestInProgress）。
  */
 const sdk = vi.hoisted(() => ({
-  requests: [] as Array<{ model?: string, messages?: Array<{ role: string, content: string }> }>,
+  requests: [] as Array<{ model?: string; messages?: Array<{ role: string; content: string }> }>,
   reply: JSON.stringify({
     message: '先想清楚 n 的上界允许什么复杂度。',
     related_tags: ['prefix-sum'],
@@ -85,10 +96,15 @@ vi.mock('openai', () => ({
   default: class FakeOpenAI {
     readonly chat = {
       completions: {
-        create: async (request: { model?: string, messages?: Array<{ role: string, content: string }> }) => {
+        create: async (request: {
+          model?: string
+          messages?: Array<{ role: string; content: string }>
+        }) => {
           sdk.requests.push(request)
           if (sdk.hold) {
-            await new Promise<void>((resolve) => { sdk.releaseHold = resolve })
+            await new Promise<void>((resolve) => {
+              sdk.releaseHold = resolve
+            })
           }
           if (sdk.error) throw sdk.error
           return {
@@ -100,7 +116,9 @@ vi.mock('openai', () => ({
       },
     }
 
-    constructor(_options: unknown) { void _options }
+    constructor(_options: unknown) {
+      void _options
+    }
   },
 }))
 
@@ -132,7 +150,7 @@ vi.mock('../../electron/app/config', () => ({
       enabled: configStore.llmEnabled,
     },
   }),
-  saveCoachConfig: (partial: { disclaimer_dismissed?: boolean, llm?: { enabled?: boolean } }) => {
+  saveCoachConfig: (partial: { disclaimer_dismissed?: boolean; llm?: { enabled?: boolean } }) => {
     configStore.saveCalls += 1
     if (typeof partial.disclaimer_dismissed === 'boolean') {
       configStore.disclaimerDismissed = partial.disclaimer_dismissed
@@ -161,7 +179,7 @@ const CONSTRAINT_TEXT = [
  * 存而不是按单个 slot——按 slot 存会让"stop() 有没有全退订"永远看不出差别。
  */
 class FakeTabManager {
-  readonly scriptCalls: Array<{ pageEvent: BrowserPageEvent, code: string }> = []
+  readonly scriptCalls: Array<{ pageEvent: BrowserPageEvent; code: string }> = []
   readonly contestNoticeCalls: boolean[] = []
   activePage: BrowserPageEvent | null = null
   pageActive = true
@@ -178,23 +196,31 @@ class FakeTabManager {
   private readonly pendingScripts: Array<() => void> = []
   private readonly pageListeners = new Set<(event: BrowserPageEvent) => void>()
   private readonly activeTabListeners = new Set<(url: string) => void>()
-  private readonly urlListeners = new Set<(snapshot: { webContentsId: number, url: string | null }) => void>()
+  private readonly urlListeners = new Set<
+    (snapshot: { webContentsId: number; url: string | null }) => void
+  >()
 
   addPageEventListener(listener: (event: BrowserPageEvent) => void): () => void {
     this.pageListeners.add(listener)
-    return () => { this.pageListeners.delete(listener) }
+    return () => {
+      this.pageListeners.delete(listener)
+    }
   }
 
   addActiveTabChangeListener(listener: (url: string) => void): () => void {
     this.activeTabListeners.add(listener)
-    return () => { this.activeTabListeners.delete(listener) }
+    return () => {
+      this.activeTabListeners.delete(listener)
+    }
   }
 
   addWebContentsUrlListener(
-    listener: (snapshot: { webContentsId: number, url: string | null }) => void,
+    listener: (snapshot: { webContentsId: number; url: string | null }) => void,
   ): () => void {
     this.urlListeners.add(listener)
-    return () => { this.urlListeners.delete(listener) }
+    return () => {
+      this.urlListeners.delete(listener)
+    }
   }
 
   getActivePageEvent(): BrowserPageEvent | null {
@@ -219,7 +245,9 @@ class FakeTabManager {
     if (this.scriptError) throw this.scriptError
     if (this.holdScripts) {
       const text = this.constraintText
-      return new Promise((resolve) => { this.pendingScripts.push(() => resolve(text)) })
+      return new Promise((resolve) => {
+        this.pendingScripts.push(() => resolve(text))
+      })
     }
     return this.constraintText
   }
@@ -273,9 +301,15 @@ class FakePetWindow {
   dismissCount = 0
   followed: unknown = undefined
 
-  setPetState(state: CoachPetState): void { this.states.push(state) }
-  getPetState(): CoachPetState { return this.states[this.states.length - 1] ?? 'idle' }
-  getCurrentBubble(): CoachBubblePayload | null { return this.currentBubble }
+  setPetState(state: CoachPetState): void {
+    this.states.push(state)
+  }
+  getPetState(): CoachPetState {
+    return this.states[this.states.length - 1] ?? 'idle'
+  }
+  getCurrentBubble(): CoachBubblePayload | null {
+    return this.currentBubble
+  }
   showBubble(payload: CoachBubblePayload): void {
     this.bubbles.push(payload)
     this.currentBubble = payload
@@ -284,7 +318,9 @@ class FakePetWindow {
     this.dismissCount += 1
     this.currentBubble = null
   }
-  followWindow(window: unknown): void { this.followed = window }
+  followWindow(window: unknown): void {
+    this.followed = window
+  }
 
   bubbleTitled(title: string): CoachBubblePayload | undefined {
     return this.bubbles.find((bubble) => bubble.title === title)
@@ -333,11 +369,13 @@ function harness(windowCount = 1, options: { withPet?: boolean } = {}): Harness 
     const browserWindow = new MockBrowserWindow()
     tabManagers.push(tabManager)
     browserWindows.push(browserWindow)
-    windows.push(new AppWindow({
-      id: `window-${index + 1}`,
-      browserWindow: browserWindow as unknown as Electron.BrowserWindow,
-      tabManager: tabManager as unknown as TabManager,
-    }))
+    windows.push(
+      new AppWindow({
+        id: `window-${index + 1}`,
+        browserWindow: browserWindow as unknown as Electron.BrowserWindow,
+        tabManager: tabManager as unknown as TabManager,
+      }),
+    )
   }
 
   const pet = new FakePetWindow()
@@ -351,23 +389,31 @@ function harness(windowCount = 1, options: { withPet?: boolean } = {}): Harness 
     getMostRecentAppWindow: () => mostRecent,
     addMostRecentWindowChangeListener: (listener) => {
       mostRecentListeners.add(listener)
-      return () => { mostRecentListeners.delete(listener) }
+      return () => {
+        mostRecentListeners.delete(listener)
+      }
     },
     isAnyAppWindowFocused: () => true,
-    getTrackingService: () => ({
-      addProblemDetectedListener: (listener: () => void) => {
-        problemListeners.add(listener)
-        return () => { problemListeners.delete(listener) }
-      },
-    } as unknown as TrackingService),
-    getRealtimeSubmissionService: () => ({
-      onSubmissionDetected: (listener: (notification: SubmissionNotification) => void) => {
-        submissionListeners.add(listener)
-        return () => { submissionListeners.delete(listener) }
-      },
-    } as unknown as RealtimeSubmissionService),
+    getTrackingService: () =>
+      ({
+        addProblemDetectedListener: (listener: () => void) => {
+          problemListeners.add(listener)
+          return () => {
+            problemListeners.delete(listener)
+          }
+        },
+      }) as unknown as TrackingService,
+    getRealtimeSubmissionService: () =>
+      ({
+        onSubmissionDetected: (listener: (notification: SubmissionNotification) => void) => {
+          submissionListeners.add(listener)
+          return () => {
+            submissionListeners.delete(listener)
+          }
+        },
+      }) as unknown as RealtimeSubmissionService,
     // 桌宠窗口是可选依赖（用户关掉桌宠时为 null），withPet=false 用来验那条路。
-    getCoachPetWindow: () => (withPet ? pet as unknown as CoachPetWindow : null),
+    getCoachPetWindow: () => (withPet ? (pet as unknown as CoachPetWindow) : null),
   })
 
   return {
@@ -383,7 +429,8 @@ function harness(windowCount = 1, options: { withPet?: boolean } = {}): Harness 
     emitSubmission: (notification) => {
       for (const listener of [...submissionListeners]) listener(notification)
     },
-    appListenerCount: () => mostRecentListeners.size + submissionListeners.size + problemListeners.size,
+    appListenerCount: () =>
+      mostRecentListeners.size + submissionListeners.size + problemListeners.size,
   }
 }
 
@@ -397,9 +444,7 @@ beforeEach(() => {
 
   // 见 coachPageOwnershipWiring.test.ts：少了这一步 parseUrl 一律返回 null，
   // 会话永远开不起来，全套"不该发生"的断言集体空转成绿。
-  setEnabledSitesFetcher(() => [
-    { id: 'codeforces', domains: ['codeforces.com'], enabled: true },
-  ])
+  setEnabledSitesFetcher(() => [{ id: 'codeforces', domains: ['codeforces.com'], enabled: true }])
 
   configStore.disclaimerDismissed = false
   configStore.llmEnabled = true
@@ -498,7 +543,11 @@ test('stop() 时仍在比赛中：审计行补上 contest_end，不留一条永�
    */
   assert.ok(end, 'stop() 必须写出 contest_end 审计（三条收尾路径至少一条要生效）')
   assert.ok(end.contest_end !== null, 'contest_end 时间戳必须落库，否则导出的审计对不上账')
-  assert.match(end.trigger_reason, /contest_end \(codeforces:1900, 65s\)/, '时长应按真实停留时间记账')
+  assert.match(
+    end.trigger_reason,
+    /contest_end \(codeforces:1900, 65s\)/,
+    '时长应按真实停留时间记账',
+  )
   assert.equal(end.zero_intervention, true, '比赛期间零介入是审计卖点，必须落库为真')
 
   /*
@@ -589,7 +638,9 @@ test('切窗请求已发出但还没落定时，旧窗口迟到的页面事件�
   const afterReapply = h.tabManagers[0].scriptCalls.length
   assert.equal(h.coach.getCurrentProblemUrl(), CF_PROBLEM_A, '正向锚点：停回 A 之后当前题目恢复')
 
-  h.tabManagers[0].emitBackgroundPageEvent(pageEvent(CF_PROBLEM_B, { tabId: 'tab-2', webContentsId: 12 }))
+  h.tabManagers[0].emitBackgroundPageEvent(
+    pageEvent(CF_PROBLEM_B, { tabId: 'tab-2', webContentsId: 12 }),
+  )
   await vi.advanceTimersByTimeAsync(0)
   assert.equal(h.tabManagers[0].scriptCalls.length, afterReapply, '后台标签的导航不应触发抽取')
   assert.equal(h.coach.getCurrentProblemUrl(), CF_PROBLEM_A, '后台标签不应顶掉当前题目')
@@ -626,7 +677,11 @@ test('A 的约束结果在切到 B 之后才回来时被丢弃，不污染 B 的
 
   assert.equal(h.coach.getCurrentProblemUrl(), CF_PROBLEM_B, '迟到的结果不应改写当前题目')
   assert.deepEqual(h.coach.getCurrentConstraints(), bConstraints, '迟到的结果不应改写当前约束')
-  assert.notEqual(h.coach.getCurrentConstraints()?.nUpper, 900_000_000, '3/C 的 n 上界不该出现在 B 的上下文里')
+  assert.notEqual(
+    h.coach.getCurrentConstraints()?.nUpper,
+    900_000_000,
+    '3/C 的 n 上界不该出现在 B 的上下文里',
+  )
   // 桌宠也必须跟到 B 的窗口上，否则气泡会贴在用户已经离开的那个窗口边上。
   assert.equal(h.pet.followed, h.browserWindows[1], '桌宠应跟随新的活动窗口')
   h.coach.stop()
@@ -683,7 +738,11 @@ test('切窗时当前会话跟着换到新窗口正在看的那道题，旧会�
   assert.equal(switched?.platform_problem_id, '2B', '会话应换成新窗口的题目')
   assert.notEqual(switched?.session_id, firstSessionId, '换题应是新会话，不是改旧会话')
   assert.ok(
-    h.coach.getSessionHistory().some((session) => session.platform_problem_id === '1A' && session.current_status === 'closed'),
+    h.coach
+      .getSessionHistory()
+      .some(
+        (session) => session.platform_problem_id === '1A' && session.current_status === 'closed',
+      ),
     '旧会话应被关闭并留在历史里',
   )
   h.coach.stop()
@@ -738,7 +797,9 @@ test('进入比赛页：桌宠睡下、每个窗口都收到通知与顶栏、�
    * 还在"正常模式"的界面，而规则引擎其实已经硬关闭了——UI 与实际状态对不上。
    */
   for (const [index, browserWindow] of h.browserWindows.entries()) {
-    const message = browserWindow.webContents.sentMessages.find((m) => m.channel === 'coach:contestModeChanged')
+    const message = browserWindow.webContents.sentMessages.find(
+      (m) => m.channel === 'coach:contestModeChanged',
+    )
     assert.ok(message, `window-${index + 1} 应收到比赛模式通知`)
     assert.deepEqual(message.args[0], {
       isContestMode: true,
@@ -826,7 +887,7 @@ test('比赛期间用户主动要提示也被拒：点桌宠 / 升级 / 聊天�
   h.tabManagers[0].emitWebContentsUrl(11, CF_PROBLEM_A)
   const afterClick = await h.coach.petClick()
   assert.equal(afterClick.triggered, true, '离开比赛后点桌宠应真的出提示')
-  assert.equal(await h.coach.chatWithLlm('这题怎么做') !== null, true, '离开比赛后聊天应恢复')
+  assert.equal((await h.coach.chatWithLlm('这题怎么做')) !== null, true, '离开比赛后聊天应恢复')
   h.coach.stop()
 })
 
@@ -842,7 +903,7 @@ const hintContextChanges = [
   'page-destroyed',
 ] as const
 
-function changeHintContext(h: Harness, change: typeof hintContextChanges[number]): void {
+function changeHintContext(h: Harness, change: (typeof hintContextChanges)[number]): void {
   switch (change) {
     case 'contest':
       h.tabManagers[1].emitWebContentsUrl(21, CF_CONTEST)
@@ -863,9 +924,13 @@ function changeHintContext(h: Harness, change: typeof hintContextChanges[number]
       h.tabManagers[0].switchActiveTab(pageEvent(CF_PROBLEM_A, { reason: 'active-tab-changed' }))
       break
     case 'same-url-tab':
-      h.tabManagers[0].switchActiveTab(pageEvent(CF_PROBLEM_A, {
-        reason: 'active-tab-changed', tabId: 'tab-2', webContentsId: 12,
-      }))
+      h.tabManagers[0].switchActiveTab(
+        pageEvent(CF_PROBLEM_A, {
+          reason: 'active-tab-changed',
+          tabId: 'tab-2',
+          webContentsId: 12,
+        }),
+      )
       break
     case 'window-roundtrip':
       h.setMostRecentWindow(h.windows[1])
@@ -904,35 +969,44 @@ test.each(hintContextChanges)('手动提示丢弃上下文失效后的成功结�
   assert.equal(result.accepted, false, '迟到结果不得被接受')
   assert.equal(h.pet.bubbles.length, bubblesBefore, '不得恢复旧提示气泡')
   assert.equal(h.pet.states.length, statesBefore, '不得覆盖比赛或新页面的桌宠状态')
-  assert.equal(listCoachInterventions().filter((row) => row.source_type !== 'contest_audit').length, 0)
+  assert.equal(
+    listCoachInterventions().filter((row) => row.source_type !== 'contest_audit').length,
+    0,
+  )
   h.coach.stop()
 })
 
-test.each(['valid', 'invalid'] as const)('比赛中作废的手动提示不消费每日额度，也不降级展示：%s', async (reply) => {
-  const h = harness(2)
-  h.tabManagers[0].activePage = pageEvent(CF_PROBLEM_A)
-  h.coach.start()
-  await vi.advanceTimersByTimeAsync(0)
-  for (let index = 0; index < 9; index += 1) {
-    assert.equal((await h.coach.petClick()).triggered, true)
-  }
-  sdk.hold = true
-  const pending = h.coach.requestHintUpgrade()
-  await vi.advanceTimersByTimeAsync(0)
-  assert.equal(sdk.requests.length, 10, '额度边界上的请求必须真实发出')
-  changeHintContext(h, 'contest-roundtrip')
-  const bubblesBefore = h.pet.bubbles.length
-  if (reply === 'invalid') sdk.reply = 'invalid hint response'
-  sdk.hold = false
-  sdk.releaseHold?.()
+test.each(['valid', 'invalid'] as const)(
+  '比赛中作废的手动提示不消费每日额度，也不降级展示：%s',
+  async (reply) => {
+    const h = harness(2)
+    h.tabManagers[0].activePage = pageEvent(CF_PROBLEM_A)
+    h.coach.start()
+    await vi.advanceTimersByTimeAsync(0)
+    for (let index = 0; index < 9; index += 1) {
+      assert.equal((await h.coach.petClick()).triggered, true)
+    }
+    sdk.hold = true
+    const pending = h.coach.requestHintUpgrade()
+    await vi.advanceTimersByTimeAsync(0)
+    assert.equal(sdk.requests.length, 10, '额度边界上的请求必须真实发出')
+    changeHintContext(h, 'contest-roundtrip')
+    const bubblesBefore = h.pet.bubbles.length
+    if (reply === 'invalid') sdk.reply = 'invalid hint response'
+    sdk.hold = false
+    sdk.releaseHold?.()
 
-  assert.equal((await pending).accepted, false)
-  assert.equal(h.pet.bubbles.length, bubblesBefore, '失败也不能在新上下文补本地提示')
-  assert.equal(listCoachInterventions().filter((row) => row.source_type !== 'contest_audit').length, 9)
-  assert.equal((await h.coach.petClick()).triggered, true, '作废结果不得用掉最后一次额度')
-  assert.equal((await h.coach.petClick()).triggered, false, '有效提示仍必须正常消耗额度')
-  h.coach.stop()
-})
+    assert.equal((await pending).accepted, false)
+    assert.equal(h.pet.bubbles.length, bubblesBefore, '失败也不能在新上下文补本地提示')
+    assert.equal(
+      listCoachInterventions().filter((row) => row.source_type !== 'contest_audit').length,
+      9,
+    )
+    assert.equal((await h.coach.petClick()).triggered, true, '作废结果不得用掉最后一次额度')
+    assert.equal((await h.coach.petClick()).triggered, false, '有效提示仍必须正常消耗额度')
+    h.coach.stop()
+  },
+)
 
 test.each(hintContextChanges)('自动提示丢弃上下文失效后的结果：%s', async (change) => {
   const h = harness(2)
@@ -956,34 +1030,40 @@ test.each(hintContextChanges)('自动提示丢弃上下文失效后的结果：%
 
   assert.equal(h.pet.bubbles.length, bubblesBefore)
   assert.equal(h.pet.states.length, statesBefore)
-  assert.equal(listCoachInterventions().filter((row) => row.source_type !== 'contest_audit').length, 0)
+  assert.equal(
+    listCoachInterventions().filter((row) => row.source_type !== 'contest_audit').length,
+    0,
+  )
   h.coach.stop()
 })
 
-test.each(['invalid', 'error'] as const)('失效请求的失败响应不恢复加载气泡或本地提示：%s', async (failure) => {
-  const h = harness(2)
-  h.tabManagers[0].activePage = pageEvent(CF_PROBLEM_A)
-  h.coach.start()
-  await vi.advanceTimersByTimeAsync(0)
-  sdk.hold = true
-  const pending = h.coach.requestHintUpgrade()
-  await vi.advanceTimersByTimeAsync(0)
-  assert.equal(h.pet.currentBubble?.bubble_type, 'loading')
+test.each(['invalid', 'error'] as const)(
+  '失效请求的失败响应不恢复加载气泡或本地提示：%s',
+  async (failure) => {
+    const h = harness(2)
+    h.tabManagers[0].activePage = pageEvent(CF_PROBLEM_A)
+    h.coach.start()
+    await vi.advanceTimersByTimeAsync(0)
+    sdk.hold = true
+    const pending = h.coach.requestHintUpgrade()
+    await vi.advanceTimersByTimeAsync(0)
+    assert.equal(h.pet.currentBubble?.bubble_type, 'loading')
 
-  changeHintContext(h, 'same-url-tab')
-  assert.equal(h.pet.currentBubble, null)
-  assert.equal(h.pet.getPetState(), 'idle')
-  if (failure === 'invalid') sdk.reply = 'invalid response'
-  else sdk.error = new Error('transport failure')
-  sdk.hold = false
-  sdk.releaseHold?.()
+    changeHintContext(h, 'same-url-tab')
+    assert.equal(h.pet.currentBubble, null)
+    assert.equal(h.pet.getPetState(), 'idle')
+    if (failure === 'invalid') sdk.reply = 'invalid response'
+    else sdk.error = new Error('transport failure')
+    sdk.hold = false
+    sdk.releaseHold?.()
 
-  assert.equal((await pending).accepted, false)
-  assert.equal(h.pet.currentBubble, null)
-  assert.equal(h.pet.getPetState(), 'idle')
-  assert.equal(listCoachInterventions().length, 0)
-  h.coach.stop()
-})
+    assert.equal((await pending).accepted, false)
+    assert.equal(h.pet.currentBubble, null)
+    assert.equal(h.pet.getPetState(), 'idle')
+    assert.equal(listCoachInterventions().length, 0)
+    h.coach.stop()
+  },
+)
 
 test('旧自动请求完成时不清理新手动请求的加载气泡和思考状态', async () => {
   const h = harness(2)
@@ -1047,7 +1127,11 @@ test('手动加载与自动思考交错时都被清理，旧回调不删除后�
   sdk.reply = 'invalid response'
   releaseAutomatic()
   await vi.advanceTimersByTimeAsync(0)
-  sdk.reply = JSON.stringify({ message: 'New valid hint', related_tags: [], reveals_solution: false })
+  sdk.reply = JSON.stringify({
+    message: 'New valid hint',
+    related_tags: [],
+    reveals_solution: false,
+  })
   h.emitSubmission({ platform: 'codeforces', verdict: 'WA', problemId: 'p1' })
   await vi.advanceTimersByTimeAsync(0)
   const newBubble = h.pet.getCurrentBubble()
@@ -1077,32 +1161,34 @@ test('自动提示解析失败后释放自己的思考状态', async () => {
   h.coach.stop()
 })
 
-test.each(['chat', 'requestHint'] as const)('自由聊天和直接提示同样拒绝比赛前发起的迟到内容：%s', async (method) => {
-  const h = harness(2)
-  h.tabManagers[0].activePage = pageEvent(CF_PROBLEM_A)
-  h.coach.start()
-  await vi.advanceTimersByTimeAsync(0)
-  const request = () => method === 'chat'
-    ? h.coach.chatWithLlm('分析一下复杂度')
-    : h.coach.requestHintFromLlm()
+test.each(['chat', 'requestHint'] as const)(
+  '自由聊天和直接提示同样拒绝比赛前发起的迟到内容：%s',
+  async (method) => {
+    const h = harness(2)
+    h.tabManagers[0].activePage = pageEvent(CF_PROBLEM_A)
+    h.coach.start()
+    await vi.advanceTimersByTimeAsync(0)
+    const request = () =>
+      method === 'chat' ? h.coach.chatWithLlm('分析一下复杂度') : h.coach.requestHintFromLlm()
 
-  for (const change of ['contest', 'contest-roundtrip', 'stop', 'restart'] as const) {
-    sdk.hold = true
-    const requestCount = sdk.requests.length
-    const pending = request()
-    await vi.advanceTimersByTimeAsync(0)
-    assert.equal(sdk.requests.length, requestCount + 1)
-    changeHintContext(h, change)
-    sdk.hold = false
-    sdk.releaseHold?.()
-    assert.equal(await pending, null, '不能把失效请求正文返回给 renderer')
-    if (change === 'contest') h.tabManagers[1].emitWebContentsUrl(21, CF_PROBLEM_B)
-    if (change === 'stop') h.coach.start()
-    await vi.advanceTimersByTimeAsync(0)
-    assert.ok(await request(), '新上下文中的请求应恢复，不能把并发门锁死')
-  }
-  h.coach.stop()
-})
+    for (const change of ['contest', 'contest-roundtrip', 'stop', 'restart'] as const) {
+      sdk.hold = true
+      const requestCount = sdk.requests.length
+      const pending = request()
+      await vi.advanceTimersByTimeAsync(0)
+      assert.equal(sdk.requests.length, requestCount + 1)
+      changeHintContext(h, change)
+      sdk.hold = false
+      sdk.releaseHold?.()
+      assert.equal(await pending, null, '不能把失效请求正文返回给 renderer')
+      if (change === 'contest') h.tabManagers[1].emitWebContentsUrl(21, CF_PROBLEM_B)
+      if (change === 'stop') h.coach.start()
+      await vi.advanceTimersByTimeAsync(0)
+      assert.ok(await request(), '新上下文中的请求应恢复，不能把并发门锁死')
+    }
+    h.coach.stop()
+  },
+)
 
 test('生产 IPC 的测试气泡、直接展示和演示升级都遵守全局比赛模式', async () => {
   const h = harness(2)
@@ -1115,7 +1201,13 @@ test('生产 IPC 的测试气泡、直接展示和演示升级都遵守全局比
     getCoachPetWindow: () => h.pet as unknown as CoachPetWindow,
     getCoachOrchestrator: () => h.coach,
   })
-  const payload = { id: 'manual-bubble', title: 'Hint', message: 'A hint', source: 'local', level: 1 }
+  const payload = {
+    id: 'manual-bubble',
+    title: 'Hint',
+    message: 'A hint',
+    source: 'local',
+    level: 1,
+  }
   await ipcMain.invokeHandler('coach:testHint', event)
   assert.equal(await ipcMain.invokeHandler('coach:showBubble', event, payload), true)
   const demo = await ipcMain.invokeHandler('coach:triggerHint', event, 'demo-L2-before')
@@ -1162,14 +1254,20 @@ test('离开比赛页：顶栏落下、桌宠回 idle、弹复盘气泡并把 co
   const message = h.browserWindows[0].webContents.sentMessages
     .filter((m) => m.channel === 'coach:contestModeChanged')
     .at(-1)
-  assert.deepEqual(message?.args[0], { isContestMode: false, contest: null }, 'renderer 应收到退出通知')
+  assert.deepEqual(
+    message?.args[0],
+    { isContestMode: false, contest: null },
+    'renderer 应收到退出通知',
+  )
 
   /*
    * contest_end 断言查的是原始行，不是 exportAuditLog()：后者把
    * `contest_end ?? created_at` 合并掉了（interventionsRepository.listContestAuditRecords），
    * 于是"根本没写 contest_end"在导出面上看不出来，时长仍是 1800s。
    */
-  const endRow = listCoachInterventions().find((row) => row.trigger_reason.startsWith('contest_end'))
+  const endRow = listCoachInterventions().find((row) =>
+    row.trigger_reason.startsWith('contest_end'),
+  )
   assert.ok(endRow?.contest_end, '离开比赛必须把 contest_end 写进审计行本身')
   assert.equal(endRow.contest_start, new Date('2026-09-01T10:00:00+08:00').toISOString())
   h.coach.stop()
@@ -1275,7 +1373,10 @@ test('用户对某类提示按"今天别提醒"后同类事件不再出提示，
   const all = listCoachInterventions()
   assert.equal(all.length, 2, '未被屏蔽的类型应照常出提示')
   // 按字段找而不是按下标：假时钟下两行的 created_at 相同，DESC 排序的并列次序未定义。
-  assert.ok(all.some((row) => row.trigger_reason === 'first_ac'), 'first_ac 不受 multiple_wrong 的屏蔽影响')
+  assert.ok(
+    all.some((row) => row.trigger_reason === 'first_ac'),
+    'first_ac 不受 multiple_wrong 的屏蔽影响',
+  )
   h.coach.stop()
 })
 
@@ -1305,14 +1406,20 @@ test('点桌宠逐级升到 L4，跨到 L5 时先要二次确认，确认后才�
   assert.equal(pending.accepted, false, '首次跨到 L5 不应直接给出')
   assert.equal(pending.needsConfirmation, true)
   assert.equal(pending.level, 5)
-  const confirmRow = listCoachInterventions().find((row) => row.trigger_reason === 'l5_confirmation_pending')
+  const confirmRow = listCoachInterventions().find(
+    (row) => row.trigger_reason === 'l5_confirmation_pending',
+  )
   assert.ok(confirmRow, '待确认这一步也要落库，审计里能看出用户被问过')
   assert.equal(h.pet.bubbles.at(-1)?.message, '该提示接近题解方向，确认查看？')
 
   const confirmed = await h.coach.requestHintUpgrade()
   assert.equal(confirmed.accepted, true, '二次点击应真的给出 L5')
   assert.equal(confirmed.level, 5)
-  assert.equal(listCoachInterventions().find((row) => row.intervention_id === confirmed.interventionId)?.intervention_level, 5)
+  assert.equal(
+    listCoachInterventions().find((row) => row.intervention_id === confirmed.interventionId)
+      ?.intervention_level,
+    5,
+  )
   h.coach.stop()
 })
 
@@ -1334,7 +1441,11 @@ test('提示还在生成中时重复点击被挡住，只发一次 LLM 请求', 
   assert.equal(h.pet.bubbles.at(-1)?.bubble_type, 'loading', '生成期间应先给一个 loading 气泡')
 
   const rejected = await h.coach.requestHintUpgrade()
-  assert.deepEqual(rejected, { accepted: false, level: 1, note: '正在生成提示中' }, '重复点击应被并发门挡住')
+  assert.deepEqual(
+    rejected,
+    { accepted: false, level: 1, note: '正在生成提示中' },
+    '重复点击应被并发门挡住',
+  )
   assert.equal(sdk.requests.length, 2, '被挡住的点击不应再发一次请求')
 
   /*
@@ -1358,7 +1469,11 @@ test('提示还在生成中时重复点击被挡住，只发一次 LLM 请求', 
   const settled = await inFlight
   assert.equal(settled.accepted, true, '挂住的那一发最终应正常出提示')
   assert.equal(settled.level, 2, '它应接着 L1 升到 L2')
-  assert.equal(listCoachInterventions().filter((row) => row.source_type === 'llm').length, 2, 'L1 与 L2 各一条')
+  assert.equal(
+    listCoachInterventions().filter((row) => row.source_type === 'llm').length,
+    2,
+    'L1 与 L2 各一条',
+  )
 
   // 门在 finally 里放开：放开之后同样的调用要能过，否则一次超时就永久锁死提示功能。
   const after = await h.coach.requestHintUpgrade()
@@ -1402,7 +1517,10 @@ test('点"先不用"把 user_action 改成 dismissed 并把等级归零，下次
   const upgraded = await h.coach.requestHintUpgrade()
   assert.equal(upgraded.level, 2, '正向锚点：dismiss 之前等级确实升到了 L2')
   const shownId = upgraded.interventionId!
-  assert.equal(listCoachInterventions().find((row) => row.intervention_id === shownId)?.user_action, 'shown')
+  assert.equal(
+    listCoachInterventions().find((row) => row.intervention_id === shownId)?.user_action,
+    'shown',
+  )
 
   assert.equal(h.coach.dismissHint(), true)
 
@@ -1538,7 +1656,11 @@ test('指标口径：干预与事件分开计数，contest_audit 不算进干预
   assert.equal(metrics.events_by_type.multiple_wrong, 1)
   assert.equal(metrics.events_by_type.same_error, 1, '连续两次同 verdict 也应记一条 same_error')
   assert.equal(metrics.total_events, 2)
-  assert.equal(metrics.events_by_type.idle_too_long, 0, '未发生的类型要补 0，renderer 才不用防 undefined')
+  assert.equal(
+    metrics.events_by_type.idle_too_long,
+    0,
+    '未发生的类型要补 0，renderer 才不用防 undefined',
+  )
   assert.equal(metrics.never_today_count, 1)
   assert.equal(metrics.contest_audit_count, 1)
   assert.equal(
@@ -1577,7 +1699,11 @@ test('单题时间轴把四张表合到一起，first_ac 与最近活动按真�
     now: '2026-08-30T09:00:00.000',
     localDay: '2026-08-30',
   })
-  finishProblemVisit({ visitId: 'visit-1', leftAt: '2026-08-30T09:30:00.000', durationSeconds: 1800 })
+  finishProblemVisit({
+    visitId: 'visit-1',
+    leftAt: '2026-08-30T09:30:00.000',
+    durationSeconds: 1800,
+  })
   const problemId = getRecentProblems(1)[0].id
 
   upsertSubmission({
@@ -1597,14 +1723,16 @@ test('单题时间轴把四张表合到一起，first_ac 与最近活动按真�
     language: 'C++',
   })
 
-  insertCoachEvent(buildCoachEvent({
-    event_type: 'multiple_wrong',
-    severity: 'warn',
-    score: 80,
-    problem_id: problemId,
-    platform: 'codeforces',
-    evidence: { wrong_count: 2, verdict: 'WA' },
-  }))
+  insertCoachEvent(
+    buildCoachEvent({
+      event_type: 'multiple_wrong',
+      severity: 'warn',
+      score: 80,
+      problem_id: problemId,
+      platform: 'codeforces',
+      evidence: { wrong_count: 2, verdict: 'WA' },
+    }),
+  )
   // 正向锚点：事件确实按 problem_id 落库了，下面的合并断言才有东西可合。
   assert.equal(listCoachEventsByProblem(problemId).length, 1, '事件应带着 problem_id 落库')
 
@@ -1633,7 +1761,11 @@ test('单题时间轴把四张表合到一起，first_ac 与最近活动按真�
   assert.equal(timeline.status, 'solved', '有 AC 提交时状态应是 solved')
   assert.equal(timeline.visits.length, 1)
   assert.equal(timeline.visits[0].duration_seconds, 1800)
-  assert.deepEqual(timeline.submissions.map((s) => s.verdict), ['WA', 'AC'], '提交应按时间升序')
+  assert.deepEqual(
+    timeline.submissions.map((s) => s.verdict),
+    ['WA', 'AC'],
+    '提交应按时间升序',
+  )
   assert.equal(timeline.first_ac_at, '2026-08-30T09:25:00.000', 'first_ac 应取第一条 AC 的时间')
   assert.equal(timeline.events.length, 3, 'Issue #3 修复后，带 problem_id 的事件应被合进轴')
   assert.equal(timeline.events[0].evidence.wrong_count, 2, 'evidence 应反序列化后原样带出')
@@ -1651,14 +1783,16 @@ test('单题时间轴把四张表合到一起，first_ac 与最近活动按真�
    * （转化率就是拿它和 first_ac 对齐算的）。用仓库直接写一行，绕开上面那个
    * problem_id 恒为 null 的缺口。
    */
-  insertCoachIntervention(buildCoachIntervention({
-    trigger_reason: 'multiple_wrong',
-    intervention_level: 2,
-    source_type: 'local_hint',
-    message: '先想清楚状态能不能复用。',
-    problem_id: problemId,
-    platform: 'codeforces',
-  }))
+  insertCoachIntervention(
+    buildCoachIntervention({
+      trigger_reason: 'multiple_wrong',
+      intervention_level: 2,
+      source_type: 'local_hint',
+      message: '先想清楚状态能不能复用。',
+      problem_id: problemId,
+      platform: 'codeforces',
+    }),
+  )
   const withIntervention = h.coach.getProblemTimeline(problemId)
   // Issue #3 修复后：前面 WA 触发的 2 个本地规则引擎干预 + 手动插入的 1 个干预 = 3 个
   assert.equal(withIntervention?.interventions.length, 3, '带 problem_id 的干预应进轴')
@@ -1702,14 +1836,22 @@ test('小查询面：审计导出、最近事件与干预、比赛状态同步�
     tabManager: new FakeTabManager() as unknown as TabManager,
   })
   h.coach.syncContestModeState(fresh)
-  const pushed = (fresh.browserWindow as unknown as MockBrowserWindow).webContents.sentMessages.at(-1)
+  const pushed = (fresh.browserWindow as unknown as MockBrowserWindow).webContents.sentMessages.at(
+    -1,
+  )
   assert.equal(pushed?.channel, 'coach:contestModeChanged')
-  assert.equal((pushed?.args[0] as { isContestMode: boolean }).isContestMode, true, '补发的状态应是"正在比赛"')
+  assert.equal(
+    (pushed?.args[0] as { isContestMode: boolean }).isContestMode,
+    true,
+    '补发的状态应是"正在比赛"',
+  )
 
   // 离开比赛后再补发一次：这次应该是"不在比赛"，证明它读的是当前状态而不是写死的。
   h.tabManagers[0].emitWebContentsUrl(11, CF_PROBLEM_A)
   h.coach.syncContestModeState(fresh)
-  const after = (fresh.browserWindow as unknown as MockBrowserWindow).webContents.sentMessages.at(-1)
+  const after = (fresh.browserWindow as unknown as MockBrowserWindow).webContents.sentMessages.at(
+    -1,
+  )
   assert.deepEqual(after?.args[0], { isContestMode: false, contest: null })
   h.coach.stop()
 })
@@ -1815,7 +1957,9 @@ test('同一页的重复非导航事件只抓一次题面，页面被销毁时�
   h.tabManagers[0].emitPageEvent(pageEvent(CF_PROBLEM_A, { reason: 'did-navigate' }))
   await vi.advanceTimersByTimeAsync(0)
   assert.equal(h.coach.getCurrentProblemUrl(), CF_PROBLEM_A, '重新抓取应恢复缓存')
-  h.tabManagers[0].emitPageEvent(pageEvent(CF_PROBLEM_B, { tabId: 'tab-9', webContentsId: 99, reason: 'destroyed' }))
+  h.tabManagers[0].emitPageEvent(
+    pageEvent(CF_PROBLEM_B, { tabId: 'tab-9', webContentsId: 99, reason: 'destroyed' }),
+  )
   assert.equal(h.coach.getCurrentProblemUrl(), CF_PROBLEM_A, '别的页被销毁不应清掉当前页缓存')
   h.coach.stop()
 })
@@ -1887,7 +2031,11 @@ test('dismiss 反馈关气泡、helpful 反馈留着气泡，两者都落库', a
     ['dismiss', 'helpful'],
     '两类反馈都必须落库，指标要按类型分别统计',
   )
-  assert.equal(feedback.every((row) => row.intervention_id === shownId), true, '反馈必须关联到具体干预')
+  assert.equal(
+    feedback.every((row) => row.intervention_id === shownId),
+    true,
+    '反馈必须关联到具体干预',
+  )
   h.coach.stop()
 })
 
@@ -1903,7 +2051,11 @@ test('聊天与"给点提示"两个 IPC 面各自带并发门，正常时把当�
   ])
   assert.ok(reply, '正常情况下聊天必须拿到回复')
   const chatMessages = sdk.requests.at(-1)?.messages ?? []
-  assert.deepEqual(chatMessages.map((m) => m.role), ['system', 'user', 'assistant', 'user'], '历史应原样接进消息序列')
+  assert.deepEqual(
+    chatMessages.map((m) => m.role),
+    ['system', 'user', 'assistant', 'user'],
+    '历史应原样接进消息序列',
+  )
   const chatText = chatMessages.map((m) => m.content).join('\n')
   assert.match(chatText, /这题为什么会 TLE/, '学生原话应发出去')
   /*
@@ -1916,7 +2068,11 @@ test('聊天与"给点提示"两个 IPC 面各自带并发门，正常时把当�
 
   const hint = await h.coach.requestHintFromLlm()
   assert.ok(hint, '"给点提示"也应拿到正文')
-  const hintText = sdk.requests.at(-1)?.messages?.map((m) => m.content).join('\n') ?? ''
+  const hintText =
+    sdk.requests
+      .at(-1)
+      ?.messages?.map((m) => m.content)
+      .join('\n') ?? ''
   assert.match(hintText, /目标提示等级: L1/)
   // 约束同样要带上：不带的话"给点提示"给出的复杂度建议与这道题的 n 无关。
   assert.match(hintText, /200000|2·10\^5/, '已抽取的 n 上界应进"给点提示"的 prompt')
@@ -2057,7 +2213,9 @@ test('没有会话时 coach:triggerHint 仍能一路爬到 L5，落库的归属�
   // L5 确认这一步同样要能在无会话下落库。
   const pending = await h.coach.requestHintUpgrade()
   assert.equal(pending.needsConfirmation, true)
-  const confirmRow = listCoachInterventions().find((r) => r.trigger_reason === 'l5_confirmation_pending')
+  const confirmRow = listCoachInterventions().find(
+    (r) => r.trigger_reason === 'l5_confirmation_pending',
+  )
   assert.equal(confirmRow?.session_id, null, '确认行的归属字段同样是 null')
   assert.equal(confirmRow?.source_type, 'llm', 'LLM 就绪时确认行标 llm')
   assert.equal((await h.coach.requestHintUpgrade()).level, 5, '确认后应给 L5')

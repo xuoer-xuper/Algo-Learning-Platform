@@ -53,16 +53,20 @@ export function registerNotesIpc(options: RegisterNotesIpcOptions = {}): void {
    * `problemId` 用 `nullable` 而非 `optional`：独立笔记走的就是显式 `null`，
    * 由 `createNote` 落成 `_standalone` 目录，这与"没传"是两件事。
    */
-  ipcMain.handle('notes:create', [
-    nullable(text()),
-    noteTitle(),
-    nullable(noteContent()),
-    noteType(),
-  ], (event, problemId, title, content, noteType) => {
-    const note = createNote({ problem_id: problemId, title, content: content ?? undefined, note_type: noteType })
-    options.notifyProblemsUpdated?.(event)
-    return note
-  })
+  ipcMain.handle(
+    'notes:create',
+    [nullable(text()), noteTitle(), nullable(noteContent()), noteType()],
+    (event, problemId, title, content, noteType) => {
+      const note = createNote({
+        problem_id: problemId,
+        title,
+        content: content ?? undefined,
+        note_type: noteType,
+      })
+      options.notifyProblemsUpdated?.(event)
+      return note
+    },
+  )
 
   ipcMain.handle('notes:updateTitle', [text(), noteTitle()], (_event, noteId, title) => {
     return updateNoteTitle(noteId, title)
@@ -82,14 +86,13 @@ export function registerNotesIpc(options: RegisterNotesIpcOptions = {}): void {
    *   一条渲染进程侧完全没有前置检查的通道：`MilkdownEditor` 的上传回调把整个文件读成
    *   ArrayBuffer 直接发过来，既不看体积也不看类型。
    */
-  ipcMain.handle('notes:saveImage', [
-    text(),
-    freeText({ max: 255 }),
-    text({ max: 128 }),
-    binary({ maxBytes: 16 * 1024 * 1024 }),
-  ], (_event, noteId, fileName, mimeType, data) => {
-    return saveNoteImage(noteId, fileName, mimeType, data)
-  })
+  ipcMain.handle(
+    'notes:saveImage',
+    [text(), freeText({ max: 255 }), text({ max: 128 }), binary({ maxBytes: 16 * 1024 * 1024 })],
+    (_event, noteId, fileName, mimeType, data) => {
+      return saveNoteImage(noteId, fileName, mimeType, data)
+    },
+  )
 
   ipcMain.handle('notes:updateType', [text(), noteType()], (_event, noteId, type) => {
     return updateNoteType(noteId, type)

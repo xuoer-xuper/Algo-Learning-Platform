@@ -27,14 +27,17 @@ afterEach(() => {
 describe('per-origin zoom config', () => {
   it('migrates missing and malformed preferences to a sparse normalized map', async () => {
     const configPath = path.join(harness.userDataDir, 'config.json')
-    fs.writeFileSync(configPath, JSON.stringify({
-      zoomByOrigin: {
-        'HTTPS://EXAMPLE.COM:443/path': 1.249,
-        'https://default.example': 1,
-        'file:///tmp/a': 2,
-        'https://too-large.example': 20,
-      },
-    }))
+    fs.writeFileSync(
+      configPath,
+      JSON.stringify({
+        zoomByOrigin: {
+          'HTTPS://EXAMPLE.COM:443/path': 1.249,
+          'https://default.example': 1,
+          'file:///tmp/a': 2,
+          'https://too-large.example': 20,
+        },
+      }),
+    )
 
     const configModule = await import('../../electron/app/config.ts')
     expect(configModule.getZoomPreferences()).toEqual({ 'https://example.com': 1.25 })
@@ -47,10 +50,9 @@ describe('per-origin zoom config', () => {
     const configModule = await import('../../electron/app/config.ts')
 
     expect(configModule.getZoomFactorForUrl('https://codeforces.com/problemset')).toBe(1)
-    expect(configModule.saveZoomFactorForUrl(
-      'https://CODEFORCES.com:443/problemset/problem/1/A',
-      1.25,
-    )).toBe(1.25)
+    expect(
+      configModule.saveZoomFactorForUrl('https://CODEFORCES.com:443/problemset/problem/1/A', 1.25),
+    ).toBe(1.25)
     expect(configModule.getZoomFactorForUrl('https://codeforces.com/contest/1')).toBe(1.25)
     expect(configModule.saveZoomFactorForUrl('https://codeforces.com/', 1)).toBe(1)
     expect(configModule.getZoomPreferences()).toEqual({})
@@ -65,9 +67,12 @@ describe('per-origin zoom config', () => {
 
   it('does not publish a zoom change when writing fails', async () => {
     const configPath = path.join(harness.userDataDir, 'config.json')
-    fs.writeFileSync(configPath, JSON.stringify({
-      zoomByOrigin: { 'https://example.com': 1.25 },
-    }))
+    fs.writeFileSync(
+      configPath,
+      JSON.stringify({
+        zoomByOrigin: { 'https://example.com': 1.25 },
+      }),
+    )
     const configModule = await import('../../electron/app/config.ts')
     expect(configModule.getZoomFactorForUrl('https://example.com/path')).toBe(1.25)
 
@@ -75,8 +80,9 @@ describe('per-origin zoom config', () => {
       throw new Error('read-only config')
     })
     try {
-      expect(() => configModule.saveZoomFactorForUrl('https://example.com/path', 1.5))
-        .toThrow('read-only config')
+      expect(() => configModule.saveZoomFactorForUrl('https://example.com/path', 1.5)).toThrow(
+        'read-only config',
+      )
     } finally {
       writeSpy.mockRestore()
     }

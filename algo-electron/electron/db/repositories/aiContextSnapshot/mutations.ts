@@ -21,10 +21,12 @@ export function ensureTodaySnapshot(): AIContextSnapshot {
     createdAt: nowBeijing(),
   })
 
-  db.prepare(`
+  db.prepare(
+    `
     INSERT INTO ai_context_snapshots (id, snapshot_date, context_json, schema_version, created_at)
     VALUES (?, ?, ?, ?, ?)
-  `).run(
+  `,
+  ).run(
     snapshot.id,
     snapshot.snapshot_date,
     snapshot.context_json,

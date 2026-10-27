@@ -1,7 +1,4 @@
-import {
-  normalizeThemePreference,
-  type ThemePreference,
-} from './themePreference'
+import { normalizeThemePreference, type ThemePreference } from './themePreference'
 
 /*
  * 主题控制器（B5.4）。

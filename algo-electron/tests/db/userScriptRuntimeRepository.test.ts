@@ -58,21 +58,28 @@ test('userscript runtime repositories round-trip metadata, values, resources, ho
     assert.strictEqual(created.noframes, true)
     assert.strictEqual(created.exclude_match_rules_json, '["https://example.com/strict/*"]')
     assert.strictEqual(created.last_install_url, 'https://example.com/install.user.js')
-    assert.strictEqual(updateScript(scriptId, {
-      noframes: false,
-      exclude_match_rules_json: '[]',
-      last_install_url: null,
-    }), true)
+    assert.strictEqual(
+      updateScript(scriptId, {
+        noframes: false,
+        exclude_match_rules_json: '[]',
+        last_install_url: null,
+      }),
+      true,
+    )
     assert.strictEqual(getScriptById(scriptId)?.noframes, false)
     assert.strictEqual(getScriptById(scriptId)?.exclude_match_rules_json, '[]')
     assert.strictEqual(getScriptById(scriptId)?.last_install_url, null)
 
     const valueId = setUserScriptValue(scriptId, 'settings', { theme: 'dark', count: 2 })
-    assert.deepStrictEqual(getUserScriptValue(scriptId, 'settings')?.value, { theme: 'dark', count: 2 })
+    assert.deepStrictEqual(getUserScriptValue(scriptId, 'settings')?.value, {
+      theme: 'dark',
+      count: 2,
+    })
     assert.strictEqual(setUserScriptValue(scriptId, 'settings', ['updated']), valueId)
-    assert.deepStrictEqual(listUserScriptValues(scriptId).map(value => [value.value_key, value.value]), [
-      ['settings', ['updated']],
-    ])
+    assert.deepStrictEqual(
+      listUserScriptValues(scriptId).map((value) => [value.value_key, value.value]),
+      [['settings', ['updated']]],
+    )
     assert.throws(() => setUserScriptValue(scriptId, 'invalid', undefined), /JSON serializable/)
     assert.strictEqual(deleteUserScriptValue(scriptId, 'settings'), true)
     assert.strictEqual(deleteUserScriptValue(scriptId, 'settings'), false)
@@ -89,14 +96,17 @@ test('userscript runtime repositories round-trip metadata, values, resources, ho
       integrity: 'sha256-demo',
       fetchedAt: '2026-08-19T13:00:00+08:00',
     })
-    assert.strictEqual(upsertUserScriptResource({
-      scriptId,
-      kind: 'require',
-      key: 'require-0',
-      declarationOrder: 0,
-      sourceUrl: 'https://cdn.example.com/helper-v2.js',
-      content: Buffer.from([0, 127, 255]),
-    }), requireId)
+    assert.strictEqual(
+      upsertUserScriptResource({
+        scriptId,
+        kind: 'require',
+        key: 'require-0',
+        declarationOrder: 0,
+        sourceUrl: 'https://cdn.example.com/helper-v2.js',
+        content: Buffer.from([0, 127, 255]),
+      }),
+      requireId,
+    )
     upsertUserScriptResource({
       scriptId,
       kind: 'resource',
@@ -107,15 +117,22 @@ test('userscript runtime repositories round-trip metadata, values, resources, ho
       contentType: 'image/png',
     })
     const resources = listUserScriptResources(scriptId)
-    assert.deepStrictEqual(resources.map(resource => resource.resource_kind), ['require', 'resource'])
+    assert.deepStrictEqual(
+      resources.map((resource) => resource.resource_kind),
+      ['require', 'resource'],
+    )
     assert.deepStrictEqual(Array.from(resources[0].content_blob ?? []), [0, 127, 255])
-    assert.throws(() => upsertUserScriptResource({
-      scriptId,
-      kind: 'require',
-      key: 'require-conflict',
-      declarationOrder: 0,
-      sourceUrl: 'https://cdn.example.com/conflict.js',
-    }), /UNIQUE constraint failed/)
+    assert.throws(
+      () =>
+        upsertUserScriptResource({
+          scriptId,
+          kind: 'require',
+          key: 'require-conflict',
+          declarationOrder: 0,
+          sourceUrl: 'https://cdn.example.com/conflict.js',
+        }),
+      /UNIQUE constraint failed/,
+    )
 
     const permissionId = grantUserScriptHost(scriptId, 'API.Example.com')
     assert.strictEqual(hasUserScriptHostPermission(scriptId, 'api.example.com'), true)

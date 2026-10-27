@@ -22,5 +22,5 @@ export const migration008 = {
     db.exec(`
       DROP TABLE IF EXISTS user_scripts;
     `)
-  }
+  },
 }

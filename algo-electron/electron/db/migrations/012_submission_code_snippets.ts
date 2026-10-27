@@ -21,10 +21,12 @@ export const migration012 = {
         FOREIGN KEY (problem_id) REFERENCES problems(id) ON DELETE CASCADE
       )
     `)
-    db.exec(`CREATE INDEX IF NOT EXISTS snippets_submission ON submission_code_snippets(submission_id);`)
+    db.exec(
+      `CREATE INDEX IF NOT EXISTS snippets_submission ON submission_code_snippets(submission_id);`,
+    )
     db.exec(`CREATE INDEX IF NOT EXISTS snippets_problem ON submission_code_snippets(problem_id);`)
   },
   down: (db: Database) => {
     db.exec(`DROP TABLE IF EXISTS submission_code_snippets`)
-  }
+  },
 }

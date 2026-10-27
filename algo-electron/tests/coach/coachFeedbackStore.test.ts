@@ -36,10 +36,12 @@ interface MockFeedbackRow {
   created_at: string
 }
 
-function createMockRepository(options: {
-  neverTodayTypes?: Set<CoachEventType>
-  historyRows?: MockFeedbackRow[]
-} = {}): FeedbackRepositoryAdapter & {
+function createMockRepository(
+  options: {
+    neverTodayTypes?: Set<CoachEventType>
+    historyRows?: MockFeedbackRow[]
+  } = {},
+): FeedbackRepositoryAdapter & {
   inserted: MockFeedbackRow[]
   listCalls: number
   neverTodayCalls: number
@@ -81,9 +83,15 @@ function createMockRepository(options: {
     setNeverTodayTypes(types: Set<CoachEventType>) {
       state.neverTodayTypes = new Set(types)
     },
-    get inserted() { return state.inserted },
-    get listCalls() { return state.listCalls },
-    get neverTodayCalls() { return state.neverTodayCalls },
+    get inserted() {
+      return state.inserted
+    },
+    get listCalls() {
+      return state.listCalls
+    },
+    get neverTodayCalls() {
+      return state.neverTodayCalls
+    },
   } as FeedbackRepositoryAdapter & {
     inserted: MockFeedbackRow[]
     listCalls: number
@@ -166,7 +174,10 @@ test('recordFeedback: never_today 写入并更新计数器 + 失效缓存', () =
   // never_today 应失效缓存（下次查询会重新读 DB）
   const callsBefore = (repo as any).neverTodayCalls
   store.shouldSuppressToday('multiple_wrong')
-  assert.ok((repo as any).neverTodayCalls > callsBefore, 'cache should be invalidated after never_today')
+  assert.ok(
+    (repo as any).neverTodayCalls > callsBefore,
+    'cache should be invalidated after never_today',
+  )
 })
 
 test('recordFeedback: 带 intervention_id 与 bubble_id', () => {
@@ -425,24 +436,44 @@ test('loadHistoryForWarmup: 从 DB 重建计数器', () => {
   const baseTime = Date.now()
   const historyRows: MockFeedbackRow[] = [
     {
-      feedback_id: 'fb-1', intervention_id: null, bubble_id: null,
-      feedback_type: 'helpful', event_type: 'multiple_wrong', problem_id: null,
-      local_day: '2024-01-01', created_at: new Date(baseTime - 1000).toISOString(),
+      feedback_id: 'fb-1',
+      intervention_id: null,
+      bubble_id: null,
+      feedback_type: 'helpful',
+      event_type: 'multiple_wrong',
+      problem_id: null,
+      local_day: '2024-01-01',
+      created_at: new Date(baseTime - 1000).toISOString(),
     },
     {
-      feedback_id: 'fb-2', intervention_id: null, bubble_id: null,
-      feedback_type: 'not_helpful', event_type: 'multiple_wrong', problem_id: null,
-      local_day: '2024-01-01', created_at: new Date(baseTime - 500).toISOString(),
+      feedback_id: 'fb-2',
+      intervention_id: null,
+      bubble_id: null,
+      feedback_type: 'not_helpful',
+      event_type: 'multiple_wrong',
+      problem_id: null,
+      local_day: '2024-01-01',
+      created_at: new Date(baseTime - 500).toISOString(),
     },
     {
-      feedback_id: 'fb-3', intervention_id: null, bubble_id: null,
-      feedback_type: 'not_helpful', event_type: 'multiple_wrong', problem_id: null,
-      local_day: '2024-01-01', created_at: new Date(baseTime - 200).toISOString(),
+      feedback_id: 'fb-3',
+      intervention_id: null,
+      bubble_id: null,
+      feedback_type: 'not_helpful',
+      event_type: 'multiple_wrong',
+      problem_id: null,
+      local_day: '2024-01-01',
+      created_at: new Date(baseTime - 200).toISOString(),
     },
     {
-      feedback_id: 'fb-4', intervention_id: null, bubble_id: null,
-      feedback_type: 'dismiss', event_type: 'idle_too_long', problem_id: null,
-      local_day: '2024-01-01', created_at: new Date(baseTime - 100).toISOString(),
+      feedback_id: 'fb-4',
+      intervention_id: null,
+      bubble_id: null,
+      feedback_type: 'dismiss',
+      event_type: 'idle_too_long',
+      problem_id: null,
+      local_day: '2024-01-01',
+      created_at: new Date(baseTime - 100).toISOString(),
     },
   ]
   const repo = createMockRepository({ historyRows })
@@ -467,14 +498,24 @@ test('loadHistoryForWarmup: 跳过超出 lookback 的旧记录', () => {
   const recent = new Date(baseTime - 1000).toISOString()
   const historyRows: MockFeedbackRow[] = [
     {
-      feedback_id: 'old', intervention_id: null, bubble_id: null,
-      feedback_type: 'helpful', event_type: 'multiple_wrong', problem_id: null,
-      local_day: '2024-01-01', created_at: veryOld,
+      feedback_id: 'old',
+      intervention_id: null,
+      bubble_id: null,
+      feedback_type: 'helpful',
+      event_type: 'multiple_wrong',
+      problem_id: null,
+      local_day: '2024-01-01',
+      created_at: veryOld,
     },
     {
-      feedback_id: 'new', intervention_id: null, bubble_id: null,
-      feedback_type: 'not_helpful', event_type: 'multiple_wrong', problem_id: null,
-      local_day: '2024-01-01', created_at: recent,
+      feedback_id: 'new',
+      intervention_id: null,
+      bubble_id: null,
+      feedback_type: 'not_helpful',
+      event_type: 'multiple_wrong',
+      problem_id: null,
+      local_day: '2024-01-01',
+      created_at: recent,
     },
   ]
   const repo = createMockRepository({ historyRows })
@@ -498,14 +539,24 @@ test('loadHistoryForWarmup: 空历史不报错', () => {
 test('loadHistoryForWarmup: never_today 计数', () => {
   const historyRows: MockFeedbackRow[] = [
     {
-      feedback_id: 'fb-1', intervention_id: null, bubble_id: null,
-      feedback_type: 'never_today', event_type: 'idle_too_long', problem_id: null,
-      local_day: '2024-01-01', created_at: new Date().toISOString(),
+      feedback_id: 'fb-1',
+      intervention_id: null,
+      bubble_id: null,
+      feedback_type: 'never_today',
+      event_type: 'idle_too_long',
+      problem_id: null,
+      local_day: '2024-01-01',
+      created_at: new Date().toISOString(),
     },
     {
-      feedback_id: 'fb-2', intervention_id: null, bubble_id: null,
-      feedback_type: 'never_today', event_type: 'idle_too_long', problem_id: null,
-      local_day: '2024-01-01', created_at: new Date().toISOString(),
+      feedback_id: 'fb-2',
+      intervention_id: null,
+      bubble_id: null,
+      feedback_type: 'never_today',
+      event_type: 'idle_too_long',
+      problem_id: null,
+      local_day: '2024-01-01',
+      created_at: new Date().toISOString(),
     },
   ]
   const repo = createMockRepository({ historyRows })
@@ -521,9 +572,14 @@ test('重启后历史反馈仍存在：loadHistoryForWarmup 重建节流策略',
   // 模拟：应用上次运行时累积了 3 次 not_helpful
   const baseTime = Date.now()
   const historyRows: MockFeedbackRow[] = Array.from({ length: 3 }, (_, i) => ({
-    feedback_id: `fb-${i}`, intervention_id: null, bubble_id: null,
-    feedback_type: 'not_helpful', event_type: 'multiple_wrong', problem_id: null,
-    local_day: '2024-01-01', created_at: new Date(baseTime - (3 - i) * 1000).toISOString(),
+    feedback_id: `fb-${i}`,
+    intervention_id: null,
+    bubble_id: null,
+    feedback_type: 'not_helpful',
+    event_type: 'multiple_wrong',
+    problem_id: null,
+    local_day: '2024-01-01',
+    created_at: new Date(baseTime - (3 - i) * 1000).toISOString(),
   }))
   const repo = createMockRepository({ historyRows })
 

@@ -125,8 +125,8 @@ export class CoachFeedbackStore {
     if (!options.repository) {
       throw new Error(
         'CoachFeedbackStore: repository is required. ' +
-        'Import createDefaultRepository from ./defaultFeedbackRepository for production, ' +
-        'or inject a mock FeedbackRepositoryAdapter for tests.',
+          'Import createDefaultRepository from ./defaultFeedbackRepository for production, ' +
+          'or inject a mock FeedbackRepositoryAdapter for tests.',
       )
     }
     this.repository = options.repository
@@ -310,7 +310,10 @@ export class CoachFeedbackStore {
   }
 
   /** 仅测试用：读取计数器 */
-  getCounterForTest(eventType: CoachEventType | null, category?: string): CategoryCounter | undefined {
+  getCounterForTest(
+    eventType: CoachEventType | null,
+    category?: string,
+  ): CategoryCounter | undefined {
     return this.counters.get(this.counterKey(eventType, category))
   }
 
@@ -322,7 +325,11 @@ export class CoachFeedbackStore {
   }
 
   /** 仅测试用：直接设置计数器 */
-  setCounterForTest(eventType: CoachEventType | null, category: string | undefined, counter: CategoryCounter): void {
+  setCounterForTest(
+    eventType: CoachEventType | null,
+    category: string | undefined,
+    counter: CategoryCounter,
+  ): void {
     this.counters.set(this.counterKey(eventType, category), counter)
   }
 
@@ -351,4 +358,3 @@ export class CoachFeedbackStore {
 
 // 静态工具函数 countFeedbackSince / currentTimestamp 已移至 ./defaultFeedbackRepository.ts，
 // 以隔离 better-sqlite3 依赖（便于单元测试）。
-

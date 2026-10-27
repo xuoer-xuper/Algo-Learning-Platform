@@ -25,5 +25,5 @@ export const migration011 = {
   },
   down: (_db: Database) => {
     // SQLite 旧版不支持 DROP COLUMN，保留字段
-  }
+  },
 }

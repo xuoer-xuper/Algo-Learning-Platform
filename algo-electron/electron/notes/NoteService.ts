@@ -87,10 +87,12 @@ export function createNote(input: CreateNoteInput): Note {
   // DB 缓存的实际正文（不含标题行，标题由 title 字段管理）
   const wordCount = countWords(content)
 
-  db.prepare(`
+  db.prepare(
+    `
     INSERT INTO notes (id, problem_id, title, file_path, note_type, content, word_count, created_at, updated_at)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(id, input.problem_id ?? null, input.title, filePath, noteType, content, wordCount, now, now)
+  `,
+  ).run(id, input.problem_id ?? null, input.title, filePath, noteType, content, wordCount, now, now)
 
   return {
     id,
@@ -108,18 +110,26 @@ export function createNote(input: CreateNoteInput): Note {
 // 按题目获取笔记列表（含 DB 缓存内容，用于预览）
 export function getNotesByProblem(problemId: string): Note[] {
   const db = getDb()
-  const rows = db.prepare(`
+  const rows = db
+    .prepare(
+      `
     SELECT * FROM notes WHERE problem_id = ? ORDER BY updated_at DESC
-  `).all(problemId) as NoteRow[]
+  `,
+    )
+    .all(problemId) as NoteRow[]
   return rows.map(rowToNote)
 }
 
 // 获取所有笔记
 export function getAllNotes(): Note[] {
   const db = getDb()
-  const rows = db.prepare(`
+  const rows = db
+    .prepare(
+      `
     SELECT * FROM notes ORDER BY updated_at DESC
-  `).all() as NoteRow[]
+  `,
+    )
+    .all() as NoteRow[]
   return rows.map(rowToNote)
 }
 
@@ -142,41 +152,55 @@ export function getNoteWithContent(noteId: string): NoteWithContent | null {
 export function updateNoteTitle(noteId: string, title: string): boolean {
   const db = getDb()
   const now = nowBeijing()
-  const result = db.prepare(`
+  const result = db
+    .prepare(
+      `
     UPDATE notes SET title = ?, updated_at = ? WHERE id = ?
-  `).run(title, now, noteId)
+  `,
+    )
+    .run(title, now, noteId)
   return result.changes > 0
 }
 
 // 更新笔记内容（同时写文件和 DB 缓存）
 export function updateNoteContent(noteId: string, content: string): boolean {
   const db = getDb()
-  const note = db.prepare(`SELECT file_path FROM notes WHERE id = ?`).get(noteId) as { file_path: string } | undefined
+  const note = db.prepare(`SELECT file_path FROM notes WHERE id = ?`).get(noteId) as
+    { file_path: string } | undefined
   if (!note) return false
 
   try {
     writeNoteContent(note.file_path, content)
     const now = nowBeijing()
     const wordCount = countWords(content)
-    db.prepare(`
+    db.prepare(
+      `
       UPDATE notes SET content = ?, word_count = ?, updated_at = ? WHERE id = ?
-    `).run(content, wordCount, now, noteId)
+    `,
+    ).run(content, wordCount, now, noteId)
     return true
   } catch {
     return false
   }
 }
 
-export function saveNoteImage(noteId: string, fileName: string, mimeType: string, data: ArrayBuffer | Uint8Array): SaveNoteImageResult {
+export function saveNoteImage(
+  noteId: string,
+  fileName: string,
+  mimeType: string,
+  data: ArrayBuffer | Uint8Array,
+): SaveNoteImageResult {
   const db = getDb()
-  const note = db.prepare(`SELECT file_path FROM notes WHERE id = ?`).get(noteId) as { file_path: string } | undefined
+  const note = db.prepare(`SELECT file_path FROM notes WHERE id = ?`).get(noteId) as
+    { file_path: string } | undefined
   if (!note) throw new Error('笔记不存在')
   return saveNoteImageAsset(note.file_path, noteId, fileName, mimeType, data)
 }
 
 export function resolveNoteAssetPath(noteId: string, relativeUrl: string): string | null {
   const db = getDb()
-  const note = db.prepare(`SELECT file_path FROM notes WHERE id = ?`).get(noteId) as { file_path: string } | undefined
+  const note = db.prepare(`SELECT file_path FROM notes WHERE id = ?`).get(noteId) as
+    { file_path: string } | undefined
   if (!note) return null
 
   return resolveNoteAssetPathFromFile(note.file_path, noteId, relativeUrl)
@@ -186,16 +210,21 @@ export function resolveNoteAssetPath(noteId: string, relativeUrl: string): strin
 export function updateNoteType(noteId: string, noteType: NoteType): boolean {
   const db = getDb()
   const now = nowBeijing()
-  const result = db.prepare(`
+  const result = db
+    .prepare(
+      `
     UPDATE notes SET note_type = ?, updated_at = ? WHERE id = ?
-  `).run(noteType, now, noteId)
+  `,
+    )
+    .run(noteType, now, noteId)
   return result.changes > 0
 }
 
 // 删除笔记（DB 记录 + 文件）
 export function deleteNote(noteId: string): boolean {
   const db = getDb()
-  const note = db.prepare(`SELECT file_path FROM notes WHERE id = ?`).get(noteId) as { file_path: string } | undefined
+  const note = db.prepare(`SELECT file_path FROM notes WHERE id = ?`).get(noteId) as
+    { file_path: string } | undefined
   if (!note) return false
 
   deleteNoteFiles(note.file_path, noteId)

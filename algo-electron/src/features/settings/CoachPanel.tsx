@@ -13,7 +13,8 @@ import { errorMessage } from '../../shared/errors'
  * 「谁能盖住桌宠」，光看模式名看不出来。
  */
 const PIN_MODE_HINTS: Record<CoachPinMode, string> = {
-  follow: '桌宠浮在当前活跃窗口之上；该窗口失去焦点（弹出右键菜单、文件对话框或切到别的程序）时自动退到后面。',
+  follow:
+    '桌宠浮在当前活跃窗口之上；该窗口失去焦点（弹出右键菜单、文件对话框或切到别的程序）时自动退到后面。',
   always: '桌宠始终盖在所有窗口之上，包括本应用的对话框和其他程序。',
   dock: '桌宠停在桌面上不置顶，任何窗口都能盖住它。',
 }
@@ -85,9 +86,13 @@ export function CoachPanel() {
     return (
       <div className="settings-section">
         <h3 className="settings-section-title">Coach 桌宠</h3>
-        {loadError
-          ? <div className="settings-row settings-error-text" role="alert">{loadError}</div>
-          : <Skeleton rows={4} label="Coach 配置读取中" />}
+        {loadError ? (
+          <div className="settings-row settings-error-text" role="alert">
+            {loadError}
+          </div>
+        ) : (
+          <Skeleton rows={4} label="Coach 配置读取中" />
+        )}
       </div>
     )
   }
@@ -154,9 +159,7 @@ export function CoachPanel() {
         </label>
       </div>
 
-      <div className="settings-row settings-hint-text">
-        {PIN_MODE_HINTS[config.pinMode]}
-      </div>
+      <div className="settings-row settings-hint-text">{PIN_MODE_HINTS[config.pinMode]}</div>
 
       <div className="settings-row">
         <label className="settings-label-row">
@@ -197,9 +200,7 @@ export function CoachPanel() {
         </Button>
       </div>
 
-      {testMsg && (
-        <div className="settings-row settings-hint-text">{testMsg}</div>
-      )}
+      {testMsg && <div className="settings-row settings-hint-text">{testMsg}</div>}
 
       <div className="settings-row settings-hint-text">
         提示：缩放/透明度即时生效；启用开关需重启应用。

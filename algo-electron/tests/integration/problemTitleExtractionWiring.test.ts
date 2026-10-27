@@ -38,7 +38,9 @@ const persisted = vi.hoisted(() => {
 // 唯一被换掉的协作者：真 `upsertProblem` 要开数据库连接，而本文件关心的是
 // "解析器产出的身份有没有原样递到持久化层"，捕获入参比查库更直接。
 vi.mock('../../electron/db/repositories/problemRepository', () => ({
-  upsertProblem: (identity: ProblemIdentity) => { persisted.identities.push(identity) },
+  upsertProblem: (identity: ProblemIdentity) => {
+    persisted.identities.push(identity)
+  },
 }))
 
 // 诊断默认写 appLogger，会把跳过/失败刷到测试输出里；注入静默 logger 只为闭嘴，
@@ -52,8 +54,14 @@ const silentLogger: Logger = {
   getLogFilePath: () => null,
 }
 
-interface ScriptCall { event: BrowserPageEvent, code: string }
-interface NavigateCall { event: BrowserPageEvent, url: string }
+interface ScriptCall {
+  event: BrowserPageEvent
+  code: string
+}
+interface NavigateCall {
+  event: BrowserPageEvent
+  url: string
+}
 
 class FakeTabManager {
   /** 按 webContentsId 配的 DOM 兜底返回值与浏览器标题，用来分辨"打在了哪个页面上"。 */
@@ -66,7 +74,9 @@ class FakeTabManager {
 
   addPageEventListener(listener: (event: BrowserPageEvent) => void): () => void {
     this.pageListener = listener
-    return () => { this.pageListener = null }
+    return () => {
+      this.pageListener = null
+    }
   }
 
   /*
@@ -116,7 +126,10 @@ function pageEvent(overrides: Partial<BrowserPageEvent> = {}): BrowserPageEvent 
   }
 }
 
-function install(tabManager: FakeTabManager): { diagnostics: BrowserDiagnostics, notifyCount: () => number } {
+function install(tabManager: FakeTabManager): {
+  diagnostics: BrowserDiagnostics
+  notifyCount: () => number
+} {
   let notified = 0
   const diagnostics = installProblemTitleTracking({
     tabManager: tabManager as unknown as TabManager,
@@ -124,7 +137,9 @@ function install(tabManager: FakeTabManager): { diagnostics: BrowserDiagnostics,
     // 后者只有 `getTrackingService()?.endVisitForPage(event)` 一处可选链。返回 null 就
     // 不用再造第二个替身，也省掉一次类型断言。endVisitForPage 由姊妹文件覆盖。
     getTrackingService: () => null,
-    notifyProblemsUpdated: () => { notified += 1 },
+    notifyProblemsUpdated: () => {
+      notified += 1
+    },
     diagnostics: new BrowserDiagnostics(silentLogger),
   })
   return { diagnostics, notifyCount: () => notified }
@@ -169,9 +184,12 @@ test('page-title-updated 带来可用标题时当场落库，并且不再排延�
   assert.equal(identity.canonicalUrl, LEETCODE_URL)
   assert.equal(notifyCount(), 1, '落库后应通知渲染层刷新题目列表')
   assert.ok(
-    diagnostics.getSnapshot().entries.some(
-      (entry) => entry.area === 'title' && entry.event === 'extract' && entry.status === 'success',
-    ),
+    diagnostics
+      .getSnapshot()
+      .entries.some(
+        (entry) =>
+          entry.area === 'title' && entry.event === 'extract' && entry.status === 'success',
+      ),
     '成功抽取应留下一条 success 诊断',
   )
 
@@ -232,7 +250,10 @@ test('DOM 兜底打在发出事件的那个页面上，同 URL 的另一个标�
   assert.equal(call.event.webContentsId, 202)
   // 注入的脚本就是解析器为这个 URL 生成的那份，不是别处拼出来的。
   assert.equal(call.code, createProblemTitleFallbackScript(CODEFORCES_URL))
-  assert.deepEqual(tabManager.titleCalls.map((event) => event.webContentsId), [202])
+  assert.deepEqual(
+    tabManager.titleCalls.map((event) => event.webContentsId),
+    [202],
+  )
 
   assert.equal(persisted.identities.length, 1, 'DOM 兜底的结果应落库')
   assert.equal(persisted.identities[0].title, 'Theatre Square', '题号前缀 "A." 应被摘掉')
@@ -255,7 +276,9 @@ test('destroyed 作废该页待执行的抽取，别的页照跑', async () => {
    * （返回值是 diagnostics，没有 disposer 可用）。少了它，2 秒后会对着已销毁的
    * webContents 注入脚本，TabManager.resolvePageTab 抛错、诊断里刷一条 fallback failed。
    */
-  tabManager.emitPageEvent(pageEvent({ url: CODEFORCES_URL, tabId: 'tab-101', webContentsId: 101, reason: 'destroyed' }))
+  tabManager.emitPageEvent(
+    pageEvent({ url: CODEFORCES_URL, tabId: 'tab-101', webContentsId: 101, reason: 'destroyed' }),
+  )
   await vi.advanceTimersByTimeAsync(8000)
 
   assert.deepEqual(
@@ -278,9 +301,11 @@ test('Codeforces 报 Illegal contest ID 时改导航到 gym 附件页，并放�
   })
   tabManager.emitPageEvent(emitted)
 
-  assert.deepEqual(tabManager.navigateCalls, [
-    { event: emitted, url: 'https://codeforces.com/gym/1234/attachments' },
-  ], '应带着发出事件的那个 page 改导航到 gym 附件页')
+  assert.deepEqual(
+    tabManager.navigateCalls,
+    [{ event: emitted, url: 'https://codeforces.com/gym/1234/attachments' }],
+    '应带着发出事件的那个 page 改导航到 gym 附件页',
+  )
 
   // 改导航之后本轮必须收手：页面就要换掉了，再排抽取只会对旧 URL 白跑一趟。
   await vi.advanceTimersByTimeAsync(8000)

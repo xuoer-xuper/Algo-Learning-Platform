@@ -7,7 +7,9 @@ export function closeOrphanProblemVisits(
   database: Database.Database,
   updatedAt: string = nowBeijing(),
 ): number {
-  const result = database.prepare(`
+  const result = database
+    .prepare(
+      `
     UPDATE problem_visits
     SET left_at = entered_at,
         duration_seconds = 0,
@@ -15,6 +17,8 @@ export function closeOrphanProblemVisits(
         leave_reason = ?,
         updated_at = ?
     WHERE left_at IS NULL
-  `).run(ORPHAN_VISIT_LEAVE_REASON, updatedAt)
+  `,
+    )
+    .run(ORPHAN_VISIT_LEAVE_REASON, updatedAt)
   return result.changes
 }

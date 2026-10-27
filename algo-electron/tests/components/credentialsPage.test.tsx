@@ -19,20 +19,41 @@ import { CredentialsPage } from '../../src/features/settings/CredentialsPage'
 
 beforeEach(() => {
   Object.values(api).forEach((mock) => mock.mockReset())
-  api.loadSites.mockResolvedValue([{
-    id: 'codeforces', name: 'Codeforces', domains: ['codeforces.com'], homeUrl: 'https://codeforces.com', enabled: true,
-    loginUrlPatterns: ['/enter'],
-  }])
-  api.loadCredentialSummaries.mockResolvedValue([{
-    credentialId: 'credential-1', siteId: 'codeforces', username: 'alice', displayName: 'Primary', masked: '********',
-    lastUsedAt: null, createdAt: 'now', updatedAt: 'now',
-  }])
+  api.loadSites.mockResolvedValue([
+    {
+      id: 'codeforces',
+      name: 'Codeforces',
+      domains: ['codeforces.com'],
+      homeUrl: 'https://codeforces.com',
+      enabled: true,
+      loginUrlPatterns: ['/enter'],
+    },
+  ])
+  api.loadCredentialSummaries.mockResolvedValue([
+    {
+      credentialId: 'credential-1',
+      siteId: 'codeforces',
+      username: 'alice',
+      displayName: 'Primary',
+      masked: '********',
+      lastUsedAt: null,
+      createdAt: 'now',
+      updatedAt: 'now',
+    },
+  ])
   api.loadCookieSummaryForSite.mockResolvedValue({ has_cookies: true, domains: [] })
-  api.loadPrimaryCodeforcesAccount.mockResolvedValue({ handle: 'alice', current_rating: 1400, peak_rating: 1500 })
+  api.loadPrimaryCodeforcesAccount.mockResolvedValue({
+    handle: 'alice',
+    current_rating: 1400,
+    peak_rating: 1500,
+  })
   api.renameCredential.mockResolvedValue(null)
   api.deleteSavedCredential.mockResolvedValue(true)
   api.openCredentialLoginPage.mockResolvedValue('tab-1')
-  api.syncCodeforcesRatingProfile.mockResolvedValue({ result: { success: true, peak: 1500 }, account: { handle: 'alice', current_rating: 1400, peak_rating: 1500 } })
+  api.syncCodeforcesRatingProfile.mockResolvedValue({
+    result: { success: true, peak: 1500 },
+    account: { handle: 'alice', current_rating: 1400, peak_rating: 1500 },
+  })
 })
 
 afterEach(cleanup)

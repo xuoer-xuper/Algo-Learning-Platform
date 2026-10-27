@@ -165,8 +165,12 @@
   pointer-events: none;
 }
 
-.tab-drop-indicator-before { left: -2px; }
-.tab-drop-indicator-after { right: -2px; }
+.tab-drop-indicator-before {
+  left: -2px;
+}
+.tab-drop-indicator-after {
+  right: -2px;
+}
 
 .tab-item-icon,
 .tab-item-favicon,
@@ -301,7 +305,9 @@
 
 /* 加载中转圈（独立于出入场动画，保持原状） */
 @keyframes tab-spinner {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

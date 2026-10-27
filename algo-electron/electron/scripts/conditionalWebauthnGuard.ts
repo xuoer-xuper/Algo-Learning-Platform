@@ -21,24 +21,37 @@ export function installConditionalWebauthnGuard(): void {
   // 双重 as 在这里是刻意的：DOM 的 CredentialsContainer.get 返回
   // Promise<Credential | null>，与守卫的宽松签名求交会让赋值永不通过；
   // 守卫只需要“有个可调用的 get”，完全替换成宽松视图。
-  const credentials = (navigator as unknown as {
-    credentials?: { get: (options?: unknown) => Promise<unknown> } | undefined
-  }).credentials
+  const credentials = (
+    navigator as unknown as {
+      credentials?: { get: (options?: unknown) => Promise<unknown> } | undefined
+    }
+  ).credentials
   if (!credentials || typeof credentials.get !== 'function') return
 
   let lastUserGestureAt = -1e9
-  window.addEventListener('pointerdown', (event) => {
-    if (event.isTrusted) lastUserGestureAt = performance.now()
-  }, true)
-  window.addEventListener('keydown', (event) => {
-    if (event.isTrusted) lastUserGestureAt = performance.now()
-  }, true)
+  window.addEventListener(
+    'pointerdown',
+    (event) => {
+      if (event.isTrusted) lastUserGestureAt = performance.now()
+    },
+    true,
+  )
+  window.addEventListener(
+    'keydown',
+    (event) => {
+      if (event.isTrusted) lastUserGestureAt = performance.now()
+    },
+    true,
+  )
 
   const originalGet = credentials.get.bind(credentials)
   credentials.get = (options?: unknown) => {
-    if (options && typeof options === 'object'
-      && (options as { mediation?: unknown }).mediation === 'conditional'
-      && performance.now() - lastUserGestureAt > 5000) {
+    if (
+      options &&
+      typeof options === 'object' &&
+      (options as { mediation?: unknown }).mediation === 'conditional' &&
+      performance.now() - lastUserGestureAt > 5000
+    ) {
       /*
        * 对齐 Chrome 的静默形态：条件式请求在用户交互前保持 pending、
        * 不决议。任何 rejection 都会被站点捕获当作错误展示（洛谷实测把
@@ -51,9 +64,13 @@ export function installConditionalWebauthnGuard(): void {
           reject(new DOMException('The operation was aborted.', 'AbortError'))
           return
         }
-        signal?.addEventListener('abort', () => {
-          reject(new DOMException('The operation was aborted.', 'AbortError'))
-        }, { once: true })
+        signal?.addEventListener(
+          'abort',
+          () => {
+            reject(new DOMException('The operation was aborted.', 'AbortError'))
+          },
+          { once: true },
+        )
       })
     }
     return originalGet(options)

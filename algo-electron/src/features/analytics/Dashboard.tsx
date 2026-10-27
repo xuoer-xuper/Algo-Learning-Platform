@@ -24,7 +24,13 @@ import type {
   WeaknessItem,
 } from './types'
 
-export function Dashboard({ onClose, onNavigate }: { onClose: () => void; onNavigate: (url: string) => void }) {
+export function Dashboard({
+  onClose,
+  onNavigate,
+}: {
+  onClose: () => void
+  onNavigate: (url: string) => void
+}) {
   const [stats, setStats] = useState<OverviewStats | null>(null)
   const [streak, setStreak] = useState({ current: 0, longest: 0 })
   // 四个列表 null = 还没读到，[] = 读到了且为空。见 DashboardListsPanel 头部说明。
@@ -88,7 +94,9 @@ export function Dashboard({ onClose, onNavigate }: { onClose: () => void; onNavi
     void loadAll()
   }, [loadAll])
 
-  useEffect(() => { void loadTrends() }, [loadTrends])
+  useEffect(() => {
+    void loadTrends()
+  }, [loadTrends])
 
   const handleRecompute = async () => {
     setRecomputing(true)
@@ -108,7 +116,13 @@ export function Dashboard({ onClose, onNavigate }: { onClose: () => void; onNavi
       <div className="dashboard-header">
         <h2 className="dashboard-title">学习统计</h2>
         <div className="dashboard-header-actions">
-          <Button className="dashboard-recompute-btn" size="sm" icon="refresh" onClick={handleRecompute} disabled={recomputing}>
+          <Button
+            className="dashboard-recompute-btn"
+            size="sm"
+            icon="refresh"
+            onClick={handleRecompute}
+            disabled={recomputing}
+          >
             {recomputing ? '重算中...' : '重算'}
           </Button>
           <IconButton className="dashboard-close" icon="close" title="关闭" onClick={onClose} />
@@ -136,17 +150,27 @@ export function Dashboard({ onClose, onNavigate }: { onClose: () => void; onNavi
         </Card>
         <Card padded={false} className="dashboard-card">
           <div className="dashboard-card-value num">
-            {stats === null
-              ? <Skeleton inline label="连续活跃加载中" />
-              : <>{streak.current}<span className="dashboard-card-unit">天</span></>}
+            {stats === null ? (
+              <Skeleton inline label="连续活跃加载中" />
+            ) : (
+              <>
+                {streak.current}
+                <span className="dashboard-card-unit">天</span>
+              </>
+            )}
           </div>
           <div className="dashboard-card-label">连续活跃</div>
         </Card>
         <Card padded={false} className="dashboard-card">
           <div className="dashboard-card-value num">
-            {stats === null
-              ? <Skeleton inline label="最长连续加载中" />
-              : <>{streak.longest}<span className="dashboard-card-unit">天</span></>}
+            {stats === null ? (
+              <Skeleton inline label="最长连续加载中" />
+            ) : (
+              <>
+                {streak.longest}
+                <span className="dashboard-card-unit">天</span>
+              </>
+            )}
           </div>
           <div className="dashboard-card-label">最长连续</div>
         </Card>
@@ -180,7 +204,12 @@ export function Dashboard({ onClose, onNavigate }: { onClose: () => void; onNavi
 
       {stats?.lastActiveTime && (
         <div className="dashboard-footer">
-          最近活跃：<span className="num">{typeof stats.lastActiveTime === 'string' ? stats.lastActiveTime.replace('T', ' ').slice(0, 19) : ''}</span>
+          最近活跃：
+          <span className="num">
+            {typeof stats.lastActiveTime === 'string'
+              ? stats.lastActiveTime.replace('T', ' ').slice(0, 19)
+              : ''}
+          </span>
         </div>
       )}
     </div>

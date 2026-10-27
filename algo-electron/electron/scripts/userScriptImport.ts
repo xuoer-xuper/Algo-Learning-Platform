@@ -54,7 +54,11 @@ export interface ResolvedUserScriptImportDecision {
 
 export interface UserScriptImportFileSystem {
   mkdir(directoryPath: string, options: { recursive: true }): Promise<unknown>
-  writeFile(filePath: string, data: string, options: { encoding: 'utf8'; flag: 'wx' }): Promise<unknown>
+  writeFile(
+    filePath: string,
+    data: string,
+    options: { encoding: 'utf8'; flag: 'wx' },
+  ): Promise<unknown>
   rename(sourcePath: string, destinationPath: string): Promise<void>
   readFile(filePath: string, encoding: 'utf8'): Promise<string>
   unlink(filePath: string): Promise<void>
@@ -173,9 +177,7 @@ export function createWindowsSafeSlug(value: string, maxLength = DEFAULT_SLUG_MA
   const dotIndex = slug.indexOf('.')
   const firstSegment = dotIndex === -1 ? slug : slug.slice(0, dotIndex)
   if (WINDOWS_RESERVED_NAMES.test(firstSegment)) {
-    slug = dotIndex === -1
-      ? `${slug}-script`
-      : `${firstSegment}-script${slug.slice(dotIndex)}`
+    slug = dotIndex === -1 ? `${slug}-script` : `${firstSegment}-script${slug.slice(dotIndex)}`
   }
 
   slug = slug.slice(0, maxLength).replace(/[. ]+$/g, '')
@@ -189,7 +191,8 @@ export function createWindowsSafeSlug(value: string, maxLength = DEFAULT_SLUG_MA
 
 export function createLocalCopyNamespace(id: string): string {
   const trimmed = id.trim()
-  if (!UUID_PATTERN.test(trimmed)) throw new Error('A valid UUID is required for a local userscript copy')
+  if (!UUID_PATTERN.test(trimmed))
+    throw new Error('A valid UUID is required for a local userscript copy')
   return `local:${trimmed.toLowerCase()}`
 }
 
@@ -214,11 +217,14 @@ export function rewriteUserScriptNamespace(code: string, namespace: string): str
   const namespacePattern = /(^|\r?\n)([ \t]*\/\/\s*@namespace)(?:[ \t]+.*)?(?=\r?\n|$)/g
   if (/(^|\r?\n)[ \t]*\/\/\s*@namespace(?:[ \t]+.*)?(?=\r?\n|$)/.test(header)) {
     let namespaceWritten = false
-    const rewrittenHeader = header.replace(namespacePattern, (_match, prefix: string, directive: string) => {
-      if (namespaceWritten) return prefix
-      namespaceWritten = true
-      return `${prefix}${directive}   ${namespace}`
-    })
+    const rewrittenHeader = header.replace(
+      namespacePattern,
+      (_match, prefix: string, directive: string) => {
+        if (namespaceWritten) return prefix
+        namespaceWritten = true
+        return `${prefix}${directive}   ${namespace}`
+      },
+    )
     return `${code.slice(0, blockStart)}${rewrittenHeader}${code.slice(endMatch.index)}`
   }
 
@@ -232,7 +238,9 @@ function getFallbackName(sourceFileName: string): string {
   return baseName.replace(/(?:\.user)?\.js$/i, '') || baseName || 'Unnamed Script'
 }
 
-export function decideUserScriptImport(input: UserScriptImportDecisionInput): UserScriptImportDecision {
+export function decideUserScriptImport(
+  input: UserScriptImportDecisionInput,
+): UserScriptImportDecision {
   const mode = input.mode ?? 'upsert'
   let code = input.code
   let metadata = parseScriptMetadata(code)
@@ -279,14 +287,15 @@ export function resolveUserScriptImportDecision(
 ): ResolvedUserScriptImportDecision {
   const decision = decideUserScriptImport(input)
   if (
-    decision.existing
-    || decision.identity.namespace === null
-    || decision.identity.namespace.startsWith('local:')
-  ) return { decision, claimLegacy: false }
+    decision.existing ||
+    decision.identity.namespace === null ||
+    decision.identity.namespace.startsWith('local:')
+  )
+    return { decision, claimLegacy: false }
 
-  const legacy = input.existingScripts?.find(script => (
-    script.namespace === null && script.identityName === decision.identity.identityName
-  ))
+  const legacy = input.existingScripts?.find(
+    (script) => script.namespace === null && script.identityName === decision.identity.identityName,
+  )
   if (!legacy) return { decision, claimLegacy: false }
   return {
     decision: {
@@ -299,11 +308,13 @@ export function resolveUserScriptImportDecision(
   }
 }
 
-async function removeIfPresent(fileSystem: UserScriptImportFileSystem, filePath: string): Promise<void> {
+async function removeIfPresent(
+  fileSystem: UserScriptImportFileSystem,
+  filePath: string,
+): Promise<void> {
   try {
     await fileSystem.unlink(filePath)
-  }
-  catch (error) {
+  } catch (error) {
     const errorCode = (error as NodeJS.ErrnoException).code
     if (errorCode !== 'ENOENT') throw error
   }
@@ -316,7 +327,10 @@ export async function writeUserScriptImport<T>(
   const fileSystem = options.fileSystem ?? fs
   const destinationPath = path.join(options.scriptsDirectory, decision.fileName)
   const temporaryId = options.temporaryId ?? crypto.randomUUID()
-  const temporaryPath = path.join(options.scriptsDirectory, `.${decision.fileName}.${temporaryId}.tmp`)
+  const temporaryPath = path.join(
+    options.scriptsDirectory,
+    `.${decision.fileName}.${temporaryId}.tmp`,
+  )
   let createdDestination = false
 
   await fileSystem.mkdir(options.scriptsDirectory, { recursive: true })
@@ -330,16 +344,14 @@ export async function writeUserScriptImport<T>(
         throw new Error(`Userscript destination hash collision: ${decision.fileName}`)
       }
       await removeIfPresent(fileSystem, temporaryPath)
-    }
-    catch (error) {
+    } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
       await fileSystem.rename(temporaryPath, destinationPath)
       createdDestination = true
     }
 
     return await options.persist(decision, destinationPath)
-  }
-  catch (error) {
+  } catch (error) {
     await removeIfPresent(fileSystem, temporaryPath)
     if (createdDestination) await removeIfPresent(fileSystem, destinationPath)
     throw error

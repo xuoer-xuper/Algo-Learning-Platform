@@ -24,7 +24,11 @@ export function ProblemSidebar({ onNavigate, onShowDetail, onShowNotes, onWidthC
 
   const loadProblems = useCallback(async () => {
     try {
-      const list = await loadRecentProblems(200, filterPlatform || undefined, filterStatus || undefined)
+      const list = await loadRecentProblems(
+        200,
+        filterPlatform || undefined,
+        filterStatus || undefined,
+      )
       setProblems(list)
     } catch (error: unknown) {
       // 读失败必须落到"读到了且为空"，否则骨架会一直转下去，看起来像卡死。
@@ -36,7 +40,9 @@ export function ProblemSidebar({ onNavigate, onShowDetail, onShowNotes, onWidthC
 
   useEffect(() => {
     void loadProblems()
-    const unsubscribe = subscribeProblemsUpdated(() => { void loadProblems() })
+    const unsubscribe = subscribeProblemsUpdated(() => {
+      void loadProblems()
+    })
     return unsubscribe
   }, [loadProblems])
 
@@ -86,7 +92,9 @@ export function ProblemSidebar({ onNavigate, onShowDetail, onShowNotes, onWidthC
     <div ref={sidebarRef} className="sidebar">
       <div className="sidebar-header">
         {/* 加载中不报数：`(0)` 会被读成"题库是空的" */}
-        <span className="sidebar-title">题库{problems === null ? '' : ` (${problems.length})`}</span>
+        <span className="sidebar-title">
+          题库{problems === null ? '' : ` (${problems.length})`}
+        </span>
         <IconButton
           icon="chevron-left"
           size={15}
@@ -97,7 +105,12 @@ export function ProblemSidebar({ onNavigate, onShowDetail, onShowNotes, onWidthC
       </div>
 
       <div className="sidebar-filters">
-        <Select size="sm" className="sidebar-select" value={filterPlatform} onChange={e => setFilterPlatform(e.target.value)}>
+        <Select
+          size="sm"
+          className="sidebar-select"
+          value={filterPlatform}
+          onChange={(e) => setFilterPlatform(e.target.value)}
+        >
           <option value="">全部平台</option>
           <option value="codeforces">Codeforces</option>
           <option value="acwing">AcWing</option>
@@ -107,7 +120,12 @@ export function ProblemSidebar({ onNavigate, onShowDetail, onShowNotes, onWidthC
           <option value="luogu">洛谷</option>
           <option value="leetcode-cn">LeetCode</option>
         </Select>
-        <Select size="sm" className="sidebar-select" value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
+        <Select
+          size="sm"
+          className="sidebar-select"
+          value={filterStatus}
+          onChange={(e) => setFilterStatus(e.target.value)}
+        >
           <option value="">全部状态</option>
           <option value="solved">已通过</option>
           <option value="attempted">尝试中</option>
@@ -125,9 +143,13 @@ export function ProblemSidebar({ onNavigate, onShowDetail, onShowNotes, onWidthC
            * 结果时用户看到的是"暂无记录"，会以为题库被清空了。
            */
           hasFilter ? (
-            <Empty compact hint="调整上方筛选条件可以看到更多">没有符合筛选条件的题目</Empty>
+            <Empty compact hint="调整上方筛选条件可以看到更多">
+              没有符合筛选条件的题目
+            </Empty>
           ) : (
-            <Empty compact hint="浏览题目页面后会自动记录在这里">暂无记录</Empty>
+            <Empty compact hint="浏览题目页面后会自动记录在这里">
+              暂无记录
+            </Empty>
           )
         ) : (
           problems.map((p) => (
@@ -149,9 +171,7 @@ export function ProblemSidebar({ onNavigate, onShowDetail, onShowNotes, onWidthC
                 <span className="sidebar-item-platform">
                   {PLATFORM_LABELS[p.platform] || p.platform}
                 </span>
-                <span className="sidebar-item-id">
-                  {p.title || p.platform_problem_id}
-                </span>
+                <span className="sidebar-item-id">{p.title || p.platform_problem_id}</span>
               </ListRow>
               {p.submission_count ? (
                 <span className="sidebar-item-count">{p.submission_count}</span>
@@ -175,8 +195,6 @@ export function ProblemSidebar({ onNavigate, onShowDetail, onShowNotes, onWidthC
           ))
         )}
       </div>
-
-
     </div>
   )
 }

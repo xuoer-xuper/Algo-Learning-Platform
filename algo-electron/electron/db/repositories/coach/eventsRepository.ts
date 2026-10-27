@@ -1,11 +1,7 @@
 import crypto from 'node:crypto'
 import { getDb } from '../../connection'
 import { nowBeijing } from '../../../shared/time'
-import type {
-  CoachEvent,
-  CoachEventEvidence,
-  CoachEventType,
-} from '../../../coach/types'
+import type { CoachEvent, CoachEventEvidence, CoachEventType } from '../../../coach/types'
 
 /**
  * Coach 事件 repository。
@@ -31,11 +27,13 @@ interface CoachEventRow {
 
 export function insertCoachEvent(event: CoachEvent): CoachEvent {
   const db = getDb()
-  db.prepare(`
+  db.prepare(
+    `
     INSERT OR IGNORE INTO coach_events
       (event_id, session_id, event_type, severity, score, problem_id, platform, evidence_json, created_at)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(
+  `,
+  ).run(
     event.event_id,
     event.session_id,
     event.event_type,
@@ -74,43 +72,39 @@ export function buildCoachEvent(input: {
 export function getCoachEvent(eventId: string): CoachEvent | null {
   const db = getDb()
   const row = db.prepare('SELECT * FROM coach_events WHERE event_id = ?').get(eventId) as
-    | CoachEventRow
-    | undefined
+    CoachEventRow | undefined
   return row ? deserializeCoachEvent(row) : null
 }
 
 export function listCoachEvents(limit = 50): CoachEvent[] {
   const db = getDb()
-  const rows = db.prepare(
-    'SELECT * FROM coach_events ORDER BY created_at DESC LIMIT ?',
-  ).all(limit) as CoachEventRow[]
+  const rows = db
+    .prepare('SELECT * FROM coach_events ORDER BY created_at DESC LIMIT ?')
+    .all(limit) as CoachEventRow[]
   return rows.map(deserializeCoachEvent)
 }
 
-export function listCoachEventsByType(
-  eventType: CoachEventType,
-  limit = 50,
-): CoachEvent[] {
+export function listCoachEventsByType(eventType: CoachEventType, limit = 50): CoachEvent[] {
   const db = getDb()
-  const rows = db.prepare(
-    'SELECT * FROM coach_events WHERE event_type = ? ORDER BY created_at DESC LIMIT ?',
-  ).all(eventType, limit) as CoachEventRow[]
+  const rows = db
+    .prepare('SELECT * FROM coach_events WHERE event_type = ? ORDER BY created_at DESC LIMIT ?')
+    .all(eventType, limit) as CoachEventRow[]
   return rows.map(deserializeCoachEvent)
 }
 
 export function listCoachEventsSince(since: string, limit = 500): CoachEvent[] {
   const db = getDb()
-  const rows = db.prepare(
-    'SELECT * FROM coach_events WHERE created_at >= ? ORDER BY created_at DESC LIMIT ?',
-  ).all(since, limit) as CoachEventRow[]
+  const rows = db
+    .prepare('SELECT * FROM coach_events WHERE created_at >= ? ORDER BY created_at DESC LIMIT ?')
+    .all(since, limit) as CoachEventRow[]
   return rows.map(deserializeCoachEvent)
 }
 
 export function countCoachEventsSince(since: string): number {
   const db = getDb()
-  const row = db.prepare(
-    'SELECT COUNT(*) AS n FROM coach_events WHERE created_at >= ?',
-  ).get(since) as { n: number }
+  const row = db
+    .prepare('SELECT COUNT(*) AS n FROM coach_events WHERE created_at >= ?')
+    .get(since) as { n: number }
   return row.n
 }
 
@@ -118,27 +112,24 @@ export function countCoachEventsSince(since: string): number {
  * 列出某道题的全部 Coach 事件（按时间升序），供阶段 4 时间轴复盘使用。
  * 数据全部来自现有 coach_events 表，不新增采集。
  */
-export function listCoachEventsByProblem(
-  problemId: string,
-  limit = 500,
-): CoachEvent[] {
+export function listCoachEventsByProblem(problemId: string, limit = 500): CoachEvent[] {
   const db = getDb()
-  const rows = db.prepare(
-    'SELECT * FROM coach_events WHERE problem_id = ? ORDER BY created_at ASC LIMIT ?',
-  ).all(problemId, limit) as CoachEventRow[]
+  const rows = db
+    .prepare('SELECT * FROM coach_events WHERE problem_id = ? ORDER BY created_at ASC LIMIT ?')
+    .all(problemId, limit) as CoachEventRow[]
   return rows.map(deserializeCoachEvent)
 }
 
-export function countCoachEventsByTypeSince(
-  since: string,
-): Record<CoachEventType, number> {
+export function countCoachEventsByTypeSince(since: string): Record<CoachEventType, number> {
   const db = getDb()
-  const rows = db.prepare(
-    `SELECT event_type, COUNT(*) AS n
+  const rows = db
+    .prepare(
+      `SELECT event_type, COUNT(*) AS n
      FROM coach_events
      WHERE created_at >= ?
      GROUP BY event_type`,
-  ).all(since) as { event_type: string; n: number }[]
+    )
+    .all(since) as { event_type: string; n: number }[]
   const result = {} as Record<CoachEventType, number>
   for (const row of rows) {
     result[row.event_type as CoachEventType] = row.n
@@ -148,9 +139,9 @@ export function countCoachEventsByTypeSince(
 
 export function getLastEventAt(): string | null {
   const db = getDb()
-  const row = db.prepare(
-    'SELECT created_at FROM coach_events ORDER BY created_at DESC LIMIT 1',
-  ).get() as { created_at: string } | undefined
+  const row = db
+    .prepare('SELECT created_at FROM coach_events ORDER BY created_at DESC LIMIT 1')
+    .get() as { created_at: string } | undefined
   return row?.created_at ?? null
 }
 

@@ -27,12 +27,14 @@ function insertProblem(
   firstSolvedAt: string | null = null,
 ): void {
   const now = '2026-08-18T08:00:00+08:00'
-  db.prepare(`
+  db.prepare(
+    `
     INSERT INTO problems (
       id, platform, platform_problem_id, canonical_url, status,
       first_seen_at, first_solved_at, created_at, updated_at
     ) VALUES (?, 'codeforces', ?, ?, 'visited', ?, ?, ?, ?)
-  `).run(
+  `,
+  ).run(
     id,
     platformProblemId,
     `https://codeforces.com/problemset/problem/${platformProblemId}`,
@@ -51,12 +53,14 @@ function insertVisit(
   durationSeconds: number,
   activeSeconds: number,
 ): void {
-  db.prepare(`
+  db.prepare(
+    `
     INSERT INTO problem_visits (
       id, problem_id, platform, url, entered_at, left_at,
       duration_seconds, active_seconds, created_at, updated_at
     ) VALUES (?, ?, 'codeforces', ?, ?, ?, ?, ?, ?, ?)
-  `).run(
+  `,
+  ).run(
     id,
     problemId,
     `https://codeforces.com/problemset/problem/${problemId}`,
@@ -76,12 +80,14 @@ function insertSubmission(
   submittedAt: string,
   verdict: 'AC' | 'WA',
 ): void {
-  db.prepare(`
+  db.prepare(
+    `
     INSERT INTO submissions (
       id, problem_id, platform, platform_submission_id, verdict,
       submitted_at, created_at, updated_at
     ) VALUES (?, ?, 'codeforces', ?, ?, ?, ?, ?)
-  `).run(id, problemId, id, verdict, submittedAt, submittedAt, submittedAt)
+  `,
+  ).run(id, problemId, id, verdict, submittedAt, submittedAt, submittedAt)
 }
 
 function insertActivity(
@@ -90,11 +96,13 @@ function insertActivity(
   problemId: string,
   occurredAt: string,
 ): void {
-  db.prepare(`
+  db.prepare(
+    `
     INSERT INTO activity_events (
       id, event_type, occurred_at, local_day, problem_id, platform, created_at
     ) VALUES (?, 'visit_start', ?, ?, ?, 'codeforces', ?)
-  `).run(id, occurredAt, occurredAt.slice(0, 10), problemId, occurredAt)
+  `,
+  ).run(id, occurredAt, occurredAt.slice(0, 10), problemId, occurredAt)
 }
 
 interface DailyStatsRow {
@@ -107,24 +115,32 @@ interface DailyStatsRow {
 }
 
 function dailyStats(db: Database.Database, day: string): DailyStatsRow {
-  const row = db.prepare(`
+  const row = db
+    .prepare(
+      `
     SELECT active_seconds, duration_seconds, visited_problem_count,
       solved_problem_count, submission_count, ac_submission_count
     FROM user_daily_stats WHERE local_day = ?
-  `).get(day) as DailyStatsRow | undefined
+  `,
+    )
+    .get(day) as DailyStatsRow | undefined
   expect(row).toBeDefined()
   return row!
 }
 
 class MemoryLogger implements Logger {
-  readonly warnings: Array<{ message: string, data: unknown[] }> = []
+  readonly warnings: Array<{ message: string; data: unknown[] }> = []
 
   debug(): void {}
   info(): void {}
-  warn(message: string, ...data: unknown[]): void { this.warnings.push({ message, data }) }
+  warn(message: string, ...data: unknown[]): void {
+    this.warnings.push({ message, data })
+  }
   error(): void {}
   fatal(): void {}
-  getLogFilePath(): string | null { return null }
+  getLogFilePath(): string | null {
+    return null
+  }
 }
 
 describe('deleteProblem', () => {
@@ -140,12 +156,14 @@ describe('deleteProblem', () => {
 
     const days = ['2026-08-18', '2026-08-19', '2026-08-20', '2026-08-21']
     recomputeDailyStatsForDates(days)
-    db.prepare(`
+    db.prepare(
+      `
       UPDATE user_daily_stats
       SET active_seconds = 99, duration_seconds = 99, visited_problem_count = 99,
         solved_problem_count = 99, submission_count = 99, ac_submission_count = 99
       WHERE local_day = '2026-08-21'
-    `).run()
+    `,
+    ).run()
 
     expect(deleteProblem('target')).toBe(true)
 

@@ -79,10 +79,7 @@ export default tseslint.config(
     rules: {
       ...reactHooks.configs.recommended.rules,
       'react-hooks/set-state-in-effect': 'off',
-      'react-refresh/only-export-components': [
-        'warn',
-        { allowConstantExport: true },
-      ],
+      'react-refresh/only-export-components': ['warn', { allowConstantExport: true }],
       // 类型信息已经覆盖这两个基础规则；对 .ts/.tsx 关掉，避免与 TS 的判定打架。
       'no-undef': 'off',
       'no-unused-vars': 'off',
@@ -149,10 +146,7 @@ export default tseslint.config(
   {
     // 冒烟脚本与 preload 是唯一允许直接写 console 的两处：它们要在日志系统就绪之前出声，
     // 这一条在 PRD R4 与 spec/project/domain-rules.md 里都是显式例外。
-    files: [
-      'electron/app/startupSmoke.ts',
-      'electron/scripts/userscriptBootstrapPreload.ts',
-    ],
+    files: ['electron/app/startupSmoke.ts', 'electron/scripts/userscriptBootstrapPreload.ts'],
     rules: {
       'no-console': 'off',
     },

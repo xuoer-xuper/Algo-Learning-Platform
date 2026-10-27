@@ -59,7 +59,11 @@ export function LlmConfigPanel() {
     }
   }
 
-  const handleSaveConfig = async (partial: { base_url?: string; model?: string; enabled?: boolean }) => {
+  const handleSaveConfig = async (partial: {
+    base_url?: string
+    model?: string
+    enabled?: boolean
+  }) => {
     try {
       await saveLlmConfig(partial)
       setStatus(await loadLlmConfig())
@@ -128,15 +132,21 @@ export function LlmConfigPanel() {
       </div>
 
       {loadError && (
-        <div className="settings-row settings-error-text" role="alert">{loadError}</div>
+        <div className="settings-row settings-error-text" role="alert">
+          {loadError}
+        </div>
       )}
 
       <div className="settings-row settings-hint-text">
-        {loadError
-          ? '配置状态未知'
-          : status?.has_key
-            ? <>当前 Key: <span className="mono">{status.key_masked}</span></>
-            : '未配置 API Key，请先填写并保存'}
+        {loadError ? (
+          '配置状态未知'
+        ) : status?.has_key ? (
+          <>
+            当前 Key: <span className="mono">{status.key_masked}</span>
+          </>
+        ) : (
+          '未配置 API Key，请先填写并保存'
+        )}
       </div>
 
       <div className="settings-row">
@@ -146,7 +156,9 @@ export function LlmConfigPanel() {
           type="password"
           value={apiKeyInput}
           onChange={(e) => setApiKeyInput(e.target.value)}
-          placeholder={status?.has_key ? `已配置（${status.key_masked}），输入新 Key 覆盖` : 'ark-xxxxxxxxxxxx'}
+          placeholder={
+            status?.has_key ? `已配置（${status.key_masked}），输入新 Key 覆盖` : 'ark-xxxxxxxxxxxx'
+          }
         />
         <Button
           variant="primary"
@@ -188,7 +200,9 @@ export function LlmConfigPanel() {
           {testing ? '测试中...' : '测试连接'}
         </Button>
         {testResult && (
-          <span className={`settings-test-result ${testResult.success ? 'settings-test-ok' : 'settings-test-err'}`}>
+          <span
+            className={`settings-test-result ${testResult.success ? 'settings-test-ok' : 'settings-test-err'}`}
+          >
             <Icon name={testResult.success ? 'check' : 'close'} size={12} />
             <span>
               {testResult.message}
@@ -202,7 +216,9 @@ export function LlmConfigPanel() {
 
       <div className="settings-row settings-hint-text">
         推荐火山引擎豆包（新用户赠 50 万 tokens）：
-        <a href="https://console.volcengine.com/ark" target="_blank" rel="noopener noreferrer">火山方舟控制台</a>
+        <a href="https://console.volcengine.com/ark" target="_blank" rel="noopener noreferrer">
+          火山方舟控制台
+        </a>
       </div>
     </div>
   )

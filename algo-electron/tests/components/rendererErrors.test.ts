@@ -19,10 +19,16 @@ function createTarget() {
         listener({ reason } as PromiseRejectionEvent)
       }
     },
-    addEventListener(_type: 'unhandledrejection', listener: (event: PromiseRejectionEvent) => void) {
+    addEventListener(
+      _type: 'unhandledrejection',
+      listener: (event: PromiseRejectionEvent) => void,
+    ) {
       listeners.add(listener)
     },
-    removeEventListener(_type: 'unhandledrejection', listener: (event: PromiseRejectionEvent) => void) {
+    removeEventListener(
+      _type: 'unhandledrejection',
+      listener: (event: PromiseRejectionEvent) => void,
+    ) {
       listeners.delete(listener)
     },
   }
@@ -99,10 +105,7 @@ describe('rendererErrors', () => {
     dismissRendererError()
     dismissRendererError()
 
-    expect(seen).toEqual([
-      { scope: '设置页概览读取', message: 'boom', count: 1 },
-      null,
-    ])
+    expect(seen).toEqual([{ scope: '设置页概览读取', message: 'boom', count: 1 }, null])
   })
 
   it('退订后不再收到推送', () => {

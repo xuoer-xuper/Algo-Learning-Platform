@@ -22,5 +22,5 @@ export const migration010 = {
       DROP INDEX IF EXISTS notes_problem;
       DROP TABLE IF EXISTS notes;
     `)
-  }
+  },
 }

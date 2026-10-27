@@ -78,12 +78,14 @@ function buildSession(overrides: Partial<ProblemSession> = {}): ProblemSession {
   }
 }
 
-function createEngine(overrides: {
-  session?: ProblemSession | null
-  rating?: number | null
-  isContestMode?: boolean
-  suppressed?: Set<CoachEventType>
-} = {}) {
+function createEngine(
+  overrides: {
+    session?: ProblemSession | null
+    rating?: number | null
+    isContestMode?: boolean
+    suppressed?: Set<CoachEventType>
+  } = {},
+) {
   const session = overrides.session === undefined ? null : overrides.session
   const rating = overrides.rating === undefined ? null : overrides.rating
   const isContestMode = overrides.isContestMode ?? false
@@ -374,14 +376,24 @@ test('升级到 L5 后不再升级（含 L5 二次确认）', () => {
   // L4 → L5：阶段 3 引入二次确认机制
   // 第一次请求（isConfirmation=false）→ 返回 L4 confirmation 干预，不真正升级
   advance(HINT_UPGRADE_COOLDOWN_MS + 1000)
-  const up5confirm = engine.requestHintUpgrade('multiple_wrong', firstResult!.intervention_id, event, false)
+  const up5confirm = engine.requestHintUpgrade(
+    'multiple_wrong',
+    firstResult!.intervention_id,
+    event,
+    false,
+  )
   assert.ok(up5confirm, 'first L5 request should return confirmation intervention')
   assert.strictEqual(up5confirm?.intervention_level, 4, 'confirmation stays at L4')
-  assert.ok(up5confirm?.trigger_reason.includes('l5_confirmation_pending'),
-    'trigger_reason should mark l5_confirmation_pending')
+  assert.ok(
+    up5confirm?.trigger_reason.includes('l5_confirmation_pending'),
+    'trigger_reason should mark l5_confirmation_pending',
+  )
   // 此时 currentLevel 仍应为 4（未真正升级）
-  assert.strictEqual(engine.getCurrentLevelForTest('multiple_wrong'), 4,
-    'currentLevel should still be 4 during L5 pending')
+  assert.strictEqual(
+    engine.getCurrentLevelForTest('multiple_wrong'),
+    4,
+    'currentLevel should still be 4 during L5 pending',
+  )
 
   // 第二次请求（isConfirmation=true）→ 真正升级到 L5
   const up5 = engine.requestHintUpgrade('multiple_wrong', firstResult!.intervention_id, event, true)
@@ -505,7 +517,11 @@ test('难度自适应：rating >= 1600 时 idle_too_long 评分降低', () => {
   })
   const { engine: engineHigh } = createEngine({ session: sessionHigh, rating: 1800 })
   const resultHigh = engineHigh.evaluate(event)
-  assert.strictEqual(resultHigh, null, 'rating=1800, stuck_level=1 → score 30 < 50, no trigger (further relaxed)')
+  assert.strictEqual(
+    resultHigh,
+    null,
+    'rating=1800, stuck_level=1 → score 30 < 50, no trigger (further relaxed)',
+  )
 })
 
 test('难度自适应：rating >= 1600 时 multiple_wrong 评分降低', () => {
@@ -555,8 +571,16 @@ test('review_due / boundary_suspected / complexity_warning 阶段 2 不触发', 
   assert.strictEqual(engine.evaluate(reviewEvent), null, 'review_due not implemented in stage 2')
 
   const boundaryEvent = buildEvent({ event_type: 'boundary_suspected', score: 90 })
-  assert.strictEqual(engine.evaluate(boundaryEvent), null, 'boundary_suspected not implemented in stage 2')
+  assert.strictEqual(
+    engine.evaluate(boundaryEvent),
+    null,
+    'boundary_suspected not implemented in stage 2',
+  )
 
   const complexityEvent = buildEvent({ event_type: 'complexity_warning', score: 90 })
-  assert.strictEqual(engine.evaluate(complexityEvent), null, 'complexity_warning not implemented in stage 2')
+  assert.strictEqual(
+    engine.evaluate(complexityEvent),
+    null,
+    'complexity_warning not implemented in stage 2',
+  )
 })

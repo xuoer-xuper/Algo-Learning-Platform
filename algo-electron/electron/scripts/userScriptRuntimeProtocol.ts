@@ -49,8 +49,7 @@ export interface UserScriptRuntimeBootstrapRejected {
 }
 
 export type UserScriptRuntimeBootstrapResponse =
-  | UserScriptRuntimeBootstrapSnapshot
-  | UserScriptRuntimeBootstrapRejected
+  UserScriptRuntimeBootstrapSnapshot | UserScriptRuntimeBootstrapRejected
 
 export interface UserScriptRuntimePortRequest {
   nonce: string
@@ -143,26 +142,34 @@ export type UserScriptRuntimeEvent =
   | { type: 'clipboard:result'; requestId: string; ok: boolean }
   | { type: 'menu:invoke'; scriptId: string; commandId: string }
 
-export function isUserScriptRuntimeInitRequest(value: unknown): value is UserScriptRuntimeInitRequest {
+export function isUserScriptRuntimeInitRequest(
+  value: unknown,
+): value is UserScriptRuntimeInitRequest {
   if (!isPlainRecord(value)) return false
   if (!hasExactKeys(value, ['frameUrl', 'isMainFrame', 'nonce'])) return false
-  return typeof value.nonce === 'string'
-    && USER_SCRIPT_RUNTIME_NONCE_PATTERN.test(value.nonce)
-    && typeof value.frameUrl === 'string'
-    && value.frameUrl.length <= 8_192
-    && typeof value.isMainFrame === 'boolean'
+  return (
+    typeof value.nonce === 'string' &&
+    USER_SCRIPT_RUNTIME_NONCE_PATTERN.test(value.nonce) &&
+    typeof value.frameUrl === 'string' &&
+    value.frameUrl.length <= 8_192 &&
+    typeof value.isMainFrame === 'boolean'
+  )
 }
 
-export function isUserScriptRuntimePortRequest(value: unknown): value is UserScriptRuntimePortRequest {
+export function isUserScriptRuntimePortRequest(
+  value: unknown,
+): value is UserScriptRuntimePortRequest {
   if (!isPlainRecord(value)) return false
   if (!hasExactKeys(value, ['frameUrl', 'generation', 'nonce'])) return false
-  return typeof value.nonce === 'string'
-    && USER_SCRIPT_RUNTIME_NONCE_PATTERN.test(value.nonce)
-    && typeof value.frameUrl === 'string'
-    && value.frameUrl.length <= 8_192
-    && typeof value.generation === 'number'
-    && Number.isSafeInteger(value.generation)
-    && value.generation >= 0
+  return (
+    typeof value.nonce === 'string' &&
+    USER_SCRIPT_RUNTIME_NONCE_PATTERN.test(value.nonce) &&
+    typeof value.frameUrl === 'string' &&
+    value.frameUrl.length <= 8_192 &&
+    typeof value.generation === 'number' &&
+    Number.isSafeInteger(value.generation) &&
+    value.generation >= 0
+  )
 }
 
 export function parseUserScriptRuntimeMutation(value: unknown): UserScriptRuntimeMutation | null {
@@ -190,7 +197,9 @@ export function parseUserScriptRuntimeCommand(value: unknown): UserScriptRuntime
     if (!hasExactKeys(value, ['details', 'requestId', 'scriptId', 'type'])) return null
     if (!isRuntimeIdentifier(value.scriptId) || !isRequestId(value.requestId)) return null
     const details = parseXhrRequestDetails(value.details)
-    return details ? { type: value.type, scriptId: value.scriptId, requestId: value.requestId, details } : null
+    return details
+      ? { type: value.type, scriptId: value.scriptId, requestId: value.requestId, details }
+      : null
   }
   if (value.type === 'xhr:abort') {
     if (!hasExactKeys(value, ['requestId', 'scriptId', 'type'])) return null
@@ -202,7 +211,11 @@ export function parseUserScriptRuntimeCommand(value: unknown): UserScriptRuntime
     if (!hasExactKeys(value, ['data', 'dataType', 'requestId', 'scriptId', 'type'])) return null
     if (!isRuntimeIdentifier(value.scriptId) || !isRequestId(value.requestId)) return null
     if (value.dataType !== 'text' && value.dataType !== 'html') return null
-    if (typeof value.data !== 'string' || byteLength(value.data) > USER_SCRIPT_RUNTIME_MAX_VALUE_BYTES) return null
+    if (
+      typeof value.data !== 'string' ||
+      byteLength(value.data) > USER_SCRIPT_RUNTIME_MAX_VALUE_BYTES
+    )
+      return null
     return {
       type: value.type,
       scriptId: value.scriptId,
@@ -215,12 +228,18 @@ export function parseUserScriptRuntimeCommand(value: unknown): UserScriptRuntime
     if (!hasExactKeys(value, ['commandId', 'name', 'scriptId', 'type'])) return null
     if (!isRuntimeIdentifier(value.scriptId) || !isRequestId(value.commandId)) return null
     if (
-      typeof value.name !== 'string'
-      || value.name.trim().length === 0
-      || value.name.length > 200
-      || hasAsciiControlCharacter(value.name)
-    ) return null
-    return { type: value.type, scriptId: value.scriptId, commandId: value.commandId, name: value.name }
+      typeof value.name !== 'string' ||
+      value.name.trim().length === 0 ||
+      value.name.length > 200 ||
+      hasAsciiControlCharacter(value.name)
+    )
+      return null
+    return {
+      type: value.type,
+      scriptId: value.scriptId,
+      commandId: value.commandId,
+      name: value.name,
+    }
   }
   if (value.type === 'menu:unregister') {
     if (!hasExactKeys(value, ['commandId', 'scriptId', 'type'])) return null
@@ -233,16 +252,38 @@ export function parseUserScriptRuntimeCommand(value: unknown): UserScriptRuntime
 
 function parseXhrRequestDetails(value: unknown): UserScriptXhrRequestDetails | null {
   if (!isPlainRecord(value)) return null
-  if (!hasExactKeys(value, ['anonymous', 'data', 'headers', 'method', 'responseType', 'timeout', 'url'])) return null
+  if (
+    !hasExactKeys(value, [
+      'anonymous',
+      'data',
+      'headers',
+      'method',
+      'responseType',
+      'timeout',
+      'url',
+    ])
+  )
+    return null
   if (typeof value.method !== 'string' || !/^[A-Za-z]{1,16}$/.test(value.method)) return null
   const method = value.method.toUpperCase()
   if (method === 'CONNECT' || method === 'TRACE' || method === 'TRACK') return null
-  if (typeof value.url !== 'string' || value.url.length === 0 || value.url.length > 8_192) return null
+  if (typeof value.url !== 'string' || value.url.length === 0 || value.url.length > 8_192)
+    return null
   const data = value.data
-  if (data !== null && (typeof data !== 'string' || byteLength(data) > USER_SCRIPT_RUNTIME_MAX_REQUEST_BODY_BYTES)) return null
+  if (
+    data !== null &&
+    (typeof data !== 'string' || byteLength(data) > USER_SCRIPT_RUNTIME_MAX_REQUEST_BODY_BYTES)
+  )
+    return null
   if (!isXhrResponseType(value.responseType)) return null
   const timeout = value.timeout
-  if (typeof timeout !== 'number' || !Number.isSafeInteger(timeout) || timeout < 0 || timeout > USER_SCRIPT_RUNTIME_MAX_TIMEOUT_MS) return null
+  if (
+    typeof timeout !== 'number' ||
+    !Number.isSafeInteger(timeout) ||
+    timeout < 0 ||
+    timeout > USER_SCRIPT_RUNTIME_MAX_TIMEOUT_MS
+  )
+    return null
   if (typeof value.anonymous !== 'boolean') return null
   const headers = parseRequestHeaders(value.headers)
   if (!headers) return null
@@ -265,7 +306,8 @@ function parseRequestHeaders(value: unknown): Record<string, string> | null {
   const headers: Record<string, string> = {}
   for (const [name, headerValue] of entries) {
     if (!/^[!#$%&'*+.^_`|~0-9A-Za-z-]{1,128}$/.test(name)) return null
-    if (typeof headerValue !== 'string' || headerValue.length > 8_192 || /[\r\n]/.test(headerValue)) return null
+    if (typeof headerValue !== 'string' || headerValue.length > 8_192 || /[\r\n]/.test(headerValue))
+      return null
     totalBytes += byteLength(name) + byteLength(headerValue)
     if (totalBytes > 64 * 1024) return null
     headers[name] = headerValue
@@ -274,7 +316,14 @@ function parseRequestHeaders(value: unknown): Record<string, string> | null {
 }
 
 function isXhrResponseType(value: unknown): value is UserScriptXhrResponseType {
-  return value === '' || value === 'text' || value === 'json' || value === 'arraybuffer' || value === 'blob' || value === 'document'
+  return (
+    value === '' ||
+    value === 'text' ||
+    value === 'json' ||
+    value === 'arraybuffer' ||
+    value === 'blob' ||
+    value === 'document'
+  )
 }
 
 function isRequestId(value: unknown): value is string {
@@ -298,19 +347,29 @@ function isRuntimeIdentifier(value: unknown): value is string {
 }
 
 function isRuntimeKey(value: unknown): value is string {
-  return typeof value === 'string' && value.length > 0 && value.length <= USER_SCRIPT_RUNTIME_MAX_KEY_LENGTH
+  return (
+    typeof value === 'string' &&
+    value.length > 0 &&
+    value.length <= USER_SCRIPT_RUNTIME_MAX_KEY_LENGTH
+  )
 }
 
 function isJsonSafeRuntimeValue(value: unknown): boolean {
-  if (value === undefined || typeof value === 'function' || typeof value === 'symbol' || typeof value === 'bigint') {
+  if (
+    value === undefined ||
+    typeof value === 'function' ||
+    typeof value === 'symbol' ||
+    typeof value === 'bigint'
+  ) {
     return false
   }
   try {
     const serialized = JSON.stringify(value)
-    return serialized !== undefined
-      && new TextEncoder().encode(serialized).byteLength <= USER_SCRIPT_RUNTIME_MAX_VALUE_BYTES
-  }
-  catch {
+    return (
+      serialized !== undefined &&
+      new TextEncoder().encode(serialized).byteLength <= USER_SCRIPT_RUNTIME_MAX_VALUE_BYTES
+    )
+  } catch {
     return false
   }
 }

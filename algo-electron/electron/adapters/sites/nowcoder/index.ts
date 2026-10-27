@@ -17,8 +17,12 @@ export const nowcoderAdapter: SiteAdapter = {
     if (parseNowcoderProblem(url) !== null) return true
     try {
       const parsed = new URL(url)
-      return parsed.hostname === 'ac.nowcoder.com'
-        && /^\/acm\/contest\/\d+\/(?!status|rank|ranking|submission|submissions|view-submission)[^/]+\/?$/i.test(parsed.pathname)
+      return (
+        parsed.hostname === 'ac.nowcoder.com' &&
+        /^\/acm\/contest\/\d+\/(?!status|rank|ranking|submission|submissions|view-submission)[^/]+\/?$/i.test(
+          parsed.pathname,
+        )
+      )
     } catch {
       return false
     }

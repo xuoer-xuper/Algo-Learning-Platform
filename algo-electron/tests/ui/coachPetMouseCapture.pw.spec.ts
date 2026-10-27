@@ -7,9 +7,11 @@ const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '
 const outputDir = path.join(projectRoot, 'tmp', 'coach-pet-ui')
 
 test('transparent pet window captures only visible controls', async () => {
-  const build = spawnSync(process.execPath, [
-    path.join('tests', 'ui', 'buildRendererScreenshotHarness.mjs'), outputDir, 'coachPetHarness',
-  ], { cwd: projectRoot, encoding: 'utf8' })
+  const build = spawnSync(
+    process.execPath,
+    [path.join('tests', 'ui', 'buildRendererScreenshotHarness.mjs'), outputDir, 'coachPetHarness'],
+    { cwd: projectRoot, encoding: 'utf8' },
+  )
   expect(build.status, build.stderr).toBe(0)
 
   const app = await electron.launch({

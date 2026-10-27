@@ -23,25 +23,32 @@ export interface ApplicationSessionFileSystem {
 }
 
 export const nodeApplicationSessionFileSystem: ApplicationSessionFileSystem = {
-  mkdir: async (directoryPath) => { await fs.mkdir(directoryPath, { recursive: true }) },
+  mkdir: async (directoryPath) => {
+    await fs.mkdir(directoryPath, { recursive: true })
+  },
   open: async (filePath) => {
     const handle = await fs.open(filePath, 'wx')
     return {
-      writeFile: async (data) => { await handle.writeFile(data, { encoding: 'utf8' }) },
-      sync: async () => { await handle.sync() },
-      close: async () => { await handle.close() },
+      writeFile: async (data) => {
+        await handle.writeFile(data, { encoding: 'utf8' })
+      },
+      sync: async () => {
+        await handle.sync()
+      },
+      close: async () => {
+        await handle.close()
+      },
     }
   },
   readFile: (filePath) => fs.readFile(filePath, 'utf8'),
   rename: (sourcePath, destinationPath) => fs.rename(sourcePath, destinationPath),
-  rm: async (filePath) => { await fs.rm(filePath, { force: true }) },
+  rm: async (filePath) => {
+    await fs.rm(filePath, { force: true })
+  },
 }
 
 export type ApplicationSessionLoadFallbackReason =
-  | 'missing'
-  | 'read-failed'
-  | 'clean-exit'
-  | ApplicationSessionValidationReason
+  'missing' | 'read-failed' | 'clean-exit' | ApplicationSessionValidationReason
 
 export type ApplicationSessionLoadResult =
   | { kind: 'restore'; snapshot: ApplicationSessionSnapshot }
@@ -60,9 +67,7 @@ export interface ApplicationSessionPersistenceTimer {
   clearTimeout(handle: unknown): void
 }
 
-export type ApplicationSessionPersistenceFailureReason =
-  | 'snapshot-provider-failed'
-  | 'save-failed'
+export type ApplicationSessionPersistenceFailureReason = 'snapshot-provider-failed' | 'save-failed'
 
 export interface ApplicationSessionPersistenceOptions {
   debounceMs?: number
@@ -80,10 +85,7 @@ const systemApplicationSessionPersistenceTimer: ApplicationSessionPersistenceTim
 }
 
 function isMissingFileError(error: unknown): boolean {
-  return typeof error === 'object'
-    && error !== null
-    && 'code' in error
-    && error.code === 'ENOENT'
+  return typeof error === 'object' && error !== null && 'code' in error && error.code === 'ENOENT'
 }
 
 export class ApplicationSessionStore {
@@ -125,9 +127,11 @@ export class ApplicationSessionStore {
     if (!this.writeLoop) {
       const writeLoop = this.drainWrites()
       this.writeLoop = writeLoop
-      void writeLoop.finally(() => {
-        if (this.writeLoop === writeLoop) this.writeLoop = null
-      }).catch(() => {})
+      void writeLoop
+        .finally(() => {
+          if (this.writeLoop === writeLoop) this.writeLoop = null
+        })
+        .catch(() => {})
     }
     return this.writeLoop
   }
@@ -167,7 +171,8 @@ export class ApplicationSessionStore {
 export class ApplicationSessionPersistence {
   private readonly debounceMs: number
   private readonly timer: ApplicationSessionPersistenceTimer
-  private readonly onDiagnostic: ((reason: ApplicationSessionPersistenceFailureReason) => void) | undefined
+  private readonly onDiagnostic:
+    ((reason: ApplicationSessionPersistenceFailureReason) => void) | undefined
   private timerHandle: { value: unknown } | null = null
   private pendingSnapshot: ApplicationSessionSnapshot | null = null
   private writeLoop: Promise<void> | null = null
@@ -180,11 +185,12 @@ export class ApplicationSessionPersistence {
     options: ApplicationSessionPersistenceOptions = {},
   ) {
     const requestedDebounceMs = options.debounceMs
-    this.debounceMs = typeof requestedDebounceMs === 'number'
-      && Number.isFinite(requestedDebounceMs)
-      && requestedDebounceMs >= 0
-      ? requestedDebounceMs
-      : DEFAULT_APPLICATION_SESSION_DEBOUNCE_MS
+    this.debounceMs =
+      typeof requestedDebounceMs === 'number' &&
+      Number.isFinite(requestedDebounceMs) &&
+      requestedDebounceMs >= 0
+        ? requestedDebounceMs
+        : DEFAULT_APPLICATION_SESSION_DEBOUNCE_MS
     this.timer = options.timer ?? systemApplicationSessionPersistenceTimer
     this.onDiagnostic = options.onDiagnostic
   }
@@ -238,9 +244,11 @@ export class ApplicationSessionPersistence {
     if (this.writeLoop) return
     const writeLoop = this.drainWrites()
     this.writeLoop = writeLoop
-    void writeLoop.finally(() => {
-      if (this.writeLoop === writeLoop) this.writeLoop = null
-    }).catch(() => {})
+    void writeLoop
+      .finally(() => {
+        if (this.writeLoop === writeLoop) this.writeLoop = null
+      })
+      .catch(() => {})
   }
 
   private async drainWrites(): Promise<void> {

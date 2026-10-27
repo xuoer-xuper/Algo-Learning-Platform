@@ -23,7 +23,7 @@ import type { LlmHintResult, LlmConfig, LlmConnectionTestResult } from './LlmHin
  * 缓存策略：
  *   同题同等级 5 分钟内复用上一次 LLM 响应，减少 80% API 调用。
  */
-const CACHE_TTL_MS = 5 * 60 * 1000      // 缓存 5 分钟
+const CACHE_TTL_MS = 5 * 60 * 1000 // 缓存 5 分钟
 
 interface CacheEntry {
   result: LlmHintResult
@@ -218,14 +218,7 @@ export class LlmHintService {
     const stubEvent = this.buildStubEvent(session)
 
     // 采集上下文
-    const ctx = this.contextGatherer.collect(
-      stubEvent,
-      session,
-      constraints,
-      1,
-      true,
-      problemUrl,
-    )
+    const ctx = this.contextGatherer.collect(stubEvent, session, constraints, 1, true, problemUrl)
 
     // 构建聊天 messages
     const messages = buildChatPrompt(ctx, userMessage, history)

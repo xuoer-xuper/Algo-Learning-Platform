@@ -24,12 +24,7 @@ const ALL_EVENT_TYPES: CoachEventType[] = [
   'complexity_warning',
 ]
 
-const ALL_FEEDBACK_TYPES: CoachFeedbackType[] = [
-  'helpful',
-  'not_helpful',
-  'dismiss',
-  'never_today',
-]
+const ALL_FEEDBACK_TYPES: CoachFeedbackType[] = ['helpful', 'not_helpful', 'dismiss', 'never_today']
 
 export interface CoachMetricsComputed {
   /** 统计窗口 */
@@ -82,9 +77,7 @@ export function computeCoachMetrics(
   isMock = false,
 ): CoachMetricsComputed {
   // 1. 提示展示数：排除比赛模式审计记录（contest_audit 不展示给用户）
-  const shownInterventions = bundle.interventions.filter(
-    (i) => i.source_type !== 'contest_audit',
-  )
+  const shownInterventions = bundle.interventions.filter((i) => i.source_type !== 'contest_audit')
   const totalShown = shownInterventions.length
 
   // 2. "再给一点"点击率
@@ -95,9 +88,7 @@ export function computeCoachMetrics(
 
   // 3. "有帮助"反馈率
   const totalFeedback = bundle.feedback.length
-  const helpfulCount = bundle.feedback.filter(
-    (f) => f.feedback_type === 'helpful',
-  ).length
+  const helpfulCount = bundle.feedback.filter((f) => f.feedback_type === 'helpful').length
   const helpfulRate = totalFeedback > 0 ? helpfulCount / totalFeedback : 0
 
   // 4. 干预后同题 AC 转化率
@@ -130,12 +121,8 @@ export function computeCoachMetrics(
   //    注：dismiss 在 interventions.user_action 与 coach_feedback.feedback_type 都可能记录，
   //    为避免双重计数，dismiss 取自 interventions（user_action='dismissed'），
   //    never_today 取自 feedback（feedback_type='never_today'，仅反馈表记录）。
-  const dismissedCount = shownInterventions.filter(
-    (i) => i.user_action === 'dismissed',
-  ).length
-  const neverTodayCount = bundle.feedback.filter(
-    (f) => f.feedback_type === 'never_today',
-  ).length
+  const dismissedCount = shownInterventions.filter((i) => i.user_action === 'dismissed').length
+  const neverTodayCount = bundle.feedback.filter((f) => f.feedback_type === 'never_today').length
   const dismissRate = totalShown > 0 ? (dismissedCount + neverTodayCount) / totalShown : 0
 
   // 事件按类型分组

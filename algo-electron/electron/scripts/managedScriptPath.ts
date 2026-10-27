@@ -11,7 +11,8 @@ import path from 'node:path'
  * never be deleted by cleanup paths. These patterns previously existed in two
  * copies, which meant the delete path could drift away from the install path.
  */
-const UUID_FILE_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.js$/i
+const UUID_FILE_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.js$/i
 const MANAGED_IMPORT_FILE_PATTERN = /^.+--[0-9a-f]{12}--[0-9a-f]{12}\.user\.js$/i
 
 export function isManagedScriptArtifactName(baseName: string): boolean {

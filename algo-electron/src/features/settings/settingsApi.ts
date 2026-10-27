@@ -1,5 +1,9 @@
 import type { ImportPreviewSite, NewSiteDraft, SiteConfigView } from './siteManagementTypes'
-import type { CodeforcesAccount, RealtimeSubmissionStatus, SettingsOverviewStats } from './settingsTypes'
+import type {
+  CodeforcesAccount,
+  RealtimeSubmissionStatus,
+  SettingsOverviewStats,
+} from './settingsTypes'
 
 export type ExportSitesResult = Awaited<ReturnType<ElectronAPI['exportSitesConfig']>>
 export type ImportSitesResult = Awaited<ReturnType<ElectronAPI['importSitesConfig']>>
@@ -7,7 +11,9 @@ export type ConfirmImportSitesResult = Awaited<ReturnType<ElectronAPI['confirmIm
 export type RatingSyncResult = Awaited<ReturnType<ElectronAPI['syncCodeforcesRating']>>
 export type DatabaseBackupResult = Awaited<ReturnType<ElectronAPI['createDatabaseBackup']>>
 export type LearningDataExportResult = Awaited<ReturnType<ElectronAPI['exportLearningData']>>
-export type LearningDataImportPreviewResult = Awaited<ReturnType<ElectronAPI['previewLearningDataImport']>>
+export type LearningDataImportPreviewResult = Awaited<
+  ReturnType<ElectronAPI['previewLearningDataImport']>
+>
 export type LearningDataImportResult = Awaited<ReturnType<ElectronAPI['confirmLearningDataImport']>>
 
 export function loadSearchEngine(): Promise<SearchEngineConfig> {
@@ -49,9 +55,7 @@ export async function syncCodeforcesRatingProfile(handle: string): Promise<{
 }> {
   await window.electronAPI.bindHandle('codeforces', handle)
   const result = await window.electronAPI.syncCodeforcesRating(handle)
-  const account = result.success
-    ? await window.electronAPI.getAccount('codeforces', handle)
-    : null
+  const account = result.success ? await window.electronAPI.getAccount('codeforces', handle) : null
 
   return { result, account }
 }
@@ -69,7 +73,10 @@ export function loadCookieSummaryForSite(siteId: string): Promise<CookieSafeSite
   return window.electronAPI.getCookieSummaryForSite(siteId)
 }
 
-export function renameCredential(credentialId: string, displayName: string): Promise<CredentialSummary | null> {
+export function renameCredential(
+  credentialId: string,
+  displayName: string,
+): Promise<CredentialSummary | null> {
   return window.electronAPI.renameCredential(credentialId, displayName)
 }
 
@@ -97,7 +104,10 @@ export function importSitesConfig(): Promise<ImportSitesResult> {
   return window.electronAPI.importSitesConfig()
 }
 
-export function confirmImportSites(sites: ImportPreviewSite[], overwriteIds: string[]): Promise<ConfirmImportSitesResult> {
+export function confirmImportSites(
+  sites: ImportPreviewSite[],
+  overwriteIds: string[],
+): Promise<ConfirmImportSitesResult> {
   return window.electronAPI.confirmImportSites(sites, overwriteIds)
 }
 
@@ -105,9 +115,19 @@ export function loadSiteById(id: string): Promise<SiteConfigView | null> {
   return window.electronAPI.getSiteById(id)
 }
 
-export function createSiteFromDraft(id: string, name: string, draft: NewSiteDraft): Promise<string> {
-  const domains = draft.domains.split(',').map((domain) => domain.trim()).filter(Boolean)
-  const problemUrlPatterns = draft.patterns.split(',').map((pattern) => pattern.trim()).filter(Boolean)
+export function createSiteFromDraft(
+  id: string,
+  name: string,
+  draft: NewSiteDraft,
+): Promise<string> {
+  const domains = draft.domains
+    .split(',')
+    .map((domain) => domain.trim())
+    .filter(Boolean)
+  const problemUrlPatterns = draft.patterns
+    .split(',')
+    .map((pattern) => pattern.trim())
+    .filter(Boolean)
 
   return window.electronAPI.createSite({
     id,
@@ -131,7 +151,9 @@ export function previewLearningDataImport(): Promise<LearningDataImportPreviewRe
   return window.electronAPI.previewLearningDataImport()
 }
 
-export function confirmLearningDataImport(overwriteConflicts: boolean): Promise<LearningDataImportResult> {
+export function confirmLearningDataImport(
+  overwriteConflicts: boolean,
+): Promise<LearningDataImportResult> {
   return window.electronAPI.confirmLearningDataImport(overwriteConflicts)
 }
 
@@ -145,10 +167,18 @@ export function saveLlmApiKey(apiKey: string): Promise<boolean> {
   return window.electronAPI.coachSaveLlmApiKey(apiKey)
 }
 
-export function saveLlmConfig(partial: { base_url?: string; model?: string; enabled?: boolean }): Promise<boolean> {
+export function saveLlmConfig(partial: {
+  base_url?: string
+  model?: string
+  enabled?: boolean
+}): Promise<boolean> {
   return window.electronAPI.coachSaveLlmConfig(partial)
 }
 
-export function testLlmConnection(config: { api_key: string; base_url: string; model: string }): Promise<LlmConnectionTestResult> {
+export function testLlmConnection(config: {
+  api_key: string
+  base_url: string
+  model: string
+}): Promise<LlmConnectionTestResult> {
   return window.electronAPI.coachTestLlmConnection(config)
 }

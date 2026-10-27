@@ -46,7 +46,10 @@ import {
 export type ParseProblemUrlFn = (url: string) => ProblemIdentity | null
 
 /** problem_id 解析函数类型（Issue #3） */
-export type ResolveProblemIdFn = (platform: string, platformProblemId: string) => Promise<string | null>
+export type ResolveProblemIdFn = (
+  platform: string,
+  platformProblemId: string,
+) => Promise<string | null>
 
 export interface ProblemSessionTrackerOptions {
   trackingService: TrackingService
@@ -144,11 +147,13 @@ export class ProblemSessionTracker {
     this.started = true
 
     // 1. 题目识别是全局出口，只消费当前窗口的结果。
-    const unsubscribeProblemDetected = this.options.trackingService.addProblemDetectedListener((identity, source) => {
-      if (!this.activeWindow) return
-      if (source?.windowId !== this.activeWindow.id) return
-      this.handleProblemDetected(identity)
-    })
+    const unsubscribeProblemDetected = this.options.trackingService.addProblemDetectedListener(
+      (identity, source) => {
+        if (!this.activeWindow) return
+        if (source?.windowId !== this.activeWindow.id) return
+        this.handleProblemDetected(identity)
+      },
+    )
     this.cleanupFns.push(unsubscribeProblemDetected)
 
     // 2. 启动 tick
@@ -214,7 +219,15 @@ export class ProblemSessionTracker {
     this.current.submit_count += 1
     this.current.last_active_at = this.options.now()
     const v = verdict.toUpperCase()
-    if (v === 'WA' || v === 'TLE' || v === 'MLE' || v === 'RE' || v === 'CE' || v === 'PE' || v === 'OLE') {
+    if (
+      v === 'WA' ||
+      v === 'TLE' ||
+      v === 'MLE' ||
+      v === 'RE' ||
+      v === 'CE' ||
+      v === 'PE' ||
+      v === 'OLE'
+    ) {
       this.current.wrong_count += 1
     }
     this.current.verdict_history.push(v)
@@ -414,15 +427,19 @@ export class ProblemSessionTracker {
   private recomputePhase(): void {
     if (!this.current) return
     const s = this.current
-    const sinceLastSubmitSec = s.submit_count > 0
-      ? Math.max(0, Math.floor((this.options.now() - s.last_active_at) / 1000))
-      : s.active_seconds
+    const sinceLastSubmitSec =
+      s.submit_count > 0
+        ? Math.max(0, Math.floor((this.options.now() - s.last_active_at) / 1000))
+        : s.active_seconds
 
     // phase
     let phase: ProblemSessionPhase
     if (s.submit_count === 0 && s.active_seconds < this.options.readingToCodingSec) {
       phase = 'reading'
-    } else if (sinceLastSubmitSec > this.options.stuckThresholdSec && s.active_seconds > this.options.stuckThresholdSec) {
+    } else if (
+      sinceLastSubmitSec > this.options.stuckThresholdSec &&
+      s.active_seconds > this.options.stuckThresholdSec
+    ) {
       phase = 'stuck'
     } else {
       phase = 'coding'
@@ -444,8 +461,10 @@ export class ProblemSessionTracker {
   }
 
   private isSameProblem(session: ProblemSession, identity: ProblemIdentity): boolean {
-    return session.platform === identity.platform
-      && session.platform_problem_id === identity.platformProblemId
+    return (
+      session.platform === identity.platform &&
+      session.platform_problem_id === identity.platformProblemId
+    )
   }
 
   private snapshot(s: ProblemSession): ProblemSession {
@@ -465,13 +484,16 @@ export class ProblemSessionTracker {
     if (!this.current) return
 
     const currentSessionId = this.current.session_id
-    void this.options.resolveProblemId(platform, platformProblemId).then((problemId) => {
-      // 异步完成时检查 session 是否还是同一个（用户可能已经切题）
-      if (this.current?.session_id === currentSessionId && problemId !== null) {
-        this.current.problem_id = problemId
-      }
-    }).catch(() => {
-      // 解析失败静默处理，保持 problem_id 为 null
-    })
+    void this.options
+      .resolveProblemId(platform, platformProblemId)
+      .then((problemId) => {
+        // 异步完成时检查 session 是否还是同一个（用户可能已经切题）
+        if (this.current?.session_id === currentSessionId && problemId !== null) {
+          this.current.problem_id = problemId
+        }
+      })
+      .catch(() => {
+        // 解析失败静默处理，保持 problem_id 为 null
+      })
   }
 }

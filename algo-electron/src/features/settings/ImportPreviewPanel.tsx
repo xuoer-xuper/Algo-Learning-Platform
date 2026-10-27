@@ -60,8 +60,12 @@ export function ImportPreviewPanel({
         </div>
       )}
       <div className="import-actions">
-        <Button variant="primary" onClick={onConfirm}>确认导入</Button>
-        <Button variant="ghost" onClick={onCancel}>取消</Button>
+        <Button variant="primary" onClick={onConfirm}>
+          确认导入
+        </Button>
+        <Button variant="ghost" onClick={onCancel}>
+          取消
+        </Button>
       </div>
     </div>
   )

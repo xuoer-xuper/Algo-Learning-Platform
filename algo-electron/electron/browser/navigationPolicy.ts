@@ -5,8 +5,7 @@ export type NavigationBlockReason = 'invalid-url' | 'insecure-http' | 'unsupport
  * 调用点无需再对被拒分支的 reason 做非空断言。
  */
 export type NavigationDecision =
-  | { allowed: true }
-  | { allowed: false; reason: NavigationBlockReason }
+  { allowed: true } | { allowed: false; reason: NavigationBlockReason }
 
 export interface NavigationPolicyOptions {
   allowInsecureLocalhost?: boolean
@@ -15,10 +14,12 @@ export interface NavigationPolicyOptions {
 
 function isLoopbackHost(hostname: string): boolean {
   const normalized = hostname.toLowerCase()
-  return normalized === 'localhost'
-    || normalized === '127.0.0.1'
-    || normalized === '[::1]'
-    || normalized === '::1'
+  return (
+    normalized === 'localhost' ||
+    normalized === '127.0.0.1' ||
+    normalized === '[::1]' ||
+    normalized === '::1'
+  )
 }
 
 export function evaluateBrowserNavigation(

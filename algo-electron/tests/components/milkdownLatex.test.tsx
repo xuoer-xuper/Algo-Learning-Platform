@@ -40,9 +40,15 @@ vi.mock('@milkdown/crepe', async () => {
       constructor(options: CapturedCrepeOptions) {
         captured.push(options)
       }
-      on(): void { /* 本测试不关心 markdown 回调，那条链路由别处覆盖 */ }
-      create(): Promise<void> { return Promise.resolve() }
-      destroy(): Promise<void> { return Promise.resolve() }
+      on(): void {
+        /* 本测试不关心 markdown 回调，那条链路由别处覆盖 */
+      }
+      create(): Promise<void> {
+        return Promise.resolve()
+      }
+      destroy(): Promise<void> {
+        return Promise.resolve()
+      }
     },
   }
 })
@@ -54,9 +60,7 @@ vi.mock('../../src/features/problems/problemsApi', () => ({
 async function renderEditor(): Promise<CapturedCrepeOptions> {
   captured.length = 0
   const { MilkdownEditor } = await import('../../src/features/problems/MilkdownEditor')
-  render(
-    <MilkdownEditor noteId="note-1" initialValue="" onChange={() => {}} />,
-  )
+  render(<MilkdownEditor noteId="note-1" initialValue="" onChange={() => {}} />)
   expect(captured).toHaveLength(1)
   return captured[0]
 }
@@ -73,10 +77,12 @@ describe('MilkdownEditor 的 Latex 特性', () => {
 
   it('给 Latex 配了中文确认文案与不抛异常的 KaTeX 选项', async () => {
     const options = await renderEditor()
-    const latexConfig = options.featureConfigs?.[CrepeFeature.Latex] as {
-      inlineEditConfirm?: string
-      katexOptions?: { throwOnError?: boolean }
-    } | undefined
+    const latexConfig = options.featureConfigs?.[CrepeFeature.Latex] as
+      | {
+          inlineEditConfirm?: string
+          katexOptions?: { throwOnError?: boolean }
+        }
+      | undefined
 
     expect(latexConfig?.inlineEditConfirm).toBe('确认')
     // 写坏的公式必须渲染成提示而不是抛异常：题解是边写边存的，

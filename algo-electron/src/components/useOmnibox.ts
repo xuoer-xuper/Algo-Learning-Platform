@@ -70,18 +70,24 @@ export function useOmnibox({ activeUrl, onNavigate }: UseOmniboxOptions): UseOmn
     setBrowserOmniboxOpen(false)
   }, [])
 
-  const submit = useCallback((input: string) => {
-    if (!input.trim()) return
-    skipBlurRestoreRef.current = true
-    setDraft(input)
-    onNavigate(input)
-    close()
-    inputRef.current?.blur()
-  }, [close, onNavigate])
+  const submit = useCallback(
+    (input: string) => {
+      if (!input.trim()) return
+      skipBlurRestoreRef.current = true
+      setDraft(input)
+      onNavigate(input)
+      close()
+      inputRef.current?.blur()
+    },
+    [close, onNavigate],
+  )
 
-  const submitSuggestion = useCallback((suggestion: OmniboxSuggestion) => {
-    submit(suggestion.url)
-  }, [submit])
+  const submitSuggestion = useCallback(
+    (suggestion: OmniboxSuggestion) => {
+      submit(suggestion.url)
+    },
+    [submit],
+  )
 
   useEffect(() => {
     if (!focusedRef.current) setDraft(activeUrl)
@@ -139,44 +145,50 @@ export function useOmnibox({ activeUrl, onNavigate }: UseOmniboxOptions): UseOmn
     setBrowserOmniboxOpen(true)
   }, [])
 
-  const handleBlur = useCallback((_event: FocusEvent<HTMLInputElement>) => {
-    focusedRef.current = false
-    if (skipBlurRestoreRef.current) {
-      skipBlurRestoreRef.current = false
-    } else {
-      setDraft(activeUrl)
-    }
-    close()
-  }, [activeUrl, close])
-
-  const handleKeyDown = useCallback((event: KeyboardEvent<HTMLInputElement>) => {
-    if (composingRef.current || event.nativeEvent.isComposing) return
-
-    if (event.key === 'ArrowDown' && suggestions.length > 0) {
-      event.preventDefault()
-      setActiveIndex((current) => current < suggestions.length - 1 ? current + 1 : 0)
-      return
-    }
-    if (event.key === 'ArrowUp' && suggestions.length > 0) {
-      event.preventDefault()
-      setActiveIndex((current) => current > 0 ? current - 1 : suggestions.length - 1)
-      return
-    }
-    if (event.key === 'Enter') {
-      event.preventDefault()
-      const selected = suggestions[activeIndex]
-      if (selected) submitSuggestion(selected)
-      else submit(draft)
-      return
-    }
-    if (event.key === 'Escape') {
-      event.preventDefault()
-      skipBlurRestoreRef.current = true
-      setDraft(activeUrl)
+  const handleBlur = useCallback(
+    (_event: FocusEvent<HTMLInputElement>) => {
+      focusedRef.current = false
+      if (skipBlurRestoreRef.current) {
+        skipBlurRestoreRef.current = false
+      } else {
+        setDraft(activeUrl)
+      }
       close()
-      inputRef.current?.blur()
-    }
-  }, [activeIndex, activeUrl, close, draft, submit, submitSuggestion, suggestions])
+    },
+    [activeUrl, close],
+  )
+
+  const handleKeyDown = useCallback(
+    (event: KeyboardEvent<HTMLInputElement>) => {
+      if (composingRef.current || event.nativeEvent.isComposing) return
+
+      if (event.key === 'ArrowDown' && suggestions.length > 0) {
+        event.preventDefault()
+        setActiveIndex((current) => (current < suggestions.length - 1 ? current + 1 : 0))
+        return
+      }
+      if (event.key === 'ArrowUp' && suggestions.length > 0) {
+        event.preventDefault()
+        setActiveIndex((current) => (current > 0 ? current - 1 : suggestions.length - 1))
+        return
+      }
+      if (event.key === 'Enter') {
+        event.preventDefault()
+        const selected = suggestions[activeIndex]
+        if (selected) submitSuggestion(selected)
+        else submit(draft)
+        return
+      }
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        skipBlurRestoreRef.current = true
+        setDraft(activeUrl)
+        close()
+        inputRef.current?.blur()
+      }
+    },
+    [activeIndex, activeUrl, close, draft, submit, submitSuggestion, suggestions],
+  )
 
   const handleCompositionStart = useCallback((_event: CompositionEvent<HTMLInputElement>) => {
     composingRef.current = true

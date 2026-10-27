@@ -65,7 +65,7 @@ export function UserScriptManager({ onClose }: { onClose: () => void }) {
     const requestId = codeRequestRef.current + 1
     codeRequestRef.current = requestId
     void getUserScriptCode(script.id)
-      .then(result => {
+      .then((result) => {
         if (requestId !== codeRequestRef.current) return
         setScriptCode(result.status === 'ok' ? result.code : null)
         setCodeNotice(describeUserScriptCodeView(result) ?? '')
@@ -124,7 +124,9 @@ export function UserScriptManager({ onClose }: { onClose: () => void }) {
       const summary = await checkUserScriptUpdates()
       if (!summary) throw new Error('更新服务尚未就绪。')
       await loadScripts()
-      setUpdateMsg(`已检查 ${summary.checked} 个脚本，更新 ${summary.updated} 个，失败 ${summary.failed} 个。`)
+      setUpdateMsg(
+        `已检查 ${summary.checked} 个脚本，更新 ${summary.updated} 个，失败 ${summary.failed} 个。`,
+      )
     } catch (e: unknown) {
       setErrorMsg(errorMessage(e))
     } finally {
@@ -134,7 +136,7 @@ export function UserScriptManager({ onClose }: { onClose: () => void }) {
 
   const toggleSiteSelection = (siteId: string) => {
     if (selectedSiteIds.includes(siteId)) {
-      setSelectedSiteIds(selectedSiteIds.filter(id => id !== siteId))
+      setSelectedSiteIds(selectedSiteIds.filter((id) => id !== siteId))
     } else {
       setSelectedSiteIds([...selectedSiteIds, siteId])
     }
@@ -163,7 +165,7 @@ export function UserScriptManager({ onClose }: { onClose: () => void }) {
           onSave={handleSave}
           onOpenFolder={openUserScriptsFolder}
           onOpenEditor={() => {
-            void openUserScriptEditor(editingScript.id).then(result => {
+            void openUserScriptEditor(editingScript.id).then((result) => {
               setErrorMsg(describeUserScriptOpenEditorResult(result) ?? '')
             })
           }}

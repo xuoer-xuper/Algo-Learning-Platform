@@ -71,8 +71,8 @@ function createService(options: {
   return new UserScriptService({
     getEnabledScripts: () => options.scripts,
     getEnabledSites: () => options.sites ?? [],
-    fileExists: filePath => Object.hasOwn(files, filePath),
-    readFile: filePath => files[filePath],
+    fileExists: (filePath) => Object.hasOwn(files, filePath),
+    readFile: (filePath) => files[filePath],
   })
 }
 
@@ -88,7 +88,9 @@ test('non-empty site_ids are authoritative and do not fall back to metadata rule
   })
   assert.deepStrictEqual(service.getMatchingScripts('https://leetcode.com/problems/two-sum/'), [])
   assert.deepStrictEqual(
-    service.getMatchingScripts('https://codeforces.com/problemset/problem/1/A').map(item => item.id),
+    service
+      .getMatchingScripts('https://codeforces.com/problemset/problem/1/A')
+      .map((item) => item.id),
     ['bound-script'],
   )
 })
@@ -105,7 +107,9 @@ test('exclusions take priority over an explicit site binding', () => {
     sites: [createSite('codeforces', ['codeforces.com'])],
   })
   assert.deepStrictEqual(
-    service.getMatchingScripts('https://codeforces.com/problemset/problem/1/A').map(item => item.id),
+    service
+      .getMatchingScripts('https://codeforces.com/problemset/problem/1/A')
+      .map((item) => item.id),
     ['excluded-bound-script'],
   )
   assert.deepStrictEqual(service.getMatchingScripts('https://codeforces.com/private/settings'), [])
@@ -127,19 +131,29 @@ test('empty site bindings use persisted @match and @include metadata', () => {
   })
   const service = createService({ scripts: [matchScript, includeScript] })
   assert.deepStrictEqual(
-    service.getMatchingScripts('https://example.com/Problems/1?tab=editor#code').map(item => item.id),
+    service
+      .getMatchingScripts('https://example.com/Problems/1?tab=editor#code')
+      .map((item) => item.id),
     ['match-script'],
   )
   assert.deepStrictEqual(
-    service.getMatchingScripts('https://mirror.example.com/Problem/1').map(item => item.id),
+    service.getMatchingScripts('https://mirror.example.com/Problem/1').map((item) => item.id),
     ['include-script'],
   )
 })
 
 test('unknown, disabled, and malformed explicit site bindings fail closed', () => {
   const scripts = [
-    createScript({ id: 'unknown-site', siteIds: '["missing"]', matches: ['https://target.example/*'] }),
-    createScript({ id: 'disabled-site', siteIds: '["disabled"]', matches: ['https://target.example/*'] }),
+    createScript({
+      id: 'unknown-site',
+      siteIds: '["missing"]',
+      matches: ['https://target.example/*'],
+    }),
+    createScript({
+      id: 'disabled-site',
+      siteIds: '["disabled"]',
+      matches: ['https://target.example/*'],
+    }),
     createScript({ id: 'invalid-json', siteIds: '{broken', matches: ['https://target.example/*'] }),
   ]
   const service = createService({
@@ -176,27 +190,38 @@ test('file-backed and database-backed scripts return equivalent parsed dependenc
     files: { [filePath]: fileCode },
   })
   const entries = service.getMatchingScriptsWithMeta('https://example.com/problem/1')
-  assert.deepStrictEqual(entries.map(entry => entry.script.id), ['file-backed', 'database-backed'])
+  assert.deepStrictEqual(
+    entries.map((entry) => entry.script.id),
+    ['file-backed', 'database-backed'],
+  )
   assert.strictEqual(entries[0].script.code, fileCode)
-  assert.deepStrictEqual(entries[0].requires, [{
-    url: 'https://cdn.example.com/file-lib.js',
-    integrity: null,
-  }])
-  assert.deepStrictEqual(entries[0].resources, [{
-    name: 'file-style',
-    url: 'https://cdn.example.com/file.css',
-    integrity: null,
-  }])
+  assert.deepStrictEqual(entries[0].requires, [
+    {
+      url: 'https://cdn.example.com/file-lib.js',
+      integrity: null,
+    },
+  ])
+  assert.deepStrictEqual(entries[0].resources, [
+    {
+      name: 'file-style',
+      url: 'https://cdn.example.com/file.css',
+      integrity: null,
+    },
+  ])
   assert.strictEqual(entries[1].script.code, databaseCode)
-  assert.deepStrictEqual(entries[1].requires, [{
-    url: 'https://cdn.example.com/db-lib.js',
-    integrity: null,
-  }])
-  assert.deepStrictEqual(entries[1].resources, [{
-    name: 'db-style',
-    url: 'https://cdn.example.com/db.css',
-    integrity: null,
-  }])
+  assert.deepStrictEqual(entries[1].requires, [
+    {
+      url: 'https://cdn.example.com/db-lib.js',
+      integrity: null,
+    },
+  ])
+  assert.deepStrictEqual(entries[1].resources, [
+    {
+      name: 'db-style',
+      url: 'https://cdn.example.com/db.css',
+      integrity: null,
+    },
+  ])
 })
 
 test('refresh failure discards the previous script and site cache', () => {
@@ -214,7 +239,7 @@ test('refresh failure discards the previous script and site cache', () => {
   })
 
   assert.deepStrictEqual(
-    service.getMatchingScripts('https://example.com/problem/1').map(item => item.id),
+    service.getMatchingScripts('https://example.com/problem/1').map((item) => item.id),
     ['cached-script'],
   )
   refreshShouldFail = true

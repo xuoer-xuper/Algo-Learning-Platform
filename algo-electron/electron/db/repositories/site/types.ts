@@ -62,11 +62,21 @@ export function rowToSite(row: SiteConfigRow): SiteConfigData {
     domains: parseStringArray(row.domains_json),
     homeUrl: row.home_url,
     enabled: row.enabled === 1,
-    problemUrlPatterns: row.problem_url_patterns_json ? parseStringArray(row.problem_url_patterns_json) : undefined,
-    submitUrlPatterns: row.submit_url_patterns_json ? parseStringArray(row.submit_url_patterns_json) : undefined,
-    loginUrlPatterns: row.login_url_patterns_json ? parseStringArray(row.login_url_patterns_json) : undefined,
-    loginUsernameSelectors: row.login_username_selectors_json ? parseStringArray(row.login_username_selectors_json) : undefined,
-    loginPasswordSelectors: row.login_password_selectors_json ? parseStringArray(row.login_password_selectors_json) : undefined,
+    problemUrlPatterns: row.problem_url_patterns_json
+      ? parseStringArray(row.problem_url_patterns_json)
+      : undefined,
+    submitUrlPatterns: row.submit_url_patterns_json
+      ? parseStringArray(row.submit_url_patterns_json)
+      : undefined,
+    loginUrlPatterns: row.login_url_patterns_json
+      ? parseStringArray(row.login_url_patterns_json)
+      : undefined,
+    loginUsernameSelectors: row.login_username_selectors_json
+      ? parseStringArray(row.login_username_selectors_json)
+      : undefined,
+    loginPasswordSelectors: row.login_password_selectors_json
+      ? parseStringArray(row.login_password_selectors_json)
+      : undefined,
     cookiePolicy: row.cookie_policy ?? undefined,
     adapter: row.adapter ?? undefined,
     isBuiltin: row.is_builtin === 1,
@@ -77,15 +87,17 @@ export function parseImportedSite(raw: unknown): SiteConfigData | null {
   if (!raw || typeof raw !== 'object') return null
   const site = raw as Record<string, unknown>
   if (
-    typeof site.id !== 'string'
-    || typeof site.name !== 'string'
-    || !Array.isArray(site.domains)
-    || typeof site.homeUrl !== 'string'
+    typeof site.id !== 'string' ||
+    typeof site.name !== 'string' ||
+    !Array.isArray(site.domains) ||
+    typeof site.homeUrl !== 'string'
   ) {
     return null
   }
 
-  const domains = site.domains.filter((domain): domain is string => typeof domain === 'string' && domain.trim().length > 0)
+  const domains = site.domains.filter(
+    (domain): domain is string => typeof domain === 'string' && domain.trim().length > 0,
+  )
   if (domains.length === 0) return null
 
   return {
@@ -107,7 +119,9 @@ export function parseImportedSite(raw: unknown): SiteConfigData | null {
 
 function parseStringArray(json: string): string[] {
   const parsed: unknown = JSON.parse(json)
-  return Array.isArray(parsed) ? parsed.filter((value): value is string => typeof value === 'string') : []
+  return Array.isArray(parsed)
+    ? parsed.filter((value): value is string => typeof value === 'string')
+    : []
 }
 
 function parseOptionalStringArray(value: unknown): string[] | undefined {

@@ -226,7 +226,9 @@ test('同一比赛页 URL 变化不重复触发 enter', () => {
 
   const guard = new ContestGuard({
     now: () => 1700000000000,
-    onContestEnter: () => { enterCount++ },
+    onContestEnter: () => {
+      enterCount++
+    },
     onContestEnd: () => {},
   })
 
@@ -251,8 +253,12 @@ test('切换比赛：先 end 旧比赛再 enter 新比赛', () => {
 
   const guard = new ContestGuard({
     now: () => 1700000000000,
-    onContestEnter: (info) => { events.push(`enter:${info.contestId}`) },
-    onContestEnd: (info) => { events.push(`end:${info.contestId}`) },
+    onContestEnter: (info) => {
+      events.push(`enter:${info.contestId}`)
+    },
+    onContestEnd: (info) => {
+      events.push(`end:${info.contestId}`)
+    },
   })
 
   guard.handleUrlChange('https://codeforces.com/contest/111')
@@ -268,18 +274,18 @@ test('跨平台切换比赛', () => {
 
   const guard = new ContestGuard({
     now: () => 1700000000000,
-    onContestEnter: (info) => { events.push(`enter:${info.platform}:${info.contestId}`) },
-    onContestEnd: (info) => { events.push(`end:${info.platform}:${info.contestId}`) },
+    onContestEnter: (info) => {
+      events.push(`enter:${info.platform}:${info.contestId}`)
+    },
+    onContestEnd: (info) => {
+      events.push(`end:${info.platform}:${info.contestId}`)
+    },
   })
 
   guard.handleUrlChange('https://codeforces.com/contest/111')
   guard.handleUrlChange('https://www.luogu.com.cn/contest/222')
 
-  assert.deepStrictEqual(events, [
-    'enter:codeforces:111',
-    'end:codeforces:111',
-    'enter:luogu:222',
-  ])
+  assert.deepStrictEqual(events, ['enter:codeforces:111', 'end:codeforces:111', 'enter:luogu:222'])
 })
 
 // --- 6. isContestMode hard gate ---
@@ -313,7 +319,9 @@ test('forceEnd: 应用退出时强制结束当前比赛', () => {
   let endCount = 0
   const guard = new ContestGuard({
     now: () => 1700000000000,
-    onContestEnd: () => { endCount++ },
+    onContestEnd: () => {
+      endCount++
+    },
   })
 
   guard.handleUrlChange('https://codeforces.com/contest/1234')
@@ -357,8 +365,12 @@ test('非比赛 URL 不触发 enter/end', () => {
 
   const guard = new ContestGuard({
     now: () => 1700000000000,
-    onContestEnter: () => { enterCount++ },
-    onContestEnd: () => { endCount++ },
+    onContestEnter: () => {
+      enterCount++
+    },
+    onContestEnd: () => {
+      endCount++
+    },
   })
 
   guard.handleUrlChange('https://codeforces.com/problemset/problem/1234/A')

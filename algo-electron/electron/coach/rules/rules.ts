@@ -1,9 +1,4 @@
-import type {
-  CoachEvent,
-  CoachEventType,
-  CoachInterventionLevel,
-  ProblemSession,
-} from '../types'
+import type { CoachEvent, CoachEventType, CoachInterventionLevel, ProblemSession } from '../types'
 
 /**
  * 规则定义：条件 + 评分 + 干预等级 + 触发原因模板。
@@ -72,10 +67,10 @@ export const HARD_PROBLEM_IDLE_MULTIPLIER = 2.5
 
 /** 卡壳等级 → idle_too_long 触发阈值（秒） */
 export const IDLE_THRESHOLDS_BY_STUCK_LEVEL: Record<number, number> = {
-  0: 600,   // 10 分钟
-  1: 600,   // 10 分钟（轻度卡壳即触发）
-  2: 720,   // 12 分钟
-  3: 900,   // 15 分钟
+  0: 600, // 10 分钟
+  1: 600, // 10 分钟（轻度卡壳即触发）
+  2: 720, // 12 分钟
+  3: 900, // 15 分钟
 }
 
 /** 默认提示阈值：评分高于此值才推送气泡 */
@@ -146,9 +141,10 @@ const multipleWrongRule: Rule = {
     return {
       trigger_reason: `multiple_wrong (${wrongCount}x ${verdict})`,
       intervention_level: wrongCount >= 3 ? 2 : 1,
-      message: wrongCount >= 3
-        ? `已经 ${wrongCount} 次 ${verdict} 了。建议停下来重新读题，检查边界与数据范围。`
-        : `连续 ${wrongCount} 次 ${verdict}。要不要看看是哪类错误？`,
+      message:
+        wrongCount >= 3
+          ? `已经 ${wrongCount} 次 ${verdict} 了。建议停下来重新读题，检查边界与数据范围。`
+          : `连续 ${wrongCount} 次 ${verdict}。要不要看看是哪类错误？`,
       related_tags: ['verdict', verdict.toLowerCase(), 'multiple_wrong'],
     }
   },
@@ -248,12 +244,15 @@ const complexityWarningRule: Rule = {
     const nUpper = ctx.event.evidence.n_upper
     if (typeof nUpper === 'number' && nUpper >= 1e5) return true
     const constraints = ctx.event.evidence.constraints as { nUpper?: number | null } | undefined
-    if (constraints && typeof constraints.nUpper === 'number' && constraints.nUpper >= 1e5) return true
+    if (constraints && typeof constraints.nUpper === 'number' && constraints.nUpper >= 1e5)
+      return true
     return false
   },
   score(ctx) {
-    const nUpper = (ctx.event.evidence.n_upper as number) ??
-      (ctx.event.evidence.constraints as { nUpper?: number } | undefined)?.nUpper ?? 0
+    const nUpper =
+      (ctx.event.evidence.n_upper as number) ??
+      (ctx.event.evidence.constraints as { nUpper?: number } | undefined)?.nUpper ??
+      0
     // n 越大评分越高
     let base = 60
     if (nUpper >= 1e5) base += 15
@@ -264,12 +263,15 @@ const complexityWarningRule: Rule = {
     return clamp(base, 0, 100)
   },
   build(ctx) {
-    const nUpper = (ctx.event.evidence.n_upper as number) ??
-      (ctx.event.evidence.constraints as { nUpper?: number } | undefined)?.nUpper ?? null
+    const nUpper =
+      (ctx.event.evidence.n_upper as number) ??
+      (ctx.event.evidence.constraints as { nUpper?: number } | undefined)?.nUpper ??
+      null
     const nUpperStr = nUpper !== null ? formatN(nUpper) : ''
-    const message = nUpper !== null
-      ? `n ≤ ${nUpperStr} 通常需要 O(n log n) 以内，检查嵌套循环。`
-      : 'TLE 了。检查嵌套循环与算法复杂度，考虑优化到 O(n log n) 以内。'
+    const message =
+      nUpper !== null
+        ? `n ≤ ${nUpperStr} 通常需要 O(n log n) 以内，检查嵌套循环。`
+        : 'TLE 了。检查嵌套循环与算法复杂度，考虑优化到 O(n log n) 以内。'
     return {
       trigger_reason: `complexity_warning (TLE, n_upper=${nUpper ?? '?'})`,
       // L3：关键细节（与 HintLadder 一致；用户升级后由 HintLadder 接管消息）
@@ -290,23 +292,29 @@ const boundarySuspectedRule: Rule = {
     const valueUpper = ctx.event.evidence.value_upper
     if (typeof valueUpper === 'number' && valueUpper >= 1e9) return true
     const constraints = ctx.event.evidence.constraints as { valueUpper?: number | null } | undefined
-    if (constraints && typeof constraints.valueUpper === 'number' && constraints.valueUpper >= 1e9) return true
+    if (constraints && typeof constraints.valueUpper === 'number' && constraints.valueUpper >= 1e9)
+      return true
     return false
   },
   score(ctx) {
-    const valueUpper = (ctx.event.evidence.value_upper as number) ??
-      (ctx.event.evidence.constraints as { valueUpper?: number } | undefined)?.valueUpper ?? 0
+    const valueUpper =
+      (ctx.event.evidence.value_upper as number) ??
+      (ctx.event.evidence.constraints as { valueUpper?: number } | undefined)?.valueUpper ??
+      0
     let base = 60
     if (valueUpper >= 1e9) base += 15
     if (valueUpper >= 1e18) base += 10
     return clamp(base, 0, 100)
   },
   build(ctx) {
-    const valueUpper = (ctx.event.evidence.value_upper as number) ??
-      (ctx.event.evidence.constraints as { valueUpper?: number } | undefined)?.valueUpper ?? null
-    const message = valueUpper !== null
-      ? `值域上限 ${formatN(valueUpper)} 已超 int 范围，可能溢出。注意中间运算。`
-      : 'WA 可能是边界或溢出问题。检查变量类型与边界条件。'
+    const valueUpper =
+      (ctx.event.evidence.value_upper as number) ??
+      (ctx.event.evidence.constraints as { valueUpper?: number } | undefined)?.valueUpper ??
+      null
+    const message =
+      valueUpper !== null
+        ? `值域上限 ${formatN(valueUpper)} 已超 int 范围，可能溢出。注意中间运算。`
+        : 'WA 可能是边界或溢出问题。检查变量类型与边界条件。'
     return {
       trigger_reason: `boundary_suspected (WA, value_upper=${valueUpper ?? '?'})`,
       intervention_level: 3,

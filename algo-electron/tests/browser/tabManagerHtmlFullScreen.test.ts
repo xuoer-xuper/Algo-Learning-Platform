@@ -1,6 +1,11 @@
 import assert from 'node:assert/strict'
 import { test } from 'vitest'
-import { MockBrowserWindow, MockWebContents, MockWebContentsView, resetElectronMock } from '../electron/electronMock'
+import {
+  MockBrowserWindow,
+  MockWebContents,
+  MockWebContentsView,
+  resetElectronMock,
+} from '../electron/electronMock'
 import { TabManager } from '../../electron/browser/TabManager.ts'
 
 test('html fullscreen expands the active view to the whole window and restores on leave', () => {
@@ -32,7 +37,11 @@ test('html fullscreen from a background tab does not take over the layout', () =
   const activeBefore = activeView.getBounds()
 
   ;(backgroundView.webContents as MockWebContents).emit('enter-html-full-screen')
-  assert.deepStrictEqual(activeView.getBounds(), activeBefore, 'background tab fullscreen must not resize the active view')
+  assert.deepStrictEqual(
+    activeView.getBounds(),
+    activeBefore,
+    'background tab fullscreen must not resize the active view',
+  )
 
   ;(backgroundView.webContents as MockWebContents).emit('leave-html-full-screen')
   assert.deepStrictEqual(activeView.getBounds(), activeBefore)

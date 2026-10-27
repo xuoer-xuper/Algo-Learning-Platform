@@ -57,7 +57,9 @@ function resolveVjudgeProblemId(url: string): string | undefined {
         return `${ojMatch[1]}-${probMatch[1]}`
       }
     }
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
 
   return undefined
 }
@@ -70,12 +72,16 @@ function resolveNowcoderProblemId(
   const contestMatch = url.match(/\/contest\/(\d+)/)
   if (contestMatch) {
     const contestId = contestMatch[1]
-    const letters = Array.from(new Set(
-      submissions
-        .map(submission => submission._ncProbLetter)
-        .filter((letter): letter is string => typeof letter === 'string' && letter.trim().length > 0)
-        .map(letter => letter.trim()),
-    ))
+    const letters = Array.from(
+      new Set(
+        submissions
+          .map((submission) => submission._ncProbLetter)
+          .filter(
+            (letter): letter is string => typeof letter === 'string' && letter.trim().length > 0,
+          )
+          .map((letter) => letter.trim()),
+      ),
+    )
 
     for (const submission of submissions) {
       if (submission._ncProbLetter) {
@@ -94,7 +100,9 @@ function resolveNowcoderProblemId(
     if (!search || !/^\d+$/.test(search)) return undefined
 
     return deps.findNowcoderProblemBySearch(search) ?? `nc-${search}`
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
 
   return undefined
 }
@@ -116,6 +124,8 @@ function hydrateRawProblemId(
       if (typeof value === 'string' && value) {
         submission[field] = value
       }
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   }
 }

@@ -28,12 +28,14 @@ function appendPrioritySection(
   priority: 1 | 2 | 3,
   includeReason: boolean,
 ): void {
-  const items = plan.items.filter(item => item.priority === priority)
+  const items = plan.items.filter((item) => item.priority === priority)
   if (items.length === 0) return
 
   lines.push(`## ${title}`)
   for (const item of items) {
-    lines.push(`- [${item.platform} ${item.platform_problem_id}] ${item.title || '无标题'} — ${item.estimated_minutes} 分钟`)
+    lines.push(
+      `- [${item.platform} ${item.platform_problem_id}] ${item.title || '无标题'} — ${item.estimated_minutes} 分钟`,
+    )
     if (includeReason) {
       lines.push(`  - ${item.reason}`)
     }

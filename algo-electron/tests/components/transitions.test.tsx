@@ -104,7 +104,6 @@ describe('View Transitions（B5.3）', () => {
     })
   })
 
-
   it('能力检测：不支持时仍能正常切换（降级分支）', async () => {
     // @ts-expect-error: 删除 API 模拟不支持
     delete document.startViewTransition
@@ -150,13 +149,20 @@ describe('View Transitions（B5.3）', () => {
      */
     const rejections: unknown[] = []
     // jsdom 里未接住的 rejection 落到 process 而不是 window，所以监听点在 process 上。
-    const onUnhandled = (reason: unknown) => { rejections.push(reason) }
+    const onUnhandled = (reason: unknown) => {
+      rejections.push(reason)
+    }
     process.on('unhandledRejection', onUnhandled)
 
     document.startViewTransition = ((callback: () => void) => {
       callback()
       const skipped = Promise.reject(new DOMException('Transition was skipped', 'AbortError'))
-      return { ready: skipped, finished: skipped, updateCallbackDone: Promise.resolve(), skipTransition: () => {} }
+      return {
+        ready: skipped,
+        finished: skipped,
+        updateCallbackDone: Promise.resolve(),
+        skipTransition: () => {},
+      }
     }) as unknown as typeof document.startViewTransition
 
     const dashboardTab = internalTab()
@@ -249,9 +255,8 @@ describe('Dialog 出入场动画（B5.3）', () => {
     }
 
     const rules = Array.from(styleSheet.cssRules)
-    const startingRule = rules.find(
-      (rule) => rule instanceof CSSStartingStyleRule,
-    ) as CSSStartingStyleRule | undefined
+    const startingRule = rules.find((rule) => rule instanceof CSSStartingStyleRule) as
+      CSSStartingStyleRule | undefined
 
     expect(startingRule).toBeDefined()
   })

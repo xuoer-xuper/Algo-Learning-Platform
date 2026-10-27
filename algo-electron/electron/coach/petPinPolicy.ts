@@ -52,7 +52,7 @@ export interface PetPinDecision {
  */
 export function normalizeCoachPinMode(value: unknown): CoachPinMode {
   return COACH_PIN_MODES.includes(value as CoachPinMode)
-    ? value as CoachPinMode
+    ? (value as CoachPinMode)
     : DEFAULT_COACH_PIN_MODE
 }
 

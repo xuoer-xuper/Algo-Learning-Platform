@@ -1,10 +1,6 @@
 import { ipcMain } from './trustedSender'
 import { freeText, nullable, object, oneOf } from './payloadSchema'
-import {
-  getHomeShortcuts,
-  getSearchConfig,
-  saveSearchConfig,
-} from '../app/config'
+import { getHomeShortcuts, getSearchConfig, saveSearchConfig } from '../app/config'
 import { SEARCH_ENGINE_IDS } from '../browser/omnibox'
 import { THEME_PREFERENCES, type ThemePreference } from '../app/themePreference'
 
@@ -25,10 +21,11 @@ import { THEME_PREFERENCES, type ThemePreference } from '../app/themePreference'
  * `normalizeSearchEngineConfig` 里——那是 URL 语义，不是载荷形状，`saveSearchConfig`
  * 依然会跑它。所以这里刻意只收紧到"形状对"，没有把那套规则搬过来。
  */
-const searchEngineShape = () => object({
-  engine: oneOf(SEARCH_ENGINE_IDS),
-  customTemplate: nullable(freeText({ max: 2048 })),
-})
+const searchEngineShape = () =>
+  object({
+    engine: oneOf(SEARCH_ENGINE_IDS),
+    customTemplate: nullable(freeText({ max: 2048 })),
+  })
 
 export interface ConfigIpcOptions {
   /**

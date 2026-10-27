@@ -46,8 +46,10 @@ describe('UserScriptRemoteInstaller', () => {
       if (input.endsWith('/helper.user.js')) {
         return response(script, { etag: '"v2"', 'last-modified': 'Wed, 20 Aug 2026 10:00:00 GMT' })
       }
-      if (input.endsWith('/helper.js')) return response(required, { 'content-type': 'text/javascript' })
-      if (input.endsWith('/icon.svg')) return response('<svg/>', { 'content-type': 'image/svg+xml' })
+      if (input.endsWith('/helper.js'))
+        return response(required, { 'content-type': 'text/javascript' })
+      if (input.endsWith('/icon.svg'))
+        return response('<svg/>', { 'content-type': 'image/svg+xml' })
       return response('missing', {}, 404)
     }
     const installer = new UserScriptRemoteInstaller({ fetch })
@@ -71,30 +73,32 @@ describe('UserScriptRemoteInstaller', () => {
   })
 
   it('rejects unsafe redirects and non-userscript content', async () => {
-    const redirectFetch: RemoteFetch = async () => response('', { location: 'http://evil.example/script.user.js' }, 302)
-    await expect(new UserScriptRemoteInstaller({ fetch: redirectFetch }).prepare(request(), []))
-      .rejects.toThrow('must be HTTPS')
+    const redirectFetch: RemoteFetch = async () =>
+      response('', { location: 'http://evil.example/script.user.js' }, 302)
+    await expect(
+      new UserScriptRemoteInstaller({ fetch: redirectFetch }).prepare(request(), []),
+    ).rejects.toThrow('must be HTTPS')
 
     const plainFetch: RemoteFetch = async () => response('console.log("plain")')
-    await expect(new UserScriptRemoteInstaller({ fetch: plainFetch }).prepare(request(), []))
-      .rejects.toThrow('not a userscript')
+    await expect(
+      new UserScriptRemoteInstaller({ fetch: plainFetch }).prepare(request(), []),
+    ).rejects.toThrow('not a userscript')
 
-    const incompleteFetch: RemoteFetch = async () => response([
-      '// ==UserScript==',
-      '// @name Incomplete',
-      'console.log("not metadata closed")',
-    ].join('\n'))
-    await expect(new UserScriptRemoteInstaller({ fetch: incompleteFetch }).prepare(request(), []))
-      .rejects.toThrow('not a userscript')
+    const incompleteFetch: RemoteFetch = async () =>
+      response(
+        ['// ==UserScript==', '// @name Incomplete', 'console.log("not metadata closed")'].join(
+          '\n',
+        ),
+      )
+    await expect(
+      new UserScriptRemoteInstaller({ fetch: incompleteFetch }).prepare(request(), []),
+    ).rejects.toThrow('not a userscript')
   })
 
   it('expires staged source and resource material without retaining it', async () => {
     let now = 0
-    const fetch: RemoteFetch = async () => response([
-      '// ==UserScript==',
-      '// @name Expiring',
-      '// ==/UserScript==',
-    ].join('\n'))
+    const fetch: RemoteFetch = async () =>
+      response(['// ==UserScript==', '// @name Expiring', '// ==/UserScript=='].join('\n'))
     const installer = new UserScriptRemoteInstaller({ fetch, clock: () => now, ttlMs: 100 })
     await installer.prepare(request(), [])
     now = 100
@@ -104,15 +108,12 @@ describe('UserScriptRemoteInstaller', () => {
 
   it('shares its default capacity with the pending registry cleanup lifecycle', async () => {
     let id = 0
-    const fetch: RemoteFetch = async () => response([
-      '// ==UserScript==',
-      '// @name Capacity',
-      '// ==/UserScript==',
-    ].join('\n'))
+    const fetch: RemoteFetch = async () =>
+      response(['// ==UserScript==', '// @name Capacity', '// ==/UserScript=='].join('\n'))
     const installer = new UserScriptRemoteInstaller({ fetch })
     const registry = new PendingUserScriptInstallRegistry({
       idFactory: () => `install-${++id}`,
-      onRemove: installId => installer.clear(installId),
+      onRemove: (installId) => installer.clear(installId),
     })
     const routes = []
 
@@ -124,7 +125,9 @@ describe('UserScriptRemoteInstaller', () => {
     }
 
     expect(registry.get(routes[0].request.installId)).toBeNull()
-    expect(installer.getPrepared(routes[0].request.installId, routes[0].request.sourceUrl)).toBeNull()
+    expect(
+      installer.getPrepared(routes[0].request.installId, routes[0].request.sourceUrl),
+    ).toBeNull()
     for (const route of routes.slice(1)) {
       expect(installer.getPrepared(route.request.installId, route.request.sourceUrl)).not.toBeNull()
     }

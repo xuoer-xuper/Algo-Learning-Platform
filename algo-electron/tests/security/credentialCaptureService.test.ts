@@ -10,11 +10,19 @@ class FakeContents extends EventEmitter {
     readonly id: number,
     readonly session: object,
     private url: string,
-  ) { super() }
+  ) {
+    super()
+  }
 
-  getURL(): string { return this.url }
-  setURL(url: string): void { this.url = url }
-  isDestroyed(): boolean { return false }
+  getURL(): string {
+    return this.url
+  }
+  setURL(url: string): void {
+    this.url = url
+  }
+  isDestroyed(): boolean {
+    return false
+  }
 }
 
 function makeSite() {
@@ -53,10 +61,12 @@ function savedSummary(): CredentialSummary {
   }
 }
 
-function makeService(options: {
-  vault?: Partial<Pick<CredentialVault, 'list' | 'getForAutofill' | 'save'>>
-  showPrompt?: (windowId: string, prompt: unknown) => boolean
-} = {}) {
+function makeService(
+  options: {
+    vault?: Partial<Pick<CredentialVault, 'list' | 'getForAutofill' | 'save'>>
+    showPrompt?: (windowId: string, prompt: unknown) => boolean
+  } = {},
+) {
   const app = new EventEmitter()
   const ojSession = {}
   const shown: unknown[] = []
@@ -95,7 +105,10 @@ test('captures a login submit into a redacted, window-scoped prompt', async () =
   const ctx = makeService()
   const contents = new FakeContents(1, ctx.ojSession, 'https://codeforces.com/enter')
   ctx.app.emit('web-contents-created', {}, contents)
-  assert.strictEqual(await ctx.service.receiveCapture(contents as never, { username: 'alice', password: 'secret' }), true)
+  assert.strictEqual(
+    await ctx.service.receiveCapture(contents as never, { username: 'alice', password: 'secret' }),
+    true,
+  )
   // 提交后尚未导航：捕获挂起，不弹提示
   assert.strictEqual(ctx.service.getCurrentPrompt('shell-1'), null)
   assert.deepStrictEqual(ctx.shown, [])
@@ -112,16 +125,44 @@ test('captures a login submit into a redacted, window-scoped prompt', async () =
 
 test('same username and password is ignored, changed password requests update', async () => {
   const vault = {
-    list: () => [{ credentialId: 'credential-1', siteId: 'codeforces', username: 'alice', displayName: 'Main', masked: '********', lastUsedAt: null, createdAt: 'now', updatedAt: 'now' }],
-    getForAutofill: async () => ({ credentialId: 'credential-1', siteId: 'codeforces', username: 'alice', password: 'old-secret' }),
+    list: () => [
+      {
+        credentialId: 'credential-1',
+        siteId: 'codeforces',
+        username: 'alice',
+        displayName: 'Main',
+        masked: '********',
+        lastUsedAt: null,
+        createdAt: 'now',
+        updatedAt: 'now',
+      },
+    ],
+    getForAutofill: async () => ({
+      credentialId: 'credential-1',
+      siteId: 'codeforces',
+      username: 'alice',
+      password: 'old-secret',
+    }),
     save: async () => savedSummary(),
   }
   const ctx = makeService({ vault })
   const contents = new FakeContents(2, ctx.ojSession, 'https://codeforces.com/enter')
   ctx.app.emit('web-contents-created', {}, contents)
-  assert.strictEqual(await ctx.service.receiveCapture(contents as never, { username: 'alice', password: 'old-secret' }), false)
+  assert.strictEqual(
+    await ctx.service.receiveCapture(contents as never, {
+      username: 'alice',
+      password: 'old-secret',
+    }),
+    false,
+  )
   assert.strictEqual(ctx.service.getCurrentPrompt('shell-1'), null)
-  assert.strictEqual(await ctx.service.receiveCapture(contents as never, { username: 'alice', password: 'new-secret' }), true)
+  assert.strictEqual(
+    await ctx.service.receiveCapture(contents as never, {
+      username: 'alice',
+      password: 'new-secret',
+    }),
+    true,
+  )
   contents.emit('did-navigate', {}, 'https://codeforces.com/')
   assert.strictEqual(ctx.service.getCurrentPrompt('shell-1')?.isUpdate, true)
   assert.strictEqual(ctx.service.getCurrentPrompt('shell-1')?.displayName, 'Main')
@@ -148,7 +189,9 @@ test('save/update/cancel are one-shot and reject mismatched action', async () =>
 
 test('navigation, destroy, timeout and failed save clear pending state without secrets', async () => {
   vi.useFakeTimers()
-  const save = vi.fn(async () => { throw new Error('secret should not escape') })
+  const save = vi.fn(async () => {
+    throw new Error('secret should not escape')
+  })
   const ctx = makeService({ vault: { save } })
   const contents = new FakeContents(4, ctx.ojSession, 'https://codeforces.com/enter')
   ctx.app.emit('web-contents-created', {}, contents)
@@ -180,7 +223,11 @@ test('navigation, destroy, timeout and failed save clear pending state without s
   next.emit('did-navigate', {}, 'https://codeforces.com/')
   const failedId = ctx.service.getCurrentPrompt('shell-1')!.captureId
   assert.strictEqual(await ctx.service.respondCapture('shell-1', failedId, 'save'), false)
-  assert.deepStrictEqual(ctx.results.at(-1), { captureId: failedId, success: false, error: 'save-failed' })
+  assert.deepStrictEqual(ctx.results.at(-1), {
+    captureId: failedId,
+    success: false,
+    error: 'save-failed',
+  })
   assert.strictEqual(JSON.stringify(ctx.results).includes('secret'), false)
   ctx.service.dispose()
 })
@@ -189,10 +236,19 @@ test('rejects non-login, insecure, foreign-session and malformed captures', asyn
   const ctx = makeService()
   const foreign = new FakeContents(6, {}, 'https://codeforces.com/enter')
   ctx.app.emit('web-contents-created', {}, foreign)
-  assert.strictEqual(await ctx.service.receiveCapture(foreign as never, { username: 'alice', password: 'secret' }), false)
+  assert.strictEqual(
+    await ctx.service.receiveCapture(foreign as never, { username: 'alice', password: 'secret' }),
+    false,
+  )
   const contents = new FakeContents(7, ctx.ojSession, 'http://codeforces.com/enter')
   ctx.app.emit('web-contents-created', {}, contents)
-  assert.strictEqual(await ctx.service.receiveCapture(contents as never, { username: '', password: 'secret' }), false)
-  assert.strictEqual(await ctx.service.receiveCapture(contents as never, { username: 'alice', password: 'secret' }), false)
+  assert.strictEqual(
+    await ctx.service.receiveCapture(contents as never, { username: '', password: 'secret' }),
+    false,
+  )
+  assert.strictEqual(
+    await ctx.service.receiveCapture(contents as never, { username: 'alice', password: 'secret' }),
+    false,
+  )
   ctx.service.dispose()
 })

@@ -21,10 +21,12 @@ export interface TabTransferCoordinatorOptions {
 }
 
 function containsPoint(bounds: Rectangle, point: TabDragPoint): boolean {
-  return point.x >= bounds.x
-    && point.x < bounds.x + bounds.width
-    && point.y >= bounds.y
-    && point.y < bounds.y + BROWSER_LAYOUT.tabBarHeight
+  return (
+    point.x >= bounds.x &&
+    point.x < bounds.x + bounds.width &&
+    point.y >= bounds.y &&
+    point.y < bounds.y + BROWSER_LAYOUT.tabBarHeight
+  )
 }
 
 function isUsableWindow(appWindow: AppWindow): boolean {
@@ -48,7 +50,11 @@ export class TabTransferCoordinator {
     screenY: number,
   ): Promise<boolean> {
     return this.withTabLock(tabId, async () => {
-      if (!Number.isInteger(targetIndex) || !Number.isFinite(screenX) || !Number.isFinite(screenY)) {
+      if (
+        !Number.isInteger(targetIndex) ||
+        !Number.isFinite(screenX) ||
+        !Number.isFinite(screenY)
+      ) {
         return false
       }
       const point = { x: screenX, y: screenY }
@@ -117,7 +123,11 @@ export class TabTransferCoordinator {
   private findTabStripAt(point: TabDragPoint): AppWindow | null {
     const windows = this.options.getWindows().filter(isUsableWindow)
     const mostRecent = this.options.getMostRecentWindow?.() ?? null
-    if (mostRecent && windows.includes(mostRecent) && containsPoint(mostRecent.browserWindow.getBounds(), point)) {
+    if (
+      mostRecent &&
+      windows.includes(mostRecent) &&
+      containsPoint(mostRecent.browserWindow.getBounds(), point)
+    ) {
       return mostRecent
     }
     for (let index = windows.length - 1; index >= 0; index -= 1) {

@@ -26,16 +26,28 @@ test('migration 029 adds an optional credential display name and is idempotent',
     migration029.up(db)
     migration029.up(db)
 
-    const columns = db.prepare('PRAGMA table_info(site_credentials)').all() as Array<{ name: string; notnull: number }>
-    const displayName = columns.find(column => column.name === 'display_name')
+    const columns = db.prepare('PRAGMA table_info(site_credentials)').all() as Array<{
+      name: string
+      notnull: number
+    }>
+    const displayName = columns.find((column) => column.name === 'display_name')
     assert.ok(displayName)
     assert.strictEqual(displayName.notnull, 0)
 
-    const row = db.prepare('SELECT display_name FROM site_credentials WHERE id = ?').get('credential-1') as { display_name: string | null }
+    const row = db
+      .prepare('SELECT display_name FROM site_credentials WHERE id = ?')
+      .get('credential-1') as { display_name: string | null }
     assert.strictEqual(row.display_name, null)
-    db.prepare('UPDATE site_credentials SET display_name = ? WHERE id = ?').run('Primary', 'credential-1')
+    db.prepare('UPDATE site_credentials SET display_name = ? WHERE id = ?').run(
+      'Primary',
+      'credential-1',
+    )
     assert.strictEqual(
-      (db.prepare('SELECT display_name FROM site_credentials WHERE id = ?').get('credential-1') as { display_name: string }).display_name,
+      (
+        db
+          .prepare('SELECT display_name FROM site_credentials WHERE id = ?')
+          .get('credential-1') as { display_name: string }
+      ).display_name,
       'Primary',
     )
   } finally {

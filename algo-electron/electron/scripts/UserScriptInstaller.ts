@@ -14,10 +14,7 @@ import {
 } from '../db/repositories/userScriptRuntimeRepository'
 import { appLogger } from '../shared/logger'
 import { toChinaStandardTime } from '../shared/time'
-import {
-  writeUserScriptImport,
-  type UserScriptImportDecision,
-} from './userScriptImport'
+import { writeUserScriptImport, type UserScriptImportDecision } from './userScriptImport'
 import type { PreparedUserScriptResource } from './UserScriptResourceCache'
 import { isManagedScriptArtifactName } from './managedScriptPath'
 import { errorMessage } from '../shared/errors'
@@ -36,7 +33,9 @@ export interface PersistUserScriptInstallOptions {
   now?: Date
 }
 
-export async function persistUserScriptInstall(options: PersistUserScriptInstallOptions): Promise<string> {
+export async function persistUserScriptInstall(
+  options: PersistUserScriptInstallOptions,
+): Promise<string> {
   const previousFilePath = options.decision.existing?.filePath ?? null
   let importedId: string | null = null
   await writeUserScriptImport(options.decision, {
@@ -124,7 +123,11 @@ function persistScriptRecord(
 
   if (decision.action === 'update' && decision.existing) {
     const updated = claimLegacy
-      ? updateScriptWithLegacyClaim(decision.existing.id, decision.identity.namespace ?? '', content)
+      ? updateScriptWithLegacyClaim(
+          decision.existing.id,
+          decision.identity.namespace ?? '',
+          content,
+        )
       : updateScript(decision.existing.id, content)
     if (!updated) throw new Error('User script update failed')
     return decision.existing.id
@@ -168,26 +171,34 @@ async function removeReplacedManagedFile(
     const root = path.resolve(scriptsDirectory)
     const oldPath = path.resolve(oldFilePath)
     if (
-      oldPath === path.resolve(newFilePath)
-      || (sourceFilePath !== null && oldPath === path.resolve(sourceFilePath))
-      || path.dirname(oldPath) !== root
-    ) return
+      oldPath === path.resolve(newFilePath) ||
+      (sourceFilePath !== null && oldPath === path.resolve(sourceFilePath)) ||
+      path.dirname(oldPath) !== root
+    )
+      return
     if (!isManagedScriptArtifactName(path.basename(oldPath))) return
     const stat = await fs.lstat(oldPath)
     if (!stat.isFile() && !stat.isSymbolicLink()) return
-    const stillReferenced = getAllScripts().some(script => (
-      script.id !== updatedScriptId && script.file_path && path.resolve(script.file_path) === oldPath
-    ))
+    const stillReferenced = getAllScripts().some(
+      (script) =>
+        script.id !== updatedScriptId &&
+        script.file_path &&
+        path.resolve(script.file_path) === oldPath,
+    )
     if (stillReferenced) return
     await fs.unlink(oldPath)
-  }
-  catch (error) {
+  } catch (error) {
     const code = (error as NodeJS.ErrnoException).code
-    if (code !== 'ENOENT') appLogger.warn('userscript.old-file-cleanup-failed', { oldFilePath, error })
+    if (code !== 'ENOENT')
+      appLogger.warn('userscript.old-file-cleanup-failed', { oldFilePath, error })
   }
 }
 
-export function markUserScriptUpdateError(scriptId: string, error: unknown, now = new Date()): void {
+export function markUserScriptUpdateError(
+  scriptId: string,
+  error: unknown,
+  now = new Date(),
+): void {
   const message = errorMessage(error)
   upsertUserScriptUpdateState({
     scriptId,

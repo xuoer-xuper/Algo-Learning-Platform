@@ -20,7 +20,10 @@ export interface PersistedWindowState {
   maximized: boolean
 }
 
-type WindowStateWindow = Pick<BrowserWindow, 'getNormalBounds' | 'isDestroyed' | 'isMaximized' | 'on' | 'off'>
+type WindowStateWindow = Pick<
+  BrowserWindow,
+  'getNormalBounds' | 'isDestroyed' | 'isMaximized' | 'on' | 'off'
+>
 
 function isFiniteInteger(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value) && Number.isInteger(value)
@@ -29,17 +32,25 @@ function isFiniteInteger(value: unknown): value is number {
 function isRectangle(value: unknown): value is Rectangle {
   if (!value || typeof value !== 'object') return false
   const candidate = value as Partial<Rectangle>
-  return isFiniteInteger(candidate.x)
-    && isFiniteInteger(candidate.y)
-    && isFiniteInteger(candidate.width)
-    && isFiniteInteger(candidate.height)
-    && candidate.width > 0
-    && candidate.height > 0
+  return (
+    isFiniteInteger(candidate.x) &&
+    isFiniteInteger(candidate.y) &&
+    isFiniteInteger(candidate.width) &&
+    isFiniteInteger(candidate.height) &&
+    candidate.width > 0 &&
+    candidate.height > 0
+  )
 }
 
 function intersectionArea(left: Rectangle, right: Rectangle): number {
-  const width = Math.max(0, Math.min(left.x + left.width, right.x + right.width) - Math.max(left.x, right.x))
-  const height = Math.max(0, Math.min(left.y + left.height, right.y + right.height) - Math.max(left.y, right.y))
+  const width = Math.max(
+    0,
+    Math.min(left.x + left.width, right.x + right.width) - Math.max(left.x, right.x),
+  )
+  const height = Math.max(
+    0,
+    Math.min(left.y + left.height, right.y + right.height) - Math.max(left.y, right.y),
+  )
   return width * height
 }
 
@@ -48,8 +59,14 @@ function clamp(value: number, minimum: number, maximum: number): number {
 }
 
 function centeredDefaultBounds(primary: WindowDisplayArea): Rectangle {
-  const width = Math.min(Math.max(MAIN_WINDOW_BOUNDS.minWidth, MAIN_WINDOW_BOUNDS.defaultWidth), primary.width)
-  const height = Math.min(Math.max(MAIN_WINDOW_BOUNDS.minHeight, MAIN_WINDOW_BOUNDS.defaultHeight), primary.height)
+  const width = Math.min(
+    Math.max(MAIN_WINDOW_BOUNDS.minWidth, MAIN_WINDOW_BOUNDS.defaultWidth),
+    primary.width,
+  )
+  const height = Math.min(
+    Math.max(MAIN_WINDOW_BOUNDS.minHeight, MAIN_WINDOW_BOUNDS.defaultHeight),
+    primary.height,
+  )
   return {
     x: primary.x + Math.max(0, Math.floor((primary.width - width) / 2)),
     y: primary.y + Math.max(0, Math.floor((primary.height - height) / 2)),
@@ -83,7 +100,10 @@ export function normalizeWindowState(
   )
   const area = targetDisplay.overlap > 0 ? targetDisplay.area : primaryDisplayArea
   const width = Math.min(Math.max(persistedBounds.width, MAIN_WINDOW_BOUNDS.minWidth), area.width)
-  const height = Math.min(Math.max(persistedBounds.height, MAIN_WINDOW_BOUNDS.minHeight), area.height)
+  const height = Math.min(
+    Math.max(persistedBounds.height, MAIN_WINDOW_BOUNDS.minHeight),
+    area.height,
+  )
   const maximumX = area.x + Math.max(0, area.width - width)
   const maximumY = area.y + Math.max(0, area.height - height)
 
@@ -121,9 +141,7 @@ export class WindowStateStore {
   }
 
   save(state: PersistedWindowState): Promise<void> {
-    const save = this.saveQueue
-      .catch(() => undefined)
-      .then(() => this.writeAtomic(state))
+    const save = this.saveQueue.catch(() => undefined).then(() => this.writeAtomic(state))
     this.saveQueue = save
     return save
   }

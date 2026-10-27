@@ -91,11 +91,13 @@ describe('UserScriptUpdateService', () => {
     expect(summary).toMatchObject({ checked: 1, updated: 1, failed: 0 })
     expect(fetch).toHaveBeenCalledTimes(2)
     expect(marks.available).toHaveBeenCalledWith(installed.id, '2.0.0')
-    expect(persistInstall).toHaveBeenCalledWith(expect.objectContaining({
-      sourceUrl: installed.last_install_url,
-      etag: '"new"',
-      lastModified: null,
-    }))
+    expect(persistInstall).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sourceUrl: installed.last_install_url,
+        etag: '"new"',
+        lastModified: null,
+      }),
+    )
   })
 
   it('falls back from updateURL to downloadURL when the metadata endpoint fails', async () => {
@@ -110,7 +112,7 @@ describe('UserScriptUpdateService', () => {
     const summary = await service.checkAll(true)
 
     expect(summary.updated).toBe(1)
-    expect(fetch.mock.calls.map(call => call[0])).toEqual([
+    expect(fetch.mock.calls.map((call) => call[0])).toEqual([
       installed.update_url,
       installed.download_url,
     ])
@@ -124,10 +126,13 @@ describe('UserScriptUpdateService', () => {
     const summary = await service.checkAll(true)
 
     expect(summary.current).toBe(1)
-    expect(marks.current).toHaveBeenCalledWith(installed.id, expect.objectContaining({
-      etag: '"old"',
-      lastModified: 'Wed, 19 Aug 2026 12:00:00 GMT',
-    }))
+    expect(marks.current).toHaveBeenCalledWith(
+      installed.id,
+      expect.objectContaining({
+        etag: '"old"',
+        lastModified: 'Wed, 19 Aug 2026 12:00:00 GMT',
+      }),
+    )
   })
 
   it('keeps validators across same-origin redirects and a headerless 304', async () => {
@@ -149,14 +154,17 @@ describe('UserScriptUpdateService', () => {
     const summary = await service.checkAll(true)
 
     expect(summary.current).toBe(1)
-    expect(fetch.mock.calls.map(call => call[0])).toEqual([
+    expect(fetch.mock.calls.map((call) => call[0])).toEqual([
       installed.update_url,
       'https://example.com/releases/helper.meta.js',
     ])
-    expect(marks.current).toHaveBeenCalledWith(installed.id, expect.objectContaining({
-      etag: '"old"',
-      lastModified: 'Wed, 19 Aug 2026 12:00:00 GMT',
-    }))
+    expect(marks.current).toHaveBeenCalledWith(
+      installed.id,
+      expect.objectContaining({
+        etag: '"old"',
+        lastModified: 'Wed, 19 Aug 2026 12:00:00 GMT',
+      }),
+    )
   })
 
   it('fails closed when downloaded metadata changes script identity', async () => {
@@ -178,7 +186,12 @@ describe('UserScriptUpdateService', () => {
   it('skips automatic checks until next_check_at is due', async () => {
     const installed = script()
     const fetch = vi.fn()
-    const service = createService(installed, fetch, vi.fn(async () => installed.id), '2026-08-21T12:00:00.000')
+    const service = createService(
+      installed,
+      fetch,
+      vi.fn(async () => installed.id),
+      '2026-08-21T12:00:00.000',
+    )
 
     const summary = await service.checkAll(false)
 
@@ -198,7 +211,7 @@ describe('UserScriptUpdateService', () => {
       clock: () => new Date('2026-08-20T12:00:00.000Z'),
       dependencies: {
         getAllScripts: () => [installed],
-        getScriptById: id => id === installed.id ? installed : null,
+        getScriptById: (id) => (id === installed.id ? installed : null),
         getUpdateState: () => ({
           script_id: installed.id,
           last_checked_at: '2026-08-19T12:00:00.000',
@@ -217,7 +230,11 @@ describe('UserScriptUpdateService', () => {
         markCurrent: marks.current,
         markError: marks.error,
         logger: {
-          debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn(), fatal: vi.fn(),
+          debug: vi.fn(),
+          info: vi.fn(),
+          warn: vi.fn(),
+          error: vi.fn(),
+          fatal: vi.fn(),
           getLogFilePath: () => null,
         },
       },

@@ -6,15 +6,35 @@ import type { SubmissionScrapeContext } from '../../adapters/types'
 function mapTextVerdict(text: string): Verdict {
   const value = text.trim().toLowerCase()
   if (!value) return 'UNKNOWN'
-  if (value.includes('accepted') || value === 'ac' || value.includes('答案正确') || value.includes('通过')) return 'AC'
+  if (
+    value.includes('accepted') ||
+    value === 'ac' ||
+    value.includes('答案正确') ||
+    value.includes('通过')
+  )
+    return 'AC'
   if (value.includes('wrong answer') || value === 'wa' || value.includes('答案错误')) return 'WA'
-  if (value.includes('time limit') || value === 'tle' || value.includes('时间超限') || value.includes('超时')) return 'TLE'
+  if (
+    value.includes('time limit') ||
+    value === 'tle' ||
+    value.includes('时间超限') ||
+    value.includes('超时')
+  )
+    return 'TLE'
   if (value.includes('memory limit') || value === 'mle' || value.includes('内存超限')) return 'MLE'
   if (value.includes('output limit') || value === 'ole' || value.includes('输出超限')) return 'OLE'
   if (value.includes('runtime error') || value === 're' || value.includes('运行错误')) return 'RE'
   if (value.includes('compile error') || value === 'ce' || value.includes('编译错误')) return 'CE'
-  if (value.includes('presentation error') || value === 'pe' || value.includes('格式错误')) return 'PE'
-  if (value.includes('waiting') || value.includes('judging') || value.includes('running') || value.includes('评测中') || value.includes('等待')) return 'TESTING'
+  if (value.includes('presentation error') || value === 'pe' || value.includes('格式错误'))
+    return 'PE'
+  if (
+    value.includes('waiting') ||
+    value.includes('judging') ||
+    value.includes('running') ||
+    value.includes('评测中') ||
+    value.includes('等待')
+  )
+    return 'TESTING'
   return 'UNKNOWN'
 }
 
@@ -44,7 +64,11 @@ function mapRawVerdict(value: unknown): { verdict: Verdict; rawVerdict: string }
   return null
 }
 
-function collectTestcaseVerdicts(value: unknown, results: Array<{ verdict: Verdict; rawVerdict: string }>, depth = 0): void {
+function collectTestcaseVerdicts(
+  value: unknown,
+  results: Array<{ verdict: Verdict; rawVerdict: string }>,
+  depth = 0,
+): void {
   if (!value || depth > 8) return
   if (Array.isArray(value)) {
     for (const item of value) collectTestcaseVerdicts(item, results, depth + 1)
@@ -53,12 +77,24 @@ function collectTestcaseVerdicts(value: unknown, results: Array<{ verdict: Verdi
   if (typeof value !== 'object') return
 
   const record = value as Record<string, unknown>
-  const ownVerdict = mapRawVerdict(record.status ?? record.verdict ?? record.result ?? record.judgeResult)
+  const ownVerdict = mapRawVerdict(
+    record.status ?? record.verdict ?? record.result ?? record.judgeResult,
+  )
   if (ownVerdict && ownVerdict.verdict !== 'UNKNOWN') {
     results.push(ownVerdict)
   }
 
-  for (const key of ['testCases', 'testcases', 'cases', 'points', 'subtasks', 'details', 'detail', 'results', 'result']) {
+  for (const key of [
+    'testCases',
+    'testcases',
+    'cases',
+    'points',
+    'subtasks',
+    'details',
+    'detail',
+    'results',
+    'result',
+  ]) {
     collectTestcaseVerdicts(record[key], results, depth + 1)
   }
 }
@@ -77,7 +113,7 @@ type LuoguRecord = Record<string, unknown>
 
 /** 把 `unknown` 收窄成一层记录。`null` 的 `typeof` 也是 `'object'`，所以必须单独排掉。 */
 function asRecord(value: unknown): LuoguRecord | undefined {
-  return value !== null && typeof value === 'object' ? value as LuoguRecord : undefined
+  return value !== null && typeof value === 'object' ? (value as LuoguRecord) : undefined
 }
 
 /**
@@ -115,30 +151,51 @@ function finiteNumber(value: unknown): number | undefined {
   return undefined
 }
 
-function collectLuoguTestcaseVerdicts(record: LuoguRecord): Array<{ verdict: Verdict; rawVerdict: string }> {
+function collectLuoguTestcaseVerdicts(
+  record: LuoguRecord,
+): Array<{ verdict: Verdict; rawVerdict: string }> {
   const testcaseVerdicts: Array<{ verdict: Verdict; rawVerdict: string }> = []
-  for (const key of ['detail', 'details', 'judgeResult', 'testCases', 'testcases', 'subtasks', 'cases', 'points']) {
+  for (const key of [
+    'detail',
+    'details',
+    'judgeResult',
+    'testCases',
+    'testcases',
+    'subtasks',
+    'cases',
+    'points',
+  ]) {
     collectTestcaseVerdicts(record?.[key], testcaseVerdicts)
   }
   return testcaseVerdicts
 }
 
 function hasLuoguDetail(record: LuoguRecord): boolean {
-  return ['detail', 'details', 'judgeResult', 'testCases', 'testcases', 'subtasks', 'cases', 'points']
-    .some((key) => {
-      const value = record?.[key]
-      if (Array.isArray(value)) return value.length > 0
-      return value && typeof value === 'object' && Object.keys(value).length > 0
-    })
+  return [
+    'detail',
+    'details',
+    'judgeResult',
+    'testCases',
+    'testcases',
+    'subtasks',
+    'cases',
+    'points',
+  ].some((key) => {
+    const value = record?.[key]
+    if (Array.isArray(value)) return value.length > 0
+    return value && typeof value === 'object' && Object.keys(value).length > 0
+  })
 }
 
 function resolveLuoguVerdict(record: LuoguRecord): { verdict: Verdict; rawVerdict: string } {
   const testcaseVerdicts = collectLuoguTestcaseVerdicts(record)
 
-  const pending = testcaseVerdicts.find(item => item.verdict === 'TESTING')
+  const pending = testcaseVerdicts.find((item) => item.verdict === 'TESTING')
   if (pending) return pending
 
-  const firstFailed = testcaseVerdicts.find(item => item.verdict !== 'AC' && item.verdict !== 'TESTING' && item.verdict !== 'UNKNOWN')
+  const firstFailed = testcaseVerdicts.find(
+    (item) => item.verdict !== 'AC' && item.verdict !== 'TESTING' && item.verdict !== 'UNKNOWN',
+  )
   if (firstFailed) return firstFailed
 
   const aggregate = mapRawVerdict(record?.status)
@@ -226,11 +283,12 @@ function getLuoguLanguageName(record: LuoguRecord, languageMap: Record<string, s
 
   const raw = record?.language ?? record?.languageId ?? record?.lang
   if (typeof raw === 'string' && raw.trim() && !/^\d+$/.test(raw.trim())) return raw.trim()
-  const id = typeof raw === 'number' && Number.isFinite(raw)
-    ? String(raw)
-    : typeof raw === 'string' && /^\d+$/.test(raw.trim())
-      ? raw.trim()
-      : ''
+  const id =
+    typeof raw === 'number' && Number.isFinite(raw)
+      ? String(raw)
+      : typeof raw === 'string' && /^\d+$/.test(raw.trim())
+        ? raw.trim()
+        : ''
 
   if (!id) return ''
   return languageMap[id] ?? LUOGU_LANGUAGE_FALLBACK[id] ?? ''
@@ -254,28 +312,20 @@ function extractProblemIdFromText(value: unknown): string | undefined {
 
 function getLuoguProblemId(record: LuoguRecord): string | undefined {
   const problem = nestedRecord(record, 'problem')
-  const publicId = firstText([
-    problem?.pid,
-    problem?.displayId,
-    problem?.code,
-    record.pid,
-  ])
+  const publicId = firstText([problem?.pid, problem?.displayId, problem?.code, record.pid])
   if (publicId) return publicId
 
-  const extracted = extractProblemIdFromText(problem?.url)
-    ?? extractProblemIdFromText(problem?.link)
-    ?? extractProblemIdFromText(record.problemUrl)
-    ?? extractProblemIdFromText(record.url)
-    ?? extractProblemIdFromText(problem?.title)
-    ?? extractProblemIdFromText(problem?.name)
-    ?? extractProblemIdFromText(record.problem)
+  const extracted =
+    extractProblemIdFromText(problem?.url) ??
+    extractProblemIdFromText(problem?.link) ??
+    extractProblemIdFromText(record.problemUrl) ??
+    extractProblemIdFromText(record.url) ??
+    extractProblemIdFromText(problem?.title) ??
+    extractProblemIdFromText(problem?.name) ??
+    extractProblemIdFromText(record.problem)
   if (extracted) return extracted
 
-  return firstText([
-    problem?.problemId,
-    problem?.id,
-    record.problemId,
-  ])
+  return firstText([problem?.problemId, problem?.id, record.problemId])
 }
 
 function getLuoguProblemTitle(record: LuoguRecord): string | undefined {
@@ -292,7 +342,12 @@ function getLuoguProblemTitle(record: LuoguRecord): string | undefined {
 
   const problemId = getLuoguProblemId(record)
   if (problemId && title.startsWith(problemId)) {
-    return title.slice(problemId.length).replace(/^[-\s:：]+/, '').trim() || title
+    return (
+      title
+        .slice(problemId.length)
+        .replace(/^[-\s:：]+/, '')
+        .trim() || title
+    )
   }
   return title
 }
@@ -396,7 +451,8 @@ export function parseLuoguSubmissionData(
       ...normalizeLuoguLanguageMap(payload.languageMap ?? payload.codeLanguages),
     }
     // 单条 `record` 与列表 `records` 是两条互斥路径：详情页/实时推送给前者，列表页给后者。
-    if (payload.record) return parseInjectedRecords(asRecordArray([payload.record]), options, languageMap)
+    if (payload.record)
+      return parseInjectedRecords(asRecordArray([payload.record]), options, languageMap)
     return parseInjectedRecords(asRecordArray(payload.records), options, languageMap)
   }
 

@@ -59,7 +59,9 @@ export class BrowserDiagnostics {
 
   getSnapshot(limit = MAX_ENTRIES): BrowserDiagnosticsSnapshot {
     const safeLimit = Number.isFinite(limit) ? Math.max(0, Math.floor(limit)) : MAX_ENTRIES
-    return { entries: safeLimit === 0 ? [] : this.entries.slice(-safeLimit).map((entry) => ({ ...entry })) }
+    return {
+      entries: safeLimit === 0 ? [] : this.entries.slice(-safeLimit).map((entry) => ({ ...entry })),
+    }
   }
 
   clear(): void {

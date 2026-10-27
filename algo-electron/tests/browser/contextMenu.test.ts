@@ -9,8 +9,9 @@ import {
 } from '../../electron/contextMenus/browserContextMenu.ts'
 
 function labels(template: Electron.MenuItemConstructorOptions[]): string[] {
-  return template
-    .map((item) => typeof item.label === 'string' ? item.label : item.type === 'separator' ? '---' : '')
+  return template.map((item) =>
+    typeof item.label === 'string' ? item.label : item.type === 'separator' ? '---' : '',
+  )
 }
 
 test('page context menu covers links, images, selection and navigation', () => {
@@ -35,13 +36,23 @@ test('page context menu covers links, images, selection and navigation', () => {
   })
 
   assert.deepStrictEqual(labels(template), [
-    '在新标签页打开链接', '复制链接地址',
-    '在新标签页打开图片', '复制图片', '复制图片地址', '图片另存为',
-    '复制', '使用搜索引擎搜索“binary search”',
-    '---', '后退', '前进', '重新加载',
+    '在新标签页打开链接',
+    '复制链接地址',
+    '在新标签页打开图片',
+    '复制图片',
+    '复制图片地址',
+    '图片另存为',
+    '复制',
+    '使用搜索引擎搜索“binary search”',
+    '---',
+    '后退',
+    '前进',
+    '重新加载',
   ])
   template.find((item) => item.label === '复制图片')?.click?.({} as never, {} as never, {} as never)
-  template.find((item) => item.label === '图片另存为')?.click?.({} as never, {} as never, {} as never)
+  template
+    .find((item) => item.label === '图片另存为')
+    ?.click?.({} as never, {} as never, {} as never)
   assert.deepStrictEqual(contents.copyImageAtCalls, [{ x: 24, y: 48 }])
   assert.deepStrictEqual(contents.downloadURLCalls, ['https://example.com/image.png'])
 })
@@ -77,11 +88,13 @@ test('page context menu groups registered userscript commands in a native submen
     params: {},
     openUrlInNewTab: () => undefined,
     searchSelectionInNewTab: () => undefined,
-    userScriptCommands: [{
-      scriptName: 'Ratings helper',
-      name: 'Refresh rating',
-      invoke: () => invoked.push('refresh'),
-    }],
+    userScriptCommands: [
+      {
+        scriptName: 'Ratings helper',
+        name: 'Refresh rating',
+        invoke: () => invoked.push('refresh'),
+      },
+    ],
   })
 
   assert.deepStrictEqual(labels(template), ['用户脚本', '---', '后退', '前进', '重新加载'])
@@ -134,12 +147,22 @@ test('tab context menu exposes Chrome tab operations and copies the URL', () => 
     closeOthers: () => actions.push('close-others'),
     closeToRight: () => actions.push('close-right'),
     reopenClosed: () => actions.push('reopen'),
-    copyUrl: () => { clipboard.writeText('https://example.com/problem') },
+    copyUrl: () => {
+      clipboard.writeText('https://example.com/problem')
+    },
   })
 
   assert.deepStrictEqual(labels(template), [
-    '重新加载', '复制标签页', '移到新窗口', '---',
-    '关闭标签页', '关闭其他标签页', '关闭右侧标签页', '恢复关闭的标签页', '---', '复制网址',
+    '重新加载',
+    '复制标签页',
+    '移到新窗口',
+    '---',
+    '关闭标签页',
+    '关闭其他标签页',
+    '关闭右侧标签页',
+    '恢复关闭的标签页',
+    '---',
+    '复制网址',
   ])
   for (const item of template) {
     if (item.label === '复制网址') item.click?.({} as never, {} as never, {} as never)

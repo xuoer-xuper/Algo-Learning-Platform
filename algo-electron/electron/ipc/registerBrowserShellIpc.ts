@@ -95,7 +95,7 @@ export function registerBrowserShellIpc(options: RegisterBrowserShellIpcOptions)
 
   ipcMain.handle('tab:moveToNewWindow', [tabId()], (event, tabId) => {
     const owner = getShellWindowOwner(event)
-    return owner ? options.moveTabToNewWindow?.(owner, tabId) ?? false : false
+    return owner ? (options.moveTabToNewWindow?.(owner, tabId) ?? false) : false
   })
 
   ipcMain.handle(
@@ -104,7 +104,7 @@ export function registerBrowserShellIpc(options: RegisterBrowserShellIpcOptions)
     (event, tabId, targetIndex, screenX, screenY) => {
       const owner = getShellWindowOwner(event)
       return owner
-        ? options.finishTabDrag?.(owner, tabId, targetIndex, screenX, screenY) ?? false
+        ? (options.finishTabDrag?.(owner, tabId, targetIndex, screenX, screenY) ?? false)
         : false
     },
   )
@@ -169,14 +169,22 @@ export function registerBrowserShellIpc(options: RegisterBrowserShellIpcOptions)
    * （见 tabManagerFindZoom 的用例），`setZoom` 的由 `isZoomCommand` 判。
    * 前者原先连 `unknown` 都没判就传下去了，`raw()` 至少把这件事写在了通道上。
    */
-  ipcMain.handle('browser:findInPage', [tabId(), raw('TabManager.findInPage 内部判别')], (event, tabId, command) => {
-    return getShellWindowOwner(event)?.tabManager.findInPage(tabId, command) ?? null
-  })
+  ipcMain.handle(
+    'browser:findInPage',
+    [tabId(), raw('TabManager.findInPage 内部判别')],
+    (event, tabId, command) => {
+      return getShellWindowOwner(event)?.tabManager.findInPage(tabId, command) ?? null
+    },
+  )
 
-  ipcMain.handle('browser:setZoom', [tabId(), raw('isZoomCommand 判别联合校验')], (event, tabId, command) => {
-    if (!isZoomCommand(command)) return null
-    return getShellWindowOwner(event)?.tabManager.setZoom(tabId, command) ?? null
-  })
+  ipcMain.handle(
+    'browser:setZoom',
+    [tabId(), raw('isZoomCommand 判别联合校验')],
+    (event, tabId, command) => {
+      if (!isZoomCommand(command)) return null
+      return getShellWindowOwner(event)?.tabManager.setZoom(tabId, command) ?? null
+    },
+  )
 
   ipcMain.on('browser:setDownloadNoticeVisible', [bool], (event, visible) => {
     getShellWindowOwner(event)?.tabManager.setDownloadNoticeVisible(visible)
@@ -196,15 +204,19 @@ export function registerBrowserShellIpc(options: RegisterBrowserShellIpcOptions)
 
   ipcMain.handle('userscript:getHostPermissionPrompt', (event) => {
     const owner = getShellWindowOwner(event)
-    return owner ? options.getUserScriptHostPermissionPrompt?.(owner) ?? null : null
+    return owner ? (options.getUserScriptHostPermissionPrompt?.(owner) ?? null) : null
   })
 
-  ipcMain.handle('userscript:respondHostPermission', [promptId(), bool], (event, promptId, allow) => {
-    const owner = getShellWindowOwner(event)
-    return owner
-      ? options.respondUserScriptHostPermission?.(owner, promptId, allow) ?? 'stale'
-      : 'stale'
-  })
+  ipcMain.handle(
+    'userscript:respondHostPermission',
+    [promptId(), bool],
+    (event, promptId, allow) => {
+      const owner = getShellWindowOwner(event)
+      return owner
+        ? (options.respondUserScriptHostPermission?.(owner, promptId, allow) ?? 'stale')
+        : 'stale'
+    },
+  )
 
   ipcMain.on('browser:showAppMenu', [raw('isAppMenuAnchor 校验锚点矩形')], (event, anchor) => {
     if (!isAppMenuAnchor(anchor)) return
@@ -215,12 +227,18 @@ export function registerBrowserShellIpc(options: RegisterBrowserShellIpcOptions)
     popupAppMenu({
       window,
       anchor,
-      openInternalPage: (page) => { tabManager.openInternalTab(page) },
+      openInternalPage: (page) => {
+        tabManager.openInternalTab(page)
+      },
       reopenLastSession: options.reopenLastSession,
-      zoom: zoomState ? {
-        factor: zoomState.factor,
-        set: (command) => { tabManager.setZoom(zoomState.tabId, command) },
-      } : undefined,
+      zoom: zoomState
+        ? {
+            factor: zoomState.factor,
+            set: (command) => {
+              tabManager.setZoom(zoomState.tabId, command)
+            },
+          }
+        : undefined,
     })
   })
 
@@ -228,30 +246,36 @@ export function registerBrowserShellIpc(options: RegisterBrowserShellIpcOptions)
     getShellWindowOwner(event)?.tabManager.showTabContextMenu(tabId)
   })
 
-  ipcMain.on('browser:showShellContextMenu', [oneOf(['omnibox', 'editor', 'page'] as const)], (event, kind) => {
-    const owner = getShellWindowOwner(event)
-    if (!owner || owner.isDestroyed()) return
-    const { browserWindow: window, tabManager } = owner
-    popupShellContextMenu({
-      window,
-      params: { isEditable: kind !== 'page' },
-      canGoBack: tabManager.canGoBack(),
-      goBack: () => tabManager.goBack(),
-      reload: () => tabManager.reload(),
-      pasteAndGo: kind === 'omnibox'
-        ? () => {
-            const value = readClipboardText()
-            if (!value) return
-            const resolution = resolveOmniboxInput(value, {
-              search: getSearchConfig(),
-              allowInsecureLocalhost: options.allowInsecureLocalhost ?? false,
-            })
-            if (resolution.kind === 'internal') tabManager.navigateInternal(resolution.page)
-            else if (resolution.kind === 'url' || resolution.kind === 'search') tabManager.navigate(resolveNavigateUrl(resolution.url))
-          }
-        : undefined,
-    })
-  })
+  ipcMain.on(
+    'browser:showShellContextMenu',
+    [oneOf(['omnibox', 'editor', 'page'] as const)],
+    (event, kind) => {
+      const owner = getShellWindowOwner(event)
+      if (!owner || owner.isDestroyed()) return
+      const { browserWindow: window, tabManager } = owner
+      popupShellContextMenu({
+        window,
+        params: { isEditable: kind !== 'page' },
+        canGoBack: tabManager.canGoBack(),
+        goBack: () => tabManager.goBack(),
+        reload: () => tabManager.reload(),
+        pasteAndGo:
+          kind === 'omnibox'
+            ? () => {
+                const value = readClipboardText()
+                if (!value) return
+                const resolution = resolveOmniboxInput(value, {
+                  search: getSearchConfig(),
+                  allowInsecureLocalhost: options.allowInsecureLocalhost ?? false,
+                })
+                if (resolution.kind === 'internal') tabManager.navigateInternal(resolution.page)
+                else if (resolution.kind === 'url' || resolution.kind === 'search')
+                  tabManager.navigate(resolveNavigateUrl(resolution.url))
+              }
+            : undefined,
+      })
+    },
+  )
 
   ipcMain.on('browser:goBack', (event) => {
     getShellWindowOwner(event)?.tabManager.goBack()

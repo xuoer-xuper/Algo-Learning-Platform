@@ -48,4 +48,11 @@ export const PET_STATE_LABEL: Record<PetState, string> = {
 /**
  * 6 状态枚举数组（设置面板 / 测试用）。
  */
-export const PET_STATE_LIST: PetState[] = ['idle', 'thinking', 'alert', 'celebrate', 'sleep', 'focus']
+export const PET_STATE_LIST: PetState[] = [
+  'idle',
+  'thinking',
+  'alert',
+  'celebrate',
+  'sleep',
+  'focus',
+]

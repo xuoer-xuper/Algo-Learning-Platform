@@ -21,7 +21,11 @@ export function registerCookieIpc(cookieVault = new CookieVault()): void {
     return cookieVault.getSafeSummaryForSite(siteId)
   })
 
-  ipcMain.handle('cookies:getDomainSummary', [cookieSiteId(), cookieDomain()], (_event, siteId, domain) => {
-    return cookieVault.getSafeSummaryForDomain(siteId, domain)
-  })
+  ipcMain.handle(
+    'cookies:getDomainSummary',
+    [cookieSiteId(), cookieDomain()],
+    (_event, siteId, domain) => {
+      return cookieVault.getSafeSummaryForDomain(siteId, domain)
+    },
+  )
 }

@@ -43,25 +43,33 @@ function seedProblem(seed: ProblemSeed): ProblemRow {
   })
 
   const db = getDb()
-  const problem = db.prepare(`
+  const problem = db
+    .prepare(
+      `
     SELECT id, platform, platform_problem_id, canonical_url, title
     FROM problems
     WHERE platform = 'codeforces' AND platform_problem_id = ?
-  `).get(seed.platformProblemId) as ProblemRow | undefined
+  `,
+    )
+    .get(seed.platformProblemId) as ProblemRow | undefined
   assert.ok(problem)
 
-  db.prepare('UPDATE problems SET tags_json = ? WHERE id = ?')
-    .run(JSON.stringify(seed.tags), problem.id)
+  db.prepare('UPDATE problems SET tags_json = ? WHERE id = ?').run(
+    JSON.stringify(seed.tags),
+    problem.id,
+  )
   return problem
 }
 
 function insertVisit(problem: ProblemRow, id: string, durationSeconds: number): void {
   const db = getDb()
-  db.prepare(`
+  db.prepare(
+    `
     INSERT INTO problem_visits
       (id, problem_id, session_id, platform, url, entered_at, left_at, duration_seconds, active_seconds, leave_reason, created_at, updated_at)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(
+  `,
+  ).run(
     id,
     problem.id,
     'ai-traceability',
@@ -128,30 +136,42 @@ function seedLocalLearningData(): ProblemRow[] {
 }
 
 function countWrongSubmissions(problemId: string): number {
-  const row = getDb().prepare(`
+  const row = getDb()
+    .prepare(
+      `
     SELECT COUNT(*) as count
     FROM submissions
     WHERE problem_id = ? AND verdict != 'AC'
-  `).get(problemId) as { count: number }
+  `,
+    )
+    .get(problemId) as { count: number }
   return row.count
 }
 
 function hasAcceptedSubmission(problemId: string): boolean {
-  const row = getDb().prepare(`
+  const row = getDb()
+    .prepare(
+      `
     SELECT COUNT(*) as count
     FROM submissions
     WHERE problem_id = ? AND verdict = 'AC'
-  `).get(problemId) as { count: number }
+  `,
+    )
+    .get(problemId) as { count: number }
   return row.count > 0
 }
 
 function countTaggedProblems(tag: string): number {
-  const rows = getDb().prepare(`
+  const rows = getDb()
+    .prepare(
+      `
     SELECT tags_json
     FROM problems
     WHERE deleted_at IS NULL
-  `).all() as { tags_json: string | null }[]
-  return rows.filter(row => {
+  `,
+    )
+    .all() as { tags_json: string | null }[]
+  return rows.filter((row) => {
     if (!row.tags_json) return false
     const tags = JSON.parse(row.tags_json) as unknown
     return Array.isArray(tags) && tags.includes(tag)
@@ -167,7 +187,7 @@ function assertNoSensitivePayload(label: string, value: unknown): void {
 
 test('AI recommendation outputs are traceable to local problems, submissions, visits, and tag stats', () => {
   const seededProblems = seedLocalLearningData()
-  const seededProblemIds = new Set(seededProblems.map(problem => problem.id))
+  const seededProblemIds = new Set(seededProblems.map((problem) => problem.id))
 
   const recommendations = getReviewRecommendations(10)
   assert.ok(recommendations.recommendations.length >= 2)
@@ -175,14 +195,17 @@ test('AI recommendation outputs are traceable to local problems, submissions, vi
     assert.ok(seededProblemIds.has(recommendation.problem_id))
     assert.strictEqual(recommendation.source.has_ac, false)
     assert.strictEqual(hasAcceptedSubmission(recommendation.problem_id), false)
-    assert.strictEqual(recommendation.source.wrong_count, countWrongSubmissions(recommendation.problem_id))
+    assert.strictEqual(
+      recommendation.source.wrong_count,
+      countWrongSubmissions(recommendation.problem_id),
+    )
     assert.ok(recommendation.source.last_attempt)
     assert.ok(recommendation.source.visit_count >= 1)
     assert.ok(recommendation.reason.includes(`错误 ${recommendation.source.wrong_count} 次`))
   }
 
   const weaknesses = getWeaknessAnalysis(10)
-  const dpWeakness = weaknesses.weaknesses.find(weakness => weakness.tag === 'dp')
+  const dpWeakness = weaknesses.weaknesses.find((weakness) => weakness.tag === 'dp')
   assert.ok(dpWeakness)
   assert.strictEqual(dpWeakness.total, countTaggedProblems('dp'))
   assert.ok(dpWeakness.wrong_submissions >= 3)

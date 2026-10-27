@@ -269,7 +269,10 @@ export class CoachPetWindow {
     this.ignoreMouseEventsDebounceTimer = setTimeout(() => {
       this.ignoreMouseEventsDebounceTimer = null
       // 如果防抖期间有新值进来，且与当前值不同，应用它
-      if (this.pendingIgnoreMouseEvents !== null && this.pendingIgnoreMouseEvents !== this.lastIgnoreMouseEvents) {
+      if (
+        this.pendingIgnoreMouseEvents !== null &&
+        this.pendingIgnoreMouseEvents !== this.lastIgnoreMouseEvents
+      ) {
         this.applyIgnoreMouseEvents(this.pendingIgnoreMouseEvents)
       }
       this.pendingIgnoreMouseEvents = null
@@ -505,17 +508,17 @@ export class CoachPetWindow {
   private applyPinDecision(): void {
     if (!this.win || this.win.isDestroyed()) return
     const decision = this.resolveDecision()
-    const parent = decision.attachToActiveShell
-      && this.followedWindow
-      && !this.followedWindow.isDestroyed()
-      ? this.followedWindow
-      : null
+    const parent =
+      decision.attachToActiveShell && this.followedWindow && !this.followedWindow.isDestroyed()
+        ? this.followedWindow
+        : null
 
-    const unchanged = this.lastDecision !== null
-      && this.lastDecision.alwaysOnTop === decision.alwaysOnTop
-      && this.lastDecision.level === decision.level
-      && this.lastDecision.attachToActiveShell === decision.attachToActiveShell
-      && this.lastParent === parent
+    const unchanged =
+      this.lastDecision !== null &&
+      this.lastDecision.alwaysOnTop === decision.alwaysOnTop &&
+      this.lastDecision.level === decision.level &&
+      this.lastDecision.attachToActiveShell === decision.attachToActiveShell &&
+      this.lastParent === parent
 
     if (unchanged) return
 
@@ -562,7 +565,10 @@ function clampPosition(
   const maxY = workArea.y + workArea.height - height
   // 若屏幕太小放不下，退回默认位置（由调用方计算）
   if (maxX < minX || maxY < minY) {
-    return { x: workArea.x + workArea.width - width - 24, y: workArea.y + workArea.height - height - 24 }
+    return {
+      x: workArea.x + workArea.width - width - 24,
+      y: workArea.y + workArea.height - height - 24,
+    }
   }
   return { x: Math.round(clamp(pos.x, minX, maxX)), y: Math.round(clamp(pos.y, minY, maxY)) }
 }

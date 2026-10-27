@@ -6,7 +6,12 @@ import { getDb } from '../../db/connection'
 import { nowBeijing } from '../../shared/time'
 import { getReviewRecommendations } from './reviewRecommender'
 import { getWeaknessAnalysis } from './weaknessAnalyzer'
-import { determineReviewPriority, estimateReviewMinutes, normalizePlanDays, REVIEW_PLAN_RULE_VERSION } from './rules'
+import {
+  determineReviewPriority,
+  estimateReviewMinutes,
+  normalizePlanDays,
+  REVIEW_PLAN_RULE_VERSION,
+} from './rules'
 import { parseTagsJson } from './tagParsing'
 import type { ReviewPlan, ReviewPlanItem } from './types'
 export type { ReviewPlan, ReviewPlanItem } from './types'
@@ -21,23 +26,23 @@ export function getReviewPlan(planDays = 7): ReviewPlan {
   const db = getDb()
 
   // 为每条推荐补充标签信息
-  const items: ReviewPlanItem[] = reviewResult.recommendations.map(rec => {
+  const items: ReviewPlanItem[] = reviewResult.recommendations.map((rec) => {
     // 查询题目标签
-    const problemRow = db.prepare(
-      `SELECT tags_json FROM problems WHERE id = ? AND deleted_at IS NULL`
-    ).get(rec.problem_id) as { tags_json: string | null } | undefined
+    const problemRow = db
+      .prepare(`SELECT tags_json FROM problems WHERE id = ? AND deleted_at IS NULL`)
+      .get(rec.problem_id) as { tags_json: string | null } | undefined
 
     const problemTags = parseTagsJson(problemRow?.tags_json)
 
     // 关联薄弱标签
-    const relatedWeaknessTags = weaknessResult.weaknesses.filter(w => problemTags.includes(w.tag))
+    const relatedWeaknessTags = weaknessResult.weaknesses.filter((w) => problemTags.includes(w.tag))
 
     const priority = determineReviewPriority(rec.score, weaknessResult.weaknesses, problemTags)
     const estimated = estimateReviewMinutes(rec.source.wrong_count, rec.source.days_since_attempt)
 
     const reasonParts: string[] = [rec.reason]
     if (relatedWeaknessTags.length > 0) {
-      reasonParts.push(`关联薄弱标签：${relatedWeaknessTags.map(w => w.tag).join('、')}`)
+      reasonParts.push(`关联薄弱标签：${relatedWeaknessTags.map((w) => w.tag).join('、')}`)
     }
 
     return {
@@ -53,8 +58,8 @@ export function getReviewPlan(planDays = 7): ReviewPlan {
       source: {
         wrong_count: rec.source.wrong_count,
         days_since_attempt: rec.source.days_since_attempt,
-        weakness_tags: relatedWeaknessTags.map(w => w.tag),
-        weakness_scores: relatedWeaknessTags.map(w => w.weakness_score),
+        weakness_tags: relatedWeaknessTags.map((w) => w.tag),
+        weakness_scores: relatedWeaknessTags.map((w) => w.weakness_score),
       },
     }
   })
@@ -70,7 +75,7 @@ export function getReviewPlan(planDays = 7): ReviewPlan {
   const limitedItems = items.slice(0, maxItems)
 
   // 薄弱标签汇总
-  const weakTagsSummary = weaknessResult.weaknesses.slice(0, 10).map(w => ({
+  const weakTagsSummary = weaknessResult.weaknesses.slice(0, 10).map((w) => ({
     tag: w.tag,
     ac_rate: w.ac_rate,
     total: w.total,

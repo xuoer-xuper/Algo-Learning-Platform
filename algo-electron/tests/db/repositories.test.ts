@@ -100,12 +100,20 @@ interface DailyStatsRow {
   platform_distribution_json: string | null
 }
 
-function getProblemByPlatformId(db: Database.Database, platform: string, platformProblemId: string): ProblemRow {
-  const row = db.prepare(`
+function getProblemByPlatformId(
+  db: Database.Database,
+  platform: string,
+  platformProblemId: string,
+): ProblemRow {
+  const row = db
+    .prepare(
+      `
     SELECT id, platform, platform_problem_id, canonical_url, title, status, contest_id, problem_index, first_solved_at
     FROM problems
     WHERE platform = ? AND platform_problem_id = ?
-  `).get(platform, platformProblemId) as ProblemRow | undefined
+  `,
+    )
+    .get(platform, platformProblemId) as ProblemRow | undefined
   assert.ok(row, `Expected problem ${platform}:${platformProblemId}`)
   return row
 }
@@ -117,11 +125,13 @@ function insertVisit(
   durationSeconds: number,
   activeSeconds: number,
 ): void {
-  db.prepare(`
+  db.prepare(
+    `
     INSERT INTO problem_visits
       (id, problem_id, session_id, platform, url, entered_at, left_at, duration_seconds, active_seconds, leave_reason, created_at, updated_at)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(
+  `,
+  ).run(
     id,
     problem.id,
     'session-repository-test',
@@ -152,36 +162,46 @@ function seedCodeforcesProblem(): ProblemRow {
 }
 
 function seedCodeforcesSubmissions(problem: ProblemRow): void {
-  assert.strictEqual(upsertSubmission({
-    platform: 'codeforces',
-    platformSubmissionId: 'cf-1',
-    problemId: problem.id,
-    verdict: 'WA',
-    rawVerdict: 'WRONG_ANSWER',
-    language: 'GNU C++23',
-    submittedAt: `${day}T10:00:00+08:00`,
-    runtimeMs: 15,
-    memoryKb: 800,
-    sourceUrl: 'https://codeforces.com/contest/1000/submission/1',
-  }), true)
+  assert.strictEqual(
+    upsertSubmission({
+      platform: 'codeforces',
+      platformSubmissionId: 'cf-1',
+      problemId: problem.id,
+      verdict: 'WA',
+      rawVerdict: 'WRONG_ANSWER',
+      language: 'GNU C++23',
+      submittedAt: `${day}T10:00:00+08:00`,
+      runtimeMs: 15,
+      memoryKb: 800,
+      sourceUrl: 'https://codeforces.com/contest/1000/submission/1',
+    }),
+    true,
+  )
 
-  assert.strictEqual(upsertSubmission({
-    platform: 'codeforces',
-    platformSubmissionId: 'cf-2',
-    problemId: problem.id,
-    verdict: 'AC',
-    rawVerdict: 'OK',
-    language: 'GNU C++23',
-    submittedAt: `${day}T10:02:00+08:00`,
-  }), true)
+  assert.strictEqual(
+    upsertSubmission({
+      platform: 'codeforces',
+      platformSubmissionId: 'cf-2',
+      problemId: problem.id,
+      verdict: 'AC',
+      rawVerdict: 'OK',
+      language: 'GNU C++23',
+      submittedAt: `${day}T10:02:00+08:00`,
+    }),
+    true,
+  )
 }
 
 test('runs migrations into a temporary database', () => {
   const db = getDbForTest()
-  const migrations = db.prepare('SELECT COUNT(*) as count FROM schema_migrations').get() as { count: number }
+  const migrations = db.prepare('SELECT COUNT(*) as count FROM schema_migrations').get() as {
+    count: number
+  }
   assert.strictEqual(migrations.count, 29)
 
-  const tables = db.prepare(`
+  const tables = db
+    .prepare(
+      `
     SELECT name FROM sqlite_master
     WHERE type = 'table' AND name IN (
       'cookie_records', 'problems', 'submissions', 'sync_queue', 'user_daily_stats',
@@ -189,20 +209,27 @@ test('runs migrations into a temporary database', () => {
       'user_script_host_permissions', 'user_script_update_state'
     )
     ORDER BY name
-  `).all() as { name: string }[]
-  assert.deepStrictEqual(tables.map(row => row.name), [
-    'cookie_records',
-    'problems',
-    'submissions',
-    'sync_queue',
-    'user_daily_stats',
-    'user_script_host_permissions',
-    'user_script_resources',
-    'user_script_update_state',
-    'user_script_values',
-  ])
+  `,
+    )
+    .all() as { name: string }[]
+  assert.deepStrictEqual(
+    tables.map((row) => row.name),
+    [
+      'cookie_records',
+      'problems',
+      'submissions',
+      'sync_queue',
+      'user_daily_stats',
+      'user_script_host_permissions',
+      'user_script_resources',
+      'user_script_update_state',
+      'user_script_values',
+    ],
+  )
 
-  const submissionDeletedAt = db.prepare(`PRAGMA table_info(submissions)`).all()
+  const submissionDeletedAt = db
+    .prepare(`PRAGMA table_info(submissions)`)
+    .all()
     .some((column: any) => column.name === 'deleted_at')
   assert.strictEqual(submissionDeletedAt, true)
 })
@@ -253,8 +280,8 @@ test('persists cookie metadata without storing cookie values or enabling sync', 
 
   const siteRecords = getCookieRecordsBySite('leetcode-cn')
   assert.strictEqual(siteRecords.length, 2)
-  assert.ok(siteRecords.every(record => record.value_encrypted === null))
-  assert.ok(siteRecords.every(record => record.sync_excluded === 1))
+  assert.ok(siteRecords.every((record) => record.value_encrypted === null))
+  assert.ok(siteRecords.every((record) => record.sync_excluded === 1))
 
   const domainSummary = getCookieSummaryByDomain('leetcode-cn', 'leetcode.cn')
   assert.deepStrictEqual(domainSummary.cookie_names, ['LEETCODE_SESSION'])
@@ -266,12 +293,19 @@ test('persists cookie metadata without storing cookie values or enabling sync', 
 
   const siteSummary = getCookieSummaryBySite('leetcode-cn')
   assert.strictEqual(siteSummary.has_cookies, true)
-  assert.deepStrictEqual(siteSummary.domains.map(domain => domain.domain), ['leetcode.cn', 'www.leetcode.cn'])
+  assert.deepStrictEqual(
+    siteSummary.domains.map((domain) => domain.domain),
+    ['leetcode.cn', 'www.leetcode.cn'],
+  )
 
-  const leakedValues = db.prepare(`
+  const leakedValues = db
+    .prepare(
+      `
     SELECT COUNT(*) as count FROM cookie_records
     WHERE value_encrypted IS NOT NULL OR sync_excluded != 1
-  `).get() as { count: number }
+  `,
+    )
+    .get() as { count: number }
   assert.strictEqual(leakedValues.count, 0)
 })
 
@@ -287,10 +321,14 @@ test('upserts duplicate problems without creating extra rows', () => {
     confidence: 'url',
   })
 
-  const count = db.prepare(`
+  const count = db
+    .prepare(
+      `
     SELECT COUNT(*) as count FROM problems
     WHERE platform = 'codeforces' AND platform_problem_id = '1000A'
-  `).get() as { count: number }
+  `,
+    )
+    .get() as { count: number }
   assert.strictEqual(count.count, 1)
 
   const problem = getProblemByPlatformId(db, 'codeforces', '1000A')
@@ -300,11 +338,22 @@ test('upserts duplicate problems without creating extra rows', () => {
   assert.strictEqual(problem.problem_index, 'A')
 
   assert.throws(() => {
-    db.prepare(`
+    db.prepare(
+      `
       INSERT INTO problems
         (id, platform, platform_problem_id, canonical_url, status, first_seen_at, created_at, updated_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `).run('duplicate-problem', 'codeforces', '1000A', problem.canonical_url, 'visited', now, now, now)
+    `,
+    ).run(
+      'duplicate-problem',
+      'codeforces',
+      '1000A',
+      problem.canonical_url,
+      'visited',
+      now,
+      now,
+      now,
+    )
   }, /UNIQUE constraint failed/)
 
   const recent = getRecentProblems(5)
@@ -316,36 +365,45 @@ test('deduplicates submissions and updates first AC metadata', () => {
   const db = getDbForTest()
   const problem = seedCodeforcesProblem()
 
-  assert.strictEqual(upsertSubmission({
-    platform: 'codeforces',
-    platformSubmissionId: 'cf-1',
-    problemId: problem.id,
-    verdict: 'WA',
-    rawVerdict: 'WRONG_ANSWER',
-    language: 'GNU C++23',
-    submittedAt: `${day}T10:00:00+08:00`,
-    runtimeMs: 15,
-    memoryKb: 800,
-    sourceUrl: 'https://codeforces.com/contest/1000/submission/1',
-  }), true)
+  assert.strictEqual(
+    upsertSubmission({
+      platform: 'codeforces',
+      platformSubmissionId: 'cf-1',
+      problemId: problem.id,
+      verdict: 'WA',
+      rawVerdict: 'WRONG_ANSWER',
+      language: 'GNU C++23',
+      submittedAt: `${day}T10:00:00+08:00`,
+      runtimeMs: 15,
+      memoryKb: 800,
+      sourceUrl: 'https://codeforces.com/contest/1000/submission/1',
+    }),
+    true,
+  )
 
-  assert.strictEqual(upsertSubmission({
-    platform: 'codeforces',
-    platformSubmissionId: 'cf-1',
-    problemId: problem.id,
-    verdict: 'AC',
-    submittedAt: `${day}T10:01:00+08:00`,
-  }), false)
+  assert.strictEqual(
+    upsertSubmission({
+      platform: 'codeforces',
+      platformSubmissionId: 'cf-1',
+      problemId: problem.id,
+      verdict: 'AC',
+      submittedAt: `${day}T10:01:00+08:00`,
+    }),
+    false,
+  )
 
-  assert.strictEqual(upsertSubmission({
-    platform: 'codeforces',
-    platformSubmissionId: 'cf-2',
-    problemId: problem.id,
-    verdict: 'AC',
-    rawVerdict: 'OK',
-    language: 'GNU C++23',
-    submittedAt: `${day}T10:02:00+08:00`,
-  }), true)
+  assert.strictEqual(
+    upsertSubmission({
+      platform: 'codeforces',
+      platformSubmissionId: 'cf-2',
+      problemId: problem.id,
+      verdict: 'AC',
+      rawVerdict: 'OK',
+      language: 'GNU C++23',
+      submittedAt: `${day}T10:02:00+08:00`,
+    }),
+    true,
+  )
 
   const submissions = getSubmissionsByProblem(problem.id)
   assert.strictEqual(submissions.length, 2)
@@ -357,11 +415,13 @@ test('deduplicates submissions and updates first AC metadata', () => {
   assert.strictEqual(platformSubmissions[0].platform_submission_id, 'cf-2')
 
   assert.throws(() => {
-    db.prepare(`
+    db.prepare(
+      `
       INSERT INTO submissions
         (id, problem_id, platform, platform_submission_id, verdict, submitted_at, created_at, updated_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `).run('duplicate-submission', problem.id, 'codeforces', 'cf-1', 'AC', now, now, now)
+    `,
+    ).run('duplicate-submission', problem.id, 'codeforces', 'cf-1', 'AC', now, now, now)
   }, /UNIQUE constraint failed/)
 
   updateFirstAc(problem.id)
@@ -396,7 +456,8 @@ test('recomputes daily aggregate stats from visits and submissions', () => {
 
   recomputeDailyStats(day)
 
-  const stats = db.prepare('SELECT * FROM user_daily_stats WHERE local_day = ?').get(day) as DailyStatsRow | undefined
+  const stats = db.prepare('SELECT * FROM user_daily_stats WHERE local_day = ?').get(day) as
+    DailyStatsRow | undefined
   assert.ok(stats)
   assert.strictEqual(stats.active_seconds, 90)
   assert.strictEqual(stats.duration_seconds, 150)
@@ -405,7 +466,10 @@ test('recomputes daily aggregate stats from visits and submissions', () => {
   assert.strictEqual(stats.submission_count, 2)
   assert.strictEqual(stats.ac_submission_count, 1)
 
-  const platformDistribution = JSON.parse(stats.platform_distribution_json ?? '[]') as { platform: string; count: number }[]
+  const platformDistribution = JSON.parse(stats.platform_distribution_json ?? '[]') as {
+    platform: string
+    count: number
+  }[]
   assert.deepStrictEqual(
     platformDistribution.sort((a, b) => a.platform.localeCompare(b.platform)),
     [
@@ -434,40 +498,55 @@ test('manages accounts and rating history with stable deduplication', () => {
   assert.ok(account.last_synced_at)
 
   assert.strictEqual(getAccountById(accountId)?.handle, 'tourist')
-  assert.deepStrictEqual(getAccountsByPlatform('codeforces').map(row => row.id), [accountId])
+  assert.deepStrictEqual(
+    getAccountsByPlatform('codeforces').map((row) => row.id),
+    [accountId],
+  )
 
-  assert.strictEqual(upsertRatingHistory({
-    accountId,
-    platform: 'codeforces',
-    contestId: '1',
-    contestName: 'Codeforces Round 1',
-    rank: 10,
-    ratingBefore: 3800,
-    ratingAfter: 3900,
-    delta: 100,
-    contestAt: `${day}T09:00:00+08:00`,
-  }), true)
-  assert.strictEqual(upsertRatingHistory({
-    accountId,
-    platform: 'codeforces',
-    contestId: '1',
-    ratingAfter: 4100,
-  }), false)
-  assert.strictEqual(upsertRatingHistory({
-    accountId,
-    platform: 'codeforces',
-    contestId: '2',
-    contestName: 'Codeforces Round 2',
-    rank: 1,
-    ratingBefore: 3900,
-    ratingAfter: 4050,
-    delta: 150,
-    contestAt: `${day}T11:00:00+08:00`,
-  }), true)
+  assert.strictEqual(
+    upsertRatingHistory({
+      accountId,
+      platform: 'codeforces',
+      contestId: '1',
+      contestName: 'Codeforces Round 1',
+      rank: 10,
+      ratingBefore: 3800,
+      ratingAfter: 3900,
+      delta: 100,
+      contestAt: `${day}T09:00:00+08:00`,
+    }),
+    true,
+  )
+  assert.strictEqual(
+    upsertRatingHistory({
+      accountId,
+      platform: 'codeforces',
+      contestId: '1',
+      ratingAfter: 4100,
+    }),
+    false,
+  )
+  assert.strictEqual(
+    upsertRatingHistory({
+      accountId,
+      platform: 'codeforces',
+      contestId: '2',
+      contestName: 'Codeforces Round 2',
+      rank: 1,
+      ratingBefore: 3900,
+      ratingAfter: 4050,
+      delta: 150,
+      contestAt: `${day}T11:00:00+08:00`,
+    }),
+    true,
+  )
 
   const history = getRatingHistory(accountId)
   assert.strictEqual(history.length, 2)
-  assert.deepStrictEqual(history.map(row => row.contest_id), ['1', '2'])
+  assert.deepStrictEqual(
+    history.map((row) => row.contest_id),
+    ['1', '2'],
+  )
   assert.strictEqual(history[0].rating_after, 3900)
   assert.strictEqual(computePeakRating(accountId), 4050)
 })
@@ -489,14 +568,23 @@ test('manages user scripts and normalizes enabled state', () => {
   assert.strictEqual(created.enabled, true)
   assert.strictEqual(created.name, 'Example Helper')
   assert.strictEqual(created.site_ids_json, JSON.stringify(['codeforces']))
-  assert.deepStrictEqual(getAllScripts().map(script => script.id), [scriptId])
-  assert.deepStrictEqual(getEnabledScripts().map(script => script.id), [scriptId])
+  assert.deepStrictEqual(
+    getAllScripts().map((script) => script.id),
+    [scriptId],
+  )
+  assert.deepStrictEqual(
+    getEnabledScripts().map((script) => script.id),
+    [scriptId],
+  )
 
-  assert.strictEqual(updateScript(scriptId, {
-    description: null,
-    file_path: 'example-helper.user.js',
-    site_ids_json: '[]',
-  }), true)
+  assert.strictEqual(
+    updateScript(scriptId, {
+      description: null,
+      file_path: 'example-helper.user.js',
+      site_ids_json: '[]',
+    }),
+    true,
+  )
   assert.strictEqual(toggleScript(scriptId, false), true)
 
   const disabled = getScriptById(scriptId)
@@ -532,12 +620,23 @@ test('saves and manages AI outputs without touching fact tables', () => {
   assert.ok(saved)
   assert.strictEqual(saved.title, 'Weekly Summary')
   assert.strictEqual(saved.content_markdown, '# Weekly Summary')
-  assert.deepStrictEqual(JSON.parse(saved.input_summary_json ?? '{}'), { range: ['2026-07-01', '2026-07-07'] })
+  assert.deepStrictEqual(JSON.parse(saved.input_summary_json ?? '{}'), {
+    range: ['2026-07-01', '2026-07-07'],
+  })
   assert.deepStrictEqual(JSON.parse(saved.source_refs_json ?? '{}'), { problemIds: ['p1', 'p2'] })
-  assert.deepStrictEqual(JSON.parse(saved.model_info_json ?? '{}'), { engine: 'local-rules', version: 1 })
+  assert.deepStrictEqual(JSON.parse(saved.model_info_json ?? '{}'), {
+    engine: 'local-rules',
+    version: 1,
+  })
 
-  assert.deepStrictEqual(listAIOutputs('review_plan').map(output => output.id), [reviewPlan.id])
-  assert.deepStrictEqual(new Set(listAIOutputs(undefined, 10).map(output => output.id)), new Set([periodSummary.id, reviewPlan.id]))
+  assert.deepStrictEqual(
+    listAIOutputs('review_plan').map((output) => output.id),
+    [reviewPlan.id],
+  )
+  assert.deepStrictEqual(
+    new Set(listAIOutputs(undefined, 10).map((output) => output.id)),
+    new Set([periodSummary.id, reviewPlan.id]),
+  )
 
   const updated = updateAIOutput(reviewPlan.id, {
     title: 'Updated Plan',
@@ -587,7 +686,11 @@ test('manages built-in and imported site configs without overwriting protected r
   assert.strictEqual(toggleSite('codeforces', false), true)
   assert.strictEqual(getSiteById('codeforces')?.enabled, false)
   seedBuiltinSites()
-  assert.strictEqual(getSiteById('codeforces')?.enabled, false, 'seed should not overwrite user enable state')
+  assert.strictEqual(
+    getSiteById('codeforces')?.enabled,
+    false,
+    'seed should not overwrite user enable state',
+  )
 
   createSite({
     id: 'custom-oj',
@@ -601,9 +704,25 @@ test('manages built-in and imported site configs without overwriting protected r
   const previewResult = previewImportSites({
     version: 1,
     sites: [
-      { id: 'codeforces', name: 'Codeforces Import', domains: ['codeforces.com'], homeUrl: 'https://codeforces.com' },
-      { id: 'custom-oj', name: 'Custom OJ Updated', domains: ['example.test'], homeUrl: 'https://example.test/new', enabled: false },
-      { id: 'new-oj', name: 'New OJ', domains: ['new.example.test'], homeUrl: 'https://new.example.test' },
+      {
+        id: 'codeforces',
+        name: 'Codeforces Import',
+        domains: ['codeforces.com'],
+        homeUrl: 'https://codeforces.com',
+      },
+      {
+        id: 'custom-oj',
+        name: 'Custom OJ Updated',
+        domains: ['example.test'],
+        homeUrl: 'https://example.test/new',
+        enabled: false,
+      },
+      {
+        id: 'new-oj',
+        name: 'New OJ',
+        domains: ['new.example.test'],
+        homeUrl: 'https://new.example.test',
+      },
       { id: '', name: 'Invalid', domains: [], homeUrl: '' },
     ],
   })
@@ -636,14 +755,16 @@ test('manages built-in and imported site configs without overwriting protected r
   const builtinName = getSiteById('codeforces')?.name
   assert.ok(builtinName)
   const smuggled = confirmImportSites(
-    [{
-      id: 'codeforces',
-      name: 'Hijacked',
-      domains: ['evil.test'],
-      homeUrl: 'https://evil.test',
-      enabled: true,
-      isBuiltin: false,
-    }],
+    [
+      {
+        id: 'codeforces',
+        name: 'Hijacked',
+        domains: ['evil.test'],
+        homeUrl: 'https://evil.test',
+        enabled: true,
+        isBuiltin: false,
+      },
+    ],
     ['codeforces'],
   )
   assert.deepStrictEqual(smuggled, { imported: 0, overwritten: 0 }, '内置站点不应被覆盖')

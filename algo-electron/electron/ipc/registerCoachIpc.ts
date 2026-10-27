@@ -99,16 +99,17 @@ const petState = () => oneOf(['idle', 'thinking', 'alert', 'celebrate', 'sleep',
  * `position` 同样不在形状里：它由主进程 `CoachPetWindow` 在拖拽结束时自己写
  * （`saveCoachConfig({ position })` 是主进程内部调用，不经过本通道）。
  */
-const coachConfigShape = () => object({
-  enabled: optional(bool),
-  sound: optional(bool),
-  bubbleFrequency: optional(oneOf(['low', 'medium', 'high'] as const)),
-  scale: optional(decimal({ min: 0.5, max: 2 })),
-  opacity: optional(decimal({ min: 0.3, max: 1 })),
-  // B5.5：置顶模式。枚举照抄 petPinPolicy 的 COACH_PIN_MODES，越界值在这里就被拒，
-  // 不靠 normalizeCoachPinMode 兜底——兜底是给手改 config.json 那条路用的。
-  pinMode: optional(oneOf(COACH_PIN_MODES)),
-})
+const coachConfigShape = () =>
+  object({
+    enabled: optional(bool),
+    sound: optional(bool),
+    bubbleFrequency: optional(oneOf(['low', 'medium', 'high'] as const)),
+    scale: optional(decimal({ min: 0.5, max: 2 })),
+    opacity: optional(decimal({ min: 0.3, max: 1 })),
+    // B5.5：置顶模式。枚举照抄 petPinPolicy 的 COACH_PIN_MODES，越界值在这里就被拒，
+    // 不靠 normalizeCoachPinMode 兜底——兜底是给手改 config.json 那条路用的。
+    pinMode: optional(oneOf(COACH_PIN_MODES)),
+  })
 
 /**
  * Coach IPC 注册。
@@ -134,7 +135,8 @@ export interface RegisterCoachIpcOptions {
 }
 
 export function registerCoachIpc(options: RegisterCoachIpcOptions): void {
-  const isContestMode = (): boolean => options.getCoachOrchestrator?.()?.getState().is_contest_mode ?? false
+  const isContestMode = (): boolean =>
+    options.getCoachOrchestrator?.()?.getState().is_contest_mode ?? false
   const requirePetWindow = (): CoachPetWindow => {
     const w = options.getCoachPetWindow()
     if (!w) throw new Error('CoachPetWindow not initialized')
@@ -218,20 +220,26 @@ export function registerCoachIpc(options: RegisterCoachIpcOptions): void {
    * 气泡正文的界：标题 200、正文 4 KiB，与本目录其它文本同档。
    * `level` 1..5 是提示等级的实际取值范围（见下方演示升级分支的 `Math.min(x, 5)`）。
    */
-  ipcMain.handle('coach:showBubble', [object({
-    id: bubbleId(),
-    title: text({ max: 200 }),
-    message: freeText({ max: 4 * 1024 }),
-    source: oneOf(['local', 'llm'] as const),
-    problemId: optional(text()),
-    eventId: optional(text()),
-    level: optional(int({ min: 1, max: 5 })),
-    bubble_type: optional(oneOf(['hint', 'disclaimer', 'loading'] as const)),
-  })], (_event, payload) => {
-    if (isContestMode()) throw new Error('比赛模式硬关闭')
-    requirePetWindow().showBubble(payload)
-    return true
-  })
+  ipcMain.handle(
+    'coach:showBubble',
+    [
+      object({
+        id: bubbleId(),
+        title: text({ max: 200 }),
+        message: freeText({ max: 4 * 1024 }),
+        source: oneOf(['local', 'llm'] as const),
+        problemId: optional(text()),
+        eventId: optional(text()),
+        level: optional(int({ min: 1, max: 5 })),
+        bubble_type: optional(oneOf(['hint', 'disclaimer', 'loading'] as const)),
+      }),
+    ],
+    (_event, payload) => {
+      if (isContestMode()) throw new Error('比赛模式硬关闭')
+      requirePetWindow().showBubble(payload)
+      return true
+    },
+  )
 
   ipcMain.handle('coach:dismissBubble', () => {
     options.getCoachPetWindow()?.dismissBubble()
@@ -316,22 +324,28 @@ export function registerCoachIpc(options: RegisterCoachIpcOptions): void {
    * 用户反馈（helpful / not_helpful / dismiss / never_today）。
    * 阶段 2：持久化到 coach_feedback 并影响后续频率。
    */
-  ipcMain.handle('coach:feedback', [object({
-    bubbleId: optional(bubbleId()),
-    interventionId: optional(text()),
-    type: oneOf(['helpful', 'not_helpful', 'dismiss', 'never_today'] as const),
-  })], (_event, feedback) => {
-    const orchestrator = options.getCoachOrchestrator?.()
-    if (!orchestrator) {
-      appLogger.debug('coach.feedback-skipped', { reason: 'no-orchestrator', feedback })
-      return true
-    }
-    return orchestrator.recordFeedback({
-      bubbleId: feedback.bubbleId,
-      interventionId: feedback.interventionId,
-      feedbackType: feedback.type,
-    })
-  })
+  ipcMain.handle(
+    'coach:feedback',
+    [
+      object({
+        bubbleId: optional(bubbleId()),
+        interventionId: optional(text()),
+        type: oneOf(['helpful', 'not_helpful', 'dismiss', 'never_today'] as const),
+      }),
+    ],
+    (_event, feedback) => {
+      const orchestrator = options.getCoachOrchestrator?.()
+      if (!orchestrator) {
+        appLogger.debug('coach.feedback-skipped', { reason: 'no-orchestrator', feedback })
+        return true
+      }
+      return orchestrator.recordFeedback({
+        bubbleId: feedback.bubbleId,
+        interventionId: feedback.interventionId,
+        feedbackType: feedback.type,
+      })
+    },
+  )
 
   /** 关闭免责声明（permanent=true 永久关闭） */
   ipcMain.handle('coach:dismissDisclaimer', [bool], (_event, permanent) => {
@@ -352,21 +366,32 @@ export function registerCoachIpc(options: RegisterCoachIpcOptions): void {
   })
 
   /** 自由聊天：发送用户消息，获取 LLM 回复 */
-  ipcMain.handle('coach:chat', [object({
-    message: text({ max: 8 * 1024 }),
-    history: optional(arrayOf(object({
-      role: oneOf(['user', 'assistant'] as const),
-      content: text({ max: 8 * 1024 }),
-    }), { max: 20 })),
-  })], async (_event, params) => {
-    const o = options.getCoachOrchestrator?.()
-    if (!o) return { reply: '', success: false, error: 'Coach 未初始化' }
-    const reply = await o.chatWithLlm(params.message, params.history)
-    if (reply === null) {
-      return { reply: '', success: false, error: 'LLM 调用失败或未启用' }
-    }
-    return { reply, success: true }
-  })
+  ipcMain.handle(
+    'coach:chat',
+    [
+      object({
+        message: text({ max: 8 * 1024 }),
+        history: optional(
+          arrayOf(
+            object({
+              role: oneOf(['user', 'assistant'] as const),
+              content: text({ max: 8 * 1024 }),
+            }),
+            { max: 20 },
+          ),
+        ),
+      }),
+    ],
+    async (_event, params) => {
+      const o = options.getCoachOrchestrator?.()
+      if (!o) return { reply: '', success: false, error: 'Coach 未初始化' }
+      const reply = await o.chatWithLlm(params.message, params.history)
+      if (reply === null) {
+        return { reply: '', success: false, error: 'LLM 调用失败或未启用' }
+      }
+      return { reply, success: true }
+    },
+  )
 
   /** 请求针对当前题目的提示 */
   ipcMain.handle('coach:requestHint', async () => {
@@ -480,39 +505,51 @@ export function registerCoachIpc(options: RegisterCoachIpcOptions): void {
    * `coach:saveLlmApiKey` 经 safeStorage 加密后写入，`object()` 拒绝多余字段之后，
    * 壳 renderer 没法绕过加密直接往那一格塞值。
    */
-  ipcMain.handle('coach:saveLlmConfig', [object({
-    base_url: optional(text({ max: 4096 })),
-    model: optional(llmText()),
-    enabled: optional(bool),
-  })], (_event, partial) => {
-    const o = options.getCoachOrchestrator?.()
-    if (!o) return false
-    o.getLlmHintService().saveConfig(partial)
-    return true
-  })
+  ipcMain.handle(
+    'coach:saveLlmConfig',
+    [
+      object({
+        base_url: optional(text({ max: 4096 })),
+        model: optional(llmText()),
+        enabled: optional(bool),
+      }),
+    ],
+    (_event, partial) => {
+      const o = options.getCoachOrchestrator?.()
+      if (!o) return false
+      o.getLlmHintService().saveConfig(partial)
+      return true
+    },
+  )
 
   /** 测试连接 */
   /*
    * `api_key` 用 `freeText`：面板允许留空表示"用已保存的 Key 测"，
    * 紧接着的 `config.api_key || getDecryptedApiKey()` 就是这个意思。
    */
-  ipcMain.handle('coach:testLlmConnection', [object({
-    api_key: freeText({ max: 512 }),
-    base_url: text({ max: 4096 }),
-    model: llmText(),
-  })], async (_event, config) => {
-    const o = options.getCoachOrchestrator?.()
-    if (!o) return { success: false, message: 'Coach 未初始化' }
-    // 前端传了 Key 就用前端的，否则用已保存的
-    const apiKey = config.api_key || o.getLlmHintService().getDecryptedApiKey()
-    if (!apiKey) {
-      return { success: false, message: '未配置 API Key' }
-    }
-    return o.getLlmHintService().testConnection({
-      api_key: apiKey,
-      base_url: config.base_url,
-      model: config.model,
-      enabled: true,
-    })
-  })
+  ipcMain.handle(
+    'coach:testLlmConnection',
+    [
+      object({
+        api_key: freeText({ max: 512 }),
+        base_url: text({ max: 4096 }),
+        model: llmText(),
+      }),
+    ],
+    async (_event, config) => {
+      const o = options.getCoachOrchestrator?.()
+      if (!o) return { success: false, message: 'Coach 未初始化' }
+      // 前端传了 Key 就用前端的，否则用已保存的
+      const apiKey = config.api_key || o.getLlmHintService().getDecryptedApiKey()
+      if (!apiKey) {
+        return { success: false, message: '未配置 API Key' }
+      }
+      return o.getLlmHintService().testConnection({
+        api_key: apiKey,
+        base_url: config.base_url,
+        model: config.model,
+        enabled: true,
+      })
+    },
+  )
 }

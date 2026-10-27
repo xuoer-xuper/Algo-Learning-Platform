@@ -6,15 +6,9 @@ export type {
   SiteCredentialWriteInput,
 } from './credential/types'
 
-export {
-  CREDENTIAL_ENVELOPE_PROVIDER,
-  CREDENTIAL_ENVELOPE_VERSION,
-} from './credential/types'
+export { CREDENTIAL_ENVELOPE_PROVIDER, CREDENTIAL_ENVELOPE_VERSION } from './credential/types'
 
-export {
-  parseCredentialEnvelope,
-  serializeCredentialEnvelope,
-} from './credential/serialization'
+export { parseCredentialEnvelope, serializeCredentialEnvelope } from './credential/serialization'
 
 export {
   getCredentialById,

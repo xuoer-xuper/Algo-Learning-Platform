@@ -1,4 +1,10 @@
-import { dialog, type BrowserWindow, type IpcMainInvokeEvent, type OpenDialogOptions, type SaveDialogOptions } from 'electron'
+import {
+  dialog,
+  type BrowserWindow,
+  type IpcMainInvokeEvent,
+  type OpenDialogOptions,
+  type SaveDialogOptions,
+} from 'electron'
 import { getShellWindowOwner, ipcMain } from './trustedSender'
 import { bool } from './payloadSchema'
 import path from 'node:path'
@@ -20,7 +26,10 @@ function getOwnerId(event: IpcMainInvokeEvent): string | null {
   return getShellWindowOwner(event)?.id ?? null
 }
 
-function getParentWindow(event: IpcMainInvokeEvent, options: RegisterBackupIpcOptions): BrowserWindow | null {
+function getParentWindow(
+  event: IpcMainInvokeEvent,
+  options: RegisterBackupIpcOptions,
+): BrowserWindow | null {
   return options.getParentWindow?.(event) ?? getShellWindowOwner(event)?.browserWindow ?? null
 }
 
@@ -54,9 +63,10 @@ export function registerBackupIpc(options: RegisterBackupIpcOptions = {}): void 
       return { success: false, error: '取消导出' }
     }
 
-    const filePath = path.extname(result.filePath).toLowerCase() === '.json'
-      ? result.filePath
-      : `${result.filePath}.json`
+    const filePath =
+      path.extname(result.filePath).toLowerCase() === '.json'
+        ? result.filePath
+        : `${result.filePath}.json`
     return exportLearningDataToFile(filePath)
   })
 
@@ -97,9 +107,16 @@ export function registerBackupIpc(options: RegisterBackupIpcOptions = {}): void 
    */
   ipcMain.handle('backup:confirmLearningDataImport', [bool], (event, overwriteConflicts) => {
     const ownerId = getOwnerId(event)
-    const pendingImport = ownerId ? pendingImports.get(ownerId) ?? null : null
+    const pendingImport = ownerId ? (pendingImports.get(ownerId) ?? null) : null
     if (!pendingImport) {
-      return { success: false, error: '没有待确认的导入数据', inserted: {}, updated: {}, skipped: {}, conflicts: [] }
+      return {
+        success: false,
+        error: '没有待确认的导入数据',
+        inserted: {},
+        updated: {},
+        skipped: {},
+        conflicts: [],
+      }
     }
 
     const result = importLearningDataFromParsedExport(pendingImport, overwriteConflicts)

@@ -6,21 +6,31 @@ import { localDayFromTimestamp } from '../stats/date'
 export function updateFirstAc(problemId: string): string[] {
   const db = getDb()
   const now = nowBeijing()
-  const existing = db.prepare(`
+  const existing = db
+    .prepare(
+      `
     SELECT first_solved_at FROM problems WHERE id = ?
-  `).get(problemId) as { first_solved_at: string | null } | undefined
+  `,
+    )
+    .get(problemId) as { first_solved_at: string | null } | undefined
 
-  const firstAc = db.prepare(`
+  const firstAc = db
+    .prepare(
+      `
     SELECT submitted_at FROM submissions
     WHERE problem_id = ? AND verdict = 'AC'
     ORDER BY submitted_at ASC LIMIT 1
-  `).get(problemId) as FirstAcRow | undefined
+  `,
+    )
+    .get(problemId) as FirstAcRow | undefined
 
   if (firstAc) {
-    db.prepare(`
+    db.prepare(
+      `
       UPDATE problems SET status = 'solved', first_solved_at = ?, updated_at = ?
       WHERE id = ? AND (first_solved_at IS NULL OR first_solved_at > ?)
-    `).run(firstAc.submitted_at, now, problemId, firstAc.submitted_at)
+    `,
+    ).run(firstAc.submitted_at, now, problemId, firstAc.submitted_at)
   }
 
   const affectedDays = new Set<string>()
@@ -50,14 +60,21 @@ export function recomputeProblemSubmissionState(problemIds: Iterable<string>): s
   const affectedDates = new Set<string>()
 
   for (const problemId of new Set(problemIds)) {
-    const existing = findProblem.get(problemId) as {
-      status: string; first_solved_at: string | null
-    } | undefined
+    const existing = findProblem.get(problemId) as
+      | {
+          status: string
+          first_solved_at: string | null
+        }
+      | undefined
     if (!existing) continue
     const submissions = aggregate.get(problemId) as { total: number; first_ac: string | null }
-    const status = submissions.first_ac ? 'solved'
-      : submissions.total > 0 ? 'attempted'
-        : existing.status === 'unknown' ? 'unknown' : 'visited'
+    const status = submissions.first_ac
+      ? 'solved'
+      : submissions.total > 0
+        ? 'attempted'
+        : existing.status === 'unknown'
+          ? 'unknown'
+          : 'visited'
     update.run(status, submissions.first_ac, now, problemId, status, submissions.first_ac)
     for (const timestamp of [existing.first_solved_at, submissions.first_ac]) {
       const date = timestamp ? localDayFromTimestamp(timestamp) : null

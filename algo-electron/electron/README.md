@@ -14,27 +14,27 @@ Renderer 不能直接访问本目录能力，只能通过 `preload.ts` 暴露的
 
 ## 3. 子目录分类
 
-| 目录 | 职责 |
-|---|---|
-| `app/` | 主进程配置、Chromium flag、服务初始化、最近站点预连接和 smoke test 编排。 |
-| `backup/` | 本地 SQLite 备份、学习数据 JSON 导入导出和冲突检测。 |
-| `browser/` | `WebContentsView`、多标签、独立窗口、OJ session 和远程页面 preload bridge。 |
-| `windows/` | 完整壳 `AppWindow`、WindowManager、ViewRegistry、sender 所有权和应用级窗口/标签会话恢复。 |
-| `ipc/` | 按业务域注册主进程 IPC handler，统一由 `registerMainIpc.ts` 组合。 |
-| `db/` | SQLite 连接、migration、repository 和数据库写入边界。 |
-| `downloads/` | 普通下载受控落盘、文件名/重名治理和 `.user.js` 安装请求登记。 |
-| `adapters/` | 站点 adapter 注册、题目身份解析、提交解析、实时 hook 和共享 helper。 |
-| `sites/` | 内置站点配置、用户站点配置类型和站点 registry。 |
-| `parsers/` | URL 识别、标题抓取脚本、标题校验和配置 pattern 兼容层。 |
-| `submissions/` | 实时提交 watcher、批量写入、题目关联、手动同步和页面 scraper。 |
-| `tracking/` | 题目访问、停留时长、activity events 和 daily stats 触发。 |
-| `cookies/` | CookieVault 和持久登录态读取边界。 |
-| `credentials/` | CredentialVault、安全存储和凭据脱敏边界。 |
-| `notes/` | Markdown 笔记、图片附件、`note-asset://` 协议和 DB 缓存。 |
-| `scripts/` | 用户脚本 metadata、匹配、注入和脚本服务。 |
-| `ai/` | 本地 AI 上下文、复习建议、薄弱标签和周期总结。 |
-| `rating/` | Codeforces rating 抓取和账号 rating 更新。 |
-| `shared/` | 主进程共享类型、时间 helper 和跨模块基础工具。 |
+| 目录           | 职责                                                                                      |
+| -------------- | ----------------------------------------------------------------------------------------- |
+| `app/`         | 主进程配置、Chromium flag、服务初始化、最近站点预连接和 smoke test 编排。                 |
+| `backup/`      | 本地 SQLite 备份、学习数据 JSON 导入导出和冲突检测。                                      |
+| `browser/`     | `WebContentsView`、多标签、独立窗口、OJ session 和远程页面 preload bridge。               |
+| `windows/`     | 完整壳 `AppWindow`、WindowManager、ViewRegistry、sender 所有权和应用级窗口/标签会话恢复。 |
+| `ipc/`         | 按业务域注册主进程 IPC handler，统一由 `registerMainIpc.ts` 组合。                        |
+| `db/`          | SQLite 连接、migration、repository 和数据库写入边界。                                     |
+| `downloads/`   | 普通下载受控落盘、文件名/重名治理和 `.user.js` 安装请求登记。                             |
+| `adapters/`    | 站点 adapter 注册、题目身份解析、提交解析、实时 hook 和共享 helper。                      |
+| `sites/`       | 内置站点配置、用户站点配置类型和站点 registry。                                           |
+| `parsers/`     | URL 识别、标题抓取脚本、标题校验和配置 pattern 兼容层。                                   |
+| `submissions/` | 实时提交 watcher、批量写入、题目关联、手动同步和页面 scraper。                            |
+| `tracking/`    | 题目访问、停留时长、activity events 和 daily stats 触发。                                 |
+| `cookies/`     | CookieVault 和持久登录态读取边界。                                                        |
+| `credentials/` | CredentialVault、安全存储和凭据脱敏边界。                                                 |
+| `notes/`       | Markdown 笔记、图片附件、`note-asset://` 协议和 DB 缓存。                                 |
+| `scripts/`     | 用户脚本 metadata、匹配、注入和脚本服务。                                                 |
+| `ai/`          | 本地 AI 上下文、复习建议、薄弱标签和周期总结。                                            |
+| `rating/`      | Codeforces rating 抓取和账号 rating 更新。                                                |
+| `shared/`      | 主进程共享类型、时间 helper 和跨模块基础工具。                                            |
 
 每个子目录维护自己的 README，说明更细的实现程度、核心函数和验证入口。
 

@@ -6,9 +6,15 @@ interface RendererGoneDetails {
 }
 
 interface ShellWebContents {
-  on(event: 'render-process-gone', listener: (event: unknown, details: RendererGoneDetails) => void): unknown
+  on(
+    event: 'render-process-gone',
+    listener: (event: unknown, details: RendererGoneDetails) => void,
+  ): unknown
   on(event: 'unresponsive' | 'responsive', listener: () => void): unknown
-  off(event: 'render-process-gone', listener: (event: unknown, details: RendererGoneDetails) => void): unknown
+  off(
+    event: 'render-process-gone',
+    listener: (event: unknown, details: RendererGoneDetails) => void,
+  ): unknown
   off(event: 'unresponsive' | 'responsive', listener: () => void): unknown
   isDestroyed(): boolean
   reload(): void
@@ -25,7 +31,11 @@ export function installShellRendererRecovery(
   options: ShellRendererRecoveryOptions,
 ): () => void {
   const shouldReload = options.shouldReload ?? (() => true)
-  const schedule = options.schedule ?? ((callback) => { setTimeout(callback, 0) })
+  const schedule =
+    options.schedule ??
+    ((callback) => {
+      setTimeout(callback, 0)
+    })
 
   const onRenderProcessGone = (_event: unknown, details: RendererGoneDetails): void => {
     options.logger.error('shell.renderer-gone', {

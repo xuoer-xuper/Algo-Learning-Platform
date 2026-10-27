@@ -46,11 +46,8 @@ export function NotePanelModal({ problemId, onClose }: Props) {
     void loadNotes()
   }, [loadNotes])
 
-  const {
-    flushPendingTitle,
-    scheduleSaveTitle,
-    clearPendingTitleForNote,
-  } = useDebouncedNoteTitleSave({ onSaved: loadNotes })
+  const { flushPendingTitle, scheduleSaveTitle, clearPendingTitleForNote } =
+    useDebouncedNoteTitleSave({ onSaved: loadNotes })
 
   const createNewNote = async () => {
     setDiscardOpen(false)

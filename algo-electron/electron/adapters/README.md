@@ -15,15 +15,15 @@
 
 已内置并接入 registry 的站点：
 
-| 站点 | 目录拆分 | 实时 hook | 提交解析 | 手动同步/表格 |
-| --- | --- | --- | --- | --- |
-| Codeforces | `problem.ts`、`submissions.ts`、`hook.ts`、`urls.ts` | 已实现 | API、实时表格 | 已实现 |
-| AcWing | `problem.ts`、`submissions.ts` | 已实现 | 实时结果、表格 | 已实现 |
-| Nowcoder | `problem.ts`、`submissions.ts`、`tables.ts`、`hook.ts` | 已实现 | 网络评测结果 | 已实现 |
-| VJudge | `problem.ts`、`submissions.ts`、`hook.ts` | 已实现 | 网络状态、详情兜底 | 已实现 |
-| PTA | `problem.ts`、`submissions.ts` | 已实现 | 实时结果、专用 scraper | 已实现 |
-| Luogu | `problem.ts`、`submissions.ts` | 已实现 | `_contentOnly=1` / 降级数据 | 已实现 |
-| LeetCode | `problem.ts`、`submissions.ts`、`hook.ts` | 已实现 | submit check 接口 | 已实现 |
+| 站点       | 目录拆分                                               | 实时 hook | 提交解析                    | 手动同步/表格 |
+| ---------- | ------------------------------------------------------ | --------- | --------------------------- | ------------- |
+| Codeforces | `problem.ts`、`submissions.ts`、`hook.ts`、`urls.ts`   | 已实现    | API、实时表格               | 已实现        |
+| AcWing     | `problem.ts`、`submissions.ts`                         | 已实现    | 实时结果、表格              | 已实现        |
+| Nowcoder   | `problem.ts`、`submissions.ts`、`tables.ts`、`hook.ts` | 已实现    | 网络评测结果                | 已实现        |
+| VJudge     | `problem.ts`、`submissions.ts`、`hook.ts`              | 已实现    | 网络状态、详情兜底          | 已实现        |
+| PTA        | `problem.ts`、`submissions.ts`                         | 已实现    | 实时结果、专用 scraper      | 已实现        |
+| Luogu      | `problem.ts`、`submissions.ts`                         | 已实现    | `_contentOnly=1` / 降级数据 | 已实现        |
+| LeetCode   | `problem.ts`、`submissions.ts`、`hook.ts`              | 已实现    | submit check 接口           | 已实现        |
 
 七站实时提交监测已按手测收口。后续修改必须继续满足 `docs/DESIGN/SUBMISSION_MONITORING_DESIGN.md` 的 fail-closed 规则。
 

@@ -43,7 +43,13 @@ test('app menu exposes a manual reopen-last-session entry only when provided', (
   )
 
   let reopened = 0
-  const withCallback = createAppMenuTemplate(() => undefined, undefined, () => { reopened += 1 })
+  const withCallback = createAppMenuTemplate(
+    () => undefined,
+    undefined,
+    () => {
+      reopened += 1
+    },
+  )
   const item = withCallback.find((entry) => entry.label === '恢复上次会话')
   assert.ok(item && typeof item.click === 'function')
   item.click!({} as never, {} as never, {} as never)

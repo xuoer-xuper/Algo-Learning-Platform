@@ -15,7 +15,8 @@ import {
 import { parseScriptMetadata } from '../../electron/scripts/userScriptMetadata'
 
 function scriptCode(options: { name?: string; namespace?: string; version?: string } = {}): string {
-  const namespaceLine = options.namespace === undefined ? '' : `// @namespace   ${options.namespace}\n`
+  const namespaceLine =
+    options.namespace === undefined ? '' : `// @namespace   ${options.namespace}\n`
   const versionLine = options.version === undefined ? '' : `// @version     ${options.version}\n`
   return `// ==UserScript==\n// @name        ${options.name ?? 'Sample Helper'}\n${namespaceLine}${versionLine}// ==/UserScript==\nconsole.log('sample')\n`
 }
@@ -31,8 +32,14 @@ test('compares common userscript versions without lexical numeric errors', () =>
 test('keeps exact namespace and name as a stable collision-free identity', () => {
   const identity = createUserScriptIdentity('https://example.com/a|b', 'Helper|One')
   assert.strictEqual(identity.key, '["https://example.com/a|b","Helper|One"]')
-  assert.notStrictEqual(identity.key, createUserScriptIdentity('https://example.com/a', 'b|Helper|One').key)
-  assert.notStrictEqual(identity.key, createUserScriptIdentity('https://example.com/a|b', 'helper|One').key)
+  assert.notStrictEqual(
+    identity.key,
+    createUserScriptIdentity('https://example.com/a', 'b|Helper|One').key,
+  )
+  assert.notStrictEqual(
+    identity.key,
+    createUserScriptIdentity('https://example.com/a|b', 'helper|One').key,
+  )
 })
 
 test('creates readable Windows-safe slugs with bounded reserved-name handling', () => {
@@ -49,13 +56,15 @@ test('decides exact identity updates and produces recognizable deterministic fil
   const decision = decideUserScriptImport({
     code,
     sourceFileName: 'download.user.js',
-    existingScripts: [{
-      id: 'installed-id',
-      namespace: 'https://example.com/scripts',
-      identityName: 'Sample Helper',
-      version: '1.9',
-      filePath: 'old-file.user.js',
-    }],
+    existingScripts: [
+      {
+        id: 'installed-id',
+        namespace: 'https://example.com/scripts',
+        identityName: 'Sample Helper',
+        version: '1.9',
+        filePath: 'old-file.user.js',
+      },
+    ],
   })
 
   assert.strictEqual(decision.action, 'update')
@@ -63,16 +72,21 @@ test('decides exact identity updates and produces recognizable deterministic fil
   assert.strictEqual(decision.versionComparison, 'newer')
   assert.strictEqual(decision.autoUpdateEnabled, true)
   assert.match(decision.fileName, /^Sample-Helper--[a-f0-9]{12}--[a-f0-9]{12}\.user\.js$/)
-  assert.strictEqual(decision.fileName, decideUserScriptImport({ code, sourceFileName: 'other.js' }).fileName)
+  assert.strictEqual(
+    decision.fileName,
+    decideUserScriptImport({ code, sourceFileName: 'other.js' }).fileName,
+  )
 
   const caseDifferent = decideUserScriptImport({
     code: scriptCode({ name: 'sample Helper', namespace: 'https://example.com/scripts' }),
     sourceFileName: 'download.user.js',
-    existingScripts: [{
-      id: 'installed-id',
-      namespace: 'https://example.com/scripts',
-      identityName: 'Sample Helper',
-    }],
+    existingScripts: [
+      {
+        id: 'installed-id',
+        namespace: 'https://example.com/scripts',
+        identityName: 'Sample Helper',
+      },
+    ],
   })
   assert.strictEqual(caseDifferent.action, 'create')
 })
@@ -116,12 +130,14 @@ test('creates an independent disabled-auto-update-ready local copy decision', ()
     sourceFileName: 'sample.user.js',
     mode: 'copy',
     localCopyId: 'a0c57ec1-4f7d-4d30-973a-d21047d17ebc',
-    existingScripts: [{
-      id: 'original-id',
-      namespace: 'https://example.com/scripts',
-      identityName: 'Sample Helper',
-      version: '2.0',
-    }],
+    existingScripts: [
+      {
+        id: 'original-id',
+        namespace: 'https://example.com/scripts',
+        identityName: 'Sample Helper',
+        version: '2.0',
+      },
+    ],
   })
 
   assert.strictEqual(decision.action, 'create')
@@ -129,7 +145,10 @@ test('creates an independent disabled-auto-update-ready local copy decision', ()
   assert.strictEqual(decision.autoUpdateEnabled, false)
   assert.strictEqual(decision.identity.namespace, 'local:a0c57ec1-4f7d-4d30-973a-d21047d17ebc')
   assert.strictEqual(decision.identity.identityName, 'Sample Helper')
-  assert.strictEqual(parseScriptMetadata(decision.code).namespace, 'local:a0c57ec1-4f7d-4d30-973a-d21047d17ebc')
+  assert.strictEqual(
+    parseScriptMetadata(decision.code).namespace,
+    'local:a0c57ec1-4f7d-4d30-973a-d21047d17ebc',
+  )
 })
 
 test('writes through an injected persistence callback and removes files when persistence fails', async () => {
@@ -170,8 +189,7 @@ test('writes through an injected persistence callback and removes files when per
     )
     assert.ok(!fs.existsSync(failedPath))
     assert.ok(!fs.existsSync(path.join(directory, `.${failedDecision.fileName}.failure.tmp`)))
-  }
-  finally {
+  } finally {
     fs.rmSync(directory, { recursive: true, force: true })
   }
 })
@@ -179,7 +197,10 @@ test('writes through an injected persistence callback and removes files when per
 test('reuses an identical content-addressed file without deleting it on persistence failure', async () => {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'alp-userscript-reuse-'))
   try {
-    const decision = decideUserScriptImport({ code: scriptCode(), sourceFileName: 'sample.user.js' })
+    const decision = decideUserScriptImport({
+      code: scriptCode(),
+      sourceFileName: 'sample.user.js',
+    })
     const destination = path.join(directory, decision.fileName)
     fs.writeFileSync(destination, decision.code, 'utf8')
 
@@ -192,8 +213,7 @@ test('reuses an identical content-addressed file without deleting it on persiste
       /repository failure/,
     )
     assert.strictEqual(fs.readFileSync(destination, 'utf8'), decision.code)
-  }
-  finally {
+  } finally {
     fs.rmSync(directory, { recursive: true, force: true })
   }
 })

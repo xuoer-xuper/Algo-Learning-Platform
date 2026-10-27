@@ -19,8 +19,9 @@ describe('omnibox search configuration', () => {
   it('accepts one literal query placeholder in an HTTPS custom template', () => {
     const template = 'https://search.example/find?term={query}&source=algo'
     expect(validateCustomSearchTemplate(template)).toEqual({ valid: true, template })
-    expect(buildSearchUrl('A+B', { engine: 'custom', customTemplate: template }))
-      .toBe('https://search.example/find?term=A%2BB&source=algo')
+    expect(buildSearchUrl('A+B', { engine: 'custom', customTemplate: template })).toBe(
+      'https://search.example/find?term=A%2BB&source=algo',
+    )
   })
 
   it.each([
@@ -36,10 +37,13 @@ describe('omnibox search configuration', () => {
   })
 
   it('falls back to Bing when a custom engine has no valid template', () => {
-    expect(normalizeSearchEngineConfig({ engine: 'custom', customTemplate: 'http://bad/{query}' }))
-      .toEqual({ engine: 'bing', customTemplate: null })
-    expect(normalizeSearchEngineConfig({ engine: 'unknown', customTemplate: null }))
-      .toEqual({ engine: 'bing', customTemplate: null })
+    expect(
+      normalizeSearchEngineConfig({ engine: 'custom', customTemplate: 'http://bad/{query}' }),
+    ).toEqual({ engine: 'bing', customTemplate: null })
+    expect(normalizeSearchEngineConfig({ engine: 'unknown', customTemplate: null })).toEqual({
+      engine: 'bing',
+      customTemplate: null,
+    })
   })
 })
 
@@ -101,11 +105,14 @@ describe('omnibox input resolution', () => {
   })
 
   it('allows explicit HTTP only for development loopback hosts', () => {
-    expect(resolveOmniboxInput('http://localhost:5173/problems', { allowInsecureLocalhost: true }))
-      .toEqual({ kind: 'url', url: 'http://localhost:5173/problems' })
-    expect(resolveOmniboxInput('http://127.0.0.1:4173/', { allowInsecureLocalhost: true }))
-      .toEqual({ kind: 'url', url: 'http://127.0.0.1:4173/' })
-    expect(resolveOmniboxInput('http://192.168.1.20:5173/', { allowInsecureLocalhost: true }))
-      .toEqual({ kind: 'blocked', reason: 'insecure-http' })
+    expect(
+      resolveOmniboxInput('http://localhost:5173/problems', { allowInsecureLocalhost: true }),
+    ).toEqual({ kind: 'url', url: 'http://localhost:5173/problems' })
+    expect(resolveOmniboxInput('http://127.0.0.1:4173/', { allowInsecureLocalhost: true })).toEqual(
+      { kind: 'url', url: 'http://127.0.0.1:4173/' },
+    )
+    expect(
+      resolveOmniboxInput('http://192.168.1.20:5173/', { allowInsecureLocalhost: true }),
+    ).toEqual({ kind: 'blocked', reason: 'insecure-http' })
   })
 })

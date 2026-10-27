@@ -742,8 +742,11 @@ test('20 道样例：每道题至少解析出一个字段', () => {
     }
   }
   // 所有 20 道题都应至少解析出一个字段
-  assert.strictEqual(parsedCount, sampleProblems.length,
-    `all ${sampleProblems.length} samples should parse at least one field, got ${parsedCount}`)
+  assert.strictEqual(
+    parsedCount,
+    sampleProblems.length,
+    `all ${sampleProblems.length} samples should parse at least one field, got ${parsedCount}`,
+  )
 })
 
 test('样例统计：时间限制抽取数 >= 18', () => {
@@ -752,7 +755,10 @@ test('样例统计：时间限制抽取数 >= 18', () => {
     const result = parseConstraintsStatic(problem.text, problem.platform, NOW)
     if (result?.timeLimitSec !== null) timeLimitCount++
   }
-  assert.ok(timeLimitCount >= 18, `time limit should be parsed in >= 18 samples, got ${timeLimitCount}`)
+  assert.ok(
+    timeLimitCount >= 18,
+    `time limit should be parsed in >= 18 samples, got ${timeLimitCount}`,
+  )
 })
 
 test('样例统计：nUpper 抽取数 >= 17', () => {
@@ -777,7 +783,8 @@ test('静默退化: 无效文本不抛错', () => {
 })
 
 test('静默退化: HTML 无约束内容返回 null 或空约束', () => {
-  const html = '<html><body><h1>Problem Title</h1><p>This is a problem with no constraints.</p></body></html>'
+  const html =
+    '<html><body><h1>Problem Title</h1><p>This is a problem with no constraints.</p></body></html>'
   const text = extractConstraintText(html, 'codeforces')
   // 不抛错即可（text 可能为非 null 的纯文本，但 parseConstraintsStatic 应返回 null）
   if (text) {

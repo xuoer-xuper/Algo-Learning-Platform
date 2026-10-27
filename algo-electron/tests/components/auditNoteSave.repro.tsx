@@ -13,14 +13,28 @@ const api = vi.hoisted(() => ({
 }))
 
 vi.mock('../../src/features/problems/problemsApi', () => ({
-  ...api, createProblemNote: vi.fn(), deleteNote: vi.fn(), openNotesDirectory: vi.fn(),
-  updateNoteType: vi.fn(), saveNoteImage: vi.fn(),
+  ...api,
+  createProblemNote: vi.fn(),
+  deleteNote: vi.fn(),
+  openNotesDirectory: vi.fn(),
+  updateNoteType: vi.fn(),
+  saveNoteImage: vi.fn(),
 }))
 
 // Preserve the real panel and status UI; make editor changes deterministic.
 vi.mock('../../src/features/problems/MilkdownEditor', () => ({
-  MilkdownEditor: ({ initialValue, onChange }: { initialValue: string; onChange: (value: string) => void }) => (
-    <textarea aria-label="Audit body" defaultValue={initialValue} onChange={event => onChange(event.target.value)} />
+  MilkdownEditor: ({
+    initialValue,
+    onChange,
+  }: {
+    initialValue: string
+    onChange: (value: string) => void
+  }) => (
+    <textarea
+      aria-label="Audit body"
+      defaultValue={initialValue}
+      onChange={(event) => onChange(event.target.value)}
+    />
   ),
 }))
 
@@ -30,8 +44,12 @@ afterEach(cleanup)
 
 it('records the current false-success display when note persistence returns false', async () => {
   const note: NoteItem = {
-    id: 'audit-note', title: 'Audit note', content: 'Old body', note_type: 'solution',
-    word_count: 2, updated_at: '2026-09-10T10:00:00+08:00',
+    id: 'audit-note',
+    title: 'Audit note',
+    content: 'Old body',
+    note_type: 'solution',
+    word_count: 2,
+    updated_at: '2026-09-10T10:00:00+08:00',
   }
   api.listNotesByProblem.mockResolvedValue([note])
   api.loadNote.mockResolvedValue(note)
@@ -40,7 +58,12 @@ it('records the current false-success display when note persistence returns fals
   const editor = await screen.findByRole<HTMLTextAreaElement>('textbox', { name: 'Audit body' })
   const readsBefore = api.listNotesByProblem.mock.calls.length
   fireEvent.change(editor, { target: { value: 'New body rejected by storage' } })
-  await waitFor(() => expect(api.updateNoteContent).toHaveBeenCalledExactlyOnceWith(note.id, 'New body rejected by storage'))
+  await waitFor(() =>
+    expect(api.updateNoteContent).toHaveBeenCalledExactlyOnceWith(
+      note.id,
+      'New body rejected by storage',
+    ),
+  )
   await waitFor(() => expect(api.listNotesByProblem.mock.calls.length).toBeGreaterThan(readsBefore))
   const status = view.container.querySelector('.note-save-status')?.textContent
   expect(status).toBe('\u5df2\u4fdd\u5b58')
@@ -52,8 +75,18 @@ it('records the current false-success display when note persistence returns fals
   expect(reopened.value).toBe('Old body')
   const output = path.resolve('tmp/audit-20260911')
   fs.mkdirSync(output, { recursive: true })
-  fs.writeFileSync(path.join(output, 'note-save-ui-results.json'), JSON.stringify({
-    environment: 'Vitest jsdom; real NotePanelModal and NoteEditorPane; editor and IPC are doubles',
-    persistenceReturn: false, statusAfterFailure: status, reopenedBody: reopened.value,
-  }, null, 2))
+  fs.writeFileSync(
+    path.join(output, 'note-save-ui-results.json'),
+    JSON.stringify(
+      {
+        environment:
+          'Vitest jsdom; real NotePanelModal and NoteEditorPane; editor and IPC are doubles',
+        persistenceReturn: false,
+        statusAfterFailure: status,
+        reopenedBody: reopened.value,
+      },
+      null,
+      2,
+    ),
+  )
 })

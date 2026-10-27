@@ -20,11 +20,14 @@ describe('TabManager renderer health', () => {
     view.webContents.emit('render-process-gone', {}, { reason: 'crashed', exitCode: 1 })
 
     assert.strictEqual(window.contentView.children.length, 0)
-    assert.deepStrictEqual(manager.getTabList().map((tab) => ({
-      id: tab.id,
-      url: tab.url,
-      isCrashed: tab.isCrashed,
-    })), [{ id: tabId, url: 'https://example.com/problem', isCrashed: true }])
+    assert.deepStrictEqual(
+      manager.getTabList().map((tab) => ({
+        id: tab.id,
+        url: tab.url,
+        isCrashed: tab.isCrashed,
+      })),
+      [{ id: tabId, url: 'https://example.com/problem', isCrashed: true }],
+    )
 
     manager.reloadTab(tabId)
 
@@ -125,13 +128,23 @@ describe('TabManager renderer health', () => {
 
     const broadcasts: boolean[] = []
     manager.setTabListChangedCallback((tabs) => broadcasts.push(tabs[0].isLoading))
-    contents.emit('did-fail-load', {}, -105, 'ERR_NAME_NOT_RESOLVED', 'https://example.com/flaky', true)
+    contents.emit(
+      'did-fail-load',
+      {},
+      -105,
+      'ERR_NAME_NOT_RESOLVED',
+      'https://example.com/flaky',
+      true,
+    )
 
-    assert.deepStrictEqual(manager.getTabList().map((tab) => ({
-      id: tab.id,
-      isCrashed: tab.isCrashed,
-      isLoading: tab.isLoading,
-    })), [{ id: tabId, isCrashed: true, isLoading: false }])
+    assert.deepStrictEqual(
+      manager.getTabList().map((tab) => ({
+        id: tab.id,
+        isCrashed: tab.isCrashed,
+        isLoading: tab.isLoading,
+      })),
+      [{ id: tabId, isCrashed: true, isLoading: false }],
+    )
     assert.deepStrictEqual(window.contentView.children, [])
     assert.deepStrictEqual(broadcasts, [false])
   })
@@ -147,18 +160,35 @@ describe('TabManager renderer health', () => {
 
     contents.emit('render-process-gone', {}, { reason: 'crashed', exitCode: 1 })
     manager.reloadTab(tabId)
-    contents.emit('did-fail-load', {}, -105, 'ERR_NAME_NOT_RESOLVED', 'https://example.com/flaky', true)
+    contents.emit(
+      'did-fail-load',
+      {},
+      -105,
+      'ERR_NAME_NOT_RESOLVED',
+      'https://example.com/flaky',
+      true,
+    )
 
     const broadcasts: unknown[] = []
     manager.setTabListChangedCallback((tabs) => broadcasts.push(tabs))
-    contents.emit('did-fail-load', {}, -105, 'ERR_NAME_NOT_RESOLVED', 'https://example.com/flaky', true)
+    contents.emit(
+      'did-fail-load',
+      {},
+      -105,
+      'ERR_NAME_NOT_RESOLVED',
+      'https://example.com/flaky',
+      true,
+    )
 
     assert.deepStrictEqual(broadcasts, [])
-    assert.deepStrictEqual(manager.getTabList().map((tab) => ({
-      id: tab.id,
-      isCrashed: tab.isCrashed,
-      isLoading: tab.isLoading,
-    })), [{ id: tabId, isCrashed: true, isLoading: false }])
+    assert.deepStrictEqual(
+      manager.getTabList().map((tab) => ({
+        id: tab.id,
+        isCrashed: tab.isCrashed,
+        isLoading: tab.isLoading,
+      })),
+      [{ id: tabId, isCrashed: true, isLoading: false }],
+    )
     assert.deepStrictEqual(window.contentView.children, [])
   })
 
@@ -178,18 +208,28 @@ describe('TabManager renderer health', () => {
     // -3 是用户按停止键；把它当恢复失败处理会让停止操作显示成崩溃页。
     contents.emit('did-fail-load', {}, -3, 'ERR_ABORTED', 'https://example.com/slow', true)
     // 子框架失败与标签页健康无关，主框架仍在恢复中。
-    contents.emit('did-fail-load', {}, -105, 'ERR_NAME_NOT_RESOLVED', 'https://ads.example/pixel', false)
+    contents.emit(
+      'did-fail-load',
+      {},
+      -105,
+      'ERR_NAME_NOT_RESOLVED',
+      'https://ads.example/pixel',
+      false,
+    )
 
     assert.strictEqual(manager.getTabList()[0].isLoading, true)
     assert.strictEqual(manager.getTabList()[0].isCrashed, true)
 
     contents.emit('did-finish-load')
 
-    assert.deepStrictEqual(manager.getTabList().map((tab) => ({
-      id: tab.id,
-      isCrashed: tab.isCrashed,
-      isLoading: tab.isLoading,
-    })), [{ id: tabId, isCrashed: false, isLoading: false }])
+    assert.deepStrictEqual(
+      manager.getTabList().map((tab) => ({
+        id: tab.id,
+        isCrashed: tab.isCrashed,
+        isLoading: tab.isLoading,
+      })),
+      [{ id: tabId, isCrashed: false, isLoading: false }],
+    )
     assert.deepStrictEqual(window.contentView.children, [view])
   })
 
@@ -201,12 +241,22 @@ describe('TabManager renderer health', () => {
     await drainNavigationEvents()
     const view = window.contentView.children[0]
 
-    view.webContents.emit('did-fail-load', {}, -105, 'ERR_NAME_NOT_RESOLVED', 'https://example.com/live/next', true)
+    view.webContents.emit(
+      'did-fail-load',
+      {},
+      -105,
+      'ERR_NAME_NOT_RESOLVED',
+      'https://example.com/live/next',
+      true,
+    )
 
-    assert.deepStrictEqual(manager.getTabList().map((tab) => ({
-      id: tab.id,
-      isCrashed: tab.isCrashed,
-    })), [{ id: tabId, isCrashed: false }])
+    assert.deepStrictEqual(
+      manager.getTabList().map((tab) => ({
+        id: tab.id,
+        isCrashed: tab.isCrashed,
+      })),
+      [{ id: tabId, isCrashed: false }],
+    )
     assert.deepStrictEqual(window.contentView.children, [view])
   })
 
@@ -221,7 +271,10 @@ describe('TabManager renderer health', () => {
     let rejectRecovery: (error: Error) => void = () => undefined
     // 恢复失败的回调挂在 loadURL/reload 返回的 promise 上，所以要把它悬在
     // 手里，等 view 被换掉之后再让它落地——这就是"迟到的失败"。
-    staleContents.reload = (() => new Promise<void>((_resolve, reject) => { rejectRecovery = reject })) as never
+    staleContents.reload = (() =>
+      new Promise<void>((_resolve, reject) => {
+        rejectRecovery = reject
+      })) as never
 
     staleContents.emit('render-process-gone', {}, { reason: 'crashed', exitCode: 1 })
     manager.reloadTab(tabId)
@@ -238,11 +291,14 @@ describe('TabManager renderer health', () => {
     rejectRecovery(new Error('stale recovery load failed'))
     await drainNavigationEvents()
 
-    assert.deepStrictEqual(manager.getTabList().map((tab) => ({
-      id: tab.id,
-      isCrashed: tab.isCrashed,
-      isLoading: tab.isLoading,
-    })), [{ id: tabId, isCrashed: false, isLoading: false }])
+    assert.deepStrictEqual(
+      manager.getTabList().map((tab) => ({
+        id: tab.id,
+        isCrashed: tab.isCrashed,
+        isLoading: tab.isLoading,
+      })),
+      [{ id: tabId, isCrashed: false, isLoading: false }],
+    )
     assert.deepStrictEqual(window.contentView.children, [freshView])
   })
 })

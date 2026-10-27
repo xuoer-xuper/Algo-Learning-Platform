@@ -1,7 +1,11 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { applyThemeAttribute, DARK_COLOR_SCHEME_QUERY, installThemeAttribute } from '../../src/theme'
+import {
+  applyThemeAttribute,
+  DARK_COLOR_SCHEME_QUERY,
+  installThemeAttribute,
+} from '../../src/theme'
 
 /**
  * B5.4 暗色模式与 B5.1 设置页分区导航。
@@ -33,12 +37,20 @@ const { panelProbe } = vi.hoisted(() => ({
 }))
 
 vi.mock('../../src/features/settings/CoachPanel', () => ({ CoachPanel: panelProbe('coach') }))
-vi.mock('../../src/features/settings/SearchEnginePanel', () => ({ SearchEnginePanel: panelProbe('search') }))
+vi.mock('../../src/features/settings/SearchEnginePanel', () => ({
+  SearchEnginePanel: panelProbe('search'),
+}))
 vi.mock('../../src/features/settings/LlmConfigPanel', () => ({ LlmConfigPanel: panelProbe('llm') }))
-vi.mock('../../src/features/settings/SiteManagementPanel', () => ({ SiteManagementPanel: panelProbe('sites') }))
-vi.mock('../../src/features/settings/CodeforcesSyncPanel', () => ({ CodeforcesSyncPanel: panelProbe('sync') }))
+vi.mock('../../src/features/settings/SiteManagementPanel', () => ({
+  SiteManagementPanel: panelProbe('sites'),
+}))
+vi.mock('../../src/features/settings/CodeforcesSyncPanel', () => ({
+  CodeforcesSyncPanel: panelProbe('sync'),
+}))
 vi.mock('../../src/features/settings/BackupPanel', () => ({ BackupPanel: panelProbe('data') }))
-vi.mock('../../src/features/settings/LearningOverviewPanel', () => ({ LearningOverviewPanel: panelProbe('overview') }))
+vi.mock('../../src/features/settings/LearningOverviewPanel', () => ({
+  LearningOverviewPanel: panelProbe('overview'),
+}))
 vi.mock('../../src/features/settings/PlatformDistributionSummary', () => ({
   PlatformDistributionSummary: panelProbe('distribution'),
 }))
@@ -193,10 +205,12 @@ describe('设置页分区导航', () => {
   it('清单被完整渲染且保序', () => {
     render(<SettingsPage onClose={() => {}} />)
     const items = [...document.querySelectorAll('.settings-nav-item')]
-    expect(items.map((item) => item.getAttribute('data-section')))
-      .toEqual(SETTINGS_SECTIONS.map((section) => section.id))
-    expect(items.map((item) => item.textContent))
-      .toEqual(SETTINGS_SECTIONS.map((section) => section.label))
+    expect(items.map((item) => item.getAttribute('data-section'))).toEqual(
+      SETTINGS_SECTIONS.map((section) => section.id),
+    )
+    expect(items.map((item) => item.textContent)).toEqual(
+      SETTINGS_SECTIONS.map((section) => section.label),
+    )
   })
 
   /*
@@ -205,7 +219,15 @@ describe('设置页分区导航', () => {
    */
   it('分区 id 集合与默认首项是稳定契约', () => {
     expect(SETTINGS_SECTIONS.map((section) => section.id)).toEqual([
-      'appearance', 'coach', 'search', 'llm', 'sites', 'sync', 'data', 'overview', 'diagnostics',
+      'appearance',
+      'coach',
+      'search',
+      'llm',
+      'sites',
+      'sync',
+      'data',
+      'overview',
+      'diagnostics',
     ])
   })
 
@@ -242,9 +264,9 @@ describe('设置页分区导航', () => {
 
     for (const section of SETTINGS_SECTIONS) {
       fireEvent.click(screen.getByRole('button', { name: section.label }))
-      expect(
-        document.querySelector('.settings-content')?.getAttribute('data-active-section'),
-      ).toBe(section.id)
+      expect(document.querySelector('.settings-content')?.getAttribute('data-active-section')).toBe(
+        section.id,
+      )
       for (const testId of expected[section.id]) {
         expect(screen.getByTestId(testId), `${section.id} 缺 ${testId}`).toBeTruthy()
       }

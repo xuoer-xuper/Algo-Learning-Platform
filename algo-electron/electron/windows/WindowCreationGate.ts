@@ -30,6 +30,11 @@ export class WindowCreationGate<T> {
 
   waitForIdle(): Promise<void> {
     const inFlight = this.inFlight
-    return inFlight ? inFlight.then(() => undefined, () => undefined) : Promise.resolve()
+    return inFlight
+      ? inFlight.then(
+          () => undefined,
+          () => undefined,
+        )
+      : Promise.resolve()
   }
 }

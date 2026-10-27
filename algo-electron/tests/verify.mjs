@@ -10,9 +10,10 @@ const esbuildBin = path.join(projectRoot, 'node_modules', 'esbuild', 'bin', 'esb
 const eslintBin = path.join(projectRoot, 'node_modules', 'eslint', 'bin', 'eslint.js')
 const tscBin = path.join(projectRoot, 'node_modules', 'typescript', 'bin', 'tsc')
 const vitestBin = path.join(projectRoot, 'node_modules', 'vitest', 'vitest.mjs')
-const electronBin = process.platform === 'win32'
-  ? path.join(projectRoot, 'node_modules', 'electron', 'dist', 'electron.exe')
-  : path.join(projectRoot, 'node_modules', '.bin', 'electron')
+const electronBin =
+  process.platform === 'win32'
+    ? path.join(projectRoot, 'node_modules', 'electron', 'dist', 'electron.exe')
+    : path.join(projectRoot, 'node_modules', '.bin', 'electron')
 
 const suites = new Set(['core', 'ai', 'db', 'electron', 'coach', 'all'])
 
@@ -102,7 +103,13 @@ function runTypecheck() {
 }
 
 function runLint() {
-  run(process.execPath, [eslintBin, '.', '--report-unused-disable-directives', '--max-warnings', '0'])
+  run(process.execPath, [
+    eslintBin,
+    '.',
+    '--report-unused-disable-directives',
+    '--max-warnings',
+    '0',
+  ])
 }
 
 function runArchitecture() {
@@ -132,7 +139,10 @@ function runAiElectronTests() {
 function runDbElectronTests() {
   runElectronNodeTest(path.join('tests', 'db', 'backupImport.test.ts'), 'db-backupImport')
   runElectronNodeTest(path.join('tests', 'db', 'migrationSafety.test.ts'), 'db-migrationSafety')
-  runElectronNodeTest(path.join('tests', 'db', 'dailyStatsPerformance.test.ts'), 'db-dailyStatsPerformance')
+  runElectronNodeTest(
+    path.join('tests', 'db', 'dailyStatsPerformance.test.ts'),
+    'db-dailyStatsPerformance',
+  )
   runElectronNodeTest(path.join('tests', 'db', 'repositories.test.ts'), 'db-repositories')
 }
 
@@ -141,7 +151,10 @@ function runCoachElectronTests() {
 }
 
 function runStartupSmoke() {
-  const outfile = bundleTest(path.join('tests', 'electron', 'startupSmoke.test.ts'), 'electron-startupSmoke')
+  const outfile = bundleTest(
+    path.join('tests', 'electron', 'startupSmoke.test.ts'),
+    'electron-startupSmoke',
+  )
   run(process.execPath, [outfile])
 }
 

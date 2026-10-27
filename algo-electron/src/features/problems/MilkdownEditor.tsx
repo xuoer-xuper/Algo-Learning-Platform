@@ -129,7 +129,9 @@ export function MilkdownEditor({ noteId, initialValue, onChange, placeholder }: 
         pendingRef.current = false
         try {
           onChangeRef.current(latestMarkdownRef.current)
-        } catch { /* ignore */ }
+        } catch {
+          /* ignore */
+        }
       }
       crepe.destroy().catch(() => {})
       crepeRef.current = null
@@ -137,7 +139,5 @@ export function MilkdownEditor({ noteId, initialValue, onChange, placeholder }: 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  return (
-    <div className="milkdown-wrapper" ref={containerRef} />
-  )
+  return <div className="milkdown-wrapper" ref={containerRef} />
 }

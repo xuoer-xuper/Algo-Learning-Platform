@@ -10,7 +10,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   reload: () => ipcRenderer.send('browser:reload'),
   goHome: () => ipcRenderer.send('browser:goHome'),
   setSidebarWidth: (width: number) => ipcRenderer.send('browser:setSidebarWidth', width),
-  getBrowserDiagnostics: () => ipcRenderer.invoke('browser:getDiagnostics') as Promise<BrowserDiagnosticsSnapshot>,
+  getBrowserDiagnostics: () =>
+    ipcRenderer.invoke('browser:getDiagnostics') as Promise<BrowserDiagnosticsSnapshot>,
   minimizeWindow: () => ipcRenderer.send('window:minimize'),
   maximizeWindow: () => ipcRenderer.send('window:maximize'),
   closeWindow: () => ipcRenderer.send('window:close'),
@@ -36,15 +37,18 @@ contextBridge.exposeInMainWorld('electronAPI', {
       ipcRenderer.off('ui:command', handler)
     }
   },
-  findInPage: (tabId: string, command: FindInPageCommand) => ipcRenderer.invoke('browser:findInPage', tabId, command) as Promise<FindInPageViewState | null>,
+  findInPage: (tabId: string, command: FindInPageCommand) =>
+    ipcRenderer.invoke('browser:findInPage', tabId, command) as Promise<FindInPageViewState | null>,
   onFindInPageResult: (callback: (state: FindInPageViewState) => void) => {
-    const handler = (_event: Electron.IpcRendererEvent, state: FindInPageViewState) => callback(state)
+    const handler = (_event: Electron.IpcRendererEvent, state: FindInPageViewState) =>
+      callback(state)
     ipcRenderer.on('browser:findInPageResult', handler)
     return () => {
       ipcRenderer.off('browser:findInPageResult', handler)
     }
   },
-  setZoom: (tabId: string, command: ZoomCommand) => ipcRenderer.invoke('browser:setZoom', tabId, command) as Promise<ZoomState | null>,
+  setZoom: (tabId: string, command: ZoomCommand) =>
+    ipcRenderer.invoke('browser:setZoom', tabId, command) as Promise<ZoomState | null>,
   onZoomChanged: (callback: (state: ZoomState) => void) => {
     const handler = (_event: Electron.IpcRendererEvent, state: ZoomState) => callback(state)
     ipcRenderer.on('browser:zoomChanged', handler)
@@ -52,33 +56,65 @@ contextBridge.exposeInMainWorld('electronAPI', {
       ipcRenderer.off('browser:zoomChanged', handler)
     }
   },
-  setDownloadNoticeVisible: (visible: boolean) => ipcRenderer.send('browser:setDownloadNoticeVisible', visible),
-  setErrorNoticeVisible: (visible: boolean) => ipcRenderer.send('browser:setErrorNoticeVisible', visible),
+  setDownloadNoticeVisible: (visible: boolean) =>
+    ipcRenderer.send('browser:setDownloadNoticeVisible', visible),
+  setErrorNoticeVisible: (visible: boolean) =>
+    ipcRenderer.send('browser:setErrorNoticeVisible', visible),
   onDownloadResult: (callback: (result: ManagedDownloadResult) => void) => {
-    const handler = (_event: Electron.IpcRendererEvent, result: ManagedDownloadResult) => callback(result)
+    const handler = (_event: Electron.IpcRendererEvent, result: ManagedDownloadResult) =>
+      callback(result)
     ipcRenderer.on('download:result', handler)
     return () => {
       ipcRenderer.off('download:result', handler)
     }
   },
-  getUserScriptInstall: (installId: string) => ipcRenderer.invoke('browser:getUserScriptInstall', installId) as Promise<PendingUserScriptInstall | null>,
-  cancelUserScriptInstall: (installId: string) => ipcRenderer.invoke('browser:cancelUserScriptInstall', installId) as Promise<boolean>,
-  getRemoteUserScriptInstallPreview: (installId: string) => ipcRenderer.invoke('scripts:getRemoteInstallPreview', installId) as Promise<UserScriptInstallPreview | null>,
-  confirmRemoteUserScriptInstall: (installId: string, action: UserScriptInstallAction) => ipcRenderer.invoke('scripts:confirmRemoteInstall', installId, action) as Promise<UserScriptInstallInstallResult | null>,
-  cancelRemoteUserScriptInstall: (installId: string) => ipcRenderer.invoke('scripts:cancelRemoteInstall', installId) as Promise<boolean>,
-  getUserScriptHostPermissionPrompt: () => ipcRenderer.invoke('userscript:getHostPermissionPrompt') as Promise<UserScriptHostPermissionPrompt | null>,
-  respondUserScriptHostPermission: (promptId: string, allow: boolean) => ipcRenderer.invoke('userscript:respondHostPermission', promptId, allow) as Promise<UserScriptHostPermissionResponse>,
-  onUserScriptHostPermissionPrompt: (callback: (prompt: UserScriptHostPermissionPrompt) => void) => {
-    const handler = (_event: Electron.IpcRendererEvent, prompt: UserScriptHostPermissionPrompt) => callback(prompt)
+  getUserScriptInstall: (installId: string) =>
+    ipcRenderer.invoke(
+      'browser:getUserScriptInstall',
+      installId,
+    ) as Promise<PendingUserScriptInstall | null>,
+  cancelUserScriptInstall: (installId: string) =>
+    ipcRenderer.invoke('browser:cancelUserScriptInstall', installId) as Promise<boolean>,
+  getRemoteUserScriptInstallPreview: (installId: string) =>
+    ipcRenderer.invoke(
+      'scripts:getRemoteInstallPreview',
+      installId,
+    ) as Promise<UserScriptInstallPreview | null>,
+  confirmRemoteUserScriptInstall: (installId: string, action: UserScriptInstallAction) =>
+    ipcRenderer.invoke(
+      'scripts:confirmRemoteInstall',
+      installId,
+      action,
+    ) as Promise<UserScriptInstallInstallResult | null>,
+  cancelRemoteUserScriptInstall: (installId: string) =>
+    ipcRenderer.invoke('scripts:cancelRemoteInstall', installId) as Promise<boolean>,
+  getUserScriptHostPermissionPrompt: () =>
+    ipcRenderer.invoke(
+      'userscript:getHostPermissionPrompt',
+    ) as Promise<UserScriptHostPermissionPrompt | null>,
+  respondUserScriptHostPermission: (promptId: string, allow: boolean) =>
+    ipcRenderer.invoke(
+      'userscript:respondHostPermission',
+      promptId,
+      allow,
+    ) as Promise<UserScriptHostPermissionResponse>,
+  onUserScriptHostPermissionPrompt: (
+    callback: (prompt: UserScriptHostPermissionPrompt) => void,
+  ) => {
+    const handler = (_event: Electron.IpcRendererEvent, prompt: UserScriptHostPermissionPrompt) =>
+      callback(prompt)
     ipcRenderer.on('userscript:hostPermissionRequested', handler)
-    return () => { ipcRenderer.off('userscript:hostPermissionRequested', handler) }
+    return () => {
+      ipcRenderer.off('userscript:hostPermissionRequested', handler)
+    }
   },
 
   // 题目
   listRecentProblems: (limit?: number, platform?: string, status?: string) =>
     ipcRenderer.invoke('problem:listRecent', limit, platform, status),
   getProblemDetail: (problemId: string) => ipcRenderer.invoke('problem:getDetail', problemId),
-  deleteProblem: (problemId: string) => ipcRenderer.invoke('problem:delete', problemId) as Promise<boolean>,
+  deleteProblem: (problemId: string) =>
+    ipcRenderer.invoke('problem:delete', problemId) as Promise<boolean>,
   onProblemsUpdated: (callback: () => void) => {
     const handler = () => callback()
     ipcRenderer.on('problems:updated', handler)
@@ -92,29 +128,55 @@ contextBridge.exposeInMainWorld('electronAPI', {
   syncVjudge: () => ipcRenderer.invoke('submissions:syncVjudge'),
   syncCurrentPage: () => ipcRenderer.invoke('submissions:syncCurrentPage'),
   getRealtimeSubmissionStatus: () => ipcRenderer.invoke('realtimeSubmission:getStatus'),
-  getCookieSummaryForSite: (siteId: string) => ipcRenderer.invoke('cookies:getSiteSummary', siteId) as Promise<CookieSafeSiteSummary>,
-  getCookieSummaryForDomain: (siteId: string, domain: string) => ipcRenderer.invoke('cookies:getDomainSummary', siteId, domain) as Promise<CookieSafeDomainSummary>,
-  listCredentials: (siteId?: string) => ipcRenderer.invoke('credentials:list', siteId) as Promise<CredentialSummary[]>,
-  deleteCredential: (credentialId: string) => ipcRenderer.invoke('credentials:delete', credentialId) as Promise<boolean>,
-  renameCredential: (credentialId: string, displayName: string) => ipcRenderer.invoke('credentials:rename', credentialId, displayName) as Promise<CredentialSummary | null>,
-  getCredentialAutofillPrompt: () => ipcRenderer.invoke('credentials:autofillPrompt') as Promise<CredentialAutofillPrompt | null>,
-  respondCredentialAutofill: (requestId: string, credentialId: string | null) => ipcRenderer.invoke('credentials:autofillRespond', requestId, credentialId) as Promise<boolean>,
+  getCookieSummaryForSite: (siteId: string) =>
+    ipcRenderer.invoke('cookies:getSiteSummary', siteId) as Promise<CookieSafeSiteSummary>,
+  getCookieSummaryForDomain: (siteId: string, domain: string) =>
+    ipcRenderer.invoke(
+      'cookies:getDomainSummary',
+      siteId,
+      domain,
+    ) as Promise<CookieSafeDomainSummary>,
+  listCredentials: (siteId?: string) =>
+    ipcRenderer.invoke('credentials:list', siteId) as Promise<CredentialSummary[]>,
+  deleteCredential: (credentialId: string) =>
+    ipcRenderer.invoke('credentials:delete', credentialId) as Promise<boolean>,
+  renameCredential: (credentialId: string, displayName: string) =>
+    ipcRenderer.invoke(
+      'credentials:rename',
+      credentialId,
+      displayName,
+    ) as Promise<CredentialSummary | null>,
+  getCredentialAutofillPrompt: () =>
+    ipcRenderer.invoke('credentials:autofillPrompt') as Promise<CredentialAutofillPrompt | null>,
+  respondCredentialAutofill: (requestId: string, credentialId: string | null) =>
+    ipcRenderer.invoke('credentials:autofillRespond', requestId, credentialId) as Promise<boolean>,
   onCredentialAutofillPrompt: (callback: (prompt: CredentialAutofillPrompt) => void) => {
-    const handler = (_event: Electron.IpcRendererEvent, prompt: CredentialAutofillPrompt) => callback(prompt)
+    const handler = (_event: Electron.IpcRendererEvent, prompt: CredentialAutofillPrompt) =>
+      callback(prompt)
     ipcRenderer.on('credentials:autofillPrompt', handler)
-    return () => { ipcRenderer.off('credentials:autofillPrompt', handler) }
+    return () => {
+      ipcRenderer.off('credentials:autofillPrompt', handler)
+    }
   },
-  getCredentialCapturePrompt: () => ipcRenderer.invoke('credentials:capturePrompt') as Promise<CredentialCapturePrompt | null>,
-  respondCredentialCapture: (captureId: string, action: CredentialCaptureAction) => ipcRenderer.invoke('credentials:captureRespond', captureId, action) as Promise<boolean>,
+  getCredentialCapturePrompt: () =>
+    ipcRenderer.invoke('credentials:capturePrompt') as Promise<CredentialCapturePrompt | null>,
+  respondCredentialCapture: (captureId: string, action: CredentialCaptureAction) =>
+    ipcRenderer.invoke('credentials:captureRespond', captureId, action) as Promise<boolean>,
   onCredentialCapturePrompt: (callback: (prompt: CredentialCapturePrompt) => void) => {
-    const handler = (_event: Electron.IpcRendererEvent, prompt: CredentialCapturePrompt) => callback(prompt)
+    const handler = (_event: Electron.IpcRendererEvent, prompt: CredentialCapturePrompt) =>
+      callback(prompt)
     ipcRenderer.on('credentials:capturePrompt', handler)
-    return () => { ipcRenderer.off('credentials:capturePrompt', handler) }
+    return () => {
+      ipcRenderer.off('credentials:capturePrompt', handler)
+    }
   },
   onCredentialCaptureResult: (callback: (result: CredentialCaptureResult) => void) => {
-    const handler = (_event: Electron.IpcRendererEvent, result: CredentialCaptureResult) => callback(result)
+    const handler = (_event: Electron.IpcRendererEvent, result: CredentialCaptureResult) =>
+      callback(result)
     ipcRenderer.on('credentials:captureResult', handler)
-    return () => { ipcRenderer.off('credentials:captureResult', handler) }
+    return () => {
+      ipcRenderer.off('credentials:captureResult', handler)
+    }
   },
 
   // 统计
@@ -124,24 +186,29 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getAcTrend: (days?: number) => ipcRenderer.invoke('stats:getAcTrend', days),
   getSubmissionTrend: (days?: number) => ipcRenderer.invoke('stats:getSubmissionTrend', days),
   getPlatformDistribution: () => ipcRenderer.invoke('stats:getPlatformDistribution'),
-  getProblemVisitStats: (problemId: string) => ipcRenderer.invoke('stats:getProblemVisitStats', problemId),
+  getProblemVisitStats: (problemId: string) =>
+    ipcRenderer.invoke('stats:getProblemVisitStats', problemId),
   getTimeline: (limit?: number) => ipcRenderer.invoke('stats:getTimeline', limit),
   getLastActiveTime: () => ipcRenderer.invoke('stats:getLastActiveTime'),
   getRevisitStats: (limit?: number) => ipcRenderer.invoke('stats:getRevisitStats', limit),
   recomputeDailyStats: (date?: string) => ipcRenderer.invoke('stats:recomputeDaily', date),
   getStreakDays: () => ipcRenderer.invoke('stats:getStreakDays'),
   getWrongProblems: (limit?: number) => ipcRenderer.invoke('stats:getWrongProblems', limit),
-  getUnreviewedProblems: (days?: number, limit?: number) => ipcRenderer.invoke('stats:getUnreviewed', days, limit),
+  getUnreviewedProblems: (days?: number, limit?: number) =>
+    ipcRenderer.invoke('stats:getUnreviewed', days, limit),
   recomputeAllDailyStats: () => ipcRenderer.invoke('stats:recomputeAll'),
 
   // Rating
-  bindHandle: (platform: string, handle: string) => ipcRenderer.invoke('rating:bindHandle', platform, handle),
-  getAccount: (platform: string, handle: string) => ipcRenderer.invoke('rating:getAccount', platform, handle),
+  bindHandle: (platform: string, handle: string) =>
+    ipcRenderer.invoke('rating:bindHandle', platform, handle),
+  getAccount: (platform: string, handle: string) =>
+    ipcRenderer.invoke('rating:getAccount', platform, handle),
   getAccounts: (platform: string) => ipcRenderer.invoke('rating:getAccounts', platform),
   syncCodeforcesRating: (handle: string) => ipcRenderer.invoke('rating:syncCodeforces', handle),
   getRatingHistory: (accountId: string) => ipcRenderer.invoke('rating:getHistory', accountId),
   getCodeforcesAccount: () => ipcRenderer.invoke('rating:getCodeforcesAccount'),
-  getContestResults: (accountId: string) => ipcRenderer.invoke('rating:getContestResults', accountId),
+  getContestResults: (accountId: string) =>
+    ipcRenderer.invoke('rating:getContestResults', accountId),
 
   // 站点管理
   getAllSites: () => ipcRenderer.invoke('sites:getAll'),
@@ -149,49 +216,77 @@ contextBridge.exposeInMainWorld('electronAPI', {
   createSite: (data: SiteConfigCreateInput) => ipcRenderer.invoke('sites:create', data),
   toggleSite: (id: string, enabled: boolean) => ipcRenderer.invoke('sites:toggle', id, enabled),
   deleteSite: (id: string) => ipcRenderer.invoke('sites:delete', id),
-  exportSitesConfig: () => ipcRenderer.invoke('sites:exportConfig') as Promise<{ success: boolean; path?: string; count?: number; error?: string }>,
+  exportSitesConfig: () =>
+    ipcRenderer.invoke('sites:exportConfig') as Promise<{
+      success: boolean
+      path?: string
+      count?: number
+      error?: string
+    }>,
   importSitesConfig: () => ipcRenderer.invoke('sites:importConfig') as Promise<SiteImportResult>,
-  confirmImportSites: (sites: SiteConfigRecord[], overwriteIds: string[]) => ipcRenderer.invoke('sites:confirmImport', sites, overwriteIds) as Promise<SiteConfirmImportResult>,
+  confirmImportSites: (sites: SiteConfigRecord[], overwriteIds: string[]) =>
+    ipcRenderer.invoke(
+      'sites:confirmImport',
+      sites,
+      overwriteIds,
+    ) as Promise<SiteConfirmImportResult>,
 
   // Scripts
   scriptsGetAll: () => ipcRenderer.invoke('scripts:getAll'),
-  scriptsSave: (id: string, data: UserScriptSaveInput) => ipcRenderer.invoke('scripts:save', id, data),
+  scriptsSave: (id: string, data: UserScriptSaveInput) =>
+    ipcRenderer.invoke('scripts:save', id, data),
   scriptsImportFile: () => ipcRenderer.invoke('scripts:importFile'),
   scriptsOpenFolder: () => ipcRenderer.invoke('scripts:openFolder'),
-  scriptsGetCode: (id: string) => ipcRenderer.invoke('scripts:getCode', id) as Promise<UserScriptCodeView>,
-  scriptsOpenEditor: (id: string) => (
-    ipcRenderer.invoke('scripts:openEditor', id) as Promise<UserScriptOpenEditorResult>
-  ),
-  scriptsToggle: (id: string, enabled: boolean) => ipcRenderer.invoke('scripts:toggle', id, enabled),
+  scriptsGetCode: (id: string) =>
+    ipcRenderer.invoke('scripts:getCode', id) as Promise<UserScriptCodeView>,
+  scriptsOpenEditor: (id: string) =>
+    ipcRenderer.invoke('scripts:openEditor', id) as Promise<UserScriptOpenEditorResult>,
+  scriptsToggle: (id: string, enabled: boolean) =>
+    ipcRenderer.invoke('scripts:toggle', id, enabled),
   scriptsDelete: (id: string) => ipcRenderer.invoke('scripts:delete', id),
-  scriptsCheckUpdates: () => ipcRenderer.invoke('scripts:checkUpdates') as Promise<UserScriptUpdateSummary | null>,
+  scriptsCheckUpdates: () =>
+    ipcRenderer.invoke('scripts:checkUpdates') as Promise<UserScriptUpdateSummary | null>,
 
   // 配置
   getHomeShortcuts: () => ipcRenderer.invoke('config:getHomeShortcuts') as Promise<string[]>,
-  getSearchEngine: () => ipcRenderer.invoke('config:getSearchEngine') as Promise<SearchEngineConfig>,
-  setSearchEngine: (search: SearchEngineConfig) => ipcRenderer.invoke('config:setSearchEngine', search) as Promise<SearchEngineConfig>,
+  getSearchEngine: () =>
+    ipcRenderer.invoke('config:getSearchEngine') as Promise<SearchEngineConfig>,
+  setSearchEngine: (search: SearchEngineConfig) =>
+    ipcRenderer.invoke('config:setSearchEngine', search) as Promise<SearchEngineConfig>,
   getTheme: () => ipcRenderer.invoke('config:getTheme') as Promise<ThemePreference>,
-  setTheme: (theme: ThemePreference) => ipcRenderer.invoke('config:setTheme', theme) as Promise<ThemePreference>,
+  setTheme: (theme: ThemePreference) =>
+    ipcRenderer.invoke('config:setTheme', theme) as Promise<ThemePreference>,
 
   // 备份与导入导出
-  createDatabaseBackup: () => ipcRenderer.invoke('backup:createDatabaseBackup') as Promise<DatabaseBackupResult>,
-  exportLearningData: () => ipcRenderer.invoke('backup:exportLearningData') as Promise<LearningDataExportFileResult>,
-  previewLearningDataImport: () => ipcRenderer.invoke('backup:previewLearningDataImport') as Promise<LearningDataImportPreviewResult>,
-  confirmLearningDataImport: (overwriteConflicts: boolean) => ipcRenderer.invoke('backup:confirmLearningDataImport', overwriteConflicts) as Promise<LearningDataImportResult>,
+  createDatabaseBackup: () =>
+    ipcRenderer.invoke('backup:createDatabaseBackup') as Promise<DatabaseBackupResult>,
+  exportLearningData: () =>
+    ipcRenderer.invoke('backup:exportLearningData') as Promise<LearningDataExportFileResult>,
+  previewLearningDataImport: () =>
+    ipcRenderer.invoke(
+      'backup:previewLearningDataImport',
+    ) as Promise<LearningDataImportPreviewResult>,
+  confirmLearningDataImport: (overwriteConflicts: boolean) =>
+    ipcRenderer.invoke(
+      'backup:confirmLearningDataImport',
+      overwriteConflicts,
+    ) as Promise<LearningDataImportResult>,
 
   // 标签页管理
   createTab: (url?: string) => ipcRenderer.invoke('tab:create', url) as Promise<string>,
   closeTab: (tabId: string) => ipcRenderer.send('tab:close', tabId),
   reopenClosedTab: () => ipcRenderer.invoke('tab:reopenClosed') as Promise<string>,
   switchTab: (tabId: string) => ipcRenderer.send('tab:switch', tabId),
-  reorderTab: (tabId: string, targetIndex: number) => ipcRenderer.invoke('tab:reorder', tabId, targetIndex) as Promise<boolean>,
-  moveTabToNewWindow: (tabId: string) => ipcRenderer.invoke('tab:moveToNewWindow', tabId) as Promise<boolean>,
-  finishTabDrag: (tabId: string, targetIndex: number, screenX: number, screenY: number) => (
-    ipcRenderer.invoke('tab:finishDrag', tabId, targetIndex, screenX, screenY) as Promise<boolean>
-  ),
+  reorderTab: (tabId: string, targetIndex: number) =>
+    ipcRenderer.invoke('tab:reorder', tabId, targetIndex) as Promise<boolean>,
+  moveTabToNewWindow: (tabId: string) =>
+    ipcRenderer.invoke('tab:moveToNewWindow', tabId) as Promise<boolean>,
+  finishTabDrag: (tabId: string, targetIndex: number, screenX: number, screenY: number) =>
+    ipcRenderer.invoke('tab:finishDrag', tabId, targetIndex, screenX, screenY) as Promise<boolean>,
   reloadTab: (tabId: string) => ipcRenderer.send('tab:reload', tabId),
   dismissUnresponsiveTab: (tabId: string) => ipcRenderer.send('tab:dismissUnresponsive', tabId),
-  openInternalTab: (page: InternalPage) => ipcRenderer.invoke('tab:openInternal', page) as Promise<string>,
+  openInternalTab: (page: InternalPage) =>
+    ipcRenderer.invoke('tab:openInternal', page) as Promise<string>,
   getTabList: () => ipcRenderer.invoke('tab:getList'),
   onTabListChanged: (callback: (tabs: TabInfo[]) => void) => {
     const handler = (_event: Electron.IpcRendererEvent, tabs: TabInfo[]) => callback(tabs)
@@ -202,23 +297,40 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
 
   // Omnibox 与应用菜单
-  getOmniboxSuggestions: (query: string) => ipcRenderer.invoke('browser:omniboxSuggest', query) as Promise<OmniboxSuggestion[]>,
+  getOmniboxSuggestions: (query: string) =>
+    ipcRenderer.invoke('browser:omniboxSuggest', query) as Promise<OmniboxSuggestion[]>,
   setOmniboxOpen: (open: boolean) => ipcRenderer.send('browser:setOmniboxOpen', open),
   showAppMenu: (anchor: AppMenuAnchor) => ipcRenderer.send('browser:showAppMenu', anchor),
-  showShellContextMenu: (kind: ShellContextMenuKind) => ipcRenderer.send('browser:showShellContextMenu', kind),
+  showShellContextMenu: (kind: ShellContextMenuKind) =>
+    ipcRenderer.send('browser:showShellContextMenu', kind),
   showTabContextMenu: (tabId: string) => ipcRenderer.send('browser:showTabContextMenu', tabId),
 
   // 笔记（本地题解 Markdown）
-  listNotesByProblem: (problemId: string) => ipcRenderer.invoke('notes:listByProblem', problemId) as Promise<NoteRecord[]>,
-  getNote: (noteId: string) => ipcRenderer.invoke('notes:get', noteId) as Promise<NoteRecord | null>,
-  createNote: (problemId: string | null, title: string, content: string | null, noteType: string) => ipcRenderer.invoke('notes:create', problemId, title, content, noteType) as Promise<NoteRecord>,
-  updateNoteTitle: (noteId: string, title: string) => ipcRenderer.invoke('notes:updateTitle', noteId, title) as Promise<boolean>,
-  updateNoteContent: (noteId: string, content: string) => ipcRenderer.invoke('notes:updateContent', noteId, content) as Promise<boolean>,
-  saveNoteImage: (noteId: string, fileName: string, mimeType: string, data: ArrayBuffer) => ipcRenderer.invoke('notes:saveImage', noteId, fileName, mimeType, data) as Promise<SaveNoteImageResult>,
-  updateNoteType: (noteId: string, noteType: string) => ipcRenderer.invoke('notes:updateType', noteId, noteType) as Promise<boolean>,
+  listNotesByProblem: (problemId: string) =>
+    ipcRenderer.invoke('notes:listByProblem', problemId) as Promise<NoteRecord[]>,
+  getNote: (noteId: string) =>
+    ipcRenderer.invoke('notes:get', noteId) as Promise<NoteRecord | null>,
+  createNote: (problemId: string | null, title: string, content: string | null, noteType: string) =>
+    ipcRenderer.invoke('notes:create', problemId, title, content, noteType) as Promise<NoteRecord>,
+  updateNoteTitle: (noteId: string, title: string) =>
+    ipcRenderer.invoke('notes:updateTitle', noteId, title) as Promise<boolean>,
+  updateNoteContent: (noteId: string, content: string) =>
+    ipcRenderer.invoke('notes:updateContent', noteId, content) as Promise<boolean>,
+  saveNoteImage: (noteId: string, fileName: string, mimeType: string, data: ArrayBuffer) =>
+    ipcRenderer.invoke(
+      'notes:saveImage',
+      noteId,
+      fileName,
+      mimeType,
+      data,
+    ) as Promise<SaveNoteImageResult>,
+  updateNoteType: (noteId: string, noteType: string) =>
+    ipcRenderer.invoke('notes:updateType', noteId, noteType) as Promise<boolean>,
   deleteNote: (noteId: string) => ipcRenderer.invoke('notes:delete', noteId) as Promise<boolean>,
-  getNotesForDelete: (problemId: string) => ipcRenderer.invoke('notes:getForDelete', problemId) as Promise<NoteRecord[]>,
-  deleteNotesByProblem: (problemId: string) => ipcRenderer.invoke('notes:deleteByProblem', problemId) as Promise<number>,
+  getNotesForDelete: (problemId: string) =>
+    ipcRenderer.invoke('notes:getForDelete', problemId) as Promise<NoteRecord[]>,
+  deleteNotesByProblem: (problemId: string) =>
+    ipcRenderer.invoke('notes:deleteByProblem', problemId) as Promise<number>,
   openNotesDir: () => ipcRenderer.invoke('notes:openDir'),
 
   // P6-004: AI 上下文导出
@@ -226,61 +338,124 @@ contextBridge.exposeInMainWorld('electronAPI', {
   exportAIContextMarkdown: () => ipcRenderer.invoke('ai:exportContextMarkdown'),
 
   // P6-005 / P6-006: AI 建议与薄弱分析（本地规则引擎）
-  getReviewRecommendations: (limit?: number) => ipcRenderer.invoke('ai:getReviewRecommendations', limit),
+  getReviewRecommendations: (limit?: number) =>
+    ipcRenderer.invoke('ai:getReviewRecommendations', limit),
   getWeaknessAnalysis: (limit?: number) => ipcRenderer.invoke('ai:getWeaknessAnalysis', limit),
 
   // P6-007: 阶段学习总结（本地规则引擎）
-  getPeriodSummary: (startDate: string, endDate: string) => ipcRenderer.invoke('ai:getPeriodSummary', startDate, endDate),
-  getPeriodSummaryMarkdown: (startDate: string, endDate: string) => ipcRenderer.invoke('ai:getPeriodSummaryMarkdown', startDate, endDate),
+  getPeriodSummary: (startDate: string, endDate: string) =>
+    ipcRenderer.invoke('ai:getPeriodSummary', startDate, endDate),
+  getPeriodSummaryMarkdown: (startDate: string, endDate: string) =>
+    ipcRenderer.invoke('ai:getPeriodSummaryMarkdown', startDate, endDate),
 
   // P6-008: 复习计划生成（本地规则引擎）
   getReviewPlan: (planDays?: number) => ipcRenderer.invoke('ai:getReviewPlan', planDays),
-  getReviewPlanMarkdown: (planDays?: number) => ipcRenderer.invoke('ai:getReviewPlanMarkdown', planDays),
+  getReviewPlanMarkdown: (planDays?: number) =>
+    ipcRenderer.invoke('ai:getReviewPlanMarkdown', planDays),
 
   // P6-009: AI 输出本地保存
   saveAIOutput: (input: AIOutputSaveInput) => ipcRenderer.invoke('ai:saveOutput', input),
   getAIOutput: (id: string) => ipcRenderer.invoke('ai:getOutput', id),
-  listAIOutputs: (outputType?: string, limit?: number) => ipcRenderer.invoke('ai:listOutputs', outputType, limit),
+  listAIOutputs: (outputType?: string, limit?: number) =>
+    ipcRenderer.invoke('ai:listOutputs', outputType, limit),
   deleteAIOutput: (id: string) => ipcRenderer.invoke('ai:deleteOutput', id),
-  updateAIOutput: (id: string, updates: Partial<Pick<AIOutputSaveInput, 'title' | 'content' | 'content_markdown'>>) => ipcRenderer.invoke('ai:updateOutput', id, updates),
+  updateAIOutput: (
+    id: string,
+    updates: Partial<Pick<AIOutputSaveInput, 'title' | 'content' | 'content_markdown'>>,
+  ) => ipcRenderer.invoke('ai:updateOutput', id, updates),
 
   // Coach 桌宠（阶段 1 视觉壳 + 阶段 2 规则引擎预留接口）
   coachGetPetState: () => ipcRenderer.invoke('coach:getPetState') as Promise<CoachPetState>,
-  coachSetPetState: (state: CoachPetState) => ipcRenderer.invoke('coach:setPetState', state) as Promise<boolean>,
-  coachToggleIgnoreMouseEvents: (ignore: boolean) => ipcRenderer.invoke('coach:toggleIgnoreMouseEvents', ignore) as Promise<boolean>,
+  coachSetPetState: (state: CoachPetState) =>
+    ipcRenderer.invoke('coach:setPetState', state) as Promise<boolean>,
+  coachToggleIgnoreMouseEvents: (ignore: boolean) =>
+    ipcRenderer.invoke('coach:toggleIgnoreMouseEvents', ignore) as Promise<boolean>,
   coachStartDrag: () => ipcRenderer.invoke('coach:startDrag') as Promise<boolean>,
   coachEndDrag: () => ipcRenderer.invoke('coach:endDrag') as Promise<boolean>,
   coachResetPosition: () => ipcRenderer.invoke('coach:resetPosition') as Promise<boolean>,
   coachGetConfig: () => ipcRenderer.invoke('coach:getConfig') as Promise<CoachConfig>,
-  coachSaveConfig: (partial: Partial<CoachConfig>) => ipcRenderer.invoke('coach:saveConfig', partial) as Promise<boolean>,
+  coachSaveConfig: (partial: Partial<CoachConfig>) =>
+    ipcRenderer.invoke('coach:saveConfig', partial) as Promise<boolean>,
   coachTestHint: () => ipcRenderer.invoke('coach:testHint') as Promise<CoachBubblePayload>,
-  coachShowBubble: (payload: CoachBubblePayload) => ipcRenderer.invoke('coach:showBubble', payload) as Promise<boolean>,
+  coachShowBubble: (payload: CoachBubblePayload) =>
+    ipcRenderer.invoke('coach:showBubble', payload) as Promise<boolean>,
   coachDismissBubble: () => ipcRenderer.invoke('coach:dismissBubble') as Promise<boolean>,
-  coachTriggerHint: (bubbleId?: string) => ipcRenderer.invoke('coach:triggerHint', bubbleId) as Promise<{ accepted: boolean; level: number; note?: string; interventionId?: string }>,
-  coachDismissHint: (bubbleId?: string) => ipcRenderer.invoke('coach:dismissHint', bubbleId) as Promise<boolean>,
-  coachFeedback: (feedback: { bubbleId?: string; interventionId?: string; type: CoachFeedbackType }) => ipcRenderer.invoke('coach:feedback', feedback) as Promise<boolean>,
-  coachDismissDisclaimer: (permanent: boolean) => ipcRenderer.invoke('coach:dismissDisclaimer', permanent) as Promise<boolean>,
-  coachPetClick: () => ipcRenderer.invoke('coach:petClick') as Promise<{ triggered: boolean; level: number; llmEnabled: boolean; note?: string }>,
-  coachChat: (params: { message: string; history?: Array<{ role: 'user' | 'assistant'; content: string }> }) => ipcRenderer.invoke('coach:chat', params) as Promise<{ reply: string; success: boolean; error?: string }>,
-  coachRequestHint: () => ipcRenderer.invoke('coach:requestHint') as Promise<{ message: string; success: boolean; error?: string }>,
-  coachGetWorkArea: () => ipcRenderer.invoke('coach:getWorkArea') as Promise<{ x: number; y: number; width: number; height: number }>,
+  coachTriggerHint: (bubbleId?: string) =>
+    ipcRenderer.invoke('coach:triggerHint', bubbleId) as Promise<{
+      accepted: boolean
+      level: number
+      note?: string
+      interventionId?: string
+    }>,
+  coachDismissHint: (bubbleId?: string) =>
+    ipcRenderer.invoke('coach:dismissHint', bubbleId) as Promise<boolean>,
+  coachFeedback: (feedback: {
+    bubbleId?: string
+    interventionId?: string
+    type: CoachFeedbackType
+  }) => ipcRenderer.invoke('coach:feedback', feedback) as Promise<boolean>,
+  coachDismissDisclaimer: (permanent: boolean) =>
+    ipcRenderer.invoke('coach:dismissDisclaimer', permanent) as Promise<boolean>,
+  coachPetClick: () =>
+    ipcRenderer.invoke('coach:petClick') as Promise<{
+      triggered: boolean
+      level: number
+      llmEnabled: boolean
+      note?: string
+    }>,
+  coachChat: (params: {
+    message: string
+    history?: Array<{ role: 'user' | 'assistant'; content: string }>
+  }) =>
+    ipcRenderer.invoke('coach:chat', params) as Promise<{
+      reply: string
+      success: boolean
+      error?: string
+    }>,
+  coachRequestHint: () =>
+    ipcRenderer.invoke('coach:requestHint') as Promise<{
+      message: string
+      success: boolean
+      error?: string
+    }>,
+  coachGetWorkArea: () =>
+    ipcRenderer.invoke('coach:getWorkArea') as Promise<{
+      x: number
+      y: number
+      width: number
+      height: number
+    }>,
 
   // 阶段 2：规则引擎 + 比赛模式 + 审计日志
   coachGetState: () => ipcRenderer.invoke('coach:getState') as Promise<CoachStateSnapshot | null>,
   coachGetSession: () => ipcRenderer.invoke('coach:getSession') as Promise<ProblemSession | null>,
-  coachGetSessionHistory: (limit?: number) => ipcRenderer.invoke('coach:getSessionHistory', limit) as Promise<ProblemSession[]>,
-  coachGetMetrics: () => ipcRenderer.invoke('coach:getMetrics') as Promise<CoachMetricsSnapshot | null>,
-  coachListEvents: (limit?: number) => ipcRenderer.invoke('coach:listEvents', limit) as Promise<CoachEvent[]>,
-  coachListInterventions: (limit?: number) => ipcRenderer.invoke('coach:listInterventions', limit) as Promise<CoachIntervention[]>,
-  coachExportAuditLog: () => ipcRenderer.invoke('coach:exportAuditLog') as Promise<ContestAuditRecord[]>,
+  coachGetSessionHistory: (limit?: number) =>
+    ipcRenderer.invoke('coach:getSessionHistory', limit) as Promise<ProblemSession[]>,
+  coachGetMetrics: () =>
+    ipcRenderer.invoke('coach:getMetrics') as Promise<CoachMetricsSnapshot | null>,
+  coachListEvents: (limit?: number) =>
+    ipcRenderer.invoke('coach:listEvents', limit) as Promise<CoachEvent[]>,
+  coachListInterventions: (limit?: number) =>
+    ipcRenderer.invoke('coach:listInterventions', limit) as Promise<CoachIntervention[]>,
+  coachExportAuditLog: () =>
+    ipcRenderer.invoke('coach:exportAuditLog') as Promise<ContestAuditRecord[]>,
   // 阶段 4：过程复盘 + 答辩数据
-  coachGetProblemTimeline: (problemId: string) => ipcRenderer.invoke('coach:getProblemTimeline', problemId) as Promise<ProblemTimelineData | null>,
-  coachGetMetricsBundle: () => ipcRenderer.invoke('coach:getMetricsBundle') as Promise<CoachMetricsBundle | null>,
+  coachGetProblemTimeline: (problemId: string) =>
+    ipcRenderer.invoke(
+      'coach:getProblemTimeline',
+      problemId,
+    ) as Promise<ProblemTimelineData | null>,
+  coachGetMetricsBundle: () =>
+    ipcRenderer.invoke('coach:getMetricsBundle') as Promise<CoachMetricsBundle | null>,
   // 阶段 5：LLM 配置
-  coachGetLlmConfig: () => ipcRenderer.invoke('coach:getLlmConfig') as Promise<LlmConfigStatus | null>,
-  coachSaveLlmApiKey: (apiKey: string) => ipcRenderer.invoke('coach:saveLlmApiKey', apiKey) as Promise<boolean>,
-  coachSaveLlmConfig: (partial: { base_url?: string; model?: string; enabled?: boolean }) => ipcRenderer.invoke('coach:saveLlmConfig', partial) as Promise<boolean>,
-  coachTestLlmConnection: (config: { api_key: string; base_url: string; model: string }) => ipcRenderer.invoke('coach:testLlmConnection', config) as Promise<LlmConnectionTestResult>,
+  coachGetLlmConfig: () =>
+    ipcRenderer.invoke('coach:getLlmConfig') as Promise<LlmConfigStatus | null>,
+  coachSaveLlmApiKey: (apiKey: string) =>
+    ipcRenderer.invoke('coach:saveLlmApiKey', apiKey) as Promise<boolean>,
+  coachSaveLlmConfig: (partial: { base_url?: string; model?: string; enabled?: boolean }) =>
+    ipcRenderer.invoke('coach:saveLlmConfig', partial) as Promise<boolean>,
+  coachTestLlmConnection: (config: { api_key: string; base_url: string; model: string }) =>
+    ipcRenderer.invoke('coach:testLlmConnection', config) as Promise<LlmConnectionTestResult>,
   onCoachPetStateChanged: (callback: (state: CoachPetState) => void) => {
     const handler = (_event: Electron.IpcRendererEvent, state: CoachPetState) => callback(state)
     ipcRenderer.on('coach:petStateChanged', handler)
@@ -296,7 +471,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     }
   },
   onCoachShowBubble: (callback: (payload: CoachBubblePayload) => void) => {
-    const handler = (_event: Electron.IpcRendererEvent, payload: CoachBubblePayload) => callback(payload)
+    const handler = (_event: Electron.IpcRendererEvent, payload: CoachBubblePayload) =>
+      callback(payload)
     ipcRenderer.on('coach:showBubble', handler)
     return () => {
       ipcRenderer.off('coach:showBubble', handler)
@@ -309,14 +485,19 @@ contextBridge.exposeInMainWorld('electronAPI', {
       ipcRenderer.off('coach:dismissBubble', handler)
     }
   },
-  onCoachContestModeChanged: (callback: (payload: {
-    isContestMode: boolean
-    contest: { url: string; platform: string; contest_id: string; entered_at: string } | null
-  }) => void) => {
-    const handler = (_event: Electron.IpcRendererEvent, payload: {
+  onCoachContestModeChanged: (
+    callback: (payload: {
       isContestMode: boolean
       contest: { url: string; platform: string; contest_id: string; entered_at: string } | null
-    }) => callback(payload)
+    }) => void,
+  ) => {
+    const handler = (
+      _event: Electron.IpcRendererEvent,
+      payload: {
+        isContestMode: boolean
+        contest: { url: string; platform: string; contest_id: string; entered_at: string } | null
+      },
+    ) => callback(payload)
     ipcRenderer.on('coach:contestModeChanged', handler)
     return () => {
       ipcRenderer.off('coach:contestModeChanged', handler)

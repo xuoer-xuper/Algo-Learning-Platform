@@ -9,10 +9,12 @@ function getCustomTemplateError(template: string): string | null {
   if (!template) return '请输入自定义搜索 URL 模板。'
   if (template.length > MAX_CUSTOM_TEMPLATE_LENGTH) return '模板不能超过 2048 个字符。'
   if (template.trim() !== template) return '模板首尾不能包含空格。'
-  if ([...template].some((character) => {
-    const codePoint = character.codePointAt(0) ?? 0
-    return codePoint < 32 || (codePoint >= 127 && codePoint <= 159)
-  })) {
+  if (
+    [...template].some((character) => {
+      const codePoint = character.codePointAt(0) ?? 0
+      return codePoint < 32 || (codePoint >= 127 && codePoint <= 159)
+    })
+  ) {
     return '模板不能包含控制字符。'
   }
 
@@ -66,9 +68,7 @@ export function SearchEnginePanel() {
     }
   }, [])
 
-  const customTemplateError = engine === 'custom'
-    ? getCustomTemplateError(customTemplate)
-    : null
+  const customTemplateError = engine === 'custom' ? getCustomTemplateError(customTemplate) : null
 
   const handleSave = async () => {
     if (customTemplateError) {
@@ -79,9 +79,8 @@ export function SearchEnginePanel() {
     setSaving(true)
     setSaved(false)
     setStatus('')
-    const validRememberedTemplate = getCustomTemplateError(customTemplate) === null
-      ? customTemplate
-      : null
+    const validRememberedTemplate =
+      getCustomTemplateError(customTemplate) === null ? customTemplate : null
     const requested: SearchEngineConfig = {
       engine,
       customTemplate: engine === 'custom' ? customTemplate : validRememberedTemplate,
@@ -114,7 +113,9 @@ export function SearchEnginePanel() {
       </h3>
 
       <div className="settings-row">
-        <label className="settings-label" htmlFor="search-engine-select">搜索引擎</label>
+        <label className="settings-label" htmlFor="search-engine-select">
+          搜索引擎
+        </label>
         <Select
           id="search-engine-select"
           className="settings-input settings-select"
@@ -136,7 +137,9 @@ export function SearchEnginePanel() {
       {engine === 'custom' && (
         <>
           <div className="settings-row">
-            <label className="settings-label" htmlFor="custom-search-template">URL 模板</label>
+            <label className="settings-label" htmlFor="custom-search-template">
+              URL 模板
+            </label>
             <Input
               id="custom-search-template"
               className="settings-input"
@@ -144,9 +147,11 @@ export function SearchEnginePanel() {
               value={customTemplate}
               disabled={loading || saving}
               aria-invalid={Boolean(customTemplateError)}
-              aria-describedby={customTemplateError
-                ? 'custom-search-template-help custom-search-template-error'
-                : 'custom-search-template-help'}
+              aria-describedby={
+                customTemplateError
+                  ? 'custom-search-template-help custom-search-template-error'
+                  : 'custom-search-template-help'
+              }
               placeholder="https://example.com/search?q={query}"
               onChange={(event) => {
                 setCustomTemplate(event.target.value)
@@ -159,7 +164,11 @@ export function SearchEnginePanel() {
             使用 HTTPS，并用一个 {'{query}'} 占位符表示搜索内容。
           </div>
           {customTemplateError && (
-            <div id="custom-search-template-error" className="settings-row settings-error-text" role="alert">
+            <div
+              id="custom-search-template-error"
+              className="settings-row settings-error-text"
+              role="alert"
+            >
               {customTemplateError}
             </div>
           )}

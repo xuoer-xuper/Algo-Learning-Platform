@@ -13,7 +13,12 @@ function install(): { calls: unknown[] } {
   const calls: unknown[] = []
   Object.defineProperty(navigator, 'credentials', {
     configurable: true,
-    value: { get: (options: unknown) => { calls.push(options); return Promise.resolve('native-result') } },
+    value: {
+      get: (options: unknown) => {
+        calls.push(options)
+        return Promise.resolve('native-result')
+      },
+    },
   })
   installConditionalWebauthnGuard()
   return { calls }
@@ -29,12 +34,22 @@ function dispatchTrustedPointerDown(): void {
 
 test('conditional webauthn without user gesture stays pending without settling', async () => {
   const { calls } = install()
-  const pending = navigator.credentials.get({ mediation: 'conditional', publicKey: { challenge: new Uint8Array(4) } as PublicKeyCredentialRequestOptions })
+  const pending = navigator.credentials.get({
+    mediation: 'conditional',
+    publicKey: { challenge: new Uint8Array(4) } as PublicKeyCredentialRequestOptions,
+  })
   const settled = await Promise.race([
-    pending.then(() => 'settled', () => 'settled'),
-    new Promise(resolve => setTimeout(() => resolve('pending'), 20)),
+    pending.then(
+      () => 'settled',
+      () => 'settled',
+    ),
+    new Promise((resolve) => setTimeout(() => resolve('pending'), 20)),
   ])
-  assert.strictEqual(settled, 'pending', 'silence means never settling — any rejection gets toasted by the page')
+  assert.strictEqual(
+    settled,
+    'pending',
+    'silence means never settling — any rejection gets toasted by the page',
+  )
   assert.strictEqual(calls.length, 0, 'native get must not be invoked')
 })
 
@@ -53,7 +68,9 @@ test('conditional webauthn rejects with AbortError when the page aborts its own 
 
 test('explicit (non-conditional) webauthn passes through to the platform', async () => {
   const { calls } = install()
-  const result = await navigator.credentials.get({ publicKey: { challenge: new Uint8Array(4) } as PublicKeyCredentialRequestOptions })
+  const result = await navigator.credentials.get({
+    publicKey: { challenge: new Uint8Array(4) } as PublicKeyCredentialRequestOptions,
+  })
   assert.strictEqual(result, 'native-result')
   assert.strictEqual(calls.length, 1)
 })
@@ -61,7 +78,10 @@ test('explicit (non-conditional) webauthn passes through to the platform', async
 test('conditional webauthn within a trusted gesture window is allowed', async () => {
   const { calls } = install()
   dispatchTrustedPointerDown()
-  const result = await navigator.credentials.get({ mediation: 'conditional', publicKey: { challenge: new Uint8Array(4) } as PublicKeyCredentialRequestOptions })
+  const result = await navigator.credentials.get({
+    mediation: 'conditional',
+    publicKey: { challenge: new Uint8Array(4) } as PublicKeyCredentialRequestOptions,
+  })
   assert.strictEqual(result, 'native-result')
   assert.strictEqual(calls.length, 1)
 })
@@ -69,6 +89,11 @@ test('conditional webauthn within a trusted gesture window is allowed', async ()
 test('install is idempotent per page', () => {
   const { calls } = install()
   installConditionalWebauthnGuard()
-  assert.strictEqual(navigator.credentials.get({ publicKey: { challenge: new Uint8Array(4) } as PublicKeyCredentialRequestOptions }) instanceof Promise, true)
+  assert.strictEqual(
+    navigator.credentials.get({
+      publicKey: { challenge: new Uint8Array(4) } as PublicKeyCredentialRequestOptions,
+    }) instanceof Promise,
+    true,
+  )
   assert.strictEqual(calls.length, 1, 'double install must not double-wrap')
 })

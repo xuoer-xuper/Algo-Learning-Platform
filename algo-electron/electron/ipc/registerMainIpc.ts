@@ -64,8 +64,12 @@ interface RegisterMainIpcOptions {
 }
 
 export function registerMainIpc(options: RegisterMainIpcOptions): void {
-  const notifyProblemsUpdated = (): void => { options.notifyProblemsUpdated() }
-  const refreshUserScriptRuntime = (): void => { options.getUserScriptRuntime?.()?.refresh() }
+  const notifyProblemsUpdated = (): void => {
+    options.notifyProblemsUpdated()
+  }
+  const refreshUserScriptRuntime = (): void => {
+    options.getUserScriptRuntime?.()?.refresh()
+  }
 
   registerAiIpc()
   registerBackupIpc()

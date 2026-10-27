@@ -19,7 +19,9 @@ export function sessionRunningMarkerPath(userDataDir: string): string {
 
 export async function createSessionRunningMarker(userDataDir: string): Promise<void> {
   try {
-    await fs.writeFile(sessionRunningMarkerPath(userDataDir), String(Date.now()), { encoding: 'utf-8' })
+    await fs.writeFile(sessionRunningMarkerPath(userDataDir), String(Date.now()), {
+      encoding: 'utf-8',
+    })
   } catch {
     // 标记写不进去时该次运行视为"未知"：宁可下次多一次不恢复，不误恢复。
   }

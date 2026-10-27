@@ -23,24 +23,31 @@ export interface TabSessionFileSystem {
 }
 
 export const nodeTabSessionFileSystem: TabSessionFileSystem = {
-  mkdir: async (directoryPath) => { await fs.mkdir(directoryPath, { recursive: true }) },
+  mkdir: async (directoryPath) => {
+    await fs.mkdir(directoryPath, { recursive: true })
+  },
   open: async (filePath) => {
     const handle = await fs.open(filePath, 'wx')
     return {
-      writeFile: async (data) => { await handle.writeFile(data, { encoding: 'utf8' }) },
-      sync: async () => { await handle.sync() },
-      close: async () => { await handle.close() },
+      writeFile: async (data) => {
+        await handle.writeFile(data, { encoding: 'utf8' })
+      },
+      sync: async () => {
+        await handle.sync()
+      },
+      close: async () => {
+        await handle.close()
+      },
     }
   },
   readFile: (filePath) => fs.readFile(filePath, 'utf8'),
   rename: (sourcePath, destinationPath) => fs.rename(sourcePath, destinationPath),
-  rm: async (filePath) => { await fs.rm(filePath, { force: true }) },
+  rm: async (filePath) => {
+    await fs.rm(filePath, { force: true })
+  },
 }
 
-export type TabSessionLoadFallbackReason =
-  | 'missing'
-  | 'read-failed'
-  | TabSessionValidationReason
+export type TabSessionLoadFallbackReason = 'missing' | 'read-failed' | TabSessionValidationReason
 
 export type TabSessionLoadResult =
   | { kind: 'restore'; snapshot: TabSessionSnapshot }
@@ -59,9 +66,7 @@ export interface TabSessionPersistenceTimer {
   clearTimeout(handle: unknown): void
 }
 
-export type TabSessionPersistenceFailureReason =
-  | 'snapshot-provider-failed'
-  | 'save-failed'
+export type TabSessionPersistenceFailureReason = 'snapshot-provider-failed' | 'save-failed'
 
 export interface TabSessionPersistenceOptions {
   debounceMs?: number
@@ -79,10 +84,7 @@ const systemTabSessionPersistenceTimer: TabSessionPersistenceTimer = {
 }
 
 function isMissingFileError(error: unknown): boolean {
-  return typeof error === 'object'
-    && error !== null
-    && 'code' in error
-    && error.code === 'ENOENT'
+  return typeof error === 'object' && error !== null && 'code' in error && error.code === 'ENOENT'
 }
 
 export class TabSessionStore {
@@ -116,7 +118,11 @@ export class TabSessionStore {
   }
 
   save(snapshot: TabSessionSnapshot): Promise<void> {
-    this.pendingWrite = createTabSessionSnapshot(snapshot.tabs, snapshot.activeTabId, this.snapshotOptions)
+    this.pendingWrite = createTabSessionSnapshot(
+      snapshot.tabs,
+      snapshot.activeTabId,
+      this.snapshotOptions,
+    )
     if (!this.writeLoop) {
       this.writeLoop = this.drainWrites().finally(() => {
         this.writeLoop = null
@@ -173,11 +179,12 @@ export class TabSessionPersistence {
     options: TabSessionPersistenceOptions = {},
   ) {
     const requestedDebounceMs = options.debounceMs
-    this.debounceMs = typeof requestedDebounceMs === 'number'
-      && Number.isFinite(requestedDebounceMs)
-      && requestedDebounceMs >= 0
-      ? requestedDebounceMs
-      : DEFAULT_TAB_SESSION_DEBOUNCE_MS
+    this.debounceMs =
+      typeof requestedDebounceMs === 'number' &&
+      Number.isFinite(requestedDebounceMs) &&
+      requestedDebounceMs >= 0
+        ? requestedDebounceMs
+        : DEFAULT_TAB_SESSION_DEBOUNCE_MS
     this.timer = options.timer ?? systemTabSessionPersistenceTimer
     this.onDiagnostic = options.onDiagnostic
   }

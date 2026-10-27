@@ -36,7 +36,8 @@ export function selectUserScriptIntegrity(fragment: string | null): UserScriptIn
     if (!match) continue
     selected = { algorithm: match[1].toLowerCase() as IntegrityAlgorithm, value: match[2].trim() }
   }
-  if (!selected) throw new Error('Userscript resource integrity has no supported sha256 or md5 hash')
+  if (!selected)
+    throw new Error('Userscript resource integrity has no supported sha256 or md5 hash')
 
   const expectedLength = selected.algorithm === 'sha256' ? 32 : 16
   const digest = decodeDigest(selected.value, expectedLength)
@@ -68,10 +69,12 @@ export async function prepareUserScriptResources(
   if (declarations.length > MAX_DECLARATIONS) {
     throw new Error(`Userscript declares more than ${MAX_DECLARATIONS} external resources`)
   }
-  const resourceNames = metadata.resources.map(resource => resource.name)
+  const resourceNames = metadata.resources.map((resource) => resource.name)
   if (
-    resourceNames.some(name => name.length === 0 || name.length > 512 || hasControlCharacter(name))
-    || new Set(resourceNames).size !== resourceNames.length
+    resourceNames.some(
+      (name) => name.length === 0 || name.length > 512 || hasControlCharacter(name),
+    ) ||
+    new Set(resourceNames).size !== resourceNames.length
   ) {
     throw new Error('Userscript resource names must be non-empty and unique')
   }
@@ -81,7 +84,8 @@ export async function prepareUserScriptResources(
   for (const declaration of declarations) {
     const downloaded = await downloadResource(declaration.reference, options)
     totalBytes += downloaded.content.byteLength
-    if (totalBytes > MAX_TOTAL_BYTES) throw new Error('Userscript external resources exceed the total size limit')
+    if (totalBytes > MAX_TOTAL_BYTES)
+      throw new Error('Userscript external resources exceed the total size limit')
     if (declaration.kind === 'require') assertUtf8JavaScript(downloaded.content)
     prepared.push({
       kind: declaration.kind,
@@ -101,7 +105,12 @@ export async function prepareUserScriptResources(
 async function downloadResource(
   reference: UserScriptResourceReference,
   options: PrepareUserScriptResourcesOptions,
-): Promise<{ finalUrl: string; content: Uint8Array; contentType: string | null; integrity: string | null }> {
+): Promise<{
+  finalUrl: string
+  content: Uint8Array
+  contentType: string | null
+  integrity: string | null
+}> {
   const integrity = selectUserScriptIntegrity(reference.integrity)
   const controller = new AbortController()
   const abortFromCaller = () => controller.abort(options.signal?.reason)
@@ -121,11 +130,13 @@ async function downloadResource(
       })
       const redirectUrl = getRedirectUrl(response, target.url)
       if (redirectUrl) {
-        if (redirectCount === MAX_REDIRECTS) throw new Error('Userscript external resource has too many redirects')
+        if (redirectCount === MAX_REDIRECTS)
+          throw new Error('Userscript external resource has too many redirects')
         rawUrl = redirectUrl
         continue
       }
-      if (!response.ok) throw new Error(`Userscript external resource returned HTTP ${response.status}`)
+      if (!response.ok)
+        throw new Error(`Userscript external resource returned HTTP ${response.status}`)
       const content = await readBoundedResponse(response)
       if (integrity) verifyIntegrity(content, integrity)
       return {
@@ -136,14 +147,14 @@ async function downloadResource(
       }
     }
     throw new Error('Userscript external resource redirect resolution failed')
-  }
-  catch (error) {
+  } catch (error) {
     if (controller.signal.aborted) {
-      throw Object.assign(new Error('Userscript external resource download timed out'), { cause: error })
+      throw Object.assign(new Error('Userscript external resource download timed out'), {
+        cause: error,
+      })
     }
     throw error
-  }
-  finally {
+  } finally {
     clearTimeout(timer)
     options.signal?.removeEventListener('abort', abortFromCaller)
   }
@@ -153,8 +164,11 @@ function getRedirectUrl(response: Response, currentUrl: string): string | null {
   if (response.status < 300 || response.status >= 400) return null
   const location = response.headers.get('location')
   if (!location) return null
-  try { return new URL(location, currentUrl).toString() }
-  catch { throw new Error('Userscript external resource redirect URL is invalid') }
+  try {
+    return new URL(location, currentUrl).toString()
+  } catch {
+    throw new Error('Userscript external resource redirect URL is invalid')
+  }
 }
 
 async function readBoundedResponse(response: Response): Promise<Uint8Array> {
@@ -187,7 +201,10 @@ async function readBoundedResponse(response: Response): Promise<Uint8Array> {
 
 function verifyIntegrity(content: Uint8Array, integrity: UserScriptIntegrity): void {
   const actual = createHash(integrity.algorithm).update(content).digest()
-  if (actual.byteLength !== integrity.digest.byteLength || !timingSafeEqual(actual, integrity.digest)) {
+  if (
+    actual.byteLength !== integrity.digest.byteLength ||
+    !timingSafeEqual(actual, integrity.digest)
+  ) {
     throw new Error(`Userscript external resource ${integrity.algorithm} integrity mismatch`)
   }
 }
@@ -201,18 +218,25 @@ function decodeDigest(value: string, expectedLength: number): Uint8Array {
     throw new Error('Userscript resource integrity digest is invalid')
   }
   const decoded = Buffer.from(normalized, 'base64')
-  if (decoded.byteLength !== expectedLength) throw new Error('Userscript resource integrity digest length is invalid')
+  if (decoded.byteLength !== expectedLength)
+    throw new Error('Userscript resource integrity digest length is invalid')
   return decoded
 }
 
 function decodeFragmentPart(value: string): string {
-  try { return decodeURIComponent(value) }
-  catch { return value }
+  try {
+    return decodeURIComponent(value)
+  } catch {
+    return value
+  }
 }
 
 function assertUtf8JavaScript(content: Uint8Array): void {
-  try { new TextDecoder('utf-8', { fatal: true }).decode(content) }
-  catch { throw new Error('Userscript @require content must be valid UTF-8 JavaScript') }
+  try {
+    new TextDecoder('utf-8', { fatal: true }).decode(content)
+  } catch {
+    throw new Error('Userscript @require content must be valid UTF-8 JavaScript')
+  }
 }
 
 function normalizeContentType(value: string | null): string | null {

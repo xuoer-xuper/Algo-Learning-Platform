@@ -46,8 +46,10 @@ export function DropdownMenu({
   }
 
   const triggerButton = () => triggerRef.current?.querySelector<HTMLButtonElement>('button') ?? null
-  const enabledItems = () => [...(menuRef.current?.querySelectorAll<HTMLButtonElement>('[role="menuitem"]') ?? [])]
-    .filter(item => !item.disabled)
+  const enabledItems = () =>
+    [...(menuRef.current?.querySelectorAll<HTMLButtonElement>('[role="menuitem"]') ?? [])].filter(
+      (item) => !item.disabled,
+    )
 
   useLayoutEffect(() => {
     if (!open || !triggerRef.current) return
@@ -56,9 +58,8 @@ export function DropdownMenu({
       if (!rect) return
       setPosition({
         top: Math.min(window.innerHeight - 8, rect.bottom + 4),
-        left: align === 'end'
-          ? Math.min(window.innerWidth - 8, rect.right)
-          : Math.max(8, rect.left),
+        left:
+          align === 'end' ? Math.min(window.innerWidth - 8, rect.right) : Math.max(8, rect.left),
       })
     }
     updatePosition()
@@ -74,9 +75,8 @@ export function DropdownMenu({
     if (!open) return
     const frame = window.requestAnimationFrame(() => {
       const candidates = enabledItems()
-      const candidate = preferredFocusRef.current === 'last'
-        ? candidates[candidates.length - 1]
-        : candidates[0]
+      const candidate =
+        preferredFocusRef.current === 'last' ? candidates[candidates.length - 1] : candidates[0]
       candidate?.focus()
     })
     const onPointerDown = (event: PointerEvent) => {
@@ -111,8 +111,10 @@ export function DropdownMenu({
     if (candidates.length === 0) return
     const currentIndex = candidates.indexOf(document.activeElement as HTMLButtonElement)
     let nextIndex: number | null = null
-    if (event.key === 'ArrowDown') nextIndex = currentIndex < candidates.length - 1 ? currentIndex + 1 : 0
-    else if (event.key === 'ArrowUp') nextIndex = currentIndex > 0 ? currentIndex - 1 : candidates.length - 1
+    if (event.key === 'ArrowDown')
+      nextIndex = currentIndex < candidates.length - 1 ? currentIndex + 1 : 0
+    else if (event.key === 'ArrowUp')
+      nextIndex = currentIndex > 0 ? currentIndex - 1 : candidates.length - 1
     else if (event.key === 'Home') nextIndex = 0
     else if (event.key === 'End') nextIndex = candidates.length - 1
     if (nextIndex !== null) {
@@ -139,44 +141,48 @@ export function DropdownMenu({
   return (
     <>
       <span ref={triggerRef} className="ui-dropdown-trigger">
-        {triggerText
-          ? <Button variant="ghost" icon={icon} {...triggerProps}>{triggerText}</Button>
-          : <IconButton icon={icon} title={label} {...triggerProps} />}
+        {triggerText ? (
+          <Button variant="ghost" icon={icon} {...triggerProps}>
+            {triggerText}
+          </Button>
+        ) : (
+          <IconButton icon={icon} title={label} {...triggerProps} />
+        )}
       </span>
-      {open && createPortal(
-        <div
-          ref={menuRef}
-          className={['ui-dropdown-menu', `ui-dropdown-menu-${align}`].join(' ')}
-          role="menu"
-          aria-label={label}
-          data-testid="dropdown-menu"
-          style={{ top: position.top, left: position.left }}
-          onKeyDown={onMenuKeyDown}
-        >
-          {items.map(item => (
-            <button
-              key={item.id}
-              type="button"
-              role="menuitem"
-              className={[
-                'ui-dropdown-item',
-                item.danger ? 'ui-dropdown-item-danger' : '',
-              ].filter(Boolean).join(' ')}
-              disabled={item.disabled}
-              data-testid={`dropdown-item-${item.id}`}
-              onClick={() => {
-                item.onSelect()
-                setMenuOpen(false)
-                triggerButton()?.focus()
-              }}
-            >
-              {item.icon && <Icon name={item.icon} size={14} />}
-              <span>{item.label}</span>
-            </button>
-          ))}
-        </div>,
-        document.body,
-      )}
+      {open &&
+        createPortal(
+          <div
+            ref={menuRef}
+            className={['ui-dropdown-menu', `ui-dropdown-menu-${align}`].join(' ')}
+            role="menu"
+            aria-label={label}
+            data-testid="dropdown-menu"
+            style={{ top: position.top, left: position.left }}
+            onKeyDown={onMenuKeyDown}
+          >
+            {items.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                role="menuitem"
+                className={['ui-dropdown-item', item.danger ? 'ui-dropdown-item-danger' : '']
+                  .filter(Boolean)
+                  .join(' ')}
+                disabled={item.disabled}
+                data-testid={`dropdown-item-${item.id}`}
+                onClick={() => {
+                  item.onSelect()
+                  setMenuOpen(false)
+                  triggerButton()?.focus()
+                }}
+              >
+                {item.icon && <Icon name={item.icon} size={14} />}
+                <span>{item.label}</span>
+              </button>
+            ))}
+          </div>,
+          document.body,
+        )}
     </>
   )
 }

@@ -3,7 +3,12 @@
 // 推荐结果可追溯到具体题目和提交（source 字段）
 import { getDb } from '../../db/connection'
 import { nowBeijing } from '../../shared/time'
-import { buildReviewReason, daysSince, REVIEW_RECOMMENDATION_RULE_VERSION, scoreReviewCandidate } from './rules'
+import {
+  buildReviewReason,
+  daysSince,
+  REVIEW_RECOMMENDATION_RULE_VERSION,
+  scoreReviewCandidate,
+} from './rules'
 import type { ReviewRecommendation, ReviewRecommendationResult } from './types'
 export type { ReviewRecommendation, ReviewRecommendationResult } from './types'
 
@@ -17,7 +22,9 @@ export function getReviewRecommendations(limit = 10): ReviewRecommendationResult
   const now = Date.now()
 
   // SQL 先过滤从未 AC 的题目，避免 LIMIT 配额被已解决题目占用。
-  const rows = db.prepare(`
+  const rows = db
+    .prepare(
+      `
     SELECT
       p.id, p.platform, p.platform_problem_id, p.title, p.canonical_url,
       COUNT(s.id) as wrong_count,
@@ -34,7 +41,9 @@ export function getReviewRecommendations(limit = 10): ReviewRecommendationResult
     GROUP BY p.id
     ORDER BY wrong_count DESC, last_attempt DESC
     LIMIT 100
-  `).all() as {
+  `,
+    )
+    .all() as {
     id: string
     platform: string
     platform_problem_id: string
@@ -46,7 +55,7 @@ export function getReviewRecommendations(limit = 10): ReviewRecommendationResult
   }[]
 
   const recommendations: ReviewRecommendation[] = rows
-    .map(r => {
+    .map((r) => {
       const daysSinceAttempt = daysSince(r.last_attempt, now)
       const score = scoreReviewCandidate(r.wrong_count, daysSinceAttempt, r.visit_count)
       const reason = buildReviewReason(r.wrong_count, daysSinceAttempt, r.visit_count)

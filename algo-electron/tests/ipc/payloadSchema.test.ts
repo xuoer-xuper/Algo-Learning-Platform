@@ -190,7 +190,10 @@ describe('object', () => {
 
   test('嵌套对象的错误路径能一路指到底', () => {
     const nested = object({ outer: object({ inner: int({ min: 1, max: 2 }) }) })
-    assert.strictEqual(rejects(() => nested.parse({ outer: { inner: 9 } }, 'p')).path, 'p.outer.inner')
+    assert.strictEqual(
+      rejects(() => nested.parse({ outer: { inner: 9 } }, 'p')).path,
+      'p.outer.inner',
+    )
   })
 })
 
@@ -223,7 +226,10 @@ describe('parseIpcArgs', () => {
   })
 
   test('错误路径带 channel 与参数序号', () => {
-    assert.strictEqual(rejects(() => parseIpcArgs('stats:x', schemas, ['id', 99])).path, 'stats:x#1')
+    assert.strictEqual(
+      rejects(() => parseIpcArgs('stats:x', schemas, ['id', 99])).path,
+      'stats:x#1',
+    )
   })
 
   test('实参多于 schema 时拒绝', () => {
