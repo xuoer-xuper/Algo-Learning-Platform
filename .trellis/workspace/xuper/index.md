@@ -8,8 +8,8 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 1
-- **Last Active**: 2026-09-30
+- **Total Sessions**: 2
+- **Last Active**: 2026-10-27
 <!-- @@@/auto:current-status -->
 
 ---
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~49 | Active |
+| `journal-1.md` | ~72 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 2 | 2026-10-27 | 修复 userscript 烟测失效竞态并合并 v2.0.0 正式版 | `5ade2cb`, `42fba7d` | `chore/phase-0-tooling-gates` |
 | 1 | 2026-09-30 | 阶段 0.2-0.4：pnpm 迁移、TypeScript 6.0.3、typescript-eslint 接入与类型债分层 | `bf2c2d0`, `b4c2e07` | `chore/phase-0-tooling-gates` |
 <!-- @@@/auto:session-history -->
 

@@ -47,3 +47,26 @@
 
 - 阶段 0.5 prettier（含全仓一次性格式化单独 commit），随后 0.6 husky/commitlint/lint-staged、0.7 jscpd、0.8 @shared alias、0.9 release-it、0.1 分支保护与 dev 触发、0.10 COMMIT_RULES
 - 0.4 的两条遗留：tests/** 规则升级（94 处 any 等）与 runElectronAppTest 的 ESM/electron 互操作问题，前者随阶段 5、后者已记入 0.10/阶段 5 待办
+
+
+## Session 2: 修复 userscript 烟测失效竞态并合并 v2.0.0 正式版
+<!-- trellis-session: v=2 fp=e87fbcfb0aecb4aa -->
+
+**Date**: 2026-10-27
+**Task**: 修复 userscript 烟测失效竞态并合并 v2.0.0 正式版
+**Branch**: `chore/phase-0-tooling-gates`
+
+### Summary
+
+合并 master v2.0.0 正式版(29 提交)到工具门分支;诊断 CI 间歇红:advanceGeneration 可发生在帧端口 pending 期,closeAllPorts 静默丢弃 pending 记录且拒绝路径不发失效,旧运行时 document-end 脚本泄漏。修复:代际前进保留 pending、拒绝前补发 runtime:invalidate;烟测加 payload 门控失效标记 + 页面内联轮询 + console-message 确定性同步。typecheck/lint/1387 单测全绿,烟测连跑 5/5。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `5ade2cb` | fix(userscript): 代际前进不再静默丢弃 pending 端口——拒绝前补发失效消息,烟测以标记信号做确定性同步 |
+| `42fba7d` | docs(trellis): 记录 userscript 烟测竞态任务的诊断与验收 |
+
+### Status
+
+[OK] **Completed**
