@@ -132,14 +132,16 @@ test('preload maps core renderer methods to stable channels', () => {
   for (const contract of coreContracts) {
     const body = methods.get(contract.method)
     assert.ok(body, `Missing preload method ${contract.method}`)
+    // prettier 会把过长的 invoke(...) 拆成多行，比对前先把空白全部去掉。
+    const compactBody = body.replace(/\s+/g, '')
     assert.ok(
-      body.includes(`ipcRenderer.${contract.mode}('${contract.channel}'`),
+      compactBody.includes(`ipcRenderer.${contract.mode}('${contract.channel}'`),
       `${contract.method} should use ipcRenderer.${contract.mode}('${contract.channel}')`,
     )
 
     if (contract.mode === 'on') {
       assert.ok(
-        body.includes(`ipcRenderer.off('${contract.channel}'`),
+        compactBody.includes(`ipcRenderer.off('${contract.channel}'`),
         `${contract.method} should unsubscribe from ${contract.channel}`,
       )
     }
@@ -210,9 +212,9 @@ test('renderer cannot access arbitrary IPC channels through preload', () => {
     'ipcRenderer must not be exposed globally',
   )
 
-  const dynamicChannelUse = /ipcRenderer\.(?:send|invoke|on|off)\(\s*(?!['"][^'"]+['"])/.exec(
-    preloadSource,
-  )
+  // 首个非空白字符必须是引号（字面量通道名）。不能写成 \(\s*(?!['"])：
+  // \s* 会回溯到空白字符上，把换行后的字面量调用也误判成动态通道。
+  const dynamicChannelUse = /ipcRenderer\.(?:send|invoke|on|off)\(\s*[^'"\s]/.exec(preloadSource)
   assert.strictEqual(dynamicChannelUse, null, 'preload IPC calls must use literal channel names')
 
   const rendererChannels = new Set(

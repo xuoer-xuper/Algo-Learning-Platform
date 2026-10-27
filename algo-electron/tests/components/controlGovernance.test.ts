@@ -24,7 +24,10 @@ describe('交互控件治理', () => {
     expect(sidebar.match(/className="sidebar-item-(?:notes|detail)"/g)).toHaveLength(2)
     expect(sidebar).toContain('className="sidebar-collapse-btn"')
     // 小号是设计系统尺寸，不是局部 CSS 覆盖，两个筛选器都要显式声明。
-    expect(sidebar.match(/<Select size="sm" className="sidebar-select"/g)).toHaveLength(2)
+    // 属性分别用前瞻匹配：prettier 会把 JSX 属性拆成多行，顺序也不再可靠。
+    expect(
+      sidebar.match(/<Select\b(?=[^>]*\bsize="sm")(?=[^>]*\bclassName="sidebar-select")[^>]*>/g),
+    ).toHaveLength(2)
   })
 
   it('笔记头部的标题与类型选择走 Input/Select，几何仍由局部类给', () => {

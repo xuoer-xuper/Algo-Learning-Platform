@@ -93,9 +93,11 @@ test('窗口关闭与进程退出前都要把会话写完', () => {
   // 退出时还有窗口在建就得等它建完再写，否则那个窗口不会进存档。
   // mainStartupContract 只能覆盖"无事可冲时不拦截"那一侧——要造出 isRunning 为真，
   // 得先让 whenReady 跑完并真建窗口，所以这一侧留在源码断言里。
+  // windowCreationGate 的成员访问要容忍换行：prettier 会把长成员链拆成
+  // `gate\n  .waitForIdle()` 的形状，`gate\.waitForIdle` 那种写法会漏配。
   assert.match(
     mainSource,
-    /hasPendingWindowCreation = windowCreationGate\.isRunning[\s\S]+?windowCreationGate\.stop\(\)[\s\S]+?windowCreationGate\.waitForIdle\(\)/,
+    /hasPendingWindowCreation = windowCreationGate\s*\.\s*isRunning[\s\S]+?windowCreationGate\s*\.\s*stop\(\)[\s\S]+?windowCreationGate\s*\.\s*waitForIdle\(\)/,
   )
   assert.match(
     mainSource,

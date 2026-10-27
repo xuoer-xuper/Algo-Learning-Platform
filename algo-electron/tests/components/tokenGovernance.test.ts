@@ -36,7 +36,8 @@ describe('设计 token 治理', () => {
   })
 
   it('暗色主题同时覆盖语义 color token 与兼容别名', () => {
-    const darkBlock = source.match(/:root\[data-theme="dark"\]\s*\{([\s\S]*?)\n\}/)?.[1] ?? ''
+    // prettier 会把 CSS 属性选择器的引号统一成单引号，这里两种引号都接受。
+    const darkBlock = source.match(/:root\[data-theme=['"]dark['"]\]\s*\{([\s\S]*?)\n\}/)?.[1] ?? ''
     for (const token of [
       '--color-app',
       '--color-chrome',
@@ -79,7 +80,7 @@ describe('设计 token 治理', () => {
    * 缺陷，没有测试会因此变红——所以在这里钉住。
    */
   it('暗色主题翻转叠加层、阴影与滚动条滑块', () => {
-    const darkBlock = source.match(/:root\[data-theme="dark"\]\s*\{([\s\S]*?)\n\}/)?.[1] ?? ''
+    const darkBlock = source.match(/:root\[data-theme=['"]dark['"]\]\s*\{([\s\S]*?)\n\}/)?.[1] ?? ''
     for (const token of [
       '--color-overlay-hover',
       '--color-overlay-hover-strong',
