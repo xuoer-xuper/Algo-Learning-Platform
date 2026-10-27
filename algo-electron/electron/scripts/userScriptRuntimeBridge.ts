@@ -36,6 +36,8 @@ interface UserScriptRuntimeBridgeOptions {
   preloadPath: string
   catalogPreloadPath?: string
   allowInsecureLocalhost?: boolean
+  // 烟测专用:让编译目录里的运行时暴露失效落地标记,供测试做确定性同步。
+  exposeInvalidationMarker?: boolean
   logger?: Logger
   now?: () => number
   networkProxy?: Pick<UserScriptNetworkProxy, 'start' | 'abort' | 'abortPrefix'>
@@ -104,7 +106,9 @@ export function installUserScriptRuntimeBridge(
   const rebuildCompiledCatalog = (): void => {
     if (!combinedPreloadPath || bootstrapSource === null) return
     try {
-      const catalog = buildUserScriptCompiledCatalogPreload(options.runtime.getCatalogSnapshot())
+      const catalog = buildUserScriptCompiledCatalogPreload(options.runtime.getCatalogSnapshot(), {
+        exposeInvalidationMarker: options.exposeInvalidationMarker,
+      })
       const catalogSource = bootstrapSource.includes("require('electron')") || bootstrapSource.includes('require("electron")')
         ? catalog.source.replace("import { contextBridge } from 'electron';", "const { contextBridge } = require('electron');")
         : catalog.source
@@ -160,6 +164,12 @@ export function installUserScriptRuntimeBridge(
     for (const frameKey of Array.from(activePorts.keys())) closeFramePort(frameKey)
   }
 
+  const invalidateAllPorts = (): void => {
+    // pending 记录刻意保留:其端口到达时会因代际不匹配走拒绝路径,并在拒绝前
+    // 补发 runtime:invalidate,保证已启动的旧运行时总能收到失效通知。
+    for (const frameKey of Array.from(activePorts.keys())) closeFramePort(frameKey)
+  }
+
   const sendToActivePort = (active: ActiveRuntimePort, event: UserScriptRuntimeEvent): void => {
     if (activePorts.get(active.frameKey) !== active || active.generation !== options.runtime.generation) {
       closeFramePort(active.frameKey)
@@ -183,7 +193,7 @@ export function installUserScriptRuntimeBridge(
   }
 
   const removeGenerationListener = options.runtime.addGenerationChangeListener?.(() => {
-    closeAllPorts()
+    invalidateAllPorts()
     rebuildCompiledCatalog()
   })
 
@@ -363,14 +373,22 @@ export function installUserScriptRuntimeBridge(
       if (!frameKey) return reject()
       const pending = pendingPorts.get(frameKey)
       pendingPorts.delete(frameKey)
-      if (
-        !pending
+      const stale = !pending
         || pending.nonce !== payload.nonce
         || pending.documentUrl !== payload.frameUrl
         || pending.generation !== payload.generation
         || pending.expiresAt <= now()
         || pending.generation !== options.runtime.generation
-      ) return reject()
+      if (stale) {
+        // 帧内运行时可能已由编译目录先行启动,而其端口还处于 pending;若此间运行时
+        // 代际已前进,静默拒绝会让旧运行时永远等不到失效通知,其 document-end/idle
+        // 脚本会在失效缺席下泄漏执行。拒绝前先向陈旧端口补发失效消息。
+        if (pending && pending.generation !== options.runtime.generation) {
+          try { transferredPort?.postMessage({ type: 'runtime:invalidate', generation: payload.generation }) }
+          catch { /* the transferred port may already be unusable */ }
+        }
+        return reject()
+      }
 
       closeFramePort(frameKey)
       const active: ActiveRuntimePort = {

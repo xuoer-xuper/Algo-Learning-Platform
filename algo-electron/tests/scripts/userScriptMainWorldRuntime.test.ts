@@ -296,6 +296,38 @@ test('ignores stale lifecycle events and invalidation permanently cancels delaye
   })
 })
 
+test('invalidation exposes a page-visible marker only when the payload opts in', async () => {
+  await withRuntimeGlobals((port) => {
+    const globalWithMarker = globalThis as typeof globalThis & { __algoUserScriptRuntimeInvalidated?: number }
+    const result = buildUserScriptMainWorldRuntime({
+      handshakeId: 'navigation-handshake',
+      targetOrigin: 'https://example.com',
+      generation: 7,
+      scripts: [],
+      exposeInvalidationMarker: true,
+    })
+    runExecution(result, port)
+    try {
+      port.receive({ type: 'runtime:invalidate', generation: 7 })
+      assert.strictEqual(globalWithMarker.__algoUserScriptRuntimeInvalidated, 7)
+      port.receive({ type: 'runtime:invalidate', generation: 6 })
+      assert.strictEqual(globalWithMarker.__algoUserScriptRuntimeInvalidated, 7)
+    }
+    finally { Reflect.deleteProperty(globalThis, '__algoUserScriptRuntimeInvalidated') }
+  })
+})
+
+test('invalidation writes no page marker by default', async () => {
+  await withRuntimeGlobals((port) => {
+    runExecution(execute([]), port)
+    port.receive({ type: 'runtime:invalidate', generation: 7 })
+    assert.strictEqual(
+      (globalThis as typeof globalThis & { __algoUserScriptRuntimeInvalidated?: number }).__algoUserScriptRuntimeInvalidated,
+      undefined,
+    )
+  })
+})
+
 test('syncs SPA matches by current document phase and runs one revision at most once', async () => {
   await withRuntimeGlobals((port, _styles, events) => {
     Object.defineProperty(globalThis, '__spaRuns', { configurable: true, value: [], writable: true })

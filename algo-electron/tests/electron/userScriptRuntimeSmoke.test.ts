@@ -101,6 +101,7 @@ const bridge = installUserScriptRuntimeBridge({
   preloadPath: userscriptPreloadPath,
   catalogPreloadPath,
   allowInsecureLocalhost: true,
+  exposeInvalidationMarker: true,
 })
 const serverState: { heldScriptResponse: ServerResponse | null; holdFirstRace: boolean } = {
   heldScriptResponse: null,
@@ -139,7 +140,7 @@ const server = createServer((request, response) => {
     return
   }
   if (url.pathname === '/race') {
-    response.write(pageStart(`<script nonce="${nonce}">globalThis.__raceRuns ??= []; globalThis.__raceRuns.push('inline-before-hold')</script><script src="/hold.js"></script>`))
+    response.write(pageStart(`<script nonce="${nonce}">globalThis.__raceRuns ??= []; globalThis.__raceRuns.push('inline-before-hold')</script><script nonce="${nonce}">const invalidatedPoller = setInterval(() => { if (globalThis.__algoUserScriptRuntimeInvalidated === 1) { clearInterval(invalidatedPoller); console.log('race-invalidated-landed'); } }, 5)</script><script src="/hold.js"></script>`))
     response.end('</body></html>')
     return
   }
@@ -222,6 +223,13 @@ try {
   recordStage(stage)
   const raceWindow = createHiddenWindow(smokeSession)
   windows.push(raceWindow)
+  // 页面被 hold 期间文档未加载完,executeJavaScript 不会求值,所以由页面内联
+  // 脚本轮询失效标记(与运行时同属主世界)并用 console-message 通知主进程。
+  const invalidatedLanded = new Promise<void>((resolve) => {
+    raceWindow.webContents.on('console-message', (_event, _level, message) => {
+      if (message === 'race-invalidated-landed') resolve()
+    })
+  })
   const firstRaceLoad = raceWindow.loadURL(`${origin}/race`)
   try {
     await waitFor(async () => (
@@ -234,6 +242,10 @@ try {
     throw error
   }
   runtime.advanceGeneration()
+  // 确定性同步:等 runtime:invalidate 真正落地渲染进程再释放 hold,
+  // 否则 v1-end 可能在失效消息之前被 DOMContentLoaded 放行(见任务竞态诊断)。
+  await invalidatedLanded
+  recordStage('invalidate-landed')
   serverState.heldScriptResponse?.end('globalThis.__raceRuns.push("page-script")')
   serverState.heldScriptResponse = null
   await firstRaceLoad

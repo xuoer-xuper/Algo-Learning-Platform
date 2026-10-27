@@ -44,6 +44,9 @@ export interface UserScriptMainWorldBuildInput {
   scripts: readonly UserScriptMainWorldScript[]
   handlerName?: string
   handlerVersion?: string
+  // 烟测专用:开启后 runtime:invalidate 落地渲染进程时向页面 globalThis 写
+  // __algoUserScriptRuntimeInvalidated 标记,供测试做确定性同步;生产不传,零副作用。
+  exposeInvalidationMarker?: boolean
 }
 
 interface GrantPermissions {
@@ -94,6 +97,7 @@ interface ExecutionPayload {
   generation: number
   handlerName: string
   handlerVersion: string
+  exposeInvalidationMarker?: boolean
   scripts: ScriptDescriptor[]
 }
 
@@ -183,6 +187,7 @@ export function buildUserScriptMainWorldRuntime(
     generation,
     handlerName,
     handlerVersion,
+    ...(input.exposeInvalidationMarker ? { exposeInvalidationMarker: true } : {}),
     // Resources already live in the compiled catalog entry. Keeping them out
     // of the candidate payload avoids duplicating large base64 blobs.
     scripts: compiledScripts.map(script => ({ ...script.descriptor, resources: [] })),
@@ -773,6 +778,9 @@ function createExecutionBody(scripts: readonly CompiledScript[]): string {
         ${lifecycle}.idleRuns.length = 0;
         ${scriptStates}.clear();
         ${menuCallbacks}.clear();
+        if (${payload}.exposeInvalidationMarker) {
+          ${page}.__algoUserScriptRuntimeInvalidated = ${payload}.generation;
+        }
       } else if (message.type === 'runtime:sync' && message.generation === ${payload}.generation) {
         let sameOrigin = false;
         try { sameOrigin = new URL(message.frameUrl).origin === ${payload}.targetOrigin; }

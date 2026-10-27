@@ -366,6 +366,30 @@ test('rejects stale or mismatched port handoffs', async () => {
   bridge.dispose()
 })
 
+test('invalidates a stale pending runtime before rejecting its late port handoff', async () => {
+  const ojSession = session.fromPartition('persist:oj-main')
+  const runtime = createRuntime()
+  const bridge = installUserScriptRuntimeBridge({
+    runtime: runtime as never,
+    session: ojSession as never,
+    preloadPath: 'C:\\app\\userscriptBootstrapPreload.mjs',
+  })
+  const sender = await createSender(ojSession)
+  registerOjWebContents(sender)
+  ipcMain.emit(USER_SCRIPT_RUNTIME_INIT_CHANNEL, createEvent(sender, []), initPayload())
+
+  runtime.advanceGeneration()
+  const latePort = new MockPort()
+  ipcMain.emit(USER_SCRIPT_RUNTIME_PORT_CHANNEL, createEvent(sender, [latePort]), {
+    nonce,
+    frameUrl: sender.getURL(),
+    generation: 1,
+  })
+  assert.deepStrictEqual(latePort.sentMessages, [{ type: 'runtime:invalidate', generation: 1 }])
+  assert.strictEqual(latePort.closed, true)
+  bridge.dispose()
+})
+
 function createRuntime(grants?: string[]) {
   let generationListener: ((generation: number) => void) | null = null
   const runtime = {
