@@ -33,10 +33,10 @@
 - 验证：`pnpm lint` 0 error 0 warning；反向验证（临时放 `value.nested!.field` 立刻变红，撤销后恢复绿）；`pnpm typecheck` 0 error；`pnpm typecheck:tests` 0 error（干净状态，无 TS6305——根级配置不进 `tsconfig.node.json` 就是为了这个）；`pnpm test:core` 全绿（169 文件 / 1362 用例）。回滚点：commit `chore(lint): 接入 typescript-eslint 并修复现存违规`。
 
 ### 0.5 prettier
-- [ ] `pnpm add -D prettier`；写 `.prettierrc`、`.prettierignore`。
-- [ ] `pnpm prettier --write .`；**单独** commit `style: 全仓 prettier 格式化`。
-- [ ] `eslint.config.js` 末尾加 `eslintConfigPrettier`。
-- 验证：`pnpm prettier --check .`；`pnpm lint`。
+- [x] `pnpm add -D prettier`；写 `.prettierrc`、`.prettierignore`。（2026-10-27 完成，实测 prettier 3.9.10；配置按 design.md §5 契约：semi:false / singleQuote / printWidth:100 / trailingComma:all。`.prettierignore` 在契约四项外追加 `*.tsbuildinfo`——未入库的构建增量文件，排除后免掉 `--check` 的 no-parser 噪音。）
+- [x] `pnpm prettier --write .`；**单独** commit `style: 全仓 prettier 格式化`。（2026-10-27 完成，commit `601e3ea`，525 文件。范围是 `algo-electron/` 全树；仓库根 docs/ 与 `.trellis/` 不在 prettier 运行目录内，未格式化。该 commit 唯一非纯格式 diff：`guards.test.ts` 的 `@ts-expect-error` 从 import 前移入花括号——TS7016 报在模块说明符处，单行 import 拆成多行后原位置覆盖不到。）
+- [x] `eslint.config.js` 末尾加 `eslintConfigPrettier`。（随 commit `b0f1671` 与依赖一起进。）
+- 验证：`pnpm prettier --check .` 通过；`pnpm lint` 0/0。（2026-10-27 实测通过。**格式化的连带代价**：4 个按文本形状扫描源码的守卫测试变红，已改为对格式不敏感（守卫意图不变），见 commit `905de10`：tokenGovernance 的暗色块提取接受单双引号（prettier 统一 CSS 引号）、controlGovernance 的 `<Select>` 属性前瞻匹配、ipcContracts 压缩空白后比对 + 动态通道判定改为"首参必须以引号开头"（原 `(?!['"])` 在 `\s*` 回溯后误判换行的字面量调用）、mainResilience 容忍成员链换行。`noteTabIsolation` 单跑即绿，属并行负载下的既有超时抖动，未改动。收口验证 `pnpm test:core` 全绿：175 文件 / 1387 用例。回滚点：commit `b0f1671`（配置）+ `601e3ea`（格式化）+ `905de10`（守卫适配）。）
 
 ### 0.6 husky + commitlint + lint-staged
 - [ ] `pnpm add -D husky @commitlint/cli @commitlint/config-conventional lint-staged`；`pnpm exec husky init`。

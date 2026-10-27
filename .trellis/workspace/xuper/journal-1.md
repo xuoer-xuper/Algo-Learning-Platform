@@ -70,3 +70,35 @@
 ### Status
 
 [OK] **Completed**
+
+
+## Session 3: 阶段 0.5 prettier 接入与源码守卫的格式适配
+<!-- trellis-session: v=2 fp=088598938e83547a -->
+
+**Date**: 2026-10-27
+**Task**: 阶段 0.5 prettier 接入与源码守卫的格式适配
+**Branch**: `chore/phase-0-tooling-gates`
+
+### Summary
+
+0.5 完成：prettier 3.9.10 按 design §5 契约接入(.prettierrc/.prettierignore/eslint-config-prettier 接线)；全仓格式化独立 commit 525 文件；4 个按文本形状扫描源码的守卫测试改为对格式不敏感(意图不变)；test:core 全绿 175 文件/1387 用例。会话中子代理派发被环境拦截，改为主会话内联实施。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `b0f1671` | chore(deps): 接入 prettier 3.9.10 并接线 eslint-config-prettier |
+| `601e3ea` | style: 全仓 prettier 格式化 |
+| `905de10` | test: 源码扫描守卫对 prettier 换行/引号不再敏感 |
+
+### Testing
+
+- [OK] pnpm prettier --check . 通过；pnpm lint 0 error 0 warning；pnpm test:core 全绿(175 文件/1387 用例，含 typecheck×2/architecture/security)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- 下一节 0.6 husky+commitlint+lint-staged(注意 design §6 的 release-it 与 master 提交互斥问题需选方案)；随后 0.7 jscpd、0.8 @shared alias、0.9 release-it、0.1 ci.yml 加 dev、0.10 COMMIT_RULES。当前会话到 0.5 收口为止，0.6 起待后续会话。
