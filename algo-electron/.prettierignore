@@ -1,0 +1,8 @@
+# 契约清单见 .trellis/tasks/09-17-phase-0-tooling-gates/design.md §5：
+# 生成物与锁文件不参与格式化。
+dist*
+release
+tmp
+pnpm-lock.yaml
+# 构建增量状态文件（未入库），避免 --check 输出 "no parser" 噪音。
+*.tsbuildinfo
