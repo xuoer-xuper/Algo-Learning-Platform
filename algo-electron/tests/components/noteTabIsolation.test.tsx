@@ -111,12 +111,14 @@ function deferred<T>() {
 
 async function openNote(note: NoteItem) {
   fireEvent.click(await screen.findByText(note.title))
+  // 预算 15s：pre-push 门在全量并行 fork 下跑，本机曾观测到环境负载把 5s 预算
+  // 顶穿（noteTabIsolation 间歇红、卡住推送）。断言本身不变，只是等得更久。
   const editor = await screen.findByRole<HTMLTextAreaElement>(
     'textbox',
     { name: 'Markdown body' },
-    { timeout: 5000 },
+    { timeout: 15000 },
   )
-  await waitFor(() => expect(editor.value).toBe(note.content))
+  await waitFor(() => expect(editor.value).toBe(note.content), { timeout: 15000 })
   return editor
 }
 
