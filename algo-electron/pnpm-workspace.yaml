@@ -1,7 +1,6 @@
 # pnpm 12 的项目设置入口：只有认证/registry 设置还从 .npmrc 读，其余全部在
 # pnpm-workspace.yaml（含 nodeLinker / shamefullyHoist，它们只能在这里设）。
-# .trellis/spec/shared/pnpm-electron-setup.md 写的是 pnpm 8/9 时代的 .npmrc 方案，
-# 阶段 0 按官方 pnpm 12 机制落地，spec 在 3.3 同步。
+# 契约镜像：.trellis/spec/shared/pnpm-electron-setup.md（2026-10-31 已同步为本文件内容）。
 #
 # Electron 打包与 native 模块（better-sqlite3）的路径解析要求扁平的 node_modules，
 # 符号链接布局会让 asarUnpack 与 require 解析失败。

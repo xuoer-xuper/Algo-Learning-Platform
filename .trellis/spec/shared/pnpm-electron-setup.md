@@ -30,31 +30,42 @@ node_modules/
 
 ## 基础配置
 
-### 1. .npmrc 配置（必需）
+> **⚠️ 2026-10-31 修订（阶段 0.2 实测）**：本节以下最初写的是 pnpm 8/9 时代的 `.npmrc` 方案。
+> **pnpm 12 只从 `.npmrc` 读认证/registry 设置**；`nodeLinker`、`shamefullyHoist`、`allowBuilds`
+> 等项目设置**只能写在 `pnpm-workspace.yaml`**（写在 `.npmrc` 会被静默忽略）。本仓库的生效配置
+> 是 `algo-electron/pnpm-workspace.yaml`，内容如下——新项目照此落，不要再走 `.npmrc`：
 
-```ini
-# .npmrc
+```yaml
+# pnpm 12 的项目设置入口（algo-electron/pnpm-workspace.yaml，阶段 0.2 落地）
+# Electron 打包与 native 模块（better-sqlite3）的路径解析要求扁平的 node_modules，
+# 符号链接布局会让 asarUnpack 与 require 解析失败。
+nodeLinker: hoisted
+shamefullyHoist: true
+strictPeerDependencies: false
 
-# 使用 hoisted 的 node_modules 结构（类似 npm）
-node-linker=hoisted
-
-# 将所有依赖提升到根 node_modules（Electron 必需）
-shamefully-hoist=true
-
-# 可选：如果遇到 peer dependency 警告
-strict-peer-dependencies=false
-
-# 可选：加速安装
-prefer-offline=true
+# pnpm 10+ 默认不执行依赖的构建脚本，pnpm 12 把缺失声明从警告升级为
+# ERR_PNPM_IGNORED_BUILDS 安装失败——allowBuilds 是必需配置而非可选优化。
+# 这两项是本仓库唯一带 install/postinstall 的依赖（esbuild 装平台二进制，
+# electron-winstaller 选 7z 架构）；electron 与 better-sqlite3 本身不带脚本，
+# 由根 package.json 的 postinstall 显式处理（install-electron --no &&
+# electron-builder install-app-deps，内联、不嵌套 pnpm run——嵌套调用会撞
+# packageManager 版本门）。由 `pnpm approve-builds --all` 写入。
+allowBuilds:
+  electron-winstaller: true
+  esbuild: true
 ```
-
-**配置说明**：
 
 | 配置                             | 作用                      | 为什么需要                |
 | -------------------------------- | ------------------------- | ------------------------- |
-| `node-linker=hoisted`            | 使用扁平化的 node_modules | Electron 打包需要         |
-| `shamefully-hoist=true`          | 提升所有依赖到根目录      | Native modules 路径解析   |
-| `strict-peer-dependencies=false` | 忽略 peer 依赖警告        | Electron 生态包版本常冲突 |
+| `nodeLinker: hoisted`            | 使用扁平化的 node_modules | Electron 打包需要         |
+| `shamefullyHoist: true`          | 提升所有依赖到根目录      | Native modules 路径解析   |
+| `strictPeerDependencies: false`  | 忽略 peer 依赖警告        | Electron 生态包版本常冲突 |
+| `allowBuilds`（必需）            | 放行依赖的安装脚本        | pnpm 10+ 缺声明直接安装失败 |
+
+`.npmrc` 在本仓库不存在；需要私有 registry/认证时才建它，且只放认证与 registry 条目。
+版本来源是 `package.json` 的 `packageManager` 字段（`pnpm@12.8.1`），CI 由
+`pnpm/action-setup@v4` 读取（`package_json_file: algo-electron/package.json`，且必须置于
+`actions/setup-node` 之前，否则 `cache: pnpm` 无法定位）。
 
 ### 2. pnpm-workspace.yaml（Monorepo）
 
