@@ -66,10 +66,10 @@
 - 验证：dry-run 输出正确。（2026-10-31 实测：**2.0.0 → 2.0.1**（patch，conventional commits 推断）、changelog 片段正确（conventionalcommits preset）、写入目标 `../docs/PRODUCT/CHANGELOG.md`、git 提交/打标/推送计划全按配置生成，`--ci` 下 exit 0。design §9 三问实证：**①dry-run 不执行 `hooks.before:init`**（源码 `lib/shell.js` L31 `isDryRun && isWrite` 短路；实测 `! pnpm test:all` / `! pnpm build:win` 只记日志）——hooks 机制另证：scratch 配置把 `before:init` 设为必败命令做真实运行，hook 执行、发版当场中止、工作树零写入，用后即弃；真实 hooks 全链等阶段 5 修好 `test:all`（coach 夹具既有红）后顺延验证。**②commitArgs 支持已核实**（见上）。**③资产 glob** 与 `electron-builder.json5` `directories.output = "release/${version}"` 静态一致，本地无产物动态核对顺延阶段 6 首次真实发版。两个运行前提：真实发版需设 `GITHUB_TOKEN`（缺省回退 web 手动发）；`requireCleanWorkingDir` 把 untracked 算脏（仓库常驻 untracked `.zcode/`），真实发版前须清理。回滚点：本节 commit。）
 
 ### 0.1 分支保护与 CI（放最后）
-- [ ] `ci.yml` `on.push.branches: [main, master, dev]`。
+- [x] `ci.yml` `on.push.branches` 增加 `dev`。（2026-10-31 完成。最终值 **`[master, dev]`** 而非本行原计划的 `[main, master, dev]`："CI 合理性审查" 节 [P3] 已定案 `main` 是死分支（仓库用 master、`main` 不存在），同一次触碰顺手清掉。验证：PyYAML 解析通过，`push.branches` 实读 `['master', 'dev']`；裸 `pull_request:`（无分支过滤）保持不变，fast-guard 与 renderer-smoke 两个 job 均无 `if` 条件、全量进 PR，符合 design §10 "pull_request 触发全部 job"；两个 required check 的 job `name:` 字面值逐字符未动（design §0 不变量）。diff 仅 branches 块 2 行。）
 - [x] `git push -u origin dev`（2026-09-17 已完成）。
 - [x] master 分支保护与仓库合并策略（2026-09-17 经 `gh api` 完成；用户已授权 gh 操作，见记忆 feedback_push_after_commit）。
-- 验证：push dev 触发 CI。
+- 验证：push dev 触发 CI。（本环境可验的只有 YAML 层：解析、branches 值、`pull_request` 无过滤、job 名不变——**push-to-dev 真实触发要等本 PR（#4）合入 dev 后的下一次 push 才能观察，AC1 的 "dev 触发 CI 且 fast-guard 通过" 由主会话在合并后 `gh run watch` 收口**；master 直推被拒属 GitHub 侧行为，2026-09-17 开保护时已验证。）
 
 ### 0.10 COMMIT_RULES
 - [ ] 重写 `docs/GOVERNANCE/COMMIT_RULES.md`；`pnpm test:docs`。
