@@ -48,9 +48,9 @@
 - 追加（2026-10-31，**pre-push 升级，偏离 design §6 / prd R6**）：pre-push 从 `test:core` 升级为 `test:ci`（五步同口径），用户当日在 CI 排查后拍板——"全绿再推"由纪律升级为机械保证，代价是每次推送多约 3 分钟。design §6 的 pre-push=test:core 视为被此决定取代；0.7 的 jscpd 挂 test:core 后仍随 pre-push 生效，不受影响。
 
 ### 0.7 jscpd
-- [ ] `pnpm add -D jscpd`；`.jscpd.json`（threshold 3、format ts/tsx/css、ignore tests/dist/tmp、output tmp/jscpd）。
-- [ ] `test:core`（`tests/verify.mjs` core suite）加 `jscpd` 步骤。
-- 验证：`pnpm test:core` 输出 jscpd 通过。
+- [x] `pnpm add -D jscpd`；`.jscpd.json`（threshold 3、format ts/tsx/css、ignore tests/dist/tmp、output tmp/jscpd）。（2026-10-31 完成，实测 jscpd 5.4.2——v5 是 Rust 内核重写版，全量扫描 86ms。**依赖入库来源备注**：本节派发被用户打断后，依赖改动被随后的 `5d0dee1`（json5 修复）的 `git add package.json pnpm-lock.yaml` 顺带入库；实现文件（verify.mjs/.jscpd.json）留在工作树，本提交补齐。`.jscpd.json` 在契约四项外追加 `reporters: ["console","json"]`——v5 默认 reporters 只有 console，不补 json 则 `output` 落空、报告文件不生成。）
+- [x] `test:core`（`tests/verify.mjs` core suite）加 `jscpd` 步骤。（`runJscpd()` 挂在 `runSecurity()` 与 `runVitest()` 之间，与 design §7 一致。扫描范围 `electron src` 固定在调用点而非配置（prd R7：门只看生产代码）；v5 内核传 `--no-tips`。超阈值时 jscpd 退出码 1，`run()` 抛错让整套红——门能拦住提交。）
+- 验证：`pnpm test:core` 输出 jscpd 通过。（2026-10-31 实测：基线 **2.00%**（382 文件 / 62,669 行 / 92 克隆；ts 2.51%、css 2.12%、tsx 0.90%），门 3%，余量约一倍；报告落 `tmp/jscpd/jscpd-report.json`（tmp 已 gitignore）。反向验证：`--threshold 0.5` 复跑 → `ERROR: jscpd found too many duplicates (2.0%) over threshold (0.5%)`，退出码 1，门确实会红。收口 `pnpm test:core` 全绿。回滚点：本节 commit。）
 
 ### 0.8 alias + verbatimModuleSyntax
 - [ ] 建 `algo-electron/src/shared/index.ts`（空导出，阶段 2 填充）。
