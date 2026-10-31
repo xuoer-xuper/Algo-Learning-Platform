@@ -166,7 +166,10 @@ describe('TabStrip', () => {
     })
     const favicon = container.querySelector<HTMLImageElement>('.tab-item-favicon')
     expect(favicon?.src).toBe('https://example.com/favicon.ico')
-    expect(favicon?.getAttribute('referrerpolicy')).toBe('no-referrer')
+    // 必须不带 referrerPolicy：AcWing 图标 CDN 做空 Referer 防盗链（无 Referer 一律
+    // 403），显式 no-referrer 会让它的图标永远 403；默认策略
+    // （strict-origin-when-cross-origin）让跨源请求携带 Referer。
+    expect(favicon?.hasAttribute('referrerpolicy')).toBe(false)
 
     act(() => {
       tabApi.listener?.([
@@ -180,6 +183,33 @@ describe('TabStrip', () => {
       ])
     })
     expect(container.querySelector('[data-icon="home"]')).not.toBeNull()
+  })
+
+  it('falls back to the globe on favicon load failure and retries optimistically on a new url', () => {
+    const { container } = render(<TabStrip />)
+
+    act(() => {
+      tabApi.listener?.([{ ...initialTab, favicon: 'https://example.com/favicon.ico' }])
+    })
+    // 乐观渲染：img 先挂载，加载结果未知前不显示 globe。
+    const favicon = container.querySelector<HTMLImageElement>('.tab-item-favicon')
+    if (!favicon) throw new Error('favicon img missing')
+    expect(container.querySelector('[data-icon="globe"]')).toBeNull()
+
+    // 兜底机制是原生 error 监听（React onError 会丢首错），jsdom 的 img 不会
+    // 自发加载，用 fireEvent.error 驱动真实监听路径：失败 → globe，不再有空白槽。
+    fireEvent.error(favicon)
+    expect(container.querySelector('.tab-item-favicon')).toBeNull()
+    expect(container.querySelector('[data-icon="globe"]')).not.toBeNull()
+
+    // 失败记录只绑定旧地址：favicon 换新 URL 时 img 乐观重挂重试。
+    act(() => {
+      tabApi.listener?.([{ ...initialTab, favicon: 'https://example.com/favicon-v2.ico' }])
+    })
+    expect(container.querySelector<HTMLImageElement>('.tab-item-favicon')?.src).toBe(
+      'https://example.com/favicon-v2.ico',
+    )
+    expect(container.querySelector('[data-icon="globe"]')).toBeNull()
   })
 
   it('closes a non-last tab with the middle mouse button after the close animation', () => {

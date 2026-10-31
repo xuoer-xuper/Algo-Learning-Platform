@@ -83,6 +83,59 @@ describe('TabManager page events', () => {
     )
   })
 
+  it('captures an allowed page favicon into tab state and notifies the tab list only on change', async () => {
+    resetElectronMock()
+    const window = new MockBrowserWindow()
+    const registry = new ViewRegistry()
+    const manager = new TabManager(window as never, {
+      windowId: 'window-1',
+      viewRegistry: registry,
+    })
+    const tabId = manager.createTab('https://example.com/problem')
+    await drain()
+    const entry = registry.getByWindow('window-1').find((candidate) => candidate.tabId === tabId)
+    if (!entry || entry.kind !== 'tab') throw new Error('tab missing')
+
+    const faviconOf = () => manager.getTabList().find((tab) => tab.id === tabId)?.favicon ?? null
+    const notifiedFavicons: Array<string | null> = []
+    manager.setTabListChangedCallback((tabs) => {
+      const favicon = tabs.find((tab) => tab.id === tabId)?.favicon
+      notifiedFavicons.push(favicon === undefined ? 'missing' : favicon)
+    })
+
+    // 允许的 https 图标：捕获进 tab 状态并通知 tab:listChanged。
+    entry.view.webContents.emit('page-favicon-updated', {}, ['https://example.com/favicon.ico'])
+    expect(faviconOf()).toBe('https://example.com/favicon.ico')
+    expect(notifiedFavicons).toEqual(['https://example.com/favicon.ico'])
+
+    // 同一图标重复上报：去重，不重复通知。
+    entry.view.webContents.emit('page-favicon-updated', {}, ['https://example.com/favicon.ico'])
+    expect(notifiedFavicons).toEqual(['https://example.com/favicon.ico'])
+
+    // URL 过滤：超长远程地址（> 4096）、非图片 data:、非 http(s) 协议全部拒绝；
+    // 只剩非法候选时回落 null，且这次回落是一次状态变化、必须通知。
+    const oversizeRemote = `https://example.com/${'a'.repeat(4097)}.ico`
+    entry.view.webContents.emit('page-favicon-updated', {}, [
+      oversizeRemote,
+      'data:text/html;base64,PGgxPmhpPC9oMT4=',
+      'ftp://example.com/favicon.ico',
+    ])
+    expect(faviconOf()).toBe(null)
+    expect(notifiedFavicons).toEqual(['https://example.com/favicon.ico', null])
+
+    // 混合候选时取第一个允许的：data:image 在白名单内，超长的 https 被跳过。
+    entry.view.webContents.emit('page-favicon-updated', {}, [
+      oversizeRemote,
+      'data:image/png;base64,iVBORw0KGgo=',
+    ])
+    expect(faviconOf()).toBe('data:image/png;base64,iVBORw0KGgo=')
+    expect(notifiedFavicons).toEqual([
+      'https://example.com/favicon.ico',
+      null,
+      'data:image/png;base64,iVBORw0KGgo=',
+    ])
+  })
+
   it('reports iframe navigation without replacing the tab or top-level webContents URL', async () => {
     resetElectronMock()
     const window = new MockBrowserWindow()

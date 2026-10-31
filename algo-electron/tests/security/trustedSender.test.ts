@@ -45,6 +45,14 @@ test('app shell protocol is privileged, origin-stable, CSP-bound, and traversal-
   assert.match(SHELL_CSP, /default-src 'self'/)
   assert.match(SHELL_CSP, /object-src 'none'/)
   assert.match(SHELL_CSP, /frame-ancestors 'none'/)
+  // web 标签的 favicon 全是远程 https URL（page-favicon-updated 捕获），
+  // img-src 不放行 https: 时打包态永远显示不出真实图标。
+  const imgSrcDirective = SHELL_CSP.split('; ').find((directive) => directive.startsWith('img-src'))
+  assert.ok(imgSrcDirective, 'SHELL_CSP must declare an img-src directive')
+  assert.ok(
+    imgSrcDirective.split(' ').includes('https:'),
+    `img-src must allow https: for remote favicons, got: ${imgSrcDirective}`,
+  )
   assert.ok(JSON.stringify(protocolSchemes).includes('supportFetchAPI'))
 
   const root = path.resolve('dist')

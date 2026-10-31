@@ -62,10 +62,33 @@ function getInternalIcon(page: InternalPage): IconName {
 }
 
 function TabIcon({ tab }: { tab: TabStripTabInfo }) {
-  const [faviconFailed, setFaviconFailed] = useState(false)
+  /*
+   * 记"哪个 URL 加载失败"而不是布尔值：favicon 换地址时旧失败记录自动作废，
+   * 新地址的 img 从首次渲染就能乐观挂载重试，省掉一个重置 effect 及其时序坑。
+   */
+  const [failedFavicon, setFailedFavicon] = useState<string | null>(null)
+  const faviconRef = useRef<HTMLImageElement | null>(null)
+  const faviconFailed = tab.favicon !== null && tab.favicon === failedFavicon
 
+  /*
+   * 兜底不依赖 React 的 onError：img 的 src 在元素创建期就开始加载，首错可能
+   * 在监听器挂上前就已派发（React 19 的 onError 会丢首错；key={tab.favicon}
+   * 每次更新都重挂 img，等于每次更新都重新面对这个窗口），被拦的图标会永远
+   * 停在空白槽。这里改挂原生 error 监听；对"监听前已经失败"的那一批，用
+   * complete + naturalWidth === 0 追认——error 触发后规范保证 complete=true 且
+   * naturalWidth=0，仍在加载则 complete=false，不会误判。初次被 CSP 拦截、
+   * 换地址重挂、慢加载后失败这三种时序由此都收敛到 globe 兜底。
+   */
   useEffect(() => {
-    setFaviconFailed(false)
+    const image = faviconRef.current
+    if (!image) return
+    if (image.complete && image.naturalWidth === 0) {
+      setFailedFavicon(tab.favicon)
+      return
+    }
+    const markFailed = () => setFailedFavicon(tab.favicon)
+    image.addEventListener('error', markFailed)
+    return () => image.removeEventListener('error', markFailed)
   }, [tab.favicon])
 
   if (tab.isLoading) {
@@ -76,14 +99,20 @@ function TabIcon({ tab }: { tab: TabStripTabInfo }) {
   }
   if (tab.kind === 'web' && tab.favicon && !faviconFailed) {
     return (
+      /*
+       * 不设 referrerPolicy（回落默认 strict-origin-when-cross-origin，跨源请求携带
+       * Referer）：AcWing 的图标 CDN（cdn.acwing.com）做空 Referer 防盗链——无
+       * Referer 一律 403，任意非空 Referer 均 200；此前显式 no-referrer 让它的图标
+       * 永远 403，即便 CSP 放行也只剩 globe 兜底。残留：app:// 文档发起的跨源子
+       * 资源是否真带 Referer 是唯一未实测点，待打包版人工验证 AcWing。
+       */
       <img
+        ref={faviconRef}
         key={tab.favicon}
         className="tab-item-favicon"
         src={tab.favicon}
         alt=""
         draggable={false}
-        referrerPolicy="no-referrer"
-        onError={() => setFaviconFailed(true)}
       />
     )
   }
