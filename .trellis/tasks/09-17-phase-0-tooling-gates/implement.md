@@ -53,10 +53,10 @@
 - 验证：`pnpm test:core` 输出 jscpd 通过。（2026-10-31 实测：基线 **2.00%**（382 文件 / 62,669 行 / 92 克隆；ts 2.51%、css 2.12%、tsx 0.90%），门 3%，余量约一倍；报告落 `tmp/jscpd/jscpd-report.json`（tmp 已 gitignore）。反向验证：`--threshold 0.5` 复跑 → `ERROR: jscpd found too many duplicates (2.0%) over threshold (0.5%)`，退出码 1，门确实会红。收口 `pnpm test:core` 全绿。回滚点：本节 commit。）
 
 ### 0.8 alias + verbatimModuleSyntax
-- [ ] 建 `algo-electron/src/shared/index.ts`（空导出，阶段 2 填充）。
-- [ ] `tsconfig.json` `paths` + `verbatimModuleSyntax`；修由此产生的 `import type` 报错。
-- [ ] `vite.config.ts` renderer `resolve.alias['@shared']`；`vitest.config.ts` 同。
-- 验证：`pnpm typecheck`；一个临时测试 `import '@shared/index'` 通过后删除。
+- [x] 建 `algo-electron/src/shared/index.ts`（空导出，阶段 2 填充）。（`export {}` 占位。）
+- [x] `tsconfig.json` `paths` + `verbatimModuleSyntax`；修由此产生的 `import type` 报错。（2026-10-31 完成。paths 用相对路径 `./src/shared/*`、**不配 baseUrl**：TS5090 要求无 baseUrl 时 paths 必须相对 tsconfig 目录，且 baseUrl 在 TS 7 已移除——配置注释里写明了理由。**verbatimModuleSyntax 零连带**：两个 typecheck 双 0 error，一个文件都没改——R4 的 `consistent-type-imports` 早在 0.4 就把生产代码的纯类型 import 治理完了，tests/ 侧写法本来就合规；"修报错"这一步实测无事可做。）
+- [x] `vite.config.ts` renderer `resolve.alias['@shared']`；`vitest.config.ts` 同。（两处均 `fileURLToPath(new URL('./src/shared', import.meta.url))`；vite 侧注明只作用 renderer 构建（main/preload 子构建不继承 resolve），vitest 侧注明它不读 vite.config 也不读 tsconfig paths。）
+- 验证：`pnpm typecheck`；一个临时测试 `import '@shared/index'` 通过后删除。（2026-10-31 实测三处全部实证后才删临时文件：①type 层——两个 typecheck 0 error；②vitest 层——临时测试 `tests/shared/aliasResolution.test.ts` 跑过（1 passed）后删除；③vite 构建层——`src/main.tsx` 临时加 `import '@shared/index'` 后 `pnpm build:check` 全绿（vite build + packaged-main PASS）后还原。临时文件未留在仓库（design §8 禁止）。复跑收口：typecheck ×2 0 error、`pnpm lint` 0/0、`pnpm test:core` 全绿（175 文件 / 1387 用例 / jscpd 92 克隆）。回滚点：本节 commit。执行备注：本节派发两次受阻（一次超时），接线由子代理完成、验证与收尾主会话内联接手。）
 
 ### 0.9 release-it
 - [ ] `pnpm add -D release-it @release-it/conventional-changelog`；写 `.release-it.json`（见 `prd.md` R9）。
