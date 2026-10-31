@@ -72,7 +72,8 @@
 - 验证：push dev 触发 CI。（本环境可验的只有 YAML 层：解析、branches 值、`pull_request` 无过滤、job 名不变——**push-to-dev 真实触发要等本 PR（#4）合入 dev 后的下一次 push 才能观察，AC1 的 "dev 触发 CI 且 fast-guard 通过" 由主会话在合并后 `gh run watch` 收口**；master 直推被拒属 GitHub 侧行为，2026-09-17 开保护时已验证。）
 
 ### 0.10 COMMIT_RULES
-- [ ] 重写 `docs/GOVERNANCE/COMMIT_RULES.md`；`pnpm test:docs`。
+- [x] 重写 `docs/GOVERNANCE/COMMIT_RULES.md`；`pnpm test:docs`。（2026-10-31 完成，`pnpm test:docs` 通过。按 design §10 把文档重写为配置的**书面镜像**（配置为权威、文档随动），覆盖：格式 `type(scope): 中文描述` 与 type/scope 英文小写、九 type 表、32 项 scope 词表（含 `main`——按 `commitlint.config.js` 实际词表，词表块 31 项 + 散文层级兜底）、禁止格式与提交粒度（沿用原文）、分支模型（master/dev/feature 与 GitHub 保护细则）、合并方式（feature→dev squash 经 PR、dev→master `--no-ff`）、husky 三道门**按现状**（commit-msg=commitlint；pre-commit=master 拒绝+lint-staged+typecheck ×2；pre-push=**`pnpm test:ci`** 五步同口径，注明 2026-10-31 从 test:core 升级、jscpd 随 test:core 生效、release-it 经 `git.commitArgs: ["--no-verify"]` 绕过）、推送纪律（每 commit 即推、本地 test:ci 全绿、`gh run watch` 收口）、release-it 流程（`pnpm exec release-it` 调用形式按 0.9 修正、GITHUB_TOKEN 前提、`requireCleanWorkingDir` 连 untracked 算脏、requireBranch master、before:init 两步、资产 glob 与 semver 口径）。**§5 保持"文档同步要求"**：`.trellis/spec/project/git-workflow.md` L121 交叉引用的就是 §5，节号不能漂移，故把分支/合并/门/推送/发版排在 §1–2 与 §6–8、格式类内容排 §3–4。文档头部声明镜像关系并链接 `.trellis/spec/project/git-workflow.md`。随带把 `docs/README.md` 索引里该文档的一句话简介更新为实际覆盖面。守卫约束已核：正文与表格里的 `pnpm run` 引用仅用真实脚本名（test:ci / typecheck / typecheck:tests），链接三处（git-workflow.md、RELEASE_PROCESS.md、文档索引）均实存。）
+- [x] `pnpm test:docs` 在阶段 0 之前就存在的 6 条红灯已随 0.2 清掉（2026-09-17）。口径：
 - [x] `pnpm test:docs` 在阶段 0 之前就存在的 6 条红灯已随 0.2 清掉（2026-09-17）。口径：
   - 3 条链接误报走守卫侧修复——扫描前去掉 fenced code 与行内代码（`grep -rnE "from ['\"](electron|fs|path|os|node:)"` 里的 `](...)` 被误读成相对链接），并排除平台工具生成、`trellis update` 会覆盖的 `.agents/`、`.claude/`、`.codex/`、`.dsh/`、`.grok/`（模板占位符 `[Library X docs](url)` 手工修会在下次生成时丢失）。
   - 2 条模板文档正文里的假脚本名（`.trellis/spec/big-question/native-module-{complex-deps,packaging}.md`）改为不写具体命令，保留守卫对所有项目文档的统一检查。

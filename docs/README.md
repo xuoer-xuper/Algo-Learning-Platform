@@ -18,7 +18,7 @@
 |---|---|
 | [PROJECT_RULES](GOVERNANCE/PROJECT_RULES.md) | v1.0 稳定技术边界、本地优先原则和模块红线。 |
 | [CONTRIBUTING](GOVERNANCE/CONTRIBUTING.md) | 本地开发、修改边界、PR 检查和 issue 要求。 |
-| [COMMIT_RULES](GOVERNANCE/COMMIT_RULES.md) | Git 提交信息格式和提交粒度约定。 |
+| [COMMIT_RULES](GOVERNANCE/COMMIT_RULES.md) | Git 提交信息格式、分支模型、husky 提交门、推送纪律和 release-it 发版流程的书面镜像。 |
 | [SECURITY](GOVERNANCE/SECURITY.md) | Cookie、用户数据、导出、日志和安全报告边界。 |
 | [COLLABORATION](../.github/COLLABORATION.md) | GitHub 协作配置：CI workflow、PR 模板、issue 模板。 |
 | [AI_HANDOFF](../AI_HANDOFF.md) | AI 助手工作交接记录，记录最近完成任务和待办事项。 |
