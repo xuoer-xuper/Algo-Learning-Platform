@@ -83,6 +83,11 @@
 - 每个小节结束 `pnpm test:core`。
 - 阶段结束 `pnpm test:all` + `pnpm build:win` + 手动安装包冒烟。
 - PR 标题：`chore(ci): 阶段 0 工具门与工程底座`；squash 合入 dev。
+- **阶段收口门实测（2026-10-31，用户指示"按标准做"）**：
+  - `pnpm test:all` **exit 0 全绿**。0.2/0.9 时代记录的 coach 既有红（`runElectronAppTest` 的 ESM/`import { app } from 'electron'` 互操作问题）**不再复现**——本日基线里 coach 应用态测试真实通过（`[PASS] LLM API keys require safe encrypted persistence…`），全套跑完无一处失败。0.2 的实验结论基于 09-17 的 npm 基线与当时环境；当前 pnpm 12 依赖图 + Node 26 + esbuild 0.28.2 组合下该路径已工作。历史注释不改写，以本注为准；阶段 5 的"测试体系对齐"仍存在，但不再被此红阻塞。
+  - `pnpm build:win` **exit 0 全链**（tsc → vite build → test:packaged-main → electron-builder NSIS → test:packaged-app `[PASS] Packaged win-unpacked app enforces one instance…`）。产物：`algo-electron/release/2.0.0/AlgoLearningPlatform-Windows-2.0.0-x64-Setup.exe` + blockmap。
+  - **环境发现（本机构建被卡的真实原因，与代码无关）**：本机 Node 到 `github.com`/`objects.githubusercontent.com` 的 TLS 全部报 `unable to get local issuer certificate`（npmjs/npmmirror 正常）——electron-builder 拉取 Electron 发行 zip（日志特征："no custom electronDist provided, unpacking default Electron distribution" 后立刻失败）因此被卡。处置：用户级环境变量固化 `ELECTRON_MIRROR` 与 `ELECTRON_BUILDER_BINARIES_MIRROR` 指向 npmmirror（与本机 `~/.npmrc` 走 npmmirror 的既有选择同源；CI 的 GitHub runner 直连 github，无需此变量）。`setx` 已落，未来新进程的 `pnpm build:win` 直接可用。
+  - 手动安装包冒烟：安装包已产出，人工点击安装→启动→核心路径验证待开发者执行（自动化侧 win-unpacked 冒烟已 PASS）。
 - **推送纪律（2026-10-31 用户指令，覆盖本任务后续所有小节）**：本分支开着 PR #4，每次推送都触发 CI。推送前必须本地跑 **CI 同口径全集**并全绿——一键脚本 `pnpm test:ci`（= fast-guard 三步 `test:core`+`test:packaging`+`test:docs` + smoke 两步 `test:electron`+`test:ui`，2026-10-31 随本纪律新增）；只跑 `test:core` 不是全绿（两次 CI 红都出在这个盲区）。**同日起 pre-push 钩子已升级为 `test:ci`（见 0.6 追加），纪律成为机械保证**。推送后必须 `gh run watch <run-id> --exit-status` 盯到两个 job 全绿才算该节收口；红了解根因并本地复现修复后才允许下一次推送。
 
 ## CI 事故记录（2026-10-31）
