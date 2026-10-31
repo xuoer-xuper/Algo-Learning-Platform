@@ -198,3 +198,33 @@
 ### Next Steps
 
 - 阶段 0 剩:用户 squash 合入 PR #4(现含本修复,建议标题加注)→ 验 AC1(push dev 触发 CI)→ 阶段 0 archive。
+
+
+## Session 7: 阶段 0 收官:PR #4 squash 合入 dev(ff47377),AC1 实证,任务归档
+<!-- trellis-session: v=2 fp=32a431db185f552a -->
+
+**Date**: 2026-10-31
+**Task**: 阶段 0 收官:PR #4 squash 合入 dev(ff47377),AC1 实证,任务归档
+**Branch**: `dev`
+
+### Summary
+
+用户确认 favicon 修复与 2.0.1 冒烟后授权合并。PR #4(草稿转正)squash 合入 dev,提交 ff47377,内容=阶段 0 十节工具门+版本推进 2.0.1+标签 favicon 三层修复。AC1 实证:push dev 自动触发 CI(run 41192794274,push 事件),fast-guard+smoke 全绿。阶段 0 十节全部验收(AC1-AC10),任务归档 archive/2026-09。全流程推送纪律(test:ci 本地全绿+gh run watch 盯 CI)自 10-31 起零违例执行。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `ff47377` | chore(ci): 阶段 0 工具门与工程底座（含标签 favicon 修复） |
+
+### Testing
+
+- [OK] dev push CI run 41192794274 全绿;本地 test:ci(pre-push 门)全绿
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- 阶段 0 完结。下一任务:阶段 1 基础设施换库(09-17-phase-1-infra-libraries,planning)——启动前走 1.4 评审;另记:favicon 的 Fix 4(主进程代理)仅在 AcWing 回归时升格。
