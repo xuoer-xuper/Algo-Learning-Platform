@@ -27,7 +27,14 @@ function internalTab(overrides: Partial<InternalTab> = {}): InternalTab {
   return { ...baseTab, kind: 'internal', page: { type: 'dashboard' }, ...overrides }
 }
 
-// Mock electronAPI 避免 HomePage 加载时报错
+// Mock electronAPI 避免 HomePage / 设置页加载时报错。
+// CI 实测（2026-10-31，run 41162618391）：设置页是懒加载，时序不利时其挂载/effect
+// 重连发生在用例结束之后；缺一个方法（getTheme）就以 uncaught exception 把整个
+// vitest 进程炸成退出码 1——1387 用例全过也白搭。因此设置页挂载时读取的 API
+// 必须全部在场；让它们 reject 而不是硬编返回形状：每个 panel 的挂载 handler 都有
+// .catch，会走自己的「读取失败」路径（读取类全是 try/catch/.catch，见各 Panel）。
+const stubRejection = () =>
+  vi.fn().mockRejectedValue(new Error('transitions fixture: API not wired in this test'))
 beforeEach(() => {
   // @ts-expect-error: test stub
   window.electronAPI = {
@@ -40,6 +47,14 @@ beforeEach(() => {
     listRecentProblems: vi.fn().mockResolvedValue([]),
     getHomeShortcuts: vi.fn().mockResolvedValue([]),
     onProblemsUpdated: vi.fn().mockReturnValue(() => {}),
+    // 设置页挂载时的读取类 API（AppearancePanel/SearchEnginePanel/LlmConfigPanel/
+    // CodeforcesSyncPanel/SiteManagementPanel/SettingsPage 本体）。
+    getTheme: stubRejection(),
+    getSearchEngine: stubRejection(),
+    coachGetLlmConfig: stubRejection(),
+    getAccounts: stubRejection(),
+    getAllSites: stubRejection(),
+    getRealtimeSubmissionStatus: stubRejection(),
   }
 })
 
