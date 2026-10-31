@@ -102,3 +102,34 @@
 ### Next Steps
 
 - 下一节 0.6 husky+commitlint+lint-staged(注意 design §6 的 release-it 与 master 提交互斥问题需选方案)；随后 0.7 jscpd、0.8 @shared alias、0.9 release-it、0.1 ci.yml 加 dev、0.10 COMMIT_RULES。当前会话到 0.5 收口为止，0.6 起待后续会话。
+
+
+## Session 4: CI 连红根因排查与修复：json5 守卫误炸 + transitions 夹具时序，推送纪律定案
+<!-- trellis-session: v=2 fp=a3a374bf65307528 -->
+
+**Date**: 2026-10-31
+**Task**: CI 连红根因排查与修复：json5 守卫误炸 + transitions 夹具时序，推送纪律定案
+**Branch**: `chore/phase-0-tooling-gates`
+
+### Summary
+
+用户质询 CI 总红。定位两次红为两个独立根因：①prettier 重排 electron-builder.json5 后 check-packaging 的手写近似解析炸（10-27 起，埋 4 天——本地只跑 test:core 的盲区）；②transitions 夹具缺设置页挂载 API，CI 时序下懒挂载在用例结束后冒 uncaught exception 把 vitest 炸成退出码 1（1387 全过也红）。修复后本地 CI 同口径五步全绿（core/packaging/docs/electron/ui），run 41164161434 两 required check 全绿。用户定案推送纪律：推送前本地跑 CI 同口径全集并全绿，推送后 gh run watch 盯到绿。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `0464019` | test: transitions 夹具补全设置页挂载读取 API——CI 时序下不再冒 uncaught exception |
+| `5d0dee1` | test: packaging 守卫改用 JSON5 解析 electron-builder.json5——prettier 重排后不再误炸 |
+
+### Testing
+
+- [OK] 本地：test:packaging 8/8、test:docs、test:core 175 文件/1387 用例、test:electron PASS、test:ui 9/9；CI run 41164161434 fast-guard + smoke 全绿
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- 0.6 已彻底收口（含 pre-push 抖动治标 29dbece 与本次两修复）。下节 0.7 jscpd（派发已被打断，重新派发）；0.7 起所有推送执行新推送纪律。husky commit-msg 门已实战拦截过一次非法 scope（packaging 不在词表）。
