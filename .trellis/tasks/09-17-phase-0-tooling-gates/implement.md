@@ -59,11 +59,11 @@
 - 验证：`pnpm typecheck`；一个临时测试 `import '@shared/index'` 通过后删除。（2026-10-31 实测三处全部实证后才删临时文件：①type 层——两个 typecheck 0 error；②vitest 层——临时测试 `tests/shared/aliasResolution.test.ts` 跑过（1 passed）后删除；③vite 构建层——`src/main.tsx` 临时加 `import '@shared/index'` 后 `pnpm build:check` 全绿（vite build + packaged-main PASS）后还原。临时文件未留在仓库（design §8 禁止）。复跑收口：typecheck ×2 0 error、`pnpm lint` 0/0、`pnpm test:core` 全绿（175 文件 / 1387 用例 / jscpd 92 克隆）。回滚点：本节 commit。执行备注：本节派发两次受阻（一次超时），接线由子代理完成、验证与收尾主会话内联接手。）
 
 ### 0.9 release-it
-- [ ] `pnpm add -D release-it @release-it/conventional-changelog`；写 `.release-it.json`（见 `prd.md` R9）。
-  - 0.6 定案（design.md §6 方案 1）：pre-commit 无条件拒绝 `master`，release-it 侧必须在 `.release-it.json` 配 `git.commitArgs: ["--no-verify"]` 绕过钩子，并在 dry-run 时核实该字段生效（0.6 已在 `.husky/pre-commit` 注释与本注记录）。
-- [ ] `package.json` 加 `"release": "release-it"`。
-- [ ] `pnpm release --dry-run --no-git.requireBranch`（在 dev 上试跑）。
-- 验证：dry-run 输出正确。
+- [x] `pnpm add -D release-it @release-it/conventional-changelog`；写 `.release-it.json`（见 `prd.md` R9）。（2026-10-31 完成，实测 release-it 21.1.1、@release-it/conventional-changelog 12.0.2。`.release-it.json` 对 R9 的两处适配：①`infile: "../docs/PRODUCT/CHANGELOG.md"`——R9 原文 `docs/PRODUCT/...` 相对仓库根，release-it 从 `algo-electron/` 运行须带 `../`；②`preset` 在 plugin options 内（v12 形状）。）
+  - 0.6 定案（design.md §6 方案 1）：pre-commit 无条件拒绝 `master`，release-it 侧必须在 `.release-it.json` 配 `git.commitArgs: ["--no-verify"]` 绕过钩子，并在 dry-run 时核实该字段生效（0.6 已在 `.husky/pre-commit` 注释与本注记录）。**已落地并核实**：`lib/args.js` L104 白名单 + `lib/plugin/git/Git.js` L175 消费 `options.commitArgs`，互斥解除。
+- [x] `package.json` 加 `"release": "release-it"`。
+- [x] `pnpm release --dry-run --no-git.requireBranch`（在 dev 上试跑）。（**调用形式修正（2026-10-31 实测）**：pnpm 12 下 `pnpm release -- --dry-run` 会把分隔符本身传给 release-it，报 "Unexpected positional argument"；正确形式 `pnpm exec release-it --dry-run --ci --no-git.requireBranch --no-git.requireCleanWorkingDir`——阶段 6.3 重写 RELEASE_PROCESS 时按此落笔。）
+- 验证：dry-run 输出正确。（2026-10-31 实测：**2.0.0 → 2.0.1**（patch，conventional commits 推断）、changelog 片段正确（conventionalcommits preset）、写入目标 `../docs/PRODUCT/CHANGELOG.md`、git 提交/打标/推送计划全按配置生成，`--ci` 下 exit 0。design §9 三问实证：**①dry-run 不执行 `hooks.before:init`**（源码 `lib/shell.js` L31 `isDryRun && isWrite` 短路；实测 `! pnpm test:all` / `! pnpm build:win` 只记日志）——hooks 机制另证：scratch 配置把 `before:init` 设为必败命令做真实运行，hook 执行、发版当场中止、工作树零写入，用后即弃；真实 hooks 全链等阶段 5 修好 `test:all`（coach 夹具既有红）后顺延验证。**②commitArgs 支持已核实**（见上）。**③资产 glob** 与 `electron-builder.json5` `directories.output = "release/${version}"` 静态一致，本地无产物动态核对顺延阶段 6 首次真实发版。两个运行前提：真实发版需设 `GITHUB_TOKEN`（缺省回退 web 手动发）；`requireCleanWorkingDir` 把 untracked 算脏（仓库常驻 untracked `.zcode/`），真实发版前须清理。回滚点：本节 commit。）
 
 ### 0.1 分支保护与 CI（放最后）
 - [ ] `ci.yml` `on.push.branches: [main, master, dev]`。
