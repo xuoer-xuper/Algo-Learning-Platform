@@ -1,6 +1,8 @@
-# pre-push：推送前跑核心门 test:core（typecheck ×2 + lint + 架构/安全守卫 + 全量 vitest）。
+# pre-push：推送前跑 test:ci（core+packaging+docs+electron+ui 五步同口径）。
+# 2026-10-31 用户定案：从 test:core 升级，让"全绿再推"成为机械保证而非口头纪律
+# （当天两次 CI 红都源于本地只跑 test:core 的盲区）；代价是每次推送多约 3 分钟。
 # 0.7 把 jscpd 挂进 test:core 后，重复代码门也由此一起把关。
 toplevel="$(git rev-parse --show-toplevel)" || exit 1
 # Git 钩子以仓库根为 CWD 运行，先切进包目录再调用 pnpm。
 cd "$toplevel/algo-electron" || exit 1
-pnpm run test:core
+pnpm run test:ci

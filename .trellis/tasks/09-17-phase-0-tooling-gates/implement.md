@@ -45,6 +45,7 @@
 - [x] `package.json` `lint-staged`：`*.{ts,tsx,js,mjs,cjs}` → `prettier --write`、`eslint --fix`；`*.{md,json,css,yml}` → `prettier --write`。（CI 平价已核：无操作时 `pnpm install --frozen-lockfile` 跳过 prepare（pnpm 对 no-op 安装不跑生命周期脚本，hooksPath 保持不变）；真实安装（`--force` 实测）输出 `. prepare: Done` 并恢复 hooksPath，全新 checkout 必然走真实安装，不受影响，退出码 0。）
 - 验证：三条故意失败的 commit（非法 type、在 master、lint 错）均被拒。（2026-10-31 实测，退出码均为 1：①携带本节真实 staged 改动 `git commit -m "update"`——pre-commit 全链先通过（lint-staged 处理 commitlint.config.js/package.json，tsc ×2 全绿），commit-msg 拒绝（type/subject empty）；②`electron/app/chromiumFlags.ts` 尾部临时加 `const x = y!.z` 后提交——被 pre-commit 的 lint-staged/eslint 拒绝（`no-non-null-assertion` + `no-unused-vars` 两 error），测后文件还原；③`git checkout master` 后携带钩子文件提交 scratch 改动——被 pre-commit 分支检查拒绝。注意物理事实：master 工作树在阶段 0 的 PR 合入前不跟踪 `.husky/**`，husky 对"用户脚本缺失"静默放行（`h` 脚本 `[ ! -f "$s" ] && exit 0`），本次靠 staged 新文件随 checkout 带过去完成测试；合入后 master 自带钩子。④正向：scratch 文件以 pathspec 提交 `git commit <scratch> -m "feat(coach): x"` 通过三道门（lint-staged、tsc ×2、commitlint），生成提交后 `git reset --soft HEAD~1` 撤销并删除 scratch（此处用 soft 而非 hard：本节改动尚在 index，hard 会摧毁未提交工作；意图同为"移除测试提交"）。收口 `pnpm test:core` 全绿。回滚点：commit `chore(ci): 立起 husky 三道提交门`。）
 - 追加（2026-10-31，pre-push 门首推实测）：pre-push 跑 test:core 时 `noteTabIsolation` 再次间歇红（`openNote` 的 `findByRole('textbox', { timeout: 5000 })` 在全量并行 fork 的重负载下顶穿 5 秒——该文件 stderr 长期有 flushSync 生命周期警告，单跑即绿），直接卡住推送。按 prd Notes 既有口径处理：不动断言、不改业务代码，把该 helper 的显式等待预算放宽到 15s（findByRole 与其后的 waitFor），复跑全绿后推送。此前的"单跑即绿、未改动"记录升级为"已治标：等待预算 15s"；若日后仍间歇红，属 flushSync 根因，随阶段 5 处理。
+- 追加（2026-10-31，**pre-push 升级，偏离 design §6 / prd R6**）：pre-push 从 `test:core` 升级为 `test:ci`（五步同口径），用户当日在 CI 排查后拍板——"全绿再推"由纪律升级为机械保证，代价是每次推送多约 3 分钟。design §6 的 pre-push=test:core 视为被此决定取代；0.7 的 jscpd 挂 test:core 后仍随 pre-push 生效，不受影响。
 
 ### 0.7 jscpd
 - [ ] `pnpm add -D jscpd`；`.jscpd.json`（threshold 3、format ts/tsx/css、ignore tests/dist/tmp、output tmp/jscpd）。
@@ -81,12 +82,18 @@
 - 每个小节结束 `pnpm test:core`。
 - 阶段结束 `pnpm test:all` + `pnpm build:win` + 手动安装包冒烟。
 - PR 标题：`chore(ci): 阶段 0 工具门与工程底座`；squash 合入 dev。
-- **推送纪律（2026-10-31 用户指令，覆盖本任务后续所有小节）**：本分支开着 PR #4，每次推送都触发 CI。推送前必须本地跑 **CI 同口径全集**并全绿——一键脚本 `pnpm test:ci`（= fast-guard 三步 `test:core`+`test:packaging`+`test:docs` + smoke 两步 `test:electron`+`test:ui`，2026-10-31 随本纪律新增）；只跑 `test:core` 不是全绿（两次 CI 红都出在这个盲区）。推送后必须 `gh run watch <run-id> --exit-status` 盯到两个 job 全绿才算该节收口；红了解根因并本地复现修复后才允许下一次推送。
+- **推送纪律（2026-10-31 用户指令，覆盖本任务后续所有小节）**：本分支开着 PR #4，每次推送都触发 CI。推送前必须本地跑 **CI 同口径全集**并全绿——一键脚本 `pnpm test:ci`（= fast-guard 三步 `test:core`+`test:packaging`+`test:docs` + smoke 两步 `test:electron`+`test:ui`，2026-10-31 随本纪律新增）；只跑 `test:core` 不是全绿（两次 CI 红都出在这个盲区）。**同日起 pre-push 钩子已升级为 `test:ci`（见 0.6 追加），纪律成为机械保证**。推送后必须 `gh run watch <run-id> --exit-status` 盯到两个 job 全绿才算该节收口；红了解根因并本地复现修复后才允许下一次推送。
 
 ## CI 事故记录（2026-10-31）
 - **10-27 run `40430001623` 红**：`check-packaging.mjs` 的 `readJson5Like`（剥 `//` 注释后 `JSON.parse`）读不了 prettier 重排后的 `electron-builder.json5`（单引号 + 裸键，601e3ea 连带）；格式化当天本地只跑了 `test:core`，`test:packaging` 在推送前没人跑过，此雷埋了 4 天。修复：devDependency 落 `json5@2.2.3`，守卫改 `JSON5.parse`（commit `5d0dee1`）。
 - **10-31 run `41162618391` 红**：`transitions.test.tsx` 的 electronAPI 夹具只有 HomePage 的 4 个方法；设置页是懒加载，CI 时序下其挂载/effect 重连发生在用例结束之后，`getTheme is not a function` 以 uncaught exception 把 vitest 进程炸成退出码 1（1387 用例全过也红）。修复：补全设置页挂载读取的 6 个 API 为 rejecting mock——各 panel 挂载 handler 全带 `.catch`，走自己的「读取失败」路径，不猜返回形状（commit `0464019`）。
 - 修复后本地同口径五步全绿，run `41164161434` 两个 required check 全绿收口。另注意：本机 node 已是 v26.13.0（design §0 记的 v24.13.0 已过时），CI 是 node 22.23.2——时序类差异（如本例）只会在 CI 暴露，这正是要本地跑全集的原因。
+
+## CI 合理性审查（2026-10-31，用户要求"顺便检查 CI 是不是不够合理"）
+- **[P1] node 版本漂移（CI-only 时序失败的土壤）→ 已定案 Volta**：本机 v26.13.0 超出 engines `>=22.18 <25`，CI 固定 22.23.2。用户选定 Volta 方案：`package.json` 落 `"volta": {"node": "22.23.2"}`（与 ci.yml 精确一致；Volta 未安装时配置惰性，安装后凡在 `algo-electron/` 下调 node/pnpm 自动切 22）。engines 保持不动。
+- **[P2] 缺一键同口径门 → 已落地**：新增 `test:ci` 脚本（commit `7b2317a`），pre-push 同步升级（见 0.6 追加）。
+- **[P3] 记录在案、暂不动**：①push.branches 里的 `main` 是死分支（仓库用 master，dev 归 0.1 加），0.1 改 ci.yml 时顺手清；②pnpm/action-setup@v4 有 Node 20 actions 弃用警告（上游动作升级，非本仓代码）；③四个 job 的五步 setup 重复（composite action 候选，当前规模不值得）；④smoke job 的 Playwright 浏览器每次现下载、无缓存（可仿 electron cache 加一步，~20s 收益）；⑤fast-guard 三步串行——拆并行会 3× 消耗 runner 分钟数，单人仓不划算，维持。
+- **结构上判为合理、不动的**：`persist-credentials: false`、`permissions: contents: read`、concurrency 按 ref 取消、`--frozen-lockfile`、pnpm action 先于 setup-node、job 名与分支保护 required check 字面值一致（design §0 不变量）、manual-only 的 validate/packaged-smoke 门。
 
 ## Rollback
 - 每小节一个 commit，可 `git revert` 单节。
