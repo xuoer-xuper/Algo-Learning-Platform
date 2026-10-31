@@ -55,7 +55,10 @@ function redactUrl(value: string): string {
 function redactString(value: string): string {
   return redactUrl(value)
     .replace(/\b(Bearer|Basic)\s+[A-Za-z0-9._~+\-/=]+/gi, '$1 [redacted]')
-    .replace(/\b(password|passwd|secret|token|api[_-]?key|csrf)\s*[:=]\s*[^\s,;]+/gi, '$1=[redacted]')
+    .replace(
+      /\b(password|passwd|secret|token|api[_-]?key|csrf)\s*[:=]\s*[^\s,;]+/gi,
+      '$1=[redacted]',
+    )
 }
 
 function serializeValue(value: unknown): string {
@@ -82,9 +85,12 @@ function serializeValue(value: unknown): string {
       }
       return nestedValue
     })
-    return redactString(serialized ?? String(value))
+    // JSON.stringify 对函数/符号返回 undefined：直接落 String(value) 会得到函数源码或未定义文案，
+    // 换成类型标记，日志里一眼能看出"这里不是数据"。
+    return serialized === undefined ? `[${typeof value}]` : redactString(serialized)
   } catch {
-    return redactString(String(value))
+    // 循环引用等不可序列化的值：退回对象默认描述（`[object Object]`），与原先 String(value) 等价。
+    return redactString(Object.prototype.toString.call(value))
   }
 }
 
@@ -127,11 +133,21 @@ export class AppLogger implements Logger {
     }
   }
 
-  debug(message: string, ...data: unknown[]): void { this.write('debug', message, data) }
-  info(message: string, ...data: unknown[]): void { this.write('info', message, data) }
-  warn(message: string, ...data: unknown[]): void { this.write('warn', message, data) }
-  error(message: string, ...data: unknown[]): void { this.write('error', message, data) }
-  fatal(message: string, ...data: unknown[]): void { this.write('fatal', message, data) }
+  debug(message: string, ...data: unknown[]): void {
+    this.write('debug', message, data)
+  }
+  info(message: string, ...data: unknown[]): void {
+    this.write('info', message, data)
+  }
+  warn(message: string, ...data: unknown[]): void {
+    this.write('warn', message, data)
+  }
+  error(message: string, ...data: unknown[]): void {
+    this.write('error', message, data)
+  }
+  fatal(message: string, ...data: unknown[]): void {
+    this.write('fatal', message, data)
+  }
 
   getLogFilePath(): string | null {
     return this.filePath

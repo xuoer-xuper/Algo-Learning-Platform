@@ -10,8 +10,17 @@ import {
 
 function matchingMetadata(overrides: Partial<UserScriptMetadata> = {}): UserScriptMetadata {
   return {
-    matches: [], includes: [], excludes: [], excludeMatches: [], grants: [], connects: [],
-    noframes: false, antifeatures: [], requires: [], resources: [], ...overrides,
+    matches: [],
+    includes: [],
+    excludes: [],
+    excludeMatches: [],
+    grants: [],
+    connects: [],
+    noframes: false,
+    antifeatures: [],
+    requires: [],
+    resources: [],
+    ...overrides,
   }
 }
 
@@ -57,15 +66,19 @@ console.log('body')
   assert.strictEqual(metadata.downloadURL, 'https://example.com/sample.user.js')
   assert.deepStrictEqual(metadata.antifeatures, ['ads', 'tracking'])
   assert.strictEqual(metadata.icon, 'https://example.com/icon.png')
-  assert.deepStrictEqual(metadata.requires, [{
-    url: 'https://example.com/lib.js',
-    integrity: 'sha256-demo',
-  }])
-  assert.deepStrictEqual(metadata.resources, [{
-    name: 'style',
-    url: 'https://example.com/style.css',
-    integrity: 'hash',
-  }])
+  assert.deepStrictEqual(metadata.requires, [
+    {
+      url: 'https://example.com/lib.js',
+      integrity: 'sha256-demo',
+    },
+  ])
+  assert.deepStrictEqual(metadata.resources, [
+    {
+      name: 'style',
+      url: 'https://example.com/style.css',
+      integrity: 'hash',
+    },
+  ])
   assert.strictEqual(metadata.runAt, 'document-end')
 })
 
@@ -73,23 +86,41 @@ test('matches strict scheme, host, and case-sensitive path boundaries', () => {
   const metadata = matchingMetadata({ matches: ['*://*.codeforces.com/Problems/*'] })
   assert.strictEqual(matchesUserScriptUrl('https://codeforces.com/Problems/1/A', metadata), true)
   assert.strictEqual(matchesUserScriptUrl('http://www.codeforces.com/Problems/1/A', metadata), true)
-  assert.strictEqual(matchesUserScriptUrl('HTTPS://WWW.CODEFORCES.COM/Problems/1/A', metadata), true)
+  assert.strictEqual(
+    matchesUserScriptUrl('HTTPS://WWW.CODEFORCES.COM/Problems/1/A', metadata),
+    true,
+  )
   assert.strictEqual(matchesUserScriptUrl('ftp://codeforces.com/Problems/1/A', metadata), false)
   assert.strictEqual(matchesUserScriptUrl('https://codeforces.com/problems/1/A', metadata), false)
-  assert.strictEqual(matchesUserScriptUrl('https://evil.example/x.codeforces.com/Problems/1/A', metadata), false)
-  assert.strictEqual(matchesUserScriptUrl('https://codeforces.com.evil.example/Problems/1/A', metadata), false)
+  assert.strictEqual(
+    matchesUserScriptUrl('https://evil.example/x.codeforces.com/Problems/1/A', metadata),
+    false,
+  )
+  assert.strictEqual(
+    matchesUserScriptUrl('https://codeforces.com.evil.example/Problems/1/A', metadata),
+    false,
+  )
   assert.strictEqual(matchRuleToRegExp('file:///*').test('file:///C:/scripts/helper.user.js'), true)
-  assert.strictEqual(matchRuleToRegExp('<all_urls>').test('ftp://downloads.example.com/helper.user.js'), true)
+  assert.strictEqual(
+    matchRuleToRegExp('<all_urls>').test('ftp://downloads.example.com/helper.user.js'),
+    true,
+  )
 })
 
 test('@match and @exclude-match ignore query strings and fragments', () => {
   const allowed = matchingMetadata({ matches: ['https://example.com/problem/1'] })
-  assert.strictEqual(matchesUserScriptUrl('https://example.com/problem/1?tab=solutions#editor', allowed), true)
+  assert.strictEqual(
+    matchesUserScriptUrl('https://example.com/problem/1?tab=solutions#editor', allowed),
+    true,
+  )
   const excluded = matchingMetadata({
     matches: ['https://example.com/*'],
     excludeMatches: ['https://example.com/problem/private/1'],
   })
-  assert.strictEqual(matchesUserScriptUrl('https://example.com/problem/private/1?tab=solutions#editor', excluded), false)
+  assert.strictEqual(
+    matchesUserScriptUrl('https://example.com/problem/private/1?tab=solutions#editor', excluded),
+    false,
+  )
 })
 
 test('invalid @match rules fail closed without throwing or blocking later valid rules', () => {
@@ -132,5 +163,8 @@ test('both exclusion rule kinds take priority over positive @match and @include 
   assert.strictEqual(matchesUserScriptUrl('https://example.com/public/1', metadata), true)
   assert.strictEqual(matchesUserScriptUrl('https://mirror.example.net/public/1', metadata), true)
   assert.strictEqual(matchesUserScriptUrl('https://example.com/private/1', metadata), false)
-  assert.strictEqual(matchesUserScriptUrl('https://mirror.example.net/private/1?from=home#top', metadata), false)
+  assert.strictEqual(
+    matchesUserScriptUrl('https://mirror.example.net/private/1?from=home#top', metadata),
+    false,
+  )
 })

@@ -4,10 +4,7 @@ import os from 'node:os'
 import path from 'node:path'
 import Database from 'better-sqlite3'
 import { test } from 'vitest'
-import {
-  closeDb,
-  initDbAtPathWithMigrationSafety,
-} from '../../electron/db/connection'
+import { closeDb, initDbAtPathWithMigrationSafety } from '../../electron/db/connection'
 import { migration027 } from '../../electron/db/migrations/027_userscript_runtime'
 import type { Logger } from '../../electron/shared/logger'
 
@@ -25,12 +22,14 @@ test('migration 027 backfills separated metadata and creates constrained runtime
   try {
     db.pragma('foreign_keys = ON')
     createPre027UserScriptsTable(db)
-    db.prepare(`
+    db.prepare(
+      `
       INSERT INTO user_scripts (
         id, name, namespace, identity_name, match_urls_json, code,
         enabled, auto_update_enabled, created_at, updated_at
       ) VALUES (?, ?, ?, ?, ?, ?, 1, 1, ?, ?)
-    `).run(
+    `,
+    ).run(
       'script-1',
       'Helper',
       '',
@@ -45,23 +44,45 @@ test('migration 027 backfills separated metadata and creates constrained runtime
 
     const columns = db.prepare('PRAGMA table_info(user_scripts)').all() as Array<{ name: string }>
     for (const column of [
-      'include_rules_json', 'exclude_rules_json', 'exclude_match_rules_json',
-      'grant_json', 'connect_json', 'noframes', 'run_at', 'update_url',
-      'download_url', 'last_install_url', 'antifeature_json', 'icon_url',
+      'include_rules_json',
+      'exclude_rules_json',
+      'exclude_match_rules_json',
+      'grant_json',
+      'connect_json',
+      'noframes',
+      'run_at',
+      'update_url',
+      'download_url',
+      'last_install_url',
+      'antifeature_json',
+      'icon_url',
     ]) {
-      assert.ok(columns.some(candidate => candidate.name === column), `missing ${column}`)
+      assert.ok(
+        columns.some((candidate) => candidate.name === column),
+        `missing ${column}`,
+      )
     }
 
-    const script = db.prepare(`
+    const script = db
+      .prepare(
+        `
       SELECT match_urls_json, include_rules_json, exclude_rules_json,
         exclude_match_rules_json, grant_json, connect_json, noframes,
         run_at, update_url, download_url, antifeature_json, icon_url
       FROM user_scripts WHERE id = 'script-1'
-    `).get() as Record<string, unknown>
+    `,
+      )
+      .get() as Record<string, unknown>
     assert.deepStrictEqual(JSON.parse(script.match_urls_json as string), ['https://example.com/*'])
-    assert.deepStrictEqual(JSON.parse(script.include_rules_json as string), ['https://mirror.example/*'])
-    assert.deepStrictEqual(JSON.parse(script.exclude_rules_json as string), ['https://example.com/private/*'])
-    assert.deepStrictEqual(JSON.parse(script.exclude_match_rules_json as string), ['https://example.com/strict/*'])
+    assert.deepStrictEqual(JSON.parse(script.include_rules_json as string), [
+      'https://mirror.example/*',
+    ])
+    assert.deepStrictEqual(JSON.parse(script.exclude_rules_json as string), [
+      'https://example.com/private/*',
+    ])
+    assert.deepStrictEqual(JSON.parse(script.exclude_match_rules_json as string), [
+      'https://example.com/strict/*',
+    ])
     assert.deepStrictEqual(JSON.parse(script.grant_json as string), ['GM_getValue'])
     assert.deepStrictEqual(JSON.parse(script.connect_json as string), ['api.example.com'])
     assert.strictEqual(script.noframes, 1)
@@ -72,7 +93,8 @@ test('migration 027 backfills separated metadata and creates constrained runtime
     assert.strictEqual(script.icon_url, 'https://example.com/icon.png')
 
     assert.throws(
-      () => db.prepare("UPDATE user_scripts SET include_rules_json = '{}' WHERE id = 'script-1'").run(),
+      () =>
+        db.prepare("UPDATE user_scripts SET include_rules_json = '{}' WHERE id = 'script-1'").run(),
       /CHECK constraint failed/,
     )
 
@@ -81,24 +103,36 @@ test('migration 027 backfills separated metadata and creates constrained runtime
     // 读 `.content_blob` 报"Property 'content_blob' does not exist on type '{}'"，
     // 只能靠 `as Buffer` 硬转过去。标上以后 BLOB 确实是 Buffer，转换也就不需要了。
     const resourceRow = db
-      .prepare<[], { content_blob: Buffer }>("SELECT content_blob FROM user_script_resources WHERE id = 'resource-1'")
+      .prepare<[], { content_blob: Buffer }>(
+        "SELECT content_blob FROM user_script_resources WHERE id = 'resource-1'",
+      )
       .get()
     assert.ok(resourceRow, 'migration should have inserted the sample resource row')
     assert.deepStrictEqual(Array.from(resourceRow.content_blob), [0, 127, 255])
     assert.throws(
-      () => db.prepare(`
+      () =>
+        db
+          .prepare(
+            `
         INSERT INTO user_script_update_state (script_id, status, updated_at)
         VALUES ('script-1', 'invalid', ?)
-      `).run(now),
+      `,
+          )
+          .run(now),
       /CHECK constraint failed/,
     )
     assert.throws(
-      () => db.prepare(`
+      () =>
+        db
+          .prepare(
+            `
         INSERT INTO user_script_resources (
           id, script_id, resource_kind, resource_key, declaration_order,
           source_url, created_at, updated_at
         ) VALUES ('resource-conflict', 'script-1', 'require', 'require-2', 0, 'https://cdn.example/2.js', ?, ?)
-      `).run(now, now),
+      `,
+          )
+          .run(now, now),
       /UNIQUE constraint failed/,
     )
 
@@ -142,7 +176,13 @@ test('migration safety restores the pre-027 database when a later migration fail
         backupDir,
         migrations: [
           migration027,
-          { version: 9004, name: 'runtime_follow_up_failure', up: () => { throw new Error('follow-up failure') } },
+          {
+            version: 9004,
+            name: 'runtime_follow_up_failure',
+            up: () => {
+              throw new Error('follow-up failure')
+            },
+          },
         ],
         logger: new SilentLogger(),
       }),
@@ -150,13 +190,22 @@ test('migration safety restores the pre-027 database when a later migration fail
     )
 
     const restored = new Database(dbPath)
-    assert.deepStrictEqual(restored.prepare('SELECT value FROM migration_sentinel').get(), { value: 'preserved' })
+    assert.deepStrictEqual(restored.prepare('SELECT value FROM migration_sentinel').get(), {
+      value: 'preserved',
+    })
     assert.strictEqual(
-      restored.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'user_script_values'").get(),
+      restored
+        .prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'user_script_values'")
+        .get(),
       undefined,
     )
-    const columns = restored.prepare('PRAGMA table_info(user_scripts)').all() as Array<{ name: string }>
-    assert.strictEqual(columns.some(column => column.name === 'include_rules_json'), false)
+    const columns = restored.prepare('PRAGMA table_info(user_scripts)').all() as Array<{
+      name: string
+    }>
+    assert.strictEqual(
+      columns.some((column) => column.name === 'include_rules_json'),
+      false,
+    )
     restored.close()
   } finally {
     closeDb()
@@ -187,27 +236,35 @@ function createPre027UserScriptsTable(db: Database.Database): void {
 }
 
 function insertRuntimeRows(db: Database.Database): void {
-  db.prepare(`
+  db.prepare(
+    `
     INSERT INTO user_script_values (
       id, script_id, value_key, value_json, created_at, updated_at
     ) VALUES ('value-1', 'script-1', 'theme', '"dark"', ?, ?)
-  `).run(now, now)
-  db.prepare(`
+  `,
+  ).run(now, now)
+  db.prepare(
+    `
     INSERT INTO user_script_resources (
       id, script_id, resource_kind, resource_key, declaration_order,
       source_url, content_blob, content_encoding, created_at, updated_at
     ) VALUES ('resource-1', 'script-1', 'require', 'require-1', 0, ?, ?, 'binary', ?, ?)
-  `).run('https://cdn.example/1.js', Buffer.from([0, 127, 255]), now, now)
-  db.prepare(`
+  `,
+  ).run('https://cdn.example/1.js', Buffer.from([0, 127, 255]), now, now)
+  db.prepare(
+    `
     INSERT INTO user_script_host_permissions (
       id, script_id, host_pattern, granted_at
     ) VALUES ('host-1', 'script-1', 'api.example.com', ?)
-  `).run(now)
-  db.prepare(`
+  `,
+  ).run(now)
+  db.prepare(
+    `
     INSERT INTO user_script_update_state (
       script_id, next_check_at, status, updated_at
     ) VALUES ('script-1', ?, 'idle', ?)
-  `).run(now, now)
+  `,
+  ).run(now, now)
 }
 
 function userscriptSource(): string {
@@ -237,5 +294,7 @@ class SilentLogger implements Logger {
   warn(): void {}
   error(): void {}
   fatal(): void {}
-  getLogFilePath(): null { return null }
+  getLogFilePath(): null {
+    return null
+  }
 }

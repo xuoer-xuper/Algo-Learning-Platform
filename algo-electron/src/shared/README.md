@@ -32,8 +32,8 @@
 
 ```powershell
 cd algo-electron
-npm run typecheck
-npm run test:ui
+pnpm run typecheck
+pnpm run test:ui
 ```
 
 涉及平台名称、状态颜色或图表颜色时，还需要手测题目侧栏、题目详情、统计页和设置页，确认展示文案、颜色和窄屏布局没有错位。

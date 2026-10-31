@@ -8,10 +8,7 @@ export type {
   RecentProblem,
 } from './problem/types'
 
-export {
-  deleteProblem,
-  upsertProblem,
-} from './problem/mutations'
+export { deleteProblem, upsertProblem } from './problem/mutations'
 
 export {
   getProblemDetail,
@@ -20,10 +17,7 @@ export {
   findProblemIdByPlatformKey,
 } from './problem/queries'
 
-export {
-  getOmniboxSuggestions,
-  OMNIBOX_SUGGESTION_LIMIT,
-} from './problem/omnibox'
+export { getOmniboxSuggestions, OMNIBOX_SUGGESTION_LIMIT } from './problem/omnibox'
 
 export {
   getLastActiveTime,

@@ -1,9 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'vitest'
-import {
-  localDayFromTimestamp,
-  nextLocalDay,
-} from '../../electron/db/repositories/stats/date.ts'
+import { localDayFromTimestamp, nextLocalDay } from '../../electron/db/repositories/stats/date.ts'
 
 test('builds stable local-day range boundaries', () => {
   assert.strictEqual(nextLocalDay('2026-08-18'), '2026-08-19')

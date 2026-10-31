@@ -14,7 +14,9 @@ export function extractLeetcodeTitleSlugFromUrl(url: string): string | undefined
 export function matchLeetcodeProblem(url: string): boolean {
   try {
     const parsed = new URL(url)
-    return LEETCODE_DOMAINS.includes(parsed.hostname) && /^\/problems\/[^/]+\/?$/.test(parsed.pathname)
+    return (
+      LEETCODE_DOMAINS.includes(parsed.hostname) && /^\/problems\/[^/]+\/?$/.test(parsed.pathname)
+    )
   } catch {
     return false
   }

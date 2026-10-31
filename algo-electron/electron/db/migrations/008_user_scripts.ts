@@ -1,4 +1,4 @@
-import { Database } from 'better-sqlite3'
+import type { Database } from 'better-sqlite3'
 
 export const migration008 = {
   version: 8,
@@ -22,5 +22,5 @@ export const migration008 = {
     db.exec(`
       DROP TABLE IF EXISTS user_scripts;
     `)
-  }
+  },
 }

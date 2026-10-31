@@ -33,7 +33,7 @@ export function getApplicationWindowsInRestoreOrder(
   snapshot: ApplicationSessionSnapshot,
 ): ApplicationWindowSessionSnapshot[] {
   const mostRecentWindow = snapshot.mostRecentWindowId
-    ? snapshot.windows.find((window) => window.id === snapshot.mostRecentWindowId) ?? null
+    ? (snapshot.windows.find((window) => window.id === snapshot.mostRecentWindowId) ?? null)
     : null
   if (!mostRecentWindow) return [...snapshot.windows]
   return [
@@ -77,32 +77,38 @@ function hasOnlyKeys(value: Record<string, unknown>, keys: readonly string[]): b
 }
 
 function isValidWindowId(value: unknown): value is string {
-  return typeof value === 'string'
-    && value.length >= 1
-    && value.length <= MAX_WINDOW_ID_LENGTH
-    && WINDOW_ID_PATTERN.test(value)
+  return (
+    typeof value === 'string' &&
+    value.length >= 1 &&
+    value.length <= MAX_WINDOW_ID_LENGTH &&
+    WINDOW_ID_PATTERN.test(value)
+  )
 }
 
 function isValidCoordinate(value: unknown): value is number {
-  return typeof value === 'number'
-    && Number.isSafeInteger(value)
-    && Math.abs(value) <= MAX_WINDOW_COORDINATE
+  return (
+    typeof value === 'number' &&
+    Number.isSafeInteger(value) &&
+    Math.abs(value) <= MAX_WINDOW_COORDINATE
+  )
 }
 
 function isValidDimension(value: unknown): value is number {
-  return typeof value === 'number'
-    && Number.isSafeInteger(value)
-    && value >= 1
-    && value <= MAX_WINDOW_DIMENSION
+  return (
+    typeof value === 'number' &&
+    Number.isSafeInteger(value) &&
+    value >= 1 &&
+    value <= MAX_WINDOW_DIMENSION
+  )
 }
 
 function parseBounds(value: unknown): Rectangle | null {
   if (!isRecord(value) || !hasOnlyKeys(value, ['x', 'y', 'width', 'height'])) return null
   if (
-    !isValidCoordinate(value.x)
-    || !isValidCoordinate(value.y)
-    || !isValidDimension(value.width)
-    || !isValidDimension(value.height)
+    !isValidCoordinate(value.x) ||
+    !isValidCoordinate(value.y) ||
+    !isValidDimension(value.width) ||
+    !isValidDimension(value.height)
   ) {
     return null
   }
@@ -112,26 +118,31 @@ function parseBounds(value: unknown): Rectangle | null {
 function parseWindow(
   value: unknown,
   options: TabSessionSnapshotOptions,
-): { ok: true; snapshot: ApplicationWindowSessionSnapshot } | {
-  ok: false
-  reason: 'invalid-window' | 'too-many-tabs' | 'duplicate-tab-id'
-} {
+):
+  | { ok: true; snapshot: ApplicationWindowSessionSnapshot }
+  | {
+      ok: false
+      reason: 'invalid-window' | 'too-many-tabs' | 'duplicate-tab-id'
+    } {
   if (
-    !isRecord(value)
-    || !hasOnlyKeys(value, ['id', 'bounds', 'maximized', 'activeTabId', 'tabs'])
-    || !isValidWindowId(value.id)
-    || typeof value.maximized !== 'boolean'
+    !isRecord(value) ||
+    !hasOnlyKeys(value, ['id', 'bounds', 'maximized', 'activeTabId', 'tabs']) ||
+    !isValidWindowId(value.id) ||
+    typeof value.maximized !== 'boolean'
   ) {
     return { ok: false, reason: 'invalid-window' }
   }
   const bounds = parseBounds(value.bounds)
   if (!bounds) return { ok: false, reason: 'invalid-window' }
 
-  const tabs = parseTabSessionSnapshot({
-    version: 1,
-    activeTabId: value.activeTabId,
-    tabs: value.tabs,
-  }, options)
+  const tabs = parseTabSessionSnapshot(
+    {
+      version: 1,
+      activeTabId: value.activeTabId,
+      tabs: value.tabs,
+    },
+    options,
+  )
   if (!tabs.ok) {
     if (tabs.reason === 'too-many-tabs') return { ok: false, reason: 'too-many-tabs' }
     if (tabs.reason === 'duplicate-tab-id') return { ok: false, reason: 'duplicate-tab-id' }
@@ -194,8 +205,8 @@ export function parseApplicationSessionSnapshot(
       return { ok: false, reason: 'invalid-recent-window' }
     }
   } else if (
-    typeof value.mostRecentWindowId !== 'string'
-    || !windowIds.has(value.mostRecentWindowId)
+    typeof value.mostRecentWindowId !== 'string' ||
+    !windowIds.has(value.mostRecentWindowId)
   ) {
     return { ok: false, reason: 'invalid-recent-window' }
   }
@@ -204,7 +215,7 @@ export function parseApplicationSessionSnapshot(
     ok: true,
     snapshot: {
       version: 1,
-      mostRecentWindowId: value.mostRecentWindowId as string | null,
+      mostRecentWindowId: value.mostRecentWindowId,
       windows,
     },
   }
@@ -237,9 +248,9 @@ export function createApplicationSessionSnapshot(
   for (const candidate of candidates) {
     if (windows.length >= MAX_APPLICATION_SESSION_WINDOWS) break
     if (
-      !isValidWindowId(candidate.id)
-      || windowIds.has(candidate.id)
-      || typeof candidate.maximized !== 'boolean'
+      !isValidWindowId(candidate.id) ||
+      windowIds.has(candidate.id) ||
+      typeof candidate.maximized !== 'boolean'
     ) {
       continue
     }
@@ -252,13 +263,14 @@ export function createApplicationSessionSnapshot(
       candidate.activeTabId,
       options,
     )
-    const session = sanitizedSession.tabs.length <= remainingTabs
-      ? sanitizedSession
-      : createTabSessionSnapshot(
-          sanitizedSession.tabs.slice(0, remainingTabs),
-          sanitizedSession.activeTabId,
-          options,
-        )
+    const session =
+      sanitizedSession.tabs.length <= remainingTabs
+        ? sanitizedSession
+        : createTabSessionSnapshot(
+            sanitizedSession.tabs.slice(0, remainingTabs),
+            sanitizedSession.activeTabId,
+            options,
+          )
     if (session.tabs.length === 0) continue
     for (const tab of session.tabs) tabIds.add(tab.id)
     remainingTabs -= session.tabs.length
@@ -273,8 +285,9 @@ export function createApplicationSessionSnapshot(
     })
   }
 
-  const restoredRecentId = mostRecentWindowId && windowIds.has(mostRecentWindowId)
-    ? mostRecentWindowId
-    : windows[0]?.id ?? null
+  const restoredRecentId =
+    mostRecentWindowId && windowIds.has(mostRecentWindowId)
+      ? mostRecentWindowId
+      : (windows[0]?.id ?? null)
   return { version: 1, mostRecentWindowId: restoredRecentId, windows }
 }

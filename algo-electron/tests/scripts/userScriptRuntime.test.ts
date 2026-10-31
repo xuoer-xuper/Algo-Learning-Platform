@@ -60,22 +60,26 @@ test('hydrates values before navigation and isolates snapshots by script id', ()
   const service = {
     refresh: vi.fn(),
     getEnabledScriptsSnapshot: vi.fn(() => scripts),
-    getMatchingScriptsWithMeta: vi.fn(() => scripts.map(item => ({
-      script: item,
-      requires: [],
-      resources: [],
-    }))),
+    getMatchingScriptsWithMeta: vi.fn(() =>
+      scripts.map((item) => ({
+        script: item,
+        requires: [],
+        resources: [],
+      })),
+    ),
   }
   const runtime = new UserScriptRuntime({
     userScriptService: service,
-    listValues: (scriptId) => [{
-      id: `value-${scriptId}`,
-      script_id: scriptId,
-      value_key: 'count',
-      value: scriptId === 'script-1' ? 1 : 2,
-      created_at: '',
-      updated_at: '',
-    }],
+    listValues: (scriptId) => [
+      {
+        id: `value-${scriptId}`,
+        script_id: scriptId,
+        value_key: 'count',
+        value: scriptId === 'script-1' ? 1 : 2,
+        created_at: '',
+        updated_at: '',
+      },
+    ],
     setValue: vi.fn(),
     deleteValue: vi.fn(),
     logger: testLogger(),
@@ -84,11 +88,17 @@ test('hydrates values before navigation and isolates snapshots by script id', ()
   runtime.refresh()
   const snapshot = runtime.getNavigationSnapshot('https://example.com/problem/1', true)
   assert.strictEqual(snapshot.generation, 1)
-  assert.deepStrictEqual(snapshot.scripts.map(item => [item.id, item.values]), [
-    ['script-1', [['count', 1]]],
-    ['script-2', [['count', 2]]],
-  ])
-  assert.deepStrictEqual(snapshot.scripts.map(item => item.connects), [[], []])
+  assert.deepStrictEqual(
+    snapshot.scripts.map((item) => [item.id, item.values]),
+    [
+      ['script-1', [['count', 1]]],
+      ['script-2', [['count', 2]]],
+    ],
+  )
+  assert.deepStrictEqual(
+    snapshot.scripts.map((item) => item.connects),
+    [[], []],
+  )
   assert.strictEqual(service.refresh.mock.calls.length, 1)
 })
 
@@ -110,14 +120,20 @@ test('filters noframes scripts and updates the in-memory value snapshot after pe
   })
 
   runtime.refresh()
-  assert.deepStrictEqual(runtime.getNavigationSnapshot('https://example.com/frame', false).scripts, [])
+  assert.deepStrictEqual(
+    runtime.getNavigationSnapshot('https://example.com/frame', false).scripts,
+    [],
+  )
   runtime.setValue(mainOnly.id, 'settings', { enabled: true })
   assert.deepStrictEqual(
     runtime.getNavigationSnapshot('https://example.com/', true).scripts[0].values,
     [['settings', { enabled: true }]],
   )
   runtime.deleteValue(mainOnly.id, 'settings')
-  assert.deepStrictEqual(runtime.getNavigationSnapshot('https://example.com/', true).scripts[0].values, [])
+  assert.deepStrictEqual(
+    runtime.getNavigationSnapshot('https://example.com/', true).scripts[0].values,
+    [],
+  )
   assert.strictEqual(setValue.mock.calls.length, 1)
   assert.strictEqual(deleteValue.mock.calls.length, 1)
 })
@@ -161,7 +177,15 @@ globalThis.order.push("script")`,
         dependencyTwo,
         `sha256-${createHash('sha256').update(dependencyTwo).digest('base64')}`,
       ),
-      cachedResource('resource', 'theme', 0, metadata.resources[0].url, 'body { color: red; }', null, 'text/css'),
+      cachedResource(
+        'resource',
+        'theme',
+        0,
+        metadata.resources[0].url,
+        'body { color: red; }',
+        null,
+        'text/css',
+      ),
     ],
     setValue: vi.fn(),
     deleteValue: vi.fn(),
@@ -171,12 +195,16 @@ globalThis.order.push("script")`,
   runtime.refresh()
   const snapshot = runtime.getNavigationSnapshot('https://example.com/', true).scripts[0]
   assert.ok(snapshot.code.indexOf(dependencyOne) < snapshot.code.indexOf(dependencyTwo))
-  assert.ok(snapshot.code.indexOf(dependencyTwo) < snapshot.code.indexOf('globalThis.order.push("script")'))
-  assert.deepStrictEqual(snapshot.resources, [{
-    name: 'theme',
-    contentType: 'text/css',
-    dataBase64: Buffer.from('body { color: red; }').toString('base64'),
-  }])
+  assert.ok(
+    snapshot.code.indexOf(dependencyTwo) < snapshot.code.indexOf('globalThis.order.push("script")'),
+  )
+  assert.deepStrictEqual(snapshot.resources, [
+    {
+      name: 'theme',
+      contentType: 'text/css',
+      dataBase64: Buffer.from('body { color: red; }').toString('base64'),
+    },
+  ])
 })
 
 test('invalid persisted grant JSON fails closed for that script', () => {
@@ -227,24 +255,28 @@ test('refresh failure advances the generation and clears value mutation authorit
       if (refreshShouldFail) throw new Error('database unavailable')
     }),
     getEnabledScriptsSnapshot: vi.fn(() => [enabledScript]),
-    getMatchingScriptsWithMeta: vi.fn(() => [{ script: enabledScript, requires: [], resources: [] }]),
+    getMatchingScriptsWithMeta: vi.fn(() => [
+      { script: enabledScript, requires: [], resources: [] },
+    ]),
   }
   const runtime = new UserScriptRuntime({
     userScriptService: service,
-    listValues: () => [{
-      id: 'value-1',
-      script_id: enabledScript.id,
-      value_key: 'count',
-      value: 1,
-      created_at: '',
-      updated_at: '',
-    }],
+    listValues: () => [
+      {
+        id: 'value-1',
+        script_id: enabledScript.id,
+        value_key: 'count',
+        value: 1,
+        created_at: '',
+        updated_at: '',
+      },
+    ],
     setValue: vi.fn(),
     deleteValue: vi.fn(),
     logger: testLogger(),
   })
   const generations: number[] = []
-  runtime.addGenerationChangeListener(generation => generations.push(generation))
+  runtime.addGenerationChangeListener((generation) => generations.push(generation))
 
   runtime.refresh()
   assert.strictEqual(runtime.generation, 1)
@@ -275,7 +307,7 @@ function cachedResource(
     declaration_order: order,
     source_url: sourceUrl,
     content_blob: Buffer.from(content),
-    content_encoding: kind === 'require' ? 'utf8' as const : 'binary' as const,
+    content_encoding: kind === 'require' ? ('utf8' as const) : ('binary' as const),
     content_type: contentType,
     integrity,
     fetched_at: '2026-08-20 12:00:00',

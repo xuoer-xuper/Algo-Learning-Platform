@@ -10,8 +10,14 @@ test('moves the same web view and stable tab id to the target event owner', asyn
   const registry = new ViewRegistry()
   const sourceWindow = new MockBrowserWindow()
   const targetWindow = new MockBrowserWindow()
-  const source = new TabManager(sourceWindow as never, { windowId: 'source', viewRegistry: registry })
-  const target = new TabManager(targetWindow as never, { windowId: 'target', viewRegistry: registry })
+  const source = new TabManager(sourceWindow as never, {
+    windowId: 'source',
+    viewRegistry: registry,
+  })
+  const target = new TabManager(targetWindow as never, {
+    windowId: 'target',
+    viewRegistry: registry,
+  })
   const remainingId = source.createTab('https://example.com/remaining')
   const movedId = source.createTab('https://example.com/moved')
   await Promise.resolve()
@@ -67,9 +73,10 @@ test('rolls the last internal tab back with its stable id and active state', () 
   assert.equal(manager.getActiveTabId(), null)
   assert.equal(released.rollback(), true)
   assert.equal(released.state, 'rolled-back')
-  assert.deepEqual(manager.getTabList().map((tab) => [tab.id, tab.kind, tab.isActive]), [
-    ['stable-settings', 'internal', true],
-  ])
+  assert.deepEqual(
+    manager.getTabList().map((tab) => [tab.id, tab.kind, tab.isActive]),
+    [['stable-settings', 'internal', true]],
+  )
   assert.equal(released.rollback(), false)
 })
 
@@ -90,14 +97,22 @@ test('restores registry ownership and source mounting after target attachment fa
   const registry = new ViewRegistry()
   const sourceWindow = new MockBrowserWindow()
   const targetWindow = new MockBrowserWindow()
-  const source = new TabManager(sourceWindow as never, { windowId: 'source', viewRegistry: registry })
-  const target = new TabManager(targetWindow as never, { windowId: 'target', viewRegistry: registry })
+  const source = new TabManager(sourceWindow as never, {
+    windowId: 'source',
+    viewRegistry: registry,
+  })
+  const target = new TabManager(targetWindow as never, {
+    windowId: 'target',
+    viewRegistry: registry,
+  })
   const tabId = source.createTab('https://example.com/rollback')
   await Promise.resolve()
   const entry = registry.getByWindow('source')[0]
   assert.ok(entry?.kind === 'tab')
   const view = entry.view
-  targetWindow.contentView.addChildView = () => { throw new Error('injected failure') }
+  targetWindow.contentView.addChildView = () => {
+    throw new Error('injected failure')
+  }
 
   const released = source.releaseTab(tabId)
   assert.ok(released)

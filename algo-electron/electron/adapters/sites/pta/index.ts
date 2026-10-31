@@ -40,7 +40,10 @@ export const ptaAdapter: SiteAdapter = {
     return parsePtaRealtimeSubmission(raw)
   },
 
-  resolveProblemIdentity(submission: SubmissionData, raw: SubmissionDetectionPayload): ProblemIdentity | null {
+  resolveProblemIdentity(
+    submission: SubmissionData,
+    raw: SubmissionDetectionPayload,
+  ): ProblemIdentity | null {
     const browserTitleIdentity = resolveProblemIdentityFromBrowserTitle(this, raw)
     if (browserTitleIdentity) return browserTitleIdentity
 

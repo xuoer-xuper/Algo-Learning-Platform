@@ -1,7 +1,11 @@
 import { EventEmitter } from 'node:events'
 import { getAdapter, getAdapterForUrl } from '../adapters/registry'
 import { getSiteById } from '../db/repositories/siteRepository'
-import { SubmissionWatcherCore, type SubmissionWatcherOptions, type SubmissionWatcherResult } from './SubmissionWatcherCore'
+import {
+  SubmissionWatcherCore,
+  type SubmissionWatcherOptions,
+  type SubmissionWatcherResult,
+} from './SubmissionWatcherCore'
 import { createDefaultSubmissionBatchWriter } from './createDefaultSubmissionBatchWriter'
 import { appLogger, type Logger } from '../shared/logger'
 

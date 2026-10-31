@@ -668,4 +668,3 @@ export function createFrontendVerdictHookScript(adapterId: string): string {
     } catch (_) {}
   })();`
 }
-

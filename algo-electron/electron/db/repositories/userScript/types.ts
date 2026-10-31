@@ -28,7 +28,10 @@ export interface UserScript {
   deleted_at: string | null
 }
 
-export interface UserScriptRow extends Omit<UserScript, 'enabled' | 'auto_update_enabled' | 'noframes'> {
+export interface UserScriptRow extends Omit<
+  UserScript,
+  'enabled' | 'auto_update_enabled' | 'noframes'
+> {
   enabled: number
   auto_update_enabled: number
   noframes: number
@@ -58,8 +61,8 @@ type UserScriptContentInput = Omit<
   | 'updated_at'
   | 'deleted_at'
   | OptionalMetadataField
->
-  & Partial<Pick<UserScript, OptionalMetadataField>>
+> &
+  Partial<Pick<UserScript, OptionalMetadataField>>
 
 export type UserScriptWriteInput = UserScriptContentInput & {
   /** undefined creates a local copy; null represents the legacy canonical identity. */

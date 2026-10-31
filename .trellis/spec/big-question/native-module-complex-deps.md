@@ -172,7 +172,7 @@ const nativeModules = [
 
 Don't wait until feature completion to discover packaging issues. After adding any new native module:
 
-1. Run `npm run package`
+1. Build the packaged app
 2. Test the packaged app
 3. Fix packaging issues immediately
 

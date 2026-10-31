@@ -69,7 +69,10 @@ export interface AppConfig {
   appearance: AppearanceConfig
 }
 
-interface LegacyAppConfig extends Omit<Partial<AppConfig>, 'search' | 'zoomByOrigin' | 'appearance'> {
+interface LegacyAppConfig extends Omit<
+  Partial<AppConfig>,
+  'search' | 'zoomByOrigin' | 'appearance'
+> {
   defaultHomeUrl?: unknown
   search?: unknown
   zoomByOrigin?: unknown
@@ -122,7 +125,10 @@ export function loadConfig(): AppConfig {
     // pinMode 单独收口：config.json 是用户可编辑的纯文本，浅合并会把手写的
     // 非法模式原样带进策略函数，那里再兜底就晚了（窗口已按错误分支设过一次）。
     const mergedCoach: CoachConfig = { ...DEFAULT_COACH_CONFIG, ...(parsed.coach ?? {}) }
-    const coach: CoachConfig = { ...mergedCoach, pinMode: normalizeCoachPinMode(mergedCoach.pinMode) }
+    const coach: CoachConfig = {
+      ...mergedCoach,
+      pinMode: normalizeCoachPinMode(mergedCoach.pinMode),
+    }
     const homeShortcuts = sanitizeHomeShortcuts([
       ...(Array.isArray(parsed.homeShortcuts) ? parsed.homeShortcuts : []),
       parsed.defaultHomeUrl,
@@ -133,10 +139,10 @@ export function loadConfig(): AppConfig {
     config = { homeShortcuts, coach, search, zoomByOrigin, appearance }
 
     if (
-      Object.prototype.hasOwnProperty.call(parsed, 'defaultHomeUrl')
-      || !isStoredSearchEngineConfig(parsed.search, search)
-      || !isStoredZoomByOrigin(parsed.zoomByOrigin, zoomByOrigin)
-      || !isStoredAppearanceConfig(parsed.appearance, appearance)
+      Object.prototype.hasOwnProperty.call(parsed, 'defaultHomeUrl') ||
+      !isStoredSearchEngineConfig(parsed.search, search) ||
+      !isStoredZoomByOrigin(parsed.zoomByOrigin, zoomByOrigin) ||
+      !isStoredAppearanceConfig(parsed.appearance, appearance)
     ) {
       try {
         writeConfig(config)
@@ -209,9 +215,11 @@ export function saveZoomFactorForUrl(url: string, factor: unknown): number | nul
 function isStoredSearchEngineConfig(value: unknown, normalized: SearchEngineConfig): boolean {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) return false
   const candidate = value as Record<string, unknown>
-  return Object.keys(candidate).length === 2
-    && candidate.engine === normalized.engine
-    && candidate.customTemplate === normalized.customTemplate
+  return (
+    Object.keys(candidate).length === 2 &&
+    candidate.engine === normalized.engine &&
+    candidate.customTemplate === normalized.customTemplate
+  )
 }
 
 function sanitizeHomeShortcuts(values: unknown[]): string[] {
@@ -257,10 +265,7 @@ export function loadCoachConfig(): CoachConfig {
 export function getCoachConfigForRenderer(): CoachConfig {
   const current = loadCoachConfig()
   if (!current.llm) return { ...current }
-  const {
-    encrypted_api_key: _encryptedApiKey,
-    ...publicLlmConfig
-  } = current.llm
+  const { encrypted_api_key: _encryptedApiKey, ...publicLlmConfig } = current.llm
   return { ...current, llm: publicLlmConfig }
 }
 

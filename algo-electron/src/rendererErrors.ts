@@ -36,9 +36,10 @@ function emit(): void {
 export function reportRendererError(scope: string, error: unknown): void {
   console.error(`[renderer] ${scope} 失败:`, error)
   const message = errorMessage(error)
-  current = current && current.message === message && current.scope === scope
-    ? { scope, message, count: current.count + 1 }
-    : { scope, message, count: 1 }
+  current =
+    current && current.message === message && current.scope === scope
+      ? { scope, message, count: current.count + 1 }
+      : { scope, message, count: 1 }
   emit()
 }
 
@@ -58,8 +59,14 @@ export function subscribeRendererErrors(listener: RendererErrorListener): () => 
 }
 
 interface RendererErrorEventTarget {
-  addEventListener(type: 'unhandledrejection', listener: (event: PromiseRejectionEvent) => void): void
-  removeEventListener(type: 'unhandledrejection', listener: (event: PromiseRejectionEvent) => void): void
+  addEventListener(
+    type: 'unhandledrejection',
+    listener: (event: PromiseRejectionEvent) => void,
+  ): void
+  removeEventListener(
+    type: 'unhandledrejection',
+    listener: (event: PromiseRejectionEvent) => void,
+  ): void
 }
 
 /**

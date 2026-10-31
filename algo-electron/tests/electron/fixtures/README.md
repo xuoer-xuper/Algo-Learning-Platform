@@ -14,4 +14,4 @@ Fixtures must stay deterministic and minimal. They must not contain real user sc
 
 ## 验证入口
 
-The fixtures are bundled by `tests/verify.mjs` and exercised through `npm run test:electron`.
+The fixtures are bundled by `tests/verify.mjs` and exercised through `pnpm run test:electron`.

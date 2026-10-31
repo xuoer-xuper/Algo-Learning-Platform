@@ -12,7 +12,11 @@ import {
   upsertAccount,
   upsertRatingHistory,
 } from '../db/repositories/accountRepository'
-import { fetchCFCurrentRating, fetchCFRatingHistory, formatCFRatingHistory } from '../rating/codeforces'
+import {
+  fetchCFCurrentRating,
+  fetchCFRatingHistory,
+  formatCFRatingHistory,
+} from '../rating/codeforces'
 import { errorMessage } from '../shared/errors'
 
 /*
@@ -32,14 +36,22 @@ const ratingPlatform = () => oneOf(['codeforces'])
 const cfHandle = () => text({ max: 64 })
 
 export function registerRatingIpc(): void {
-  ipcMain.handle('rating:bindHandle', [ratingPlatform(), cfHandle()], (_event, platform, handle) => {
-    const id = upsertAccount(platform, handle)
-    return { id, handle }
-  })
+  ipcMain.handle(
+    'rating:bindHandle',
+    [ratingPlatform(), cfHandle()],
+    (_event, platform, handle) => {
+      const id = upsertAccount(platform, handle)
+      return { id, handle }
+    },
+  )
 
-  ipcMain.handle('rating:getAccount', [ratingPlatform(), cfHandle()], (_event, platform, handle) => {
-    return getAccount(platform, handle)
-  })
+  ipcMain.handle(
+    'rating:getAccount',
+    [ratingPlatform(), cfHandle()],
+    (_event, platform, handle) => {
+      return getAccount(platform, handle)
+    },
+  )
 
   ipcMain.handle('rating:getAccounts', [ratingPlatform()], (_event, platform) => {
     return getAccountsByPlatform(platform)
@@ -85,8 +97,12 @@ export function registerRatingIpc(): void {
 
   ipcMain.handle('rating:getContestResults', [text()], (_event, accountId) => {
     const db = getDb()
-    return db.prepare(`
+    return db
+      .prepare(
+        `
       SELECT * FROM contest_results WHERE account_id = ? ORDER BY contest_at DESC LIMIT 20
-    `).all(accountId) as Record<string, unknown>[]
+    `,
+      )
+      .all(accountId)
   })
 }

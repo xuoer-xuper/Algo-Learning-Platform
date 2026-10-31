@@ -41,12 +41,14 @@ describe('application session snapshot validation', () => {
       maximized: true,
     }
     const second = {
-      ...appWindow('window-2', [{
-        id: 'settings',
-        kind: 'internal' as const,
-        page: { type: 'settings' as const },
-        title: 'Settings',
-      }]),
+      ...appWindow('window-2', [
+        {
+          id: 'settings',
+          kind: 'internal' as const,
+          page: { type: 'settings' as const },
+          title: 'Settings',
+        },
+      ]),
       bounds: { x: -1600, y: 40, width: 1200, height: 760 },
     }
 
@@ -71,11 +73,23 @@ describe('application session snapshot validation', () => {
     ['extra window field', { ...appWindow('window-1'), owner: 'hidden' }],
     ['invalid id', appWindow('has space')],
     ['non-boolean maximized', { ...appWindow('window-1'), maximized: 1 }],
-    ['extra bounds field', { ...appWindow('window-1'), bounds: { x: 0, y: 0, width: 800, height: 600, z: 1 } }],
-    ['fractional coordinate', { ...appWindow('window-1'), bounds: { x: 0.5, y: 0, width: 800, height: 600 } }],
-    ['oversized coordinate', { ...appWindow('window-1'), bounds: { x: 1_000_001, y: 0, width: 800, height: 600 } }],
+    [
+      'extra bounds field',
+      { ...appWindow('window-1'), bounds: { x: 0, y: 0, width: 800, height: 600, z: 1 } },
+    ],
+    [
+      'fractional coordinate',
+      { ...appWindow('window-1'), bounds: { x: 0.5, y: 0, width: 800, height: 600 } },
+    ],
+    [
+      'oversized coordinate',
+      { ...appWindow('window-1'), bounds: { x: 1_000_001, y: 0, width: 800, height: 600 } },
+    ],
     ['zero width', { ...appWindow('window-1'), bounds: { x: 0, y: 0, width: 0, height: 600 } }],
-    ['oversized height', { ...appWindow('window-1'), bounds: { x: 0, y: 0, width: 800, height: 100_001 } }],
+    [
+      'oversized height',
+      { ...appWindow('window-1'), bounds: { x: 0, y: 0, width: 800, height: 100_001 } },
+    ],
   ])('rejects an invalid window: %s', (_label, value) => {
     expect(parseApplicationSessionSnapshot(envelope([value]))).toEqual({
       ok: false,
@@ -84,42 +98,53 @@ describe('application session snapshot validation', () => {
   })
 
   it('rejects duplicate window IDs and tab IDs across windows', () => {
-    expect(parseApplicationSessionSnapshot(envelope([
-      appWindow('window-1'),
-      appWindow('window-1', [webTab('other-tab')]),
-    ]))).toEqual({ ok: false, reason: 'duplicate-window-id' })
+    expect(
+      parseApplicationSessionSnapshot(
+        envelope([appWindow('window-1'), appWindow('window-1', [webTab('other-tab')])]),
+      ),
+    ).toEqual({ ok: false, reason: 'duplicate-window-id' })
 
-    expect(parseApplicationSessionSnapshot(envelope([
-      appWindow('window-1', [webTab('shared')]),
-      appWindow('window-2', [webTab('shared')]),
-    ]))).toEqual({ ok: false, reason: 'duplicate-tab-id' })
+    expect(
+      parseApplicationSessionSnapshot(
+        envelope([
+          appWindow('window-1', [webTab('shared')]),
+          appWindow('window-2', [webTab('shared')]),
+        ]),
+      ),
+    ).toEqual({ ok: false, reason: 'duplicate-tab-id' })
   })
 
   it('enforces per-window, application-wide tab, and window count limits', () => {
-    expect(parseApplicationSessionSnapshot(envelope([
-      appWindow(
-        'window-1',
-        Array.from({ length: MAX_TABS + 1 }, (_, index) => webTab(`tab-${index}`)),
-        'tab-0',
+    expect(
+      parseApplicationSessionSnapshot(
+        envelope([
+          appWindow(
+            'window-1',
+            Array.from({ length: MAX_TABS + 1 }, (_, index) => webTab(`tab-${index}`)),
+            'tab-0',
+          ),
+        ]),
       ),
-    ]))).toEqual({ ok: false, reason: 'too-many-tabs' })
+    ).toEqual({ ok: false, reason: 'too-many-tabs' })
 
     const fullWindows = Array.from(
       { length: MAX_APPLICATION_SESSION_TABS / MAX_TABS + 1 },
-      (_, windowIndex) => appWindow(
-        `window-${windowIndex}`,
-        Array.from({ length: MAX_TABS }, (_, tabIndex) => webTab(`tab-${windowIndex}-${tabIndex}`)),
-        `tab-${windowIndex}-0`,
-      ),
+      (_, windowIndex) =>
+        appWindow(
+          `window-${windowIndex}`,
+          Array.from({ length: MAX_TABS }, (_, tabIndex) =>
+            webTab(`tab-${windowIndex}-${tabIndex}`),
+          ),
+          `tab-${windowIndex}-0`,
+        ),
     )
     expect(parseApplicationSessionSnapshot(envelope(fullWindows))).toEqual({
       ok: false,
       reason: 'too-many-tabs',
     })
 
-    const tooManyWindows = Array.from(
-      { length: MAX_APPLICATION_SESSION_WINDOWS + 1 },
-      (_, index) => appWindow(`window-${index}`, [], null),
+    const tooManyWindows = Array.from({ length: MAX_APPLICATION_SESSION_WINDOWS + 1 }, (_, index) =>
+      appWindow(`window-${index}`, [], null),
     )
     expect(parseApplicationSessionSnapshot(envelope(tooManyWindows))).toEqual({
       ok: false,
@@ -143,12 +168,17 @@ describe('application session snapshot validation', () => {
   })
 
   it('reuses strict tab validation and rejects a sensitive URL without partial restore', () => {
-    expect(parseApplicationSessionSnapshot(envelope([
-      appWindow('window-1', [
-        webTab('safe'),
-        webTab('unsafe', 'https://example.com/callback?access_token=secret'),
-      ], 'safe'),
-    ]))).toEqual({ ok: false, reason: 'invalid-window' })
+    expect(
+      parseApplicationSessionSnapshot(
+        envelope([
+          appWindow(
+            'window-1',
+            [webTab('safe'), webTab('unsafe', 'https://example.com/callback?access_token=secret')],
+            'safe',
+          ),
+        ]),
+      ),
+    ).toEqual({ ok: false, reason: 'invalid-window' })
   })
 })
 
@@ -163,7 +193,9 @@ describe('application session JSON parsing', () => {
       ok: false,
       reason: 'invalid-json',
     })
-    expect(parseApplicationSessionSnapshotJson('x'.repeat(MAX_APPLICATION_SESSION_JSON_BYTES + 1))).toEqual({
+    expect(
+      parseApplicationSessionSnapshotJson('x'.repeat(MAX_APPLICATION_SESSION_JSON_BYTES + 1)),
+    ).toEqual({
       ok: false,
       reason: 'oversized-json',
     })
@@ -172,14 +204,14 @@ describe('application session JSON parsing', () => {
   it('keeps the largest creatable snapshot within the parser byte limit', () => {
     const windows = Array.from(
       { length: MAX_APPLICATION_SESSION_TABS / MAX_TABS },
-      (_, windowIndex) => appWindow(
-        `window-${windowIndex}`,
-        Array.from({ length: MAX_TABS }, (_, tabIndex) => webTab(
-          `tab-${windowIndex}-${tabIndex}`,
-          `https://example.com/${'a'.repeat(4_076)}`,
-        )).map((tab) => ({ ...tab, title: '\u0800'.repeat(512) })),
-        `tab-${windowIndex}-0`,
-      ),
+      (_, windowIndex) =>
+        appWindow(
+          `window-${windowIndex}`,
+          Array.from({ length: MAX_TABS }, (_, tabIndex) =>
+            webTab(`tab-${windowIndex}-${tabIndex}`, `https://example.com/${'a'.repeat(4_076)}`),
+          ).map((tab) => ({ ...tab, title: '\u0800'.repeat(512) })),
+          `tab-${windowIndex}-0`,
+        ),
     )
     const snapshot = createApplicationSessionSnapshot(windows, 'window-0')
     const raw = JSON.stringify(snapshot)
@@ -192,11 +224,14 @@ describe('application session JSON parsing', () => {
 
 describe('application session snapshot creation', () => {
   it('restores the most recent window first without mutating persisted window order', () => {
-    const snapshot = createApplicationSessionSnapshot([
-      appWindow('window-1', [webTab('tab-1')]),
-      appWindow('window-2', [webTab('tab-2')]),
-      appWindow('window-3', [webTab('tab-3')]),
-    ], 'window-2')
+    const snapshot = createApplicationSessionSnapshot(
+      [
+        appWindow('window-1', [webTab('tab-1')]),
+        appWindow('window-2', [webTab('tab-2')]),
+        appWindow('window-3', [webTab('tab-3')]),
+      ],
+      'window-2',
+    )
 
     expect(getApplicationWindowsInRestoreOrder(snapshot).map((window) => window.id)).toEqual([
       'window-2',
@@ -211,29 +246,41 @@ describe('application session snapshot creation', () => {
   })
 
   it('never persists transient empty transfer windows', () => {
-    const snapshot = createApplicationSessionSnapshot([
-      appWindow('empty-window', [], null),
-      appWindow('live-window', [webTab('live-tab')], 'live-tab'),
-    ], 'empty-window')
+    const snapshot = createApplicationSessionSnapshot(
+      [
+        appWindow('empty-window', [], null),
+        appWindow('live-window', [webTab('live-tab')], 'live-tab'),
+      ],
+      'empty-window',
+    )
 
     expect(snapshot.windows.map((window) => window.id)).toEqual(['live-window'])
     expect(snapshot.mostRecentWindowId).toBe('live-window')
-    expect(parseApplicationSessionSnapshot({
-      version: 1,
-      mostRecentWindowId: 'empty-window',
-      windows: [appWindow('empty-window', [], null)],
-    })).toEqual({ ok: false, reason: 'invalid-window' })
+    expect(
+      parseApplicationSessionSnapshot({
+        version: 1,
+        mostRecentWindowId: 'empty-window',
+        windows: [appWindow('empty-window', [], null)],
+      }),
+    ).toEqual({ ok: false, reason: 'invalid-window' })
   })
 
   it('sanitizes every tab, removes global duplicates, and repairs active references', () => {
-    const snapshot = createApplicationSessionSnapshot([
-      appWindow('window-1', [
-        webTab('safe'),
-        webTab('unsafe', 'https://example.com/?password=secret'),
-        webTab('right'),
-      ], 'unsafe'),
-      appWindow('window-2', [webTab('safe'), webTab('unique')], 'safe'),
-    ], 'window-2')
+    const snapshot = createApplicationSessionSnapshot(
+      [
+        appWindow(
+          'window-1',
+          [
+            webTab('safe'),
+            webTab('unsafe', 'https://example.com/?password=secret'),
+            webTab('right'),
+          ],
+          'unsafe',
+        ),
+        appWindow('window-2', [webTab('safe'), webTab('unique')], 'safe'),
+      ],
+      'window-2',
+    )
 
     expect(snapshot).toMatchObject({
       mostRecentWindowId: 'window-2',
@@ -245,31 +292,25 @@ describe('application session snapshot creation', () => {
   })
 
   it('does not let rejected candidates consume the per-window tab limit', () => {
-    const unsafeTabs = Array.from(
-      { length: MAX_TABS },
-      (_, index) => webTab(`unsafe-${index}`, `https://example.com/?token=${index}`),
+    const unsafeTabs = Array.from({ length: MAX_TABS }, (_, index) =>
+      webTab(`unsafe-${index}`, `https://example.com/?token=${index}`),
     )
-    const safeTabs = Array.from(
-      { length: MAX_TABS },
-      (_, index) => webTab(`safe-${index}`),
+    const safeTabs = Array.from({ length: MAX_TABS }, (_, index) => webTab(`safe-${index}`))
+
+    const snapshot = createApplicationSessionSnapshot(
+      [appWindow('window-1', [...unsafeTabs, ...safeTabs], 'safe-15')],
+      'window-1',
     )
 
-    const snapshot = createApplicationSessionSnapshot([
-      appWindow('window-1', [...unsafeTabs, ...safeTabs], 'safe-15'),
-    ], 'window-1')
-
-    expect(snapshot.windows[0].tabs.map((tab) => tab.id)).toEqual(
-      safeTabs.map((tab) => tab.id),
-    )
+    expect(snapshot.windows[0].tabs.map((tab) => tab.id)).toEqual(safeTabs.map((tab) => tab.id))
     expect(snapshot.windows[0].activeTabId).toBe('safe-15')
   })
 
   it('skips invalid windows, caps output, and falls back to the first surviving recent window', () => {
     const candidates = [
       appWindow('bad id'),
-      ...Array.from(
-        { length: MAX_APPLICATION_SESSION_WINDOWS + 2 },
-        (_, index) => appWindow(`window-${index}`, [webTab(`tab-${index}`)]),
+      ...Array.from({ length: MAX_APPLICATION_SESSION_WINDOWS + 2 }, (_, index) =>
+        appWindow(`window-${index}`, [webTab(`tab-${index}`)]),
       ),
     ]
     const snapshot = createApplicationSessionSnapshot(candidates, 'bad id')

@@ -11,7 +11,10 @@ import {
 } from '../../electron/backup/learningDataExport.ts'
 import type { LearningDataExport } from '../../electron/backup/types.ts'
 import { upsertCookieMetadata } from '../../electron/db/repositories/cookieRecordRepository.ts'
-import { upsertAccount, upsertRatingHistory } from '../../electron/db/repositories/accountRepository.ts'
+import {
+  upsertAccount,
+  upsertRatingHistory,
+} from '../../electron/db/repositories/accountRepository.ts'
 import { upsertProblem } from '../../electron/db/repositories/problemRepository.ts'
 import { upsertSubmission } from '../../electron/db/repositories/submissionRepository.ts'
 
@@ -46,20 +49,28 @@ function seedSourceDatabase(): void {
     title: 'Backup Roundtrip',
     confidence: 'url',
   })
-  const problem = db.prepare(`
+  const problem = db
+    .prepare(
+      `
     SELECT id, platform, platform_problem_id, canonical_url
     FROM problems
     WHERE platform = 'codeforces' AND platform_problem_id = '1000A'
-  `).get() as ProblemRow
+  `,
+    )
+    .get() as ProblemRow
 
-  db.prepare('UPDATE problems SET tags_json = ? WHERE id = ?')
-    .run(JSON.stringify(['dp', 'graphs']), problem.id)
+  db.prepare('UPDATE problems SET tags_json = ? WHERE id = ?').run(
+    JSON.stringify(['dp', 'graphs']),
+    problem.id,
+  )
 
-  db.prepare(`
+  db.prepare(
+    `
     INSERT INTO problem_visits
       (id, problem_id, session_id, platform, url, entered_at, left_at, duration_seconds, active_seconds, leave_reason, created_at, updated_at)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(
+  `,
+  ).run(
     'visit-backup-1',
     problem.id,
     'backup-test',
@@ -86,14 +97,16 @@ function seedSourceDatabase(): void {
     rawJson: JSON.stringify({ diagnostic: forbiddenCookieHeader, path: forbiddenLocalPath }),
   })
 
-  db.prepare(`
+  db.prepare(
+    `
     INSERT INTO user_daily_stats (
       local_day, active_seconds, duration_seconds, visited_problem_count,
       solved_problem_count, submission_count, ac_submission_count,
       platform_distribution_json, recomputed_at, created_at, updated_at
     )
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(
+  `,
+  ).run(
     day,
     540,
     600,
@@ -151,7 +164,10 @@ test('backs up sqlite and round-trips non-sensitive learning data', async () => 
     assert.strictEqual(exported.tables.user_daily_stats.length, 1)
     assert.strictEqual(exported.tables.platform_accounts.length, 1)
     assert.strictEqual(exported.tables.rating_history.length, 1)
-    assert.strictEqual(Object.prototype.hasOwnProperty.call(exported.tables, 'cookie_records'), false)
+    assert.strictEqual(
+      Object.prototype.hasOwnProperty.call(exported.tables, 'cookie_records'),
+      false,
+    )
     assert.strictEqual(Object.prototype.hasOwnProperty.call(exported.tables, 'sync_queue'), false)
     assert.ok(!serialized.includes('LEETCODE_SESSION'))
     assert.ok(!serializedTables.includes(forbiddenCookieHeader))
@@ -245,8 +261,14 @@ test('previews rating history duplicates when the local account id differs', () 
 
     const foreign = cloneExport(exported)
     const foreignAccountId = 'account-from-another-machine'
-    foreign.tables.platform_accounts[0] = { ...foreign.tables.platform_accounts[0], id: foreignAccountId }
-    foreign.tables.rating_history[0] = { ...foreign.tables.rating_history[0], account_id: foreignAccountId }
+    foreign.tables.platform_accounts[0] = {
+      ...foreign.tables.platform_accounts[0],
+      id: foreignAccountId,
+    }
+    foreign.tables.rating_history[0] = {
+      ...foreign.tables.rating_history[0],
+      account_id: foreignAccountId,
+    }
 
     const preview = previewLearningDataImport(foreign)
     const applied = importLearningData(foreign)
@@ -314,16 +336,18 @@ test('reports daily snapshot conflicts and rebuilds time from the retained visit
     assert.strictEqual(importLearningData(exported).success, true)
 
     const other = cloneExport(exported)
-    other.tables.user_daily_stats = [{
-      ...exported.tables.user_daily_stats[0],
-      active_seconds: 3600,
-      duration_seconds: 4200,
-    }]
+    other.tables.user_daily_stats = [
+      {
+        ...exported.tables.user_daily_stats[0],
+        active_seconds: 3600,
+        duration_seconds: 4200,
+      },
+    ]
 
     const preview = previewLearningDataImport(other)
     assert.strictEqual(preview.duplicate_counts.user_daily_stats, 1)
     assert.strictEqual(
-      preview.conflicts.filter(item => item.entity_type === 'user_daily_stats').length,
+      preview.conflicts.filter((item) => item.entity_type === 'user_daily_stats').length,
       1,
     )
 
@@ -333,9 +357,9 @@ test('reports daily snapshot conflicts and rebuilds time from the retained visit
     const stored = getDb()
       .prepare('SELECT active_seconds, duration_seconds FROM user_daily_stats WHERE local_day = ?')
       .get(exported.tables.user_daily_stats[0].local_day) as {
-        active_seconds: number
-        duration_seconds: number
-      }
+      active_seconds: number
+      duration_seconds: number
+    }
     assert.strictEqual(stored.active_seconds, 540)
     assert.strictEqual(stored.duration_seconds, 600)
   } finally {
@@ -357,21 +381,29 @@ test('detects same-id metadata conflicts and rebuilds dates after correcting or 
     corrected.tables.user_daily_stats = []
 
     assert.deepStrictEqual(
-      previewLearningDataImport(corrected).conflicts.map(row => row.entity_type).sort(),
+      previewLearningDataImport(corrected)
+        .conflicts.map((row) => row.entity_type)
+        .sort(),
       ['problems', 'submissions'],
     )
     const before = exportLearningData().tables
     assert.strictEqual(importLearningData(corrected).success, false)
-    assert.deepStrictEqual(exportLearningData().tables, before, 'conflict refusal must write nothing')
+    assert.deepStrictEqual(
+      exportLearningData().tables,
+      before,
+      'conflict refusal must write nothing',
+    )
 
     const applied = importLearningData(corrected, true)
     assert.strictEqual(applied.success, true)
     assert.strictEqual(applied.updated.problems, 1)
     assert.strictEqual(applied.updated.submissions, 1)
     assert.deepStrictEqual(readProblemState(problemId), {
-      status: 'solved', first_solved_at: '2026-07-05T10:00:00+08:00',
+      status: 'solved',
+      first_solved_at: '2026-07-05T10:00:00+08:00',
     })
-    const restored = getDb().prepare('SELECT title, difficulty FROM problems WHERE id = ?')
+    const restored = getDb()
+      .prepare('SELECT title, difficulty FROM problems WHERE id = ?')
       .get(problemId) as { title: string; difficulty: string }
     assert.deepStrictEqual(restored, { title: 'Restored title', difficulty: '1800' })
     assert.strictEqual(readDailyStats(day).submission_count, 0)
@@ -384,7 +416,10 @@ test('detects same-id metadata conflicts and rebuilds dates after correcting or 
     revoked.tables.user_daily_stats = []
     assert.strictEqual(previewLearningDataImport(revoked).conflicts.length, 1)
     assert.strictEqual(importLearningData(revoked, true).success, true)
-    assert.deepStrictEqual(readProblemState(problemId), { status: 'attempted', first_solved_at: null })
+    assert.deepStrictEqual(readProblemState(problemId), {
+      status: 'attempted',
+      first_solved_at: null,
+    })
     assert.strictEqual(readDailyStats('2026-07-05').submission_count, 0)
     assert.strictEqual(readDailyStats('2026-07-05').solved_problem_count, 0)
     assert.strictEqual(readDailyStats('2026-07-05').ac_submission_count, 0)
@@ -428,10 +463,14 @@ test('merges disjoint same-day facts, preserves visit time semantics and remains
     foreign.tables.submissions[0].platform_submission_id = 'foreign-submission'
     foreign.tables.submissions[0].problem_id = 'foreign-problem'
 
-    getDb().prepare(`
+    getDb()
+      .prepare(
+        `
       INSERT INTO user_daily_stats (local_day, active_seconds, created_at, updated_at)
       VALUES ('2000-01-01', 777, 'sentinel', 'sentinel')
-    `).run()
+    `,
+      )
+      .run()
     const untouched = readDailyStats('2000-01-01')
     assert.deepStrictEqual(previewLearningDataImport(foreign).conflicts, [])
     assert.strictEqual(importLearningData(foreign).success, true)
@@ -440,13 +479,23 @@ test('merges disjoint same-day facts, preserves visit time semantics and remains
     assert.strictEqual(merged.active_seconds, 1080)
     assert.strictEqual(merged.duration_seconds, 1200)
     assert.strictEqual(merged.visited_problem_count, 1)
-    assert.deepStrictEqual(JSON.parse(merged.platform_distribution_json!), [{ platform: 'codeforces', count: 2 }])
-    assert.deepStrictEqual(readDailyStats('2000-01-01'), untouched, 'unaffected history must not be recomputed')
+    assert.deepStrictEqual(JSON.parse(merged.platform_distribution_json!), [
+      { platform: 'codeforces', count: 2 },
+    ])
+    assert.deepStrictEqual(
+      readDailyStats('2000-01-01'),
+      untouched,
+      'unaffected history must not be recomputed',
+    )
 
     assert.strictEqual(importLearningData(foreign, true).success, true)
     assert.strictEqual(getImportedCounts().submissions, 2)
     assert.strictEqual(getImportedCounts().problem_visits, 2)
-    assert.deepStrictEqual(readDailyStats(day), merged, 'reimport must not double count either database')
+    assert.deepStrictEqual(
+      readDailyStats(day),
+      merged,
+      'reimport must not double count either database',
+    )
 
     const snapshot = exportLearningData()
     assert.deepStrictEqual(previewLearningDataImport(snapshot).conflicts, [])
@@ -467,24 +516,29 @@ test('new AC submissions refresh an existing problem and move its first solve to
     later.tables.user_daily_stats = []
     later.tables.submissions[0] = {
       ...later.tables.submissions[0],
-      id: 'later-ac', platform_submission_id: 'later-ac',
-      verdict: 'AC', submitted_at: '2026-07-06T12:00:00+08:00',
+      id: 'later-ac',
+      platform_submission_id: 'later-ac',
+      verdict: 'AC',
+      submitted_at: '2026-07-06T12:00:00+08:00',
     }
     assert.strictEqual(importLearningData(later).success, true)
     assert.deepStrictEqual(readProblemState(problemId), {
-      status: 'solved', first_solved_at: '2026-07-06T12:00:00+08:00',
+      status: 'solved',
+      first_solved_at: '2026-07-06T12:00:00+08:00',
     })
     assert.strictEqual(readDailyStats('2026-07-06').solved_problem_count, 1)
 
     const earlier = cloneExport(later)
     earlier.tables.submissions[0] = {
       ...earlier.tables.submissions[0],
-      id: 'earlier-ac', platform_submission_id: 'earlier-ac',
+      id: 'earlier-ac',
+      platform_submission_id: 'earlier-ac',
       submitted_at: '2026-07-03T12:00:00+08:00',
     }
     assert.strictEqual(importLearningData(earlier).success, true)
     assert.deepStrictEqual(readProblemState(problemId), {
-      status: 'solved', first_solved_at: '2026-07-03T12:00:00+08:00',
+      status: 'solved',
+      first_solved_at: '2026-07-03T12:00:00+08:00',
     })
     assert.strictEqual(readDailyStats('2026-07-06').solved_problem_count, 0)
     assert.strictEqual(readDailyStats('2026-07-06').ac_submission_count, 1)
@@ -505,9 +559,13 @@ test('rebuilds old and new problems and dates when overwritten facts move', () =
     const moved = exportLearningData()
     const oldProblemId = String(moved.tables.problems[0].id)
     moved.tables.problems.push({
-      ...moved.tables.problems[0], id: 'new-problem', platform_problem_id: '2000B',
-      title: 'New problem', canonical_url: 'https://codeforces.com/problemset/problem/2000/B',
-      status: 'visited', first_solved_at: null,
+      ...moved.tables.problems[0],
+      id: 'new-problem',
+      platform_problem_id: '2000B',
+      title: 'New problem',
+      canonical_url: 'https://codeforces.com/problemset/problem/2000/B',
+      status: 'visited',
+      first_solved_at: null,
     })
     moved.tables.submissions[0].problem_id = 'new-problem'
     moved.tables.submissions[0].submitted_at = '2026-07-05T12:00:00+08:00'
@@ -519,9 +577,13 @@ test('rebuilds old and new problems and dates when overwritten facts move', () =
 
     assert.strictEqual(previewLearningDataImport(moved).conflicts.length, 1)
     assert.strictEqual(importLearningData(moved, true).success, true)
-    assert.deepStrictEqual(readProblemState(oldProblemId), { status: 'visited', first_solved_at: null })
+    assert.deepStrictEqual(readProblemState(oldProblemId), {
+      status: 'visited',
+      first_solved_at: null,
+    })
     assert.deepStrictEqual(readProblemState('new-problem'), {
-      status: 'solved', first_solved_at: '2026-07-05T12:00:00+08:00',
+      status: 'solved',
+      first_solved_at: '2026-07-05T12:00:00+08:00',
     })
     assert.strictEqual(readDailyStats(day).active_seconds, 0)
     assert.strictEqual(readDailyStats(day).submission_count, 0)
@@ -541,7 +603,10 @@ test('rolls back imported facts and first-AC changes when statistics rebuilding 
   try {
     const incoming = seedImportedDatabase(paths)
     incoming.tables.submissions[0] = {
-      ...incoming.tables.submissions[0], id: 'new-ac', platform_submission_id: 'new-ac', verdict: 'AC',
+      ...incoming.tables.submissions[0],
+      id: 'new-ac',
+      platform_submission_id: 'new-ac',
+      verdict: 'AC',
     }
     incoming.tables.problem_visits = []
     incoming.tables.user_daily_stats = []
@@ -569,8 +634,10 @@ function seedImportedDatabase(paths: TestPaths): LearningDataExport {
 }
 
 function readProblemState(id: string): { status: string; first_solved_at: string | null } {
-  return getDb().prepare('SELECT status, first_solved_at FROM problems WHERE id = ?')
-    .get(id) as { status: string; first_solved_at: string | null }
+  return getDb().prepare('SELECT status, first_solved_at FROM problems WHERE id = ?').get(id) as {
+    status: string
+    first_solved_at: string | null
+  }
 }
 
 interface DailyStatsRow {
@@ -584,11 +651,15 @@ interface DailyStatsRow {
 }
 
 function readDailyStats(localDay: string): DailyStatsRow {
-  return getDb().prepare(`
+  return getDb()
+    .prepare(
+      `
     SELECT active_seconds, duration_seconds, visited_problem_count, solved_problem_count,
       submission_count, ac_submission_count, platform_distribution_json
     FROM user_daily_stats WHERE local_day = ?
-  `).get(localDay) as DailyStatsRow
+  `,
+    )
+    .get(localDay) as DailyStatsRow
 }
 
 function createTestPaths(): TestPaths {
@@ -610,10 +681,12 @@ function getImportedCounts(): Record<string, number> {
     'platform_accounts',
     'rating_history',
   ]
-  return Object.fromEntries(tables.map(table => {
-    const row = db.prepare(`SELECT COUNT(*) as count FROM ${table}`).get() as { count: number }
-    return [table, row.count]
-  }))
+  return Object.fromEntries(
+    tables.map((table) => {
+      const row = db.prepare(`SELECT COUNT(*) as count FROM ${table}`).get() as { count: number }
+      return [table, row.count]
+    }),
+  )
 }
 
 function cloneExport(data: LearningDataExport): LearningDataExport {

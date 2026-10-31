@@ -22,7 +22,10 @@ test('parses and normalizes tag json safely', () => {
 test('scores review candidates with capped local factors', () => {
   assert.strictEqual(scoreReviewCandidate(1, 0, 0), 8)
   assert.strictEqual(scoreReviewCandidate(10, 100, 10), 80)
-  assert.strictEqual(buildReviewReason(3, 8, 2), '已错误 3 次，8 天未复习，访问 2 次仍未通过，建议复习')
+  assert.strictEqual(
+    buildReviewReason(3, 8, 2),
+    '已错误 3 次，8 天未复习，访问 2 次仍未通过，建议复习',
+  )
 })
 
 test('scores weakness and formats evidence', () => {
@@ -34,21 +37,26 @@ test('scores weakness and formats evidence', () => {
     total_duration_seconds: 600,
   }
   assert.strictEqual(scoreTagWeakness(25, 10, 600), 49)
-  assert.strictEqual(buildWeaknessEvidence(stats, 25), '4 题，AC 1 题（25%），错误提交 10 次，累计停留 10 分钟')
+  assert.strictEqual(
+    buildWeaknessEvidence(stats, 25),
+    '4 题，AC 1 题（25%），错误提交 10 次，累计停留 10 分钟',
+  )
 })
 
 test('normalizes review plan priority and duration', () => {
-  const weaknessTags: TagWeakness[] = [{
-    tag: 'dp',
-    total: 3,
-    solved: 0,
-    attempted: 2,
-    ac_rate: 0,
-    wrong_submissions: 6,
-    total_duration_seconds: 900,
-    weakness_score: 70,
-    evidence: 'test',
-  }]
+  const weaknessTags: TagWeakness[] = [
+    {
+      tag: 'dp',
+      total: 3,
+      solved: 0,
+      attempted: 2,
+      ac_rate: 0,
+      wrong_submissions: 6,
+      total_duration_seconds: 900,
+      weakness_score: 70,
+      evidence: 'test',
+    },
+  ]
 
   assert.strictEqual(determineReviewPriority(10, weaknessTags, ['dp']), 1)
   assert.strictEqual(determineReviewPriority(40, [], []), 2)

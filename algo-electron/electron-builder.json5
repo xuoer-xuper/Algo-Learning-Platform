@@ -1,75 +1,69 @@
 // @see - https://www.electron.build/configuration/configuration
 {
-  "$schema": "https://raw.githubusercontent.com/electron-userland/electron-builder/master/packages/app-builder-lib/scheme.json",
-  "appId": "com.algo.learning",
-  "asar": true,
-  "electronFuses": {
-    "runAsNode": false,
-    "enableCookieEncryption": true,
-    "enableNodeOptionsEnvironmentVariable": false,
-    "enableNodeCliInspectArguments": false,
-    "enableEmbeddedAsarIntegrityValidation": true,
-    "onlyLoadAppFromAsar": true,
-    "grantFileProtocolExtraPrivileges": false
+  $schema: 'https://raw.githubusercontent.com/electron-userland/electron-builder/master/packages/app-builder-lib/scheme.json',
+  appId: 'com.algo.learning',
+  asar: true,
+  electronFuses: {
+    runAsNode: false,
+    enableCookieEncryption: true,
+    enableNodeOptionsEnvironmentVariable: false,
+    enableNodeCliInspectArguments: false,
+    enableEmbeddedAsarIntegrityValidation: true,
+    onlyLoadAppFromAsar: true,
+    grantFileProtocolExtraPrivileges: false,
   },
-  "productName": "AlgoLearningPlatform",
-  "directories": {
-    "buildResources": "build",
-    "output": "release/${version}"
+  productName: 'AlgoLearningPlatform',
+  directories: {
+    buildResources: 'build',
+    output: 'release/${version}',
   },
-  "extraMetadata": {
-    "main": "dist-electron/main.js"
+  extraMetadata: {
+    main: 'dist-electron/main.js',
   },
-  "files": [
-    "dist/**",
-    "dist-electron/**",
-    "package.json",
-    "!**/*.log",
-    "!**/*.local",
-    "!**/*.db",
-    "!**/*.sqlite",
-    "!**/*.sqlite3",
-    "!**/.env",
-    "!**/.env.*",
-    "!tmp/**",
-    "!tests/**",
-    "!release/**"
+  files: [
+    'dist/**',
+    'dist-electron/**',
+    'package.json',
+    '!**/*.log',
+    '!**/*.local',
+    '!**/*.db',
+    '!**/*.sqlite',
+    '!**/*.sqlite3',
+    '!**/.env',
+    '!**/.env.*',
+    '!tmp/**',
+    '!tests/**',
+    '!release/**',
   ],
-  "asarUnpack": [
-    "node_modules/better-sqlite3/prebuilds/*.node",
-    "node_modules/better-sqlite3/build/Release/*.node",
-    "node_modules/better-sqlite3/bin/**/*.node"
+  asarUnpack: [
+    'node_modules/better-sqlite3/prebuilds/*.node',
+    'node_modules/better-sqlite3/build/Release/*.node',
+    'node_modules/better-sqlite3/bin/**/*.node',
   ],
-  "mac": {
-    "target": [
-      "dmg"
-    ],
-    "artifactName": "${productName}-Mac-${version}-Installer.${ext}"
+  mac: {
+    target: ['dmg'],
+    artifactName: '${productName}-Mac-${version}-Installer.${ext}',
   },
-  "win": {
-    "icon": "build/icon.ico",
-    "target": [
+  win: {
+    icon: 'build/icon.ico',
+    target: [
       {
-        "target": "nsis",
-        "arch": [
-          "x64"
-        ]
-      }
+        target: 'nsis',
+        arch: ['x64'],
+      },
     ],
-    "artifactName": "${productName}-Windows-${version}-${arch}-Setup.${ext}"
+    artifactName: '${productName}-Windows-${version}-${arch}-Setup.${ext}',
   },
-  "nsis": {
-    "oneClick": false,
-    "perMachine": false,
-    "allowToChangeInstallationDirectory": true,
-    "deleteAppDataOnUninstall": false,
-    "shortcutName": "${productName}",
-    "uninstallDisplayName": "${productName}"
+  nsis: {
+    oneClick: false,
+    perMachine: false,
+    allowToChangeInstallationDirectory: true,
+    deleteAppDataOnUninstall: false,
+    shortcutName: '${productName}',
+    uninstallDisplayName: '${productName}',
   },
-  "linux": {
-    "target": [
-      "AppImage"
-    ],
-    "artifactName": "${productName}-Linux-${version}.${ext}"
-  }
+  linux: {
+    target: ['AppImage'],
+    artifactName: '${productName}-Linux-${version}.${ext}',
+  },
 }

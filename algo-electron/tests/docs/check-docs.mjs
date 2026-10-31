@@ -33,11 +33,33 @@ const readmeContentRules = [
   },
   {
     label: '当前实现或覆盖范围',
-    patterns: [/当前实现/, /当前覆盖/, /当前内容/, /目录覆盖/, /实现程度/, /当前功能域/, /当前状态/, /模板/],
+    patterns: [
+      /当前实现/,
+      /当前覆盖/,
+      /当前内容/,
+      /目录覆盖/,
+      /实现程度/,
+      /当前功能域/,
+      /当前状态/,
+      /模板/,
+    ],
   },
   {
     label: '封装入口或关键文件',
-    patterns: [/关键函数/, /封装/, /\bAPI\b/, /入口/, /核心类型/, /当前内容/, /目录覆盖/, /运行方式/, /关键文件/, /脚本/, /文件/, /模板/],
+    patterns: [
+      /关键函数/,
+      /封装/,
+      /\bAPI\b/,
+      /入口/,
+      /核心类型/,
+      /当前内容/,
+      /目录覆盖/,
+      /运行方式/,
+      /关键文件/,
+      /脚本/,
+      /文件/,
+      /模板/,
+    ],
   },
   {
     label: '边界或维护规则',
@@ -45,7 +67,7 @@ const readmeContentRules = [
   },
   {
     label: '验证入口',
-    patterns: [/验证/, /测试/, /运行方式/, /命令/, /npm run/, /test:/],
+    patterns: [/验证/, /测试/, /运行方式/, /命令/, /(?:npm|pnpm) run/, /test:/],
   },
 ]
 
@@ -54,9 +76,7 @@ const docsRootPath = path.join(repoRoot, 'docs')
 const packageJsonPath = path.join(projectRoot, 'package.json')
 
 function hasExcludedPart(filePath) {
-  return filePath
-    .split(path.sep)
-    .some((part) => excludedPathParts.has(part))
+  return filePath.split(path.sep).some((part) => excludedPathParts.has(part))
 }
 
 function walkFiles(rootDir, predicate, files = []) {
@@ -88,9 +108,10 @@ function normalizeMarkdownTarget(target) {
     return null
   }
 
-  const withoutTitle = trimmed.startsWith('<') && trimmed.endsWith('>')
-    ? trimmed.slice(1, -1)
-    : trimmed.split(/\s+/)[0]
+  const withoutTitle =
+    trimmed.startsWith('<') && trimmed.endsWith('>')
+      ? trimmed.slice(1, -1)
+      : trimmed.split(/\s+/)[0]
 
   const withoutAnchor = withoutTitle.split('#')[0]
 
@@ -101,17 +122,46 @@ function normalizeMarkdownTarget(target) {
   return decodeURIComponent(withoutAnchor)
 }
 
+/**
+ * 平台工具生成、`trellis update` 会覆盖的目录：里面的 markdown 是模板而不是项目文档
+ * （例如 agent 模板里的 `[Library X docs](url)` 占位符）。手工修会在下次生成时丢失，
+ * 所以这些目录整体不纳入文档守卫，而不是给占位符补一行假链接。
+ */
+const toolGeneratedMarkdownDirs = ['.agents', '.claude', '.codex', '.dsh', '.grok']
+
+function isToolGeneratedMarkdown(filePath) {
+  const relativePath = path.relative(repoRoot, filePath)
+  return toolGeneratedMarkdownDirs.some(
+    (dir) => relativePath === dir || relativePath.startsWith(`${dir}${path.sep}`),
+  )
+}
+
+/**
+ * 链接扫描前先去掉代码片段。
+ *
+ * 本仓库文档里有大量 shell 与正则示例，例如
+ * `grep -rnE "from ['\"](electron|fs|path|os|node:)" src`：其中的 `](...)` 会被
+ * markdown 链接正则误读成相对链接，报出一条并不存在的死链。丢掉代码片段后，
+ * 真正写在正文里的链接照旧检查。
+ */
+function stripCodeSegments(text) {
+  return text
+    .replace(/```[\s\S]*?```/g, '')
+    .replace(/~~~[\s\S]*?~~~/g, '')
+    .replace(/`[^`\n]*`/g, '')
+}
+
 function checkMarkdownLinks() {
   const markdownFiles = walkFiles(
     repoRoot,
-    (filePath) => filePath.toLowerCase().endsWith('.md'),
+    (filePath) => filePath.toLowerCase().endsWith('.md') && !isToolGeneratedMarkdown(filePath),
   )
 
   const errors = []
   const linkPattern = /!?\[[^\]]*]\(([^)]+)\)/g
 
   for (const markdownFile of markdownFiles) {
-    const text = fs.readFileSync(markdownFile, 'utf8')
+    const text = stripCodeSegments(fs.readFileSync(markdownFile, 'utf8'))
     let match
 
     while ((match = linkPattern.exec(text)) !== null) {
@@ -131,7 +181,7 @@ function checkMarkdownLinks() {
 }
 
 function getMarkdownLinkTargets(markdownFile) {
-  const text = fs.readFileSync(markdownFile, 'utf8')
+  const text = stripCodeSegments(fs.readFileSync(markdownFile, 'utf8'))
   const targets = new Set()
   const linkPattern = /!?\[[^\]]*]\(([^)]+)\)/g
   let match
@@ -193,7 +243,11 @@ function checkDocsNaming() {
         }
       }
 
-      if (fileName !== 'README.md' && fileName?.toLowerCase().endsWith('.md') && !/^[A-Z0-9_]+\.md$/.test(fileName)) {
+      if (
+        fileName !== 'README.md' &&
+        fileName?.toLowerCase().endsWith('.md') &&
+        !/^[A-Z0-9_]+\.md$/.test(fileName)
+      ) {
         invalidFiles.add(trackedPath)
       }
     }
@@ -212,9 +266,8 @@ function checkDocsNaming() {
     }
   }
 
-  for (const file of walkFiles(
-    docsRootPath,
-    (filePath) => filePath.toLowerCase().endsWith('.md'),
+  for (const file of walkFiles(docsRootPath, (filePath) =>
+    filePath.toLowerCase().endsWith('.md'),
   )) {
     const name = path.basename(file)
     if (name === 'README.md') {
@@ -227,12 +280,12 @@ function checkDocsNaming() {
   }
 
   return [
-    ...Array.from(invalidDirectories).sort().map(
-      (dir) => `${dir}: docs directory names must use UPPER_SNAKE_CASE`,
-    ),
-    ...Array.from(invalidFiles).sort().map(
-      (file) => `${file}: docs markdown names must use UPPER_SNAKE_CASE.md`,
-    ),
+    ...Array.from(invalidDirectories)
+      .sort()
+      .map((dir) => `${dir}: docs directory names must use UPPER_SNAKE_CASE`),
+    ...Array.from(invalidFiles)
+      .sort()
+      .map((file) => `${file}: docs markdown names must use UPPER_SNAKE_CASE.md`),
   ]
 }
 
@@ -247,9 +300,9 @@ function checkNpmScriptReferences() {
   const scripts = new Set(Object.keys(packageJson.scripts ?? {}))
   const markdownFiles = walkFiles(
     repoRoot,
-    (filePath) => filePath.toLowerCase().endsWith('.md'),
+    (filePath) => filePath.toLowerCase().endsWith('.md') && !isToolGeneratedMarkdown(filePath),
   )
-  const scriptPattern = /npm\s+run\s+([A-Za-z0-9:_*-]+)/g
+  const scriptPattern = /(?:npm|pnpm)\s+run\s+([A-Za-z0-9:_*-]+)/g
 
   for (const markdownFile of markdownFiles) {
     const text = fs.readFileSync(markdownFile, 'utf8')
@@ -262,7 +315,9 @@ function checkNpmScriptReferences() {
       }
 
       if (!scripts.has(scriptName)) {
-        errors.push(`${path.relative(repoRoot, markdownFile)}: npm script ${scriptName} is not defined`)
+        errors.push(
+          `${path.relative(repoRoot, markdownFile)}: package script ${scriptName} is not defined`,
+        )
       }
     }
   }
@@ -287,7 +342,7 @@ function checkNpmScriptReferences() {
  * 那份文档判成违规。
  */
 function extractFencedBlocks(text) {
-  return [...text.matchAll(/```[^\n]*\n([\s\S]*?)```/g)].map(match => match[1])
+  return [...text.matchAll(/```[^\n]*\n([\s\S]*?)```/g)].map((match) => match[1])
 }
 
 function checkVitestPathReferences() {
@@ -335,9 +390,8 @@ function getDocsIndexRequiredTargets() {
     }
   }
 
-  for (const file of walkFiles(
-    docsRootPath,
-    (filePath) => filePath.toLowerCase().endsWith('.md'),
+  for (const file of walkFiles(docsRootPath, (filePath) =>
+    filePath.toLowerCase().endsWith('.md'),
   )) {
     if (path.resolve(file) !== path.resolve(docsIndexPath)) {
       targets.add(file)
@@ -345,7 +399,9 @@ function getDocsIndexRequiredTargets() {
   }
 
   targets.delete(docsIndexPath)
-  return Array.from(targets).map((target) => path.resolve(target)).sort()
+  return Array.from(targets)
+    .map((target) => path.resolve(target))
+    .sort()
 }
 
 function checkReadmeCoverage() {
@@ -361,7 +417,11 @@ function checkReadmeCoverage() {
       errors.push(`Missing README.md: ${path.relative(repoRoot, target)}`)
     }
 
-    if (target.endsWith(`${path.sep}src`) || target.endsWith(`${path.sep}electron`) || target.endsWith(`${path.sep}tests`)) {
+    if (
+      target.endsWith(`${path.sep}src`) ||
+      target.endsWith(`${path.sep}electron`) ||
+      target.endsWith(`${path.sep}tests`)
+    ) {
       for (const dir of walkDirectories(target)) {
         if (!fs.existsSync(path.join(dir, 'README.md'))) {
           errors.push(`Missing README.md: ${path.relative(repoRoot, dir)}`)
@@ -402,7 +462,11 @@ function getReadmeCoverageFiles() {
       files.add(targetReadme)
     }
 
-    if (target.endsWith(`${path.sep}src`) || target.endsWith(`${path.sep}electron`) || target.endsWith(`${path.sep}tests`)) {
+    if (
+      target.endsWith(`${path.sep}src`) ||
+      target.endsWith(`${path.sep}electron`) ||
+      target.endsWith(`${path.sep}tests`)
+    ) {
       for (const dir of walkDirectories(target)) {
         const readme = path.join(dir, 'README.md')
         if (fs.existsSync(readme)) {

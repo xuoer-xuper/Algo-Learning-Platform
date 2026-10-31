@@ -1,0 +1,2 @@
+{"file": ".trellis/spec/shared/typescript.md", "reason": "验证 TS 改动符合共享规范"}
+{"file": ".trellis/tasks/10-26-userscript-smoke-invalidate-race/research/race-diagnosis.md", "reason": "核对修复是否消除竞态且不改变生产语义"}

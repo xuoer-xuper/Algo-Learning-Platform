@@ -59,13 +59,13 @@
 
 ```powershell
 cd algo-electron
-npm run test:architecture
+pnpm run test:architecture
 ```
 
-守卫自身的反向用例随 `npm run test:unit` 跑（`guards.test.ts`）。发布前使用：
+守卫自身的反向用例随 `pnpm run test:unit` 跑（`guards.test.ts`）。发布前使用：
 
 ```powershell
-npm run test:all
+pnpm run test:all
 ```
 
 ## 6. 维护边界

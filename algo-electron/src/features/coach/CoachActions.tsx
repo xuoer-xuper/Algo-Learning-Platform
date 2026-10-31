@@ -27,7 +27,15 @@ export interface CoachActionsProps {
   onOpenChat?: () => void
 }
 
-export function CoachActions({ bubbleId, level = 1, llmEnabled = false, onTriggerHint, onDismiss, onNeverToday, onOpenChat }: CoachActionsProps) {
+export function CoachActions({
+  bubbleId,
+  level = 1,
+  llmEnabled = false,
+  onTriggerHint,
+  onDismiss,
+  onNeverToday,
+  onOpenChat,
+}: CoachActionsProps) {
   // L1 显示"给一点提示"，L2+ 显示"再给一点提示"，L5+ 显示"已是最深层级"（禁用）
   const isMaxLevel = level >= 5
   const triggerLabel = level <= 1 ? '给一点提示' : '再给一点提示'
@@ -50,11 +58,7 @@ export function CoachActions({ bubbleId, level = 1, llmEnabled = false, onTrigge
           自由对话
         </button>
       )}
-      <button
-        type="button"
-        className="coach-action-btn coach-action-secondary"
-        onClick={onDismiss}
-      >
+      <button type="button" className="coach-action-btn coach-action-secondary" onClick={onDismiss}>
         先不用
       </button>
       <button

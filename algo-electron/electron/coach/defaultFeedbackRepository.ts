@@ -35,10 +35,7 @@ export function createDefaultRepository(): FeedbackRepositoryAdapter {
  * 静态工具：统计某类型反馈在指定时间窗口内的次数。
  * 供 CoachMetricsView（阶段 4）使用。
  */
-export function countFeedbackSince(
-  feedbackType: CoachFeedbackType,
-  since: string,
-): number {
+export function countFeedbackSince(feedbackType: CoachFeedbackType, since: string): number {
   return countFeedbackByTypeSince(feedbackType, since)
 }
 

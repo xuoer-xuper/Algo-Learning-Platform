@@ -41,7 +41,9 @@ export function RealtimeSubmissionPanel({
     <div className="settings-section">
       <div className="settings-section-header-row">
         <h3 className="settings-section-title">实时监听诊断</h3>
-        <Button size="sm" variant="ghost" icon="refresh" onClick={onRefresh}>刷新</Button>
+        <Button size="sm" variant="ghost" icon="refresh" onClick={onRefresh}>
+          刷新
+        </Button>
       </div>
       <div className="realtime-status-card">
         <div className="realtime-status-row">
@@ -52,7 +54,11 @@ export function RealtimeSubmissionPanel({
         </div>
         <div className="realtime-status-row">
           <span className="realtime-status-label">页面</span>
-          <span className={status?.lastPage?.realtimeSupported ? 'realtime-status-ok' : 'realtime-status-muted'}>
+          <span
+            className={
+              status?.lastPage?.realtimeSupported ? 'realtime-status-ok' : 'realtime-status-muted'
+            }
+          >
             {pageStatusLabel(status?.lastPage)}
           </span>
         </div>
@@ -65,7 +71,13 @@ export function RealtimeSubmissionPanel({
         )}
         <div className="realtime-status-row">
           <span className="realtime-status-label">Hook</span>
-          <span className={status?.lastHook?.status === 'success' ? 'realtime-status-ok' : 'realtime-status-muted'}>
+          <span
+            className={
+              status?.lastHook?.status === 'success'
+                ? 'realtime-status-ok'
+                : 'realtime-status-muted'
+            }
+          >
             {hookStatusLabel(status?.lastHook)}
           </span>
         </div>
@@ -78,7 +90,11 @@ export function RealtimeSubmissionPanel({
         )}
         <div className="realtime-status-row">
           <span className="realtime-status-label">提交</span>
-          <span className={status?.lastDetection?.inserted ? 'realtime-status-ok' : 'realtime-status-muted'}>
+          <span
+            className={
+              status?.lastDetection?.inserted ? 'realtime-status-ok' : 'realtime-status-muted'
+            }
+          >
             {detectionStatusLabel(status?.lastDetection)}
           </span>
         </div>
@@ -86,10 +102,16 @@ export function RealtimeSubmissionPanel({
           <div className="realtime-status-detail">
             {formatStatusTime(status.lastDetection.at)}
             {status.lastDetection.senderUrl ? ` · ${status.lastDetection.senderUrl}` : ''}
-            {(status.lastDetection.platform || status.lastDetection.verdict || status.lastDetection.problemId) && (
+            {(status.lastDetection.platform ||
+              status.lastDetection.verdict ||
+              status.lastDetection.problemId) && (
               <>
                 <br />
-                {[status.lastDetection.platform, status.lastDetection.verdict, status.lastDetection.problemId]
+                {[
+                  status.lastDetection.platform,
+                  status.lastDetection.verdict,
+                  status.lastDetection.problemId,
+                ]
                   .filter(Boolean)
                   .join(' · ')}
               </>
@@ -99,11 +121,12 @@ export function RealtimeSubmissionPanel({
         {statusText && <div className="sync-status">{statusText}</div>}
         <div className="sync-hint">
           支持站点：
-          {(status?.supportedAdapterIds || [])
-            .map(id => PLATFORM_NAMES[id] || id)
-            .join(' / ') || '暂无'}
+          {(status?.supportedAdapterIds || []).map((id) => PLATFORM_NAMES[id] || id).join(' / ') ||
+            '暂无'}
         </div>
-        <div className="sync-hint">验收实时监听：打开任一支持站点题目页提交一次，等待最终评测后点刷新。</div>
+        <div className="sync-hint">
+          验收实时监听：打开任一支持站点题目页提交一次，等待最终评测后点刷新。
+        </div>
       </div>
     </div>
   )

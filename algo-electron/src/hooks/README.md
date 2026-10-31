@@ -32,4 +32,4 @@ cd algo-electron
 node node_modules\typescript\bin\tsc --noEmit
 ```
 
-涉及内部页标签或导航时，还需要 `npm run dev` 手测对应入口。
+涉及内部页标签或导航时，还需要 `pnpm run dev` 手测对应入口。

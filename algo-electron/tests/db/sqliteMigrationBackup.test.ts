@@ -32,9 +32,12 @@ test('rotates migration backups and restores the database without WAL sidecars',
         new Date(`2026-08-18T00:00:0${index}.000Z`),
       )
     }
-    const backups = fs.readdirSync(backupDir).filter(name => name.endsWith('.sqlite'))
+    const backups = fs.readdirSync(backupDir).filter((name) => name.endsWith('.sqlite'))
     assert.strictEqual(backups.length, 3)
-    assert.strictEqual(backups.some(name => name.includes('20260818000000000')), false)
+    assert.strictEqual(
+      backups.some((name) => name.includes('20260818000000000')),
+      false,
+    )
 
     const restoreSource = path.join(tempDir, 'restore-source.sqlite')
     fs.writeFileSync(restoreSource, 'restored')
@@ -69,8 +72,8 @@ test('blocks matching failed migrations and clears stale markers', () => {
       () => assertMigrationRetryAllowed(backupDir, databasePath, [{ version: 25, name: 'failed' }]),
       MigrationRetryBlockedError,
     )
-    assert.doesNotThrow(
-      () => assertMigrationRetryAllowed(backupDir, databasePath, [{ version: 26, name: 'new' }]),
+    assert.doesNotThrow(() =>
+      assertMigrationRetryAllowed(backupDir, databasePath, [{ version: 26, name: 'new' }]),
     )
     clearMigrationFailureMarker(backupDir, databasePath)
     assert.strictEqual(fs.existsSync(markerPath), false)

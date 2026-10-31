@@ -38,11 +38,11 @@ function hasWhitespaceOrControl(value: string): boolean {
 
 function isNonEmptyId(value: unknown): value is string {
   return (
-    typeof value === 'string'
-    && value.length > 0
-    && value.length <= 200
-    && value.trim() === value
-    && !hasWhitespaceOrControl(value)
+    typeof value === 'string' &&
+    value.length > 0 &&
+    value.length <= 200 &&
+    value.trim() === value &&
+    !hasWhitespaceOrControl(value)
   )
 }
 
@@ -143,6 +143,4 @@ export interface TabSessionSnapshot {
   tabs: TabSnapshot[]
 }
 
-export type ClosedTabSnapshot =
-  | Omit<WebTabSnapshot, 'id'>
-  | Omit<InternalTabSnapshot, 'id'>
+export type ClosedTabSnapshot = Omit<WebTabSnapshot, 'id'> | Omit<InternalTabSnapshot, 'id'>

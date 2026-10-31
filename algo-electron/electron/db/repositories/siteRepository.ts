@@ -18,8 +18,4 @@ export {
 
 export { seedBuiltinSites } from './site/builtins'
 
-export {
-  confirmImportSites,
-  exportSitesConfig,
-  previewImportSites,
-} from './site/importExport'
+export { confirmImportSites, exportSitesConfig, previewImportSites } from './site/importExport'

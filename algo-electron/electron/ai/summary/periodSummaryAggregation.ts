@@ -9,7 +9,9 @@ export function getSnapshotsInPeriod(
   startDate: string,
   endDate: string,
 ): PeriodSnapshotMeta[] {
-  return snapshots.filter(snapshot => snapshot.snapshot_date >= startDate && snapshot.snapshot_date <= endDate)
+  return snapshots.filter(
+    (snapshot) => snapshot.snapshot_date >= startDate && snapshot.snapshot_date <= endDate,
+  )
 }
 
 export function aggregateFromSnapshots(snapshots: PeriodSnapshotMeta[]): AggregatedPeriodStats {
@@ -70,7 +72,8 @@ export function aggregateFromSnapshots(snapshots: PeriodSnapshotMeta[]): Aggrega
     totalAc,
     activeDays,
     totalActiveSeconds,
-    avgDailyMinutes: snapshots.length > 0 ? Math.round(totalActiveSeconds / snapshots.length / 60) : 0,
+    avgDailyMinutes:
+      snapshots.length > 0 ? Math.round(totalActiveSeconds / snapshots.length / 60) : 0,
     platformDistribution: Array.from(platformMap.entries())
       .map(([platform, count]) => ({ platform, count }))
       .sort((a, b) => b.count - a.count),

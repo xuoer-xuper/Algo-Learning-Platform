@@ -129,7 +129,7 @@
 - `UserScriptService` 不应重新注册 IPC；管理型 IPC 必须放在 `electron/ipc/registerScriptsIpc.ts`。
 - 运行器只在 OJ WebContents 内执行脚本，不向 shell renderer 或普通日志传递脚本源码；`scripts:getAll` 仅返回摘要 DTO。
 - 不得恢复用 `window.postMessage` 转交 userscript DOM `MessagePort`；站点世界只能使用主世界运行器的短暂闭包通道，不应能捕获、复用或伪造私有端口。
-- 修改 Electron 版本、session preload 注册或 frame load 调度时，必须运行 `npm run test:electron`；真实顺序 smoke 失败时只能标记 `document-start` best-effort，不得继续声称精确兼容。
+- 修改 Electron 版本、session preload 注册或 frame load 调度时，必须运行 `pnpm run test:electron`；真实顺序 smoke 失败时只能标记 `document-start` best-effort，不得继续声称精确兼容。
 - `@connect` 声明不等于授权；代理必须同时验证声明、精确 host permission、当前 generation、webContents 与窗口 owner，初始 URL 和每一跳重定向都不能复用上一跳结论。
 - host 授权提示只能经既有 NoticeBar 暴露安全展示字段；不得把 URL path/query、header、请求体、脚本源码或任意回调透传给 shell renderer。
 - 修改资源解析、下载或运行时 API 时，必须保持“下载校验先于持久化、DB 同事务替换、运行时缓存不一致 fail closed”，并运行资源缓存、IPC、runtime 与真实 Electron smoke。
@@ -143,9 +143,9 @@
 
 ```powershell
 cd algo-electron
-npm run typecheck
+pnpm run typecheck
 npx vitest run tests/scripts tests/browser/ojSession.test.ts tests/browser/contextMenu.test.ts tests/ipc/registerBrowserShellIpc.test.ts
-npm run test:electron
+pnpm run test:electron
 ```
 
 涉及 repository 时追加运行 DB 临时库测试：

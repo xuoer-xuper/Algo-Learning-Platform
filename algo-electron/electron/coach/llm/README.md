@@ -35,11 +35,11 @@
 
 ```powershell
 cd algo-electron
-npm run typecheck
-npm run lint
-npm run test:coach
-npm run test:security
-npm run test:all
+pnpm run typecheck
+pnpm run lint
+pnpm run test:coach
+pnpm run test:security
+pnpm run test:all
 ```
 
 自动测试不使用真实 API Key 或真实网络请求。手动连接测试应使用测试 Key，并确认日志和导出文件中没有明文密钥。

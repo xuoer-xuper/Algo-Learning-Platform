@@ -28,7 +28,7 @@ master   ── stable only; receives --no-ff merges from dev; tags live here
 | dev → master | **Merge commit with `--no-ff`** via PR. Tag `vX.Y.Z` on that merge commit. |
 | Branch names | English, kebab-case, `type/description` as in the template. Trellis task ids may be used: `feat/00-bootstrap-guidelines`. |
 | CI | `.github/workflows/ci.yml` runs `fast-guard` on push to `dev` and `master`, and the full matrix on pull requests. Pushing to a feature branch alone does not run CI; open the PR. |
-| Push | **Push immediately after every commit** (developer rule 2026-09-17: no local backlog). Always the developer's identity; no AI co-author trailers. `.claude/settings.json` sets `attribution` (`commit` and `pr` empty, `sessionUrl` false) so Claude Code stops requesting the trailer at the source (added 2026-09-17 after commit `ffba568` slipped through, had to be rewritten, and left a stale contributor avatar on GitHub). Repo merge settings: squash (title = PR title) and merge commit allowed, rebase merge disabled, branches auto-deleted after merge. |
+| Push | **Push immediately after every commit** (developer rule 2026-09-17: no local backlog). **Push discipline (2026-10-31, after two CI-only reds): before pushing, `pnpm test:ci` must be green locally — the pre-push hook enforces this; after pushing, watch CI to green with `gh run watch <run-id> --exit-status` before calling the work done; a red run gets a root cause and a locally-reproduced fix before the next push.** Always the developer's identity; no AI co-author trailers. `.claude/settings.json` sets `attribution` (`commit` and `pr` empty, `sessionUrl` false) so Claude Code stops requesting the trailer at the source (added 2026-09-17 after commit `ffba568` slipped through, had to be rewritten, and left a stale contributor avatar on GitHub). Repo merge settings: squash (title = PR title) and merge commit allowed, rebase merge disabled, branches auto-deleted after merge. |
 
 ---
 
@@ -71,9 +71,13 @@ both when a module is added.
 
 ```
 adapters  ai  app  backup  browser  coach  cookies  credentials  db  diagnostics  downloads
-ipc  notes  parsers  preload  rating  scripts  shared  shortcuts  sites  submissions  tracking
-windows  renderer  ui  tests  docs  ci  deps  release  trellis
+ipc  main  notes  parsers  preload  rating  scripts  shared  shortcuts  sites  submissions
+tracking  windows  renderer  ui  tests  docs  ci  deps  release  trellis
 ```
+
+(32 items. `main` added 2026-10-31 with the commitlint gate itself — the prose below names it as a
+layer-level fallback, and the gate's enum must match `algo-electron/commitlint.config.js`; a commit
+with a scope outside this list is rejected by `commit-msg`.)
 
 After the migration to `src/main/services/{domain}/` the scope stays the domain name; `main`,
 `renderer`, `preload`, `shared` are the layer-level fallbacks.
@@ -98,10 +102,18 @@ style: 全仓 prettier 格式化
 | Hook | Runs | Fails when |
 | --- | --- | --- |
 | `commit-msg` | `commitlint --edit` | type not in enum, scope not in enum, empty description |
-| `pre-commit` | branch check, `lint-staged` (prettier + eslint on staged files), `pnpm typecheck`, `pnpm typecheck:tests` | on `master`; lint or type error |
-| `pre-push` | `pnpm test:core` | any guard, lint, type or unit failure |
+| `pre-commit` | branch check (refuses `master` only; detached HEAD passes), `lint-staged` (prettier + eslint on staged files inside `algo-electron/`), `pnpm typecheck`, `pnpm typecheck:tests` | on `master`; lint or type error |
+| `pre-push` | `pnpm test:ci` — the five-step CI-parity gate (`test:core` + `test:packaging` + `test:docs` + `test:electron` + `test:ui`) | any gate, smoke or unit failure |
 
-`pnpm test:core` is this repository's equivalent of the template's `npm run lint && npm run typecheck && npm test`; it additionally runs the architecture and security guards.
+`pre-commit`/`pre-push` hooks live in `algo-electron/.husky/` and `cd` into the package first (git
+runs hooks with repo-root CWD). `release-it` is the only sanctioned `--no-verify` bypass: it must
+commit on `master` (which `pre-commit` refuses), so `.release-it.json` carries
+`git.commitArgs: ["--no-verify"]` — decided 2026-10-31, no env sniffing, no marker files.
+
+`pre-push` was upgraded from `pnpm test:core` to `pnpm test:ci` on 2026-10-31 after two CI-only reds
+proved that `test:core` alone is not CI parity. `pnpm test:core` (typecheck ×2 + lint + architecture
++ security + jscpd + full vitest) remains the per-section gate; `test:packaging` and `test:docs` ride
+along at push time, and the two smoke scripts cover what CI's `Electron and renderer smoke` job runs.
 
 ---
 
@@ -127,10 +139,17 @@ Use `.github/pull_request_template.md` (Chinese). In addition to the template's 
 
 - Single source of the version number: `algo-electron/package.json`. Nothing else is hand-edited
   (README badge reads GitHub Releases; CHANGELOG is generated).
-- Releases are cut with **release-it** (`pnpm release`, `pnpm release -- --preRelease=rc`) which bumps
-  from conventional commits, regenerates `docs/PRODUCT/CHANGELOG.md`, commits
-  `chore(release): 发布 v${version}`, creates an **annotated** tag `v${version}`, pushes with
-  `--follow-tags`, and uploads `.exe` + `.blockmap` + `latest.yml` to the GitHub Release.
+- Releases are cut with **release-it** (`pnpm exec release-it`, `pnpm exec release-it -- --preRelease=rc`)
+  which bumps from conventional commits, regenerates `docs/PRODUCT/CHANGELOG.md`, commits
+  `chore(release): 发布 v${version}` (via `git.commitArgs: ["--no-verify"]` — the sanctioned pre-commit
+  bypass on `master`), creates an **annotated** tag `v${version}`, pushes with `--follow-tags`, and
+  uploads `.exe` + `.blockmap` + `latest.yml` to the GitHub Release.
+  - pnpm 12 nuance (2026-10-31): `pnpm release -- --dry-run` passes the `--` separator itself to
+    release-it and fails with "Unexpected positional argument" — use `pnpm exec release-it …` forms.
+  - Prerequisites for a real release: `GITHUB_TOKEN` set (otherwise release-it falls back to a
+    web-based release), clean working dir (`requireCleanWorkingDir` counts untracked files as dirty),
+    on `master` (`requireBranch`). `hooks.before:init` (`pnpm test:all`, `pnpm build:win`) runs for
+    real only outside `--dry-run` (dry-run logs them skipped).
 - Semver for a desktop app: **major** = data format / migration that cannot be rolled back or needs the
   user to act; **minor** = new feature; **patch** = fix. Pre-releases `-alpha.N` / `-beta.N` / `-rc.N`.
 - Tag only the `--no-ff` merge commit on `master`. Hotfixes for a shipped line go on

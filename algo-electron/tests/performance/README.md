@@ -25,5 +25,5 @@
 ## 5. 验证入口
 
 ```powershell
-npm run test:performance
+pnpm run test:performance
 ```

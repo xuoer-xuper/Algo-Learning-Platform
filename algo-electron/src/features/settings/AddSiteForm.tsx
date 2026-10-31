@@ -9,13 +9,7 @@ interface AddSiteFormProps {
   onCancel: () => void
 }
 
-export function AddSiteForm({
-  draft,
-  error,
-  onChange,
-  onSave,
-  onCancel,
-}: AddSiteFormProps) {
+export function AddSiteForm({ draft, error, onChange, onSave, onCancel }: AddSiteFormProps) {
   return (
     <div className="import-preview">
       <h4 className="import-preview-title">添加自定义站点</h4>
@@ -60,8 +54,12 @@ export function AddSiteForm({
         {error && <div className="settings-error-text">{error}</div>}
       </div>
       <div className="import-actions">
-        <Button variant="primary" onClick={onSave}>确定保存</Button>
-        <Button variant="ghost" onClick={onCancel}>取消</Button>
+        <Button variant="primary" onClick={onSave}>
+          确定保存
+        </Button>
+        <Button variant="ghost" onClick={onCancel}>
+          取消
+        </Button>
       </div>
     </div>
   )

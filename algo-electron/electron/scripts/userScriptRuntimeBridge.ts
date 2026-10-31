@@ -36,6 +36,8 @@ interface UserScriptRuntimeBridgeOptions {
   preloadPath: string
   catalogPreloadPath?: string
   allowInsecureLocalhost?: boolean
+  // 烟测专用:让编译目录里的运行时暴露失效落地标记,供测试做确定性同步。
+  exposeInvalidationMarker?: boolean
   logger?: Logger
   now?: () => number
   networkProxy?: Pick<UserScriptNetworkProxy, 'start' | 'abort' | 'abortPrefix'>
@@ -83,42 +85,57 @@ export function installUserScriptRuntimeBridge(
     ? resolveCombinedPreloadPath(options.catalogPreloadPath, options.preloadPath)
     : null
   const bootstrapSource = combinedPreloadPath ? readFileSync(options.preloadPath, 'utf8') : null
-  const observedContents = new Map<number, {
-    contents: WebContents
-    onDidFinishLoad: () => void
-    onDidFrameFinishLoad: (
-      event: Electron.Event,
-      isMainFrame: boolean,
-      frameProcessId: number,
-      frameRoutingId: number,
-    ) => void
-    onDidNavigateInPage: (
-      event: Electron.Event,
-      url: string,
-      isMainFrame: boolean,
-      frameProcessId: number,
-      frameRoutingId: number,
-    ) => void
-    onDestroyed: () => void
-  }>()
+  const observedContents = new Map<
+    number,
+    {
+      contents: WebContents
+      onDidFinishLoad: () => void
+      onDidFrameFinishLoad: (
+        event: Electron.Event,
+        isMainFrame: boolean,
+        frameProcessId: number,
+        frameRoutingId: number,
+      ) => void
+      onDidNavigateInPage: (
+        event: Electron.Event,
+        url: string,
+        isMainFrame: boolean,
+        frameProcessId: number,
+        frameRoutingId: number,
+      ) => void
+      onDestroyed: () => void
+    }
+  >()
   const rebuildCompiledCatalog = (): void => {
     if (!combinedPreloadPath || bootstrapSource === null) return
     try {
-      const catalog = buildUserScriptCompiledCatalogPreload(options.runtime.getCatalogSnapshot())
-      const catalogSource = bootstrapSource.includes("require('electron')") || bootstrapSource.includes('require("electron")')
-        ? catalog.source.replace("import { contextBridge } from 'electron';", "const { contextBridge } = require('electron');")
-        : catalog.source
+      const catalog = buildUserScriptCompiledCatalogPreload(options.runtime.getCatalogSnapshot(), {
+        exposeInvalidationMarker: options.exposeInvalidationMarker,
+      })
+      const catalogSource =
+        bootstrapSource.includes("require('electron')") ||
+        bootstrapSource.includes('require("electron")')
+          ? catalog.source.replace(
+              "import { contextBridge } from 'electron';",
+              "const { contextBridge } = require('electron');",
+            )
+          : catalog.source
       mkdirSync(path.dirname(combinedPreloadPath), { recursive: true })
-      writeFileSync(combinedPreloadPath, `${catalogSource}\n${bootstrapSource}`, { encoding: 'utf8', mode: 0o600 })
+      writeFileSync(combinedPreloadPath, `${catalogSource}\n${bootstrapSource}`, {
+        encoding: 'utf8',
+        mode: 0o600,
+      })
       if (catalog.rejectedScriptIds.length > 0) {
         logger.warn('userscript.runtime-catalog-syntax-rejected', {
           scriptIds: catalog.rejectedScriptIds,
         })
       }
-    }
-    catch (error) {
-      try { rmSync(combinedPreloadPath, { force: true }) }
-      catch { /* fail closed if a stale catalog cannot be removed */ }
+    } catch (error) {
+      try {
+        rmSync(combinedPreloadPath, { force: true })
+      } catch {
+        /* fail closed if a stale catalog cannot be removed */
+      }
       logger.error('userscript.runtime-catalog-build-failed', {
         error: errorMessage(error),
       })
@@ -129,10 +146,12 @@ export function installUserScriptRuntimeBridge(
     type: 'frame',
     filePath: combinedPreloadPath ?? options.preloadPath,
   })
-  const writeClipboard = options.writeClipboard ?? ((data: string, dataType: 'text' | 'html') => {
-    if (dataType === 'html') clipboard.writeHTML(data)
-    else clipboard.writeText(data)
-  })
+  const writeClipboard =
+    options.writeClipboard ??
+    ((data: string, dataType: 'text' | 'html') => {
+      if (dataType === 'html') clipboard.writeHTML(data)
+      else clipboard.writeText(data)
+    })
 
   const cleanFramePort = (frameKey: string, closePort: boolean): void => {
     pendingPorts.delete(frameKey)
@@ -144,29 +163,47 @@ export function installUserScriptRuntimeBridge(
     if (closePort) {
       try {
         active.port.postMessage({ type: 'runtime:invalidate', generation: active.generation })
+      } catch {
+        /* the remote frame may already be gone */
       }
-      catch { /* the remote frame may already be gone */ }
     }
     if (closePort) {
-      try { active.port.close() }
-      catch { /* the remote frame may already be gone */ }
+      try {
+        active.port.close()
+      } catch {
+        /* the remote frame may already be gone */
+      }
     }
   }
 
-  const closeFramePort = (frameKey: string): void => { cleanFramePort(frameKey, true) }
+  const closeFramePort = (frameKey: string): void => {
+    cleanFramePort(frameKey, true)
+  }
 
   const closeAllPorts = (): void => {
     pendingPorts.clear()
     for (const frameKey of Array.from(activePorts.keys())) closeFramePort(frameKey)
   }
 
+  const invalidateAllPorts = (): void => {
+    // pending 记录刻意保留:其端口到达时会因代际不匹配走拒绝路径,并在拒绝前
+    // 补发 runtime:invalidate,保证已启动的旧运行时总能收到失效通知。
+    for (const frameKey of Array.from(activePorts.keys())) closeFramePort(frameKey)
+  }
+
   const sendToActivePort = (active: ActiveRuntimePort, event: UserScriptRuntimeEvent): void => {
-    if (activePorts.get(active.frameKey) !== active || active.generation !== options.runtime.generation) {
+    if (
+      activePorts.get(active.frameKey) !== active ||
+      active.generation !== options.runtime.generation
+    ) {
       closeFramePort(active.frameKey)
       return
     }
-    try { active.port.postMessage(event) }
-    catch { closeFramePort(active.frameKey) }
+    try {
+      active.port.postMessage(event)
+    } catch {
+      closeFramePort(active.frameKey)
+    }
   }
 
   const markFrameIdle = (frameKey: string): void => {
@@ -183,7 +220,7 @@ export function installUserScriptRuntimeBridge(
   }
 
   const removeGenerationListener = options.runtime.addGenerationChangeListener?.(() => {
-    closeAllPorts()
+    invalidateAllPorts()
     rebuildCompiledCatalog()
   })
 
@@ -235,7 +272,10 @@ export function installUserScriptRuntimeBridge(
         return
       }
       const snapshot = options.runtime.getNavigationSnapshot(url, isMainFrame)
-      if (snapshot.generation !== options.runtime.generation || snapshot.generation !== (active ?? pending)?.generation) {
+      if (
+        snapshot.generation !== options.runtime.generation ||
+        snapshot.generation !== (active ?? pending)?.generation
+      ) {
         closeFramePort(frameKey)
         return
       }
@@ -252,8 +292,9 @@ export function installUserScriptRuntimeBridge(
         pending.allowedScripts = nextAllowed
       }
       if (!active) return
-      const inactiveScriptIds = Array.from(active.allowedScripts.keys())
-        .filter(scriptId => !nextAllowed.has(scriptId))
+      const inactiveScriptIds = Array.from(active.allowedScripts.keys()).filter(
+        (scriptId) => !nextAllowed.has(scriptId),
+      )
       for (const scriptId of inactiveScriptIds) {
         options.networkProxy?.abortPrefix(operationScriptPrefix(frameKey, scriptId))
         options.menuRegistry?.clearScript(frameKey, scriptId)
@@ -270,7 +311,9 @@ export function installUserScriptRuntimeBridge(
         inactiveScriptIds,
       })
     }
-    const onDestroyed = (): void => { closeWebContentsPorts(sender.id) }
+    const onDestroyed = (): void => {
+      closeWebContentsPorts(sender.id)
+    }
     observedContents.set(sender.id, {
       contents: sender,
       onDidFinishLoad,
@@ -290,7 +333,7 @@ export function installUserScriptRuntimeBridge(
       if (pending.expiresAt <= currentTime) pendingPorts.delete(frameKey)
     }
     while (pendingPorts.size >= MAX_PENDING_PORTS) {
-      const oldestKey = pendingPorts.keys().next().value as string | undefined
+      const oldestKey = pendingPorts.keys().next().value
       if (!oldestKey) break
       pendingPorts.delete(oldestKey)
     }
@@ -330,18 +373,16 @@ export function installUserScriptRuntimeBridge(
         isMainFrame,
         generation: snapshot.generation,
         scripts: snapshot.scripts,
-        bootstrapScriptIds: new Set(snapshot.scripts.map(script => script.id)),
+        bootstrapScriptIds: new Set(snapshot.scripts.map((script) => script.id)),
         allowedScripts: allowedScripts(snapshot.scripts),
         expiresAt: now() + PENDING_PORT_TTL_MS,
         idleReached: false,
       })
-    }
-    catch (error) {
+    } catch (error) {
       logger.error('userscript.runtime-init-failed', {
         error: errorMessage(error),
       })
-    }
-    finally {
+    } finally {
       event.returnValue = response
     }
   }
@@ -349,28 +390,47 @@ export function installUserScriptRuntimeBridge(
   const handlePort = (event: IpcMainEvent, payload: unknown): void => {
     const transferredPort = event.ports[0]
     const reject = (): void => {
-      try { transferredPort?.close() }
-      catch { /* ignore invalid transferred ports */ }
+      try {
+        transferredPort?.close()
+      } catch {
+        /* ignore invalid transferred ports */
+      }
     }
 
     try {
       const check = checkOjFrameSender(event, Boolean(options.allowInsecureLocalhost))
       if (!check.trusted || event.sender.session !== options.session) return reject()
-      if (!isUserScriptRuntimePortRequest(payload) || event.ports.length !== 1 || !transferredPort) return reject()
+      if (!isUserScriptRuntimePortRequest(payload) || event.ports.length !== 1 || !transferredPort)
+        return reject()
       const senderFrame = event.senderFrame
       if (!senderFrame) return reject()
       const frameKey = getFrameKey(event)
       if (!frameKey) return reject()
       const pending = pendingPorts.get(frameKey)
       pendingPorts.delete(frameKey)
-      if (
-        !pending
-        || pending.nonce !== payload.nonce
-        || pending.documentUrl !== payload.frameUrl
-        || pending.generation !== payload.generation
-        || pending.expiresAt <= now()
-        || pending.generation !== options.runtime.generation
-      ) return reject()
+      const stale =
+        !pending ||
+        pending.nonce !== payload.nonce ||
+        pending.documentUrl !== payload.frameUrl ||
+        pending.generation !== payload.generation ||
+        pending.expiresAt <= now() ||
+        pending.generation !== options.runtime.generation
+      if (stale) {
+        // 帧内运行时可能已由编译目录先行启动,而其端口还处于 pending;若此间运行时
+        // 代际已前进,静默拒绝会让旧运行时永远等不到失效通知,其 document-end/idle
+        // 脚本会在失效缺席下泄漏执行。拒绝前先向陈旧端口补发失效消息。
+        if (pending && pending.generation !== options.runtime.generation) {
+          try {
+            transferredPort?.postMessage({
+              type: 'runtime:invalidate',
+              generation: payload.generation,
+            })
+          } catch {
+            /* the transferred port may already be unusable */
+          }
+        }
+        return reject()
+      }
 
       closeFramePort(frameKey)
       const active: ActiveRuntimePort = {
@@ -380,8 +440,11 @@ export function installUserScriptRuntimeBridge(
         port: transferredPort,
       }
       activePorts.set(frameKey, active)
-      transferredPort.on('message', messageEvent => {
-        if (activePorts.get(frameKey) !== active || active.generation !== options.runtime.generation) {
+      transferredPort.on('message', (messageEvent) => {
+        if (
+          activePorts.get(frameKey) !== active ||
+          active.generation !== options.runtime.generation
+        ) {
           closeFramePort(frameKey)
           return
         }
@@ -393,12 +456,10 @@ export function installUserScriptRuntimeBridge(
           if (command.type === 'value:set') {
             if (!allowsValueMutation(script.grants, command.type)) return
             options.runtime.setValue(command.scriptId, command.key, command.value)
-          }
-          else if (command.type === 'value:delete') {
+          } else if (command.type === 'value:delete') {
             if (!allowsValueMutation(script.grants, command.type)) return
             options.runtime.deleteValue(command.scriptId, command.key)
-          }
-          else if (command.type === 'xhr:start') {
+          } else if (command.type === 'xhr:start') {
             if (!allowsGrant(script.grants, 'GM_xmlhttpRequest', 'GM.xmlHttpRequest')) return
             options.networkProxy?.start(
               operationId(frameKey, command.scriptId, command.requestId),
@@ -411,25 +472,24 @@ export function installUserScriptRuntimeBridge(
               },
               command.requestId,
               command.details,
-              event => sendToActivePort(active, event),
+              (event) => sendToActivePort(active, event),
             )
-          }
-          else if (command.type === 'xhr:abort') {
+          } else if (command.type === 'xhr:abort') {
             if (!allowsGrant(script.grants, 'GM_xmlhttpRequest', 'GM.xmlHttpRequest')) return
             options.networkProxy?.abort(operationId(frameKey, command.scriptId, command.requestId))
-          }
-          else if (command.type === 'clipboard:set') {
+          } else if (command.type === 'clipboard:set') {
             if (!allowsGrant(script.grants, 'GM_setClipboard', 'GM.setClipboard')) return
             let ok = false
             try {
               writeClipboard(command.data, command.dataType)
               ok = true
+            } catch {
+              /* report a bounded failure without clipboard contents */
             }
-            catch { /* report a bounded failure without clipboard contents */ }
             sendToActivePort(active, { type: 'clipboard:result', requestId: command.requestId, ok })
-          }
-          else if (command.type === 'menu:register') {
-            if (!allowsGrant(script.grants, 'GM_registerMenuCommand', 'GM.registerMenuCommand')) return
+          } else if (command.type === 'menu:register') {
+            if (!allowsGrant(script.grants, 'GM_registerMenuCommand', 'GM.registerMenuCommand'))
+              return
             options.menuRegistry?.register({
               portId: frameKey,
               webContentsId: active.webContentsId,
@@ -437,23 +497,27 @@ export function installUserScriptRuntimeBridge(
               scriptName: script.name,
               commandId: command.commandId,
               name: command.name,
-              invoke: () => sendToActivePort(active, {
-                type: 'menu:invoke', scriptId: command.scriptId, commandId: command.commandId,
-              }),
+              invoke: () =>
+                sendToActivePort(active, {
+                  type: 'menu:invoke',
+                  scriptId: command.scriptId,
+                  commandId: command.commandId,
+                }),
             })
-          }
-          else if (command.type === 'menu:unregister') {
-            if (!allowsGrant(
-              script.grants,
-              'GM_registerMenuCommand',
-              'GM.registerMenuCommand',
-              'GM_unregisterMenuCommand',
-              'GM.unregisterMenuCommand',
-            )) return
+          } else if (command.type === 'menu:unregister') {
+            if (
+              !allowsGrant(
+                script.grants,
+                'GM_registerMenuCommand',
+                'GM.registerMenuCommand',
+                'GM_unregisterMenuCommand',
+                'GM.unregisterMenuCommand',
+              )
+            )
+              return
             options.menuRegistry?.unregister(frameKey, command.scriptId, command.commandId)
           }
-        }
-        catch (error) {
+        } catch (error) {
           logger.error('userscript.runtime-value-mutation-failed', {
             scriptId: command.scriptId,
             operation: command.type,
@@ -466,8 +530,9 @@ export function installUserScriptRuntimeBridge(
       })
       transferredPort.start()
       sendToActivePort(active, { type: 'runtime:ready', generation: active.generation })
-      const inactiveScriptIds = Array.from(active.bootstrapScriptIds)
-        .filter(scriptId => !active.allowedScripts.has(scriptId))
+      const inactiveScriptIds = Array.from(active.bootstrapScriptIds).filter(
+        (scriptId) => !active.allowedScripts.has(scriptId),
+      )
       if (active.frameUrl !== active.documentUrl || inactiveScriptIds.length > 0) {
         sendToActivePort(active, {
           type: 'runtime:sync',
@@ -484,8 +549,7 @@ export function installUserScriptRuntimeBridge(
           phase: 'document-idle',
         })
       }
-    }
-    catch (error) {
+    } catch (error) {
       reject()
       logger.error('userscript.runtime-port-failed', {
         error: errorMessage(error),
@@ -507,8 +571,11 @@ export function installUserScriptRuntimeBridge(
       options.menuRegistry?.clear()
       options.session.unregisterPreloadScript(preloadRegistrationId)
       if (combinedPreloadPath) {
-        try { rmSync(combinedPreloadPath, { force: true }) }
-        catch { /* best-effort cleanup after unregistering the generated preload */ }
+        try {
+          rmSync(combinedPreloadPath, { force: true })
+        } catch {
+          /* best-effort cleanup after unregistering the generated preload */
+        }
       }
     },
   }
@@ -535,11 +602,16 @@ function operationScriptPrefix(frameKey: string, scriptId: string): string {
 function allowedScripts(
   scripts: UserScriptRuntimeScriptSnapshot[],
 ): Map<string, AllowedRuntimeScript> {
-  return new Map(scripts.map(script => [script.id, {
-    name: script.name,
-    grants: new Set(script.grants),
-    connects: [...script.connects],
-  }]))
+  return new Map(
+    scripts.map((script) => [
+      script.id,
+      {
+        name: script.name,
+        grants: new Set(script.grants),
+        connects: [...script.connects],
+      },
+    ]),
+  )
 }
 
 function getFrameKey(event: IpcMainEvent): string | null {
@@ -548,7 +620,10 @@ function getFrameKey(event: IpcMainEvent): string | null {
   return `${event.sender.id}:${frame.processId}:${frame.routingId}`
 }
 
-function allowsValueMutation(grants: ReadonlySet<string>, type: 'value:set' | 'value:delete'): boolean {
+function allowsValueMutation(
+  grants: ReadonlySet<string>,
+  type: 'value:set' | 'value:delete',
+): boolean {
   if (grants.has('none')) return false
   return type === 'value:set'
     ? grants.has('GM_setValue') || grants.has('GM.setValue')
@@ -556,18 +631,19 @@ function allowsValueMutation(grants: ReadonlySet<string>, type: 'value:set' | 'v
 }
 
 function allowsGrant(grants: ReadonlySet<string>, ...names: string[]): boolean {
-  return !grants.has('none') && names.some(name => grants.has(name))
+  return !grants.has('none') && names.some((name) => grants.has(name))
 }
 
 function isAllowedRuntimeUrl(rawUrl: string, allowInsecureLocalhost: boolean): boolean {
   try {
     const url = new URL(rawUrl)
     if (url.protocol === 'https:') return true
-    return allowInsecureLocalhost
-      && url.protocol === 'http:'
-      && (url.hostname === 'localhost' || url.hostname === '127.0.0.1' || url.hostname === '[::1]')
-  }
-  catch {
+    return (
+      allowInsecureLocalhost &&
+      url.protocol === 'http:' &&
+      (url.hostname === 'localhost' || url.hostname === '127.0.0.1' || url.hostname === '[::1]')
+    )
+  } catch {
     return false
   }
 }

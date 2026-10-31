@@ -120,7 +120,9 @@ describe('problem title tracking page ownership', () => {
     expect(trackingService.handleNavigation).toHaveBeenCalledTimes(1)
     expect(trackingService.handleNavigation).toHaveBeenCalledWith(pageEvent(101, 'did-navigate'))
     expect(harness.executedPages.map((event) => event.webContentsId).sort()).toEqual([101, 202])
-    expect(harness.executedPages.every((event) => event.url === pageEvent(101, 'did-navigate').url)).toBe(true)
+    expect(
+      harness.executedPages.every((event) => event.url === pageEvent(101, 'did-navigate').url),
+    ).toBe(true)
     expect(mocks.upsertProblem).toHaveBeenCalledTimes(2)
     expect(notifyProblemsUpdated).toHaveBeenCalledTimes(3)
   })
@@ -145,7 +147,9 @@ describe('problem title tracking page ownership', () => {
 
     expect(trackingService.handleNavigation).toHaveBeenCalledWith(event)
     expect(harness.titlePages).toEqual([event])
-    expect(mocks.upsertProblem).toHaveBeenCalledWith(expect.objectContaining({ title: 'Background DOM' }))
+    expect(mocks.upsertProblem).toHaveBeenCalledWith(
+      expect.objectContaining({ title: 'Background DOM' }),
+    )
   })
 
   it('cancels delayed extraction and closes only the destroyed page visit', async () => {

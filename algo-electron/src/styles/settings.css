@@ -90,6 +90,19 @@
   align-items: start;
 }
 
+/*
+ * 凭据页专用两栏（左：平台登录态 + Rating；右：保存的凭据）。
+ * B5.1 把 `.settings-cols` 语义改成"导航/内容"（180px 固定导航列）后，凭据页
+ * 仍借用它，左栏内容被塞进 180px 导航列，逐字换行挤成竖条。凭据页不走
+ * 分区导航，恢复 B5.1 之前的 3fr/2fr 内容两栏，并保持同样的折叠契约。
+ */
+.credentials-cols {
+  display: grid;
+  grid-template-columns: 3fr 2fr;
+  gap: 16px;
+  align-items: start;
+}
+
 .settings-col {
   display: flex;
   flex-direction: column;
@@ -611,7 +624,8 @@
     padding: 16px;
   }
 
-  .settings-cols {
+  .settings-cols,
+  .credentials-cols {
     grid-template-columns: 1fr;
   }
 

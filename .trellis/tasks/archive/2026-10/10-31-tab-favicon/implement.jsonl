@@ -1,0 +1,6 @@
+{"file": ".trellis/spec/shared/code-quality.md", "reason": "强制规则:无 !、无 any、命名、错误处理"}
+{"file": ".trellis/spec/frontend/quality.md", "reason": "渲染层组件质量与测试口径——TabStrip/TabIcon 修改遵循"}
+{"file": ".trellis/spec/frontend/react-pitfalls.md", "reason": "React 19 陷阱清单——onError 首错丢失属此类,修复要落在框架行为之上"}
+{"file": ".trellis/spec/frontend/components.md", "reason": "组件规范——TabStrip 组件改动遵循"}
+{"file": ".trellis/spec/project/domain-rules.md", "reason": "不可放松的产品/安全红线——CSP 放行范围只限 img-src https:"}
+{"file": ".trellis/spec/backend/quality.md", "reason": "main 进程质量规则——appProtocol CSP 与 TabManager 事件改动遵循"}

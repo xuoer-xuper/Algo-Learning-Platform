@@ -1,13 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import {
-  Bar,
-  BarChart,
-  Cell,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from 'recharts'
+import { Bar, BarChart, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { loadProblemTimeline } from './coachDataApi'
 import { PLATFORM_NAMES, STATUS_COLORS, VERDICT_COLORS } from '../../shared/display'
 import { Empty, Icon, IconButton, Skeleton, type IconName } from '../../components/ui'
@@ -157,10 +149,9 @@ export function SessionTimelineView({ problemId, onClose }: Props) {
         timestamp: parseTs(s.submitted_at),
         title: isAc ? '通过' : '提交',
         verdict: s.verdict,
-        subtitle: [
-          s.language,
-          s.runtime_ms != null ? `${s.runtime_ms} ms` : null,
-        ].filter(Boolean).join(' · '),
+        subtitle: [s.language, s.runtime_ms != null ? `${s.runtime_ms} ms` : null]
+          .filter(Boolean)
+          .join(' · '),
         color: verdictColor(s.verdict),
         icon: isAc ? KIND_META.ac.icon : KIND_META.submission.icon,
       })
@@ -173,11 +164,12 @@ export function SessionTimelineView({ problemId, onClose }: Props) {
         timestamp: parseTs(e.created_at),
         title: EVENT_TYPE_LABELS[e.event_type] ?? e.event_type,
         subtitle: `severity=${e.severity}`,
-        color: e.severity === 'critical'
-          ? 'var(--color-danger)'
-          : e.severity === 'warn'
-            ? 'var(--color-warn)'
-            : 'var(--color-accent)',
+        color:
+          e.severity === 'critical'
+            ? 'var(--color-danger)'
+            : e.severity === 'warn'
+              ? 'var(--color-warn)'
+              : 'var(--color-accent)',
         icon: KIND_META.event.icon,
         detail: e.evidence.verdict
           ? `verdict=${e.evidence.verdict}`
@@ -193,7 +185,9 @@ export function SessionTimelineView({ problemId, onClose }: Props) {
         kind: 'intervention',
         time: i.created_at,
         timestamp: parseTs(i.created_at),
-        title: isAudit ? '比赛模式审计' : (INTERVENTION_LEVEL_LABELS[i.intervention_level] ?? 'Coach 介入'),
+        title: isAudit
+          ? '比赛模式审计'
+          : (INTERVENTION_LEVEL_LABELS[i.intervention_level] ?? 'Coach 介入'),
         subtitle: i.trigger_reason,
         color: isAudit
           ? 'var(--text-muted)'
@@ -218,10 +212,7 @@ export function SessionTimelineView({ problemId, onClose }: Props) {
     const lastSubmit = data.submissions[data.submissions.length - 1]?.submitted_at
     const lastActivity = data.last_activity_at
 
-    const totalActiveSeconds = data.visits.reduce(
-      (sum, v) => sum + (v.active_seconds ?? 0),
-      0,
-    )
+    const totalActiveSeconds = data.visits.reduce((sum, v) => sum + (v.active_seconds ?? 0), 0)
 
     // 思考时间 = 首次进入 → 首次提交
     let thinkingSeconds = 0
@@ -286,7 +277,9 @@ export function SessionTimelineView({ problemId, onClose }: Props) {
           <IconButton icon="close" title="关闭" className="settings-close" onClick={onClose} />
         </div>
         {/* 错误保留独立类名与 role：它不是空态，也不是加载态 */}
-        <div className="coach-timeline-error" role="alert">{error}</div>
+        <div className="coach-timeline-error" role="alert">
+          {error}
+        </div>
       </div>
     )
   }
@@ -325,7 +318,10 @@ export function SessionTimelineView({ problemId, onClose }: Props) {
         </div>
         <div className="detail-row">
           <span className="detail-label">最终状态</span>
-          <span className="detail-value" style={{ color: hasAc ? STATUS_COLORS.solved : STATUS_COLORS.attempted }}>
+          <span
+            className="detail-value"
+            style={{ color: hasAc ? STATUS_COLORS.solved : STATUS_COLORS.attempted }}
+          >
             {hasAc ? `已 AC（${fmtTime(data.first_ac_at)}）` : '未通过 / 进行中'}
           </span>
         </div>
@@ -341,7 +337,8 @@ export function SessionTimelineView({ problemId, onClose }: Props) {
           <span className="detail-label">Coach 介入</span>
           <span className="detail-value num">
             {data.interventions.filter((i) => i.source_type !== 'contest_audit').length} 次
-            {data.interventions.some((i) => i.source_type === 'contest_audit') && '（含比赛模式审计）'}
+            {data.interventions.some((i) => i.source_type === 'contest_audit') &&
+              '（含比赛模式审计）'}
           </span>
         </div>
       </div>
@@ -387,7 +384,11 @@ export function SessionTimelineView({ problemId, onClose }: Props) {
         <div className="coach-timeline-chart">
           <h3 className="settings-section-title">提交 verdict 分布</h3>
           <ResponsiveContainer width="100%" height={Math.max(120, verdictDist.length * 36)}>
-            <BarChart data={verdictDist} layout="vertical" margin={{ left: 20, right: 20, top: 4, bottom: 4 }}>
+            <BarChart
+              data={verdictDist}
+              layout="vertical"
+              margin={{ left: 20, right: 20, top: 4, bottom: 4 }}
+            >
               <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11 }} />
               <YAxis type="category" dataKey="verdict" tick={{ fontSize: 12 }} width={56} />
               <Tooltip cursor={{ fill: 'var(--color-hover)' }} />
@@ -415,7 +416,9 @@ export function SessionTimelineView({ problemId, onClose }: Props) {
                 </span>
                 <div className="timeline-content">
                   <div className="timeline-head">
-                    <span className="timeline-title" style={{ color: p.color }}>{p.title}</span>
+                    <span className="timeline-title" style={{ color: p.color }}>
+                      {p.title}
+                    </span>
                     {p.verdict && (
                       <span className="ui-chip" style={{ color: p.color }}>
                         <span className="ui-chip-dot" style={{ background: p.color }} />

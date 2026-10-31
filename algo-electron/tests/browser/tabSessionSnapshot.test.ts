@@ -26,7 +26,11 @@ describe('tab session snapshot validation', () => {
       version: 1,
       activeTabId: 'notes',
       tabs: [
-        webTab('judge', 'https://codeforces.com/problemset/problem/1/A?order=BY_RATING_ASC#submission-42', 'OJ'),
+        webTab(
+          'judge',
+          'https://codeforces.com/problemset/problem/1/A?order=BY_RATING_ASC#submission-42',
+          'OJ',
+        ),
         internalTab('notes', { type: 'notes', problemId: 'cf-1a' }, 'Notes'),
         internalTab('settings', { type: 'settings' }, 'Settings'),
       ],
@@ -37,7 +41,11 @@ describe('tab session snapshot validation', () => {
       snapshot: {
         ...value,
         tabs: [
-          webTab('judge', 'https://codeforces.com/problemset/problem/1/A?order=BY_RATING_ASC#submission-42', 'OJ'),
+          webTab(
+            'judge',
+            'https://codeforces.com/problemset/problem/1/A?order=BY_RATING_ASC#submission-42',
+            'OJ',
+          ),
           internalTab('notes', { type: 'notes', problemId: 'cf-1a' }, 'Notes'),
           internalTab('settings', { type: 'settings' }, 'Settings'),
         ],
@@ -74,7 +82,9 @@ describe('tab session snapshot validation', () => {
       ok: true,
       snapshot: envelope(maximumTabs, 'tab-0'),
     })
-    expect(parseTabSessionSnapshot(envelope([...maximumTabs, webTab('overflow')], 'tab-0'))).toEqual({
+    expect(
+      parseTabSessionSnapshot(envelope([...maximumTabs, webTab('overflow')], 'tab-0')),
+    ).toEqual({
       ok: false,
       reason: 'too-many-tabs',
     })
@@ -103,26 +113,36 @@ describe('tab session snapshot validation', () => {
       })
     }
 
-    expect(parseTabSessionSnapshot(envelope([webTab('same'), internalTab('same')], 'same'))).toEqual({
+    expect(
+      parseTabSessionSnapshot(envelope([webTab('same'), internalTab('same')], 'same')),
+    ).toEqual({
       ok: false,
       reason: 'duplicate-tab-id',
     })
   })
 
   it('accepts a 512-character title and rejects longer or control-bearing titles', () => {
-    expect(parseTabSessionSnapshot(envelope([webTab('tab-1', undefined, 'x'.repeat(512))]))).toEqual({
+    expect(
+      parseTabSessionSnapshot(envelope([webTab('tab-1', undefined, 'x'.repeat(512))])),
+    ).toEqual({
       ok: true,
       snapshot: envelope([webTab('tab-1', undefined, 'x'.repeat(512))]),
     })
-    expect(parseTabSessionSnapshot(envelope([webTab('tab-1', undefined, 'x'.repeat(513))]))).toEqual({
+    expect(
+      parseTabSessionSnapshot(envelope([webTab('tab-1', undefined, 'x'.repeat(513))])),
+    ).toEqual({
       ok: false,
       reason: 'invalid-tab',
     })
-    expect(parseTabSessionSnapshot(envelope([webTab('tab-1', undefined, 'before\u0000after')]))).toEqual({
+    expect(
+      parseTabSessionSnapshot(envelope([webTab('tab-1', undefined, 'before\u0000after')])),
+    ).toEqual({
       ok: false,
       reason: 'invalid-tab',
     })
-    expect(parseTabSessionSnapshot(envelope([webTab('tab-1', undefined, 'before\u0080after')]))).toEqual({
+    expect(
+      parseTabSessionSnapshot(envelope([webTab('tab-1', undefined, 'before\u0080after')])),
+    ).toEqual({
       ok: false,
       reason: 'invalid-tab',
     })
@@ -158,9 +178,11 @@ describe('tab session snapshot validation', () => {
     { type: 'script-install', installId: '' },
     { type: 'script-install', installId: 'ok', secret: 'extra' },
   ])('rejects invalid internal page payload $type', (page) => {
-    expect(parseTabSessionSnapshot(envelope([
-      { id: 'tab-1', kind: 'internal', page, title: 'Internal' },
-    ]))).toEqual({ ok: false, reason: 'invalid-tab' })
+    expect(
+      parseTabSessionSnapshot(
+        envelope([{ id: 'tab-1', kind: 'internal', page, title: 'Internal' }]),
+      ),
+    ).toEqual({ ok: false, reason: 'invalid-tab' })
   })
 
   it('requires activeTabId to match the validated tab set', () => {
@@ -183,24 +205,29 @@ describe('tab session snapshot validation', () => {
   })
 
   it('rejects the whole session when any one tab is invalid', () => {
-    expect(parseTabSessionSnapshot(envelope([
-      webTab('tab-1'),
-      webTab('tab-2', 'javascript:alert(1)'),
-      webTab('tab-3'),
-    ]))).toEqual({ ok: false, reason: 'invalid-tab' })
+    expect(
+      parseTabSessionSnapshot(
+        envelope([webTab('tab-1'), webTab('tab-2', 'javascript:alert(1)'), webTab('tab-3')]),
+      ),
+    ).toEqual({ ok: false, reason: 'invalid-tab' })
   })
 })
 
 describe('restorable web URL policy', () => {
   it('allows HTTPS and preserves ordinary OJ query and fragment state', () => {
-    const url = 'https://codeforces.com/contest/1/problem/A?locale=en&order=BY_SOLVED_DESC#/submissions?verdict=OK&author=tourist'
+    const url =
+      'https://codeforces.com/contest/1/problem/A?locale=en&order=BY_SOLVED_DESC#/submissions?verdict=OK&author=tourist'
     expect(normalizeRestorableWebUrl(url)).toBe(url)
   })
 
   it('allows insecure HTTP only for loopback hosts in development mode', () => {
     const options = { allowInsecureLocalhost: true }
-    expect(normalizeRestorableWebUrl('http://localhost:5173/problems', options)).toBe('http://localhost:5173/problems')
-    expect(normalizeRestorableWebUrl('http://127.0.0.1:4173/', options)).toBe('http://127.0.0.1:4173/')
+    expect(normalizeRestorableWebUrl('http://localhost:5173/problems', options)).toBe(
+      'http://localhost:5173/problems',
+    )
+    expect(normalizeRestorableWebUrl('http://127.0.0.1:4173/', options)).toBe(
+      'http://127.0.0.1:4173/',
+    )
     expect(normalizeRestorableWebUrl('http://[::1]:3000/', options)).toBe('http://[::1]:3000/')
     expect(normalizeRestorableWebUrl('http://localhost:5173/problems')).toBeNull()
     expect(normalizeRestorableWebUrl('http://192.168.1.20:5173/', options)).toBeNull()
@@ -245,9 +272,9 @@ describe('restorable web URL policy', () => {
   })
 
   it('accepts valid percent escapes without weakening malformed-percent checks', () => {
-    expect(normalizeRestorableWebUrl('https://example.com/problem/%E4%B8%AD%E6%96%87?q=a%20b')).toBe(
-      'https://example.com/problem/%E4%B8%AD%E6%96%87?q=a%20b',
-    )
+    expect(
+      normalizeRestorableWebUrl('https://example.com/problem/%E4%B8%AD%E6%96%87?q=a%20b'),
+    ).toBe('https://example.com/problem/%E4%B8%AD%E6%96%87?q=a%20b')
   })
 })
 
@@ -299,42 +326,58 @@ describe('tab session snapshot creation', () => {
   })
 
   it('sanitizes control characters and truncates titles while filtering invalid ids and duplicates', () => {
-    const snapshot = createTabSessionSnapshot([
-      webTab('valid', 'https://example.com', `before\u0000after${'x'.repeat(600)}`),
-      webTab('bad id'),
-      webTab('valid', 'https://example.org'),
-    ], 'valid')
+    const snapshot = createTabSessionSnapshot(
+      [
+        webTab('valid', 'https://example.com', `before\u0000after${'x'.repeat(600)}`),
+        webTab('bad id'),
+        webTab('valid', 'https://example.org'),
+      ],
+      'valid',
+    )
 
     expect(snapshot.tabs).toHaveLength(1)
-    expect(snapshot.tabs[0]).toMatchObject({ id: 'valid', title: expect.not.stringContaining('\u0000') })
+    expect(snapshot.tabs[0]).toMatchObject({
+      id: 'valid',
+      title: expect.not.stringContaining('\u0000'),
+    })
     expect(snapshot.tabs[0].title).toHaveLength(512)
   })
 
   it('selects the surviving right neighbor when the active tab is unsafe', () => {
-    expect(createTabSessionSnapshot([
-      webTab('left'),
-      webTab('unsafe', 'https://example.com/?token=secret'),
-      internalTab('right', { type: 'dashboard' }),
-    ], 'unsafe')).toMatchObject({
+    expect(
+      createTabSessionSnapshot(
+        [
+          webTab('left'),
+          webTab('unsafe', 'https://example.com/?token=secret'),
+          internalTab('right', { type: 'dashboard' }),
+        ],
+        'unsafe',
+      ),
+    ).toMatchObject({
       activeTabId: 'right',
       tabs: [{ id: 'left' }, { id: 'right' }],
     })
   })
 
   it('falls back to the surviving left neighbor when there is no right neighbor', () => {
-    expect(createTabSessionSnapshot([
-      internalTab('left', { type: 'scripts' }),
-      webTab('unsafe', 'javascript:alert(1)'),
-    ], 'unsafe')).toMatchObject({
+    expect(
+      createTabSessionSnapshot(
+        [internalTab('left', { type: 'scripts' }), webTab('unsafe', 'javascript:alert(1)')],
+        'unsafe',
+      ),
+    ).toMatchObject({
       activeTabId: 'left',
       tabs: [{ id: 'left' }],
     })
   })
 
   it('returns an empty session when no safe tab survives', () => {
-    expect(createTabSessionSnapshot([
-      webTab('unsafe', 'https://example.com/?password=secret'),
-    ], 'unsafe')).toEqual({ version: 1, activeTabId: null, tabs: [] })
+    expect(
+      createTabSessionSnapshot(
+        [webTab('unsafe', 'https://example.com/?password=secret')],
+        'unsafe',
+      ),
+    ).toEqual({ version: 1, activeTabId: null, tabs: [] })
   })
 
   it('never selects an invalid internal candidate that was not written', () => {
@@ -345,20 +388,27 @@ describe('tab session snapshot creation', () => {
       title: 'Invalid',
     } as unknown as TabSnapshot
 
-    expect(createTabSessionSnapshot([
-      internalTab('left', { type: 'home' }),
-      invalidInternal,
-      internalTab('right', { type: 'settings' }),
-    ], 'invalid-active')).toMatchObject({
+    expect(
+      createTabSessionSnapshot(
+        [
+          internalTab('left', { type: 'home' }),
+          invalidInternal,
+          internalTab('right', { type: 'settings' }),
+        ],
+        'invalid-active',
+      ),
+    ).toMatchObject({
       activeTabId: 'right',
       tabs: [{ id: 'left' }, { id: 'right' }],
     })
   })
 
   it('uses the first surviving tab when the requested active id is absent', () => {
-    expect(createTabSessionSnapshot([
-      internalTab('first', { type: 'credentials' }),
-      webTab('second'),
-    ], 'missing')).toMatchObject({ activeTabId: 'first' })
+    expect(
+      createTabSessionSnapshot(
+        [internalTab('first', { type: 'credentials' }), webTab('second')],
+        'missing',
+      ),
+    ).toMatchObject({ activeTabId: 'first' })
   })
 })

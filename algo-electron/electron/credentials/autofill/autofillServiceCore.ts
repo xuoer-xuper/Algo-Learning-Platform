@@ -1,8 +1,5 @@
 import type { SiteConfigData } from '../../db/repositories/siteRepository'
-import type {
-  CredentialAutofillValue,
-  CredentialSummary,
-} from '../credentialVaultCore'
+import type { CredentialAutofillValue, CredentialSummary } from '../credentialVaultCore'
 import { resolveCredentialAutofillTarget, type CredentialAutofillTarget } from './autofillPolicy'
 import type { OjCredentialFillPayload } from './credentialAutofillBridge'
 
@@ -13,7 +10,10 @@ export interface AutofillWebContents {
   send(channel: string, payload: OjCredentialFillPayload): void
   // 监听器一律零参：这四个事件在这里只用来触发失效/清理，从不读事件参数。
   // 声明成 `(...args: any[]) => void` 会让"以后想读 url"看起来是被允许的，实际并没有。
-  on(event: 'dom-ready' | 'did-navigate' | 'did-navigate-in-page' | 'destroyed', listener: () => void): void
+  on(
+    event: 'dom-ready' | 'did-navigate' | 'did-navigate-in-page' | 'destroyed',
+    listener: () => void,
+  ): void
   once?(event: 'destroyed', listener: () => void): void
 }
 
@@ -47,7 +47,9 @@ export class CredentialAutofillCoordinator {
     if (this.attached.has(contents.id)) return
     this.attached.add(contents.id)
     this.requestGenerations.set(contents.id, 0)
-    const onReady = (): void => { void this.tryAutofill(contents).catch(() => {}) }
+    const onReady = (): void => {
+      void this.tryAutofill(contents).catch(() => {})
+    }
     contents.on('dom-ready', onReady)
     contents.on('did-navigate', () => this.invalidate(contents.id))
     contents.on('did-navigate-in-page', () => {
@@ -109,7 +111,7 @@ export class CredentialAutofillCoordinator {
       })
       if (generation !== this.requestGenerations.get(contents.id)) return false
       if (contents.isDestroyed?.() || safeGetUrl(contents) !== url || !selectedId) return false
-      credential = credentials.find(entry => entry.credentialId === selectedId)
+      credential = credentials.find((entry) => entry.credentialId === selectedId)
     }
     if (!credential) return false
     const fillKey = `${url}\n${target.siteId}\n${credential.credentialId}`
@@ -123,7 +125,12 @@ export class CredentialAutofillCoordinator {
     }
     if (generation !== this.requestGenerations.get(contents.id)) return false
     if (contents.isDestroyed?.() || safeGetUrl(contents) !== url) return false
-    if (!autofill || autofill.credentialId !== credential.credentialId || autofill.siteId !== target.siteId) return false
+    if (
+      !autofill ||
+      autofill.credentialId !== credential.credentialId ||
+      autofill.siteId !== target.siteId
+    )
+      return false
 
     const payload: OjCredentialFillPayload = {
       credentialId: autofill.credentialId,
@@ -153,5 +160,9 @@ export class CredentialAutofillCoordinator {
 }
 
 function safeGetUrl(contents: AutofillWebContents): string {
-  try { return contents.getURL() } catch { return '' }
+  try {
+    return contents.getURL()
+  } catch {
+    return ''
+  }
 }

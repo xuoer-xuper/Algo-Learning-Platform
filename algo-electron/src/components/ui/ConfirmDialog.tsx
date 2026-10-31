@@ -38,9 +38,8 @@ export function ConfirmDialog({
 
   useLayoutEffect(() => {
     if (!open) return
-    restoreFocusRef.current = document.activeElement instanceof HTMLElement
-      ? document.activeElement
-      : null
+    restoreFocusRef.current =
+      document.activeElement instanceof HTMLElement ? document.activeElement : null
     return () => {
       const previousFocus = restoreFocusRef.current
       restoreFocusRef.current = null
@@ -59,16 +58,21 @@ export function ConfirmDialog({
       '[tabindex]:not([tabindex="-1"])',
     ].join(',')
     const animationFrame = window.requestAnimationFrame(() => {
-      const focusable = [...(panelRef.current?.querySelectorAll<HTMLElement>(focusableSelector) ?? [])]
-      ;(panelRef.current?.querySelector<HTMLElement>('[data-testid="confirm-ok"]')
-        ?? focusable[0]
-        ?? panelRef.current)?.focus()
+      const focusable = [
+        ...(panelRef.current?.querySelectorAll<HTMLElement>(focusableSelector) ?? []),
+      ]
+      ;(
+        panelRef.current?.querySelector<HTMLElement>('[data-testid="confirm-ok"]') ??
+        focusable[0] ??
+        panelRef.current
+      )?.focus()
     })
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') onCancel()
       if (event.key !== 'Tab' || !panelRef.current) return
-      const focusable = [...panelRef.current.querySelectorAll<HTMLElement>(focusableSelector)]
-        .filter((element) => !element.hidden && element.getAttribute('aria-hidden') !== 'true')
+      const focusable = [
+        ...panelRef.current.querySelectorAll<HTMLElement>(focusableSelector),
+      ].filter((element) => !element.hidden && element.getAttribute('aria-hidden') !== 'true')
       if (focusable.length === 0) {
         event.preventDefault()
         panelRef.current.focus()
@@ -76,7 +80,10 @@ export function ConfirmDialog({
       }
       const first = focusable[0]
       const last = focusable[focusable.length - 1]
-      if (event.shiftKey && (document.activeElement === first || document.activeElement === panelRef.current)) {
+      if (
+        event.shiftKey &&
+        (document.activeElement === first || document.activeElement === panelRef.current)
+      ) {
         event.preventDefault()
         last.focus()
       } else if (!event.shiftKey && document.activeElement === last) {
@@ -105,14 +112,20 @@ export function ConfirmDialog({
         data-testid="confirm-dialog"
         onClick={(event) => event.stopPropagation()}
       >
-        <div id={titleId} className="ui-dialog-title">{title}</div>
+        <div id={titleId} className="ui-dialog-title">
+          {title}
+        </div>
         {description && <div className="ui-dialog-desc">{description}</div>}
         {children && <div className="ui-dialog-extra">{children}</div>}
         <div className="ui-dialog-actions">
           <Button variant="ghost" onClick={onCancel} data-testid="confirm-cancel">
             {cancelText}
           </Button>
-          <Button variant={danger ? 'danger' : 'primary'} onClick={onConfirm} data-testid="confirm-ok">
+          <Button
+            variant={danger ? 'danger' : 'primary'}
+            onClick={onConfirm}
+            data-testid="confirm-ok"
+          >
             {confirmText}
           </Button>
         </div>

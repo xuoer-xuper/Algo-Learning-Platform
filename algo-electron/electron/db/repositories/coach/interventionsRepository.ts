@@ -42,18 +42,18 @@ interface CoachInterventionRow {
   zero_intervention: number
 }
 
-export function insertCoachIntervention(
-  intervention: CoachIntervention,
-): CoachIntervention {
+export function insertCoachIntervention(intervention: CoachIntervention): CoachIntervention {
   const db = getDb()
-  db.prepare(`
+  db.prepare(
+    `
     INSERT OR IGNORE INTO coach_interventions
       (intervention_id, event_id, trigger_reason, intervention_level,
        source_type, message, related_tags_json, user_action,
        problem_id, platform, session_id, created_at,
        is_contest_mode, contest_url, contest_start, contest_end, zero_intervention)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(
+  `,
+  ).run(
     intervention.intervention_id,
     intervention.event_id,
     intervention.trigger_reason,
@@ -118,15 +118,13 @@ export function updateInterventionUserAction(
   action: CoachInterventionUserAction,
 ): boolean {
   const db = getDb()
-  const result = db.prepare(
-    'UPDATE coach_interventions SET user_action = ? WHERE intervention_id = ?',
-  ).run(action, interventionId)
+  const result = db
+    .prepare('UPDATE coach_interventions SET user_action = ? WHERE intervention_id = ?')
+    .run(action, interventionId)
   return result.changes > 0
 }
 
-export function getCoachIntervention(
-  interventionId: string,
-): CoachIntervention | null {
+export function getCoachIntervention(interventionId: string): CoachIntervention | null {
   const db = getDb()
   const row = db
     .prepare('SELECT * FROM coach_interventions WHERE intervention_id = ?')
@@ -137,17 +135,12 @@ export function getCoachIntervention(
 export function listCoachInterventions(limit = 50): CoachIntervention[] {
   const db = getDb()
   const rows = db
-    .prepare(
-      'SELECT * FROM coach_interventions ORDER BY created_at DESC LIMIT ?',
-    )
+    .prepare('SELECT * FROM coach_interventions ORDER BY created_at DESC LIMIT ?')
     .all(limit) as CoachInterventionRow[]
   return rows.map(deserializeIntervention)
 }
 
-export function listCoachInterventionsSince(
-  since: string,
-  limit = 500,
-): CoachIntervention[] {
+export function listCoachInterventionsSince(since: string, limit = 500): CoachIntervention[] {
   const db = getDb()
   const rows = db
     .prepare(
@@ -185,10 +178,7 @@ export function countCoachInterventionsSince(since: string): number {
   return row.n
 }
 
-export function countUserActionSince(
-  action: CoachInterventionUserAction,
-  since: string,
-): number {
+export function countUserActionSince(action: CoachInterventionUserAction, since: string): number {
   const db = getDb()
   const row = db
     .prepare(
@@ -216,21 +206,23 @@ export interface ContestAuditRow {
 
 export function listContestAuditRecords(since?: string): ContestAuditRow[] {
   const db = getDb()
-  const rows = (since
-    ? db
-        .prepare(
-          `SELECT * FROM coach_interventions
+  const rows = (
+    since
+      ? db
+          .prepare(
+            `SELECT * FROM coach_interventions
            WHERE source_type = 'contest_audit' AND created_at >= ?
            ORDER BY contest_start ASC`,
-        )
-        .all(since)
-    : db
-        .prepare(
-          `SELECT * FROM coach_interventions
+          )
+          .all(since)
+      : db
+          .prepare(
+            `SELECT * FROM coach_interventions
            WHERE source_type = 'contest_audit'
            ORDER BY contest_start ASC`,
-        )
-        .all()) as CoachInterventionRow[]
+          )
+          .all()
+  ) as CoachInterventionRow[]
 
   return rows.map((row) => {
     const start = row.contest_start ?? row.created_at

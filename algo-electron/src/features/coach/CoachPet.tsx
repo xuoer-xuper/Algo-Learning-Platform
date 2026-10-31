@@ -17,9 +17,11 @@ import { PET_STATES, type PetState } from './petStates'
 import './styles/tokens.css'
 import './styles/pet.css'
 
-const CoachChatPanel = lazy(() => import('./CoachChatPanel').then((module) => ({
-  default: module.CoachChatPanel,
-})))
+const CoachChatPanel = lazy(() =>
+  import('./CoachChatPanel').then((module) => ({
+    default: module.CoachChatPanel,
+  })),
+)
 
 /**
  * Coach 桌宠主组件。
@@ -172,10 +174,7 @@ export function CoachPet() {
             />
 
             {/* 主体菱形（核心几何体） */}
-            <polygon
-              className="pet-core-polygon"
-              points="0,-40 40,0 0,40 -40,0"
-            />
+            <polygon className="pet-core-polygon" points="0,-40 40,0 0,40 -40,0" />
 
             {/* 内部小六边形 */}
             <polygon
@@ -190,7 +189,13 @@ export function CoachPet() {
       </div>
 
       {chatPanelOpen && (
-        <Suspense fallback={<div className="coach-chat-loading" data-coach-interactive>加载对话...</div>}>
+        <Suspense
+          fallback={
+            <div className="coach-chat-loading" data-coach-interactive>
+              加载对话...
+            </div>
+          }
+        >
           <CoachChatPanel onClose={() => setChatPanelOpen(false)} />
         </Suspense>
       )}

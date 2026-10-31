@@ -16,10 +16,17 @@ async function drainNavigationEvents(): Promise<void> {
  */
 const GUARDED_EVENTS = ['will-navigate', 'will-redirect'] as const
 
-function navigationEvent(): { event: { preventDefault: () => void }; preventedCount: () => number } {
+function navigationEvent(): {
+  event: { preventDefault: () => void }
+  preventedCount: () => number
+} {
   let prevented = 0
   return {
-    event: { preventDefault: () => { prevented += 1 } },
+    event: {
+      preventDefault: () => {
+        prevented += 1
+      },
+    },
     preventedCount: () => prevented,
   }
 }
@@ -44,11 +51,13 @@ describe.each(GUARDED_EVENTS)('TabManager navigation guard on %s', (eventName) =
     expect(preventedCount()).toBe(1)
     // 就地替换：同一个标签页 id、标签页总数不变。若实现改成另开一个标签页，
     // 用户会丢掉原页面的上下文，这里必须失败。
-    expect(manager.getTabList()).toMatchObject([{
-      id: tabId,
-      kind: 'internal',
-      page: { type: 'script-install', installId: 'install-guard' },
-    }])
+    expect(manager.getTabList()).toMatchObject([
+      {
+        id: tabId,
+        kind: 'internal',
+        page: { type: 'script-install', installId: 'install-guard' },
+      },
+    ])
     expect(registry.get('install-guard')?.sourceFileName).toBe('helper.user.js')
     expect(window.contentView.children).toHaveLength(0)
   })
@@ -65,7 +74,9 @@ describe.each(GUARDED_EVENTS)('TabManager navigation guard on %s', (eventName) =
     await drainNavigationEvents()
 
     expect(preventedCount()).toBe(1)
-    expect(manager.getTabList()).toMatchObject([{ id: tabId, kind: 'web', url: 'https://example.com/scripts' }])
+    expect(manager.getTabList()).toMatchObject([
+      { id: tabId, kind: 'web', url: 'https://example.com/scripts' },
+    ])
     expect(window.contentView.children).toEqual([view])
   })
 
@@ -106,6 +117,8 @@ describe.each(GUARDED_EVENTS)('TabManager navigation guard on %s', (eventName) =
 
     expect(preventedCount()).toBe(1)
     expect(blockedReasons).toEqual([expectedReason])
-    expect(manager.getTabList()).toMatchObject([{ kind: 'web', url: 'https://example.com/problem' }])
+    expect(manager.getTabList()).toMatchObject([
+      { kind: 'web', url: 'https://example.com/problem' },
+    ])
   })
 })

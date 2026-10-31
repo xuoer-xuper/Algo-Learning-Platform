@@ -52,17 +52,34 @@ R2 pnpm ──► R3 TS 6.0.3 ──► R4 typescript-eslint ──► R5 pretti
 
 ## 2. R2 pnpm：契约与风险
 
-### 契约
-- `algo-electron/.npmrc`：`node-linker=hoisted`、`shamefully-hoist=true`、`strict-peer-dependencies=false`（依据 `spec/shared/pnpm-electron-setup.md`）。Electron 打包与 native 模块路径解析要求扁平 `node_modules`，符号链接布局会让 `asarUnpack` 与 `better-sqlite3` 解析出问题。
-- `package.json` 加 `"packageManager": "pnpm@11.21.0"`（与本机/corepack 一致；CI 由 `pnpm/action-setup@v4` 读取该字段，**不要**在 workflow 里再写死一个版本号，避免双源）。
-- `postinstall` 保持两步语义，只换调用方式：`pnpm run install:electron && pnpm run install:app-deps`。`install-electron` 由 `electron` 包提供（已确认 `node_modules/electron/package.json` 的 `bin`）。
+### 契约（2026-09-17 实施中按 pnpm 12 官方机制核实后的最终形态）
+- **设置入口是 `algo-electron/pnpm-workspace.yaml`，不是 `.npmrc`**：pnpm 12 只从 `.npmrc` 读认证/registry 设置，其余项目设置全部在 `pnpm-workspace.yaml`（其中 `nodeLinker`、`shamefullyHoist` **只能**在这里设）。内容：
+  ```yaml
+  nodeLinker: hoisted
+  shamefullyHoist: true
+  strictPeerDependencies: false
+  allowBuilds:
+    electron-winstaller: true
+    esbuild: true
+  ```
+  `spec/shared/pnpm-electron-setup.md` 写的是 pnpm 8/9 时代的 `.npmrc` 方案，本阶段按官方机制落地，spec 在 3.3 同步（`migration-status.md` 已记）。
+- `package.json` 加 `"packageManager": "pnpm@12.8.1"`（`npm view pnpm version` 的 latest）。CI 由 `pnpm/action-setup@v4` 读该字段，**不**在 workflow 里再写版本号。
+- `postinstall` 内联为 `install-electron --no && electron-builder install-app-deps`（与 PRD R2 原文一致）。`install-electron` 由 `electron` 包提供（已确认 `node_modules/electron/package.json` 的 `bin`）。**不能**写成嵌套的 `pnpm run install:electron && …`：pnpm 生命周期里 `pnpm` 解析到 PATH 上的其它版本时会撞 `packageManager` 版本门（实测 `ERR_PNPM_...` + "Corepack invoked pnpm with this version, and pnpm does not switch versions when running under corepack"）。
 - 删除 `package-lock.json`，提交 `pnpm-lock.yaml`。
-- CI 四处改动：`pnpm/action-setup@v4`、`setup-node` 的 `cache: pnpm` + `cache-dependency-path: algo-electron/pnpm-lock.yaml`、`pnpm install --frozen-lockfile`、Electron 下载缓存 key 的 `hashFiles` 换成 `pnpm-lock.yaml`。
+- CI 四处改动：`pnpm/action-setup@v4`（**必须在 `actions/setup-node` 之前**，否则 `cache: pnpm` 无法定位；本仓库 `package.json` 在 `algo-electron/` 而非仓库根，所以必须传 `package_json_file: algo-electron/package.json`）、`setup-node` 的 `cache: pnpm` + `cache-dependency-path: algo-electron/pnpm-lock.yaml`、`pnpm install --frozen-lockfile`、Electron 下载缓存 key 的 `hashFiles` 换成 `pnpm-lock.yaml`。
 
-### 风险（实现时必须验证，不得假设）
-- **依赖构建脚本被静默跳过**：pnpm 10+ 默认不执行依赖的 build 脚本，需要 `pnpm.onlyBuiltDependencies` 白名单。本仓库至少涉及 `electron`（下载 Electron 二进制）、`better-sqlite3`（原生编译）、`esbuild`。症状是安装"成功"但打包后 `better-sqlite3` 加载失败——正好由 `test:packaged-main` 捕获，所以 0.2 的验证命令不能只跑 `pnpm install`，必须跑 `pnpm test:packaged-main` 与 `pnpm test:packaging`（`prd.md` AC2）。
-- **hoisted 布局对 `electron-builder.json5` 的 `asarUnpack`/`files` 白名单的影响**：npm 与 pnpm 的目录层级不同，白名单里的 glob 可能失配。判定命令：`pnpm build:win` 后 `test:packaged-app`。
-- **旧 `node_modules` 残留**：切换 linker 前必须整体删除 `algo-electron/node_modules`，否则混合布局难以诊断。
+### 环境偏差（已实测，记录以备复核）
+- `corepack enable` 在本机失败：`EPERM: operation not permitted, open 'C:\Program Files\nodejs\yarnpkg'`（需管理员权限写 Node 安装目录）。替代路径：pnpm 自身会按 `packageManager` 切换版本（实测裸 `pnpm` 11.21.0 在项目内切到 12.8.1），`corepack prepare pnpm@12.8.1` 也可用且无需提权。仓库不依赖 corepack 已被 enable。
+- 副作用：`corepack pnpm <cmd>` 调用链下的嵌套 `pnpm` 会失败（见上），因此本机一律用裸 `pnpm`；CI 里 PATH 上的 pnpm 就是 12.8.1，不存在该问题。
+- store 跨盘 hardlink 警告（`C:` 上的 store 与 `D:` 上的项目不同盘）由 pnpm 自动改用 `D:\.pnpm-store`，属机器级状态，不入库。
+- **换 PM 会重新解析传递依赖**：npm 锁文件是几周前生成的，pnpm 今天对同一批 range 重新求解，于是约百条传递依赖拿到期间发布的 patch（例：`@testing-library/dom` 10.4.1 → 10.4.2）。实测**直接依赖版本全部一致**。没有为此固定上百条传递依赖（那等于把"当时恰好装到什么"固化下来，与既定决策相反）；风险由测试与 CI 兜底，若日后要复现旧图，用 `git show <rev>:algo-electron/package-lock.json` 作对照。
+
+### 风险（实测结论）
+- **`ERR_PNPM_IGNORED_BUILDS`**：pnpm 10+ 不执行依赖的构建脚本，pnpm 12 把它从警告升级为**安装直接失败**，列出 `esbuild@0.28.2`、`electron-winstaller@5.4.0`。解法是上面的 `allowBuilds`（由 `pnpm approve-builds --all` 写入）。已在 `tests/packaging/check-packaging.mjs` 加守卫：该配置或 `nodeLinker: hoisted` 缺失即红灯。
+- `electron@43.4.0` 与 `better-sqlite3@13.0.3` **本身不带 install/postinstall 脚本**（已核对包内 `scripts`），Electron 二进制与 native ABI 重建完全由根 `postinstall` 负责；`better-sqlite3` 走 `prebuilds/*.node`，不需要 `build/Release`。
+- **hoisted 布局对 `electron-builder.json5` 的 `asarUnpack`/`files` 白名单的影响**：判定命令是 `pnpm build:win` 后的 `test:packaged-app`；`test:packaging` 只验静态配置。
+- **旧 `node_modules` 残留**：切换 linker 前必须整体删除 `algo-electron/node_modules`。本次即按"删 `node_modules` + 删 `package-lock.json` → `pnpm install`"验证。
+- 守卫不能用字面量断言包管理器写法：`tests/packaging/check-packaging.mjs` 原来的 `postinstall === 'npm run install:electron && npm run install:app-deps'` 这类断言在本阶段必然变红，已改为断言**顺序**（先装 Electron 二进制、再重建 native 依赖；`build`/`build:win` 在 `electron-builder` 之前跑 `test:packaged-main`）。
 
 ### 回滚
 revert 0.2 的单个 commit，恢复 `package-lock.json`，其余小节都不依赖 pnpm（R3–R10 只用 npm 也能跑），因此 pnpm 若阻塞打包不会拖垮整个阶段。
@@ -111,12 +128,49 @@ export default tseslint.config(
 
 处理方式（择一，实现时按报错清单决定并写进 PR 描述）：把根级配置文件补进 `tsconfig.node.json` 的 `include`；或对这批文件单独一段 config 用 `projectService: { allowDefaultProject: [...] }`。**不能**用 `parserOptions.project` 逐项目罗列后漏掉文件——那是同类问题的复发形态。
 
-### 开门顺序（避免"门一开全红，改不完就关掉"）
-1. 先按 R4 修完：13 处非空断言（点位见 `implement.md` 0.4；`NavigationDecision` 改判别联合一次消 5 处）、40 处渲染层导出组件/hook 缺返回类型、`no-floating-promises`、`registerCoachIpc.ts:160,306,325` 三处 `console.*` → `appLogger`。
-2. 再把规则设为 `error` 并跑 `pnpm lint --max-warnings 0`。
-3. 最后删除 `@babel/*` eslint 相关四个依赖。
+### 实测违规清单（2026-09-17，typescript-eslint 8.71.0 / TypeScript 6.0.3，`eslint .`）
 
-`no-undef` 关闭（TS 已覆盖），`globals` 只对 `.js/.mjs/.cjs` 有意义；`no-console` 的 override 必须与 PRD 字面一致——PRD 允许的两个文件以外的 `console.*`（其余 6 处）走 override 还是改代码，以实现时的报错清单为准并在 `implement.md` 勾选时记录。
+PRD R4 的估数是"13 处非空断言 + 40 处渲染层缺返回类型"。按 R4 的配置实际跑一遍后（613 文件、`--format json` 聚合），**生产代码 367 error 分布在 16+ 条规则**，与估数相差约 5 倍，且包含 R4 未预算的规则：
+
+| 规则 | 合计 | 分布 |
+| --- | --- | --- |
+| `explicit-module-boundary-types` | 128 | renderer 66（59 文件）/ main 62（32 文件） |
+| `no-unsafe-member-access` | 50 | main 48（**7 文件**）/ renderer 2 |
+| `no-unsafe-assignment` | 40 | main 40（14 文件） |
+| `no-non-null-assertion` | 30 | main 28（12 文件）/ renderer 2（PRD 说 13） |
+| `no-misused-promises` | 30 | renderer 29（10 文件）/ main 1 |
+| `no-unsafe-call` | 19 | main 17（3 文件）/ renderer 2 |
+| `no-unnecessary-type-assertion` | 12 | main 12 |
+| `consistent-type-imports` | 9 | main 8 / renderer 1 |
+| `no-base-to-string` | 7 | main 5 / renderer 2 |
+| `no-unsafe-argument` | 7 | main 6 / renderer 1 |
+| `no-console` | 7 | renderer 4（4 文件）/ main 3（1 文件，`registerCoachIpc.ts`） |
+| `no-empty-object-type` | 5 | main 5 |
+| `no-unsafe-return` | 5 | main 3 / renderer 2 |
+| `no-floating-promises` | 4 | main 2 / renderer 2 |
+| `prefer-const` | 3 | main 3 |
+| `no-implied-eval` | 3 | main 2 |
+| 其余（尾部） | 8 | — |
+
+另有 **192 个 `tests/**` 文件报 "was not found by the project service"**：`tests/` 只被 `tsconfig.tests.json` 收录，而 projectService 不把 `tsconfig.tests.json` 当作可发现的项目（它只找 `tsconfig.json`）。上游文档明确 `allowDefaultProject` 只适合少量配置文件（默认上限 8 个文件、glob 不允许 `**`），因此不给 192 个测试文件用它；测试侧维持 0.4 之前的规则面，其规则升级（`no-explicit-any` 94、`no-unused-vars` 9、`prefer-const` 1）与项目归属方案一起放进阶段 5 与偿还任务。
+
+三组工作量差异很大，不能一锅端：
+
+- **机械、类型层、可审计（≈65 处）**：`no-non-null-assertion` 30、`consistent-type-imports` 9、`no-unnecessary-type-assertion` 12、`no-floating-promises` 4、`no-console` 7（其中 3 处改 `appLogger`，renderer 4 处按 AC"main 中 0"不属本门）、`prefer-const` 3。改完不改变运行时行为。
+- **需要逐点判断类型流（≈121 处，集中在约 20 个文件）**：`no-unsafe-*` 系列来自 `any` 传播（JSON.parse、数据库行、IPC 载荷），修法是补类型或改 `unknown` + 收窄，属真实类型债。
+- **会改动代码形状（≈170 处）**：`explicit-module-boundary-types` 128（给导出函数/回调补返回类型，面广但机械）、`no-misused-promises` 30（async 传给 void 位置，需 `void` 包装或改签名）、`no-base-to-string`/`no-empty-object-type`/`no-implied-eval` 15。
+
+因此 0.4 的实际范围与 R4 原文不一致，需要先定策略（见 `implement.md` 0.4 的待决记录）。
+
+### 开门顺序（避免"门一开全红，改不完就关掉"）
+
+`no-undef` 关闭（TS 已覆盖），`globals` 只对 `.js/.mjs/.cjs` 有意义。`no-console` 的适用范围按父任务 AC 的原文收窄为 main（`electron/**`）：renderer 的 4 处不在"main 中 0"的承诺内，不为了凑绿去改渲染层日志。
+
+实现要点（已实测，写进配置注释）：
+
+1. `tseslint.configs.recommendedTypeChecked` **必须加 `files: ['**/*.{ts,tsx}']`**：不加会让类型感知规则作用到 `eslint.config.js` / `tests/*.mjs` 这类不在任何项目里的 JS 文件，直接以 "You have used a rule which requires type information" 崩溃（不是逐条报错，是整个 lint 中止）。
+2. 根级配置文件补进 `tsconfig.node.json` 的 `include`：`vite.config.ts`、`vitest.config.ts`、`playwright.config.ts`。
+3. `tests/**` 的类型归属要单独决定：要么 `projectService.allowDefaultProject`（192 个文件会撞默认上限，需要抬高 `maximumDefaultProjectFileMatchCount_THIS_WILL_SLOW_DOWN_LINTING` 且明显拖慢 lint），要么测试只跑非类型感知的 `recommended`（类型正确性已由 `pnpm typecheck:tests` 单独守）。
 
 ### 验收
 `prd.md` AC4，含"故意写一行 `const x = y!.z` 使 lint 变红"的反向验证——只跑绿灯的门等于没门。

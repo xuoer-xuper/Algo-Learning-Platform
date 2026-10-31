@@ -23,7 +23,9 @@ interface Deferred {
 
 function deferred(): Deferred {
   let resolve = (): void => {}
-  const promise = new Promise<void>((promiseResolve) => { resolve = promiseResolve })
+  const promise = new Promise<void>((promiseResolve) => {
+    resolve = promiseResolve
+  })
   return { promise, resolve }
 }
 
@@ -137,13 +139,15 @@ function appSession(id: string): ApplicationSessionSnapshot {
   return {
     version: 1,
     mostRecentWindowId: `window-${id}`,
-    windows: [{
-      id: `window-${id}`,
-      bounds: { x: 100, y: 80, width: 1280, height: 800 },
-      maximized: false,
-      activeTabId: `tab-${id}`,
-      tabs: [webTab(`tab-${id}`)],
-    }],
+    windows: [
+      {
+        id: `window-${id}`,
+        bounds: { x: 100, y: 80, width: 1280, height: 800 },
+        maximized: false,
+        activeTabId: `tab-${id}`,
+        tabs: [webTab(`tab-${id}`)],
+      },
+    ],
   }
 }
 
@@ -167,21 +171,27 @@ describe('ApplicationSessionStore.load', () => {
 
   it('returns fixed missing, read, and validation fallback reasons', async () => {
     const missing = new MemoryApplicationSessionFileSystem()
-    await expect(new ApplicationSessionStore(sessionPath, { fileSystem: missing }).load()).resolves.toEqual({
+    await expect(
+      new ApplicationSessionStore(sessionPath, { fileSystem: missing }).load(),
+    ).resolves.toEqual({
       kind: 'fallback',
       reason: 'missing',
     })
 
     const unreadable = new MemoryApplicationSessionFileSystem()
     unreadable.readError = fileError('EACCES', 'private path')
-    await expect(new ApplicationSessionStore(sessionPath, { fileSystem: unreadable }).load()).resolves.toEqual({
+    await expect(
+      new ApplicationSessionStore(sessionPath, { fileSystem: unreadable }).load(),
+    ).resolves.toEqual({
       kind: 'fallback',
       reason: 'read-failed',
     })
 
     const invalid = new MemoryApplicationSessionFileSystem()
     invalid.files.set(sessionPath, '{not-json')
-    await expect(new ApplicationSessionStore(sessionPath, { fileSystem: invalid }).load()).resolves.toEqual({
+    await expect(
+      new ApplicationSessionStore(sessionPath, { fileSystem: invalid }).load(),
+    ).resolves.toEqual({
       kind: 'fallback',
       reason: 'invalid-json',
     })
@@ -225,8 +235,14 @@ describe('ApplicationSessionStore.save', () => {
       serialize(appSession('newest')),
     ])
     expect(fileSystem.operations).toEqual([
-      'write', 'sync', 'close', 'rename',
-      'write', 'sync', 'close', 'rename',
+      'write',
+      'sync',
+      'close',
+      'rename',
+      'write',
+      'sync',
+      'close',
+      'rename',
     ])
     expect(fileSystem.files.get(sessionPath)).toBe(serialize(appSession('newest')))
     expect(fileSystem.files.has(temporaryPath)).toBe(false)
@@ -256,7 +272,11 @@ describe('ApplicationSessionPersistence', () => {
     const saved: ApplicationSessionSnapshot[] = []
     let current = appSession('first')
     const persistence = new ApplicationSessionPersistence(
-      { save: async (snapshot) => { saved.push(snapshot) } },
+      {
+        save: async (snapshot) => {
+          saved.push(snapshot)
+        },
+      },
       () => current,
       { timer },
     )
@@ -283,7 +303,11 @@ describe('ApplicationSessionPersistence', () => {
     const saved: ApplicationSessionSnapshot[] = []
     let current = appSession('scheduled')
     const persistence = new ApplicationSessionPersistence(
-      { save: async (snapshot) => { saved.push(snapshot) } },
+      {
+        save: async (snapshot) => {
+          saved.push(snapshot)
+        },
+      },
       () => current,
       { timer },
     )
@@ -318,7 +342,11 @@ describe('ApplicationSessionPersistence', () => {
         if (providerFails) throw new Error('private window state')
         return appSession('recovered')
       },
-      { onDiagnostic: (reason) => { diagnostics.push(reason) } },
+      {
+        onDiagnostic: (reason) => {
+          diagnostics.push(reason)
+        },
+      },
     )
 
     await expect(persistence.flush()).resolves.toBeUndefined()

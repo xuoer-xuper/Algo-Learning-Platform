@@ -34,6 +34,28 @@ test('app menu routes existing toolbar destinations through internal tabs', () =
   ])
 })
 
+test('app menu exposes a manual reopen-last-session entry only when provided', () => {
+  const withoutCallback = createAppMenuTemplate(() => undefined)
+  assert.strictEqual(
+    withoutCallback.some((item) => item.label === '恢复上次会话'),
+    false,
+    'menu must not show the entry when no callback is wired',
+  )
+
+  let reopened = 0
+  const withCallback = createAppMenuTemplate(
+    () => undefined,
+    undefined,
+    () => {
+      reopened += 1
+    },
+  )
+  const item = withCallback.find((entry) => entry.label === '恢复上次会话')
+  assert.ok(item && typeof item.click === 'function')
+  item.click!({} as never, {} as never, {} as never)
+  assert.strictEqual(reopened, 1)
+})
+
 test('app menu exposes Chrome-style zoom commands for an active web tab', () => {
   const commands: string[] = []
   const template = createAppMenuTemplate(() => undefined, {

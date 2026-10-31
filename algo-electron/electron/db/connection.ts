@@ -49,12 +49,35 @@ let dbInitialization: Promise<Database.Database> | null = null
 const require = createRequire(import.meta.url)
 
 const allMigrations = [
-  migration001, migration002, migration003, migration004,
-  migration005, migration006, migration007, migration008,
-  migration009, migration010, migration011, migration012, migration013,
-  migration014, migration015, migration016, migration017, migration018,
-  migration019, migration020, migration021,
-  migration022, migration023, migration024, migration025, migration026, migration027, migration028, migration029,
+  migration001,
+  migration002,
+  migration003,
+  migration004,
+  migration005,
+  migration006,
+  migration007,
+  migration008,
+  migration009,
+  migration010,
+  migration011,
+  migration012,
+  migration013,
+  migration014,
+  migration015,
+  migration016,
+  migration017,
+  migration018,
+  migration019,
+  migration020,
+  migration021,
+  migration022,
+  migration023,
+  migration024,
+  migration025,
+  migration026,
+  migration027,
+  migration028,
+  migration029,
 ]
 
 export function getDb(): Database.Database {
@@ -128,7 +151,7 @@ export async function initDbAtPathWithMigrationSafety(
       )
       logger.info('db.pre-migration-backup-completed', {
         backupPath,
-        pendingVersions: pendingMigrations.map(migration => migration.version),
+        pendingVersions: pendingMigrations.map((migration) => migration.version),
       })
     }
 
@@ -147,7 +170,11 @@ export async function initDbAtPathWithMigrationSafety(
       logger.warn('db.migration-backup-restored', { backupPath, dbPath })
     } catch (caughtRestoreError) {
       restoreError = caughtRestoreError
-      logger.fatal('db.migration-backup-restore-failed', { backupPath, dbPath, error: caughtRestoreError })
+      logger.fatal('db.migration-backup-restore-failed', {
+        backupPath,
+        dbPath,
+        error: caughtRestoreError,
+      })
     }
 
     const markerPath = writeMigrationFailureMarker(options.backupDir, dbPath, {

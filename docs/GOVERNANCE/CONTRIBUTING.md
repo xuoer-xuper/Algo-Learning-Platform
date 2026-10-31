@@ -15,10 +15,17 @@
 
 ## 2. 本地开发
 
+前置环境：
+
+- Node.js `>=22.18.0 <25`（`algo-electron/package.json` 的 `engines`）。
+- pnpm，版本由 `algo-electron/package.json` 的 `packageManager` 固定为 `12.8.1`：已装任意 pnpm 时会按该字段自行切换；corepack 环境执行一次 `corepack enable` 后由 corepack 解析。
+- 项目设置（`nodeLinker: hoisted`、依赖构建脚本白名单）在 `algo-electron/pnpm-workspace.yaml`，不在 `.npmrc`。
+- 不要用 `npm install` / `npm ci`：`package-lock.json` 已删除，仓库只维护 `pnpm-lock.yaml`。
+
 ```powershell
 cd algo-electron
-npm install
-npm run dev
+pnpm install
+pnpm run dev
 ```
 
 ### 2.1 Commit 前必跑检查
@@ -26,9 +33,9 @@ npm run dev
 **每次 commit 前，必须在本地运行以下命令并全部通过：**
 
 ```powershell
-npm run test:core      # typecheck + lint + architecture + security
-npm run test:docs      # 文档链接和覆盖率检查
-npm run test:packaging # 打包配置安全检查
+pnpm run test:core      # typecheck + lint + architecture + security
+pnpm run test:docs      # 文档链接和覆盖率检查
+pnpm run test:packaging # 打包配置安全检查
 ```
 
 这三条命令对应 CI 中的 `fast-guard` job。本地先验证可以避免反复 push 触发 CI 失败、污染 commit 历史。
@@ -36,9 +43,9 @@ npm run test:packaging # 打包配置安全检查
 ### 2.2 其他常用验证
 
 ```powershell
-npm run typecheck
-npm run test:architecture
-npm run test:security
+pnpm run typecheck
+pnpm run test:architecture
+pnpm run test:security
 ```
 
 ### 2.3 发布前全量验证
@@ -46,7 +53,7 @@ npm run test:security
 发布前或大范围改动后运行：
 
 ```powershell
-npm run test:all
+pnpm run test:all
 ```
 
 `test:all` 不覆盖真实 OJ 登录态、验证码、站点风控、七站正式提交或安装包安装/卸载流程。发布安装包前按 [RELEASE_PROCESS.md](../OPERATIONS/RELEASE_PROCESS.md) 执行版本、changelog、打包、产物检查和人工验收。
@@ -88,9 +95,9 @@ npm run test:all
 仓库提供 `.github/pull_request_template.md`。提交 PR 时按模板填写变更范围、边界确认、验证、手测和文档同步。
 
 - 变更范围清楚。
-- 已运行与变更相关的 `npm run test:*`。
+- 已运行与变更相关的 `pnpm run test:*`。
 - 涉及提交监测时已追加 adapter/submissions 测试，并说明需要人工验证的站点。
-- 涉及 UI 时已运行 `npm run test:ui` 或说明无法运行的原因。
+- 涉及 UI 时已运行 `pnpm run test:ui` 或说明无法运行的原因。
 - 涉及数据库、IPC、Cookie、站点 adapter、AI 输出或打包配置时，相关文档已同步。
 - 提交信息符合中文 Conventional Commits 风格。
 

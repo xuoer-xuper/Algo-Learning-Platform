@@ -37,4 +37,4 @@
 
 ## 验证入口
 
-`npm run test:unit`（`tests/components/uiComponents.test.tsx`，jsdom + @testing-library/react）；B5.2 三原语见 `tests/components/asyncStatePrimitives.test.tsx`，异步界面的"加载中不许伪装成空"契约见 `tests/components/asyncStateSurfaces.test.tsx`；接线治理见 `tests/components/controlGovernance.test.ts`（断言 feature 确实消费了原语且样式锚点未丢）；数量守卫见 `npm run test:architecture`；视觉回归走 `npm run test:ui`。
+`pnpm run test:unit`（`tests/components/uiComponents.test.tsx`，jsdom + @testing-library/react）；B5.2 三原语见 `tests/components/asyncStatePrimitives.test.tsx`，异步界面的"加载中不许伪装成空"契约见 `tests/components/asyncStateSurfaces.test.tsx`；接线治理见 `tests/components/controlGovernance.test.ts`（断言 feature 确实消费了原语且样式锚点未丢）；数量守卫见 `pnpm run test:architecture`；视觉回归走 `pnpm run test:ui`。

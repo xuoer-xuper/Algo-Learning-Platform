@@ -5,7 +5,7 @@ export function parseTagsJson(tagsJson: string | null | undefined): string[] {
     if (!Array.isArray(parsed)) return []
     return parsed
       .filter((tag): tag is string => typeof tag === 'string')
-      .map(tag => tag.trim())
+      .map((tag) => tag.trim())
       .filter(Boolean)
   } catch {
     return []

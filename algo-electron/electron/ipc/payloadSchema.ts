@@ -26,7 +26,11 @@
 
 /** 校验失败。`path` 指出是哪个参数的哪一层，方便定位到具体 channel 的具体字段。 */
 export class IpcPayloadError extends Error {
-  constructor(readonly path: string, readonly expected: string, readonly received: unknown) {
+  constructor(
+    readonly path: string,
+    readonly expected: string,
+    readonly received: unknown,
+  ) {
     super(`${path}: expected ${expected}, received ${describe(received)}`)
     this.name = 'IpcPayloadError'
   }
@@ -67,7 +71,7 @@ function schema<T>(describeAs: string, parse: (value: unknown, path: string) => 
  * 默认拒绝空串：这些位置上空串没有一个有意义的解释，放进去只会变成一次查不到的查询。
  * 真要允许空串的（搜索框可以是空的）用 `freeText`。
  */
-export function text(options: { max?: number, min?: number } = {}): IpcSchema<string> {
+export function text(options: { max?: number; min?: number } = {}): IpcSchema<string> {
   const max = options.max ?? 200
   const min = options.min ?? 1
   return schema(`string(${min}..${max})`, (value, path) => {
@@ -90,7 +94,11 @@ export function freeText(options: { max: number }): IpcSchema<string> {
  * `label` 必填且用在错误信息里：直接打印正则源码对排查没帮助，而且有些正则本身就够长了。
  * 先过长度上限再匹配——避免把超长输入喂给正则引擎。
  */
-export function pattern(regex: RegExp, label: string, options: { max?: number } = {}): IpcSchema<string> {
+export function pattern(
+  regex: RegExp,
+  label: string,
+  options: { max?: number } = {},
+): IpcSchema<string> {
   const max = options.max ?? 200
   return schema(label, (value, path) => {
     if (typeof value !== 'string' || value.length > max || !regex.test(value)) {
@@ -101,7 +109,9 @@ export function pattern(regex: RegExp, label: string, options: { max?: number } 
 }
 
 /** `yyyy-mm-dd` 本地日期。项目里所有日期口径都是北京本地日，不是 UTC ISO 串。 */
-export const localDate: IpcSchema<string> = pattern(/^\d{4}-\d{2}-\d{2}$/, 'yyyy-mm-dd', { max: 10 })
+export const localDate: IpcSchema<string> = pattern(/^\d{4}-\d{2}-\d{2}$/, 'yyyy-mm-dd', {
+  max: 10,
+})
 
 /**
  * 整数，必须给出上下界。
@@ -109,7 +119,7 @@ export const localDate: IpcSchema<string> = pattern(/^\d{4}-\d{2}-\d{2}$/, 'yyyy
  * 强制给界而不是设默认值：这些数字最终会进 `LIMIT ?` 或日期偏移计算，合理范围只有调用方
  * 知道。给不出界说明还没想清楚这个参数能有多大——那正是该想的时候。
  */
-export function int(options: { min: number, max: number }): IpcSchema<number> {
+export function int(options: { min: number; max: number }): IpcSchema<number> {
   const { min, max } = options
   return schema(`integer(${min}..${max})`, (value, path) => {
     if (typeof value !== 'number' || !Number.isInteger(value) || value < min || value > max) {
@@ -129,7 +139,7 @@ export function int(options: { min: number, max: number }): IpcSchema<number> {
  * `Number.isFinite` 一并挡掉 `NaN` 与 `Infinity`——`NaN` 能穿过任何 `<` / `>` 比较，
  * 只用区间判断是拦不住它的。
  */
-export function decimal(options: { min: number, max: number }): IpcSchema<number> {
+export function decimal(options: { min: number; max: number }): IpcSchema<number> {
   const { min, max } = options
   return schema(`decimal(${min}..${max})`, (value, path) => {
     if (typeof value !== 'number' || !Number.isFinite(value) || value < min || value > max) {
@@ -153,23 +163,23 @@ export const bool: IpcSchema<boolean> = schema('boolean', (value, path) => {
  * 在 handler 里分不开。
  */
 export function optional<T>(inner: IpcSchema<T>): IpcSchema<T | undefined> {
-  return schema(`${inner.describe} | undefined`, (value, path) => (
-    value === undefined ? undefined : inner.parse(value, path)
-  ))
+  return schema(`${inner.describe} | undefined`, (value, path) =>
+    value === undefined ? undefined : inner.parse(value, path),
+  )
 }
 
 /** 可为 null 的参数。语义是"显式的空值"，与 `optional` 的"没传"区分开。 */
 export function nullable<T>(inner: IpcSchema<T>): IpcSchema<T | null> {
-  return schema(`${inner.describe} | null`, (value, path) => (
-    value === null ? null : inner.parse(value, path)
-  ))
+  return schema(`${inner.describe} | null`, (value, path) =>
+    value === null ? null : inner.parse(value, path),
+  )
 }
 
 /** 字面量联合。用于 action、type 这类枚举参数。 */
 export function oneOf<const T extends readonly (string | number | boolean)[]>(
   values: T,
 ): IpcSchema<T[number]> {
-  const describeAs = values.map(value => JSON.stringify(value)).join(' | ')
+  const describeAs = values.map((value) => JSON.stringify(value)).join(' | ')
   return schema(describeAs, (value, path) => {
     if (!values.includes(value as T[number])) throw new IpcPayloadError(path, describeAs, value)
     return value as T[number]
@@ -187,20 +197,27 @@ export function oneOf<const T extends readonly (string | number | boolean)[]>(
  *
  * 不给 `min` 设默认 1：那会让"空名单"这种正常输入在五个现有调用点上一起变成拒绝。
  */
-export function arrayOf<T>(inner: IpcSchema<T>, options: { min?: number, max: number }): IpcSchema<T[]> {
+export function arrayOf<T>(
+  inner: IpcSchema<T>,
+  options: { min?: number; max: number },
+): IpcSchema<T[]> {
   const min = options.min ?? 0
-  const describeAs = min > 0
-    ? `${inner.describe}[] (${min}..${options.max})`
-    : `${inner.describe}[] (max ${options.max})`
+  const describeAs =
+    min > 0
+      ? `${inner.describe}[] (${min}..${options.max})`
+      : `${inner.describe}[] (max ${options.max})`
   return schema(describeAs, (value, path) => {
     if (!Array.isArray(value)) throw new IpcPayloadError(path, describeAs, value)
-    if (value.length > options.max || value.length < min) throw new IpcPayloadError(path, describeAs, value)
+    if (value.length > options.max || value.length < min)
+      throw new IpcPayloadError(path, describeAs, value)
     return value.map((entry, index) => inner.parse(entry, `${path}[${index}]`))
   })
 }
 
 type ObjectShape = Record<string, IpcSchema<unknown>>
-type ParsedObject<S extends ObjectShape> = { [K in keyof S]: S[K] extends IpcSchema<infer T> ? T : never }
+type ParsedObject<S extends ObjectShape> = {
+  [K in keyof S]: S[K] extends IpcSchema<infer T> ? T : never
+}
 
 /**
  * 对象，逐字段校验。
@@ -225,7 +242,8 @@ export function object<S extends ObjectShape>(
     const source = value as Record<string, unknown>
     if ((options.extra ?? 'reject') === 'reject') {
       for (const key of Object.keys(source)) {
-        if (!(key in shape)) throw new IpcPayloadError(`${path}.${key}`, 'no such field', source[key])
+        if (!(key in shape))
+          throw new IpcPayloadError(`${path}.${key}`, 'no such field', source[key])
       }
     }
     const parsed = {} as Record<string, unknown>
@@ -243,9 +261,12 @@ export function object<S extends ObjectShape>(
 export function binary(options: { maxBytes: number }): IpcSchema<ArrayBuffer | Uint8Array> {
   const describeAs = `binary(max ${options.maxBytes} bytes)`
   return schema(describeAs, (value, path) => {
-    const byteLength = value instanceof ArrayBuffer
-      ? value.byteLength
-      : value instanceof Uint8Array ? value.byteLength : null
+    const byteLength =
+      value instanceof ArrayBuffer
+        ? value.byteLength
+        : value instanceof Uint8Array
+          ? value.byteLength
+          : null
     if (byteLength === null || byteLength > options.maxBytes) {
       throw new IpcPayloadError(path, describeAs, value)
     }
@@ -264,7 +285,7 @@ export function binary(options: { maxBytes: number }): IpcSchema<ArrayBuffer | U
  */
 export function raw(reason: string): IpcSchema<unknown> {
   if (reason.trim().length === 0) throw new Error('raw() requires a reason')
-  return schema(`unknown (${reason})`, value => value)
+  return schema(`unknown (${reason})`, (value) => value)
 }
 
 /** schema 元组 → handler 的参数类型。让校验与类型标注只有一个来源。 */
@@ -285,7 +306,13 @@ export function parseIpcArgs<S extends IpcSchemaTuple>(
   args: readonly unknown[],
 ): ParsedArgs<S> {
   if (args.length > schemas.length) {
-    throw new IpcPayloadError(`${channel}(${schemas.length}..)`, `at most ${schemas.length} arguments`, args.length)
+    throw new IpcPayloadError(
+      `${channel}(${schemas.length}..)`,
+      `at most ${schemas.length} arguments`,
+      args.length,
+    )
   }
-  return schemas.map((entry, index) => entry.parse(args[index], `${channel}#${index}`)) as ParsedArgs<S>
+  return schemas.map((entry, index) =>
+    entry.parse(args[index], `${channel}#${index}`),
+  ) as ParsedArgs<S>
 }

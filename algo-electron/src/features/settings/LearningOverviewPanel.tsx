@@ -25,7 +25,9 @@ export function LearningOverviewPanel({ stats }: LearningOverviewPanelProps) {
           </Card>
           <Card padded={false} className="stats-card stats-card-wide">
             <div className="stats-label">最近活跃</div>
-            <div className="stats-value stats-value-sm">{formatLastActive(stats.lastActiveTime)}</div>
+            <div className="stats-value stats-value-sm">
+              {formatLastActive(stats.lastActiveTime)}
+            </div>
           </Card>
         </div>
       ) : (

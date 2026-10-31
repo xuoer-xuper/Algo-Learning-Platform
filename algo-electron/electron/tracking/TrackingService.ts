@@ -26,10 +26,9 @@ export interface TrackingServiceOptions {
 
 export class TrackingService {
   private readonly currentVisits = new Map<string, CurrentVisit>()
-  private readonly problemDetectedListeners = new Set<(
-    identity: ProblemIdentity,
-    source: TrackingPageIdentity | null,
-  ) => void>()
+  private readonly problemDetectedListeners = new Set<
+    (identity: ProblemIdentity, source: TrackingPageIdentity | null) => void
+  >()
   private readonly logger: Logger
   private readonly clock: () => number
   private readonly now: () => string
@@ -111,7 +110,11 @@ export class TrackingService {
     try {
       recomputeDailyStats(today)
     } catch (error) {
-      this.logger.warn('tracking.stats-recompute-failed', { phase: 'visit-start', day: today, error })
+      this.logger.warn('tracking.stats-recompute-failed', {
+        phase: 'visit-start',
+        day: today,
+        error,
+      })
     }
     this.logger.debug('tracking.visit-started', {
       windowId,

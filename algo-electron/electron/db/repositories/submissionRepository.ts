@@ -1,11 +1,6 @@
-export type {
-  FirstAcRow,
-  SubmissionRow,
-} from './submission/types'
+export type { FirstAcRow, SubmissionRow } from './submission/types'
 
-export {
-  upsertSubmission,
-} from './submission/mutations'
+export { upsertSubmission } from './submission/mutations'
 
 export {
   getFirstAcByProblemIds,
@@ -14,7 +9,4 @@ export {
   getSubmissionsByProblemAsc,
 } from './submission/queries'
 
-export {
-  recomputeProblemSubmissionState,
-  updateFirstAc,
-} from './submission/firstAc'
+export { recomputeProblemSubmissionState, updateFirstAc } from './submission/firstAc'

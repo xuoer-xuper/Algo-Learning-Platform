@@ -15,7 +15,7 @@ import {
   type UserScriptXhrRequestDetails,
   type UserScriptXhrResponseSnapshot,
 } from './userScriptRuntimeProtocol'
-import { errorName } from '../shared/errors'
+import { errorName, toRejectionError } from '../shared/errors'
 
 const MAX_REDIRECTS = 10
 const MAX_ACTIVE_REQUESTS = 64
@@ -57,10 +57,12 @@ export class UserScriptNetworkProxy {
   private readonly dependencies: UserScriptNetworkProxyDependencies
   private readonly activeRequests = new Map<string, AbortController>()
 
-  public constructor(dependencies: Partial<UserScriptNetworkProxyDependencies> & {
-    fetch: Session['fetch']
-    requestPermission: UserScriptNetworkProxyDependencies['requestPermission']
-  }) {
+  public constructor(
+    dependencies: Partial<UserScriptNetworkProxyDependencies> & {
+      fetch: Session['fetch']
+      requestPermission: UserScriptNetworkProxyDependencies['requestPermission']
+    },
+  ) {
     this.dependencies = {
       hasPermission: hasUserScriptHostPermission,
       markPermissionUsed: markUserScriptHostUsed,
@@ -78,11 +80,13 @@ export class UserScriptNetworkProxy {
     send: (event: UserScriptRuntimeEvent) => void,
   ): void {
     const portPrefix = operationId.slice(0, operationId.indexOf('\u0000') + 1)
-    const activeForPort = Array.from(this.activeRequests.keys()).filter(id => id.startsWith(portPrefix)).length
+    const activeForPort = Array.from(this.activeRequests.keys()).filter((id) =>
+      id.startsWith(portPrefix),
+    ).length
     if (
-      this.activeRequests.has(operationId)
-      || this.activeRequests.size >= MAX_ACTIVE_REQUESTS
-      || activeForPort >= MAX_ACTIVE_REQUESTS_PER_PORT
+      this.activeRequests.has(operationId) ||
+      this.activeRequests.size >= MAX_ACTIVE_REQUESTS ||
+      activeForPort >= MAX_ACTIVE_REQUESTS_PER_PORT
     ) {
       send({ type: 'xhr:failed', requestId, reason: 'error' })
       return
@@ -110,7 +114,8 @@ export class UserScriptNetworkProxy {
         send({ type: 'xhr:failed', requestId, reason: 'error' })
       })
       .finally(() => {
-        if (this.activeRequests.get(operationId) === controller) this.activeRequests.delete(operationId)
+        if (this.activeRequests.get(operationId) === controller)
+          this.activeRequests.delete(operationId)
       })
   }
 
@@ -135,13 +140,16 @@ export class UserScriptNetworkProxy {
     send: (event: UserScriptRuntimeEvent) => void,
   ): Promise<void> {
     let timedOut = false
-    const timer = details.timeout > 0
-      ? setTimeout(() => {
-          timedOut = true
-          const operation = Array.from(this.activeRequests.values()).find(candidate => candidate.signal === signal)
-          operation?.abort()
-        }, details.timeout)
-      : null
+    const timer =
+      details.timeout > 0
+        ? setTimeout(() => {
+            timedOut = true
+            const operation = Array.from(this.activeRequests.values()).find(
+              (candidate) => candidate.signal === signal,
+            )
+            operation?.abort()
+          }, details.timeout)
+        : null
 
     try {
       let url = details.url
@@ -151,13 +159,17 @@ export class UserScriptNetworkProxy {
       let previousOrigin: string | null = null
 
       for (let redirectCount = 0; redirectCount <= MAX_REDIRECTS; redirectCount += 1) {
-        if (signal.aborted) throw timedOut ? new UserScriptRequestTimeoutError() : new DOMException('Aborted', 'AbortError')
+        if (signal.aborted)
+          throw timedOut
+            ? new UserScriptRequestTimeoutError()
+            : new DOMException('Aborted', 'AbortError')
         const target = resolveUserScriptRequestTarget(url, this.dependencies.allowInsecureLocalhost)
         if (!target || !isUserScriptConnectDeclared(context.connects, context.frameUrl, target)) {
           throw new UserScriptRequestDeniedError()
         }
-        const authorized = this.dependencies.hasPermission(context.scriptId, target.permissionHost)
-          || await waitForAbort(this.dependencies.requestPermission(context, target), signal)
+        const authorized =
+          this.dependencies.hasPermission(context.scriptId, target.permissionHost) ||
+          (await waitForAbort(this.dependencies.requestPermission(context, target), signal))
         if (!authorized || signal.aborted) throw new UserScriptRequestDeniedError()
         this.dependencies.markPermissionUsed(context.scriptId, target.permissionHost)
 
@@ -169,7 +181,7 @@ export class UserScriptNetworkProxy {
         const response = await this.dependencies.fetch(target.url, {
           method,
           headers,
-          body: method === 'GET' || method === 'HEAD' ? undefined : body ?? undefined,
+          body: method === 'GET' || method === 'HEAD' ? undefined : (body ?? undefined),
           credentials: details.anonymous ? 'omit' : 'include',
           redirect: 'manual',
           signal,
@@ -184,18 +196,22 @@ export class UserScriptNetworkProxy {
           continue
         }
 
-        const responseSnapshot = await readResponse(response, target.url, details.responseType, signal, (loaded, total) => {
-          send({ type: 'xhr:progress', requestId, loaded, total })
-        })
+        const responseSnapshot = await readResponse(
+          response,
+          target.url,
+          details.responseType,
+          signal,
+          (loaded, total) => {
+            send({ type: 'xhr:progress', requestId, loaded, total })
+          },
+        )
         send({ type: 'xhr:complete', requestId, response: responseSnapshot })
         return
       }
-    }
-    catch (error) {
+    } catch (error) {
       if (timedOut) throw new UserScriptRequestTimeoutError()
       throw error
-    }
-    finally {
+    } finally {
       if (timer) clearTimeout(timer)
     }
   }
@@ -205,25 +221,36 @@ class UserScriptRequestDeniedError extends Error {}
 class UserScriptRequestTimeoutError extends Error {}
 
 function sanitizeRequestHeaders(headers: Record<string, string>): Record<string, string> {
-  return Object.fromEntries(Object.entries(headers).filter(([name]) => {
-    const lower = name.toLowerCase()
-    return !BLOCKED_REQUEST_HEADERS.has(lower) && !lower.startsWith('proxy-') && !lower.startsWith('sec-')
-  }))
+  return Object.fromEntries(
+    Object.entries(headers).filter(([name]) => {
+      const lower = name.toLowerCase()
+      return (
+        !BLOCKED_REQUEST_HEADERS.has(lower) &&
+        !lower.startsWith('proxy-') &&
+        !lower.startsWith('sec-')
+      )
+    }),
+  )
 }
 
 function stripCrossOriginSecrets(headers: Record<string, string>): Record<string, string> {
-  return Object.fromEntries(Object.entries(headers).filter(([name]) => {
-    const lower = name.toLowerCase()
-    return lower !== 'authorization' && lower !== 'proxy-authorization'
-  }))
+  return Object.fromEntries(
+    Object.entries(headers).filter(([name]) => {
+      const lower = name.toLowerCase()
+      return lower !== 'authorization' && lower !== 'proxy-authorization'
+    }),
+  )
 }
 
 function getRedirectUrl(response: Response, currentUrl: string): string | null {
   if (response.status < 300 || response.status >= 400) return null
   const location = response.headers.get('location')
   if (!location) return null
-  try { return new URL(location, currentUrl).toString() }
-  catch { throw new UserScriptRequestDeniedError() }
+  try {
+    return new URL(location, currentUrl).toString()
+  } catch {
+    throw new UserScriptRequestDeniedError()
+  }
 }
 
 function redirectMethod(status: number, method: string): { method: string; keepBody: boolean } {
@@ -306,7 +333,8 @@ function waitForAbort<T>(operation: Promise<T>, signal: AbortSignal): Promise<T>
       },
       (error: unknown) => {
         signal.removeEventListener('abort', handleAbort)
-        reject(error)
+        // 上游拒绝原因可能是非 Error（字符串/普通对象），包成 Error 才能让调用方拿到 message。
+        reject(toRejectionError(error))
       },
     )
   })

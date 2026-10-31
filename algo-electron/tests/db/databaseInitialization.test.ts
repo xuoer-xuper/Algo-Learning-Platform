@@ -27,10 +27,14 @@ vi.mock('better-sqlite3', async () => {
       prepare(sql: string) {
         if (sql.includes('sqlite_master')) return { get: () => ({ present: 1 }) }
         if (sql.startsWith('SELECT version')) {
-          return { all: () => fakeDatabaseState.appliedVersions.map(version => ({ version })) }
+          return { all: () => fakeDatabaseState.appliedVersions.map((version) => ({ version })) }
         }
         if (sql.startsWith('INSERT INTO schema_migrations')) {
-          return { run: (version: number) => { fakeDatabaseState.appliedVersions.push(version) } }
+          return {
+            run: (version: number) => {
+              fakeDatabaseState.appliedVersions.push(version)
+            },
+          }
         }
         if (sql.includes('UPDATE problem_visits')) {
           return { run: () => ({ changes: fakeDatabaseState.orphanChanges }) }
@@ -49,10 +53,7 @@ vi.mock('better-sqlite3', async () => {
   }
 })
 
-import {
-  closeDb,
-  initDbAtPathWithMigrationSafety,
-} from '../../electron/db/connection.ts'
+import { closeDb, initDbAtPathWithMigrationSafety } from '../../electron/db/connection.ts'
 import {
   getMigrationFailureMarkerPath,
   MigrationRetryBlockedError,
@@ -66,7 +67,9 @@ class MemoryLogger implements Logger {
   warn(): void {}
   error(): void {}
   fatal(): void {}
-  getLogFilePath(): null { return null }
+  getLogFilePath(): null {
+    return null
+  }
 }
 
 test('initializes asynchronously, clears stale markers, and records applied migrations', async () => {
@@ -106,25 +109,35 @@ test('restores failed migrations and blocks the same pending version', async () 
   fs.mkdirSync(path.dirname(databasePath), { recursive: true })
   fs.writeFileSync(databasePath, 'original')
 
-  const migrations = [{
-    version: 9001,
-    name: 'failure',
-    up: () => {
-      fs.writeFileSync(databasePath, 'mutated')
-      throw new Error('migration failed')
+  const migrations = [
+    {
+      version: 9001,
+      name: 'failure',
+      up: () => {
+        fs.writeFileSync(databasePath, 'mutated')
+        throw new Error('migration failed')
+      },
     },
-  }]
+  ]
 
   try {
     await assert.rejects(
-      initDbAtPathWithMigrationSafety(databasePath, { backupDir, migrations, logger: new MemoryLogger() }),
+      initDbAtPathWithMigrationSafety(databasePath, {
+        backupDir,
+        migrations,
+        logger: new MemoryLogger(),
+      }),
       /migration failed/,
     )
     assert.strictEqual(fs.readFileSync(databasePath, 'utf8'), 'original')
     assert.strictEqual(fs.existsSync(getMigrationFailureMarkerPath(backupDir, databasePath)), true)
 
     await assert.rejects(
-      initDbAtPathWithMigrationSafety(databasePath, { backupDir, migrations, logger: new MemoryLogger() }),
+      initDbAtPathWithMigrationSafety(databasePath, {
+        backupDir,
+        migrations,
+        logger: new MemoryLogger(),
+      }),
       MigrationRetryBlockedError,
     )
   } finally {

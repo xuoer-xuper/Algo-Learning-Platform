@@ -29,7 +29,9 @@ export class UserScriptMenuRegistry {
   }): boolean {
     const key = commandKey(input.portId, input.scriptId, input.commandId)
     if (!this.commands.has(key)) {
-      const perPort = Array.from(this.commands.values()).filter(command => command.portId === input.portId).length
+      const perPort = Array.from(this.commands.values()).filter(
+        (command) => command.portId === input.portId,
+      ).length
       if (perPort >= MAX_COMMANDS_PER_PORT || this.commands.size >= MAX_COMMANDS_TOTAL) return false
     }
     this.commands.set(key, { ...input, key })
@@ -54,11 +56,11 @@ export class UserScriptMenuRegistry {
 
   public getForWebContents(webContentsId: number): UserScriptMenuCommand[] {
     return Array.from(this.commands.values())
-      .filter(command => command.webContentsId === webContentsId)
-      .map(command => ({
+      .filter((command) => command.webContentsId === webContentsId)
+      .map((command) => ({
         scriptName: command.scriptName,
         name: command.name,
-        invoke: command.invoke,
+        invoke: () => command.invoke(),
       }))
   }
 

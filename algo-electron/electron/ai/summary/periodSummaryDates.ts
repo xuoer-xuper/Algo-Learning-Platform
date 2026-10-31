@@ -6,7 +6,10 @@ export function countInclusiveDays(start: string, end: string): number {
   return Math.round((endDate.getTime() - startDate.getTime()) / 86400000) + 1
 }
 
-export function getPreviousPeriod(start: string, end: string): { prevStart: string; prevEnd: string } {
+export function getPreviousPeriod(
+  start: string,
+  end: string,
+): { prevStart: string; prevEnd: string } {
   const startDate = new Date(`${start}T00:00:00`)
   const days = countInclusiveDays(start, end)
   const prevEnd = new Date(startDate.getTime() - 86400000)

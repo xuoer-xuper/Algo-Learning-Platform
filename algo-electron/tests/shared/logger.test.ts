@@ -50,7 +50,9 @@ test('logger serializes errors and circular values without throwing', () => {
     circular.self = circular
     logger.initialize(root)
 
-    assert.doesNotThrow(() => logger.error('failure', new Error('broken'), circular, undefined, null))
+    assert.doesNotThrow(() =>
+      logger.error('failure', new Error('broken'), circular, undefined, null),
+    )
     const output = fs.readFileSync(path.join(root, 'main.log'), 'utf8')
     assert.ok(output.includes('Error: broken'))
     assert.ok(output.includes('[circular]'))

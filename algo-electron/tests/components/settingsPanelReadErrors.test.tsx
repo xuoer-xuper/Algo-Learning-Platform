@@ -70,7 +70,13 @@ describe('LlmConfigPanel', () => {
   })
 
   it('读成功且确实没配置时，保留原有空态文案', async () => {
-    loadLlmConfig.mockResolvedValue({ has_key: false, key_masked: '', base_url: '', model: '', enabled: false } as LlmConfigStatus)
+    loadLlmConfig.mockResolvedValue({
+      has_key: false,
+      key_masked: '',
+      base_url: '',
+      model: '',
+      enabled: false,
+    } as LlmConfigStatus)
     render(<LlmConfigPanel />)
 
     expect(await screen.findByText('未配置 API Key，请先填写并保存')).not.toBeNull()
@@ -83,7 +89,9 @@ describe('CoachPanel', () => {
     coachGetConfig.mockRejectedValue(new Error('config.json 损坏'))
     render(<CoachPanel />)
 
-    expect((await screen.findByRole('alert')).textContent).toContain('读取配置失败：config.json 损坏')
+    expect((await screen.findByRole('alert')).textContent).toContain(
+      '读取配置失败：config.json 损坏',
+    )
     expect(screen.queryByText('加载中...')).toBeNull()
   })
 
@@ -91,7 +99,7 @@ describe('CoachPanel', () => {
     coachSaveConfig.mockRejectedValue(new Error('磁盘只读'))
     render(<CoachPanel />)
 
-    const sound = await screen.findByLabelText('提示声音') as HTMLInputElement
+    const sound = (await screen.findByLabelText('提示声音')) as HTMLInputElement
     expect(sound.checked).toBe(false)
 
     fireEvent.click(sound)

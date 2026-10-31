@@ -6,9 +6,18 @@ import {
 } from './genericTableColumns'
 import { extractGenericSubmissionId } from './genericTableIds'
 import type { GenericTableData, GenericTableScanOptions } from './genericTableTypes'
-import { normalizeGenericVerdict, normalizeText, parseMemoryKb, parseRuntimeMs } from './genericTableValueParsers'
+import {
+  normalizeGenericVerdict,
+  normalizeText,
+  parseMemoryKb,
+  parseRuntimeMs,
+} from './genericTableValueParsers'
 
-export type { GenericTableData, GenericTableRow, GenericTableScanOptions } from './genericTableTypes'
+export type {
+  GenericTableData,
+  GenericTableRow,
+  GenericTableScanOptions,
+} from './genericTableTypes'
 export { hasSubmissionLikeTable } from './genericTableColumns'
 
 export function selectBestSubmissionTable(tables: GenericTableData[]): GenericTableData | null {
@@ -26,7 +35,10 @@ export function selectBestSubmissionTable(tables: GenericTableData[]): GenericTa
   return bestTable
 }
 
-export function scanGenericSubmissionTable(table: GenericTableData, options: GenericTableScanOptions): SubmissionData[] {
+export function scanGenericSubmissionTable(
+  table: GenericTableData,
+  options: GenericTableScanOptions,
+): SubmissionData[] {
   if (!hasSubmissionLikeTable(table)) return []
 
   const headers = table.headers ?? []
@@ -37,7 +49,8 @@ export function scanGenericSubmissionTable(table: GenericTableData, options: Gen
   table.rows.forEach((row) => {
     if (row.texts.length < 2) return
 
-    const rawVerdict = columns.fallbackVerdictIdx >= 0 ? normalizeText(row.texts[columns.fallbackVerdictIdx]) : ''
+    const rawVerdict =
+      columns.fallbackVerdictIdx >= 0 ? normalizeText(row.texts[columns.fallbackVerdictIdx]) : ''
     const verdict = normalizeGenericVerdict(rawVerdict)
     if (verdict === 'UNKNOWN' && !rawVerdict) return
 
@@ -57,8 +70,14 @@ export function scanGenericSubmissionTable(table: GenericTableData, options: Gen
       verdict,
       rawVerdict,
       language: columns.langIdx >= 0 ? normalizeText(row.texts[columns.langIdx]) : undefined,
-      runtimeMs: columns.runtimeIdx >= 0 ? parseRuntimeMs(normalizeText(row.texts[columns.runtimeIdx])) : undefined,
-      memoryKb: columns.memoryIdx >= 0 ? parseMemoryKb(normalizeText(row.texts[columns.memoryIdx])) : undefined,
+      runtimeMs:
+        columns.runtimeIdx >= 0
+          ? parseRuntimeMs(normalizeText(row.texts[columns.runtimeIdx]))
+          : undefined,
+      memoryKb:
+        columns.memoryIdx >= 0
+          ? parseMemoryKb(normalizeText(row.texts[columns.memoryIdx]))
+          : undefined,
       submittedAt: options.now(),
       sourceUrl: (row.links ?? []).find(Boolean),
       rawJson: JSON.stringify({ headers, row }),

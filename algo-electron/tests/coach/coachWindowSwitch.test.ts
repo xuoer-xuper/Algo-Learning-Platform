@@ -48,13 +48,25 @@ describe('AsyncGenerationGate', () => {
     let state: string | null = null
     let resolveOld!: (value: string) => void
     let resolveCurrent!: (value: string) => void
-    const oldResult = new Promise<string>((resolve) => { resolveOld = resolve })
-    const currentResult = new Promise<string>((resolve) => { resolveCurrent = resolve })
+    const oldResult = new Promise<string>((resolve) => {
+      resolveOld = resolve
+    })
+    const currentResult = new Promise<string>((resolve) => {
+      resolveCurrent = resolve
+    })
 
     const oldGeneration = gate.next()
-    void oldResult.then((value) => gate.commit(oldGeneration, () => { state = value }))
+    void oldResult.then((value) =>
+      gate.commit(oldGeneration, () => {
+        state = value
+      }),
+    )
     const currentGeneration = gate.next()
-    void currentResult.then((value) => gate.commit(currentGeneration, () => { state = value }))
+    void currentResult.then((value) =>
+      gate.commit(currentGeneration, () => {
+        state = value
+      }),
+    )
 
     resolveOld('window-b')
     await oldResult

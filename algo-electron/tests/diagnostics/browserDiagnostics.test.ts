@@ -38,7 +38,9 @@ test('title silent fallbacks publish injectable diagnostics', async () => {
     getWindowId: () => 'window-1',
     isPageActive: () => true,
     getTitleForPage: () => undefined,
-    executeScriptForPage: async () => { throw new Error('fallback failed') },
+    executeScriptForPage: async () => {
+      throw new Error('fallback failed')
+    },
   }
 
   installProblemTitleTracking({

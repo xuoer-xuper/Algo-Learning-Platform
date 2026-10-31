@@ -47,10 +47,16 @@ function createMockClient(
 
 test('returns and normalizes a structured reply', async () => {
   const { client, state } = createMockClient(async () => ({
-    choices: [{ message: { content: JSON.stringify({
-      message: 'Check the smallest boundary first.',
-      hint_type: 'boundary',
-    }) } }],
+    choices: [
+      {
+        message: {
+          content: JSON.stringify({
+            message: 'Check the smallest boundary first.',
+            hint_type: 'boundary',
+          }),
+        },
+      },
+    ],
     model: 'ark-structured',
   }))
   client.init(config)
@@ -84,13 +90,19 @@ test('returns free chat text without requesting JSON mode', async () => {
 
 test('reports prompt and completion token usage', async () => {
   const { client } = createMockClient(async () => ({
-    choices: [{ message: { content: JSON.stringify({
-      message: 'Inspect the transition.',
-      hint_type: 'strategy',
-      related_tags: ['dp'],
-      confidence: 0.8,
-      reveals_solution: false,
-    }) } }],
+    choices: [
+      {
+        message: {
+          content: JSON.stringify({
+            message: 'Inspect the transition.',
+            hint_type: 'strategy',
+            related_tags: ['dp'],
+            confidence: 0.8,
+            reveals_solution: false,
+          }),
+        },
+      },
+    ],
     usage: { prompt_tokens: 123, completion_tokens: 45 },
   }))
   client.init(config)
@@ -120,14 +132,17 @@ test('rejects invalid structured JSON without exposing more than the response pr
   }))
   client.init(config)
 
-  await assert.rejects(async () => {
-    await client.chat(messages, { target_level: 2 })
-  }, (error: unknown) => {
-    assert(error instanceof Error)
-    assert.match(error.message, /^LLM returned invalid JSON:/)
-    assert(error.message.length < invalid.length)
-    return true
-  })
+  await assert.rejects(
+    async () => {
+      await client.chat(messages, { target_level: 2 })
+    },
+    (error: unknown) => {
+      assert(error instanceof Error)
+      assert.match(error.message, /^LLM returned invalid JSON:/)
+      assert(error.message.length < invalid.length)
+      return true
+    },
+  )
 })
 
 test('returns a connection failure without issuing a real network request', async () => {

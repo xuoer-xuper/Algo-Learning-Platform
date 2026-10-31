@@ -33,8 +33,8 @@
 ```powershell
 cd algo-electron
 npx vitest run tests/downloads
-npm run typecheck
-npm run test:security
+pnpm run typecheck
+pnpm run test:security
 ```
 
 接线完成后追加真实 Electron 手测：普通文件成功/取消/中断、同名并发下载、离线失败，以及 `.user.js` 当前标签和新标签导航。

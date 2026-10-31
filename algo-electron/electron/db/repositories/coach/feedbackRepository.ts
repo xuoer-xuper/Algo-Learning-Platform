@@ -1,10 +1,7 @@
 import crypto from 'node:crypto'
 import { getDb } from '../../connection'
 import { nowBeijing, todayBeijing } from '../../../shared/time'
-import type {
-  CoachEventType,
-  CoachFeedbackType,
-} from '../../../coach/types'
+import type { CoachEventType, CoachFeedbackType } from '../../../coach/types'
 
 /**
  * Coach 用户反馈 repository。
@@ -37,11 +34,13 @@ export interface InsertCoachFeedbackInput {
 export function insertCoachFeedback(input: InsertCoachFeedbackInput): string {
   const id = crypto.randomUUID()
   const db = getDb()
-  db.prepare(`
+  db.prepare(
+    `
     INSERT INTO coach_feedback
       (feedback_id, intervention_id, bubble_id, feedback_type, event_type, problem_id, local_day, created_at)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(
+  `,
+  ).run(
     id,
     input.intervention_id ?? null,
     input.bubble_id ?? null,
@@ -67,9 +66,7 @@ export function listCoachFeedback(limit = 50): CoachFeedbackRow[] {
 export function listCoachFeedbackSince(since: string, limit = 2000): CoachFeedbackRow[] {
   const db = getDb()
   return db
-    .prepare(
-      'SELECT * FROM coach_feedback WHERE created_at >= ? ORDER BY created_at DESC LIMIT ?',
-    )
+    .prepare('SELECT * FROM coach_feedback WHERE created_at >= ? ORDER BY created_at DESC LIMIT ?')
     .all(since, limit) as CoachFeedbackRow[]
 }
 
@@ -89,10 +86,7 @@ export function getNeverTodayEventTypes(day?: string): Set<CoachEventType> {
   return new Set(rows.map((r) => r.event_type as CoachEventType))
 }
 
-export function countFeedbackByTypeSince(
-  feedbackType: CoachFeedbackType,
-  since: string,
-): number {
+export function countFeedbackByTypeSince(feedbackType: CoachFeedbackType, since: string): number {
   const db = getDb()
   const row = db
     .prepare(

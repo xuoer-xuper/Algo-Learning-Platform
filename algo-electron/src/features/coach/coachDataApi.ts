@@ -106,15 +106,11 @@ export function sendCoachChatMessage(params: {
 
 // ---------- 主进程推送订阅 ----------
 
-export function subscribeCoachPetState(
-  callback: (state: CoachPetState) => void,
-): () => void {
+export function subscribeCoachPetState(callback: (state: CoachPetState) => void): () => void {
   return window.electronAPI.onCoachPetStateChanged(callback)
 }
 
-export function subscribeCoachConfig(
-  callback: (config: CoachConfig) => void,
-): () => void {
+export function subscribeCoachConfig(callback: (config: CoachConfig) => void): () => void {
   return window.electronAPI.onCoachConfigChanged(callback)
 }
 
@@ -137,9 +133,7 @@ export function subscribeCoachContestMode(
 // ---------- 复盘与指标 ----------
 
 /** 单题时间轴复盘数据（Task 18） */
-export function loadProblemTimeline(
-  problemId: string,
-): Promise<ProblemTimelineData | null> {
+export function loadProblemTimeline(problemId: string): Promise<ProblemTimelineData | null> {
   return window.electronAPI.coachGetProblemTimeline(problemId)
 }
 

@@ -18,7 +18,9 @@ function formatCounts(counts?: Record<string, number>): string {
 
 export function BackupPanel() {
   const [status, setStatus] = useState('')
-  const [importPreview, setImportPreview] = useState<LearningDataImportPreviewResult['preview'] | null>(null)
+  const [importPreview, setImportPreview] = useState<
+    LearningDataImportPreviewResult['preview'] | null
+  >(null)
   const [importing, setImporting] = useState(false)
 
   const handleBackup = async () => {
@@ -30,9 +32,9 @@ export function BackupPanel() {
   const handleExport = async () => {
     setStatus('导出中...')
     const result = await exportLearningData()
-    setStatus(result.success
-      ? `导出完成: ${formatCounts(result.counts)}`
-      : `导出失败: ${result.error}`)
+    setStatus(
+      result.success ? `导出完成: ${formatCounts(result.counts)}` : `导出失败: ${result.error}`,
+    )
   }
 
   const handlePreviewImport = async () => {
@@ -44,9 +46,8 @@ export function BackupPanel() {
       return
     }
     setImportPreview(result.preview)
-    const conflictText = result.preview.conflicts.length > 0
-      ? `，冲突 ${result.preview.conflicts.length} 项`
-      : ''
+    const conflictText =
+      result.preview.conflicts.length > 0 ? `，冲突 ${result.preview.conflicts.length} 项` : ''
     setStatus(`导入预览完成: ${formatCounts(result.preview.counts)}${conflictText}`)
   }
 
@@ -59,7 +60,9 @@ export function BackupPanel() {
         setStatus(`导入失败: ${result.error ?? '存在冲突'}`)
         return
       }
-      setStatus(`导入完成: 新增 ${formatCounts(result.inserted)}，更新 ${formatCounts(result.updated)}，跳过 ${formatCounts(result.skipped)}`)
+      setStatus(
+        `导入完成: 新增 ${formatCounts(result.inserted)}，更新 ${formatCounts(result.updated)}，跳过 ${formatCounts(result.skipped)}`,
+      )
       setImportPreview(null)
     } finally {
       setImporting(false)
@@ -79,7 +82,9 @@ export function BackupPanel() {
 
       {importPreview && (
         <div className="sync-status">
-          预览: 新增 {formatCounts(importPreview.new_counts) || '0'}，重复 {formatCounts(importPreview.duplicate_counts) || '0'}，冲突 {importPreview.conflicts.length}
+          预览: 新增 {formatCounts(importPreview.new_counts) || '0'}，重复{' '}
+          {formatCounts(importPreview.duplicate_counts) || '0'}，冲突{' '}
+          {importPreview.conflicts.length}
           <div className="settings-row">
             <Button
               variant="primary"
@@ -100,7 +105,10 @@ export function BackupPanel() {
       )}
 
       {status && <div className="sync-status">{status}</div>}
-      <div className="sync-hint">JSON 导出仅包含学习数据，不包含登录态、原始调试载荷、日志或本机路径；完整备份请用数据库备份，数据库备份含本机敏感数据，仅用于受保护的本机恢复。</div>
+      <div className="sync-hint">
+        JSON
+        导出仅包含学习数据，不包含登录态、原始调试载荷、日志或本机路径；完整备份请用数据库备份，数据库备份含本机敏感数据，仅用于受保护的本机恢复。
+      </div>
     </div>
   )
 }

@@ -4,7 +4,10 @@ import { afterEach, beforeEach, test } from 'vitest'
 // 真实 Electron 的 IpcMain 类型上并不存在。
 import { ipcMain, MockWebContents, resetElectronMock } from '../electron/electronMock'
 import type { BrowserPageEvent, TabManager } from '../../electron/browser/TabManager.ts'
-import { registerOjWebContents, resetTrustedSenderRegistry } from '../../electron/ipc/trustedSender.ts'
+import {
+  registerOjWebContents,
+  resetTrustedSenderRegistry,
+} from '../../electron/ipc/trustedSender.ts'
 import type { Logger } from '../../electron/shared/logger.ts'
 import { RealtimeSubmissionService } from '../../electron/submissions/RealtimeSubmissionService.ts'
 
@@ -14,7 +17,9 @@ function createLogger(warnings: unknown[][]): Logger {
   return {
     debug: () => undefined,
     info: () => undefined,
-    warn: (...args) => { warnings.push(args) },
+    warn: (...args) => {
+      warnings.push(args)
+    },
     error: () => undefined,
     fatal: () => undefined,
     getLogFilePath: () => null,
@@ -26,7 +31,9 @@ function createTabManager() {
   const manager = {
     addPageEventListener(callback: (event: BrowserPageEvent) => void) {
       listener = callback
-      return () => { listener = null }
+      return () => {
+        listener = null
+      }
     },
     getTitleForPage: () => 'Owned page title',
     executeScriptAcrossFramesForPage: async () => undefined,
@@ -53,10 +60,7 @@ afterEach(() => {
 })
 
 async function pullDocumentToken(sender: MockWebContents): Promise<string> {
-  const token = await ipcMain.invokeHandler(
-    'oj-submission:getDocumentToken',
-    eventFor(sender),
-  )
+  const token = await ipcMain.invokeHandler('oj-submission:getDocumentToken', eventFor(sender))
   return token as string
 }
 
@@ -64,9 +68,11 @@ test('realtime submission IPC requires a current exact page owner', async () => 
   const warnings: unknown[][] = []
   const service = new RealtimeSubmissionService(() => undefined, createLogger(warnings))
   const detections: unknown[] = []
-  const watcher = (service as unknown as {
-    watcher: { handleDetected(payload: unknown): { inserted: boolean } }
-  }).watcher
+  const watcher = (
+    service as unknown as {
+      watcher: { handleDetected(payload: unknown): { inserted: boolean } }
+    }
+  ).watcher
   watcher.handleDetected = (payload) => {
     detections.push(payload)
     return { inserted: true }
@@ -77,7 +83,11 @@ test('realtime submission IPC requires a current exact page owner', async () => 
   await sender.loadURL('https://leetcode.cn/problems/two-sum/')
   registerOjWebContents(sender)
   ipcMain.emit(CHANNEL, eventFor(sender), { token: 'a'.repeat(32), payload: { meta: {} } })
-  assert.strictEqual(detections.length, 0, 'A registered OJ sender without a page owner must fail closed')
+  assert.strictEqual(
+    detections.length,
+    0,
+    'A registered OJ sender without a page owner must fail closed',
+  )
 
   const tabManager = createTabManager()
   service.attachTabManager(tabManager.manager)
@@ -96,12 +106,20 @@ test('realtime submission IPC requires a current exact page owner', async () => 
 
   await sender.loadURL('https://leetcode.cn/problems/three-sum/')
   ipcMain.emit(CHANNEL, eventFor(sender), { token: documentToken, payload: { meta: {} } })
-  assert.strictEqual(detections.length, 1, 'A page owner from the previous navigation must fail closed')
+  assert.strictEqual(
+    detections.length,
+    1,
+    'A page owner from the previous navigation must fail closed',
+  )
 
   tabManager.emit({ ...pageEvent, url: sender.getURL() })
   service.detachTabManager(tabManager.manager)
   ipcMain.emit(CHANNEL, eventFor(sender), { token: documentToken, payload: { meta: {} } })
-  assert.strictEqual(detections.length, 1, 'A detached window must not retain submission page ownership')
+  assert.strictEqual(
+    detections.length,
+    1,
+    'A detached window must not retain submission page ownership',
+  )
   assert.ok(warnings.some(([message]) => message === 'realtime-submission.sender-page-unresolved'))
 
   service.dispose()
@@ -111,9 +129,11 @@ test('the document token is pull-based, stable per webContents and dropped on de
   const warnings: unknown[][] = []
   const service = new RealtimeSubmissionService(() => undefined, createLogger(warnings))
   const detections: unknown[] = []
-  const watcher = (service as unknown as {
-    watcher: { handleDetected(payload: unknown): { inserted: boolean } }
-  }).watcher
+  const watcher = (
+    service as unknown as {
+      watcher: { handleDetected(payload: unknown): { inserted: boolean } }
+    }
+  ).watcher
   watcher.handleDetected = (payload) => {
     detections.push(payload)
     return { inserted: true }
@@ -122,7 +142,9 @@ test('the document token is pull-based, stable per webContents and dropped on de
 
   // Hook injection reads site config from SQLite; this test only covers token
   // lifetime, so the injector is stubbed to keep it database-free.
-  ;(service as unknown as { hookInjector: { inject(): void } }).hookInjector = { inject: () => undefined }
+  ;(service as unknown as { hookInjector: { inject(): void } }).hookInjector = {
+    inject: () => undefined,
+  }
 
   const sender = new MockWebContents()
   await sender.loadURL('https://codeforces.com/problemset/problem/1/A')
@@ -152,7 +174,9 @@ test('the document token is pull-based, stable per webContents and dropped on de
 
   ipcMain.emit(CHANNEL, eventFor(sender), { token: 'b'.repeat(32), payload: { meta: {} } })
   assert.strictEqual(detections.length, 1, 'A forged token must fail closed')
-  assert.ok(warnings.some(([message]) => message === 'realtime-submission.sender-document-token-mismatch'))
+  assert.ok(
+    warnings.some(([message]) => message === 'realtime-submission.sender-document-token-mismatch'),
+  )
 
   tabManager.emit({ ...pageEvent, reason: 'destroyed' })
   const afterDestroy = await pullDocumentToken(sender)

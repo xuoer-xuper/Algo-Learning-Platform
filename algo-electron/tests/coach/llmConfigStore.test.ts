@@ -20,9 +20,10 @@ function createHarness(options: StoreHarnessOptions = {}) {
     scale: 1,
     opacity: 1,
     pinMode: 'follow',
-    llm: options.encryptedApiKey === undefined
-      ? undefined
-      : { encrypted_api_key: options.encryptedApiKey },
+    llm:
+      options.encryptedApiKey === undefined
+        ? undefined
+        : { encrypted_api_key: options.encryptedApiKey },
   }
   const saved: Array<Partial<CoachConfig>> = []
 
@@ -30,7 +31,8 @@ function createHarness(options: StoreHarnessOptions = {}) {
     safeStorage: {
       isEncryptionAvailable: () => options.encryptionAvailable ?? true,
       encryptString: options.encrypt ?? ((value) => Buffer.from(`encrypted:${value}`)),
-      decryptString: options.decrypt ?? ((value) => value.toString('utf8').replace(/^encrypted:/, '')),
+      decryptString:
+        options.decrypt ?? ((value) => value.toString('utf8').replace(/^encrypted:/, '')),
     },
     loadCoachConfig: () => config,
     saveCoachConfig: (partial) => {
@@ -50,62 +52,70 @@ async function runTests(): Promise<void> {
   delete process.env.ARK_DEMO_KEY
 
   try {
-  {
-    const { store, saved } = createHarness({ encryptionAvailable: false })
-    assert.strictEqual(store.saveApiKey('secret-key'), false)
-    assert.deepStrictEqual(saved, [])
-  }
+    {
+      const { store, saved } = createHarness({ encryptionAvailable: false })
+      assert.strictEqual(store.saveApiKey('secret-key'), false)
+      assert.deepStrictEqual(saved, [])
+    }
 
-  {
-    const { store, saved } = createHarness({
-      encrypt: () => { throw new Error('encryption failed') },
-    })
-    assert.strictEqual(store.saveApiKey('secret-key'), false)
-    assert.deepStrictEqual(saved, [])
-  }
+    {
+      const { store, saved } = createHarness({
+        encrypt: () => {
+          throw new Error('encryption failed')
+        },
+      })
+      assert.strictEqual(store.saveApiKey('secret-key'), false)
+      assert.deepStrictEqual(saved, [])
+    }
 
-  {
-    const { store } = createHarness({
-      save: () => { throw new Error('disk is read-only') },
-    })
-    assert.strictEqual(store.saveApiKey('secret-key'), false)
-  }
+    {
+      const { store } = createHarness({
+        save: () => {
+          throw new Error('disk is read-only')
+        },
+      })
+      assert.strictEqual(store.saveApiKey('secret-key'), false)
+    }
 
-  {
-    const { store, getConfig } = createHarness()
-    assert.strictEqual(store.saveApiKey('secret-key'), true)
-    assert.strictEqual(
-      getConfig().llm?.encrypted_api_key,
-      Buffer.from('encrypted:secret-key').toString('base64'),
-    )
-  }
+    {
+      const { store, getConfig } = createHarness()
+      assert.strictEqual(store.saveApiKey('secret-key'), true)
+      assert.strictEqual(
+        getConfig().llm?.encrypted_api_key,
+        Buffer.from('encrypted:secret-key').toString('base64'),
+      )
+    }
 
-  {
-    const { store, getConfig } = createHarness({ encryptedApiKey: 'plain:legacy-key' })
-    assert.strictEqual(store.load().api_key, 'legacy-key')
-    assert.strictEqual(
-      getConfig().llm?.encrypted_api_key,
-      Buffer.from('encrypted:legacy-key').toString('base64'),
-    )
-  }
+    {
+      const { store, getConfig } = createHarness({ encryptedApiKey: 'plain:legacy-key' })
+      assert.strictEqual(store.load().api_key, 'legacy-key')
+      assert.strictEqual(
+        getConfig().llm?.encrypted_api_key,
+        Buffer.from('encrypted:legacy-key').toString('base64'),
+      )
+    }
 
-  {
-    const { store, getConfig } = createHarness({
-      encryptionAvailable: false,
-      encryptedApiKey: 'plain:legacy-key',
-    })
-    assert.strictEqual(store.load().api_key, '')
-    assert.strictEqual(getConfig().llm?.encrypted_api_key, '')
-  }
+    {
+      const { store, getConfig } = createHarness({
+        encryptionAvailable: false,
+        encryptedApiKey: 'plain:legacy-key',
+      })
+      assert.strictEqual(store.load().api_key, '')
+      assert.strictEqual(getConfig().llm?.encrypted_api_key, '')
+    }
 
-  {
-    const { store } = createHarness({
-      encryptedApiKey: 'plain:legacy-key',
-      encrypt: () => { throw new Error('migration failed') },
-      save: () => { throw new Error('cleanup failed') },
-    })
-    assert.strictEqual(store.load().api_key, '')
-  }
+    {
+      const { store } = createHarness({
+        encryptedApiKey: 'plain:legacy-key',
+        encrypt: () => {
+          throw new Error('migration failed')
+        },
+        save: () => {
+          throw new Error('cleanup failed')
+        },
+      })
+      assert.strictEqual(store.load().api_key, '')
+    }
   } finally {
     if (previousDemoKey === undefined) {
       delete process.env.ARK_DEMO_KEY
@@ -114,7 +124,9 @@ async function runTests(): Promise<void> {
     }
   }
 
-  console.log('[PASS] LLM API keys require safe encrypted persistence and legacy plaintext is cleared')
+  console.log(
+    '[PASS] LLM API keys require safe encrypted persistence and legacy plaintext is cleared',
+  )
 }
 
 runTests()

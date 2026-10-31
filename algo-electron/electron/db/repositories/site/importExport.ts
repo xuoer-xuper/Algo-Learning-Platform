@@ -1,6 +1,13 @@
 import { nowBeijing } from '../../../shared/time'
+import { unknownToText } from '../../../shared/textCoercion'
 import { createSite, getAllSites, getSiteById, updateSite } from './crud'
-import type { ImportConflict, ImportPreview, ImportPreviewResult, SiteConfigData, SitesExportData } from './types'
+import type {
+  ImportConflict,
+  ImportPreview,
+  ImportPreviewResult,
+  SiteConfigData,
+  SitesExportData,
+} from './types'
 import { parseImportedSite } from './types'
 
 export function exportSitesConfig(): SitesExportData {
@@ -18,7 +25,7 @@ export function previewImportSites(data: unknown): ImportPreviewResult {
 
   const payload = data as { version?: unknown; sites?: unknown }
   if (payload.version !== 1) {
-    return { valid: false, error: `不支持的配置版本: ${payload.version}` }
+    return { valid: false, error: `不支持的配置版本: ${unknownToText(payload.version)}` }
   }
 
   if (!Array.isArray(payload.sites)) {
@@ -40,7 +47,12 @@ export function previewImportSites(data: unknown): ImportPreviewResult {
       if (existing.isBuiltin) {
         preview.builtinSkipped.push(site)
       } else {
-        preview.conflicts.push({ id: site.id, name: site.name, existing, incoming: site } satisfies ImportConflict)
+        preview.conflicts.push({
+          id: site.id,
+          name: site.name,
+          existing,
+          incoming: site,
+        } satisfies ImportConflict)
       }
     } else {
       preview.newSites.push(site)
@@ -60,7 +72,10 @@ export function previewImportSites(data: unknown): ImportPreviewResult {
  *
  * 通道上的形状校验拦不住这个：id 和字段形状都是合法的，越权发生在语义层。
  */
-export function confirmImportSites(sites: SiteConfigData[], overwriteIds: string[]): { imported: number; overwritten: number } {
+export function confirmImportSites(
+  sites: SiteConfigData[],
+  overwriteIds: string[],
+): { imported: number; overwritten: number } {
   let imported = 0
   let overwritten = 0
 

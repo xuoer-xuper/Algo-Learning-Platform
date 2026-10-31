@@ -41,11 +41,13 @@ beforeEach(() => {
   tabApi.getBrowserTabList.mockResolvedValue([initialTab])
   tabApi.finishBrowserTabDrag.mockResolvedValue(true)
   tabApi.moveBrowserTabToNewWindow.mockResolvedValue(true)
-  tabApi.subscribeTabListChanged.mockImplementation((callback: (tabs: TabStripTabInfo[]) => void) => {
-    tabApi.listener = callback
-    callback([initialTab])
-    return tabApi.unsubscribe
-  })
+  tabApi.subscribeTabListChanged.mockImplementation(
+    (callback: (tabs: TabStripTabInfo[]) => void) => {
+      tabApi.listener = callback
+      callback([initialTab])
+      return tabApi.unsubscribe
+    },
+  )
   Object.defineProperty(window, 'matchMedia', {
     configurable: true,
     value: vi.fn(() => ({ matches: false })),
@@ -74,29 +76,36 @@ describe('TabStrip', () => {
   })
 
   it('subscribes before requesting the current restored tab list', async () => {
-    tabApi.subscribeTabListChanged.mockImplementation((callback: (tabs: TabStripTabInfo[]) => void) => {
-      tabApi.listener = callback
-      return tabApi.unsubscribe
-    })
+    tabApi.subscribeTabListChanged.mockImplementation(
+      (callback: (tabs: TabStripTabInfo[]) => void) => {
+        tabApi.listener = callback
+        return tabApi.unsubscribe
+      },
+    )
 
     render(<TabStrip />)
 
     expect(tabApi.subscribeTabListChanged).toHaveBeenCalledOnce()
     expect(tabApi.getBrowserTabList).toHaveBeenCalledOnce()
-    expect(tabApi.subscribeTabListChanged.mock.invocationCallOrder[0])
-      .toBeLessThan(tabApi.getBrowserTabList.mock.invocationCallOrder[0])
+    expect(tabApi.subscribeTabListChanged.mock.invocationCallOrder[0]).toBeLessThan(
+      tabApi.getBrowserTabList.mock.invocationCallOrder[0],
+    )
     expect(await screen.findByRole('tab', { name: 'Example' })).not.toBeNull()
   })
 
   it('does not let a late initial list overwrite a newer list-changed event', async () => {
     let resolveInitial: ((tabs: TabStripTabInfo[]) => void) | undefined
-    tabApi.getBrowserTabList.mockReturnValue(new Promise((resolve) => {
-      resolveInitial = resolve
-    }))
-    tabApi.subscribeTabListChanged.mockImplementation((callback: (tabs: TabStripTabInfo[]) => void) => {
-      tabApi.listener = callback
-      return tabApi.unsubscribe
-    })
+    tabApi.getBrowserTabList.mockReturnValue(
+      new Promise((resolve) => {
+        resolveInitial = resolve
+      }),
+    )
+    tabApi.subscribeTabListChanged.mockImplementation(
+      (callback: (tabs: TabStripTabInfo[]) => void) => {
+        tabApi.listener = callback
+        return tabApi.unsubscribe
+      },
+    )
     render(<TabStrip />)
 
     act(() => {
@@ -116,13 +125,17 @@ describe('TabStrip', () => {
   it('unsubscribes and ignores the initial list after unmount', async () => {
     let resolveInitial: ((tabs: TabStripTabInfo[]) => void) | undefined
     const onTabUrlChange = vi.fn()
-    tabApi.getBrowserTabList.mockReturnValue(new Promise((resolve) => {
-      resolveInitial = resolve
-    }))
-    tabApi.subscribeTabListChanged.mockImplementation((callback: (tabs: TabStripTabInfo[]) => void) => {
-      tabApi.listener = callback
-      return tabApi.unsubscribe
-    })
+    tabApi.getBrowserTabList.mockReturnValue(
+      new Promise((resolve) => {
+        resolveInitial = resolve
+      }),
+    )
+    tabApi.subscribeTabListChanged.mockImplementation(
+      (callback: (tabs: TabStripTabInfo[]) => void) => {
+        tabApi.listener = callback
+        return tabApi.unsubscribe
+      },
+    )
     const { unmount } = render(<TabStrip onTabUrlChange={onTabUrlChange} />)
 
     unmount()
@@ -144,34 +157,76 @@ describe('TabStrip', () => {
     expect(screen.getByLabelText('正在加载')).not.toBeNull()
 
     act(() => {
+      tabApi.listener?.([{ ...initialTab, title: '', isLoading: true }])
+    })
+    expect(screen.getByRole('tab').getAttribute('aria-label')).toBe('正在加载')
+
+    act(() => {
       tabApi.listener?.([{ ...initialTab, favicon: 'https://example.com/favicon.ico' }])
     })
     const favicon = container.querySelector<HTMLImageElement>('.tab-item-favicon')
     expect(favicon?.src).toBe('https://example.com/favicon.ico')
-    expect(favicon?.getAttribute('referrerpolicy')).toBe('no-referrer')
+    // 必须不带 referrerPolicy：AcWing 图标 CDN 做空 Referer 防盗链（无 Referer 一律
+    // 403），显式 no-referrer 会让它的图标永远 403；默认策略
+    // （strict-origin-when-cross-origin）让跨源请求携带 Referer。
+    expect(favicon?.hasAttribute('referrerpolicy')).toBe(false)
 
     act(() => {
-      tabApi.listener?.([{
-        ...initialTab,
-        kind: 'internal',
-        page: { type: 'home' },
-        url: 'algo://home',
-        favicon: null,
-      }])
+      tabApi.listener?.([
+        {
+          ...initialTab,
+          kind: 'internal',
+          page: { type: 'home' },
+          url: 'algo://home',
+          favicon: null,
+        },
+      ])
     })
     expect(container.querySelector('[data-icon="home"]')).not.toBeNull()
   })
 
-  it('closes a tab with the middle mouse button after the close animation', () => {
+  it('falls back to the globe on favicon load failure and retries optimistically on a new url', () => {
+    const { container } = render(<TabStrip />)
+
+    act(() => {
+      tabApi.listener?.([{ ...initialTab, favicon: 'https://example.com/favicon.ico' }])
+    })
+    // 乐观渲染：img 先挂载，加载结果未知前不显示 globe。
+    const favicon = container.querySelector<HTMLImageElement>('.tab-item-favicon')
+    if (!favicon) throw new Error('favicon img missing')
+    expect(container.querySelector('[data-icon="globe"]')).toBeNull()
+
+    // 兜底机制是原生 error 监听（React onError 会丢首错），jsdom 的 img 不会
+    // 自发加载，用 fireEvent.error 驱动真实监听路径：失败 → globe，不再有空白槽。
+    fireEvent.error(favicon)
+    expect(container.querySelector('.tab-item-favicon')).toBeNull()
+    expect(container.querySelector('[data-icon="globe"]')).not.toBeNull()
+
+    // 失败记录只绑定旧地址：favicon 换新 URL 时 img 乐观重挂重试。
+    act(() => {
+      tabApi.listener?.([{ ...initialTab, favicon: 'https://example.com/favicon-v2.ico' }])
+    })
+    expect(container.querySelector<HTMLImageElement>('.tab-item-favicon')?.src).toBe(
+      'https://example.com/favicon-v2.ico',
+    )
+    expect(container.querySelector('[data-icon="globe"]')).toBeNull()
+  })
+
+  it('closes a non-last tab with the middle mouse button after the close animation', () => {
     vi.useFakeTimers()
     render(<TabStrip />)
-    const tabElement = screen.getByRole('tab', { name: 'Example' })
+    act(() => {
+      tabApi.listener?.([initialTab, tab('tab-2', 'Second'), tab('tab-3', 'Third')])
+    })
+    const tabElement = screen.getByRole('tab', { name: 'Second' })
 
     fireEvent(tabElement, new MouseEvent('auxclick', { bubbles: true, button: 1 }))
     expect(tabApi.closeBrowserTab).not.toHaveBeenCalled()
 
-    act(() => { vi.advanceTimersByTime(140) })
-    expect(tabApi.closeBrowserTab).toHaveBeenCalledWith('tab-1')
+    act(() => {
+      vi.advanceTimersByTime(140)
+    })
+    expect(tabApi.closeBrowserTab).toHaveBeenCalledWith('tab-2')
   })
 
   it('does not close a tab for other auxiliary buttons', () => {
@@ -185,11 +240,13 @@ describe('TabStrip', () => {
 
   it('reorders with a pointer drag and suppresses the click released after dragging', () => {
     const tabs = [tab('tab-1', 'First', true), tab('tab-2', 'Second'), tab('tab-3', 'Third')]
-    tabApi.subscribeTabListChanged.mockImplementation((callback: (tabs: TabStripTabInfo[]) => void) => {
-      tabApi.listener = callback
-      callback(tabs)
-      return tabApi.unsubscribe
-    })
+    tabApi.subscribeTabListChanged.mockImplementation(
+      (callback: (tabs: TabStripTabInfo[]) => void) => {
+        tabApi.listener = callback
+        callback(tabs)
+        return tabApi.unsubscribe
+      },
+    )
     const { container } = render(<TabStrip />)
     const items = Array.from(container.querySelectorAll<HTMLElement>('[data-tab-id]'))
     items.forEach((item, index) => {
@@ -229,11 +286,13 @@ describe('TabStrip', () => {
 
   it('navigates tabs with arrow, Home and End keys', () => {
     const tabs = [tab('tab-1', 'First', true), tab('tab-2', 'Second'), tab('tab-3', 'Third')]
-    tabApi.subscribeTabListChanged.mockImplementation((callback: (tabs: TabStripTabInfo[]) => void) => {
-      tabApi.listener = callback
-      callback(tabs)
-      return tabApi.unsubscribe
-    })
+    tabApi.subscribeTabListChanged.mockImplementation(
+      (callback: (tabs: TabStripTabInfo[]) => void) => {
+        tabApi.listener = callback
+        callback(tabs)
+        return tabApi.unsubscribe
+      },
+    )
     render(<TabStrip />)
     const first = screen.getByRole('tab', { name: 'First' })
     const second = screen.getByRole('tab', { name: 'Second' })
@@ -269,11 +328,33 @@ describe('TabStrip', () => {
     expect(strip.scrollLeft).toBe(80)
   })
 
-  it('moves a tab to a complete new shell on double click', () => {
+  it('double click no longer detaches a tab (drag is the only detach gesture)', () => {
     render(<TabStrip />)
 
     fireEvent.doubleClick(screen.getByRole('tab', { name: 'Example' }))
 
-    expect(tabApi.moveBrowserTabToNewWindow).toHaveBeenCalledWith('tab-1')
+    expect(tabApi.moveBrowserTabToNewWindow).not.toHaveBeenCalled()
+  })
+
+  it('closing the solo tab closes immediately without the collapse animation', () => {
+    render(<TabStrip />)
+
+    fireEvent.click(screen.getByRole('button', { name: '关闭 Example' }))
+
+    expect(tabApi.closeBrowserTab).toHaveBeenCalledWith('tab-1')
+  })
+
+  it('solo tab drags the window instead of starting a tab drag', () => {
+    const { container } = render(<TabStrip />)
+
+    const soloItem = container.querySelector<HTMLElement>('.tab-item')!
+    expect(soloItem.classList.contains('tab-item-solo')).toBe(true)
+
+    const tab = screen.getByRole('tab', { name: 'Example' })
+    fireEvent.pointerDown(tab, { button: 0, isPrimary: true, pointerId: 1 })
+    fireEvent.pointerMove(tab, { clientX: 60, clientY: 10, pointerId: 1 })
+    fireEvent.pointerUp(tab, { pointerId: 1 })
+
+    expect(tabApi.finishBrowserTabDrag).not.toHaveBeenCalled()
   })
 })

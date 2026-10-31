@@ -21,7 +21,7 @@
 
 ```powershell
 cd algo-electron
-npm run test:security
+pnpm run test:security
 ```
 
 Vitest 信任边界用例：
@@ -33,7 +33,7 @@ npx vitest run tests/security/trustedSender.test.ts
 发布前使用：
 
 ```powershell
-npm run test:all
+pnpm run test:all
 ```
 
 ## 4. 维护边界

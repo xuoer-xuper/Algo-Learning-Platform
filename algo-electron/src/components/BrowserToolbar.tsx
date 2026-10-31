@@ -49,7 +49,12 @@ export function BrowserToolbar({
       </button>
       <Omnibox controller={omnibox} inputRef={omniboxInputRef} />
       <div className="toolbar-divider" />
-      <button className="sync-btn" onClick={onSyncPage} title="抓取当前页面提交记录" aria-label="抓取当前页面提交记录">
+      <button
+        className="sync-btn"
+        onClick={onSyncPage}
+        title="抓取当前页面提交记录"
+        aria-label="抓取当前页面提交记录"
+      >
         <Icon name="capture" size={15} />
       </button>
       {syncMsg && <span className="sync-msg">{syncMsg}</span>}

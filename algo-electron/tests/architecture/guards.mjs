@@ -49,7 +49,8 @@ export function countBareControls(text) {
  * token 定义文件不在这里豁免 —— 判定只回答"这段文本里有几处裸 hex"，
  * 哪些文件允许有由 runner 决定（定义 token 不是欠账，不进棘轮预算）。
  */
-const BARE_HEX_PATTERN = /(?<!&)#(?:[0-9a-fA-F]{8}|[0-9a-fA-F]{6}|[0-9a-fA-F]{4}|[0-9a-fA-F]{3})(?![0-9a-fA-F])/g
+const BARE_HEX_PATTERN =
+  /(?<!&)#(?:[0-9a-fA-F]{8}|[0-9a-fA-F]{6}|[0-9a-fA-F]{4}|[0-9a-fA-F]{3})(?![0-9a-fA-F])/g
 
 export function countBareHex(text) {
   return (text.match(BARE_HEX_PATTERN) ?? []).length
@@ -141,7 +142,10 @@ export function countUnschemadIpc(text) {
   for (const match of text.matchAll(IPC_REGISTRATION_PATTERN)) {
     const hasSchemaTuple = match[1] === '['
     if (hasSchemaTuple) continue
-    const params = (match[2] ?? '').split(',').map(part => part.trim()).filter(Boolean)
+    const params = (match[2] ?? '')
+      .split(',')
+      .map((part) => part.trim())
+      .filter(Boolean)
     // 只有形参多于 event 的才算欠账。
     if (params.length > 1) count += 1
   }
@@ -174,7 +178,9 @@ export function collectRatchetFailures({ entries, budgets, describe, cleanupHint
     if (budget === undefined) {
       failures.push(`${filePath}: ${describe(count)}。${cleanupHint}`)
     } else if (count > budget) {
-      failures.push(`${filePath}: ${describe(count)}，白名单预算为 ${budget}。白名单只减不增，不要上调预算`)
+      failures.push(
+        `${filePath}: ${describe(count)}，白名单预算为 ${budget}。白名单只减不增，不要上调预算`,
+      )
     } else if (count < budget) {
       // 第四类：预算高于实际。
       //
@@ -184,7 +190,9 @@ export function collectRatchetFailures({ entries, budgets, describe, cleanupHint
       //
       // 代价是每次清理都要在同一个提交里把数字改小。这正是想要的效果——
       // 清了多少必须记下来，而不是攒着当缓冲。
-      failures.push(`${filePath}: 实际只有 ${count} 处，白名单预算仍写着 ${budget}。请把预算降到 ${count}`)
+      failures.push(
+        `${filePath}: 实际只有 ${count} 处，白名单预算仍写着 ${budget}。请把预算降到 ${count}`,
+      )
     }
   }
 

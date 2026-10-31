@@ -166,13 +166,18 @@ export function CoachMetricsView({ onClose }: Props) {
 
       {metrics && (
         <div className="coach-metrics-window">
-          统计窗口：<span className="num">{fmtTime(metrics.since)}</span> ~ <span className="num">{fmtTime(metrics.until)}</span>（最近 30 天）
+          统计窗口：<span className="num">{fmtTime(metrics.since)}</span> ~{' '}
+          <span className="num">{fmtTime(metrics.until)}</span>（最近 30 天）
         </div>
       )}
 
       {loading && <Skeleton rows={4} label="指标加载中" />}
       {/* 错误保留独立类名与 role：它不是空态，也不是加载态 */}
-      {error && <div className="coach-timeline-error" role="alert">{error}</div>}
+      {error && (
+        <div className="coach-timeline-error" role="alert">
+          {error}
+        </div>
+      )}
 
       {/* 5 项指标卡片（数据声线：大数字与分子分母等宽 + 表格数字） */}
       {metrics && (
@@ -185,24 +190,34 @@ export function CoachMetricsView({ onClose }: Props) {
           <Card padded={false} className="dashboard-card">
             <div className="dashboard-card-value num">{formatPercent(metrics.hint_click_rate)}</div>
             <div className="dashboard-card-label">"再给一点"点击率</div>
-            <div className="dashboard-card-sub num">{metrics.hint_requested_count} / {metrics.total_shown}</div>
+            <div className="dashboard-card-sub num">
+              {metrics.hint_requested_count} / {metrics.total_shown}
+            </div>
           </Card>
           <Card padded={false} className="dashboard-card">
             <div className="dashboard-card-value num">{formatPercent(metrics.helpful_rate)}</div>
             <div className="dashboard-card-label">"有帮助"反馈率</div>
-            <div className="dashboard-card-sub num">{metrics.helpful_count} / {metrics.total_feedback}</div>
+            <div className="dashboard-card-sub num">
+              {metrics.helpful_count} / {metrics.total_feedback}
+            </div>
           </Card>
           <Card padded={false} className="dashboard-card">
-            <div className="dashboard-card-value num">{formatPercent(metrics.post_intervention_ac_rate)}</div>
+            <div className="dashboard-card-value num">
+              {formatPercent(metrics.post_intervention_ac_rate)}
+            </div>
             <div className="dashboard-card-label">干预后同题 AC 转化率</div>
-            <div className="dashboard-card-sub num">{metrics.post_intervention_ac_count} / {metrics.intervention_problem_count}</div>
+            <div className="dashboard-card-sub num">
+              {metrics.post_intervention_ac_count} / {metrics.intervention_problem_count}
+            </div>
           </Card>
           <Card padded={false} className="dashboard-card">
             <div className="dashboard-card-value num">{formatPercent(metrics.dismiss_rate)}</div>
             <div className="dashboard-card-label">桌宠关闭率</div>
             <div className="dashboard-card-sub num">
               {metrics.dismissed_count + metrics.never_today_count} / {metrics.total_shown}
-              <span className="coach-card-sub-hint">（dismiss {metrics.dismissed_count} + never_today {metrics.never_today_count}）</span>
+              <span className="coach-card-sub-hint">
+                （dismiss {metrics.dismissed_count} + never_today {metrics.never_today_count}）
+              </span>
             </div>
           </Card>
         </div>
@@ -214,18 +229,26 @@ export function CoachMetricsView({ onClose }: Props) {
           <h3 className="dashboard-section-title">答辩核对（模拟数据预期值）</h3>
           <ul className="coach-verify-list">
             <li>提示展示数 = 10（10 条非审计干预）</li>
-            <li>"再给一点"点击率 = 3/10 = 30.0%（当前 {formatPercent(metrics.hint_click_rate)}）</li>
+            <li>
+              "再给一点"点击率 = 3/10 = 30.0%（当前 {formatPercent(metrics.hint_click_rate)}）
+            </li>
             <li>"有帮助"反馈率 = 4/8 = 50.0%（当前 {formatPercent(metrics.helpful_rate)}）</li>
-            <li>干预后 AC 转化率 = 1/3 ≈ 33.3%（当前 {formatPercent(metrics.post_intervention_ac_rate)}）</li>
+            <li>
+              干预后 AC 转化率 = 1/3 ≈ 33.3%（当前{' '}
+              {formatPercent(metrics.post_intervention_ac_rate)}）
+            </li>
             <li>桌宠关闭率 = (2+2)/10 = 40.0%（当前 {formatPercent(metrics.dismiss_rate)}）</li>
           </ul>
           <p className="coach-verify-note">
-            断言：{MOCK_EXPECTED.total_shown === metrics.total_shown
-              && Math.abs(MOCK_EXPECTED.hint_click_rate - metrics.hint_click_rate) < 1e-9
-              && Math.abs(MOCK_EXPECTED.helpful_rate - metrics.helpful_rate) < 1e-9
-              && Math.abs(MOCK_EXPECTED.post_intervention_ac_rate - metrics.post_intervention_ac_rate) < 1e-9
-              && Math.abs(MOCK_EXPECTED.dismiss_rate - metrics.dismiss_rate) < 1e-9
-              ? '通过，全部指标计算与预期一致' : '不通过，存在偏差，需检查 computeCoachMetrics'}
+            断言：
+            {MOCK_EXPECTED.total_shown === metrics.total_shown &&
+            Math.abs(MOCK_EXPECTED.hint_click_rate - metrics.hint_click_rate) < 1e-9 &&
+            Math.abs(MOCK_EXPECTED.helpful_rate - metrics.helpful_rate) < 1e-9 &&
+            Math.abs(MOCK_EXPECTED.post_intervention_ac_rate - metrics.post_intervention_ac_rate) <
+              1e-9 &&
+            Math.abs(MOCK_EXPECTED.dismiss_rate - metrics.dismiss_rate) < 1e-9
+              ? '通过，全部指标计算与预期一致'
+              : '不通过，存在偏差，需检查 computeCoachMetrics'}
           </p>
         </div>
       )}
@@ -237,14 +260,37 @@ export function CoachMetricsView({ onClose }: Props) {
             <div className="dashboard-chart-section coach-chart-half">
               <h3 className="dashboard-section-title">事件类型分布</h3>
               <ResponsiveContainer width="100%" height={Math.max(140, eventTypeData.length * 36)}>
-                <BarChart data={eventTypeData} layout="vertical" margin={{ left: 12, right: 20, top: 4, bottom: 4 }}>
-                  <XAxis type="number" allowDecimals={false} stroke="var(--border-light)"
-                    tick={{ fontSize: 12, fill: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }} />
-                  <YAxis type="category" dataKey="type" stroke="var(--border-light)" width={78}
-                    tick={{ fontSize: 12, fill: 'var(--text-muted)' }} />
+                <BarChart
+                  data={eventTypeData}
+                  layout="vertical"
+                  margin={{ left: 12, right: 20, top: 4, bottom: 4 }}
+                >
+                  <XAxis
+                    type="number"
+                    allowDecimals={false}
+                    stroke="var(--border-light)"
+                    tick={{
+                      fontSize: 12,
+                      fill: 'var(--text-muted)',
+                      fontFamily: 'var(--font-mono)',
+                    }}
+                  />
+                  <YAxis
+                    type="category"
+                    dataKey="type"
+                    stroke="var(--border-light)"
+                    width={78}
+                    tick={{ fontSize: 12, fill: 'var(--text-muted)' }}
+                  />
                   <Tooltip cursor={{ fill: 'var(--hover-bg)' }} />
                   {/* 单系列柱图固定占槽位 0；横向柱的数据端（右端）圆角 4px */}
-                  <Bar dataKey="count" name="次数" fill={CHART_COLORS[0]} radius={[0, 4, 4, 0]} maxBarSize={22} />
+                  <Bar
+                    dataKey="count"
+                    name="次数"
+                    fill={CHART_COLORS[0]}
+                    radius={[0, 4, 4, 0]}
+                    maxBarSize={22}
+                  />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -280,7 +326,8 @@ export function CoachMetricsView({ onClose }: Props) {
 
       {metrics && (
         <div className="dashboard-footer coach-metrics-footer">
-          事件总数：<span className="num">{metrics.total_events}</span> · 干预总数：<span className="num">{metrics.total_interventions}</span>
+          事件总数：<span className="num">{metrics.total_events}</span> · 干预总数：
+          <span className="num">{metrics.total_interventions}</span>
           {bundle?.interventions.some((i) => i.source_type === 'contest_audit') && (
             <> · 含比赛模式审计记录</>
           )}

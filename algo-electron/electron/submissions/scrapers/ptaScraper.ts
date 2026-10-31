@@ -5,24 +5,78 @@ import type { SubmissionDetectionPayload, SubmissionScrapeContext } from '../../
 function mapVerdict(result: string): Verdict {
   const value = result.trim().toLowerCase()
   if (!value) return 'UNKNOWN'
-  if (value.includes('答案正确') || value.includes('通过') || value.includes('accepted')) return 'AC'
+  if (value.includes('答案正确') || value.includes('通过') || value.includes('accepted'))
+    return 'AC'
   if (value.includes('部分正确')) return 'WA'
-  if (value.includes('答案错误') || value.includes('wrong answer') || value.includes('wrong')) return 'WA'
-  if (value.includes('时间超限') || value.includes('超出时间限制') || value.includes('运行超时') || value.includes('time limit')) return 'TLE'
-  if (value.includes('内存超限') || value.includes('超出内存限制') || value.includes('memory limit')) return 'MLE'
-  if (value.includes('输出超限') || value.includes('超出输出限制') || value.includes('output limit')) return 'OLE'
-  if (value.includes('段错误') || value.includes('浮点错误') || value.includes('非零返回') || value.includes('多种错误') || value.includes('运行错误') || value.includes('运行时错误') || value.includes('runtime error')) return 'RE'
-  if (value.includes('编译错误') || value.includes('compile error') || value.includes('compilation error')) return 'CE'
+  if (value.includes('答案错误') || value.includes('wrong answer') || value.includes('wrong'))
+    return 'WA'
+  if (
+    value.includes('时间超限') ||
+    value.includes('超出时间限制') ||
+    value.includes('运行超时') ||
+    value.includes('time limit')
+  )
+    return 'TLE'
+  if (
+    value.includes('内存超限') ||
+    value.includes('超出内存限制') ||
+    value.includes('memory limit')
+  )
+    return 'MLE'
+  if (
+    value.includes('输出超限') ||
+    value.includes('超出输出限制') ||
+    value.includes('output limit')
+  )
+    return 'OLE'
+  if (
+    value.includes('段错误') ||
+    value.includes('浮点错误') ||
+    value.includes('非零返回') ||
+    value.includes('多种错误') ||
+    value.includes('运行错误') ||
+    value.includes('运行时错误') ||
+    value.includes('runtime error')
+  )
+    return 'RE'
+  if (
+    value.includes('编译错误') ||
+    value.includes('compile error') ||
+    value.includes('compilation error')
+  )
+    return 'CE'
   if (value.includes('格式错误') || value.includes('presentation error')) return 'PE'
-  if (value.includes('等待评测') || value.includes('正在评测') || value.includes('排队中') || value.includes('评测中') || value.includes('testing') || value.includes('pending') || value.includes('judging') || value.includes('running')) return 'TESTING'
-  if (value.includes('已被覆盖') || value.includes('内部错误') || value.includes('skipped')) return 'SKIPPED'
+  if (
+    value.includes('等待评测') ||
+    value.includes('正在评测') ||
+    value.includes('排队中') ||
+    value.includes('评测中') ||
+    value.includes('testing') ||
+    value.includes('pending') ||
+    value.includes('judging') ||
+    value.includes('running')
+  )
+    return 'TESTING'
+  if (value.includes('已被覆盖') || value.includes('内部错误') || value.includes('skipped'))
+    return 'SKIPPED'
 
-  const abbrMap: Record<string, Verdict> = { ac: 'AC', wa: 'WA', tle: 'TLE', mle: 'MLE', re: 'RE', ce: 'CE', pe: 'PE', ole: 'OLE' }
+  const abbrMap: Record<string, Verdict> = {
+    ac: 'AC',
+    wa: 'WA',
+    tle: 'TLE',
+    mle: 'MLE',
+    re: 'RE',
+    ce: 'CE',
+    pe: 'PE',
+    ole: 'OLE',
+  }
   return abbrMap[value] ?? 'UNKNOWN'
 }
 
 function findColumnIndex(headers: string[], keywords: string[]): number {
-  return headers.findIndex(header => keywords.some(keyword => header.toLowerCase().includes(keyword.toLowerCase())))
+  return headers.findIndex((header) =>
+    keywords.some((keyword) => header.toLowerCase().includes(keyword.toLowerCase())),
+  )
 }
 
 function extractStableId(links: string[], prefix: string): string | null {
@@ -53,14 +107,20 @@ function parseMemoryKb(raw: string): number | undefined {
 function extractPtaProblemIdFromUrl(currentUrl: string): string | undefined {
   try {
     const parsed = new URL(currentUrl)
-    const typeMatch = parsed.pathname.match(/^\/problem-sets\/(\d+)\/(?:exam\/)?problems\/type\/\d+/)
-    const typeProblemId = parsed.searchParams.get('problemSetProblemId')
-      ?? parsed.searchParams.get('problemId')
+    const typeMatch = parsed.pathname.match(
+      /^\/problem-sets\/(\d+)\/(?:exam\/)?problems\/type\/\d+/,
+    )
+    const typeProblemId =
+      parsed.searchParams.get('problemSetProblemId') ?? parsed.searchParams.get('problemId')
     if (typeMatch && typeProblemId) return `${typeMatch[1]}-${typeProblemId}`
 
-    const problemMatch = parsed.pathname.match(/^\/problem-sets\/(\d+)\/(?:exam\/problems|exam-problems|problems)\/(\d+)/)
+    const problemMatch = parsed.pathname.match(
+      /^\/problem-sets\/(\d+)\/(?:exam\/problems|exam-problems|problems)\/(\d+)/,
+    )
     if (problemMatch) return `${problemMatch[1]}-${problemMatch[2]}`
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
   return undefined
 }
 
@@ -489,26 +549,35 @@ export async function scrapePta(browserHost: SubmissionScrapeContext): Promise<S
   return parsePtaSubmissionData(currentUrl, data)
 }
 
-export function parsePtaFrontendVerdictPayload(raw: SubmissionDetectionPayload): SubmissionData | null {
-  const response = raw.response && typeof raw.response === 'object'
-    ? raw.response as { _source?: unknown; submitId?: unknown; text?: unknown; verdictText?: unknown; links?: unknown }
-    : null
+export function parsePtaFrontendVerdictPayload(
+  raw: SubmissionDetectionPayload,
+): SubmissionData | null {
+  const response =
+    raw.response && typeof raw.response === 'object'
+      ? (raw.response as {
+          _source?: unknown
+          submitId?: unknown
+          text?: unknown
+          verdictText?: unknown
+          links?: unknown
+        })
+      : null
   if (response?._source !== 'frontend-verdict-observer') return null
   if (typeof response.submitId !== 'string' || !response.submitId.trim()) return null
 
   const text = typeof response.text === 'string' ? response.text : ''
-  const rawVerdict = typeof response.verdictText === 'string' && response.verdictText.trim()
-    ? response.verdictText.trim()
-    : text
-  const verdict = mapVerdict(text) !== 'UNKNOWN' && mapVerdict(text) !== 'TESTING'
-    ? mapVerdict(text)
-    : mapVerdict(rawVerdict)
+  const rawVerdict =
+    typeof response.verdictText === 'string' && response.verdictText.trim()
+      ? response.verdictText.trim()
+      : text
+  const verdict =
+    mapVerdict(text) !== 'UNKNOWN' && mapVerdict(text) !== 'TESTING'
+      ? mapVerdict(text)
+      : mapVerdict(rawVerdict)
   if (verdict === 'UNKNOWN' || verdict === 'TESTING') return null
 
   const submissionId = extractPtaSubmissionIdFromLinks(response.links)
-  const sourceUrl = submissionId
-    ? `https://pintia.cn/submissions/${submissionId}`
-    : raw.pageUrl
+  const sourceUrl = submissionId ? `https://pintia.cn/submissions/${submissionId}` : raw.pageUrl
   const ptaProblemId = extractPtaProblemIdFromUrl(raw.pageUrl)
   const rawJson = {
     _source: 'frontend-verdict-observer',
@@ -551,7 +620,7 @@ interface PtaTableRow {
  */
 function toStringArray(value: unknown): string[] {
   if (!Array.isArray(value)) return []
-  return value.map(item => typeof item === 'string' ? item : '')
+  return value.map((item) => (typeof item === 'string' ? item : ''))
 }
 
 function toStringMatrix(value: unknown): string[][] {
@@ -594,19 +663,55 @@ export function parsePtaSubmissionData(currentUrl: string, data: unknown): Submi
 
   const headers = toStringArray(payload.headers)
   const idIdx = findColumnIndex(headers, ['提交编号', 'Submission ID', 'ID'])
-  let verdictIdx = findColumnIndex(headers, ['评测结果', '结果', 'Score', 'Result', '状态', 'Status', '评判结果', '得分'])
+  let verdictIdx = findColumnIndex(headers, [
+    '评测结果',
+    '结果',
+    'Score',
+    'Result',
+    '状态',
+    'Status',
+    '评判结果',
+    '得分',
+  ])
   const languageIdx = findColumnIndex(headers, ['编译器', '语言', 'Language', 'Compiler'])
   const runtimeIdx = findColumnIndex(headers, ['耗时', '运行时间', 'Time'])
   const memoryIdx = findColumnIndex(headers, ['内存', '使用内存', 'Memory'])
   const problemIdx = findColumnIndex(headers, ['题目', '问题', 'Problem'])
 
   if (verdictIdx === -1) {
-    const verdictKeywords = ['答案正确', '部分正确', '答案错误', '运行超时', '内存超限', '输出超限', '段错误', '浮点错误', '非零返回', '多种错误', '运行时错误', '编译错误', '格式错误', '等待评测', '正在评测', '已被覆盖', '内部错误', 'accepted', 'wrong', 'time limit', 'memory limit', 'runtime', 'compile', 'presentation', 'output limit']
+    const verdictKeywords = [
+      '答案正确',
+      '部分正确',
+      '答案错误',
+      '运行超时',
+      '内存超限',
+      '输出超限',
+      '段错误',
+      '浮点错误',
+      '非零返回',
+      '多种错误',
+      '运行时错误',
+      '编译错误',
+      '格式错误',
+      '等待评测',
+      '正在评测',
+      '已被覆盖',
+      '内部错误',
+      'accepted',
+      'wrong',
+      'time limit',
+      'memory limit',
+      'runtime',
+      'compile',
+      'presentation',
+      'output limit',
+    ]
     for (let col = 0; col < rows[0].texts.length; col++) {
       let matchCount = 0
       for (const row of rows) {
         const cellText = (row.texts[col] || '').toLowerCase()
-        if (verdictKeywords.some(keyword => cellText.includes(keyword.toLowerCase()))) matchCount++
+        if (verdictKeywords.some((keyword) => cellText.includes(keyword.toLowerCase())))
+          matchCount++
       }
       if (matchCount > 0) {
         verdictIdx = col
@@ -618,7 +723,12 @@ export function parsePtaSubmissionData(currentUrl: string, data: unknown): Submi
   if (verdictIdx === -1) {
     for (let col = 0; col < rows[0].classNames.length; col++) {
       const className = (rows[0].classNames[col] || '').toLowerCase()
-      if (className.includes('result') || className.includes('verdict') || className.includes('status') || className.includes('score')) {
+      if (
+        className.includes('result') ||
+        className.includes('verdict') ||
+        className.includes('status') ||
+        className.includes('score')
+      ) {
         verdictIdx = col
         break
       }
@@ -626,7 +736,8 @@ export function parsePtaSubmissionData(currentUrl: string, data: unknown): Submi
   }
 
   const typeLinkPattern = /problemSetProblemId[=/](\d+)/
-  const problemLinkPattern = /\/problem-sets\/(\d+)\/(?:problems|exam\/problems|exam-problems)\/(\d+)/
+  const problemLinkPattern =
+    /\/problem-sets\/(\d+)\/(?:problems|exam\/problems|exam-problems)\/(\d+)/
   const problemIdAttrPattern = /data-problem-id="(\d+)"/
   const setIdAttrPattern = /data-set-id="(\d+)"/
 
@@ -634,7 +745,8 @@ export function parsePtaSubmissionData(currentUrl: string, data: unknown): Submi
   const results: SubmissionData[] = []
 
   for (const { texts: cells, links, allLinks, htmls } of rows) {
-    const platformSubmissionId = (idIdx >= 0 && cells[idIdx]) ? `pta-${cells[idIdx]}` : extractStableId(links, 'pta')
+    const platformSubmissionId =
+      idIdx >= 0 && cells[idIdx] ? `pta-${cells[idIdx]}` : extractStableId(links, 'pta')
     if (!platformSubmissionId) continue
     const language = languageIdx >= 0 ? cells[languageIdx] || '' : ''
     const rawVerdict = verdictIdx >= 0 ? cells[verdictIdx] || '' : ''
@@ -645,8 +757,7 @@ export function parsePtaSubmissionData(currentUrl: string, data: unknown): Submi
     let ptaProblemId: string | undefined
     let extractedSetId: string | undefined
     let extractedProblemId: string | undefined
-    const allCellLinks = (problemIdx >= 0 ? allLinks[problemIdx] || [] : links)
-      .concat(...allLinks)
+    const allCellLinks = (problemIdx >= 0 ? allLinks[problemIdx] || [] : links).concat(...allLinks)
 
     for (const link of allCellLinks) {
       const typeMatch = link.match(typeLinkPattern)
@@ -696,7 +807,7 @@ export function parsePtaSubmissionData(currentUrl: string, data: unknown): Submi
       runtimeMs: runtimeIdx >= 0 ? parseInt(cells[runtimeIdx]) || undefined : undefined,
       memoryKb: memoryIdx >= 0 ? parseInt(cells[memoryIdx]) || undefined : undefined,
       submittedAt: nowBeijing(),
-      sourceUrl: links.find(link => link) || '',
+      sourceUrl: links.find((link) => link) || '',
       rawJson: ptaProblemId ? JSON.stringify({ _ptaProblemId: ptaProblemId }) : undefined,
     })
   }

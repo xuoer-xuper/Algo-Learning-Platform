@@ -1,4 +1,10 @@
-import { clipboard, Menu, type BrowserWindow, type MenuItemConstructorOptions, type WebContents } from 'electron'
+import {
+  clipboard,
+  Menu,
+  type BrowserWindow,
+  type MenuItemConstructorOptions,
+  type WebContents,
+} from 'electron'
 import type { UserScriptMenuCommand } from '../scripts/UserScriptMenuRegistry'
 
 const MAX_CONTEXT_TEXT_LENGTH = 4_096
@@ -73,7 +79,8 @@ function safeHttpUrl(value: unknown): string {
   if (typeof value !== 'string' || value.length > MAX_CONTEXT_URL_LENGTH) return ''
   try {
     const url = new URL(value)
-    if ((url.protocol !== 'http:' && url.protocol !== 'https:') || url.username || url.password) return ''
+    if ((url.protocol !== 'http:' && url.protocol !== 'https:') || url.username || url.password)
+      return ''
     return url.toString()
   } catch {
     return ''
@@ -105,11 +112,14 @@ function createEditItems(
   return items
 }
 
-export function createPageContextMenuTemplate(options: PageContextMenuActions): MenuItemConstructorOptions[] {
+export function createPageContextMenuTemplate(
+  options: PageContextMenuActions,
+): MenuItemConstructorOptions[] {
   const linkUrl = safeHttpUrl(options.params.linkURL)
   const imageUrl = safeHttpUrl(options.params.srcURL)
   const selection = safeText(options.params.selectionText)
-  const canCopyImage = options.params.mediaType === 'image' || options.params.hasImageContents === true
+  const canCopyImage =
+    options.params.mediaType === 'image' || options.params.hasImageContents === true
   const isEditable = options.params.isEditable === true
   const items: MenuItemConstructorOptions[] = []
 
@@ -144,7 +154,10 @@ export function createPageContextMenuTemplate(options: PageContextMenuActions): 
     items.push({ label: '复制', click: () => clipboard.writeText(selection) })
   }
   if (selection) {
-    items.push({ label: `使用搜索引擎搜索“${selection.slice(0, 80)}${selection.length > 80 ? '…' : ''}”`, click: () => options.searchSelectionInNewTab(selection) })
+    items.push({
+      label: `使用搜索引擎搜索“${selection.slice(0, 80)}${selection.length > 80 ? '…' : ''}”`,
+      click: () => options.searchSelectionInNewTab(selection),
+    })
   }
 
   if (isEditable) {
@@ -155,16 +168,24 @@ export function createPageContextMenuTemplate(options: PageContextMenuActions): 
     if (items.length > 0) items.push({ type: 'separator' })
     items.push({
       label: '用户脚本',
-      submenu: options.userScriptCommands.map(command => ({
+      submenu: options.userScriptCommands.map((command) => ({
         label: `${command.scriptName}: ${command.name}`,
-        click: command.invoke,
+        click: () => command.invoke(),
       })),
     })
   }
   if (items.length > 0) items.push({ type: 'separator' })
   items.push(
-    { label: '后退', enabled: options.contents.navigationHistory.canGoBack(), click: () => options.contents.navigationHistory.goBack() },
-    { label: '前进', enabled: options.contents.navigationHistory.canGoForward(), click: () => options.contents.navigationHistory.goForward() },
+    {
+      label: '后退',
+      enabled: options.contents.navigationHistory.canGoBack(),
+      click: () => options.contents.navigationHistory.goBack(),
+    },
+    {
+      label: '前进',
+      enabled: options.contents.navigationHistory.canGoForward(),
+      click: () => options.contents.navigationHistory.goForward(),
+    },
     { label: '重新加载', click: () => options.contents.reload() },
   )
   return items
@@ -176,7 +197,9 @@ export function popupPageContextMenu(options: PageContextMenuActions): void {
   menu.popup({ window: options.window })
 }
 
-export function createShellContextMenuTemplate(options: ShellContextMenuActions): MenuItemConstructorOptions[] {
+export function createShellContextMenuTemplate(
+  options: ShellContextMenuActions,
+): MenuItemConstructorOptions[] {
   const items: MenuItemConstructorOptions[] = []
   if (options.params.isEditable === true) {
     items.push(
@@ -203,7 +226,9 @@ export function popupShellContextMenu(options: ShellContextMenuActions): void {
   menu.popup({ window: options.window })
 }
 
-export function createTabContextMenuTemplate(options: TabContextMenuActions): MenuItemConstructorOptions[] {
+export function createTabContextMenuTemplate(
+  options: TabContextMenuActions,
+): MenuItemConstructorOptions[] {
   return [
     { label: '重新加载', enabled: options.canReload, click: options.reload },
     { label: '复制标签页', click: options.duplicate },

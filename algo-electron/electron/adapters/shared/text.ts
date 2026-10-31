@@ -1,7 +1,12 @@
+import { unknownToText } from '../../shared/textCoercion'
+
 export function stripHtml(value: unknown): string {
-  return typeof value === 'string'
-    ? value.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim()
-    : String(value ?? '').trim()
+  // 非字符串走显式取值：null/undefined 沿用空串（与原先 `value ?? ''` 一致），
+  // 对象取 JSON 形式，避免落到默认的 `[object Object]` 上。
+  return unknownToText(value)
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
 }
 
 export function parseRuntimeMs(raw: string): number | undefined {
@@ -13,8 +18,8 @@ export function parseRuntimeMs(raw: string): number | undefined {
 }
 
 export function parseMemoryKb(raw: string): number | undefined {
-  const match = raw.match(/(\d+(?:\.\d+)?)\s*(kb|mb|kib|mib)\b/i)
-    ?? raw.trim().match(/^(\d+(?:\.\d+)?)$/i)
+  const match =
+    raw.match(/(\d+(?:\.\d+)?)\s*(kb|mb|kib|mib)\b/i) ?? raw.trim().match(/^(\d+(?:\.\d+)?)$/i)
   if (!match) return undefined
   const value = Number(match[1])
   if (!Number.isFinite(value)) return undefined
@@ -37,6 +42,7 @@ export function extractLanguage(raw: string): string | undefined {
 }
 
 export function findColumnIndex(headers: string[], keywords: string[]): number {
-  return headers.findIndex(header => keywords.some(keyword => header.toLowerCase().includes(keyword.toLowerCase())))
+  return headers.findIndex((header) =>
+    keywords.some((keyword) => header.toLowerCase().includes(keyword.toLowerCase())),
+  )
 }
-

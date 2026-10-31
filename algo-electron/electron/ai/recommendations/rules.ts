@@ -10,14 +10,22 @@ export function daysSince(timestamp: string, now = Date.now()): number {
   return Math.max(0, Math.floor((now - time) / 86400000))
 }
 
-export function scoreReviewCandidate(wrongCount: number, daysSinceAttempt: number, visitCount: number): number {
+export function scoreReviewCandidate(
+  wrongCount: number,
+  daysSinceAttempt: number,
+  visitCount: number,
+): number {
   const wrongScore = Math.min(wrongCount, 5) * 8
   const forgetScore = Math.min(daysSinceAttempt * 0.5, 25)
   const visitScore = Math.min(visitCount, 3) * 5
   return wrongScore + forgetScore + visitScore
 }
 
-export function buildReviewReason(wrongCount: number, daysSinceAttempt: number, visitCount: number): string {
+export function buildReviewReason(
+  wrongCount: number,
+  daysSinceAttempt: number,
+  visitCount: number,
+): string {
   const reasonParts: string[] = []
   if (wrongCount >= 3) reasonParts.push(`已错误 ${wrongCount} 次`)
   else if (wrongCount >= 1) reasonParts.push(`错误 ${wrongCount} 次`)
@@ -28,7 +36,11 @@ export function buildReviewReason(wrongCount: number, daysSinceAttempt: number, 
   return reasonParts.length > 0 ? `${reasonParts.join('，')}，建议复习` : '建议复习'
 }
 
-export function scoreTagWeakness(acRate: number, wrongSubmissions: number, totalDurationSeconds: number): number {
+export function scoreTagWeakness(
+  acRate: number,
+  wrongSubmissions: number,
+  totalDurationSeconds: number,
+): number {
   const acScore = (100 - acRate) * 0.5
   const wrongScore = Math.min(wrongSubmissions * 0.5, 25)
   const durationScore = Math.min(totalDurationSeconds * 0.01, 25)
@@ -58,8 +70,8 @@ export function determineReviewPriority(
   weaknessTags: TagWeakness[],
   problemTags: string[],
 ): ReviewPriority {
-  const relatedWeakness = weaknessTags.filter(weakness => problemTags.includes(weakness.tag))
-  const hasHighWeakness = relatedWeakness.some(weakness => weakness.weakness_score >= 60)
+  const relatedWeakness = weaknessTags.filter((weakness) => problemTags.includes(weakness.tag))
+  const hasHighWeakness = relatedWeakness.some((weakness) => weakness.weakness_score >= 60)
 
   if (hasHighWeakness || score >= 60) return 1
   if (score >= 35 || relatedWeakness.length > 0) return 2

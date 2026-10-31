@@ -10,9 +10,11 @@ const esbuildBin = path.join(projectRoot, 'node_modules', 'esbuild', 'bin', 'esb
 const eslintBin = path.join(projectRoot, 'node_modules', 'eslint', 'bin', 'eslint.js')
 const tscBin = path.join(projectRoot, 'node_modules', 'typescript', 'bin', 'tsc')
 const vitestBin = path.join(projectRoot, 'node_modules', 'vitest', 'vitest.mjs')
-const electronBin = process.platform === 'win32'
-  ? path.join(projectRoot, 'node_modules', 'electron', 'dist', 'electron.exe')
-  : path.join(projectRoot, 'node_modules', '.bin', 'electron')
+const jscpdBin = path.join(projectRoot, 'node_modules', 'jscpd', 'run-jscpd.js')
+const electronBin =
+  process.platform === 'win32'
+    ? path.join(projectRoot, 'node_modules', 'electron', 'dist', 'electron.exe')
+    : path.join(projectRoot, 'node_modules', '.bin', 'electron')
 
 const suites = new Set(['core', 'ai', 'db', 'electron', 'coach', 'all'])
 
@@ -102,7 +104,13 @@ function runTypecheck() {
 }
 
 function runLint() {
-  run(process.execPath, [eslintBin, '.', '--report-unused-disable-directives', '--max-warnings', '0'])
+  run(process.execPath, [
+    eslintBin,
+    '.',
+    '--report-unused-disable-directives',
+    '--max-warnings',
+    '0',
+  ])
 }
 
 function runArchitecture() {
@@ -111,6 +119,15 @@ function runArchitecture() {
 
 function runSecurity() {
   run(process.execPath, [path.join('tests', 'security', 'check-sensitive-files.mjs')])
+}
+
+function runJscpd() {
+  // 扫描范围 electron + src 固定在调用点而非 .jscpd.json（prd.md R7：门只看生产代码，
+  // tests/ 与根级配置文件不进来）；.jscpd.json 持有 threshold/format/ignore/output/reporters。
+  // v5（Rust 内核）默认 reporters 只有 console，output 会落空，补 json 才有报告进 tmp/jscpd。
+  // 重复率超过 threshold 时 jscpd 以退出码 1 结束，run() 抛错让整套红——门必须能拦住提交。
+  // 基线 2026-10-31 实测 2.00%（382 文件 / 62,669 行 / 92 克隆），门 3%。
+  run(process.execPath, [jscpdBin, 'electron', 'src', '--no-tips'])
 }
 
 function runDocs() {
@@ -132,7 +149,10 @@ function runAiElectronTests() {
 function runDbElectronTests() {
   runElectronNodeTest(path.join('tests', 'db', 'backupImport.test.ts'), 'db-backupImport')
   runElectronNodeTest(path.join('tests', 'db', 'migrationSafety.test.ts'), 'db-migrationSafety')
-  runElectronNodeTest(path.join('tests', 'db', 'dailyStatsPerformance.test.ts'), 'db-dailyStatsPerformance')
+  runElectronNodeTest(
+    path.join('tests', 'db', 'dailyStatsPerformance.test.ts'),
+    'db-dailyStatsPerformance',
+  )
   runElectronNodeTest(path.join('tests', 'db', 'repositories.test.ts'), 'db-repositories')
 }
 
@@ -141,7 +161,10 @@ function runCoachElectronTests() {
 }
 
 function runStartupSmoke() {
-  const outfile = bundleTest(path.join('tests', 'electron', 'startupSmoke.test.ts'), 'electron-startupSmoke')
+  const outfile = bundleTest(
+    path.join('tests', 'electron', 'startupSmoke.test.ts'),
+    'electron-startupSmoke',
+  )
   run(process.execPath, [outfile])
 }
 
@@ -191,6 +214,7 @@ function runCoreSuite() {
   runLint()
   runArchitecture()
   runSecurity()
+  runJscpd()
   // 不传文件名单：core 是每块改动的准入门，漏掉哪个目录就等于那个目录的改动没人验。
   // 曾经手工列过 15 个入口，实际只覆盖 103/150 个文件——tests/adapters、
   // tests/submissions、tests/shared、tests/diagnostics、tests/shortcuts、

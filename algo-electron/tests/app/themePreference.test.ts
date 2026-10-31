@@ -62,7 +62,9 @@ describe('主题偏好规范化', () => {
     expect(isStoredAppearanceConfig({ theme: 'dark' }, { theme: 'dark' })).toBe(true)
     expect(isStoredAppearanceConfig({ theme: 'light' }, { theme: 'dark' })).toBe(false)
     // 多一个键：规范化会把它丢掉，因此必须回写，否则那个键永远留在盘上
-    expect(isStoredAppearanceConfig({ theme: 'dark', accent: 'red' }, { theme: 'dark' })).toBe(false)
+    expect(isStoredAppearanceConfig({ theme: 'dark', accent: 'red' }, { theme: 'dark' })).toBe(
+      false,
+    )
     expect(isStoredAppearanceConfig(null, { theme: 'system' })).toBe(false)
     expect(isStoredAppearanceConfig(['dark'], { theme: 'system' })).toBe(false)
   })
@@ -94,12 +96,15 @@ describe('主题偏好持久化', () => {
     // 必须每段都规范：只写 appearance 会让 search 那条迁移判定失败而回写，
     // 于是"appearance 没触发回写"就验不出来了。
     const configPath = path.join(harness.userDataDir, 'config.json')
-    fs.writeFileSync(configPath, JSON.stringify({
-      homeShortcuts: [],
-      search: { engine: 'bing', customTemplate: null },
-      zoomByOrigin: {},
-      appearance: { theme: 'dark' },
-    }))
+    fs.writeFileSync(
+      configPath,
+      JSON.stringify({
+        homeShortcuts: [],
+        search: { engine: 'bing', customTemplate: null },
+        zoomByOrigin: {},
+        appearance: { theme: 'dark' },
+      }),
+    )
 
     const writeSpy = vi.spyOn(fs, 'writeFileSync')
     try {
@@ -113,12 +118,15 @@ describe('主题偏好持久化', () => {
 
   it('appearance 是唯一未规范化的段时也会回写', async () => {
     const configPath = path.join(harness.userDataDir, 'config.json')
-    fs.writeFileSync(configPath, JSON.stringify({
-      homeShortcuts: [],
-      search: { engine: 'bing', customTemplate: null },
-      zoomByOrigin: {},
-      appearance: { theme: 'midnight' },
-    }))
+    fs.writeFileSync(
+      configPath,
+      JSON.stringify({
+        homeShortcuts: [],
+        search: { engine: 'bing', customTemplate: null },
+        zoomByOrigin: {},
+        appearance: { theme: 'midnight' },
+      }),
+    )
 
     const writeSpy = vi.spyOn(fs, 'writeFileSync')
     try {
@@ -132,10 +140,13 @@ describe('主题偏好持久化', () => {
 
   it('保存返回落盘后的值，并且不动其他配置段', async () => {
     const configPath = path.join(harness.userDataDir, 'config.json')
-    fs.writeFileSync(configPath, JSON.stringify({
-      homeShortcuts: ['https://codeforces.com/'],
-      appearance: { theme: 'system' },
-    }))
+    fs.writeFileSync(
+      configPath,
+      JSON.stringify({
+        homeShortcuts: ['https://codeforces.com/'],
+        appearance: { theme: 'system' },
+      }),
+    )
 
     const configModule = await import('../../electron/app/config.ts')
     expect(configModule.saveThemePreference('dark')).toBe('dark')
@@ -177,8 +188,12 @@ describe('ThemeController', () => {
   it('set 先落盘再赋值，返回的是落盘结果', () => {
     const order: string[] = []
     const nativeTheme = {
-      get themeSource() { return 'system' as const },
-      set themeSource(_value: 'system' | 'light' | 'dark') { order.push('assign') },
+      get themeSource() {
+        return 'system' as const
+      },
+      set themeSource(_value: 'system' | 'light' | 'dark') {
+        order.push('assign')
+      },
     }
     const controller = new ThemeController({
       nativeTheme,
@@ -198,7 +213,9 @@ describe('ThemeController', () => {
     const controller = new ThemeController({
       nativeTheme,
       readPreference: () => 'light',
-      writePreference: () => { throw new Error('read-only config') },
+      writePreference: () => {
+        throw new Error('read-only config')
+      },
     })
 
     expect(() => controller.set('dark')).toThrow('read-only config')

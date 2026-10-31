@@ -5,12 +5,24 @@ import type { Logger } from '../../electron/shared/logger.ts'
 
 class MemoryLogger implements Logger {
   readonly messages: string[] = []
-  debug(message: string): void { this.messages.push(message) }
-  info(message: string): void { this.messages.push(message) }
-  warn(message: string): void { this.messages.push(message) }
-  error(message: string): void { this.messages.push(message) }
-  fatal(message: string): void { this.messages.push(message) }
-  getLogFilePath(): null { return null }
+  debug(message: string): void {
+    this.messages.push(message)
+  }
+  info(message: string): void {
+    this.messages.push(message)
+  }
+  warn(message: string): void {
+    this.messages.push(message)
+  }
+  error(message: string): void {
+    this.messages.push(message)
+  }
+  fatal(message: string): void {
+    this.messages.push(message)
+  }
+  getLogFilePath(): null {
+    return null
+  }
 }
 
 function createDatabase(appliedVersions: number[] = []) {
@@ -22,7 +34,11 @@ function createDatabase(appliedVersions: number[] = []) {
       if (sql.startsWith('SELECT version')) {
         return { all: () => appliedVersions.map((version) => ({ version })) }
       }
-      return { run: (version: number) => { inserted.push(version) } }
+      return {
+        run: (version: number) => {
+          inserted.push(version)
+        },
+      }
     },
     transaction: (callback: () => void) => () => callback(),
   }
@@ -34,7 +50,13 @@ test('migration runner logs start, success, and failure while preserving transac
   const migrations = [
     { version: 1, name: 'already-applied', up: () => undefined },
     { version: 2, name: 'successful', up: () => undefined },
-    { version: 3, name: 'broken', up: () => { throw new Error('migration failed') } },
+    {
+      version: 3,
+      name: 'broken',
+      up: () => {
+        throw new Error('migration failed')
+      },
+    },
   ]
 
   assert.throws(() => runMigrations(database as never, migrations, logger), /migration failed/)

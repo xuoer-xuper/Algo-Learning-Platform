@@ -69,7 +69,9 @@ const OPEN_EDITOR_MESSAGES: Record<Exclude<UserScriptOpenEditorResult['status'],
   'open-failed': '系统未能打开该文件，请检查默认打开方式。',
 }
 
-export function describeUserScriptOpenEditorResult(result: UserScriptOpenEditorResult): string | null {
+export function describeUserScriptOpenEditorResult(
+  result: UserScriptOpenEditorResult,
+): string | null {
   return result.status === 'ok' ? null : OPEN_EDITOR_MESSAGES[result.status]
 }
 

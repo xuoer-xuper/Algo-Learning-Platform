@@ -27,9 +27,8 @@ export function parseRealtimeTablePayload(
   raw: SubmissionDetectionPayload,
   parseTables: (tables: GenericTableData[], ctx: TableParseContext) => SubmissionData[],
 ): SubmissionData | null {
-  const response = raw.response && typeof raw.response === 'object'
-    ? raw.response as { tables?: unknown }
-    : null
+  const response =
+    raw.response && typeof raw.response === 'object' ? (raw.response as { tables?: unknown }) : null
   if (!Array.isArray(response?.tables)) return null
 
   const table = selectBestSubmissionTable(response.tables as GenericTableData[])
@@ -42,4 +41,3 @@ export function parseRealtimeTablePayload(
   const submissions = parseTables([latestOnlyTable], { now: nowBeijing })
   return pickFinalRealtimeSubmission(submissions)
 }
-

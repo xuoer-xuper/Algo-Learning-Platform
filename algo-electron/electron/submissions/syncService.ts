@@ -51,7 +51,10 @@ export class SyncService {
         return await fn()
       } catch (error: unknown) {
         lastError = error
-        if (i < maxRetries) await new Promise(r => { setTimeout(r, 1000 * (i + 1)) })
+        if (i < maxRetries)
+          await new Promise((r) => {
+            setTimeout(r, 1000 * (i + 1))
+          })
       }
     }
     throw lastError
@@ -59,13 +62,21 @@ export class SyncService {
 
   // Codeforces 使用公开 API（带重试）
   async syncCodeforces(handle: string): Promise<SyncResult> {
-    if (!handle) return { platform: 'codeforces', fetched: 0, inserted: 0, error: '请输入 Codeforces Handle' }
+    if (!handle)
+      return { platform: 'codeforces', fetched: 0, inserted: 0, error: '请输入 Codeforces Handle' }
     try {
       const adapter = getAdapter('codeforces')
-      if (!adapter?.syncSubmissions) {
-        return { platform: 'codeforces', fetched: 0, inserted: 0, error: 'Codeforces adapter not ready' }
+      const syncSubmissions = adapter?.syncSubmissions
+      if (!syncSubmissions) {
+        return {
+          platform: 'codeforces',
+          fetched: 0,
+          inserted: 0,
+          error: 'Codeforces adapter not ready',
+        }
       }
-      const submissions = await this.withRetry(() => adapter.syncSubmissions!({ handle }))
+      // 按契约该方法不依赖 this，先取引用再调用；guard 保证引用存在。
+      const submissions = await this.withRetry(() => syncSubmissions({ handle }))
       return this.writeSubmissions('codeforces', submissions)
     } catch (error: unknown) {
       return { platform: 'codeforces', fetched: 0, inserted: 0, error: errorMessage(error) }
@@ -74,17 +85,27 @@ export class SyncService {
 
   // VJudge 从当前页面 DOM 抓取（需要在 vjudge.net/status 页面）
   async syncVjudge(scrapeHost: SubmissionScrapeContext | null): Promise<SyncResult> {
-    if (!scrapeHost) return { platform: 'vjudge', fetched: 0, inserted: 0, error: 'Scrape host not ready' }
+    if (!scrapeHost)
+      return { platform: 'vjudge', fetched: 0, inserted: 0, error: 'Scrape host not ready' }
     try {
       const { url, context } = this.captureScrapeContext(scrapeHost)
       const submissions = await scrapeCurrentPage(context)
       if (!submissions || submissions.length === 0) {
-        return { platform: 'vjudge', fetched: 0, inserted: 0, error: '当前页面无提交记录，请先打开 vjudge.net/status' }
+        return {
+          platform: 'vjudge',
+          fetched: 0,
+          inserted: 0,
+          error: '当前页面无提交记录，请先打开 vjudge.net/status',
+        }
       }
-      const { pageProblemId, pageProblemIdentity } = resolveSubmissionPageContext(url, submissions, {
-        parseUrl,
-        findNowcoderProblemBySearch: this.findNowcoderProblemBySearch,
-      })
+      const { pageProblemId, pageProblemIdentity } = resolveSubmissionPageContext(
+        url,
+        submissions,
+        {
+          parseUrl,
+          findNowcoderProblemBySearch: this.findNowcoderProblemBySearch,
+        },
+      )
       return this.writeSubmissions('vjudge', submissions, url, pageProblemId, pageProblemIdentity)
     } catch (error: unknown) {
       return { platform: 'vjudge', fetched: 0, inserted: 0, error: errorMessage(error) }
@@ -93,19 +114,29 @@ export class SyncService {
 
   // AcWing/牛客/VJudge 从当前页面 DOM 抓取
   async syncCurrentPage(scrapeHost: SubmissionScrapeContext | null): Promise<SyncResult> {
-    if (!scrapeHost) return { platform: 'unknown', fetched: 0, inserted: 0, error: 'Scrape host not ready' }
+    if (!scrapeHost)
+      return { platform: 'unknown', fetched: 0, inserted: 0, error: 'Scrape host not ready' }
 
     try {
       const { url, context } = this.captureScrapeContext(scrapeHost)
       const submissions = await scrapeCurrentPage(context)
       if (!submissions || submissions.length === 0) {
-        return { platform: 'unknown', fetched: 0, inserted: 0, error: `当前页面无提交记录 (${url})` }
+        return {
+          platform: 'unknown',
+          fetched: 0,
+          inserted: 0,
+          error: `当前页面无提交记录 (${url})`,
+        }
       }
 
-      const { pageProblemId, pageProblemIdentity } = resolveSubmissionPageContext(url, submissions, {
-        parseUrl,
-        findNowcoderProblemBySearch: this.findNowcoderProblemBySearch,
-      })
+      const { pageProblemId, pageProblemIdentity } = resolveSubmissionPageContext(
+        url,
+        submissions,
+        {
+          parseUrl,
+          findNowcoderProblemBySearch: this.findNowcoderProblemBySearch,
+        },
+      )
 
       return this.writeSubmissions(
         submissions[0]?.platform ?? 'unknown',

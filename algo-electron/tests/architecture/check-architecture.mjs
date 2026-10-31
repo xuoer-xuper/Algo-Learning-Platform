@@ -1,12 +1,19 @@
 import fs from 'node:fs'
 import path from 'node:path'
-import { collectRatchetFailures, coreSuiteRunsEverything, countBareControls, countBareHex, countBareRgb, countBareSql, countRawIpcSchemas, countUnschemadIpc, themeDirectiveHasTailwindImport } from './guards.mjs'
+import {
+  collectRatchetFailures,
+  coreSuiteRunsEverything,
+  countBareControls,
+  countBareHex,
+  countBareRgb,
+  countBareSql,
+  countRawIpcSchemas,
+  countUnschemadIpc,
+  themeDirectiveHasTailwindImport,
+} from './guards.mjs'
 
 const projectRoot = process.cwd()
-const sourceRoots = [
-  path.join(projectRoot, 'electron'),
-  path.join(projectRoot, 'src'),
-]
+const sourceRoots = [path.join(projectRoot, 'electron'), path.join(projectRoot, 'src')]
 
 const checks = []
 
@@ -109,7 +116,9 @@ check('preload does not expose generic ipcRenderer', () => {
 
 check('ordinary IPC handlers use the trusted shell sender facade', () => {
   const ipcDir = path.join(projectRoot, 'electron', 'ipc')
-  const registerFiles = walkSourceFiles(ipcDir).filter((file) => path.basename(file).startsWith('register'))
+  const registerFiles = walkSourceFiles(ipcDir).filter((file) =>
+    path.basename(file).startsWith('register'),
+  )
 
   failIfMatches(registerFiles, [
     {
@@ -129,7 +138,9 @@ check('ordinary IPC handlers use the trusted shell sender facade', () => {
 check('window-sensitive shell actions resolve ownership from the trusted sender', () => {
   const main = read(path.join(projectRoot, 'electron', 'main.ts'))
   if (!main.includes('new WindowManager({ viewRegistry })') || !main.includes('new AppWindow({')) {
-    throw new Error('electron/main.ts must create shell windows through WindowManager/AppWindow ownership')
+    throw new Error(
+      'electron/main.ts must create shell windows through WindowManager/AppWindow ownership',
+    )
   }
   if (/^let\s+(?:win|tabManager)\b/m.test(main)) {
     throw new Error('electron/main.ts must not restore module-level win/tabManager singletons')
@@ -164,7 +175,9 @@ check('Nowcoder realtime path stays network-result driven', () => {
 
   const submissions = read(path.join(nowcoderDir, 'submissions.ts'))
   if (!/nowcoder-judge-status/.test(submissions)) {
-    throw new Error('Nowcoder submissions parser must require nowcoder-judge-status network payloads')
+    throw new Error(
+      'Nowcoder submissions parser must require nowcoder-judge-status network payloads',
+    )
   }
 })
 
@@ -273,8 +286,9 @@ check('raw() payload escapes stay capped', () => {
 })
 
 check('bare SQL stays inside electron/db/', () => {
-  const files = walkSourceFiles(path.join(projectRoot, 'electron'))
-    .filter((file) => !relative(file).startsWith('electron/db/'))
+  const files = walkSourceFiles(path.join(projectRoot, 'electron')).filter(
+    (file) => !relative(file).startsWith('electron/db/'),
+  )
 
   checkRatchet({
     files,
@@ -331,15 +345,17 @@ const BARE_CONTROL_BUDGET = {
 }
 
 check('interactive controls come from src/components/ui/', () => {
-  const files = walkSourceFiles(path.join(projectRoot, 'src'))
-    .filter((file) => /\.tsx$/.test(file) && !relative(file).startsWith('src/components/ui/'))
+  const files = walkSourceFiles(path.join(projectRoot, 'src')).filter(
+    (file) => /\.tsx$/.test(file) && !relative(file).startsWith('src/components/ui/'),
+  )
 
   checkRatchet({
     files,
     budgets: BARE_CONTROL_BUDGET,
     countMatches: countBareControls,
     describe: (count) => `有 ${count} 处裸交互控件`,
-    cleanupHint: '按钮与表单控件从 src/components/ui 取用（Button/IconButton/Input/Select/Textarea）',
+    cleanupHint:
+      '按钮与表单控件从 src/components/ui 取用（Button/IconButton/Input/Select/Textarea）',
   })
 })
 
@@ -350,17 +366,14 @@ check('interactive controls come from src/components/ui/', () => {
  * （规则见 docs/REFACTOR_HANDOFF.md 第 40 行，此前只有文字约定没有守卫）。
  */
 const COLOR_SOURCE_FILES = new Set([
-  'src/index.css',                          // 设计 token 唯一源
-  'src/features/coach/styles/tokens.css',   // Coach 独立视觉域的第二套 token
-  'src/shared/display.ts',                  // 平台品牌色与图表色板（已过 dataviz 校验）
+  'src/index.css', // 设计 token 唯一源
+  'src/features/coach/styles/tokens.css', // Coach 独立视觉域的第二套 token
+  'src/shared/display.ts', // 平台品牌色与图表色板（已过 dataviz 校验）
 ])
 
 check('colors come from design tokens, not bare hex', () => {
   const srcRoot = path.join(projectRoot, 'src')
-  const files = [
-    ...walkFiles(srcRoot, SOURCE_EXT),
-    ...walkFiles(srcRoot, STYLE_EXT),
-  ]
+  const files = [...walkFiles(srcRoot, SOURCE_EXT), ...walkFiles(srcRoot, STYLE_EXT)]
   const failures = []
 
   for (const file of files) {
@@ -378,7 +391,9 @@ check('colors come from design tokens, not bare hex', () => {
     if (rel === 'src/components/ui/ui.css') continue
     const rgbCount = countBareRgb(source)
     if (rgbCount > 0) {
-      failures.push(`${rel}: 有 ${rgbCount} 处裸 rgb()/rgba()，半透明叠加值必须走 token 才能随主题翻转`)
+      failures.push(
+        `${rel}: 有 ${rgbCount} 处裸 rgb()/rgba()，半透明叠加值必须走 token 才能随主题翻转`,
+      )
     }
   }
 
@@ -390,9 +405,11 @@ check('the design-token source keeps its Tailwind import', () => {
   const indexCss = read(path.join(projectRoot, 'src', 'index.css'))
   const result = themeDirectiveHasTailwindImport(indexCss)
   if (!result.ok) {
-    throw new Error(result.reason === 'missing-import'
-      ? 'src/index.css: 有 @theme 却没有 @import "tailwindcss"，token 会全部失效（工具类零消费者不等于依赖可删）'
-      : 'src/index.css: 有 @import "tailwindcss" 却没有 @theme，设计 token 源不在这里了，请更新守卫')
+    throw new Error(
+      result.reason === 'missing-import'
+        ? 'src/index.css: 有 @theme 却没有 @import "tailwindcss"，token 会全部失效（工具类零消费者不等于依赖可删）'
+        : 'src/index.css: 有 @import "tailwindcss" 却没有 @theme，设计 token 源不在这里了，请更新守卫',
+    )
   }
 })
 
@@ -400,7 +417,9 @@ check('the core gate runs the whole Vitest suite', () => {
   // core 是每块改动的准入门，名单化过一次就漏了 47 个文件，不要再回来。判定见 guards.mjs。
   const verify = read(path.join(projectRoot, 'tests', 'verify.mjs'))
   if (!coreSuiteRunsEverything(verify)) {
-    throw new Error('tests/verify.mjs: runCoreSuite() 必须用 runVitest() 跑整个套件，不能传文件名单')
+    throw new Error(
+      'tests/verify.mjs: runCoreSuite() 必须用 runVitest() 跑整个套件，不能传文件名单',
+    )
   }
 })
 
@@ -420,7 +439,9 @@ check('real-Electron suites stay out of the Vitest run', () => {
     // (mainResilience) or spawn their own Electron child are fine under Vitest.
     if (!/^const \w+ = requiredEnvironment\(/m.test(read(file))) continue
     if (!vitestConfig.includes(relativePath)) {
-      missing.push(`${relativePath}: needs a bundle env var but is not excluded in vitest.config.ts`)
+      missing.push(
+        `${relativePath}: needs a bundle env var but is not excluded in vitest.config.ts`,
+      )
     }
     if (!verify.includes(path.basename(file))) {
       missing.push(`${relativePath}: excluded from Vitest but never run by tests/verify.mjs`)
@@ -445,7 +466,8 @@ const SOURCE_TEXT_DEBT = new Set([
 ])
 
 check('tests assert behaviour instead of production source text', () => {
-  const readsProductionSource = /readFileSync\([^)\n]*['"][^'"\n]*(?:\belectron\/|\bsrc\/)[^'"\n]*\.(?:ts|tsx|css)['"]/
+  const readsProductionSource =
+    /readFileSync\([^)\n]*['"][^'"\n]*(?:\belectron\/|\bsrc\/)[^'"\n]*\.(?:ts|tsx|css)['"]/
   const failures = []
   const seen = new Set()
 
@@ -454,7 +476,9 @@ check('tests assert behaviour instead of production source text', () => {
     if (!readsProductionSource.test(read(file))) continue
     seen.add(relativePath)
     if (SOURCE_TEXT_AS_ARTIFACT.has(relativePath) || SOURCE_TEXT_DEBT.has(relativePath)) continue
-    failures.push(`${relativePath}: reads production source to assert on its text; assert behaviour instead`)
+    failures.push(
+      `${relativePath}: reads production source to assert on its text; assert behaviour instead`,
+    )
   }
 
   for (const allowed of [...SOURCE_TEXT_AS_ARTIFACT, ...SOURCE_TEXT_DEBT]) {

@@ -27,7 +27,14 @@ function internalTab(overrides: Partial<InternalTab> = {}): InternalTab {
   return { ...baseTab, kind: 'internal', page: { type: 'dashboard' }, ...overrides }
 }
 
-// Mock electronAPI 避免 HomePage 加载时报错
+// Mock electronAPI 避免 HomePage / 设置页加载时报错。
+// CI 实测（2026-10-31，run 41162618391）：设置页是懒加载，时序不利时其挂载/effect
+// 重连发生在用例结束之后；缺一个方法（getTheme）就以 uncaught exception 把整个
+// vitest 进程炸成退出码 1——1387 用例全过也白搭。因此设置页挂载时读取的 API
+// 必须全部在场；让它们 reject 而不是硬编返回形状：每个 panel 的挂载 handler 都有
+// .catch，会走自己的「读取失败」路径（读取类全是 try/catch/.catch，见各 Panel）。
+const stubRejection = () =>
+  vi.fn().mockRejectedValue(new Error('transitions fixture: API not wired in this test'))
 beforeEach(() => {
   // @ts-expect-error: test stub
   window.electronAPI = {
@@ -40,6 +47,14 @@ beforeEach(() => {
     listRecentProblems: vi.fn().mockResolvedValue([]),
     getHomeShortcuts: vi.fn().mockResolvedValue([]),
     onProblemsUpdated: vi.fn().mockReturnValue(() => {}),
+    // 设置页挂载时的读取类 API（AppearancePanel/SearchEnginePanel/LlmConfigPanel/
+    // CodeforcesSyncPanel/SiteManagementPanel/SettingsPage 本体）。
+    getTheme: stubRejection(),
+    getSearchEngine: stubRejection(),
+    coachGetLlmConfig: stubRejection(),
+    getAccounts: stubRejection(),
+    getAllSites: stubRejection(),
+    getRealtimeSubmissionStatus: stubRejection(),
   }
 })
 
@@ -104,7 +119,6 @@ describe('View Transitions（B5.3）', () => {
     })
   })
 
-
   it('能力检测：不支持时仍能正常切换（降级分支）', async () => {
     // @ts-expect-error: 删除 API 模拟不支持
     delete document.startViewTransition
@@ -150,13 +164,20 @@ describe('View Transitions（B5.3）', () => {
      */
     const rejections: unknown[] = []
     // jsdom 里未接住的 rejection 落到 process 而不是 window，所以监听点在 process 上。
-    const onUnhandled = (reason: unknown) => { rejections.push(reason) }
+    const onUnhandled = (reason: unknown) => {
+      rejections.push(reason)
+    }
     process.on('unhandledRejection', onUnhandled)
 
     document.startViewTransition = ((callback: () => void) => {
       callback()
       const skipped = Promise.reject(new DOMException('Transition was skipped', 'AbortError'))
-      return { ready: skipped, finished: skipped, updateCallbackDone: Promise.resolve(), skipTransition: () => {} }
+      return {
+        ready: skipped,
+        finished: skipped,
+        updateCallbackDone: Promise.resolve(),
+        skipTransition: () => {},
+      }
     }) as unknown as typeof document.startViewTransition
 
     const dashboardTab = internalTab()
@@ -249,9 +270,8 @@ describe('Dialog 出入场动画（B5.3）', () => {
     }
 
     const rules = Array.from(styleSheet.cssRules)
-    const startingRule = rules.find(
-      (rule) => rule instanceof CSSStartingStyleRule,
-    ) as CSSStartingStyleRule | undefined
+    const startingRule = rules.find((rule) => rule instanceof CSSStartingStyleRule) as
+      CSSStartingStyleRule | undefined
 
     expect(startingRule).toBeDefined()
   })

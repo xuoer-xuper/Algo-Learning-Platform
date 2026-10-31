@@ -319,7 +319,12 @@ function buildL4StrategyMessage(
 
   // TLE 复杂度策略
   if (eventType === 'complexity_warning' || v === 'TLE') {
-    if (constraints?.nUpper !== null && constraints && constraints.nUpper !== null && constraints.nUpper >= 1e5) {
+    if (
+      constraints?.nUpper !== null &&
+      constraints &&
+      constraints.nUpper !== null &&
+      constraints.nUpper >= 1e5
+    ) {
       const nUpper = formatNumber(constraints.nUpper)
       return `L4：n 上限 ${nUpper} 通常需要 O(n log n) 以内。考虑用排序、二分、堆、线段树、单调队列等把嵌套循环优化掉。`
     }
@@ -346,22 +351,22 @@ function buildL4StrategyMessage(
 function buildL5ConceptMessage(primaryTag: string, allTags: string[]): string {
   // L5 给出概念性提示：根据算法标签引导，但不直接告诉答案
   const tagMap: Record<string, string> = {
-    'dp': '这道题可能和动态规划有关——思考状态定义与转移。',
-    'graph': '这道题可能和图论有关——考虑建图方式与遍历顺序。',
-    'tree': '这道题可能和树有关——考虑 DFS/BFS 与子树信息合并。',
-    'math': '这道题可能和数学有关——考虑公式推导或数论性质。',
-    'greedy': '这道题可能和贪心有关——思考局部最优策略与反例。',
+    dp: '这道题可能和动态规划有关——思考状态定义与转移。',
+    graph: '这道题可能和图论有关——考虑建图方式与遍历顺序。',
+    tree: '这道题可能和树有关——考虑 DFS/BFS 与子树信息合并。',
+    math: '这道题可能和数学有关——考虑公式推导或数论性质。',
+    greedy: '这道题可能和贪心有关——思考局部最优策略与反例。',
     'binary-search': '这道题可能和二分有关——思考单调性与判定函数。',
     'prefix-sum': '这道题可能和前缀和有关——思考区间信息如何 O(1) 查询。',
     'segment-tree': '这道题可能和线段树有关——思考区间操作如何维护。',
-    'dfs': '这道题可能和 DFS 有关——思考搜索顺序与剪枝。',
-    'bfs': '这道题可能和 BFS 有关——思考层次遍历与最短路径。',
-    'string': '这道题可能和字符串有关——考虑 KMP/Trie/哈希。',
-    'bitmask': '这道题可能和位运算有关——考虑状态压缩。',
-    'sort': '这道题可能和排序有关——考虑排序后贪心或二分。',
-    'stack': '这道题可能和栈有关——考虑单调栈维护最近满足条件的元素。',
-    'queue': '这道题可能和队列有关——考虑单调队列优化 DP/滑动窗口。',
-    'heap': '这道题可能和堆有关——考虑用优先队列维护动态极值。',
+    dfs: '这道题可能和 DFS 有关——思考搜索顺序与剪枝。',
+    bfs: '这道题可能和 BFS 有关——思考层次遍历与最短路径。',
+    string: '这道题可能和字符串有关——考虑 KMP/Trie/哈希。',
+    bitmask: '这道题可能和位运算有关——考虑状态压缩。',
+    sort: '这道题可能和排序有关——考虑排序后贪心或二分。',
+    stack: '这道题可能和栈有关——考虑单调栈维护最近满足条件的元素。',
+    queue: '这道题可能和队列有关——考虑单调队列优化 DP/滑动窗口。',
+    heap: '这道题可能和堆有关——考虑用优先队列维护动态极值。',
   }
   const msg = tagMap[primaryTag.toLowerCase()]
   if (msg) return `L5（接近题解方向）：${msg}`

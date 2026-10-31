@@ -101,7 +101,7 @@ node node_modules\typescript\bin\tsc --noEmit
 涉及具体页面时启动：
 
 ```powershell
-npm run dev
+pnpm run dev
 ```
 
 然后手测对应入口、IPC 调用、空数据状态、错误降级和标签关闭。

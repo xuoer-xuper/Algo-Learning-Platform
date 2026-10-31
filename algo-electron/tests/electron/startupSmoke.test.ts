@@ -14,24 +14,29 @@ const preloadBundle = path.join(buildDir, 'preload.cjs')
 const ojPreloadBundle = path.join(buildDir, 'ojPreload.cjs')
 const userscriptPreloadBundle = path.join(buildDir, 'userscriptBootstrapPreload.cjs')
 const esbuildBin = path.join(projectRoot, 'node_modules', 'esbuild', 'bin', 'esbuild')
-const electronBin = process.platform === 'win32'
-  ? path.join(projectRoot, 'node_modules', 'electron', 'dist', 'electron.exe')
-  : path.join(projectRoot, 'node_modules', '.bin', 'electron')
+const electronBin =
+  process.platform === 'win32'
+    ? path.join(projectRoot, 'node_modules', 'electron', 'dist', 'electron.exe')
+    : path.join(projectRoot, 'node_modules', '.bin', 'electron')
 
 function runEsbuild(input: string, outfile: string, format: 'esm' | 'cjs' = 'esm'): void {
-  const result = spawnSync(process.execPath, [
-    esbuildBin,
-    input,
-    '--bundle',
-    '--platform=node',
-    `--format=${format}`,
-    '--external:electron',
-    '--external:better-sqlite3',
-    `--outfile=${outfile}`,
-  ], {
-    cwd: projectRoot,
-    encoding: 'utf-8',
-  })
+  const result = spawnSync(
+    process.execPath,
+    [
+      esbuildBin,
+      input,
+      '--bundle',
+      '--platform=node',
+      `--format=${format}`,
+      '--external:electron',
+      '--external:better-sqlite3',
+      `--outfile=${outfile}`,
+    ],
+    {
+      cwd: projectRoot,
+      encoding: 'utf-8',
+    },
+  )
 
   assert.strictEqual(
     result.status,
@@ -91,7 +96,11 @@ async function runSmokeElectron(userDataDir: string): Promise<void> {
       }
       const timer = setTimeout(() => {
         child.kill('SIGKILL')
-        settle(() => reject(new Error(`Electron smoke process timed out\nSTDOUT:\n${stdout}\nSTDERR:\n${stderr}`)))
+        settle(() =>
+          reject(
+            new Error(`Electron smoke process timed out\nSTDOUT:\n${stdout}\nSTDERR:\n${stderr}`),
+          ),
+        )
       }, 30000)
 
       child.stdout.on('data', (chunk: string) => {
@@ -103,7 +112,9 @@ async function runSmokeElectron(userDataDir: string): Promise<void> {
           settle(resolve)
         }
       })
-      child.stderr.on('data', (chunk: string) => { stderr += chunk })
+      child.stderr.on('data', (chunk: string) => {
+        stderr += chunk
+      })
 
       child.once('error', (error) => {
         settle(() => reject(new Error(`${error.message}\nSTDOUT:\n${stdout}\nSTDERR:\n${stderr}`)))
@@ -116,16 +127,23 @@ async function runSmokeElectron(userDataDir: string): Promise<void> {
           settle(resolve)
           return
         }
-        settle(() => reject(new Error(
-          `Electron smoke process failed with status ${code} signal ${signal}\nSTDOUT:\n${stdout}\nSTDERR:\n${stderr}`,
-        )))
+        settle(() =>
+          reject(
+            new Error(
+              `Electron smoke process failed with status ${code} signal ${signal}\nSTDOUT:\n${stdout}\nSTDERR:\n${stderr}`,
+            ),
+          ),
+        )
       })
     })
   } finally {
     await closeServer(server)
   }
 
-  assert.match(`${stdout}\n${stderr}`, /\[startup-smoke\] ok mainWindow=1 tab=.+ url=http:\/\/127\.0\.0\.1:/)
+  assert.match(
+    `${stdout}\n${stderr}`,
+    /\[startup-smoke\] ok mainWindow=1 tab=.+ url=http:\/\/127\.0\.0\.1:/,
+  )
   const migratedConfig = JSON.parse(
     fs.readFileSync(path.join(userDataDir, 'config.json'), 'utf-8'),
   ) as Record<string, unknown>
@@ -149,10 +167,14 @@ async function startSmokeServer(): Promise<{ server: Server; origin: string }> {
     if (request.method === 'POST' && requestUrl.pathname === '/popup-post.html') {
       let body = ''
       request.setEncoding('utf8')
-      request.on('data', (chunk: string) => { body += chunk.slice(0, 16_384) })
+      request.on('data', (chunk: string) => {
+        body += chunk.slice(0, 16_384)
+      })
       request.on('end', () => {
         response.writeHead(200, { 'content-type': 'text/html; charset=utf-8' })
-        response.end(`<!doctype html><title>Popup POST</title><h1>post-body:${escapeHtml(body)}</h1>`)
+        response.end(
+          `<!doctype html><title>Popup POST</title><h1>post-body:${escapeHtml(body)}</h1>`,
+        )
       })
       return
     }
@@ -178,18 +200,22 @@ async function startSmokeServer(): Promise<{ server: Server; origin: string }> {
 
 function closeServer(server: Server): Promise<void> {
   return new Promise((resolve, reject) => {
-    server.close((error) => error ? reject(error) : resolve())
+    server.close((error) => (error ? reject(error) : resolve()))
   })
 }
 
 function escapeHtml(value: string): string {
-  return value.replace(/[&<>"']/g, (character) => ({
-    '&': '&amp;',
-    '<': '&lt;',
-    '>': '&gt;',
-    '"': '&quot;',
-    "'": '&#39;',
-  })[character]!)
+  return value.replace(
+    /[&<>"']/g,
+    (character) =>
+      ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;',
+      })[character]!,
+  )
 }
 
 async function removeDirectoryWithRetry(directory: string): Promise<void> {
@@ -200,7 +226,9 @@ async function removeDirectoryWithRetry(directory: string): Promise<void> {
       return
     } catch (error) {
       lastError = error
-      await new Promise<void>((resolve) => { setTimeout(resolve, 250) })
+      await new Promise<void>((resolve) => {
+        setTimeout(resolve, 250)
+      })
     }
   }
   throw lastError instanceof Error ? lastError : new Error(`Unable to remove ${directory}`)
@@ -223,6 +251,9 @@ try {
 
   console.log('[PASS] Electron startup smoke test')
 } finally {
-  assert.ok(userDataDir.startsWith(os.tmpdir()), 'Refusing to clean a directory outside os.tmpdir()')
+  assert.ok(
+    userDataDir.startsWith(os.tmpdir()),
+    'Refusing to clean a directory outside os.tmpdir()',
+  )
   await removeDirectoryWithRetry(userDataDir)
 }

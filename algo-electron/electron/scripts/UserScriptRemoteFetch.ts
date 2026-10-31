@@ -15,25 +15,28 @@ export interface FetchUserScriptDocumentOptions {
   signal?: AbortSignal
 }
 
-export type UserScriptDocumentResponse = {
-  status: 'not-modified'
-  finalUrl: string
-  etag: string | null
-  lastModified: string | null
-} | {
-  status: 'ok'
-  code: string
-  finalUrl: string
-  etag: string | null
-  lastModified: string | null
-}
+export type UserScriptDocumentResponse =
+  | {
+      status: 'not-modified'
+      finalUrl: string
+      etag: string | null
+      lastModified: string | null
+    }
+  | {
+      status: 'ok'
+      code: string
+      finalUrl: string
+      etag: string | null
+      lastModified: string | null
+    }
 
 export async function fetchUserScriptDocument(
   url: string,
   options: FetchUserScriptDocumentOptions,
 ): Promise<UserScriptDocumentResponse> {
   const maxBytes = options.maxBytes ?? DEFAULT_MAX_BYTES
-  if (!Number.isSafeInteger(maxBytes) || maxBytes < 1) throw new RangeError('maxBytes must be positive')
+  if (!Number.isSafeInteger(maxBytes) || maxBytes < 1)
+    throw new RangeError('maxBytes must be positive')
   let currentUrl = requireSafeUrl(url, Boolean(options.allowInsecureLocalhost))
   let conditionalEtag = options.etag ?? null
   let conditionalLastModified = options.lastModified ?? null
@@ -54,7 +57,8 @@ export async function fetchUserScriptDocument(
       })
       if (response.status >= 300 && response.status < 400 && response.status !== 304) {
         const location = response.headers.get('location')
-        if (!location || redirect === MAX_REDIRECTS) throw new Error('Userscript source redirected too many times')
+        if (!location || redirect === MAX_REDIRECTS)
+          throw new Error('Userscript source redirected too many times')
         const nextUrl = requireSafeUrl(
           new URL(location, currentUrl).toString(),
           Boolean(options.allowInsecureLocalhost),
@@ -76,11 +80,15 @@ export async function fetchUserScriptDocument(
           lastModified: responseLastModified ?? conditionalLastModified,
         }
       }
-      if (!response.ok) throw new Error(`Userscript source request failed with HTTP ${response.status}`)
+      if (!response.ok)
+        throw new Error(`Userscript source request failed with HTTP ${response.status}`)
       const bytes = await readBoundedResponse(response, maxBytes)
       let code: string
-      try { code = new TextDecoder('utf-8', { fatal: true }).decode(bytes) }
-      catch { throw new Error('Userscript source is not valid UTF-8') }
+      try {
+        code = new TextDecoder('utf-8', { fatal: true }).decode(bytes)
+      } catch {
+        throw new Error('Userscript source is not valid UTF-8')
+      }
       return {
         status: 'ok',
         code,
@@ -90,14 +98,14 @@ export async function fetchUserScriptDocument(
       }
     }
     throw new Error('Userscript source request failed')
-  }
-  catch (error) {
+  } catch (error) {
     if (controller.signal.aborted) {
-      throw Object.assign(new Error('Userscript source download timed out or was cancelled'), { cause: error })
+      throw Object.assign(new Error('Userscript source download timed out or was cancelled'), {
+        cause: error,
+      })
     }
     throw error
-  }
-  finally {
+  } finally {
     clearTimeout(timer)
     options.signal?.removeEventListener('abort', abortFromCaller)
   }

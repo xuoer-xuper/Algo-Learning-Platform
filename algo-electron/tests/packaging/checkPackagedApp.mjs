@@ -36,7 +36,11 @@ function assertProductionFuses() {
     GrantFileProtocolExtraPrivileges: 'Disabled',
   }
   for (const [name, state] of Object.entries(expected)) {
-    assert.match(output, new RegExp(`${name} is ${state}`), `Packaged fuse ${name} must be ${state}`)
+    assert.match(
+      output,
+      new RegExp(`${name} is ${state}`),
+      `Packaged fuse ${name} must be ${state}`,
+    )
   }
 }
 
@@ -45,26 +49,44 @@ assertProductionFuses()
 function writeSmokePages(webRoot, rendererDist) {
   fs.mkdirSync(webRoot, { recursive: true })
   fs.mkdirSync(rendererDist, { recursive: true })
-  fs.writeFileSync(path.join(rendererDist, 'index.html'), '<!doctype html><html><body><h1>packaged-renderer-ready</h1></body></html>')
-  fs.writeFileSync(path.join(webRoot, 'legacy-home.html'), '<!doctype html><html><body><h1>packaged-home-ready</h1></body></html>')
-  fs.writeFileSync(path.join(webRoot, 'popup-get.html'), '<!doctype html><html><body><h1>popup-get-ready</h1></body></html>')
-  fs.writeFileSync(path.join(webRoot, 'popup-oauth.html'), '<!doctype html><html><body><h1>popup-oauth-ready</h1><script>window.opener?.postMessage("oauth-complete", location.origin)</script></body></html>')
+  fs.writeFileSync(
+    path.join(rendererDist, 'index.html'),
+    '<!doctype html><html><body><h1>packaged-renderer-ready</h1></body></html>',
+  )
+  fs.writeFileSync(
+    path.join(webRoot, 'legacy-home.html'),
+    '<!doctype html><html><body><h1>packaged-home-ready</h1></body></html>',
+  )
+  fs.writeFileSync(
+    path.join(webRoot, 'popup-get.html'),
+    '<!doctype html><html><body><h1>popup-get-ready</h1></body></html>',
+  )
+  fs.writeFileSync(
+    path.join(webRoot, 'popup-oauth.html'),
+    '<!doctype html><html><body><h1>popup-oauth-ready</h1><script>window.opener?.postMessage("oauth-complete", location.origin)</script></body></html>',
+  )
 }
 
 async function startSmokeServer(webRoot) {
   const requests = []
   let releaseLegacyHome
-  const legacyHomeGate = new Promise((resolve) => { releaseLegacyHome = resolve })
+  const legacyHomeGate = new Promise((resolve) => {
+    releaseLegacyHome = resolve
+  })
   const server = createServer((request, response) => {
     const requestUrl = new URL(request.url ?? '/', 'http://127.0.0.1')
     requests.push(`${request.method} ${requestUrl.pathname}`)
     if (request.method === 'POST' && requestUrl.pathname === '/popup-post.html') {
       let body = ''
       request.setEncoding('utf8')
-      request.on('data', (chunk) => { body += chunk.slice(0, 16_384) })
+      request.on('data', (chunk) => {
+        body += chunk.slice(0, 16_384)
+      })
       request.on('end', () => {
         response.writeHead(200, { 'content-type': 'text/html; charset=utf-8' })
-        response.end(`<!doctype html><html><body><h1>post-body:${body.replace(/[&<>]/g, (value) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[value])}</h1></body></html>`)
+        response.end(
+          `<!doctype html><html><body><h1>post-body:${body.replace(/[&<>]/g, (value) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[value])}</h1></body></html>`,
+        )
       })
       return
     }
@@ -104,7 +126,9 @@ async function startSmokeServer(webRoot) {
 }
 
 function delay(ms) {
-  return new Promise((resolve) => { setTimeout(resolve, ms) })
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms)
+  })
 }
 
 function startPackagedApp(env, timeoutMs = 45_000) {
@@ -122,8 +146,12 @@ function startPackagedApp(env, timeoutMs = 45_000) {
 
   child.stdout.setEncoding('utf8')
   child.stderr.setEncoding('utf8')
-  child.stdout.on('data', (chunk) => { stdout += chunk })
-  child.stderr.on('data', (chunk) => { stderr += chunk })
+  child.stdout.on('data', (chunk) => {
+    stdout += chunk
+  })
+  child.stderr.on('data', (chunk) => {
+    stderr += chunk
+  })
 
   const result = new Promise((resolve) => {
     const timeout = setTimeout(() => {
@@ -159,10 +187,13 @@ function startPackagedApp(env, timeoutMs = 45_000) {
       while (Date.now() <= deadline) {
         const output = `${stdout}\n${stderr}`
         if (output.includes(marker)) return
-        if (finished) throw new Error(`Packaged app exited before output marker ${marker}\n${output}`)
+        if (finished)
+          throw new Error(`Packaged app exited before output marker ${marker}\n${output}`)
         await delay(25)
       }
-      throw new Error(`Timed out waiting for packaged app output marker ${marker}\n${stdout}\n${stderr}`)
+      throw new Error(
+        `Timed out waiting for packaged app output marker ${marker}\n${stdout}\n${stderr}`,
+      )
     },
     async stop() {
       if (!finished) child.kill()
@@ -209,8 +240,16 @@ async function main() {
 
     primary = startPackagedApp(smokeEnv)
     await primary.waitForOutput('[startup-smoke] step shell-loaded')
-    assert.strictEqual(primary.child.exitCode, null, 'Primary packaged app exited before the second launch')
-    assert.strictEqual(primary.child.signalCode, null, 'Primary packaged app was terminated before the second launch')
+    assert.strictEqual(
+      primary.child.exitCode,
+      null,
+      'Primary packaged app exited before the second launch',
+    )
+    assert.strictEqual(
+      primary.child.signalCode,
+      null,
+      'Primary packaged app was terminated before the second launch',
+    )
 
     secondary = startPackagedApp(smokeEnv, 10_000)
     const secondaryResult = await secondary.result
@@ -220,15 +259,30 @@ async function main() {
       0,
       `Second packaged instance exited with ${secondaryResult.status}, signal ${secondaryResult.signal}, timedOut=${secondaryResult.timedOut}\nSTDOUT:\n${secondaryResult.stdout}\nSTDERR:\n${secondaryResult.stderr}`,
     )
-    assert.strictEqual(secondaryResult.timedOut, false, 'Second packaged instance did not exit promptly')
-    assert.ok(secondaryResult.durationMs < 10_000, `Second packaged instance took ${secondaryResult.durationMs}ms to exit`)
+    assert.strictEqual(
+      secondaryResult.timedOut,
+      false,
+      'Second packaged instance did not exit promptly',
+    )
+    assert.ok(
+      secondaryResult.durationMs < 10_000,
+      `Second packaged instance took ${secondaryResult.durationMs}ms to exit`,
+    )
     assert.match(
       `${secondaryResult.stdout}\n${secondaryResult.stderr}`,
       /app\.single-instance-denied/,
       'Second packaged instance did not report the denied single-instance lock',
     )
-    assert.strictEqual(primary.child.exitCode, null, 'Primary packaged app exited after the second launch')
-    assert.strictEqual(primary.child.signalCode, null, 'Primary packaged app was terminated after the second launch')
+    assert.strictEqual(
+      primary.child.exitCode,
+      null,
+      'Primary packaged app exited after the second launch',
+    )
+    assert.strictEqual(
+      primary.child.signalCode,
+      null,
+      'Primary packaged app was terminated after the second launch',
+    )
 
     releaseLegacyHome()
     const result = await primary.result
@@ -246,30 +300,53 @@ async function main() {
       /\[startup-smoke\] ok mainWindow=1 tab=.+ url=http:\/\/127\.0\.0\.1:/,
       `Packaged startup smoke marker missing\n${output}`,
     )
-    assert.match(output, /app\.second-instance-focused/, 'Primary packaged app did not focus its window')
+    assert.match(
+      output,
+      /app\.second-instance-focused/,
+      'Primary packaged app did not focus its window',
+    )
 
-    const migratedConfig = JSON.parse(fs.readFileSync(path.join(userDataDir, 'config.json'), 'utf8'))
+    const migratedConfig = JSON.parse(
+      fs.readFileSync(path.join(userDataDir, 'config.json'), 'utf8'),
+    )
     assert.deepStrictEqual(migratedConfig.homeShortcuts, [legacyHomeUrl])
     assert.strictEqual(Object.hasOwn(migratedConfig, 'defaultHomeUrl'), false)
 
     const logText = fs.existsSync(logFile) ? fs.readFileSync(logFile, 'utf8') : ''
-    assert.match(logText, /app\.single-instance-acquired/, 'Primary single-instance acquisition was not logged')
-    assert.match(logText, /app\.second-instance-focused/, 'Primary second-instance focus was not logged')
-    assert.doesNotMatch(logText, /app\.single-instance-denied/, 'Losing instance wrote to the shared log')
+    assert.match(
+      logText,
+      /app\.single-instance-acquired/,
+      'Primary single-instance acquisition was not logged',
+    )
+    assert.match(
+      logText,
+      /app\.second-instance-focused/,
+      'Primary second-instance focus was not logged',
+    )
+    assert.doesNotMatch(
+      logText,
+      /app\.single-instance-denied/,
+      'Losing instance wrote to the shared log',
+    )
 
     const databasePath = path.join(userDataDir, 'data', 'algo-learning.sqlite')
-    assert.ok(fs.existsSync(databasePath), 'Packaged app did not create its isolated SQLite database')
+    assert.ok(
+      fs.existsSync(databasePath),
+      'Packaged app did not create its isolated SQLite database',
+    )
     assert.ok(fs.statSync(databasePath).size > 0, 'Packaged app created an empty SQLite database')
 
-    console.log('[PASS] Packaged win-unpacked app enforces one instance, focuses the primary window, and loads SQLite')
+    console.log(
+      '[PASS] Packaged win-unpacked app enforces one instance, focuses the primary window, and loads SQLite',
+    )
   } finally {
     releaseLegacyHome()
-    await Promise.allSettled([
-      primary?.stop(),
-      secondary?.stop(),
-    ].filter(Boolean))
+    await Promise.allSettled([primary?.stop(), secondary?.stop()].filter(Boolean))
     await new Promise((resolve) => server.close(() => resolve()))
-    assert.ok(tempRoot.startsWith(os.tmpdir()), 'Refusing to clean outside the system temp directory')
+    assert.ok(
+      tempRoot.startsWith(os.tmpdir()),
+      'Refusing to clean outside the system temp directory',
+    )
     fs.rmSync(tempRoot, { recursive: true, force: true })
   }
 }

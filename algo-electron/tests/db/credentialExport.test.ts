@@ -11,11 +11,15 @@ test('learning data export lists every excluded table and never includes credent
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'site-credential-export-'))
   try {
     initDbAtPath(path.join(tempDir, 'export.sqlite'))
-    getDb().prepare(`
+    getDb()
+      .prepare(
+        `
       INSERT INTO site_configs (
         id, name, domains_json, home_url, enabled, is_builtin, created_at, updated_at
       ) VALUES ('codeforces', 'Codeforces', '["codeforces.com"]', 'https://codeforces.com', 1, 1, 'now', 'now')
-    `).run()
+    `,
+      )
+      .run()
     upsertCredential({
       siteId: 'codeforces',
       username: 'export-user',
@@ -27,13 +31,19 @@ test('learning data export lists every excluded table and never includes credent
     })
 
     const exported = exportLearningData()
-    const actualTables = (getDb().prepare(`
+    const actualTables = (
+      getDb()
+        .prepare(
+          `
       SELECT name FROM sqlite_master
       WHERE type = 'table' AND name NOT LIKE 'sqlite_%'
       ORDER BY name ASC
-    `).all() as Array<{ name: string }>).map(row => row.name)
+    `,
+        )
+        .all() as Array<{ name: string }>
+    ).map((row) => row.name)
     const exportedTables = Object.keys(exported.tables)
-    const expectedExcluded = actualTables.filter(table => !exportedTables.includes(table)).sort()
+    const expectedExcluded = actualTables.filter((table) => !exportedTables.includes(table)).sort()
     assert.deepStrictEqual(exported.metadata.excluded_tables, expectedExcluded)
     assert.ok(exported.metadata.excluded_tables.includes('site_credentials'))
     assert.ok(exported.metadata.excluded_tables.includes('user_script_values'))

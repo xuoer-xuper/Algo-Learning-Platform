@@ -26,8 +26,8 @@
 
 ```powershell
 cd algo-electron
-npm run typecheck
-npm run lint
+pnpm run typecheck
+pnpm run lint
 ```
 
 运行时手动验证：启动应用后切换 6 状态观察配色与动画差异。

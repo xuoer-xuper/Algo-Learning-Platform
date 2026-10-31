@@ -13,16 +13,22 @@ import type {
 
 export function getPlatformDistribution(): PlatformDistributionRow[] {
   const db = getDb()
-  return db.prepare(`
+  return db
+    .prepare(
+      `
     SELECT platform, COUNT(*) as count
     FROM problems WHERE deleted_at IS NULL
     GROUP BY platform ORDER BY count DESC
-  `).all() as PlatformDistributionRow[]
+  `,
+    )
+    .all() as PlatformDistributionRow[]
 }
 
 export function getProblemVisitStats(problemId: string): ProblemVisitStat {
   const db = getDb()
-  return db.prepare(`
+  return db
+    .prepare(
+      `
     SELECT
       COUNT(*) as total_visits,
       COALESCE(SUM(duration_seconds), 0) as total_duration,
@@ -30,31 +36,43 @@ export function getProblemVisitStats(problemId: string): ProblemVisitStat {
       COALESCE(AVG(duration_seconds), 0) as avg_duration
     FROM problem_visits
     WHERE problem_id = ?
-  `).get(problemId) as ProblemVisitStat
+  `,
+    )
+    .get(problemId) as ProblemVisitStat
 }
 
 export function getTimeline(limit = 50): TimelineEvent[] {
   const db = getDb()
-  return db.prepare(`
+  return db
+    .prepare(
+      `
     SELECT id, event_type, occurred_at, platform, url, problem_id
     FROM activity_events
     ORDER BY occurred_at DESC
     LIMIT ?
-  `).all(limit) as TimelineEvent[]
+  `,
+    )
+    .all(limit) as TimelineEvent[]
 }
 
 export function getLastActiveTime(): string | null {
   const db = getDb()
-  const row = db.prepare(`
+  const row = db
+    .prepare(
+      `
     SELECT occurred_at FROM activity_events
     ORDER BY occurred_at DESC LIMIT 1
-  `).get() as { occurred_at: string } | undefined
+  `,
+    )
+    .get() as { occurred_at: string } | undefined
   return row?.occurred_at ?? null
 }
 
 export function getRevisitStats(limit = 50): RevisitStat[] {
   const db = getDb()
-  return db.prepare(`
+  return db
+    .prepare(
+      `
     SELECT
       p.id as problem_id,
       p.platform,
@@ -70,16 +88,22 @@ export function getRevisitStats(limit = 50): RevisitStat[] {
     HAVING visit_count > 1
     ORDER BY visit_count DESC
     LIMIT ?
-  `).all(limit) as RevisitStat[]
+  `,
+    )
+    .all(limit) as RevisitStat[]
 }
 
 export function getStreakDays(): StreakDays {
   const db = getDb()
-  const rows = db.prepare(`
+  const rows = db
+    .prepare(
+      `
     SELECT local_day FROM user_daily_stats
     WHERE active_seconds >= 300 OR submission_count > 0 OR solved_problem_count > 0
     ORDER BY local_day DESC
-  `).all() as { local_day: string }[]
+  `,
+    )
+    .all() as { local_day: string }[]
 
   if (rows.length === 0) return { current: 0, longest: 0 }
 
@@ -113,7 +137,9 @@ export function getStreakDays(): StreakDays {
 
 export function getWrongProblems(limit = 50): WrongProblem[] {
   const db = getDb()
-  return db.prepare(`
+  return db
+    .prepare(
+      `
     SELECT
       p.id,
       p.platform,
@@ -133,12 +159,16 @@ export function getWrongProblems(limit = 50): WrongProblem[] {
     GROUP BY p.id
     ORDER BY last_attempt DESC
     LIMIT ?
-  `).all(limit) as WrongProblem[]
+  `,
+    )
+    .all(limit) as WrongProblem[]
 }
 
 export function getUnreviewedProblems(days = 30, limit = 50): UnreviewedProblem[] {
   const db = getDb()
-  return db.prepare(`
+  return db
+    .prepare(
+      `
     SELECT
       id,
       platform,
@@ -153,5 +183,7 @@ export function getUnreviewedProblems(days = 30, limit = 50): UnreviewedProblem[
       AND status != 'visited'
     ORDER BY last_visited_at ASC
     LIMIT ?
-  `).all(localDateDaysAgo(days), limit) as UnreviewedProblem[]
+  `,
+    )
+    .all(localDateDaysAgo(days), limit) as UnreviewedProblem[]
 }

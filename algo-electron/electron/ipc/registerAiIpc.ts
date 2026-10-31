@@ -35,7 +35,8 @@ import {
  */
 const rowLimit = () => optional(int({ min: 1, max: 1000 }))
 const planDays = () => optional(int({ min: 1, max: 3650 }))
-const aiOutputType = () => oneOf(['review_recommendation', 'review_plan', 'period_summary', 'weakness_analysis'])
+const aiOutputType = () =>
+  oneOf(['review_recommendation', 'review_plan', 'period_summary', 'weakness_analysis'])
 const aiOutputBody = () => freeText({ max: 4 * 1024 * 1024 })
 
 export function registerAiIpc(): void {
@@ -59,10 +60,14 @@ export function registerAiIpc(): void {
     return getPeriodSummary({ start_date: startDate, end_date: endDate })
   })
 
-  ipcMain.handle('ai:getPeriodSummaryMarkdown', [localDate, localDate], (_event, startDate, endDate) => {
-    const summary = getPeriodSummary({ start_date: startDate, end_date: endDate })
-    return renderSummaryAsMarkdown(summary)
-  })
+  ipcMain.handle(
+    'ai:getPeriodSummaryMarkdown',
+    [localDate, localDate],
+    (_event, startDate, endDate) => {
+      const summary = getPeriodSummary({ start_date: startDate, end_date: endDate })
+      return renderSummaryAsMarkdown(summary)
+    },
+  )
 
   ipcMain.handle('ai:getReviewPlan', [planDays()], (_event, days) => {
     return getReviewPlan(days ?? 7)
@@ -85,12 +90,14 @@ export function registerAiIpc(): void {
    */
   ipcMain.handle(
     'ai:saveOutput',
-    [object({
-      output_type: aiOutputType(),
-      title: text({ max: 200 }),
-      content: aiOutputBody(),
-      content_markdown: optional(aiOutputBody()),
-    })],
+    [
+      object({
+        output_type: aiOutputType(),
+        title: text({ max: 200 }),
+        content: aiOutputBody(),
+        content_markdown: optional(aiOutputBody()),
+      }),
+    ],
     (_event, input) => {
       const payload: SaveAIOutputInput = input
       return saveAIOutput(payload)
@@ -101,9 +108,13 @@ export function registerAiIpc(): void {
     return getAIOutput(id)
   })
 
-  ipcMain.handle('ai:listOutputs', [optional(aiOutputType()), rowLimit()], (_event, outputType, limit) => {
-    return listAIOutputs(outputType, limit ?? 20)
-  })
+  ipcMain.handle(
+    'ai:listOutputs',
+    [optional(aiOutputType()), rowLimit()],
+    (_event, outputType, limit) => {
+      return listAIOutputs(outputType, limit ?? 20)
+    },
+  )
 
   ipcMain.handle('ai:deleteOutput', [text()], (_event, id) => {
     return deleteAIOutput(id)
@@ -115,14 +126,18 @@ export function registerAiIpc(): void {
    * `content_markdown` 再套 `nullable`：这两列在库里可空，显式传 `null` 是"清空这一列"，
    * 与"不改"是两件事；`content` 列 NOT NULL，所以不套。
    */
-  ipcMain.handle('ai:updateOutput', [
-    text(),
-    object({
-      title: optional(nullable(text({ max: 200 }))),
-      content: optional(aiOutputBody()),
-      content_markdown: optional(nullable(aiOutputBody())),
-    }),
-  ], (_event, id, updates) => {
-    return updateAIOutput(id, updates)
-  })
+  ipcMain.handle(
+    'ai:updateOutput',
+    [
+      text(),
+      object({
+        title: optional(nullable(text({ max: 200 }))),
+        content: optional(aiOutputBody()),
+        content_markdown: optional(nullable(aiOutputBody())),
+      }),
+    ],
+    (_event, id, updates) => {
+      return updateAIOutput(id, updates)
+    },
+  )
 }

@@ -107,6 +107,16 @@ export interface CoachOrchestratorOptions {
 const METRICS_LOOKBACK_DAYS = 30
 const WINDOW_SWITCH_DEBOUNCE_MS = 200
 
+/**
+ * 会话跟踪必须有存储服务才能工作：把「非空」这一前置条件在解析处显式化，
+ * 避免在调用点用非空断言掩盖缺失。此前的 `!` 在这里失败同样是抛错（TypeError）。
+ */
+function requireTrackingService(getTrackingService: () => TrackingService | null): TrackingService {
+  const trackingService = getTrackingService()
+  if (!trackingService) throw new Error('CoachOrchestrator requires a tracking service')
+  return trackingService
+}
+
 interface HintRequestContext {
   generation: number
   sessionId: string | null
@@ -193,11 +203,11 @@ export class CoachOrchestrator {
 
     // 2. ProblemSessionTracker
     this.sessionTracker = new ProblemSessionTracker({
-      trackingService: options.getTrackingService()!,
+      trackingService: requireTrackingService(options.getTrackingService),
       parseProblemUrl: parseUrl,
-      // Issue #3: 注入 problem_id 解析回调
+      // Issue #3: 注入 problem_id 解析回调（保持 async：解析抛错要变成 rejection 而不是同步异常）
       resolveProblemId: async (platform, platformProblemId) => {
-        return findProblemIdByPlatformKey(platform, platformProblemId)
+        return await Promise.resolve(findProblemIdByPlatformKey(platform, platformProblemId))
       },
       powerMonitor,
       isAnyAppWindowFocused: options.isAnyAppWindowFocused,
@@ -243,8 +253,7 @@ export class CoachOrchestrator {
       getProblemRating: () => this.sessionTracker.getCurrentSession()?.problem_rating ?? null,
       getIsContestMode: () => this.contestGuard.isContestMode(),
       getSuppressedTypes: () => this.loadSuppressedTypes(),
-      onIntervention: (intervention, event) =>
-        this.handleIntervention(intervention, event),
+      onIntervention: (intervention, event) => this.handleIntervention(intervention, event),
       getHintForUpgrade: (_eventType, targetLevel, context) =>
         this.hintLadder.getMessageForLevel(targetLevel, context),
       getConstraints: () => this.currentConstraints,
@@ -265,11 +274,13 @@ export class CoachOrchestrator {
     const initialWindow = this.options.getMostRecentAppWindow()
     this.requestedWindowId = initialWindow?.id ?? null
     this.windowFollower.applyNow(initialWindow)
-    this.detachFns.push(this.options.addMostRecentWindowChangeListener((appWindow) => {
-      this.requestedWindowId = appWindow?.id ?? null
-      this.invalidateCurrentConstraints()
-      this.windowFollower.request(appWindow)
-    }))
+    this.detachFns.push(
+      this.options.addMostRecentWindowChangeListener((appWindow) => {
+        this.requestedWindowId = appWindow?.id ?? null
+        this.invalidateCurrentConstraints()
+        this.windowFollower.request(appWindow)
+      }),
+    )
 
     // 订阅提交检测出口
     const realtime = this.options.getRealtimeSubmissionService()
@@ -278,7 +289,10 @@ export class CoachOrchestrator {
         // 1. 转给 EventBridge（产生 CoachEvent）
         this.eventBridge.handleSubmission(notification)
         // 2. 通知 session tracker 记录提交
-        this.sessionTracker.recordSubmission(notification.verdict, notification.problemId ?? undefined)
+        this.sessionTracker.recordSubmission(
+          notification.verdict,
+          notification.problemId ?? undefined,
+        )
         // 3. 通知 RuleEngine 解锁防 abuse（一次新提交）
         // 这里没有 event_id，用 notification 推断（无 event_id 时 RuleEngine 会用 null）
         this.ruleEngine.notifyNewSubmission(notification.problemId ?? '')
@@ -392,10 +406,11 @@ export class CoachOrchestrator {
   private maybeFetchConstraints(appWindow: AppWindow, pageEvent: BrowserPageEvent): void {
     const { url } = pageEvent
     if (
-      this.activeAppWindow?.id !== appWindow.id
-      || this.requestedWindowId !== appWindow.id
-      || !appWindow.tabManager.isPageActive(pageEvent)
-    ) return
+      this.activeAppWindow?.id !== appWindow.id ||
+      this.requestedWindowId !== appWindow.id ||
+      !appWindow.tabManager.isPageActive(pageEvent)
+    )
+      return
 
     if (!url) {
       this.invalidateCurrentConstraints()
@@ -409,16 +424,16 @@ export class CoachOrchestrator {
     }
 
     const problemKey = `${identity.platform}:${identity.platformProblemId}`
-    const isNavigation = pageEvent.reason === 'did-navigate' || pageEvent.reason === 'did-navigate-in-page'
+    const isNavigation =
+      pageEvent.reason === 'did-navigate' || pageEvent.reason === 'did-navigate-in-page'
     if (
-      !isNavigation
-      &&
-      this.currentProblemWindowId === appWindow.id
-      && this.currentProblemKey === problemKey
-      && this.currentProblemUrl === url
-      && this.currentProblemPage !== null
-      && this.samePageOwner(this.currentProblemPage, pageEvent)
-      && (this.currentConstraints !== null || this.constraintFetchPending)
+      !isNavigation &&
+      this.currentProblemWindowId === appWindow.id &&
+      this.currentProblemKey === problemKey &&
+      this.currentProblemUrl === url &&
+      this.currentProblemPage !== null &&
+      this.samePageOwner(this.currentProblemPage, pageEvent) &&
+      (this.currentConstraints !== null || this.constraintFetchPending)
     ) {
       return
     }
@@ -486,10 +501,11 @@ export class CoachOrchestrator {
       }
       if (!event.isMainFrame) return
       if (
-        event.reason !== 'did-navigate'
-        && event.reason !== 'did-navigate-in-page'
-        && event.reason !== 'active-tab-changed'
-      ) return
+        event.reason !== 'did-navigate' &&
+        event.reason !== 'did-navigate-in-page' &&
+        event.reason !== 'active-tab-changed'
+      )
+        return
       this.maybeFetchConstraints(liveWindow, event)
     })
     const removeActiveListener = tabManager.addActiveTabChangeListener(() => {
@@ -525,11 +541,13 @@ export class CoachOrchestrator {
 
   private isCurrentHintRequest(request: HintRequestContext): boolean {
     // A contest or page/window round trip must not revive an earlier response.
-    return this.running
-      && !this.contestGuard.isContestMode()
-      && request.generation === this.hintContextGeneration
-      && request.sessionId === (this.sessionTracker.getCurrentSession()?.session_id ?? null)
-      && !this.activeAppWindow?.isDestroyed()
+    return (
+      this.running &&
+      !this.contestGuard.isContestMode() &&
+      request.generation === this.hintContextGeneration &&
+      request.sessionId === (this.sessionTracker.getCurrentSession()?.session_id ?? null) &&
+      !this.activeAppWindow?.isDestroyed()
+    )
   }
 
   private invalidateHintRequests(): void {
@@ -551,7 +569,11 @@ export class CoachOrchestrator {
     }
     if (this.thinkingRequest === request) {
       this.thinkingRequest = null
-      if (pet === request.pet && pet?.getPetState() === 'thinking' && !this.contestGuard.isContestMode()) {
+      if (
+        pet === request.pet &&
+        pet?.getPetState() === 'thinking' &&
+        !this.contestGuard.isContestMode()
+      ) {
         pet.setPetState('idle')
       }
     }
@@ -570,20 +592,24 @@ export class CoachOrchestrator {
     problemKey: string,
     pageEvent: BrowserPageEvent,
   ): boolean {
-    return this.constraintGenerationGate.isCurrent(generation)
-      && this.activeAppWindow?.id === windowId
-      && this.requestedWindowId === windowId
-      && this.currentProblemWindowId === windowId
-      && this.currentProblemKey === problemKey
-      && this.currentProblemPage !== null
-      && this.samePageOwner(this.currentProblemPage, pageEvent)
+    return (
+      this.constraintGenerationGate.isCurrent(generation) &&
+      this.activeAppWindow?.id === windowId &&
+      this.requestedWindowId === windowId &&
+      this.currentProblemWindowId === windowId &&
+      this.currentProblemKey === problemKey &&
+      this.currentProblemPage !== null &&
+      this.samePageOwner(this.currentProblemPage, pageEvent)
+    )
   }
 
   private samePageOwner(first: BrowserPageEvent, second: BrowserPageEvent): boolean {
-    return first.windowId === second.windowId
-      && first.tabId === second.tabId
-      && first.webContentsId === second.webContentsId
-      && first.url === second.url
+    return (
+      first.windowId === second.windowId &&
+      first.tabId === second.tabId &&
+      first.webContentsId === second.webContentsId &&
+      first.url === second.url
+    )
   }
 
   private detachAppWindow(windowId: string): void {
@@ -600,7 +626,11 @@ export class CoachOrchestrator {
   stop(): void {
     this.running = false
     for (const fn of this.detachFns) {
-      try { fn() } catch { /* ignore */ }
+      try {
+        fn()
+      } catch {
+        /* ignore */
+      }
     }
     this.detachFns = []
     if (this.disclaimerTimer) {
@@ -624,15 +654,16 @@ export class CoachOrchestrator {
   // --- 状态查询（IPC 消费） ---
 
   getState(): CoachStateSnapshot {
+    const contest = this.contestGuard.getCurrentContest()
     return {
       current_session: this.sessionTracker.getCurrentSession(),
       is_contest_mode: this.contestGuard.isContestMode(),
-      contest: this.contestGuard.getCurrentContest()
+      contest: contest
         ? {
-            url: this.contestGuard.getCurrentContest()!.contestUrl,
-            platform: this.contestGuard.getCurrentContest()!.platform,
-            contest_id: this.contestGuard.getCurrentContest()!.contestId,
-            entered_at: new Date(this.contestGuard.getCurrentContest()!.enteredAt).toISOString(),
+            url: contest.contestUrl,
+            platform: contest.platform,
+            contest_id: contest.contestId,
+            entered_at: new Date(contest.enteredAt).toISOString(),
           }
         : null,
       pet_state: this.options.getCoachPetWindow()?.getPetState() ?? 'idle',
@@ -683,8 +714,14 @@ export class CoachOrchestrator {
 
     // 补齐 eventsByType 所有 key（避免 undefined）
     const allTypes: CoachEventType[] = [
-      'idle_too_long', 'multiple_wrong', 'same_error', 'review_due',
-      'long_session', 'first_ac', 'boundary_suspected', 'complexity_warning',
+      'idle_too_long',
+      'multiple_wrong',
+      'same_error',
+      'review_due',
+      'long_session',
+      'first_ac',
+      'boundary_suspected',
+      'complexity_warning',
     ]
     for (const t of allTypes) {
       if (eventsByType[t] === undefined) eventsByType[t] = 0
@@ -739,15 +776,13 @@ export class CoachOrchestrator {
       url: v.url,
     }))
 
-    const submissions = getSubmissionsByProblemAsc(problemId).map<TimelineSubmissionPoint>(
-      (s) => ({
-        submission_id: s.id,
-        submitted_at: s.submitted_at,
-        verdict: s.verdict,
-        language: s.language,
-        runtime_ms: s.runtime_ms,
-      }),
-    )
+    const submissions = getSubmissionsByProblemAsc(problemId).map<TimelineSubmissionPoint>((s) => ({
+      submission_id: s.id,
+      submitted_at: s.submitted_at,
+      verdict: s.verdict,
+      language: s.language,
+      runtime_ms: s.runtime_ms,
+    }))
 
     const events = listCoachEventsByProblem(problemId).map<TimelineEventPoint>((e) => ({
       event_id: e.event_id,
@@ -780,9 +815,8 @@ export class CoachOrchestrator {
     }
     for (const s of submissions) candidateTimes.push(Date.parse(s.submitted_at))
     const validTimes = candidateTimes.filter((t) => !Number.isNaN(t))
-    const lastActivityAt = validTimes.length > 0
-      ? new Date(Math.max(...validTimes)).toISOString()
-      : null
+    const lastActivityAt =
+      validTimes.length > 0 ? new Date(Math.max(...validTimes)).toISOString() : null
 
     return {
       problem_id: problem.id,
@@ -833,11 +867,7 @@ export class CoachOrchestrator {
 
     // 收集有干预记录的 problem_id，批量查 AC 状态（用于转化率）
     const problemIds = Array.from(
-      new Set(
-        interventions
-          .map((i) => i.problem_id)
-          .filter((id): id is string => id !== null),
-      ),
+      new Set(interventions.map((i) => i.problem_id).filter((id): id is string => id !== null)),
     )
     const firstAcRows = getFirstAcByProblemIds(problemIds)
     const firstAcMap = new Map<string, string>()
@@ -1064,13 +1094,28 @@ export class CoachOrchestrator {
     note?: string
   }> {
     if (!this.running) {
-      return { triggered: false, level: 0, llmEnabled: this.llmHintService.isReady(), note: 'Coach 已停止' }
+      return {
+        triggered: false,
+        level: 0,
+        llmEnabled: this.llmHintService.isReady(),
+        note: 'Coach 已停止',
+      }
     }
     if (this.hintInProgress) {
-      return { triggered: false, level: this.currentHintLevel, llmEnabled: this.llmHintService.isReady(), note: '正在生成提示中' }
+      return {
+        triggered: false,
+        level: this.currentHintLevel,
+        llmEnabled: this.llmHintService.isReady(),
+        note: '正在生成提示中',
+      }
     }
     if (this.contestGuard.isContestMode()) {
-      return { triggered: false, level: 0, llmEnabled: this.llmHintService.isReady(), note: '比赛模式' }
+      return {
+        triggered: false,
+        level: 0,
+        llmEnabled: this.llmHintService.isReady(),
+        note: '比赛模式',
+      }
     }
 
     const session = this.sessionTracker.getCurrentSession()
@@ -1085,7 +1130,12 @@ export class CoachOrchestrator {
         source: 'local',
         level: 0,
       })
-      return { triggered: false, level: 0, llmEnabled: this.llmHintService.isReady(), note: '无当前题目' }
+      return {
+        triggered: false,
+        level: 0,
+        llmEnabled: this.llmHintService.isReady(),
+        note: '无当前题目',
+      }
     }
 
     // 有题目：重置等级，触发 L1 提示
@@ -1283,23 +1333,27 @@ export class CoachOrchestrator {
     pet.showBubble(payload)
 
     this.currentBubbleInterventionId = intervention.intervention_id
-    this.currentBubbleEventType = (intervention.trigger_reason.split(' ')[0] as CoachEventType) ?? null
+    this.currentBubbleEventType =
+      (intervention.trigger_reason.split(' ')[0] as CoachEventType) ?? null
     this.currentBubbleId = payload.id
   }
 
   syncContestModeState(appWindow: AppWindow): void {
     const contest = this.contestGuard.getCurrentContest()
-    this.sendContestModeState(appWindow, contest
-      ? {
-          isContestMode: true,
-          contest: {
-            url: contest.contestUrl,
-            platform: contest.platform,
-            contest_id: contest.contestId,
-            entered_at: new Date(contest.enteredAt).toISOString(),
-          },
-        }
-      : { isContestMode: false, contest: null })
+    this.sendContestModeState(
+      appWindow,
+      contest
+        ? {
+            isContestMode: true,
+            contest: {
+              url: contest.contestUrl,
+              platform: contest.platform,
+              contest_id: contest.contestId,
+              entered_at: new Date(contest.enteredAt).toISOString(),
+            },
+          }
+        : { isContestMode: false, contest: null },
+    )
   }
 
   private sendContestModeState(
@@ -1313,7 +1367,12 @@ export class CoachOrchestrator {
     appWindow.send('coach:contestModeChanged', payload)
   }
 
-  private handleContestEnter(info: { platform: string; contestId: string; contestUrl: string; enteredAt: number }): void {
+  private handleContestEnter(info: {
+    platform: string
+    contestId: string
+    contestUrl: string
+    enteredAt: number
+  }): void {
     this.hintContextGeneration += 1
     this.releaseHintPresentation()
     const pet = this.options.getCoachPetWindow()
@@ -1349,7 +1408,10 @@ export class CoachOrchestrator {
     insertCoachIntervention(intervention)
   }
 
-  private handleContestEnd(info: { platform: string; contestId: string; contestUrl: string; enteredAt: number }, durationSec: number): void {
+  private handleContestEnd(
+    info: { platform: string; contestId: string; contestUrl: string; enteredAt: number },
+    durationSec: number,
+  ): void {
     this.releaseHintPresentation()
     const pet = this.running ? this.options.getCoachPetWindow() : null
     pet?.setPetState('idle')

@@ -20,10 +20,7 @@ test('closes every orphan visit at entered_at with an explicit recovery reason',
     },
   }
 
-  const changes = closeOrphanProblemVisits(
-    database as never,
-    '2026-08-18T10:00:00.000',
-  )
+  const changes = closeOrphanProblemVisits(database as never, '2026-08-18T10:00:00.000')
 
   assert.strictEqual(changes, 2)
   assert.match(preparedSql, /left_at = entered_at/)

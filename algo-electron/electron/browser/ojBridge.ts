@@ -12,7 +12,9 @@ export interface OjSubmissionBridge {
   reportSubmission(payload: unknown): void
 }
 
-export function createOjSubmissionBridge(reportSubmission: (payload: unknown) => void): OjSubmissionBridge {
+export function createOjSubmissionBridge(
+  reportSubmission: (payload: unknown) => void,
+): OjSubmissionBridge {
   return { reportSubmission }
 }
 
@@ -31,7 +33,9 @@ function isMessageFromWindowOrChild(
       if (frame === source) return true
       if (isMessageFromWindowOrChild(frame, source, depth + 1)) return true
     }
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
 
   return false
 }

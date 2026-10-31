@@ -1,5 +1,9 @@
 import { describe, expect, it, vi } from 'vitest'
-import { MockBrowserWindow, type MockWebContents, resetElectronMock } from '../electron/electronMock'
+import {
+  MockBrowserWindow,
+  type MockWebContents,
+  resetElectronMock,
+} from '../electron/electronMock'
 import { TabManager } from '../../electron/browser/TabManager.ts'
 import {
   ContestUrlAggregator,
@@ -9,7 +13,9 @@ import {
 import { ContestGuard } from '../../electron/coach/ContestGuard.ts'
 
 class TestUrlSource implements WebContentsUrlSource {
-  private readonly listeners = new Set<(snapshot: { webContentsId: number; url: string | null }) => void>()
+  private readonly listeners = new Set<
+    (snapshot: { webContentsId: number; url: string | null }) => void
+  >()
 
   addWebContentsUrlListener(
     listener: (snapshot: { webContentsId: number; url: string | null }) => void,

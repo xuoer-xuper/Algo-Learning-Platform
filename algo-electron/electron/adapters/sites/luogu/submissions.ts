@@ -1,25 +1,33 @@
 import type { SubmissionData } from '../../../shared/types'
 import { pickFinalRealtimeSubmission } from '../../../submissions/realtimeSubmissionFilter'
-import { EXTRACT_LUOGU_SUBMISSIONS_SCRIPT, parseLuoguSubmissionData } from '../../../submissions/scrapers/luoguScraper'
+import {
+  EXTRACT_LUOGU_SUBMISSIONS_SCRIPT,
+  parseLuoguSubmissionData,
+} from '../../../submissions/scrapers/luoguScraper'
 import { createScriptedRealtimeHookScript } from '../../../submissions/scriptedRealtimeHook'
 import type { SubmissionDetectionPayload } from '../../types'
 
 function getResponseRecord(raw: SubmissionDetectionPayload): Record<string, unknown> | null {
   return raw.response && typeof raw.response === 'object'
-    ? raw.response as Record<string, unknown>
+    ? (raw.response as Record<string, unknown>)
     : null
 }
 
-export function parseLuoguRawProblemInfo(submission: SubmissionData): { problemId?: string; title?: string } {
+export function parseLuoguRawProblemInfo(submission: SubmissionData): {
+  problemId?: string
+  title?: string
+} {
   try {
     const raw = JSON.parse(submission.rawJson || '{}')
     return {
-      problemId: typeof raw?._luoguProblemId === 'string' && raw._luoguProblemId.trim()
-        ? raw._luoguProblemId.trim()
-        : undefined,
-      title: typeof raw?._luoguProblemTitle === 'string' && raw._luoguProblemTitle.trim()
-        ? raw._luoguProblemTitle.trim()
-        : undefined,
+      problemId:
+        typeof raw?._luoguProblemId === 'string' && raw._luoguProblemId.trim()
+          ? raw._luoguProblemId.trim()
+          : undefined,
+      title:
+        typeof raw?._luoguProblemTitle === 'string' && raw._luoguProblemTitle.trim()
+          ? raw._luoguProblemTitle.trim()
+          : undefined,
     }
   } catch {
     return {}
@@ -75,11 +83,19 @@ const LUOGU_REALTIME_READY_SCRIPT = `((data) => {
 })`
 
 export function createLuoguRealtimeHookScript(siteId: string): string {
-  return createScriptedRealtimeHookScript(siteId, EXTRACT_LUOGU_SUBMISSIONS_SCRIPT, LUOGU_REALTIME_READY_SCRIPT)
+  return createScriptedRealtimeHookScript(
+    siteId,
+    EXTRACT_LUOGU_SUBMISSIONS_SCRIPT,
+    LUOGU_REALTIME_READY_SCRIPT,
+  )
 }
 
-export function parseLuoguRealtimeSubmission(raw: SubmissionDetectionPayload): SubmissionData | null {
+export function parseLuoguRealtimeSubmission(
+  raw: SubmissionDetectionPayload,
+): SubmissionData | null {
   const response = getResponseRecord(raw)
   if (!response) return null
-  return pickFinalRealtimeSubmission(parseLuoguSubmissionData(response, { requireRealtimeReady: true }))
+  return pickFinalRealtimeSubmission(
+    parseLuoguSubmissionData(response, { requireRealtimeReady: true }),
+  )
 }

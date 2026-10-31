@@ -17,7 +17,7 @@
 
 ```powershell
 cd algo-electron
-npm run test:ui
+pnpm run test:ui
 ```
 
 截图分别输出在 `tmp/ui-screenshots/wide/`、`tmp/ui-screenshots/medium/` 和 `tmp/ui-screenshots/narrow/`，只用于本地验收，不提交。

@@ -9,7 +9,7 @@ export function parseConfigUrl(
 ): ProblemIdentity | null {
   try {
     const parsed = new URL(url)
-    if (!domains.some(domain => isHostInDomain(parsed.hostname, domain))) {
+    if (!domains.some((domain) => isHostInDomain(parsed.hostname, domain))) {
       return null
     }
 
@@ -86,6 +86,6 @@ function buildPlatformProblemId(params: Record<string, string>, paramNames: stri
     return `${params.contestId}-${params.problemIndex || params.index}`
   }
 
-  const values = paramNames.map(name => params[name]).filter(Boolean)
+  const values = paramNames.map((name) => params[name]).filter(Boolean)
   return values.length > 0 ? values.join('-') : ''
 }

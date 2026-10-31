@@ -4,37 +4,58 @@ import type { SiteCredential, SiteCredentialRow, SiteCredentialSummary } from '.
 
 export function getCredentialById(id: string): SiteCredential | null {
   const db = getDb()
-  const row = db.prepare(`
+  const row = db
+    .prepare(
+      `
     SELECT * FROM site_credentials
     WHERE id = ? AND deleted_at IS NULL
-  `).get(id) as SiteCredentialRow | undefined
+  `,
+    )
+    .get(id) as SiteCredentialRow | undefined
   return row ? mapCredential(row) : null
 }
 
-export function getCredentialBySiteAndUsername(siteId: string, username: string): SiteCredential | null {
+export function getCredentialBySiteAndUsername(
+  siteId: string,
+  username: string,
+): SiteCredential | null {
   const db = getDb()
-  const row = db.prepare(`
+  const row = db
+    .prepare(
+      `
     SELECT * FROM site_credentials
     WHERE site_id = ? AND username = ? AND deleted_at IS NULL
-  `).get(siteId, username) as SiteCredentialRow | undefined
+  `,
+    )
+    .get(siteId, username) as SiteCredentialRow | undefined
   return row ? mapCredential(row) : null
 }
 
 export function listCredentials(siteId?: string): SiteCredentialSummary[] {
   const db = getDb()
-  const rows = (siteId === undefined
-    ? db.prepare(`
+  const rows = (
+    siteId === undefined
+      ? db
+          .prepare(
+            `
         SELECT id, site_id, username, display_name, last_used_at, created_at, updated_at
         FROM site_credentials
         WHERE deleted_at IS NULL
         ORDER BY COALESCE(last_used_at, '') DESC, username ASC, id ASC
-      `).all()
-    : db.prepare(`
+      `,
+          )
+          .all()
+      : db
+          .prepare(
+            `
         SELECT id, site_id, username, display_name, last_used_at, created_at, updated_at
         FROM site_credentials
         WHERE site_id = ? AND deleted_at IS NULL
         ORDER BY COALESCE(last_used_at, '') DESC, username ASC, id ASC
-      `).all(siteId)) as SiteCredentialSummary[]
+      `,
+          )
+          .all(siteId)
+  ) as SiteCredentialSummary[]
   return rows
 }
 

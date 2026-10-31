@@ -20,15 +20,26 @@ class FakeContents extends EventEmitter implements AutofillWebContents {
   readonly sent: Array<{ channel: string; payload: OjCredentialFillPayload }> = []
   private url: string
 
-  constructor(readonly id: number, url: string) {
+  constructor(
+    readonly id: number,
+    url: string,
+  ) {
     super()
     this.url = url
   }
 
-  getURL(): string { return this.url }
-  setURL(url: string): void { this.url = url }
-  isDestroyed(): boolean { return false }
-  send(channel: string, payload: OjCredentialFillPayload): void { this.sent.push({ channel, payload }) }
+  getURL(): string {
+    return this.url
+  }
+  setURL(url: string): void {
+    this.url = url
+  }
+  isDestroyed(): boolean {
+    return false
+  }
+  send(channel: string, payload: OjCredentialFillPayload): void {
+    this.sent.push({ channel, payload })
+  }
 }
 
 function createCoordinator(options: { credentialCount?: number; delayed?: boolean } = {}) {
@@ -44,26 +55,33 @@ function createCoordinator(options: { credentialCount?: number; delayed?: boolea
     updatedAt: 'now',
   }))
   const coordinator = new CredentialAutofillCoordinator({
-    getSites: () => [{
-      id: 'codeforces',
-      name: 'Codeforces',
-      domains: ['codeforces.com'],
-      homeUrl: 'https://codeforces.com',
-      enabled: true,
-      isBuiltin: true,
-      loginUrlPatterns: ['/enter'],
-      loginUsernameSelectors: ['input[name="handleOrEmail"]'],
-      loginPasswordSelectors: ['input[name="password"]'],
-    }],
+    getSites: () => [
+      {
+        id: 'codeforces',
+        name: 'Codeforces',
+        domains: ['codeforces.com'],
+        homeUrl: 'https://codeforces.com',
+        enabled: true,
+        isBuiltin: true,
+        loginUrlPatterns: ['/enter'],
+        loginUsernameSelectors: ['input[name="handleOrEmail"]'],
+        loginPasswordSelectors: ['input[name="password"]'],
+      },
+    ],
     listCredentials: () => credentials,
     getForAutofill: async (credentialId) => {
       if (options.delayed) {
-        return new Promise(resolve => { resolveAutofill = resolve })
+        return new Promise((resolve) => {
+          resolveAutofill = resolve
+        })
       }
       return { credentialId, siteId: 'codeforces', username: 'alice', password: 'secret' }
     },
   })
-  return { coordinator, resolveAutofill: (value: CredentialAutofillValue | null) => resolveAutofill?.(value) }
+  return {
+    coordinator,
+    resolveAutofill: (value: CredentialAutofillValue | null) => resolveAutofill?.(value),
+  }
 }
 
 test('fills one credential independently in every attached split-window webContents', async () => {
@@ -79,7 +97,11 @@ test('fills one credential independently in every attached split-window webConte
   assert.strictEqual(first.sent[0].payload.pageUrl, 'https://codeforces.com/enter')
   assert.strictEqual(first.sent[0].payload.password, 'secret')
   assert.strictEqual(second.sent.length, 1)
-  assert.strictEqual(await coordinator.tryAutofill(first), false, 'same document must not be filled twice')
+  assert.strictEqual(
+    await coordinator.tryAutofill(first),
+    false,
+    'same document must not be filled twice',
+  )
 })
 
 test('fails closed among multiple saved accounts when no selection host is provided', async () => {
@@ -92,8 +114,26 @@ test('fails closed among multiple saved accounts when no selection host is provi
 
 test('fills only the explicitly selected account and drops a selection after navigation', async () => {
   const credentials = [
-    { credentialId: 'credential-1', siteId: 'codeforces', username: 'alice-1', displayName: null, masked: '********', lastUsedAt: null, createdAt: 'now', updatedAt: 'now' },
-    { credentialId: 'credential-2', siteId: 'codeforces', username: 'alice-2', displayName: 'Primary', masked: '********', lastUsedAt: null, createdAt: 'now', updatedAt: 'now' },
+    {
+      credentialId: 'credential-1',
+      siteId: 'codeforces',
+      username: 'alice-1',
+      displayName: null,
+      masked: '********',
+      lastUsedAt: null,
+      createdAt: 'now',
+      updatedAt: 'now',
+    },
+    {
+      credentialId: 'credential-2',
+      siteId: 'codeforces',
+      username: 'alice-2',
+      displayName: 'Primary',
+      masked: '********',
+      lastUsedAt: null,
+      createdAt: 'now',
+      updatedAt: 'now',
+    },
   ]
   /*
    * 收进数组而不是 `let resolveSelection … | null`：赋值发生在 `selectCredential` 的闭包里，
@@ -107,16 +147,32 @@ test('fills only the explicitly selected account and drops a selection after nav
     resolve(value)
   }
   const coordinator = new CredentialAutofillCoordinator({
-    getSites: () => [{
-      id: 'codeforces', name: 'Codeforces', domains: ['codeforces.com'], homeUrl: 'https://codeforces.com', enabled: true, isBuiltin: true,
-      loginUrlPatterns: ['/enter'], loginUsernameSelectors: ['input[name="handleOrEmail"]'], loginPasswordSelectors: ['input[name="password"]'],
-    }],
+    getSites: () => [
+      {
+        id: 'codeforces',
+        name: 'Codeforces',
+        domains: ['codeforces.com'],
+        homeUrl: 'https://codeforces.com',
+        enabled: true,
+        isBuiltin: true,
+        loginUrlPatterns: ['/enter'],
+        loginUsernameSelectors: ['input[name="handleOrEmail"]'],
+        loginPasswordSelectors: ['input[name="password"]'],
+      },
+    ],
     listCredentials: () => credentials,
     selectCredential: async (_contents, request) => {
       assert.strictEqual(request.credentials.length, 2)
-      return new Promise(resolve => { selectionResolvers.push(resolve) })
+      return new Promise((resolve) => {
+        selectionResolvers.push(resolve)
+      })
     },
-    getForAutofill: async (credentialId) => ({ credentialId, siteId: 'codeforces', username: 'alice-2', password: 'secret-2' }),
+    getForAutofill: async (credentialId) => ({
+      credentialId,
+      siteId: 'codeforces',
+      username: 'alice-2',
+      password: 'secret-2',
+    }),
   })
   const contents = new FakeContents(1, 'https://codeforces.com/enter')
   coordinator.attach(contents)
@@ -143,7 +199,12 @@ test('drops decrypted values when navigation changes before the async vault read
   const pending = coordinator.tryAutofill(contents)
   contents.setURL('https://codeforces.com/problemset')
   coordinator.invalidate(contents.id)
-  resolveAutofill({ credentialId: 'credential-1', siteId: 'codeforces', username: 'alice', password: 'secret' })
+  resolveAutofill({
+    credentialId: 'credential-1',
+    siteId: 'codeforces',
+    username: 'alice',
+    password: 'secret',
+  })
   assert.strictEqual(await pending, false)
   assert.deepStrictEqual(contents.sent, [])
 })

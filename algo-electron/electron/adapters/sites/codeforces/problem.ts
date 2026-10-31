@@ -10,7 +10,8 @@ const PROBLEM_PATTERNS: { pattern: RegExp; kind: CodeforcesUrlKind }[] = [
 export function parseCodeforcesProblem(url: string): ProblemIdentity | null {
   try {
     const parsed = new URL(url)
-    if (parsed.hostname !== 'codeforces.com' && parsed.hostname !== 'www.codeforces.com') return null
+    if (parsed.hostname !== 'codeforces.com' && parsed.hostname !== 'www.codeforces.com')
+      return null
 
     for (const { pattern, kind } of PROBLEM_PATTERNS) {
       const match = parsed.pathname.match(pattern)
@@ -36,12 +37,15 @@ export function parseCodeforcesProblem(url: string): ProblemIdentity | null {
 export function matchCodeforcesSubmissionResult(url: string): boolean {
   try {
     const parsed = new URL(url)
-    if (parsed.hostname !== 'codeforces.com' && parsed.hostname !== 'www.codeforces.com') return false
-    return /^\/(?:contest|gym)\/\d+\/submission\/\d+\/?$/.test(parsed.pathname)
-      || /^\/(?:contest|gym)\/\d+\/my\/?$/.test(parsed.pathname)
-      || /^\/(?:contest|gym)\/\d+\/status(?:\/[A-Za-z]\d*)?\/?$/.test(parsed.pathname)
-      || /^\/submissions\/[^/]+\/?$/.test(parsed.pathname)
-      || /^\/problemset\/status\/?$/.test(parsed.pathname)
+    if (parsed.hostname !== 'codeforces.com' && parsed.hostname !== 'www.codeforces.com')
+      return false
+    return (
+      /^\/(?:contest|gym)\/\d+\/submission\/\d+\/?$/.test(parsed.pathname) ||
+      /^\/(?:contest|gym)\/\d+\/my\/?$/.test(parsed.pathname) ||
+      /^\/(?:contest|gym)\/\d+\/status(?:\/[A-Za-z]\d*)?\/?$/.test(parsed.pathname) ||
+      /^\/submissions\/[^/]+\/?$/.test(parsed.pathname) ||
+      /^\/problemset\/status\/?$/.test(parsed.pathname)
+    )
   } catch {
     return false
   }

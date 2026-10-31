@@ -23,9 +23,7 @@ if (!demoKey) {
   console.warn('\n[build-demo] 警告：未设置 ARK_DEMO_KEY 环境变量')
   console.warn('[build-demo] 构建产物将不包含演示 Key，用户需自行配置 API Key\n')
 } else {
-  const masked = demoKey.length > 8
-    ? `${demoKey.slice(0, 4)}****${demoKey.slice(-4)}`
-    : '****'
+  const masked = demoKey.length > 8 ? `${demoKey.slice(0, 4)}****${demoKey.slice(-4)}` : '****'
   console.log(`\n[build-demo] 已注入演示 Key: ${masked}`)
   console.log('[build-demo] 评测结束后请在火山方舟控制台禁用该 Key\n')
 }

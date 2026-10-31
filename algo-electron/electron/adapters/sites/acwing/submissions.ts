@@ -19,7 +19,9 @@ export function createAcwingRealtimeHookScript(): string {
   return createFrontendVerdictHookScript('acwing')
 }
 
-export function parseAcwingRealtimeSubmission(raw: SubmissionDetectionPayload): SubmissionData | null {
+export function parseAcwingRealtimeSubmission(
+  raw: SubmissionDetectionPayload,
+): SubmissionData | null {
   const frontendSubmission = parseFrontendVerdictPayload(raw, 'acwing', 'ac')
   if (frontendSubmission) return frontendSubmission
   return parseRealtimeTablePayload(raw, parseAcwingSubmissionTables)

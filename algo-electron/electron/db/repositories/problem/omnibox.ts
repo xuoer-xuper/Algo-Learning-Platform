@@ -92,7 +92,9 @@ function listProblemCandidates(
     ? 'match_rank ASC, p.last_visited_at DESC, p.id ASC'
     : 'p.last_visited_at DESC, p.id ASC'
 
-  return db.prepare(`
+  return db
+    .prepare(
+      `
     WITH candidates AS (
       SELECT
         p.id AS problem_id,
@@ -126,7 +128,9 @@ function listProblemCandidates(
         ORDER BY recent.entered_at DESC, recent.id ASC
         LIMIT 1
       )
-  `).all({ ...params, problemCandidateLimit: PROBLEM_CANDIDATE_LIMIT }) as OmniboxCandidateRow[]
+  `,
+    )
+    .all({ ...params, problemCandidateLimit: PROBLEM_CANDIDATE_LIMIT }) as OmniboxCandidateRow[]
 }
 
 function listRecentVisitCandidates(
@@ -138,7 +142,9 @@ function listRecentVisitCandidates(
     ? `AND (${FIELD_MATCH_SQL} OR recent_visits.url COLLATE NOCASE LIKE @contains ESCAPE '\\')`
     : ''
 
-  return db.prepare(`
+  return db
+    .prepare(
+      `
     WITH recent_visits AS (
       SELECT pv.id, pv.problem_id, pv.url, pv.entered_at
       FROM problem_visits pv
@@ -159,7 +165,12 @@ function listRecentVisitCandidates(
     JOIN problems p ON p.id = recent_visits.problem_id
     WHERE p.deleted_at IS NULL
       ${visitMatch}
-  `).all({ ...params, recentVisitCandidateLimit: RECENT_VISIT_CANDIDATE_LIMIT }) as OmniboxCandidateRow[]
+  `,
+    )
+    .all({
+      ...params,
+      recentVisitCandidateLimit: RECENT_VISIT_CANDIDATE_LIMIT,
+    }) as OmniboxCandidateRow[]
 }
 
 function createMatchParams(query: string): { exact: string; prefix: string; contains: string } {
@@ -209,10 +220,10 @@ function getMatchRank(candidate: OmniboxCandidate, query: string): number {
     candidate.platform,
     candidate.canonicalUrl,
     candidate.url,
-  ].map(value => value.toLowerCase())
+  ].map((value) => value.toLowerCase())
 
-  if (fields.some(value => value === normalizedQuery)) return 0
-  if (fields.some(value => value.startsWith(normalizedQuery))) return 1
+  if (fields.some((value) => value === normalizedQuery)) return 0
+  if (fields.some((value) => value.startsWith(normalizedQuery))) return 1
   return 2
 }
 

@@ -37,10 +37,12 @@ describe('TabManager find in page', () => {
 
     const pending = manager.findInPage(tabId, { type: 'query', query: 'graph' })
     expect(pending?.requestId).toBe(1)
-    expect(view.webContents.findInPageCalls).toEqual([{
-      text: 'graph',
-      options: { forward: true, findNext: true },
-    }])
+    expect(view.webContents.findInPageCalls).toEqual([
+      {
+        text: 'graph',
+        options: { forward: true, findNext: true },
+      },
+    ])
 
     view.webContents.simulateFoundInPage({
       requestId: 1,
@@ -82,13 +84,17 @@ describe('TabManager find in page', () => {
     ]
     show.forEach((toggle, index) => {
       toggle(true)
-      expect(view.getBounds().y).toBe(BROWSER_LAYOUT.topOffset + (index + 1) * BROWSER_LAYOUT.noticeBarHeight)
+      expect(view.getBounds().y).toBe(
+        BROWSER_LAYOUT.topOffset + (index + 1) * BROWSER_LAYOUT.noticeBarHeight,
+      )
     })
 
     // 反向逐条关闭，验证释放的是自己那一格而不是整块清零。
     show.forEach((toggle, index) => {
       toggle(false)
-      expect(view.getBounds().y).toBe(BROWSER_LAYOUT.topOffset + (show.length - index - 1) * BROWSER_LAYOUT.noticeBarHeight)
+      expect(view.getBounds().y).toBe(
+        BROWSER_LAYOUT.topOffset + (show.length - index - 1) * BROWSER_LAYOUT.noticeBarHeight,
+      )
     })
     expect(view.getBounds().y).toBe(BROWSER_LAYOUT.topOffset)
   })
@@ -164,7 +170,9 @@ describe('TabManager zoom preferences', () => {
     expect(saveZoomFactorForUrl).toHaveBeenCalledWith('https://example.com/problem', 1.5)
     expect(view.webContents.getZoomFactor()).toBe(1.5)
 
-    saveZoomFactorForUrl.mockImplementationOnce(() => { throw new Error('read only') })
+    saveZoomFactorForUrl.mockImplementationOnce(() => {
+      throw new Error('read only')
+    })
     expect(manager.setZoom(tabId, 'out')).toBeNull()
     expect(view.webContents.getZoomFactor()).toBe(1.5)
   })
@@ -178,11 +186,13 @@ describe('TabManager userscript navigation', () => {
 
     const tabId = manager.createTab('https://example.com/helper.user.js')
 
-    expect(manager.getTabList()).toMatchObject([{
-      id: tabId,
-      kind: 'internal',
-      page: { type: 'script-install', installId: 'install-1' },
-    }])
+    expect(manager.getTabList()).toMatchObject([
+      {
+        id: tabId,
+        kind: 'internal',
+        page: { type: 'script-install', installId: 'install-1' },
+      },
+    ])
     expect(window.contentView.children).toHaveLength(0)
     expect(registry.get('install-1')?.sourceFileName).toBe('helper.user.js')
     expect(manager.getSessionSnapshot().tabs).toEqual([])

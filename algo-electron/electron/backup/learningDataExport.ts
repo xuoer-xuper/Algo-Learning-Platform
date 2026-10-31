@@ -23,13 +23,9 @@ const EXPORT_TABLES = [
   'rating_history',
 ] as const
 
-const EXCLUDED_FIELDS = [
-  'submissions.raw_json',
-  'local absolute file paths',
-  'logs',
-] as const
+const EXCLUDED_FIELDS = ['submissions.raw_json', 'local absolute file paths', 'logs'] as const
 
-type ExportTableName = typeof EXPORT_TABLES[number]
+type ExportTableName = (typeof EXPORT_TABLES)[number]
 
 interface ExistingKeyRow {
   id?: string
@@ -44,77 +40,121 @@ interface ImportEffects {
 export function exportLearningData(): LearningDataExport {
   const db = getDb()
   const exportedTables = new Set<string>(EXPORT_TABLES)
-  const excludedTables = (db.prepare(`
+  const excludedTables = (
+    db
+      .prepare(
+        `
     SELECT name
     FROM sqlite_master
     WHERE type = 'table' AND name NOT LIKE 'sqlite_%'
     ORDER BY name ASC
-  `).all() as Array<{ name: string }>)
-    .map(row => row.name)
-    .filter(name => !exportedTables.has(name))
+  `,
+      )
+      .all() as Array<{ name: string }>
+  )
+    .map((row) => row.name)
+    .filter((name) => !exportedTables.has(name))
 
   return {
     app: LEARNING_DATA_EXPORT_APP,
     schema_version: LEARNING_DATA_EXPORT_VERSION,
     exported_at: nowBeijing(),
     metadata: {
-      excluded: [
-        ...excludedTables,
-        ...EXCLUDED_FIELDS,
-      ],
+      excluded: [...excludedTables, ...EXCLUDED_FIELDS],
       excluded_tables: excludedTables,
       excluded_fields: [...EXCLUDED_FIELDS],
-      complete_backup_hint: '完整备份请用数据库备份；数据库备份含本机敏感数据，仅用于受保护的本机恢复。',
+      complete_backup_hint:
+        '完整备份请用数据库备份；数据库备份含本机敏感数据，仅用于受保护的本机恢复。',
     },
     tables: {
-      problems: sanitizeRows(db.prepare(`
+      problems: sanitizeRows(
+        db
+          .prepare(
+            `
         SELECT id, platform, platform_problem_id, canonical_url, title, status,
           contest_id, problem_index, source_platform, source_problem_id,
           difficulty, tags_json, first_seen_at, last_visited_at, first_solved_at,
           created_at, updated_at, deleted_at
         FROM problems
-      `).all() as ExportRow[]),
-      problem_visits: sanitizeRows(db.prepare(`
+      `,
+          )
+          .all() as ExportRow[],
+      ),
+      problem_visits: sanitizeRows(
+        db
+          .prepare(
+            `
         SELECT id, problem_id, session_id, platform, url, entered_at, left_at,
           duration_seconds, active_seconds, leave_reason, created_at, updated_at,
           deleted_at
         FROM problem_visits
-      `).all() as ExportRow[]),
-      submissions: sanitizeRows(db.prepare(`
+      `,
+          )
+          .all() as ExportRow[],
+      ),
+      submissions: sanitizeRows(
+        db
+          .prepare(
+            `
         SELECT id, problem_id, platform, platform_submission_id, verdict,
           raw_verdict, language, submitted_at, is_first_ac, runtime_ms, memory_kb,
           source_url, created_at, updated_at, deleted_at
         FROM submissions
-      `).all() as ExportRow[]),
-      user_daily_stats: sanitizeRows(db.prepare(`
+      `,
+          )
+          .all() as ExportRow[],
+      ),
+      user_daily_stats: sanitizeRows(
+        db
+          .prepare(
+            `
         SELECT local_day, active_seconds, duration_seconds, visited_problem_count,
           solved_problem_count, submission_count, ac_submission_count,
           platform_distribution_json, recomputed_at, created_at, updated_at,
           deleted_at
         FROM user_daily_stats
-      `).all() as ExportRow[]),
-      platform_accounts: sanitizeRows(db.prepare(`
+      `,
+          )
+          .all() as ExportRow[],
+      ),
+      platform_accounts: sanitizeRows(
+        db
+          .prepare(
+            `
         SELECT id, platform, handle, display_name, current_rating, peak_rating,
           last_synced_at, created_at, updated_at, deleted_at
         FROM platform_accounts
-      `).all() as ExportRow[]),
-      rating_history: sanitizeRows(db.prepare(`
+      `,
+          )
+          .all() as ExportRow[],
+      ),
+      rating_history: sanitizeRows(
+        db
+          .prepare(
+            `
         SELECT id, account_id, platform, contest_id, contest_name, rank,
           rating_before, rating_after, delta, contest_at, created_at, updated_at,
           deleted_at
         FROM rating_history
-      `).all() as ExportRow[]),
+      `,
+          )
+          .all() as ExportRow[],
+      ),
     },
   }
 }
 
 function sanitizeRows(rows: ExportRow[]): ExportRow[] {
-  return rows.map(row => Object.fromEntries(
-    Object.entries(row).map(([key, value]) => [
-      key,
-      typeof value === 'string' && isLocalPathLike(value) ? null : value,
-    ]),
-  ) as ExportRow)
+  // 显式标注条目类型（而不是断言返回值）：条目值可能是 string | number | null，
+  // 断言成 ExportRow 只会掩盖这一点，写清键值类型才能让下游的取值检查生效。
+  return rows.map((row) =>
+    Object.fromEntries(
+      Object.entries(row).map(([key, value]): [string, string | number | null] => [
+        key,
+        typeof value === 'string' && isLocalPathLike(value) ? null : value,
+      ]),
+    ),
+  )
 }
 
 function isLocalPathLike(value: string): boolean {
@@ -171,7 +211,10 @@ export function previewLearningDataImport(raw: unknown): ImportPreview {
   }
 }
 
-export function importLearningData(data: LearningDataExport, overwriteConflicts = false): ImportResult {
+export function importLearningData(
+  data: LearningDataExport,
+  overwriteConflicts = false,
+): ImportResult {
   const db = getDb()
   const conflicts = collectConflicts(data)
   if (conflicts.length > 0 && !overwriteConflicts) {
@@ -191,12 +234,55 @@ export function importLearningData(data: LearningDataExport, overwriteConflicts 
 
   const transaction = db.transaction(() => {
     const effects: ImportEffects = { problemIds: new Set(), dates: new Set() }
-    const problemIdMap = importProblems(data.tables.problems, overwriteConflicts, inserted, updated, skipped, effects)
-    importProblemVisits(data.tables.problem_visits, problemIdMap, overwriteConflicts, inserted, updated, skipped, effects)
-    importSubmissions(data.tables.submissions, problemIdMap, overwriteConflicts, inserted, updated, skipped, effects)
-    importDailyStats(data.tables.user_daily_stats, overwriteConflicts, inserted, updated, skipped, effects)
-    const accountIdMap = importAccounts(data.tables.platform_accounts, overwriteConflicts, inserted, updated, skipped)
-    importRatingHistory(data.tables.rating_history, accountIdMap, overwriteConflicts, inserted, updated, skipped)
+    const problemIdMap = importProblems(
+      data.tables.problems,
+      overwriteConflicts,
+      inserted,
+      updated,
+      skipped,
+      effects,
+    )
+    importProblemVisits(
+      data.tables.problem_visits,
+      problemIdMap,
+      overwriteConflicts,
+      inserted,
+      updated,
+      skipped,
+      effects,
+    )
+    importSubmissions(
+      data.tables.submissions,
+      problemIdMap,
+      overwriteConflicts,
+      inserted,
+      updated,
+      skipped,
+      effects,
+    )
+    importDailyStats(
+      data.tables.user_daily_stats,
+      overwriteConflicts,
+      inserted,
+      updated,
+      skipped,
+      effects,
+    )
+    const accountIdMap = importAccounts(
+      data.tables.platform_accounts,
+      overwriteConflicts,
+      inserted,
+      updated,
+      skipped,
+    )
+    importRatingHistory(
+      data.tables.rating_history,
+      accountIdMap,
+      overwriteConflicts,
+      inserted,
+      updated,
+      skipped,
+    )
 
     // Imported snapshots cannot describe the union of both databases. Rebuild
     // after all fact writes, including dates and problem links replaced above.
@@ -243,7 +329,8 @@ function collectConflicts(data: LearningDataExport): ImportConflict[] {
 
   const problemIdMap = new Map<string, string>()
   for (const problem of data.tables.problems) {
-    const existing = problemByKey.get(problem.platform, problem.platform_problem_id) as ExportRow | undefined
+    const existing = problemByKey.get(problem.platform, problem.platform_problem_id) as
+      ExportRow | undefined
     problemIdMap.set(String(problem.id), String(existing?.id ?? problem.id))
     if (existing && differs(sanitizeRows([existing])[0], problem, ['id'])) {
       conflicts.push(conflict('problems', String(problem.id), '同一平台题目已存在且元数据不同'))
@@ -251,20 +338,27 @@ function collectConflicts(data: LearningDataExport): ImportConflict[] {
   }
 
   for (const submission of data.tables.submissions) {
-    const existing = submissionByKey.get(submission.platform, submission.platform_submission_id) as ExportRow | undefined
+    const existing = submissionByKey.get(submission.platform, submission.platform_submission_id) as
+      ExportRow | undefined
     const remapped = {
       ...submission,
-      problem_id: submission.problem_id ? problemIdMap.get(String(submission.problem_id)) ?? null : null,
+      problem_id: submission.problem_id
+        ? (problemIdMap.get(String(submission.problem_id)) ?? null)
+        : null,
     }
     if (existing && differs(sanitizeRows([existing])[0], remapped, ['id'])) {
-      conflicts.push(conflict('submissions', String(submission.id), '同一平台提交已存在且元数据不同'))
+      conflicts.push(
+        conflict('submissions', String(submission.id), '同一平台提交已存在且元数据不同'),
+      )
     }
   }
 
   for (const dailyStat of data.tables.user_daily_stats) {
     const existing = dailyStatByDay.get(dailyStat.local_day) as ExistingKeyRow | undefined
     if (existing && differs(existing, dailyStat, ['local_day'])) {
-      conflicts.push(conflict('user_daily_stats', String(dailyStat.local_day), '同一日期统计已存在且数值不同'))
+      conflicts.push(
+        conflict('user_daily_stats', String(dailyStat.local_day), '同一日期统计已存在且数值不同'),
+      )
     }
   }
 
@@ -293,12 +387,20 @@ function planImport(data: LearningDataExport): {
 
   // Prepared once per table: an archive worth uploading holds tens of thousands
   // of submissions, and better-sqlite3 recompiles on every prepare() call.
-  const problemByKey = db.prepare('SELECT 1 FROM problems WHERE platform = ? AND platform_problem_id = ?')
-  const submissionByKey = db.prepare('SELECT 1 FROM submissions WHERE platform = ? AND platform_submission_id = ?')
+  const problemByKey = db.prepare(
+    'SELECT 1 FROM problems WHERE platform = ? AND platform_problem_id = ?',
+  )
+  const submissionByKey = db.prepare(
+    'SELECT 1 FROM submissions WHERE platform = ? AND platform_submission_id = ?',
+  )
   const dailyStatByDay = db.prepare('SELECT 1 FROM user_daily_stats WHERE local_day = ?')
   const visitById = db.prepare('SELECT 1 FROM problem_visits WHERE id = ?')
-  const accountByKey = db.prepare('SELECT id FROM platform_accounts WHERE platform = ? AND handle = ?')
-  const ratingByKey = db.prepare('SELECT 1 FROM rating_history WHERE platform = ? AND account_id = ? AND contest_id = ?')
+  const accountByKey = db.prepare(
+    'SELECT id FROM platform_accounts WHERE platform = ? AND handle = ?',
+  )
+  const ratingByKey = db.prepare(
+    'SELECT 1 FROM rating_history WHERE platform = ? AND account_id = ? AND contest_id = ?',
+  )
 
   for (const row of data.tables.problems) {
     record('problems', Boolean(problemByKey.get(row.platform, row.platform_problem_id)))
@@ -311,7 +413,7 @@ function planImport(data: LearningDataExport): {
   }
 
   // importProblemVisits skips a visit whose problem is not part of the export.
-  const exportedProblemIds = new Set(data.tables.problems.map(row => String(row.id)))
+  const exportedProblemIds = new Set(data.tables.problems.map((row) => String(row.id)))
   for (const row of data.tables.problem_visits) {
     if (row.problem_id === null || row.problem_id === undefined) continue
     if (!exportedProblemIds.has(String(row.problem_id))) continue
@@ -349,26 +451,44 @@ function importProblems(
 
   for (const row of rows) {
     const exportedId = String(row.id)
-    const existing = db.prepare(`
+    const existing = db
+      .prepare(
+        `
       SELECT id, first_solved_at FROM problems WHERE platform = ? AND platform_problem_id = ?
-    `).get(row.platform, row.platform_problem_id) as { id: string; first_solved_at: string | null } | undefined
+    `,
+      )
+      .get(row.platform, row.platform_problem_id) as
+      { id: string; first_solved_at: string | null } | undefined
 
     if (existing) {
       idMap.set(exportedId, existing.id)
       if (overwrite) {
         markAffected(effects, existing.id, existing.first_solved_at)
         markAffected(effects, existing.id, row.first_solved_at)
-        db.prepare(`
+        db.prepare(
+          `
           UPDATE problems SET canonical_url = ?, title = ?, status = ?, contest_id = ?,
             problem_index = ?, source_platform = ?, source_problem_id = ?, difficulty = ?,
             tags_json = ?, first_seen_at = ?, last_visited_at = ?, first_solved_at = ?,
             updated_at = ?, deleted_at = ?
           WHERE id = ?
-        `).run(
-          row.canonical_url, row.title, row.status, row.contest_id,
-          row.problem_index, row.source_platform, row.source_problem_id, row.difficulty,
-          row.tags_json, row.first_seen_at, row.last_visited_at, row.first_solved_at,
-          row.updated_at, row.deleted_at, existing.id,
+        `,
+        ).run(
+          row.canonical_url,
+          row.title,
+          row.status,
+          row.contest_id,
+          row.problem_index,
+          row.source_platform,
+          row.source_problem_id,
+          row.difficulty,
+          row.tags_json,
+          row.first_seen_at,
+          row.last_visited_at,
+          row.first_solved_at,
+          row.updated_at,
+          row.deleted_at,
+          existing.id,
         )
         updated.problems++
       } else {
@@ -377,7 +497,8 @@ function importProblems(
       continue
     }
 
-    db.prepare(`
+    db.prepare(
+      `
       INSERT INTO problems (
         id, platform, platform_problem_id, canonical_url, title, status,
         contest_id, problem_index, source_platform, source_problem_id, difficulty,
@@ -385,11 +506,26 @@ function importProblems(
         created_at, updated_at, deleted_at
       )
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(
-      row.id, row.platform, row.platform_problem_id, row.canonical_url, row.title, row.status,
-      row.contest_id, row.problem_index, row.source_platform, row.source_problem_id, row.difficulty,
-      row.tags_json, row.first_seen_at, row.last_visited_at, row.first_solved_at,
-      row.created_at, row.updated_at, row.deleted_at,
+    `,
+    ).run(
+      row.id,
+      row.platform,
+      row.platform_problem_id,
+      row.canonical_url,
+      row.title,
+      row.status,
+      row.contest_id,
+      row.problem_index,
+      row.source_platform,
+      row.source_problem_id,
+      row.difficulty,
+      row.tags_json,
+      row.first_seen_at,
+      row.last_visited_at,
+      row.first_solved_at,
+      row.created_at,
+      row.updated_at,
+      row.deleted_at,
     )
     idMap.set(exportedId, exportedId)
     markAffected(effects, exportedId, row.first_solved_at)
@@ -410,9 +546,13 @@ function importProblemVisits(
 ): void {
   const db = getDb()
   for (const row of rows) {
-    const existing = db.prepare(`
+    const existing = db
+      .prepare(
+        `
       SELECT problem_id, entered_at FROM problem_visits WHERE id = ?
-    `).get(row.id) as { problem_id: string; entered_at: string } | undefined
+    `,
+      )
+      .get(row.id) as { problem_id: string; entered_at: string } | undefined
     const targetProblemId = row.problem_id ? problemIdMap.get(String(row.problem_id)) : null
     if (!targetProblemId) {
       skipped.problem_visits++
@@ -425,30 +565,53 @@ function importProblemVisits(
       }
       markAffected(effects, existing.problem_id, existing.entered_at)
       markAffected(effects, targetProblemId, row.entered_at)
-      db.prepare(`
+      db.prepare(
+        `
         UPDATE problem_visits SET problem_id = ?, session_id = ?, platform = ?, url = ?,
           entered_at = ?, left_at = ?, duration_seconds = ?, active_seconds = ?,
           leave_reason = ?, updated_at = ?, deleted_at = ?
         WHERE id = ?
-      `).run(
-        targetProblemId, row.session_id, row.platform, row.url,
-        row.entered_at, row.left_at, row.duration_seconds, row.active_seconds,
-        row.leave_reason, row.updated_at, row.deleted_at, row.id,
+      `,
+      ).run(
+        targetProblemId,
+        row.session_id,
+        row.platform,
+        row.url,
+        row.entered_at,
+        row.left_at,
+        row.duration_seconds,
+        row.active_seconds,
+        row.leave_reason,
+        row.updated_at,
+        row.deleted_at,
+        row.id,
       )
       updated.problem_visits++
       continue
     }
 
-    db.prepare(`
+    db.prepare(
+      `
       INSERT INTO problem_visits (
         id, problem_id, session_id, platform, url, entered_at, left_at,
         duration_seconds, active_seconds, leave_reason, created_at, updated_at, deleted_at
       )
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(
-      row.id, targetProblemId, row.session_id, row.platform, row.url,
-      row.entered_at, row.left_at, row.duration_seconds, row.active_seconds,
-      row.leave_reason, row.created_at, row.updated_at, row.deleted_at,
+    `,
+    ).run(
+      row.id,
+      targetProblemId,
+      row.session_id,
+      row.platform,
+      row.url,
+      row.entered_at,
+      row.left_at,
+      row.duration_seconds,
+      row.active_seconds,
+      row.leave_reason,
+      row.created_at,
+      row.updated_at,
+      row.deleted_at,
     )
     inserted.problem_visits++
     markAffected(effects, targetProblemId, row.entered_at)
@@ -466,12 +629,22 @@ function importSubmissions(
 ): void {
   const db = getDb()
   for (const row of rows) {
-    const existing = db.prepare(`
+    const existing = db
+      .prepare(
+        `
       SELECT id, problem_id, submitted_at FROM submissions WHERE platform = ? AND platform_submission_id = ?
-    `).get(row.platform, row.platform_submission_id) as {
-      id: string; problem_id: string | null; submitted_at: string
-    } | undefined
-    const targetProblemId = row.problem_id ? problemIdMap.get(String(row.problem_id)) ?? null : null
+    `,
+      )
+      .get(row.platform, row.platform_submission_id) as
+      | {
+          id: string
+          problem_id: string | null
+          submitted_at: string
+        }
+      | undefined
+    const targetProblemId = row.problem_id
+      ? (problemIdMap.get(String(row.problem_id)) ?? null)
+      : null
 
     if (existing) {
       if (!overwrite) {
@@ -480,31 +653,55 @@ function importSubmissions(
       }
       markAffected(effects, existing.problem_id, existing.submitted_at)
       markAffected(effects, targetProblemId, row.submitted_at)
-      db.prepare(`
+      db.prepare(
+        `
         UPDATE submissions SET problem_id = ?, verdict = ?, raw_verdict = ?, language = ?,
           submitted_at = ?, is_first_ac = ?, runtime_ms = ?, memory_kb = ?,
           source_url = ?, updated_at = ?, deleted_at = ?
         WHERE id = ?
-      `).run(
-        targetProblemId, row.verdict, row.raw_verdict, row.language,
-        row.submitted_at, row.is_first_ac, row.runtime_ms, row.memory_kb,
-        row.source_url, row.updated_at, row.deleted_at, existing.id,
+      `,
+      ).run(
+        targetProblemId,
+        row.verdict,
+        row.raw_verdict,
+        row.language,
+        row.submitted_at,
+        row.is_first_ac,
+        row.runtime_ms,
+        row.memory_kb,
+        row.source_url,
+        row.updated_at,
+        row.deleted_at,
+        existing.id,
       )
       updated.submissions++
       continue
     }
 
-    db.prepare(`
+    db.prepare(
+      `
       INSERT INTO submissions (
         id, problem_id, platform, platform_submission_id, verdict, raw_verdict,
         language, submitted_at, is_first_ac, runtime_ms, memory_kb, source_url,
         raw_json, created_at, updated_at, deleted_at
       )
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?)
-    `).run(
-      row.id, targetProblemId, row.platform, row.platform_submission_id, row.verdict,
-      row.raw_verdict, row.language, row.submitted_at, row.is_first_ac,
-      row.runtime_ms, row.memory_kb, row.source_url, row.created_at, row.updated_at,
+    `,
+    ).run(
+      row.id,
+      targetProblemId,
+      row.platform,
+      row.platform_submission_id,
+      row.verdict,
+      row.raw_verdict,
+      row.language,
+      row.submitted_at,
+      row.is_first_ac,
+      row.runtime_ms,
+      row.memory_kb,
+      row.source_url,
+      row.created_at,
+      row.updated_at,
       row.deleted_at,
     )
     inserted.submissions++
@@ -528,35 +725,54 @@ function importDailyStats(
         skipped.user_daily_stats++
         continue
       }
-      db.prepare(`
+      db.prepare(
+        `
         UPDATE user_daily_stats SET active_seconds = ?, duration_seconds = ?,
           visited_problem_count = ?, solved_problem_count = ?, submission_count = ?,
           ac_submission_count = ?, platform_distribution_json = ?, recomputed_at = ?,
           updated_at = ?, deleted_at = ?
         WHERE local_day = ?
-      `).run(
-        row.active_seconds, row.duration_seconds, row.visited_problem_count,
-        row.solved_problem_count, row.submission_count, row.ac_submission_count,
-        row.platform_distribution_json, row.recomputed_at, row.updated_at,
-        row.deleted_at, row.local_day,
+      `,
+      ).run(
+        row.active_seconds,
+        row.duration_seconds,
+        row.visited_problem_count,
+        row.solved_problem_count,
+        row.submission_count,
+        row.ac_submission_count,
+        row.platform_distribution_json,
+        row.recomputed_at,
+        row.updated_at,
+        row.deleted_at,
+        row.local_day,
       )
       updated.user_daily_stats++
       markAffected(effects, null, row.local_day)
       continue
     }
 
-    db.prepare(`
+    db.prepare(
+      `
       INSERT INTO user_daily_stats (
         local_day, active_seconds, duration_seconds, visited_problem_count,
         solved_problem_count, submission_count, ac_submission_count,
         platform_distribution_json, recomputed_at, created_at, updated_at, deleted_at
       )
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(
-      row.local_day, row.active_seconds, row.duration_seconds,
-      row.visited_problem_count, row.solved_problem_count, row.submission_count,
-      row.ac_submission_count, row.platform_distribution_json, row.recomputed_at,
-      row.created_at, row.updated_at, row.deleted_at,
+    `,
+    ).run(
+      row.local_day,
+      row.active_seconds,
+      row.duration_seconds,
+      row.visited_problem_count,
+      row.solved_problem_count,
+      row.submission_count,
+      row.ac_submission_count,
+      row.platform_distribution_json,
+      row.recomputed_at,
+      row.created_at,
+      row.updated_at,
+      row.deleted_at,
     )
     inserted.user_daily_stats++
     markAffected(effects, null, row.local_day)
@@ -575,9 +791,13 @@ function importAccounts(
 
   for (const row of rows) {
     const exportedId = String(row.id)
-    const existing = db.prepare(`
+    const existing = db
+      .prepare(
+        `
       SELECT id FROM platform_accounts WHERE platform = ? AND handle = ?
-    `).get(row.platform, row.handle) as { id: string } | undefined
+    `,
+      )
+      .get(row.platform, row.handle) as { id: string } | undefined
 
     if (existing) {
       idMap.set(exportedId, existing.id)
@@ -585,27 +805,43 @@ function importAccounts(
         skipped.platform_accounts++
         continue
       }
-      db.prepare(`
+      db.prepare(
+        `
         UPDATE platform_accounts SET display_name = ?, current_rating = ?, peak_rating = ?,
           last_synced_at = ?, updated_at = ?, deleted_at = ?
         WHERE id = ?
-      `).run(
-        row.display_name, row.current_rating, row.peak_rating,
-        row.last_synced_at, row.updated_at, row.deleted_at, existing.id,
+      `,
+      ).run(
+        row.display_name,
+        row.current_rating,
+        row.peak_rating,
+        row.last_synced_at,
+        row.updated_at,
+        row.deleted_at,
+        existing.id,
       )
       updated.platform_accounts++
       continue
     }
 
-    db.prepare(`
+    db.prepare(
+      `
       INSERT INTO platform_accounts (
         id, platform, handle, display_name, current_rating, peak_rating,
         last_synced_at, raw_json, created_at, updated_at, deleted_at
       )
       VALUES (?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?)
-    `).run(
-      row.id, row.platform, row.handle, row.display_name, row.current_rating,
-      row.peak_rating, row.last_synced_at, row.created_at, row.updated_at,
+    `,
+    ).run(
+      row.id,
+      row.platform,
+      row.handle,
+      row.display_name,
+      row.current_rating,
+      row.peak_rating,
+      row.last_synced_at,
+      row.created_at,
+      row.updated_at,
       row.deleted_at,
     )
     idMap.set(exportedId, exportedId)
@@ -631,40 +867,64 @@ function importRatingHistory(
       continue
     }
 
-    const existing = db.prepare(`
+    const existing = db
+      .prepare(
+        `
       SELECT id FROM rating_history
       WHERE platform = ? AND account_id = ? AND contest_id = ?
-    `).get(row.platform, targetAccountId, row.contest_id) as { id: string } | undefined
+    `,
+      )
+      .get(row.platform, targetAccountId, row.contest_id) as { id: string } | undefined
 
     if (existing) {
       if (!overwrite) {
         skipped.rating_history++
         continue
       }
-      db.prepare(`
+      db.prepare(
+        `
         UPDATE rating_history SET contest_name = ?, rank = ?, rating_before = ?,
           rating_after = ?, delta = ?, contest_at = ?, updated_at = ?, deleted_at = ?
         WHERE id = ?
-      `).run(
-        row.contest_name, row.rank, row.rating_before,
-        row.rating_after, row.delta, row.contest_at,
-        row.updated_at, row.deleted_at, existing.id,
+      `,
+      ).run(
+        row.contest_name,
+        row.rank,
+        row.rating_before,
+        row.rating_after,
+        row.delta,
+        row.contest_at,
+        row.updated_at,
+        row.deleted_at,
+        existing.id,
       )
       updated.rating_history++
       continue
     }
 
-    db.prepare(`
+    db.prepare(
+      `
       INSERT INTO rating_history (
         id, account_id, platform, contest_id, contest_name, rank,
         rating_before, rating_after, delta, contest_at, raw_json,
         created_at, updated_at, deleted_at
       )
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?)
-    `).run(
-      row.id, targetAccountId, row.platform, row.contest_id, row.contest_name,
-      row.rank, row.rating_before, row.rating_after, row.delta, row.contest_at,
-      row.created_at, row.updated_at, row.deleted_at,
+    `,
+    ).run(
+      row.id,
+      targetAccountId,
+      row.platform,
+      row.contest_id,
+      row.contest_name,
+      row.rank,
+      row.rating_before,
+      row.rating_after,
+      row.delta,
+      row.contest_at,
+      row.created_at,
+      row.updated_at,
+      row.deleted_at,
     )
     inserted.rating_history++
   }
@@ -679,7 +939,7 @@ function tableCounts(data: LearningDataExport): Record<string, number> {
 }
 
 function emptyCounts(): Record<string, number> {
-  return Object.fromEntries(EXPORT_TABLES.map(table => [table, 0]))
+  return Object.fromEntries(EXPORT_TABLES.map((table) => [table, 0]))
 }
 
 function markAffected(
@@ -694,9 +954,13 @@ function markAffected(
 }
 
 function existsByLocalDay(db: ReturnType<typeof getDb>, row: ExportRow): boolean {
-  const existing = db.prepare(`
+  const existing = db
+    .prepare(
+      `
     SELECT 1 as found FROM user_daily_stats WHERE local_day = ?
-  `).get(row.local_day) as { found: number } | undefined
+  `,
+    )
+    .get(row.local_day) as { found: number } | undefined
   return Boolean(existing)
 }
 

@@ -16,6 +16,6 @@
 
 ```powershell
 cd algo-electron
-npm run test:docs
-npm run test:db
+pnpm run test:docs
+pnpm run test:db
 ```

@@ -27,12 +27,14 @@ export function getRecentProblems(limit = 50, platform?: string, status?: string
 
   const rows = db.prepare(sql).all(...params) as RecentProblem[]
 
-  return status ? rows.filter(row => row.status === status) : rows
+  return status ? rows.filter((row) => row.status === status) : rows
 }
 
 export function getProblemDetail(problemId: string): ProblemDetail | null {
   const db = getDb()
-  const problem = db.prepare(`
+  const problem = db
+    .prepare(
+      `
     SELECT
       p.*,
       CASE
@@ -44,13 +46,19 @@ export function getProblemDetail(problemId: string): ProblemDetail | null {
       (SELECT COUNT(*) FROM submissions s WHERE s.problem_id = p.id AND s.verdict = 'AC') as ac_count
     FROM problems p
     WHERE p.id = ? AND p.deleted_at IS NULL
-  `).get(problemId) as Omit<ProblemDetail, 'submissions'> | undefined
+  `,
+    )
+    .get(problemId) as Omit<ProblemDetail, 'submissions'> | undefined
 
   if (!problem) return null
 
-  const submissions = db.prepare(`
+  const submissions = db
+    .prepare(
+      `
     SELECT * FROM submissions WHERE problem_id = ? ORDER BY submitted_at DESC LIMIT 100
-  `).all(problemId) as ProblemSubmissionRow[]
+  `,
+    )
+    .all(problemId) as ProblemSubmissionRow[]
 
   return { ...problem, submissions }
 }
@@ -76,10 +84,15 @@ export function listProblemVisitsByProblem(problemId: string): ProblemVisitRow[]
  * 根据 platform + platform_problem_id 查询 problem_id（Issue #3）。
  * 返回 null 表示该题尚未入库（未访问过 / 解析失败）。
  */
-export function findProblemIdByPlatformKey(platform: string, platformProblemId: string): string | null {
+export function findProblemIdByPlatformKey(
+  platform: string,
+  platformProblemId: string,
+): string | null {
   const db = getDb()
   const row = db
-    .prepare('SELECT id FROM problems WHERE platform = ? AND platform_problem_id = ? AND deleted_at IS NULL')
+    .prepare(
+      'SELECT id FROM problems WHERE platform = ? AND platform_problem_id = ? AND deleted_at IS NULL',
+    )
     .get(platform, platformProblemId) as { id: string } | undefined
   return row?.id ?? null
 }

@@ -39,10 +39,10 @@ async function runSmoke(): Promise<void> {
   // --ignore-certificate-errors is forbidden project-wide, so the smoke serves
   // real https origins through per-session protocol interception instead.
   const smokeSession = session.fromPartition(`persist:oj-bridge-smoke-${process.pid}`)
-  smokeSession.protocol.handle('https', request => respondWithSmokePage(request.url))
-  smokeSession.protocol.handle('http', request => respondWithSmokePage(request.url))
+  smokeSession.protocol.handle('https', (request) => respondWithSmokePage(request.url))
+  smokeSession.protocol.handle('http', (request) => respondWithSmokePage(request.url))
 
-  handleFromOj(OJ_SUBMISSION_TOKEN_CHANNEL, event => issueDocumentToken(event.sender.id))
+  handleFromOj(OJ_SUBMISSION_TOKEN_CHANNEL, (event) => issueDocumentToken(event.sender.id))
   onFromOj(OJ_SUBMISSION_IPC_CHANNEL, (event: Electron.IpcMainEvent, envelope: unknown) => {
     envelopes.push({ webContentsId: event.sender.id, envelope })
   })
@@ -99,7 +99,9 @@ async function runSmoke(): Promise<void> {
 
     // The two negative stages below make the guard throw inside ipcMain.handle,
     // and Electron logs each rejection to stderr. Those lines are expected.
-    console.log('[oj-bridge-smoke] expecting 4 "Rejected IPC sender" log lines from the negative stages')
+    console.log(
+      '[oj-bridge-smoke] expecting 4 "Rejected IPC sender" log lines from the negative stages',
+    )
 
     stage = 'refusing to mint a token for an unregistered webContents'
     const unregisteredWindow = createHiddenOjWindow(smokeSession, { registered: false })
@@ -124,12 +126,10 @@ async function runSmoke(): Promise<void> {
     )
 
     console.log('[PASS] OJ submission bridge Electron smoke')
-  }
-  catch (error) {
+  } catch (error) {
     smokeError = error
     console.error('[FAIL] OJ submission bridge Electron smoke', error)
-  }
-  finally {
+  } finally {
     clearTimeout(watchdog)
     for (const window of windows) window.destroy()
     resetTrustedSenderRegistry()
@@ -183,22 +183,30 @@ function respondWithSmokePage(rawUrl: string): Response {
 function smokePage(mode: string, submissionId: string): string {
   const payload = JSON.stringify(submission(submissionId))
   const message = `{ channel: ${JSON.stringify(OJ_SUBMISSION_BRIDGE_CHANNEL)}, payload: ${payload} }`
-  const head = mode === 'bridge'
-    ? `globalThis.__bridgeType = typeof window[${JSON.stringify(OJ_SUBMISSION_BRIDGE_CHANNEL)}]?.reportSubmission;
+  const head =
+    mode === 'bridge'
+      ? `globalThis.__bridgeType = typeof window[${JSON.stringify(OJ_SUBMISSION_BRIDGE_CHANNEL)}]?.reportSubmission;
        window[${JSON.stringify(OJ_SUBMISSION_BRIDGE_CHANNEL)}].reportSubmission(${payload});`
-    : mode === 'postmessage'
-      ? `window.postMessage(${message}, '*');`
-      : mode === 'iframe-child'
-        ? `window.top.postMessage(${message}, '*');`
-        : ''
-  const body = mode === 'iframe'
-    ? `<iframe src="/?mode=iframe-child&id=${encodeURIComponent(submissionId)}"></iframe>`
-    : ''
-  return `<!doctype html><html><head><meta charset="utf-8"><title>OJ bridge smoke</title>`
-    + `<script>${head}</script></head><body>${body}</body></html>`
+      : mode === 'postmessage'
+        ? `window.postMessage(${message}, '*');`
+        : mode === 'iframe-child'
+          ? `window.top.postMessage(${message}, '*');`
+          : ''
+  const body =
+    mode === 'iframe'
+      ? `<iframe src="/?mode=iframe-child&id=${encodeURIComponent(submissionId)}"></iframe>`
+      : ''
+  return (
+    `<!doctype html><html><head><meta charset="utf-8"><title>OJ bridge smoke</title>` +
+    `<script>${head}</script></head><body>${body}</body></html>`
+  )
 }
 
-function assertEnvelope(envelope: unknown, webContentsId: number, expectedPayload: SmokeSubmission): void {
+function assertEnvelope(
+  envelope: unknown,
+  webContentsId: number,
+  expectedPayload: SmokeSubmission,
+): void {
   assert.ok(
     envelope !== null && typeof envelope === 'object' && !Array.isArray(envelope),
     'The submission envelope must be a plain object',
@@ -212,16 +220,16 @@ function assertEnvelope(envelope: unknown, webContentsId: number, expectedPayloa
 }
 
 async function waitForEnvelope(webContentsId: number): Promise<unknown> {
-  await waitFor(() => envelopes.some(entry => entry.webContentsId === webContentsId))
-  const index = envelopes.findIndex(entry => entry.webContentsId === webContentsId)
+  await waitFor(() => envelopes.some((entry) => entry.webContentsId === webContentsId))
+  const index = envelopes.findIndex((entry) => entry.webContentsId === webContentsId)
   return envelopes.splice(index, 1)[0].envelope
 }
 
 async function assertNoEnvelope(webContentsId: number): Promise<void> {
   // Two grace periods: the preload retries the token pull once before giving up.
-  await new Promise(resolve => setTimeout(resolve, 750))
+  await new Promise((resolve) => setTimeout(resolve, 750))
   assert.strictEqual(
-    envelopes.some(entry => entry.webContentsId === webContentsId),
+    envelopes.some((entry) => entry.webContentsId === webContentsId),
     false,
     `Expected no submission envelope from webContents ${webContentsId}`,
   )
@@ -231,7 +239,7 @@ async function waitFor(predicate: () => boolean, timeoutMs = 5_000): Promise<voi
   const deadline = Date.now() + timeoutMs
   while (Date.now() < deadline) {
     if (predicate()) return
-    await new Promise(resolve => setTimeout(resolve, 25))
+    await new Promise((resolve) => setTimeout(resolve, 25))
   }
   throw new Error('Timed out waiting for the OJ submission bridge smoke condition')
 }

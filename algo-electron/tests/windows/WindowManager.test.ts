@@ -8,7 +8,11 @@ import { WindowManager } from '../../electron/windows/WindowManager.ts'
 function createAppWindow(id: string): { appWindow: AppWindow; browserWindow: MockBrowserWindow } {
   const browserWindow = new MockBrowserWindow()
   return {
-    appWindow: new AppWindow({ id, browserWindow: browserWindow as never, tabManager: {} as never }),
+    appWindow: new AppWindow({
+      id,
+      browserWindow: browserWindow as never,
+      tabManager: {} as never,
+    }),
     browserWindow,
   }
 }

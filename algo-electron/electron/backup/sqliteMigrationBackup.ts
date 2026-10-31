@@ -35,8 +35,8 @@ export function assertMigrationRetryAllowed(
 
   try {
     const marker = JSON.parse(fs.readFileSync(markerPath, 'utf8')) as MigrationFailureMarker
-    const blockedVersions = new Set(marker.pendingMigrations.map(migration => migration.version))
-    if (pendingMigrations.some(migration => blockedVersions.has(migration.version))) {
+    const blockedVersions = new Set(marker.pendingMigrations.map((migration) => migration.version))
+    if (pendingMigrations.some((migration) => blockedVersions.has(migration.version))) {
       throw new MigrationRetryBlockedError(markerPath)
     }
   } catch (error) {
@@ -78,9 +78,12 @@ export function retainNewestMigrationBackups(
 ): string[] {
   if (!fs.existsSync(backupDir)) return []
   const prefix = migrationBackupPrefix(databasePath)
-  const backups = fs.readdirSync(backupDir, { withFileTypes: true })
-    .filter(entry => entry.isFile() && entry.name.startsWith(prefix) && entry.name.endsWith('.sqlite'))
-    .map(entry => path.join(backupDir, entry.name))
+  const backups = fs
+    .readdirSync(backupDir, { withFileTypes: true })
+    .filter(
+      (entry) => entry.isFile() && entry.name.startsWith(prefix) && entry.name.endsWith('.sqlite'),
+    )
+    .map((entry) => path.join(backupDir, entry.name))
     .sort((left, right) => {
       const mtimeDiff = fs.statSync(right).mtimeMs - fs.statSync(left).mtimeMs
       return mtimeDiff || right.localeCompare(left)

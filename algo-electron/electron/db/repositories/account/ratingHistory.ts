@@ -7,16 +7,20 @@ export function upsertRatingHistory(data: RatingHistoryInput): boolean {
   const db = getDb()
   const now = nowBeijing()
 
-  const existing = db.prepare(
-    'SELECT id FROM rating_history WHERE platform = ? AND account_id = ? AND contest_id = ?',
-  ).get(data.platform, data.accountId, data.contestId) as Pick<RatingHistoryRow, 'id'> | undefined
+  const existing = db
+    .prepare(
+      'SELECT id FROM rating_history WHERE platform = ? AND account_id = ? AND contest_id = ?',
+    )
+    .get(data.platform, data.accountId, data.contestId) as Pick<RatingHistoryRow, 'id'> | undefined
 
   if (existing) return false
 
-  db.prepare(`
+  db.prepare(
+    `
     INSERT INTO rating_history (id, account_id, platform, contest_id, contest_name, rank, rating_before, rating_after, delta, contest_at, raw_json, created_at)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(
+  `,
+  ).run(
     crypto.randomUUID(),
     data.accountId,
     data.platform,
@@ -36,15 +40,23 @@ export function upsertRatingHistory(data: RatingHistoryInput): boolean {
 
 export function getRatingHistory(accountId: string): RatingHistoryRow[] {
   const db = getDb()
-  return db.prepare(`
+  return db
+    .prepare(
+      `
     SELECT * FROM rating_history WHERE account_id = ? ORDER BY contest_at ASC
-  `).all(accountId) as RatingHistoryRow[]
+  `,
+    )
+    .all(accountId) as RatingHistoryRow[]
 }
 
 export function computePeakRating(accountId: string): number | null {
   const db = getDb()
-  const row = db.prepare(`
+  const row = db
+    .prepare(
+      `
     SELECT MAX(rating_after) as peak FROM rating_history WHERE account_id = ?
-  `).get(accountId) as { peak: number | null } | undefined
+  `,
+    )
+    .get(accountId) as { peak: number | null } | undefined
   return row?.peak ?? null
 }

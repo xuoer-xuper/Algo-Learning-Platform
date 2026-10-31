@@ -6,7 +6,8 @@ import { installRendererErrorHandlers } from './rendererErrors'
 import { DARK_COLOR_SCHEME_QUERY, installThemeAttribute } from './theme'
 import './index.css'
 
-const rootEl = document.getElementById('root')!
+const rootEl = document.getElementById('root')
+if (!rootEl) throw new Error('Renderer root element #root is missing')
 // 早于 React 挂载安装，否则首屏读取失败会落在监听器注册之前。
 installRendererErrorHandlers(window)
 applyBrowserLayoutVariables(window.electronAPI.browserLayout, document.documentElement.style)

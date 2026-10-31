@@ -1,0 +1,27 @@
+{
+  "git": {
+    "commitMessage": "chore(release): 发布 v${version}",
+    "tagName": "v${version}",
+    "tagAnnotation": "v${version}",
+    "requireBranch": "master",
+    "requireCleanWorkingDir": true,
+    "commitArgs": ["--no-verify"]
+  },
+  "github": {
+    "release": true,
+    "assets": [
+      "release/${version}/*.exe",
+      "release/${version}/*.blockmap",
+      "release/${version}/latest.yml"
+    ]
+  },
+  "plugins": {
+    "@release-it/conventional-changelog": {
+      "infile": "../docs/PRODUCT/CHANGELOG.md",
+      "preset": "conventionalcommits"
+    }
+  },
+  "hooks": {
+    "before:init": ["pnpm test:all", "pnpm build:win"]
+  }
+}

@@ -11,8 +11,18 @@
     "allowImportingTsExtensions": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
+    "verbatimModuleSyntax": true,
     "noEmit": true,
     "jsx": "react-jsx",
+
+    /* @shared 别名的类型层；另两处必须同步：vite.config.ts renderer resolve.alias（渲染层构建）
+       与 vitest.config.ts alias（测试运行时），漏一处就是“类型过、运行炸”。
+       不配 baseUrl：paths 相对 tsconfig 所在目录解析，baseUrl 在 TS 7 已移除；无 baseUrl 时
+       paths 的值必须是相对路径（TS5090，TS 6.0.3 实测），故带 ./ 前缀。
+       main 进程（electron/）不走该别名，一律相对路径。 */
+    "paths": {
+      "@shared/*": ["./src/shared/*"]
+    },
 
     /* Linting */
     "strict": true,

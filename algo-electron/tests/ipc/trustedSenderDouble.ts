@@ -21,7 +21,12 @@ export function createTrustedSenderDouble(): {
   handle: (channel: string, second: unknown, third?: IpcDoubleListener) => void
   on: (channel: string, listener: IpcDoubleListener) => void
 } {
-  return { handle, on: (channel, listener) => { ipcMain.on(channel, listener) } }
+  return {
+    handle,
+    on: (channel, listener) => {
+      ipcMain.on(channel, listener)
+    },
+  }
 }
 
 type IpcDoubleListener = (event: unknown, ...args: unknown[]) => unknown

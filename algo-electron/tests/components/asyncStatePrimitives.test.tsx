@@ -121,7 +121,11 @@ describe('ListRow', () => {
   })
 
   it('可以给读屏单独的名字', () => {
-    render(<ListRow onActivate={() => {}} label="打开 两数之和">行内容</ListRow>)
+    render(
+      <ListRow onActivate={() => {}} label="打开 两数之和">
+        行内容
+      </ListRow>,
+    )
     expect(screen.getByRole('button', { name: '打开 两数之和' })).toBeTruthy()
   })
 })

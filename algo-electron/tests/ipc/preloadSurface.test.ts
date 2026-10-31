@@ -24,7 +24,14 @@ type ApiRecord = Record<string, unknown>
  * 数量必须多于最宽方法的形参个数（现在最宽是 4 个：finishTabDrag、saveNoteImage、
  * createNote），下面有断言兜住这条前提，将来出现更宽的方法会直接报出来而不是错配。
  */
-const SENTINELS = ['sentinel-a', 'sentinel-b', 'sentinel-c', 'sentinel-d', 'sentinel-e', 'sentinel-f'] as const
+const SENTINELS = [
+  'sentinel-a',
+  'sentinel-b',
+  'sentinel-c',
+  'sentinel-d',
+  'sentinel-e',
+  'sentinel-f',
+] as const
 
 interface IpcCall {
   kind: 'send' | 'invoke'
@@ -55,8 +62,7 @@ function recordIpc(run: () => void): IpcCall[] {
   ipcRenderer.on('invoke', onInvoke)
   try {
     run()
-  }
-  finally {
+  } finally {
     ipcRenderer.off('send', onSend)
     ipcRenderer.off('invoke', onInvoke)
   }
@@ -77,12 +83,16 @@ describe('preload 暴露面', () => {
     }
     // browserLayout 是唯一的非函数成员：同步读取的布局常量，不是 IPC 调用。
     assert.strictEqual(typeof api.browserLayout, 'object')
-    const nonFunction = Object.keys(api).filter(key => key !== 'browserLayout' && typeof api[key] !== 'function')
+    const nonFunction = Object.keys(api).filter(
+      (key) => key !== 'browserLayout' && typeof api[key] !== 'function',
+    )
     assert.deepStrictEqual(nonFunction, [], 'browserLayout 之外的成员都应是函数')
   })
 
   test('每个方法各自只发一条 IPC，实参按序转发', () => {
-    const methods = Object.keys(api).filter(key => typeof api[key] === 'function' && !isSubscription(key))
+    const methods = Object.keys(api).filter(
+      (key) => typeof api[key] === 'function' && !isSubscription(key),
+    )
     assert.ok(methods.length > 150, `暴露面应有 150+ 个方法，实测 ${methods.length}`)
 
     const seen = new Map<string, string>()
@@ -92,7 +102,10 @@ describe('preload 暴露面', () => {
       })
       assert.strictEqual(calls.length, 1, `${method} 应恰好触发一条 IPC，实测 ${calls.length} 条`)
       const [call] = calls
-      assert.ok(call.channel.includes(':'), `${method} 的频道名应带命名空间前缀，实测 ${call.channel}`)
+      assert.ok(
+        call.channel.includes(':'),
+        `${method} 的频道名应带命名空间前缀，实测 ${call.channel}`,
+      )
 
       // 哨兵数量必须够用，否则下面的前缀断言会把"参数比哨兵多"误报成"顺序不对"。
       assert.ok(
@@ -117,7 +130,9 @@ describe('preload 暴露面', () => {
   })
 
   test('订阅型方法收得到事件，退订后不再收', () => {
-    const methods = Object.keys(api).filter(key => typeof api[key] === 'function' && isSubscription(key))
+    const methods = Object.keys(api).filter(
+      (key) => typeof api[key] === 'function' && isSubscription(key),
+    )
     assert.ok(methods.length >= 14, `订阅型方法应有 14+ 个，实测 ${methods.length}`)
 
     for (const method of methods) {
@@ -128,9 +143,14 @@ describe('preload 暴露面', () => {
       // 订阅用的频道名要从 ipcRenderer 的监听器表里反查——preload 没把它暴露出来。
       const before = new Set(ipcRenderer.eventNames().map(String))
       const dispose = (api[method] as (callback: (...args: unknown[]) => void) => unknown)(
-        (...args) => { received.push(args) },
+        (...args) => {
+          received.push(args)
+        },
       )
-      const added = ipcRenderer.eventNames().map(String).filter(name => !before.has(name))
+      const added = ipcRenderer
+        .eventNames()
+        .map(String)
+        .filter((name) => !before.has(name))
       assert.strictEqual(added.length, 1, `${method} 应只注册一个频道，实测 ${added.length} 个`)
       const channel = added[0]
       assert.ok(channel.includes(':'), `${method} 的频道名应带命名空间前缀，实测 ${channel}`)
@@ -141,7 +161,11 @@ describe('preload 暴露面', () => {
       // 传值的订阅必须把 IpcRendererEvent 剥掉，第一个实参是 payload 而不是 event。
       // 这是 preload 最容易写错的一处，文本扫描看不出来。
       if (received[0].length > 0) {
-        assert.strictEqual(received[0][0], 'payload-1', `${method} 应把 payload 而非 event 传给回调`)
+        assert.strictEqual(
+          received[0][0],
+          'payload-1',
+          `${method} 应把 payload 而非 event 传给回调`,
+        )
       }
 
       ;(dispose as () => void)()

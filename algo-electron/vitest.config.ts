@@ -7,6 +7,9 @@ export default defineConfig({
     // in Vitest; real Electron ABI checks remain in tests/verify.mjs.
     alias: {
       electron: fileURLToPath(new URL('./tests/electron/electronMock.ts', import.meta.url)),
+      // @shared 别名的测试运行时（三处接线之一，见 tsconfig.json 注释）。vitest 不读
+      // vite.config.ts 的 resolve，也不读 tsconfig 的 paths（那只管类型层），必须在此另配。
+      '@shared': fileURLToPath(new URL('./src/shared', import.meta.url)),
     },
   },
   test: {
@@ -26,6 +29,9 @@ export default defineConfig({
       'tests/electron/userScriptRuntimeSmoke.test.ts',
     ],
     environment: 'node',
+    // Testing Library 的默认 1s 轮询预算低于本仓库的运行环境（覆盖率插桩 + forks 池
+    // 全量并行），设置文件与理由见 tests/setup/README.md。
+    setupFiles: ['./tests/setup/testing-library-timeout.ts'],
     pool: 'forks',
     isolate: true,
     fileParallelism: true,

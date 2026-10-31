@@ -18,7 +18,9 @@ export interface MainServices {
   browserDiagnostics: BrowserDiagnostics
 }
 
-export async function initializeMainServices(notifyProblemsUpdated: () => void): Promise<MainServices> {
+export async function initializeMainServices(
+  notifyProblemsUpdated: () => void,
+): Promise<MainServices> {
   await initDb()
   seedBuiltinSites()
   setEnabledSitesFetcher(getEnabledSites)
@@ -28,9 +30,11 @@ export async function initializeMainServices(notifyProblemsUpdated: () => void):
     batchWriter: createDefaultSubmissionBatchWriter(),
     notifyProblemsUpdated,
     findNowcoderProblemBySearch: (search) => {
-      const problem = getDb().prepare(
-        "SELECT platform_problem_id FROM problems WHERE platform = 'nowcoder' AND platform_problem_id LIKE ?"
-      ).get(`%${search}%`) as { platform_problem_id: string } | undefined
+      const problem = getDb()
+        .prepare(
+          "SELECT platform_problem_id FROM problems WHERE platform = 'nowcoder' AND platform_problem_id LIKE ?",
+        )
+        .get(`%${search}%`) as { platform_problem_id: string } | undefined
       return problem?.platform_problem_id
     },
   })

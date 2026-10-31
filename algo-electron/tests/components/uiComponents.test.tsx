@@ -1,7 +1,16 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
-import { Button, Card, ConfirmDialog, Icon, IconButton, Input, Select, Textarea } from '../../src/components/ui'
+import {
+  Button,
+  Card,
+  ConfirmDialog,
+  Icon,
+  IconButton,
+  Input,
+  Select,
+  Textarea,
+} from '../../src/components/ui'
 
 afterEach(cleanup)
 

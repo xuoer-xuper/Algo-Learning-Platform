@@ -63,10 +63,7 @@ test('rejects conflicting ownership for an existing webContents id', () => {
     () => registry.registerTab('window-1', 'tab-2', view as never),
     /already has an owner/,
   )
-  assert.throws(
-    () => registry.registerShell('window-1', contents),
-    /already has an owner/,
-  )
+  assert.throws(() => registry.registerShell('window-1', contents), /already has an owner/)
 })
 
 test('preserves an entry when unregister receives a mismatched expected window id', () => {

@@ -1,8 +1,5 @@
 import fs from 'node:fs'
-import {
-  getEnabledScripts,
-  type UserScript,
-} from '../db/repositories/userScriptRepository'
+import { getEnabledScripts, type UserScript } from '../db/repositories/userScriptRepository'
 import { getEnabledSites, type SiteConfigData } from '../db/repositories/siteRepository'
 import {
   isUserScriptUrlExcluded,
@@ -38,7 +35,7 @@ const defaultDependencies: UserScriptServiceDependencies = {
   getEnabledScripts,
   getEnabledSites,
   fileExists: fs.existsSync,
-  readFile: filePath => fs.readFileSync(filePath, 'utf8'),
+  readFile: (filePath) => fs.readFileSync(filePath, 'utf8'),
 }
 
 export class UserScriptService {
@@ -51,7 +48,7 @@ export class UserScriptService {
   }
 
   public getMatchingScripts(url: string): UserScript[] {
-    return this.getMatchingScriptsWithMeta(url).map(entry => entry.script)
+    return this.getMatchingScriptsWithMeta(url).map((entry) => entry.script)
   }
 
   public refresh(): void {
@@ -59,7 +56,7 @@ export class UserScriptService {
     this.cachedEnabledSites = []
 
     const enabledScripts = this.dependencies.getEnabledScripts()
-    const enabledSites = this.dependencies.getEnabledSites().filter(site => site.enabled)
+    const enabledSites = this.dependencies.getEnabledSites().filter((site) => site.enabled)
     const definitions: CachedUserScriptDefinition[] = []
 
     for (const persistedScript of enabledScripts) {
@@ -95,7 +92,7 @@ export class UserScriptService {
   }
 
   public getEnabledScriptsSnapshot(): UserScript[] {
-    return this.getCachedDefinitions().map(definition => definition.script)
+    return this.getCachedDefinitions().map((definition) => definition.script)
   }
 
   public getMatchingScriptsWithMeta(url: string): Array<{
@@ -126,9 +123,10 @@ export class UserScriptService {
         continue
       }
 
-      const matched = siteIds.length > 0
-        ? matchesExplicitSiteBinding(domain, siteIds, this.cachedEnabledSites)
-        : matchesUserScriptUrl(url, rules)
+      const matched =
+        siteIds.length > 0
+          ? matchesExplicitSiteBinding(domain, siteIds, this.cachedEnabledSites)
+          : matchesUserScriptUrl(url, rules)
       if (!matched) {
         appLogger.debug('userscript.not-matched', { scriptName: script.name })
         continue
@@ -183,7 +181,7 @@ function parsePersistedRules(script: UserScript): PersistedMatchRules | null {
 function parseStringArray(value: string): string[] | null {
   try {
     const parsed: unknown = JSON.parse(value)
-    if (!Array.isArray(parsed) || parsed.some(item => typeof item !== 'string')) return null
+    if (!Array.isArray(parsed) || parsed.some((item) => typeof item !== 'string')) return null
     return parsed
   } catch {
     return null
@@ -195,11 +193,13 @@ function matchesExplicitSiteBinding(
   siteIds: readonly string[],
   enabledSites: readonly SiteConfigData[],
 ): boolean {
-  return siteIds.some(siteId => {
-    const site = enabledSites.find(candidate => candidate.id === siteId)
-    return Boolean(site?.domains.some(rawDomain => {
-      const siteDomain = rawDomain.toLowerCase()
-      return domain === siteDomain || domain.endsWith(`.${siteDomain}`)
-    }))
+  return siteIds.some((siteId) => {
+    const site = enabledSites.find((candidate) => candidate.id === siteId)
+    return Boolean(
+      site?.domains.some((rawDomain) => {
+        const siteDomain = rawDomain.toLowerCase()
+        return domain === siteDomain || domain.endsWith(`.${siteDomain}`)
+      }),
+    )
   })
 }

@@ -14,10 +14,7 @@ import {
   resolveUserScriptNavigation,
   type PendingUserScriptInstall,
 } from '../downloads/userScriptNavigation'
-import {
-  fetchUserScriptDocument,
-  type UserScriptRemoteFetch,
-} from './UserScriptRemoteFetch'
+import { fetchUserScriptDocument, type UserScriptRemoteFetch } from './UserScriptRemoteFetch'
 
 const MAX_SCRIPT_BYTES = 4 * 1024 * 1024
 const DEFAULT_TTL_MS = 15 * 60 * 1_000
@@ -82,11 +79,14 @@ export class UserScriptRemoteInstaller {
   private readonly maxScriptBytes: number
   private readonly maxStaged: number
   private readonly staged = new Map<string, StagedInstall>()
-  private readonly inFlight = new Map<string, {
-    requestUrl: string
-    promise: Promise<UserScriptInstallPreview>
-    controller: AbortController
-  }>()
+  private readonly inFlight = new Map<
+    string,
+    {
+      requestUrl: string
+      promise: Promise<UserScriptInstallPreview>
+      controller: AbortController
+    }
+  >()
 
   constructor(options: UserScriptRemoteInstallerOptions = {}) {
     this.fetch = options.fetch ?? ((input, init) => fetch(input, init))
@@ -95,7 +95,8 @@ export class UserScriptRemoteInstaller {
     this.ttlMs = options.ttlMs ?? DEFAULT_TTL_MS
     this.maxScriptBytes = options.maxScriptBytes ?? MAX_SCRIPT_BYTES
     this.maxStaged = options.maxStaged ?? MAX_PENDING_USER_SCRIPT_INSTALLS
-    if (!Number.isFinite(this.ttlMs) || this.ttlMs <= 0) throw new RangeError('ttlMs must be positive')
+    if (!Number.isFinite(this.ttlMs) || this.ttlMs <= 0)
+      throw new RangeError('ttlMs must be positive')
     if (!Number.isSafeInteger(this.maxScriptBytes) || this.maxScriptBytes < 1) {
       throw new RangeError('maxScriptBytes must be a positive integer')
     }
@@ -114,14 +115,16 @@ export class UserScriptRemoteInstaller {
     if (staged?.requestUrl === request.sourceUrl) return staged.prepared.preview
     const current = this.inFlight.get(installId)
     if (current) {
-      if (current.requestUrl !== request.sourceUrl) throw new Error('Userscript install request changed while loading')
+      if (current.requestUrl !== request.sourceUrl)
+        throw new Error('Userscript install request changed while loading')
       return current.promise
     }
     const controller = new AbortController()
     const promise = this.prepareOnce(request, existingScripts, installId, controller.signal)
     this.inFlight.set(installId, { requestUrl: request.sourceUrl, promise, controller })
-    try { return await promise }
-    finally {
+    try {
+      return await promise
+    } finally {
       if (this.inFlight.get(installId)?.promise === promise) this.inFlight.delete(installId)
     }
   }
@@ -139,7 +142,8 @@ export class UserScriptRemoteInstaller {
       maxBytes: this.maxScriptBytes,
       signal,
     })
-    if (response.status !== 'ok') throw new Error('Userscript install source was not modified unexpectedly')
+    if (response.status !== 'ok')
+      throw new Error('Userscript install source was not modified unexpectedly')
     const metadata = parseScriptMetadata(response.code)
     if (!hasCompleteMetadataBlock(response.code) || !metadata.name) {
       throw new Error('Remote content is not a userscript')
@@ -239,8 +243,10 @@ function toPreview(
     grants: [...metadata.grants],
     connects: [...metadata.connects],
     antifeatures: [...metadata.antifeatures],
-    requires: resources.filter(resource => resource.kind === 'require').length,
-    resources: resources.filter(resource => resource.kind === 'resource').map(resource => resource.key),
+    requires: resources.filter((resource) => resource.kind === 'require').length,
+    resources: resources
+      .filter((resource) => resource.kind === 'resource')
+      .map((resource) => resource.key),
     action: decision.action,
     existingScriptId: decision.existing?.id ?? null,
     versionComparison: decision.versionComparison,
@@ -248,7 +254,7 @@ function toPreview(
 }
 
 function hasCompleteMetadataBlock(code: string): boolean {
-  const lines = code.split(/\r?\n/).map(line => line.trim())
+  const lines = code.split(/\r?\n/).map((line) => line.trim())
   const start = lines.indexOf('// ==UserScript==')
   if (start < 0) return false
   return lines.slice(start + 1).includes('// ==/UserScript==')

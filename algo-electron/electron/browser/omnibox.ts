@@ -1,8 +1,5 @@
 import { getInternalPageUrl, parseInternalPageUrl } from './internalPage'
-import {
-  evaluateBrowserNavigation,
-  type NavigationBlockReason,
-} from './navigationPolicy'
+import { evaluateBrowserNavigation, type NavigationBlockReason } from './navigationPolicy'
 import type { InternalPage } from './tabManagerTypes'
 
 export const SEARCH_ENGINE_IDS = ['bing', 'google', 'baidu', 'custom'] as const
@@ -29,14 +26,10 @@ export type CustomSearchTemplateIssue =
   | 'userinfo'
 
 export type CustomSearchTemplateValidation =
-  | { valid: true; template: string }
-  | { valid: false; issue: CustomSearchTemplateIssue }
+  { valid: true; template: string } | { valid: false; issue: CustomSearchTemplateIssue }
 
 export type OmniboxBlockReason =
-  | NavigationBlockReason
-  | 'empty-input'
-  | 'invalid-internal-url'
-  | 'userinfo'
+  NavigationBlockReason | 'empty-input' | 'invalid-internal-url' | 'userinfo'
 
 export type OmniboxResolution =
   | { kind: 'internal'; page: InternalPage; url: string }
@@ -97,10 +90,10 @@ function countLiteralOccurrences(value: string, token: string): number {
 export function validateCustomSearchTemplate(value: unknown): CustomSearchTemplateValidation {
   if (typeof value !== 'string') return { valid: false, issue: 'invalid-type' }
   if (
-    value.length < 1
-    || value.length > MAX_CUSTOM_SEARCH_TEMPLATE_LENGTH
-    || value.trim() !== value
-    || containsControlCharacter(value)
+    value.length < 1 ||
+    value.length > MAX_CUSTOM_SEARCH_TEMPLATE_LENGTH ||
+    value.trim() !== value ||
+    containsControlCharacter(value)
   ) {
     return { valid: false, issue: 'invalid-length' }
   }
@@ -132,7 +125,7 @@ export function normalizeSearchEngineConfig(value: unknown): SearchEngineConfig 
 
   const candidate = value as Record<string, unknown>
   const engine = SEARCH_ENGINE_IDS.includes(candidate.engine as SearchEngineId)
-    ? candidate.engine as SearchEngineId
+    ? (candidate.engine as SearchEngineId)
     : DEFAULT_SEARCH_ENGINE_CONFIG.engine
   const customValidation = validateCustomSearchTemplate(candidate.customTemplate)
   const customTemplate = customValidation.valid ? customValidation.template : null
@@ -144,19 +137,28 @@ export function normalizeSearchEngineConfig(value: unknown): SearchEngineConfig 
 
 export function buildSearchUrl(query: string, config: SearchEngineConfig): string {
   const normalizedConfig = normalizeSearchEngineConfig(config)
-  const template = normalizedConfig.engine === 'custom'
-    ? normalizedConfig.customTemplate!
-    : BUILT_IN_SEARCH_TEMPLATES[normalizedConfig.engine]
+  let template: string
+  if (normalizedConfig.engine === 'custom') {
+    // normalizeSearchEngineConfig 保证 custom 分支一定带模板；直接传未归一化的配置时
+    // 沿用原先 `customTemplate!` 后立刻调用 .replace 的抛错行为（这里换成显式 throw）。
+    const customTemplate = normalizedConfig.customTemplate
+    if (!customTemplate) throw new Error('自定义搜索引擎缺少 URL 模板')
+    template = customTemplate
+  } else {
+    template = BUILT_IN_SEARCH_TEMPLATES[normalizedConfig.engine]
+  }
   return template.replace(QUERY_PLACEHOLDER, encodeURIComponent(query))
 }
 
 function looksLikeNavigableHost(hostname: string): boolean {
   const normalized = hostname.toLowerCase()
-  return normalized === 'localhost'
-    || normalized === '[::1]'
-    || normalized === '::1'
-    || IPV4_HOST_PATTERN.test(normalized)
-    || normalized.includes('.')
+  return (
+    normalized === 'localhost' ||
+    normalized === '[::1]' ||
+    normalized === '::1' ||
+    IPV4_HOST_PATTERN.test(normalized) ||
+    normalized.includes('.')
+  )
 }
 
 function inferHttpsUrl(value: string): URL | null {
@@ -192,7 +194,7 @@ function resolveWebUrl(value: string, allowInsecureLocalhost: boolean): OmniboxR
   const decision = evaluateBrowserNavigation(parsed.toString(), { allowInsecureLocalhost })
   return decision.allowed
     ? { kind: 'url', url: parsed.toString() }
-    : { kind: 'blocked', reason: decision.reason! }
+    : { kind: 'blocked', reason: decision.reason }
 }
 
 export function resolveOmniboxInput(
@@ -215,13 +217,16 @@ export function resolveOmniboxInput(
   const schemeMatch = EXPLICIT_SCHEME_PATTERN.exec(value)
   const scheme = schemeMatch?.[0].slice(0, -1).toLowerCase()
   if (
-    value.startsWith('//')
-    || scheme === 'http'
-    || scheme === 'https'
-    || (scheme ? BLOCKED_EXPLICIT_SCHEMES.has(scheme) : false)
-    || (scheme && value.includes('://'))
+    value.startsWith('//') ||
+    scheme === 'http' ||
+    scheme === 'https' ||
+    (scheme ? BLOCKED_EXPLICIT_SCHEMES.has(scheme) : false) ||
+    (scheme && value.includes('://'))
   ) {
-    return resolveWebUrl(value.startsWith('//') ? `https:${value}` : value, options.allowInsecureLocalhost ?? false)
+    return resolveWebUrl(
+      value.startsWith('//') ? `https:${value}` : value,
+      options.allowInsecureLocalhost ?? false,
+    )
   }
 
   if (hasInferredUserinfo(value)) return { kind: 'blocked', reason: 'userinfo' }

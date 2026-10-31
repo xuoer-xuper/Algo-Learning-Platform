@@ -17,17 +17,24 @@ export function getPendingMigrations(
   db: Database.Database,
   migrations: readonly Migration[],
 ): Migration[] {
-  const migrationTable = db.prepare(`
+  const migrationTable = db
+    .prepare(
+      `
     SELECT 1 as present
     FROM sqlite_master
     WHERE type = 'table' AND name = 'schema_migrations'
-  `).get() as { present: number } | undefined
+  `,
+    )
+    .get() as { present: number } | undefined
   if (!migrationTable) return [...migrations]
 
   const applied = new Set(
-    db.prepare<[], AppliedVersionRow>('SELECT version FROM schema_migrations').all().map(row => row.version),
+    db
+      .prepare<[], AppliedVersionRow>('SELECT version FROM schema_migrations')
+      .all()
+      .map((row) => row.version),
   )
-  return migrations.filter(migration => !applied.has(migration.version))
+  return migrations.filter((migration) => !applied.has(migration.version))
 }
 
 export function runMigrations(
@@ -44,11 +51,14 @@ export function runMigrations(
   `)
 
   const applied = new Set(
-    db.prepare<[], AppliedVersionRow>('SELECT version FROM schema_migrations').all().map(row => row.version)
+    db
+      .prepare<[], AppliedVersionRow>('SELECT version FROM schema_migrations')
+      .all()
+      .map((row) => row.version),
   )
 
   const insertMigration = db.prepare(
-    'INSERT INTO schema_migrations (version, name, applied_at) VALUES (?, ?, ?)'
+    'INSERT INTO schema_migrations (version, name, applied_at) VALUES (?, ?, ?)',
   )
 
   for (const migration of migrations) {
@@ -62,7 +72,11 @@ export function runMigrations(
       })()
       logger.info('db.migration-completed', { version: migration.version, name: migration.name })
     } catch (error) {
-      logger.error('db.migration-failed', { version: migration.version, name: migration.name, error })
+      logger.error('db.migration-failed', {
+        version: migration.version,
+        name: migration.name,
+        error,
+      })
       throw error
     }
   }

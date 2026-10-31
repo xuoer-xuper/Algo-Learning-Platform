@@ -44,7 +44,9 @@ function makeConstraints(overrides: Partial<ProblemConstraints> = {}): ProblemCo
   }
 }
 
-function makeContext(overrides: Partial<GetMessageForLevelContext> = {}): GetMessageForLevelContext {
+function makeContext(
+  overrides: Partial<GetMessageForLevelContext> = {},
+): GetMessageForLevelContext {
   return {
     eventType: 'multiple_wrong',
     verdict: 'WA',
@@ -63,7 +65,10 @@ test('L0: 返回空消息 + rejected=true', () => {
   assert.strictEqual(result.level, 0)
   assert.strictEqual(result.message, '')
   assert.strictEqual(result.rejected, true)
-  assert.ok(result.rejectReason?.includes('L0'), `rejectReason should mention L0: ${result.rejectReason}`)
+  assert.ok(
+    result.rejectReason?.includes('L0'),
+    `rejectReason should mention L0: ${result.rejectReason}`,
+  )
 })
 
 test('LADDER_LEVEL_DESCRIPTIONS: 6 级描述齐全', () => {
@@ -79,11 +84,18 @@ test('LADDER_LEVEL_DESCRIPTIONS: 6 级描述齐全', () => {
 
 test('L1: multiple_wrong 事件返回轻提醒', () => {
   const ladder = new HintLadder()
-  const result = ladder.getMessageForLevel(1, makeContext({ eventType: 'multiple_wrong', verdict: 'WA' }))
+  const result = ladder.getMessageForLevel(
+    1,
+    makeContext({ eventType: 'multiple_wrong', verdict: 'WA' }),
+  )
   assert.strictEqual(result.level, 1)
   assert.ok(result.message.length > 0)
-  assert.ok(result.message.includes('L1') || result.message.includes('提示') || result.message.includes('方向'),
-    `L1 message should be a gentle nudge: ${result.message}`)
+  assert.ok(
+    result.message.includes('L1') ||
+      result.message.includes('提示') ||
+      result.message.includes('方向'),
+    `L1 message should be a gentle nudge: ${result.message}`,
+  )
   assert.ok(result.tags.includes('L1'))
   assert.ok(result.tags.includes('light'))
 })
@@ -97,30 +109,51 @@ test('L1: idle_too_long 事件', () => {
 
 test('L1: same_error 事件', () => {
   const ladder = new HintLadder()
-  const result = ladder.getMessageForLevel(1, makeContext({ eventType: 'same_error', verdict: 'WA' }))
+  const result = ladder.getMessageForLevel(
+    1,
+    makeContext({ eventType: 'same_error', verdict: 'WA' }),
+  )
   assert.strictEqual(result.level, 1)
   assert.ok(result.message.length > 0)
 })
 
 test('L1: complexity_warning 事件', () => {
   const ladder = new HintLadder()
-  const result = ladder.getMessageForLevel(1, makeContext({ eventType: 'complexity_warning', verdict: 'TLE' }))
+  const result = ladder.getMessageForLevel(
+    1,
+    makeContext({ eventType: 'complexity_warning', verdict: 'TLE' }),
+  )
   assert.strictEqual(result.level, 1)
-  assert.ok(result.message.includes('复杂度') || result.message.includes('L1') || result.message.includes('提示'))
+  assert.ok(
+    result.message.includes('复杂度') ||
+      result.message.includes('L1') ||
+      result.message.includes('提示'),
+  )
 })
 
 test('L1: boundary_suspected 事件', () => {
   const ladder = new HintLadder()
-  const result = ladder.getMessageForLevel(1, makeContext({ eventType: 'boundary_suspected', verdict: 'WA' }))
+  const result = ladder.getMessageForLevel(
+    1,
+    makeContext({ eventType: 'boundary_suspected', verdict: 'WA' }),
+  )
   assert.strictEqual(result.level, 1)
-  assert.ok(result.message.includes('边界') || result.message.includes('类型') || result.message.includes('L1'))
+  assert.ok(
+    result.message.includes('边界') ||
+      result.message.includes('类型') ||
+      result.message.includes('L1'),
+  )
 })
 
 test('L1: first_ac 事件', () => {
   const ladder = new HintLadder()
   const result = ladder.getMessageForLevel(1, makeContext({ eventType: 'first_ac', verdict: 'AC' }))
   assert.strictEqual(result.level, 1)
-  assert.ok(result.message.includes('AC') || result.message.includes('干得漂亮') || result.message.includes('L1'))
+  assert.ok(
+    result.message.includes('AC') ||
+      result.message.includes('干得漂亮') ||
+      result.message.includes('L1'),
+  )
 })
 
 // --- 3. L2 元认知 ---
@@ -130,8 +163,10 @@ test('L2: 从 metacognition 类模板挑选', () => {
   const result = ladder.getMessageForLevel(2, makeContext())
   assert.strictEqual(result.level, 2)
   assert.ok(result.message.length > 0)
-  assert.ok(result.tags.includes('metacognition') || result.category === 'metacognition',
-    `L2 should use metacognition category: ${JSON.stringify(result)}`)
+  assert.ok(
+    result.tags.includes('metacognition') || result.category === 'metacognition',
+    `L2 should use metacognition category: ${JSON.stringify(result)}`,
+  )
 })
 
 test('L2: 不依赖 verdict（任何 verdict 都用元认知）', () => {
@@ -158,51 +193,79 @@ test('L3: WA → boundary 类模板', () => {
   const ladder = new HintLadder()
   const result = ladder.getMessageForLevel(3, makeContext({ verdict: 'WA' }))
   assert.strictEqual(result.level, 3)
-  assert.ok(result.category === 'boundary' || result.message.includes('边界') || result.message.includes('L3'),
-    `L3 for WA should use boundary category: ${JSON.stringify(result)}`)
+  assert.ok(
+    result.category === 'boundary' ||
+      result.message.includes('边界') ||
+      result.message.includes('L3'),
+    `L3 for WA should use boundary category: ${JSON.stringify(result)}`,
+  )
 })
 
 test('L3: TLE → complexity 类模板', () => {
   const ladder = new HintLadder()
-  const result = ladder.getMessageForLevel(3, makeContext({ verdict: 'TLE', eventType: 'complexity_warning' }))
+  const result = ladder.getMessageForLevel(
+    3,
+    makeContext({ verdict: 'TLE', eventType: 'complexity_warning' }),
+  )
   assert.strictEqual(result.level, 3)
-  assert.ok(result.category === 'complexity' || result.message.includes('复杂度') || result.message.includes('L3'),
-    `L3 for TLE should use complexity category: ${JSON.stringify(result)}`)
+  assert.ok(
+    result.category === 'complexity' ||
+      result.message.includes('复杂度') ||
+      result.message.includes('L3'),
+    `L3 for TLE should use complexity category: ${JSON.stringify(result)}`,
+  )
 })
 
 test('L3: RE → array_bounds 类模板', () => {
   const ladder = new HintLadder()
   const result = ladder.getMessageForLevel(3, makeContext({ verdict: 'RE' }))
   assert.strictEqual(result.level, 3)
-  assert.ok(result.category === 'array_bounds' || result.message.includes('越界') || result.message.includes('L3'),
-    `L3 for RE should use array_bounds category: ${JSON.stringify(result)}`)
+  assert.ok(
+    result.category === 'array_bounds' ||
+      result.message.includes('越界') ||
+      result.message.includes('L3'),
+    `L3 for RE should use array_bounds category: ${JSON.stringify(result)}`,
+  )
 })
 
 test('L3: 带 constraints 时填充占位符', () => {
   const ladder = new HintLadder()
   const constraints = makeConstraints({ nUpper: 200000 })
-  const result = ladder.getMessageForLevel(3, makeContext({
-    verdict: 'TLE',
-    eventType: 'complexity_warning',
-    constraints,
-  }))
+  const result = ladder.getMessageForLevel(
+    3,
+    makeContext({
+      verdict: 'TLE',
+      eventType: 'complexity_warning',
+      constraints,
+    }),
+  )
   assert.strictEqual(result.level, 3)
   assert.ok(result.message.length > 0)
   // 占位符应被替换（不应出现 {n_upper} 等）
-  assert.ok(!result.message.includes('{n_upper}'), `placeholders should be filled: ${result.message}`)
+  assert.ok(
+    !result.message.includes('{n_upper}'),
+    `placeholders should be filled: ${result.message}`,
+  )
 })
 
 test('L3: WA + valueUpper>=1e9 → 切到 overflow 类', () => {
   const ladder = new HintLadder()
   const constraints = makeConstraints({ valueUpper: 1e9 })
-  const result = ladder.getMessageForLevel(3, makeContext({
-    verdict: 'WA',
-    eventType: 'boundary_suspected',
-    constraints,
-  }))
+  const result = ladder.getMessageForLevel(
+    3,
+    makeContext({
+      verdict: 'WA',
+      eventType: 'boundary_suspected',
+      constraints,
+    }),
+  )
   assert.strictEqual(result.level, 3)
-  assert.ok(result.category === 'overflow' || result.message.includes('溢出') || result.message.includes('long long'),
-    `L3 for WA + value>=1e9 should use overflow category: ${JSON.stringify(result)}`)
+  assert.ok(
+    result.category === 'overflow' ||
+      result.message.includes('溢出') ||
+      result.message.includes('long long'),
+    `L3 for WA + value>=1e9 should use overflow category: ${JSON.stringify(result)}`,
+  )
 })
 
 // --- 5. L4 策略 ---
@@ -210,68 +273,104 @@ test('L3: WA + valueUpper>=1e9 → 切到 overflow 类', () => {
 test('L4: TLE + n>=1e5 → 复杂度策略提示', () => {
   const ladder = new HintLadder()
   const constraints = makeConstraints({ nUpper: 200000 })
-  const result = ladder.getMessageForLevel(4, makeContext({
-    verdict: 'TLE',
-    eventType: 'complexity_warning',
-    constraints,
-  }))
+  const result = ladder.getMessageForLevel(
+    4,
+    makeContext({
+      verdict: 'TLE',
+      eventType: 'complexity_warning',
+      constraints,
+    }),
+  )
   assert.strictEqual(result.level, 4)
   assert.ok(result.message.includes('L4'))
-  assert.ok(result.message.includes('O(n log n)') || result.message.includes('复杂度') || result.message.includes('线段树'),
-    `L4 TLE strategy should mention O(n log n) or data structures: ${result.message}`)
+  assert.ok(
+    result.message.includes('O(n log n)') ||
+      result.message.includes('复杂度') ||
+      result.message.includes('线段树'),
+    `L4 TLE strategy should mention O(n log n) or data structures: ${result.message}`,
+  )
 })
 
 test('L4: TLE 无 constraints → 通用复杂度策略', () => {
   const ladder = new HintLadder()
-  const result = ladder.getMessageForLevel(4, makeContext({
-    verdict: 'TLE',
-    eventType: 'complexity_warning',
-    constraints: null,
-  }))
+  const result = ladder.getMessageForLevel(
+    4,
+    makeContext({
+      verdict: 'TLE',
+      eventType: 'complexity_warning',
+      constraints: null,
+    }),
+  )
   assert.strictEqual(result.level, 4)
   assert.ok(result.message.includes('L4'))
-  assert.ok(result.message.includes('排序') || result.message.includes('二分') || result.message.includes('堆') || result.message.includes('线段树'),
-    `L4 generic strategy should mention data structures: ${result.message}`)
+  assert.ok(
+    result.message.includes('排序') ||
+      result.message.includes('二分') ||
+      result.message.includes('堆') ||
+      result.message.includes('线段树'),
+    `L4 generic strategy should mention data structures: ${result.message}`,
+  )
 })
 
 test('L4: WA + value>=1e9 → 溢出策略提示', () => {
   const ladder = new HintLadder()
   const constraints = makeConstraints({ valueUpper: 1e9 })
-  const result = ladder.getMessageForLevel(4, makeContext({
-    verdict: 'WA',
-    eventType: 'boundary_suspected',
-    constraints,
-  }))
+  const result = ladder.getMessageForLevel(
+    4,
+    makeContext({
+      verdict: 'WA',
+      eventType: 'boundary_suspected',
+      constraints,
+    }),
+  )
   assert.strictEqual(result.level, 4)
   assert.ok(result.message.includes('L4'))
-  assert.ok(result.message.includes('long long') || result.message.includes('BigInt') || result.message.includes('溢出'),
-    `L4 WA + large value should mention overflow: ${result.message}`)
+  assert.ok(
+    result.message.includes('long long') ||
+      result.message.includes('BigInt') ||
+      result.message.includes('溢出'),
+    `L4 WA + large value should mention overflow: ${result.message}`,
+  )
 })
 
 test('L4: WA 无 constraints → 边界策略提示', () => {
   const ladder = new HintLadder()
-  const result = ladder.getMessageForLevel(4, makeContext({
-    verdict: 'WA',
-    eventType: 'multiple_wrong',
-    constraints: null,
-  }))
+  const result = ladder.getMessageForLevel(
+    4,
+    makeContext({
+      verdict: 'WA',
+      eventType: 'multiple_wrong',
+      constraints: null,
+    }),
+  )
   assert.strictEqual(result.level, 4)
   assert.ok(result.message.includes('L4'))
-  assert.ok(result.message.includes('区间') || result.message.includes('前缀和') || result.message.includes('边界'),
-    `L4 WA generic should mention prefix sum / boundary: ${result.message}`)
+  assert.ok(
+    result.message.includes('区间') ||
+      result.message.includes('前缀和') ||
+      result.message.includes('边界'),
+    `L4 WA generic should mention prefix sum / boundary: ${result.message}`,
+  )
 })
 
 test('L4: RE → 越界策略提示', () => {
   const ladder = new HintLadder()
-  const result = ladder.getMessageForLevel(4, makeContext({
-    verdict: 'RE',
-    eventType: 'multiple_wrong',
-    constraints: null,
-  }))
+  const result = ladder.getMessageForLevel(
+    4,
+    makeContext({
+      verdict: 'RE',
+      eventType: 'multiple_wrong',
+      constraints: null,
+    }),
+  )
   assert.strictEqual(result.level, 4)
   assert.ok(result.message.includes('L4'))
-  assert.ok(result.message.includes('数组') || result.message.includes('下标') || result.message.includes('栈'),
-    `L4 RE should mention array/index/stack: ${result.message}`)
+  assert.ok(
+    result.message.includes('数组') ||
+      result.message.includes('下标') ||
+      result.message.includes('栈'),
+    `L4 RE should mention array/index/stack: ${result.message}`,
+  )
 })
 
 // --- 6. L5 概念/标签 ---
@@ -281,8 +380,10 @@ test('L5: 无 problemTags → 退化到 L4 策略（不再深入）', () => {
   const result = ladder.getMessageForLevel(5, makeContext({ problemTags: [] }))
   assert.strictEqual(result.level, 5)
   assert.ok(result.message.length > 0)
-  assert.ok(result.tags.includes('no_tags') || result.tags.includes('fallback'),
-    `L5 without tags should have fallback tag: ${JSON.stringify(result.tags)}`)
+  assert.ok(
+    result.tags.includes('no_tags') || result.tags.includes('fallback'),
+    `L5 without tags should have fallback tag: ${JSON.stringify(result.tags)}`,
+  )
 })
 
 test('L5: 有 problemTags → 给出概念性提示', () => {
@@ -290,8 +391,10 @@ test('L5: 有 problemTags → 给出概念性提示', () => {
   const result = ladder.getMessageForLevel(5, makeContext({ problemTags: ['dp', 'greedy'] }))
   assert.strictEqual(result.level, 5)
   assert.ok(result.message.includes('L5'))
-  assert.ok(result.message.includes('动态规划') || result.message.includes('dp'),
-    `L5 with dp tag should mention DP: ${result.message}`)
+  assert.ok(
+    result.message.includes('动态规划') || result.message.includes('dp'),
+    `L5 with dp tag should mention DP: ${result.message}`,
+  )
   assert.ok(result.tags.includes('concept'))
   assert.ok(result.tags.includes('dp'))
 })
@@ -314,12 +417,18 @@ test('L5: 未知标签 → 列出所有标签作为方向', () => {
   const ladder = new HintLadder()
   const result = ladder.getMessageForLevel(5, makeContext({ problemTags: ['some-unknown-tag'] }))
   assert.strictEqual(result.level, 5)
-  assert.ok(result.message.includes('some-unknown-tag') || result.message.includes('some_unknown_tag'.replace('_', '-')))
+  assert.ok(
+    result.message.includes('some-unknown-tag') ||
+      result.message.includes('some_unknown_tag'.replace('_', '-')),
+  )
 })
 
 test('L5: 多个标签 → 取第一个作为主提示', () => {
   const ladder = new HintLadder()
-  const result = ladder.getMessageForLevel(5, makeContext({ problemTags: ['dp', 'greedy', 'math'] }))
+  const result = ladder.getMessageForLevel(
+    5,
+    makeContext({ problemTags: ['dp', 'greedy', 'math'] }),
+  )
   assert.strictEqual(result.level, 5)
   // 主提示应基于 dp（第一个标签）
   assert.ok(result.message.includes('动态规划') || result.message.includes('dp'))
@@ -329,10 +438,18 @@ test('L5: 不直接给完整答案（Socratic 原则）', () => {
   const ladder = new HintLadder()
   const result = ladder.getMessageForLevel(5, makeContext({ problemTags: ['dp'] }))
   // 消息应引导方向，不应直接说"答案是DP"或"用DP做"
-  assert.ok(!result.message.includes('答案是'), `L5 should not give direct answer: ${result.message}`)
-  assert.ok(!result.message.includes('应该用'), `L5 should not give direct solution: ${result.message}`)
-  assert.ok(result.message.includes('可能') || result.message.includes('思考'),
-    `L5 should guide thinking: ${result.message}`)
+  assert.ok(
+    !result.message.includes('答案是'),
+    `L5 should not give direct answer: ${result.message}`,
+  )
+  assert.ok(
+    !result.message.includes('应该用'),
+    `L5 should not give direct solution: ${result.message}`,
+  )
+  assert.ok(
+    result.message.includes('可能') || result.message.includes('思考'),
+    `L5 should guide thinking: ${result.message}`,
+  )
 })
 
 // --- 7. L5 二次确认机制 ---
@@ -436,8 +553,14 @@ test('所有等级消息都不直接给完整答案', () => {
   for (const level of [1, 2, 3, 4, 5] as LadderLevel[]) {
     const result = ladder.getMessageForLevel(level, context)
     assert.ok(result.message.length > 0, `L${level} message should not be empty`)
-    assert.ok(!result.message.includes('答案是'), `L${level} should not give direct answer: ${result.message}`)
-    assert.ok(!result.message.includes('解法是'), `L${level} should not give direct solution: ${result.message}`)
+    assert.ok(
+      !result.message.includes('答案是'),
+      `L${level} should not give direct answer: ${result.message}`,
+    )
+    assert.ok(
+      !result.message.includes('解法是'),
+      `L${level} should not give direct solution: ${result.message}`,
+    )
   }
 })
 
@@ -453,8 +576,10 @@ test('HintLadder 不实现冷却逻辑（由 RuleEngine 管理）', () => {
   assert.ok(typeof ladder.confirmL5 === 'function')
   assert.ok(typeof ladder.resetL5State === 'function')
   // 不应有 cooldown / throttle / lastUpgrade 等方法
-  assert.ok(!('cooldown' in ladder) && !('lastUpgradeAt' in ladder) && !('throttle' in ladder),
-    'HintLadder should not implement cooldown logic')
+  assert.ok(
+    !('cooldown' in ladder) && !('lastUpgradeAt' in ladder) && !('throttle' in ladder),
+    'HintLadder should not implement cooldown logic',
+  )
 })
 
 // --- 11. 手动演练：完整升级流程 ---

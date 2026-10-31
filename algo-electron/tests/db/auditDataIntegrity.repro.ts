@@ -10,7 +10,11 @@ import {
   importLearningDataFromParsedExport,
   previewLearningDataImportFile,
 } from '../../electron/backup/backupService'
-import { exportLearningData, importLearningData, previewLearningDataImport } from '../../electron/backup/learningDataExport'
+import {
+  exportLearningData,
+  importLearningData,
+  previewLearningDataImport,
+} from '../../electron/backup/learningDataExport'
 import type { ExportRow, LearningDataExport } from '../../electron/backup/types'
 import {
   createNote,
@@ -35,7 +39,12 @@ app.setPath('userData', runDir)
 
 function contained(target: string): string {
   const relative = path.relative(runDir, path.resolve(target))
-  assert.ok(relative && relative !== '..' && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative))
+  assert.ok(
+    relative &&
+      relative !== '..' &&
+      !relative.startsWith(`..${path.sep}`) &&
+      !path.isAbsolute(relative),
+  )
   return target
 }
 
@@ -49,59 +58,116 @@ function database(name: string): void {
 
 function problem(id = 'audit-problem', overrides: ExportRow = {}): ExportRow {
   return {
-    id, platform: 'codeforces', platform_problem_id: id,
+    id,
+    platform: 'codeforces',
+    platform_problem_id: id,
     canonical_url: 'https://codeforces.com/problemset/problem/1000/A',
-    title: 'Synthetic audit problem', status: 'visited', contest_id: '1000',
-    problem_index: 'A', source_platform: null, source_problem_id: null,
-    difficulty: null, tags_json: null, first_seen_at: timestamp,
-    last_visited_at: timestamp, first_solved_at: null, created_at: timestamp,
-    updated_at: timestamp, deleted_at: null, ...overrides,
+    title: 'Synthetic audit problem',
+    status: 'visited',
+    contest_id: '1000',
+    problem_index: 'A',
+    source_platform: null,
+    source_problem_id: null,
+    difficulty: null,
+    tags_json: null,
+    first_seen_at: timestamp,
+    last_visited_at: timestamp,
+    first_solved_at: null,
+    created_at: timestamp,
+    updated_at: timestamp,
+    deleted_at: null,
+    ...overrides,
   }
 }
 
 function submission(problemId: string, overrides: ExportRow = {}): ExportRow {
   return {
-    id: 'audit-submission', problem_id: problemId, platform: 'codeforces',
-    platform_submission_id: 'audit-submission', verdict: 'AC', raw_verdict: 'OK',
-    language: 'GNU C++23', submitted_at: timestamp, is_first_ac: 1,
-    runtime_ms: 1, memory_kb: 1, source_url: null, created_at: timestamp,
-    updated_at: timestamp, deleted_at: null, ...overrides,
+    id: 'audit-submission',
+    problem_id: problemId,
+    platform: 'codeforces',
+    platform_submission_id: 'audit-submission',
+    verdict: 'AC',
+    raw_verdict: 'OK',
+    language: 'GNU C++23',
+    submitted_at: timestamp,
+    is_first_ac: 1,
+    runtime_ms: 1,
+    memory_kb: 1,
+    source_url: null,
+    created_at: timestamp,
+    updated_at: timestamp,
+    deleted_at: null,
+    ...overrides,
   }
 }
 
 function visit(problemId: string, overrides: ExportRow = {}): ExportRow {
   return {
-    id: 'audit-visit', problem_id: problemId, session_id: 'audit-session',
-    platform: 'codeforces', url: 'https://codeforces.com/problemset/problem/1000/A',
-    entered_at: timestamp, left_at: `${day}T10:10:00+08:00`,
-    duration_seconds: 600, active_seconds: 540, leave_reason: 'test',
-    created_at: timestamp, updated_at: timestamp, deleted_at: null, ...overrides,
+    id: 'audit-visit',
+    problem_id: problemId,
+    session_id: 'audit-session',
+    platform: 'codeforces',
+    url: 'https://codeforces.com/problemset/problem/1000/A',
+    entered_at: timestamp,
+    left_at: `${day}T10:10:00+08:00`,
+    duration_seconds: 600,
+    active_seconds: 540,
+    leave_reason: 'test',
+    created_at: timestamp,
+    updated_at: timestamp,
+    deleted_at: null,
+    ...overrides,
   }
 }
 
 function account(): ExportRow {
   return {
-    id: 'audit-account', platform: 'codeforces', handle: 'synthetic-audit-user',
-    display_name: 'Synthetic audit', current_rating: 1000, peak_rating: 1000,
-    last_synced_at: timestamp, created_at: timestamp, updated_at: timestamp,
+    id: 'audit-account',
+    platform: 'codeforces',
+    handle: 'synthetic-audit-user',
+    display_name: 'Synthetic audit',
+    current_rating: 1000,
+    peak_rating: 1000,
+    last_synced_at: timestamp,
+    created_at: timestamp,
+    updated_at: timestamp,
     deleted_at: null,
   }
 }
 
 function rating(): ExportRow {
   return {
-    id: 'audit-rating', account_id: 'audit-account', platform: 'codeforces',
-    contest_id: '1000', contest_name: 'Synthetic audit round', rank: 100,
-    rating_before: 900, rating_after: 1000, delta: 100, contest_at: timestamp,
-    created_at: timestamp, updated_at: timestamp, deleted_at: null,
+    id: 'audit-rating',
+    account_id: 'audit-account',
+    platform: 'codeforces',
+    contest_id: '1000',
+    contest_name: 'Synthetic audit round',
+    rank: 100,
+    rating_before: 900,
+    rating_after: 1000,
+    delta: 100,
+    contest_at: timestamp,
+    created_at: timestamp,
+    updated_at: timestamp,
+    deleted_at: null,
   }
 }
 
 function payload(tables: Partial<LearningDataExport['tables']>): LearningDataExport {
   return {
-    app: 'algo-learning-platform', schema_version: 1, exported_at: timestamp,
+    app: 'algo-learning-platform',
+    schema_version: 1,
+    exported_at: timestamp,
     metadata: { excluded: [], excluded_tables: [], excluded_fields: [], complete_backup_hint: '' },
-    tables: { problems: [], submissions: [], problem_visits: [], user_daily_stats: [], platform_accounts: [], rating_history: [], ...tables },
+    tables: {
+      problems: [],
+      submissions: [],
+      problem_visits: [],
+      user_daily_stats: [],
+      platform_accounts: [],
+      rating_history: [],
+      ...tables,
+    },
   }
 }
 
@@ -119,7 +185,10 @@ function importFile(name: string, data: LearningDataExport) {
 async function backupAssets(): Promise<void> {
   database('backup-source')
   const note = createNote({ title: 'Synthetic image note', content: 'Original body' })
-  const pixel = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aT1cAAAAASUVORK5CYII=', 'base64')
+  const pixel = Buffer.from(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aT1cAAAAASUVORK5CYII=',
+    'base64',
+  )
   const image = saveNoteImage(note.id, 'pixel.png', 'image/png', pixel)
   const content = `Original body\n\n![pixel](${image.markdownUrl})`
   assert.equal(updateNoteContent(note.id, content), true)
@@ -144,8 +213,11 @@ async function backupAssets(): Promise<void> {
   assert.equal(fs.existsSync(asset), false)
   assert.equal(fs.existsSync(restored!.file_path), false)
   observations.backupAssets = {
-    backupSucceeded: true, restoredBodyMatches: true, restoredAssetExists: false,
-    restoredMarkdownFileExists: false, backupFiles: fs.readdirSync(path.dirname(result.path)),
+    backupSucceeded: true,
+    restoredBodyMatches: true,
+    restoredAssetExists: false,
+    restoredMarkdownFileExists: false,
+    backupFiles: fs.readdirSync(path.dirname(result.path)),
     storedPathStillPointsToSource: restored!.file_path === note.file_path,
     integrityCheck: getDb().pragma('integrity_check', { simple: true }),
   }
@@ -164,8 +236,12 @@ function noteRepresentations(): void {
   const savedFile = fs.readFileSync(note.file_path, 'utf8')
   assert.equal(savedFile, 'Actual body')
   observations.noteRepresentations = {
-    requestedBody: '', loadedBody: emptyRead.content, cachedWordCount: emptyRead.word_count,
-    renamedTitle: renamed.title, bodyAfterRename: renamed.content, fileAfterBodySave: savedFile,
+    requestedBody: '',
+    loadedBody: emptyRead.content,
+    cachedWordCount: emptyRead.word_count,
+    renamedTitle: renamed.title,
+    bodyAfterRename: renamed.content,
+    fileAfterBodySave: savedFile,
   }
 }
 
@@ -181,7 +257,12 @@ function noteWriteFailure(): void {
   assert.equal(dbBody, 'Old body')
   assert.equal(fileBody, 'New body that must remain recoverable')
   getDb().exec('DROP TRIGGER audit_reject_note_update')
-  observations.noteWriteFailure = { result, dbBody, fileBody, reopenBody: getNoteWithContent(note.id)!.content }
+  observations.noteWriteFailure = {
+    result,
+    dbBody,
+    fileBody,
+    reopenBody: getNoteWithContent(note.id)!.content,
+  }
 }
 
 function importedPath(): void {
@@ -195,40 +276,63 @@ function importedPath(): void {
   assert.ok(relativeToNotes.startsWith(`..${path.sep}`))
   assert.equal(fs.existsSync(note.file_path), true)
   observations.importedPath = {
-    importAccepted: true, listedId, relativeToNotes, outsideUserData: !note.file_path.startsWith(`${app.getPath('userData')}${path.sep}`),
-    fileExists: true, fileNameIsGeneratedUuid: /^[a-f0-9-]{36}\.md$/.test(path.basename(note.file_path)),
+    importAccepted: true,
+    listedId,
+    relativeToNotes,
+    outsideUserData: !note.file_path.startsWith(`${app.getPath('userData')}${path.sep}`),
+    fileExists: true,
+    fileNameIsGeneratedUuid: /^[a-f0-9-]{36}\.md$/.test(path.basename(note.file_path)),
   }
 }
 
 function deletedFacts(): void {
   database('deleted-facts')
-  importFile('deleted-facts-input', payload({
-    problems: [problem()],
-    submissions: [submission('audit-problem', { deleted_at: `${day}T12:00:00+08:00` })],
-    problem_visits: [visit('audit-problem', { deleted_at: `${day}T12:00:00+08:00` })],
-  }))
+  importFile(
+    'deleted-facts-input',
+    payload({
+      problems: [problem()],
+      submissions: [submission('audit-problem', { deleted_at: `${day}T12:00:00+08:00` })],
+      problem_visits: [visit('audit-problem', { deleted_at: `${day}T12:00:00+08:00` })],
+    }),
+  )
   const detail = getProblemDetail('audit-problem')!
-  const stats = getDb().prepare('SELECT * FROM user_daily_stats WHERE local_day = ?').get(day) as ExportRow
-  const liveSubmissions = getDb().prepare('SELECT COUNT(*) AS count FROM submissions WHERE deleted_at IS NULL').get() as { count: number }
-  const liveVisits = getDb().prepare('SELECT COUNT(*) AS count FROM problem_visits WHERE deleted_at IS NULL').get() as { count: number }
+  const stats = getDb()
+    .prepare('SELECT * FROM user_daily_stats WHERE local_day = ?')
+    .get(day) as ExportRow
+  const liveSubmissions = getDb()
+    .prepare('SELECT COUNT(*) AS count FROM submissions WHERE deleted_at IS NULL')
+    .get() as { count: number }
+  const liveVisits = getDb()
+    .prepare('SELECT COUNT(*) AS count FROM problem_visits WHERE deleted_at IS NULL')
+    .get() as { count: number }
   assert.equal(liveSubmissions.count, 0)
   assert.equal(liveVisits.count, 0)
   assert.equal(detail.status, 'solved')
   assert.equal(stats.submission_count, 1)
   assert.equal(stats.active_seconds, 540)
   observations.deletedFacts = {
-    liveSubmissionCount: liveSubmissions.count, liveVisitCount: liveVisits.count,
-    detailStatus: detail.status, detailSubmissionCount: detail.submission_count,
-    displayedSubmissionCount: detail.submissions.length, stats,
+    liveSubmissionCount: liveSubmissions.count,
+    liveVisitCount: liveVisits.count,
+    detailStatus: detail.status,
+    detailSubmissionCount: detail.submission_count,
+    displayedSubmissionCount: detail.submissions.length,
+    stats,
     foreignKeyCheck: getDb().pragma('foreign_key_check'),
   }
 }
 
 function conflictCoverage(): void {
   database('conflict-coverage')
-  assert.equal(importLearningData(payload({
-    problems: [problem()], platform_accounts: [account()], rating_history: [rating()],
-  })).success, true)
+  assert.equal(
+    importLearningData(
+      payload({
+        problems: [problem()],
+        platform_accounts: [account()],
+        rating_history: [rating()],
+      }),
+    ).success,
+    true,
+  )
   const update = payload({
     platform_accounts: [{ ...account(), current_rating: 1500, peak_rating: 1500 }],
     rating_history: [{ ...rating(), rating_after: 1500, delta: 600 }],
@@ -241,18 +345,29 @@ function conflictCoverage(): void {
   const afterDefault = exportLearningData()
   assert.equal(afterDefault.tables.platform_accounts[0].current_rating, 1000)
   assert.equal(afterDefault.tables.rating_history[0].rating_after, 1000)
-  const unrelatedConflict = { ...update, tables: { ...update.tables, problems: [problem('audit-problem', { title: 'Changed problem title' })] } }
+  const unrelatedConflict = {
+    ...update,
+    tables: {
+      ...update.tables,
+      problems: [problem('audit-problem', { title: 'Changed problem title' })],
+    },
+  }
   const prompted = previewLearningDataImport(unrelatedConflict)
-  assert.deepEqual(prompted.conflicts.map(c => c.entity_type), ['problems'])
+  assert.deepEqual(
+    prompted.conflicts.map((c) => c.entity_type),
+    ['problems'],
+  )
   const overwriteResult = importLearningData(unrelatedConflict, true)
   assert.equal(overwriteResult.success, true)
   const afterOverwrite = exportLearningData()
   assert.equal(afterOverwrite.tables.platform_accounts[0].current_rating, 1500)
   observations.conflictCoverage = {
-    previewConflicts: preview.conflicts, duplicateCounts: preview.duplicate_counts,
-    defaultImportSucceeded: result.success, defaultSkipped: result.skipped,
+    previewConflicts: preview.conflicts,
+    duplicateCounts: preview.duplicate_counts,
+    defaultImportSucceeded: result.success,
+    defaultSkipped: result.skipped,
     ratingAfterDefault: afterDefault.tables.platform_accounts[0].current_rating,
-    promptedConflictTypes: prompted.conflicts.map(c => c.entity_type),
+    promptedConflictTypes: prompted.conflicts.map((c) => c.entity_type),
     overwrittenTables: overwriteResult.updated,
     ratingAfterUnrelatedOverwrite: afterOverwrite.tables.platform_accounts[0].current_rating,
   }
@@ -261,36 +376,63 @@ function conflictCoverage(): void {
 function recentStatusFilter(): void {
   database('recent-filter')
   const problems = Array.from({ length: 200 }, (_, i) => problem(`recent-${i}`))
-  problems.push(problem('older-solved', { first_seen_at: '2026-09-01T10:00:00+08:00', last_visited_at: '2026-09-01T10:00:00+08:00' }))
-  assert.equal(importLearningData(payload({ problems, submissions: [submission('older-solved')] })).success, true)
+  problems.push(
+    problem('older-solved', {
+      first_seen_at: '2026-09-01T10:00:00+08:00',
+      last_visited_at: '2026-09-01T10:00:00+08:00',
+    }),
+  )
+  assert.equal(
+    importLearningData(payload({ problems, submissions: [submission('older-solved')] })).success,
+    true,
+  )
   const detail = getProblemDetail('older-solved')!
   const filtered = getRecentProblems(200, undefined, 'solved')
   assert.equal(detail.status, 'solved')
   assert.equal(filtered.length, 0)
-  observations.recentStatusFilter = { totalProblems: 201, matchingProblems: 1, requestedLimit: 200, actualReturned: filtered.length }
+  observations.recentStatusFilter = {
+    totalProblems: 201,
+    matchingProblems: 1,
+    requestedLimit: 200,
+    actualReturned: filtered.length,
+  }
 }
 
 function invalidDurations(): void {
   database('invalid-durations')
-  const outcome = importFile('negative-duration-input', payload({
-    problems: [problem()], problem_visits: [visit('audit-problem', { duration_seconds: -600, active_seconds: -540 })],
-  }))
-  const stats = getDb().prepare('SELECT active_seconds, duration_seconds FROM user_daily_stats WHERE local_day = ?').get(day) as ExportRow
+  const outcome = importFile(
+    'negative-duration-input',
+    payload({
+      problems: [problem()],
+      problem_visits: [visit('audit-problem', { duration_seconds: -600, active_seconds: -540 })],
+    }),
+  )
+  const stats = getDb()
+    .prepare('SELECT active_seconds, duration_seconds FROM user_daily_stats WHERE local_day = ?')
+    .get(day) as ExportRow
   assert.equal(stats.active_seconds, -540)
   assert.equal(stats.duration_seconds, -600)
-  observations.invalidDurations = { previewValid: outcome.preview.valid, importSucceeded: outcome.result.success, stats }
+  observations.invalidDurations = {
+    previewValid: outcome.preview.valid,
+    importSucceeded: outcome.result.success,
+    stats,
+  }
 }
 
 function rollbackControl(): void {
   database('rollback-control')
-  const malformed = payload({ problems: [problem()], submissions: [submission('audit-problem', { submitted_at: null })] })
+  const malformed = payload({
+    problems: [problem()],
+    submissions: [submission('audit-problem', { submitted_at: null })],
+  })
   const result = importLearningDataFromParsedExport(malformed)
   assert.equal(result.success, false)
   const exported = exportLearningData()
   assert.equal(exported.tables.problems.length, 0)
   assert.equal(exported.tables.submissions.length, 0)
   observations.rollbackControl = {
-    operationRejected: !result.success, problemCount: exported.tables.problems.length,
+    operationRejected: !result.success,
+    problemCount: exported.tables.problems.length,
     submissionCount: exported.tables.submissions.length,
     integrityCheck: getDb().pragma('integrity_check', { simple: true }),
     foreignKeyCheck: getDb().pragma('foreign_key_check'),
@@ -310,15 +452,30 @@ async function main(): Promise<void> {
   rollbackControl()
   closeDb()
   const result = {
-    observedAt: new Date().toISOString(), environment: { platform: process.platform, os: os.release(), cpu: os.cpus()[0]?.model, versions: process.versions },
-    runDirectory: path.relative(process.cwd(), runDir), observations,
+    observedAt: new Date().toISOString(),
+    environment: {
+      platform: process.platform,
+      os: os.release(),
+      cpu: os.cpus()[0]?.model,
+      versions: process.versions,
+    },
+    runDirectory: path.relative(process.cwd(), runDir),
+    observations,
   }
-  fs.writeFileSync(path.join(outputDir, 'data-integrity-results.json'), JSON.stringify(result, null, 2))
-  console.log(JSON.stringify({ completed: Object.keys(observations), evidence: 'tmp/audit-20260911/data-integrity-results.json' }))
+  fs.writeFileSync(
+    path.join(outputDir, 'data-integrity-results.json'),
+    JSON.stringify(result, null, 2),
+  )
+  console.log(
+    JSON.stringify({
+      completed: Object.keys(observations),
+      evidence: 'tmp/audit-20260911/data-integrity-results.json',
+    }),
+  )
   app.exit(0)
 }
 
-void main().catch(error => {
+void main().catch((error) => {
   closeDb()
   console.error(error)
   app.exit(1)

@@ -1,4 +1,10 @@
-import { _electron as electron, expect, test, type ElectronApplication, type Page } from '@playwright/test'
+import {
+  _electron as electron,
+  expect,
+  test,
+  type ElectronApplication,
+  type Page,
+} from '@playwright/test'
 import { spawnSync } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -11,10 +17,7 @@ const outputDir = path.join(tmpRoot, 'ui-screenshots')
 const harnessHtml = path.join(outputDir, 'rendererScreenshotHarness.html')
 const electronAppPath = path.join(projectRoot, 'tests', 'ui', 'electronScreenshotApp.mjs')
 
-const shellScreenshotNames = [
-  'omnibox.png',
-  'problem-sidebar.png',
-] as const
+const shellScreenshotNames = ['omnibox.png', 'problem-sidebar.png'] as const
 
 const internalPageScreenshotNames = [
   'dashboard.png',
@@ -26,13 +29,16 @@ const internalPageScreenshotNames = [
   'note-editor.png',
 ] as const
 
-const requestedCustomViewport = process.env.ALP_SCREENSHOT_WINDOW_WIDTH && process.env.ALP_SCREENSHOT_WINDOW_HEIGHT
-  ? [{
-      name: 'custom',
-      width: Number(process.env.ALP_SCREENSHOT_WINDOW_WIDTH),
-      height: Number(process.env.ALP_SCREENSHOT_WINDOW_HEIGHT),
-    }]
-  : null
+const requestedCustomViewport =
+  process.env.ALP_SCREENSHOT_WINDOW_WIDTH && process.env.ALP_SCREENSHOT_WINDOW_HEIGHT
+    ? [
+        {
+          name: 'custom',
+          width: Number(process.env.ALP_SCREENSHOT_WINDOW_WIDTH),
+          height: Number(process.env.ALP_SCREENSHOT_WINDOW_HEIGHT),
+        },
+      ]
+    : null
 
 const viewportScenarios = requestedCustomViewport ?? [
   { name: 'wide', width: 1280, height: 800 },
@@ -111,7 +117,12 @@ const layoutChecks: Record<string, LayoutCheckConfig> = {
     fillsX: [['.sidebar', '.main-content', '.content-area']],
   },
   'dashboard.png': {
-    required: ['.shell-route-dashboard', '.dashboard-page', '.dashboard-cards', '.dashboard-chart-section'],
+    required: [
+      '.shell-route-dashboard',
+      '.dashboard-page',
+      '.dashboard-cards',
+      '.dashboard-chart-section',
+    ],
     minElements: [
       ['.dashboard-chart-pie .recharts-pie-sector path', 1],
       ['.dashboard-chart-bar .recharts-bar-rectangle path', 1],
@@ -129,10 +140,17 @@ const layoutChecks: Record<string, LayoutCheckConfig> = {
   // B5.1 起设置页是分区导航：`.site-list` 只在站点分区存在，故截图前先点导航。
   'settings.png': {
     required: [
-      '.shell-route-settings', '.settings-page', '.settings-cols',
-      '.settings-nav', '.settings-content', '.site-list',
+      '.shell-route-settings',
+      '.settings-page',
+      '.settings-cols',
+      '.settings-nav',
+      '.settings-content',
+      '.site-list',
     ],
-    minElements: [['.settings-nav-item', 9], ['.settings-nav-item[aria-current="page"]', 1]],
+    minElements: [
+      ['.settings-nav-item', 9],
+      ['.settings-nav-item[aria-current="page"]', 1],
+    ],
     withinViewportX: ['.shell-route-settings'],
     withinX: [
       ['.shell-route-settings', '.main-content'],
@@ -145,7 +163,12 @@ const layoutChecks: Record<string, LayoutCheckConfig> = {
     ],
   },
   'llm-settings.png': {
-    required: ['.shell-route-settings', '.settings-page', '.llm-config-section', '.llm-config-section .settings-input'],
+    required: [
+      '.shell-route-settings',
+      '.settings-page',
+      '.llm-config-section',
+      '.llm-config-section .settings-input',
+    ],
     withinViewportX: ['.shell-route-settings'],
     withinX: [
       ['.llm-config-section', '.settings-content'],
@@ -153,7 +176,12 @@ const layoutChecks: Record<string, LayoutCheckConfig> = {
     ],
   },
   'coach-metrics.png': {
-    required: ['.shell-route-coach-metrics', '.coach-metrics-view', '.coach-metrics-cards', '.coach-charts-row'],
+    required: [
+      '.shell-route-coach-metrics',
+      '.coach-metrics-view',
+      '.coach-metrics-cards',
+      '.coach-charts-row',
+    ],
     minElements: [
       ['.coach-metrics-view .recharts-bar-rectangle path', 1],
       ['.coach-metrics-view .recharts-pie-sector path', 1],
@@ -167,7 +195,14 @@ const layoutChecks: Record<string, LayoutCheckConfig> = {
     ],
   },
   'note-editor.png': {
-    required: ['.shell-route-notes', '.notes-modal', '.notes-sidebar', '.note-editor-area', '.milkdown', '.ProseMirror'],
+    required: [
+      '.shell-route-notes',
+      '.notes-modal',
+      '.notes-sidebar',
+      '.note-editor-area',
+      '.milkdown',
+      '.ProseMirror',
+    ],
     withinViewportX: ['.shell-route-notes'],
     withinX: [
       ['.shell-route-notes', '.main-content'],
@@ -178,7 +213,13 @@ const layoutChecks: Record<string, LayoutCheckConfig> = {
     ],
   },
   'scripts.png': {
-    required: ['.shell-route-scripts', '.scripts-page', '.scripts-header', '.scripts-body', '.scripts-table'],
+    required: [
+      '.shell-route-scripts',
+      '.scripts-page',
+      '.scripts-header',
+      '.scripts-body',
+      '.scripts-table',
+    ],
     withinViewportX: ['.shell-route-scripts'],
     withinX: [
       ['.shell-route-scripts', '.main-content'],
@@ -189,7 +230,13 @@ const layoutChecks: Record<string, LayoutCheckConfig> = {
     ],
   },
   'problem-detail.png': {
-    required: ['.shell-route-problem-detail', '.detail-page', '.detail-header', '.detail-info', '.detail-submissions'],
+    required: [
+      '.shell-route-problem-detail',
+      '.detail-page',
+      '.detail-header',
+      '.detail-info',
+      '.detail-submissions',
+    ],
     withinViewportX: ['.shell-route-problem-detail'],
     withinX: [
       ['.shell-route-problem-detail', '.main-content'],
@@ -202,20 +249,27 @@ const layoutChecks: Record<string, LayoutCheckConfig> = {
 }
 
 function buildRendererHarness(): void {
-  const result = spawnSync(process.execPath, [
-    path.join('tests', 'ui', 'buildRendererScreenshotHarness.mjs'),
-    outputDir,
-  ], {
-    cwd: projectRoot,
-    encoding: 'utf-8',
-  })
+  const result = spawnSync(
+    process.execPath,
+    [path.join('tests', 'ui', 'buildRendererScreenshotHarness.mjs'), outputDir],
+    {
+      cwd: projectRoot,
+      encoding: 'utf-8',
+    },
+  )
 
   expect(result.error).toBeUndefined()
-  expect(result.status, `Failed to build screenshot harness\n${result.stdout}\n${result.stderr}`).toBe(0)
+  expect(
+    result.status,
+    `Failed to build screenshot harness\n${result.stdout}\n${result.stderr}`,
+  ).toBe(0)
   expect(fs.existsSync(harnessHtml)).toBe(true)
 }
 
-async function launchScenario(scenario: { width: number, height: number }): Promise<ElectronApplication> {
+async function launchScenario(scenario: {
+  width: number
+  height: number
+}): Promise<ElectronApplication> {
   return electron.launch({
     args: [electronAppPath],
     cwd: projectRoot,
@@ -230,7 +284,10 @@ async function launchScenario(scenario: { width: number, height: number }): Prom
 }
 
 async function assertNativeViewport(app: ElectronApplication, page: Page): Promise<void> {
-  const viewport = await page.evaluate(() => ({ width: window.innerWidth, height: window.innerHeight }))
+  const viewport = await page.evaluate(() => ({
+    width: window.innerWidth,
+    height: window.innerHeight,
+  }))
   expect(viewport.width).toBeGreaterThanOrEqual(MAIN_WINDOW_BOUNDS.minWidth)
   expect(viewport.height).toBeGreaterThanOrEqual(MAIN_WINDOW_BOUNDS.minHeight)
 
@@ -243,7 +300,7 @@ async function assertNativeViewport(app: ElectronApplication, page: Page): Promi
 async function openInternalPageTab(
   page: Page,
   contract: InternalPageContract,
-): Promise<{ tabId: string, previousTabCount: number }> {
+): Promise<{ tabId: string; previousTabCount: number }> {
   const tabs = page.getByRole('tab')
   const homeTab = page.getByRole('tab', { name: '首页', exact: true })
   await expect(homeTab).toHaveCount(1)
@@ -269,11 +326,16 @@ async function openInternalPageTab(
    *
    * 调试：如果10秒后路由还没出现，打印当前 DOM 状态帮助诊断。
    */
-  const routeAppeared = await page.waitForFunction(
-    (selector) => document.querySelector(selector) !== null,
-    contract.routeSelector,
-    { timeout: 10000 },
-  ).then(() => true, () => false)
+  const routeAppeared = await page
+    .waitForFunction(
+      (selector) => document.querySelector(selector) !== null,
+      contract.routeSelector,
+      { timeout: 10000 },
+    )
+    .then(
+      () => true,
+      () => false,
+    )
 
   if (!routeAppeared) {
     const debugInfo = await page.evaluate(() => {
@@ -293,7 +355,7 @@ async function openInternalPageTab(
     })
     throw new Error(
       `Route ${contract.routeSelector} did not appear after 10s.\n` +
-      `Debug info: ${JSON.stringify(debugInfo, null, 2)}`
+        `Debug info: ${JSON.stringify(debugInfo, null, 2)}`,
     )
   }
 
@@ -317,19 +379,23 @@ async function openInternalPageTab(
 async function closeInternalPageTab(
   page: Page,
   contract: InternalPageContract,
-  state: { tabId: string, previousTabCount: number },
+  state: { tabId: string; previousTabCount: number },
 ): Promise<void> {
   await page.getByRole('button', { name: `关闭 ${contract.title}`, exact: true }).click()
   await expect(page.locator(`.tab-item[data-tab-id="${state.tabId}"]`)).toHaveCount(0)
   await expect(page.getByRole('tab')).toHaveCount(state.previousTabCount)
-  await expect(page.getByRole('tab', { name: '首页', exact: true })).toHaveAttribute('aria-selected', 'true')
+  await expect(page.getByRole('tab', { name: '首页', exact: true })).toHaveAttribute(
+    'aria-selected',
+    'true',
+  )
   await expect(page.getByRole('combobox', { name: '地址和搜索栏' })).toHaveValue('algo://home')
   await expect(page.locator(contract.routeSelector)).toHaveCount(0)
 }
 
 async function assertNoSensitiveText(page: Page, label: string): Promise<void> {
   const text = await page.locator('body').innerText()
-  const forbiddenText = /set-cookie|sessionid[ :=]|csrf(?:[_-]?token)?[ :=]|(?:access|refresh|api)[_-]?token[ :=]|ark-[A-Za-z0-9_-]{8,}/i
+  const forbiddenText =
+    /set-cookie|sessionid[ :=]|csrf(?:[_-]?token)?[ :=]|(?:access|refresh|api)[_-]?token[ :=]|ark-[A-Za-z0-9_-]{8,}/i
   expect(forbiddenText.test(text), `${label} contains forbidden sensitive text`).toBe(false)
   expect(text).not.toContain('应用崩溃了 (React Error)')
 }
@@ -369,16 +435,26 @@ async function assertResponsiveContainer(page: Page, name: string): Promise<void
     issues.push('shell-route has no usable width')
   }
   if (result.route && result.main) {
-    if (result.route.left < result.main.left - tolerance || result.route.right > result.main.right + tolerance) {
+    if (
+      result.route.left < result.main.left - tolerance ||
+      result.route.right > result.main.right + tolerance
+    ) {
       issues.push('shell-route is not contained by main-content')
     }
   }
   const routeWidth = result.route?.width ?? 0
   if (name === 'dashboard.png' && routeWidth > 0) {
-    if (routeWidth <= 820 && result.dashboardCharts !== 1) issues.push('dashboard charts did not stack')
-    if (routeWidth <= 600 && result.dashboardCards !== 1) issues.push('dashboard cards did not collapse')
+    if (routeWidth <= 820 && result.dashboardCharts !== 1)
+      issues.push('dashboard charts did not stack')
+    if (routeWidth <= 600 && result.dashboardCards !== 1)
+      issues.push('dashboard cards did not collapse')
   }
-  if (name === 'settings.png' && routeWidth > 0 && routeWidth <= 680 && result.settingsColumns !== 1) {
+  if (
+    name === 'settings.png' &&
+    routeWidth > 0 &&
+    routeWidth <= 680 &&
+    result.settingsColumns !== 1
+  ) {
     issues.push('settings columns did not collapse')
   }
   if (name === 'coach-metrics.png' && routeWidth > 0 && routeWidth <= 820) {
@@ -420,36 +496,48 @@ async function assertLayout(page: Page, name: string): Promise<void> {
     for (const [innerSelector, outerSelector] of checkConfig.withinX ?? []) {
       const inner = rectFor(innerSelector)
       const outer = rectFor(outerSelector)
-      if (inner && outer && (inner.left < outer.left - tolerance || inner.right > outer.right + tolerance)) {
+      if (
+        inner &&
+        outer &&
+        (inner.left < outer.left - tolerance || inner.right > outer.right + tolerance)
+      ) {
         failures.push(`${innerSelector} exceeds ${outerSelector} horizontally`)
       }
     }
     for (const [selector, minRatio] of checkConfig.minWidthRatios ?? []) {
       const rect = rectFor(selector)
-      if (rect && rect.width / window.innerWidth < minRatio) failures.push(`${selector} is too narrow`)
+      if (rect && rect.width / window.innerWidth < minRatio)
+        failures.push(`${selector} is too narrow`)
     }
     for (const [selector, maxRatio] of checkConfig.maxWidthRatios ?? []) {
       const rect = rectFor(selector)
-      if (rect && rect.width / window.innerWidth > maxRatio) failures.push(`${selector} is too wide`)
+      if (rect && rect.width / window.innerWidth > maxRatio)
+        failures.push(`${selector} is too wide`)
     }
     for (const [leftSelector, rightSelector, outerSelector] of checkConfig.fillsX ?? []) {
       const left = rectFor(leftSelector)
       const right = rectFor(rightSelector)
       const outer = rectFor(outerSelector)
-      if (left && right && outer && (
-        Math.abs(left.left - outer.left) > tolerance
-        || Math.abs(left.right - right.left) > tolerance
-        || Math.abs(right.right - outer.right) > tolerance
-      )) {
+      if (
+        left &&
+        right &&
+        outer &&
+        (Math.abs(left.left - outer.left) > tolerance ||
+          Math.abs(left.right - right.left) > tolerance ||
+          Math.abs(right.right - outer.right) > tolerance)
+      ) {
         failures.push(`${leftSelector} and ${rightSelector} do not fill ${outerSelector}`)
       }
     }
     for (const [selector, minCount] of checkConfig.minElements ?? []) {
-      if (document.querySelectorAll(selector).length < minCount) failures.push(`${selector} has too few elements`)
+      if (document.querySelectorAll(selector).length < minCount)
+        failures.push(`${selector} has too few elements`)
     }
 
-    if (document.documentElement.scrollWidth - window.innerWidth > tolerance) failures.push('document horizontal overflow')
-    if (document.body.scrollWidth - window.innerWidth > tolerance) failures.push('body horizontal overflow')
+    if (document.documentElement.scrollWidth - window.innerWidth > tolerance)
+      failures.push('document horizontal overflow')
+    if (document.body.scrollWidth - window.innerWidth > tolerance)
+      failures.push('body horizontal overflow')
     return failures
   }, config)
 
@@ -458,7 +546,12 @@ async function assertLayout(page: Page, name: string): Promise<void> {
 
 async function capture(page: Page, scenarioName: string, name: string): Promise<void> {
   await assertNoSensitiveText(page, name)
-  await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))))
+  await page.evaluate(
+    () =>
+      new Promise<void>((resolve) =>
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+      ),
+  )
   await page.waitForTimeout(100)
   await assertResponsiveContainer(page, name)
   await assertLayout(page, name)
@@ -490,7 +583,10 @@ for (const scenario of viewportScenarios) {
     try {
       await assertNativeViewport(electronApp, page)
       await expect(page.getByRole('tab')).toHaveCount(1)
-      await expect(page.getByRole('tab', { name: '首页', exact: true })).toHaveAttribute('aria-selected', 'true')
+      await expect(page.getByRole('tab', { name: '首页', exact: true })).toHaveAttribute(
+        'aria-selected',
+        'true',
+      )
       await expect(page.getByRole('combobox', { name: '地址和搜索栏' })).toHaveValue('algo://home')
 
       const omnibox = page.getByRole('combobox', { name: '地址和搜索栏' })
@@ -511,7 +607,9 @@ for (const scenario of viewportScenarios) {
 
       expect(pageErrors).toEqual([])
       for (const screenshotName of shellScreenshotNames) {
-        expect(fs.statSync(path.join(scenarioOutputDir, screenshotName)).size).toBeGreaterThan(20_000)
+        expect(fs.statSync(path.join(scenarioOutputDir, screenshotName)).size).toBeGreaterThan(
+          20_000,
+        )
       }
     } finally {
       await electronApp.close()
@@ -533,7 +631,9 @@ for (const scenario of viewportScenarios) {
       const dashboardTab = await openInternalPageTab(page, internalPages.dashboard)
       await expect(page.locator('.dashboard-page')).toBeVisible()
       await expect(page.locator('body')).toContainText('学习统计')
-      await expect(page.locator('.dashboard-chart-pie .recharts-pie-sector path').first()).toBeVisible()
+      await expect(
+        page.locator('.dashboard-chart-pie .recharts-pie-sector path').first(),
+      ).toBeVisible()
       await capture(page, scenario.name, 'dashboard.png')
       await closeInternalPageTab(page, internalPages.dashboard, dashboardTab)
 
@@ -561,7 +661,9 @@ for (const scenario of viewportScenarios) {
 
       const coachTab = await openInternalPageTab(page, internalPages.coachMetrics)
       await expect(page.locator('.coach-metrics-view')).toBeVisible()
-      await expect(page.locator('.coach-metrics-view .recharts-pie-sector path').first()).toBeVisible()
+      await expect(
+        page.locator('.coach-metrics-view .recharts-pie-sector path').first(),
+      ).toBeVisible()
       await capture(page, scenario.name, 'coach-metrics.png')
       await closeInternalPageTab(page, internalPages.coachMetrics, coachTab)
 
@@ -579,9 +681,13 @@ for (const scenario of viewportScenarios) {
       await capture(page, scenario.name, 'note-editor.png')
       // Let the real editor normalize its initial Markdown before comparing
       // persisted content across tabs; the fixture must retain that save.
-      await expect.poll(() => page.evaluate(async () => (
-        await window.electronAPI.getNote('note-1')
-      )?.content.endsWith('\n\n'))).toBe(true)
+      await expect
+        .poll(() =>
+          page.evaluate(async () =>
+            (await window.electronAPI.getNote('note-1'))?.content.endsWith('\n\n'),
+          ),
+        )
+        .toBe(true)
 
       const otherNotes = await page.evaluate(async () => {
         const originalNote = await window.electronAPI.getNote('note-1')
@@ -594,21 +700,24 @@ for (const scenario of viewportScenarios) {
           content: 'Original body B',
         }
         const records = [originalNote, otherNote]
-        window.electronAPI.listNotesByProblem = async problemId => records
-          .filter(note => note.problem_id === problemId).map(note => ({ ...note }))
-        window.electronAPI.getNote = async noteId => {
-          const note = records.find(record => record.id === noteId)
+        window.electronAPI.listNotesByProblem = async (problemId) =>
+          records.filter((note) => note.problem_id === problemId).map((note) => ({ ...note }))
+        window.electronAPI.getNote = async (noteId) => {
+          const note = records.find((record) => record.id === noteId)
           return note ? { ...note } : null
         }
         window.electronAPI.updateNoteContent = async (noteId, content) => {
-          const note = records.find(record => record.id === noteId)
+          const note = records.find((record) => record.id === noteId)
           if (!note) return false
           note.content = content
           return true
         }
         return {
           originalContent: originalNote.content,
-          tabId: await window.electronAPI.openInternalTab({ type: 'notes', problemId: otherNote.problem_id }),
+          tabId: await window.electronAPI.openInternalTab({
+            type: 'notes',
+            problemId: otherNote.problem_id,
+          }),
         }
       })
       await expect(page.locator('.note-item-title')).toHaveText('Isolated note B')
@@ -619,18 +728,24 @@ for (const scenario of viewportScenarios) {
       const otherEditor = page.locator('.milkdown .ProseMirror')
       await expect(otherEditor).toContainText('Original body B')
       await otherEditor.fill('Edited body B')
-      await expect.poll(() => page.evaluate(async () => (
-        await window.electronAPI.getNote('note-isolation-b')
-      )?.content)).toContain('Edited body B')
-      expect(await page.evaluate(async () => (
-        await window.electronAPI.getNote('note-1')
-      )?.content)).toBe(otherNotes.originalContent)
+      await expect
+        .poll(() =>
+          page.evaluate(
+            async () => (await window.electronAPI.getNote('note-isolation-b'))?.content,
+          ),
+        )
+        .toContain('Edited body B')
+      expect(
+        await page.evaluate(async () => (await window.electronAPI.getNote('note-1'))?.content),
+      ).toBe(otherNotes.originalContent)
       await page.evaluate((tabId) => window.electronAPI.closeTab(tabId), otherNotes.tabId)
       await closeInternalPageTab(page, internalPages.notes, notesTab)
 
       expect(pageErrors).toEqual([])
       for (const screenshotName of internalPageScreenshotNames) {
-        expect(fs.statSync(path.join(scenarioOutputDir, screenshotName)).size).toBeGreaterThan(20_000)
+        expect(fs.statSync(path.join(scenarioOutputDir, screenshotName)).size).toBeGreaterThan(
+          20_000,
+        )
       }
     } finally {
       await electronApp.close()
@@ -654,7 +769,9 @@ test('native tab strip overflows horizontally and reorders with a pointer drag',
 
     const stripState = await page.locator('.tab-strip-tabs').evaluate((element) => {
       const dragRegion = document.querySelector<HTMLElement>('.tab-strip-drag-region')
-      const styles = dragRegion ? getComputedStyle(dragRegion) as CSSStyleDeclaration & { webkitAppRegion?: string } : null
+      const styles = dragRegion
+        ? (getComputedStyle(dragRegion) as CSSStyleDeclaration & { webkitAppRegion?: string })
+        : null
       return {
         scrollWidth: element.scrollWidth,
         clientWidth: element.clientWidth,
@@ -667,8 +784,12 @@ test('native tab strip overflows horizontally and reorders with a pointer drag',
     expect(stripState.dragRegionMode).toBe('drag')
 
     const tabItems = page.locator('.tab-item')
-    const before = await tabItems.evaluateAll((elements) => elements.map((element) => element.getAttribute('data-tab-id')))
-    await page.locator('.tab-strip-tabs').evaluate((element) => { element.scrollLeft = 0 })
+    const before = await tabItems.evaluateAll((elements) =>
+      elements.map((element) => element.getAttribute('data-tab-id')),
+    )
+    await page.locator('.tab-strip-tabs').evaluate((element) => {
+      element.scrollLeft = 0
+    })
     const first = tabItems.nth(0).locator('.tab-item-main')
     // Hover waits for scrolling, animation and hit testing before the raw drag.
     await first.hover()
@@ -679,21 +800,29 @@ test('native tab strip overflows horizontally and reorders with a pointer drag',
 
     await page.mouse.move(firstBox!.x + firstBox!.width / 2, firstBox!.y + firstBox!.height / 2)
     await page.mouse.down()
-    await page.mouse.move(stripBox!.x + stripBox!.width - 3, firstBox!.y + firstBox!.height / 2, { steps: 8 })
+    await page.mouse.move(stripBox!.x + stripBox!.width - 3, firstBox!.y + firstBox!.height / 2, {
+      steps: 8,
+    })
     await expect(page.locator('.tab-item-dragging')).toHaveCount(1)
-    await expect.poll(() => page.locator('.tab-strip-tabs').evaluate((element) => element.scrollLeft))
+    await expect
+      .poll(() => page.locator('.tab-strip-tabs').evaluate((element) => element.scrollLeft))
       .toBeGreaterThan(250)
     await page.mouse.up()
 
-    await expect.poll(async () => {
-      const current = await tabItems.evaluateAll(
-        (elements) => elements.map((element) => element.getAttribute('data-tab-id')),
-      )
-      return current.indexOf(before[0])
-    }).toBeGreaterThan(3)
-    await expect.poll(() => page.locator('.tab-strip-tabs').evaluate((element) => element.scrollLeft))
+    await expect
+      .poll(async () => {
+        const current = await tabItems.evaluateAll((elements) =>
+          elements.map((element) => element.getAttribute('data-tab-id')),
+        )
+        return current.indexOf(before[0])
+      })
+      .toBeGreaterThan(3)
+    await expect
+      .poll(() => page.locator('.tab-strip-tabs').evaluate((element) => element.scrollLeft))
       .toBeGreaterThan(0)
-    const after = await tabItems.evaluateAll((elements) => elements.map((element) => element.getAttribute('data-tab-id')))
+    const after = await tabItems.evaluateAll((elements) =>
+      elements.map((element) => element.getAttribute('data-tab-id')),
+    )
     expect(after.filter((tabId) => tabId !== before[0])).toEqual(before.slice(1))
   } finally {
     await electronApp.close()
@@ -726,29 +855,45 @@ test('view transition keeps the tab strip hit-testable while it runs', async () 
     const box = await target.boundingBox()
     expect(box).not.toBeNull()
 
-    const probe = await page.evaluate(([x, y]) => {
-      const hit = () => {
-        const element = document.elementFromPoint(x as number, y as number)
-        return element ? `${element.tagName}.${String((element as HTMLElement).className)}` : null
-      }
-      const inStrip = () => {
-        const element = document.elementFromPoint(x as number, y as number)
-        return Boolean(element?.closest('.tab-item'))
-      }
-      return new Promise<{ during: string | null; inStrip: boolean; active: boolean; rootName: string }>((resolve) => {
-        const transition = document.startViewTransition!(() => {
-          document.body.setAttribute('data-vt-probe', 'on')
-        })
-        transition.ready.then(() => {
-          resolve({
-            during: hit(),
-            inStrip: inStrip(),
-            active: Boolean((document as unknown as { activeViewTransition?: unknown }).activeViewTransition),
-            rootName: getComputedStyle(document.documentElement).getPropertyValue('view-transition-name'),
+    const probe = await page.evaluate(
+      ([x, y]) => {
+        const hit = () => {
+          const element = document.elementFromPoint(x as number, y as number)
+          return element ? `${element.tagName}.${String((element as HTMLElement).className)}` : null
+        }
+        const inStrip = () => {
+          const element = document.elementFromPoint(x as number, y as number)
+          return Boolean(element?.closest('.tab-item'))
+        }
+        return new Promise<{
+          during: string | null
+          inStrip: boolean
+          active: boolean
+          rootName: string
+        }>((resolve) => {
+          const transition = document.startViewTransition!(() => {
+            document.body.setAttribute('data-vt-probe', 'on')
           })
-        }, () => resolve({ during: hit(), inStrip: inStrip(), active: false, rootName: 'rejected' }))
-      })
-    }, [box!.x + box!.width / 2, box!.y + box!.height / 2])
+          transition.ready.then(
+            () => {
+              resolve({
+                during: hit(),
+                inStrip: inStrip(),
+                active: Boolean(
+                  (document as unknown as { activeViewTransition?: unknown }).activeViewTransition,
+                ),
+                rootName: getComputedStyle(document.documentElement).getPropertyValue(
+                  'view-transition-name',
+                ),
+              })
+            },
+            () =>
+              resolve({ during: hit(), inStrip: inStrip(), active: false, rootName: 'rejected' }),
+          )
+        })
+      },
+      [box!.x + box!.width / 2, box!.y + box!.height / 2],
+    )
 
     // 过渡确实活着的那一刻取的样，否则这条断言没有意义
     expect(probe.active).toBe(true)

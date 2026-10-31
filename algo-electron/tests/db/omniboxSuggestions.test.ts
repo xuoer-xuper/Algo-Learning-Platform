@@ -43,39 +43,47 @@ function insertProblem(fixture: ProblemFixture): void {
   const platformProblemId = fixture.platformProblemId ?? fixture.id
   const canonicalUrl = fixture.canonicalUrl ?? `https://example.com/problems/${fixture.id}`
   const timestamp = fixture.lastVisitedAt ?? '2026-07-03T10:00:00+08:00'
-  getDb().prepare(`
+  getDb()
+    .prepare(
+      `
     INSERT INTO problems (
       id, platform, platform_problem_id, canonical_url, title, status,
       first_seen_at, last_visited_at, created_at, updated_at, deleted_at
     ) VALUES (?, ?, ?, ?, ?, 'visited', ?, ?, ?, ?, ?)
-  `).run(
-    fixture.id,
-    platform,
-    platformProblemId,
-    canonicalUrl,
-    fixture.title ?? fixture.id,
-    timestamp,
-    timestamp,
-    timestamp,
-    timestamp,
-    fixture.deletedAt ?? null,
-  )
+  `,
+    )
+    .run(
+      fixture.id,
+      platform,
+      platformProblemId,
+      canonicalUrl,
+      fixture.title ?? fixture.id,
+      timestamp,
+      timestamp,
+      timestamp,
+      timestamp,
+      fixture.deletedAt ?? null,
+    )
 }
 
 function insertVisit(fixture: VisitFixture): void {
-  getDb().prepare(`
+  getDb()
+    .prepare(
+      `
     INSERT INTO problem_visits (
       id, problem_id, platform, url, entered_at, created_at, updated_at, deleted_at
     ) VALUES (?, ?, 'codeforces', ?, ?, ?, ?, ?)
-  `).run(
-    fixture.id,
-    fixture.problemId,
-    fixture.url,
-    fixture.enteredAt,
-    fixture.enteredAt,
-    fixture.enteredAt,
-    fixture.deletedAt ?? null,
-  )
+  `,
+    )
+    .run(
+      fixture.id,
+      fixture.problemId,
+      fixture.url,
+      fixture.enteredAt,
+      fixture.enteredAt,
+      fixture.enteredAt,
+      fixture.deletedAt ?? null,
+    )
 }
 
 function timestamp(hour: number, minute = 0): string {
@@ -105,7 +113,7 @@ describe('getOmniboxSuggestions', () => {
     const suggestions = getOmniboxSuggestions('')
 
     expect(suggestions).toHaveLength(OMNIBOX_SUGGESTION_LIMIT)
-    expect(suggestions.map(suggestion => suggestion.problemId)).toEqual([
+    expect(suggestions.map((suggestion) => suggestion.problemId)).toEqual([
       'problem-9',
       'problem-8',
       'problem-7',
@@ -162,13 +170,17 @@ describe('getOmniboxSuggestions', () => {
       enteredAt: timestamp(6),
     })
 
-    expect(getOmniboxSuggestions('abc').map(suggestion => suggestion.problemId)).toEqual([
+    expect(getOmniboxSuggestions('abc').map((suggestion) => suggestion.problemId)).toEqual([
       'exact',
       'prefix',
       'substring',
     ])
-    expect(getOmniboxSuggestions('LUOGU').map(suggestion => suggestion.problemId)).toEqual(['platform'])
-    expect(getOmniboxSuggestions('canonical/url-entry').map(suggestion => suggestion.problemId)).toEqual(['url'])
+    expect(getOmniboxSuggestions('LUOGU').map((suggestion) => suggestion.problemId)).toEqual([
+      'platform',
+    ])
+    expect(
+      getOmniboxSuggestions('canonical/url-entry').map((suggestion) => suggestion.problemId),
+    ).toEqual(['url'])
     expect(getOmniboxSuggestions('special-route')).toEqual([
       expect.objectContaining({
         problemId: 'url',
@@ -185,9 +197,15 @@ describe('getOmniboxSuggestions', () => {
     insertProblem({ id: 'underscore-decoy', title: 'Wildcard decoy', platformProblemId: 'AXB' })
     insertProblem({ id: 'escape', title: 'Path \\ Root', platformProblemId: 'PATH-1' })
 
-    expect(getOmniboxSuggestions('100%').map(suggestion => suggestion.problemId)).toEqual(['percent'])
-    expect(getOmniboxSuggestions('A_B').map(suggestion => suggestion.problemId)).toEqual(['underscore'])
-    expect(getOmniboxSuggestions('\\').map(suggestion => suggestion.problemId)).toEqual(['escape'])
+    expect(getOmniboxSuggestions('100%').map((suggestion) => suggestion.problemId)).toEqual([
+      'percent',
+    ])
+    expect(getOmniboxSuggestions('A_B').map((suggestion) => suggestion.problemId)).toEqual([
+      'underscore',
+    ])
+    expect(getOmniboxSuggestions('\\').map((suggestion) => suggestion.problemId)).toEqual([
+      'escape',
+    ])
   })
 
   it('filters deleted rows and ignores deleted visits when choosing a URL', () => {
@@ -235,8 +253,18 @@ describe('getOmniboxSuggestions', () => {
 
   it('deduplicates repeated visits, problem candidates, and shared URLs', () => {
     const sharedUrl = 'https://example.com/problems/shared'
-    insertProblem({ id: 'older', canonicalUrl: sharedUrl, title: 'Shared target', lastVisitedAt: timestamp(4) })
-    insertProblem({ id: 'newer', canonicalUrl: sharedUrl, title: 'Shared target', lastVisitedAt: timestamp(8) })
+    insertProblem({
+      id: 'older',
+      canonicalUrl: sharedUrl,
+      title: 'Shared target',
+      lastVisitedAt: timestamp(4),
+    })
+    insertProblem({
+      id: 'newer',
+      canonicalUrl: sharedUrl,
+      title: 'Shared target',
+      lastVisitedAt: timestamp(8),
+    })
     insertVisit({ id: 'newer-1', problemId: 'newer', url: sharedUrl, enteredAt: timestamp(7) })
     insertVisit({ id: 'newer-2', problemId: 'newer', url: sharedUrl, enteredAt: timestamp(8) })
     insertVisit({ id: 'older-1', problemId: 'older', url: sharedUrl, enteredAt: timestamp(4) })
@@ -250,7 +278,9 @@ describe('getOmniboxSuggestions', () => {
       source: 'history',
       lastVisitedAt: timestamp(8),
     })
-    expect(new Set(suggestions.map(suggestion => suggestion.problemId)).size).toBe(suggestions.length)
-    expect(new Set(suggestions.map(suggestion => suggestion.url)).size).toBe(suggestions.length)
+    expect(new Set(suggestions.map((suggestion) => suggestion.problemId)).size).toBe(
+      suggestions.length,
+    )
+    expect(new Set(suggestions.map((suggestion) => suggestion.url)).size).toBe(suggestions.length)
   })
 })

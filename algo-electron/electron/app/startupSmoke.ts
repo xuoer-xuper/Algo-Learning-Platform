@@ -19,7 +19,12 @@ export function applyStartupSmokeUserDataPath(): void {
   }
 }
 
-function finishStartupSmoke(options: RunStartupSmokeOptions, exitCode: number, message: string, error?: unknown): void {
+function finishStartupSmoke(
+  options: RunStartupSmokeOptions,
+  exitCode: number,
+  message: string,
+  error?: unknown,
+): void {
   if (exitCode === 0) {
     console.log(`[startup-smoke] ${message}`)
   } else {
@@ -30,12 +35,18 @@ function finishStartupSmoke(options: RunStartupSmokeOptions, exitCode: number, m
   // Smoke owns a disposable userData directory. Exit before normal Electron
   // teardown so WebContentsView/protocol utility shutdown cannot stall CI.
   if (STARTUP_SMOKE_MODE) process.exit(exitCode)
-  try { options.cleanup() } catch { /* ignore */ }
+  try {
+    options.cleanup()
+  } catch {
+    /* ignore */
+  }
   app.exit(exitCode)
 }
 
 function delay(ms: number): Promise<void> {
-  return new Promise((resolve) => { setTimeout(resolve, ms) })
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms)
+  })
 }
 
 function triggerPopupScript(tabManager: TabManager, code: string): void {
@@ -65,13 +76,19 @@ async function waitForActiveWebContentsUrl(
   )
 }
 
-async function waitForTabCount(tabManager: TabManager, expectedCount: number, timeoutMs = 10000): Promise<void> {
+async function waitForTabCount(
+  tabManager: TabManager,
+  expectedCount: number,
+  timeoutMs = 10000,
+): Promise<void> {
   const startedAt = Date.now()
   while (Date.now() - startedAt <= timeoutMs) {
     if (tabManager.getTabList().length === expectedCount) return
     await delay(50)
   }
-  throw new Error(`Timed out waiting for ${expectedCount} tabs; tabs=${JSON.stringify(tabManager.getTabList())}`)
+  throw new Error(
+    `Timed out waiting for ${expectedCount} tabs; tabs=${JSON.stringify(tabManager.getTabList())}`,
+  )
 }
 
 async function waitForAppWindowCount(
@@ -101,10 +118,14 @@ async function waitForScriptValue(
     try {
       lastValue = await tabManager.executeScriptOnUrl(url, code)
       if (lastValue === expectedValue) return lastValue
-    } catch { /* retry while the popup and opener settle */ }
+    } catch {
+      /* retry while the popup and opener settle */
+    }
     await delay(50)
   }
-  throw new Error(`Timed out waiting for script value ${String(expectedValue)}; last=${String(lastValue)}`)
+  throw new Error(
+    `Timed out waiting for script value ${String(expectedValue)}; last=${String(lastValue)}`,
+  )
 }
 
 async function closePopupAndRestore(
@@ -132,7 +153,9 @@ async function waitForRendererLoad(browserWindow: ElectronBrowserWindow): Promis
 // Electron-only startup smoke runner. Production calls this only when ALGO_ELECTRON_SMOKE=1.
 export async function runStartupSmokeTest(options: RunStartupSmokeOptions): Promise<void> {
   try {
-    const step = (name: string): void => { console.log(`[startup-smoke] step ${name}`) }
+    const step = (name: string): void => {
+      console.log(`[startup-smoke] step ${name}`)
+    }
     const win = options.getWindow()
     const tabManager = options.getTabManager()
 
@@ -143,15 +166,15 @@ export async function runStartupSmokeTest(options: RunStartupSmokeOptions): Prom
     await waitForRendererLoad(win)
     step('shell-loaded')
 
-    const shellLocation = await win.webContents.executeJavaScript(`({
+    const shellLocation = (await win.webContents.executeJavaScript(`({
       href: window.location.href,
       origin: window.location.origin,
-    })`) as { href: string; origin: string }
+    })`)) as { href: string; origin: string }
     if (!shellLocation.href.startsWith('app://shell/') || shellLocation.origin !== 'app://shell') {
       throw new Error(`Unexpected shell origin: ${JSON.stringify(shellLocation)}`)
     }
 
-    const hasBasicIpc = await win.webContents.executeJavaScript(`
+    const hasBasicIpc = (await win.webContents.executeJavaScript(`
       Boolean(
         window.electronAPI
         && typeof window.electronAPI.getHomeShortcuts === 'function'
@@ -159,7 +182,7 @@ export async function runStartupSmokeTest(options: RunStartupSmokeOptions): Prom
         && typeof window.electronAPI.createTab === 'function'
         && typeof window.electronAPI.isWindowMaximized === 'function'
       )
-    `) as boolean
+    `)) as boolean
     if (!hasBasicIpc) throw new Error('Preload electronAPI is not available')
 
     const initialTab = tabManager.getTabList().find((tab) => tab.isActive)
@@ -169,7 +192,9 @@ export async function runStartupSmokeTest(options: RunStartupSmokeOptions): Prom
 
     const legacyHomeUrl = process.env.ALGO_ELECTRON_SMOKE_LEGACY_HOME_URL
     if (!legacyHomeUrl) throw new Error('Missing ALGO_ELECTRON_SMOKE_LEGACY_HOME_URL')
-    const homeShortcuts = await win.webContents.executeJavaScript('window.electronAPI.getHomeShortcuts()') as string[]
+    const homeShortcuts = (await win.webContents.executeJavaScript(
+      'window.electronAPI.getHomeShortcuts()',
+    )) as string[]
     if (!homeShortcuts.includes(legacyHomeUrl)) {
       throw new Error(`Legacy default URL was not migrated: ${JSON.stringify(homeShortcuts)}`)
     }
@@ -178,29 +203,32 @@ export async function runStartupSmokeTest(options: RunStartupSmokeOptions): Prom
       win.showInactive()
     }
 
-    const tabId = await win.webContents.executeJavaScript(
+    const tabId = (await win.webContents.executeJavaScript(
       `window.electronAPI.createTab(${JSON.stringify(legacyHomeUrl)})`,
-    ) as string
+    )) as string
     if (!tabId) throw new Error('createTab IPC returned an empty tab id')
 
     const loadedWebUrl = await waitForActiveWebContentsUrl(tabManager, legacyHomeUrl, 10000)
     step('web-tab-loaded')
 
-    const maximized = await win.webContents.executeJavaScript('window.electronAPI.isWindowMaximized()') as boolean
+    const maximized = (await win.webContents.executeJavaScript(
+      'window.electronAPI.isWindowMaximized()',
+    )) as boolean
     if (typeof maximized !== 'boolean') throw new Error('Basic IPC did not return a boolean result')
 
     const activeTab = tabManager.getTabList().find((tab) => tab.isActive)
-    if (!activeTab || activeTab.id !== tabId) throw new Error('Created default URL tab is not active')
+    if (!activeTab || activeTab.id !== tabId)
+      throw new Error('Created default URL tab is not active')
 
-    const shellPermissionState = await win.webContents.executeJavaScript(`
+    const shellPermissionState = (await win.webContents.executeJavaScript(`
       navigator.permissions.query({ name: 'geolocation' }).then((result) => result.state)
-    `) as string
+    `)) as string
     if (shellPermissionState !== 'denied') {
       throw new Error(`Default session permission check was not denied: ${shellPermissionState}`)
     }
     step('default-permission-check')
 
-    const ojPermissionRequest = await tabManager.executeScript(`
+    const ojPermissionRequest = (await tabManager.executeScript(`
       new Promise((resolve) => {
         const timer = setTimeout(() => resolve('timeout'), 3000)
         navigator.geolocation.getCurrentPosition(
@@ -209,7 +237,7 @@ export async function runStartupSmokeTest(options: RunStartupSmokeOptions): Prom
           { timeout: 1000 }
         )
       })
-    `) as string
+    `)) as string
     if (ojPermissionRequest !== 'denied:1') {
       throw new Error(`OJ session permission request was not denied: ${ojPermissionRequest}`)
     }
@@ -222,7 +250,7 @@ export async function runStartupSmokeTest(options: RunStartupSmokeOptions): Prom
     triggerPopupScript(tabManager, `window.open('about:blank', 'blank-popup')`)
     await waitForTabCount(tabManager, baseTabCount + 1)
     await waitForActiveWebContentsUrl(tabManager, 'about:blank', 10000)
-    if (await tabManager.executeScript('Boolean(window.opener)') !== true) {
+    if ((await tabManager.executeScript('Boolean(window.opener)')) !== true) {
       throw new Error('about:blank popup lost its opener')
     }
     await closePopupAndRestore(tabManager, openerTabId, baseTabCount)
@@ -232,16 +260,19 @@ export async function runStartupSmokeTest(options: RunStartupSmokeOptions): Prom
     triggerPopupScript(tabManager, `window.open(${JSON.stringify(getUrl)}, 'get-popup')`)
     await waitForTabCount(tabManager, baseTabCount + 1)
     await waitForActiveWebContentsUrl(tabManager, getUrl, 10000)
-    const getState = await tabManager.executeScript(`({
+    const getState = (await tabManager.executeScript(`({
       opener: Boolean(window.opener),
       ready: document.body.textContent.includes('popup-get-ready'),
-    })`) as { opener: boolean; ready: boolean }
-    if (!getState.opener || !getState.ready) throw new Error(`GET popup state mismatch: ${JSON.stringify(getState)}`)
+    })`)) as { opener: boolean; ready: boolean }
+    if (!getState.opener || !getState.ready)
+      throw new Error(`GET popup state mismatch: ${JSON.stringify(getState)}`)
     await closePopupAndRestore(tabManager, openerTabId, baseTabCount)
     step('get-popup')
 
     const postUrl = new URL('/popup-post.html', baseUrl).toString()
-    triggerPopupScript(tabManager, `
+    triggerPopupScript(
+      tabManager,
+      `
       (() => {
         const form = document.createElement('form')
         form.method = 'POST'
@@ -256,10 +287,11 @@ export async function runStartupSmokeTest(options: RunStartupSmokeOptions): Prom
         form.remove()
         return true
       })()
-    `)
+    `,
+    )
     await waitForTabCount(tabManager, baseTabCount + 1)
     await waitForActiveWebContentsUrl(tabManager, postUrl, 10000)
-    const postBody = await tabManager.executeScript('document.body.textContent') as string
+    const postBody = (await tabManager.executeScript('document.body.textContent')) as string
     if (!postBody.includes('post-body:grant=accepted')) {
       throw new Error(`POST popup body was not preserved: ${postBody}`)
     }
@@ -267,7 +299,9 @@ export async function runStartupSmokeTest(options: RunStartupSmokeOptions): Prom
     step('post-popup')
 
     const oauthUrl = new URL('/popup-oauth.html', baseUrl).toString()
-    triggerPopupScript(tabManager, `
+    triggerPopupScript(
+      tabManager,
+      `
       window.__oauthSignal = null
       window.addEventListener('message', (event) => {
         if (event.origin === location.origin && event.data === 'oauth-complete') {
@@ -275,24 +309,31 @@ export async function runStartupSmokeTest(options: RunStartupSmokeOptions): Prom
         }
       }, { once: true })
       Boolean(window.open(${JSON.stringify(oauthUrl)}, 'oauth-popup'))
-    `)
+    `,
+    )
     await waitForTabCount(tabManager, baseTabCount + 1)
     await waitForActiveWebContentsUrl(tabManager, oauthUrl, 10000)
     await waitForScriptValue(tabManager, legacyHomeUrl, 'window.__oauthSignal', 'oauth-complete')
     await closePopupAndRestore(tabManager, openerTabId, baseTabCount)
     step('oauth-popup')
 
-    const moved = await win.webContents.executeJavaScript(
+    const moved = (await win.webContents.executeJavaScript(
       `window.electronAPI.moveTabToNewWindow(${JSON.stringify(openerTabId)})`,
-    ) as boolean
+    )) as boolean
     if (!moved) throw new Error('Moving the active tab to a complete shell window failed')
     const splitWindows = await waitForAppWindowCount(options.getAppWindows, 2)
     if (BrowserWindow.getAllWindows().filter((window) => !window.isDestroyed()).length !== 2) {
       throw new Error('Split shell leaked or omitted a BrowserWindow')
     }
-    const targetWindow = splitWindows.find((candidate) => candidate.browserWindow !== win
-      && candidate.tabManager.getTabList().some((tab) => tab.id === openerTabId))
-      ?? splitWindows.find((candidate) => candidate.tabManager.getTabList().some((tab) => tab.id === openerTabId))
+    const targetWindow =
+      splitWindows.find(
+        (candidate) =>
+          candidate.browserWindow !== win &&
+          candidate.tabManager.getTabList().some((tab) => tab.id === openerTabId),
+      ) ??
+      splitWindows.find((candidate) =>
+        candidate.tabManager.getTabList().some((tab) => tab.id === openerTabId),
+      )
     if (!targetWindow) throw new Error('Transferred tab owner window was not found')
     await waitForRendererLoad(targetWindow.browserWindow)
     if (targetWindow.tabManager.getUrl() !== legacyHomeUrl) {
@@ -310,15 +351,21 @@ export async function runStartupSmokeTest(options: RunStartupSmokeOptions): Prom
     }
     const survivingTab = targetWindow.tabManager.getTabList().find((tab) => tab.id === openerTabId)
     if (!survivingTab || survivingTab.url !== legacyHomeUrl) {
-      throw new Error(`Transferred tab did not survive source close: ${JSON.stringify(survivingTab)}`)
+      throw new Error(
+        `Transferred tab did not survive source close: ${JSON.stringify(survivingTab)}`,
+      )
     }
-    const newTabId = await targetWindow.browserWindow.webContents.executeJavaScript(
+    const newTabId = (await targetWindow.browserWindow.webContents.executeJavaScript(
       'window.electronAPI.createTab()',
-    ) as string
+    )) as string
     if (!newTabId) throw new Error('Surviving complete shell IPC stopped working')
     step('source-shell-closed')
 
-    finishStartupSmoke(options, 0, `ok mainWindow=1 tab=${openerTabId} url=${loadedWebUrl || survivingTab.url}`)
+    finishStartupSmoke(
+      options,
+      0,
+      `ok mainWindow=1 tab=${openerTabId} url=${loadedWebUrl || survivingTab.url}`,
+    )
   } catch (error) {
     finishStartupSmoke(options, 1, 'failed', error)
   }

@@ -41,7 +41,10 @@ export const luoguAdapter: SiteAdapter = {
     return parseLuoguRealtimeSubmission(raw)
   },
 
-  resolveProblemIdentity(submission: SubmissionData, raw: SubmissionDetectionPayload): ProblemIdentity | null {
+  resolveProblemIdentity(
+    submission: SubmissionData,
+    raw: SubmissionDetectionPayload,
+  ): ProblemIdentity | null {
     const rawProblemInfo = parseLuoguRawProblemInfo(submission)
     const browserTitleIdentity = resolveProblemIdentityFromBrowserTitle(this, raw)
     if (browserTitleIdentity) {

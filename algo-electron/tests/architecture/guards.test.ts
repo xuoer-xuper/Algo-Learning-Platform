@@ -1,6 +1,18 @@
 import { describe, expect, it } from 'vitest'
-// @ts-expect-error 守卫判定是 runner 共用的 .mjs，无类型声明；此处只需运行时行为
-import { collectRatchetFailures, coreSuiteRunsEverything, countBareControls, countBareHex, countBareRgb, countBareSql, countRawIpcSchemas, countUnschemadIpc, themeDirectiveHasTailwindImport } from './guards.mjs'
+import {
+  collectRatchetFailures,
+  coreSuiteRunsEverything,
+  countBareControls,
+  countBareHex,
+  countBareRgb,
+  countBareSql,
+  countRawIpcSchemas,
+  countUnschemadIpc,
+  themeDirectiveHasTailwindImport,
+  // @ts-expect-error 守卫判定是 runner 共用的 .mjs，无类型声明；此处只需运行时行为。
+  // 抑制点必须在模块说明符上一行：TS7016 报在 `from './guards.mjs'` 处，
+  // prettier 把单行 import 拆成多行后，写在 import 前的指令覆盖不到它。
+} from './guards.mjs'
 
 /**
  * 守卫的反向验证。
@@ -13,7 +25,7 @@ import { collectRatchetFailures, coreSuiteRunsEverything, countBareControls, cou
 const describeCount = (count: number) => `${count} 处`
 const HINT = '清理提示'
 
-function ratchet(entries: Array<{ path: string, count: number }>, budgets: Record<string, number>) {
+function ratchet(entries: Array<{ path: string; count: number }>, budgets: Record<string, number>) {
   return collectRatchetFailures({ entries, budgets, describe: describeCount, cleanupHint: HINT })
 }
 
@@ -50,8 +62,12 @@ describe('countUnschemadIpc', () => {
 
   it('声明了 schema 元组的不算', () => {
     expect(countUnschemadIpc("ipcMain.handle('a:b', [text()], (_event, id) => {})")).toBe(0)
-    expect(countUnschemadIpc("ipcMain.handle('a:b', [daysRange(), rowLimit()], (_e, d, l) => {})")).toBe(0)
-    expect(countUnschemadIpc("ipcMain.handle(\n  'a:b',\n  [text()],\n  (_event, id) => {},\n)")).toBe(0)
+    expect(
+      countUnschemadIpc("ipcMain.handle('a:b', [daysRange(), rowLimit()], (_e, d, l) => {})"),
+    ).toBe(0)
+    expect(
+      countUnschemadIpc("ipcMain.handle(\n  'a:b',\n  [text()],\n  (_event, id) => {},\n)"),
+    ).toBe(0)
   })
 
   it('零参 handler 不算欠账', () => {
@@ -222,7 +238,10 @@ describe('collectRatchetFailures', () => {
 
   it('一次报全部问题，不在第一条就短路', () => {
     const failures = ratchet(
-      [{ path: 'new.ts', count: 1 }, { path: 'over.ts', count: 5 }],
+      [
+        { path: 'new.ts', count: 1 },
+        { path: 'over.ts', count: 5 },
+      ],
       { 'over.ts': 2, 'stale.ts': 1 },
     )
     expect(failures).toHaveLength(3)
@@ -231,14 +250,20 @@ describe('collectRatchetFailures', () => {
 
 describe('coreSuiteRunsEverything', () => {
   it('无参 runVitest() 视为跑全套', () => {
-    expect(coreSuiteRunsEverything('function runCoreSuite() {\n  runLint()\n  runVitest()\n}')).toBe(true)
+    expect(
+      coreSuiteRunsEverything('function runCoreSuite() {\n  runLint()\n  runVitest()\n}'),
+    ).toBe(true)
     expect(coreSuiteRunsEverything('function runCoreSuite() {\n  runVitest( )\n}')).toBe(true)
   })
 
   it('传文件名单就不算', () => {
     // 这正是漏掉 47 个文件的那种写法：名单式调用必须被判为不合格。
-    expect(coreSuiteRunsEverything("function runCoreSuite() {\n  runVitest(['tests/app'])\n}")).toBe(false)
-    expect(coreSuiteRunsEverything('function runCoreSuite() {\n  runVitest(coreVitestFiles)\n}')).toBe(false)
+    expect(
+      coreSuiteRunsEverything("function runCoreSuite() {\n  runVitest(['tests/app'])\n}"),
+    ).toBe(false)
+    expect(
+      coreSuiteRunsEverything('function runCoreSuite() {\n  runVitest(coreVitestFiles)\n}'),
+    ).toBe(false)
   })
 
   it('只看 runCoreSuite 自己的函数体', () => {

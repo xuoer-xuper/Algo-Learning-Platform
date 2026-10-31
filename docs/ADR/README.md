@@ -37,7 +37,7 @@
 
 ```powershell
 cd algo-electron
-npm run test:docs
+pnpm run test:docs
 ```
 
 新增 ADR 后还应人工确认对应设计文档或模块 README 已引用该决策，避免 ADR 只存在于目录中而没有维护入口。

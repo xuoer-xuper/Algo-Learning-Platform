@@ -18,7 +18,7 @@ import { type GenericTableData } from './GenericTableScanner'
 function readExtractedTables(data: unknown): GenericTableData[] {
   if (!data || typeof data !== 'object') return []
   const tables = (data as { tables?: unknown }).tables
-  return Array.isArray(tables) ? tables as GenericTableData[] : []
+  return Array.isArray(tables) ? (tables as GenericTableData[]) : []
 }
 
 /**
@@ -26,7 +26,9 @@ function readExtractedTables(data: unknown): GenericTableData[] {
  * `SubmissionProblemAttacher` 才被消费，这里收窄成 `SubmissionData[]` 会把线索
  * 的类型抹掉，下游只能靠 `as any` 捞回来。线索在 `upsertSubmission` 之前丢弃，不入库。
  */
-export async function scrapeCurrentPage(browserHost: SubmissionScrapeContext): Promise<ScrapedSubmission[] | null> {
+export async function scrapeCurrentPage(
+  browserHost: SubmissionScrapeContext,
+): Promise<ScrapedSubmission[] | null> {
   const url = browserHost.getUrl()
   const adapter = getAdapterForUrl(url)
   if (!adapter) return null

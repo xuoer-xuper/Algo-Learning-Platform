@@ -64,54 +64,52 @@ export function SettingsPage({ onClose }: { onClose: () => void }) {
   }, [])
 
   return (
-      <div className="settings-page">
-        <div className="settings-header">
-          <h2 className="settings-title">设置</h2>
-          <IconButton icon="close" title="关闭" className="settings-close" onClick={onClose} />
-        </div>
+    <div className="settings-page">
+      <div className="settings-header">
+        <h2 className="settings-title">设置</h2>
+        <IconButton icon="close" title="关闭" className="settings-close" onClick={onClose} />
+      </div>
 
-        <div className="settings-cols">
-          <nav className="settings-nav" aria-label="设置分区">
-            {SETTINGS_SECTIONS.map(({ id, label, icon }) => (
-              <Button
-                key={id}
-                variant="ghost"
-                icon={icon}
-                className="settings-nav-item"
-                data-section={id}
-                aria-current={section === id ? 'page' : undefined}
-                onClick={() => setSection(id)}
-              >
-                <span className="settings-nav-label">{label}</span>
-              </Button>
-            ))}
-          </nav>
+      <div className="settings-cols">
+        <nav className="settings-nav" aria-label="设置分区">
+          {SETTINGS_SECTIONS.map(({ id, label, icon }) => (
+            <Button
+              key={id}
+              variant="ghost"
+              icon={icon}
+              className="settings-nav-item"
+              data-section={id}
+              aria-current={section === id ? 'page' : undefined}
+              onClick={() => setSection(id)}
+            >
+              <span className="settings-nav-label">{label}</span>
+            </Button>
+          ))}
+        </nav>
 
-          <div className="settings-content" data-active-section={section}>
-            {section === 'appearance' && <AppearancePanel />}
-            {section === 'coach' && <CoachPanel />}
-            {section === 'search' && <SearchEnginePanel />}
-            {section === 'llm' && <LlmConfigPanel />}
-            {section === 'sites' && <SiteManagementPanel />}
-            {section === 'sync' && (
-              <CodeforcesSyncPanel onStatsRefresh={loadOverviewStats} />
-            )}
-            {section === 'data' && <BackupPanel />}
-            {section === 'overview' && (
-              <>
-                <LearningOverviewPanel stats={stats} />
-                <PlatformDistributionSummary distribution={stats?.platformDistribution ?? []} />
-              </>
-            )}
-            {section === 'diagnostics' && (
-              <RealtimeSubmissionPanel
-                status={realtimeStatus}
-                statusText={realtimeStatusText}
-                onRefresh={loadRealtimeStatus}
-              />
-            )}
-          </div>
+        <div className="settings-content" data-active-section={section}>
+          {section === 'appearance' && <AppearancePanel />}
+          {section === 'coach' && <CoachPanel />}
+          {section === 'search' && <SearchEnginePanel />}
+          {section === 'llm' && <LlmConfigPanel />}
+          {section === 'sites' && <SiteManagementPanel />}
+          {section === 'sync' && <CodeforcesSyncPanel onStatsRefresh={loadOverviewStats} />}
+          {section === 'data' && <BackupPanel />}
+          {section === 'overview' && (
+            <>
+              <LearningOverviewPanel stats={stats} />
+              <PlatformDistributionSummary distribution={stats?.platformDistribution ?? []} />
+            </>
+          )}
+          {section === 'diagnostics' && (
+            <RealtimeSubmissionPanel
+              status={realtimeStatus}
+              statusText={realtimeStatusText}
+              onRefresh={loadRealtimeStatus}
+            />
+          )}
         </div>
       </div>
+    </div>
   )
 }

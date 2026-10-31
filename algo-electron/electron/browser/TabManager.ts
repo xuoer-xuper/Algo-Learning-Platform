@@ -1,7 +1,7 @@
+import type { BrowserWindow } from 'electron'
 import {
   clipboard,
   WebContentsView,
-  BrowserWindow,
   type BrowserWindowConstructorOptions,
   type Input,
   type WebContents,
@@ -142,7 +142,8 @@ const RELEASED_TAB_RECORDS = new WeakMap<ReleasedTab, TabTransferRecord>()
 
 const MAX_REMOTE_FAVICON_URL_LENGTH = 4_096
 const MAX_DATA_FAVICON_URL_LENGTH = 64 * 1_024
-const SAFE_DATA_FAVICON_PATTERN = /^data:image\/(?:png|jpeg|gif|webp|x-icon|vnd\.microsoft\.icon);base64,/i
+const SAFE_DATA_FAVICON_PATTERN =
+  /^data:image\/(?:png|jpeg|gif|webp|x-icon|vnd\.microsoft\.icon);base64,/i
 
 function isAllowedFaviconUrl(value: string): boolean {
   if (value.length > MAX_DATA_FAVICON_URL_LENGTH) return false
@@ -175,7 +176,8 @@ export class TabManager {
   private sessionChangeListeners = new Set<() => void>()
   private webContentsUrls = new Map<number, string>()
   private destroyedPageEventIds = new Set<number>()
-  private shortcutHandler: ((event: Electron.Event, input: Input, source: WebContents) => void) | null = null
+  private shortcutHandler:
+    ((event: Electron.Event, input: Input, source: WebContents) => void) | null = null
   private navigationBlockedHandler: ((reason: NavigationBlockReason) => void) | null = null
   private tabLimitReachedHandler: ((limit: number) => void) | null = null
   private tabDetachHandler: ((tabId: string) => void) | null = null
@@ -194,6 +196,13 @@ export class TabManager {
   private isDestroying = false
   private isRestoringSession = false
   private isOmniboxOpen = false
+  /**
+   * 正处于 HTML 全屏（页面内视频等元素全屏）的标签视图。多视图标签架构下，
+   * Chromium 只会把全屏元素铺满该视图自己的 bounds——bounds 由应用排版，
+   * 不接管就呈现"小窗 + 黑边"的假全屏。进入时把视图撑满整窗盖住壳层 UI，
+   * 退出或视图销毁时清空并恢复常规内容区布局。
+   */
+  private htmlFullScreenView: WebContentsView | null = null
   /**
    * 六条通知条各占一格 `noticeBarHeight`，除了名字之外没有任何区别：可见就抬高一格。
    * 原先是六个布尔字段 + 六段逐字节相同的 setter + 六行 `if` 累加 + 六行重置，加第七条
@@ -216,6 +225,41 @@ export class TabManager {
     this.viewRegistry = options.viewRegistry ?? null
     this.getUserScriptMenuCommands = options.getUserScriptMenuCommands ?? (() => [])
     this.window.on('resize', () => this.updateBounds())
+    /*
+     * 焦点归还（对齐 Chrome）：窗口重新激活时 Electron 只把焦点还给窗口自身的
+     * webContents（壳层 UI），不会给叠加其上的标签 WebContentsView——网页里的
+     * 输入框因此失焦，用户必须点一下才能继续输入。blur 时冻结"最后持有焦点
+     * 的标签视图"快照，focus 时若它仍是活动网页标签则归还焦点；壳层持有焦点
+     * （地址栏、查找栏、内部页）的情形快照为空，走 Electron 的自然恢复。
+     */
+    this.window.webContents.on('focus', () => {
+      this.lastFocusedWebView = null
+    })
+    this.window.on('blur', () => {
+      this.pendingFocusRestoreView = this.lastFocusedWebView
+    })
+    this.window.on('focus', () => {
+      void this.restoreFocusToWebTab()
+    })
+  }
+
+  /** 最近一次持有焦点的标签视图；壳层拿回焦点时清空。 */
+  private lastFocusedWebView: WebContentsView | null = null
+  /** 窗口 blur 时冻结的快照，focus 时一次性消费。 */
+  private pendingFocusRestoreView: WebContentsView | null = null
+
+  private restoreFocusToWebTab(): void {
+    const view = this.pendingFocusRestoreView
+    this.pendingFocusRestoreView = null
+    if (!view) return
+    // 微任务延后：让窗口激活伴随的壳层自动聚焦先落定，再按快照归还。
+    queueMicrotask(() => {
+      if (this.isDestroying || this.pendingFocusRestoreView) return
+      if (this.isOmniboxOpen) return
+      const tab = this.findTabByView(view)
+      if (!tab || tab.id !== this.activeTabId || tab.view !== view) return
+      view.webContents.focus()
+    })
   }
 
   private registerTabView(tabId: string, view: WebContentsView): void {
@@ -248,7 +292,10 @@ export class TabManager {
     this.findInPageStateChangedHandler?.(this.getFindInPageViewState())
   }
 
-  private stopFindInPage(tab: ManagedWebTab | null, action: 'clearSelection' | 'keepSelection'): void {
+  private stopFindInPage(
+    tab: ManagedWebTab | null,
+    action: 'clearSelection' | 'keepSelection',
+  ): void {
     if (!tab || tab.isCrashed) return
     try {
       tab.view.webContents.stopFindInPage(action)
@@ -289,7 +336,8 @@ export class TabManager {
   openFindInPage(): boolean {
     const tab = this.activeTabId ? this.findTab(this.activeTabId) : null
     if (!this.isWebTab(tab) || tab.isCrashed) return false
-    if (this.findInPageTabId && this.findInPageTabId !== tab.id) this.clearFindInPage('clearSelection', false)
+    if (this.findInPageTabId && this.findInPageTabId !== tab.id)
+      this.clearFindInPage('clearSelection', false)
     this.findInPageTabId = tab.id
     this.updateBounds()
     this.emitFindInPageState()
@@ -360,9 +408,11 @@ export class TabManager {
     if (!navigation) return null
     if (!this.userScriptInstallRegistry) return 'blocked'
     try {
-      return this.userScriptInstallRegistry.register(url, {
-        allowInsecureLocalhost: this.allowInsecureLocalhost,
-      }) ?? 'blocked'
+      return (
+        this.userScriptInstallRegistry.register(url, {
+          allowInsecureLocalhost: this.allowInsecureLocalhost,
+        }) ?? 'blocked'
+      )
     } catch (error) {
       appLogger.warn('browser.userscript-install-route-failed', {
         errorName: errorName(error),
@@ -543,7 +593,7 @@ export class TabManager {
       const decision = owner.evaluateNavigation(url, true)
       if (decision.allowed) return
       event.preventDefault()
-      owner.notifyNavigationBlocked(decision.reason!)
+      owner.notifyNavigationBlocked(decision.reason)
     }
     contents.on('will-navigate', guardNavigation)
     contents.on('will-redirect', guardNavigation)
@@ -554,7 +604,11 @@ export class TabManager {
      * 只有签名不同（`did-navigate` 多带 HTTP 响应码与状态文本），所以在注册处吸收签名
      * 差异，处理体只留一份——此前是两份逐字节相同的拷贝，改一处漏一处不会被发现。
      */
-    const handleDocumentNavigation = (url: string, isMainFrame: boolean, reason: BrowserPageEventReason): void => {
+    const handleDocumentNavigation = (
+      url: string,
+      isMainFrame: boolean,
+      reason: BrowserPageEventReason,
+    ): void => {
       const owner = ownerBinding.owner
       const tab = owner.findTabByView(view)
       if (tab) owner.emitPageEvent(tab, contentsId, url, isMainFrame, reason)
@@ -573,9 +627,12 @@ export class TabManager {
       if (urlChanged) owner.emitSessionChange()
     }
 
-    contents.on('did-navigate', (_event, url, _httpResponseCode, _httpStatusText, isMainFrame = true) => {
-      handleDocumentNavigation(url, isMainFrame, 'did-navigate')
-    })
+    contents.on(
+      'did-navigate',
+      (_event, url, _httpResponseCode, _httpStatusText, isMainFrame = true) => {
+        handleDocumentNavigation(url, isMainFrame, 'did-navigate')
+      },
+    )
 
     contents.on('did-navigate-in-page', (_event, url, isMainFrame = true) => {
       handleDocumentNavigation(url, isMainFrame, 'did-navigate-in-page')
@@ -617,7 +674,9 @@ export class TabManager {
         window: owner.window,
         contents,
         params,
-        openUrlInNewTab: (url) => { owner.createTab(url) },
+        openUrlInNewTab: (url) => {
+          owner.createTab(url)
+        },
         searchSelectionInNewTab: (query) => {
           owner.createTab(owner.buildSearchUrlForQuery(query))
         },
@@ -643,6 +702,18 @@ export class TabManager {
       owner.setZoom(tab.id, direction)
     })
 
+    contents.on('focus', () => {
+      ownerBinding.owner.lastFocusedWebView = view
+    })
+
+    contents.on('enter-html-full-screen', () => {
+      ownerBinding.owner.handleEnterHtmlFullScreen(view)
+    })
+
+    contents.on('leave-html-full-screen', () => {
+      ownerBinding.owner.handleLeaveHtmlFullScreen(view)
+    })
+
     contents.setWindowOpenHandler((details) => {
       const owner = ownerBinding.owner
       const userScriptNavigation = resolveUserScriptNavigation(details.url, {
@@ -660,14 +731,16 @@ export class TabManager {
       }
       const decision = owner.evaluateNavigation(details.url, true)
       if (!decision.allowed) {
-        owner.notifyNavigationBlocked(decision.reason!)
+        owner.notifyNavigationBlocked(decision.reason)
         return { action: 'deny' }
       }
       if (!owner.canCreateTab()) return { action: 'deny' }
 
       return {
         action: 'allow',
-        createWindow: (options) => owner.createPopupTab(options, details.url, details.disposition),
+        createWindow: (options) => owner.createPopupTab(options, details),
+        // Chrome 行为：Ctrl+点开的新标签页独立于来源页存活，关来源页不应连带关闭它。
+        outlivesOpener: true,
       }
     })
 
@@ -701,7 +774,14 @@ export class TabManager {
           const url = contents.getURL()
           owner.onTitleChange?.(title, url)
         }
-        owner.emitPageEvent(tab, contentsId, contents.getURL() || tab.url, true, 'page-title-updated', title)
+        owner.emitPageEvent(
+          tab,
+          contentsId,
+          contents.getURL() || tab.url,
+          true,
+          'page-title-updated',
+          title,
+        )
         if (titleChanged) {
           owner.notifyTabListChanged()
           owner.emitSessionChange()
@@ -750,19 +830,22 @@ export class TabManager {
       contents.executeJavaScript(STEALTH_SCRIPT).catch(() => {})
     })
 
-    contents.on('did-fail-load', (_event, errorCode, errorDescription, validatedURL, isMainFrame) => {
-      if (!isMainFrame) return
-      if (errorCode !== -3) {
-        const owner = ownerBinding.owner
-        const tab = owner.findTabByView(view)
-        if (tab) owner.failTabRecovery(tab, view)
-      }
-      appLogger.warn('browser.did-fail-load', {
-        errorCode,
-        errorDescription,
-        validatedURL,
-      })
-    })
+    contents.on(
+      'did-fail-load',
+      (_event, errorCode, errorDescription, validatedURL, isMainFrame) => {
+        if (!isMainFrame) return
+        if (errorCode !== -3) {
+          const owner = ownerBinding.owner
+          const tab = owner.findTabByView(view)
+          if (tab) owner.failTabRecovery(tab, view)
+        }
+        appLogger.warn('browser.did-fail-load', {
+          errorCode,
+          errorDescription,
+          validatedURL,
+        })
+      },
+    )
 
     contents.on('login', (event, details, authInfo, callback) => {
       const url = details.url || ''
@@ -776,19 +859,33 @@ export class TabManager {
     return view
   }
 
+  /**
+   * Electron 对"开新页"有两条内部通道，传进来的 options 不同：
+   * 1. 页面 JS 调 `window.open()`：Chromium 已建好子页面，`options.webContents`
+   *    就是它，URL 由 Chromium 继续加载，这里只负责收编成标签页；
+   * 2. Ctrl+点击链接 / `target=_blank`：走 `-new-window` 通道，Electron 43 不预建
+   *    子页面，`options.webContents` 为空，也不会代为加载 URL——必须自建 view 并
+   *    loadURL。早期实现在这里直接 throw，Ctrl+点击一次就崩掉整个主进程。
+   */
   private createPopupTab(
     options: BrowserWindowConstructorOptions,
-    url: string,
-    disposition: Electron.HandlerDetails['disposition'],
+    details: Electron.HandlerDetails,
   ): WebContents {
+    const url = details.url
     const suppliedWebContents = (options as PopupWindowOptions).webContents
-    if (!suppliedWebContents) {
-      throw new Error('Electron did not supply popup webContents')
-    }
-
     const popupView = this.createView(undefined, suppliedWebContents)
-    const activate = disposition !== 'background-tab'
+    const activate = details.disposition !== 'background-tab'
     this.addManagedTab(popupView, url, { activate })
+    if (!suppliedWebContents) {
+      void popupView.webContents
+        .loadURL(url, {
+          httpReferrer: details.referrer.url,
+          postData: details.postBody?.data,
+        })
+        .catch((error) => {
+          appLogger.error('browser.load-url-failed', { url, error })
+        })
+    }
     return popupView.webContents
   }
 
@@ -823,13 +920,11 @@ export class TabManager {
     return id
   }
 
-  openInternalTab(
-    page: InternalPage,
-    options: OpenInternalTabOptions = {},
-  ): string {
+  openInternalTab(page: InternalPage, options: OpenInternalTabOptions = {}): string {
     if (options.reuseExisting) {
       const existing = this.tabs.find(
-        (tab): tab is ManagedInternalTab => tab.kind === 'internal' && sameInternalPage(tab.page, page),
+        (tab): tab is ManagedInternalTab =>
+          tab.kind === 'internal' && sameInternalPage(tab.page, page),
       )
       if (existing) {
         if (options.activate !== false) this.switchTab(existing.id)
@@ -894,6 +989,9 @@ export class TabManager {
     unregisterOjWebContents({ id: contentsId })
     this.unregisterTabView(contentsId)
     this.recoveryPendingViews.delete(view)
+    if (this.htmlFullScreenView === view) this.htmlFullScreenView = null
+    if (this.lastFocusedWebView === view) this.lastFocusedWebView = null
+    if (this.pendingFocusRestoreView === view) this.pendingFocusRestoreView = null
     TAB_VIEW_OWNER_BINDINGS.delete(view)
     const tab = this.findTabByView(view)
     if (!tab) {
@@ -901,8 +999,8 @@ export class TabManager {
         const record = RELEASED_TAB_RECORDS.get(releasedTab)
         return record?.tab.kind === 'web' && record.tab.view === view
       })
-      if (pendingTransfer) {
-        const record = RELEASED_TAB_RECORDS.get(pendingTransfer)!
+      const record = pendingTransfer ? RELEASED_TAB_RECORDS.get(pendingTransfer) : undefined
+      if (pendingTransfer && record) {
         this.emitPageDestroyed(record.tab as ManagedWebTab, contentsId)
         record.state = 'invalid'
         this.pendingTabTransfers.delete(record.tab.id)
@@ -961,11 +1059,12 @@ export class TabManager {
     if (!installRoute) return false
     if (installRoute === 'blocked') return true
     const sourceTab = source
-      ? this.tabs.find((tab): tab is ManagedWebTab => (
-          tab.kind === 'web' && tab.view.webContents === source
-        )) ?? null
+      ? (this.tabs.find(
+          (tab): tab is ManagedWebTab => tab.kind === 'web' && tab.view.webContents === source,
+        ) ?? null)
       : null
-    if (sourceTab) queueMicrotask(() => this.replaceWebTabWithInternal(sourceTab, installRoute.page))
+    if (sourceTab)
+      queueMicrotask(() => this.replaceWebTabWithInternal(sourceTab, installRoute.page))
     else this.openInternalTab(installRoute.page)
     return true
   }
@@ -981,7 +1080,7 @@ export class TabManager {
 
     const decision = this.evaluateNavigation(url, true)
     if (!decision.allowed) {
-      this.notifyNavigationBlocked(decision.reason!)
+      this.notifyNavigationBlocked(decision.reason)
       return ''
     }
 
@@ -1052,9 +1151,10 @@ export class TabManager {
     if (!this.canCreateTab()) return ''
     this.closedTabs.pop()
 
-    const id = snapshot.kind === 'web'
-      ? this.createTab(snapshot.url)
-      : this.openInternalTab(snapshot.page, { title: snapshot.title })
+    const id =
+      snapshot.kind === 'web'
+        ? this.createTab(snapshot.url)
+        : this.openInternalTab(snapshot.page, { title: snapshot.title })
     const tab = this.findTab(id)
     if (tab) {
       tab.title = snapshot.title
@@ -1158,12 +1258,13 @@ export class TabManager {
       registryTransfer,
       state: 'released',
     }
-    let releasedTab!: ReleasedTab
-    releasedTab = Object.freeze({
+    const releasedTab: ReleasedTab = Object.freeze({
       tabId: tab.id,
       kind: tab.kind,
       sourceWindowId: this.windowId,
-      get state() { return record.state },
+      get state() {
+        return record.state
+      },
       rollback: () => this.rollbackReleasedTab(releasedTab),
     })
     RELEASED_TAB_RECORDS.set(releasedTab, record)
@@ -1202,22 +1303,22 @@ export class TabManager {
   adoptTab(releasedTab: ReleasedTab, options: AdoptReleasedTabOptions = {}): boolean {
     const record = RELEASED_TAB_RECORDS.get(releasedTab)
     if (
-      !record
-      || record.state !== 'released'
-      || record.source.pendingTabTransfers.get(record.tab.id) !== releasedTab
-      || this.isDestroying
-      || this.window.isDestroyed()
+      !record ||
+      record.state !== 'released' ||
+      record.source.pendingTabTransfers.get(record.tab.id) !== releasedTab ||
+      this.isDestroying ||
+      this.window.isDestroyed()
     ) {
       return false
     }
     const tab = record.tab
     const targetIndex = options.index ?? this.tabs.length
     if (
-      !Number.isInteger(targetIndex)
-      || targetIndex < 0
-      || targetIndex > this.tabs.length
-      || this.findTab(tab.id)
-      || !this.canCreateTab()
+      !Number.isInteger(targetIndex) ||
+      targetIndex < 0 ||
+      targetIndex > this.tabs.length ||
+      this.findTab(tab.id) ||
+      !this.canCreateTab()
     ) {
       releasedTab.rollback()
       return false
@@ -1236,10 +1337,10 @@ export class TabManager {
       }
       ownerBinding = TAB_VIEW_OWNER_BINDINGS.get(tab.view) ?? null
       if (
-        !ownerBinding
-        || ownerBinding.owner !== record.source
-        || record.source.viewRegistry !== this.viewRegistry
-        || Boolean(this.viewRegistry) !== Boolean(record.registryTransfer)
+        !ownerBinding ||
+        ownerBinding.owner !== record.source ||
+        record.source.viewRegistry !== this.viewRegistry ||
+        Boolean(this.viewRegistry) !== Boolean(record.registryTransfer)
       ) {
         releasedTab.rollback()
         return false
@@ -1247,15 +1348,13 @@ export class TabManager {
     }
 
     const previousActiveTabId = this.activeTabId
+    const viewRegistry = this.viewRegistry
     let registryMoved = false
     let inserted = false
     try {
       if (record.registryTransfer) {
-        registryMoved = this.viewRegistry!.moveTabTransfer(
-          record.registryTransfer,
-          this.windowId,
-          tab.id,
-        )
+        if (!viewRegistry) throw new Error('Tab ownership transfer requires a view registry')
+        registryMoved = viewRegistry.moveTabTransfer(record.registryTransfer, this.windowId, tab.id)
         if (!registryMoved) throw new Error('Tab ownership transfer failed')
       }
       if (ownerBinding) ownerBinding.owner = this
@@ -1276,7 +1375,8 @@ export class TabManager {
         this.activeTabId = tab.id
         if (tab.kind === 'web') {
           const zoomFactor = this.applyZoomToView(tab.view, tab.url)
-          if (!this.attachTabView(tab)) throw new Error('Transferred tab view could not be attached')
+          if (!this.attachTabView(tab))
+            throw new Error('Transferred tab view could not be attached')
           this.emitZoomState(tab, zoomFactor)
           this.emitPageEvent(
             tab,
@@ -1292,7 +1392,7 @@ export class TabManager {
       this.notifyTabListChanged()
       this.emitSessionChange()
 
-      if (record.registryTransfer && !this.viewRegistry!.completeTabTransfer(record.registryTransfer)) {
+      if (record.registryTransfer && !viewRegistry?.completeTabTransfer(record.registryTransfer)) {
         throw new Error('Tab ownership transfer could not be committed')
       }
       record.source.pendingTabTransfers.delete(tab.id)
@@ -1306,6 +1406,7 @@ export class TabManager {
       if (inserted) this.removeFailedAdoption(tab, previousActiveTabId)
       if (ownerBinding) ownerBinding.owner = record.source
       if (registryMoved && record.registryTransfer) {
+        // 回滚必须落到**源**窗口的 registry：收养是跨窗口的，this.viewRegistry 是目标窗口的。
         record.source.viewRegistry?.rollbackTabTransfer(record.registryTransfer)
       }
       record.source.restoreReleasedTab(releasedTab, record, registryMoved)
@@ -1325,19 +1426,19 @@ export class TabManager {
     registryAlreadyRolledBack: boolean,
   ): boolean {
     if (
-      record.state !== 'released'
-      || this.pendingTabTransfers.get(record.tab.id) !== releasedTab
-      || this.isDestroying
-      || this.window.isDestroyed()
+      record.state !== 'released' ||
+      this.pendingTabTransfers.get(record.tab.id) !== releasedTab ||
+      this.isDestroying ||
+      this.window.isDestroyed()
     ) {
       this.invalidateReleasedTab(record)
       return false
     }
     const tab = record.tab
     if (
-      record.registryTransfer
-      && !registryAlreadyRolledBack
-      && !this.viewRegistry?.rollbackTabTransfer(record.registryTransfer)
+      record.registryTransfer &&
+      !registryAlreadyRolledBack &&
+      !this.viewRegistry?.rollbackTabTransfer(record.registryTransfer)
     ) {
       this.invalidateReleasedTab(record)
       return false
@@ -1394,7 +1495,8 @@ export class TabManager {
       this.detachTabView(tab)
     }
     if (this.activeTabId === tab.id) this.activeTabId = null
-    if (previousActiveTabId && this.findTab(previousActiveTabId)) this.switchTab(previousActiveTabId)
+    if (previousActiveTabId && this.findTab(previousActiveTabId))
+      this.switchTab(previousActiveTabId)
     else this.notifyEmptyTabState()
   }
 
@@ -1408,7 +1510,9 @@ export class TabManager {
     if (record.tab.kind === 'web') {
       try {
         unregisterOjWebContents(record.tab.view.webContents)
-      } catch { /* destroyed while transferring */ }
+      } catch {
+        /* destroyed while transferring */
+      }
       TAB_VIEW_OWNER_BINDINGS.delete(record.tab.view)
       safeCloseWebContents(record.tab.view)
     }
@@ -1561,14 +1665,15 @@ export class TabManager {
     }
     const decision = this.evaluateNavigation(url, true)
     if (!decision.allowed) {
-      this.notifyNavigationBlocked(decision.reason!)
+      this.notifyNavigationBlocked(decision.reason)
       return
     }
-    if (!this.activeTabId || !this.findTab(this.activeTabId)) {
+    const activeTab = this.activeTabId ? this.findTab(this.activeTabId) : null
+    if (!activeTab) {
       this.createTab(url)
       return
     }
-    const tab = this.findTab(this.activeTabId)!
+    const tab = activeTab
     if (tab.kind === 'internal') {
       this.replaceInternalTabWithWeb(tab, url)
       return
@@ -1585,13 +1690,27 @@ export class TabManager {
 
   goBack() {
     const tab = this.activeTabId ? this.findTab(this.activeTabId) : null
-    if (this.isWebTab(tab) && !tab.isCrashed && tab.view.webContents.navigationHistory.canGoBack()) {
+    if (
+      this.isWebTab(tab) &&
+      !tab.isCrashed &&
+      tab.view.webContents.navigationHistory.canGoBack()
+    ) {
       tab.view.webContents.navigationHistory.goBack()
       return
     }
     if (tab?.kind === 'internal' && tab.page.type !== 'home') {
       this.navigateInternal({ type: 'home' })
     }
+  }
+
+  /**
+   * 首页按钮：把当前标签页原地带到首页（对齐 Chrome 的 home 键行为），
+   * 不新开标签。已在首页时为幂等 no-op——避免无意义的整页重挂载。
+   */
+  goHome(): void {
+    const tab = this.activeTabId ? this.findTab(this.activeTabId) : null
+    if (tab?.kind === 'internal' && tab.page.type === 'home') return
+    this.navigateInternal({ type: 'home' })
   }
 
   canGoBack(): boolean {
@@ -1604,7 +1723,11 @@ export class TabManager {
 
   goForward() {
     const tab = this.activeTabId ? this.findTab(this.activeTabId) : null
-    if (this.isWebTab(tab) && !tab.isCrashed && tab.view.webContents.navigationHistory.canGoForward()) {
+    if (
+      this.isWebTab(tab) &&
+      !tab.isCrashed &&
+      tab.view.webContents.navigationHistory.canGoForward()
+    ) {
       tab.view.webContents.navigationHistory.goForward()
     }
   }
@@ -1665,12 +1788,24 @@ export class TabManager {
       canCloseToRight: tabIndex >= 0 && tabIndex < this.tabs.length - 1,
       canReopenClosed: this.closedTabs.length > 0,
       reload: () => this.reloadTabFromContext(tabId),
-      duplicate: () => { this.duplicateTab(tabId) },
-      detach: () => { this.tabDetachHandler?.(tabId) },
-      close: () => { this.closeTab(tabId) },
-      closeOthers: () => { this.closeOtherTabs(tabId) },
-      closeToRight: () => { this.closeTabsToRight(tabId) },
-      reopenClosed: () => { this.reopenClosedTab() },
+      duplicate: () => {
+        this.duplicateTab(tabId)
+      },
+      detach: () => {
+        this.tabDetachHandler?.(tabId)
+      },
+      close: () => {
+        this.closeTab(tabId)
+      },
+      closeOthers: () => {
+        this.closeOtherTabs(tabId)
+      },
+      closeToRight: () => {
+        this.closeTabsToRight(tabId)
+      },
+      reopenClosed: () => {
+        this.reopenClosedTab()
+      },
       copyUrl: () => clipboard.writeText(tab.url),
     })
   }
@@ -1739,8 +1874,8 @@ export class TabManager {
       const load = recoveryUrl
         ? recoveryView.webContents.loadURL(recoveryUrl)
         : recoveryView.webContents.reload()
-      if (load && typeof (load as Promise<void>).catch === 'function') {
-        void (load as Promise<void>).catch((error) => {
+      if (load && typeof load.catch === 'function') {
+        void load.catch((error) => {
           if (!this.failTabRecovery(tab, recoveryView)) return
           appLogger.warn('browser.crashed-tab-recovery-failed', {
             tabId: tab.id,
@@ -1768,9 +1903,7 @@ export class TabManager {
     } catch {
       return null
     }
-    const next = command === 'reset'
-      ? DEFAULT_ZOOM_FACTOR
-      : getAdjacentZoomFactor(current, command)
+    const next = command === 'reset' ? DEFAULT_ZOOM_FACTOR : getAdjacentZoomFactor(current, command)
     let persisted: number | null
     try {
       persisted = this.saveZoomFactorForUrl(url, next)
@@ -1852,9 +1985,11 @@ export class TabManager {
         isUnresponsiveNoticeDismissed: tab.isUnresponsiveNoticeDismissed,
         isActive: tab.id === this.activeTabId,
       }
-      list.push(tab.kind === 'web'
-        ? { ...base, kind: 'web' }
-        : { ...base, kind: 'internal', page: tab.page })
+      list.push(
+        tab.kind === 'web'
+          ? { ...base, kind: 'web' }
+          : { ...base, kind: 'internal', page: tab.page },
+      )
     }
     return list
   }
@@ -1870,14 +2005,17 @@ export class TabManager {
     }
     const activeTabId = tabs.some((tab) => tab.id === this.activeTabId)
       ? this.activeTabId
-      : tabs[0]?.id ?? null
+      : (tabs[0]?.id ?? null)
     return createTabSessionSnapshot(tabs, activeTabId, {
       allowInsecureLocalhost: this.allowInsecureLocalhost,
     })
   }
 
-  restoreSession(snapshot: TabSessionSnapshot): boolean {
-    if (this.tabs.length > 0) return false
+  restoreSession(
+    snapshot: TabSessionSnapshot,
+    options: { replaceExisting?: boolean } = {},
+  ): boolean {
+    if (this.tabs.length > 0 && !options.replaceExisting) return false
     const parsed = parseTabSessionSnapshot(snapshot, {
       allowInsecureLocalhost: this.allowInsecureLocalhost,
     })
@@ -1920,6 +2058,14 @@ export class TabManager {
 
       if (restoredTabs.length === 0) return false
 
+      /*
+       * 替换模式：新标签全部构建成功后才拆除旧标签——解析或建视图失败时
+       * 现有标签原样保留。拆除不走 closeTab：那会触发 lastTabClosedHandler
+       * （可能连带给窗口动画甚至关窗）或自动开新标签，"原地换标签"才是
+       * 手动恢复会话应有的静默形态。
+       */
+      if (options.replaceExisting && this.tabs.length > 0) this.discardTabsForSessionRestore()
+
       this.tabs = restoredTabs
       this.activeTabId = null
       for (const tab of restoredTabs) {
@@ -1933,9 +2079,11 @@ export class TabManager {
           })
         })
       }
-      const activeTabId = restoredTabs.some((tab) => tab.id === parsed.snapshot.activeTabId)
-        ? parsed.snapshot.activeTabId!
-        : restoredTabs[0].id
+      const requestedActiveTabId = parsed.snapshot.activeTabId
+      const activeTabId =
+        requestedActiveTabId && restoredTabs.some((tab) => tab.id === requestedActiveTabId)
+          ? requestedActiveTabId
+          : restoredTabs[0].id
       this.switchTab(activeTabId)
       return true
     } catch (error) {
@@ -1950,13 +2098,39 @@ export class TabManager {
           this.unregisterTabView(tab.view)
           safeRemoveChildView(this.window, tab.view)
           safeCloseWebContents(tab.view)
-        } catch { /* ignore rollback failures */ }
+        } catch {
+          /* ignore rollback failures */
+        }
       }
       this.isDestroying = wasDestroying
       appLogger.warn('browser.session-restore-failed', { errorName: errorName(error) })
       return false
     } finally {
       this.isRestoringSession = false
+    }
+  }
+
+  /** 会话原地替换的旧标签拆除：与 closeTab 同款清理，但不触发任何关闭连锁。 */
+  private discardTabsForSessionRestore(): void {
+    const closing = this.tabs
+    this.tabs = []
+    this.activeTabId = null
+    for (const tab of closing) {
+      this.clearFindInPageForTab(tab.id)
+      if (tab.kind === 'internal' && tab.page.type === 'script-install') {
+        this.userScriptInstallRegistry?.consume(tab.page.installId)
+      }
+      if (tab.kind !== 'web') continue
+      this.emitPageDestroyed(tab, tab.view.webContents.id)
+      this.recoveryPendingViews.delete(tab.view)
+      try {
+        unregisterOjWebContents(tab.view.webContents)
+      } catch {
+        // 视图可能已在崩溃/导航竞速中失去 webContents 对象
+      }
+      this.unregisterTabView(tab.view)
+      safeRemoveChildView(this.window, tab.view)
+      safeCloseWebContents(tab.view)
     }
   }
 
@@ -1969,6 +2143,10 @@ export class TabManager {
     if (!this.activeTabId) return
     const tab = this.findTab(this.activeTabId)
     if (!this.isWebTab(tab)) return
+    if (tab.view === this.htmlFullScreenView) {
+      this.applyHtmlFullScreenBounds()
+      return
+    }
     const [width, height] = this.window.getContentSize()
     let topInset = 0
     if (tab.isUnresponsive && !tab.isUnresponsiveNoticeDismissed) {
@@ -1977,6 +2155,31 @@ export class TabManager {
     topInset += this.visibleNotices.size * BROWSER_LAYOUT.noticeBarHeight
     if (tab.id === this.findInPageTabId) topInset += BROWSER_LAYOUT.findBarHeight
     setTabViewBounds(tab.view, { width, height }, this.leftOffset, topInset)
+  }
+
+  /**
+   * HTML 全屏接管（视频等页面内全屏）：只有当前活动标签的全屏请求才扩展视图，
+   * 后台标签的全屏保持潜伏——切回该标签时 attachTabView → updateBounds 会
+   * 经由 htmlFullScreenView 判断重新套用全窗边界。
+   */
+  private handleEnterHtmlFullScreen(view: WebContentsView): void {
+    const tab = this.findTabByView(view)
+    if (!tab || tab.id !== this.activeTabId) return
+    this.htmlFullScreenView = view
+    this.applyHtmlFullScreenBounds()
+  }
+
+  private handleLeaveHtmlFullScreen(view: WebContentsView): void {
+    if (this.htmlFullScreenView !== view) return
+    this.htmlFullScreenView = null
+    this.updateBounds()
+  }
+
+  private applyHtmlFullScreenBounds(): void {
+    const view = this.htmlFullScreenView
+    if (!view) return
+    const [width, height] = this.window.getContentSize()
+    view.setBounds({ x: 0, y: 0, width, height })
   }
 
   /** 只有可见性真的变了才重排版面，避免 IPC 重复投递引起无意义的 setBounds。 */
@@ -2022,7 +2225,12 @@ export class TabManager {
       if (tab.kind !== 'web') continue
       if (tab.isCrashed) continue
       const currentUrl = tab.view.webContents.getURL()
-      if (tab.url === url || currentUrl === url || samePageUrl(tab.url, url) || samePageUrl(currentUrl, url)) {
+      if (
+        tab.url === url ||
+        currentUrl === url ||
+        samePageUrl(tab.url, url) ||
+        samePageUrl(currentUrl, url)
+      ) {
         return executeScriptAcrossFrames(tab, url, code)
       }
     }
@@ -2039,7 +2247,9 @@ export class TabManager {
     this.onUrlChange = callback
   }
 
-  setShortcutHandler(handler: (event: Electron.Event, input: Input, source: WebContents) => void): void {
+  setShortcutHandler(
+    handler: (event: Electron.Event, input: Input, source: WebContents) => void,
+  ): void {
     this.shortcutHandler = handler
   }
 
@@ -2181,7 +2391,11 @@ export class TabManager {
     }
   }
 
-  async executeScriptForPage(event: BrowserPageEvent, code: string, userGesture = false): Promise<unknown> {
+  async executeScriptForPage(
+    event: BrowserPageEvent,
+    code: string,
+    userGesture = false,
+  ): Promise<unknown> {
     const tab = this.resolvePageTab(event)
     return tab.view.webContents.executeJavaScript(code, userGesture)
   }
@@ -2225,7 +2439,9 @@ export class TabManager {
     return event.windowId === this.windowId && event.tabId === this.activeTabId
   }
 
-  getActivePageEvent(reason: BrowserPageEventReason = 'active-tab-changed'): BrowserPageEvent | null {
+  getActivePageEvent(
+    reason: BrowserPageEventReason = 'active-tab-changed',
+  ): BrowserPageEvent | null {
     const tab = this.activeTabId ? this.findTab(this.activeTabId) : null
     if (!this.isWebTab(tab) || tab.isCrashed) return null
     return {
@@ -2270,7 +2486,9 @@ export class TabManager {
           safeRemoveChildView(this.window, tab.view)
           safeCloseWebContents(tab.view)
         }
-      } catch { /* ignore */ }
+      } catch {
+        /* ignore */
+      }
     }
     this.destroyedPageEventIds.clear()
     this.isDestroying = false

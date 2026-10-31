@@ -2,24 +2,23 @@ import type { GenericTableData } from './genericTableTypes'
 import { normalizeGenericVerdict, normalizeText } from './genericTableValueParsers'
 
 const VERDICT_KEYWORDS = [
-  'verdict', 'result', 'status', '评测结果', '运行结果', '状态', '结果', '得分',
+  'verdict',
+  'result',
+  'status',
+  '评测结果',
+  '运行结果',
+  '状态',
+  '结果',
+  '得分',
 ]
 
-const ID_KEYWORDS = [
-  'id', 'run id', '运行id', '提交编号', 'submission id',
-]
+const ID_KEYWORDS = ['id', 'run id', '运行id', '提交编号', 'submission id']
 
-const LANGUAGE_KEYWORDS = [
-  'language', 'lang', '语言', '使用语言', '编译器', 'compiler',
-]
+const LANGUAGE_KEYWORDS = ['language', 'lang', '语言', '使用语言', '编译器', 'compiler']
 
-const TIME_KEYWORDS = [
-  'time', '耗时', '运行时间',
-]
+const TIME_KEYWORDS = ['time', '耗时', '运行时间']
 
-const MEMORY_KEYWORDS = [
-  'memory', '内存', '使用内存',
-]
+const MEMORY_KEYWORDS = ['memory', '内存', '使用内存']
 
 export interface GenericTableColumnIndexes {
   idIdx: number
@@ -47,7 +46,7 @@ export function hasSubmissionLikeTable(table: GenericTableData): boolean {
   const headers = table.headers ?? []
   const hasVerdictHeader = findColumnIndex(headers, VERDICT_KEYWORDS) >= 0
   const hasVerdictValues = inferVerdictColumn(table) >= 0
-  const hasEnoughRows = table.rows.some(row => row.texts.length >= 2)
+  const hasEnoughRows = table.rows.some((row) => row.texts.length >= 2)
   return hasEnoughRows && (hasVerdictHeader || hasVerdictValues)
 }
 
@@ -55,24 +54,26 @@ export function scoreSubmissionTable(table: GenericTableData): number {
   if (!hasSubmissionLikeTable(table)) return 0
 
   const headers = table.headers ?? []
-  return table.rows.length
-    + (findColumnIndex(headers, ID_KEYWORDS) >= 0 ? 4 : 0)
-    + (findColumnIndex(headers, VERDICT_KEYWORDS) >= 0 ? 6 : 0)
-    + (findColumnIndex(headers, LANGUAGE_KEYWORDS) >= 0 ? 2 : 0)
-    + (findColumnIndex(headers, TIME_KEYWORDS) >= 0 ? 1 : 0)
-    + (findColumnIndex(headers, MEMORY_KEYWORDS) >= 0 ? 1 : 0)
+  return (
+    table.rows.length +
+    (findColumnIndex(headers, ID_KEYWORDS) >= 0 ? 4 : 0) +
+    (findColumnIndex(headers, VERDICT_KEYWORDS) >= 0 ? 6 : 0) +
+    (findColumnIndex(headers, LANGUAGE_KEYWORDS) >= 0 ? 2 : 0) +
+    (findColumnIndex(headers, TIME_KEYWORDS) >= 0 ? 1 : 0) +
+    (findColumnIndex(headers, MEMORY_KEYWORDS) >= 0 ? 1 : 0)
+  )
 }
 
 function findColumnIndex(headers: string[], keywords: string[]): number {
-  return headers.findIndex(header => {
+  return headers.findIndex((header) => {
     const normalized = header.trim().toLowerCase()
-    return keywords.some(keyword => normalized.includes(keyword.toLowerCase()))
+    return keywords.some((keyword) => normalized.includes(keyword.toLowerCase()))
   })
 }
 
 function inferVerdictColumn(table: GenericTableData): number {
   if (!table.rows.length) return -1
-  const width = Math.max(...table.rows.map(row => row.texts.length))
+  const width = Math.max(...table.rows.map((row) => row.texts.length))
   let bestIndex = -1
   let bestScore = 0
 

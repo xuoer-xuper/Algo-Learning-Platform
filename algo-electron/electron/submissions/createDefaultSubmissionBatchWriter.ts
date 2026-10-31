@@ -10,9 +10,9 @@ export function createDefaultSubmissionBatchWriter(): SubmissionBatchWriter {
   return new SubmissionBatchWriter({
     upsertProblem,
     findProblemId: (platform, platformProblemId) => {
-      const problem = getDb().prepare(
-        'SELECT id FROM problems WHERE platform = ? AND platform_problem_id = ?'
-      ).get(platform, platformProblemId) as { id: string } | undefined
+      const problem = getDb()
+        .prepare('SELECT id FROM problems WHERE platform = ? AND platform_problem_id = ?')
+        .get(platform, platformProblemId) as { id: string } | undefined
       return problem?.id
     },
     upsertSubmission,

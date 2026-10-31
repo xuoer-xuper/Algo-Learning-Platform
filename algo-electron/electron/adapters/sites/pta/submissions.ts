@@ -9,7 +9,7 @@ import type { SubmissionDetectionPayload } from '../../types'
 
 function getResponseRecord(raw: SubmissionDetectionPayload): Record<string, unknown> | null {
   return raw.response && typeof raw.response === 'object'
-    ? raw.response as Record<string, unknown>
+    ? (raw.response as Record<string, unknown>)
     : null
 }
 
@@ -29,9 +29,7 @@ export function parsePtaRealtimeSubmission(raw: SubmissionDetectionPayload): Sub
 export function readPtaProblemIdFromSubmission(submission: SubmissionData): string | null {
   try {
     const ptaProblemId = JSON.parse(submission.rawJson || '{}')?._ptaProblemId
-    return typeof ptaProblemId === 'string' && ptaProblemId.trim()
-      ? ptaProblemId.trim()
-      : null
+    return typeof ptaProblemId === 'string' && ptaProblemId.trim() ? ptaProblemId.trim() : null
   } catch {
     return null
   }

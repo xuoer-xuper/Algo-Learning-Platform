@@ -11,7 +11,10 @@ test('browser layout has one derived top offset for main and renderer consumers'
     findBarHeight: 38,
     topOffset: 78,
   })
-  assert.strictEqual(BROWSER_LAYOUT.topOffset, BROWSER_LAYOUT.toolbarHeight + BROWSER_LAYOUT.tabBarHeight)
+  assert.strictEqual(
+    BROWSER_LAYOUT.topOffset,
+    BROWSER_LAYOUT.toolbarHeight + BROWSER_LAYOUT.tabBarHeight,
+  )
 })
 
 test('renderer layout injection publishes the shared CSS variables', () => {

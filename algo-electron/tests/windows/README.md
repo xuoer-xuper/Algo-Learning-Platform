@@ -36,5 +36,5 @@ IPC 双发送方隔离测试位于 `tests/ipc/registerBrowserShellIpc.test.ts`�
 ```powershell
 cd algo-electron
 npx vitest run tests/windows
-npm run test:core
+pnpm run test:core
 ```

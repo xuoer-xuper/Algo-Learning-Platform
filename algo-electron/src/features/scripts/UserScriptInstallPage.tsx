@@ -20,24 +20,28 @@ export function UserScriptInstallPage({ installId, onClose }: UserScriptInstallP
 
   useEffect(() => {
     let active = true
-    void getPendingUserScriptInstall(installId).then((value) => {
-      if (!active) return
-      setRequest(value)
-      if (!value) {
-        setPreview(null)
-        return
-      }
-      return getRemoteUserScriptInstallPreview(installId).then((nextPreview) => {
-        if (active) setPreview(nextPreview)
+    void getPendingUserScriptInstall(installId)
+      .then((value) => {
+        if (!active) return
+        setRequest(value)
+        if (!value) {
+          setPreview(null)
+          return
+        }
+        return getRemoteUserScriptInstallPreview(installId).then((nextPreview) => {
+          if (active) setPreview(nextPreview)
+        })
       })
-    }).catch(() => {
-      if (active) {
-        setRequest(null)
-        setPreview(null)
-        setError('读取远程脚本失败，请稍后重试。')
-      }
-    })
-    return () => { active = false }
+      .catch(() => {
+        if (active) {
+          setRequest(null)
+          setPreview(null)
+          setError('读取远程脚本失败，请稍后重试。')
+        }
+      })
+    return () => {
+      active = false
+    }
   }, [installId])
 
   const sourceOrigin = useMemo(() => {
@@ -51,8 +55,11 @@ export function UserScriptInstallPage({ installId, onClose }: UserScriptInstallP
 
   const finalOrigin = useMemo(() => {
     if (!preview) return ''
-    try { return new URL(preview.finalUrl).origin }
-    catch { return '' }
+    try {
+      return new URL(preview.finalUrl).origin
+    } catch {
+      return ''
+    }
   }, [preview])
 
   const finish = async (action: UserScriptInstallAction) => {
@@ -90,13 +97,15 @@ export function UserScriptInstallPage({ installId, onClose }: UserScriptInstallP
     )
   }
 
-  const riskyOverwrite = preview?.action === 'update'
-    && (preview.versionComparison === 'older' || preview.versionComparison === 'unknown')
-  const installLabel = preview?.versionComparison === 'older'
-    ? '仍然降级'
-    : preview?.action === 'update'
-      ? '确认更新'
-      : '安装脚本'
+  const riskyOverwrite =
+    preview?.action === 'update' &&
+    (preview.versionComparison === 'older' || preview.versionComparison === 'unknown')
+  const installLabel =
+    preview?.versionComparison === 'older'
+      ? '仍然降级'
+      : preview?.action === 'update'
+        ? '确认更新'
+        : '安装脚本'
 
   return (
     <section className="script-install-page" aria-labelledby="script-install-title">
@@ -104,7 +113,11 @@ export function UserScriptInstallPage({ installId, onClose }: UserScriptInstallP
         <Icon name="code" size={24} className="scripts-title-icon" />
         <div>
           <h1 id="script-install-title">安装用户脚本</h1>
-          <p>{preview ? '已完成来源、metadata 与外部资源校验，确认后才会写入本地。' : '正在读取远程脚本并校验安装信息。'}</p>
+          <p>
+            {preview
+              ? '已完成来源、metadata 与外部资源校验，确认后才会写入本地。'
+              : '正在读取远程脚本并校验安装信息。'}
+          </p>
         </div>
       </header>
 
@@ -114,8 +127,18 @@ export function UserScriptInstallPage({ installId, onClose }: UserScriptInstallP
             <dt>文件名</dt>
             <dd>{request.sourceFileName}</dd>
           </div>
-          {preview && <div><dt>脚本名称</dt><dd>{preview.name}</dd></div>}
-          {preview && <div><dt>身份空间</dt><dd>{preview.namespace || '空 namespace'}</dd></div>}
+          {preview && (
+            <div>
+              <dt>脚本名称</dt>
+              <dd>{preview.name}</dd>
+            </div>
+          )}
+          {preview && (
+            <div>
+              <dt>身份空间</dt>
+              <dd>{preview.namespace || '空 namespace'}</dd>
+            </div>
+          )}
           <div>
             <dt>来源</dt>
             <dd>{sourceOrigin}</dd>
@@ -129,20 +152,50 @@ export function UserScriptInstallPage({ installId, onClose }: UserScriptInstallP
               {preview.finalUrl !== request.sourceUrl && (
                 <div>
                   <dt>最终来源</dt>
-                  <dd className="script-install-url">{finalOrigin} · {preview.finalUrl}</dd>
+                  <dd className="script-install-url">
+                    {finalOrigin} · {preview.finalUrl}
+                  </dd>
                 </div>
               )}
               <div>
                 <dt>版本变化</dt>
-                <dd>{preview.installedVersion || '未安装'} → {preview.version || '未声明'}（{preview.versionComparison}）</dd>
+                <dd>
+                  {preview.installedVersion || '未安装'} → {preview.version || '未声明'}（
+                  {preview.versionComparison}）
+                </dd>
               </div>
-              <div><dt>匹配规则</dt><dd>{[...preview.matches, ...preview.includes].join(', ') || '未声明'}</dd></div>
-              <div><dt>排除规则</dt><dd>{[...preview.excludeMatches, ...preview.excludes].join(', ') || '无'}</dd></div>
-              <div><dt>授权 API</dt><dd>{preview.grants.length ? preview.grants.join(', ') : '无'}</dd></div>
-              <div><dt>联网域</dt><dd>{preview.connects.length ? preview.connects.join(', ') : '无'}</dd></div>
-              <div><dt>附加功能</dt><dd>{preview.antifeatures.length ? preview.antifeatures.join(', ') : '无'}</dd></div>
-              <div><dt>更新地址</dt><dd className="script-install-url">{preview.updateURL || preview.downloadURL || preview.finalUrl}</dd></div>
-              <div><dt>外部资源</dt><dd>{preview.requires} 个依赖，{preview.resources.length} 个资源</dd></div>
+              <div>
+                <dt>匹配规则</dt>
+                <dd>{[...preview.matches, ...preview.includes].join(', ') || '未声明'}</dd>
+              </div>
+              <div>
+                <dt>排除规则</dt>
+                <dd>{[...preview.excludeMatches, ...preview.excludes].join(', ') || '无'}</dd>
+              </div>
+              <div>
+                <dt>授权 API</dt>
+                <dd>{preview.grants.length ? preview.grants.join(', ') : '无'}</dd>
+              </div>
+              <div>
+                <dt>联网域</dt>
+                <dd>{preview.connects.length ? preview.connects.join(', ') : '无'}</dd>
+              </div>
+              <div>
+                <dt>附加功能</dt>
+                <dd>{preview.antifeatures.length ? preview.antifeatures.join(', ') : '无'}</dd>
+              </div>
+              <div>
+                <dt>更新地址</dt>
+                <dd className="script-install-url">
+                  {preview.updateURL || preview.downloadURL || preview.finalUrl}
+                </dd>
+              </div>
+              <div>
+                <dt>外部资源</dt>
+                <dd>
+                  {preview.requires} 个依赖，{preview.resources.length} 个资源
+                </dd>
+              </div>
             </>
           )}
         </dl>
@@ -152,7 +205,11 @@ export function UserScriptInstallPage({ installId, onClose }: UserScriptInstallP
         </p>
       )}
 
-      {error && <p className="scripts-error" role="alert">{error}</p>}
+      {error && (
+        <p className="scripts-error" role="alert">
+          {error}
+        </p>
+      )}
       <div className="script-install-actions">
         {preview && (
           <Button
@@ -163,8 +220,16 @@ export function UserScriptInstallPage({ installId, onClose }: UserScriptInstallP
             {installLabel}
           </Button>
         )}
-        {preview?.action === 'update' && <Button variant="secondary" disabled={busy} onClick={() => void finish('copy')}>另存为本地副本</Button>}
-        <Button variant={preview && !riskyOverwrite ? 'ghost' : 'primary'} disabled={busy} onClick={() => void cancelAndClose()}>
+        {preview?.action === 'update' && (
+          <Button variant="secondary" disabled={busy} onClick={() => void finish('copy')}>
+            另存为本地副本
+          </Button>
+        )}
+        <Button
+          variant={preview && !riskyOverwrite ? 'ghost' : 'primary'}
+          disabled={busy}
+          onClick={() => void cancelAndClose()}
+        >
           {request ? '取消并关闭' : '关闭标签'}
         </Button>
       </div>

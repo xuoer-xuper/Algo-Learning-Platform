@@ -42,15 +42,39 @@ const coreContracts: PreloadContract[] = [
   { method: 'setErrorNoticeVisible', mode: 'send', channel: 'browser:setErrorNoticeVisible' },
   { method: 'getUserScriptInstall', mode: 'invoke', channel: 'browser:getUserScriptInstall' },
   { method: 'cancelUserScriptInstall', mode: 'invoke', channel: 'browser:cancelUserScriptInstall' },
-  { method: 'getRemoteUserScriptInstallPreview', mode: 'invoke', channel: 'scripts:getRemoteInstallPreview' },
-  { method: 'confirmRemoteUserScriptInstall', mode: 'invoke', channel: 'scripts:confirmRemoteInstall' },
-  { method: 'cancelRemoteUserScriptInstall', mode: 'invoke', channel: 'scripts:cancelRemoteInstall' },
+  {
+    method: 'getRemoteUserScriptInstallPreview',
+    mode: 'invoke',
+    channel: 'scripts:getRemoteInstallPreview',
+  },
+  {
+    method: 'confirmRemoteUserScriptInstall',
+    mode: 'invoke',
+    channel: 'scripts:confirmRemoteInstall',
+  },
+  {
+    method: 'cancelRemoteUserScriptInstall',
+    mode: 'invoke',
+    channel: 'scripts:cancelRemoteInstall',
+  },
   { method: 'scriptsCheckUpdates', mode: 'invoke', channel: 'scripts:checkUpdates' },
   { method: 'scriptsGetCode', mode: 'invoke', channel: 'scripts:getCode' },
   { method: 'scriptsOpenEditor', mode: 'invoke', channel: 'scripts:openEditor' },
-  { method: 'getUserScriptHostPermissionPrompt', mode: 'invoke', channel: 'userscript:getHostPermissionPrompt' },
-  { method: 'respondUserScriptHostPermission', mode: 'invoke', channel: 'userscript:respondHostPermission' },
-  { method: 'onUserScriptHostPermissionPrompt', mode: 'on', channel: 'userscript:hostPermissionRequested' },
+  {
+    method: 'getUserScriptHostPermissionPrompt',
+    mode: 'invoke',
+    channel: 'userscript:getHostPermissionPrompt',
+  },
+  {
+    method: 'respondUserScriptHostPermission',
+    mode: 'invoke',
+    channel: 'userscript:respondHostPermission',
+  },
+  {
+    method: 'onUserScriptHostPermissionPrompt',
+    mode: 'on',
+    channel: 'userscript:hostPermissionRequested',
+  },
   { method: 'onFindInPageResult', mode: 'on', channel: 'browser:findInPageResult' },
   { method: 'onZoomChanged', mode: 'on', channel: 'browser:zoomChanged' },
   { method: 'onDownloadResult', mode: 'on', channel: 'download:result' },
@@ -78,7 +102,11 @@ const coreContracts: PreloadContract[] = [
   { method: 'setSearchEngine', mode: 'invoke', channel: 'config:setSearchEngine' },
   { method: 'getTheme', mode: 'invoke', channel: 'config:getTheme' },
   { method: 'setTheme', mode: 'invoke', channel: 'config:setTheme' },
-  { method: 'getRealtimeSubmissionStatus', mode: 'invoke', channel: 'realtimeSubmission:getStatus' },
+  {
+    method: 'getRealtimeSubmissionStatus',
+    mode: 'invoke',
+    channel: 'realtimeSubmission:getStatus',
+  },
   { method: 'getAllSites', mode: 'invoke', channel: 'sites:getAll' },
   { method: 'getSiteById', mode: 'invoke', channel: 'sites:getById' },
   { method: 'createSite', mode: 'invoke', channel: 'sites:create' },
@@ -104,14 +132,16 @@ test('preload maps core renderer methods to stable channels', () => {
   for (const contract of coreContracts) {
     const body = methods.get(contract.method)
     assert.ok(body, `Missing preload method ${contract.method}`)
+    // prettier 会把过长的 invoke(...) 拆成多行，比对前先把空白全部去掉。
+    const compactBody = body.replace(/\s+/g, '')
     assert.ok(
-      body.includes(`ipcRenderer.${contract.mode}('${contract.channel}'`),
+      compactBody.includes(`ipcRenderer.${contract.mode}('${contract.channel}'`),
       `${contract.method} should use ipcRenderer.${contract.mode}('${contract.channel}')`,
     )
 
     if (contract.mode === 'on') {
       assert.ok(
-        body.includes(`ipcRenderer.off('${contract.channel}'`),
+        compactBody.includes(`ipcRenderer.off('${contract.channel}'`),
         `${contract.method} should unsubscribe from ${contract.channel}`,
       )
     }
@@ -119,14 +149,17 @@ test('preload maps core renderer methods to stable channels', () => {
 })
 
 test('every exposed send/invoke channel has a matching main-process handler', () => {
-  const preloadChannels = extractPreloadRendererChannels(preloadSource)
-    .filter(channel => channel.mode === 'send' || channel.mode === 'invoke')
+  const preloadChannels = extractPreloadRendererChannels(preloadSource).filter(
+    (channel) => channel.mode === 'send' || channel.mode === 'invoke',
+  )
   const mainHandlers = extractIpcMainHandlers(electronSources.join('\n'))
 
   for (const channel of preloadChannels) {
     const expectedMainMode: IpcMainMode = channel.mode === 'invoke' ? 'handle' : 'on'
     assert.ok(
-      mainHandlers.some(handler => handler.mode === expectedMainMode && handler.channel === channel.channel),
+      mainHandlers.some(
+        (handler) => handler.mode === expectedMainMode && handler.channel === channel.channel,
+      ),
       `preload ${channel.mode}('${channel.channel}') needs ipcMain.${expectedMainMode}('${channel.channel}')`,
     )
   }
@@ -134,8 +167,8 @@ test('every exposed send/invoke channel has a matching main-process handler', ()
 
 test('preload event subscriptions are fixed and backed by main-process sends', () => {
   const listenerChannels = extractPreloadRendererChannels(preloadSource)
-    .filter(channel => channel.mode === 'on')
-    .map(channel => channel.channel)
+    .filter((channel) => channel.mode === 'on')
+    .map((channel) => channel.channel)
     .sort()
   assert.deepStrictEqual(listenerChannels, [
     'browser:findInPageResult',
@@ -170,20 +203,33 @@ test('renderer cannot access arbitrary IPC channels through preload', () => {
   assert.ok(!exposedMethodNames.includes('invoke'))
   assert.ok(!exposedMethodNames.includes('on'))
   assert.ok(!exposedMethodNames.includes('off'))
-  assert.ok(!/\bipcRenderer\s*:/.test(preloadSource), 'ipcRenderer must not be exposed as an object property')
-  assert.ok(!/exposeInMainWorld\(\s*['"]ipcRenderer['"]/.test(preloadSource), 'ipcRenderer must not be exposed globally')
+  assert.ok(
+    !/\bipcRenderer\s*:/.test(preloadSource),
+    'ipcRenderer must not be exposed as an object property',
+  )
+  assert.ok(
+    !/exposeInMainWorld\(\s*['"]ipcRenderer['"]/.test(preloadSource),
+    'ipcRenderer must not be exposed globally',
+  )
 
-  const dynamicChannelUse = /ipcRenderer\.(?:send|invoke|on|off)\(\s*(?!['"][^'"]+['"])/.exec(preloadSource)
+  // 首个非空白字符必须是引号（字面量通道名）。不能写成 \(\s*(?!['"])：
+  // \s* 会回溯到空白字符上，把换行后的字面量调用也误判成动态通道。
+  const dynamicChannelUse = /ipcRenderer\.(?:send|invoke|on|off)\(\s*[^'"\s]/.exec(preloadSource)
   assert.strictEqual(dynamicChannelUse, null, 'preload IPC calls must use literal channel names')
 
-  const rendererChannels = new Set(extractPreloadRendererChannels(preloadSource).map(channel => channel.channel))
+  const rendererChannels = new Set(
+    extractPreloadRendererChannels(preloadSource).map((channel) => channel.channel),
+  )
   const internalChannels = [
     'oj-submission:detected',
     'oj-credentials:fill',
     'oj-credentials:capture',
   ]
   for (const channel of internalChannels) {
-    assert.ok(!rendererChannels.has(channel), `${channel} must remain internal and unavailable to renderer code`)
+    assert.ok(
+      !rendererChannels.has(channel),
+      `${channel} must remain internal and unavailable to renderer code`,
+    )
   }
 })
 
@@ -197,7 +243,8 @@ test('retired renderer notification channels have no remaining senders', () => {
 
 function extractPreloadMethods(source: string): Map<string, string> {
   const methods = new Map<string, string>()
-  const pattern = /^\s{2}([A-Za-z][A-Za-z0-9_]*):\s*([\s\S]*?)(?=^\s{2}[A-Za-z][A-Za-z0-9_]*:|\n}\))/gm
+  const pattern =
+    /^\s{2}([A-Za-z][A-Za-z0-9_]*):\s*([\s\S]*?)(?=^\s{2}[A-Za-z][A-Za-z0-9_]*:|\n}\))/gm
   let match: RegExpExecArray | null
   while ((match = pattern.exec(source)) !== null) {
     methods.set(match[1], match[2])
@@ -277,7 +324,12 @@ function readElectronSources(root: string): string[] {
     const fullPath = path.join(root, entry.name)
     if (entry.isDirectory()) {
       sources.push(...readElectronSources(fullPath))
-    } else if (entry.isFile() && entry.name.endsWith('.ts') && entry.name !== 'preload.ts' && entry.name !== 'ojPreload.ts') {
+    } else if (
+      entry.isFile() &&
+      entry.name.endsWith('.ts') &&
+      entry.name !== 'preload.ts' &&
+      entry.name !== 'ojPreload.ts'
+    ) {
       sources.push(fs.readFileSync(fullPath, 'utf-8'))
     }
   }

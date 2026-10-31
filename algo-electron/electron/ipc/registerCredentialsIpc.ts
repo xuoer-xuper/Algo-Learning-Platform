@@ -37,13 +37,17 @@ export function registerCredentialsIpc(
     return credentialVault.delete(id)
   })
 
-  ipcMain.handle('credentials:rename', [credentialId(), text({ max: 200 })], (_event, id, displayName) => {
-    return credentialVault.rename(id, displayName)
-  })
+  ipcMain.handle(
+    'credentials:rename',
+    [credentialId(), text({ max: 200 })],
+    (_event, id, displayName) => {
+      return credentialVault.rename(id, displayName)
+    },
+  )
 
   ipcMain.handle('credentials:autofillPrompt', (event) => {
     const owner = getShellWindowOwner(event)
-    return owner ? options.getAutofillService?.()?.getCurrentPrompt(owner.id) ?? null : null
+    return owner ? (options.getAutofillService?.()?.getCurrentPrompt(owner.id) ?? null) : null
   })
 
   ipcMain.handle(
@@ -52,14 +56,14 @@ export function registerCredentialsIpc(
     (event, requestId, chosen) => {
       const owner = getShellWindowOwner(event)
       return owner
-        ? options.getAutofillService?.()?.respondSelection(owner.id, requestId, chosen) ?? false
+        ? (options.getAutofillService?.()?.respondSelection(owner.id, requestId, chosen) ?? false)
         : false
     },
   )
 
   ipcMain.handle('credentials:capturePrompt', (event) => {
     const owner = getShellWindowOwner(event)
-    return owner ? options.getCaptureService?.()?.getCurrentPrompt(owner.id) ?? null : null
+    return owner ? (options.getCaptureService?.()?.getCurrentPrompt(owner.id) ?? null) : null
   })
 
   ipcMain.handle(
@@ -68,7 +72,8 @@ export function registerCredentialsIpc(
     async (event, captureId, action) => {
       const owner = getShellWindowOwner(event)
       return owner
-        ? await options.getCaptureService?.()?.respondCapture(owner.id, captureId, action) ?? false
+        ? ((await options.getCaptureService?.()?.respondCapture(owner.id, captureId, action)) ??
+            false)
         : false
     },
   )

@@ -4,7 +4,6 @@ import type {
   CoachEventType,
   CoachIntervention,
   CoachInterventionLevel,
-  CoachInterventionSourceType,
   CoachInterventionUserAction,
   ProblemSession,
 } from '../types'
@@ -16,10 +15,7 @@ import {
   HINT_UPGRADE_COOLDOWN_MS,
   DEFAULT_TRIGGER_SCORE_THRESHOLD,
 } from './rules'
-import {
-  type LadderHintContent,
-  type GetMessageForLevelContext,
-} from '../hints/HintLadder'
+import { type LadderHintContent, type GetMessageForLevelContext } from '../hints/HintLadder'
 import type { ProblemConstraints } from '../problemFacts/ConstraintParser'
 
 /**
@@ -89,7 +85,19 @@ interface LastTriggerRecord {
 }
 
 export class RuleEngine {
-  private readonly options: Required<Omit<RuleEngineOptions, 'getSession' | 'getProblemRating' | 'getIsContestMode' | 'getSuppressedTypes' | 'onIntervention' | 'getHintForUpgrade' | 'getConstraints' | 'getProblemTags'>> & {
+  private readonly options: Required<
+    Omit<
+      RuleEngineOptions,
+      | 'getSession'
+      | 'getProblemRating'
+      | 'getIsContestMode'
+      | 'getSuppressedTypes'
+      | 'onIntervention'
+      | 'getHintForUpgrade'
+      | 'getConstraints'
+      | 'getProblemTags'
+    >
+  > & {
     getSession?: () => ProblemSession | null
     getProblemRating?: () => number | null
     getIsContestMode?: () => boolean
@@ -181,6 +189,7 @@ export class RuleEngine {
 
     // 6. 产出 RuleResult
     const built = rule.build(ctx)
+    if (!built) return null
     const result: RuleResult = {
       triggered: true,
       trigger_reason: built.trigger_reason,
@@ -254,7 +263,11 @@ export class RuleEngine {
     // 注意：L5 二次确认（isConfirmation=true）跳过冷却（用户已主动确认）
     if (!isConfirmation) {
       const cooldownStart = lastUpgrade ?? last?.at
-      if (cooldownStart != null && now - cooldownStart < this.options.upgradeCooldownMs && !hasNewSubmission) {
+      if (
+        cooldownStart != null &&
+        now - cooldownStart < this.options.upgradeCooldownMs &&
+        !hasNewSubmission
+      ) {
         return null
       }
     }
@@ -322,7 +335,10 @@ export class RuleEngine {
   }
 
   /** 构建 HintLadder 上下文 */
-  private buildLadderContext(event: CoachEvent, eventType: CoachEventType): GetMessageForLevelContext {
+  private buildLadderContext(
+    event: CoachEvent,
+    eventType: CoachEventType,
+  ): GetMessageForLevelContext {
     return {
       eventType,
       verdict: event.evidence.verdict,
@@ -393,7 +409,7 @@ export class RuleEngine {
       event_id: event.event_id,
       trigger_reason: result.trigger_reason,
       intervention_level: result.intervention_level,
-      source_type: 'local_rule' as CoachInterventionSourceType,
+      source_type: 'local_rule',
       message: result.message,
       related_tags: result.related_tags,
       user_action: overrides?.user_action ?? 'shown',

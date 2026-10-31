@@ -26,9 +26,13 @@ export function FindInPageBar({ activeTabId }: FindInPageBarProps) {
   const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => subscribeFindInPageResult(setState), [])
-  useEffect(() => subscribeUiCommand((command) => {
-    if (command.type === 'focus-find-in-page') setFocusRequest((value) => value + 1)
-  }), [])
+  useEffect(
+    () =>
+      subscribeUiCommand((command) => {
+        if (command.type === 'focus-find-in-page') setFocusRequest((value) => value + 1)
+      }),
+    [],
+  )
 
   useEffect(() => {
     if (!state.open || state.tabId !== activeTabId) return
@@ -41,9 +45,7 @@ export function FindInPageBar({ activeTabId }: FindInPageBarProps) {
   const send = (command: FindInPageCommand) => {
     void findBrowserInPage(activeTabId, command)
   }
-  const matchLabel = state.matches > 0
-    ? `${state.activeMatchOrdinal}/${state.matches}`
-    : '0/0'
+  const matchLabel = state.matches > 0 ? `${state.activeMatchOrdinal}/${state.matches}` : '0/0'
 
   return (
     <div className="find-in-page-bar" role="search" data-testid="find-in-page-bar">
@@ -68,7 +70,9 @@ export function FindInPageBar({ activeTabId }: FindInPageBarProps) {
           }
         }}
       />
-      <span className="find-in-page-count" aria-live="polite">{matchLabel}</span>
+      <span className="find-in-page-count" aria-live="polite">
+        {matchLabel}
+      </span>
       <IconButton
         icon="chevron-left"
         title="上一个匹配项"

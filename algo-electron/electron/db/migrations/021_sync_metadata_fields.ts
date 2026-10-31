@@ -43,6 +43,6 @@ function addColumnIfMissing(
   definition: string,
 ): void {
   const columns = db.prepare(`PRAGMA table_info(${tableName})`).all() as { name: string }[]
-  if (columns.some(column => column.name === columnName)) return
+  if (columns.some((column) => column.name === columnName)) return
   db.exec(`ALTER TABLE ${tableName} ADD COLUMN ${columnName} ${definition};`)
 }
