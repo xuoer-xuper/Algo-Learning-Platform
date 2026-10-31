@@ -81,7 +81,7 @@
 - 每个小节结束 `pnpm test:core`。
 - 阶段结束 `pnpm test:all` + `pnpm build:win` + 手动安装包冒烟。
 - PR 标题：`chore(ci): 阶段 0 工具门与工程底座`；squash 合入 dev。
-- **推送纪律（2026-10-31 用户指令，覆盖本任务后续所有小节）**：本分支开着 PR #4，每次推送都触发 CI。推送前必须本地跑 **CI 同口径全集**并全绿——fast-guard 三步 `test:core` + `test:packaging` + `test:docs`，smoke 两步 `test:electron` + `test:ui`；只跑 `test:core` 不是全绿（两次 CI 红都出在这个盲区）。推送后必须 `gh run watch <run-id> --exit-status` 盯到两个 job 全绿才算该节收口；红了解根因并本地复现修复后才允许下一次推送。
+- **推送纪律（2026-10-31 用户指令，覆盖本任务后续所有小节）**：本分支开着 PR #4，每次推送都触发 CI。推送前必须本地跑 **CI 同口径全集**并全绿——一键脚本 `pnpm test:ci`（= fast-guard 三步 `test:core`+`test:packaging`+`test:docs` + smoke 两步 `test:electron`+`test:ui`，2026-10-31 随本纪律新增）；只跑 `test:core` 不是全绿（两次 CI 红都出在这个盲区）。推送后必须 `gh run watch <run-id> --exit-status` 盯到两个 job 全绿才算该节收口；红了解根因并本地复现修复后才允许下一次推送。
 
 ## CI 事故记录（2026-10-31）
 - **10-27 run `40430001623` 红**：`check-packaging.mjs` 的 `readJson5Like`（剥 `//` 注释后 `JSON.parse`）读不了 prettier 重排后的 `electron-builder.json5`（单引号 + 裸键，601e3ea 连带）；格式化当天本地只跑了 `test:core`，`test:packaging` 在推送前没人跑过，此雷埋了 4 天。修复：devDependency 落 `json5@2.2.3`，守卫改 `JSON5.parse`（commit `5d0dee1`）。

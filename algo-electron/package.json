@@ -42,6 +42,7 @@
     "test:ui": "node tests/ui/runPlaywright.mjs",
     "test:coach": "node tests/verify.mjs coach",
     "test:all": "node tests/verify.mjs all",
+    "test:ci": "pnpm run test:core && pnpm run test:packaging && pnpm run test:docs && pnpm run test:electron && pnpm run test:ui",
     "prepare": "cd .. && husky algo-electron/.husky"
   },
   "lint-staged": {
