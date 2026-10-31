@@ -1,13 +1,17 @@
 import fs from 'node:fs'
 import path from 'node:path'
+import JSON5 from 'json5'
 
 const projectRoot = process.cwd()
 const builderConfigPath = path.join(projectRoot, 'electron-builder.json5')
 const packageJsonPath = path.join(projectRoot, 'package.json')
 
-function readJson5Like(filePath) {
-  const source = fs.readFileSync(filePath, 'utf8').replace(/^\s*\/\/.*$/gm, '')
-  return JSON.parse(source)
+// electron-builder.json5 是真正的 JSON5（注释、单引号、裸键）。prettier 全仓格式化
+// （0.5，commit 601e3ea）把它重排成单引号 + 裸键后，"剥 // 注释再 JSON.parse" 的
+// 手写近似解析直接炸掉 CI（run 40430001623）。配置文件声明成 .json5，就用 JSON5
+// 解析器读，不再对文件风格做任何假设。
+function readBuilderConfig(filePath) {
+  return JSON5.parse(fs.readFileSync(filePath, 'utf8'))
 }
 
 function assert(condition, message) {
@@ -27,7 +31,7 @@ function check(name, fn) {
   checks.push({ name, fn })
 }
 
-const builderConfig = readJson5Like(builderConfigPath)
+const builderConfig = readBuilderConfig(builderConfigPath)
 const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'))
 const files = builderConfig.files ?? []
 const asarUnpack = builderConfig.asarUnpack ?? []
