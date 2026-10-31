@@ -168,3 +168,33 @@
 ### Next Steps
 
 - 阶段 0 十节全部落地。PR #4 待用户 squash 合入 dev；合入后 AC1（push dev 触发 CI）用 gh run watch 验证；阶段收口门（test:all+build:win+装包冒烟）中 test:all 受 coach 夹具既有红阻塞（阶段 5 范围），建议与用户确认处理口径后再 archive。
+
+
+## Session 6: 标签 favicon 三层缺陷修复(10-31-tab-favicon):CSP/兜底/Referer,用户实测通过并归档
+<!-- trellis-session: v=2 fp=242538efdad5c956 -->
+
+**Date**: 2026-10-31
+**Task**: 标签 favicon 三层缺陷修复(10-31-tab-favicon):CSP/兜底/Referer,用户实测通过并归档
+**Branch**: `chore/phase-0-tooling-gates`
+
+### Summary
+
+用户报标签图标 bug(首标签固定地球、其余空白)。两轮研究实测定位三层缺陷:壳 CSP img-src 拦全部 https: 图标(打包态自 8/17 起从未工作)、React 19 首错丢失致兜底失效(两种失败路径行为不同)、AcWing CDN 空 Referer 防盗链撞上显式 no-referrer。修复:img-src 放行 https:(探针验证 http:/伪源仍拦)、TabIcon 重写为原生监听+追认+URL 值化失败状态、删 no-referrer。用户纠正判读:无站点交付 data: URL,'有的是图片'系 dev 态观察。复核 6/6 PASS(含 CSP 探针),test:core 175/1389,CI 绿。用户装 2.0.1(node 22 构建)实测确认修复,任务归档。残留:AcWing 的 app:// Referer 行为为唯一未实测点,若回归升格 Fix 4 主进程代理;Fix 5(svg data: 白名单)无现存站点需要,不做。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `58ae30a` | fix: 标签 favicon 修复——壳 CSP 放行远程图标、加载失败可靠兜底、不再禁用 Referer |
+
+### Testing
+
+- [OK] pnpm test:core 175 文件/1389 用例全绿;CSP 反向验证实测变红;用户打包态实测 7 站图标正常
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- 阶段 0 剩:用户 squash 合入 PR #4(现含本修复,建议标题加注)→ 验 AC1(push dev 触发 CI)→ 阶段 0 archive。

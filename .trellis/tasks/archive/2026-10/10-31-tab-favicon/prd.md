@@ -31,10 +31,10 @@
 
 ## Acceptance Criteria
 
-- [ ] 打包态（`pnpm build:win` 产物）中，7 站矩阵实测：6 站（codeforces/acwing*/nowcoder/vjudge/pta/luogu/leetcode 中的非 AcWing 站）显示真实 favicon；AcWing 在 Referer 随请求发出时也显示真实图标，否则 globe 兜底（升级 Fix 4 的判据）。
-- [ ] favicon 为 null 或加载失败（任一路径）的标签显示 globe 兜底，不再出现空白槽。
-- [ ] `trustedSender.test.ts` 的 CSP 断言在 `img-src` 撤掉 `https:` 时变红（反向验证，已实测）。
-- [ ] `pnpm test:ci` 全绿。
+- [x] 打包态（`pnpm build:win` 产物）中，7 站矩阵实测（2026-10-31 用户实测 2.0.1 安装包确认："好了，bug修复了"）：6 站（codeforces/acwing*/nowcoder/vjudge/pta/luogu/leetcode 中的非 AcWing 站）显示真实 favicon；AcWing 在 Referer 随请求发出时也显示真实图标，否则 globe 兜底（升级 Fix 4 的判据）。
+- [x] favicon 为 null 或加载失败（任一路径）的标签显示 globe 兜底，不再出现空白槽。（用户实测确认）
+- [x] `trustedSender.test.ts` 的 CSP 断言在 `img-src` 撤掉 `https:` 时变红（反向验证，已实测）。
+- [x] `pnpm test:ci` 全绿（pre-push 门 175 文件/1389 用例 + CI run 41191227519 全绿）。
 
 ## Out of Scope
 
