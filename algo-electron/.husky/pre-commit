@@ -1,0 +1,29 @@
+# pre-commit 三道门：master 分支拒绝 → lint-staged → pnpm typecheck && pnpm typecheck:tests。
+# husky 以 sh -e 运行本脚本，任何未兜底的命令失败都会中止提交。
+#
+# 【release-it 冲突决策（design.md §6 方案 1，2026-10-31 定案）】
+# 本钩子无条件拒绝 master：不做 release-it 环境变量嗅探、不设标记文件。
+# release-it 的发布提交改在其 .release-it.json 配置 git.commitArgs: ["--no-verify"] 绕过本钩子；
+# 该接线属于 0.9（release-it 节），0.9 实施时必须落到配置并在 dry-run 复核。
+#
+# 分支检查：detached HEAD（rebase、CI checkout 等）下 git branch --show-current 返回空串，
+# 空串不按 master 处理（否则 rebase 与 CI 全被拦）——只在字面等于 master 时拒绝。
+branch="$(git branch --show-current)"
+if [ "$branch" = "master" ]; then
+  echo "✖ pre-commit：禁止在 master 上直接提交。" >&2
+  echo "  流程：feat|fix|chore/* 分支 → squash PR → dev → --no-ff PR → master。" >&2
+  echo "  release-it 发布提交由 .release-it.json 的 git.commitArgs: [\"--no-verify\"] 绕过（0.9 接线）。" >&2
+  exit 1
+fi
+
+toplevel="$(git rev-parse --show-toplevel)" || exit 1
+# Git 钩子以仓库根为 CWD 运行；package.json / eslint / prettier / tsconfig 都在 algo-electron/ 下。
+cd "$toplevel/algo-electron" || exit 1
+
+# lint-staged 只处理 staged 文件；algo-electron/ 之外的 staged 文件（如 .trellis/**）
+# 会被 lint-staged 以 warning 跳过——与 0.5 的格式化范围决策（algo-electron/ 全树）一致，
+# 属预期行为而非错误。
+pnpm exec lint-staged || exit 1
+
+# 两次 typecheck 是全量的：类型检查没有增量可信路径，墙钟代价已知并接受（design.md §6）。
+pnpm run typecheck && pnpm run typecheck:tests

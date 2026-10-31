@@ -39,11 +39,11 @@
 - 验证：`pnpm prettier --check .` 通过；`pnpm lint` 0/0。（2026-10-27 实测通过。**格式化的连带代价**：4 个按文本形状扫描源码的守卫测试变红，已改为对格式不敏感（守卫意图不变），见 commit `905de10`：tokenGovernance 的暗色块提取接受单双引号（prettier 统一 CSS 引号）、controlGovernance 的 `<Select>` 属性前瞻匹配、ipcContracts 压缩空白后比对 + 动态通道判定改为"首参必须以引号开头"（原 `(?!['"])` 在 `\s*` 回溯后误判换行的字面量调用）、mainResilience 容忍成员链换行。`noteTabIsolation` 单跑即绿，属并行负载下的既有超时抖动，未改动。收口验证 `pnpm test:core` 全绿：175 文件 / 1387 用例。回滚点：commit `b0f1671`（配置）+ `601e3ea`（格式化）+ `905de10`（守卫适配）。）
 
 ### 0.6 husky + commitlint + lint-staged
-- [ ] `pnpm add -D husky @commitlint/cli @commitlint/config-conventional lint-staged`；`pnpm exec husky init`。
-- [ ] `commitlint.config.js`（type-enum、scope-enum、subject-case off）。
-- [ ] `.husky/commit-msg`、`.husky/pre-commit`（分支检查 + lint-staged + typecheck ×2）、`.husky/pre-push`（`pnpm test:core`）。
-- [ ] `package.json` `lint-staged`：`*.{ts,tsx,js,mjs,cjs}` → `prettier --write`、`eslint --fix`；`*.{md,json,css,yml}` → `prettier --write`。
-- 验证：三条故意失败的 commit（非法 type、在 master、lint 错）均被拒。
+- [x] `pnpm add -D husky @commitlint/cli @commitlint/config-conventional lint-staged`；`pnpm exec husky init`。（2026-10-31 完成，实测 husky 9.1.7、@commitlint/cli 21.2.4、@commitlint/config-conventional 21.2.4、lint-staged 17.6.0。**husky init 在子目录不可用**：bin 检查 CWD 下的 `.git`，在 `algo-electron/` 报 ".git can't be found"（它已先写好 `prepare: "husky"` 才失败）。按 husky 官方"Project not in Git root directory"配方改为 `prepare: "cd .. && husky algo-electron/.husky"`，并从仓库根补跑一次安装：`core.hooksPath = algo-electron/.husky/_`（相对仓库根——钩子以仓库根为 CWD 运行，相对路径按此解析）；`.husky/_/.gitignore` 内容 `*`，`_` 目录由此不入库。`git branch --show-current` 为空的 detached HEAD 不按 master 处理。）
+- [x] `commitlint.config.js`（type-enum、scope-enum、subject-case off）。（ESM。`type-enum` 九值同 git-workflow.md §Types；`scope-enum` 32 项 = §"Scope enum" 词表块 31 项 + 该块下方散文点名的层级兜底中尚未在块内的 `main`（renderer/preload/shared 已在块内）；`subject-case: [0]` 关闭以容纳中文描述。文件头注释引用 `.trellis/spec/project/git-workflow.md` 与 `.trellis/spec/shared/git-conventions.md` 两个来源。管道实测：`update`（type/subject 空）、`design: x`（type-enum）、`chore(bogus): y`（scope-enum）均拒；`feat(coach): x`、`chore(release): 发布 v2.1.0`、混合大小写 subject 均 0 退出。）
+- [x] `.husky/commit-msg`、`.husky/pre-commit`（分支检查 + lint-staged + typecheck ×2）、`.husky/pre-push`（`pnpm test:core`）。（三支均为 POSIX sh，husky 以 `sh -e` 调用：先 `git rev-parse --show-toplevel` 解析仓库根再 `cd algo-electron`——钩子 CWD 是仓库根而 package.json/依赖都在子目录；commit-msg 先把 `$1` 规整为绝对路径（兼容盘符绝对路径）再 cd。**release-it 冲突决策（design.md §6 方案 1，2026-10-31 定案）**：pre-commit 无条件拒绝 `master`，无环境变量嗅探、无标记文件；release-it 侧改配 `git.commitArgs: ["--no-verify"]` 绕过，接线归 0.9 并在 dry-run 复核。lint-staged 从 `algo-electron/` 运行，包目录之外的 staged 文件（如 `.trellis/**`）由其以 warning 跳过，与 0.5 的格式化范围决策一致。）
+- [x] `package.json` `lint-staged`：`*.{ts,tsx,js,mjs,cjs}` → `prettier --write`、`eslint --fix`；`*.{md,json,css,yml}` → `prettier --write`。（CI 平价已核：无操作时 `pnpm install --frozen-lockfile` 跳过 prepare（pnpm 对 no-op 安装不跑生命周期脚本，hooksPath 保持不变）；真实安装（`--force` 实测）输出 `. prepare: Done` 并恢复 hooksPath，全新 checkout 必然走真实安装，不受影响，退出码 0。）
+- 验证：三条故意失败的 commit（非法 type、在 master、lint 错）均被拒。（2026-10-31 实测，退出码均为 1：①携带本节真实 staged 改动 `git commit -m "update"`——pre-commit 全链先通过（lint-staged 处理 commitlint.config.js/package.json，tsc ×2 全绿），commit-msg 拒绝（type/subject empty）；②`electron/app/chromiumFlags.ts` 尾部临时加 `const x = y!.z` 后提交——被 pre-commit 的 lint-staged/eslint 拒绝（`no-non-null-assertion` + `no-unused-vars` 两 error），测后文件还原；③`git checkout master` 后携带钩子文件提交 scratch 改动——被 pre-commit 分支检查拒绝。注意物理事实：master 工作树在阶段 0 的 PR 合入前不跟踪 `.husky/**`，husky 对"用户脚本缺失"静默放行（`h` 脚本 `[ ! -f "$s" ] && exit 0`），本次靠 staged 新文件随 checkout 带过去完成测试；合入后 master 自带钩子。④正向：scratch 文件以 pathspec 提交 `git commit <scratch> -m "feat(coach): x"` 通过三道门（lint-staged、tsc ×2、commitlint），生成提交后 `git reset --soft HEAD~1` 撤销并删除 scratch（此处用 soft 而非 hard：本节改动尚在 index，hard 会摧毁未提交工作；意图同为"移除测试提交"）。收口 `pnpm test:core` 全绿。回滚点：commit `chore(ci): 立起 husky 三道提交门`。）
 
 ### 0.7 jscpd
 - [ ] `pnpm add -D jscpd`；`.jscpd.json`（threshold 3、format ts/tsx/css、ignore tests/dist/tmp、output tmp/jscpd）。
@@ -58,6 +58,7 @@
 
 ### 0.9 release-it
 - [ ] `pnpm add -D release-it @release-it/conventional-changelog`；写 `.release-it.json`（见 `prd.md` R9）。
+  - 0.6 定案（design.md §6 方案 1）：pre-commit 无条件拒绝 `master`，release-it 侧必须在 `.release-it.json` 配 `git.commitArgs: ["--no-verify"]` 绕过钩子，并在 dry-run 时核实该字段生效（0.6 已在 `.husky/pre-commit` 注释与本注记录）。
 - [ ] `package.json` 加 `"release": "release-it"`。
 - [ ] `pnpm release --dry-run --no-git.requireBranch`（在 dev 上试跑）。
 - 验证：dry-run 输出正确。

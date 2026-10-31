@@ -41,7 +41,17 @@
     "test:electron": "node tests/verify.mjs electron",
     "test:ui": "node tests/ui/runPlaywright.mjs",
     "test:coach": "node tests/verify.mjs coach",
-    "test:all": "node tests/verify.mjs all"
+    "test:all": "node tests/verify.mjs all",
+    "prepare": "cd .. && husky algo-electron/.husky"
+  },
+  "lint-staged": {
+    "*.{ts,tsx,js,mjs,cjs}": [
+      "prettier --write",
+      "eslint --fix"
+    ],
+    "*.{md,json,css,yml}": [
+      "prettier --write"
+    ]
   },
   "dependencies": {
     "@milkdown/crepe": "7.22.0",
@@ -55,6 +65,8 @@
     "remark-gfm": "4.0.1"
   },
   "devDependencies": {
+    "@commitlint/cli": "^21.2.4",
+    "@commitlint/config-conventional": "^21.2.4",
     "@eslint/js": "10.0.1",
     "@playwright/test": "1.62.1",
     "@tailwindcss/vite": "4.3.3",
@@ -74,7 +86,9 @@
     "eslint-plugin-react-hooks": "7.1.1",
     "eslint-plugin-react-refresh": "0.5.4",
     "globals": "17.10.0",
+    "husky": "^9.1.7",
     "jsdom": "29.1.1",
+    "lint-staged": "^17.6.0",
     "prettier": "^3.9.10",
     "tailwindcss": "4.3.3",
     "typescript": "6.0.3",

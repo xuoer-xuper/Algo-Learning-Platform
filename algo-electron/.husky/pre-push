@@ -1,0 +1,6 @@
+# pre-push：推送前跑核心门 test:core（typecheck ×2 + lint + 架构/安全守卫 + 全量 vitest）。
+# 0.7 把 jscpd 挂进 test:core 后，重复代码门也由此一起把关。
+toplevel="$(git rev-parse --show-toplevel)" || exit 1
+# Git 钩子以仓库根为 CWD 运行，先切进包目录再调用 pnpm。
+cd "$toplevel/algo-electron" || exit 1
+pnpm run test:core
