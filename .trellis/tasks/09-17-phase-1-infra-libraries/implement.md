@@ -2,6 +2,13 @@
 
 分支：`refactor/phase-1-infra-libraries`（R1/R2 可各自子分支再合入）。前置：阶段 0 已合入 dev。
 
+> **启动评审注记（2026-11-01，1.4 评审结论）**：
+> ①prd/design/implement 写于 09-17，v2.0.0 合并 + 阶段 0 全仓 prettier 格式化后**行号与计数必然漂移**——文中所有 file:line 与数量（102 处 appLogger、196 处组合子、35/23 处返回形状、6 处 errorMessage 直返）一律以实施时 `grep` 实测为准，把实测数回填到各节注记；
+> ②R3 验证里的 `pnpm test:app` **脚本不存在**，配置测试在 `tests/app/`、归 `pnpm test:unit`（或定向 `pnpm exec vitest run tests/app`）；
+> ③新代码遵守阶段 0 新门：`verbatimModuleSyntax`（纯类型 import 用 `import type`）、prettier（lint-staged 自动）、jscpd 3% 门（替换量大，重写时留意别引入成段复制）；
+> ④推送纪律照旧：本地 `pnpm test:ci` 五步全绿才推（pre-push 门强制），推送后 `gh run watch` 盯 CI；
+> ⑤五个依赖（zod/electron-log/electron-store/zod-to-json-schema）全是纯 JS 包，不触发 pnpm `allowBuilds`，无需改 pnpm-workspace.yaml。
+
 ## Checklist
 
 ### R1 zod
