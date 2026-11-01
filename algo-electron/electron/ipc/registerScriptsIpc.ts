@@ -9,7 +9,16 @@ import {
   type OpenDialogOptions,
 } from 'electron'
 import { getShellWindowOwner, ipcMain } from './trustedSender'
-import { bool, object, oneOf, pattern, text } from './payloadSchema'
+import {
+  cancelRemoteInstallInput,
+  confirmRemoteInstallInput,
+  deleteInput,
+  getCodeInput,
+  getRemoteInstallPreviewInput,
+  openEditorInput,
+  saveInput,
+  toggleInput,
+} from '../../src/shared/types/ipc/scripts'
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import {
@@ -59,19 +68,9 @@ interface UserScriptSummary {
 }
 
 /*
- * 三个复用的界，数字全部沿用本文件原先手写检查里的值，不另立标准：
- *
- * - `scriptId()` / `installId()`：上限 200，与原 `validateScriptId`、
- *   `installId.length > 200` 一致。`scriptId` 用 `pattern(/\S/)` 而不是 `text()`，
- *   因为原检查是 `id.trim().length === 0`——纯空白要拒。`text({min:1})` 会放过 `'   '`，
- *   那是一次查不到行的 DB 查询，不是拒绝。
- * - `installId()` 保持 `text()`（只拒空串），照搬原 `installId.length === 0` 那一版：
- *   这个 id 由主进程生成并存进 registry，纯空白根本不可能匹配到任何待处理请求。
- * - 脚本名上限 200，与原 `record.name.length > 200` 一致，同样要求非纯空白。
+ * 各 channel 的输入 schema 元组来自 `src/shared/types/ipc/scripts.ts`；
+ * scriptId 的 `/\S/` 非空白语义、installId 200、脚本名 200 的来历写在那里。
  */
-const scriptId = () => pattern(/\S/, 'non-blank-string(1..200)', { max: 200 })
-const installId = () => text({ max: 200 })
-
 export function registerScriptsIpc(options: RegisterScriptsIpcOptions = {}): void {
   const confirmingRemoteInstalls = new Set<string>()
   ipcMain.handle('scripts:getAll', () => getAllScripts().map(toUserScriptSummary))
@@ -79,29 +78,18 @@ export function registerScriptsIpc(options: RegisterScriptsIpcOptions = {}): voi
   /*
    * schema 只管形状；`site_ids_json` 的**内容**仍由 `validateScriptSaveInput` 判。
    * 分工的理由：那串是 JSON 文本，要 parse 完才知道是不是"无重复的非空字符串数组"，
-   * 这不是形状问题，本层的组合子也表达不了。schema 接手的是原先那三条形状检查——
-   * 非对象、多余字段（`object` 默认拒绝，等价于原来的 `keys.length !== 2`）、
+   * 这不是形状问题，schema 层也表达不了。schema 接手的是原先那三条形状检查——
+   * 非对象、多余字段（strict 对象拒绝，等价于原来的 `keys.length !== 2`）、
    * name 的类型与长度。
    */
-  ipcMain.handle(
-    'scripts:save',
-    [
-      scriptId(),
-      object({
-        name: pattern(/\S/, 'non-blank-string(1..200)', { max: 200 }),
-        // JSON 文本自身的上限：站点 id 按 200 算，配 32 个站点也不到 8 KiB。
-        site_ids_json: text({ max: 8 * 1024 }),
-      }),
-    ],
-    (_event, validatedId, data) => {
-      const validatedData = validateScriptSaveInput(data)
-      if (!updateScript(validatedId, validatedData)) {
-        throw new Error('User script was not found or could not be updated')
-      }
-      options.refreshUserScriptRuntime?.()
-      return validatedId
-    },
-  )
+  ipcMain.handle('scripts:save', saveInput, (_event, validatedId, data) => {
+    const validatedData = validateScriptSaveInput(data)
+    if (!updateScript(validatedId, validatedData)) {
+      throw new Error('User script was not found or could not be updated')
+    }
+    options.refreshUserScriptRuntime?.()
+    return validatedId
+  })
 
   ipcMain.handle('scripts:importFile', async (event) => {
     const parent = getLiveParentWindow(event, options.getParentWindow)
@@ -202,26 +190,30 @@ export function registerScriptsIpc(options: RegisterScriptsIpcOptions = {}): voi
    * "读取远程脚本失败"，`finish` 里 catch 后把消息显示出来，cancel 是 `.catch(() => false)`），
    * 不会产生无人接管的 rejection。
    */
-  ipcMain.handle('scripts:getRemoteInstallPreview', [installId()], async (_event, installId) => {
-    const registry = options.getUserScriptInstallRegistry?.()
-    const installer = options.getUserScriptRemoteInstaller?.()
-    const request = registry?.get(installId)
-    if (!request || !installer) return null
-    const existing = getAllScripts().map((script) => ({
-      id: script.id,
-      namespace: script.namespace,
-      identityName: script.identity_name,
-      version: script.version,
-      filePath: script.file_path,
-    }))
-    const prepared = installer.getPrepared(installId, request.sourceUrl)
-    if (prepared) return prepared.preview
-    return installer.prepare(request, existing, installId)
-  })
+  ipcMain.handle(
+    'scripts:getRemoteInstallPreview',
+    getRemoteInstallPreviewInput,
+    async (_event, installId) => {
+      const registry = options.getUserScriptInstallRegistry?.()
+      const installer = options.getUserScriptRemoteInstaller?.()
+      const request = registry?.get(installId)
+      if (!request || !installer) return null
+      const existing = getAllScripts().map((script) => ({
+        id: script.id,
+        namespace: script.namespace,
+        identityName: script.identity_name,
+        version: script.version,
+        filePath: script.file_path,
+      }))
+      const prepared = installer.getPrepared(installId, request.sourceUrl)
+      if (prepared) return prepared.preview
+      return installer.prepare(request, existing, installId)
+    },
+  )
 
   ipcMain.handle(
     'scripts:confirmRemoteInstall',
-    [installId(), oneOf(['install', 'copy', 'cancel'] as const)],
+    confirmRemoteInstallInput,
     async (_event, installId, action) => {
       const registry = options.getUserScriptInstallRegistry?.()
       const installer = options.getUserScriptRemoteInstaller?.()
@@ -298,7 +290,7 @@ export function registerScriptsIpc(options: RegisterScriptsIpcOptions = {}): voi
     },
   )
 
-  ipcMain.handle('scripts:cancelRemoteInstall', [installId()], (_event, installId) => {
+  ipcMain.handle('scripts:cancelRemoteInstall', cancelRemoteInstallInput, (_event, installId) => {
     options.getUserScriptRemoteInstaller?.()?.clear(installId)
     return options.getUserScriptInstallRegistry?.()?.consume(installId) !== null
   })
@@ -315,7 +307,7 @@ export function registerScriptsIpc(options: RegisterScriptsIpcOptions = {}): voi
 
   ipcMain.handle(
     'scripts:getCode',
-    [scriptId()],
+    getCodeInput,
     async (_event, id): Promise<UserScriptCodeView> => {
       const script = getScriptById(id)
       if (!script) return { status: 'not-found' }
@@ -333,7 +325,7 @@ export function registerScriptsIpc(options: RegisterScriptsIpcOptions = {}): voi
 
   ipcMain.handle(
     'scripts:openEditor',
-    [scriptId()],
+    openEditorInput,
     async (_event, id): Promise<UserScriptOpenEditorResult> => {
       const script = getScriptById(id)
       if (!script) return { status: 'not-found' }
@@ -351,12 +343,12 @@ export function registerScriptsIpc(options: RegisterScriptsIpcOptions = {}): voi
    * 是本文件里唯一一条真正裸奔的通道：`toggleScript(id, enabled)` 会把 renderer 给的任何值
    * 直接绑进 UPDATE 语句。
    */
-  ipcMain.handle('scripts:toggle', [scriptId(), bool], (_event, id, enabled) => {
+  ipcMain.handle('scripts:toggle', toggleInput, (_event, id, enabled) => {
     const result = toggleScript(id, enabled)
     if (result) options.refreshUserScriptRuntime?.()
     return result
   })
-  ipcMain.handle('scripts:delete', [scriptId()], async (_event, id) => {
+  ipcMain.handle('scripts:delete', deleteInput, async (_event, id) => {
     const script = getScriptById(id)
     if (!script) return false
     const managedPath = resolveManagedScriptPath(script.file_path, userScriptsDirectory())

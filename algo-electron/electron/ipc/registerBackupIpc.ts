@@ -6,7 +6,7 @@ import {
   type SaveDialogOptions,
 } from 'electron'
 import { getShellWindowOwner, ipcMain } from './trustedSender'
-import { bool } from './payloadSchema'
+import { confirmLearningDataImportInput } from '../../src/shared/types/ipc/backup'
 import path from 'node:path'
 import {
   createDatabaseBackup,
@@ -102,25 +102,29 @@ export function registerBackupIpc(options: RegisterBackupIpcOptions = {}): void 
    *
    * 要导入的数据本身不走这个 channel：它由 `backup:previewLearningDataImport` 从
    * 用户选中的文件里读出、按 `ownerId` 存在主进程的 `pendingImports` 里。渲染进程发过来的
-   * 只是"冲突时是否覆盖"这一个开关——也就是说这里没有"结构化对象"要校验，
-   * 而 `bool` 不接受 `0/1/'true'` 这类等价物正好对上开关的语义。
+   * 只是"冲突时是否覆盖"这一个开关——也就是说这里没有"结构化对象"要校验。
+   * schema 元组见 `src/shared/types/ipc/backup.ts`。
    */
-  ipcMain.handle('backup:confirmLearningDataImport', [bool], (event, overwriteConflicts) => {
-    const ownerId = getOwnerId(event)
-    const pendingImport = ownerId ? (pendingImports.get(ownerId) ?? null) : null
-    if (!pendingImport) {
-      return {
-        success: false,
-        error: '没有待确认的导入数据',
-        inserted: {},
-        updated: {},
-        skipped: {},
-        conflicts: [],
+  ipcMain.handle(
+    'backup:confirmLearningDataImport',
+    confirmLearningDataImportInput,
+    (event, overwriteConflicts) => {
+      const ownerId = getOwnerId(event)
+      const pendingImport = ownerId ? (pendingImports.get(ownerId) ?? null) : null
+      if (!pendingImport) {
+        return {
+          success: false,
+          error: '没有待确认的导入数据',
+          inserted: {},
+          updated: {},
+          skipped: {},
+          conflicts: [],
+        }
       }
-    }
 
-    const result = importLearningDataFromParsedExport(pendingImport, overwriteConflicts)
-    if (result.success && ownerId) pendingImports.delete(ownerId)
-    return result
-  })
+      const result = importLearningDataFromParsedExport(pendingImport, overwriteConflicts)
+      if (result.success && ownerId) pendingImports.delete(ownerId)
+      return result
+    },
+  )
 }

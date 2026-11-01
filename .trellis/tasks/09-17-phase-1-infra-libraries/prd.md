@@ -10,6 +10,7 @@
 - 新增 `zod`；`src/shared/types/ipc/*.ts` 按域定义每个带参 channel 的输入 schema（`z.object({...}).strict()`，等价于现在的"多余字段拒绝"）。
 - `electron/ipc/trustedSender.ts` 的 schema 元组参数改为接受 `z.ZodTypeAny[]`；`parseOrReject` 改调 `safeParse`，失败抛 `IpcPayloadError(path, issues[0].message)`（保留 fail-closed 语义，不返回 null）。
 - 196 处组合子调用替换：`text()`→`z.string().min(1).max(200)`、`freeText()`→`z.string().max(n)`、`int()`→`z.number().int().min().max()`、`oneOf()`→`z.enum()`、`arrayOf()`→`z.array()`、`object()`→`z.object().strict()`、`optional/nullable` 同名、`localDate`→`z.string().regex(/^\d{4}-\d{2}-\d{2}$/)`、`pattern`→`z.string().regex`、`decimal`→`z.number()`、`binary`→`z.instanceof(Uint8Array)`、`raw()`→`z.unknown()`（仍受 `RAW_IPC_SCHEMA_BUDGET = 4` 棘轮）。
+  - **实施修正（2026-11-01 复核）**：上表 `binary`→`z.instanceof(Uint8Array)` 写错了——映射表与旧实现不符。旧 `binary()`（payloadSchema.ts）接受 `ArrayBuffer | Uint8Array`，且唯一产出方 `MilkdownEditor` 走 `file.arrayBuffer()`、结构化克隆原样送达 ArrayBuffer；按旧实现为准，实施用 `z.union([z.instanceof(ArrayBuffer), z.instanceof(Uint8Array)])`（16 MiB 上限仍由 `checkIpcPayload` 兜住）。design §1 的"IPC 序列化后为 Uint8Array，已验证"说法同样有误。
 - 上限来源注释保留（URL 4096、FQDN 253、标识符 200）。
 - 删除 `payloadSchema.ts`；`check-architecture.mjs` 的 `countUnschemadIpc` 改为识别 zod schema。
 - `coach:saveConfig` / `saveLlmConfig` 白名单语义不变（`strict()`）。

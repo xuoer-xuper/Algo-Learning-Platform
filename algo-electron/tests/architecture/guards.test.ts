@@ -60,13 +60,15 @@ describe('countUnschemadIpc', () => {
     expect(countUnschemadIpc("ipcMain.handle('a:b', (_e, a, b, c) => {})")).toBe(1)
   })
 
-  it('声明了 schema 元组的不算', () => {
-    expect(countUnschemadIpc("ipcMain.handle('a:b', [text()], (_event, id) => {})")).toBe(0)
+  it('声明了 schema 元组的不算：内联数组与命名元组两种形态都认', () => {
+    expect(countUnschemadIpc("ipcMain.handle('a:b', [z.string()], (_event, id) => {})")).toBe(0)
+    // zod 迁移后的主形态：schema 元组是 src/shared/types/ipc/ 导出的命名元组，约定 Input 结尾。
+    expect(countUnschemadIpc("ipcMain.handle('a:b', getDailyActiveInput, (_e, d) => {})")).toBe(0)
     expect(
-      countUnschemadIpc("ipcMain.handle('a:b', [daysRange(), rowLimit()], (_e, d, l) => {})"),
+      countUnschemadIpc("ipcMain.handle(\n  'a:b',\n  getListInput,\n  (_event, id) => {},\n)"),
     ).toBe(0)
     expect(
-      countUnschemadIpc("ipcMain.handle(\n  'a:b',\n  [text()],\n  (_event, id) => {},\n)"),
+      countUnschemadIpc("ipcMain.handle(\n  'a:b',\n  [z.string()],\n  (_event, id) => {},\n)"),
     ).toBe(0)
   })
 
@@ -94,28 +96,23 @@ describe('countUnschemadIpc', () => {
 })
 
 describe('countRawIpcSchemas', () => {
-  it('数出 raw() 调用', () => {
-    expect(countRawIpcSchemas("ipcMain.handle('a:b', [raw('由 isFoo 判别')], h)")).toBe(1)
-    expect(countRawIpcSchemas("[raw('x'), text()], [raw(`y`)]")).toBe(2)
-    expect(countRawIpcSchemas('raw(\n  "换行也算",\n)')).toBe(1)
+  it('数出无形状放行（z.unknown）的调用', () => {
+    expect(countRawIpcSchemas('export const tabOpenInternalInput = [z.unknown()] as const')).toBe(1)
+    expect(countRawIpcSchemas('[z.unknown(), z.string()], [z.unknown()]')).toBe(2)
+    expect(countRawIpcSchemas('z.unknown( )')).toBe(1)
   })
 
-  it('不把 import 与注释里的提及算进来', () => {
-    // 这两处是实测存在的误报源：按 /\braw\b/ 数会把 import 行和说明文字一起命中。
-    expect(countRawIpcSchemas("import { nullable, raw, text } from './payloadSchema'")).toBe(0)
-    expect(countRawIpcSchemas("import { oneOf, raw } from './payloadSchema'")).toBe(0)
-    expect(countRawIpcSchemas(' * `raw()` 的语义是"在别处校验了"，没有别处就不要用它。')).toBe(0)
+  it('不把非调用的提及算进来', () => {
+    // 类型引用不带括号、带其他后缀的标识符都不是字面调用。
+    expect(countRawIpcSchemas('const t: z.ZodUnknown = value')).toBe(0)
+    expect(countRawIpcSchemas('z.unknownParser(value)')).toBe(0)
+    // 旧组合子的写法不再是计数对象。
+    expect(countRawIpcSchemas("raw('x')")).toBe(0)
   })
 
-  it('要求首参是字符串字面量，顺带排掉多数同名调用', () => {
-    expect(countRawIpcSchemas("parseRaw('x')")).toBe(0)
-    // 无参或首参非字符串的 raw( 不算：本层的 raw() 强制要求写明理由。
-    expect(countRawIpcSchemas('raw()')).toBe(0)
-    expect(countRawIpcSchemas('raw(reason)')).toBe(0)
-    // 已知限制：`\b` 会让 `obj.raw('x')` 也命中。electron/ipc/ 下没有这种写法
-    // （唯一的 raw 是 payloadSchema 的导出函数），真出现了宁可多报——
-    // 多报会在守卫里当场失败并被看见，漏报则是静默的。
-    expect(countRawIpcSchemas("obj.raw('x')")).toBe(1)
+  it('已知限制：接收者前缀不参与判定，宁可多报', () => {
+    // 与旧口径同一取舍：多报会在守卫里当场失败并被看见，漏报则是静默的。
+    expect(countRawIpcSchemas('obj.z.unknown()')).toBe(1)
   })
 })
 

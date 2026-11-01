@@ -1,5 +1,5 @@
 import { ipcMain } from 'electron'
-import { IpcPayloadError, parseIpcArgs } from '../../electron/ipc/payloadSchema'
+import { IpcPayloadError, parseIpcArgs } from '../../electron/ipc/ipcPayload'
 
 /**
  * `trustedSender` 的替身facade：只绕开 sender 校验，不绕开载荷校验。
@@ -10,9 +10,10 @@ import { IpcPayloadError, parseIpcArgs } from '../../electron/ipc/payloadSchema'
  * handler 表，调用时报 `ipcHandlers.get(...) is not a function`——一个跟"载荷校验"毫无关系的
  * 错误信息，两个文件各踩一次。
  *
- * 所以这里按真实 facade 的契约转发：有 schema 就先 `parseIpcArgs`，失败时抛出与生产
+ * 所以这里按真实 facade 的契约转发：有 schema 元组就先 `parseIpcArgs`，失败时抛出与生产
  * **完全一致**的 `Rejected IPC sender (payload)`，好让各测试文件的断言验的是生产真会给出的
- * 行为，而不是替身自己编的一套。
+ * 行为，而不是替身自己编的一套。解析逻辑 import 自 `ipcPayload.ts`（生产同一份），
+ * 不能 import `trustedSender` 本身——那两个测试文件 mock 的正是它，会绕回 mock 自己。
  *
  * 抽成共享模块而不是各文件抄一份：每迁移一个 register* 文件就会多一处需要这段逻辑，
  * 抄的那些副本一旦和 `parseOrReject` 的真实行为漂移，测试就会开始为不存在的行为背书。

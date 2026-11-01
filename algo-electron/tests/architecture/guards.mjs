@@ -124,9 +124,15 @@ export function themeDirectiveHasTailwindImport(cssSource) {
 /**
  * 未声明 schema 的 IPC 注册数。
  *
- * 判定口径是"第二个实参不是数组字面量"。`ipcMain.handle(ch, [text()], fn)` 声明了
- * 渠道载荷形状，`ipcMain.handle(ch, fn)` 没有——后者只有 `checkShellSender`（谁能发）
- * 与 `checkIpcPayload`（结构/体积/成环）两道防线，参数形状仍是渲染进程说什么就是什么。
+ * 判定口径是"第二个实参既不是数组字面量、也不是按命名约定导出的 zod schema 元组"。
+ * `ipcMain.handle(ch, [z.string()], fn)`（内联元组）与
+ * `ipcMain.handle(ch, getDailyActiveInput, fn)`（`src/shared/types/ipc/` 导出的命名元组，
+ * 约定以 `Input` 结尾）都声明了渠道载荷形状；`ipcMain.handle(ch, fn)` 没有——后者只有
+ * `checkShellSender`（谁能发）与 `checkIpcPayload`（结构/体积/成环）两道防线，
+ * 参数形状仍是渲染进程说什么就是什么。
+ *
+ * 命名约定是这条判定的一半：schema 元组是 `src/shared/types/ipc/<域>.ts` 导出的
+ * `as const` 数组，导出名一律 `<camelCaseChannel>Input`。不要起别的名字，守卫认的是后缀。
  *
  * 零参 handler（`ipcMain.handle(ch, () => …)`）不算欠账：没有参数就没有形状可校验。
  * 所以要看 `(` 之后有没有第二个形参——`(_event, x)` 算，`()` 与 `(_event)` 不算。
@@ -135,12 +141,12 @@ export function themeDirectiveHasTailwindImport(cssSource) {
  * 文本判定必然算错；而"有没有 schema 元组"是注册处一眼可见的单一事实。
  */
 const IPC_REGISTRATION_PATTERN =
-  /\b(?:ipcMain|coachPetIpcMain|ipcMainHandle)\s*\.?\s*(?:handle|on)\(\s*'[^']+'\s*,\s*(\[?)\s*(?:async\s*)?(?:\(([^)]*)\))?/g
+  /\b(?:ipcMain|coachPetIpcMain|ipcMainHandle)\s*\.?\s*(?:handle|on)\(\s*'[^']+'\s*,\s*(\[[\s\S]*?\]|[A-Za-z_$][A-Za-z0-9_$]*Input\b)?\s*(?:async\s*)?(?:\(([^)]*)\))?/g
 
 export function countUnschemadIpc(text) {
   let count = 0
   for (const match of text.matchAll(IPC_REGISTRATION_PATTERN)) {
-    const hasSchemaTuple = match[1] === '['
+    const hasSchemaTuple = match[1] !== undefined
     if (hasSchemaTuple) continue
     const params = (match[2] ?? '')
       .split(',')
@@ -153,17 +159,17 @@ export function countUnschemadIpc(text) {
 }
 
 /**
- * `raw()` 的用量。
+ * 无形状放行的用量（`z.unknown()`，旧组合子 `raw()` 的等价物）。
  *
- * `raw()` 的语义是"这个参数由 handler 自己校验"，存在的意义是让"没校验"和
+ * 它的语义是"这个参数由 handler 自己校验"，存在的意义是让"没校验"和
  * "在别处校验"在代码里可区分。但它同时也是一个逃逸口：写上去就能让
- * `countUnschemadIpc` 闭嘴。所以它自己也得上棘轮，否则迁移可以靠 `raw()` 刷完。
+ * `countUnschemadIpc` 闭嘴。所以它自己也得上棘轮，否则迁移可以靠它刷完。
  *
- * 只数调用，不数 import 与注释里的提及——`from './payloadSchema'` 那行里的 `raw`
- * 后面跟的是 `,` 或 `}`，不是 `(`。
+ * 只数 `electron/ipc/` 与 `src/shared/types/ipc/` 源码里的字面调用（由 runner 决定扫哪些
+ * 文件）；注释与测试里提到 `z.unknown()` 不在被扫的文件里，不受影响。
  */
 export function countRawIpcSchemas(text) {
-  return text.match(/\braw\(\s*['"`]/g)?.length ?? 0
+  return text.match(/\bz\.unknown\(\s*\)/g)?.length ?? 0
 }
 
 export function collectRatchetFailures({ entries, budgets, describe, cleanupHint }) {
