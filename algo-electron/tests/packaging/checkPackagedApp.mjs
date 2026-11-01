@@ -323,10 +323,13 @@ async function main() {
       /app\.second-instance-focused/,
       'Primary second-instance focus was not logged',
     )
-    assert.doesNotMatch(
+    // R2 起 electron-log 立即落盘：败者的拒绝记录留在共享日志里，是"第二实例被
+    // 拒绝"的诊断证据（旧自研 logger 缓冲不落盘才留得住 doesNotMatch）。
+    // 败者没跑启动装配由上方 mainWindow=1 与主实例行为断言覆盖。
+    assert.match(
       logText,
       /app\.single-instance-denied/,
-      'Losing instance wrote to the shared log',
+      'Losing instance did not leave the single-instance denial record',
     )
 
     const databasePath = path.join(userDataDir, 'data', 'algo-learning.sqlite')
