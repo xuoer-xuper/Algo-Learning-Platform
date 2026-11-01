@@ -1,7 +1,11 @@
 import crypto from 'node:crypto'
 import { getDb } from '../../connection'
 import { nowBeijing } from '../../../shared/time'
-import type { CoachEvent, CoachEventEvidence, CoachEventType } from '../../../coach/types'
+import type {
+  CoachEvent,
+  CoachEventEvidence,
+  CoachEventType,
+} from '../../../../src/shared/types/coach'
 
 /**
  * Coach 事件 repository。

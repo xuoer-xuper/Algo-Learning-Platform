@@ -1,11 +1,11 @@
 import assert from 'node:assert/strict'
 import { describe, test } from 'vitest'
+import { COACH_PIN_MODES } from '@shared/constants/preferences'
+import type { CoachPinMode } from '@shared/types/coach'
 import {
-  COACH_PIN_MODES,
   DEFAULT_COACH_PIN_MODE,
   normalizeCoachPinMode,
   resolvePetPinDecision,
-  type CoachPinMode,
 } from '../../electron/coach/petPinPolicy.ts'
 
 /**

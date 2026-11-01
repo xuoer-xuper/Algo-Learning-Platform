@@ -1,7 +1,5 @@
+import type { FindInPageCommand } from '../../src/shared/types/browser'
 export const MAX_FIND_IN_PAGE_QUERY_LENGTH = 512
-
-export type FindInPageCommand =
-  { type: 'query'; query: string } | { type: 'next' } | { type: 'previous' } | { type: 'close' }
 
 export interface FindInPageState {
   query: string
@@ -9,11 +7,6 @@ export interface FindInPageState {
   activeMatchOrdinal: number
   matches: number
   finalUpdate: boolean
-}
-
-export interface FindInPageViewState extends FindInPageState {
-  open: boolean
-  tabId: string | null
 }
 
 export type FindInPageEffect =

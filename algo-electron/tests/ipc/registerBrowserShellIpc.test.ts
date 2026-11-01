@@ -12,8 +12,8 @@ import {
   registerShellWebContents,
   resetTrustedSenderRegistry,
 } from '../../electron/ipc/trustedSender.ts'
-import type { InternalPage } from '../../electron/browser/tabManagerTypes.ts'
 import { AppWindow } from '../../electron/windows/AppWindow.ts'
+import type { InternalPage } from '@shared/types/browser'
 
 test('browser shell IPC resolves omnibox input and validates transient UI commands', async () => {
   resetElectronMock()

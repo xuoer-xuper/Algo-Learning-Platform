@@ -1,7 +1,7 @@
 import { getDb } from '../../connection'
 import { nowBeijing, todayBeijing } from '../../../shared/time'
-import type { PlatformDistributionRow } from './types'
 import { nextLocalDay } from './date'
+import type { PlatformDistributionRow } from '../../../../src/shared/types/stats'
 
 interface VisitAggregate {
   duration: number

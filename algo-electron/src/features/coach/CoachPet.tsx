@@ -16,6 +16,7 @@ import { useCoachMouseCapture } from './useCoachMouseCapture'
 import { PET_STATES, type PetState } from './petStates'
 import './styles/tokens.css'
 import './styles/pet.css'
+import type { CoachBubblePayload, CoachConfig } from '@shared/types/coach'
 
 const CoachChatPanel = lazy(() =>
   import('./CoachChatPanel').then((module) => ({

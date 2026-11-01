@@ -28,28 +28,14 @@ import {
 import { resolveUserScriptRequestTarget } from './userScriptConnectPolicy'
 import { parseScriptMetadata, type UserScriptMetadata } from './userScriptMetadata'
 import { errorMessage, errorName } from '../shared/errors'
+import type {
+  UserScriptUpdateResult,
+  UserScriptUpdateSummary,
+} from '../../src/shared/types/scripts'
 
 const SCHEDULER_INTERVAL_MS = 60 * 60 * 1_000
 
 export type UserScriptUpdateResultStatus = 'updated' | 'current' | 'skipped' | 'error'
-
-export interface UserScriptUpdateResult {
-  scriptId: string
-  name: string
-  status: UserScriptUpdateResultStatus
-  previousVersion: string | null
-  version: string | null
-  error?: string
-}
-
-export interface UserScriptUpdateSummary {
-  checked: number
-  updated: number
-  current: number
-  skipped: number
-  failed: number
-  results: UserScriptUpdateResult[]
-}
 
 interface UserScriptUpdateDependencies {
   getAllScripts: typeof getAllScripts

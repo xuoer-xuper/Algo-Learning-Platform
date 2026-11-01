@@ -6,7 +6,8 @@ import {
   parseTabSessionSnapshot,
   parseTabSessionSnapshotJson,
 } from '../../electron/browser/tabSessionSnapshot'
-import type { InternalPage, TabSnapshot } from '../../electron/browser/tabManagerTypes'
+import type { TabSnapshot } from '../../electron/browser/tabManagerTypes'
+import type { InternalPage } from '@shared/types/browser'
 
 function webTab(id: string, url = `https://example.com/${id}`, title = id): TabSnapshot {
   return { id, kind: 'web', url, title }

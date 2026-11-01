@@ -22,6 +22,13 @@ const projectRoot = process.cwd()
 const electronRoot = path.join(projectRoot, 'electron')
 const preloadPath = path.join(electronRoot, 'preload.ts')
 const preloadSource = fs.readFileSync(preloadPath, 'utf-8')
+/*
+ * 阶段 2 R2 起 `ElectronAPI` 接口搬进了本文件（`electron-env.d.ts` 已删除）。
+ * 方法提取器按 2 空格缩进的 `key:` 行切方法体，接口成员长得一模一样——所以把
+ * 提取范围收到 `contextBridge.exposeInMainWorld({ … })` 的对象字面量内
+ * （文件里唯一的 `\n})` 顶层收尾就是它的闭括号）。
+ */
+const preloadApiSource = preloadSource.slice(0, preloadSource.indexOf('\n})'))
 const electronSources = readElectronSources(electronRoot)
 
 /*
@@ -146,7 +153,7 @@ const coreContracts: PreloadContract[] = [
 ]
 
 test('preload maps core renderer methods to stable channels', () => {
-  const methods = extractPreloadMethods(preloadSource)
+  const methods = extractPreloadMethods(preloadApiSource)
 
   for (const contract of coreContracts) {
     const body = methods.get(contract.method)
@@ -218,7 +225,7 @@ test('preload event subscriptions are fixed and backed by main-process sends', (
 })
 
 test('renderer cannot access arbitrary IPC channels through preload', () => {
-  const methods = extractPreloadMethods(preloadSource)
+  const methods = extractPreloadMethods(preloadApiSource)
   const exposedMethodNames = [...methods.keys()]
   assert.ok(!exposedMethodNames.includes('send'))
   assert.ok(!exposedMethodNames.includes('invoke'))

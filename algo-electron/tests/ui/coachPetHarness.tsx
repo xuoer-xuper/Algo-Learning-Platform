@@ -1,6 +1,8 @@
 import React from 'react'
 import { createRoot } from 'react-dom/client'
 import { CoachPet } from '../../src/features/coach/CoachPet'
+import type { CoachBubblePayload } from '@shared/types/coach'
+import type { ElectronAPI } from '../../electron/preload'
 import '../../src/index.css'
 
 declare global {

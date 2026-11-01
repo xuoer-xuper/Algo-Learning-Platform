@@ -16,7 +16,8 @@ import {
   saveUserScriptSites,
   toggleUserScript,
 } from './scriptsApi'
-import type { ScriptSite, UserScriptRecord } from './types'
+import type { UserScriptRecord } from '@shared/types/scripts'
+import type { ScriptSite } from './types'
 
 export function UserScriptManager({ onClose }: { onClose: () => void }) {
   const [scripts, setScripts] = useState<UserScriptRecord[]>([])

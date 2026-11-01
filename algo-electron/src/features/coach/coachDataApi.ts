@@ -1,3 +1,13 @@
+import type {
+  CoachBubblePayload,
+  CoachConfig,
+  CoachContestModePayload,
+  CoachFeedbackType,
+  CoachMetricsBundle,
+  CoachPetState,
+  CoachStateSnapshot,
+  ProblemTimelineData,
+} from '@shared/types/coach'
 /**
  * Coach renderer 侧数据访问层。
  *

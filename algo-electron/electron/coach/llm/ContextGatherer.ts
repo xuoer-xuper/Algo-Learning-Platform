@@ -1,9 +1,12 @@
 import { exportAIContext, renderContextAsMarkdown } from '../../ai/contextExporter'
 import { getProblemDetail } from '../../db/repositories/problemRepository'
 import { getSubmissionsByProblemAsc } from '../../db/repositories/submissionRepository'
-import type { ProblemSession } from '../types'
+import type {
+  CoachEvent,
+  CoachInterventionLevel,
+  ProblemSession,
+} from '../../../src/shared/types/coach'
 import type { ProblemConstraints } from '../problemFacts/ConstraintParser'
-import type { CoachEvent, CoachInterventionLevel } from '../types'
 import type { LlmHintRequestContext } from './LlmHintTypes'
 
 /**

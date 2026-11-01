@@ -9,8 +9,8 @@ import {
   REVIEW_RECOMMENDATION_RULE_VERSION,
   scoreReviewCandidate,
 } from './rules'
-import type { ReviewRecommendation, ReviewRecommendationResult } from './types'
-export type { ReviewRecommendation, ReviewRecommendationResult } from './types'
+import type { ReviewRecommendation, ReviewRecommendationResult } from '../../../src/shared/types/ai'
+export type { ReviewRecommendation, ReviewRecommendationResult } from '../../../src/shared/types/ai'
 
 // 单题评分规则（纯本地统计，可解释）：
 // 1. 错误次数越多，越需复习（权重 40）

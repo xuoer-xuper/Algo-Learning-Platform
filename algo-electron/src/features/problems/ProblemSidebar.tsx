@@ -3,7 +3,7 @@ import { PLATFORM_LABELS, STATUS_COLORS } from '../../shared/display'
 import { Empty, IconButton, ListRow, Select, Skeleton } from '../../components/ui'
 import { reportRendererError } from '../../rendererErrors'
 import { loadRecentProblems, setProblemSidebarWidth, subscribeProblemsUpdated } from './problemsApi'
-import type { SidebarProblemRecord } from './problemTypes'
+import type { ProblemRecord } from '@shared/types/problem'
 
 interface Props {
   onNavigate: (url: string) => void
@@ -15,7 +15,7 @@ interface Props {
 export function ProblemSidebar({ onNavigate, onShowDetail, onShowNotes, onWidthChange }: Props) {
   // null = 还没读到（渲染骨架），[] = 读到了且确实没有（渲染空态）。
   // B5.2 之前这里是 useState<...[]>([])，于是加载中和"你没有记录"长得一模一样。
-  const [problems, setProblems] = useState<SidebarProblemRecord[] | null>(null)
+  const [problems, setProblems] = useState<ProblemRecord[] | null>(null)
   const [collapsed, setCollapsed] = useState(false)
   const [filterPlatform, setFilterPlatform] = useState<string>('')
   const [filterStatus, setFilterStatus] = useState<string>('')

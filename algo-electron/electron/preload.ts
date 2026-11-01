@@ -2,6 +2,105 @@ import { ipcRenderer, contextBridge } from 'electron'
 import { BROWSER_LAYOUT } from './browser/browserLayout'
 import { IPC_CHANNELS } from '../src/shared/constants/channels'
 
+// 阶段 2 R2：域类型单一来源在 src/shared/types/，preload 只 import type。
+import type {
+  AIOutputRecord,
+  AIOutputSaveInput,
+  ReviewRecommendationResult,
+  WeaknessAnalysisResult,
+} from '../src/shared/types/ai'
+import type {
+  DatabaseBackupResult,
+  LearningDataExportFileResult,
+  LearningDataImportPreviewResult,
+  LearningDataImportResult,
+} from '../src/shared/types/backup'
+import type {
+  BrowserDiagnosticsSnapshot,
+  FindInPageCommand,
+  FindInPageViewState,
+  InternalPage,
+  ManagedDownloadResult,
+  TabInfo,
+  ZoomCommand,
+  ZoomState,
+} from '../src/shared/types/browser'
+import type {
+  CoachBubblePayload,
+  CoachConfig,
+  CoachContestModePayload,
+  CoachEvent,
+  CoachFeedbackType,
+  CoachIntervention,
+  CoachMetricsBundle,
+  CoachMetricsSnapshot,
+  CoachPetState,
+  CoachStateSnapshot,
+  ContestAuditRecord,
+  LlmConfigStatus,
+  LlmConnectionTestOutput,
+  ProblemSession,
+  ProblemTimelineData,
+} from '../src/shared/types/coach'
+import type { SearchEngineConfig, ThemePreference } from '../src/shared/types/config'
+import type { CookieSafeDomainSummary, CookieSafeSiteSummary } from '../src/shared/types/cookies'
+import type {
+  CredentialAutofillPrompt,
+  CredentialCaptureAction,
+  CredentialCapturePrompt,
+  CredentialCaptureResult,
+  CredentialSummary,
+} from '../src/shared/types/credentials'
+import type { NoteRecord, SaveNoteImageResult } from '../src/shared/types/notes'
+import type {
+  OmniboxSuggestion,
+  ProblemDetailRecord,
+  ProblemRecord,
+} from '../src/shared/types/problem'
+import type {
+  ContestResultRecord,
+  PlatformAccount,
+  RatingHistoryRecord,
+} from '../src/shared/types/rating'
+import type {
+  PendingUserScriptInstall,
+  UserScriptCodeView,
+  UserScriptHostPermissionPrompt,
+  UserScriptHostPermissionResponse,
+  UserScriptInstallAction,
+  UserScriptInstallInstallResult,
+  UserScriptInstallPreview,
+  UserScriptOpenEditorResult,
+  UserScriptRecord,
+  UserScriptSaveInput,
+  UserScriptUpdateSummary,
+} from '../src/shared/types/scripts'
+import type {
+  SiteConfigCreateInput,
+  SiteConfigRecord,
+  SiteConfirmImportResult,
+  SiteExportResult,
+  SiteImportResult,
+} from '../src/shared/types/sites'
+import type {
+  DailyActiveStats,
+  OverviewStats,
+  ProblemVisitStats,
+  RevisitStatsItem,
+  SubmissionTrendPoint,
+  TimelineEvent,
+  TrendPoint,
+  UnreviewedProblemItem,
+  WrongProblemItem,
+} from '../src/shared/types/stats'
+import type { RealtimeSubmissionStatus, SyncResult } from '../src/shared/types/submission'
+import type {
+  AppMenuAnchor,
+  BrowserLayoutConfig,
+  ShellContextMenuKind,
+  UiCommand,
+} from '../src/shared/types/window'
+
 contextBridge.exposeInMainWorld('electronAPI', {
   browserLayout: BROWSER_LAYOUT,
   // 浏览器导航
@@ -574,3 +673,277 @@ contextBridge.exposeInMainWorld('electronAPI', {
     }
   },
 })
+
+/*
+ * `ElectronAPI` 与 `Window.electronAPI` 的全局声明自阶段 2 R2 起住在定义它的地方
+ * （本文件，R3 会以 `typeof api` 重写并删除这份手写面）；域类型一律来自
+ * `src/shared/types/*`，本接口不再手抄任何字段形状——删除 `electron-env.d.ts`
+ * 之后这里的每个名字都是 import 进来的单一来源。
+ */
+
+export interface ElectronAPI {
+  browserLayout: BrowserLayoutConfig
+  navigate: (url: string) => void
+  goBack: () => void
+  goForward: () => void
+  reload: () => void
+  goHome: () => void
+  setSidebarWidth: (width: number) => void
+  getBrowserDiagnostics: () => Promise<BrowserDiagnosticsSnapshot>
+  minimizeWindow: () => void
+  maximizeWindow: () => void
+  closeWindow: () => void
+  isWindowMaximized: () => Promise<boolean>
+  onWindowMaximized: (callback: (maximized: boolean) => void) => () => void
+  onUrlChanged: (callback: (url: string) => void) => () => void
+  onUiCommand: (callback: (command: UiCommand) => void) => () => void
+  findInPage: (tabId: string, command: FindInPageCommand) => Promise<FindInPageViewState | null>
+  onFindInPageResult: (callback: (state: FindInPageViewState) => void) => () => void
+  setZoom: (tabId: string, command: ZoomCommand) => Promise<ZoomState | null>
+  onZoomChanged: (callback: (state: ZoomState) => void) => () => void
+  setDownloadNoticeVisible: (visible: boolean) => void
+  setErrorNoticeVisible: (visible: boolean) => void
+  onDownloadResult: (callback: (result: ManagedDownloadResult) => void) => () => void
+  getUserScriptInstall: (installId: string) => Promise<PendingUserScriptInstall | null>
+  cancelUserScriptInstall: (installId: string) => Promise<boolean>
+  getRemoteUserScriptInstallPreview: (installId: string) => Promise<UserScriptInstallPreview | null>
+  confirmRemoteUserScriptInstall: (
+    installId: string,
+    action: UserScriptInstallAction,
+  ) => Promise<UserScriptInstallInstallResult | null>
+  cancelRemoteUserScriptInstall: (installId: string) => Promise<boolean>
+  getUserScriptHostPermissionPrompt: () => Promise<UserScriptHostPermissionPrompt | null>
+  respondUserScriptHostPermission: (
+    promptId: string,
+    allow: boolean,
+  ) => Promise<UserScriptHostPermissionResponse>
+  onUserScriptHostPermissionPrompt: (
+    callback: (prompt: UserScriptHostPermissionPrompt) => void,
+  ) => () => void
+  listRecentProblems: (
+    limit?: number,
+    platform?: string,
+    status?: string,
+  ) => Promise<ProblemRecord[]>
+  getProblemDetail: (problemId: string) => Promise<ProblemDetailRecord | null>
+  deleteProblem: (problemId: string) => Promise<boolean>
+  onProblemsUpdated: (callback: () => void) => () => void
+  syncCodeforces: (handle: string) => Promise<SyncResult>
+  syncVjudge: () => Promise<SyncResult>
+  syncCurrentPage: () => Promise<SyncResult>
+  getRealtimeSubmissionStatus: () => Promise<RealtimeSubmissionStatus | null>
+  getCookieSummaryForSite: (siteId: string) => Promise<CookieSafeSiteSummary>
+  getCookieSummaryForDomain: (siteId: string, domain: string) => Promise<CookieSafeDomainSummary>
+  listCredentials: (siteId?: string) => Promise<CredentialSummary[]>
+  deleteCredential: (credentialId: string) => Promise<boolean>
+  renameCredential: (credentialId: string, displayName: string) => Promise<CredentialSummary | null>
+  getCredentialAutofillPrompt: () => Promise<CredentialAutofillPrompt | null>
+  respondCredentialAutofill: (requestId: string, credentialId: string | null) => Promise<boolean>
+  onCredentialAutofillPrompt: (callback: (prompt: CredentialAutofillPrompt) => void) => () => void
+  getCredentialCapturePrompt: () => Promise<CredentialCapturePrompt | null>
+  respondCredentialCapture: (captureId: string, action: CredentialCaptureAction) => Promise<boolean>
+  onCredentialCapturePrompt: (callback: (prompt: CredentialCapturePrompt) => void) => () => void
+  onCredentialCaptureResult: (callback: (result: CredentialCaptureResult) => void) => () => void
+  getOverviewStats: () => Promise<OverviewStats>
+  getDailyActiveStats: (days?: number) => Promise<DailyActiveStats[]>
+  getVisitedTrend: (days?: number) => Promise<TrendPoint[]>
+  getAcTrend: (days?: number) => Promise<TrendPoint[]>
+  getSubmissionTrend: (days?: number) => Promise<SubmissionTrendPoint[]>
+  getPlatformDistribution: () => Promise<{ platform: string; count: number }[]>
+  getProblemVisitStats: (problemId: string) => Promise<ProblemVisitStats>
+  getTimeline: (limit?: number) => Promise<TimelineEvent[]>
+  getLastActiveTime: () => Promise<string | null>
+  getRevisitStats: (limit?: number) => Promise<RevisitStatsItem[]>
+  recomputeDailyStats: (date?: string) => Promise<boolean>
+  getStreakDays: () => Promise<{ current: number; longest: number }>
+  getWrongProblems: (limit?: number) => Promise<WrongProblemItem[]>
+  getUnreviewedProblems: (days?: number, limit?: number) => Promise<UnreviewedProblemItem[]>
+  recomputeAllDailyStats: () => Promise<number>
+  bindHandle: (platform: string, handle: string) => Promise<{ id: string; handle: string }>
+  getAccount: (platform: string, handle: string) => Promise<PlatformAccount | null>
+  getAccounts: (platform: string) => Promise<PlatformAccount[]>
+  syncCodeforcesRating: (
+    handle: string,
+  ) => Promise<
+    | { success: true; data: { historyCount: number; inserted: number; peak: number | null } }
+    | { success: false; error: string; code?: string }
+  >
+  getRatingHistory: (accountId: string) => Promise<RatingHistoryRecord[]>
+  getCodeforcesAccount: () => Promise<PlatformAccount | null>
+  getContestResults: (accountId: string) => Promise<ContestResultRecord[]>
+  getAllSites: () => Promise<SiteConfigRecord[]>
+  getSiteById: (id: string) => Promise<SiteConfigRecord | null>
+  createSite: (data: SiteConfigCreateInput) => Promise<string>
+  toggleSite: (id: string, enabled: boolean) => Promise<boolean>
+  deleteSite: (id: string) => Promise<boolean>
+  exportSitesConfig: () => Promise<SiteExportResult>
+  importSitesConfig: () => Promise<SiteImportResult>
+  confirmImportSites: (
+    sites: SiteConfigRecord[],
+    overwriteIds: string[],
+  ) => Promise<SiteConfirmImportResult>
+
+  // Scripts
+  scriptsGetAll: () => Promise<UserScriptRecord[]>
+  scriptsSave: (id: string, data: UserScriptSaveInput) => Promise<string>
+  scriptsImportFile: () => Promise<string | null>
+  scriptsOpenFolder: () => Promise<string>
+  scriptsGetCode: (id: string) => Promise<UserScriptCodeView>
+  scriptsOpenEditor: (id: string) => Promise<UserScriptOpenEditorResult>
+  scriptsToggle: (id: string, enabled: boolean) => Promise<boolean>
+  scriptsDelete: (id: string) => Promise<boolean>
+  scriptsCheckUpdates: () => Promise<UserScriptUpdateSummary | null>
+
+  getHomeShortcuts: () => Promise<string[]>
+  getSearchEngine: () => Promise<SearchEngineConfig>
+  setSearchEngine: (search: SearchEngineConfig) => Promise<SearchEngineConfig>
+  getTheme: () => Promise<ThemePreference>
+  setTheme: (theme: ThemePreference) => Promise<ThemePreference>
+  createDatabaseBackup: () => Promise<DatabaseBackupResult>
+  exportLearningData: () => Promise<LearningDataExportFileResult>
+  previewLearningDataImport: () => Promise<LearningDataImportPreviewResult>
+  confirmLearningDataImport: (overwriteConflicts: boolean) => Promise<LearningDataImportResult>
+
+  // 标签页管理
+  createTab: (url?: string) => Promise<string>
+  closeTab: (tabId: string) => void
+  reopenClosedTab: () => Promise<string>
+  switchTab: (tabId: string) => void
+  reorderTab: (tabId: string, targetIndex: number) => Promise<boolean>
+  moveTabToNewWindow: (tabId: string) => Promise<boolean>
+  finishTabDrag: (
+    tabId: string,
+    targetIndex: number,
+    screenX: number,
+    screenY: number,
+  ) => Promise<boolean>
+  reloadTab: (tabId: string) => void
+  dismissUnresponsiveTab: (tabId: string) => void
+  openInternalTab: (page: InternalPage) => Promise<string>
+  getTabList: () => Promise<TabInfo[]>
+  onTabListChanged: (callback: (tabs: TabInfo[]) => void) => () => void
+
+  // Omnibox 与应用菜单
+  getOmniboxSuggestions: (query: string) => Promise<OmniboxSuggestion[]>
+  setOmniboxOpen: (open: boolean) => void
+  showAppMenu: (anchor: AppMenuAnchor) => void
+  showShellContextMenu: (kind: ShellContextMenuKind) => void
+  showTabContextMenu: (tabId: string) => void
+
+  // 笔记（本地题解 Markdown）
+  listNotesByProblem: (problemId: string) => Promise<NoteRecord[]>
+  getNote: (noteId: string) => Promise<NoteRecord | null>
+  createNote: (
+    problemId: string | null,
+    title: string,
+    content: string | null,
+    noteType: string,
+  ) => Promise<NoteRecord>
+  updateNoteTitle: (noteId: string, title: string) => Promise<boolean>
+  updateNoteContent: (noteId: string, content: string) => Promise<boolean>
+  saveNoteImage: (
+    noteId: string,
+    fileName: string,
+    mimeType: string,
+    data: ArrayBuffer,
+  ) => Promise<SaveNoteImageResult>
+  updateNoteType: (noteId: string, noteType: string) => Promise<boolean>
+  deleteNote: (noteId: string) => Promise<boolean>
+  getNotesForDelete: (problemId: string) => Promise<NoteRecord[]>
+  deleteNotesByProblem: (problemId: string) => Promise<number>
+  openNotesDir: () => Promise<void>
+
+  // P6-004: AI 上下文导出
+  exportAIContext: () => Promise<Record<string, unknown>>
+  exportAIContextMarkdown: () => Promise<string>
+
+  // P6-005 / P6-006: AI 建议与薄弱分析（本地规则引擎）
+  getReviewRecommendations: (limit?: number) => Promise<ReviewRecommendationResult>
+  getWeaknessAnalysis: (limit?: number) => Promise<WeaknessAnalysisResult>
+
+  // P6-007 / P6-008 / P6-009: AI 输出能力
+  getPeriodSummary: (startDate: string, endDate: string) => Promise<Record<string, unknown>>
+  getPeriodSummaryMarkdown: (startDate: string, endDate: string) => Promise<string>
+  getReviewPlan: (planDays?: number) => Promise<Record<string, unknown>>
+  getReviewPlanMarkdown: (planDays?: number) => Promise<string>
+  saveAIOutput: (input: AIOutputSaveInput) => Promise<string>
+  getAIOutput: (id: string) => Promise<AIOutputRecord | null>
+  listAIOutputs: (outputType?: string, limit?: number) => Promise<AIOutputRecord[]>
+  deleteAIOutput: (id: string) => Promise<boolean>
+  updateAIOutput: (
+    id: string,
+    updates: Partial<Pick<AIOutputSaveInput, 'title' | 'content' | 'content_markdown'>>,
+  ) => Promise<boolean>
+
+  // Coach 桌宠（阶段 1 视觉壳 + 阶段 2 规则引擎预留接口）
+  coachGetPetState: () => Promise<CoachPetState>
+  coachSetPetState: (state: CoachPetState) => Promise<boolean>
+  coachToggleIgnoreMouseEvents: (ignore: boolean) => Promise<boolean>
+  coachStartDrag: () => Promise<boolean>
+  coachEndDrag: () => Promise<boolean>
+  coachResetPosition: () => Promise<boolean>
+  coachGetConfig: () => Promise<CoachConfig>
+  coachSaveConfig: (partial: Partial<CoachConfig>) => Promise<boolean>
+  coachTestHint: () => Promise<CoachBubblePayload>
+  coachShowBubble: (payload: CoachBubblePayload) => Promise<boolean>
+  coachDismissBubble: () => Promise<boolean>
+  coachTriggerHint: (
+    bubbleId?: string,
+  ) => Promise<{ accepted: boolean; level: number; note?: string; interventionId?: string }>
+  coachDismissHint: (bubbleId?: string) => Promise<boolean>
+  coachFeedback: (feedback: {
+    bubbleId?: string
+    interventionId?: string
+    type: CoachFeedbackType
+  }) => Promise<boolean>
+  coachDismissDisclaimer: (permanent: boolean) => Promise<boolean>
+  coachPetClick: () => Promise<{
+    triggered: boolean
+    level: number
+    llmEnabled: boolean
+    note?: string
+  }>
+  coachChat: (params: {
+    message: string
+    history?: Array<{ role: 'user' | 'assistant'; content: string }>
+  }) => Promise<{ reply: string; success: boolean; error?: string }>
+  coachRequestHint: () => Promise<{ message: string; success: boolean; error?: string }>
+  coachGetWorkArea: () => Promise<{ x: number; y: number; width: number; height: number }>
+
+  // 阶段 2：规则引擎 + 比赛模式 + 审计日志
+  coachGetState: () => Promise<CoachStateSnapshot | null>
+  coachGetSession: () => Promise<ProblemSession | null>
+  coachGetSessionHistory: (limit?: number) => Promise<ProblemSession[]>
+  coachGetMetrics: () => Promise<CoachMetricsSnapshot | null>
+  coachListEvents: (limit?: number) => Promise<CoachEvent[]>
+  coachListInterventions: (limit?: number) => Promise<CoachIntervention[]>
+  coachExportAuditLog: () => Promise<ContestAuditRecord[]>
+  // 阶段 4：过程复盘 + 答辩数据
+  coachGetProblemTimeline: (problemId: string) => Promise<ProblemTimelineData | null>
+  coachGetMetricsBundle: () => Promise<CoachMetricsBundle | null>
+  // 阶段 5：LLM 配置
+  coachGetLlmConfig: () => Promise<LlmConfigStatus | null>
+  coachSaveLlmApiKey: (apiKey: string) => Promise<boolean>
+  coachSaveLlmConfig: (partial: {
+    base_url?: string
+    model?: string
+    enabled?: boolean
+  }) => Promise<boolean>
+  coachTestLlmConnection: (config: {
+    api_key: string
+    base_url: string
+    model: string
+  }) => Promise<LlmConnectionTestOutput>
+
+  onCoachPetStateChanged: (callback: (state: CoachPetState) => void) => () => void
+  onCoachConfigChanged: (callback: (config: CoachConfig) => void) => () => void
+  onCoachShowBubble: (callback: (payload: CoachBubblePayload) => void) => () => void
+  onCoachDismissBubble: (callback: () => void) => () => void
+  onCoachContestModeChanged: (callback: (payload: CoachContestModePayload) => void) => () => void
+}
+
+declare global {
+  interface Window {
+    electronAPI: ElectronAPI
+  }
+}

@@ -9,8 +9,7 @@ Renderer 不能直接访问本目录能力，只能通过 `preload.ts` 暴露的
 ## 2. 根文件
 
 - `main.ts`：应用启动编排。负责设置 Chromium flag、初始化数据库和服务、创建窗口、注册 IPC、创建浏览器标签系统、安装协议和注入器。业务逻辑应继续下沉到子模块。
-- `preload.ts`：renderer preload 白名单。只暴露固定 `electronAPI`，不暴露通用 `ipcRenderer`。
-- `electron-env.d.ts`：renderer 可见 preload API 类型契约。新增 IPC/Preload API 必须同步这里和 IPC contract 测试。
+- `preload.ts`：renderer preload 白名单。只暴露固定 `electronAPI`，不暴露通用 `ipcRenderer`；`ElectronAPI` 接口也在这里（阶段 2 R2 起，`electron-env.d.ts` 已删除；R3 将改为 `window.api: typeof api`）。跨进程域类型单一来源在 `../src/shared/types/`，新增 IPC/Preload API 必须同步 shared 类型与 IPC contract 测试。
 
 ## 3. 子目录分类
 
@@ -42,7 +41,7 @@ Renderer 不能直接访问本目录能力，只能通过 `preload.ts` 暴露的
 
 - 启动组合：`main.ts`、`app/mainServices.ts`、`ipc/registerMainIpc.ts`。
 - 窗口与浏览器能力：`windows/WindowManager.ts`、`windows/ViewRegistry.ts`、`browser/TabManager.ts`、`browser/ojPreload.ts`。
-- IPC 契约：`preload.ts`、`electron-env.d.ts`、`ipc/register*.ts`。
+- IPC 契约：`preload.ts`、`../src/shared/types/`、`ipc/register*.ts`。
 - 数据写入：`db/repositories/*`、`submissions/SubmissionBatchWriter.ts`、`tracking/TrackingService.ts`。
 - 备份导入：`backup/backupService.ts`、`backup/learningDataExport.ts`。
 - 站点能力：`db/repositories/site/builtins.ts`（DB 唯一 seed 源）、`adapters/sites/{site}/`、`parsers/sites/`。
@@ -74,7 +73,7 @@ Renderer 不能直接访问本目录能力，只能通过 `preload.ts` 暴露的
 - 不把业务逻辑堆回 `main.ts`。
 - 不在 renderer 暴露通用 IPC、Node、SQLite、Cookie 或文件系统能力。
 - 数据库 schema 变化必须新增 migration，并同步 `docs/DESIGN/DATABASE_SCHEMA.md` 和 `docs/OPERATIONS/DATABASE_MIGRATION_ROLLBACK.md`。
-- IPC/Preload API 变化必须同步 `preload.ts`、`electron-env.d.ts`、renderer helper、IPC contract 测试和相关 README。
+- IPC/Preload API 变化必须同步 `preload.ts`、`../src/shared/types/`、renderer helper、IPC contract 测试和相关 README。
 - Nowcoder、VJudge 不得重新使用通用 DOM verdict observer 作为实时入库来源。
 - 不把 Cookie、用户源码、完整请求体、本机数据库或可复用登录态写入日志、文档或测试快照。
 

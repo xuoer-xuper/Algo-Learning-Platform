@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest'
+import type { SearchEngineConfig } from '@shared/types/config'
 import {
   buildSearchUrl,
   normalizeSearchEngineConfig,
   resolveOmniboxInput,
   validateCustomSearchTemplate,
-  type SearchEngineConfig,
 } from '../../electron/browser/omnibox.ts'
 
 describe('omnibox search configuration', () => {

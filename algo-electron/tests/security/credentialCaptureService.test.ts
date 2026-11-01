@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict'
 import { EventEmitter } from 'node:events'
 import { afterEach, test, vi } from 'vitest'
-import type { CredentialSummary } from '../../electron/credentials/credentialVaultCore'
 import type { CredentialVault } from '../../electron/credentials/CredentialVault'
 import { CredentialCaptureService } from '../../electron/credentials/CredentialCaptureService'
+import type { CredentialSummary } from '@shared/types/credentials'
 
 class FakeContents extends EventEmitter {
   constructor(

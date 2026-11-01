@@ -6,7 +6,7 @@ import {
   isWrongVerdict,
 } from '../../electron/coach/CoachEventBridge.ts'
 import type { SubmissionNotification } from '../../electron/submissions/SubmissionWatcherCore.ts'
-import type { CoachEvent } from '../../electron/coach/types.ts'
+import type { CoachEvent } from '@shared/types/coach'
 
 /**
  * CoachEventBridge：把提交检测通知折成 0~2 个 CoachEvent 的那段判定。

@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { Button, Icon, Input } from '../../components/ui'
 import { errorMessage } from '../../shared/errors'
 import { loadLlmConfig, saveLlmApiKey, saveLlmConfig, testLlmConnection } from './settingsApi'
+import type { LlmConfigStatus, LlmConnectionTestOutput } from '@shared/types/coach'
 
 const DEFAULT_BASE_URL = 'https://ark.cn-beijing.volces.com/api/v3'
 const DEFAULT_MODEL = 'doubao-seed-1-6-flash-250715'

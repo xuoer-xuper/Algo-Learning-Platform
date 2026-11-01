@@ -1,15 +1,14 @@
+/*
+ * `SEARCH_ENGINE_IDS` / `SearchEngineId` / `SearchEngineConfig` 已下沉到
+ * `src/shared/constants/preferences.ts` 与 `src/shared/types/config.ts`
+ * （阶段 2 R2 常量下沉）：`src/shared/types/ipc/config.ts` 的输入 schema 与渲染层
+ * 都要消费它们，不能反向依赖本主进程模块。本模块保留模板语义、归一化与默认值。
+ */
+import { SEARCH_ENGINE_IDS } from '../../src/shared/constants/preferences'
+import type { SearchEngineConfig, SearchEngineId } from '../../src/shared/types/config'
 import { getInternalPageUrl, parseInternalPageUrl } from './internalPage'
 import { evaluateBrowserNavigation, type NavigationBlockReason } from './navigationPolicy'
-import type { InternalPage } from './tabManagerTypes'
-
-export const SEARCH_ENGINE_IDS = ['bing', 'google', 'baidu', 'custom'] as const
-
-export type SearchEngineId = (typeof SEARCH_ENGINE_IDS)[number]
-
-export interface SearchEngineConfig {
-  engine: SearchEngineId
-  customTemplate: string | null
-}
+import type { InternalPage } from '../../src/shared/types/browser'
 
 export const DEFAULT_SEARCH_ENGINE_CONFIG: Readonly<SearchEngineConfig> = {
   engine: 'bing',

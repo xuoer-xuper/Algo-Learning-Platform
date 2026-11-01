@@ -1,4 +1,9 @@
-import type { CoachEvent, CoachEventType, CoachInterventionLevel, ProblemSession } from '../types'
+import type {
+  CoachEvent,
+  CoachEventType,
+  CoachInterventionLevel,
+  ProblemSession,
+} from '../../../src/shared/types/coach'
 
 /**
  * 规则定义：条件 + 评分 + 干预等级 + 触发原因模板。

@@ -7,7 +7,7 @@ import type {
   CoachInterventionLevel,
   CoachInterventionUserAction,
   ProblemSession,
-} from '../types'
+} from '../../../src/shared/types/coach'
 import {
   type RuleContext,
   type RuleResult,

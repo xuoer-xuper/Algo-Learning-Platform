@@ -7,6 +7,7 @@ import {
   saveCoachConfig,
 } from '../coach/coachDataApi'
 import { errorMessage } from '../../shared/errors'
+import type { CoachConfig, CoachPinMode } from '@shared/types/coach'
 
 /**
  * 三档置顶方式的效果说明。写在界面上而不是只写文档：这三档的差别是

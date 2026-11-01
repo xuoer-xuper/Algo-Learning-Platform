@@ -1,3 +1,4 @@
+import type { SiteImportPreview } from '../../../../src/shared/types/sites'
 export interface SiteConfigData {
   id: string
   name: string
@@ -36,22 +37,9 @@ export interface SitesExportData {
   sites: SiteConfigData[]
 }
 
-export interface ImportConflict {
-  id: string
-  name: string
-  existing: SiteConfigData
-  incoming: SiteConfigData
-}
-
-export interface ImportPreview {
-  newSites: SiteConfigData[]
-  conflicts: ImportConflict[]
-  builtinSkipped: SiteConfigData[]
-}
-
 export interface ImportPreviewResult {
   valid: boolean
-  preview?: ImportPreview
+  preview?: SiteImportPreview
   error?: string
 }
 

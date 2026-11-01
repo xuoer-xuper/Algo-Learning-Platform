@@ -16,6 +16,8 @@ vi.mock('../../src/hooks/browserShellApi', () => shellApi)
 import { BrowserToolbar } from '../../src/components/BrowserToolbar'
 import { OmniboxSuggestionsPanel } from '../../src/components/Omnibox'
 import { useOmnibox } from '../../src/components/useOmnibox'
+import type { UiCommand } from '@shared/types/window'
+import type { OmniboxSuggestion } from '@shared/types/problem'
 
 const historySuggestion: OmniboxSuggestion = {
   problemId: 'problem-1',

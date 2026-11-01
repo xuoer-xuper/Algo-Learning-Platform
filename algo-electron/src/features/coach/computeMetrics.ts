@@ -1,3 +1,4 @@
+import type { CoachEventType, CoachFeedbackType, CoachMetricsBundle } from '@shared/types/coach'
 /**
  * Coach 干预效果指标计算（纯函数）。
  *

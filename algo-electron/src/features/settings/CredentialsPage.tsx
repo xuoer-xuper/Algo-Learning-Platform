@@ -10,20 +10,22 @@ import {
   renameCredential,
   syncCodeforcesRatingProfile,
 } from './settingsApi'
-import type { CodeforcesAccount } from './settingsTypes'
-import type { SiteConfigView } from './siteManagementTypes'
+import type { PlatformAccount } from '@shared/types/rating'
+import type { SiteConfigRecord } from '@shared/types/sites'
+import type { CredentialSummary } from '@shared/types/credentials'
+import type { CookieSafeSiteSummary } from '@shared/types/cookies'
 
 interface CredentialsPageProps {
   onClose: () => void
 }
 
 interface CredentialSiteState {
-  site: SiteConfigView
+  site: SiteConfigRecord
   credentials: CredentialSummary[]
   cookieSummary: CookieSafeSiteSummary | null
 }
 
-function loginUrlForSite(site: SiteConfigView): string {
+function loginUrlForSite(site: SiteConfigRecord): string {
   const homeUrl = site.homeUrl ?? `https://${site.domains[0] ?? ''}`
   const pattern = site.loginUrlPatterns?.find((value) => value.trim().length > 0)
   if (!pattern) return homeUrl
@@ -52,7 +54,7 @@ export function CredentialsPage({ onClose }: CredentialsPageProps) {
   const [editingName, setEditingName] = useState('')
   const [pendingDelete, setPendingDelete] = useState<CredentialSummary | null>(null)
   const [ratingHandle, setRatingHandle] = useState('')
-  const [ratingInfo, setRatingInfo] = useState<CodeforcesAccount | null>(null)
+  const [ratingInfo, setRatingInfo] = useState<PlatformAccount | null>(null)
   const [ratingStatus, setRatingStatus] = useState('')
 
   const loadData = async () => {

@@ -1,7 +1,7 @@
 import { ipcMain } from './trustedSender'
 import { setSearchEngineInput, setThemeInput } from '../../src/shared/types/ipc/config'
 import { getHomeShortcuts, getSearchConfig, saveSearchConfig } from '../app/config'
-import type { ThemePreference } from '../app/themePreference'
+import type { ThemePreference } from '../../src/shared/types/config'
 import { IPC_CHANNELS } from '../../src/shared/constants/channels'
 
 /*

@@ -1,10 +1,10 @@
+import type { PlatformAccount } from '@shared/types/rating'
+import type { TrendPoint } from '@shared/types/stats'
 import type {
-  CodeforcesAccount,
   DashboardAiSuggestionData,
   DashboardCoreData,
   DashboardTrendData,
   RatingHistoryItem,
-  TrendPoint,
 } from './types'
 
 function fillMissingDays(data: TrendPoint[], days: number): TrendPoint[] {
@@ -83,7 +83,7 @@ export async function loadDashboardAiSuggestions(): Promise<DashboardAiSuggestio
 }
 
 export async function loadRatingHistory(
-  account: CodeforcesAccount | null,
+  account: PlatformAccount | null,
 ): Promise<RatingHistoryItem[]> {
   if (!account) return []
   return window.electronAPI.getRatingHistory(account.id)

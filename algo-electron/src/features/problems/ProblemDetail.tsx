@@ -7,7 +7,8 @@ import {
   loadProblemDetail,
   navigateToProblemUrl,
 } from './problemsApi'
-import type { ProblemDetailRecord, SubmissionRecord } from './problemTypes'
+import type { SubmissionRecord } from '@shared/types/submission'
+import type { ProblemDetailView } from './problemTypes'
 import { SessionTimelineView } from '../coach/SessionTimelineView'
 import { Button, ConfirmDialog, Icon, IconButton, Skeleton } from '../../components/ui'
 import { reportRendererError } from '../../rendererErrors'
@@ -23,7 +24,7 @@ function isContestPageLink(url: string): boolean {
 }
 
 export function ProblemDetail({ problemId, onClose }: Props) {
-  const [detail, setDetail] = useState<ProblemDetailRecord | null>(null)
+  const [detail, setDetail] = useState<ProblemDetailView | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [view, setView] = useState<'detail' | 'timeline'>('detail')
   // B1.4：删除二连问合并为单个确认对话框 + 「同时删除笔记」勾选项

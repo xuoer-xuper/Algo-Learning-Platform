@@ -15,6 +15,7 @@ import { registerBackupIpc } from '../../electron/ipc/registerBackupIpc'
 import { registerRatingIpc } from '../../electron/ipc/registerRatingIpc'
 import { registerCoachIpc } from '../../electron/ipc/registerCoachIpc'
 import type { CoachOrchestrator } from '../../electron/coach/CoachOrchestrator'
+import type { LearningDataImportPreview } from '@shared/types/backup'
 
 const ownerState = vi.hoisted(() => ({ id: 'shell-1' as string | null }))
 

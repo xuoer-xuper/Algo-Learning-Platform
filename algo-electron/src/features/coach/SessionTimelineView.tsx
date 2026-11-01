@@ -3,6 +3,7 @@ import { Bar, BarChart, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from 
 import { loadProblemTimeline } from './coachDataApi'
 import { PLATFORM_NAMES, STATUS_COLORS, VERDICT_COLORS } from '../../shared/display'
 import { Empty, Icon, IconButton, Skeleton, type IconName } from '../../components/ui'
+import type { ProblemTimelineData } from '@shared/types/coach'
 
 /**
  * 单题时间轴复盘视图（阶段 4 Task 18）。

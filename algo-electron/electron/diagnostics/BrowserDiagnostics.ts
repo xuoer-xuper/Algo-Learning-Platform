@@ -1,6 +1,7 @@
 import { nowBeijing } from '../shared/time'
 import { logger as baseLogger, type Logger } from '../shared/logger'
 import { errorMessage } from '../shared/errors'
+import type { BrowserDiagnosticsSnapshot } from '../../src/shared/types/browser'
 
 export type BrowserDiagnosticArea = 'tracking' | 'title' | 'userscript'
 export type BrowserDiagnosticStatus = 'success' | 'failed' | 'skipped'
@@ -12,10 +13,6 @@ export interface BrowserDiagnosticEntry {
   url?: string
   detail?: string
   at: string
-}
-
-export interface BrowserDiagnosticsSnapshot {
-  entries: BrowserDiagnosticEntry[]
 }
 
 const MAX_ENTRIES = 100

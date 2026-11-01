@@ -40,6 +40,15 @@ import {
   type RendererErrorReport,
 } from './rendererErrors'
 import './App.css'
+import type { InternalPage, ManagedDownloadResult } from '@shared/types/browser'
+import type { CoachContestModePayload } from '@shared/types/coach'
+import type { UserScriptHostPermissionPrompt } from '@shared/types/scripts'
+import type {
+  CredentialAutofillPrompt,
+  CredentialCaptureAction,
+  CredentialCapturePrompt,
+} from '@shared/types/credentials'
+import type { ShellContextMenuKind } from '@shared/types/window'
 
 function App() {
   const [activeTab, setActiveTab] = useState<TabStripTabInfo | null>(null)

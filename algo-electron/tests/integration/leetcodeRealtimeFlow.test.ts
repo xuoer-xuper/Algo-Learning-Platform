@@ -13,11 +13,9 @@ import {
   RealtimeHookInjector,
   type RealtimeHookHost,
 } from '../../electron/submissions/RealtimeHookInjector.ts'
-import {
-  RealtimeSubmissionDiagnostics,
-  type RealtimeSubmissionStatus,
-} from '../../electron/submissions/RealtimeSubmissionDiagnostics.ts'
+import { RealtimeSubmissionDiagnostics } from '../../electron/submissions/RealtimeSubmissionDiagnostics.ts'
 import { SubmissionWatcherCore } from '../../electron/submissions/SubmissionWatcherCore.ts'
+import type { RealtimeSubmissionStatus } from '@shared/types/submission'
 
 test('integration/leetcodeRealtimeFlow.test.ts', async () => {
   function createSite(enabled: boolean): SiteConfigData {

@@ -25,21 +25,3 @@ export interface CookieMetadataInput {
   sameSite?: string | null
   purpose?: string | null
 }
-
-export interface CookieSafeDomainSummary {
-  site_id: string
-  domain: string
-  cookie_names: string[]
-  cookie_count: number
-  http_only_count: number
-  secure_count: number
-  earliest_expires_at: string | null
-  last_seen_at: string | null
-  sync_excluded: true
-}
-
-export interface CookieSafeSiteSummary {
-  site_id: string
-  has_cookies: boolean
-  domains: CookieSafeDomainSummary[]
-}

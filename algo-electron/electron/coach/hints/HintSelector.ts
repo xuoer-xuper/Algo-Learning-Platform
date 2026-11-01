@@ -1,4 +1,4 @@
-import type { CoachEventType } from '../types'
+import type { CoachEventType } from '../../../src/shared/types/coach'
 import {
   type HintCategory,
   type HintTemplate,

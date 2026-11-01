@@ -9,7 +9,7 @@ import {
 } from '../../electron/coach/hints/HintLadder.ts'
 import { HintSelector } from '../../electron/coach/hints/HintSelector.ts'
 import type { ProblemConstraints } from '../../electron/coach/problemFacts/ConstraintParser.ts'
-import type { CoachEventType } from '../../electron/coach/types.ts'
+import type { CoachEventType } from '@shared/types/coach'
 
 /**
  * HintLadder 单元测试（阶段 3 Task 15）。

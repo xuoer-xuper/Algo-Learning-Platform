@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto'
 import { describe, expect, it } from 'vitest'
+import type { PendingUserScriptInstall } from '@shared/types/scripts'
 import {
   UserScriptRemoteInstaller,
   type RemoteFetch,

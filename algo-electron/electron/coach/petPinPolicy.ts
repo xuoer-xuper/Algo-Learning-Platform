@@ -23,10 +23,14 @@
  *   遮挡的兜底出口。
  */
 
-/** 桌宠置顶模式。持久化在 `CoachConfig.pinMode`。 */
-export type CoachPinMode = 'follow' | 'always' | 'dock'
-
-export const COACH_PIN_MODES: readonly CoachPinMode[] = ['follow', 'always', 'dock'] as const
+/*
+ * `CoachPinMode` / `COACH_PIN_MODES` 已下沉到 `src/shared/types/coach.ts` 与
+ * `src/shared/constants/preferences.ts`（阶段 2 R2 常量下沉）：渲染层设置面板与
+ * `src/shared/types/ipc/coach.ts` 的输入 schema 都要消费，不能反向依赖本模块。
+ * 本模块保留默认值、归一化与"给定焦点事实 → 怎么摆"的纯决策。
+ */
+import { COACH_PIN_MODES } from '../../src/shared/constants/preferences'
+import type { CoachPinMode } from '../../src/shared/types/coach'
 
 export const DEFAULT_COACH_PIN_MODE: CoachPinMode = 'follow'
 

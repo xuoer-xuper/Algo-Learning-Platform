@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { beforeEach, test, vi } from 'vitest'
 import type { AppConfig } from '../../electron/app/config.ts'
-import type { CoachEvent, ProblemSession } from '../../electron/coach/types.ts'
+import type { CoachEvent, ProblemSession } from '@shared/types/coach'
 import { LlmHintService } from '../../electron/coach/llm/LlmHintService.ts'
 
 /**

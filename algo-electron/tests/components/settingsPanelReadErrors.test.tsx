@@ -25,6 +25,7 @@ vi.mock('../../src/features/settings/settingsApi', () => ({
 import { CoachPanel } from '../../src/features/settings/CoachPanel'
 import { CodeforcesSyncPanel } from '../../src/features/settings/CodeforcesSyncPanel'
 import { LlmConfigPanel } from '../../src/features/settings/LlmConfigPanel'
+import type { CoachConfig, LlmConfigStatus } from '@shared/types/coach'
 
 const coachGetConfig = vi.fn<() => Promise<CoachConfig>>()
 const coachSaveConfig = vi.fn<(partial: Partial<CoachConfig>) => Promise<unknown>>()

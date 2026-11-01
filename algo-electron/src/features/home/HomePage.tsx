@@ -14,7 +14,9 @@ import {
   loadHomeShortcuts,
   subscribeHomeProblemsUpdated,
 } from './homeApi'
-import type { HomeOverviewStats, HomeProblemRecord, HomeRecommendation } from './homeTypes'
+import type { ReviewRecommendation } from '@shared/types/ai'
+import type { OverviewStats } from '@shared/types/stats'
+import type { HomeProblemRecord } from './homeTypes'
 import { Card, Empty, ListRow, Skeleton } from '../../components/ui'
 import { reportRendererError } from '../../rendererErrors'
 
@@ -23,12 +25,12 @@ interface Props {
 }
 
 export function HomePage({ onNavigate }: Props) {
-  const [stats, setStats] = useState<HomeOverviewStats | null>(null)
+  const [stats, setStats] = useState<OverviewStats | null>(null)
   // null = 还没读到，[] = 读到了且为空。首页原本就用 `stats === null` 正确区分了
   // 两者（不像侧栏和 Dashboard 会说谎），但加载中整块不渲染，数据到了突然弹出。
   // 这里把 recent 也纳入同一套表达，好让两块都能出骨架占位。
   const [recent, setRecent] = useState<HomeProblemRecord[] | null>(null)
-  const [recommendations, setRecommendations] = useState<HomeRecommendation[]>([])
+  const [recommendations, setRecommendations] = useState<ReviewRecommendation[]>([])
   const [homeShortcuts, setHomeShortcuts] = useState<string[]>([])
 
   useEffect(() => {

@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { sanitizeDownloadFilename } from './downloadPath'
-import type { InternalPage } from '../browser/tabManagerTypes'
+import type { PendingUserScriptInstall } from '../../src/shared/types/scripts'
+import type { InternalPage } from '../../src/shared/types/browser'
 
 const MAX_NAVIGATION_URL_LENGTH = 4_096
 const DEFAULT_INSTALL_TTL_MS = 15 * 60 * 1_000
@@ -14,11 +15,6 @@ export interface UserScriptNavigationOptions {
 export interface UserScriptNavigation {
   sourceUrl: string
   sourceFileName: string
-}
-
-export interface PendingUserScriptInstall extends UserScriptNavigation {
-  installId: string
-  createdAt: string
 }
 
 export interface UserScriptInstallRoute {

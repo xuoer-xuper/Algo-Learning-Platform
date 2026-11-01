@@ -1,3 +1,4 @@
+import type { InternalPage, TabInfo } from '@shared/types/browser'
 export type TabStripTabInfo = TabInfo
 
 export function subscribeTabListChanged(callback: (tabs: TabStripTabInfo[]) => void): () => void {

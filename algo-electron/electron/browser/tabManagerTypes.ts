@@ -1,15 +1,5 @@
 import type { WebContentsView } from 'electron'
-
-export type InternalPage =
-  | { type: 'home' }
-  | { type: 'settings' }
-  | { type: 'dashboard' }
-  | { type: 'scripts' }
-  | { type: 'coach-metrics' }
-  | { type: 'problem-detail'; problemId: string }
-  | { type: 'notes'; problemId: string }
-  | { type: 'credentials' }
-  | { type: 'script-install'; installId: string }
+import type { InternalPage } from '../../src/shared/types/browser'
 
 const SIMPLE_INTERNAL_PAGES = new Set<InternalPage['type']>([
   'home',
@@ -59,29 +49,6 @@ export function isInternalPage(value: unknown): value is InternalPage {
   }
   return false
 }
-
-interface TabInfoBase {
-  id: string
-  url: string
-  title: string
-  favicon: string | null
-  isLoading: boolean
-  isCrashed: boolean
-  isUnresponsive: boolean
-  isUnresponsiveNoticeDismissed: boolean
-  isActive: boolean
-}
-
-export interface WebTabInfo extends TabInfoBase {
-  kind: 'web'
-}
-
-export interface InternalTabInfo extends TabInfoBase {
-  kind: 'internal'
-  page: InternalPage
-}
-
-export type TabInfo = WebTabInfo | InternalTabInfo
 
 interface ManagedTabBase {
   id: string

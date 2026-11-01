@@ -14,7 +14,8 @@ import { reportRendererError } from '../../rendererErrors'
 import { errorMessage } from '../../shared/errors'
 import { loadRealtimeSubmissionStatus, loadSettingsOverviewStats } from './settingsApi'
 import { SETTINGS_SECTIONS, type SettingsSectionId } from './settingsSections'
-import type { RealtimeSubmissionStatus, SettingsOverviewStats } from './settingsTypes'
+import type { RealtimeSubmissionStatus } from '@shared/types/submission'
+import type { OverviewStats } from '@shared/types/stats'
 
 /*
  * 设置页（B5.1，Chrome 式分区导航）。
@@ -34,7 +35,7 @@ import type { RealtimeSubmissionStatus, SettingsOverviewStats } from './settings
  */
 
 export function SettingsPage({ onClose }: { onClose: () => void }) {
-  const [stats, setStats] = useState<SettingsOverviewStats | null>(null)
+  const [stats, setStats] = useState<OverviewStats | null>(null)
   const [realtimeStatus, setRealtimeStatus] = useState<RealtimeSubmissionStatus | null>(null)
   const [realtimeStatusText, setRealtimeStatusText] = useState('')
   const [section, setSection] = useState<SettingsSectionId>('appearance')

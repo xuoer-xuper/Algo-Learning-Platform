@@ -44,13 +44,13 @@ import type { UserScriptUpdateService } from '../scripts/UserScriptUpdateService
 import { resolveUserScriptRequestTarget } from '../scripts/userScriptConnectPolicy'
 import { logger } from '../shared/logger'
 import { IPC_CHANNELS } from '../../src/shared/constants/channels'
+import type {
+  UserScriptCodeView,
+  UserScriptOpenEditorResult,
+  UserScriptSaveInput,
+} from '../../src/shared/types/scripts'
 
 const log = logger.scope('userscript')
-
-type UserScriptSaveInput = {
-  name: string
-  site_ids_json: string
-}
 
 interface RegisterScriptsIpcOptions {
   getParentWindow?: (event: IpcMainInvokeEvent) => BrowserWindow | null

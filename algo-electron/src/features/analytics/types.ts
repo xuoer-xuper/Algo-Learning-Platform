@@ -1,7 +1,12 @@
-export interface TrendPoint {
-  local_day: string
-  count: number
-}
+import type { ReviewRecommendation } from '@shared/types/ai'
+import type { PlatformAccount } from '@shared/types/rating'
+import type { OverviewStats, TrendPoint } from '@shared/types/stats'
+
+/*
+ * Dashboard 的视图模型。收口前本文件手抄了 TrendPoint / ReviewRecommendation /
+ * CodeforcesAccount 三份副本（阶段 2 R2 删除：前两个直接用 shared 类型，
+ * 账户视图统一为 rating 域的 PlatformAccount）。
+ */
 
 export interface DashboardTimelineEvent {
   id?: string | number
@@ -29,31 +34,11 @@ export interface DashboardRevisitItem {
   visit_count: number
 }
 
-export interface ReviewRecommendation {
-  problem_id: string
-  platform: string
-  title: string | null
-  platform_problem_id: string
-  canonical_url: string
-  reason: string
-  source: {
-    wrong_count: number
-    days_since_attempt: number
-    visit_count: number
-  }
-}
-
 export interface WeaknessItem {
   tag: string
   ac_rate: number
   evidence: string
   weakness_score: number
-}
-
-export interface CodeforcesAccount {
-  id: string
-  current_rating?: number | null
-  peak_rating?: number | null
 }
 
 export interface RatingHistoryItem {
@@ -72,7 +57,7 @@ export interface DashboardCoreData {
   unreviewed: DashboardProblemListItem[]
   timeline: DashboardTimelineEvent[]
   revisits: DashboardRevisitItem[]
-  cfAccount: CodeforcesAccount | null
+  cfAccount: PlatformAccount | null
 }
 
 export interface DashboardTrendData {

@@ -9,10 +9,11 @@ import {
 } from 'recharts'
 import { Empty } from '../../components/ui'
 import { CHART_COLORS } from '../../shared/display'
-import type { CodeforcesAccount, RatingHistoryItem } from './types'
+import type { PlatformAccount } from '@shared/types/rating'
+import type { RatingHistoryItem } from './types'
 
 interface RatingPanelProps {
-  account: CodeforcesAccount | null
+  account: PlatformAccount | null
   ratingHistory: RatingHistoryItem[]
 }
 

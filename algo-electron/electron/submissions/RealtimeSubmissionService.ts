@@ -3,16 +3,14 @@ import { randomBytes } from 'node:crypto'
 import type { BrowserPageEvent, TabManager } from '../browser/TabManager'
 import { getRealtimeAdapterForUrl, getRealtimeAdapterIds } from '../adapters/registry'
 import { getSiteById } from '../db/repositories/siteRepository'
-import {
-  RealtimeSubmissionDiagnostics,
-  type RealtimeSubmissionStatus,
-} from './RealtimeSubmissionDiagnostics'
+import { RealtimeSubmissionDiagnostics } from './RealtimeSubmissionDiagnostics'
 import { RealtimeHookInjector } from './RealtimeHookInjector'
 import { SubmissionWatcher, SUBMISSION_WATCHER_DETECTED_EVENT } from './SubmissionWatcher'
 import type { SubmissionNotification } from './SubmissionWatcherCore'
 import { handleFromOj, handleFromShell, onFromOj, type IpcListener } from '../ipc/trustedSender'
 import { IPC_CHANNELS } from '../../src/shared/constants/channels'
 import { logger as baseLogger, type Logger } from '../shared/logger'
+import type { RealtimeSubmissionStatus } from '../../src/shared/types/submission'
 
 const DOCUMENT_TOKEN_PATTERN = /^[a-f0-9]{32}$/
 

@@ -14,7 +14,13 @@
  *   → 干预后同题 AC 转化率 = 1/3 ≈ 33.3%
  * - dismissed 干预 = 2，never_today 反馈 = 2 → 桌宠关闭率 = (2+2)/10 = 40.0%
  */
-import type { CoachEvent } from '../../../electron/coach/types'
+import type { CoachEvent } from '@shared/types/coach'
+import type {
+  CoachFeedbackRecord,
+  CoachIntervention,
+  CoachMetricsBundle,
+  ProblemAcStatus,
+} from '@shared/types/coach'
 
 /** 模拟时间基准：2026-07-01 10:00:00 */
 const T0 = '2026-07-01T10:00:00.000'

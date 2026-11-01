@@ -28,16 +28,6 @@ export interface RecentProblem {
   submission_count: number
 }
 
-export interface OmniboxSuggestion {
-  problemId: string
-  title: string | null
-  platform: string
-  platformProblemId: string
-  url: string
-  lastVisitedAt: string | null
-  source: 'history' | 'problem'
-}
-
 export interface ProblemSubmissionRow {
   id: string
   problem_id: string | null
@@ -60,18 +50,6 @@ export type ProblemDetail = ProblemRow & {
   submission_count: number
   ac_count: number
   submissions: ProblemSubmissionRow[]
-}
-
-export interface PlatformDistributionRow {
-  platform: string
-  count: number
-}
-
-export interface OverviewStats {
-  totalProblems: number
-  todayVisited: number
-  platformDistribution: PlatformDistributionRow[]
-  lastActiveTime: string | null
 }
 
 /**

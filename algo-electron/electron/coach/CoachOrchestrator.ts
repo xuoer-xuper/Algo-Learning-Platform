@@ -48,7 +48,7 @@ import {
   getFirstAcByProblemIds,
 } from '../db/repositories/submissionRepository'
 import type { CoachPetWindow } from './CoachPetWindow'
-import type { CoachBubblePayload, CoachFeedbackType } from './types'
+import type { CoachBubblePayload, CoachFeedbackType } from '../../src/shared/types/coach'
 import type {
   CoachEvent,
   CoachEventType,
@@ -64,7 +64,7 @@ import type {
   TimelineEventPoint,
   TimelineInterventionPoint,
   TimelineSubmissionPoint,
-} from './types'
+} from '../../src/shared/types/coach'
 import { CoachEventBridge } from './CoachEventBridge'
 import { ProblemSessionTracker } from './ProblemSessionTracker'
 import { RuleEngine } from './rules/RuleEngine'

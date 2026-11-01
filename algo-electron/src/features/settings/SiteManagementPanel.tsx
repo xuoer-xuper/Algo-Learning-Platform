@@ -13,12 +13,8 @@ import {
   loadSites as loadSiteConfigs,
   toggleSiteEnabled,
 } from './settingsApi'
-import type {
-  ImportPreview,
-  ImportPreviewSite,
-  NewSiteDraft,
-  SiteConfigView,
-} from './siteManagementTypes'
+import type { NewSiteDraft } from './siteManagementTypes'
+import type { SiteConfigRecord, SiteImportPreview } from '@shared/types/sites'
 
 const EMPTY_SITE_DRAFT: NewSiteDraft = {
   id: '',
@@ -29,9 +25,9 @@ const EMPTY_SITE_DRAFT: NewSiteDraft = {
 }
 
 export function SiteManagementPanel() {
-  const [sites, setSites] = useState<SiteConfigView[]>([])
+  const [sites, setSites] = useState<SiteConfigRecord[]>([])
   const [exportStatus, setExportStatus] = useState('')
-  const [importPreview, setImportPreview] = useState<ImportPreview | null>(null)
+  const [importPreview, setImportPreview] = useState<SiteImportPreview | null>(null)
   const [importOverwriteIds, setImportOverwriteIds] = useState<string[]>([])
   const [importStatus, setImportStatus] = useState('')
 
@@ -39,7 +35,7 @@ export function SiteManagementPanel() {
   const [newSiteDraft, setNewSiteDraft] = useState<NewSiteDraft>(EMPTY_SITE_DRAFT)
   const [newSiteError, setNewSiteError] = useState('')
   /** 待删除站点（ConfirmDialog 打开态，替代原生 confirm） */
-  const [pendingDelete, setPendingDelete] = useState<SiteConfigView | null>(null)
+  const [pendingDelete, setPendingDelete] = useState<SiteConfigRecord | null>(null)
 
   const loadSites = () => {
     void loadSiteConfigs()
@@ -98,7 +94,7 @@ export function SiteManagementPanel() {
 
   const handleConfirmImport = async () => {
     if (!importPreview) return
-    const allSites: ImportPreviewSite[] = [
+    const allSites: SiteConfigRecord[] = [
       ...importPreview.newSites,
       ...importPreview.conflicts.map((c) => c.incoming),
     ]

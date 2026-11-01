@@ -1,7 +1,7 @@
 import { getDb } from '../../connection'
 import { todayBeijing } from '../../../shared/time'
-import type { OverviewStats, PlatformDistributionRow } from './types'
 import { nextLocalDay } from '../stats/date'
+import type { OverviewStats, PlatformDistributionRow } from '../../../../src/shared/types/stats'
 
 export function getProblemCount(): number {
   const db = getDb()

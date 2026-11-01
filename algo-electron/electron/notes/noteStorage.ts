@@ -2,10 +2,7 @@ import crypto from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
 import { app } from 'electron'
-
-export interface SaveNoteImageResult {
-  markdownUrl: string
-}
+import type { SaveNoteImageResult } from '../../src/shared/types/notes'
 
 const IMAGE_EXT_BY_MIME: Record<string, string> = {
   'image/png': '.png',

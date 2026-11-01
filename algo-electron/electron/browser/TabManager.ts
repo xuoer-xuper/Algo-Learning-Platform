@@ -13,13 +13,11 @@ import { MAX_CLOSED_TABS, MAX_TABS, OJ_PRELOAD_PATH } from './tabManagerConfig'
 import type {
   AdoptReleasedTabOptions,
   ClosedTabSnapshot,
-  InternalPage,
   ManagedInternalTab,
   ManagedTab,
   ManagedWebTab,
   ReleasedTab,
   ReleasedTabState,
-  TabInfo,
   TabSessionSnapshot,
   TabSnapshot,
 } from './tabManagerTypes'
@@ -41,15 +39,8 @@ import {
   reduceFindInPageCommand,
   registerFindInPageRequest,
   type FindInPageState,
-  type FindInPageViewState,
 } from './findInPage'
-import {
-  DEFAULT_ZOOM_FACTOR,
-  getAdjacentZoomFactor,
-  normalizeZoomFactor,
-  type ZoomCommand,
-  type ZoomState,
-} from './zoomPreferences'
+import { DEFAULT_ZOOM_FACTOR, getAdjacentZoomFactor, normalizeZoomFactor } from './zoomPreferences'
 import {
   resolveUserScriptNavigation,
   type PendingUserScriptInstallRegistry,
@@ -59,8 +50,13 @@ import { popupPageContextMenu, popupTabContextMenu } from '../contextMenus/brows
 import type { ViewRegistry, ViewRegistryTabTransfer } from '../windows/ViewRegistry'
 import type { UserScriptMenuCommand } from '../scripts/UserScriptMenuRegistry'
 import { errorName } from '../shared/errors'
-
-export type { TabInfo } from './tabManagerTypes'
+import type {
+  FindInPageViewState,
+  InternalPage,
+  TabInfo,
+  ZoomCommand,
+  ZoomState,
+} from '../../src/shared/types/browser'
 
 export interface TabManagerOptions {
   allowInsecureLocalhost?: boolean

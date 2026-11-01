@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Select } from '../../components/ui'
 import { errorMessage } from '../../shared/errors'
 import { loadThemePreference, saveThemePreference } from './settingsApi'
+import type { ThemePreference } from '@shared/types/config'
 
 /*
  * 外观（B5.4，决策 D6）。

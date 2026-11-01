@@ -26,7 +26,8 @@ import {
   previewImportSites,
   toggleSite,
 } from '../db/repositories/siteRepository'
-import type { ImportPreview } from '../db/repositories/site/types'
+
+import type { SiteImportPreview } from '../../src/shared/types/sites'
 import { logger } from '../shared/logger'
 import { IPC_CHANNELS } from '../../src/shared/constants/channels'
 
@@ -115,7 +116,7 @@ export function registerSitesIpc(options: RegisterSitesIpcOptions = {}): void {
 
   ipcMain.handle(
     IPC_CHANNELS.SITES.IMPORT_CONFIG,
-    async (event): Promise<IpcOutput<{ preview: ImportPreview }>> => {
+    async (event): Promise<IpcOutput<{ preview: SiteImportPreview }>> => {
       try {
         const parentWindow = getParentWindow(event)
         const dialogOptions: OpenDialogOptions = {

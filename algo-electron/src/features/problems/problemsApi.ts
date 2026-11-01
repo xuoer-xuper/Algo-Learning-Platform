@@ -1,11 +1,12 @@
 import type { NoteItem } from './notesTypes'
-import type { ProblemDetailRecord, SidebarProblemRecord } from './problemTypes'
+import type { ProblemRecord } from '@shared/types/problem'
+import type { ProblemDetailView } from './problemTypes'
 
 export function loadRecentProblems(
   limit = 200,
   platform?: string,
   status?: string,
-): Promise<SidebarProblemRecord[]> {
+): Promise<ProblemRecord[]> {
   return window.electronAPI.listRecentProblems(limit, platform, status)
 }
 
@@ -17,7 +18,7 @@ export function setProblemSidebarWidth(width: number): void {
   window.electronAPI.setSidebarWidth(width)
 }
 
-export async function loadProblemDetail(problemId: string): Promise<ProblemDetailRecord | null> {
+export async function loadProblemDetail(problemId: string): Promise<ProblemDetailView | null> {
   const [detail, visitStats] = await Promise.all([
     window.electronAPI.getProblemDetail(problemId),
     window.electronAPI.getProblemVisitStats(problemId),

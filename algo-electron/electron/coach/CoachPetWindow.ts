@@ -1,5 +1,5 @@
 import { BrowserWindow, screen } from 'electron'
-import type { CoachBubblePayload, CoachPetState } from './types'
+import type { CoachBubblePayload, CoachPetState } from '../../src/shared/types/coach'
 import { getCoachConfigForRenderer, loadCoachConfig, saveCoachConfig } from '../app/config'
 import { shellUrl } from '../app/appProtocol'
 import { registerCoachWebContents, unregisterCoachWebContents } from '../ipc/trustedSender'
@@ -7,9 +7,9 @@ import {
   DEFAULT_COACH_PIN_MODE,
   normalizeCoachPinMode,
   resolvePetPinDecision,
-  type CoachPinMode,
   type PetPinDecision,
 } from './petPinPolicy'
+import type { CoachPinMode } from '../../src/shared/types/coach'
 import { IPC_CHANNELS } from '../../src/shared/constants/channels'
 
 /**

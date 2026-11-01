@@ -24,6 +24,10 @@ import {
 } from '../../electron/ipc/registerScriptsIpc'
 import { PendingUserScriptInstallRegistry } from '../../electron/downloads/userScriptNavigation'
 import { UserScriptRemoteInstaller } from '../../electron/scripts/UserScriptRemoteInstaller'
+import type {
+  UserScriptInstallInstallResult,
+  UserScriptInstallPreview,
+} from '@shared/types/scripts'
 
 // 替身要连"schema 元组"这一形态一起模拟，见 trustedSenderDouble 的说明。
 // 工厂是 async 的：`vi.mock` 会被提到文件顶，普通工厂里引用不到上面的 import。

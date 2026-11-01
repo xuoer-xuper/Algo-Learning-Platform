@@ -1,6 +1,7 @@
 import { getDb } from '../../connection'
-import type { DailyActiveStat, SubmissionTrendPoint, TrendPoint } from './types'
+import type { DailyActiveStat } from './types'
 import { localDateDaysAgo } from './date'
+import type { SubmissionTrendPoint, TrendPoint } from '../../../../src/shared/types/stats'
 
 export function getDailyActiveStats(days = 30): DailyActiveStat[] {
   const db = getDb()

@@ -1,8 +1,8 @@
-import type { SettingsOverviewStats } from './settingsTypes'
+import type { OverviewStats } from '@shared/types/stats'
 import { Card, Skeleton } from '../../components/ui'
 
 interface LearningOverviewPanelProps {
-  stats: SettingsOverviewStats | null
+  stats: OverviewStats | null
 }
 
 function formatLastActive(value: string | null): string {

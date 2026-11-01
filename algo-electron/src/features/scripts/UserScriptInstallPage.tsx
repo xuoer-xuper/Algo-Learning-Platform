@@ -6,6 +6,11 @@ import {
   getRemoteUserScriptInstallPreview,
   getPendingUserScriptInstall,
 } from '../../hooks/browserShellApi'
+import type {
+  PendingUserScriptInstall,
+  UserScriptInstallAction,
+  UserScriptInstallPreview,
+} from '@shared/types/scripts'
 
 interface UserScriptInstallPageProps {
   installId: string

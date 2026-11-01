@@ -1,20 +1,25 @@
-import type { ImportPreviewSite, NewSiteDraft, SiteConfigView } from './siteManagementTypes'
+import type { NewSiteDraft } from './siteManagementTypes'
+import type { PlatformAccount } from '@shared/types/rating'
+import type { SiteConfigRecord } from '@shared/types/sites'
+import type { RealtimeSubmissionStatus } from '@shared/types/submission'
+import type { OverviewStats } from '@shared/types/stats'
 import type {
-  CodeforcesAccount,
-  RealtimeSubmissionStatus,
-  SettingsOverviewStats,
-} from './settingsTypes'
+  DatabaseBackupResult,
+  LearningDataImportPreviewResult,
+  LearningDataImportResult,
+} from '@shared/types/backup'
+import type { ElectronAPI } from '../../../electron/preload'
+import type { SearchEngineConfig, ThemePreference } from '@shared/types/config'
+import type { SyncResult } from '@shared/types/submission'
+import type { CredentialSummary } from '@shared/types/credentials'
+import type { CookieSafeSiteSummary } from '@shared/types/cookies'
+import type { LlmConfigStatus, LlmConnectionTestOutput } from '@shared/types/coach'
 
 export type ExportSitesResult = Awaited<ReturnType<ElectronAPI['exportSitesConfig']>>
 export type ImportSitesResult = Awaited<ReturnType<ElectronAPI['importSitesConfig']>>
 export type ConfirmImportSitesResult = Awaited<ReturnType<ElectronAPI['confirmImportSites']>>
 export type RatingSyncResult = Awaited<ReturnType<ElectronAPI['syncCodeforcesRating']>>
-export type DatabaseBackupResult = Awaited<ReturnType<ElectronAPI['createDatabaseBackup']>>
 export type LearningDataExportResult = Awaited<ReturnType<ElectronAPI['exportLearningData']>>
-export type LearningDataImportPreviewResult = Awaited<
-  ReturnType<ElectronAPI['previewLearningDataImport']>
->
-export type LearningDataImportResult = Awaited<ReturnType<ElectronAPI['confirmLearningDataImport']>>
 
 export function loadSearchEngine(): Promise<SearchEngineConfig> {
   return window.electronAPI.getSearchEngine()
@@ -32,7 +37,7 @@ export function saveThemePreference(theme: ThemePreference): Promise<ThemePrefer
   return window.electronAPI.setTheme(theme)
 }
 
-export function loadSettingsOverviewStats(): Promise<SettingsOverviewStats> {
+export function loadSettingsOverviewStats(): Promise<OverviewStats> {
   return window.electronAPI.getOverviewStats()
 }
 
@@ -40,7 +45,7 @@ export function loadRealtimeSubmissionStatus(): Promise<RealtimeSubmissionStatus
   return window.electronAPI.getRealtimeSubmissionStatus()
 }
 
-export async function loadPrimaryCodeforcesAccount(): Promise<CodeforcesAccount | null> {
+export async function loadPrimaryCodeforcesAccount(): Promise<PlatformAccount | null> {
   const accounts = await window.electronAPI.getAccounts('codeforces')
   return accounts[0] ?? null
 }
@@ -51,7 +56,7 @@ export function syncCodeforcesSubmissions(handle: string): Promise<SyncResult> {
 
 export async function syncCodeforcesRatingProfile(handle: string): Promise<{
   result: RatingSyncResult
-  account: CodeforcesAccount | null
+  account: PlatformAccount | null
 }> {
   await window.electronAPI.bindHandle('codeforces', handle)
   const result = await window.electronAPI.syncCodeforcesRating(handle)
@@ -61,7 +66,7 @@ export async function syncCodeforcesRatingProfile(handle: string): Promise<{
   return { result, account }
 }
 
-export function loadSites(): Promise<SiteConfigView[]> {
+export function loadSites(): Promise<SiteConfigRecord[]> {
   return window.electronAPI.getAllSites()
 }
 
@@ -106,13 +111,13 @@ export function importSitesConfig(): Promise<ImportSitesResult> {
 }
 
 export function confirmImportSites(
-  sites: ImportPreviewSite[],
+  sites: SiteConfigRecord[],
   overwriteIds: string[],
 ): Promise<ConfirmImportSitesResult> {
   return window.electronAPI.confirmImportSites(sites, overwriteIds)
 }
 
-export function loadSiteById(id: string): Promise<SiteConfigView | null> {
+export function loadSiteById(id: string): Promise<SiteConfigRecord | null> {
   return window.electronAPI.getSiteById(id)
 }
 

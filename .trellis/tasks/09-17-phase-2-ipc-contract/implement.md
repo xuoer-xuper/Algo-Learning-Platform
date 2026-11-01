@@ -36,6 +36,28 @@
 - [ ] 删 `electron-env.d.ts`；`src/main/env.d.ts` 只留 `ProcessEnv`；`tsconfig.tests.json` include 改。
 - 验证：`uniq -d` 同名导出 = 0；`pnpm typecheck` ×2。commit `refactor(shared): 跨进程类型收口到 src/shared/types`。
 
+> **R2 实测回填（2026-11-01 实施时 grep）**：`electron-env.d.ts` 顶层类型声明 **111** 个
+> （不是 112；含 `ElectronAPI` 与 `Window` 两个 API 面声明，域类型实为 109），按域拆成
+> `src/shared/types/` 的 15 个文件 + `common.ts` 的 `IpcOutput`（`*Result` 七个手写镜像改为
+> `IpcOutput<T>` 推导）。主进程同名声明（export + 局部）实测 **77 处分布于 28 个文件**
+> （prd 写 72；含 `electron/coach/types.ts` 整文件删除改 import、3 个仓库 barrels 的
+> `export type` 转指向 shared）；渲染层声明删除 **22 处分布于 8 个文件**——同名 10 +
+> 改名 **9 组**（`HomeOverviewStats`、`SettingsOverviewStats`、`SidebarProblemRecord`、
+> `HomeProblemRecord`(→`Pick<ProblemRecord,…>`)、`HomeRecommendation`、`ImportPreviewSite`、
+> `SiteConfigView`、`NoteItem`(→`Omit<NoteRecord,'problem_id'>`)、两份
+> `CodeforcesAccount`(→`PlatformAccount`)，另有 site 域 `ImportPreview`/`ImportConflict`
+> 改用 shared 的 `SiteImportPreview`/`SiteImportConflict`，与 backup 域的旧同名收敛）。
+> 常量下沉：
+> `COACH_PIN_MODES`/`SEARCH_ENGINE_IDS`/`THEME_PREFERENCES` → `src/shared/constants/preferences.ts`
+> （`src/shared/types/ipc/{coach,config}.ts` 对 electron 的反向 import 全部消除，
+> "src/shared stays process-neutral" 守卫保持绿）。实测发现并修复的两处既有漂移：
+> ① env.d.ts 的 `CoachConfig` 镜像漏了 `disclaimer_dismissed`（以 app/config.ts 存储形状为准）；
+> ② env.d.ts 的 `coachTestLlmConnection` 返回类型误引主进程内部名 `LlmConnectionTestResult`
+> （skipLibCheck 掩盖），已改 `LlmConnectionTestOutput`。`tsconfig.tests.json` include 换为
+> `electron/preload.ts` + `src/main/env.d.ts`；ipcContracts 文本提取器收到
+> `exposeInMainWorld` 对象字面量范围内（接口成员同名不再污染）。验证：typecheck ×2 = 0、
+> lint 0/0、`uniq -d` = 0、test:core 1429 全绿、架构守卫 0/20。
+
 ### R3 window.api
 
 - [ ] 新建 `src/preload/index.ts`（design §4）；`vite.config.ts` preload input 改路径。

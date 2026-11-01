@@ -16,6 +16,7 @@ import { computeCoachMetrics, formatPercent, type CoachMetricsComputed } from '.
 import { MOCK_METRICS_BUNDLE, MOCK_EXPECTED } from './mockMetricsBundle'
 import { Button, Card, IconButton, Skeleton } from '../../components/ui'
 import { CHART_COLORS } from '../../shared/display'
+import type { CoachMetricsBundle } from '@shared/types/coach'
 
 /**
  * Coach 干预效果指标页（阶段 4 Task 19）。

@@ -10,9 +10,8 @@ import {
   saveNoteImageAsset,
   writeNoteContent,
 } from './noteStorage'
-import type { SaveNoteImageResult } from './noteStorage'
 import { countWords } from './noteText'
-export type { SaveNoteImageResult } from './noteStorage'
+import type { SaveNoteImageResult } from '../../src/shared/types/notes'
 
 export type NoteType = 'solution' | 'review' | 'summary'
 

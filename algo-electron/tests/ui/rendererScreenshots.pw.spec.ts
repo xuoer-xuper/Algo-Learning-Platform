@@ -10,6 +10,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { MAIN_WINDOW_BOUNDS } from '../../electron/app/windowBounds'
+import type { InternalPage } from '@shared/types/browser'
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const tmpRoot = path.join(projectRoot, 'tmp')

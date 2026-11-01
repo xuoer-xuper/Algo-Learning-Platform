@@ -1,4 +1,4 @@
-import type { CoachEventType, CoachInterventionLevel } from '../types'
+import type { CoachEventType, CoachInterventionLevel } from '../../../src/shared/types/coach'
 import type { ProblemConstraints } from '../problemFacts/ConstraintParser'
 
 /**

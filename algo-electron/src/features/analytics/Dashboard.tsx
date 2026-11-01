@@ -13,14 +13,14 @@ import { DashboardListsPanel } from './DashboardListsPanel'
 import { PlatformDistributionPanel } from './PlatformDistributionPanel'
 import { RatingPanel } from './RatingPanel'
 import { TrendPanel } from './TrendPanel'
+import type { ReviewRecommendation } from '@shared/types/ai'
+import type { PlatformAccount } from '@shared/types/rating'
+import type { OverviewStats, TrendPoint } from '@shared/types/stats'
 import type {
-  CodeforcesAccount,
   DashboardProblemListItem,
   DashboardRevisitItem,
   DashboardTimelineEvent,
   RatingHistoryItem,
-  ReviewRecommendation,
-  TrendPoint,
   WeaknessItem,
 } from './types'
 
@@ -41,7 +41,7 @@ export function Dashboard({
   const [visitedTrend, setVisitedTrend] = useState<TrendPoint[]>([])
   const [acTrend, setAcTrend] = useState<TrendPoint[]>([])
   const [ratingHistory, setRatingHistory] = useState<RatingHistoryItem[]>([])
-  const [cfAccount, setCfAccount] = useState<CodeforcesAccount | null>(null)
+  const [cfAccount, setCfAccount] = useState<PlatformAccount | null>(null)
   const [recomputing, setRecomputing] = useState(false)
   const [trendRange, setTrendRange] = useState<number | undefined>(30)
   const [recommendations, setRecommendations] = useState<ReviewRecommendation[]>([])

@@ -25,7 +25,7 @@ import {
 import type { LlmConnectionTestData } from '../../src/shared/types/ipc/coach'
 import type { CoachPetWindow } from '../coach/CoachPetWindow'
 import type { CoachOrchestrator } from '../coach/CoachOrchestrator'
-import type { CoachBubblePayload } from '../coach/types'
+import type { CoachBubblePayload } from '../../src/shared/types/coach'
 import { getCoachConfigForRenderer, saveCoachConfig } from '../app/config'
 import { ERROR_CODES } from '../../src/shared/constants/errorCodes'
 import type { IpcOutput } from '../../src/shared/types/common'

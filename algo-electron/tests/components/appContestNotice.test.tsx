@@ -1,6 +1,16 @@
 // @vitest-environment jsdom
 import { act, cleanup, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
+import type {
+  CredentialCaptureAction,
+  CredentialCapturePrompt,
+  CredentialCaptureResult,
+} from '@shared/types/credentials'
+import type {
+  UserScriptHostPermissionPrompt,
+  UserScriptHostPermissionResponse,
+} from '@shared/types/scripts'
+import type { CoachContestModePayload, CoachStateSnapshot } from '@shared/types/coach'
 
 let contestListener: ((payload: CoachContestModePayload) => void) | null = null
 const unsubscribeContest = vi.fn()

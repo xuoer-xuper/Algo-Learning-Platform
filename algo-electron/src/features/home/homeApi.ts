@@ -1,6 +1,8 @@
-import type { HomeOverviewStats, HomeProblemRecord, HomeRecommendation } from './homeTypes'
+import type { ReviewRecommendation } from '@shared/types/ai'
+import type { OverviewStats } from '@shared/types/stats'
+import type { HomeProblemRecord } from './homeTypes'
 
-export function loadHomeOverviewStats(): Promise<HomeOverviewStats> {
+export function loadHomeOverviewStats(): Promise<OverviewStats> {
   return window.electronAPI.getOverviewStats()
 }
 
@@ -12,7 +14,7 @@ export function loadHomeShortcuts(): Promise<string[]> {
   return window.electronAPI.getHomeShortcuts()
 }
 
-export async function loadHomeRecommendations(limit = 5): Promise<HomeRecommendation[]> {
+export async function loadHomeRecommendations(limit = 5): Promise<ReviewRecommendation[]> {
   const result = await window.electronAPI.getReviewRecommendations(limit)
   return result?.recommendations ?? []
 }

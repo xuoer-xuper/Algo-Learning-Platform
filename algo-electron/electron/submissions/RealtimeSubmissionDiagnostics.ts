@@ -1,33 +1,6 @@
 import { nowBeijing } from '../shared/time'
 import { errorMessage } from '../shared/errors'
-
-export interface RealtimeSubmissionStatus {
-  ipcRegistered: boolean
-  supportedAdapterIds: string[]
-  lastPage?: {
-    url: string
-    realtimeAdapterId?: string
-    realtimeSupported: boolean
-    at: string
-  }
-  lastHook?: {
-    adapterId: string
-    url: string
-    status: 'success' | 'failed' | 'skipped'
-    reason?: string
-    error?: string
-    at: string
-  }
-  lastDetection?: {
-    senderUrl?: string
-    inserted: boolean
-    error?: string
-    platform?: string
-    verdict?: string
-    problemId?: string
-    at: string
-  }
-}
+import type { RealtimeSubmissionStatus } from '../../src/shared/types/submission'
 
 export class RealtimeSubmissionDiagnostics {
   private ipcRegistered = false

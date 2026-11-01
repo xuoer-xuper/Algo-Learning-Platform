@@ -1,8 +1,9 @@
 import type { SiteConfigData } from '../../db/repositories/siteRepository'
-import type { CredentialAutofillValue, CredentialSummary } from '../credentialVaultCore'
+import type { CredentialAutofillValue } from '../credentialVaultCore'
 import { resolveCredentialAutofillTarget, type CredentialAutofillTarget } from './autofillPolicy'
 import type { OjCredentialFillPayload } from './credentialAutofillBridge'
 import { IPC_CHANNELS } from '../../../src/shared/constants/channels'
+import type { CredentialSummary } from '../../../src/shared/types/credentials'
 
 export interface AutofillWebContents {
   id: number

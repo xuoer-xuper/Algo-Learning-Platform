@@ -1,3 +1,27 @@
+import type { AppMenuAnchor, ShellContextMenuKind, UiCommand } from '@shared/types/window'
+import type {
+  FindInPageCommand,
+  FindInPageViewState,
+  ManagedDownloadResult,
+  ZoomCommand,
+  ZoomState,
+} from '@shared/types/browser'
+import type {
+  PendingUserScriptInstall,
+  UserScriptHostPermissionPrompt,
+  UserScriptHostPermissionResponse,
+  UserScriptInstallAction,
+  UserScriptInstallInstallResult,
+  UserScriptInstallPreview,
+} from '@shared/types/scripts'
+import type {
+  CredentialAutofillPrompt,
+  CredentialCaptureAction,
+  CredentialCapturePrompt,
+  CredentialCaptureResult,
+} from '@shared/types/credentials'
+import type { SyncResult } from '@shared/types/submission'
+import type { OmniboxSuggestion } from '@shared/types/problem'
 export function subscribeUrlChanged(callback: (url: string) => void): () => void {
   return window.electronAPI.onUrlChanged(callback)
 }

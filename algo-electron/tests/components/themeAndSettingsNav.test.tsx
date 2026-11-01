@@ -61,6 +61,7 @@ vi.mock('../../src/features/settings/RealtimeSubmissionPanel', () => ({
 import { AppearancePanel } from '../../src/features/settings/AppearancePanel'
 import { SettingsPage } from '../../src/features/settings/SettingsPage'
 import { SETTINGS_SECTIONS } from '../../src/features/settings/settingsSections'
+import type { ThemePreference } from '@shared/types/config'
 
 class FakeColorSchemeQuery {
   matches: boolean

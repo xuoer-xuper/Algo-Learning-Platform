@@ -4,6 +4,13 @@ import '../../src/index.css'
 import '../../src/App.css'
 import { MOCK_METRICS_BUNDLE } from '../../src/features/coach/mockMetricsBundle'
 import { getInternalPageTitle, getInternalPageUrl } from '../../electron/browser/internalPage'
+import type { ThemePreference } from '@shared/types/config'
+import type { OverviewStats } from '@shared/types/stats'
+import type { SiteConfigRecord } from '@shared/types/sites'
+import type { PlatformAccount } from '@shared/types/rating'
+import type { ElectronAPI } from '../../electron/preload'
+import type { TabInfo } from '@shared/types/browser'
+import type { OmniboxSuggestion, ProblemRecord } from '@shared/types/problem'
 
 const now = '2026-07-03T10:00:00+08:00'
 

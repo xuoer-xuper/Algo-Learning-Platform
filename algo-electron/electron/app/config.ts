@@ -3,11 +3,7 @@ import fs from 'node:fs'
 import { isDeepStrictEqual } from 'node:util'
 import Store from 'electron-store'
 import { z } from 'zod'
-import {
-  DEFAULT_SEARCH_ENGINE_CONFIG,
-  normalizeSearchEngineConfig,
-  type SearchEngineConfig,
-} from '../browser/omnibox'
+import { DEFAULT_SEARCH_ENGINE_CONFIG, normalizeSearchEngineConfig } from '../browser/omnibox'
 import {
   getZoomFactorForUrl as resolveZoomFactorForUrl,
   normalizeZoomByOrigin,
@@ -15,38 +11,20 @@ import {
   type ZoomByOrigin,
 } from '../browser/zoomPreferences'
 import { logger } from '../shared/logger'
-import {
-  DEFAULT_THEME_PREFERENCE,
-  THEME_PREFERENCES,
-  type AppearanceConfig,
-  type ThemePreference,
-} from './themePreference'
-import { COACH_PIN_MODES, DEFAULT_COACH_PIN_MODE, type CoachPinMode } from '../coach/petPinPolicy'
+import { DEFAULT_THEME_PREFERENCE, type AppearanceConfig } from './themePreference'
+import { DEFAULT_COACH_PIN_MODE } from '../coach/petPinPolicy'
+import { COACH_PIN_MODES, THEME_PREFERENCES } from '../../src/shared/constants/preferences'
+import type { SearchEngineConfig, ThemePreference } from '../../src/shared/types/config'
+import type { CoachConfig } from '../../src/shared/types/coach'
 
-/**
- * Coach 桌宠配置。
- * - position: null 表示使用默认位置（屏幕右下角）
- * - scale: 0.5 ~ 2.0
- * - opacity: 0.3 ~ 1.0
- * - bubbleFrequency: low/medium/high，控制气泡触发频率（阶段 2 规则引擎消费）
- * - pinMode: follow/always/dock，置顶策略（B5.5，语义见 coach/petPinPolicy.ts）
+/*
+ * Coach 桌宠配置的类型面（`CoachConfig`）已收口到 `src/shared/types/coach.ts`
+ * （阶段 2 R2）：存储形状以本模块为准（含 disclaimer_dismissed），shared 侧的
+ * schema 与渲染层消费同一份。`CoachLlmConfig` 是 config.json 的存储内部名，
+ * 不跨进程，留在本文件。
  */
-export interface CoachConfig {
-  enabled: boolean
-  sound: boolean
-  bubbleFrequency: 'low' | 'medium' | 'high'
-  position: { x: number; y: number } | null
-  scale: number
-  opacity: number
-  /** 置顶策略：跟随最近活跃壳 / 全局置顶 / 停靠 */
-  pinMode: CoachPinMode
-  /** LLM 配置（API Key 加密存储，其余明文） */
-  llm?: CoachLlmConfig
-  /** 是否永久关闭"仅供参考"免责声明 */
-  disclaimer_dismissed?: boolean
-}
 
-/** LLM 配置（存储在 config.json 的 coach.llm 字段） */
+/** LLM 配置（存储在 config.json 的 coach.llm 字段；渲染层拿到的 coachConfig.llm 同形状）。 */
 export interface CoachLlmConfig {
   /** 加密后的 API Key（base64 编码的 safeStorage 加密数据） */
   encrypted_api_key?: string

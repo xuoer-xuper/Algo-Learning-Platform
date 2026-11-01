@@ -6,9 +6,9 @@ import {
   DEFAULT_THEME_PREFERENCE,
   isThemePreference,
   normalizeThemePreference,
-  THEME_PREFERENCES,
 } from '../../electron/app/themePreference'
 import { ThemeController } from '../../electron/app/themeController'
+import { THEME_PREFERENCES } from '@shared/constants/preferences'
 
 const harness = vi.hoisted(() => ({ userDataDir: '', writeCalls: 0 }))
 

@@ -1,6 +1,7 @@
 import { Empty, ListRow } from '../../components/ui'
 import { PLATFORM_NAMES } from '../../shared/display'
-import type { ReviewRecommendation, WeaknessItem } from './types'
+import type { ReviewRecommendation } from '@shared/types/ai'
+import type { WeaknessItem } from './types'
 
 interface AiSuggestionsPanelProps {
   recommendations: ReviewRecommendation[]

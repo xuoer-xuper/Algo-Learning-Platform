@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Button, Input, Select } from '../../components/ui'
 import { loadSearchEngine, saveSearchEngine } from './settingsApi'
+import type { SearchEngineConfig, SearchEngineId } from '@shared/types/config'
 
 const QUERY_PLACEHOLDER = '{query}'
 const MAX_CUSTOM_TEMPLATE_LENGTH = 2_048

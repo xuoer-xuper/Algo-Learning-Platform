@@ -1,4 +1,10 @@
-import type { ScriptSite, UserScriptRecord } from './types'
+import type { UserScriptRecord } from '@shared/types/scripts'
+import type { ScriptSite } from './types'
+import type {
+  UserScriptCodeView,
+  UserScriptOpenEditorResult,
+  UserScriptUpdateSummary,
+} from '@shared/types/scripts'
 
 export interface UserScriptManagerData {
   scripts: UserScriptRecord[]

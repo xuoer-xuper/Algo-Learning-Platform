@@ -13,6 +13,7 @@ import {
   parseCredentialEnvelope,
   type CredentialSecretEnvelopeV1,
 } from '../db/repositories/credentialRepository'
+import type { CredentialSummary } from '../../src/shared/types/credentials'
 
 export type CredentialVaultErrorCode =
   | 'invalid-input'
@@ -63,17 +64,6 @@ export interface CredentialSaveInput {
   siteId: string
   username: string
   password: string
-}
-
-export interface CredentialSummary {
-  credentialId: string
-  siteId: string
-  username: string
-  displayName: string | null
-  masked: string
-  lastUsedAt: string | null
-  createdAt: string
-  updatedAt: string
 }
 
 /**

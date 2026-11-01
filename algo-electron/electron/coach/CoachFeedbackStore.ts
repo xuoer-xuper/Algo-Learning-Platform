@@ -1,4 +1,4 @@
-import type { CoachEventType, CoachFeedbackType } from './types'
+import type { CoachEventType, CoachFeedbackType } from '../../src/shared/types/coach'
 // 仅导入类型（type-only import），避免在单元测试中拉入 better-sqlite3。
 // 默认 FeedbackRepositoryAdapter 实现已移至 ./defaultFeedbackRepository.ts，
 // 由 CoachOrchestrator 在生产环境显式注入。

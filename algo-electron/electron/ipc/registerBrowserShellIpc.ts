@@ -35,11 +35,11 @@ import { popupShellContextMenu, readClipboardText } from '../contextMenus/browse
 import { isZoomCommand } from '../browser/zoomPreferences'
 import type { PendingUserScriptInstallRegistry } from '../downloads/userScriptNavigation'
 import type { AppWindow } from '../windows/AppWindow'
+import { IPC_CHANNELS } from '../../src/shared/constants/channels'
 import type {
   UserScriptHostPermissionPrompt,
   UserScriptHostPermissionResponse,
-} from '../scripts/UserScriptHostPermissionBroker'
-import { IPC_CHANNELS } from '../../src/shared/constants/channels'
+} from '../../src/shared/types/scripts'
 
 interface RegisterBrowserShellIpcOptions {
   getBrowserDiagnostics?: () => BrowserDiagnostics | null

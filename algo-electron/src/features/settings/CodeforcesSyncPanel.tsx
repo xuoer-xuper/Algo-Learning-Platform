@@ -6,7 +6,7 @@ import {
   syncCodeforcesRatingProfile,
   syncCodeforcesSubmissions,
 } from './settingsApi'
-import type { CodeforcesAccount } from './settingsTypes'
+import type { PlatformAccount } from '@shared/types/rating'
 
 interface CodeforcesSyncPanelProps {
   onStatsRefresh: () => void | Promise<void>
@@ -15,7 +15,7 @@ interface CodeforcesSyncPanelProps {
 export function CodeforcesSyncPanel({ onStatsRefresh }: CodeforcesSyncPanelProps) {
   const [cfHandle, setCfHandle] = useState('')
   const [ratingHandle, setRatingHandle] = useState('')
-  const [ratingInfo, setRatingInfo] = useState<CodeforcesAccount | null>(null)
+  const [ratingInfo, setRatingInfo] = useState<PlatformAccount | null>(null)
   const [ratingStatus, setRatingStatus] = useState('')
   const [submissionSyncStatus, setSubmissionSyncStatus] = useState('')
 

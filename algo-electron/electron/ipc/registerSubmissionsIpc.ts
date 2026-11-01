@@ -1,7 +1,8 @@
 import { getShellWindowOwner, ipcMain } from './trustedSender'
 import { syncCodeforcesInput } from '../../src/shared/types/ipc/submissions'
-import type { SyncResult, SyncService } from '../submissions/syncService'
+import type { SyncService } from '../submissions/syncService'
 import { IPC_CHANNELS } from '../../src/shared/constants/channels'
+import type { SyncResult } from '../../src/shared/types/submission'
 
 interface RegisterSubmissionsIpcOptions {
   getSyncService: () => SyncService | null
