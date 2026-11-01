@@ -1,7 +1,14 @@
 import fs from 'node:fs'
 import path from 'node:path'
-import { app } from 'electron'
+// 必须用命名空间导入：RUN_AS_NODE（ELECTRON_RUN_AS_NODE=1 的测试 bundle）下
+// 'electron' 解析到 npm 包（CJS，module.exports = 二进制路径字符串），顶层具名
+// 导入在 ESM 链接期直接 SyntaxError，套件起不来（test:all 的 ai/db/coach 段踩过）。
+// 命名空间导入三种环境都安全——真实 Electron 与 vitest 替身下 app 可用，
+// RUN_AS_NODE 下为 undefined，由下方降级分支处理。
+import * as electronModule from 'electron'
 import electronLog from 'electron-log/main'
+
+const electronApp: Electron.App | undefined = electronModule.app
 
 /**
  * 主进程日志的依赖注入接缝。测试用替身实现它；生产环境由下方 `logger`
@@ -149,8 +156,20 @@ electronLog.transports.file.maxSize = MAX_FILE_BYTES
 // 项目源文件的 electron import 才走 vitest alias，与 main.ts 里 applyStartupSmoke
 // UserDataPath 的重定向同源。resolvePathFn 在每次写入时才求值，冒烟模式的重定向
 // 因此对日志同样生效。
-electronLog.transports.file.resolvePathFn = (variables) =>
-  path.join(app.getPath('userData'), LOG_DIRECTORY_NAME, variables.fileName ?? DEFAULT_FILE_NAME)
+//
+// app 不可用（RUN_AS_NODE）时关闭文件 transport：那些纯 Node 套件本就不该写
+// 日志，否则会落进开发者真实 userData（electron-log 的 node 兜底路径）。这与
+// 旧实现的观察行为一致——不调 initializeAppLogger 就什么都不落盘。
+if (electronApp) {
+  electronLog.transports.file.resolvePathFn = (variables) =>
+    path.join(
+      electronApp.getPath('userData'),
+      LOG_DIRECTORY_NAME,
+      variables.fileName ?? DEFAULT_FILE_NAME,
+    )
+} else {
+  electronLog.transports.file.level = false
+}
 
 /**
  * 轮转保留 3 份归档（main.log.1 最新 → main.log.3 最旧），命名与自研实现
@@ -182,6 +201,9 @@ electronLog.addLevel('fatal', 0)
 electronLog.hooks.push(redactHook)
 
 export function getLogFilePath(): string | null {
+  // app 不可用（RUN_AS_NODE）时与文件 transport 一起降级：getFile() 会在解析到的
+  // 路径上建目录建文件，不能让纯 Node 套件在真实 userData 里摸出一份空日志。
+  if (!electronApp) return null
   try {
     return electronLog.transports.file.getFile().path
   } catch {
