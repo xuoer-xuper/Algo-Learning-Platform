@@ -68,6 +68,10 @@
 - 验证：临时删一个 preload 方法看 `tsc` 报错；`pnpm test:all`。commit `refactor(preload): 改为 window.api 并由 typeof 推导类型`。
 
 ### R4 数据刷新
+> **暂停点（2026-11-01，用户指示 R3 完成后停下）**：R4 派发已被取消，仅产生了 channels.ts 的
+> `DATA.CHANGED` 声明与 UPDATED @deprecated 注释（已丢弃，重启时按下方清单重做即可）。R1–R3
+> 已推送且 CI 绿（1588b8b）；R4/R5 待后续会话继续。
+
 
 - [ ] `dataEvents` EventEmitter + `main.ts` 广播；写路径接入（列表：problem/submission/notes/stats/site/userScript/credential/coach 的 mutations，`SubmissionBatchWriter`，`TrackingService`，`NoteService`，`learningDataExport` 导入，`syncService`）。
 - [ ] preload `api.data.onChanged`；`DataRefreshContext`；`useIpcQuery`。
