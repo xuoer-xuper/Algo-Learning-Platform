@@ -139,6 +139,7 @@
 | renderer global styles | [src/styles/README](../algo-electron/src/styles/README.md) |
 | hooks | [src/hooks/README](../algo-electron/src/hooks/README.md) |
 | shared types | [src/shared/types/README](../algo-electron/src/shared/types/README.md) |
+| shared constants | [src/shared/constants/README](../algo-electron/src/shared/constants/README.md) |
 | ipc input schemas | [src/shared/types/ipc/README](../algo-electron/src/shared/types/ipc/README.md) |
 | renderer shared | [src/shared/README](../algo-electron/src/shared/README.md) |
 | build | [build/README](../algo-electron/build/README.md) |
