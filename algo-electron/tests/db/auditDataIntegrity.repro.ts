@@ -178,7 +178,7 @@ function importFile(name: string, data: LearningDataExport) {
   assert.equal(preview.preview.valid, true)
   assert.ok(preview.data)
   const result = importLearningDataFromParsedExport(preview.data)
-  assert.equal(result.success, true, result.error)
+  if (result.success !== true) assert.fail(`导入失败: ${result.error}`)
   return { preview: preview.preview, result }
 }
 
@@ -195,8 +195,8 @@ async function backupAssets(): Promise<void> {
   const originalAsset = resolveNoteAssetPath(note.id, image.markdownUrl)
   assert.ok(originalAsset && fs.existsSync(originalAsset))
   const result = await createDatabaseBackup(contained(path.join(runDir, 'backups')))
-  assert.equal(result.success, true)
-  assert.ok(result.path)
+  if (result.success !== true) assert.fail(`备份失败: ${result.error}`)
+  const backupPath = result.data.path
   const notesDir = getNotesRoot()
   closeDb()
   // Simulate loss of the source notes directory without deleting any evidence.
@@ -204,7 +204,7 @@ async function backupAssets(): Promise<void> {
   database('backup-restored')
   const restoredDbPath = path.join(app.getPath('userData'), 'data', 'audit.sqlite')
   closeDb()
-  fs.copyFileSync(contained(result.path), contained(restoredDbPath))
+  fs.copyFileSync(contained(backupPath), contained(restoredDbPath))
   initDbAtPath(restoredDbPath)
   const restored = getNoteWithContent(note.id)
   assert.equal(restored?.content, content)
@@ -217,7 +217,7 @@ async function backupAssets(): Promise<void> {
     restoredBodyMatches: true,
     restoredAssetExists: false,
     restoredMarkdownFileExists: false,
-    backupFiles: fs.readdirSync(path.dirname(result.path)),
+    backupFiles: fs.readdirSync(path.dirname(backupPath)),
     storedPathStillPointsToSource: restored!.file_path === note.file_path,
     integrityCheck: getDb().pragma('integrity_check', { simple: true }),
   }

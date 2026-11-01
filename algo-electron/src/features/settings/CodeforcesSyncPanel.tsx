@@ -60,8 +60,8 @@ export function CodeforcesSyncPanel({ onStatsRefresh }: CodeforcesSyncPanelProps
     setRatingStatus('同步中...')
     try {
       const { result, account } = await syncCodeforcesRatingProfile(ratingHandle.trim())
-      if (result.success) {
-        setRatingStatus(`同步成功，peak: ${result.peak}`)
+      if (result.success === true) {
+        setRatingStatus(`同步成功，peak: ${result.data.peak}`)
         setRatingInfo(account)
       } else {
         setRatingStatus(`失败: ${result.error}`)

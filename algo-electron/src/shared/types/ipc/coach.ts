@@ -130,3 +130,18 @@ export const getProblemTimelineInput = [z.string().min(1).max(200)] as const
 export const saveLlmApiKeyInput = [z.string().max(512)] as const
 export const saveLlmConfigInput = [saveLlmConfig] as const
 export const testLlmConnectionInput = [testLlmConnection] as const
+
+/*
+ * `coach:testLlmConnection` 成功分支的 `data` 形状（R4 输出联合的载荷部分）。
+ * `message` 是 LlmHintService 给出的结论文案（"连接成功，模型回复: …"），
+ * `latency_ms` / `model` 仅成功时存在。失败分支的 `error` 也来自同一份结论文案
+ * ——连接失败时它是"连接失败: <原因>"，由 ArkClient 组装，属于用户自己配置的
+ * 连通性诊断，不是内部异常透传。联合本身由 `createOutputSchema` 织出
+ * （`electron/ipc/registerCoachIpc.ts`），这里只放载荷类型，供主进程与
+ * `electron-env.d.ts` 的镜像各自引用同一份口径。
+ */
+export interface LlmConnectionTestData {
+  message: string
+  latency_ms?: number
+  model?: string
+}

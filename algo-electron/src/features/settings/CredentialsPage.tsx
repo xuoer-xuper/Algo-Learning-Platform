@@ -133,12 +133,12 @@ export function CredentialsPage({ onClose }: CredentialsPageProps) {
     setRatingStatus('同步中...')
     try {
       const { result, account } = await syncCodeforcesRatingProfile(ratingHandle.trim())
-      if (!result.success) {
-        setRatingStatus(`同步失败: ${result.error ?? '未知错误'}`)
+      if (result.success !== true) {
+        setRatingStatus(`同步失败: ${result.error}`)
         return
       }
       setRatingInfo(account)
-      setRatingStatus(`已同步，最高 Rating ${result.peak ?? '-'}`)
+      setRatingStatus(`已同步，最高 Rating ${result.data.peak ?? '-'}`)
     } catch (error) {
       setRatingStatus(error instanceof Error ? error.message : 'Rating 同步失败')
     }

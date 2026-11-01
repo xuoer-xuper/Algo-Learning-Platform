@@ -151,9 +151,9 @@ test('backs up sqlite and round-trips non-sensitive learning data', async () => 
     seedSourceDatabase()
 
     const backupResult = await createDatabaseBackup(paths.tempDir)
+    // node:assert/strict 的 `strictEqual` 自带断言签名，会把联合窄化到成功分支。
     assert.strictEqual(backupResult.success, true)
-    assert.ok(backupResult.path)
-    assert.ok(fs.existsSync(backupResult.path))
+    assert.ok(fs.existsSync(backupResult.data.path))
 
     const exported = exportLearningData()
     const serialized = JSON.stringify(exported)

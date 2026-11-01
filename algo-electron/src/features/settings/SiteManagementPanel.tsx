@@ -60,8 +60,8 @@ export function SiteManagementPanel() {
     setExportStatus('导出中...')
     try {
       const result = await exportSitesConfig()
-      if (result.success) {
-        setExportStatus(`已导出 ${result.count} 个站点`)
+      if (result.success === true) {
+        setExportStatus(`已导出 ${result.data.count} 个站点`)
       } else {
         setExportStatus(result.error || '导出失败')
       }
@@ -76,16 +76,14 @@ export function SiteManagementPanel() {
     setImportStatus('选择文件...')
     try {
       const result = await importSitesConfig()
-      if (!result.success) {
+      if (result.success !== true) {
         setImportStatus(result.error || '导入取消')
         setTimeout(() => setImportStatus(''), 3000)
         return
       }
-      if (result.preview) {
-        setImportPreview(result.preview)
-        setImportOverwriteIds([])
-        setImportStatus('')
-      }
+      setImportPreview(result.data.preview)
+      setImportOverwriteIds([])
+      setImportStatus('')
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : String(e)
       setImportStatus(`错误: ${message}`)
@@ -106,8 +104,8 @@ export function SiteManagementPanel() {
     ]
     try {
       const result = await confirmImportSites(allSites, importOverwriteIds)
-      if (result.success) {
-        setImportStatus(`导入完成: 新增 ${result.imported}，覆盖 ${result.overwritten}`)
+      if (result.success === true) {
+        setImportStatus(`导入完成: 新增 ${result.data.imported}，覆盖 ${result.data.overwritten}`)
         setImportPreview(null)
         setImportOverwriteIds([])
         loadSites()

@@ -13,6 +13,8 @@ import {
   getByIdInput,
   toggleInput,
 } from '../../src/shared/types/ipc/sites'
+import { ERROR_CODES } from '../../src/shared/constants/errorCodes'
+import type { IpcOutput } from '../../src/shared/types/common'
 import fs from 'node:fs'
 import {
   confirmImportSites,
@@ -24,7 +26,10 @@ import {
   previewImportSites,
   toggleSite,
 } from '../db/repositories/siteRepository'
-import { errorMessage } from '../shared/errors'
+import type { ImportPreview } from '../db/repositories/site/types'
+import { logger } from '../shared/logger'
+
+const log = logger.scope('sites')
 
 interface RegisterSitesIpcOptions {
   getParentWindow?: (event: IpcMainInvokeEvent) => BrowserWindow | null
@@ -80,58 +85,85 @@ export function registerSitesIpc(options: RegisterSitesIpcOptions = {}): void {
     return result
   })
 
-  ipcMain.handle('sites:exportConfig', async (event) => {
-    try {
-      const parentWindow = getParentWindow(event)
-      const dialogOptions: SaveDialogOptions = {
-        title: '导出站点配置',
-        defaultPath: 'algo-sites-config.json',
-        filters: [{ name: 'JSON', extensions: ['json'] }],
+  ipcMain.handle(
+    'sites:exportConfig',
+    async (event): Promise<IpcOutput<{ path: string; count: number }>> => {
+      try {
+        const parentWindow = getParentWindow(event)
+        const dialogOptions: SaveDialogOptions = {
+          title: '导出站点配置',
+          defaultPath: 'algo-sites-config.json',
+          filters: [{ name: 'JSON', extensions: ['json'] }],
+        }
+        const result = parentWindow
+          ? await dialog.showSaveDialog(parentWindow, dialogOptions)
+          : await dialog.showSaveDialog(dialogOptions)
+        // 用户取消不是失败类别，`code` 留空（见 errorCodes.ts 的说明）。
+        if (result.canceled || !result.filePath) return { success: false, error: '取消导出' }
+
+        const data = exportSitesConfig()
+        fs.writeFileSync(result.filePath, JSON.stringify(data, null, 2), 'utf-8')
+        return { success: true, data: { path: result.filePath, count: data.sites.length } }
+      } catch (error) {
+        // 原始异常只进日志；`error` 字段是给用户的固定文案，不带内部细节。
+        log.warn('export-config-failed', { error })
+        return { success: false, error: '导出站点配置失败', code: ERROR_CODES.IO }
       }
-      const result = parentWindow
-        ? await dialog.showSaveDialog(parentWindow, dialogOptions)
-        : await dialog.showSaveDialog(dialogOptions)
-      if (result.canceled || !result.filePath) return { success: false, error: '取消导出' }
+    },
+  )
 
-      const data = exportSitesConfig()
-      fs.writeFileSync(result.filePath, JSON.stringify(data, null, 2), 'utf-8')
-      return { success: true, path: result.filePath, count: data.sites.length }
-    } catch (error) {
-      return { success: false, error: errorMessage(error) }
-    }
-  })
+  ipcMain.handle(
+    'sites:importConfig',
+    async (event): Promise<IpcOutput<{ preview: ImportPreview }>> => {
+      try {
+        const parentWindow = getParentWindow(event)
+        const dialogOptions: OpenDialogOptions = {
+          title: '导入站点配置',
+          filters: [{ name: 'JSON', extensions: ['json'] }],
+          properties: ['openFile'],
+        }
+        const result = parentWindow
+          ? await dialog.showOpenDialog(parentWindow, dialogOptions)
+          : await dialog.showOpenDialog(dialogOptions)
+        if (result.canceled || result.filePaths.length === 0)
+          return { success: false, error: '取消导入' }
 
-  ipcMain.handle('sites:importConfig', async (event) => {
-    try {
-      const parentWindow = getParentWindow(event)
-      const dialogOptions: OpenDialogOptions = {
-        title: '导入站点配置',
-        filters: [{ name: 'JSON', extensions: ['json'] }],
-        properties: ['openFile'],
+        const raw = fs.readFileSync(result.filePaths[0], 'utf-8')
+        const data = JSON.parse(raw) as unknown
+        const parsed = previewImportSites(data)
+        // 旧形状这里把 `{valid:false, error}` 原样塞进 success:true 的 preview 字段
+        // 交给渲染层；统一成联合后这类"文件结构不合法"就是失败分支，文案来自
+        // previewImportSites 的固定诊断（'无效的配置数据'等），code 归 VALIDATION。
+        if (!parsed.valid || !parsed.preview) {
+          return {
+            success: false,
+            error: parsed.error ?? '站点配置文件校验未通过',
+            code: ERROR_CODES.VALIDATION,
+          }
+        }
+        return { success: true, data: { preview: parsed.preview } }
+      } catch (error) {
+        // 读文件与 JSON 解析都在这个 catch 里：文案对用户只说"文件读不出来"，
+        // 是 IO 失败；原始解析错误进日志（`sites.import-config-failed`）。
+        log.warn('import-config-failed', { error })
+        return { success: false, error: '读取导入文件失败', code: ERROR_CODES.IO }
       }
-      const result = parentWindow
-        ? await dialog.showOpenDialog(parentWindow, dialogOptions)
-        : await dialog.showOpenDialog(dialogOptions)
-      if (result.canceled || result.filePaths.length === 0)
-        return { success: false, error: '取消导入' }
+    },
+  )
 
-      const raw = fs.readFileSync(result.filePaths[0], 'utf-8')
-      const data = JSON.parse(raw) as unknown
-      const preview = previewImportSites(data)
-      return { success: true, preview }
-    } catch (error) {
-      return { success: false, error: errorMessage(error) }
-    }
-  })
-
-  ipcMain.handle('sites:confirmImport', confirmImportInput, (event, sites, overwriteIds) => {
-    try {
-      const result = confirmImportSites(sites, overwriteIds)
-      options.refreshUserScriptRuntime?.()
-      options.notifyProblemsUpdated?.(event)
-      return { success: true, ...result }
-    } catch (error) {
-      return { success: false, error: errorMessage(error) }
-    }
-  })
+  ipcMain.handle(
+    'sites:confirmImport',
+    confirmImportInput,
+    (event, sites, overwriteIds): IpcOutput<{ imported: number; overwritten: number }> => {
+      try {
+        const result = confirmImportSites(sites, overwriteIds)
+        options.refreshUserScriptRuntime?.()
+        options.notifyProblemsUpdated?.(event)
+        return { success: true, data: result }
+      } catch (error) {
+        log.warn('confirm-import-failed', { error })
+        return { success: false, error: '导入站点配置失败', code: ERROR_CODES.IO }
+      }
+    },
+  )
 }

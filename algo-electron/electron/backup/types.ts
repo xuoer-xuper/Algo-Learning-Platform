@@ -48,15 +48,10 @@ export interface ImportResult {
   error?: string
 }
 
-export interface DatabaseBackupResult {
-  success: boolean
-  path?: string
-  error?: string
-}
-
-export interface LearningDataExportFileResult {
-  success: boolean
-  path?: string
-  counts?: Record<string, number>
-  error?: string
-}
+/*
+ * 旧形状 `DatabaseBackupResult` / `LearningDataExportFileResult`（散装
+ * `{ success, path?, error? }`）已随阶段 1 R4 删除：backupService 的对外返回
+ * 改为 `IpcOutput<…>`（`src/shared/types/common.ts`），IPC 边界的镜像类型在
+ * `electron-env.d.ts`。`ImportResult` 保留——它是 `importLearningData` 的仓库层
+ * 内部形状，由 `backupService.importLearningDataFromParsedExport` 映射成联合。
+ */

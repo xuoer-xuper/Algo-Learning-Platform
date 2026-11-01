@@ -21,10 +21,14 @@ import {
   toggleIgnoreMouseEventsInput,
   triggerHintInput,
 } from '../../src/shared/types/ipc/coach'
+import type { LlmConnectionTestData } from '../../src/shared/types/ipc/coach'
 import type { CoachPetWindow } from '../coach/CoachPetWindow'
 import type { CoachOrchestrator } from '../coach/CoachOrchestrator'
 import type { CoachBubblePayload } from '../coach/types'
 import { getCoachConfigForRenderer, saveCoachConfig } from '../app/config'
+import { ERROR_CODES } from '../../src/shared/constants/errorCodes'
+import type { IpcOutput } from '../../src/shared/types/common'
+import type { LlmConnectionTestResult } from '../coach/llm/LlmHintTypes'
 import { logger } from '../shared/logger'
 
 const log = logger.scope('coach')
@@ -434,20 +438,38 @@ export function registerCoachIpc(options: RegisterCoachIpcOptions): void {
     return true
   })
 
-  /** 测试连接 */
-  ipcMain.handle('coach:testLlmConnection', testLlmConnectionInput, async (_event, config) => {
-    const o = options.getCoachOrchestrator?.()
-    if (!o) return { success: false, message: 'Coach 未初始化' }
-    // 前端传了 Key 就用前端的，否则用已保存的
-    const apiKey = config.api_key || o.getLlmHintService().getDecryptedApiKey()
-    if (!apiKey) {
-      return { success: false, message: '未配置 API Key' }
-    }
-    return o.getLlmHintService().testConnection({
-      api_key: apiKey,
-      base_url: config.base_url,
-      model: config.model,
-      enabled: true,
-    })
-  })
+  /*
+   * 测试连接。`LlmHintService.testConnection` 返回的是"服务级"测试结论
+   * （`LlmConnectionTestResult`，message 是给用户看的结论文案），这里在边界上映射成
+   * 统一输出联合：成功把结论与耗时/模型收进 `data`，失败把结论文案挪进 `error` 并标
+   * `EXTERNAL`（远端 LLM 服务不可达）。
+   */
+  ipcMain.handle(
+    'coach:testLlmConnection',
+    testLlmConnectionInput,
+    async (_event, config): Promise<IpcOutput<LlmConnectionTestData>> => {
+      const o = options.getCoachOrchestrator?.()
+      if (!o) {
+        return { success: false, error: 'Coach 未初始化', code: ERROR_CODES.EXTERNAL }
+      }
+      // 前端传了 Key 就用前端的，否则用已保存的
+      const apiKey = config.api_key || o.getLlmHintService().getDecryptedApiKey()
+      if (!apiKey) {
+        return { success: false, error: '未配置 API Key', code: ERROR_CODES.VALIDATION }
+      }
+      const result: LlmConnectionTestResult = await o.getLlmHintService().testConnection({
+        api_key: apiKey,
+        base_url: config.base_url,
+        model: config.model,
+        enabled: true,
+      })
+      if (result.success === true) {
+        return {
+          success: true,
+          data: { message: result.message, latency_ms: result.latency_ms, model: result.model },
+        }
+      }
+      return { success: false, error: result.message, code: ERROR_CODES.EXTERNAL }
+    },
+  )
 }

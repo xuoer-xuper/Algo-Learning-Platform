@@ -31,6 +31,7 @@
 ### R4 返回形状统一（D8，中-2、中-3）
 - `src/shared/types/common.ts`：`createOutputSchema<T>(data: T)` 生成 `z.discriminatedUnion('success', [{success:true, data}, {success:false, error:z.string(), code:z.string().optional()}])`。
 - 35 处 `{ ok: … }`（`backup/`、`scripts/` 等 service 层）与 23 处 `{ success: … }` 统一为上述形状；渲染层消费点同步。
+  - **实施修正（2026-11-01 复核）**：实测（grep `electron/` + `src/`）`{ ok: … }` 共 **34 处**，全部在非 shell-IPC 的内部形状里——快照校验（`tabSessionSnapshot.ts`、`applicationSessionSnapshot.ts`）与 userscript 运行时协议（`userScriptRuntimeProtocol.ts`、`userScriptRuntimeBridge.ts`、`userscriptBootstrapPreload.ts`）；prd 所写"35 处（backup/、scripts/ 等 service 层）"失实（`backup/` 无一处）。按"不转内部非 IPC 形状"的判断全部保留，未转换。`{ success: … }` 共 **22 处**：20 处为 IPC 面（backup×8、sites×8、rating×2、coach×2），已统一；2 处是渲染层组件本地状态（`LlmConfigPanel` 的 `setTestResult`，非 IPC 形状，但已顺手对齐 `error` 键名）。6 处 `errorMessage(error)` 直返实测为 `registerSitesIpc.ts:100,123,134`、`registerRatingIpc.ts:69`、`backupService.ts:30,50`（行号漂移、位置与 prd 一致）。`code` 在 schema 层用 `z.enum(ERROR_CODE_VALUES).optional()` 收成六元闭集（比草图的 `z.string()` 更严，语义与 design §4"code 枚举"一致）；用户取消系统对话框的分支不带 `code`。
 - 6 处 `errorMessage(error)` 直返（`registerSitesIpc.ts:176,198,212`、`registerRatingIpc.ts:70`、`backupService.ts` ×2）改为固定文案 + `code` + `logger.warn`。
 
 ### R5 时间格式 bug 止血（高-5）

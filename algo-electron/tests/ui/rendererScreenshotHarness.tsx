@@ -387,7 +387,10 @@ function createApiMock(): ElectronAPI {
     bindHandle: async (_platform, handle) => ({ id: codeforcesAccount.id, handle }),
     getAccount: async () => codeforcesAccount,
     getAccounts: async () => [codeforcesAccount],
-    syncCodeforcesRating: async () => ({ success: true, historyCount: 2, inserted: 1, peak: 1510 }),
+    syncCodeforcesRating: async () => ({
+      success: true as const,
+      data: { historyCount: 2, inserted: 1, peak: 1510 },
+    }),
     getRatingHistory: async () => [
       {
         contest_name: 'Codeforces Round 1',
@@ -413,12 +416,14 @@ function createApiMock(): ElectronAPI {
     toggleSite: async () => true,
     deleteSite: async () => true,
     exportSitesConfig: async () => ({
-      success: true,
-      count: sites.length,
-      path: 'mock-sites.json',
+      success: true as const,
+      data: { count: sites.length, path: 'mock-sites.json' },
     }),
-    importSitesConfig: async () => ({ success: false, error: '未选择文件' }),
-    confirmImportSites: async () => ({ success: true, imported: 0, overwritten: 0 }),
+    importSitesConfig: async () => ({ success: false as const, error: '未选择文件' }),
+    confirmImportSites: async () => ({
+      success: true as const,
+      data: { imported: 0, overwritten: 0 },
+    }),
 
     scriptsGetAll: async () => [],
     scriptsSave: async () => 'script-1',
@@ -655,10 +660,12 @@ function createApiMock(): ElectronAPI {
     coachSaveLlmApiKey: async () => true,
     coachSaveLlmConfig: async () => true,
     coachTestLlmConnection: async () => ({
-      success: true,
-      message: '截图测试连接成功',
-      latency_ms: 12,
-      model: 'doubao-seed-1-6-flash-250715',
+      success: true as const,
+      data: {
+        message: '截图测试连接成功',
+        latency_ms: 12,
+        model: 'doubao-seed-1-6-flash-250715',
+      },
     }),
     onCoachContestModeChanged: () => () => {},
 

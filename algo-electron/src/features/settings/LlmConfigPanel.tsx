@@ -14,7 +14,7 @@ export function LlmConfigPanel() {
   const [enabled, setEnabled] = useState(false)
   const [savedFlag, setSavedFlag] = useState(false)
   const [testing, setTesting] = useState(false)
-  const [testResult, setTestResult] = useState<LlmConnectionTestResult | null>(null)
+  const [testResult, setTestResult] = useState<LlmConnectionTestOutput | null>(null)
   const [loadError, setLoadError] = useState('')
   const savedTimerRef = useRef<number | undefined>(undefined)
 
@@ -47,7 +47,7 @@ export function LlmConfigPanel() {
       if (!saved) {
         setTestResult({
           success: false,
-          message: '系统安全存储不可用，API Key 未保存',
+          error: '系统安全存储不可用，API Key 未保存',
         })
         return
       }
@@ -55,7 +55,7 @@ export function LlmConfigPanel() {
       setStatus(await loadLlmConfig())
       flashSaved()
     } catch (error: unknown) {
-      setTestResult({ success: false, message: `保存失败：${errorMessage(error)}` })
+      setTestResult({ success: false, error: `保存失败：${errorMessage(error)}` })
     }
   }
 
@@ -69,7 +69,7 @@ export function LlmConfigPanel() {
       setStatus(await loadLlmConfig())
       flashSaved()
     } catch (error: unknown) {
-      setTestResult({ success: false, message: `保存失败：${errorMessage(error)}` })
+      setTestResult({ success: false, error: `保存失败：${errorMessage(error)}` })
     }
   }
 
@@ -89,12 +89,12 @@ export function LlmConfigPanel() {
         model,
       })
       setTestResult(result)
-      if (result.success && key) {
+      if (result.success === true && key) {
         const saved = await saveLlmApiKey(key)
         if (!saved) {
           setTestResult({
             success: false,
-            message: '连接成功，但系统安全存储不可用，API Key 未保存',
+            error: '连接成功，但系统安全存储不可用，API Key 未保存',
           })
           return
         }
@@ -105,7 +105,7 @@ export function LlmConfigPanel() {
     } catch (err: unknown) {
       setTestResult({
         success: false,
-        message: err instanceof Error ? err.message : String(err),
+        error: err instanceof Error ? err.message : String(err),
       })
     } finally {
       setTesting(false)
@@ -201,13 +201,13 @@ export function LlmConfigPanel() {
         </Button>
         {testResult && (
           <span
-            className={`settings-test-result ${testResult.success ? 'settings-test-ok' : 'settings-test-err'}`}
+            className={`settings-test-result ${testResult.success === true ? 'settings-test-ok' : 'settings-test-err'}`}
           >
-            <Icon name={testResult.success ? 'check' : 'close'} size={12} />
+            <Icon name={testResult.success === true ? 'check' : 'close'} size={12} />
             <span>
-              {testResult.message}
-              {testResult.success && testResult.latency_ms != null && (
-                <span className="num">（{testResult.latency_ms}ms）</span>
+              {testResult.success === true ? testResult.data.message : testResult.error}
+              {testResult.success === true && testResult.data.latency_ms != null && (
+                <span className="num">（{testResult.data.latency_ms}ms）</span>
               )}
             </span>
           </span>
