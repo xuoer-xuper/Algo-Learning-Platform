@@ -27,6 +27,7 @@ import {
   formatCFRatingHistory,
 } from '../rating/codeforces'
 import { logger } from '../shared/logger'
+import { IPC_CHANNELS } from '../../src/shared/constants/channels'
 
 const log = logger.scope('rating')
 
@@ -35,21 +36,21 @@ const log = logger.scope('rating')
  * platform 闭集与 handle 64 的理由写在那里。
  */
 export function registerRatingIpc(): void {
-  ipcMain.handle('rating:bindHandle', bindHandleInput, (_event, platform, handle) => {
+  ipcMain.handle(IPC_CHANNELS.RATING.BIND_HANDLE, bindHandleInput, (_event, platform, handle) => {
     const id = upsertAccount(platform, handle)
     return { id, handle }
   })
 
-  ipcMain.handle('rating:getAccount', getAccountInput, (_event, platform, handle) => {
+  ipcMain.handle(IPC_CHANNELS.RATING.GET_ACCOUNT, getAccountInput, (_event, platform, handle) => {
     return getAccount(platform, handle)
   })
 
-  ipcMain.handle('rating:getAccounts', getAccountsInput, (_event, platform) => {
+  ipcMain.handle(IPC_CHANNELS.RATING.GET_ACCOUNTS, getAccountsInput, (_event, platform) => {
     return getAccountsByPlatform(platform)
   })
 
   ipcMain.handle(
-    'rating:syncCodeforces',
+    IPC_CHANNELS.RATING.SYNC_CODEFORCES,
     syncCodeforcesInput,
     async (
       _event,
@@ -86,24 +87,28 @@ export function registerRatingIpc(): void {
 
   // `getAccountById` 这道存在性检查留着：它是一次 DB 查询，schema 表达不了，
   // 且语义不是"参数非法"而是"账号不存在时返回空列表"。
-  ipcMain.handle('rating:getHistory', getHistoryInput, (_event, accountId) => {
+  ipcMain.handle(IPC_CHANNELS.RATING.GET_HISTORY, getHistoryInput, (_event, accountId) => {
     if (!getAccountById(accountId)) return []
     return getRatingHistory(accountId)
   })
 
-  ipcMain.handle('rating:getCodeforcesAccount', () => {
+  ipcMain.handle(IPC_CHANNELS.RATING.GET_CODEFORCES_ACCOUNT, () => {
     const accounts = getAccountsByPlatform('codeforces')
     return accounts.length > 0 ? accounts[0] : null
   })
 
-  ipcMain.handle('rating:getContestResults', getContestResultsInput, (_event, accountId) => {
-    const db = getDb()
-    return db
-      .prepare(
-        `
+  ipcMain.handle(
+    IPC_CHANNELS.RATING.GET_CONTEST_RESULTS,
+    getContestResultsInput,
+    (_event, accountId) => {
+      const db = getDb()
+      return db
+        .prepare(
+          `
       SELECT * FROM contest_results WHERE account_id = ? ORDER BY contest_at DESC LIMIT 20
     `,
-      )
-      .all(accountId)
-  })
+        )
+        .all(accountId)
+    },
+  )
 }

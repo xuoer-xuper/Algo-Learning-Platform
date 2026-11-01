@@ -1,5 +1,6 @@
 import type { WebContents } from 'electron'
 import type { AppWindow } from './AppWindow'
+import type { IpcChannel } from '../../src/shared/constants/channels'
 import type { ViewRegistry } from './ViewRegistry'
 
 interface WindowListeners {
@@ -122,7 +123,7 @@ export class WindowManager {
     return candidates.length === 1 ? candidates[0] : null
   }
 
-  sendToAll(channel: string, ...args: unknown[]): void {
+  sendToAll(channel: IpcChannel, ...args: unknown[]): void {
     for (const appWindow of this.windows.values()) appWindow.send(channel, ...args)
   }
 

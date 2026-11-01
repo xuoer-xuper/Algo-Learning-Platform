@@ -6,12 +6,19 @@
 
 ## 2. 当前检查
 
-`check-architecture.mjs` 当前覆盖 15 条。
+`check-architecture.mjs` 当前覆盖 20 条。
 
 安全边界：
 
 - 运行时代码不得重新导入或实例化 Electron `BrowserView`。
-- Renderer 源码不得直接访问 `ipcRenderer`。
+- Renderer 源码不得直接访问 `ipcRenderer`（`src/shared/` 豁免——它是跨进程共享层，
+  豁免的边界由下一条守住）。
+- `src/shared/` 不得 import `electron`：shared 层同时进渲染与主进程 bundle，
+  import electron 会把主进程模块打进渲染包。
+- IPC channel 名只能引用 `src/shared/constants/channels.ts` 的 `IPC_CHANNELS` 常量：
+  `ipcMain` / `ipcRenderer` 通道方法（handle/on/once/off/invoke/send/sendSync/postMessage/
+  removeListener/removeAllListeners/removeHandler）的首参字面量预算为 0。判定与反向验证在
+  `guards.mjs` 的 `countIpcChannelLiterals`。
 - `preload.ts` 不得暴露通用 `ipcRenderer`、`send` 或 `invoke` 能力。
 - 普通 IPC handler 必须走 `trustedSender` 门面，不得直接 `import { ipcMain }`。
 - 窗口相关 shell 动作必须从 trusted sender 解析归属，不接受全局 window/TabManager getter。

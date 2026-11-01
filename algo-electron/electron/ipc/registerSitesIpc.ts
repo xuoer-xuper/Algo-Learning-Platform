@@ -28,6 +28,7 @@ import {
 } from '../db/repositories/siteRepository'
 import type { ImportPreview } from '../db/repositories/site/types'
 import { logger } from '../shared/logger'
+import { IPC_CHANNELS } from '../../src/shared/constants/channels'
 
 const log = logger.scope('sites')
 
@@ -59,34 +60,34 @@ interface RegisterSitesIpcOptions {
 export function registerSitesIpc(options: RegisterSitesIpcOptions = {}): void {
   const getParentWindow = (event: IpcMainInvokeEvent): BrowserWindow | null =>
     options.getParentWindow?.(event) ?? getShellWindowOwner(event)?.browserWindow ?? null
-  ipcMain.handle('sites:getAll', () => {
+  ipcMain.handle(IPC_CHANNELS.SITES.GET_ALL, () => {
     return getAllSites()
   })
 
-  ipcMain.handle('sites:getById', getByIdInput, (_event, id) => {
+  ipcMain.handle(IPC_CHANNELS.SITES.GET_BY_ID, getByIdInput, (_event, id) => {
     return getSiteById(id)
   })
 
-  ipcMain.handle('sites:create', createInput, (_event, data) => {
+  ipcMain.handle(IPC_CHANNELS.SITES.CREATE, createInput, (_event, data) => {
     const result = createSite(data)
     options.refreshUserScriptRuntime?.()
     return result
   })
 
-  ipcMain.handle('sites:toggle', toggleInput, (_event, id, enabled) => {
+  ipcMain.handle(IPC_CHANNELS.SITES.TOGGLE, toggleInput, (_event, id, enabled) => {
     const result = toggleSite(id, enabled)
     if (result) options.refreshUserScriptRuntime?.()
     return result
   })
 
-  ipcMain.handle('sites:delete', deleteInput, (_event, id) => {
+  ipcMain.handle(IPC_CHANNELS.SITES.DELETE, deleteInput, (_event, id) => {
     const result = deleteSite(id)
     if (result) options.refreshUserScriptRuntime?.()
     return result
   })
 
   ipcMain.handle(
-    'sites:exportConfig',
+    IPC_CHANNELS.SITES.EXPORT_CONFIG,
     async (event): Promise<IpcOutput<{ path: string; count: number }>> => {
       try {
         const parentWindow = getParentWindow(event)
@@ -113,7 +114,7 @@ export function registerSitesIpc(options: RegisterSitesIpcOptions = {}): void {
   )
 
   ipcMain.handle(
-    'sites:importConfig',
+    IPC_CHANNELS.SITES.IMPORT_CONFIG,
     async (event): Promise<IpcOutput<{ preview: ImportPreview }>> => {
       try {
         const parentWindow = getParentWindow(event)
@@ -152,7 +153,7 @@ export function registerSitesIpc(options: RegisterSitesIpcOptions = {}): void {
   )
 
   ipcMain.handle(
-    'sites:confirmImport',
+    IPC_CHANNELS.SITES.CONFIRM_IMPORT,
     confirmImportInput,
     (event, sites, overwriteIds): IpcOutput<{ imported: number; overwritten: number }> => {
       try {

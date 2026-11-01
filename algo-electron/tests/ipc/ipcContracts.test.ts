@@ -2,6 +2,7 @@ import assert from 'node:assert'
 import fs from 'node:fs'
 import path from 'node:path'
 import { test } from 'vitest'
+import { IPC_CHANNELS } from '../../src/shared/constants/channels'
 
 type IpcMode = 'send' | 'invoke' | 'on'
 type IpcMainMode = 'on' | 'handle'
@@ -22,6 +23,24 @@ const electronRoot = path.join(projectRoot, 'electron')
 const preloadPath = path.join(electronRoot, 'preload.ts')
 const preloadSource = fs.readFileSync(preloadPath, 'utf-8')
 const electronSources = readElectronSources(electronRoot)
+
+/*
+ * 阶段 2 R1 起生产代码不再写 channel 字面量，一律引用 `IPC_CHANNELS` 常量。文本扫描
+ * 因此要先把 `IPC_CHANNELS.<域>.<键>` 引用解析回 channel 值才能和契约表比对：
+ * - `channelByConstantPath`：引用文本 → 值（解析源码里出现的是哪个 channel）；
+ * - `constantPathByChannel`：值 → 引用文本（断言某方法体引用了正确的常量）。
+ */
+const channelByConstantPath = new Map<string, string>()
+const constantPathByChannel = new Map<string, string>()
+{
+  for (const [domain, channels] of Object.entries(IPC_CHANNELS)) {
+    for (const [key, value] of Object.entries(channels as Record<string, string>)) {
+      const reference = `IPC_CHANNELS.${domain}.${key}`
+      channelByConstantPath.set(reference, value)
+      constantPathByChannel.set(value, reference)
+    }
+  }
+}
 
 const coreContracts: PreloadContract[] = [
   // Browser shell
@@ -132,16 +151,18 @@ test('preload maps core renderer methods to stable channels', () => {
   for (const contract of coreContracts) {
     const body = methods.get(contract.method)
     assert.ok(body, `Missing preload method ${contract.method}`)
+    const reference = constantPathByChannel.get(contract.channel)
+    assert.ok(reference, `${contract.channel} must be declared in IPC_CHANNELS`)
     // prettier 会把过长的 invoke(...) 拆成多行，比对前先把空白全部去掉。
     const compactBody = body.replace(/\s+/g, '')
     assert.ok(
-      compactBody.includes(`ipcRenderer.${contract.mode}('${contract.channel}'`),
-      `${contract.method} should use ipcRenderer.${contract.mode}('${contract.channel}')`,
+      compactBody.includes(`ipcRenderer.${contract.mode}(${reference}`),
+      `${contract.method} should use ipcRenderer.${contract.mode}(${reference}) for ${contract.channel}`,
     )
 
     if (contract.mode === 'on') {
       assert.ok(
-        compactBody.includes(`ipcRenderer.off('${contract.channel}'`),
+        compactBody.includes(`ipcRenderer.off(${reference}`),
         `${contract.method} should unsubscribe from ${contract.channel}`,
       )
     }
@@ -212,10 +233,20 @@ test('renderer cannot access arbitrary IPC channels through preload', () => {
     'ipcRenderer must not be exposed globally',
   )
 
-  // 首个非空白字符必须是引号（字面量通道名）。不能写成 \(\s*(?!['"])：
-  // \s* 会回溯到空白字符上，把换行后的字面量调用也误判成动态通道。
-  const dynamicChannelUse = /ipcRenderer\.(?:send|invoke|on|off)\(\s*[^'"\s]/.exec(preloadSource)
-  assert.strictEqual(dynamicChannelUse, null, 'preload IPC calls must use literal channel names')
+  // 每个调用的首个非空白 token 必须是引号（历史形态的字面量）或 IPC_CHANNELS（R1 之后的主形态）。
+  // 必须 matchAll 扫全文件：单次 exec 在第一个 IPC_CHANNELS 调用处就返回，其后 191 处里的
+  // 动态通道会漏检（复核 2026-11-01 实证的可绕过）。断言用"首个非空白字符 + 后随标识符"
+  // 而不是 (?!…) 前瞻：\s* 后接前瞻会在空白上回溯，把换行后的合法调用也误判成动态通道。
+  const dynamicChannelTokens = [
+    ...preloadSource.matchAll(/ipcRenderer\.(?:send|invoke|on|off)\(\s*([^'"\s][A-Za-z0-9_]*)/g),
+  ]
+    .map((match) => match[1])
+    .filter((token) => token !== 'IPC_CHANNELS')
+  assert.deepStrictEqual(
+    dynamicChannelTokens,
+    [],
+    'preload IPC calls must use IPC_CHANNELS constants (or string literals), not dynamic channels',
+  )
 
   const rendererChannels = new Set(
     extractPreloadRendererChannels(preloadSource).map((channel) => channel.channel),
@@ -254,10 +285,14 @@ function extractPreloadMethods(source: string): Map<string, string> {
 
 function extractPreloadRendererChannels(source: string): { mode: IpcMode; channel: string }[] {
   const channels: { mode: IpcMode; channel: string }[] = []
-  const pattern = /ipcRenderer\.(send|invoke|on)\(\s*'([^']+)'/g
+  // 两种形态都认：旧的字面量与 R1 之后的 IPC_CHANNELS.<域>.<键> 引用。
+  const pattern = /ipcRenderer\.(send|invoke|on)\(\s*('([^']+)'|IPC_CHANNELS\.[A-Za-z0-9_.]+)/g
   let match: RegExpExecArray | null
   while ((match = pattern.exec(source)) !== null) {
-    channels.push({ mode: match[1] as IpcMode, channel: match[2] })
+    const raw = match[2]
+    const channel = raw.startsWith("'") ? match[3] : channelByConstantPath.get(raw)
+    if (channel === undefined) continue
+    channels.push({ mode: match[1] as IpcMode, channel })
   }
   return channels
 }
@@ -284,6 +319,14 @@ function extractIpcMainHandlers(source: string): RegisteredChannel[] {
     if (channel) handlers.push({ mode: constantHandlerMatch[1] as IpcMainMode, channel })
   }
 
+  // R1 之后的主形态：channel 直接引用 IPC_CHANNELS 常量对象。
+  const sharedConstantHandlerPattern = /ipcMain\.(handle|on)\(\s*(IPC_CHANNELS\.[A-Za-z0-9_.]+)/g
+  let sharedConstantMatch: RegExpExecArray | null
+  while ((sharedConstantMatch = sharedConstantHandlerPattern.exec(source)) !== null) {
+    const channel = channelByConstantPath.get(sharedConstantMatch[2])
+    if (channel) handlers.push({ mode: sharedConstantMatch[1] as IpcMainMode, channel })
+  }
+
   const guardedLiteralPattern = /(handleFromShell|onFromShell|onFromOj)\(\s*'([^']+)'/g
   let guardedLiteralMatch: RegExpExecArray | null
   while ((guardedLiteralMatch = guardedLiteralPattern.exec(source)) !== null) {
@@ -305,15 +348,34 @@ function extractIpcMainHandlers(source: string): RegisteredChannel[] {
     }
   }
 
+  const guardedSharedConstantPattern =
+    /(handleFromShell|onFromShell|onFromOj)\(\s*(IPC_CHANNELS\.[A-Za-z0-9_.]+)/g
+  let guardedSharedConstantMatch: RegExpExecArray | null
+  while ((guardedSharedConstantMatch = guardedSharedConstantPattern.exec(source)) !== null) {
+    const channel = channelByConstantPath.get(guardedSharedConstantMatch[2])
+    if (channel) {
+      handlers.push({
+        mode: guardedSharedConstantMatch[1] === 'handleFromShell' ? 'handle' : 'on',
+        channel,
+      })
+    }
+  }
+
   return handlers
 }
 
 function extractSentChannels(source: string): Set<string> {
   const channels = new Set<string>()
-  const pattern = /\.(?:send|sendToAll)\(\s*'([^']+)'/g
+  // 字面量与 IPC_CHANNELS 引用两种形态都认，值集合才是契约。
+  const literalPattern = /\.(?:send|sendToAll)\(\s*'([^']+)'/g
   let match: RegExpExecArray | null
-  while ((match = pattern.exec(source)) !== null) {
+  while ((match = literalPattern.exec(source)) !== null) {
     channels.add(match[1])
+  }
+  const constantPattern = /\.(?:send|sendToAll)\(\s*(IPC_CHANNELS\.[A-Za-z0-9_.]+)/g
+  while ((match = constantPattern.exec(source)) !== null) {
+    const channel = channelByConstantPath.get(match[1])
+    if (channel !== undefined) channels.add(channel)
   }
   return channels
 }

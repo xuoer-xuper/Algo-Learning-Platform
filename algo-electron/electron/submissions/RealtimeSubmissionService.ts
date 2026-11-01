@@ -11,11 +11,9 @@ import { RealtimeHookInjector } from './RealtimeHookInjector'
 import { SubmissionWatcher, SUBMISSION_WATCHER_DETECTED_EVENT } from './SubmissionWatcher'
 import type { SubmissionNotification } from './SubmissionWatcherCore'
 import { handleFromOj, handleFromShell, onFromOj, type IpcListener } from '../ipc/trustedSender'
-import { OJ_SUBMISSION_TOKEN_CHANNEL as DOCUMENT_TOKEN_CHANNEL } from '../browser/ojBridge'
+import { IPC_CHANNELS } from '../../src/shared/constants/channels'
 import { logger as baseLogger, type Logger } from '../shared/logger'
 
-const SUBMISSION_DETECTED_CHANNEL = 'oj-submission:detected'
-const STATUS_CHANNEL = 'realtimeSubmission:getStatus'
 const DOCUMENT_TOKEN_PATTERN = /^[a-f0-9]{32}$/
 
 export class RealtimeSubmissionService {
@@ -133,9 +131,11 @@ export class RealtimeSubmissionService {
 
   registerIpc(): void {
     if (this.isIpcRegistered) return
-    this.registeredIpcHandler = onFromOj(SUBMISSION_DETECTED_CHANNEL, this.ipcHandler)
-    handleFromOj(DOCUMENT_TOKEN_CHANNEL, (event) => this.issueDocumentToken(event.sender.id))
-    handleFromShell(STATUS_CHANNEL, () => this.getStatus())
+    this.registeredIpcHandler = onFromOj(IPC_CHANNELS.OJ.SUBMISSION_DETECTED, this.ipcHandler)
+    handleFromOj(IPC_CHANNELS.OJ.SUBMISSION_GET_TOKEN, (event) =>
+      this.issueDocumentToken(event.sender.id),
+    )
+    handleFromShell(IPC_CHANNELS.REALTIME_SUBMISSION.GET_STATUS, () => this.getStatus())
     this.isIpcRegistered = true
     this.diagnostics.setIpcRegistered(true)
   }
@@ -145,12 +145,12 @@ export class RealtimeSubmissionService {
     this.pageHosts.clear()
     this.documentTokens.clear()
     if (this.isIpcRegistered && this.registeredIpcHandler) {
-      ipcMain.off(SUBMISSION_DETECTED_CHANNEL, this.registeredIpcHandler)
+      ipcMain.off(IPC_CHANNELS.OJ.SUBMISSION_DETECTED, this.registeredIpcHandler)
       this.registeredIpcHandler = null
     }
     if (this.isIpcRegistered) {
-      ipcMain.removeHandler(STATUS_CHANNEL)
-      ipcMain.removeHandler(DOCUMENT_TOKEN_CHANNEL)
+      ipcMain.removeHandler(IPC_CHANNELS.REALTIME_SUBMISSION.GET_STATUS)
+      ipcMain.removeHandler(IPC_CHANNELS.OJ.SUBMISSION_GET_TOKEN)
     }
     this.isIpcRegistered = false
     this.diagnostics.setIpcRegistered(false)

@@ -2,6 +2,7 @@ import type { SiteConfigData } from '../../db/repositories/siteRepository'
 import type { CredentialAutofillValue, CredentialSummary } from '../credentialVaultCore'
 import { resolveCredentialAutofillTarget, type CredentialAutofillTarget } from './autofillPolicy'
 import type { OjCredentialFillPayload } from './credentialAutofillBridge'
+import { IPC_CHANNELS } from '../../../src/shared/constants/channels'
 
 export interface AutofillWebContents {
   id: number
@@ -142,7 +143,7 @@ export class CredentialAutofillCoordinator {
       passwordSelectors: target.passwordSelectors,
     }
     try {
-      contents.send('oj-credentials:fill', payload)
+      contents.send(IPC_CHANNELS.OJ.CREDENTIALS_FILL, payload)
       this.filledKeys.set(contents.id, fillKey)
       return true
     } catch {

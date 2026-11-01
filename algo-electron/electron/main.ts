@@ -112,6 +112,7 @@ import { CredentialCaptureService } from './credentials/CredentialCaptureService
 import { UserScriptRemoteInstaller } from './scripts/UserScriptRemoteInstaller'
 import { UserScriptUpdateService } from './scripts/UserScriptUpdateService'
 import { UserScriptFileWatcher } from './scripts/UserScriptFileWatcher'
+import { IPC_CHANNELS } from '../src/shared/constants/channels'
 
 // 域日志器：scope = 点分事件名第一段（design §2 调用点迁移规则）。main.ts 装配
 // 面覆盖多个域，各域一个常量；动态转发的完整点分事件（TabTransferCoordinator
@@ -364,7 +365,7 @@ if (hasSingleInstanceLock) {
     const allowInsecureLocalhost = Boolean(VITE_DEV_SERVER_URL || STARTUP_SMOKE_MODE)
     const notifyNavigationBlocked = (reason: NavigationBlockReason): void => {
       if (!win.isDestroyed())
-        win.webContents.send('ui:command', { type: 'navigation-blocked', reason })
+        win.webContents.send(IPC_CHANNELS.UI.COMMAND, { type: 'navigation-blocked', reason })
     }
     const openInManagedTab = (url: string): void => {
       const decision = evaluateBrowserNavigation(url, {
@@ -414,7 +415,7 @@ if (hasSingleInstanceLock) {
     registerShellWebContents(win.webContents, appWindow)
     tabManager.setNavigationBlockedHandler(notifyNavigationBlocked)
     tabManager.setTabLimitReachedHandler((limit) => {
-      appWindow.send('ui:command', { type: 'tab-limit-reached', limit })
+      appWindow.send(IPC_CHANNELS.UI.COMMAND, { type: 'tab-limit-reached', limit })
     })
     tabManager.setTabDetachHandler((tabId) => {
       void tabTransferCoordinator.moveToNewWindow(appWindow, tabId)
@@ -444,11 +445,11 @@ if (hasSingleInstanceLock) {
         tabManager.switchTabByIndex(index)
       },
       focusAddressBar: () => {
-        appWindow.send('ui:command', { type: 'focus-address-bar' })
+        appWindow.send(IPC_CHANNELS.UI.COMMAND, { type: 'focus-address-bar' })
       },
       findInPage: () => {
         if (tabManager.openFindInPage()) {
-          appWindow.send('ui:command', { type: 'focus-find-in-page' })
+          appWindow.send(IPC_CHANNELS.UI.COMMAND, { type: 'focus-find-in-page' })
         }
       },
       reload: () => {
@@ -490,28 +491,28 @@ if (hasSingleInstanceLock) {
     tabManager.setShortcutHandler(handleShortcut)
 
     tabManager.setUrlChangeCallback((url) => {
-      appWindow.send('browser:urlChanged', url)
+      appWindow.send(IPC_CHANNELS.BROWSER.URL_CHANGED, url)
     })
 
     tabManager.setFindInPageStateChangedHandler((state) => {
-      appWindow.send('browser:findInPageResult', state)
+      appWindow.send(IPC_CHANNELS.BROWSER.FIND_IN_PAGE_RESULT, state)
     })
 
     tabManager.setZoomChangedHandler((state) => {
-      appWindow.send('browser:zoomChanged', state)
+      appWindow.send(IPC_CHANNELS.BROWSER.ZOOM_CHANGED, state)
     })
 
     installProblemTitleTracking({
       tabManager,
       getTrackingService: () => services?.trackingService ?? null,
       notifyProblemsUpdated: () => {
-        windowManager.sendToAll('problems:updated')
+        windowManager.sendToAll(IPC_CHANNELS.PROBLEM.UPDATED)
       },
       diagnostics: services?.browserDiagnostics,
     })
 
     tabManager.setTabListChangedCallback((tabs) => {
-      appWindow.send('tab:listChanged', tabs)
+      appWindow.send(IPC_CHANNELS.TAB.LIST_CHANGED, tabs)
     })
 
     const removeTabSessionListener = tabManager.addSessionChangeListener(scheduleApplicationSession)
@@ -566,10 +567,10 @@ if (hasSingleInstanceLock) {
       tabManager.setOmniboxOpen(false)
       tabManager.setDownloadNoticeVisible(false)
       tabManager.setErrorNoticeVisible(false)
-      appWindow.send('browser:urlChanged', tabManager.getUrl())
-      appWindow.send('tab:listChanged', tabManager.getTabList())
+      appWindow.send(IPC_CHANNELS.BROWSER.URL_CHANGED, tabManager.getUrl())
+      appWindow.send(IPC_CHANNELS.TAB.LIST_CHANGED, tabManager.getTabList())
       const zoomState = tabManager.getActiveZoomState()
-      if (zoomState) appWindow.send('browser:zoomChanged', zoomState)
+      if (zoomState) appWindow.send(IPC_CHANNELS.BROWSER.ZOOM_CHANGED, zoomState)
       coachOrchestrator?.syncContestModeState(appWindow)
     })
 
@@ -588,11 +589,11 @@ if (hasSingleInstanceLock) {
     })
 
     win.on('maximize', () => {
-      appWindow.send('window:maximized', true)
+      appWindow.send(IPC_CHANNELS.WINDOW.MAXIMIZED, true)
     })
 
     win.on('unmaximize', () => {
-      appWindow.send('window:maximized', false)
+      appWindow.send(IPC_CHANNELS.WINDOW.MAXIMIZED, false)
     })
 
     const removeWindowSessionFlush = installWindowSessionFlush(win, {
@@ -723,7 +724,7 @@ if (hasSingleInstanceLock) {
     getUserScriptUpdateService: () => userScriptUpdateService,
     allowInsecureLocalhost: Boolean(VITE_DEV_SERVER_URL || STARTUP_SMOKE_MODE),
     notifyProblemsUpdated: () => {
-      windowManager.sendToAll('problems:updated')
+      windowManager.sendToAll(IPC_CHANNELS.PROBLEM.UPDATED)
     },
     moveTabToNewWindow: (source, tabId) => tabTransferCoordinator.moveToNewWindow(source, tabId),
     finishTabDrag: (source, tabId, targetIndex, screenX, screenY) =>
@@ -882,7 +883,7 @@ if (hasSingleInstanceLock) {
         const owner = typeof windowId === 'string' ? windowManager.get(windowId) : null
         if (!owner) return
         owner.tabManager.setDownloadNoticeVisible(true)
-        owner.send('download:result', result)
+        owner.send(IPC_CHANNELS.DOWNLOAD.RESULT, result)
       })
       const ojSession = configureOjSession({ getSiteById })
       credentialAutofillService = new CredentialAutofillService(
@@ -892,7 +893,8 @@ if (hasSingleInstanceLock) {
           selectionHost: {
             getWindowId: (contents) => windowManager.resolveWebContents(contents.id)?.id ?? null,
             showPrompt: (windowId, prompt) =>
-              windowManager.get(windowId)?.send('credentials:autofillPrompt', prompt) ?? false,
+              windowManager.get(windowId)?.send(IPC_CHANNELS.CREDENTIALS.AUTOFILL_PROMPT, prompt) ??
+              false,
             setNoticeVisible: (windowId, visible) => {
               windowManager.get(windowId)?.tabManager.setCredentialAutofillNoticeVisible(visible)
             },
@@ -907,12 +909,13 @@ if (hasSingleInstanceLock) {
           captureHost: {
             getWindowId: (contents) => windowManager.resolveWebContents(contents.id)?.id ?? null,
             showPrompt: (windowId, prompt) =>
-              windowManager.get(windowId)?.send('credentials:capturePrompt', prompt) ?? false,
+              windowManager.get(windowId)?.send(IPC_CHANNELS.CREDENTIALS.CAPTURE_PROMPT, prompt) ??
+              false,
             setNoticeVisible: (windowId, visible) => {
               windowManager.get(windowId)?.tabManager.setCredentialCaptureNoticeVisible(visible)
             },
             sendResult: (windowId, result) =>
-              windowManager.get(windowId)?.send('credentials:captureResult', result),
+              windowManager.get(windowId)?.send(IPC_CHANNELS.CREDENTIALS.CAPTURE_RESULT, result),
           },
         },
       )
@@ -920,7 +923,7 @@ if (hasSingleInstanceLock) {
 
       registerNoteAssetProtocol()
       services = await initializeMainServices(() => {
-        windowManager.sendToAll('problems:updated')
+        windowManager.sendToAll(IPC_CHANNELS.PROBLEM.UPDATED)
       })
       userScriptFileWatcher = new UserScriptFileWatcher({
         directory: path.join(app.getPath('userData'), 'userscripts'),
@@ -939,7 +942,9 @@ if (hasSingleInstanceLock) {
       userScriptHostPermissionBroker = new UserScriptHostPermissionBroker({
         grantUserScriptHost,
         send: (windowId, prompt) =>
-          windowManager.get(windowId)?.send('userscript:hostPermissionRequested', prompt) ?? false,
+          windowManager
+            .get(windowId)
+            ?.send(IPC_CHANNELS.USERSCRIPT.HOST_PERMISSION_REQUESTED, prompt) ?? false,
         show: (windowId) => {
           windowManager.get(windowId)?.tabManager.setUserScriptPermissionNoticeVisible(true)
         },

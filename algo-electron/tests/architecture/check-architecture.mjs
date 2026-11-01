@@ -7,6 +7,7 @@ import {
   countBareHex,
   countBareRgb,
   countBareSql,
+  countIpcChannelLiterals,
   countRawIpcSchemas,
   countUnschemadIpc,
   themeDirectiveHasTailwindImport,
@@ -89,10 +90,29 @@ check('runtime code does not reintroduce Electron BrowserView', () => {
 })
 
 check('renderer code does not access ipcRenderer directly', () => {
-  failIfMatches(walkSourceFiles(path.join(projectRoot, 'src')), [
+  // src/shared/ 是跨进程共享层：channels.ts 的守卫说明里会以 API 名指称这条规则本身，
+  // 那里没有也不允许有真实的 electron 访问（由下一条检查反向守住）。
+  failIfMatches(
+    walkSourceFiles(path.join(projectRoot, 'src')).filter(
+      (file) => !relative(file).startsWith('src/shared/'),
+    ),
+    [
+      {
+        regex: /\bipcRenderer\b/,
+        reason: 'renderer must use window.electronAPI helpers instead of ipcRenderer',
+      },
+    ],
+  )
+})
+
+check('src/shared stays process-neutral (no electron imports)', () => {
+  // 上一条把 src/shared 从渲染层 ipcRenderer 检查里豁免，豁免的边界由这条守住：
+  // shared 层要同时进渲染进程与主进程的 bundle，import electron 会把主进程模块
+  // 打进渲染包（阶段 1 复核 MEDIUM 项，.trellis 任务 implement.md 启动评审注记 ③）。
+  failIfMatches(walkSourceFiles(path.join(projectRoot, 'src', 'shared')), [
     {
-      regex: /\bipcRenderer\b/,
-      reason: 'renderer must use window.electronAPI helpers instead of ipcRenderer',
+      regex: /from\s+['"]electron['"]/,
+      reason: 'src/shared is shared by renderer and main; it must not import electron',
     },
   ])
 })
@@ -112,6 +132,23 @@ check('preload does not expose generic ipcRenderer', () => {
       throw new Error('electron/preload.ts exposes generic ipcRenderer capability')
     }
   }
+})
+
+check('IPC channel names come from the shared constants, not literals', () => {
+  // 阶段 2 R1 收口：channel 名的唯一来源是 src/shared/constants/channels.ts，
+  // 注册与发送处引用常量（trustedSender 的 channel 参数已收窄为 IpcChannel 闭集，
+  // 拼写错误在编译期就报）。这里拦的是绕过常量的字面量回归——值改了编译器不说话，
+  // 只在 runtime 静默失联。判定逻辑与反向验证见 guards.mjs 的 countIpcChannelLiterals。
+  const failures = []
+  for (const file of walkSourceFiles(path.join(projectRoot, 'electron'))) {
+    const count = countIpcChannelLiterals(read(file))
+    if (count > 0) {
+      failures.push(
+        `${relative(file)}: 有 ${count} 处 IPC channel 字面量，channel 名必须引用 src/shared/constants/channels.ts 的 IPC_CHANNELS`,
+      )
+    }
+  }
+  if (failures.length > 0) throw new Error(failures.join('\n'))
 })
 
 check('ordinary IPC handlers use the trusted shell sender facade', () => {

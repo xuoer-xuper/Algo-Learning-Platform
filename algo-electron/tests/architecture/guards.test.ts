@@ -6,6 +6,7 @@ import {
   countBareHex,
   countBareRgb,
   countBareSql,
+  countIpcChannelLiterals,
   countRawIpcSchemas,
   countUnschemadIpc,
   themeDirectiveHasTailwindImport,
@@ -92,6 +93,45 @@ describe('countUnschemadIpc', () => {
       "ipcMain.on('a:4', (_e, y) => {})",
     ].join('\n')
     expect(countUnschemadIpc(source)).toBe(2)
+  })
+})
+
+describe('countIpcChannelLiterals', () => {
+  it('抓到以字面量注册/发送的 channel', () => {
+    expect(countIpcChannelLiterals("ipcMain.handle('a:b', () => {})")).toBe(1)
+    expect(countIpcChannelLiterals("ipcMain.on('a:b', (event) => {})")).toBe(1)
+    expect(countIpcChannelLiterals("ipcRenderer.invoke('a:b', arg)")).toBe(1)
+    expect(countIpcChannelLiterals("ipcRenderer.send('a:b')")).toBe(1)
+    expect(countIpcChannelLiterals("ipcRenderer.on('a:b', handler)")).toBe(1)
+  })
+
+  it('同一族的其他通道方法也算：订阅与退订不能一半字面量一半常量', () => {
+    expect(countIpcChannelLiterals("ipcRenderer.off('a:b', handler)")).toBe(1)
+    expect(countIpcChannelLiterals("ipcRenderer.once('a:b', handler)")).toBe(1)
+    expect(countIpcChannelLiterals("ipcRenderer.sendSync('a:b', payload)")).toBe(1)
+    expect(countIpcChannelLiterals("ipcRenderer.postMessage('a:b', payload, [port])")).toBe(1)
+    expect(countIpcChannelLiterals("ipcMain.removeListener('a:b', handler)")).toBe(1)
+    expect(countIpcChannelLiterals("ipcMain.removeAllListeners('a:b')")).toBe(1)
+    expect(countIpcChannelLiterals("ipcMain.removeHandler('a:b')")).toBe(1)
+  })
+
+  it('引用 IPC_CHANNELS 常量的不算', () => {
+    expect(countIpcChannelLiterals('ipcMain.handle(IPC_CHANNELS.AI.GET_OUTPUT, () => {})')).toBe(0)
+    expect(countIpcChannelLiterals('ipcRenderer.send(IPC_CHANNELS.BROWSER.NAVIGATE, url)')).toBe(0)
+  })
+
+  it('容忍换行与空格，不靠固定写法', () => {
+    expect(countIpcChannelLiterals("ipcMain.handle(\n  'a:b',\n  handler,\n)")).toBe(1)
+    expect(countIpcChannelLiterals('ipcRenderer . invoke ( "a:b" )')).toBe(1)
+  })
+
+  it('不误伤同名的非 IPC 调用', () => {
+    // 接收者限定是判定的一半：任意 emitter 的 on/handle 不归这条守卫管。
+    expect(countIpcChannelLiterals("emitter.on('a:b', handler)")).toBe(0)
+    expect(countIpcChannelLiterals("registry.handle('a:b', fn)")).toBe(0)
+    // webContents.send 的字面量归"主进程→渲染推送"，由 IpcChannel 收窄的
+    // AppWindow.send/WindowManager.sendToAll 签名在编译期拦，不在这里数。
+    expect(countIpcChannelLiterals("webContents.send('a:b', payload)")).toBe(0)
   })
 })
 

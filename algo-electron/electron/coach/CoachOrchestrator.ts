@@ -7,6 +7,7 @@ import type { AppWindow } from '../windows/AppWindow'
 import { parseUrl } from '../parsers/registry'
 import { nowBeijing, todayBeijing, toBeijing } from '../shared/time'
 import { logger } from '../shared/logger'
+import { IPC_CHANNELS } from '../../src/shared/constants/channels'
 
 const log = logger.scope('coach')
 import {
@@ -1366,7 +1367,7 @@ export class CoachOrchestrator {
     },
   ): void {
     appWindow.tabManager.setContestNoticeVisible(payload.isContestMode)
-    appWindow.send('coach:contestModeChanged', payload)
+    appWindow.send(IPC_CHANNELS.COACH.CONTEST_MODE_CHANGED, payload)
   }
 
   private handleContestEnter(info: {

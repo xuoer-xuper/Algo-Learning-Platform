@@ -1,6 +1,7 @@
 import type { IpcMainInvokeEvent } from 'electron'
 import { screen } from 'electron'
 import { coachPetIpcMain, ipcMain as shellIpcMain, type IpcListener } from './trustedSender'
+import type { IpcChannel } from '../../src/shared/constants/channels'
 import type { ZodParsedArgs, ZodSchemaTuple } from './ipcPayload'
 import {
   chatInput,
@@ -30,6 +31,7 @@ import { ERROR_CODES } from '../../src/shared/constants/errorCodes'
 import type { IpcOutput } from '../../src/shared/types/common'
 import type { LlmConnectionTestResult } from '../coach/llm/LlmHintTypes'
 import { logger } from '../shared/logger'
+import { IPC_CHANNELS } from '../../src/shared/constants/channels'
 
 const log = logger.scope('coach')
 
@@ -56,14 +58,14 @@ const COACH_PET_CHANNELS = new Set([
  * **最后一个重载**的第二参（schema 元组），于是本文件 16 个 handler 全报"函数不能当元组用"。
  * 重载的参数类型没法用 `Parameters` 取全，只能照着重载写一遍。
  */
-function ipcMainHandle(channel: string, listener: IpcListener<IpcMainInvokeEvent>): void
+function ipcMainHandle(channel: IpcChannel, listener: IpcListener<IpcMainInvokeEvent>): void
 function ipcMainHandle<const S extends ZodSchemaTuple>(
-  channel: string,
+  channel: IpcChannel,
   schemas: S,
   listener: (event: IpcMainInvokeEvent, ...args: ZodParsedArgs<S>) => unknown,
 ): void
 function ipcMainHandle(
-  channel: string,
+  channel: IpcChannel,
   second: ZodSchemaTuple | IpcListener<IpcMainInvokeEvent>,
   third?: IpcListener<IpcMainInvokeEvent>,
 ): void {
@@ -111,17 +113,17 @@ export function registerCoachIpc(options: RegisterCoachIpcOptions): void {
   }
   // --- 窗口控制 ---
 
-  ipcMain.handle('coach:getPetState', () => {
+  ipcMain.handle(IPC_CHANNELS.COACH.GET_PET_STATE, () => {
     return options.getCoachPetWindow()?.getPetState() ?? 'idle'
   })
 
-  ipcMain.handle('coach:setPetState', setPetStateInput, (_event, state) => {
+  ipcMain.handle(IPC_CHANNELS.COACH.SET_PET_STATE, setPetStateInput, (_event, state) => {
     requirePetWindow().setPetState(state)
     return true
   })
 
   ipcMain.handle(
-    'coach:toggleIgnoreMouseEvents',
+    IPC_CHANNELS.COACH.TOGGLE_IGNORE_MOUSE_EVENTS,
     toggleIgnoreMouseEventsInput,
     (_event, ignore) => {
       requirePetWindow().setIgnoreMouseEvents(ignore)
@@ -130,33 +132,33 @@ export function registerCoachIpc(options: RegisterCoachIpcOptions): void {
   )
 
   // 调试用：renderer 输出日志到主进程
-  ipcMain.handle('log-to-main', logToMainInput, (_event, message) => {
+  ipcMain.handle(IPC_CHANNELS.DIAGNOSTICS.LOG_TO_MAIN, logToMainInput, (_event, message) => {
     log.debug('renderer-log', { message })
     return true
   })
 
-  ipcMain.handle('coach:startDrag', () => {
+  ipcMain.handle(IPC_CHANNELS.COACH.START_DRAG, () => {
     requirePetWindow().startDrag()
     return true
   })
 
-  ipcMain.handle('coach:endDrag', () => {
+  ipcMain.handle(IPC_CHANNELS.COACH.END_DRAG, () => {
     requirePetWindow().endDrag()
     return true
   })
 
-  ipcMain.handle('coach:resetPosition', () => {
+  ipcMain.handle(IPC_CHANNELS.COACH.RESET_POSITION, () => {
     requirePetWindow().resetPosition()
     return true
   })
 
   // --- 配置 ---
 
-  ipcMain.handle('coach:getConfig', () => {
+  ipcMain.handle(IPC_CHANNELS.COACH.GET_CONFIG, () => {
     return getCoachConfigForRenderer()
   })
 
-  ipcMain.handle('coach:saveConfig', saveConfigInput, (_event, partial) => {
+  ipcMain.handle(IPC_CHANNELS.COACH.SAVE_CONFIG, saveConfigInput, (_event, partial) => {
     saveCoachConfig(partial)
     // 同步推送给桌宠渲染层（透明度/缩放）
     options.getCoachPetWindow()?.notifyConfigChanged()
@@ -167,7 +169,7 @@ export function registerCoachIpc(options: RegisterCoachIpcOptions): void {
    * 测试提示按钮：从设置面板触发，立即弹一个测试气泡 + 切换 alert 状态。
    * 阶段 1 用于演示与手动验证；阶段 2 后由规则引擎接管。
    */
-  ipcMain.handle('coach:testHint', () => {
+  ipcMain.handle(IPC_CHANNELS.COACH.TEST_HINT, () => {
     if (isContestMode()) throw new Error('比赛模式硬关闭')
     const pet = requirePetWindow()
     pet.setPetState('alert')
@@ -190,13 +192,13 @@ export function registerCoachIpc(options: RegisterCoachIpcOptions): void {
   /*
    * 气泡形状的界（标题 200、正文 4 KiB、level 1..5）写在 `src/shared/types/ipc/coach.ts`。
    */
-  ipcMain.handle('coach:showBubble', showBubbleInput, (_event, payload) => {
+  ipcMain.handle(IPC_CHANNELS.COACH.SHOW_BUBBLE, showBubbleInput, (_event, payload) => {
     if (isContestMode()) throw new Error('比赛模式硬关闭')
     requirePetWindow().showBubble(payload)
     return true
   })
 
-  ipcMain.handle('coach:dismissBubble', () => {
+  ipcMain.handle(IPC_CHANNELS.COACH.DISMISS_BUBBLE, () => {
     options.getCoachPetWindow()?.dismissBubble()
     return true
   })
@@ -211,7 +213,7 @@ export function registerCoachIpc(options: RegisterCoachIpcOptions): void {
    * `CoachOrchestrator` 的同名方法，它不委托给引擎（见那边的注释）。live 路径上只有
    * 一个 `hintInProgress` 并发闸，挡的是"生成中再点"，不是频次。
    */
-  ipcMain.handle('coach:triggerHint', triggerHintInput, async (_event, bubbleId) => {
+  ipcMain.handle(IPC_CHANNELS.COACH.TRIGGER_HINT, triggerHintInput, async (_event, bubbleId) => {
     if (isContestMode()) return { accepted: false, level: 0, note: '比赛模式硬关闭' }
     // 演示/测试气泡走演示升级分支（不经过 orchestrator 规则引擎）
     const isDemo = !bubbleId || bubbleId.startsWith('test-') || bubbleId.startsWith('demo-')
@@ -264,7 +266,7 @@ export function registerCoachIpc(options: RegisterCoachIpcOptions): void {
    * 用户点击"先不用"。
    * 阶段 2：委托给 CoachOrchestrator.dismissHint（更新 intervention user_action + 屏蔽规则）。
    */
-  ipcMain.handle('coach:dismissHint', dismissHintInput, (_event, bubbleId) => {
+  ipcMain.handle(IPC_CHANNELS.COACH.DISMISS_HINT, dismissHintInput, (_event, bubbleId) => {
     const orchestrator = options.getCoachOrchestrator?.()
     if (!orchestrator) {
       log.debug('dismiss-hint-skipped', { reason: 'no-orchestrator', bubbleId })
@@ -279,7 +281,7 @@ export function registerCoachIpc(options: RegisterCoachIpcOptions): void {
    * 用户反馈（helpful / not_helpful / dismiss / never_today）。
    * 阶段 2：持久化到 coach_feedback 并影响后续频率。
    */
-  ipcMain.handle('coach:feedback', feedbackInput, (_event, feedback) => {
+  ipcMain.handle(IPC_CHANNELS.COACH.FEEDBACK, feedbackInput, (_event, feedback) => {
     const orchestrator = options.getCoachOrchestrator?.()
     if (!orchestrator) {
       log.debug('feedback-skipped', { reason: 'no-orchestrator', feedback })
@@ -293,25 +295,29 @@ export function registerCoachIpc(options: RegisterCoachIpcOptions): void {
   })
 
   /** 关闭免责声明（permanent=true 永久关闭） */
-  ipcMain.handle('coach:dismissDisclaimer', dismissDisclaimerInput, (_event, permanent) => {
-    const orchestrator = options.getCoachOrchestrator?.()
-    if (!orchestrator) {
-      options.getCoachPetWindow()?.dismissBubble()
+  ipcMain.handle(
+    IPC_CHANNELS.COACH.DISMISS_DISCLAIMER,
+    dismissDisclaimerInput,
+    (_event, permanent) => {
+      const orchestrator = options.getCoachOrchestrator?.()
+      if (!orchestrator) {
+        options.getCoachPetWindow()?.dismissBubble()
+        return true
+      }
+      orchestrator.dismissDisclaimer(permanent)
       return true
-    }
-    orchestrator.dismissDisclaimer(permanent)
-    return true
-  })
+    },
+  )
 
   /** 点击桌宠：触发提示（LLM 或本地），返回触发结果与 LLM 状态 */
-  ipcMain.handle('coach:petClick', async () => {
+  ipcMain.handle(IPC_CHANNELS.COACH.PET_CLICK, async () => {
     const o = options.getCoachOrchestrator?.()
     if (!o) return { triggered: false, level: 0, llmEnabled: false }
     return await o.petClick()
   })
 
   /** 自由聊天：发送用户消息，获取 LLM 回复 */
-  ipcMain.handle('coach:chat', chatInput, async (_event, params) => {
+  ipcMain.handle(IPC_CHANNELS.COACH.CHAT, chatInput, async (_event, params) => {
     const o = options.getCoachOrchestrator?.()
     if (!o) return { reply: '', success: false, error: 'Coach 未初始化' }
     const reply = await o.chatWithLlm(params.message, params.history)
@@ -322,7 +328,7 @@ export function registerCoachIpc(options: RegisterCoachIpcOptions): void {
   })
 
   /** 请求针对当前题目的提示 */
-  ipcMain.handle('coach:requestHint', async () => {
+  ipcMain.handle(IPC_CHANNELS.COACH.REQUEST_HINT, async () => {
     const o = options.getCoachOrchestrator?.()
     if (!o) return { message: '', success: false, error: 'Coach 未初始化' }
     const message = await o.requestHintFromLlm()
@@ -335,49 +341,53 @@ export function registerCoachIpc(options: RegisterCoachIpcOptions): void {
   // --- 阶段 2 新增 channel ---
 
   /** 当前 Coach 服务运行时状态快照（会话/比赛模式/桌宠状态/屏蔽类型） */
-  ipcMain.handle('coach:getState', () => {
+  ipcMain.handle(IPC_CHANNELS.COACH.GET_STATE, () => {
     const o = options.getCoachOrchestrator?.()
     if (!o) return null
     return o.getState()
   })
 
   /** 当前题目会话 */
-  ipcMain.handle('coach:getSession', () => {
+  ipcMain.handle(IPC_CHANNELS.COACH.GET_SESSION, () => {
     const o = options.getCoachOrchestrator?.()
     if (!o) return null
     return o.getCurrentSession()
   })
 
   /** 历史会话 */
-  ipcMain.handle('coach:getSessionHistory', getSessionHistoryInput, (_event, limit) => {
-    const o = options.getCoachOrchestrator?.()
-    if (!o) return []
-    return o.getSessionHistory(limit)
-  })
+  ipcMain.handle(
+    IPC_CHANNELS.COACH.GET_SESSION_HISTORY,
+    getSessionHistoryInput,
+    (_event, limit) => {
+      const o = options.getCoachOrchestrator?.()
+      if (!o) return []
+      return o.getSessionHistory(limit)
+    },
+  )
 
   /** 指标聚合（最近 30 天） */
-  ipcMain.handle('coach:getMetrics', () => {
+  ipcMain.handle(IPC_CHANNELS.COACH.GET_METRICS, () => {
     const o = options.getCoachOrchestrator?.()
     if (!o) return null
     return o.getMetrics()
   })
 
   /** 最近事件列表（调试面板用） */
-  ipcMain.handle('coach:listEvents', listEventsInput, (_event, limit) => {
+  ipcMain.handle(IPC_CHANNELS.COACH.LIST_EVENTS, listEventsInput, (_event, limit) => {
     const o = options.getCoachOrchestrator?.()
     if (!o) return []
     return o.listRecentEvents(limit ?? 50)
   })
 
   /** 最近干预列表（调试面板用） */
-  ipcMain.handle('coach:listInterventions', listInterventionsInput, (_event, limit) => {
+  ipcMain.handle(IPC_CHANNELS.COACH.LIST_INTERVENTIONS, listInterventionsInput, (_event, limit) => {
     const o = options.getCoachOrchestrator?.()
     if (!o) return []
     return o.listRecentInterventions(limit ?? 50)
   })
 
   /** 比赛模式审计日志导出（合规卖点） */
-  ipcMain.handle('coach:exportAuditLog', () => {
+  ipcMain.handle(IPC_CHANNELS.COACH.EXPORT_AUDIT_LOG, () => {
     const o = options.getCoachOrchestrator?.()
     if (!o) return []
     return o.exportAuditLog()
@@ -386,14 +396,18 @@ export function registerCoachIpc(options: RegisterCoachIpcOptions): void {
   // --- 阶段 4：过程复盘 + 答辩数据 ---
 
   /** 单题时间轴复盘数据（Task 18 SessionTimelineView） */
-  ipcMain.handle('coach:getProblemTimeline', getProblemTimelineInput, (_event, problemId) => {
-    const o = options.getCoachOrchestrator?.()
-    if (!o || !problemId) return null
-    return o.getProblemTimeline(problemId)
-  })
+  ipcMain.handle(
+    IPC_CHANNELS.COACH.GET_PROBLEM_TIMELINE,
+    getProblemTimelineInput,
+    (_event, problemId) => {
+      const o = options.getCoachOrchestrator?.()
+      if (!o || !problemId) return null
+      return o.getProblemTimeline(problemId)
+    },
+  )
 
   /** 干预效果指标原始数据 bundle（Task 19 CoachMetricsView） */
-  ipcMain.handle('coach:getMetricsBundle', () => {
+  ipcMain.handle(IPC_CHANNELS.COACH.GET_METRICS_BUNDLE, () => {
     const o = options.getCoachOrchestrator?.()
     if (!o) return null
     return o.getMetricsBundle()
@@ -401,7 +415,7 @@ export function registerCoachIpc(options: RegisterCoachIpcOptions): void {
 
   // --- 调试辅助：返回当前主屏 workArea（renderer 拖拽边界用） ---
 
-  ipcMain.handle('coach:getWorkArea', () => {
+  ipcMain.handle(IPC_CHANNELS.COACH.GET_WORK_AREA, () => {
     const workArea = screen.getPrimaryDisplay().workArea
     return { x: workArea.x, y: workArea.y, width: workArea.width, height: workArea.height }
   })
@@ -409,7 +423,7 @@ export function registerCoachIpc(options: RegisterCoachIpcOptions): void {
   // --- 阶段 5：LLM 配置 ---
 
   /** 获取 LLM 配置状态（脱敏，不返回明文 Key） */
-  ipcMain.handle('coach:getLlmConfig', () => {
+  ipcMain.handle(IPC_CHANNELS.COACH.GET_LLM_CONFIG, () => {
     const o = options.getCoachOrchestrator?.()
     if (!o) return null
     return o.getLlmHintService().getConfigStatus()
@@ -419,7 +433,7 @@ export function registerCoachIpc(options: RegisterCoachIpcOptions): void {
    * 保存 API Key（加密存储）。允许空串：空串是"清空已保存的 Key"这个合法操作，
    * `saveApiKey` 自己判空并走删除分支。schema 见 `src/shared/types/ipc/coach.ts`。
    */
-  ipcMain.handle('coach:saveLlmApiKey', saveLlmApiKeyInput, (_event, apiKey) => {
+  ipcMain.handle(IPC_CHANNELS.COACH.SAVE_LLM_API_KEY, saveLlmApiKeyInput, (_event, apiKey) => {
     const o = options.getCoachOrchestrator?.()
     if (!o) return false
     return o.getLlmHintService().saveApiKey(apiKey)
@@ -431,7 +445,7 @@ export function registerCoachIpc(options: RegisterCoachIpcOptions): void {
    * safeStorage 加密后写入，strict 拒绝多余字段之后，壳 renderer 没法绕过加密
    * 直接往那一格塞值。
    */
-  ipcMain.handle('coach:saveLlmConfig', saveLlmConfigInput, (_event, partial) => {
+  ipcMain.handle(IPC_CHANNELS.COACH.SAVE_LLM_CONFIG, saveLlmConfigInput, (_event, partial) => {
     const o = options.getCoachOrchestrator?.()
     if (!o) return false
     o.getLlmHintService().saveConfig(partial)
@@ -445,7 +459,7 @@ export function registerCoachIpc(options: RegisterCoachIpcOptions): void {
    * `EXTERNAL`（远端 LLM 服务不可达）。
    */
   ipcMain.handle(
-    'coach:testLlmConnection',
+    IPC_CHANNELS.COACH.TEST_LLM_CONNECTION,
     testLlmConnectionInput,
     async (_event, config): Promise<IpcOutput<LlmConnectionTestData>> => {
       const o = options.getCoachOrchestrator?.()
