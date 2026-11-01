@@ -17,13 +17,9 @@ interface RegisterProblemIpcOptions {
  * limit 1000、平台/状态枚举、"optional 而非 nullable"的理由写在那里。
  */
 export function registerProblemIpc(options: RegisterProblemIpcOptions = {}): void {
-  ipcMain.handle(
-    IPC_CHANNELS.PROBLEM.LIST_RECENT,
-    listRecentInput,
-    (_event, limit, platform, status) => {
-      return getRecentProblems(limit, platform, status)
-    },
-  )
+  ipcMain.handle(IPC_CHANNELS.PROBLEM.LIST_RECENT, listRecentInput, (_event, input) => {
+    return getRecentProblems(input.limit, input.platform, input.status)
+  })
 
   ipcMain.handle(IPC_CHANNELS.PROBLEM.GET_DETAIL, getDetailInput, (_event, problemId) => {
     return getProblemDetail(problemId)

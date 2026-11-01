@@ -17,4 +17,5 @@ const siteId = z.string().min(1).max(200)
 const domain = z.string().min(1).max(253)
 
 export const getSiteSummaryInput = [siteId] as const
-export const getDomainSummaryInput = [siteId, domain] as const
+/* R3 起单对象参数（原先是 `(siteId, domain)` 两个位置参数）。 */
+export const getDomainSummaryInput = [z.strictObject({ siteId, domain })] as const

@@ -18,8 +18,8 @@ export function registerCookieIpc(cookieVault = new CookieVault()): void {
   ipcMain.handle(
     IPC_CHANNELS.COOKIES.GET_DOMAIN_SUMMARY,
     getDomainSummaryInput,
-    (_event, siteId, domain) => {
-      return cookieVault.getSafeSummaryForDomain(siteId, domain)
+    (_event, input) => {
+      return cookieVault.getSafeSummaryForDomain(input.siteId, input.domain)
     },
   )
 }

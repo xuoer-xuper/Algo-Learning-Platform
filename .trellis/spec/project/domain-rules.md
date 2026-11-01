@@ -49,10 +49,11 @@
 
 ## 4. Renderer Capability Boundary
 
-- The renderer only talks to `window.api` (today `window.electronAPI`). No direct SQLite, filesystem,
-  Electron session or Node access. Guard: `check-architecture.mjs` "renderer IPC" rule and
-  `countBareControls` / renderer-only-via-`*Api.ts` ratchet (the ratchet is retired once
-  `window.api` is typed via `typeof api`).
+- The renderer only talks to `window.api` (typed via `typeof api` in `src/preload/index.ts`). No
+  direct SQLite, filesystem, Electron session or Node access. Guard: `check-architecture.mjs`
+  "renderer reaches the main process only through window.api" — references allowed only in
+  `*Api.ts`, `src/hooks/` and the `src/main.tsx` entry (browserLayout). Every exposed api method
+  must have a renderer caller (`tests/ipc/apiConsumers.test.ts`).
 - Never use `alert`, `confirm`, `prompt`, `window.open` or `localStorage` in the renderer
   (`../frontend/electron-browser-api-restrictions.md`). Confirmation goes through
   `src/components/ui/ConfirmDialog.tsx`.

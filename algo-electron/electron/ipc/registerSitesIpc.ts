@@ -75,8 +75,8 @@ export function registerSitesIpc(options: RegisterSitesIpcOptions = {}): void {
     return result
   })
 
-  ipcMain.handle(IPC_CHANNELS.SITES.TOGGLE, toggleInput, (_event, id, enabled) => {
-    const result = toggleSite(id, enabled)
+  ipcMain.handle(IPC_CHANNELS.SITES.TOGGLE, toggleInput, (_event, input) => {
+    const result = toggleSite(input.id, input.enabled)
     if (result) options.refreshUserScriptRuntime?.()
     return result
   })
@@ -156,9 +156,9 @@ export function registerSitesIpc(options: RegisterSitesIpcOptions = {}): void {
   ipcMain.handle(
     IPC_CHANNELS.SITES.CONFIRM_IMPORT,
     confirmImportInput,
-    (event, sites, overwriteIds): IpcOutput<{ imported: number; overwritten: number }> => {
+    (event, input): IpcOutput<{ imported: number; overwritten: number }> => {
       try {
-        const result = confirmImportSites(sites, overwriteIds)
+        const result = confirmImportSites(input.sites, input.overwriteIds)
         options.refreshUserScriptRuntime?.()
         options.notifyProblemsUpdated?.(event)
         return { success: true, data: result }

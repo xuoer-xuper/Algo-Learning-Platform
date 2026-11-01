@@ -98,8 +98,10 @@ export function registerBrowserShellIpc(options: RegisterBrowserShellIpcOptions)
    * 判完 TS 仍然认为它是 `unknown`，所以只能强转。schema 之后类型是真的收窄了，
    * 两处 `as` 一起删掉。
    */
-  ipcMain.handle(IPC_CHANNELS.TAB.REORDER, tabReorderInput, (event, tabId, targetIndex) => {
-    return getShellWindowOwner(event)?.tabManager.reorderTab(tabId, targetIndex) ?? false
+  ipcMain.handle(IPC_CHANNELS.TAB.REORDER, tabReorderInput, (event, input) => {
+    return (
+      getShellWindowOwner(event)?.tabManager.reorderTab(input.tabId, input.targetIndex) ?? false
+    )
   })
 
   ipcMain.handle(IPC_CHANNELS.TAB.MOVE_TO_NEW_WINDOW, tabMoveToNewWindowInput, (event, tabId) => {
@@ -107,16 +109,18 @@ export function registerBrowserShellIpc(options: RegisterBrowserShellIpcOptions)
     return owner ? (options.moveTabToNewWindow?.(owner, tabId) ?? false) : false
   })
 
-  ipcMain.handle(
-    IPC_CHANNELS.TAB.FINISH_DRAG,
-    tabFinishDragInput,
-    (event, tabId, targetIndex, screenX, screenY) => {
-      const owner = getShellWindowOwner(event)
-      return owner
-        ? (options.finishTabDrag?.(owner, tabId, targetIndex, screenX, screenY) ?? false)
-        : false
-    },
-  )
+  ipcMain.handle(IPC_CHANNELS.TAB.FINISH_DRAG, tabFinishDragInput, (event, input) => {
+    const owner = getShellWindowOwner(event)
+    return owner
+      ? (options.finishTabDrag?.(
+          owner,
+          input.tabId,
+          input.targetIndex,
+          input.screenX,
+          input.screenY,
+        ) ?? false)
+      : false
+  })
 
   ipcMain.on(IPC_CHANNELS.TAB.RELOAD, tabReloadInput, (event, tabId) => {
     getShellWindowOwner(event)?.tabManager.reloadTab(tabId)
@@ -178,13 +182,13 @@ export function registerBrowserShellIpc(options: RegisterBrowserShellIpcOptions)
    * （见 tabManagerFindZoom 的用例），`setZoom` 的由 `isZoomCommand` 判。
    * 前者原先连 `unknown` 都没判就传下去了，显式放行至少把这件事写在了通道上。
    */
-  ipcMain.handle(IPC_CHANNELS.BROWSER.FIND_IN_PAGE, findInPageInput, (event, tabId, command) => {
-    return getShellWindowOwner(event)?.tabManager.findInPage(tabId, command) ?? null
+  ipcMain.handle(IPC_CHANNELS.BROWSER.FIND_IN_PAGE, findInPageInput, (event, input) => {
+    return getShellWindowOwner(event)?.tabManager.findInPage(input.tabId, input.command) ?? null
   })
 
-  ipcMain.handle(IPC_CHANNELS.BROWSER.SET_ZOOM, setZoomInput, (event, tabId, command) => {
-    if (!isZoomCommand(command)) return null
-    return getShellWindowOwner(event)?.tabManager.setZoom(tabId, command) ?? null
+  ipcMain.handle(IPC_CHANNELS.BROWSER.SET_ZOOM, setZoomInput, (event, input) => {
+    if (!isZoomCommand(input.command)) return null
+    return getShellWindowOwner(event)?.tabManager.setZoom(input.tabId, input.command) ?? null
   })
 
   ipcMain.on(
@@ -227,10 +231,10 @@ export function registerBrowserShellIpc(options: RegisterBrowserShellIpcOptions)
   ipcMain.handle(
     IPC_CHANNELS.USERSCRIPT.RESPOND_HOST_PERMISSION,
     respondHostPermissionInput,
-    (event, promptId, allow) => {
+    (event, input) => {
       const owner = getShellWindowOwner(event)
       return owner
-        ? (options.respondUserScriptHostPermission?.(owner, promptId, allow) ?? 'stale')
+        ? (options.respondUserScriptHostPermission?.(owner, input.promptId, input.allow) ?? 'stale')
         : 'stale'
     },
   )

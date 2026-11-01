@@ -2,9 +2,9 @@
 
 ## 1. 职责
 
-`src/` 是 React renderer 层，负责应用 UI、页面状态、用户交互和通过 `window.electronAPI` 调用主进程能力。
+`src/` 是 React renderer 层，负责应用 UI、页面状态、用户交互和通过 `window.api`（域分组）调用主进程能力。
 
-Renderer 不直接访问 Node.js、SQLite、Electron session、Cookie 或文件系统。所有跨进程能力必须经 `electron/preload.ts` 暴露，并在 `electron/electron-env.d.ts` 中声明类型。
+Renderer 不直接访问 Node.js、SQLite、Electron session、Cookie 或文件系统。所有跨进程能力必须经 `src/preload/index.ts` 暴露，类型由其 `typeof api` 推导。
 
 ## 2. 当前实现程度
 
@@ -37,8 +37,8 @@ Renderer 不直接访问 Node.js、SQLite、Electron session、Cookie 或文件�
 用户操作
   -> React component state
   -> feature/components/hooks helper
-  -> window.electronAPI.*
-  -> electron/preload.ts
+  -> window.api.<domain>.*
+  -> src/preload/index.ts
   -> ipcMain handler in electron/main.ts
   -> main-process services/repositories
   -> renderer Promise result or event callback
@@ -53,7 +53,7 @@ Renderer 不直接访问 Node.js、SQLite、Electron session、Cookie 或文件�
 
 ## 5. IPC 边界
 
-Renderer 只能通过 `window.electronAPI` 使用 preload 白名单能力；业务组件、共享组件和应用壳 hooks 应优先调用本域 `*Api.ts` helper，再由 helper 访问 preload。
+Renderer 只能通过 `window.api` 使用 preload 白名单能力；业务组件、共享组件和应用壳 hooks 应优先调用本域 `*Api.ts` helper，再由 helper 访问 preload（直接引用 `window.api` 的位置只允许在 `*Api.ts`、`src/hooks/` 与入口 `main.tsx`）。
 
 当前 helper 分层：
 
@@ -75,12 +75,13 @@ Renderer 只能通过 `window.electronAPI` 使用 preload 白名单能力；业�
 
 新增 IPC 时必须同步：
 
-1. `electron/preload.ts`
-2. `electron/electron-env.d.ts`
-3. renderer 调用点
-4. 相关模块 README
+1. `src/shared/constants/channels.ts`（channel 常量）
+2. `src/shared/types/ipc/`（输入 schema）与 `src/shared/types/`（输出类型）
+3. `src/preload/index.ts`（域方法 + `as Promise<X>` 断言）
+4. renderer 调用点（`*Api.ts` 或 `src/hooks/`；组件不得直连 `window.api`）
+5. 相关模块 README
 
-`electron/electron-env.d.ts` 是 renderer 侧权威类型入口；新增或变更 preload 方法时必须同步返回值类型，避免在 renderer helper 中用 `any` 或重复断言补洞。
+`src/preload/index.ts` 的 `typeof api` 是 renderer 侧权威类型入口；新增或变更 preload 方法时必须同步 `@shared/types` 的返回值类型，避免在 renderer helper 中用 `any` 或重复断言补洞。
 
 ## 6. 目录边界
 

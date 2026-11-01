@@ -220,14 +220,14 @@ test('sites:importConfig 成功、文件结构不合法（VALIDATION）、解析
 
 test('sites:confirmImport 成功载荷进 data；仓库抛错给固定文案不透传', async () => {
   siteRepo.confirmImportSites.mockReturnValue({ imported: 2, overwritten: 1 })
-  const ok = await ipcRenderer.invoke('sites:confirmImport', [], [])
+  const ok = await ipcRenderer.invoke('sites:confirmImport', { sites: [], overwriteIds: [] })
   assertEnvelope(ok)
   assert.deepEqual(ok, { success: true, data: { imported: 2, overwritten: 1 } })
 
   siteRepo.confirmImportSites.mockImplementation(() => {
     throw new Error('SECRET-DB-LOCK')
   })
-  const failed = await ipcRenderer.invoke('sites:confirmImport', [], [])
+  const failed = await ipcRenderer.invoke('sites:confirmImport', { sites: [], overwriteIds: [] })
   assertFailure(failed, { error: '导入站点配置失败', code: 'IO' })
   assert.equal(JSON.stringify(failed).includes('SECRET-DB-LOCK'), false)
 })

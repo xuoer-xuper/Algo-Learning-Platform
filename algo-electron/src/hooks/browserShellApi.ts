@@ -23,90 +23,90 @@ import type {
 import type { SyncResult } from '@shared/types/submission'
 import type { OmniboxSuggestion } from '@shared/types/problem'
 export function subscribeUrlChanged(callback: (url: string) => void): () => void {
-  return window.electronAPI.onUrlChanged(callback)
+  return window.api.browser.onUrlChanged(callback)
 }
 
 export function subscribeUiCommand(callback: (command: UiCommand) => void): () => void {
-  return window.electronAPI.onUiCommand(callback)
+  return window.api.browser.onUiCommand(callback)
 }
 
 export function findBrowserInPage(
   tabId: string,
   command: FindInPageCommand,
 ): Promise<FindInPageViewState | null> {
-  return window.electronAPI.findInPage(tabId, command)
+  return window.api.browser.findInPage({ tabId, command })
 }
 
 export function subscribeFindInPageResult(
   callback: (state: FindInPageViewState) => void,
 ): () => void {
-  return window.electronAPI.onFindInPageResult(callback)
+  return window.api.browser.onFindInPageResult(callback)
 }
 
 export function setBrowserZoom(tabId: string, command: ZoomCommand): Promise<ZoomState | null> {
-  return window.electronAPI.setZoom(tabId, command)
+  return window.api.browser.setZoom({ tabId, command })
 }
 
 export function subscribeBrowserZoomChanged(callback: (state: ZoomState) => void): () => void {
-  return window.electronAPI.onZoomChanged(callback)
+  return window.api.browser.onZoomChanged(callback)
 }
 
 export function setDownloadNoticeVisible(visible: boolean): void {
-  window.electronAPI.setDownloadNoticeVisible(visible)
+  window.api.browser.setDownloadNoticeVisible(visible)
 }
 
 export function setErrorNoticeVisible(visible: boolean): void {
-  window.electronAPI.setErrorNoticeVisible(visible)
+  window.api.browser.setErrorNoticeVisible(visible)
 }
 
 export function subscribeDownloadResult(
   callback: (result: ManagedDownloadResult) => void,
 ): () => void {
-  return window.electronAPI.onDownloadResult(callback)
+  return window.api.browser.onDownloadResult(callback)
 }
 
 export function getPendingUserScriptInstall(
   installId: string,
 ): Promise<PendingUserScriptInstall | null> {
-  return window.electronAPI.getUserScriptInstall(installId)
+  return window.api.scripts.getPendingInstall(installId)
 }
 
 export function cancelPendingUserScriptInstall(installId: string): Promise<boolean> {
-  return window.electronAPI.cancelUserScriptInstall(installId)
+  return window.api.scripts.cancelPendingInstall(installId)
 }
 
 export function getRemoteUserScriptInstallPreview(
   installId: string,
 ): Promise<UserScriptInstallPreview | null> {
-  return window.electronAPI.getRemoteUserScriptInstallPreview(installId)
+  return window.api.scripts.getRemoteInstallPreview(installId)
 }
 
 export function confirmRemoteUserScriptInstall(
   installId: string,
   action: UserScriptInstallAction,
 ): Promise<UserScriptInstallInstallResult | null> {
-  return window.electronAPI.confirmRemoteUserScriptInstall(installId, action)
+  return window.api.scripts.confirmRemoteInstall({ installId, action })
 }
 
 export function cancelRemoteUserScriptInstall(installId: string): Promise<boolean> {
-  return window.electronAPI.cancelRemoteUserScriptInstall(installId)
+  return window.api.scripts.cancelRemoteInstall(installId)
 }
 
 export function getUserScriptHostPermissionPrompt(): Promise<UserScriptHostPermissionPrompt | null> {
-  return window.electronAPI.getUserScriptHostPermissionPrompt()
+  return window.api.scripts.getHostPermissionPrompt()
 }
 
 export function respondUserScriptHostPermission(
   promptId: string,
   allow: boolean,
 ): Promise<UserScriptHostPermissionResponse> {
-  return window.electronAPI.respondUserScriptHostPermission(promptId, allow)
+  return window.api.scripts.respondHostPermission({ promptId, allow })
 }
 
 export function subscribeUserScriptHostPermissionPrompt(
   callback: (prompt: UserScriptHostPermissionPrompt) => void,
 ): () => void {
-  return window.electronAPI.onUserScriptHostPermissionPrompt(callback)
+  return window.api.scripts.onHostPermissionPrompt(callback)
 }
 
 /**
@@ -114,89 +114,89 @@ export function subscribeUserScriptHostPermissionPrompt(
  * 与 userscript host 授权提示同一形状：get 拿当前 pending，subscribe 收后续推送。
  */
 export function getCredentialAutofillPrompt(): Promise<CredentialAutofillPrompt | null> {
-  return window.electronAPI.getCredentialAutofillPrompt()
+  return window.api.credentials.getAutofillPrompt()
 }
 
 export function subscribeCredentialAutofillPrompt(
   callback: (prompt: CredentialAutofillPrompt) => void,
 ): () => void {
-  return window.electronAPI.onCredentialAutofillPrompt(callback)
+  return window.api.credentials.onAutofillPrompt(callback)
 }
 
 export function respondCredentialAutofill(
   requestId: string,
   credentialId: string | null,
 ): Promise<boolean> {
-  return window.electronAPI.respondCredentialAutofill(requestId, credentialId)
+  return window.api.credentials.respondAutofill({ requestId, credentialId })
 }
 
 export function getCredentialCapturePrompt(): Promise<CredentialCapturePrompt | null> {
-  return window.electronAPI.getCredentialCapturePrompt()
+  return window.api.credentials.getCapturePrompt()
 }
 
 export function subscribeCredentialCapturePrompt(
   callback: (prompt: CredentialCapturePrompt) => void,
 ): () => void {
-  return window.electronAPI.onCredentialCapturePrompt(callback)
+  return window.api.credentials.onCapturePrompt(callback)
 }
 
 export function subscribeCredentialCaptureResult(
   callback: (result: CredentialCaptureResult) => void,
 ): () => void {
-  return window.electronAPI.onCredentialCaptureResult(callback)
+  return window.api.credentials.onCaptureResult(callback)
 }
 
 export function respondCredentialCapture(
   captureId: string,
   action: CredentialCaptureAction,
 ): Promise<boolean> {
-  return window.electronAPI.respondCredentialCapture(captureId, action)
+  return window.api.credentials.respondCapture({ captureId, action })
 }
 
 export function setBrowserSidebarWidth(width: number): void {
-  window.electronAPI.setSidebarWidth(width)
+  window.api.browser.setSidebarWidth(width)
 }
 
 export function navigateBrowser(url: string): void {
-  window.electronAPI.navigate(url)
+  window.api.browser.navigate(url)
 }
 
 export function goBrowserHome(): void {
-  window.electronAPI.goHome()
+  window.api.browser.goHome()
 }
 
 export function goBrowserBack(): void {
-  window.electronAPI.goBack()
+  window.api.browser.goBack()
 }
 
 export function goBrowserForward(): void {
-  window.electronAPI.goForward()
+  window.api.browser.goForward()
 }
 
 export function reloadBrowser(): void {
-  window.electronAPI.reload()
+  window.api.browser.reload()
 }
 
 export function syncBrowserCurrentPage(): Promise<SyncResult> {
-  return window.electronAPI.syncCurrentPage()
+  return window.api.submissions.syncCurrentPage()
 }
 
 export function getBrowserOmniboxSuggestions(query: string): Promise<OmniboxSuggestion[]> {
-  return window.electronAPI.getOmniboxSuggestions(query)
+  return window.api.browser.getOmniboxSuggestions(query)
 }
 
 export function setBrowserOmniboxOpen(open: boolean): void {
-  window.electronAPI.setOmniboxOpen(open)
+  window.api.browser.setOmniboxOpen(open)
 }
 
 export function showBrowserAppMenu(anchor: AppMenuAnchor): void {
-  window.electronAPI.showAppMenu(anchor)
+  window.api.browser.showAppMenu(anchor)
 }
 
 export function showBrowserShellContextMenu(kind: ShellContextMenuKind): void {
-  window.electronAPI.showShellContextMenu(kind)
+  window.api.browser.showShellContextMenu(kind)
 }
 
 export function showBrowserTabContextMenu(tabId: string): void {
-  window.electronAPI.showTabContextMenu(tabId)
+  window.api.browser.showTabContextMenu(tabId)
 }

@@ -27,11 +27,14 @@ const savePayload = z.strictObject({
     .max(8 * 1024),
 })
 
-export const saveInput = [scriptId, savePayload] as const
+/* R3 起 save / toggle / confirmRemoteInstall 的 wire 形状是单对象参数。 */
+export const saveInput = [z.strictObject({ id: scriptId, data: savePayload })] as const
 export const getRemoteInstallPreviewInput = [installId] as const
-export const confirmRemoteInstallInput = [installId, z.enum(['install', 'copy', 'cancel'])] as const
+export const confirmRemoteInstallInput = [
+  z.strictObject({ installId, action: z.enum(['install', 'copy', 'cancel']) }),
+] as const
 export const cancelRemoteInstallInput = [installId] as const
 export const getCodeInput = [scriptId] as const
 export const openEditorInput = [scriptId] as const
-export const toggleInput = [scriptId, z.boolean()] as const
+export const toggleInput = [z.strictObject({ id: scriptId, enabled: z.boolean() })] as const
 export const deleteInput = [scriptId] as const

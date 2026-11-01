@@ -27,7 +27,7 @@ function internalTab(overrides: Partial<InternalTab> = {}): InternalTab {
   return { ...baseTab, kind: 'internal', page: { type: 'dashboard' }, ...overrides }
 }
 
-// Mock electronAPI 避免 HomePage / 设置页加载时报错。
+// Mock window.api 避免 HomePage / 设置页加载时报错。
 // CI 实测（2026-10-31，run 41162618391）：设置页是懒加载，时序不利时其挂载/effect
 // 重连发生在用例结束之后；缺一个方法（getTheme）就以 uncaught exception 把整个
 // vitest 进程炸成退出码 1——1387 用例全过也白搭。因此设置页挂载时读取的 API
@@ -36,26 +36,35 @@ function internalTab(overrides: Partial<InternalTab> = {}): InternalTab {
 const stubRejection = () =>
   vi.fn().mockRejectedValue(new Error('transitions fixture: API not wired in this test'))
 beforeEach(() => {
-  // @ts-expect-error: test stub
-  window.electronAPI = {
-    getOverviewStats: vi.fn().mockResolvedValue({
-      totalProblems: 0,
-      solvedProblems: 0,
-      reviewDue: 0,
-      recentActivity: [],
-    }),
-    listRecentProblems: vi.fn().mockResolvedValue([]),
-    getHomeShortcuts: vi.fn().mockResolvedValue([]),
-    onProblemsUpdated: vi.fn().mockReturnValue(() => {}),
-    // 设置页挂载时的读取类 API（AppearancePanel/SearchEnginePanel/LlmConfigPanel/
-    // CodeforcesSyncPanel/SiteManagementPanel/SettingsPage 本体）。
-    getTheme: stubRejection(),
-    getSearchEngine: stubRejection(),
-    coachGetLlmConfig: stubRejection(),
-    getAccounts: stubRejection(),
-    getAllSites: stubRejection(),
-    getRealtimeSubmissionStatus: stubRejection(),
+  // 测试替身只实现挂载路径用到的方法；域内允许缺方法（Partial），整体指回完整的
+  // window.api 形状——多实现了不存在的方法会被 tsc 当场报出来。
+  type DomainStub = { [K in keyof typeof window.api]?: Partial<(typeof window.api)[K]> }
+  const apiStub: DomainStub = {
+    stats: {
+      getOverview: vi.fn().mockResolvedValue({
+        totalProblems: 0,
+        solvedProblems: 0,
+        reviewDue: 0,
+        recentActivity: [],
+      }),
+    },
+    problem: {
+      listRecent: vi.fn().mockResolvedValue([]),
+      onUpdated: vi.fn().mockReturnValue(() => {}),
+    },
+    config: {
+      getHomeShortcuts: vi.fn().mockResolvedValue([]),
+      // 设置页挂载时的读取类 API（AppearancePanel/SearchEnginePanel/LlmConfigPanel/
+      // CodeforcesSyncPanel/SiteManagementPanel/SettingsPage 本体）。
+      getTheme: stubRejection(),
+      getSearchEngine: stubRejection(),
+    },
+    coach: { getLlmConfig: stubRejection() },
+    rating: { getAccounts: stubRejection() },
+    sites: { getAll: stubRejection() },
+    submissions: { getRealtimeStatus: stubRejection() },
   }
+  window.api = apiStub as typeof window.api
 })
 
 describe('View Transitions（B5.3）', () => {

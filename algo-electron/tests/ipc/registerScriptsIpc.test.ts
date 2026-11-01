@@ -194,11 +194,10 @@ test('remote preview and confirmation install through the same atomic resource t
   assert.strictEqual(preview.version, '2.0.0')
   assert.strictEqual(preview.requires, 1)
 
-  const result = (await ipcRenderer.invoke(
-    'scripts:confirmRemoteInstall',
-    route.request.installId,
-    'install',
-  )) as UserScriptInstallInstallResult
+  const result = (await ipcRenderer.invoke('scripts:confirmRemoteInstall', {
+    installId: route.request.installId,
+    action: 'install',
+  })) as UserScriptInstallInstallResult
   assert.strictEqual(result.status, 'installed')
   const installed = getScriptById(result.scriptId!)
   assert.strictEqual(installed?.last_install_url, sourceUrl)
@@ -243,8 +242,14 @@ test('remote confirmation claims a legacy identity and rejects a concurrent repl
   assert.strictEqual(preview.existingScriptId, legacyId)
 
   const results = (await Promise.all([
-    ipcRenderer.invoke('scripts:confirmRemoteInstall', route.request.installId, 'install'),
-    ipcRenderer.invoke('scripts:confirmRemoteInstall', route.request.installId, 'install'),
+    ipcRenderer.invoke('scripts:confirmRemoteInstall', {
+      installId: route.request.installId,
+      action: 'install',
+    }),
+    ipcRenderer.invoke('scripts:confirmRemoteInstall', {
+      installId: route.request.installId,
+      action: 'install',
+    }),
   ])) as Array<UserScriptInstallInstallResult | null>
   assert.strictEqual(results.filter((result) => result?.status === 'installed').length, 1)
   assert.strictEqual(results.filter((result) => result === null).length, 1)
@@ -281,11 +286,10 @@ test('remote confirmation invalidates a preview when the installed version chang
   assert.strictEqual(getScriptById(scriptId)?.version, '1.0.0')
   updateScript(scriptId, { version: '1.5.0' })
 
-  const result = (await ipcRenderer.invoke(
-    'scripts:confirmRemoteInstall',
-    route.request.installId,
-    'install',
-  )) as UserScriptInstallInstallResult
+  const result = (await ipcRenderer.invoke('scripts:confirmRemoteInstall', {
+    installId: route.request.installId,
+    action: 'install',
+  })) as UserScriptInstallInstallResult
   assert.strictEqual(result.status, 'stale')
   assert.strictEqual(getScriptById(scriptId)?.version, '1.5.0')
 })
@@ -598,31 +602,43 @@ test('scripts:save accepts only display name and unique string site ids', async 
   registerScriptsIpc()
 
   assert.strictEqual(
-    await ipcRenderer.invoke('scripts:save', scriptId, {
-      name: 'Custom Label',
-      site_ids_json: '["codeforces","atcoder"]',
+    await ipcRenderer.invoke('scripts:save', {
+      id: scriptId,
+      data: {
+        name: 'Custom Label',
+        site_ids_json: '["codeforces","atcoder"]',
+      },
     }),
     scriptId,
   )
   assert.strictEqual(getScriptById(scriptId)?.name, 'Custom Label')
 
   await assert.rejects(() =>
-    ipcRenderer.invoke('scripts:save', null, {
-      name: 'Invalid',
-      site_ids_json: '[]',
+    ipcRenderer.invoke('scripts:save', {
+      id: null,
+      data: {
+        name: 'Invalid',
+        site_ids_json: '[]',
+      },
     }),
   )
   await assert.rejects(() =>
-    ipcRenderer.invoke('scripts:save', scriptId, {
-      name: 'Invalid',
-      site_ids_json: '["codeforces","codeforces"]',
+    ipcRenderer.invoke('scripts:save', {
+      id: scriptId,
+      data: {
+        name: 'Invalid',
+        site_ids_json: '["codeforces","codeforces"]',
+      },
     }),
   )
   await assert.rejects(() =>
-    ipcRenderer.invoke('scripts:save', scriptId, {
-      name: 'Invalid',
-      site_ids_json: '[]',
-      code: 'blocked',
+    ipcRenderer.invoke('scripts:save', {
+      id: scriptId,
+      data: {
+        name: 'Invalid',
+        site_ids_json: '[]',
+        code: 'blocked',
+      },
     }),
   )
   assert.strictEqual(getScriptById(scriptId)?.code, 'code')
@@ -636,12 +652,17 @@ test('scripts:save accepts only display name and unique string site ids', async 
    * 迁移后必须仍然拒绝。
    */
   await assert.rejects(
-    () => ipcRenderer.invoke('scripts:save', '   ', { name: 'x', site_ids_json: '[]' }),
+    () =>
+      ipcRenderer.invoke('scripts:save', { id: '   ', data: { name: 'x', site_ids_json: '[]' } }),
     /Rejected IPC sender \(payload\)/,
     '纯空白 id 应被拒绝',
   )
   await assert.rejects(
-    () => ipcRenderer.invoke('scripts:save', scriptId, { name: '  ', site_ids_json: '[]' }),
+    () =>
+      ipcRenderer.invoke('scripts:save', {
+        id: scriptId,
+        data: { name: '  ', site_ids_json: '[]' },
+      }),
     /Rejected IPC sender \(payload\)/,
     '纯空白脚本名应被拒绝',
   )
@@ -668,19 +689,22 @@ test('scripts:toggle rejects malformed arguments before they reach the database'
    * `(_event, id: string, enabled: boolean)`，没有任何运行时检查，renderer 给什么
    * `toggleScript` 就往 UPDATE 里绑什么。这里逐个钉住之前能穿过去的形状。
    */
-  assert.strictEqual(await ipcRenderer.invoke('scripts:toggle', scriptId, false), true)
+  assert.strictEqual(
+    await ipcRenderer.invoke('scripts:toggle', { id: scriptId, enabled: false }),
+    true,
+  )
   assert.strictEqual(getScriptById(scriptId)?.enabled, false)
 
   for (const badEnabled of [1, 0, 'true', null, undefined]) {
     await assert.rejects(
-      () => ipcRenderer.invoke('scripts:toggle', scriptId, badEnabled),
+      () => ipcRenderer.invoke('scripts:toggle', { id: scriptId, enabled: badEnabled }),
       /Rejected IPC sender \(payload\)/,
       `enabled 应拒绝 ${JSON.stringify(badEnabled) ?? 'undefined'}`,
     )
   }
   for (const badId of [42, '', '   ', null, {}]) {
     await assert.rejects(
-      () => ipcRenderer.invoke('scripts:toggle', badId, true),
+      () => ipcRenderer.invoke('scripts:toggle', { id: badId, enabled: true }),
       /Rejected IPC sender \(payload\)/,
       `id 应拒绝 ${JSON.stringify(badId) ?? 'undefined'}`,
     )

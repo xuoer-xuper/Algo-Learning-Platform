@@ -95,7 +95,9 @@ export function NotePanelModal({ problemId, onClose }: Props) {
   const handleTypeChange = async (noteType: string) => {
     setEditorType(noteType)
     if (activeNoteId) {
-      await updateNoteType(activeNoteId, noteType)
+      // noteType 来自 NoteEditorPane 的下拉框，选项就是 noteType 闭集的三项；
+      // e.target.value 的 string 在这个 DOM 边界收窄（note_type 列收成枚举见 R5）。
+      await updateNoteType(activeNoteId, noteType as Parameters<typeof updateNoteType>[1])
       await loadNotes()
     }
   }

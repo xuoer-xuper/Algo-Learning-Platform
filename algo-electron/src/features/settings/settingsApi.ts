@@ -8,117 +8,124 @@ import type {
   LearningDataImportPreviewResult,
   LearningDataImportResult,
 } from '@shared/types/backup'
-import type { ElectronAPI } from '../../../electron/preload'
 import type { SearchEngineConfig, ThemePreference } from '@shared/types/config'
 import type { SyncResult } from '@shared/types/submission'
 import type { CredentialSummary } from '@shared/types/credentials'
 import type { CookieSafeSiteSummary } from '@shared/types/cookies'
 import type { LlmConfigStatus, LlmConnectionTestOutput } from '@shared/types/coach'
 
-export type ExportSitesResult = Awaited<ReturnType<ElectronAPI['exportSitesConfig']>>
-export type ImportSitesResult = Awaited<ReturnType<ElectronAPI['importSitesConfig']>>
-export type ConfirmImportSitesResult = Awaited<ReturnType<ElectronAPI['confirmImportSites']>>
-export type RatingSyncResult = Awaited<ReturnType<ElectronAPI['syncCodeforcesRating']>>
-export type LearningDataExportResult = Awaited<ReturnType<ElectronAPI['exportLearningData']>>
+/*
+ * 返回类型从 `window.api` 推导（R3 起 preload 的 `typeof api` 是唯一权威；
+ * 原先引 `ElectronAPI['…']`，该接口已随 preload 重写删除）。
+ */
+export type ExportSitesResult = Awaited<ReturnType<typeof window.api.sites.exportConfig>>
+export type ImportSitesResult = Awaited<ReturnType<typeof window.api.sites.importConfig>>
+export type ConfirmImportSitesResult = Awaited<ReturnType<typeof window.api.sites.confirmImport>>
+export type RatingSyncResult = Awaited<ReturnType<typeof window.api.rating.syncCodeforces>>
+export type LearningDataExportResult = Awaited<
+  ReturnType<typeof window.api.backup.exportLearningData>
+>
 
 export function loadSearchEngine(): Promise<SearchEngineConfig> {
-  return window.electronAPI.getSearchEngine()
+  return window.api.config.getSearchEngine()
 }
 
 export function saveSearchEngine(search: SearchEngineConfig): Promise<SearchEngineConfig> {
-  return window.electronAPI.setSearchEngine(search)
+  return window.api.config.setSearchEngine(search)
 }
 
 export function loadThemePreference(): Promise<ThemePreference> {
-  return window.electronAPI.getTheme()
+  return window.api.config.getTheme()
 }
 
 export function saveThemePreference(theme: ThemePreference): Promise<ThemePreference> {
-  return window.electronAPI.setTheme(theme)
+  return window.api.config.setTheme(theme)
 }
 
 export function loadSettingsOverviewStats(): Promise<OverviewStats> {
-  return window.electronAPI.getOverviewStats()
+  return window.api.stats.getOverview()
 }
 
 export function loadRealtimeSubmissionStatus(): Promise<RealtimeSubmissionStatus | null> {
-  return window.electronAPI.getRealtimeSubmissionStatus()
+  return window.api.submissions.getRealtimeStatus()
 }
 
 export async function loadPrimaryCodeforcesAccount(): Promise<PlatformAccount | null> {
-  const accounts = await window.electronAPI.getAccounts('codeforces')
+  const accounts = await window.api.rating.getAccounts('codeforces')
   return accounts[0] ?? null
 }
 
 export function syncCodeforcesSubmissions(handle: string): Promise<SyncResult> {
-  return window.electronAPI.syncCodeforces(handle)
+  return window.api.submissions.syncCodeforces(handle)
 }
 
 export async function syncCodeforcesRatingProfile(handle: string): Promise<{
   result: RatingSyncResult
   account: PlatformAccount | null
 }> {
-  await window.electronAPI.bindHandle('codeforces', handle)
-  const result = await window.electronAPI.syncCodeforcesRating(handle)
+  await window.api.rating.bindHandle({ platform: 'codeforces', handle })
+  const result = await window.api.rating.syncCodeforces(handle)
   const account =
-    result.success === true ? await window.electronAPI.getAccount('codeforces', handle) : null
+    result.success === true
+      ? await window.api.rating.getAccount({ platform: 'codeforces', handle })
+      : null
 
   return { result, account }
 }
 
 export function loadSites(): Promise<SiteConfigRecord[]> {
-  return window.electronAPI.getAllSites()
+  return window.api.sites.getAll()
 }
 
 export function loadCredentialSummaries(siteId?: string): Promise<CredentialSummary[]> {
-  return window.electronAPI.listCredentials(siteId)
+  return window.api.credentials.list(siteId)
 }
 
 /** 站点 Cookie 概要。只含存在性与过期信息，不含 Cookie 值。 */
 export function loadCookieSummaryForSite(siteId: string): Promise<CookieSafeSiteSummary> {
-  return window.electronAPI.getCookieSummaryForSite(siteId)
+  return window.api.cookies.getSiteSummary(siteId)
 }
 
 export function renameCredential(
   credentialId: string,
   displayName: string,
 ): Promise<CredentialSummary | null> {
-  return window.electronAPI.renameCredential(credentialId, displayName)
+  return window.api.credentials.rename({ credentialId, displayName })
 }
 
 export function deleteSavedCredential(credentialId: string): Promise<boolean> {
-  return window.electronAPI.deleteCredential(credentialId)
+  return window.api.credentials.delete(credentialId)
 }
 
 export function openCredentialLoginPage(url: string): Promise<string> {
-  return window.electronAPI.createTab(url)
+  return window.api.tab.create(url)
 }
 
 export function toggleSiteEnabled(id: string, enabled: boolean): Promise<boolean> {
-  return window.electronAPI.toggleSite(id, enabled)
+  return window.api.sites.toggle({ id, enabled })
 }
 
 export function deleteSiteConfig(id: string): Promise<boolean> {
-  return window.electronAPI.deleteSite(id)
+  return window.api.sites.delete(id)
 }
 
 export function exportSitesConfig(): Promise<ExportSitesResult> {
-  return window.electronAPI.exportSitesConfig()
+  return window.api.sites.exportConfig()
 }
 
 export function importSitesConfig(): Promise<ImportSitesResult> {
-  return window.electronAPI.importSitesConfig()
+  return window.api.sites.importConfig()
 }
 
 export function confirmImportSites(
   sites: SiteConfigRecord[],
   overwriteIds: string[],
 ): Promise<ConfirmImportSitesResult> {
-  return window.electronAPI.confirmImportSites(sites, overwriteIds)
+  return window.api.sites.confirmImport({ sites, overwriteIds })
 }
 
 export function loadSiteById(id: string): Promise<SiteConfigRecord | null> {
-  return window.electronAPI.getSiteById(id)
+  return window.api.sites.getById(id)
 }
 
 export function createSiteFromDraft(
@@ -135,7 +142,7 @@ export function createSiteFromDraft(
     .map((pattern) => pattern.trim())
     .filter(Boolean)
 
-  return window.electronAPI.createSite({
+  return window.api.sites.create({
     id,
     name,
     domains,
@@ -146,31 +153,31 @@ export function createSiteFromDraft(
 }
 
 export function createDatabaseBackup(): Promise<DatabaseBackupResult> {
-  return window.electronAPI.createDatabaseBackup()
+  return window.api.backup.createDatabaseBackup()
 }
 
 export function exportLearningData(): Promise<LearningDataExportResult> {
-  return window.electronAPI.exportLearningData()
+  return window.api.backup.exportLearningData()
 }
 
 export function previewLearningDataImport(): Promise<LearningDataImportPreviewResult> {
-  return window.electronAPI.previewLearningDataImport()
+  return window.api.backup.previewLearningDataImport()
 }
 
 export function confirmLearningDataImport(
   overwriteConflicts: boolean,
 ): Promise<LearningDataImportResult> {
-  return window.electronAPI.confirmLearningDataImport(overwriteConflicts)
+  return window.api.backup.confirmLearningDataImport(overwriteConflicts)
 }
 
 // --- LLM 配置 ---
 
 export function loadLlmConfig(): Promise<LlmConfigStatus | null> {
-  return window.electronAPI.coachGetLlmConfig()
+  return window.api.coach.getLlmConfig()
 }
 
 export function saveLlmApiKey(apiKey: string): Promise<boolean> {
-  return window.electronAPI.coachSaveLlmApiKey(apiKey)
+  return window.api.coach.saveLlmApiKey(apiKey)
 }
 
 export function saveLlmConfig(partial: {
@@ -178,7 +185,7 @@ export function saveLlmConfig(partial: {
   model?: string
   enabled?: boolean
 }): Promise<boolean> {
-  return window.electronAPI.coachSaveLlmConfig(partial)
+  return window.api.coach.saveLlmConfig(partial)
 }
 
 export function testLlmConnection(config: {
@@ -186,5 +193,5 @@ export function testLlmConnection(config: {
   base_url: string
   model: string
 }): Promise<LlmConnectionTestOutput> {
-  return window.electronAPI.coachTestLlmConnection(config)
+  return window.api.coach.testLlmConnection(config)
 }

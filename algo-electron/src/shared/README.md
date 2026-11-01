@@ -4,7 +4,7 @@
 
 `src/shared/` 存放 renderer 侧跨 feature 共享的纯展示常量和轻量工具。
 
-本目录不访问 `window.electronAPI`，不保存 React state，不包含主进程业务规则。
+本目录不访问 `window.api`，不保存 React state，不包含主进程业务规则。
 
 ## 2. 当前内容
 

@@ -32,16 +32,23 @@ export const getInput = [identifier] as const
 /*
  * `problemId` 用 nullable 而非 optional：独立笔记走的就是显式 `null`，
  * 由 `createNote` 落成 `_standalone` 目录，这与"没传"是两件事。
+ *
+ * R3 起 create / updateTitle / updateContent / saveImage / updateType 的 wire 形状是
+ * 单对象参数（原先多参数按位置排列）；字段界与原先的元组逐位一致，只是搬进了对象。
  */
 export const createInput = [
-  identifier.nullable(),
-  noteTitle,
-  noteContent.nullable(),
-  noteType,
+  z.strictObject({
+    problemId: identifier.nullable(),
+    title: noteTitle,
+    content: noteContent.nullable(),
+    noteType,
+  }),
 ] as const
 
-export const updateTitleInput = [identifier, noteTitle] as const
-export const updateContentInput = [identifier, noteContent] as const
+export const updateTitleInput = [z.strictObject({ noteId: identifier, title: noteTitle })] as const
+export const updateContentInput = [
+  z.strictObject({ noteId: identifier, content: noteContent }),
+] as const
 
 /*
  * - `fileName` 允许空串——剪贴板粘贴的图片常常没有文件名，此时扩展名由
@@ -57,13 +64,15 @@ export const updateContentInput = [identifier, noteContent] as const
  *   回调把整个文件读出来直接发过来，既不看体积也不看类型。
  */
 export const saveImageInput = [
-  identifier,
-  z.string().max(255),
-  z.string().min(1).max(128),
-  z.union([z.instanceof(ArrayBuffer), z.instanceof(Uint8Array)]),
+  z.strictObject({
+    noteId: identifier,
+    fileName: z.string().max(255),
+    mimeType: z.string().min(1).max(128),
+    data: z.union([z.instanceof(ArrayBuffer), z.instanceof(Uint8Array)]),
+  }),
 ] as const
 
-export const updateTypeInput = [identifier, noteType] as const
+export const updateTypeInput = [z.strictObject({ noteId: identifier, noteType })] as const
 export const deleteInput = [identifier] as const
 export const getForDeleteInput = [identifier] as const
 export const deleteByProblemInput = [identifier] as const

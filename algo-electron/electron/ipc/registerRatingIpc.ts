@@ -8,7 +8,7 @@ import {
   syncCodeforcesInput,
 } from '../../src/shared/types/ipc/rating'
 import { ERROR_CODES } from '../../src/shared/constants/errorCodes'
-import type { IpcOutput } from '../../src/shared/types/common'
+import type { CodeforcesSyncOutput } from '../../src/shared/types/rating'
 import { getDb } from '../db/connection'
 import {
   computePeakRating,
@@ -36,13 +36,13 @@ const log = logger.scope('rating')
  * platform 闭集与 handle 64 的理由写在那里。
  */
 export function registerRatingIpc(): void {
-  ipcMain.handle(IPC_CHANNELS.RATING.BIND_HANDLE, bindHandleInput, (_event, platform, handle) => {
-    const id = upsertAccount(platform, handle)
-    return { id, handle }
+  ipcMain.handle(IPC_CHANNELS.RATING.BIND_HANDLE, bindHandleInput, (_event, input) => {
+    const id = upsertAccount(input.platform, input.handle)
+    return { id, handle: input.handle }
   })
 
-  ipcMain.handle(IPC_CHANNELS.RATING.GET_ACCOUNT, getAccountInput, (_event, platform, handle) => {
-    return getAccount(platform, handle)
+  ipcMain.handle(IPC_CHANNELS.RATING.GET_ACCOUNT, getAccountInput, (_event, input) => {
+    return getAccount(input.platform, input.handle)
   })
 
   ipcMain.handle(IPC_CHANNELS.RATING.GET_ACCOUNTS, getAccountsInput, (_event, platform) => {
@@ -52,10 +52,7 @@ export function registerRatingIpc(): void {
   ipcMain.handle(
     IPC_CHANNELS.RATING.SYNC_CODEFORCES,
     syncCodeforcesInput,
-    async (
-      _event,
-      handle,
-    ): Promise<IpcOutput<{ historyCount: number; inserted: number; peak: number | null }>> => {
+    async (_event, handle): Promise<CodeforcesSyncOutput> => {
       try {
         const accountId = upsertAccount('codeforces', handle)
 

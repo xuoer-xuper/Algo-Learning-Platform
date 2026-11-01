@@ -19,7 +19,7 @@
   `ipcMain` / `ipcRenderer` 通道方法（handle/on/once/off/invoke/send/sendSync/postMessage/
   removeListener/removeAllListeners/removeHandler）的首参字面量预算为 0。判定与反向验证在
   `guards.mjs` 的 `countIpcChannelLiterals`。
-- `preload.ts` 不得暴露通用 `ipcRenderer`、`send` 或 `invoke` 能力。
+- `src/preload/index.ts` 不得暴露通用 `ipcRenderer`、`send` 或 `invoke` 能力。
 - 普通 IPC handler 必须走 `trustedSender` 门面，不得直接 `import { ipcMain }`。
 - 窗口相关 shell 动作必须从 trusted sender 解析归属，不接受全局 window/TabManager getter。
 - Nowcoder 实时提交链路不得引用通用 DOM verdict observer，必须保留 `nowcoder-judge-status` 网络 payload。
@@ -34,7 +34,7 @@
 分层与设计系统（棘轮白名单，只减不增）：
 
 - 裸 SQL 只允许出现在 `electron/db/` 下。判定口径是对 `db` / `database` / `getDb()` 调 `prepare` / `exec`，不按 SQL 关键字计数（关键字会命中注释，也漏掉动态拼表名；而限定方法名会把 `regex.exec()`、`installer.prepare()` 算成违规）。
-- Renderer 组件与 hook 不得直连 `window.electronAPI`，只有 `*Api.ts` 可以。`src/main.tsx` 豁免：它同步读取 preload 注入的布局常量，不是 IPC 调用，且已是入口文件。
+- Renderer 只经 `window.api` 访问主进程，且只有 `*Api.ts` 与 `src/hooks/` 下的 hook 文件可以直接引用。`src/main.tsx` 豁免：它同步读取 preload 注入的布局常量，不是 IPC 调用，且已是入口文件。
 - 交互控件从 `src/components/ui/` 取用。`checkbox` / `radio` / `range` 按类型豁免，因为 `ui/fields.tsx` 还没有对应组件；补齐后删掉豁免，届时有 6 处要改。
 
 按文件豁免（不进棘轮）：

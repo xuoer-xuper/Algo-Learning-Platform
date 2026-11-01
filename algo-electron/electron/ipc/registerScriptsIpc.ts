@@ -85,8 +85,9 @@ export function registerScriptsIpc(options: RegisterScriptsIpcOptions = {}): voi
    * 非对象、多余字段（strict 对象拒绝，等价于原来的 `keys.length !== 2`）、
    * name 的类型与长度。
    */
-  ipcMain.handle(IPC_CHANNELS.SCRIPTS.SAVE, saveInput, (_event, validatedId, data) => {
-    const validatedData = validateScriptSaveInput(data)
+  ipcMain.handle(IPC_CHANNELS.SCRIPTS.SAVE, saveInput, (_event, input) => {
+    const validatedId = input.id
+    const validatedData = validateScriptSaveInput(input.data)
     if (!updateScript(validatedId, validatedData)) {
       throw new Error('User script was not found or could not be updated')
     }
@@ -217,7 +218,9 @@ export function registerScriptsIpc(options: RegisterScriptsIpcOptions = {}): voi
   ipcMain.handle(
     IPC_CHANNELS.SCRIPTS.CONFIRM_REMOTE_INSTALL,
     confirmRemoteInstallInput,
-    async (_event, installId, action) => {
+    async (_event, input) => {
+      const installId = input.installId
+      const action = input.action
       const registry = options.getUserScriptInstallRegistry?.()
       const installer = options.getUserScriptRemoteInstaller?.()
       const request = registry?.get(installId)
@@ -350,8 +353,8 @@ export function registerScriptsIpc(options: RegisterScriptsIpcOptions = {}): voi
    * 是本文件里唯一一条真正裸奔的通道：`toggleScript(id, enabled)` 会把 renderer 给的任何值
    * 直接绑进 UPDATE 语句。
    */
-  ipcMain.handle(IPC_CHANNELS.SCRIPTS.TOGGLE, toggleInput, (_event, id, enabled) => {
-    const result = toggleScript(id, enabled)
+  ipcMain.handle(IPC_CHANNELS.SCRIPTS.TOGGLE, toggleInput, (_event, input) => {
+    const result = toggleScript(input.id, input.enabled)
     if (result) options.refreshUserScriptRuntime?.()
     return result
   })

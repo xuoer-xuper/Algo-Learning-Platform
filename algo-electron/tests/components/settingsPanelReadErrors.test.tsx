@@ -46,13 +46,15 @@ beforeEach(() => {
   loadPrimaryCodeforcesAccount.mockResolvedValue(null)
   coachGetConfig.mockResolvedValue(createCoachConfig())
   coachSaveConfig.mockResolvedValue(undefined)
-  Object.defineProperty(window, 'electronAPI', {
+  Object.defineProperty(window, 'api', {
     configurable: true,
     value: {
-      coachGetConfig: () => coachGetConfig(),
-      coachSaveConfig: (partial: Partial<CoachConfig>) => coachSaveConfig(partial),
-      coachTestHint: vi.fn(),
-      coachResetPosition: vi.fn(),
+      coach: {
+        getConfig: () => coachGetConfig(),
+        saveConfig: (partial: Partial<CoachConfig>) => coachSaveConfig(partial),
+        testHint: vi.fn(),
+        resetPosition: vi.fn(),
+      },
     },
   })
 })

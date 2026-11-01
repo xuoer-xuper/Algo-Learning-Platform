@@ -308,10 +308,7 @@ async function openInternalPageTab(
   await expect(homeTab).toHaveAttribute('aria-selected', 'true')
   const previousTabCount = await tabs.count()
 
-  const tabId = await page.evaluate(
-    (target) => window.electronAPI.openInternalTab(target),
-    contract.page,
-  )
+  const tabId = await page.evaluate((target) => window.api.tab.openInternal(target), contract.page)
 
   expect(tabId).not.toBe('')
   await expect(tabs).toHaveCount(previousTabCount + 1)
@@ -685,13 +682,13 @@ for (const scenario of viewportScenarios) {
       await expect
         .poll(() =>
           page.evaluate(async () =>
-            (await window.electronAPI.getNote('note-1'))?.content.endsWith('\n\n'),
+            (await window.api.notes.get('note-1'))?.content.endsWith('\n\n'),
           ),
         )
         .toBe(true)
 
       const otherNotes = await page.evaluate(async () => {
-        const originalNote = await window.electronAPI.getNote('note-1')
+        const originalNote = await window.api.notes.get('note-1')
         if (!originalNote) throw new Error('Missing original note fixture')
         const otherNote = {
           ...originalNote,
@@ -701,21 +698,21 @@ for (const scenario of viewportScenarios) {
           content: 'Original body B',
         }
         const records = [originalNote, otherNote]
-        window.electronAPI.listNotesByProblem = async (problemId) =>
+        window.api.notes.listByProblem = async (problemId) =>
           records.filter((note) => note.problem_id === problemId).map((note) => ({ ...note }))
-        window.electronAPI.getNote = async (noteId) => {
+        window.api.notes.get = async (noteId) => {
           const note = records.find((record) => record.id === noteId)
           return note ? { ...note } : null
         }
-        window.electronAPI.updateNoteContent = async (noteId, content) => {
-          const note = records.find((record) => record.id === noteId)
+        window.api.notes.updateContent = async (input) => {
+          const note = records.find((record) => record.id === input.noteId)
           if (!note) return false
-          note.content = content
+          note.content = input.content
           return true
         }
         return {
           originalContent: originalNote.content,
-          tabId: await window.electronAPI.openInternalTab({
+          tabId: await window.api.tab.openInternal({
             type: 'notes',
             problemId: otherNote.problem_id,
           }),
@@ -731,15 +728,13 @@ for (const scenario of viewportScenarios) {
       await otherEditor.fill('Edited body B')
       await expect
         .poll(() =>
-          page.evaluate(
-            async () => (await window.electronAPI.getNote('note-isolation-b'))?.content,
-          ),
+          page.evaluate(async () => (await window.api.notes.get('note-isolation-b'))?.content),
         )
         .toContain('Edited body B')
-      expect(
-        await page.evaluate(async () => (await window.electronAPI.getNote('note-1'))?.content),
-      ).toBe(otherNotes.originalContent)
-      await page.evaluate((tabId) => window.electronAPI.closeTab(tabId), otherNotes.tabId)
+      expect(await page.evaluate(async () => (await window.api.notes.get('note-1'))?.content)).toBe(
+        otherNotes.originalContent,
+      )
+      await page.evaluate((tabId) => window.api.tab.close(tabId), otherNotes.tabId)
       await closeInternalPageTab(page, internalPages.notes, notesTab)
 
       expect(pageErrors).toEqual([])
@@ -761,13 +756,13 @@ test('native tab strip overflows horizontally and reorders with a pointer drag',
   try {
     const page = await electronApp.firstWindow()
     // firstWindow() 可能在 harness 模块求值完成前解析；截图用例靠 DOM 断言的自动轮询
-    // 间接等到 mock，这里第一个动作就直调 electronAPI，必须显式等 mock 就绪，
+    // 间接等到 mock，这里第一个动作就直调 window.api，必须显式等 mock 就绪，
     // 否则偶发 ReferenceError（复核 2026-11-01：先于 R4 的既有竞态，父提交可复现）。
-    await page.waitForFunction(() => 'electronAPI' in window, undefined, { timeout: 15000 })
+    await page.waitForFunction(() => 'api' in window, undefined, { timeout: 15000 })
     await assertNativeViewport(electronApp, page)
     await page.evaluate(async () => {
       for (let index = 0; index < 12; index += 1) {
-        await window.electronAPI.openInternalTab({ type: 'notes', problemId: `drag-${index}` })
+        await window.api.tab.openInternal({ type: 'notes', problemId: `drag-${index}` })
       }
     })
     await expect(page.getByRole('tab')).toHaveCount(13)
@@ -850,11 +845,11 @@ test('view transition keeps the tab strip hit-testable while it runs', async () 
 
   try {
     const page = await electronApp.firstWindow()
-    // 与拖拽用例同一竞态：直调 electronAPI 前先等 harness mock 就绪（见 761 行注）。
-    await page.waitForFunction(() => 'electronAPI' in window, undefined, { timeout: 15000 })
+    // 与拖拽用例同一竞态：直调 window.api 前先等 harness mock 就绪（见 761 行注）。
+    await page.waitForFunction(() => 'api' in window, undefined, { timeout: 15000 })
     await assertNativeViewport(electronApp, page)
     await page.evaluate(async () => {
-      await window.electronAPI.openInternalTab({ type: 'notes', problemId: 'vt-hit-test' })
+      await window.api.tab.openInternal({ type: 'notes', problemId: 'vt-hit-test' })
     })
     await expect(page.getByRole('tab')).toHaveCount(2)
 

@@ -17,7 +17,7 @@ Last updated: 2026-09-17 (phase 0.2 in progress on `chore/phase-0-tooling-gates`
 | --- | --- | --- | --- |
 | App root | `algo-electron/` (single package, **pnpm 12.8.1** via `packageManager`; settings in `pnpm-workspace.yaml`: `nodeLinker: hoisted`, `allowBuilds`) | same directory, **pnpm** with hoisting and `packageManager` field | 0.2 |
 | Main process | `algo-electron/electron/` (26 flat domain dirs + `main.ts` 945 lines) | `src/main/{index.ts, db/, ipc/, services/{domain}/{types.ts,procedures/,lib/}}` | 3.2, 3.3 |
-| Preload | `electron/preload.ts` exposing `window.electronAPI` (158 string channels, 85 `as Promise<>` casts) | `src/preload/index.ts` exposing `window.api`, typed via `typeof api`, channels from `@shared/constants/channels` | 2.1, 2.3 |
+| Preload | ✅ 2.3（2026-11-01）：`src/preload/index.ts` 暴露域分组 `window.api`（16 域 + `browserLayout`，144 个方法），类型由 `typeof api` 推导，`as Promise<X>` 只在 preload；多参数 invoke 收成单对象（27 通道）；31 个无消费者方法删除（`tests/ipc/apiConsumers` 守卫守住零基线） | 同左（已达成模板目标） | 2.1, 2.3 |
 | Renderer | `src/{App.tsx, components/, features/, hooks/, shared/, styles/}` flat features | `src/renderer/src/{components/{ui,layout}, features/, modules/{name}/{components,hooks,context,constants.ts,types.ts,index.ts}, hooks/, context/, lib/, styles/}` | 4.1 |
 | Shared | ✅ 2.2（2026-11-01）：`src/shared/{types/{common,ipc/*,<15 域>},constants/{channels,errorCodes,preferences}}`；`electron-env.d.ts` 已删除（`ProcessEnv` → `src/main/env.d.ts`，`Window.electronAPI` → `electron/preload.ts`，R3 换 `typeof api`）；渲染层 import `@shared/*`，主进程相对路径；跨文件同名导出 0 | 同左（已达成模板目标；`electron/shared/` 仍留 main 内部工具，阶段 3 搬 `src/main`） | 2.1, 2.2 |
 | Tests | `tests/<module>/` × 26 dirs, `electronMock.ts` in `tests/electron/`, no factories | `tests/{setup,factories,mocks,unit/services/{domain},integration}` | 5.1, 5.2 |
@@ -62,7 +62,7 @@ Last updated: 2026-09-17 (phase 0.2 in progress on `chore/phase-0-tooling-gates`
 ## Already aligned (do not regress)
 
 - No `any`, no `@ts-ignore`, no `eslint-disable` in main; 0 `alert/confirm/prompt/localStorage` in renderer.
-- Renderer never imports electron/node; components never call the IPC API directly (155/156 calls in adapters).
+- Renderer never imports electron/node; components never call `window.api` directly (144/144 call sites live in `*Api.ts` adapters + the `src/main.tsx` entry exemption; guard: only `*Api.ts`, `src/hooks/` and the entry may reference `window.api`).
 - All 20 preload `ipcRenderer.on` subscriptions return an unsubscribe.
 - IPC three-layer guard (`domain-rules.md` §2); 100% of parameterised channels have a schema.
 - 9 `db.transaction` sites throw on failure, no silent return.

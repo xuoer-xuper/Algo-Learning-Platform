@@ -12,9 +12,9 @@ beforeEach(() => {
   setSearchEngine.mockReset()
   getSearchEngine.mockResolvedValue({ engine: 'bing', customTemplate: null })
   setSearchEngine.mockImplementation(async (search) => search)
-  Object.defineProperty(window, 'electronAPI', {
+  Object.defineProperty(window, 'api', {
     configurable: true,
-    value: { getSearchEngine, setSearchEngine },
+    value: { config: { getSearchEngine, setSearchEngine } },
   })
 })
 

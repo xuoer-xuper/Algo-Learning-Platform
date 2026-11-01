@@ -96,8 +96,8 @@ export function registerStatsIpc(): void {
     return getWrongProblems(limit)
   })
 
-  ipcMain.handle(IPC_CHANNELS.STATS.GET_UNREVIEWED, getUnreviewedInput, (_event, days, limit) => {
-    return getUnreviewedProblems(days, limit)
+  ipcMain.handle(IPC_CHANNELS.STATS.GET_UNREVIEWED, getUnreviewedInput, (_event, input) => {
+    return getUnreviewedProblems(input.days, input.limit)
   })
 
   ipcMain.handle(IPC_CHANNELS.STATS.RECOMPUTE_ALL, () => {

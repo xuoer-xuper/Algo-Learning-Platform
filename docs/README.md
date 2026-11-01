@@ -138,6 +138,7 @@
 | coach styles | [src/features/coach/styles/README](../algo-electron/src/features/coach/styles/README.md) |
 | renderer global styles | [src/styles/README](../algo-electron/src/styles/README.md) |
 | hooks | [src/hooks/README](../algo-electron/src/hooks/README.md) |
+| preload | [src/preload/README](../algo-electron/src/preload/README.md) |
 | shared types | [src/shared/types/README](../algo-electron/src/shared/types/README.md) |
 | shared constants | [src/shared/constants/README](../algo-electron/src/shared/constants/README.md) |
 | main shared | [src/main/README](../algo-electron/src/main/README.md) |

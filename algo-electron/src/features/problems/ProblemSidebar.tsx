@@ -17,8 +17,14 @@ export function ProblemSidebar({ onNavigate, onShowDetail, onShowNotes, onWidthC
   // B5.2 之前这里是 useState<...[]>([])，于是加载中和"你没有记录"长得一模一样。
   const [problems, setProblems] = useState<ProblemRecord[] | null>(null)
   const [collapsed, setCollapsed] = useState(false)
-  const [filterPlatform, setFilterPlatform] = useState<string>('')
-  const [filterStatus, setFilterStatus] = useState<string>('')
+  /*
+   * 筛选值收成 preload 暴露面的闭集枚举（'' = 全部）：下拉框的选项与 schema 枚举
+   * 一一对应，e.target.value 的 string 在 onChange 的 DOM 边界收窄。
+   */
+  type PlatformFilter = NonNullable<Parameters<typeof loadRecentProblems>[1]> | ''
+  type StatusFilter = NonNullable<Parameters<typeof loadRecentProblems>[2]> | ''
+  const [filterPlatform, setFilterPlatform] = useState<PlatformFilter>('')
+  const [filterStatus, setFilterStatus] = useState<StatusFilter>('')
   const sidebarRef = useRef<HTMLDivElement>(null)
   const hasFilter = filterPlatform !== '' || filterStatus !== ''
 
@@ -109,7 +115,7 @@ export function ProblemSidebar({ onNavigate, onShowDetail, onShowNotes, onWidthC
           size="sm"
           className="sidebar-select"
           value={filterPlatform}
-          onChange={(e) => setFilterPlatform(e.target.value)}
+          onChange={(e) => setFilterPlatform(e.target.value as PlatformFilter)}
         >
           <option value="">全部平台</option>
           <option value="codeforces">Codeforces</option>
@@ -124,7 +130,7 @@ export function ProblemSidebar({ onNavigate, onShowDetail, onShowNotes, onWidthC
           size="sm"
           className="sidebar-select"
           value={filterStatus}
-          onChange={(e) => setFilterStatus(e.target.value)}
+          onChange={(e) => setFilterStatus(e.target.value as StatusFilter)}
         >
           <option value="">全部状态</option>
           <option value="solved">已通过</option>

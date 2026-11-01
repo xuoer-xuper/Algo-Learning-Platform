@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import type { IpcOutput } from './common'
 
 /*
  * 平台账户与 rating 域的跨进程类型（阶段 2 R2 从 electron-env.d.ts 收口）。
@@ -40,3 +41,13 @@ export type RatingHistoryRecord = z.infer<typeof ratingHistoryRecordSchema>
 
 /** 比赛结果 = rating 历史行（收口前 env.d.ts 的别名，保留同一写法）。 */
 export type ContestResultRecord = RatingHistoryRecord
+
+/**
+ * `rating:syncCodeforces` 的输出（统一 IpcOutput 联合）。原先这个形状手抄在
+ * registerRatingIpc 的返回标注与 preload 的返回断言两处，R3 起两边都引这个名字。
+ */
+export type CodeforcesSyncOutput = IpcOutput<{
+  historyCount: number
+  inserted: number
+  peak: number | null
+}>

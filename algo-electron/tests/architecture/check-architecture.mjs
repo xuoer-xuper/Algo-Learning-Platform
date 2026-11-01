@@ -91,15 +91,17 @@ check('runtime code does not reintroduce Electron BrowserView', () => {
 
 check('renderer code does not access ipcRenderer directly', () => {
   // src/shared/ 是跨进程共享层：channels.ts 的守卫说明里会以 API 名指称这条规则本身，
-  // 那里没有也不允许有真实的 electron 访问（由下一条检查反向守住）。
+  // 那里没有也不允许有真实的 electron 访问（由下一条检查反向守住）。src/preload/ 是
+  // 唯一合法的 ipcRenderer 使用者（下一组检查管它暴露什么），也从这里豁免。
   failIfMatches(
     walkSourceFiles(path.join(projectRoot, 'src')).filter(
-      (file) => !relative(file).startsWith('src/shared/'),
+      (file) =>
+        !relative(file).startsWith('src/shared/') && !relative(file).startsWith('src/preload/'),
     ),
     [
       {
         regex: /\bipcRenderer\b/,
-        reason: 'renderer must use window.electronAPI helpers instead of ipcRenderer',
+        reason: 'renderer must use window.api helpers instead of ipcRenderer',
       },
     ],
   )
@@ -118,7 +120,8 @@ check('src/shared stays process-neutral (no electron imports)', () => {
 })
 
 check('preload does not expose generic ipcRenderer', () => {
-  const preload = read(path.join(projectRoot, 'electron', 'preload.ts'))
+  // R3 起 shell preload 在 src/preload/index.ts（域分组的 api 对象）。
+  const preload = read(path.join(projectRoot, 'src', 'preload', 'index.ts'))
 
   const forbidden = [
     /exposeInMainWorld\(\s*['"]ipcRenderer['"]/,
@@ -129,7 +132,7 @@ check('preload does not expose generic ipcRenderer', () => {
 
   for (const pattern of forbidden) {
     if (pattern.test(preload)) {
-      throw new Error('electron/preload.ts exposes generic ipcRenderer capability')
+      throw new Error('src/preload/index.ts exposes generic ipcRenderer capability')
     }
   }
 })
@@ -356,24 +359,40 @@ check('bare SQL stays inside electron/db/', () => {
   })
 })
 
-check('renderer components reach the main process only through *Api.ts', () => {
-  // main.tsx 同步读取 preload 注入的布局常量（不是 IPC 调用），且是入口文件，
-  // 没有更上层可以搬。这是唯一豁免。
-  const ENTRY_EXEMPT = new Set(['src/main.tsx'])
-  const failures = []
+check(
+  'renderer reaches the main process only through window.api, only in hooks/ and *Api.ts',
+  () => {
+    // R3 重写：跨进程面是 `window.api`（typeof api 推导）。谁可以直接引用它：
+    //   - `*Api.ts` 数据访问层（约定不变）；
+    //   - `src/hooks/` 下的 hook 文件（R4 的 useIpcQuery 在这里直接订阅/取数）；
+    //   - `src/main.tsx`——入口同步读取 preload 注入的布局常量（不是 IPC 调用），
+    //     没有更上层可以搬，唯一豁免。
+    // 组件与其他模块一律经由上面两层。`window.electronAPI` 这个死名字出现即失败
+    // （AC：`grep -rn electronAPI` = 0，防止旧名回归）。
+    const ENTRY_EXEMPT = new Set(['src/main.tsx'])
+    const failures = []
 
-  for (const file of walkSourceFiles(path.join(projectRoot, 'src'))) {
-    const rel = relative(file)
-    if (ENTRY_EXEMPT.has(rel)) continue
-    // *Api.ts 是约定的数据访问层，通道名只应出现在这里。
-    if (/Api\.ts$/.test(rel)) continue
-    if (!/\bwindow\.electronAPI\b/.test(read(file))) continue
+    for (const file of walkSourceFiles(path.join(projectRoot, 'src'))) {
+      const rel = relative(file)
+      const text = read(file)
 
-    failures.push(`${rel}: 组件与 hook 不得直连 window.electronAPI，请收进同域的 *Api.ts`)
-  }
+      if (/\bwindow\.electronAPI\b/.test(text)) {
+        failures.push(`${rel}: window.electronAPI 已被 window.api 取代（R3）`)
+        continue
+      }
 
-  if (failures.length > 0) throw new Error(failures.join('\n'))
-})
+      if (ENTRY_EXEMPT.has(rel)) continue
+      if (/Api\.ts$/.test(rel)) continue
+      if (rel.startsWith('src/hooks/')) continue
+      if (rel.startsWith('src/preload/')) continue
+      if (!/\bwindow\.api\b/.test(text)) continue
+
+      failures.push(`${rel}: 组件与 hook 不得直连 window.api，请收进同域的 *Api.ts 或 src/hooks/`)
+    }
+
+    if (failures.length > 0) throw new Error(failures.join('\n'))
+  },
+)
 
 // 全部为长期例外，条目里注明属于哪一类。Q4 已清完待办欠账：
 // ProblemSidebar（IconButton + Select size="sm"）、NoteEditorPane（Input/Select）、

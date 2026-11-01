@@ -3,11 +3,14 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { test } from 'vitest'
 import { IPC_CHANNELS } from '../../src/shared/constants/channels'
+import { extractApiMethods, readApiLiteralSource, readPreloadSource } from './preloadApiExtractor'
 
 type IpcMode = 'send' | 'invoke' | 'on'
 type IpcMainMode = 'on' | 'handle'
 
 interface PreloadContract {
+  /** R3 起暴露面按域分组，方法以 `域.方法` 寻址（`problem.listRecent`）。 */
+  domain: string
   method: string
   mode: IpcMode
   channel: string
@@ -19,17 +22,9 @@ interface RegisteredChannel {
 }
 
 const projectRoot = process.cwd()
-const electronRoot = path.join(projectRoot, 'electron')
-const preloadPath = path.join(electronRoot, 'preload.ts')
-const preloadSource = fs.readFileSync(preloadPath, 'utf-8')
-/*
- * 阶段 2 R2 起 `ElectronAPI` 接口搬进了本文件（`electron-env.d.ts` 已删除）。
- * 方法提取器按 2 空格缩进的 `key:` 行切方法体，接口成员长得一模一样——所以把
- * 提取范围收到 `contextBridge.exposeInMainWorld({ … })` 的对象字面量内
- * （文件里唯一的 `\n})` 顶层收尾就是它的闭括号）。
- */
-const preloadApiSource = preloadSource.slice(0, preloadSource.indexOf('\n})'))
-const electronSources = readElectronSources(electronRoot)
+const preloadSource = readPreloadSource()
+const preloadApiSource = readApiLiteralSource(preloadSource)
+const electronSources = readElectronSources(path.join(projectRoot, 'electron'))
 
 /*
  * 阶段 2 R1 起生产代码不再写 channel 字面量，一律引用 `IPC_CHANNELS` 常量。文本扫描
@@ -51,126 +46,244 @@ const constantPathByChannel = new Map<string, string>()
 
 const coreContracts: PreloadContract[] = [
   // Browser shell
-  { method: 'navigate', mode: 'send', channel: 'browser:navigate' },
-  { method: 'goBack', mode: 'send', channel: 'browser:goBack' },
-  { method: 'goForward', mode: 'send', channel: 'browser:goForward' },
-  { method: 'reload', mode: 'send', channel: 'browser:reload' },
-  { method: 'goHome', mode: 'send', channel: 'browser:goHome' },
-  { method: 'setSidebarWidth', mode: 'send', channel: 'browser:setSidebarWidth' },
-  { method: 'getOmniboxSuggestions', mode: 'invoke', channel: 'browser:omniboxSuggest' },
-  { method: 'setOmniboxOpen', mode: 'send', channel: 'browser:setOmniboxOpen' },
-  { method: 'showAppMenu', mode: 'send', channel: 'browser:showAppMenu' },
-  { method: 'showShellContextMenu', mode: 'send', channel: 'browser:showShellContextMenu' },
-  { method: 'showTabContextMenu', mode: 'send', channel: 'browser:showTabContextMenu' },
-  { method: 'findInPage', mode: 'invoke', channel: 'browser:findInPage' },
-  { method: 'setZoom', mode: 'invoke', channel: 'browser:setZoom' },
-  { method: 'setDownloadNoticeVisible', mode: 'send', channel: 'browser:setDownloadNoticeVisible' },
-  { method: 'setErrorNoticeVisible', mode: 'send', channel: 'browser:setErrorNoticeVisible' },
-  { method: 'getUserScriptInstall', mode: 'invoke', channel: 'browser:getUserScriptInstall' },
-  { method: 'cancelUserScriptInstall', mode: 'invoke', channel: 'browser:cancelUserScriptInstall' },
+  { domain: 'browser', method: 'navigate', mode: 'send', channel: 'browser:navigate' },
+  { domain: 'browser', method: 'goBack', mode: 'send', channel: 'browser:goBack' },
+  { domain: 'browser', method: 'goForward', mode: 'send', channel: 'browser:goForward' },
+  { domain: 'browser', method: 'reload', mode: 'send', channel: 'browser:reload' },
+  { domain: 'browser', method: 'goHome', mode: 'send', channel: 'browser:goHome' },
   {
-    method: 'getRemoteUserScriptInstallPreview',
+    domain: 'browser',
+    method: 'setSidebarWidth',
+    mode: 'send',
+    channel: 'browser:setSidebarWidth',
+  },
+  {
+    domain: 'browser',
+    method: 'getOmniboxSuggestions',
+    mode: 'invoke',
+    channel: 'browser:omniboxSuggest',
+  },
+  { domain: 'browser', method: 'setOmniboxOpen', mode: 'send', channel: 'browser:setOmniboxOpen' },
+  { domain: 'browser', method: 'showAppMenu', mode: 'send', channel: 'browser:showAppMenu' },
+  {
+    domain: 'browser',
+    method: 'showShellContextMenu',
+    mode: 'send',
+    channel: 'browser:showShellContextMenu',
+  },
+  {
+    domain: 'browser',
+    method: 'showTabContextMenu',
+    mode: 'send',
+    channel: 'browser:showTabContextMenu',
+  },
+  { domain: 'browser', method: 'findInPage', mode: 'invoke', channel: 'browser:findInPage' },
+  { domain: 'browser', method: 'setZoom', mode: 'invoke', channel: 'browser:setZoom' },
+  {
+    domain: 'browser',
+    method: 'setDownloadNoticeVisible',
+    mode: 'send',
+    channel: 'browser:setDownloadNoticeVisible',
+  },
+  {
+    domain: 'browser',
+    method: 'setErrorNoticeVisible',
+    mode: 'send',
+    channel: 'browser:setErrorNoticeVisible',
+  },
+  {
+    domain: 'scripts',
+    method: 'getPendingInstall',
+    mode: 'invoke',
+    channel: 'browser:getUserScriptInstall',
+  },
+  {
+    domain: 'scripts',
+    method: 'cancelPendingInstall',
+    mode: 'invoke',
+    channel: 'browser:cancelUserScriptInstall',
+  },
+  {
+    domain: 'scripts',
+    method: 'getRemoteInstallPreview',
     mode: 'invoke',
     channel: 'scripts:getRemoteInstallPreview',
   },
   {
-    method: 'confirmRemoteUserScriptInstall',
+    domain: 'scripts',
+    method: 'confirmRemoteInstall',
     mode: 'invoke',
     channel: 'scripts:confirmRemoteInstall',
   },
   {
-    method: 'cancelRemoteUserScriptInstall',
+    domain: 'scripts',
+    method: 'cancelRemoteInstall',
     mode: 'invoke',
     channel: 'scripts:cancelRemoteInstall',
   },
-  { method: 'scriptsCheckUpdates', mode: 'invoke', channel: 'scripts:checkUpdates' },
-  { method: 'scriptsGetCode', mode: 'invoke', channel: 'scripts:getCode' },
-  { method: 'scriptsOpenEditor', mode: 'invoke', channel: 'scripts:openEditor' },
+  { domain: 'scripts', method: 'checkUpdates', mode: 'invoke', channel: 'scripts:checkUpdates' },
+  { domain: 'scripts', method: 'getCode', mode: 'invoke', channel: 'scripts:getCode' },
+  { domain: 'scripts', method: 'openEditor', mode: 'invoke', channel: 'scripts:openEditor' },
   {
-    method: 'getUserScriptHostPermissionPrompt',
+    domain: 'scripts',
+    method: 'getHostPermissionPrompt',
     mode: 'invoke',
     channel: 'userscript:getHostPermissionPrompt',
   },
   {
-    method: 'respondUserScriptHostPermission',
+    domain: 'scripts',
+    method: 'respondHostPermission',
     mode: 'invoke',
     channel: 'userscript:respondHostPermission',
   },
   {
-    method: 'onUserScriptHostPermissionPrompt',
+    domain: 'scripts',
+    method: 'onHostPermissionPrompt',
     mode: 'on',
     channel: 'userscript:hostPermissionRequested',
   },
-  { method: 'onFindInPageResult', mode: 'on', channel: 'browser:findInPageResult' },
-  { method: 'onZoomChanged', mode: 'on', channel: 'browser:zoomChanged' },
-  { method: 'onDownloadResult', mode: 'on', channel: 'download:result' },
-  { method: 'onUrlChanged', mode: 'on', channel: 'browser:urlChanged' },
-  { method: 'onUiCommand', mode: 'on', channel: 'ui:command' },
-  { method: 'reopenClosedTab', mode: 'invoke', channel: 'tab:reopenClosed' },
-  { method: 'reorderTab', mode: 'invoke', channel: 'tab:reorder' },
-  { method: 'moveTabToNewWindow', mode: 'invoke', channel: 'tab:moveToNewWindow' },
-  { method: 'finishTabDrag', mode: 'invoke', channel: 'tab:finishDrag' },
-  { method: 'reloadTab', mode: 'send', channel: 'tab:reload' },
-  { method: 'dismissUnresponsiveTab', mode: 'send', channel: 'tab:dismissUnresponsive' },
-  { method: 'openInternalTab', mode: 'invoke', channel: 'tab:openInternal' },
+  {
+    domain: 'browser',
+    method: 'onFindInPageResult',
+    mode: 'on',
+    channel: 'browser:findInPageResult',
+  },
+  { domain: 'browser', method: 'onZoomChanged', mode: 'on', channel: 'browser:zoomChanged' },
+  { domain: 'browser', method: 'onDownloadResult', mode: 'on', channel: 'download:result' },
+  { domain: 'browser', method: 'onUrlChanged', mode: 'on', channel: 'browser:urlChanged' },
+  { domain: 'browser', method: 'onUiCommand', mode: 'on', channel: 'ui:command' },
+  { domain: 'tab', method: 'reopenClosed', mode: 'invoke', channel: 'tab:reopenClosed' },
+  { domain: 'tab', method: 'reorder', mode: 'invoke', channel: 'tab:reorder' },
+  { domain: 'tab', method: 'moveToNewWindow', mode: 'invoke', channel: 'tab:moveToNewWindow' },
+  { domain: 'tab', method: 'finishDrag', mode: 'invoke', channel: 'tab:finishDrag' },
+  { domain: 'tab', method: 'reload', mode: 'send', channel: 'tab:reload' },
+  {
+    domain: 'tab',
+    method: 'dismissUnresponsive',
+    mode: 'send',
+    channel: 'tab:dismissUnresponsive',
+  },
+  { domain: 'tab', method: 'openInternal', mode: 'invoke', channel: 'tab:openInternal' },
 
   // Problem and tracking surface
-  { method: 'listRecentProblems', mode: 'invoke', channel: 'problem:listRecent' },
-  { method: 'getProblemDetail', mode: 'invoke', channel: 'problem:getDetail' },
-  { method: 'deleteProblem', mode: 'invoke', channel: 'problem:delete' },
-  { method: 'onProblemsUpdated', mode: 'on', channel: 'problems:updated' },
-  { method: 'getProblemVisitStats', mode: 'invoke', channel: 'stats:getProblemVisitStats' },
-  { method: 'getTimeline', mode: 'invoke', channel: 'stats:getTimeline' },
+  { domain: 'problem', method: 'listRecent', mode: 'invoke', channel: 'problem:listRecent' },
+  { domain: 'problem', method: 'getDetail', mode: 'invoke', channel: 'problem:getDetail' },
+  { domain: 'problem', method: 'delete', mode: 'invoke', channel: 'problem:delete' },
+  { domain: 'problem', method: 'onUpdated', mode: 'on', channel: 'problems:updated' },
+  {
+    domain: 'stats',
+    method: 'getProblemVisitStats',
+    mode: 'invoke',
+    channel: 'stats:getProblemVisitStats',
+  },
+  { domain: 'stats', method: 'getTimeline', mode: 'invoke', channel: 'stats:getTimeline' },
 
   // Settings and site management
-  { method: 'getHomeShortcuts', mode: 'invoke', channel: 'config:getHomeShortcuts' },
-  { method: 'getSearchEngine', mode: 'invoke', channel: 'config:getSearchEngine' },
-  { method: 'setSearchEngine', mode: 'invoke', channel: 'config:setSearchEngine' },
-  { method: 'getTheme', mode: 'invoke', channel: 'config:getTheme' },
-  { method: 'setTheme', mode: 'invoke', channel: 'config:setTheme' },
   {
-    method: 'getRealtimeSubmissionStatus',
+    domain: 'config',
+    method: 'getHomeShortcuts',
+    mode: 'invoke',
+    channel: 'config:getHomeShortcuts',
+  },
+  {
+    domain: 'config',
+    method: 'getSearchEngine',
+    mode: 'invoke',
+    channel: 'config:getSearchEngine',
+  },
+  {
+    domain: 'config',
+    method: 'setSearchEngine',
+    mode: 'invoke',
+    channel: 'config:setSearchEngine',
+  },
+  { domain: 'config', method: 'getTheme', mode: 'invoke', channel: 'config:getTheme' },
+  { domain: 'config', method: 'setTheme', mode: 'invoke', channel: 'config:setTheme' },
+  {
+    domain: 'submissions',
+    method: 'getRealtimeStatus',
     mode: 'invoke',
     channel: 'realtimeSubmission:getStatus',
   },
-  { method: 'getAllSites', mode: 'invoke', channel: 'sites:getAll' },
-  { method: 'getSiteById', mode: 'invoke', channel: 'sites:getById' },
-  { method: 'createSite', mode: 'invoke', channel: 'sites:create' },
-  { method: 'toggleSite', mode: 'invoke', channel: 'sites:toggle' },
-  { method: 'deleteSite', mode: 'invoke', channel: 'sites:delete' },
-  { method: 'getCookieSummaryForSite', mode: 'invoke', channel: 'cookies:getSiteSummary' },
-  { method: 'getCookieSummaryForDomain', mode: 'invoke', channel: 'cookies:getDomainSummary' },
-  { method: 'listCredentials', mode: 'invoke', channel: 'credentials:list' },
-  { method: 'deleteCredential', mode: 'invoke', channel: 'credentials:delete' },
-  { method: 'renameCredential', mode: 'invoke', channel: 'credentials:rename' },
-  { method: 'getCredentialAutofillPrompt', mode: 'invoke', channel: 'credentials:autofillPrompt' },
-  { method: 'respondCredentialAutofill', mode: 'invoke', channel: 'credentials:autofillRespond' },
-  { method: 'onCredentialAutofillPrompt', mode: 'on', channel: 'credentials:autofillPrompt' },
-  { method: 'getCredentialCapturePrompt', mode: 'invoke', channel: 'credentials:capturePrompt' },
-  { method: 'respondCredentialCapture', mode: 'invoke', channel: 'credentials:captureRespond' },
-  { method: 'onCredentialCapturePrompt', mode: 'on', channel: 'credentials:capturePrompt' },
-  { method: 'onCredentialCaptureResult', mode: 'on', channel: 'credentials:captureResult' },
+  { domain: 'sites', method: 'getAll', mode: 'invoke', channel: 'sites:getAll' },
+  { domain: 'sites', method: 'getById', mode: 'invoke', channel: 'sites:getById' },
+  { domain: 'sites', method: 'create', mode: 'invoke', channel: 'sites:create' },
+  { domain: 'sites', method: 'toggle', mode: 'invoke', channel: 'sites:toggle' },
+  { domain: 'sites', method: 'delete', mode: 'invoke', channel: 'sites:delete' },
+  {
+    domain: 'cookies',
+    method: 'getSiteSummary',
+    mode: 'invoke',
+    channel: 'cookies:getSiteSummary',
+  },
+  { domain: 'credentials', method: 'list', mode: 'invoke', channel: 'credentials:list' },
+  { domain: 'credentials', method: 'delete', mode: 'invoke', channel: 'credentials:delete' },
+  { domain: 'credentials', method: 'rename', mode: 'invoke', channel: 'credentials:rename' },
+  {
+    domain: 'credentials',
+    method: 'getAutofillPrompt',
+    mode: 'invoke',
+    channel: 'credentials:autofillPrompt',
+  },
+  {
+    domain: 'credentials',
+    method: 'respondAutofill',
+    mode: 'invoke',
+    channel: 'credentials:autofillRespond',
+  },
+  {
+    domain: 'credentials',
+    method: 'onAutofillPrompt',
+    mode: 'on',
+    channel: 'credentials:autofillPrompt',
+  },
+  {
+    domain: 'credentials',
+    method: 'getCapturePrompt',
+    mode: 'invoke',
+    channel: 'credentials:capturePrompt',
+  },
+  {
+    domain: 'credentials',
+    method: 'respondCapture',
+    mode: 'invoke',
+    channel: 'credentials:captureRespond',
+  },
+  {
+    domain: 'credentials',
+    method: 'onCapturePrompt',
+    mode: 'on',
+    channel: 'credentials:capturePrompt',
+  },
+  {
+    domain: 'credentials',
+    method: 'onCaptureResult',
+    mode: 'on',
+    channel: 'credentials:captureResult',
+  },
 ]
 
 test('preload maps core renderer methods to stable channels', () => {
-  const methods = extractPreloadMethods(preloadApiSource)
+  const methods = extractApiMethods(preloadApiSource)
 
   for (const contract of coreContracts) {
-    const body = methods.get(contract.method)
-    assert.ok(body, `Missing preload method ${contract.method}`)
+    const body = methods.get(`${contract.domain}.${contract.method}`)
+    assert.ok(body, `Missing preload method ${contract.domain}.${contract.method}`)
     const reference = constantPathByChannel.get(contract.channel)
     assert.ok(reference, `${contract.channel} must be declared in IPC_CHANNELS`)
     // prettier 会把过长的 invoke(...) 拆成多行，比对前先把空白全部去掉。
     const compactBody = body.replace(/\s+/g, '')
-    assert.ok(
-      compactBody.includes(`ipcRenderer.${contract.mode}(${reference}`),
-      `${contract.method} should use ipcRenderer.${contract.mode}(${reference}) for ${contract.channel}`,
-    )
-
     if (contract.mode === 'on') {
+      // 订阅统一走 subscribe() 助手（ipcRenderer.on/off 只在那里出现一次）。
+      // prettier 的多行实参带尾逗号（`subscribe(X,\n    ),`），compact 后允许一个 `,`。
       assert.ok(
-        compactBody.includes(`ipcRenderer.off(${reference}`),
-        `${contract.method} should unsubscribe from ${contract.channel}`,
+        new RegExp(`subscribe(?:<[^>]*>)?\\(${escapeRegExp(reference)},?\\)`).test(compactBody),
+        `${contract.domain}.${contract.method} should subscribe via subscribe(${reference})`,
+      )
+    } else {
+      assert.ok(
+        compactBody.includes(`ipcRenderer.${contract.mode}(${reference}`),
+        `${contract.domain}.${contract.method} should use ipcRenderer.${contract.mode}(${reference}) for ${contract.channel}`,
       )
     }
   }
@@ -178,25 +291,25 @@ test('preload maps core renderer methods to stable channels', () => {
 
 test('every exposed send/invoke channel has a matching main-process handler', () => {
   const preloadChannels = extractPreloadRendererChannels(preloadSource).filter(
-    (channel) => channel.mode === 'send' || channel.mode === 'invoke',
+    (entry) => entry.mode === 'send' || entry.mode === 'invoke',
   )
   const mainHandlers = extractIpcMainHandlers(electronSources.join('\n'))
 
-  for (const channel of preloadChannels) {
-    const expectedMainMode: IpcMainMode = channel.mode === 'invoke' ? 'handle' : 'on'
+  for (const entry of preloadChannels) {
+    const expectedMainMode: IpcMainMode = entry.mode === 'invoke' ? 'handle' : 'on'
     assert.ok(
       mainHandlers.some(
-        (handler) => handler.mode === expectedMainMode && handler.channel === channel.channel,
+        (handler) => handler.mode === expectedMainMode && handler.channel === entry.channel,
       ),
-      `preload ${channel.mode}('${channel.channel}') needs ipcMain.${expectedMainMode}('${channel.channel}')`,
+      `preload ${entry.mode}('${entry.channel}') needs ipcMain.${expectedMainMode}('${entry.channel}')`,
     )
   }
 })
 
 test('preload event subscriptions are fixed and backed by main-process sends', () => {
   const listenerChannels = extractPreloadRendererChannels(preloadSource)
-    .filter((channel) => channel.mode === 'on')
-    .map((channel) => channel.channel)
+    .filter((entry) => entry.mode === 'on')
+    .map((entry) => entry.channel)
     .sort()
   assert.deepStrictEqual(listenerChannels, [
     'browser:findInPageResult',
@@ -225,12 +338,13 @@ test('preload event subscriptions are fixed and backed by main-process sends', (
 })
 
 test('renderer cannot access arbitrary IPC channels through preload', () => {
-  const methods = extractPreloadMethods(preloadApiSource)
-  const exposedMethodNames = [...methods.keys()]
-  assert.ok(!exposedMethodNames.includes('send'))
-  assert.ok(!exposedMethodNames.includes('invoke'))
-  assert.ok(!exposedMethodNames.includes('on'))
-  assert.ok(!exposedMethodNames.includes('off'))
+  const methods = extractApiMethods(preloadApiSource)
+  for (const key of methods.keys()) {
+    assert.ok(
+      !/\.(send|invoke|on|off)$/.test(key) && !/^(send|invoke|on|off)\./.test(key),
+      `api method ${key} must not be a generic IPC capability`,
+    )
+  }
   assert.ok(
     !/\bipcRenderer\s*:/.test(preloadSource),
     'ipcRenderer must not be exposed as an object property',
@@ -240,12 +354,12 @@ test('renderer cannot access arbitrary IPC channels through preload', () => {
     'ipcRenderer must not be exposed globally',
   )
 
-  // 每个调用的首个非空白 token 必须是引号（历史形态的字面量）或 IPC_CHANNELS（R1 之后的主形态）。
-  // 必须 matchAll 扫全文件：单次 exec 在第一个 IPC_CHANNELS 调用处就返回，其后 191 处里的
-  // 动态通道会漏检（复核 2026-11-01 实证的可绕过）。断言用"首个非空白字符 + 后随标识符"
-  // 而不是 (?!…) 前瞻：\s* 后接前瞻会在空白上回溯，把换行后的合法调用也误判成动态通道。
+  // 每个调用的首个非空白 token 必须是引号（历史形态的字面量）或 IPC_CHANNELS（R1 之后的主
+  // 形态）。invoke/send 只允许出现在 api 字面量里；订阅统一走 subscribe() 助手，全文件
+  // 只有它那两处 ipcRenderer.on/off，且 channel 形参是 IpcChannel 闭集（拼错编译期就报，
+  // 不靠这里的文本扫描）。
   const dynamicChannelTokens = [
-    ...preloadSource.matchAll(/ipcRenderer\.(?:send|invoke|on|off)\(\s*([^'"\s][A-Za-z0-9_]*)/g),
+    ...preloadSource.matchAll(/ipcRenderer\.(?:send|invoke)\(\s*([^'"\s][A-Za-z0-9_]*)/g),
   ]
     .map((match) => match[1])
     .filter((token) => token !== 'IPC_CHANNELS')
@@ -255,8 +369,31 @@ test('renderer cannot access arbitrary IPC channels through preload', () => {
     'preload IPC calls must use IPC_CHANNELS constants (or string literals), not dynamic channels',
   )
 
+  const onOffCalls = [...preloadSource.matchAll(/ipcRenderer\.(?:on|off)\(/g)]
+  assert.strictEqual(
+    onOffCalls.length,
+    2,
+    'ipcRenderer.on/off 只允许出现在 subscribe() 助手里（注册一次、退订一次）',
+  )
+  const helperStart = preloadSource.indexOf('function subscribe')
+  const helperEnd = preloadSource.indexOf('const api = {')
+  const helper = preloadSource.slice(helperStart, helperEnd)
+  assert.ok(
+    /ipcRenderer\.on\(channel, wrapped\)/.test(helper),
+    'subscribe() 必须经 ipcRenderer.on 注册',
+  )
+  assert.ok(
+    /ipcRenderer\.off\(channel, wrapped\)/.test(helper),
+    'subscribe() 必须经 ipcRenderer.off 退订',
+  )
+  assert.match(
+    helper,
+    /function subscribe<T>\(channel: IpcChannel\)/,
+    'subscribe() 的 channel 形参必须是 IpcChannel 闭集',
+  )
+
   const rendererChannels = new Set(
-    extractPreloadRendererChannels(preloadSource).map((channel) => channel.channel),
+    extractPreloadRendererChannels(preloadSource).map((entry) => entry.channel),
   )
   const internalChannels = [
     'oj-submission:detected',
@@ -279,27 +416,24 @@ test('retired renderer notification channels have no remaining senders', () => {
   }
 })
 
-function extractPreloadMethods(source: string): Map<string, string> {
-  const methods = new Map<string, string>()
-  const pattern =
-    /^\s{2}([A-Za-z][A-Za-z0-9_]*):\s*([\s\S]*?)(?=^\s{2}[A-Za-z][A-Za-z0-9_]*:|\n}\))/gm
-  let match: RegExpExecArray | null
-  while ((match = pattern.exec(source)) !== null) {
-    methods.set(match[1], match[2])
-  }
-  return methods
-}
-
 function extractPreloadRendererChannels(source: string): { mode: IpcMode; channel: string }[] {
   const channels: { mode: IpcMode; channel: string }[] = []
-  // 两种形态都认：旧的字面量与 R1 之后的 IPC_CHANNELS.<域>.<键> 引用。
-  const pattern = /ipcRenderer\.(send|invoke|on)\(\s*('([^']+)'|IPC_CHANNELS\.[A-Za-z0-9_.]+)/g
+  // 三种形态都认：字面量（历史）、R1 之后的直接 IPC_CHANNELS 引用、R3 起的
+  // subscribe(IPC_CHANNELS.… ) 订阅助手（ipcRenderer.on 收进助手后，订阅通道从这里提）。
+  const directPattern =
+    /ipcRenderer\.(send|invoke|on)\(\s*('([^']+)'|IPC_CHANNELS\.[A-Za-z0-9_.]+)/g
   let match: RegExpExecArray | null
-  while ((match = pattern.exec(source)) !== null) {
+  while ((match = directPattern.exec(source)) !== null) {
     const raw = match[2]
     const channel = raw.startsWith("'") ? match[3] : channelByConstantPath.get(raw)
     if (channel === undefined) continue
     channels.push({ mode: match[1] as IpcMode, channel })
+  }
+
+  const subscribePattern = /subscribe(?:<[^>]*>)?\(\s*(IPC_CHANNELS\.[A-Za-z0-9_.]+)/g
+  while ((match = subscribePattern.exec(source)) !== null) {
+    const channel = channelByConstantPath.get(match[1])
+    if (channel !== undefined) channels.push({ mode: 'on', channel })
   }
   return channels
 }
@@ -393,14 +527,15 @@ function readElectronSources(root: string): string[] {
     const fullPath = path.join(root, entry.name)
     if (entry.isDirectory()) {
       sources.push(...readElectronSources(fullPath))
-    } else if (
-      entry.isFile() &&
-      entry.name.endsWith('.ts') &&
-      entry.name !== 'preload.ts' &&
-      entry.name !== 'ojPreload.ts'
-    ) {
+    } else if (entry.isFile() && entry.name.endsWith('.ts') && entry.name !== 'ojPreload.ts') {
+      // ojPreload 走 OJ 隔离 preload 的独立通道面（oj-*），不参与壳 renderer 的契约扫描；
+      // shell preload 自 R3 起住在 src/preload/index.ts，本来就不在这棵树里。
       sources.push(fs.readFileSync(fullPath, 'utf-8'))
     }
   }
   return sources
+}
+
+function escapeRegExp(text: string): string {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, String.fromCharCode(92) + '$&')
 }

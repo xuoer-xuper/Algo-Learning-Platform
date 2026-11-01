@@ -44,43 +44,31 @@ export function registerNotesIpc(options: RegisterNotesIpcOptions = {}): void {
     return getNoteWithContent(noteId)
   })
 
-  ipcMain.handle(
-    IPC_CHANNELS.NOTES.CREATE,
-    createInput,
-    (event, problemId, title, content, noteType) => {
-      const note = createNote({
-        problem_id: problemId,
-        title,
-        content: content ?? undefined,
-        note_type: noteType,
-      })
-      options.notifyProblemsUpdated?.(event)
-      return note
-    },
-  )
-
-  ipcMain.handle(IPC_CHANNELS.NOTES.UPDATE_TITLE, updateTitleInput, (_event, noteId, title) => {
-    return updateNoteTitle(noteId, title)
+  ipcMain.handle(IPC_CHANNELS.NOTES.CREATE, createInput, (event, input) => {
+    const note = createNote({
+      problem_id: input.problemId,
+      title: input.title,
+      content: input.content ?? undefined,
+      note_type: input.noteType,
+    })
+    options.notifyProblemsUpdated?.(event)
+    return note
   })
 
-  ipcMain.handle(
-    IPC_CHANNELS.NOTES.UPDATE_CONTENT,
-    updateContentInput,
-    (_event, noteId, content) => {
-      return updateNoteContent(noteId, content)
-    },
-  )
+  ipcMain.handle(IPC_CHANNELS.NOTES.UPDATE_TITLE, updateTitleInput, (_event, input) => {
+    return updateNoteTitle(input.noteId, input.title)
+  })
 
-  ipcMain.handle(
-    IPC_CHANNELS.NOTES.SAVE_IMAGE,
-    saveImageInput,
-    (_event, noteId, fileName, mimeType, data) => {
-      return saveNoteImage(noteId, fileName, mimeType, data)
-    },
-  )
+  ipcMain.handle(IPC_CHANNELS.NOTES.UPDATE_CONTENT, updateContentInput, (_event, input) => {
+    return updateNoteContent(input.noteId, input.content)
+  })
 
-  ipcMain.handle(IPC_CHANNELS.NOTES.UPDATE_TYPE, updateTypeInput, (_event, noteId, type) => {
-    return updateNoteType(noteId, type)
+  ipcMain.handle(IPC_CHANNELS.NOTES.SAVE_IMAGE, saveImageInput, (_event, input) => {
+    return saveNoteImage(input.noteId, input.fileName, input.mimeType, input.data)
+  })
+
+  ipcMain.handle(IPC_CHANNELS.NOTES.UPDATE_TYPE, updateTypeInput, (_event, input) => {
+    return updateNoteType(input.noteId, input.noteType)
   })
 
   ipcMain.handle(IPC_CHANNELS.NOTES.DELETE, deleteInput, (_event, noteId) => {

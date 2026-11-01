@@ -57,11 +57,16 @@ Main Process 是本地能力和系统边界的中心，负责：
 当前标准结构：
 
 ```text
-algo-electron/electron/
-  main.ts
-  preload.ts
-  electron-env.d.ts
-  app/
+algo-electron/
+  src/
+    preload/
+      index.ts          # window.api（域分组，typeof api 推导 renderer 类型）
+    shared/
+      constants/        # IPC_CHANNELS、errorCodes、preferences
+      types/            # 跨进程域类型 + types/ipc/*Input zod schema
+  electron/
+    main.ts
+    app/
     config.ts
     chromiumFlags.ts
     mainServices.ts
@@ -326,7 +331,7 @@ window.electronAPI = {
 }
 ```
 
-完整 preload 契约以 `algo-electron/electron/preload.ts` 和 `algo-electron/electron/electron-env.d.ts` 为准；IPC contract 测试负责防止 renderer 获得通用 `ipcRenderer`。
+完整 preload 契约以 `algo-electron/src/preload/index.ts`（`window.api`，renderer 类型由 `typeof api` 推导）与 `algo-electron/src/shared/types/` 为准；IPC contract 测试负责防止 renderer 获得通用 `ipcRenderer`。
 
 窗口敏感 IPC 必须使用 `trustedSender.getShellWindowOwner(event)` 定向解析 sender 所属 `AppWindow`；owner 缺失时 fail closed。数据查询可以共享应用级 service，但不得用全局主窗口 getter 处理窗口、标签、菜单或对话框。
 

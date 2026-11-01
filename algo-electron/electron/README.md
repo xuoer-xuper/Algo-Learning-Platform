@@ -4,12 +4,12 @@
 
 `electron/` 是桌面应用的本地能力边界，负责窗口、浏览器容器、持久 session、IPC、SQLite、站点识别、提交监测、学习追踪、笔记、用户脚本、AI 本地规则和打包后的主进程入口。
 
-Renderer 不能直接访问本目录能力，只能通过 `preload.ts` 暴露的 `window.electronAPI` 白名单调用。
+Renderer 不能直接访问本目录能力，只能通过 `src/preload/index.ts` 暴露的 `window.api`（域分组）调用。
 
 ## 2. 根文件
 
 - `main.ts`：应用启动编排。负责设置 Chromium flag、初始化数据库和服务、创建窗口、注册 IPC、创建浏览器标签系统、安装协议和注入器。业务逻辑应继续下沉到子模块。
-- `preload.ts`：renderer preload 白名单。只暴露固定 `electronAPI`，不暴露通用 `ipcRenderer`；`ElectronAPI` 接口也在这里（阶段 2 R2 起，`electron-env.d.ts` 已删除；R3 将改为 `window.api: typeof api`）。跨进程域类型单一来源在 `../src/shared/types/`，新增 IPC/Preload API 必须同步 shared 类型与 IPC contract 测试。
+- `src/preload/index.ts`（在本目录之外）：renderer preload 白名单。只暴露域分组的固定 `api`，不暴露通用 `ipcRenderer`；renderer 类型由 `typeof api` 推导（阶段 2 R3 起，`electron-env.d.ts` 与手写 `ElectronAPI` 接口均已删除）。跨进程域类型单一来源在 `../src/shared/types/`，新增 IPC/Preload API 必须同步 shared 类型与 IPC contract 测试。
 
 ## 3. 子目录分类
 

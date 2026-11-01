@@ -39,7 +39,22 @@ export default defineConfig({
         },
       },
       preload: [
-        { input: 'electron/preload.ts' },
+        // R3 起 shell preload 在 src/preload/index.ts（域分组 + typeof api）。
+        // entryFileNames 钉住 `preload.mjs`：主进程 main.ts 按 __dirname/preload.mjs
+        // 加载它，而插件默认按输入文件名（index.mjs）命名产物。
+        {
+          input: 'src/preload/index.ts',
+          vite: {
+            build: {
+              rolldownOptions: {
+                output: {
+                  entryFileNames: 'preload.mjs',
+                  chunkFileNames: 'preload.mjs',
+                },
+              },
+            },
+          },
+        },
         { input: 'electron/browser/ojPreload.ts' },
         { input: 'electron/scripts/userscriptBootstrapPreload.ts' },
       ],

@@ -20,7 +20,7 @@
 ## 3. 边界规则
 
 - Hook 只封装 renderer 状态机和 UI 编排。
-- Hook 与 `App.tsx` 内部一律调用 `browserShellApi.ts` 等本目录 helper，不直接散落新的 `window.electronAPI` 调用。`App.tsx` 需要 Coach 数据时从 `features/coach/coachDataApi.ts` 导入。
+- Hook 与 `App.tsx` 内部一律调用 `browserShellApi.ts` 等本目录 helper，不直接散落新的 `window.api` 调用。`App.tsx` 需要 Coach 数据时从 `features/coach/coachDataApi.ts` 导入。
 - 新增 IPC 调用必须先确认 `electron/preload.ts` 和 `electron/electron-env.d.ts` 已声明。
 - 不在 hook 内读取 Cookie、SQLite、文件系统或网页 DOM。
 - 对业务域强绑定的 hook 优先放在对应 `features/{domain}/` 内；只有应用壳或跨 feature 使用的 hook 放在这里。

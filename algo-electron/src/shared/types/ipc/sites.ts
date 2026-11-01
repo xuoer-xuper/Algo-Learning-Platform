@@ -87,6 +87,9 @@ const siteImport = z.array(z.strictObject({ ...siteDraftFields, isBuiltin: z.boo
 
 export const getByIdInput = [siteId] as const
 export const createInput = [siteCreate] as const
-export const toggleInput = [siteId, z.boolean()] as const
+/* R3 起 toggle / confirmImport 的 wire 形状是单对象参数（原先是两个位置参数）。 */
+export const toggleInput = [z.strictObject({ id: siteId, enabled: z.boolean() })] as const
 export const deleteInput = [siteId] as const
-export const confirmImportInput = [siteImport, z.array(siteId).max(50)] as const
+export const confirmImportInput = [
+  z.strictObject({ sites: siteImport, overwriteIds: z.array(siteId).max(50) }),
+] as const

@@ -56,19 +56,15 @@ export function registerAiIpc(): void {
     },
   )
 
-  ipcMain.handle(
-    IPC_CHANNELS.AI.GET_PERIOD_SUMMARY,
-    getPeriodSummaryInput,
-    (_event, startDate, endDate) => {
-      return getPeriodSummary({ start_date: startDate, end_date: endDate })
-    },
-  )
+  ipcMain.handle(IPC_CHANNELS.AI.GET_PERIOD_SUMMARY, getPeriodSummaryInput, (_event, input) => {
+    return getPeriodSummary({ start_date: input.startDate, end_date: input.endDate })
+  })
 
   ipcMain.handle(
     IPC_CHANNELS.AI.GET_PERIOD_SUMMARY_MARKDOWN,
     getPeriodSummaryMarkdownInput,
-    (_event, startDate, endDate) => {
-      const summary = getPeriodSummary({ start_date: startDate, end_date: endDate })
+    (_event, input) => {
+      const summary = getPeriodSummary({ start_date: input.startDate, end_date: input.endDate })
       return renderSummaryAsMarkdown(summary)
     },
   )
@@ -95,15 +91,15 @@ export function registerAiIpc(): void {
     return getAIOutput(id)
   })
 
-  ipcMain.handle(IPC_CHANNELS.AI.LIST_OUTPUTS, listOutputsInput, (_event, outputType, limit) => {
-    return listAIOutputs(outputType, limit ?? 20)
+  ipcMain.handle(IPC_CHANNELS.AI.LIST_OUTPUTS, listOutputsInput, (_event, input) => {
+    return listAIOutputs(input.outputType, input.limit ?? 20)
   })
 
   ipcMain.handle(IPC_CHANNELS.AI.DELETE_OUTPUT, deleteOutputInput, (_event, id) => {
     return deleteAIOutput(id)
   })
 
-  ipcMain.handle(IPC_CHANNELS.AI.UPDATE_OUTPUT, updateOutputInput, (_event, id, updates) => {
-    return updateAIOutput(id, updates)
+  ipcMain.handle(IPC_CHANNELS.AI.UPDATE_OUTPUT, updateOutputInput, (_event, input) => {
+    return updateAIOutput(input.id, input.updates)
   })
 }

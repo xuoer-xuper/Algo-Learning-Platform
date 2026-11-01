@@ -32,4 +32,5 @@ export const getTimelineInput = [rowLimit] as const
 export const getRevisitStatsInput = [rowLimit] as const
 export const recomputeDailyInput = [localDate.optional()] as const
 export const getWrongProblemsInput = [rowLimit] as const
-export const getUnreviewedInput = [days, rowLimit] as const
+/* R3 起单对象参数（原先是 `(days, limit)` 两个位置参数）。 */
+export const getUnreviewedInput = [z.strictObject({ days, limit: rowLimit })] as const

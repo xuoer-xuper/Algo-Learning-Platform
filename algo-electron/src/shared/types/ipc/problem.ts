@@ -16,10 +16,19 @@ import { z } from 'zod'
 /** 标识符类字符串：非空、上限 200（problemId，标识符 200 的既有口径）。 */
 const identifier = z.string().min(1).max(200)
 
+/*
+ * R3 起 `problem:listRecent` 的 wire 形状是单对象参数（原先是 `(limit, platform, status)`
+ * 三个位置参数）。字段界与原先的元组逐位一致，只是搬进了对象；strictObject 拒绝多余
+ * 字段，与 getDetail/delete 单参数通道那两列的"多传即拒"口径相同。
+ */
 export const listRecentInput = [
-  z.number().int().min(1).max(1000).optional(),
-  z.enum(['acwing', 'codeforces', 'leetcode-cn', 'luogu', 'nowcoder', 'pta', 'vjudge']).optional(),
-  z.enum(['solved', 'attempted', 'visited']).optional(),
+  z.strictObject({
+    limit: z.number().int().min(1).max(1000).optional(),
+    platform: z
+      .enum(['acwing', 'codeforces', 'leetcode-cn', 'luogu', 'nowcoder', 'pta', 'vjudge'])
+      .optional(),
+    status: z.enum(['solved', 'attempted', 'visited']).optional(),
+  }),
 ] as const
 
 export const getDetailInput = [identifier] as const

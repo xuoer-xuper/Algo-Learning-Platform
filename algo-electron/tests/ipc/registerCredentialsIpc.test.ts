@@ -139,7 +139,10 @@ test('credentials IPC renames credentials and routes autofill prompt responses b
   registerCredentialsIpc(vault, { getAutofillService: () => service as never })
 
   assert.deepStrictEqual(
-    await ipcRenderer.invoke('credentials:rename', 'credential-1', 'Primary'),
+    await ipcRenderer.invoke('credentials:rename', {
+      credentialId: 'credential-1',
+      displayName: 'Primary',
+    }),
     {
       credentialId: 'credential-1',
       siteId: 'codeforces',
@@ -157,7 +160,10 @@ test('credentials IPC renames credentials and routes autofill prompt responses b
     'request-1',
   )
   assert.strictEqual(
-    await ipcRenderer.invoke('credentials:autofillRespond', 'request-1', 'credential-1'),
+    await ipcRenderer.invoke('credentials:autofillRespond', {
+      requestId: 'request-1',
+      credentialId: 'credential-1',
+    }),
     true,
   )
   assert.deepStrictEqual(service.respondSelection.mock.calls, [
@@ -167,7 +173,10 @@ test('credentials IPC renames credentials and routes autofill prompt responses b
   ownerState.id = null
   assert.strictEqual(await ipcRenderer.invoke('credentials:autofillPrompt'), null)
   assert.strictEqual(
-    await ipcRenderer.invoke('credentials:autofillRespond', 'request-1', null),
+    await ipcRenderer.invoke('credentials:autofillRespond', {
+      requestId: 'request-1',
+      credentialId: null,
+    }),
     false,
   )
 })
@@ -201,7 +210,10 @@ test('credentials IPC routes capture prompts and responses by shell owner', asyn
   assert.strictEqual(prompt.captureId, 'capture-1')
   assert.strictEqual(JSON.stringify(prompt).includes('password'), false)
   assert.strictEqual(
-    await ipcRenderer.invoke('credentials:captureRespond', 'capture-1', 'save'),
+    await ipcRenderer.invoke('credentials:captureRespond', {
+      captureId: 'capture-1',
+      action: 'save',
+    }),
     true,
   )
   assert.deepStrictEqual(service.respondCapture.mock.calls, [['shell-1', 'capture-1', 'save']])
@@ -215,12 +227,12 @@ test('credentials IPC routes capture prompts and responses by shell owner', asyn
    * 那处 catch 还会把错误提示显示出来，正是想要的效果。
    */
   await assert.rejects(
-    ipcRenderer.invoke('credentials:captureRespond', 'capture-1', 'nope'),
+    ipcRenderer.invoke('credentials:captureRespond', { captureId: 'capture-1', action: 'nope' }),
     /Rejected IPC sender \(payload\)/,
     '未列出的 action 应被拒绝',
   )
   await assert.rejects(
-    ipcRenderer.invoke('credentials:captureRespond', '', 'save'),
+    ipcRenderer.invoke('credentials:captureRespond', { captureId: '', action: 'save' }),
     /Rejected IPC sender \(payload\)/,
     '空 captureId 应被拒绝',
   )
@@ -232,7 +244,10 @@ test('credentials IPC routes capture prompts and responses by shell owner', asyn
   ownerState.id = null
   assert.strictEqual(await ipcRenderer.invoke('credentials:capturePrompt'), null)
   assert.strictEqual(
-    await ipcRenderer.invoke('credentials:captureRespond', 'capture-1', 'cancel'),
+    await ipcRenderer.invoke('credentials:captureRespond', {
+      captureId: 'capture-1',
+      action: 'cancel',
+    }),
     false,
   )
 })

@@ -5,8 +5,8 @@
  * env.d.ts 约定保留这个 augmentation；`src/main/` 目录会在阶段 3 成为主进程的
  * 正式家（`main.ts` 等迁入后，本文件跟着变成 `src/main/env.d.ts` 的本位）。
  *
- * 跨进程域类型已收口到 `src/shared/types/*`；`Window.electronAPI` 的全局声明
- * 在定义它的 `electron/preload.ts`（阶段 2 R3 会以 `window.api: typeof api` 取代）。
+ * 跨进程域类型已收口到 `src/shared/types/*`；`Window.api` 的全局声明
+ * （`typeof api` 推导）自阶段 2 R3 起住在定义它的 `src/preload/index.ts`。
  */
 
 declare namespace NodeJS {

@@ -15,7 +15,7 @@ Vite 构建时会把本目录文件复制到 `dist/`。Electron 运行时代码�
 ## 4. 修改边界
 
 - 不在静态 HTML 或资源中写入 Cookie、session、csrf token、用户源码、完整请求体、本机数据库内容或可复用登录态。
-- 不在这里新增需要 Node/Electron 权限的代码；renderer 本地能力必须通过 `window.electronAPI` 白名单 API。
+- 不在这里新增需要 Node/Electron 权限的代码；renderer 本地能力必须通过 `window.api`（域分组）白名单 API。
 - 删除或替换资源前先用 `rg` 查引用，避免破坏 Vite 或 renderer 引用。
 
 ## 5. 验证入口
