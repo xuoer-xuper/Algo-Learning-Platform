@@ -47,6 +47,11 @@
 - 每个 R 一个 commit：`refactor(ipc): zod 替换 payloadSchema`、`refactor(shared): electron-log 替换自研日志`、`refactor(app): electron-store 替换配置持久化并隔离开发数据目录`、`refactor(ipc): 统一 IPC 返回形状`、`fix(coach): 修复时间格式混用导致的比较偏差`。
 - 阶段结束 `pnpm test:all` + `pnpm build:win` + 安装包在 rc.1 用户目录上启动验证配置不丢。
 - PR：`refactor(shared): 阶段 1 基础设施换库`。
+- **阶段收口门实测（2026-11-01）**：
+  - `pnpm test:all` 首跑拍出 R2 真回归：`ai-traceability`（RUN_AS_NODE 段）被新 logger 的顶层 `import { app } from 'electron'` 炸掉（纯 Node 下 electron 解析为 npm 路径字符串，无具名导出）——10-31 全绿是因为旧 logger 无此导入。修复 `2178ff1`：命名空间导入 + 运行时判空降级（app 不可用即关文件 transport，与旧观察行为对齐），复跑 **ALL-EXIT=0 完整全绿**（ai/db/coach 三段逐一确认，startupSmoke pre-ready 断言未弱化）。Vitest 别名与 RUN_AS_NODE 是两条不同的 electron 解析路径，R2 当时的验证面（app 态 + vitest mock）覆盖不到前者——此教训记入检查清单：凡新增顶层 electron 导入，必须跑一次 test:all。
+  - `pnpm build:win` 首跑拍出打包烟测过时断言：`checkPackagedApp` 仍断言"败者不写共享日志"，与 R2 语义（electron-log 立即落盘，拒绝记录是诊断证据）冲突——vitest 契约测试改了、打包烟测漏改。修复后 **exit 0 全链**。
+  - 收口门两连击恰好证明了"每阶段末跑 test:all + build:win"这条门的存在价值：两处都是 per-section 验证面覆盖不到的缝隙。
+- 安装包冒烟：rc.1 配置兼容性由 `tests/app/configCompatibility.test.ts`（真实 rc.1 样本）自动化覆盖；人工启动验证待开发者（预期首次 dev 启动数据目录带 `-dev` 后缀、为空库）。
 
 ## Rollback
 - 每个 R 可独立 revert；无数据迁移。

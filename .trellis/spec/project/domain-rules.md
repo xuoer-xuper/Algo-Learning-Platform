@@ -26,7 +26,7 @@
 - Three checks are mandatory and stay mandatory after the zod migration:
   1. sender check (registered webContents, main frame, expected origin),
   2. payload structure check (depth, size, cycles, prototype pollution — `checkIpcPayload`),
-  3. per-channel schema (today `payloadSchema.ts` combinators; target `zod` schemas in
+  3. per-channel schema (zod schemas in `src/shared/types/ipc/`（阶段 1.1 已落地，`payloadSchema.ts` 已删除）— target same in
      `src/shared/types/`). A handler with parameters and no schema fails the `UNSCHEMAD_IPC_BUDGET`
      guard.
 - Window-, tab-, menu- and dialog-affecting handlers resolve the target window from the sender owner

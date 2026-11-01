@@ -30,13 +30,13 @@ Last updated: 2026-09-17 (phase 0.2 in progress on `chore/phase-0-tooling-gates`
 
 | Concern | Today | Template target | Phase |
 | --- | --- | --- | --- |
-| Input validation | `electron/ipc/payloadSchema.ts` (14 combinators, 196 call sites) | **zod** schemas in `src/shared/types/`, `safeParse` in procedures / guarded IPC wrapper | 1.1 |
-| Logging | `electron/shared/logger.ts` (custom rotation + redaction) | **electron-log** with `scope()` and a redaction hook that keeps the current regexes | 1.2 |
-| Config | `electron/app/config.ts` (JSON file + hand-written normalizers) | **electron-store** with zod schema; `env-setup.ts` first import | 1.3 |
-| Dev/prod isolation | none (`app.isPackaged` unused, shared userData) | `env-setup.ts` appends `-dev` to userData when not packaged | 1.3 |
+| Input validation | ✅ 1.1（2026-11-01）：**zod 4.6.7** `*Input` 元组在 `src/shared/types/ipc/`（13 域），`safeParse` 在 `ipcPayload.ts`/guarded wrapper；`payloadSchema.ts` 已删除；raw 棘轮 4 | 同左（已达成模板目标） | 1.1 |
+| Logging | ✅ 1.1（2026-11-01）：**electron-log 5.4.4**，`logger.scope()` + 脱敏 hook（原 regex 全量迁移 + `cookie=`）；RUN_AS_NODE 下文件 transport 关闭 | 同左 | 1.2 |
+| Config | ✅ 1.1（2026-11-01）：**electron-store 12**（原子存储层）+ zod 单层校验（`.default()`/`.catch()` 取代 normalizers）；conf 16 的 schema 校验会"坏文件即拒启"，与不清空红线冲突——故 schema 不传给 electron-store | 同左 | 1.3 |
+| Dev/prod isolation | ✅ 1.1（2026-11-01）：`envSetup.ts` 为 main.ts 首个 import（架构守卫强制），非打包且无冒烟 env 时 userData 加 `-dev`；冒烟覆盖优先 | 同左 | 1.3 |
 | Database | bare better-sqlite3, 249 `prepare()` sites, 114 `as Row` casts, hand-written migration runner + 29 migrations | **Drizzle ORM** schema + `drizzle-kit` migrations; 001–029 imported as baseline; pre-migration backup kept | 3.1 |
 | Timestamps | TEXT local-time strings (`nowBeijing()`), 65 columns, `local_day` string column | **Unix milliseconds INTEGER** (`{ mode: 'timestamp_ms' }`), `z.number()` in schemas, `Intl` formatting in UI only | 2.5 |
-| Result shape | `{ ok }` (35) and `{ success }` (23) mixed, no `code` | `{ success: true, data } \| { success: false, error, code? }` via `createOutputSchema()` | 1.4 |
+| Result shape | ✅ 1.1（2026-11-01）：20 处真正的 IPC 返回统一为 `createOutputSchema()` 判别联合（6 个封闭 `code`）；34 处 `{ok:}` 经复核确认是内部校验器/运行时协议形状、不跨 IPC 边界，不转换 | 同左 | 1.4 |
 | Event bus | 9 hand-written `Set<callback>` buses + 3 `EventEmitter` | typed `EventEmitter` wrapper | 3.6 |
 | Debounce | `DebouncedWindowFollower.ts` + 12 ad-hoc `setTimeout` pairs | one `shared/lib/timing.ts` | 3.6 |
 | Snapshot store | `browser/tabSessionStore.ts` + `windows/applicationSessionStore.ts` (twins, 522 lines) | one generic `AtomicJsonSnapshotStore<T>` | 3.6 |
