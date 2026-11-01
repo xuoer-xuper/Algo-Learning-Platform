@@ -24,5 +24,11 @@ assert.match(
   /from\s*["']electron-log\/main["']|require\(["']electron-log\/main["']\)/,
   'electron-log must remain external in the packaged main-process bundle',
 )
+// electron-store（经 conf）同样内部 import('electron')，与 electron-log 同罪同罚。
+assert.match(
+  mainBundle,
+  /from\s*["']electron-store["']|require\(["']electron-store["']\)/,
+  'electron-store must remain external in the packaged main-process bundle',
+)
 
 console.log('[PASS] Packaged main keeps better-sqlite3 external')

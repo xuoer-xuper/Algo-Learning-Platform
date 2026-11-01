@@ -3,7 +3,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-const harness = vi.hoisted(() => ({ userDataDir: '' }))
+const harness = vi.hoisted(() => ({ userDataDir: '', failNextWrite: false }))
 
 vi.mock('electron', async (importOriginal) => {
   const actual = await importOriginal<Record<string, unknown>>()
@@ -13,6 +13,30 @@ vi.mock('electron', async (importOriginal) => {
       getPath: () => harness.userDataDir,
     },
   }
+})
+
+/*
+ * conf（electron-store 的存储内核）经 atomically 写盘，且 node_modules 依赖在
+ * vitest 里默认外置、fs 调用又被 stubborn-fs 在加载期捕获——两条路都拦不到。
+ * 写入的代码面收口在 `store.store =`，所以在 electron-store 这一层派生子类注入
+ * "下一次写盘失败"。
+ */
+vi.mock('electron-store', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('electron-store')>()
+  const ActualStore = actual.default
+  class HarnessStore extends ActualStore {
+    override get store(): Record<string, unknown> {
+      return super.store
+    }
+    override set store(value: Record<string, unknown>) {
+      if (harness.failNextWrite) {
+        harness.failNextWrite = false
+        throw new Error('read-only config')
+      }
+      super.store = value
+    }
+  }
+  return { ...actual, default: HarnessStore }
 })
 
 beforeEach(() => {
@@ -76,15 +100,13 @@ describe('per-origin zoom config', () => {
     const configModule = await import('../../electron/app/config.ts')
     expect(configModule.getZoomFactorForUrl('https://example.com/path')).toBe(1.25)
 
-    const writeSpy = vi.spyOn(fs, 'writeFileSync').mockImplementationOnce(() => {
-      throw new Error('read-only config')
-    })
+    harness.failNextWrite = true
     try {
       expect(() => configModule.saveZoomFactorForUrl('https://example.com/path', 1.5)).toThrow(
         'read-only config',
       )
     } finally {
-      writeSpy.mockRestore()
+      harness.failNextWrite = false
     }
 
     expect(configModule.getZoomFactorForUrl('https://example.com/path')).toBe(1.25)

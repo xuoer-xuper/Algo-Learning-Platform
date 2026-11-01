@@ -1,4 +1,6 @@
 import { EventEmitter } from 'node:events'
+import os from 'node:os'
+import path from 'node:path'
 
 type Listener = (...args: any[]) => void
 
@@ -437,11 +439,18 @@ export class MockApp extends EventEmitter {
   quitCallCount = 0
   readonly exitCodes: Array<number | undefined> = []
 
-  setPath(_name: string, _value: string): void {
-    /* no-op */
+  /** envSetup（-dev 后缀）与冒烟覆写都经过这里；记录成对 (name, value) 供启动契约断言。 */
+  readonly setPathCalls: Array<[string, string]> = []
+  setPath(name: string, value: string): void {
+    this.setPathCalls.push([name, value])
   }
+  /**
+   * 默认路径必须在 os.tmpdir() 下且不存在：electron/app/config 换 electron-store 后，
+   * 首次读取会在该目录上建目录/读文件（conf 的 ensureDirectory），伪绝对路径会把
+   * 垃圾目录创建到盘根或仓库里。测试要隔离时覆盖本方法（见 mainStartupContract）。
+   */
   getPath(_name: string): string {
-    return 'C:\\mock-user-data'
+    return path.join(os.tmpdir(), 'algo-electron-mock-user-data')
   }
   getVersion(): string {
     return this.version
@@ -467,6 +476,7 @@ export class MockApp extends EventEmitter {
     this.requestSingleInstanceLockCallCount = 0
     this.quitCallCount = 0
     this.exitCodes.length = 0
+    this.setPathCalls.length = 0
   }
 }
 export const app = new MockApp()

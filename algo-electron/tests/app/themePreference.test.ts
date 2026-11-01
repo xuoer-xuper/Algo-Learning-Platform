@@ -4,15 +4,13 @@ import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   DEFAULT_THEME_PREFERENCE,
-  isStoredAppearanceConfig,
   isThemePreference,
-  normalizeAppearanceConfig,
   normalizeThemePreference,
   THEME_PREFERENCES,
 } from '../../electron/app/themePreference'
 import { ThemeController } from '../../electron/app/themeController'
 
-const harness = vi.hoisted(() => ({ userDataDir: '' }))
+const harness = vi.hoisted(() => ({ userDataDir: '', writeCalls: 0 }))
 
 vi.mock('electron', async (importOriginal) => {
   const actual = await importOriginal<Record<string, unknown>>()
@@ -24,8 +22,29 @@ vi.mock('electron', async (importOriginal) => {
   }
 })
 
+/*
+ * conf（electron-store 的存储内核）经 atomically 写盘，且 node_modules 依赖在
+ * vitest 里默认外置、fs 调用又被 stubborn-fs 在加载期捕获——两条路都拦不到。
+ * 写入的代码面收口在 `store.store =`，所以在 electron-store 这一层派生子类计数。
+ */
+vi.mock('electron-store', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('electron-store')>()
+  const ActualStore = actual.default
+  class HarnessStore extends ActualStore {
+    override get store(): Record<string, unknown> {
+      return super.store
+    }
+    override set store(value: Record<string, unknown>) {
+      harness.writeCalls += 1
+      super.store = value
+    }
+  }
+  return { ...actual, default: HarnessStore }
+})
+
 beforeEach(() => {
   harness.userDataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'algo-theme-config-'))
+  harness.writeCalls = 0
   vi.resetModules()
 })
 
@@ -50,24 +69,9 @@ describe('主题偏好规范化', () => {
     }
   })
 
-  it('appearance 结构缺失、非对象或数组时给出默认外观', () => {
-    for (const value of [undefined, null, 'dark', 42, ['dark']]) {
-      expect(normalizeAppearanceConfig(value)).toEqual({ theme: 'system' })
-    }
-    expect(normalizeAppearanceConfig({ theme: 'dark' })).toEqual({ theme: 'dark' })
-    expect(normalizeAppearanceConfig({ theme: 'nope' })).toEqual({ theme: 'system' })
-  })
-
-  it('存量判定要求键数相符，多出的陌生键算未规范化', () => {
-    expect(isStoredAppearanceConfig({ theme: 'dark' }, { theme: 'dark' })).toBe(true)
-    expect(isStoredAppearanceConfig({ theme: 'light' }, { theme: 'dark' })).toBe(false)
-    // 多一个键：规范化会把它丢掉，因此必须回写，否则那个键永远留在盘上
-    expect(isStoredAppearanceConfig({ theme: 'dark', accent: 'red' }, { theme: 'dark' })).toBe(
-      false,
-    )
-    expect(isStoredAppearanceConfig(null, { theme: 'system' })).toBe(false)
-    expect(isStoredAppearanceConfig(['dark'], { theme: 'system' })).toBe(false)
-  })
+  // appearance 域的结构规范化（缺失/非对象 → 默认档）已随 electron-store 替换
+  // 收进 config.ts 的 zod schema（appearanceConfigSchema），行为由下文
+  // "主题偏好持久化"与 tests/app/configCompatibility.test.ts 覆盖。
 })
 
 describe('主题偏好持久化', () => {
@@ -93,27 +97,31 @@ describe('主题偏好持久化', () => {
   })
 
   it('已规范化的完整配置不触发回写', async () => {
-    // 必须每段都规范：只写 appearance 会让 search 那条迁移判定失败而回写，
-    // 于是"appearance 没触发回写"就验不出来了。
+    // 必须每段都规范（含 coach）：electron-store 版的收敛判定是"文件内容 == 解析
+    // 结果则不动盘"，缺任何一段都会触发一次补齐回写。
     const configPath = path.join(harness.userDataDir, 'config.json')
     fs.writeFileSync(
       configPath,
       JSON.stringify({
         homeShortcuts: [],
+        coach: {
+          enabled: true,
+          sound: true,
+          bubbleFrequency: 'medium',
+          position: null,
+          scale: 1,
+          opacity: 1,
+          pinMode: 'follow',
+        },
         search: { engine: 'bing', customTemplate: null },
         zoomByOrigin: {},
         appearance: { theme: 'dark' },
       }),
     )
 
-    const writeSpy = vi.spyOn(fs, 'writeFileSync')
-    try {
-      const configModule = await import('../../electron/app/config.ts')
-      expect(configModule.getThemePreference()).toBe('dark')
-      expect(writeSpy).not.toHaveBeenCalled()
-    } finally {
-      writeSpy.mockRestore()
-    }
+    const configModule = await import('../../electron/app/config.ts')
+    expect(configModule.getThemePreference()).toBe('dark')
+    expect(harness.writeCalls).toBe(0)
   })
 
   it('appearance 是唯一未规范化的段时也会回写', async () => {
@@ -122,20 +130,24 @@ describe('主题偏好持久化', () => {
       configPath,
       JSON.stringify({
         homeShortcuts: [],
+        coach: {
+          enabled: true,
+          sound: true,
+          bubbleFrequency: 'medium',
+          position: null,
+          scale: 1,
+          opacity: 1,
+          pinMode: 'follow',
+        },
         search: { engine: 'bing', customTemplate: null },
         zoomByOrigin: {},
         appearance: { theme: 'midnight' },
       }),
     )
 
-    const writeSpy = vi.spyOn(fs, 'writeFileSync')
-    try {
-      const configModule = await import('../../electron/app/config.ts')
-      expect(configModule.getThemePreference()).toBe('system')
-      expect(writeSpy).toHaveBeenCalledTimes(1)
-    } finally {
-      writeSpy.mockRestore()
-    }
+    const configModule = await import('../../electron/app/config.ts')
+    expect(configModule.getThemePreference()).toBe('system')
+    expect(harness.writeCalls).toBe(1)
   })
 
   it('保存返回落盘后的值，并且不动其他配置段', async () => {

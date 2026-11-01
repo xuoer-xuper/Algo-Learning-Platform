@@ -152,6 +152,7 @@
 | test coach | [tests/coach/README](../algo-electron/tests/coach/README.md) |
 | test components | [tests/components/README](../algo-electron/tests/components/README.md) |
 | test app | [tests/app/README](../algo-electron/tests/app/README.md) |
+| test app fixtures | [tests/app/fixtures/README](../algo-electron/tests/app/fixtures/README.md) |
 | test docs | [tests/docs/README](../algo-electron/tests/docs/README.md) |
 | test electron | [tests/electron/README](../algo-electron/tests/electron/README.md) |
 | test electron fixtures | [tests/electron/fixtures/README](../algo-electron/tests/electron/fixtures/README.md) |

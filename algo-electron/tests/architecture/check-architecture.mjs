@@ -162,6 +162,22 @@ check('window-sensitive shell actions resolve ownership from the trusted sender'
   }
 })
 
+check('main.ts wires envSetup as its first import', () => {
+  // dev/prod userData 隔离（-dev 后缀）是纯副作用模块：ESM import 按序求值，
+  // 它不是第一个 import 就会晚于其他模块的初始化（electron-store、日志、会话
+  // 存储都可能在初始化时读 userData 路径），隔离就漏了。
+  const main = read(path.join(projectRoot, 'electron', 'main.ts'))
+  const firstImport = /^import\s[^\n]*$/m.exec(main)
+  if (!firstImport) {
+    throw new Error('electron/main.ts has no import statement')
+  }
+  if (!/^import\s+['"]\.\/app\/envSetup['"]/.test(firstImport[0])) {
+    throw new Error(
+      `electron/main.ts 的第一个 import 必须是 './app/envSetup'（dev userData 隔离必须先于其他模块初始化），现在是：${firstImport[0]}`,
+    )
+  }
+})
+
 check('Nowcoder realtime path stays network-result driven', () => {
   const nowcoderDir = path.join(projectRoot, 'electron', 'adapters', 'sites', 'nowcoder')
   const files = walkSourceFiles(nowcoderDir)

@@ -1,3 +1,6 @@
+// 必须保持为第一个 import：dev/prod userData 隔离（-dev 后缀）要在任何其他模块
+// 初始化之前生效（ESM import 按序求值）。守卫：tests/architecture/check-architecture.mjs。
+import './app/envSetup'
 import {
   app,
   BrowserWindow,

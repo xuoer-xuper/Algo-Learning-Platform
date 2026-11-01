@@ -290,3 +290,31 @@ test('smoke 专用的 preload / renderer 覆盖在非 smoke 构建里失效', as
     path.join(injected, 'us.mjs'),
   )
 })
+
+/*
+ * envSetup 的行为面：它是纯副作用模块，import 即执行，唯一的观察点是替身 app 上
+ * 的 setPath 记录。两条断言合起来钉住 design §3 的优先级：显式给定的冒烟目录
+ * 压过自动推导的 -dev 后缀，且打包版（isPackaged，见 electronMock 的替身默认值
+ * 之外的真实行为）不做隔离——打包路径由 packaged 冒烟（tests/verify.mjs electron）覆盖。
+ */
+test('未打包且未指定冒烟目录时，userData 在任何模块初始化前追加 -dev 后缀', async () => {
+  const started = await startMain({ granted: false })
+
+  assert.deepStrictEqual(
+    started.mock.app.setPathCalls.filter(([name]) => name === 'userData'),
+    [['userData', `${tempDir}-dev`]],
+    'envSetup 必须且只做一次 -dev 后缀改写',
+  )
+})
+
+test('冒烟模式指定的 userData 覆写优先于 -dev 后缀', async () => {
+  const smokeDir = path.join(tempDir, 'smoke-user-data')
+  setEnv({ ALGO_ELECTRON_SMOKE: '1', ALGO_ELECTRON_SMOKE_USER_DATA: smokeDir })
+  const started = await startMain({ granted: false })
+
+  assert.deepStrictEqual(
+    started.mock.app.setPathCalls.filter(([name]) => name === 'userData'),
+    [['userData', smokeDir]],
+    '显式冒烟目录原样生效，不得混入 -dev 后缀',
+  )
+})
