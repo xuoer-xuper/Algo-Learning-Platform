@@ -293,3 +293,35 @@
 ### Next Steps
 
 - 下一任务:阶段 2 IPC 契约与共享层(09-17-phase-2-ipc-contract,planning)——启动评审时一并处理 shared→electron 常量 import 方向(复核 MEDIUM 发现:常量下沉 shared 或加守卫)。
+
+
+## Session 10: 阶段 2 前三节完成(R1 channel 常量/R2 类型单一来源/R3 window.api),用户指示 R3 后暂停
+<!-- trellis-session: v=2 fp=ccecd34a2ab7bdeb -->
+
+**Date**: 2026-11-01
+**Task**: 阶段 2 前三节完成(R1 channel 常量/R2 类型单一来源/R3 window.api),用户指示 R3 后暂停
+**Branch**: `refactor/phase-2-ipc-contract`
+
+### Summary
+
+阶段 2 前三节完成并各自复核:R1 channel 常量(178 个/381 处收口,快照先行,复核修掉动态通道检测可绕过);R2 类型单一来源(111 个 env.d.ts 类型收口到 15 域,常量下沉 shared,三处语义漂移修正,uniq-d=0);R3 window.api(154 处渲染调用迁移,27 处 wire 形状变更四端一致,31 个无消费者方法删除,typeof 推导 AC 实证,文档清到 electronAPI=0)。每节实现→复核→修复→推送→CI 绿。R4 派发被用户取消(仅 channels.ts 一处半成品已丢弃),R5 未开始;暂停点已注记。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `51fe642` | refactor(ipc): IPC channel 名集中为共享常量 |
+| `5c9ba89` | refactor(shared): 跨进程类型收口到 src/shared/types |
+| `1588b8b` | refactor(preload): 改为 window.api 并由 typeof 推导类型 |
+
+### Testing
+
+- [OK] 每节 test:core 全绿(最终 179 文件/1432 用例级别);test:ui 9/9;test:electron 3/3;CI 多次全绿(41316183995 等)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- 继续 R4(数据刷新订阅,重启时按 implement.md 清单重做,channels.ts 的 DATA.CHANGED 需重加)→ R5(时间戳毫秒,独立分支)→ 两道收口门 → PR #6 squash 合入。
