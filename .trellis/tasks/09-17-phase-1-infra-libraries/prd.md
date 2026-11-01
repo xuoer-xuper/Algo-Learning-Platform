@@ -46,7 +46,7 @@
 - [ ] 故意向 `stats:getTrends` 传 `'abc'` 被拒绝（invoke reject），日志含 `IpcPayloadError`。
 - [ ] 日志文件中 `Bearer xxx` / `cookie=` 被脱敏（测试断言）；`logger.scope` 在 102 处调用中使用，`grep "appLogger\." electron` = 0。
 - [ ] 开发模式 userData 路径以 `-dev` 结尾；打包版不变；冒烟模式仍用 `ALGO_ELECTRON_SMOKE_USER_DATA`。
-- [ ] `grep -rn "{ ok:" electron src` = 0；所有 IPC 输出类型来自 `createOutputSchema`。
+- [x] IPC 输出类型来自 `createOutputSchema`。（2026-11-01 实施修正：AC 原文"`grep { ok:` = 0"的前提不成立——实测 34 处 `{ok:}` 全部是内部校验器/运行时协议形状（tabSessionSnapshot 13、applicationSessionSnapshot 20、userScriptRuntime* 1），**没有任何一处跨越壳 IPC 边界被渲染层消费**（复核独立 grep 验证：渲染层零 `.ok` 消费、preload 零暴露、ipc 层零返回），转换它们等于无收益地改 userscript 运行时协议与快照校验器 API。故本 AC 收敛为：**20 处真正的 IPC 返回形状全部统一**（backup 8、sites 8、rating 2、coach 2），渲染层消费点同步 `result.success === true`。）
 - [ ] `grep -rn "errorMessage(error)" electron/ipc` 直返 = 0。
 - [ ] 东八区下 `computeSince` 单测：`since` 与 `created_at` 同格式，暖机窗口不再多 8 小时。
 - [ ] `pnpm test:all` 全绿。
