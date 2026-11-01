@@ -7,11 +7,13 @@ import {
 import {
   IpcPayloadError,
   parseIpcArgs,
-  type IpcSchemaTuple,
-  type ParsedArgs,
-} from './payloadSchema'
+  type ZodParsedArgs,
+  type ZodSchemaTuple,
+} from './ipcPayload'
 import { SHELL_ORIGIN } from '../app/appProtocol'
-import { appLogger } from '../shared/logger'
+import { logger } from '../shared/logger'
+
+const log = logger.scope('ipc')
 import type { AppWindow } from '../windows/AppWindow'
 
 type ShellEvent = IpcMainEvent | IpcMainInvokeEvent
@@ -25,7 +27,7 @@ type ShellEvent = IpcMainEvent | IpcMainInvokeEvent
  * 缺口，不是类型标注问题；当时的结论是"改成 `unknown[]` 再补 73 个 `as` 只是把谎言
  * 搬个地方"。
  *
- * 现在缺口补完了（103 处全部声明 schema，走的是下面带 `ParsedArgs` 的重载），
+ * 现在缺口补完了（103 处全部声明 schema，走的是下面带 `ZodParsedArgs` 的重载），
  * 这个形态只剩零参处理器在用，于是 `unknown[]` 可以真正收紧——没有一处需要 `as`。
  * 返回值仍是 `unknown`：handler 的返回值经 `ipcRenderer.invoke` 结构化克隆后由
  * preload 各自声明类型，本层不该也无从收窄。
@@ -219,7 +221,7 @@ function rejectSend(
   check: TrustedSenderCheck,
   payloadError?: IpcPayloadError,
 ): void {
-  appLogger.warn('ipc.send-rejected', {
+  log.warn('send-rejected', {
     channel,
     reason: check.reason,
     // 只记 path 与 expected，不记实际值——载荷可能含用户数据。
@@ -289,17 +291,18 @@ export function unregisterOjWebContents(webContents: WebContentsIdentity): void 
  * 把"可选的 schema 元组"这一层从四个注册函数里提出来。
  *
  * 两种调用形态都要支持，迁移才能一个文件一个文件地做：
- * - `handle(channel, listener)`——尚未声明 schema，行为与之前完全一致；
+ * - `handle(channel, listener)`——零参 handler，行为与之前完全一致；
  * - `handle(channel, schemas, listener)`——按元组校验后把收窄过的实参交给 listener。
+ *   schema 元组是 `src/shared/types/ipc/` 按域定义的 zod 元组（命名约定 `xxxInput`）。
  *
  * 判别靠 `Array.isArray`：schema 元组是数组，listener 是函数，不会混。
  */
-type SchemaOrListener<E extends ShellEvent> = IpcSchemaTuple | IpcListener<E>
+type SchemaOrListener<E extends ShellEvent> = ZodSchemaTuple | IpcListener<E>
 
 function splitRegistration<E extends ShellEvent>(
   second: SchemaOrListener<E>,
   third?: IpcListener<E>,
-): { schemas: IpcSchemaTuple | null; listener: IpcListener<E> } {
+): { schemas: ZodSchemaTuple | null; listener: IpcListener<E> } {
   if (Array.isArray(second)) {
     if (!third) throw new Error('IPC registration with schemas requires a listener')
     return { schemas: second, listener: third }
@@ -313,12 +316,12 @@ function splitRegistration<E extends ShellEvent>(
  * 之所以把 `IpcPayloadError` 单独接住：它带 path/expected，值得记进日志好定位是哪个字段；
  * 而 handler 自己抛的业务异常不该被这里改写，原样抛出去由 invoke 的调用方处理。
  */
-function parseOrReject(channel: string, schemas: IpcSchemaTuple, args: unknown[]): unknown[] {
+function parseOrReject(channel: string, schemas: ZodSchemaTuple, args: unknown[]): unknown[] {
   try {
-    return parseIpcArgs(channel, schemas, args) as unknown[]
+    return parseIpcArgs(channel, schemas, args)
   } catch (error) {
     if (error instanceof IpcPayloadError) {
-      appLogger.warn('ipc.payload-rejected', {
+      log.warn('payload-rejected', {
         channel,
         path: error.path,
         expected: error.expected,
@@ -330,10 +333,10 @@ function parseOrReject(channel: string, schemas: IpcSchemaTuple, args: unknown[]
 }
 
 export function handleFromShell(channel: string, listener: IpcListener<IpcMainInvokeEvent>): void
-export function handleFromShell<const S extends IpcSchemaTuple>(
+export function handleFromShell<const S extends ZodSchemaTuple>(
   channel: string,
   schemas: S,
-  listener: (event: IpcMainInvokeEvent, ...args: ParsedArgs<S>) => unknown,
+  listener: (event: IpcMainInvokeEvent, ...args: ZodParsedArgs<S>) => unknown,
 ): void
 export function handleFromShell(
   channel: string,
@@ -351,10 +354,10 @@ export function handleFromShell(
 }
 
 export function onFromShell(channel: string, listener: IpcListener<IpcMainEvent>): void
-export function onFromShell<const S extends IpcSchemaTuple>(
+export function onFromShell<const S extends ZodSchemaTuple>(
   channel: string,
   schemas: S,
-  listener: (event: IpcMainEvent, ...args: ParsedArgs<S>) => unknown,
+  listener: (event: IpcMainEvent, ...args: ZodParsedArgs<S>) => unknown,
 ): void
 export function onFromShell(
   channel: string,
@@ -371,7 +374,7 @@ export function onFromShell(
     // 抛出去会变成主进程里一条没人接的异常。
     let parsed: unknown[]
     try {
-      parsed = schemas ? (parseIpcArgs(channel, schemas, args) as unknown[]) : args
+      parsed = schemas ? parseIpcArgs(channel, schemas, args) : args
     } catch (error) {
       if (error instanceof IpcPayloadError) {
         return rejectSend(channel, { trusted: false, reason: 'payload' }, error)
@@ -383,10 +386,10 @@ export function onFromShell(
 }
 
 export function handleFromCoach(channel: string, listener: IpcListener<IpcMainInvokeEvent>): void
-export function handleFromCoach<const S extends IpcSchemaTuple>(
+export function handleFromCoach<const S extends ZodSchemaTuple>(
   channel: string,
   schemas: S,
-  listener: (event: IpcMainInvokeEvent, ...args: ParsedArgs<S>) => unknown,
+  listener: (event: IpcMainInvokeEvent, ...args: ZodParsedArgs<S>) => unknown,
 ): void
 export function handleFromCoach(
   channel: string,
@@ -404,10 +407,10 @@ export function handleFromCoach(
 }
 
 export function onFromCoach(channel: string, listener: IpcListener<IpcMainEvent>): void
-export function onFromCoach<const S extends IpcSchemaTuple>(
+export function onFromCoach<const S extends ZodSchemaTuple>(
   channel: string,
   schemas: S,
-  listener: (event: IpcMainEvent, ...args: ParsedArgs<S>) => unknown,
+  listener: (event: IpcMainEvent, ...args: ZodParsedArgs<S>) => unknown,
 ): void
 export function onFromCoach(
   channel: string,
@@ -422,7 +425,7 @@ export function onFromCoach(
     if (!payloadCheck.trusted) return rejectSend(channel, payloadCheck)
     let parsed: unknown[]
     try {
-      parsed = schemas ? (parseIpcArgs(channel, schemas, args) as unknown[]) : args
+      parsed = schemas ? parseIpcArgs(channel, schemas, args) : args
     } catch (error) {
       if (error instanceof IpcPayloadError) {
         return rejectSend(channel, { trusted: false, reason: 'payload' }, error)

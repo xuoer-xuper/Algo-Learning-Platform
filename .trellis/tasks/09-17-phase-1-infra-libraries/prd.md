@@ -10,6 +10,7 @@
 - 新增 `zod`；`src/shared/types/ipc/*.ts` 按域定义每个带参 channel 的输入 schema（`z.object({...}).strict()`，等价于现在的"多余字段拒绝"）。
 - `electron/ipc/trustedSender.ts` 的 schema 元组参数改为接受 `z.ZodTypeAny[]`；`parseOrReject` 改调 `safeParse`，失败抛 `IpcPayloadError(path, issues[0].message)`（保留 fail-closed 语义，不返回 null）。
 - 196 处组合子调用替换：`text()`→`z.string().min(1).max(200)`、`freeText()`→`z.string().max(n)`、`int()`→`z.number().int().min().max()`、`oneOf()`→`z.enum()`、`arrayOf()`→`z.array()`、`object()`→`z.object().strict()`、`optional/nullable` 同名、`localDate`→`z.string().regex(/^\d{4}-\d{2}-\d{2}$/)`、`pattern`→`z.string().regex`、`decimal`→`z.number()`、`binary`→`z.instanceof(Uint8Array)`、`raw()`→`z.unknown()`（仍受 `RAW_IPC_SCHEMA_BUDGET = 4` 棘轮）。
+  - **实施修正（2026-11-01 复核）**：上表 `binary`→`z.instanceof(Uint8Array)` 写错了——映射表与旧实现不符。旧 `binary()`（payloadSchema.ts）接受 `ArrayBuffer | Uint8Array`，且唯一产出方 `MilkdownEditor` 走 `file.arrayBuffer()`、结构化克隆原样送达 ArrayBuffer；按旧实现为准，实施用 `z.union([z.instanceof(ArrayBuffer), z.instanceof(Uint8Array)])`（16 MiB 上限仍由 `checkIpcPayload` 兜住）。design §1 的"IPC 序列化后为 Uint8Array，已验证"说法同样有误。
 - 上限来源注释保留（URL 4096、FQDN 253、标识符 200）。
 - 删除 `payloadSchema.ts`；`check-architecture.mjs` 的 `countUnschemadIpc` 改为识别 zod schema。
 - `coach:saveConfig` / `saveLlmConfig` 白名单语义不变（`strict()`）。
@@ -30,6 +31,7 @@
 ### R4 返回形状统一（D8，中-2、中-3）
 - `src/shared/types/common.ts`：`createOutputSchema<T>(data: T)` 生成 `z.discriminatedUnion('success', [{success:true, data}, {success:false, error:z.string(), code:z.string().optional()}])`。
 - 35 处 `{ ok: … }`（`backup/`、`scripts/` 等 service 层）与 23 处 `{ success: … }` 统一为上述形状；渲染层消费点同步。
+  - **实施修正（2026-11-01 复核）**：实测（grep `electron/` + `src/`）`{ ok: … }` 共 **34 处**，全部在非 shell-IPC 的内部形状里——快照校验（`tabSessionSnapshot.ts`、`applicationSessionSnapshot.ts`）与 userscript 运行时协议（`userScriptRuntimeProtocol.ts`、`userScriptRuntimeBridge.ts`、`userscriptBootstrapPreload.ts`）；prd 所写"35 处（backup/、scripts/ 等 service 层）"失实（`backup/` 无一处）。按"不转内部非 IPC 形状"的判断全部保留，未转换。`{ success: … }` 共 **22 处**：20 处为 IPC 面（backup×8、sites×8、rating×2、coach×2），已统一；2 处是渲染层组件本地状态（`LlmConfigPanel` 的 `setTestResult`，非 IPC 形状，但已顺手对齐 `error` 键名）。6 处 `errorMessage(error)` 直返实测为 `registerSitesIpc.ts:100,123,134`、`registerRatingIpc.ts:69`、`backupService.ts:30,50`（行号漂移、位置与 prd 一致）。`code` 在 schema 层用 `z.enum(ERROR_CODE_VALUES).optional()` 收成六元闭集（比草图的 `z.string()` 更严，语义与 design §4"code 枚举"一致）；用户取消系统对话框的分支不带 `code`。
 - 6 处 `errorMessage(error)` 直返（`registerSitesIpc.ts:176,198,212`、`registerRatingIpc.ts:70`、`backupService.ts` ×2）改为固定文案 + `code` + `logger.warn`。
 
 ### R5 时间格式 bug 止血（高-5）
@@ -44,7 +46,7 @@
 - [ ] 故意向 `stats:getTrends` 传 `'abc'` 被拒绝（invoke reject），日志含 `IpcPayloadError`。
 - [ ] 日志文件中 `Bearer xxx` / `cookie=` 被脱敏（测试断言）；`logger.scope` 在 102 处调用中使用，`grep "appLogger\." electron` = 0。
 - [ ] 开发模式 userData 路径以 `-dev` 结尾；打包版不变；冒烟模式仍用 `ALGO_ELECTRON_SMOKE_USER_DATA`。
-- [ ] `grep -rn "{ ok:" electron src` = 0；所有 IPC 输出类型来自 `createOutputSchema`。
+- [x] IPC 输出类型来自 `createOutputSchema`。（2026-11-01 实施修正：AC 原文"`grep { ok:` = 0"的前提不成立——实测 34 处 `{ok:}` 全部是内部校验器/运行时协议形状（tabSessionSnapshot 13、applicationSessionSnapshot 20、userScriptRuntime* 1），**没有任何一处跨越壳 IPC 边界被渲染层消费**（复核独立 grep 验证：渲染层零 `.ok` 消费、preload 零暴露、ipc 层零返回），转换它们等于无收益地改 userscript 运行时协议与快照校验器 API。故本 AC 收敛为：**20 处真正的 IPC 返回形状全部统一**（backup 8、sites 8、rating 2、coach 2），渲染层消费点同步 `result.success === true`。）
 - [ ] `grep -rn "errorMessage(error)" electron/ipc` 直返 = 0。
 - [ ] 东八区下 `computeSince` 单测：`since` 与 `created_at` 同格式，暖机窗口不再多 8 小时。
 - [ ] `pnpm test:all` 全绿。

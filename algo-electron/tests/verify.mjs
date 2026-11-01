@@ -66,12 +66,14 @@ function bundleTest(testFile, outputName, externals = []) {
 }
 
 function runElectronNodeTest(testFile, outputName) {
-  const outfile = bundleTest(testFile, outputName, ['better-sqlite3', 'electron'])
+  // electron-log 内部 require('electron')，内联进 ESM 包会在启动时抛 dynamic
+  // require 错误（app 测试还会被报错弹窗卡死），必须与 better-sqlite3 一样外置。
+  const outfile = bundleTest(testFile, outputName, ['better-sqlite3', 'electron', 'electron-log'])
   run(electronBin, [outfile], { ELECTRON_RUN_AS_NODE: '1' })
 }
 
 function runElectronAppTest(testFile, outputName) {
-  const outfile = bundleTest(testFile, outputName, ['electron'])
+  const outfile = bundleTest(testFile, outputName, ['electron', 'electron-log'])
   run(electronBin, [outfile])
 }
 
@@ -180,7 +182,7 @@ function runUserScriptRuntimeSmoke() {
   const outfile = bundleTest(
     path.join('tests', 'electron', 'userScriptRuntimeSmoke.test.ts'),
     'electron-userscript-runtime-smoke',
-    ['electron'],
+    ['electron', 'electron-log'],
   )
   run(electronBin, [outfile], {
     ALGO_USERSCRIPT_SMOKE_PRELOAD: userscriptPreload,
@@ -197,7 +199,7 @@ function runOjSubmissionBridgeSmoke() {
   const outfile = bundleTest(
     path.join('tests', 'electron', 'ojSubmissionBridgeSmoke.test.ts'),
     'electron-oj-submission-bridge-smoke',
-    ['electron'],
+    ['electron', 'electron-log'],
   )
   run(electronBin, [outfile], {
     ALGO_OJ_BRIDGE_SMOKE_PRELOAD: ojPreload,

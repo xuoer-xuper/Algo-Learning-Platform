@@ -162,6 +162,22 @@ check('window-sensitive shell actions resolve ownership from the trusted sender'
   }
 })
 
+check('main.ts wires envSetup as its first import', () => {
+  // dev/prod userData 隔离（-dev 后缀）是纯副作用模块：ESM import 按序求值，
+  // 它不是第一个 import 就会晚于其他模块的初始化（electron-store、日志、会话
+  // 存储都可能在初始化时读 userData 路径），隔离就漏了。
+  const main = read(path.join(projectRoot, 'electron', 'main.ts'))
+  const firstImport = /^import\s[^\n]*$/m.exec(main)
+  if (!firstImport) {
+    throw new Error('electron/main.ts has no import statement')
+  }
+  if (!/^import\s+['"]\.\/app\/envSetup['"]/.test(firstImport[0])) {
+    throw new Error(
+      `electron/main.ts 的第一个 import 必须是 './app/envSetup'（dev userData 隔离必须先于其他模块初始化），现在是：${firstImport[0]}`,
+    )
+  }
+})
+
 check('Nowcoder realtime path stays network-result driven', () => {
   const nowcoderDir = path.join(projectRoot, 'electron', 'adapters', 'sites', 'nowcoder')
   const files = walkSourceFiles(nowcoderDir)
@@ -248,17 +264,17 @@ const BARE_SQL_BUDGET = {
 const UNSCHEMAD_IPC_BUDGET = {}
 
 /*
- * `raw()` 自己的棘轮。
+ * 无形状放行（`z.unknown()`，旧组合子 `raw()` 的等价物）自己的棘轮。
  *
- * `raw()` 的语义是"这个参数由 handler 自己校验"，但它同时是 `countUnschemadIpc` 的
- * 逃逸口——写上去就能让那条守卫闭嘴。所以它也要只减不增，否则迁移可以靠刷 `raw()` 完成。
+ * 它的语义是"这个参数由 handler 自己校验"，但它同时是 `countUnschemadIpc` 的
+ * 逃逸口——写上去就能让那条守卫闭嘴。所以它也要只减不增，否则迁移可以靠刷它完成。
  *
- * 当前 4 处全在浏览器壳层，且都指向一个真实存在的判别函数：
- * `isInternalPage`、`isZoomCommand`、`isAppMenuAnchor`、`TabManager.findInPage`。
- * 要让这个数字降下去，得先给本层加"判别联合"组合子，那是独立的一项。
+ * schema 迁到 `src/shared/types/ipc/` 之后，这几处也在那边：当前 4 处全在浏览器壳域，
+ * 且都指向一个真实存在的判别函数：`isInternalPage`、`isZoomCommand`、`isAppMenuAnchor`、
+ * `TabManager.findInPage`。要让这个数字降下去，得先把那四处判别联合搬进 schema 层。
  */
 const RAW_IPC_SCHEMA_BUDGET = {
-  'electron/ipc/registerBrowserShellIpc.ts': 4,
+  'src/shared/types/ipc/browser.ts': 4,
 }
 
 check('IPC handlers declare a payload schema', () => {
@@ -269,19 +285,23 @@ check('IPC handlers declare a payload schema', () => {
     budgets: UNSCHEMAD_IPC_BUDGET,
     countMatches: countUnschemadIpc,
     describe: (count) => `有 ${count} 个 IPC handler 接收渲染进程参数但没声明 schema`,
-    cleanupHint: '在 channel 名后加 schema 元组，组合子见 electron/ipc/payloadSchema.ts',
+    cleanupHint:
+      '在 channel 名后加 schema 元组：src/shared/types/ipc/<域>.ts 里按命名约定 <camelCaseChannel>Input 导出',
   })
 })
 
-check('raw() payload escapes stay capped', () => {
-  const files = walkSourceFiles(path.join(projectRoot, 'electron', 'ipc'))
+check('z.unknown() payload escapes stay capped', () => {
+  const files = [
+    ...walkSourceFiles(path.join(projectRoot, 'electron', 'ipc')),
+    ...walkSourceFiles(path.join(projectRoot, 'src', 'shared', 'types', 'ipc')),
+  ]
 
   checkRatchet({
     files,
     budgets: RAW_IPC_SCHEMA_BUDGET,
     countMatches: countRawIpcSchemas,
-    describe: (count) => `用了 ${count} 处 raw()，即 ${count} 个参数的形状校验不在通道上`,
-    cleanupHint: 'raw() 只用于 handler 自己有判别函数的参数；能用组合子表达的请换成组合子',
+    describe: (count) => `用了 ${count} 处无形状放行，即 ${count} 个参数的形状校验不在通道上`,
+    cleanupHint: '无形状放行只用于 handler 自己有判别函数的参数；能写成 zod 形状的请写形状',
   })
 })
 

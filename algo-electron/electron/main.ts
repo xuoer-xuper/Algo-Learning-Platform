@@ -1,3 +1,6 @@
+// 必须保持为第一个 import：dev/prod userData 隔离（-dev 后缀）要在任何其他模块
+// 初始化之前生效（ESM import 按序求值）。守卫：tests/architecture/check-architecture.mjs。
+import './app/envSetup'
 import {
   app,
   BrowserWindow,
@@ -54,7 +57,7 @@ import {
 } from './shortcuts/shortcutDispatcher'
 import { evaluateBrowserNavigation, type NavigationBlockReason } from './browser/navigationPolicy'
 import { buildSearchUrl } from './browser/omnibox'
-import { appLogger, initializeAppLogger } from './shared/logger'
+import { logger } from './shared/logger'
 import { createFatalErrorReporter, installMainProcessErrorHandlers } from './app/mainProcessErrors'
 import { installShellRendererRecovery } from './app/shellRendererRecovery'
 import { installSingleInstanceLock } from './app/singleInstance'
@@ -109,6 +112,19 @@ import { CredentialCaptureService } from './credentials/CredentialCaptureService
 import { UserScriptRemoteInstaller } from './scripts/UserScriptRemoteInstaller'
 import { UserScriptUpdateService } from './scripts/UserScriptUpdateService'
 import { UserScriptFileWatcher } from './scripts/UserScriptFileWatcher'
+
+// 域日志器：scope = 点分事件名第一段（design §2 调用点迁移规则）。main.ts 装配
+// 面覆盖多个域，各域一个常量；动态转发的完整点分事件（TabTransferCoordinator
+// 的诊断回调）走根 logger，避免 scope 前缀重复。
+const appLog = logger.scope('app')
+const browserLog = logger.scope('browser')
+const trackingLog = logger.scope('tracking')
+const credentialsLog = logger.scope('credentials')
+const userscriptLog = logger.scope('userscript')
+const dbLog = logger.scope('db')
+const coachLog = logger.scope('coach')
+const aiLog = logger.scope('ai')
+const themeLog = logger.scope('theme')
 
 configureChromiumCommandLine()
 
@@ -166,7 +182,7 @@ function quitIfLastShellWindowClosed(): void {
 const hasSingleInstanceLock = installSingleInstanceLock(
   app,
   () => getMostRecentAppWindow()?.browserWindow ?? null,
-  { logger: appLogger },
+  { logger },
 )
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -187,9 +203,16 @@ process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL
 // The losing process has already requested app.quit(). Keep every protocol,
 // IPC, lifecycle, and database-backed service registration behind this gate.
 if (hasSingleInstanceLock) {
-  initializeAppLogger(path.join(app.getPath('userData'), 'logs'))
+  // electron-log 在首次写入时才懒初始化文件 transport（mkdir + 落盘），无需显式
+  // 初始化调用；这行在 app.ready 之前执行，是"启动前日志落盘"的探针——
+  // tests/electron/startupSmoke 据此断言 ready 前的日志已写入 main.log。
+  appLog.info('launch', {
+    version: app.getVersion(),
+    packaged: app.isPackaged,
+    smoke: STARTUP_SMOKE_MODE,
+  })
   const reportFatalError = createFatalErrorReporter({
-    logger: appLogger,
+    logger,
     showErrorBox: (title, content) => dialog.showErrorBox(title, content),
     exit: (code) => app.exit(code),
     showDialog: !STARTUP_SMOKE_MODE,
@@ -334,7 +357,7 @@ if (hasSingleInstanceLock) {
     })
     const shellWebContents = win.webContents
     const removeShellRendererRecovery = installShellRendererRecovery(win.webContents, {
-      logger: appLogger,
+      logger,
       shouldReload: () => !isQuitting,
     })
 
@@ -516,7 +539,7 @@ if (hasSingleInstanceLock) {
           maximized: win.isMaximized(),
         })
         .catch((error) => {
-          appLogger.warn('browser.window-state-save-failed', { error })
+          browserLog.warn('window-state-save-failed', { error })
         })
     })
 
@@ -527,12 +550,12 @@ if (hasSingleInstanceLock) {
         tabs: options.restoreSnapshot.tabs,
       })
       if (restored) {
-        appLogger.info('browser.session-window-restored', {
+        browserLog.info('session-window-restored', {
           windowId,
           tabCount: tabManager.getTabList().length,
         })
       } else {
-        appLogger.warn('browser.session-window-restore-rejected', { windowId })
+        browserLog.warn('session-window-restore-rejected', { windowId })
         tabManager.ensureInitialTab()
       }
     } else if (options.ensureInitialTab !== false) {
@@ -581,7 +604,7 @@ if (hasSingleInstanceLock) {
         await applicationSessionPersistence?.flush()
       },
       onFailure: () => {
-        appLogger.warn('browser.session-window-flush-failed')
+        browserLog.warn('session-window-flush-failed')
       },
     })
 
@@ -597,7 +620,7 @@ if (hasSingleInstanceLock) {
       try {
         services?.trackingService.endVisitForWindow(windowId)
       } catch (error) {
-        appLogger.warn('tracking.window-close-failed', error)
+        trackingLog.warn('window-close-failed', error)
       }
       services?.realtimeSubmissionService.detachTabManager(tabManager)
       tabManager.setTabDetachHandler(null)
@@ -637,7 +660,7 @@ if (hasSingleInstanceLock) {
     getWindows: () => windowManager.getAll(),
     getMostRecentWindow: () => windowManager.getMostRecent(),
     onDiagnostic: (event, details) => {
-      appLogger.warn(event, details)
+      logger.warn(event, details)
     },
   })
 
@@ -676,13 +699,13 @@ if (hasSingleInstanceLock) {
         })
         created += 1
       } catch {
-        appLogger.warn('browser.application-session-reopen-window-failed', {
+        browserLog.warn('application-session-reopen-window-failed', {
           windowId: snapshot.id,
         })
       }
     }
     if (!merged && created === 0) return false
-    appLogger.info('browser.application-session-reopened', { merged, windowCount: created })
+    browserLog.info('application-session-reopened', { merged, windowCount: created })
     return true
   }
 
@@ -734,7 +757,7 @@ if (hasSingleInstanceLock) {
       credentialCaptureService?.dispose()
       credentialCaptureService = null
     } catch (error) {
-      appLogger.warn('credentials.capture-dispose-failed', error)
+      credentialsLog.warn('capture-dispose-failed', error)
     }
     const hasPendingWindowCreation = windowCreationGate.isRunning
     windowCreationGate.stop()
@@ -765,13 +788,13 @@ if (hasSingleInstanceLock) {
       credentialAutofillService?.dispose()
       credentialAutofillService = null
     } catch (error) {
-      appLogger.warn('credentials.autofill-dispose-failed', error)
+      credentialsLog.warn('autofill-dispose-failed', error)
     }
     try {
       userScriptRuntimeBridge?.dispose()
       userScriptRuntimeBridge = null
     } catch (error) {
-      appLogger.warn('userscript.runtime-dispose-failed', error)
+      userscriptLog.warn('runtime-dispose-failed', error)
     }
     removeUserScriptGenerationListener?.()
     removeUserScriptGenerationListener = null
@@ -782,7 +805,7 @@ if (hasSingleInstanceLock) {
     try {
       services?.trackingService.endCurrentVisit()
     } catch (error) {
-      appLogger.warn('tracking.shutdown-failed', error)
+      trackingLog.warn('shutdown-failed', error)
     }
     userScriptUpdateService?.stop()
     userScriptUpdateService = null
@@ -791,7 +814,7 @@ if (hasSingleInstanceLock) {
     try {
       closeDb()
     } catch (error) {
-      appLogger.warn('db.close-failed', error)
+      dbLog.warn('close-failed', error)
     }
     downloadManager?.destroy()
     downloadManager = null
@@ -806,7 +829,7 @@ if (hasSingleInstanceLock) {
     try {
       coachOrchestrator?.stop()
     } catch (error) {
-      appLogger.warn('coach.stop-failed', error)
+      coachLog.warn('stop-failed', error)
     }
     coachOrchestrator = null
     coachPetWindow?.destroy()
@@ -824,10 +847,10 @@ if (hasSingleInstanceLock) {
   void app
     .whenReady()
     .then(async () => {
-      appLogger.info('app.ready')
+      appLog.info('ready')
       // 必须早于第一个窗口 loadURL：renderer 在 React 挂载前同步读
       // prefers-color-scheme，themeSource 晚一步就会闪一帧浅色。
-      appLogger.info('theme.apply', { theme: themeController.apply() })
+      themeLog.info('apply', { theme: themeController.apply() })
       if (!VITE_DEV_SERVER_URL) {
         registerShellProtocol(RENDERER_DIST)
       }
@@ -1001,7 +1024,7 @@ if (hasSingleInstanceLock) {
         const userDataDir = app.getPath('userData')
         const lastSessionInterrupted = await wasLastSessionInterrupted(userDataDir)
         if (startupSession?.kind === 'restore' && !lastSessionInterrupted) {
-          appLogger.info('browser.application-session-skip-clean-exit')
+          browserLog.info('application-session-skip-clean-exit')
           startupSession = { kind: 'fallback', reason: 'clean-exit' }
         }
         await createSessionRunningMarker(userDataDir)
@@ -1024,7 +1047,7 @@ if (hasSingleInstanceLock) {
           })
           initialWindow ??= restoredWindow
         } catch {
-          appLogger.warn('browser.application-session-window-restore-failed', {
+          browserLog.warn('application-session-window-restore-failed', {
             windowId: snapshot.id,
           })
         }
@@ -1035,12 +1058,12 @@ if (hasSingleInstanceLock) {
 
       if (restoredSessionSnapshot) {
         windowManager.markRecent(restoredSessionSnapshot.mostRecentWindowId ?? '')
-        appLogger.info('browser.application-session-restored', {
+        browserLog.info('application-session-restored', {
           windowCount: restorableWindows.length,
           migratedLegacy: migratedLegacySession,
         })
       } else if (startupSession?.kind === 'fallback') {
-        appLogger.info('browser.application-session-fallback', { reason: startupSession.reason })
+        browserLog.info('application-session-fallback', { reason: startupSession.reason })
       }
 
       if (applicationSessionStore) {
@@ -1049,7 +1072,7 @@ if (hasSingleInstanceLock) {
           getCurrentApplicationSessionSnapshot,
           {
             onDiagnostic: (reason) => {
-              appLogger.warn('browser.application-session-persistence-failed', { reason })
+              browserLog.warn('application-session-persistence-failed', { reason })
             },
           },
         )
@@ -1064,7 +1087,7 @@ if (hasSingleInstanceLock) {
       try {
         ensureTodaySnapshot()
       } catch (err) {
-        appLogger.error('ai.daily-snapshot-failed', err)
+        aiLog.error('daily-snapshot-failed', err)
       }
 
       // 初始化 Coach 桌宠窗口（仅在非 smoke 模式且配置启用时）
@@ -1100,7 +1123,7 @@ if (hasSingleInstanceLock) {
             }
           }
         } catch (err) {
-          appLogger.error('coach.startup-failed', err)
+          coachLog.error('startup-failed', err)
         }
       }
 
@@ -1113,12 +1136,12 @@ if (hasSingleInstanceLock) {
             try {
               services?.trackingService.endCurrentVisit()
             } catch (error) {
-              appLogger.warn('tracking.smoke-cleanup-failed', error)
+              trackingLog.warn('smoke-cleanup-failed', error)
             }
             try {
               closeDb()
             } catch (error) {
-              appLogger.warn('db.smoke-cleanup-failed', error)
+              dbLog.warn('smoke-cleanup-failed', error)
             }
           },
         }).catch((error) => {

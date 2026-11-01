@@ -55,7 +55,8 @@ export async function syncCodeforcesRatingProfile(handle: string): Promise<{
 }> {
   await window.electronAPI.bindHandle('codeforces', handle)
   const result = await window.electronAPI.syncCodeforcesRating(handle)
-  const account = result.success ? await window.electronAPI.getAccount('codeforces', handle) : null
+  const account =
+    result.success === true ? await window.electronAPI.getAccount('codeforces', handle) : null
 
   return { result, account }
 }
@@ -179,6 +180,6 @@ export function testLlmConnection(config: {
   api_key: string
   base_url: string
   model: string
-}): Promise<LlmConnectionTestResult> {
+}): Promise<LlmConnectionTestOutput> {
   return window.electronAPI.coachTestLlmConnection(config)
 }

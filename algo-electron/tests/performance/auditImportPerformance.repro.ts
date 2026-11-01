@@ -129,7 +129,7 @@ async function main(): Promise<void> {
   seed()
   const file = path.join(runRoot, 'learning-data.json')
   const exported = await measured('export-file', () => exportLearningDataToFile(file))
-  assert.equal(exported.success, true, exported.error)
+  if (exported.success !== true) assert.fail(`导出失败: ${exported.error}`)
   const fileBytes = fs.statSync(file).size
   assert.ok(fileBytes <= 256 * 1024 * 1024, 'Do not read audit exports larger than 256 MiB')
   closeDb()
@@ -140,10 +140,10 @@ async function main(): Promise<void> {
   const imported = await measured('import-confirm', () =>
     importLearningDataFromParsedExport(preview.data!),
   )
-  assert.equal(imported.success, true, imported.error)
-  assert.equal(imported.inserted.problems, counts.problems)
-  assert.equal(imported.inserted.submissions, counts.facts)
-  assert.equal(imported.inserted.problem_visits, counts.facts)
+  if (imported.success !== true) assert.fail(`导入失败: ${imported.error}`)
+  assert.equal(imported.data.inserted.problems, counts.problems)
+  assert.equal(imported.data.inserted.submissions, counts.facts)
+  assert.equal(imported.data.inserted.problem_visits, counts.facts)
   const duplicatePreview = await measured('preview-duplicates', () =>
     previewLearningDataImport(preview.data),
   )
@@ -151,8 +151,8 @@ async function main(): Promise<void> {
   const repeated = await measured('import-duplicates', () =>
     importLearningDataFromParsedExport(preview.data!),
   )
-  assert.equal(repeated.success, true, repeated.error)
-  assert.equal(repeated.inserted.submissions, 0)
+  if (repeated.success !== true) assert.fail(`重复导入失败: ${repeated.error}`)
+  assert.equal(repeated.data.inserted.submissions, 0)
   for (let i = 0; i < 3; i++) await measured(`recent-200-${i + 1}`, () => getRecentProblems(200))
   await measured('recompute-all-days', () => recomputeAllDailyStats())
   const stats = getDb()

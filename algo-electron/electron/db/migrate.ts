@@ -1,6 +1,6 @@
 import type Database from 'better-sqlite3'
 import { nowBeijing } from '../shared/time'
-import { appLogger, type Logger } from '../shared/logger'
+import { logger as baseLogger, type Logger } from '../shared/logger'
 
 /** `schema_migrations` 只查 version 一列时的行形状。 */
 interface AppliedVersionRow {
@@ -40,7 +40,7 @@ export function getPendingMigrations(
 export function runMigrations(
   db: Database.Database,
   migrations: readonly Migration[],
-  logger: Logger = appLogger,
+  logger: Logger = baseLogger,
 ): void {
   db.exec(`
     CREATE TABLE IF NOT EXISTS schema_migrations (

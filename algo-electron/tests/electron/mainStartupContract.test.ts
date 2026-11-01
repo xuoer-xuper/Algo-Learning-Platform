@@ -134,9 +134,20 @@ test('抢锁失败的进程直接退出，不碰日志、协议、IPC 与生命�
   assert.strictEqual(started.mock.app.quitCallCount, 1, '败者必须自己退出')
   assert.strictEqual(started.mock.app.requestSingleInstanceLockCallCount, 1)
 
-  // 以下每一项都是"共享状态"：日志目录、私有协议、IPC 频道、退出钩子。
-  // 败者碰任何一项都会和赢者抢同一份 userData 或抢同一批频道。
-  assert.strictEqual(fs.existsSync(started.logDirectory), false, '败者不得创建日志目录')
+  // 以下每一项都是"共享状态"：私有协议、IPC 频道、退出钩子。败者碰任何一项都会
+  // 和赢者抢同一份 userData 或抢同一批频道。
+  //
+  // 日志目录是例外：自研 logger 把败者的单实例拒绝行缓存在内存里（永不落盘），
+  // 换 electron-log 后写入即时落盘，败者会在共享 main.log 里留下
+  // app.single-instance-denied——这是"用户双开过"的诊断线索，不是状态污染。
+  // 真正要守的是闸门体没跑：main.log 不得出现闸门内的 app.launch 探针行。
+  const loserLogDirectory = started.logDirectory
+  // 目录必须存在：electron-log 对拒绝路径也是立即落盘，目录缺席说明日志管线坏了，
+  // 静默跳过断言会让"拒绝记录持久化"无声退化（复核 2026-11-01 建议）。
+  assert.ok(fs.existsSync(loserLogDirectory), '败者也必须产出日志目录（electron-log 立即写盘）')
+  const loserLog = fs.readFileSync(path.join(loserLogDirectory, 'main.log'), 'utf8')
+  assert.ok(loserLog.includes('[INFO] app.single-instance-denied'), '败者应留下单实例拒绝记录')
+  assert.ok(!loserLog.includes('[INFO] app.launch'), '败者不得执行闸门内的启动装配')
   assert.strictEqual(started.mock.protocolSchemes.length, 0, '败者不得注册特权协议')
   assert.deepStrictEqual(started.ipcChannels, [], '败者不得注册 IPC 频道')
   assert.strictEqual(started.mock.app.listenerCount('window-all-closed'), 0)
@@ -277,5 +288,33 @@ test('smoke 专用的 preload / renderer 覆盖在非 smoke 构建里失效', as
   assert.strictEqual(
     smokeUserScript.USER_SCRIPT_BOOTSTRAP_PRELOAD_PATH,
     path.join(injected, 'us.mjs'),
+  )
+})
+
+/*
+ * envSetup 的行为面：它是纯副作用模块，import 即执行，唯一的观察点是替身 app 上
+ * 的 setPath 记录。两条断言合起来钉住 design §3 的优先级：显式给定的冒烟目录
+ * 压过自动推导的 -dev 后缀，且打包版（isPackaged，见 electronMock 的替身默认值
+ * 之外的真实行为）不做隔离——打包路径由 packaged 冒烟（tests/verify.mjs electron）覆盖。
+ */
+test('未打包且未指定冒烟目录时，userData 在任何模块初始化前追加 -dev 后缀', async () => {
+  const started = await startMain({ granted: false })
+
+  assert.deepStrictEqual(
+    started.mock.app.setPathCalls.filter(([name]) => name === 'userData'),
+    [['userData', `${tempDir}-dev`]],
+    'envSetup 必须且只做一次 -dev 后缀改写',
+  )
+})
+
+test('冒烟模式指定的 userData 覆写优先于 -dev 后缀', async () => {
+  const smokeDir = path.join(tempDir, 'smoke-user-data')
+  setEnv({ ALGO_ELECTRON_SMOKE: '1', ALGO_ELECTRON_SMOKE_USER_DATA: smokeDir })
+  const started = await startMain({ granted: false })
+
+  assert.deepStrictEqual(
+    started.mock.app.setPathCalls.filter(([name]) => name === 'userData'),
+    [['userData', smokeDir]],
+    '显式冒烟目录原样生效，不得混入 -dev 后缀',
   )
 })

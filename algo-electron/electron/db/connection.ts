@@ -2,7 +2,7 @@ import Database from 'better-sqlite3'
 import path from 'node:path'
 import fs from 'node:fs'
 import { createRequire } from 'node:module'
-import { appLogger, type Logger } from '../shared/logger'
+import { logger as baseLogger, type Logger } from '../shared/logger'
 import { closeOrphanProblemVisits } from '../tracking/orphanProblemVisits'
 import {
   assertMigrationRetryAllowed,
@@ -134,7 +134,7 @@ export async function initDbAtPathWithMigrationSafety(
   options: SafeDatabaseInitializationOptions,
 ): Promise<Database.Database> {
   if (db) return db
-  const logger = options.logger ?? appLogger
+  const logger = options.logger ?? baseLogger
   const migrations = options.migrations ?? allMigrations
   const database = openDatabase(dbPath)
   let backupPath: string | null = null
@@ -212,7 +212,7 @@ function assignDatabase(database: Database.Database, dbPath: string): void {
   dbFilePath = dbPath
 }
 
-function closeStartupOrphans(database: Database.Database, logger: Logger = appLogger): void {
+function closeStartupOrphans(database: Database.Database, logger: Logger = baseLogger): void {
   const closedCount = closeOrphanProblemVisits(database)
   if (closedCount > 0) logger.warn('tracking.orphan-visits-closed', { count: closedCount })
 }

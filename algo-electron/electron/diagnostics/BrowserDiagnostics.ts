@@ -1,5 +1,5 @@
 import { nowBeijing } from '../shared/time'
-import { appLogger, type Logger } from '../shared/logger'
+import { logger as baseLogger, type Logger } from '../shared/logger'
 import { errorMessage } from '../shared/errors'
 
 export type BrowserDiagnosticArea = 'tracking' | 'title' | 'userscript'
@@ -27,7 +27,7 @@ const MAX_ENTRIES = 100
 export class BrowserDiagnostics {
   private readonly entries: BrowserDiagnosticEntry[] = []
 
-  constructor(private readonly logger: Logger = appLogger) {}
+  constructor(private readonly logger: Logger = baseLogger) {}
 
   record(
     area: BrowserDiagnosticArea,

@@ -759,6 +759,10 @@ test('native tab strip overflows horizontally and reorders with a pointer drag',
 
   try {
     const page = await electronApp.firstWindow()
+    // firstWindow() 可能在 harness 模块求值完成前解析；截图用例靠 DOM 断言的自动轮询
+    // 间接等到 mock，这里第一个动作就直调 electronAPI，必须显式等 mock 就绪，
+    // 否则偶发 ReferenceError（复核 2026-11-01：先于 R4 的既有竞态，父提交可复现）。
+    await page.waitForFunction(() => 'electronAPI' in window, undefined, { timeout: 15000 })
     await assertNativeViewport(electronApp, page)
     await page.evaluate(async () => {
       for (let index = 0; index < 12; index += 1) {
@@ -845,6 +849,8 @@ test('view transition keeps the tab strip hit-testable while it runs', async () 
 
   try {
     const page = await electronApp.firstWindow()
+    // 与拖拽用例同一竞态：直调 electronAPI 前先等 harness mock 就绪（见 761 行注）。
+    await page.waitForFunction(() => 'electronAPI' in window, undefined, { timeout: 15000 })
     await assertNativeViewport(electronApp, page)
     await page.evaluate(async () => {
       await window.electronAPI.openInternalTab({ type: 'notes', problemId: 'vt-hit-test' })

@@ -7,7 +7,7 @@ import {
   type SubmissionWatcherResult,
 } from './SubmissionWatcherCore'
 import { createDefaultSubmissionBatchWriter } from './createDefaultSubmissionBatchWriter'
-import { appLogger, type Logger } from '../shared/logger'
+import { logger as baseLogger, type Logger } from '../shared/logger'
 
 /**
  * 提交事件名。主进程订阅者通过 `watcher.on('detected', cb)` 监听。
@@ -29,7 +29,7 @@ export const SUBMISSION_WATCHER_DETECTED_EVENT = 'detected'
 export class SubmissionWatcher extends EventEmitter {
   private readonly core: SubmissionWatcherCore
 
-  constructor(notifyProblemsUpdated: () => void, logger: Logger = appLogger) {
+  constructor(notifyProblemsUpdated: () => void, logger: Logger = baseLogger) {
     super()
     const batchWriter = createDefaultSubmissionBatchWriter()
     this.core = new SubmissionWatcherCore({

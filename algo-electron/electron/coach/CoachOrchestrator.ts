@@ -5,8 +5,10 @@ import type { TrackingService } from '../tracking/TrackingService'
 import type { RealtimeSubmissionService } from '../submissions/RealtimeSubmissionService'
 import type { AppWindow } from '../windows/AppWindow'
 import { parseUrl } from '../parsers/registry'
-import { nowBeijing, todayBeijing } from '../shared/time'
-import { appLogger } from '../shared/logger'
+import { nowBeijing, todayBeijing, toBeijing } from '../shared/time'
+import { logger } from '../shared/logger'
+
+const log = logger.scope('coach')
 import {
   insertCoachEvent,
   listCoachEvents,
@@ -228,7 +230,7 @@ export class CoachOrchestrator {
     try {
       this.feedbackStore.loadHistoryForWarmup(30)
     } catch (err) {
-      appLogger.warn('coach.history-warmup-failed', err)
+      log.warn('history-warmup-failed', err)
     }
 
     // 6. LLM 提示服务
@@ -236,7 +238,7 @@ export class CoachOrchestrator {
     try {
       this.llmHintService.init()
     } catch (err) {
-      appLogger.warn('coach.llm-init-failed', err)
+      log.warn('llm-init-failed', err)
     }
 
     // 4. CoachEventBridge
@@ -454,7 +456,7 @@ export class CoachOrchestrator {
         if (targetUrl !== pageEvent.url) throw new Error('Constraint URL does not match page owner')
         return await tabManager.executeScriptForPage(pageEvent, code)
       } catch (err) {
-        appLogger.warn('coach.constraint-injection-failed', { url: targetUrl, error: err })
+        log.warn('constraint-injection-failed', { url: targetUrl, error: err })
         return null
       }
     }
@@ -474,7 +476,7 @@ export class CoachOrchestrator {
       })
       .catch((err) => {
         if (!this.isCurrentConstraintRequest(generation, windowId, problemKey, pageEvent)) return
-        appLogger.warn('coach.constraint-fetch-failed', { url, error: err })
+        log.warn('constraint-fetch-failed', { url, error: err })
         this.currentConstraints = null
         this.constraintFetchPending = false
       })
@@ -1066,7 +1068,7 @@ export class CoachOrchestrator {
             }
           }
         } catch (err) {
-          appLogger.warn('coach.llm-upgrade-failed', err)
+          log.warn('llm-upgrade-failed', err)
         }
       }
 
@@ -1275,7 +1277,7 @@ export class CoachOrchestrator {
           this.showIntervention(intervention)
         }
       } catch (err) {
-        appLogger.warn('coach.llm-generate-hint-failed', err)
+        log.warn('llm-generate-hint-failed', err)
       } finally {
         this.finishHintPresentation(request)
       }
@@ -1400,7 +1402,10 @@ export class CoachOrchestrator {
       message: `进入比赛页 ${info.contestUrl}，规则引擎硬关闭`,
       is_contest_mode: true,
       contest_url: info.contestUrl,
-      contest_start: new Date(info.enteredAt).toISOString(),
+      // 与 created_at（nowBeijing 写入）同格式：本地朴素 YYYY-MM-DDTHH:mm:ss.SSS。
+      // 此前的 toISOString()（UTC 带 Z）与同表 created_at 混用两种格式，历史 UTC 值
+      // 由阶段 2.5 的 migration 030 统一转毫秒。
+      contest_start: toBeijing(new Date(info.enteredAt)),
       contest_end: null,
       zero_intervention: true,
       user_action: 'shown',
@@ -1423,7 +1428,8 @@ export class CoachOrchestrator {
     }
 
     // 写审计日志：离开比赛（更新 contest_end）
-    const end = new Date().toISOString()
+    // 与 created_at（nowBeijing 写入）同格式，理由同 handleContestEnter。
+    const end = nowBeijing()
     const intervention = buildCoachIntervention({
       trigger_reason: `contest_end (${info.platform}:${info.contestId}, ${durationSec}s)`,
       intervention_level: 0,
@@ -1431,7 +1437,7 @@ export class CoachOrchestrator {
       message: `离开比赛页 ${info.contestUrl}，规则引擎恢复。建议复盘 / upsolve。`,
       is_contest_mode: false,
       contest_url: info.contestUrl,
-      contest_start: new Date(info.enteredAt).toISOString(),
+      contest_start: toBeijing(new Date(info.enteredAt)),
       contest_end: end,
       zero_intervention: true,
       user_action: 'shown',

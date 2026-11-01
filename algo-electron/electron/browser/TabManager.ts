@@ -28,7 +28,9 @@ import { safeCloseWebContents, safeRemoveChildView, setTabViewBounds } from './t
 import { samePageUrl } from './urlMatching'
 import { registerOjWebContents, unregisterOjWebContents } from '../ipc/trustedSender'
 import { evaluateBrowserNavigation, type NavigationBlockReason } from './navigationPolicy'
-import { appLogger } from '../shared/logger'
+import { logger } from '../shared/logger'
+
+const log = logger.scope('browser')
 import { createTabSessionSnapshot, parseTabSessionSnapshot } from './tabSessionSnapshot'
 import { BROWSER_LAYOUT } from './browserLayout'
 import { getInternalPageTitle, getInternalPageUrl, sameInternalPage } from './internalPage'
@@ -369,7 +371,7 @@ export class TabManager {
         )
         this.findInPageState = registerFindInPageRequest(this.findInPageState, requestId)
       } catch (error) {
-        appLogger.warn('browser.find-in-page-failed', { errorName: errorName(error) })
+        log.warn('find-in-page-failed', { errorName: errorName(error) })
       }
     }
     this.emitFindInPageState()
@@ -381,12 +383,12 @@ export class TabManager {
     try {
       factor = normalizeZoomFactor(this.getZoomFactorForUrl(url)) ?? DEFAULT_ZOOM_FACTOR
     } catch (error) {
-      appLogger.warn('browser.zoom-read-failed', { errorName: errorName(error) })
+      log.warn('zoom-read-failed', { errorName: errorName(error) })
     }
     try {
       view.webContents.setZoomFactor(factor)
     } catch (error) {
-      appLogger.warn('browser.zoom-apply-failed', { errorName: errorName(error) })
+      log.warn('zoom-apply-failed', { errorName: errorName(error) })
     }
     return factor
   }
@@ -414,7 +416,7 @@ export class TabManager {
         }) ?? 'blocked'
       )
     } catch (error) {
-      appLogger.warn('browser.userscript-install-route-failed', {
+      log.warn('userscript-install-route-failed', {
         errorName: errorName(error),
       })
       return 'blocked'
@@ -494,7 +496,7 @@ export class TabManager {
     tab.isUnresponsiveNoticeDismissed = false
     this.detachTabView(tab)
     this.updateTabHealth(tab)
-    appLogger.warn('browser.tab-render-process-gone', {
+    log.warn('tab-render-process-gone', {
       tabId: tab.id,
       reason: details.reason,
       exitCode: details.exitCode,
@@ -509,7 +511,7 @@ export class TabManager {
     tab.isUnresponsive = true
     tab.isUnresponsiveNoticeDismissed = false
     this.updateTabHealth(tab)
-    appLogger.warn('browser.tab-unresponsive', { tabId: tab.id })
+    log.warn('tab-unresponsive', { tabId: tab.id })
   }
 
   private handleTabResponsive(view: WebContentsView): void {
@@ -839,7 +841,7 @@ export class TabManager {
           const tab = owner.findTabByView(view)
           if (tab) owner.failTabRecovery(tab, view)
         }
-        appLogger.warn('browser.did-fail-load', {
+        log.warn('did-fail-load', {
           errorCode,
           errorDescription,
           validatedURL,
@@ -883,7 +885,7 @@ export class TabManager {
           postData: details.postBody?.data,
         })
         .catch((error) => {
-          appLogger.error('browser.load-url-failed', { url, error })
+          log.error('load-url-failed', { url, error })
         })
     }
     return popupView.webContents
@@ -1020,7 +1022,7 @@ export class TabManager {
         this.notifyTabListChanged()
         return
       } catch (error) {
-        appLogger.warn('browser.crashed-tab-replacement-failed', {
+        log.warn('crashed-tab-replacement-failed', {
           tabId: tab.id,
           errorName: errorName(error),
         })
@@ -1088,7 +1090,7 @@ export class TabManager {
     const id = this.addManagedTab(view, url)
 
     void view.webContents.loadURL(url).catch((error) => {
-      appLogger.error('browser.load-url-failed', { url, error })
+      log.error('load-url-failed', { url, error })
     })
 
     return id
@@ -1291,7 +1293,7 @@ export class TabManager {
       }
       return releasedTab
     } catch (error) {
-      appLogger.warn('browser.tab-release-failed', {
+      log.warn('tab-release-failed', {
         tabId,
         errorName: errorName(error),
       })
@@ -1399,7 +1401,7 @@ export class TabManager {
       record.state = 'adopted'
       return true
     } catch (error) {
-      appLogger.warn('browser.tab-adopt-failed', {
+      log.warn('tab-adopt-failed', {
         tabId: tab.id,
         errorName: errorName(error),
       })
@@ -1569,7 +1571,7 @@ export class TabManager {
     try {
       view = this.createView()
     } catch (error) {
-      appLogger.warn('browser.internal-tab-navigation-view-failed', {
+      log.warn('internal-tab-navigation-view-failed', {
         tabId: tab.id,
         errorName: errorName(error),
       })
@@ -1601,7 +1603,7 @@ export class TabManager {
     this.emitSessionChange()
 
     void view.webContents.loadURL(url).catch((error) => {
-      appLogger.error('browser.navigate-failed', { url, error })
+      log.error('navigate-failed', { url, error })
     })
   }
 
@@ -1684,7 +1686,7 @@ export class TabManager {
     }
     this.clearFindInPageForTab(tab.id)
     void tab.view.webContents.loadURL(url).catch((error) => {
-      appLogger.error('browser.navigate-failed', { url, error })
+      log.error('navigate-failed', { url, error })
     })
   }
 
@@ -1854,7 +1856,7 @@ export class TabManager {
         this.registerTabView(tab.id, tab.view)
         this.applyZoomToView(tab.view, nextUrl ?? tab.url)
       } catch (error) {
-        appLogger.warn('browser.crashed-tab-recovery-failed', {
+        log.warn('crashed-tab-recovery-failed', {
           tabId: tab.id,
           errorName: errorName(error),
         })
@@ -1877,7 +1879,7 @@ export class TabManager {
       if (load && typeof load.catch === 'function') {
         void load.catch((error) => {
           if (!this.failTabRecovery(tab, recoveryView)) return
-          appLogger.warn('browser.crashed-tab-recovery-failed', {
+          log.warn('crashed-tab-recovery-failed', {
             tabId: tab.id,
             errorName: errorName(error),
           })
@@ -1885,7 +1887,7 @@ export class TabManager {
       }
     } catch (error) {
       if (!this.failTabRecovery(tab, recoveryView)) return
-      appLogger.warn('browser.crashed-tab-recovery-failed', {
+      log.warn('crashed-tab-recovery-failed', {
         tabId: tab.id,
         errorName: errorName(error),
       })
@@ -1908,7 +1910,7 @@ export class TabManager {
     try {
       persisted = this.saveZoomFactorForUrl(url, next)
     } catch (error) {
-      appLogger.warn('browser.zoom-save-failed', { errorName: errorName(error) })
+      log.warn('zoom-save-failed', { errorName: errorName(error) })
       return null
     }
     if (persisted === null) return null
@@ -1917,7 +1919,7 @@ export class TabManager {
     try {
       tab.view.webContents.setZoomFactor(factor)
     } catch (error) {
-      appLogger.warn('browser.zoom-apply-failed', { errorName: errorName(error) })
+      log.warn('zoom-apply-failed', { errorName: errorName(error) })
       return null
     }
     const state = { tabId, factor }
@@ -2073,7 +2075,7 @@ export class TabManager {
         this.registerTabView(tab.id, tab.view)
         this.applyZoomToView(tab.view, tab.url)
         void tab.view.webContents.loadURL(tab.url).catch((error) => {
-          appLogger.warn('browser.session-tab-load-failed', {
+          log.warn('session-tab-load-failed', {
             tabId: tab.id,
             errorName: errorName(error),
           })
@@ -2103,7 +2105,7 @@ export class TabManager {
         }
       }
       this.isDestroying = wasDestroying
-      appLogger.warn('browser.session-restore-failed', { errorName: errorName(error) })
+      log.warn('session-restore-failed', { errorName: errorName(error) })
       return false
     } finally {
       this.isRestoringSession = false

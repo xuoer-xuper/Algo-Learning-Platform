@@ -216,13 +216,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   createSite: (data: SiteConfigCreateInput) => ipcRenderer.invoke('sites:create', data),
   toggleSite: (id: string, enabled: boolean) => ipcRenderer.invoke('sites:toggle', id, enabled),
   deleteSite: (id: string) => ipcRenderer.invoke('sites:delete', id),
-  exportSitesConfig: () =>
-    ipcRenderer.invoke('sites:exportConfig') as Promise<{
-      success: boolean
-      path?: string
-      count?: number
-      error?: string
-    }>,
+  exportSitesConfig: () => ipcRenderer.invoke('sites:exportConfig') as Promise<SiteExportResult>,
   importSitesConfig: () => ipcRenderer.invoke('sites:importConfig') as Promise<SiteImportResult>,
   confirmImportSites: (sites: SiteConfigRecord[], overwriteIds: string[]) =>
     ipcRenderer.invoke(
@@ -455,7 +449,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   coachSaveLlmConfig: (partial: { base_url?: string; model?: string; enabled?: boolean }) =>
     ipcRenderer.invoke('coach:saveLlmConfig', partial) as Promise<boolean>,
   coachTestLlmConnection: (config: { api_key: string; base_url: string; model: string }) =>
-    ipcRenderer.invoke('coach:testLlmConnection', config) as Promise<LlmConnectionTestResult>,
+    ipcRenderer.invoke('coach:testLlmConnection', config) as Promise<LlmConnectionTestOutput>,
   onCoachPetStateChanged: (callback: (state: CoachPetState) => void) => {
     const handler = (_event: Electron.IpcRendererEvent, state: CoachPetState) => callback(state)
     ipcRenderer.on('coach:petStateChanged', handler)

@@ -212,7 +212,7 @@
 
 ### 6.2 Electron 安全与信任边界
 
-入口：[main.ts](../../algo-electron/electron/main.ts)、[trustedSender.ts](../../algo-electron/electron/ipc/trustedSender.ts)、[payloadSchema.ts](../../algo-electron/electron/ipc/payloadSchema.ts)、[appProtocol.ts](../../algo-electron/electron/app/appProtocol.ts)、OJ preload 与脚本 bridge。
+入口：[main.ts](../../algo-electron/electron/main.ts)、[trustedSender.ts](../../algo-electron/electron/ipc/trustedSender.ts)、[ipcPayload.ts](../../algo-electron/electron/ipc/ipcPayload.ts) 与 [IPC schema](../../algo-electron/src/shared/types/ipc/)、[appProtocol.ts](../../algo-electron/electron/app/appProtocol.ts)、OJ preload 与脚本 bridge。
 
 | ID | 顺序 | 检查什么 | 方法与判定标准 |
 |---|---|---|---|

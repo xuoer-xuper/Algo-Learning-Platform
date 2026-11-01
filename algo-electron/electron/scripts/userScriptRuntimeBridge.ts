@@ -9,7 +9,7 @@ import {
   type WebContents,
 } from 'electron'
 import { checkOjFrameSender } from '../ipc/trustedSender'
-import { appLogger, type Logger } from '../shared/logger'
+import { logger as baseLogger, type Logger } from '../shared/logger'
 import type { UserScriptRuntime } from './UserScriptRuntime'
 import type { UserScriptMenuRegistry } from './UserScriptMenuRegistry'
 import type { UserScriptNetworkProxy } from './UserScriptNetworkProxy'
@@ -77,7 +77,7 @@ export interface UserScriptRuntimeBridge {
 export function installUserScriptRuntimeBridge(
   options: UserScriptRuntimeBridgeOptions,
 ): UserScriptRuntimeBridge {
-  const logger = options.logger ?? appLogger
+  const logger = options.logger ?? baseLogger
   const now = options.now ?? Date.now
   const pendingPorts = new Map<string, PendingRuntimePort>()
   const activePorts = new Map<string, ActiveRuntimePort>()

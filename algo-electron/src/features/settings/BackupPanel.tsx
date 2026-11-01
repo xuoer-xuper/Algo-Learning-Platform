@@ -5,7 +5,6 @@ import {
   createDatabaseBackup,
   exportLearningData,
   previewLearningDataImport,
-  type LearningDataImportPreviewResult,
 } from './settingsApi'
 
 function formatCounts(counts?: Record<string, number>): string {
@@ -18,22 +17,24 @@ function formatCounts(counts?: Record<string, number>): string {
 
 export function BackupPanel() {
   const [status, setStatus] = useState('')
-  const [importPreview, setImportPreview] = useState<
-    LearningDataImportPreviewResult['preview'] | null
-  >(null)
+  const [importPreview, setImportPreview] = useState<LearningDataImportPreview | null>(null)
   const [importing, setImporting] = useState(false)
 
   const handleBackup = async () => {
     setStatus('备份中...')
     const result = await createDatabaseBackup()
-    setStatus(result.success ? `备份完成: ${result.path}` : `备份失败: ${result.error}`)
+    setStatus(
+      result.success === true ? `备份完成: ${result.data.path}` : `备份失败: ${result.error}`,
+    )
   }
 
   const handleExport = async () => {
     setStatus('导出中...')
     const result = await exportLearningData()
     setStatus(
-      result.success ? `导出完成: ${formatCounts(result.counts)}` : `导出失败: ${result.error}`,
+      result.success === true
+        ? `导出完成: ${formatCounts(result.data.counts)}`
+        : `导出失败: ${result.error}`,
     )
   }
 
@@ -41,14 +42,16 @@ export function BackupPanel() {
     setStatus('读取导入文件...')
     setImportPreview(null)
     const result = await previewLearningDataImport()
-    if (!result.success || !result.preview) {
+    if (result.success !== true) {
       setStatus(`导入预览失败: ${result.error}`)
       return
     }
-    setImportPreview(result.preview)
+    setImportPreview(result.data.preview)
     const conflictText =
-      result.preview.conflicts.length > 0 ? `，冲突 ${result.preview.conflicts.length} 项` : ''
-    setStatus(`导入预览完成: ${formatCounts(result.preview.counts)}${conflictText}`)
+      result.data.preview.conflicts.length > 0
+        ? `，冲突 ${result.data.preview.conflicts.length} 项`
+        : ''
+    setStatus(`导入预览完成: ${formatCounts(result.data.preview.counts)}${conflictText}`)
   }
 
   const handleConfirmImport = async (overwriteConflicts: boolean) => {
@@ -56,12 +59,12 @@ export function BackupPanel() {
     setStatus(overwriteConflicts ? '覆盖冲突并导入...' : '导入中...')
     try {
       const result = await confirmLearningDataImport(overwriteConflicts)
-      if (!result.success) {
-        setStatus(`导入失败: ${result.error ?? '存在冲突'}`)
+      if (result.success !== true) {
+        setStatus(`导入失败: ${result.error}`)
         return
       }
       setStatus(
-        `导入完成: 新增 ${formatCounts(result.inserted)}，更新 ${formatCounts(result.updated)}，跳过 ${formatCounts(result.skipped)}`,
+        `导入完成: 新增 ${formatCounts(result.data.inserted)}，更新 ${formatCounts(result.data.updated)}，跳过 ${formatCounts(result.data.skipped)}`,
       )
       setImportPreview(null)
     } finally {

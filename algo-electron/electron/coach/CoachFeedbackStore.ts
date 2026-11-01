@@ -3,7 +3,7 @@ import type { CoachEventType, CoachFeedbackType } from './types'
 // 默认 FeedbackRepositoryAdapter 实现已移至 ./defaultFeedbackRepository.ts，
 // 由 CoachOrchestrator 在生产环境显式注入。
 import type { InsertCoachFeedbackInput } from '../db/repositories/coach/feedbackRepository'
-import { todayBeijing } from '../shared/time'
+import { todayBeijing, toBeijing } from '../shared/time'
 
 /**
  * CoachFeedbackStore：用户反馈持久化与节流策略（阶段 3 Task 16）。
@@ -352,7 +352,10 @@ export class CoachFeedbackStore {
   private computeSince(days: number): string {
     const d = new Date()
     d.setDate(d.getDate() - days)
-    return d.toISOString().slice(0, 19).replace('T', 'T') // YYYY-MM-DDTHH:MM:SS
+    // created_at 由 nowBeijing() 写入（本地朴素格式 YYYY-MM-DDTHH:mm:ss.SSS，无时区后缀），
+    // since 必须同格式才能做字符串比较；此前用 toISOString()（UTC 挂历）在东八区下
+    // 会让暖机窗口多出 8 小时。
+    return toBeijing(d)
   }
 }
 

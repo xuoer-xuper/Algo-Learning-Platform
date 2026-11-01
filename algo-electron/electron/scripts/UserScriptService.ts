@@ -7,7 +7,9 @@ import {
   parseScriptMetadata,
   type UserScriptResourceReference,
 } from './userScriptMetadata'
-import { appLogger } from '../shared/logger'
+import { logger } from '../shared/logger'
+
+const log = logger.scope('userscript')
 
 interface UserScriptServiceDependencies {
   getEnabledScripts: () => UserScript[]
@@ -63,13 +65,13 @@ export class UserScriptService {
       const rules = parsePersistedRules(persistedScript)
       const siteIds = parseStringArray(persistedScript.site_ids_json ?? '[]')
       if (!rules || !siteIds) {
-        appLogger.warn('userscript.persisted-rules-invalid', { scriptName: persistedScript.name })
+        log.warn('persisted-rules-invalid', { scriptName: persistedScript.name })
         continue
       }
 
       const code = this.readScriptCode(persistedScript)
       if (!code) {
-        appLogger.warn('userscript.enabled-without-code', {
+        log.warn('enabled-without-code', {
           scriptName: persistedScript.name,
           hasFilePath: Boolean(persistedScript.file_path),
         })
@@ -88,7 +90,7 @@ export class UserScriptService {
 
     this.cachedDefinitions = definitions
     this.cachedEnabledSites = enabledSites
-    appLogger.debug('userscript.runtime-cache-refreshed', { count: definitions.length })
+    log.debug('runtime-cache-refreshed', { count: definitions.length })
   }
 
   public getEnabledScriptsSnapshot(): UserScript[] {
@@ -104,7 +106,7 @@ export class UserScriptService {
     try {
       domain = new URL(url).hostname.toLowerCase()
     } catch (error) {
-      appLogger.warn('userscript.url-invalid', { url, error })
+      log.warn('url-invalid', { url, error })
       return []
     }
 
@@ -119,7 +121,7 @@ export class UserScriptService {
     for (const definition of definitions) {
       const { script, rules, siteIds, requires, resources } = definition
       if (isUserScriptUrlExcluded(url, rules)) {
-        appLogger.debug('userscript.excluded', { scriptName: script.name })
+        log.debug('excluded', { scriptName: script.name })
         continue
       }
 
@@ -128,12 +130,12 @@ export class UserScriptService {
           ? matchesExplicitSiteBinding(domain, siteIds, this.cachedEnabledSites)
           : matchesUserScriptUrl(url, rules)
       if (!matched) {
-        appLogger.debug('userscript.not-matched', { scriptName: script.name })
+        log.debug('not-matched', { scriptName: script.name })
         continue
       }
 
       const source = script.file_path ? 'file' : 'database'
-      appLogger.debug(`userscript.matched-${source}`, {
+      log.debug(`matched-${source}`, {
         scriptName: script.name,
         requires: requires.length,
         resources: resources.length,
@@ -158,7 +160,7 @@ export class UserScriptService {
       try {
         return this.dependencies.readFile(script.file_path)
       } catch (error) {
-        appLogger.warn('userscript.file-read-failed', {
+        log.warn('file-read-failed', {
           scriptName: script.name,
           filePath: script.file_path,
           error,

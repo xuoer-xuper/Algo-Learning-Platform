@@ -1,4 +1,5 @@
 import crypto from 'node:crypto'
+import { nowBeijing } from '../../shared/time'
 import type {
   CoachEvent,
   CoachEventType,
@@ -126,7 +127,7 @@ export class RuleEngine {
       triggerScoreThreshold: options.triggerScoreThreshold ?? DEFAULT_TRIGGER_SCORE_THRESHOLD,
       now: options.now ?? Date.now,
       uuid: options.uuid ?? defaultUuid,
-      nowIso: options.nowIso ?? defaultNowIso,
+      nowIso: options.nowIso ?? nowBeijing,
       getSession: options.getSession,
       getProblemRating: options.getProblemRating,
       getIsContestMode: options.getIsContestMode,
@@ -449,16 +450,4 @@ function defaultUuid(): string {
   } catch {
     return `id-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
   }
-}
-
-function defaultNowIso(): string {
-  const d = new Date()
-  const y = d.getFullYear()
-  const m = String(d.getMonth() + 1).padStart(2, '0')
-  const day = String(d.getDate()).padStart(2, '0')
-  const h = String(d.getHours()).padStart(2, '0')
-  const min = String(d.getMinutes()).padStart(2, '0')
-  const s = String(d.getSeconds()).padStart(2, '0')
-  const ms = String(d.getMilliseconds()).padStart(3, '0')
-  return `${y}-${m}-${day}T${h}:${min}:${s}.${ms}`
 }

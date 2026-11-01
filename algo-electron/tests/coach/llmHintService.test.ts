@@ -152,15 +152,20 @@ vi.mock('../../electron/ai/contextExporter', () => ({
 const logs = vi.hoisted(() => ({ entries: [] as Array<{ message: string; data: unknown[] }> }))
 
 vi.mock('../../electron/shared/logger', () => ({
-  appLogger: {
-    debug: () => {},
-    info: () => {},
-    warn: (message: string, ...data: unknown[]) => {
-      logs.entries.push({ message, data })
-    },
-    error: () => {},
-    fatal: () => {},
-    getLogFilePath: () => null,
+  // 与生产语义对齐：scope 域日志器在渲染时把标签拼回点分事件名
+  // （logger.scope('llm').warn('x') 落盘为 'llm.x'），替身照做，
+  // 下面按完整事件名断言的用例才锚得住。
+  logger: {
+    scope: (label: string) => ({
+      debug: () => {},
+      info: () => {},
+      warn: (message: string, ...data: unknown[]) => {
+        logs.entries.push({ message: `${label}.${message}`, data })
+      },
+      error: () => {},
+      fatal: () => {},
+      getLogFilePath: () => null,
+    }),
   },
 }))
 

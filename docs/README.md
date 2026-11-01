@@ -138,6 +138,9 @@
 | coach styles | [src/features/coach/styles/README](../algo-electron/src/features/coach/styles/README.md) |
 | renderer global styles | [src/styles/README](../algo-electron/src/styles/README.md) |
 | hooks | [src/hooks/README](../algo-electron/src/hooks/README.md) |
+| shared types | [src/shared/types/README](../algo-electron/src/shared/types/README.md) |
+| shared constants | [src/shared/constants/README](../algo-electron/src/shared/constants/README.md) |
+| ipc input schemas | [src/shared/types/ipc/README](../algo-electron/src/shared/types/ipc/README.md) |
 | renderer shared | [src/shared/README](../algo-electron/src/shared/README.md) |
 | build | [build/README](../algo-electron/build/README.md) |
 | public | [public/README](../algo-electron/public/README.md) |
@@ -150,6 +153,7 @@
 | test coach | [tests/coach/README](../algo-electron/tests/coach/README.md) |
 | test components | [tests/components/README](../algo-electron/tests/components/README.md) |
 | test app | [tests/app/README](../algo-electron/tests/app/README.md) |
+| test app fixtures | [tests/app/fixtures/README](../algo-electron/tests/app/fixtures/README.md) |
 | test docs | [tests/docs/README](../algo-electron/tests/docs/README.md) |
 | test electron | [tests/electron/README](../algo-electron/tests/electron/README.md) |
 | test electron fixtures | [tests/electron/fixtures/README](../algo-electron/tests/electron/fixtures/README.md) |

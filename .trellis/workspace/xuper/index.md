@@ -8,8 +8,8 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 7
-- **Last Active**: 2026-10-31
+- **Total Sessions**: 8
+- **Last Active**: 2026-11-01
 <!-- @@@/auto:current-status -->
 
 ---
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~230 | Active |
+| `journal-1.md` | ~265 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 8 | 2026-11-01 | 阶段 1 基础设施换库完成:R1-R5 五节落地,收口门两连击修复,PR #5 就绪 | `8e96a31`, `1b88369`, `0b97c8a`, `dc008a9`, `c51a9ba`, `2178ff1` | `refactor/phase-1-infra-libraries` |
 | 7 | 2026-10-31 | 阶段 0 收官:PR #4 squash 合入 dev(ff47377),AC1 实证,任务归档 | `ff47377` | `dev` |
 | 6 | 2026-10-31 | 标签 favicon 三层缺陷修复(10-31-tab-favicon):CSP/兜底/Referer,用户实测通过并归档 | `58ae30a` | `chore/phase-0-tooling-gates` |
 | 5 | 2026-10-31 | 阶段 0 收官：0.7-0.10 四节完成、CI 合理性审查、spec 同步 | `49a743f`, `5b5e62d`, `ee88c19`, `d51893d`, `4ba455e`, `33762f7` | `chore/phase-0-tooling-gates` |

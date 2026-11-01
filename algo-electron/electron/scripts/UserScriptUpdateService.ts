@@ -5,7 +5,7 @@ import {
   type UserScript,
 } from '../db/repositories/userScriptRepository'
 import { getUserScriptUpdateState } from '../db/repositories/userScriptRuntimeRepository'
-import { appLogger, type Logger } from '../shared/logger'
+import { logger, type Logger } from '../shared/logger'
 import { toChinaStandardTime } from '../shared/time'
 import {
   compareUserScriptVersions,
@@ -105,7 +105,7 @@ export class UserScriptUpdateService {
       markAvailable: markUserScriptUpdateAvailable,
       markCurrent: markUserScriptUpdateCurrent,
       markError: markUserScriptUpdateError,
-      logger: appLogger,
+      logger,
       ...options.dependencies,
     }
   }

@@ -276,25 +276,24 @@ interface SiteImportPreview {
   builtinSkipped: SiteConfigRecord[]
 }
 
-interface SiteExportResult {
-  success: boolean
-  path?: string
-  count?: number
-  error?: string
-}
+/*
+ * 以下七个 channel 结果类型是阶段 1 R4 统一输出联合（`createOutputSchema`，
+ * `src/shared/types/common.ts`）的**手写镜像**：本文件是全局脚本 d.ts，不能
+ * import 那边，两边由 `tests/ipc/ipcOutputShapes.test.ts` 在 IPC 边界实测兜底。
+ * `code` 的合法值是 `ERROR_CODES` 六元闭集（`src/shared/constants/errorCodes.ts`），
+ * 用户取消对话框时 `code` 缺省。
+ */
+type SiteExportResult =
+  | { success: true; data: { path: string; count: number } }
+  | { success: false; error: string; code?: string }
 
-interface SiteImportResult {
-  success: boolean
-  preview?: SiteImportPreview
-  error?: string
-}
+type SiteImportResult =
+  | { success: true; data: { preview: SiteImportPreview } }
+  | { success: false; error: string; code?: string }
 
-interface SiteConfirmImportResult {
-  success: boolean
-  imported?: number
-  overwritten?: number
-  error?: string
-}
+type SiteConfirmImportResult =
+  | { success: true; data: { imported: number; overwritten: number } }
+  | { success: false; error: string; code?: string }
 
 interface LearningDataImportConflict {
   entity_type: string
@@ -312,33 +311,28 @@ interface LearningDataImportPreview {
   error?: string
 }
 
-interface DatabaseBackupResult {
-  success: boolean
-  path?: string
-  error?: string
-}
+type DatabaseBackupResult =
+  { success: true; data: { path: string } } | { success: false; error: string; code?: string }
 
-interface LearningDataExportFileResult {
-  success: boolean
-  path?: string
-  counts?: Record<string, number>
-  error?: string
-}
+type LearningDataExportFileResult =
+  | { success: true; data: { path: string; counts: Record<string, number> } }
+  | { success: false; error: string; code?: string }
 
-interface LearningDataImportPreviewResult {
-  success: boolean
-  preview?: LearningDataImportPreview
-  error?: string
-}
+type LearningDataImportPreviewResult =
+  | { success: true; data: { preview: LearningDataImportPreview } }
+  | { success: false; error: string; code?: string }
 
-interface LearningDataImportResult {
-  success: boolean
-  inserted: Record<string, number>
-  updated: Record<string, number>
-  skipped: Record<string, number>
-  conflicts: LearningDataImportConflict[]
-  error?: string
-}
+type LearningDataImportResult =
+  | {
+      success: true
+      data: {
+        inserted: Record<string, number>
+        updated: Record<string, number>
+        skipped: Record<string, number>
+        conflicts: LearningDataImportConflict[]
+      }
+    }
+  | { success: false; error: string; code?: string }
 
 interface UserScriptRecord {
   id: string
@@ -647,13 +641,12 @@ interface LlmConfigStatus {
   base_url: string
 }
 
-/** LLM 连接测试结果 */
-interface LlmConnectionTestResult {
-  success: boolean
-  message: string
-  latency_ms?: number
-  model?: string
-}
+/** LLM 连接测试：IPC 输出联合（R4）。载荷形状与 `LlmConnectionTestData`
+ * （`src/shared/types/ipc/coach.ts`）同口径；服务级内部形状叫
+ * `LlmConnectionTestResult`（`electron/coach/llm/LlmHintTypes.ts`），两者刻意不同名。 */
+type LlmConnectionTestOutput =
+  | { success: true; data: { message: string; latency_ms?: number; model?: string } }
+  | { success: false; error: string; code?: string }
 
 // --- Coach 阶段 2 类型（事件触发 + 比赛模式） ---
 
@@ -952,13 +945,12 @@ interface ElectronAPI {
   bindHandle: (platform: string, handle: string) => Promise<{ id: string; handle: string }>
   getAccount: (platform: string, handle: string) => Promise<PlatformAccount | null>
   getAccounts: (platform: string) => Promise<PlatformAccount[]>
-  syncCodeforcesRating: (handle: string) => Promise<{
-    success: boolean
-    historyCount?: number
-    inserted?: number
-    peak?: number
-    error?: string
-  }>
+  syncCodeforcesRating: (
+    handle: string,
+  ) => Promise<
+    | { success: true; data: { historyCount: number; inserted: number; peak: number | null } }
+    | { success: false; error: string; code?: string }
+  >
   getRatingHistory: (accountId: string) => Promise<RatingHistoryRecord[]>
   getCodeforcesAccount: () => Promise<PlatformAccount | null>
   getContestResults: (accountId: string) => Promise<ContestResultRecord[]>

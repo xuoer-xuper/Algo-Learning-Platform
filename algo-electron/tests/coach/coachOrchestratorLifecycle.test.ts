@@ -23,6 +23,7 @@ import {
   listContestAuditRecords,
 } from '../../electron/db/repositories/coach/interventionsRepository.ts'
 import { listCoachFeedback } from '../../electron/db/repositories/coach/feedbackRepository.ts'
+import { toBeijing } from '../../electron/shared/time.ts'
 import { getRecentProblems } from '../../electron/db/repositories/problemRepository.ts'
 import { upsertSubmission } from '../../electron/db/repositories/submissionRepository.ts'
 import {
@@ -1269,7 +1270,9 @@ test('离开比赛页：顶栏落下、桌宠回 idle、弹复盘气泡并把 co
     row.trigger_reason.startsWith('contest_end'),
   )
   assert.ok(endRow?.contest_end, '离开比赛必须把 contest_end 写进审计行本身')
-  assert.equal(endRow.contest_start, new Date('2026-09-01T10:00:00+08:00').toISOString())
+  // R5 后 contest_start 与 created_at 同格式（nowBeijing/toBeijing 的本地朴素格式），
+  // 不再是 toISOString 的 UTC-Z 格式；期望值用同一 helper 生成以对宿主时区不敏感。
+  assert.equal(endRow.contest_start, toBeijing(new Date('2026-09-01T10:00:00+08:00')))
   h.coach.stop()
 })
 

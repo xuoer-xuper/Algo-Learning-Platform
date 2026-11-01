@@ -16,7 +16,7 @@ vi.mock('../../src/features/settings/settingsApi', () => ({
   loadLlmConfig: () => loadLlmConfig(),
   saveLlmApiKey: vi.fn(async () => true),
   saveLlmConfig: vi.fn(async () => undefined),
-  testLlmConnection: vi.fn(async () => ({ success: true, message: 'ok' })),
+  testLlmConnection: vi.fn(async () => ({ success: true, data: { message: 'ok' } })),
   loadPrimaryCodeforcesAccount: () => loadPrimaryCodeforcesAccount(),
   syncCodeforcesRatingProfile: vi.fn(),
   syncCodeforcesSubmissions: vi.fn(),
