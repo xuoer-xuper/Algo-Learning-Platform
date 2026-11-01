@@ -228,3 +228,38 @@
 ### Next Steps
 
 - 阶段 0 完结。下一任务:阶段 1 基础设施换库(09-17-phase-1-infra-libraries,planning)——启动前走 1.4 评审;另记:favicon 的 Fix 4(主进程代理)仅在 AcWing 回归时升格。
+
+
+## Session 8: 阶段 1 基础设施换库完成:R1-R5 五节落地,收口门两连击修复,PR #5 就绪
+<!-- trellis-session: v=2 fp=5cdc8190cce32a89 -->
+
+**Date**: 2026-11-01
+**Task**: 阶段 1 基础设施换库完成:R1-R5 五节落地,收口门两连击修复,PR #5 就绪
+**Branch**: `refactor/phase-1-infra-libraries`
+
+### Summary
+
+五节全部完成并各自复核:R1 zod 4.6.7 替换 payloadSchema(204 处、复核修回 ArrayBuffer 回归、AC 按实测收敛);R2 electron-log 5.4.4(72 处迁移、脱敏逐字节迁移+cookie=、pre-ready 落盘实证);R3 electron-store 12+zod 单层校验(conf16 probe 证明 schema 传入会坏文件即拒启,与红线冲突)、真实 rc.1 样本回归、-dev 隔离;R4 返回形状统一(20 处 IPC 判别联合;34 处 ok 形状经仲裁为内部协议不转换,AC4 修订);R5 时间止血(computeSince/contest 对齐 toBeijing,stash 实证 bug 签名)。收口门两连击:test:all 拍出 R2 RUN_AS_NODE 回归(2178ff1 修复),build:win 拍出打包烟测过时断言(已修)。spec 同步 migration-status 五行+domain-rules。另:根因修掉推送网络问题(hosts S302 屏蔽 github→SSH 走 ssh.github.com:443 已固化),修掉两处先于 R4 的 UI mock 竞态。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `8e96a31` | refactor(ipc): zod 替换 payloadSchema |
+| `1b88369` | refactor(shared): electron-log 替换自研日志 |
+| `0b97c8a` | refactor(app): electron-store 替换配置持久化并隔离开发数据目录 |
+| `dc008a9` | refactor(ipc): 统一 IPC 返回形状为 discriminated union |
+| `c51a9ba` | fix(coach): 修复时间格式混用导致的比较偏差 |
+| `2178ff1` | fix(shared): logger 兼容 RUN_AS_NODE——electron 顶层具名导入降级 |
+
+### Testing
+
+- [OK] 每节 test:core 全绿(最终 177 文件/1420 用例);test:all ALL-EXIT=0;build:win exit 0;test:ui 9/9;CI 多次全绿(41280858502/41281332136)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- PR #5 待用户 squash 合入 dev;合入后阶段 1 归档,下一任务阶段 2 IPC 契约与共享层。注意:阶段 2 需处理 shared→electron 常量 import 方向(复核 MEDIUM 发现)。
