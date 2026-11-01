@@ -12,7 +12,7 @@ import { SubmissionWatcher, SUBMISSION_WATCHER_DETECTED_EVENT } from './Submissi
 import type { SubmissionNotification } from './SubmissionWatcherCore'
 import { handleFromOj, handleFromShell, onFromOj, type IpcListener } from '../ipc/trustedSender'
 import { OJ_SUBMISSION_TOKEN_CHANNEL as DOCUMENT_TOKEN_CHANNEL } from '../browser/ojBridge'
-import { appLogger, type Logger } from '../shared/logger'
+import { logger as baseLogger, type Logger } from '../shared/logger'
 
 const SUBMISSION_DETECTED_CHANNEL = 'oj-submission:detected'
 const STATUS_CHANNEL = 'realtimeSubmission:getStatus'
@@ -45,7 +45,7 @@ export class RealtimeSubmissionService {
   private readonly documentTokens = new Map<number, string>()
   private isIpcRegistered = false
 
-  constructor(notifyProblemsUpdated: () => void, logger: Logger = appLogger) {
+  constructor(notifyProblemsUpdated: () => void, logger: Logger = baseLogger) {
     this.watcher = new SubmissionWatcher(notifyProblemsUpdated, logger)
     this.hookInjector = new RealtimeHookInjector({
       getRealtimeAdapterForUrl,

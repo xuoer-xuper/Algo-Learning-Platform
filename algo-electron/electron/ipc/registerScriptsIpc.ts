@@ -42,7 +42,9 @@ import { persistUserScriptInstall } from '../scripts/UserScriptInstaller'
 import { isManagedScriptArtifactName, resolveManagedScriptPath } from '../scripts/managedScriptPath'
 import type { UserScriptUpdateService } from '../scripts/UserScriptUpdateService'
 import { resolveUserScriptRequestTarget } from '../scripts/userScriptConnectPolicy'
-import { appLogger } from '../shared/logger'
+import { logger } from '../shared/logger'
+
+const log = logger.scope('userscript')
 
 type UserScriptSaveInput = {
   name: string
@@ -366,7 +368,7 @@ export function registerScriptsIpc(options: RegisterScriptsIpcOptions = {}): voi
           await fs.unlink(managedPath)
         } catch (error) {
           if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
-            appLogger.warn('userscript.managed-file-delete-failed', { scriptId: script.id, error })
+            log.warn('managed-file-delete-failed', { scriptId: script.id, error })
           }
         }
       }

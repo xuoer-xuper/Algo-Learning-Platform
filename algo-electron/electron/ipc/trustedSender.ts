@@ -11,7 +11,9 @@ import {
   type ZodSchemaTuple,
 } from './ipcPayload'
 import { SHELL_ORIGIN } from '../app/appProtocol'
-import { appLogger } from '../shared/logger'
+import { logger } from '../shared/logger'
+
+const log = logger.scope('ipc')
 import type { AppWindow } from '../windows/AppWindow'
 
 type ShellEvent = IpcMainEvent | IpcMainInvokeEvent
@@ -219,7 +221,7 @@ function rejectSend(
   check: TrustedSenderCheck,
   payloadError?: IpcPayloadError,
 ): void {
-  appLogger.warn('ipc.send-rejected', {
+  log.warn('send-rejected', {
     channel,
     reason: check.reason,
     // 只记 path 与 expected，不记实际值——载荷可能含用户数据。
@@ -319,7 +321,7 @@ function parseOrReject(channel: string, schemas: ZodSchemaTuple, args: unknown[]
     return parseIpcArgs(channel, schemas, args)
   } catch (error) {
     if (error instanceof IpcPayloadError) {
-      appLogger.warn('ipc.payload-rejected', {
+      log.warn('payload-rejected', {
         channel,
         path: error.path,
         expected: error.expected,

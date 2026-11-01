@@ -429,6 +429,9 @@ export class MockApp extends EventEmitter {
     appendSwitch: (name: string, value?: string) => commandLineSwitches.push([name, value]),
   }
   userAgentFallback = ''
+  /** main.ts 的启动日志（app.launch）会读这两个字段，替身给确定值。 */
+  isPackaged = false
+  private readonly version = '0.0.0-mock'
   singleInstanceLockGranted = true
   requestSingleInstanceLockCallCount = 0
   quitCallCount = 0
@@ -439,6 +442,9 @@ export class MockApp extends EventEmitter {
   }
   getPath(_name: string): string {
     return 'C:\\mock-user-data'
+  }
+  getVersion(): string {
+    return this.version
   }
   exit(code?: number): void {
     this.exitCodes.push(code)

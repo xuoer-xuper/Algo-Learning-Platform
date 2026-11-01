@@ -30,6 +30,9 @@ function runEsbuild(input: string, outfile: string, format: 'esm' | 'cjs' = 'esm
       `--format=${format}`,
       '--external:electron',
       '--external:better-sqlite3',
+      // electron-log 内部 require('electron')：打进 ESM 包会变成运行时抛错的
+      // dynamic require，必须与 better-sqlite3 一样留给运行时解析。
+      '--external:electron-log',
       `--outfile=${outfile}`,
     ],
     {
@@ -149,6 +152,29 @@ async function runSmokeElectron(userDataDir: string): Promise<void> {
   ) as Record<string, unknown>
   assert.deepStrictEqual(migratedConfig.homeShortcuts, [legacyHomeUrl])
   assert.strictEqual(Object.hasOwn(migratedConfig, 'defaultHomeUrl'), false)
+
+  // 启动前日志落盘（prd R2）：main.ts 在 app.ready 之前就发出
+  // app.single-instance-acquired 与 app.launch 两条日志；electron-log 的文件
+  // transport 在首次写入时懒初始化（mkdir + resolvePathFn 按 userData 求值）。
+  // 若 ready 前的行丢失，说明早期日志路径解析或写入有问题。
+  const mainLogPath = path.join(userDataDir, 'logs', 'main.log')
+  assert.ok(
+    fs.existsSync(mainLogPath),
+    `Pre-ready log file missing: ${mainLogPath}\nSTDOUT:\n${stdout}\nSTDERR:\n${stderr}`,
+  )
+  const mainLog = fs.readFileSync(mainLogPath, 'utf-8')
+  assert.ok(
+    mainLog.includes('[INFO] app.single-instance-acquired'),
+    `Pre-ready single-instance log line missing in ${mainLogPath}:\n${mainLog}`,
+  )
+  assert.ok(
+    mainLog.includes('[INFO] app.launch'),
+    `Pre-ready launch log line missing in ${mainLogPath}:\n${mainLog}`,
+  )
+  assert.ok(
+    mainLog.includes('[INFO] app.ready'),
+    `Ready log line missing in ${mainLogPath}:\n${mainLog}`,
+  )
 }
 
 function writeSmokePage(fileName: string, title: string, body: string): void {

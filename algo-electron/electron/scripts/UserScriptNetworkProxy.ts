@@ -3,7 +3,7 @@ import {
   hasUserScriptHostPermission,
   markUserScriptHostUsed,
 } from '../db/repositories/userScriptRuntimeRepository'
-import { appLogger, type Logger } from '../shared/logger'
+import { logger, type Logger } from '../shared/logger'
 import {
   isUserScriptConnectDeclared,
   resolveUserScriptRequestTarget,
@@ -67,7 +67,7 @@ export class UserScriptNetworkProxy {
       hasPermission: hasUserScriptHostPermission,
       markPermissionUsed: markUserScriptHostUsed,
       allowInsecureLocalhost: false,
-      logger: appLogger,
+      logger,
       ...dependencies,
     }
   }

@@ -26,7 +26,11 @@ export default defineConfig({
           },
           build: {
             rolldownOptions: {
-              external: ['better-sqlite3'],
+              // 两个外部依赖都是主进程运行时才解析的 CJS 包：better-sqlite3 带原生
+              // 模块，electron-log 内部 require('electron')——打进 ESM 包会变成
+              // "Dynamic require is not supported"。外置后由 Node 的 CJS interop
+              // 在运行时加载（electron-builder 会把 dependencies 里的包一起打包）。
+              external: ['better-sqlite3', 'electron-log'],
             },
           },
         },

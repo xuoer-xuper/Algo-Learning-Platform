@@ -6,7 +6,9 @@ import type { RealtimeSubmissionService } from '../submissions/RealtimeSubmissio
 import type { AppWindow } from '../windows/AppWindow'
 import { parseUrl } from '../parsers/registry'
 import { nowBeijing, todayBeijing } from '../shared/time'
-import { appLogger } from '../shared/logger'
+import { logger } from '../shared/logger'
+
+const log = logger.scope('coach')
 import {
   insertCoachEvent,
   listCoachEvents,
@@ -228,7 +230,7 @@ export class CoachOrchestrator {
     try {
       this.feedbackStore.loadHistoryForWarmup(30)
     } catch (err) {
-      appLogger.warn('coach.history-warmup-failed', err)
+      log.warn('history-warmup-failed', err)
     }
 
     // 6. LLM 提示服务
@@ -236,7 +238,7 @@ export class CoachOrchestrator {
     try {
       this.llmHintService.init()
     } catch (err) {
-      appLogger.warn('coach.llm-init-failed', err)
+      log.warn('llm-init-failed', err)
     }
 
     // 4. CoachEventBridge
@@ -454,7 +456,7 @@ export class CoachOrchestrator {
         if (targetUrl !== pageEvent.url) throw new Error('Constraint URL does not match page owner')
         return await tabManager.executeScriptForPage(pageEvent, code)
       } catch (err) {
-        appLogger.warn('coach.constraint-injection-failed', { url: targetUrl, error: err })
+        log.warn('constraint-injection-failed', { url: targetUrl, error: err })
         return null
       }
     }
@@ -474,7 +476,7 @@ export class CoachOrchestrator {
       })
       .catch((err) => {
         if (!this.isCurrentConstraintRequest(generation, windowId, problemKey, pageEvent)) return
-        appLogger.warn('coach.constraint-fetch-failed', { url, error: err })
+        log.warn('constraint-fetch-failed', { url, error: err })
         this.currentConstraints = null
         this.constraintFetchPending = false
       })
@@ -1066,7 +1068,7 @@ export class CoachOrchestrator {
             }
           }
         } catch (err) {
-          appLogger.warn('coach.llm-upgrade-failed', err)
+          log.warn('llm-upgrade-failed', err)
         }
       }
 
@@ -1275,7 +1277,7 @@ export class CoachOrchestrator {
           this.showIntervention(intervention)
         }
       } catch (err) {
-        appLogger.warn('coach.llm-generate-hint-failed', err)
+        log.warn('llm-generate-hint-failed', err)
       } finally {
         this.finishHintPresentation(request)
       }

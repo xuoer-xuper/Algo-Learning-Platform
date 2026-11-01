@@ -151,6 +151,15 @@ export default tseslint.config(
       'no-console': 'off',
     },
   },
+  {
+    // logger.ts 是"终端镜像"本身的实现（ALGO_ELECTRON_LOG_STDERR=1 时经 console
+    // 方法写 stdout/stderr），上面的"main 进程走 appLogger"规则管的是业务模块，
+    // 管不到日志器自己。
+    files: ['electron/shared/logger.ts'],
+    rules: {
+      'no-console': 'off',
+    },
+  },
   // 必须放在最后：关闭所有与 prettier 打架的风格规则（阶段 0.5，见 design.md §5）。
   eslintConfigPrettier,
 )

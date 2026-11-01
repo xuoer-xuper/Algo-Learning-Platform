@@ -6,7 +6,7 @@ import {
   setUserScriptValue,
   type UserScriptResource,
 } from '../db/repositories/userScriptRuntimeRepository'
-import { appLogger, type Logger } from '../shared/logger'
+import { logger, type Logger } from '../shared/logger'
 import type { UserScriptService } from './UserScriptService'
 import { parseScriptMetadata, type UserScriptResourceReference } from './userScriptMetadata'
 import { selectUserScriptIntegrity } from './UserScriptResourceCache'
@@ -51,7 +51,7 @@ export class UserScriptRuntime {
       listResources: listUserScriptResources,
       setValue: setUserScriptValue,
       deleteValue: deleteUserScriptValue,
-      logger: appLogger,
+      logger,
       ...dependencies,
     }
   }

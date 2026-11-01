@@ -58,6 +58,7 @@
   "dependencies": {
     "@milkdown/crepe": "7.22.0",
     "better-sqlite3": "13.0.3",
+    "electron-log": "^5.4.4",
     "openai": "7.4.0",
     "react": "19.2.8",
     "react-dom": "19.2.8",

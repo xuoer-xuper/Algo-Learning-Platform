@@ -2,7 +2,7 @@ import crypto from 'node:crypto'
 import { getDb } from '../../connection'
 import type { ProblemIdentity } from '../../../shared/types'
 import { nowBeijing } from '../../../shared/time'
-import { appLogger, type Logger } from '../../../shared/logger'
+import { logger as baseLogger, type Logger } from '../../../shared/logger'
 import { isValidScrapedTitle, shouldReplaceScrapedTitle } from '../../../parsers/titleValidation'
 import { recomputeDailyStatsForDates } from '../stats/recompute'
 
@@ -74,7 +74,7 @@ export function upsertProblem(identity: ProblemIdentity): void {
   )
 }
 
-export function deleteProblem(problemId: string, logger: Logger = appLogger): boolean {
+export function deleteProblem(problemId: string, logger: Logger = baseLogger): boolean {
   const db = getDb()
   const affectedDates = new Set<string>()
   const rows = db

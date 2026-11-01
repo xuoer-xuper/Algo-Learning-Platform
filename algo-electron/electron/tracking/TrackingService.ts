@@ -4,7 +4,7 @@ import { getSiteById } from '../db/repositories/siteRepository'
 import { recomputeDailyStats } from '../db/repositories/statsRepository'
 import type { ProblemIdentity } from '../shared/types'
 import { nowBeijing } from '../shared/time'
-import { appLogger, type Logger } from '../shared/logger'
+import { logger, type Logger } from '../shared/logger'
 import type { BrowserPageEvent } from '../browser/TabManager'
 import { finishProblemVisit, startProblemVisit } from '../db/repositories/problemVisitRepository'
 
@@ -35,7 +35,7 @@ export class TrackingService {
 
   constructor(options: TrackingServiceOptions | Logger = {}) {
     const normalized = 'debug' in options ? { logger: options } : options
-    this.logger = normalized.logger ?? appLogger
+    this.logger = normalized.logger ?? logger
     this.clock = normalized.clock ?? Date.now
     this.now = normalized.now ?? nowBeijing
   }

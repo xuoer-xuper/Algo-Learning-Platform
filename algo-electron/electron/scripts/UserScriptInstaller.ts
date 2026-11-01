@@ -12,7 +12,9 @@ import {
   replaceUserScriptResources,
   upsertUserScriptUpdateState,
 } from '../db/repositories/userScriptRuntimeRepository'
-import { appLogger } from '../shared/logger'
+import { logger } from '../shared/logger'
+
+const log = logger.scope('userscript')
 import { toChinaStandardTime } from '../shared/time'
 import { writeUserScriptImport, type UserScriptImportDecision } from './userScriptImport'
 import type { PreparedUserScriptResource } from './UserScriptResourceCache'
@@ -189,8 +191,7 @@ async function removeReplacedManagedFile(
     await fs.unlink(oldPath)
   } catch (error) {
     const code = (error as NodeJS.ErrnoException).code
-    if (code !== 'ENOENT')
-      appLogger.warn('userscript.old-file-cleanup-failed', { oldFilePath, error })
+    if (code !== 'ENOENT') log.warn('old-file-cleanup-failed', { oldFilePath, error })
   }
 }
 
