@@ -2,6 +2,14 @@
 
 分支：`refactor/phase-2-ipc-contract`；R5 单独 `feat/db-unix-ms-timestamps`。前置：阶段 1 合入 dev。
 
+> **启动评审注记（2026-11-01，1.4 评审结论）**：
+> ①**R4 路径勘误**：prd/implement 写的 `src/renderer/src/context|hooks/` 是阶段 4 的目标布局；本阶段明确"src/（渲染）不动"，正确路径为 `src/context/DataRefreshContext.tsx` 与 `src/hooks/useIpcQuery.ts`；
+> ②**全部计数过时**（158/139/21/112/155/72/40/31/65/15/9 等）——以实施时 grep 实测为准并回填注记；
+> ③**shared→electron 方向（阶段 1 复核 MEDIUM 项）**：R2 必须把 `COACH_PIN_MODES`/`SEARCH_ENGINE_IDS`/`THEME_PREFERENCES` 下沉到 `src/shared/`（electron 侧 re-export 或直接 import shared），否则渲染层经 @shared 消费阶段 1 schema 时会把主进程模块打进渲染包；同时建议加守卫"`src/shared/**` 不得 import `electron/`"；
+> ④阶段 1 事实衔接：zod 4.6.7（discriminatedUnion 已实测）、`createOutputSchema`/`errorCodes`/13 域 `*Input` 已存在（R2 的实体类型与它们是兄弟层，勿重复）、架构守卫按 `*Input` 后缀识别、顶层 electron 导入必须跑一次 test:all（R2 教训）；
+> ⑤新门遵守：verbatimModuleSyntax、prettier、jscpd 3%、test:ci 推送纪律、R1–R4 每节推送盯 CI、R5 单独分支单独 PR；
+> ⑥R5 真实库 fixture：从本机 userData 复制后脱敏（prd 预授权路径），三时期（v1.0.0/beta.2/rc.1）各一份。
+
 ## Checklist
 
 ### R1 channel 常量
