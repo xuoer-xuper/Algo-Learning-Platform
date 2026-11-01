@@ -1,4 +1,5 @@
 import crypto from 'node:crypto'
+import { nowBeijing } from '../shared/time'
 import type { SubmissionNotification } from '../submissions/SubmissionWatcherCore'
 import type { ProblemIdentity } from '../shared/types'
 import type { Verdict } from '../shared/types'
@@ -260,20 +261,7 @@ export class CoachEventBridge {
       problem_id: input.problem_id,
       platform: input.platform,
       evidence: input.evidence,
-      created_at: nowIsoLocal(),
+      created_at: nowBeijing(),
     }
   }
-}
-
-// 系统本地时间字符串（与 shared/time.nowBeijing 同语义）
-function nowIsoLocal(): string {
-  const d = new Date()
-  const y = d.getFullYear()
-  const m = String(d.getMonth() + 1).padStart(2, '0')
-  const day = String(d.getDate()).padStart(2, '0')
-  const h = String(d.getHours()).padStart(2, '0')
-  const min = String(d.getMinutes()).padStart(2, '0')
-  const s = String(d.getSeconds()).padStart(2, '0')
-  const ms = String(d.getMilliseconds()).padStart(3, '0')
-  return `${y}-${m}-${day}T${h}:${min}:${s}.${ms}`
 }
