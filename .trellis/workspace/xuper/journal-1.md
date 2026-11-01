@@ -263,3 +263,33 @@
 ### Next Steps
 
 - PR #5 待用户 squash 合入 dev;合入后阶段 1 归档,下一任务阶段 2 IPC 契约与共享层。注意:阶段 2 需处理 shared→electron 常量 import 方向(复核 MEDIUM 发现)。
+
+
+## Session 9: 阶段 1 收官:PR #5 squash 合入 dev(30ffea8),dev CI 绿,任务归档
+<!-- trellis-session: v=2 fp=c2050edcc6a376b8 -->
+
+**Date**: 2026-11-01
+**Task**: 阶段 1 收官:PR #5 squash 合入 dev(30ffea8),dev CI 绿,任务归档
+**Branch**: `dev`
+
+### Summary
+
+用户授权合并。PR #5 squash 合入 dev(30ffea8),dev push CI(run 41293459803)全绿。阶段 1 五节+两处收口门缝隙修复全部落地,任务归档 archive/2026-10。父任务规范对齐进度 2/8。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `30ffea8` | refactor(shared): 阶段 1 基础设施换库 |
+
+### Testing
+
+- [OK] dev push CI run 41293459803 全绿(fast-guard+smoke)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- 下一任务:阶段 2 IPC 契约与共享层(09-17-phase-2-ipc-contract,planning)——启动评审时一并处理 shared→electron 常量 import 方向(复核 MEDIUM 发现:常量下沉 shared 或加守卫)。
