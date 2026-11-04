@@ -91,6 +91,7 @@ import type {
 } from '../shared/types/coach'
 import type { SearchEngineConfig, ThemePreference } from '../shared/types/config'
 import type { CookieSafeSiteSummary } from '../shared/types/cookies'
+import type { DataChangedPayload } from '../shared/types/data'
 import type {
   CredentialAutofillPrompt,
   CredentialCapturePrompt,
@@ -155,6 +156,10 @@ const api = {
   // `browserLayout` 是唯一的非函数成员：main.tsx 同步读取的布局常量（不是 IPC 调用）。
   // 它不是域对象，架构守卫与 preloadSurface 测试都按"这一个例外"写死。
   browserLayout: BROWSER_LAYOUT,
+
+  data: {
+    onChanged: subscribe<DataChangedPayload>(IPC_CHANNELS.DATA.CHANGED),
+  },
 
   // `browser:` 家族 + 两条伴生推送（download:result、ui:command）——都是浏览器壳
   // 生命周期里的事件，消费方都在 browserShellApi 一处。
@@ -235,6 +240,7 @@ const api = {
     delete: (problemId: string) =>
       ipcRenderer.invoke(IPC_CHANNELS.PROBLEM.DELETE, problemId) as Promise<boolean>,
     // problems:updated 无 payload（sendToAll 只发 channel 名），回调不收参数。
+    /** @deprecated Subscribe to data.onChanged instead; retained for one compatibility release. */
     onUpdated: subscribe<void>(IPC_CHANNELS.PROBLEM.UPDATED),
   },
 

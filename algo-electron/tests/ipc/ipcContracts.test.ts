@@ -45,6 +45,7 @@ const constantPathByChannel = new Map<string, string>()
 }
 
 const coreContracts: PreloadContract[] = [
+  { domain: 'data', method: 'onChanged', mode: 'on', channel: 'data:changed' },
   // Browser shell
   { domain: 'browser', method: 'navigate', mode: 'send', channel: 'browser:navigate' },
   { domain: 'browser', method: 'goBack', mode: 'send', channel: 'browser:goBack' },
@@ -323,6 +324,7 @@ test('preload event subscriptions are fixed and backed by main-process sends', (
     'credentials:autofillPrompt',
     'credentials:capturePrompt',
     'credentials:captureResult',
+    'data:changed',
     'download:result',
     'problems:updated',
     'tab:listChanged',

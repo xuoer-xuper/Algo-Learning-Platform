@@ -1,3 +1,4 @@
+import { emitDataChanged } from '../../../shared/dataEvents'
 import crypto from 'node:crypto'
 import { getDb } from '../../connection'
 import { nowBeijing } from '../../../shared/time'
@@ -54,6 +55,7 @@ export function createSite(data: Omit<SiteConfigData, 'isBuiltin'>): string {
     now,
   )
 
+  emitDataChanged(['sites'])
   return id
 }
 
@@ -90,6 +92,7 @@ export function updateSite(id: string, data: Partial<SiteConfigData>): boolean {
     id,
   )
 
+  emitDataChanged(['sites'])
   return true
 }
 
@@ -99,11 +102,13 @@ export function toggleSite(id: string, enabled: boolean): boolean {
   const result = db
     .prepare('UPDATE site_configs SET enabled = ?, updated_at = ? WHERE id = ?')
     .run(enabled ? 1 : 0, now, id)
+  if (result.changes > 0) emitDataChanged(['sites'])
   return result.changes > 0
 }
 
 export function deleteSite(id: string): boolean {
   const db = getDb()
   const result = db.prepare('DELETE FROM site_configs WHERE id = ? AND is_builtin = 0').run(id)
+  if (result.changes > 0) emitDataChanged(['sites'])
   return result.changes > 0
 }

@@ -53,7 +53,9 @@
   direct SQLite, filesystem, Electron session or Node access. Guard: `check-architecture.mjs`
   "renderer reaches the main process only through window.api" — references allowed only in
   `*Api.ts`, `src/hooks/` and the `src/main.tsx` entry (browserLayout). Every exposed api method
-  must have a renderer caller (`tests/ipc/apiConsumers.test.ts`).
+  must have a renderer caller (`tests/ipc/apiConsumers.test.ts`), except the explicitly
+  deprecated `problem.onUpdated` compatibility method retained for one release.
+  Committed-write refresh and the removal condition are specified in `data-refresh.md`.
 - Never use `alert`, `confirm`, `prompt`, `window.open` or `localStorage` in the renderer
   (`../frontend/electron-browser-api-restrictions.md`). Confirmation goes through
   `src/components/ui/ConfirmDialog.tsx`.

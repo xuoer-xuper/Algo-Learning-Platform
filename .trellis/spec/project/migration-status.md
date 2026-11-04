@@ -7,9 +7,8 @@
 > Plan and evidence: `.trellis/tasks/archive/2026-09/00-bootstrap-guidelines/research/spec-alignment-plan.md`,
 > `spec-alignment-report.md`, `reinvented-wheels-audit.md`.
 
-Last reviewed: 2026-11-04 (phase 2 R1-R3 on `refactor/phase-2-ipc-contract`).
-The historical baseline rows remain descriptive; the R1-R3 review does not imply
-that pending R4/R5 or later phases are complete.
+Last reviewed: 2026-11-04 (phase 2 R1-R4 on `refactor/phase-2-ipc-contract`).
+The historical baseline rows remain descriptive; R5 and later phases are not complete.
 
 ---
 
@@ -37,7 +36,7 @@ that pending R4/R5 or later phases are complete.
 | Config | ✅ 1.1（2026-11-01）：**electron-store 12**（原子存储层）+ zod 单层校验（`.default()`/`.catch()` 取代 normalizers）；conf 16 的 schema 校验会"坏文件即拒启"，与不清空红线冲突——故 schema 不传给 electron-store | 同左 | 1.3 |
 | Dev/prod isolation | ✅ 1.1（2026-11-01）：`envSetup.ts` 为 main.ts 首个 import（架构守卫强制），非打包且无冒烟 env 时 userData 加 `-dev`；冒烟覆盖优先 | 同左 | 1.3 |
 | Database | bare better-sqlite3, 249 `prepare()` sites, 114 `as Row` casts, hand-written migration runner + 29 migrations | **Drizzle ORM** schema + `drizzle-kit` migrations; 001–029 imported as baseline; pre-migration backup kept | 3.1 |
-| Timestamps | TEXT local-time strings (`nowBeijing()`), 65 columns, `local_day` string column | **Unix milliseconds INTEGER** (`{ mode: 'timestamp_ms' }`), `z.number()` in schemas, `Intl` formatting in UI only | 2.5 |
+| Timestamps | R5 precheck: 82 TEXT timestamp columns including migration ledger; suffixless values mix system-local and fixed UTC+8 writers. Day keys remain strings. Required version-21 real fixture is missing; migration not implemented. | **Unix milliseconds INTEGER** (`{ mode: 'timestamp_ms' }`), `z.number()` in schemas, `Intl` formatting in UI only, after provenance and migration safety review | 2.5 |
 | Result shape | ✅ 1.1（2026-11-01）：20 处真正的 IPC 返回统一为 `createOutputSchema()` 判别联合（6 个封闭 `code`）；34 处 `{ok:}` 经复核确认是内部校验器/运行时协议形状、不跨 IPC 边界，不转换 | 同左 | 1.4 |
 | Event bus | 9 hand-written `Set<callback>` buses + 3 `EventEmitter` | typed `EventEmitter` wrapper | 3.6 |
 | Debounce | `DebouncedWindowFollower.ts` + 12 ad-hoc `setTimeout` pairs | one `shared/lib/timing.ts` | 3.6 |
@@ -56,8 +55,8 @@ that pending R4/R5 or later phases are complete.
 | CSS naming | `block-element-sub` (463 selectors, 0 BEM) | BEM `block__element--modifier` | 4.4 |
 | Tailwind | installed, 0 utility classes used | utility classes for simple/one-off styles | 4.4 |
 | Scrollable containers | 17, no `scrollbar-gutter` | `scrollbar-gutter: stable`, hover-reveal scrollbar | 4.4 |
-| State | 0 Context, props drilled 5 levels | Context for shell actions / data refresh / preferences | 4.2 |
-| Data fetching | `useEffect` + `await` in 15 components, 1 refresh event | `useIpcQuery()` hooks subscribing to `DataRefreshContext` | 2.4 |
+| State | `DataRefreshProvider` owns the shell invalidation subscription; other shell actions/preferences remain legacy state | Context for shell actions / data refresh / preferences | 2.4, 4.2 |
+| Data fetching | R4: 17 readers use `useIpcQuery`; eight-topic `data:changed` follows committed writes, with 50ms coalescing. `useIpcSubscription` preserves four App snapshot/live streams. | R4 refresh target reached; see `data-refresh.md` for transaction, draft and lifecycle invariants | 2.4 |
 | Test naming | 55% Chinese, 21 path-name cases, 61/178 files use `describe` | `describe` + four groups (Input Validation / Normal Operations / Error Handling / Boundary Conditions), `it('should …')` in English | 5.2 |
 | Coverage gate | global 65/60/62/68 ratchet | per-layer: procedures & lib 80%, handlers 60% (global ratchet kept) | 5.3 |
 
@@ -66,6 +65,7 @@ that pending R4/R5 or later phases are complete.
 - No `any`, no `@ts-ignore`, no `eslint-disable` in main; 0 `alert/confirm/prompt/localStorage` in renderer.
 - Renderer never imports electron/node; components never call `window.api` directly (144/144 call sites live in `*Api.ts` adapters + the `src/main.tsx` entry exemption; guard: only `*Api.ts`, `src/hooks/` and the entry may reference `window.api`).
 - All 20 preload `ipcRenderer.on` subscriptions return an unsubscribe.
+- R4 adds `data.onChanged` with unsubscribe; `problem.onUpdated` remains a deprecated no-payload compatibility method for one release, explicitly exempted from the caller guard.
 - IPC three-layer guard (`domain-rules.md` §2); 100% of parameterised channels have a schema.
 - 9 `db.transaction` sites throw on failure, no silent return.
 - WAL + `foreign_keys` + `busy_timeout` pragmas set.

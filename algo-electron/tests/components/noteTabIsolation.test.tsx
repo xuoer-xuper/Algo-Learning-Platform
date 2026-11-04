@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
+import { render } from './renderWithDataRefresh'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, fireEvent, screen, waitFor } from '@testing-library/react'
 import type { TabStripTabInfo } from '../../src/components/tabApi'
 import type { NoteItem } from '../../src/features/problems/notesTypes'
 

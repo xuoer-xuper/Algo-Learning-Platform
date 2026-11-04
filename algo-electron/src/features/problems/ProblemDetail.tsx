@@ -8,10 +8,10 @@ import {
   navigateToProblemUrl,
 } from './problemsApi'
 import type { SubmissionRecord } from '@shared/types/submission'
-import type { ProblemDetailView } from './problemTypes'
 import { SessionTimelineView } from '../coach/SessionTimelineView'
 import { Button, ConfirmDialog, Icon, IconButton, Skeleton } from '../../components/ui'
-import { reportRendererError } from '../../rendererErrors'
+import { useIpcQuery } from '../../hooks/useIpcQuery'
+import { useIpcQueryError } from '../../hooks/useIpcQueryError'
 
 interface Props {
   problemId: string
@@ -24,19 +24,17 @@ function isContestPageLink(url: string): boolean {
 }
 
 export function ProblemDetail({ problemId, onClose }: Props) {
-  const [detail, setDetail] = useState<ProblemDetailView | null>(null)
+  const query = useIpcQuery(() => loadProblemDetail(problemId), [problemId], {
+    tables: ['problems', 'submissions', 'stats'],
+  })
+  const detail = query.data
+  useIpcQueryError(query.error, '题目详情读取')
   const [deleting, setDeleting] = useState(false)
   const [view, setView] = useState<'detail' | 'timeline'>('detail')
   // B1.4：删除二连问合并为单个确认对话框 + 「同时删除笔记」勾选项
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [noteCount, setNoteCount] = useState(0)
   const [alsoDeleteNotes, setAlsoDeleteNotes] = useState(false)
-
-  useEffect(() => {
-    void loadProblemDetail(problemId)
-      .then(setDetail)
-      .catch((error: unknown) => reportRendererError('题目详情读取', error))
-  }, [problemId])
 
   // 切题时重置子视图
   useEffect(() => {
@@ -80,7 +78,7 @@ export function ProblemDetail({ problemId, onClose }: Props) {
    * detail-info 的平台/题号/状态/提交/停留五行，读完不跳。
    * 关闭按钮照旧渲染：读不出来时用户仍然要能退出去。
    */
-  if (!detail) {
+  if (query.isLoading) {
     return (
       <div className="detail-page">
         <div className="detail-header">
@@ -97,6 +95,14 @@ export function ProblemDetail({ problemId, onClose }: Props) {
       </div>
     )
   }
+
+  if (!detail)
+    return (
+      <div className="detail-page">
+        <IconButton icon="close" title="关闭" onClick={onClose} />
+        <p>{query.error ? '题目详情读取失败' : '题目记录不存在'}</p>
+      </div>
+    )
 
   return (
     <div className="detail-page">

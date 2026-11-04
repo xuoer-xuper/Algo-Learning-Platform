@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Button, ConfirmDialog, IconButton } from '../../components/ui'
-import { reportRendererError } from '../../rendererErrors'
+import { useIpcQuery } from '../../hooks/useIpcQuery'
+import { useIpcQueryError } from '../../hooks/useIpcQueryError'
 import { AddSiteForm } from './AddSiteForm'
 import { ImportPreviewPanel } from './ImportPreviewPanel'
 import {
@@ -25,7 +26,9 @@ const EMPTY_SITE_DRAFT: NewSiteDraft = {
 }
 
 export function SiteManagementPanel() {
-  const [sites, setSites] = useState<SiteConfigRecord[]>([])
+  const query = useIpcQuery(loadSiteConfigs, [], { tables: ['sites'] })
+  const sites = query.data ?? []
+  useIpcQueryError(query.error, '站点列表读取')
   const [exportStatus, setExportStatus] = useState('')
   const [importPreview, setImportPreview] = useState<SiteImportPreview | null>(null)
   const [importOverwriteIds, setImportOverwriteIds] = useState<string[]>([])
@@ -38,14 +41,8 @@ export function SiteManagementPanel() {
   const [pendingDelete, setPendingDelete] = useState<SiteConfigRecord | null>(null)
 
   const loadSites = () => {
-    void loadSiteConfigs()
-      .then(setSites)
-      .catch((error: unknown) => reportRendererError('站点列表读取', error))
+    void query.refetch()
   }
-
-  useEffect(() => {
-    loadSites()
-  }, [])
 
   const handleToggleSite = async (id: string, enabled: boolean) => {
     await toggleSiteEnabled(id, enabled)

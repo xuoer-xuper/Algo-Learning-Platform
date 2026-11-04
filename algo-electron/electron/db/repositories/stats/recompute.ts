@@ -2,6 +2,7 @@ import { getDb } from '../../connection'
 import { nowBeijing, todayBeijing } from '../../../shared/time'
 import { nextLocalDay } from './date'
 import type { PlatformDistributionRow } from '../../../../src/shared/types/stats'
+import { emitDataChanged } from '../../../shared/dataEvents'
 
 interface VisitAggregate {
   duration: number
@@ -97,6 +98,7 @@ export function recomputeDailyStats(date?: string): void {
     now,
     now,
   )
+  emitDataChanged(['stats'])
 }
 
 export function recomputeDailyStatsForDates(dates: Iterable<string>): number {

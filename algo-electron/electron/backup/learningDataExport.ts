@@ -1,3 +1,4 @@
+import { emitDataChanged, withDataChangeTransaction } from '../shared/dataEvents'
 import { getDb } from '../db/connection'
 import { recomputeProblemSubmissionState } from '../db/repositories/submissionRepository'
 import { recomputeDailyStatsForDates } from '../db/repositories/statsRepository'
@@ -288,9 +289,13 @@ export function importLearningData(
     // after all fact writes, including dates and problem links replaced above.
     for (const date of recomputeProblemSubmissionState(effects.problemIds)) effects.dates.add(date)
     recomputeDailyStatsForDates(effects.dates)
+    const changed =
+      Object.values(inserted).some((count) => count > 0) ||
+      Object.values(updated).some((count) => count > 0)
+    if (changed) emitDataChanged(['problems', 'submissions', 'stats'])
   })
 
-  transaction()
+  withDataChangeTransaction(() => transaction())
 
   return {
     success: true,

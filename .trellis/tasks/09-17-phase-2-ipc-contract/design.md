@@ -77,6 +77,31 @@ declare global { interface Window { api: typeof api } }
 
 ## 5. 数据刷新
 
+> **2026-11-04 实施勘误（优先于本节旧示例）**：实测写路径、17 个取数组件和事务清单见
+> [R4 调研](./research/r4-data-refresh.md)。保持既有时间格式、SQL 语义和目录，不涉及 R5。
+
+- 八个 `tables` 值是逻辑失效域，不是完整 SQL 表清单；account/rating 写入映射 `stats`，
+  visits 映射 `problems` + `stats`。Cookie metadata 查询本身会写库，**不接入**此次总线，
+  避免 CredentialsPage 查询触发无限刷新；事件不携带行数据、ID、密钥或文件路径。
+- `emitDataChanged(tables)` 的生产端只在成功写入之后标记。已有外层事务调用必须由同步
+  `withDataChangeTransaction(() => db.transaction(operation)())` 包住，嵌套成功并入父集合，
+  抛错丢弃当前层；最外层提交成功才发布。不得只包事务 callback，也不得将非事务批处理
+  伪装成事务：SubmissionBatchWriter 部分写入已经提交时，即使后续报错也必须刷新。
+- 总线不 import Electron/window；主进程 bridge 使用现有 `WindowManager.sendToAll`，
+  50ms 固定窗口合并去重，退出时清理订阅与定时器。不存在 `AppWindow.broadcast` 方法。
+- `PROBLEM.UPDATED` 保持原始字符串和无 payload 行为一版，**不是相同字符串别名**。
+  新 renderer 只订阅 `DATA.CHANGED`；旧公开订阅暂无消费者时，在消费者守卫中仅为该方法
+  记录有期限的兼容豁免，不制造虚假调用。
+- renderer 新增 `src/context/DataRefreshContext.tsx`、`src/hooks/useIpcQuery.ts`；provider
+  通过 `*Api.ts`/hooks adapter 接 IPC，保持架构边界。测试与独立 harness 应显式接 provider。
+  query 保留 null/[] 等成功值，区分初载/refetch，key 改变后忽略旧请求，自动刷新错误不产生
+  未处理 rejection，同 key 失败保留已加载数据，取消订阅后不再更新。
+- App 四处模板是 snapshot + live event，不是数据表刷新。用独立 `useIpcSubscription`
+  消除重复代码，保持 subscribe-before-fetch、live-wins、capture result 匹配清理和卸载隔离。
+- 保留笔记未保存草稿、凭据编辑草稿和 Coach mock 模式；刷新列表不能覆盖编辑器内容。
+  真实同步 Playwright 使用临时数据库、实际 SyncService/writer/preload/bridge 和确定性
+  测试网络响应，不把仅改 mock 数组的截图测试当成真实 sync 验收。
+
 - 主进程 `src/main/services/data-events.ts`（阶段 3 前放 `electron/shared/dataEvents.ts`）：`emitDataChanged(tables)` 做 50ms 合并去重后 `AppWindow.broadcast(IPC_CHANNELS.DATA.CHANGED, { tables })`。
 - 写路径接入点：`db/repositories/*/mutations.ts`（问题：repository 不该知道窗口 ⇒ 用 `EventEmitter` `dataEvents.emit('changed', tables)`，`main.ts` 装配时订阅并广播）。
 - 渲染层 `useIpcQuery`：

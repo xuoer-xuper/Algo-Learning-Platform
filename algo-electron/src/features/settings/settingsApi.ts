@@ -55,6 +55,10 @@ export async function loadPrimaryCodeforcesAccount(): Promise<PlatformAccount | 
   return accounts[0] ?? null
 }
 
+export function loadCodeforcesAccount(handle: string): Promise<PlatformAccount | null> {
+  return window.api.rating.getAccount({ platform: 'codeforces', handle })
+}
+
 export function syncCodeforcesSubmissions(handle: string): Promise<SyncResult> {
   return window.api.submissions.syncCodeforces(handle)
 }

@@ -11,6 +11,8 @@
 - `types.ts`：统一题目标识、统一提交结果类型。
 - `time.ts`：本地时间格式化工具。
 - `logger.ts`：主进程滚动文件日志、隐私遮蔽和早期启动日志缓冲。
+- `dataEvents.ts`：提交后的逻辑域失效通知；同步事务调用用 `withDataChangeTransaction` 缓冲，回滚丢弃，最外层提交后才发布。
+- `dataRefreshBridge.ts`：订阅总线，用固定 50ms 窗口合并域后发到 shell 窗口；退出时清理订阅与计时器，失败仅记无私有数据的诊断事件。
 
 ## 3. 类型说明
 
@@ -70,6 +72,8 @@
 - 日志不得写入 Cookie、密码、token、请求体、用户源码或脚本源码；URL 只保留去掉查询参数和 fragment 的路径。
 - 日志写入失败不得反向抛错；生产日志位于 `app.getPath('userData')/logs/main.log`，最多保留三个轮转文件。
 - 默认只写文件；需要在开发终端镜像日志时设置 `ALGO_ELECTRON_LOG_STDERR=1`，避免测试和 CI 输出敏感或重复诊断信息。
+- 数据刷新只传 `problems/submissions/notes/stats/sites/scripts/credentials/coach` 域名，不传记录、ID、密钥或文件路径。account/rating 映射 `stats`；Cookie metadata 的读时写入不发布刷新，防止查询循环。
+- `withDataChangeTransaction` 必须包住同步 `db.transaction(...)()` 的调用而非 callback；不用于 async 或自动提交批处理，已提交的部分成功不能被当成回滚。
 
 ## 6. 测试入口
 

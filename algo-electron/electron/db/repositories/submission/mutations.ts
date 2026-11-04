@@ -3,6 +3,7 @@ import { getDb } from '../../connection'
 import type { SubmissionData } from '../../../shared/types'
 import { nowBeijing } from '../../../shared/time'
 import type { SubmissionRow } from './types'
+import { emitDataChanged } from '../../../shared/dataEvents'
 
 export function upsertSubmission(data: SubmissionData): boolean {
   const db = getDb()
@@ -36,5 +37,6 @@ export function upsertSubmission(data: SubmissionData): boolean {
     now,
   )
 
+  emitDataChanged(['submissions', 'problems', 'stats'])
   return true
 }

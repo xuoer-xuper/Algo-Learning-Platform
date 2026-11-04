@@ -8,6 +8,7 @@ import {
 } from '../coach/coachDataApi'
 import { errorMessage } from '../../shared/errors'
 import type { CoachConfig, CoachPinMode } from '@shared/types/coach'
+import { useIpcQuery } from '../../hooks/useIpcQuery'
 
 /**
  * 三档置顶方式的效果说明。写在界面上而不是只写文档：这三档的差别是
@@ -36,17 +37,16 @@ const PIN_MODE_HINTS: Record<CoachPinMode, string> = {
  * 阶段 1 暂不支持运行时启停桌宠窗口（需重启），仅持久化配置。
  */
 export function CoachPanel() {
-  const [config, setConfig] = useState<CoachConfig | null>(null)
+  const query = useIpcQuery(loadCoachConfig, [])
+  const [configDraft, setConfig] = useState<CoachConfig | null>(null)
+  const config = configDraft ?? query.data
   const [saved, setSaved] = useState(false)
   const [testMsg, setTestMsg] = useState('')
   const [loadError, setLoadError] = useState('')
 
   useEffect(() => {
-    void loadCoachConfig()
-      .then(setConfig)
-      // 读失败时若不提示，面板会永远停在骨架屏上。
-      .catch((error: unknown) => setLoadError(`读取配置失败：${errorMessage(error)}`))
-  }, [])
+    if (query.error) setLoadError(`读取配置失败：${errorMessage(query.error)}`)
+  }, [query.error])
 
   const updateConfig = (partial: Partial<CoachConfig>) => {
     if (!config) return

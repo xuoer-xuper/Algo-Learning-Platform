@@ -5,6 +5,7 @@ import { nowBeijing } from '../../../shared/time'
 import { logger as baseLogger, type Logger } from '../../../shared/logger'
 import { isValidScrapedTitle, shouldReplaceScrapedTitle } from '../../../parsers/titleValidation'
 import { recomputeDailyStatsForDates } from '../stats/recompute'
+import { emitDataChanged, withDataChangeTransaction } from '../../../shared/dataEvents'
 
 interface ExistingProblemTitleRow {
   id: string
@@ -49,6 +50,7 @@ export function upsertProblem(identity: ProblemIdentity): void {
       now,
       existing.id,
     )
+    emitDataChanged(['problems', 'stats'])
     return
   }
 
@@ -72,6 +74,7 @@ export function upsertProblem(identity: ProblemIdentity): void {
     now,
     now,
   )
+  emitDataChanged(['problems', 'stats'])
 }
 
 export function deleteProblem(problemId: string, logger: Logger = baseLogger): boolean {
@@ -98,12 +101,16 @@ export function deleteProblem(problemId: string, logger: Logger = baseLogger): b
     if (row.local_day) affectedDates.add(row.local_day)
   }
 
-  const deleted = db.transaction(() => {
-    db.prepare('DELETE FROM submissions WHERE problem_id = ?').run(problemId)
-    db.prepare('DELETE FROM problem_visits WHERE problem_id = ?').run(problemId)
-    db.prepare('DELETE FROM activity_events WHERE problem_id = ?').run(problemId)
-    return db.prepare('DELETE FROM problems WHERE id = ?').run(problemId).changes > 0
-  })()
+  const deleted = withDataChangeTransaction(() =>
+    db.transaction(() => {
+      db.prepare('DELETE FROM submissions WHERE problem_id = ?').run(problemId)
+      db.prepare('DELETE FROM problem_visits WHERE problem_id = ?').run(problemId)
+      db.prepare('DELETE FROM activity_events WHERE problem_id = ?').run(problemId)
+      const removed = db.prepare('DELETE FROM problems WHERE id = ?').run(problemId).changes > 0
+      if (removed) emitDataChanged(['problems', 'submissions', 'stats'])
+      return removed
+    })(),
+  )
   if (deleted) {
     try {
       recomputeDailyStatsForDates(affectedDates)

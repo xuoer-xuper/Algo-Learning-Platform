@@ -1,3 +1,4 @@
+import { emitDataChanged } from '../../../shared/dataEvents'
 import crypto from 'node:crypto'
 import { getDb } from '../../connection'
 import { nowBeijing, todayBeijing } from '../../../shared/time'
@@ -50,6 +51,7 @@ export function insertCoachFeedback(input: InsertCoachFeedbackInput): string {
     todayBeijing(),
     nowBeijing(),
   )
+  emitDataChanged(['coach'])
   return id
 }
 

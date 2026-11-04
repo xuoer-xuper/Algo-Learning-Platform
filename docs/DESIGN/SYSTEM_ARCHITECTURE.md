@@ -312,23 +312,15 @@ Preload 只暴露白名单 API，不暴露通用 `ipcRenderer`。
 
 B4.5 登录捕获沿 Chrome 主路径工作：`captureForm.ts` 在 OJ 隔离世界观察登录表单 `submit`，不阻止原生提交；用户名/密码经 OJ 专用 `oj-credentials:capture` channel 进入主进程 `CredentialCaptureService` 的窗口级短时 pending map。服务按 `persist:oj-main`、HTTPS、站点域名和登录 URL pattern 校验，比较同站点同用户名的现有凭据；密码相同静默丢弃，密码变化向所属完整壳发送一次性 `captureId` 和 `siteId/siteName/username/displayName/masked/isUpdate` 脱敏摘要，由 NoticeBar 确认后保存或更新 Vault。取消、超时、导航、WebContents 销毁和 `dispose` 都清理 pending，captureId 不可复用；密码明文不进入 shell renderer、日志、导出或数据库明文列。
 
-当前形态：
+当前按域分组的调用形态（类型由 preload 推导）：
 
 ```ts
-window.electronAPI = {
-  navigate(url),
-  goBack(),
-  goForward(),
-  reload(),
-  createTab(url),
-  listRecentProblems(limit, platform, status),
-  getProblemDetail(problemId),
-  getOverviewStats(),
-  getRealtimeSubmissionStatus(),
-  listSiteConfigs(),
-  importSiteConfigs(),
-  exportSiteConfigs()
-}
+window.api.browser.navigate(url)
+window.api.tab.create(url)
+window.api.problem.listRecent({ limit, platform, status })
+window.api.problem.getDetail(problemId)
+window.api.stats.getOverview()
+window.api.data.onChanged(({ tables }) => refreshMatchingQueries(tables))
 ```
 
 完整 preload 契约以 `algo-electron/src/preload/index.ts`（`window.api`，renderer 类型由 `typeof api` 推导）与 `algo-electron/src/shared/types/` 为准；IPC contract 测试负责防止 renderer 获得通用 `ipcRenderer`。
@@ -360,7 +352,20 @@ window.electronAPI = {
 - 错误处理策略。
 - 是否允许 Renderer 调用。
 
-IPC 类型定义应放在共享类型文件或 `electron/ipc/channels.ts`，避免字符串散落。
+IPC 类型定义放在 `src/shared/types/`；通道常量统一由 `src/shared/constants/channels.ts` 导出，避免字符串散落。
+
+### 6.4 提交后的数据刷新
+
+`data:changed` 仅广播 `{ tables }`，八个逻辑域为 `problems/submissions/notes/stats/sites/scripts/credentials/coach`，不携带记录、凭据、Cookie 或本地路径。account/rating 写入映射到 `stats`，访问记录映射到 `problems` 和 `stats`。
+
+- repository 在成功写入后标记变化；已有同步事务由 `withDataChangeTransaction` 包住整个事务调用，嵌套回滚丢弃当前层事件，最外层提交成功才发布。非事务批量写入部分成功后即使后续失败，已提交变化仍须刷新。
+- `dataRefreshBridge` 用固定 50ms 窗口合并去重，通过 `WindowManager.sendToAll` 发送给完整壳窗口，退出时清理计时器和订阅。
+- Cookie safe-summary 查询本身会刷新 metadata，因此这些 metadata 写入不发送 `credentials` 事件，避免查询与刷新构成无限循环。
+- `DataRefreshProvider` 管理壳内订阅，`useIpcQuery` 按依赖和逻辑域自动重读；初载显示骨架，后台 refetch 保留已加载内容，旧请求不能覆盖新 key 的结果。列表刷新不覆盖笔记或设置草稿。
+- App 的权限、凭据和比赛提示是 snapshot/live 流，使用 `useIpcSubscription` 保持实时事件优先，不改为通用表查询。
+- `problems:updated` 保留一版作为无 payload 兼容事件，与 `data:changed` 不是相同字符串别名。新查询只订阅新事件，旧 `problem.onUpdated` 在消费者守卫中有唯一显式兼容豁免。
+
+验收使用临时真实数据库、真实同步写入器与 preload/事件桥，检查后台同步后 Dashboard 和 ProblemDetail 无需手动刷新即可更新；不能把仅替换 mock 数组的截图测试当作该链路验收。
 
 ## 7. Renderer 架构
 

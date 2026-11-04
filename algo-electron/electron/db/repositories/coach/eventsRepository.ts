@@ -1,3 +1,4 @@
+import { emitDataChanged } from '../../../shared/dataEvents'
 import crypto from 'node:crypto'
 import { getDb } from '../../connection'
 import { nowBeijing } from '../../../shared/time'
@@ -31,23 +32,26 @@ interface CoachEventRow {
 
 export function insertCoachEvent(event: CoachEvent): CoachEvent {
   const db = getDb()
-  db.prepare(
-    `
+  const result = db
+    .prepare(
+      `
     INSERT OR IGNORE INTO coach_events
       (event_id, session_id, event_type, severity, score, problem_id, platform, evidence_json, created_at)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
   `,
-  ).run(
-    event.event_id,
-    event.session_id,
-    event.event_type,
-    event.severity,
-    event.score,
-    event.problem_id,
-    event.platform,
-    JSON.stringify(event.evidence),
-    event.created_at,
-  )
+    )
+    .run(
+      event.event_id,
+      event.session_id,
+      event.event_type,
+      event.severity,
+      event.score,
+      event.problem_id,
+      event.platform,
+      JSON.stringify(event.evidence),
+      event.created_at,
+    )
+  if (result.changes > 0) emitDataChanged(['coach'])
   return event
 }
 

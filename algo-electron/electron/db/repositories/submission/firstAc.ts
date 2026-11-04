@@ -2,6 +2,7 @@ import { getDb } from '../../connection'
 import { nowBeijing } from '../../../shared/time'
 import type { FirstAcRow } from './types'
 import { localDayFromTimestamp } from '../stats/date'
+import { emitDataChanged } from '../../../shared/dataEvents'
 
 export function updateFirstAc(problemId: string): string[] {
   const db = getDb()
@@ -25,12 +26,15 @@ export function updateFirstAc(problemId: string): string[] {
     .get(problemId) as FirstAcRow | undefined
 
   if (firstAc) {
-    db.prepare(
-      `
+    const result = db
+      .prepare(
+        `
       UPDATE problems SET status = 'solved', first_solved_at = ?, updated_at = ?
       WHERE id = ? AND (first_solved_at IS NULL OR first_solved_at > ?)
     `,
-    ).run(firstAc.submitted_at, now, problemId, firstAc.submitted_at)
+      )
+      .run(firstAc.submitted_at, now, problemId, firstAc.submitted_at)
+    if (result.changes > 0) emitDataChanged(['problems', 'stats'])
   }
 
   const affectedDays = new Set<string>()
@@ -75,7 +79,15 @@ export function recomputeProblemSubmissionState(problemIds: Iterable<string>): s
         : existing.status === 'unknown'
           ? 'unknown'
           : 'visited'
-    update.run(status, submissions.first_ac, now, problemId, status, submissions.first_ac)
+    const result = update.run(
+      status,
+      submissions.first_ac,
+      now,
+      problemId,
+      status,
+      submissions.first_ac,
+    )
+    if (result.changes > 0) emitDataChanged(['problems', 'stats'])
     for (const timestamp of [existing.first_solved_at, submissions.first_ac]) {
       const date = timestamp ? localDayFromTimestamp(timestamp) : null
       if (date) affectedDates.add(date)

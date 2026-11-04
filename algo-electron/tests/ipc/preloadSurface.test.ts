@@ -99,7 +99,7 @@ describe('preload 暴露面', () => {
     // browserLayout 是唯一的非函数成员：同步读取的布局常量，不是 IPC 调用。
     assert.strictEqual(typeof exposed.browserLayout, 'object')
     const domains = Object.entries(exposed).filter(([key]) => key !== 'browserLayout')
-    assert.strictEqual(domains.length, 16, `应有 16 个域，实测 ${domains.length}`)
+    assert.strictEqual(domains.length, 17, `应有 17 个域，实测 ${domains.length}`)
   })
 
   test('每个方法各自只发一条 IPC，且至多转发一个实参（单对象 wire）', () => {
@@ -107,7 +107,10 @@ describe('preload 暴露面', () => {
     const seen = new Map<string, string>()
 
     for (const [domain, methods] of surface.methods) {
-      assert.ok(methods.length > 0, `${domain} 域不应为空`)
+      assert.ok(
+        methods.length + (surface.subscriptions.get(domain)?.length ?? 0) > 0,
+        `${domain} 域不应为空`,
+      )
       for (const method of methods) {
         methodCount++
         const domainObject = (exposedMainWorld.get('api') as ApiRecord)[domain] as ApiRecord

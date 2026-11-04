@@ -1,5 +1,6 @@
 import React from 'react'
 import { createRoot } from 'react-dom/client'
+import { DataRefreshProvider } from '../../src/context/DataRefreshContext'
 import '../../src/index.css'
 import '../../src/App.css'
 import { MOCK_METRICS_BUNDLE } from '../../src/features/coach/mockMetricsBundle'
@@ -194,6 +195,7 @@ function createApiMock(): typeof window.api {
   }
 
   return {
+    data: { onChanged: () => () => {} },
     browserLayout: {
       toolbarHeight: 42,
       tabBarHeight: 36,
@@ -717,7 +719,11 @@ async function bootstrap(): Promise<void> {
   const { default: App } = await import('../../src/App')
   const rootEl = document.getElementById('root')
   if (!rootEl) throw new Error('Missing root element')
-  createRoot(rootEl).render(<App />)
+  createRoot(rootEl).render(
+    <DataRefreshProvider>
+      <App />
+    </DataRefreshProvider>,
+  )
   window.dispatchEvent(new Event('algo-screenshot-rendered'))
 }
 

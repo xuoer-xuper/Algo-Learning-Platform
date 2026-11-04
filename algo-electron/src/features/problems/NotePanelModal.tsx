@@ -1,7 +1,6 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useCallback } from 'react'
 import { NoteEditorPane } from './NoteEditorPane'
 import { NoteList } from './NoteList'
-import type { NoteItem } from './notesTypes'
 import {
   createProblemNote,
   deleteNote,
@@ -13,7 +12,8 @@ import {
 } from './problemsApi'
 import { useDebouncedNoteTitleSave } from './useDebouncedNoteTitleSave'
 import { Button, ConfirmDialog, Icon, IconButton } from '../../components/ui'
-import { reportRendererError } from '../../rendererErrors'
+import { useIpcQuery } from '../../hooks/useIpcQuery'
+import { useIpcQueryError } from '../../hooks/useIpcQueryError'
 
 interface Props {
   problemId: string
@@ -21,7 +21,9 @@ interface Props {
 }
 
 export function NotePanelModal({ problemId, onClose }: Props) {
-  const [notes, setNotes] = useState<NoteItem[]>([])
+  const query = useIpcQuery(() => listNotesByProblem(problemId), [problemId], { tables: ['notes'] })
+  const notes = query.data ?? []
+  useIpcQueryError(query.error, '笔记列表读取')
   const [activeNoteId, setActiveNoteId] = useState<string | null>(null)
   const [editorTitle, setEditorTitle] = useState('')
   const [editorType, setEditorType] = useState<string>('solution')
@@ -32,19 +34,10 @@ export function NotePanelModal({ problemId, onClose }: Props) {
   const [discardOpen, setDiscardOpen] = useState(false)
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
 
+  const refetchNotes = query.refetch
   const loadNotes = useCallback(async () => {
-    try {
-      const list = await listNotesByProblem(problemId)
-      setNotes(list)
-    } catch (error: unknown) {
-      // 笔记列表空态与「这题还没记笔记」长得一样。
-      reportRendererError('笔记列表读取', error)
-    }
-  }, [problemId])
-
-  useEffect(() => {
-    void loadNotes()
-  }, [loadNotes])
+    await refetchNotes()
+  }, [refetchNotes])
 
   const { flushPendingTitle, scheduleSaveTitle, clearPendingTitleForNote } =
     useDebouncedNoteTitleSave({ onSaved: loadNotes })

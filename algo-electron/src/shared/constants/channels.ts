@@ -20,6 +20,9 @@
  * - `persist:oj-main`：session partition 名；`about:blank`、`node:*`：URL 与模块说明符。
  */
 export const IPC_CHANNELS = {
+  DATA: {
+    CHANGED: 'data:changed',
+  },
   /** `ai:` 域——AI 复习建议、薄弱分析与本地输出存档 */
   AI: {
     DELETE_OUTPUT: 'ai:deleteOutput',
@@ -167,6 +170,7 @@ export const IPC_CHANNELS = {
     DELETE: 'problem:delete',
     GET_DETAIL: 'problem:getDetail',
     LIST_RECENT: 'problem:listRecent',
+    /** @deprecated Use DATA.CHANGED; retained without a payload for one compatibility release. */
     UPDATED: 'problems:updated',
   },
   /** `rating:` 域——CF 账号绑定与比赛数据 */

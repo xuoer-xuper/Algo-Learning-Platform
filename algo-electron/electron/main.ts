@@ -19,6 +19,7 @@ import path from 'node:path'
 import { TabManager } from './browser/TabManager'
 import { BROWSER_LAYOUT } from './browser/browserLayout'
 import { closeDb } from './db/connection'
+import { installDataRefreshBridge } from './shared/dataRefreshBridge'
 import {
   getSearchConfig,
   getThemePreference,
@@ -162,6 +163,7 @@ let quitSessionFlushPromise: Promise<void> | null = null
 
 const viewRegistry = new ViewRegistry()
 const windowManager = new WindowManager({ viewRegistry })
+const disposeDataRefreshBridge = installDataRefreshBridge(windowManager)
 const windowCreationGate = new WindowCreationGate<AppWindow>()
 const credentialVault = new CredentialVault()
 const themeController = new ThemeController({
@@ -812,6 +814,7 @@ if (hasSingleInstanceLock) {
     userScriptUpdateService = null
     userScriptFileWatcher?.stop()
     userScriptFileWatcher = null
+    disposeDataRefreshBridge()
     try {
       closeDb()
     } catch (error) {
@@ -1143,6 +1146,7 @@ if (hasSingleInstanceLock) {
             } catch (error) {
               trackingLog.warn('smoke-cleanup-failed', error)
             }
+            disposeDataRefreshBridge()
             try {
               closeDb()
             } catch (error) {

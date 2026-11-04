@@ -55,7 +55,10 @@ test('every exposed api method has a renderer caller', () => {
     }
   }
 
-  const missing = [...methods.keys()].filter((key) => !callers.has(key))
+  // One-release compatibility only: new readers use data.onChanged, not this old event.
+  const deprecated = new Set(['problem.onUpdated'])
+  assert.ok(methods.has('problem.onUpdated'), 'Remove compatibility exception with old API')
+  const missing = [...methods.keys()].filter((key) => !callers.has(key) && !deprecated.has(key))
   assert.deepStrictEqual(
     missing,
     [],

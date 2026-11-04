@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
-import { act, cleanup, render, screen } from '@testing-library/react'
+import { render } from './renderWithDataRefresh'
+import { act, cleanup, screen } from '@testing-library/react'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import type {
   CredentialCaptureAction,
@@ -26,8 +27,9 @@ let permissionListener: ((prompt: UserScriptHostPermissionPrompt) => void) | nul
 const respondPermission = vi.fn(
   async (_promptId: string, _allow: boolean) => 'allowed' as UserScriptHostPermissionResponse,
 )
-let capturePromptListener: ((prompt: CredentialCapturePrompt) => void) | null = null
+let capturePromptListener: ((prompt: CredentialCapturePrompt | null) => void) | null = null
 let captureResultListener: ((result: CredentialCaptureResult) => void) | null = null
+let getCapturePrompt = vi.fn<() => Promise<CredentialCapturePrompt | null>>()
 const respondCapture = vi.fn(async (_captureId: string, _action: CredentialCaptureAction) => true)
 
 function createCoachState(isContestMode: boolean): CoachStateSnapshot {
@@ -102,8 +104,10 @@ vi.mock('../../src/hooks/browserShellApi', () => ({
   getCredentialAutofillPrompt: async () => null,
   subscribeCredentialAutofillPrompt: () => () => undefined,
   respondCredentialAutofill: vi.fn(async () => true),
-  getCredentialCapturePrompt: async () => null,
-  subscribeCredentialCapturePrompt: (listener: (prompt: CredentialCapturePrompt) => void) => {
+  getCredentialCapturePrompt: () => getCapturePrompt(),
+  subscribeCredentialCapturePrompt: (
+    listener: (prompt: CredentialCapturePrompt | null) => void,
+  ) => {
     capturePromptListener = listener
     return () => {
       capturePromptListener = null
@@ -137,6 +141,7 @@ beforeEach(() => {
   respondPermission.mockClear()
   respondCapture.mockClear()
   getCoachState = vi.fn(async () => null)
+  getCapturePrompt = vi.fn(async () => null)
 })
 
 afterEach(() => {
@@ -262,4 +267,48 @@ test('shows a redacted capture prompt and responds with save/update/cancel actio
     captureResultListener?.({ captureId: 'capture-1', success: false, error: 'save-failed' })
   })
   expect(screen.getByText('凭据保存失败')).toBeTruthy()
+})
+
+test('clears capture errors on a null live prompt and ignores callbacks after unmount', async () => {
+  const { unmount } = render(<App />)
+  await act(async () => {})
+  act(() => captureResultListener?.({ captureId: 'failed', success: false, error: 'save-failed' }))
+  expect(screen.getByText('凭据保存失败')).toBeTruthy()
+  act(() => capturePromptListener?.(null))
+  expect(screen.queryByText('凭据保存失败')).toBeNull()
+  const oldPrompt = capturePromptListener
+  const oldResult = captureResultListener
+  unmount()
+  act(() => {
+    oldPrompt?.(null)
+    oldResult?.({ captureId: 'failed', success: false, error: 'save-failed' })
+  })
+  expect(screen.queryByText('凭据保存失败')).toBeNull()
+})
+
+test('keeps a pending capture snapshot when an unrelated capture result arrives', async () => {
+  let resolveSnapshot!: (prompt: CredentialCapturePrompt) => void
+  getCapturePrompt.mockImplementation(
+    () =>
+      new Promise((resolve) => {
+        resolveSnapshot = resolve
+      }),
+  )
+  render(<App />)
+  act(() => captureResultListener?.({ captureId: 'old-A', success: false, error: 'save-failed' }))
+  await act(async () =>
+    resolveSnapshot({
+      captureId: 'pending-B',
+      siteId: 'codeforces',
+      siteName: 'Codeforces',
+      username: 'snapshot-b',
+      displayName: null,
+      masked: '********',
+      isUpdate: false,
+    }),
+  )
+  expect(screen.getByText(/snapshot-b/)).toBeTruthy()
+  expect(screen.getByRole('button', { name: '保存账户' })).toBeTruthy()
+  act(() => captureResultListener?.({ captureId: 'pending-B', success: true }))
+  expect(screen.queryByRole('button', { name: '保存账户' })).toBeNull()
 })

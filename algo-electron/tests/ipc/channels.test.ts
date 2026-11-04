@@ -103,6 +103,7 @@ const PINNED_CHANNELS: readonly IpcChannel[] = [
   'credentials:delete',
   'credentials:list',
   'credentials:rename',
+  'data:changed',
   'download:result',
   'log-to-main',
   'notes:create',
@@ -215,9 +216,9 @@ describe('IPC_CHANNELS 值快照', () => {
     expect(declaredSorted).toEqual([...PINNED_CHANNELS].sort())
   })
 
-  it('channel 总数与快照一致（当前 178）', () => {
+  it('channel 总数与快照一致（当前 179）', () => {
     expect(declaredChannels).toHaveLength(PINNED_CHANNELS.length)
-    expect(declaredChannels).toHaveLength(178)
+    expect(declaredChannels).toHaveLength(179)
   })
 
   it('同一个 channel 只声明一次', () => {

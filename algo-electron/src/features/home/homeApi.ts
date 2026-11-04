@@ -18,7 +18,3 @@ export async function loadHomeRecommendations(limit = 5): Promise<ReviewRecommen
   const result = await window.api.ai.getReviewRecommendations(limit)
   return result?.recommendations ?? []
 }
-
-export function subscribeHomeProblemsUpdated(callback: () => void): () => void {
-  return window.api.problem.onUpdated(callback)
-}

@@ -1,6 +1,7 @@
 import crypto from 'node:crypto'
 import { getDb } from '../connection'
 import { nowChinaStandardTime } from '../../shared/time'
+import { emitDataChanged } from '../../shared/dataEvents'
 
 export type UserScriptResourceKind = 'require' | 'resource'
 export type UserScriptResourceEncoding = 'binary' | 'utf8'
@@ -103,6 +104,7 @@ export function setUserScriptValue(scriptId: string, key: string, value: unknown
       WHERE id = ?
     `,
     ).run(valueJson, now, existing.id)
+    emitDataChanged(['scripts'])
     return existing.id
   }
 
@@ -114,6 +116,7 @@ export function setUserScriptValue(scriptId: string, key: string, value: unknown
     ) VALUES (?, ?, ?, ?, ?, ?)
   `,
   ).run(id, normalizedScriptId, normalizedKey, valueJson, now, now)
+  emitDataChanged(['scripts'])
   return id
 }
 
@@ -151,6 +154,7 @@ export function deleteUserScriptValue(scriptId: string, key: string): boolean {
   `,
     )
     .run(scriptId, key)
+  if (result.changes > 0) emitDataChanged(['scripts'])
   return result.changes > 0
 }
 
@@ -194,6 +198,7 @@ export function upsertUserScriptResource(input: UserScriptResourceWriteInput): s
       WHERE id = ?
     `,
     ).run(...values, existing.id)
+    emitDataChanged(['scripts'])
     return existing.id
   }
 
@@ -207,6 +212,7 @@ export function upsertUserScriptResource(input: UserScriptResourceWriteInput): s
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `,
   ).run(id, scriptId, input.kind, key, ...values.slice(0, 7), now, now)
+  emitDataChanged(['scripts'])
   return id
 }
 
@@ -237,8 +243,11 @@ export function listUserScriptResources(
 }
 
 export function deleteUserScriptResources(scriptId: string): number {
-  return getDb().prepare('DELETE FROM user_script_resources WHERE script_id = ?').run(scriptId)
-    .changes
+  const result = getDb()
+    .prepare('DELETE FROM user_script_resources WHERE script_id = ?')
+    .run(scriptId)
+  if (result.changes > 0) emitDataChanged(['scripts'])
+  return result.changes
 }
 
 export function replaceUserScriptResources(
@@ -246,7 +255,7 @@ export function replaceUserScriptResources(
   resources: readonly Omit<UserScriptResourceWriteInput, 'scriptId'>[],
 ): void {
   const normalizedScriptId = requireNonEmpty(scriptId, 'scriptId')
-  getDb().prepare('DELETE FROM user_script_resources WHERE script_id = ?').run(normalizedScriptId)
+  deleteUserScriptResources(normalizedScriptId)
   for (const resource of resources) {
     upsertUserScriptResource({ scriptId: normalizedScriptId, ...resource })
   }
@@ -274,6 +283,7 @@ export function grantUserScriptHost(scriptId: string, hostPattern: string): stri
       WHERE id = ?
     `,
     ).run(now, existing.id)
+    emitDataChanged(['scripts'])
     return existing.id
   }
 
@@ -285,6 +295,7 @@ export function grantUserScriptHost(scriptId: string, hostPattern: string): stri
     ) VALUES (?, ?, ?, ?, NULL, NULL)
   `,
   ).run(id, normalizedScriptId, normalizedHost, now)
+  emitDataChanged(['scripts'])
   return id
 }
 
@@ -298,6 +309,7 @@ export function revokeUserScriptHost(scriptId: string, hostPattern: string): boo
   `,
     )
     .run(nowChinaStandardTime(), scriptId, normalizeHostPattern(hostPattern))
+  if (result.changes > 0) emitDataChanged(['scripts'])
   return result.changes > 0
 }
 
@@ -311,6 +323,7 @@ export function markUserScriptHostUsed(scriptId: string, hostPattern: string): b
   `,
     )
     .run(nowChinaStandardTime(), scriptId, normalizeHostPattern(hostPattern))
+  if (result.changes > 0) emitDataChanged(['scripts'])
   return result.changes > 0
 }
 
@@ -388,6 +401,7 @@ export function upsertUserScriptUpdateState(input: UserScriptUpdateStateInput): 
       value(input.lastError, existing?.last_error, null),
       now,
     )
+  emitDataChanged(['scripts'])
 }
 
 function normalizeValue(row: UserScriptValueRow): UserScriptValue {

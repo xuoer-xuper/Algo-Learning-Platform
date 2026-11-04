@@ -17,6 +17,8 @@ import {
 } from '../../electron/db/repositories/accountRepository.ts'
 import { upsertProblem } from '../../electron/db/repositories/problemRepository.ts'
 import { upsertSubmission } from '../../electron/db/repositories/submissionRepository.ts'
+import { subscribeDataChanges } from '../../electron/shared/dataEvents.ts'
+import type { DataChangedPayload } from '../../src/shared/types/data.ts'
 
 const day = '2026-07-04'
 const forbiddenCookieHeader = ['Cook', 'ie'].join('') + ': hidden-session-value'
@@ -182,7 +184,16 @@ test('backs up sqlite and round-trips non-sensitive learning data', async () => 
     assert.strictEqual(preview.new_counts.problems, 1)
     assert.strictEqual(preview.new_counts.submissions, 1)
 
-    const importResult = importLearningData(exported)
+    const changes: DataChangedPayload[] = []
+    const dispose = subscribeDataChanges((payload) => changes.push(payload))
+    let importResult
+    try {
+      importResult = importLearningData(exported)
+    } finally {
+      dispose()
+    }
+    assert.strictEqual(changes.length, 1)
+    assert.deepStrictEqual([...changes[0].tables].sort(), ['problems', 'stats', 'submissions'])
     assert.strictEqual(importResult.success, true)
     assert.strictEqual(importResult.inserted.problems, 1)
     assert.strictEqual(importResult.inserted.problem_visits, 1)
@@ -615,7 +626,14 @@ test('rolls back imported facts and first-AC changes when statistics rebuilding 
       CREATE TRIGGER reject_stats_rebuild BEFORE UPDATE ON user_daily_stats
       BEGIN SELECT RAISE(ABORT, 'forced stats rebuild failure'); END;
     `)
-    assert.throws(() => importLearningData(incoming), /forced stats rebuild failure/)
+    const changes: DataChangedPayload[] = []
+    const dispose = subscribeDataChanges((payload) => changes.push(payload))
+    try {
+      assert.throws(() => importLearningData(incoming), /forced stats rebuild failure/)
+    } finally {
+      dispose()
+    }
+    assert.deepStrictEqual(changes, [], 'a rolled-back import must not invalidate renderer reads')
     assert.deepStrictEqual(exportLearningData().tables, before)
   } finally {
     closeDb()

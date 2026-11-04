@@ -3,6 +3,13 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import type Database from 'better-sqlite3'
+import { subscribeDataChanges } from '../../electron/shared/dataEvents.ts'
+import { runUserScriptTransaction } from '../../electron/db/repositories/userScript/mutations.ts'
+import {
+  getUserScriptValue,
+  setUserScriptValue,
+} from '../../electron/db/repositories/userScriptRuntimeRepository.ts'
+import type { DataChangedPayload } from '../../src/shared/types/data.ts'
 import { closeDb, initDbAtPath } from '../../electron/db/connection.ts'
 import {
   getProblemDetail,
@@ -76,6 +83,52 @@ function test(name: string, fn: () => void) {
 
 const day = '2026-07-03'
 const now = `${day}T10:00:00+08:00`
+
+test('publishes script changes after native commit and suppresses failed nested writes', () => {
+  const events: DataChangedPayload[] = []
+  const transactionStates: boolean[] = []
+  const dispose = subscribeDataChanges((payload) => {
+    transactionStates.push(getDbForTest().inTransaction)
+    events.push(payload)
+  })
+  try {
+    const id = runUserScriptTransaction(() => {
+      const created = createScript({
+        name: 'Refresh fixture',
+        description: null,
+        version: '1.0',
+        match_urls_json: '[]',
+        code: '',
+        file_path: null,
+        site_ids_json: null,
+        enabled: true,
+      })
+      runUserScriptTransaction(() => setUserScriptValue(created, 'state', 'committed'))
+      assert.deepStrictEqual(events, [])
+      return created
+    })
+    assert.deepStrictEqual(events, [{ tables: ['scripts'] }])
+    assert.deepStrictEqual(transactionStates, [false])
+    events.length = 0
+    assert.throws(
+      () =>
+        runUserScriptTransaction(() => {
+          runUserScriptTransaction(() => setUserScriptValue(id, 'state', 'rolled back'))
+          throw new Error('installer failed')
+        }),
+      /installer failed/,
+    )
+    assert.strictEqual(getUserScriptValue(id, 'state')?.value, 'committed')
+    assert.deepStrictEqual(events, [])
+    assert.strictEqual(updateScript('missing-script', { enabled: false }), false)
+    assert.deepStrictEqual(events, [])
+    replaceCookieMetadataForDomain('example', 'example.com', [])
+    getCookieSummaryBySite('example')
+    assert.deepStrictEqual(events, [], 'read-side cookie metadata is outside the refresh bus')
+  } finally {
+    dispose()
+  }
+})
 
 interface ProblemRow {
   id: string

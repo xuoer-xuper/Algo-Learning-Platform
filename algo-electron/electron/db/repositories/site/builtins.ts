@@ -1,5 +1,6 @@
 import { getDb } from '../../connection'
 import { nowBeijing } from '../../../shared/time'
+import { emitDataChanged } from '../../../shared/dataEvents'
 
 interface BuiltinSiteSeed {
   id: string
@@ -154,7 +155,7 @@ export function seedBuiltinSites(): void {
   `)
 
   for (const site of BUILTIN_SITE_SEEDS) {
-    insert.run(
+    const inserted = insert.run(
       site.id,
       site.name,
       JSON.stringify(site.domains),
@@ -169,7 +170,7 @@ export function seedBuiltinSites(): void {
       now,
       now,
     )
-    update.run({
+    const updated = update.run({
       id: site.id,
       problemUrlPatterns: JSON.stringify(site.problemUrlPatterns),
       submitUrlPatterns: JSON.stringify(site.submitUrlPatterns),
@@ -179,5 +180,6 @@ export function seedBuiltinSites(): void {
       cookiePolicy: site.cookiePolicy,
       adapter: site.adapter ?? null,
     })
+    if (inserted.changes > 0 || updated.changes > 0) emitDataChanged(['sites'])
   }
 }

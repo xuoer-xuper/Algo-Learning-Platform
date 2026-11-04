@@ -12,6 +12,7 @@
 - 宽、中、窄窗口只是代表性夹具；布局断言读取实际 `.content-area`、`.main-content` 和 `.shell-route-*` 容器尺寸，不把桌面分辨率当成产品契约。测试同时检查 Omnibox 打开时摘除内容区和侧栏、Escape 后恢复、横向越界、网格折叠、图表/编辑器渲染、ErrorBoundary 和敏感字段，并在窄窗口真实创建 13 个标签验证横向溢出、空白窗口拖动区和 pointer 排序。
 - `electronScreenshotApp.mjs`：Playwright 专用 Electron 主进程入口，不访问真实 userData、OJ 登录态或网络。
 - `coachPetHarness.tsx` / `coachPetMouseCapture.pw.spec.ts`：真实透明 Electron 窗口中的生产桌宠组件，验证本体、气泡、自由对话与透明空白的命中区域，并实际调用原生 `setIgnoreMouseEvents`；截图输出到 `tmp/coach-pet-ui/`。该用例验证原生开关与 Chromium 几何边界，跨应用真实鼠标、DPI 和多屏拖拽仍需手测。
+- `dataRefresh.pw.spec.ts`：临时 SQLite 中的真实 Codeforces 同步链路验收。`dataRefreshMain.ts` 使用生产 SyncService、batch writer、带 sender/schema 校验的 IPC 注册、preload 和数据广播 bridge；测试仅替换预期 Codeforces HTTP 响应且禁止外网。`dataRefreshHarness.tsx` 同时挂载生产 Dashboard 和 ProblemDetail，验证提交后两秒内自动更新且不重挂载。窗口隐藏，context isolation/sandbox 保持开启，userData 在任何 DB/logger 初始化前重定向到 `tmp/` 并在退出后清理，不访问实际学习数据或登录态。
 
 ## 3. 运行方式
 

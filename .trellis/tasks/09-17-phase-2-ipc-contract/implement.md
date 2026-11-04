@@ -19,10 +19,10 @@
 
 ### R1 channel 常量
 
-- [ ] 脚本抽取：`grep -rhoE "(invoke|send|on|handle)\('([a-z-]+:[A-Za-z]+)'" electron | sort -u` 生成 `channels.ts` 初稿（158 + 内部）。
-- [ ] `tests/ipc/channels.test.ts` 快照当前值集合（先写测试再改代码）。
-- [ ] 替换 preload 158 处、`register*Ipc.ts` 160 处、其余 4 处；`trustedSender` 参数收窄为 `IpcChannel`。
-- [ ] 架构守卫：字面量预算 0；放行主进程 import `src/shared`。
+- [x] 脚本抽取：`grep -rhoE "(invoke|send|on|handle)\('([a-z-]+:[A-Za-z]+)'" electron | sort -u` 生成 `channels.ts` 初稿（158 + 内部）。
+- [x] `tests/ipc/channels.test.ts` 快照当前值集合（先写测试再改代码）。
+- [x] 替换 preload 158 处、`register*Ipc.ts` 160 处、其余 4 处；`trustedSender` 参数收窄为 `IpcChannel`。
+- [x] 架构守卫：字面量预算 0；放行主进程 import `src/shared`。
 - 验证：`pnpm test:core`；`pnpm vitest run tests/ipc`。commit `refactor(ipc): IPC channel 名集中为共享常量`。
 
 > **R1 实测回填（2026-11-01 实施时 grep）**：唯一 channel 共 **178**（不是 158+内部：含
@@ -35,10 +35,10 @@
 
 ### R2 shared types
 
-- [ ] 从 `electron-env.d.ts` 按域拆 15 个文件到 `src/shared/types/`，实体用 zod。
-- [ ] 主进程 72 处 `export interface` → `import type`（脚本：对 112 个名字 grep 定位）。
-- [ ] 渲染 10 处 + 6 组副本删除改 import；`Pick/Omit` 处理子集。
-- [ ] 删 `electron-env.d.ts`；`src/main/env.d.ts` 只留 `ProcessEnv`；`tsconfig.tests.json` include 改。
+- [x] 从 `electron-env.d.ts` 按域拆 15 个文件到 `src/shared/types/`，实体用 zod。
+- [x] 主进程 72 处 `export interface` → `import type`（脚本：对 112 个名字 grep 定位）。
+- [x] 渲染 10 处 + 6 组副本删除改 import；`Pick/Omit` 处理子集。
+- [x] 删 `electron-env.d.ts`；`src/main/env.d.ts` 只留 `ProcessEnv`；`tsconfig.tests.json` include 改。
 - 验证：`uniq -d` 同名导出 = 0；`pnpm typecheck` ×2。commit `refactor(shared): 跨进程类型收口到 src/shared/types`。
 
 > **R2 实测回填（2026-11-01 实施时 grep）**：`electron-env.d.ts` 顶层类型声明 **111** 个
@@ -65,11 +65,11 @@
 
 ### R3 window.api
 
-- [ ] 新建 `src/preload/index.ts`（design §4）；`vite.config.ts` preload input 改路径。
-- [ ] 多参数 invoke → 单对象（列出清单：`listRecentProblems(limit, platform, status)` 等，预计约 40 个）；主进程 handler 与 zod schema 同步。
-- [ ] 渲染 155 处调用改 `window.api.<domain>.<method>`；删除退化的 `*Api.ts`。
-- [ ] 删除 31 个无消费者的 preload 方法；守卫 `apiConsumers`。
-- [ ] `electronMock.exposedMainWorld` 键名、`tests/ipc/preloadSurface`、`tests/components` 替身同步。
+- [x] 新建 `src/preload/index.ts`（design §4）；`vite.config.ts` preload input 改路径。
+- [x] 多参数 invoke → 单对象（列出清单：`listRecentProblems(limit, platform, status)` 等，预计约 40 个）；主进程 handler 与 zod schema 同步。
+- [x] 渲染 155 处调用改 `window.api.<domain>.<method>`；删除退化的 `*Api.ts`。
+- [x] 删除 31 个无消费者的 preload 方法；守卫 `apiConsumers`。
+- [x] `electronMock.exposedMainWorld` 键名、`tests/ipc/preloadSurface`、`tests/components` 替身同步。
 - 验证：临时删一个 preload 方法看 `tsc` 报错；`pnpm test:all`。commit `refactor(preload): 改为 window.api 并由 typeof 推导类型`。
 
 ### R4 数据刷新
@@ -77,12 +77,21 @@
 > `DATA.CHANGED` 声明与 UPDATED @deprecated 注释（已丢弃，重启时按下方清单重做即可）。R1–R3
 > 已推送且 CI 绿（1588b8b）；R4/R5 待后续会话继续。
 
+> **恢复执行（2026-11-04）**：用户授权收口并推送后继续。本轮按 `design.md` §5 最新勘误和
+> `research/r4-data-refresh.md` 分成 main/shared、renderer、真实 E2E 三个互不覆盖的实施区域，
+> 集成复核后作为一个完整 R4 提交推送。禁止在事务提交前发事件、从 Cookie summary 读路径
+> 发刷新、或丢掉 App 的 live-wins 行为。
 
-- [ ] `dataEvents` EventEmitter + `main.ts` 广播；写路径接入（列表：problem/submission/notes/stats/site/userScript/credential/coach 的 mutations，`SubmissionBatchWriter`，`TrackingService`，`NoteService`，`learningDataExport` 导入，`syncService`）。
-- [ ] preload `api.data.onChanged`；`DataRefreshContext`；`useIpcQuery`。
-- [ ] 15 个组件迁移；`App.tsx` 4 处模板删除；`problems:updated` 标记 deprecated。
-- [ ] Playwright `dataRefresh.pw.spec.ts`。
+
+- [x] `dataEvents` EventEmitter + `main.ts` 广播；写路径接入（列表：problem/submission/notes/stats/site/userScript/credential/coach 的 mutations，`SubmissionBatchWriter`，`TrackingService`，`NoteService`，`learningDataExport` 导入，`syncService`）。
+- [x] preload `api.data.onChanged`；`DataRefreshContext`；`useIpcQuery`。
+- [x] 17 个实测取数组件迁移；`App.tsx` 4 处模板由 live-wins hook 替代；`problems:updated` 标记 deprecated。
+- [x] Playwright `dataRefresh.pw.spec.ts`。
 - 验证：`pnpm test:ui`。commit `feat(renderer): 数据变更订阅与 useIpcQuery`。
+
+> **R4 验收（2026-11-04）**：独立复核后完整 `test:all` 184 文件 / 1493 用例、Playwright
+> 10/10（含真实同步两秒刷新）、架构 21/21、build:check 全过，重复率 1.69%。
+> 实施范围、复核修复和日志见 [R4 验收记录](./r4-verification-2026-11-04.md)。
 
 ### R5 时间戳毫秒（独立分支）
 

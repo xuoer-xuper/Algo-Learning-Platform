@@ -1,9 +1,9 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import { Bar, BarChart, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { loadProblemTimeline } from './coachDataApi'
 import { PLATFORM_NAMES, STATUS_COLORS, VERDICT_COLORS } from '../../shared/display'
 import { Empty, Icon, IconButton, Skeleton, type IconName } from '../../components/ui'
-import type { ProblemTimelineData } from '@shared/types/coach'
+import { useIpcQuery } from '../../hooks/useIpcQuery'
 
 /**
  * 单题时间轴复盘视图（阶段 4 Task 18）。
@@ -96,31 +96,12 @@ function verdictColor(verdict: string): string {
 }
 
 export function SessionTimelineView({ problemId, onClose }: Props) {
-  const [data, setData] = useState<ProblemTimelineData | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-
-  useEffect(() => {
-    let cancelled = false
-    setLoading(true)
-    setError(null)
-    loadProblemTimeline(problemId)
-      .then((d) => {
-        if (cancelled) return
-        setData(d)
-      })
-      .catch((e: unknown) => {
-        if (cancelled) return
-        const msg = e instanceof Error ? e.message : String(e)
-        setError(`加载时间轴失败: ${msg}`)
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false)
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [problemId])
+  const query = useIpcQuery(() => loadProblemTimeline(problemId), [problemId], {
+    tables: ['problems', 'submissions', 'stats', 'coach'],
+  })
+  const data = query.data
+  const loading = query.isLoading
+  const error = query.error ? `加载时间轴失败: ${query.error.message}` : null
 
   // 合并四类数据点为单一时间轴
   const points = useMemo<TimelinePoint[]>(() => {
@@ -270,7 +251,7 @@ export function SessionTimelineView({ problemId, onClose }: Props) {
     )
   }
 
-  if (error) {
+  if (error && !data) {
     return (
       <div className="coach-timeline-view">
         <div className="settings-header">
@@ -307,6 +288,12 @@ export function SessionTimelineView({ problemId, onClose }: Props) {
         </span>
         <IconButton icon="close" title="关闭" className="settings-close" onClick={onClose} />
       </div>
+
+      {error && (
+        <div className="coach-timeline-error" role="alert">
+          {error}
+        </div>
+      )}
 
       <div className="coach-timeline-info">
         <div className="detail-row">

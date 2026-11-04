@@ -1,3 +1,4 @@
+import { emitDataChanged } from '../../../shared/dataEvents'
 import crypto from 'node:crypto'
 import { getDb } from '../../connection'
 import { nowChinaStandardTime } from '../../../shared/time'
@@ -27,6 +28,7 @@ export function upsertCredential(input: SiteCredentialWriteInput): string {
       WHERE id = ?
     `,
     ).run(envelope, now, existing.id)
+    emitDataChanged(['credentials'])
     return existing.id
   }
 
@@ -39,6 +41,7 @@ export function upsertCredential(input: SiteCredentialWriteInput): string {
     ) VALUES (?, ?, ?, ?, NULL, 1, ?, ?, NULL)
   `,
   ).run(id, siteId, username, envelope, now, now)
+  emitDataChanged(['credentials'])
   return id
 }
 
@@ -54,6 +57,7 @@ export function softDeleteCredential(id: string): boolean {
   `,
     )
     .run(now, now, id)
+  if (result.changes > 0) emitDataChanged(['credentials'])
   return result.changes > 0
 }
 
@@ -68,6 +72,7 @@ export function markCredentialUsed(id: string): boolean {
   `,
     )
     .run(now, now, id)
+  if (result.changes > 0) emitDataChanged(['credentials'])
   return result.changes > 0
 }
 
@@ -83,6 +88,7 @@ export function renameCredential(id: string, displayName: string | null): boolea
   `,
     )
     .run(displayName, now, id)
+  if (result.changes > 0) emitDataChanged(['credentials'])
   return result.changes > 0
 }
 

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Button, Input, Select } from '../../components/ui'
 import { loadSearchEngine, saveSearchEngine } from './settingsApi'
 import type { SearchEngineConfig, SearchEngineId } from '@shared/types/config'
+import { useIpcQuery } from '../../hooks/useIpcQuery'
 
 const QUERY_PLACEHOLDER = '{query}'
 const MAX_CUSTOM_TEMPLATE_LENGTH = 2_048
@@ -41,7 +42,8 @@ function getCustomTemplateError(template: string): string | null {
 export function SearchEnginePanel() {
   const [engine, setEngine] = useState<SearchEngineId>('bing')
   const [customTemplate, setCustomTemplate] = useState('')
-  const [loading, setLoading] = useState(true)
+  const query = useIpcQuery(loadSearchEngine, [])
+  const loading = query.isLoading
   const [saving, setSaving] = useState(false)
   const [status, setStatus] = useState('')
   const [saved, setSaved] = useState(false)
@@ -53,21 +55,20 @@ export function SearchEnginePanel() {
   }
 
   useEffect(() => {
-    void loadSearchEngine()
-      .then((config) => {
-        setEngine(config.engine)
-        setCustomTemplate(config.customTemplate ?? '')
-      })
-      .catch((error: unknown) => {
-        const message = error instanceof Error ? error.message : String(error)
-        setStatus(`读取失败：${message}`)
-      })
-      .finally(() => setLoading(false))
-
-    return () => {
-      if (savedTimerRef.current) window.clearTimeout(savedTimerRef.current)
+    if (query.data) {
+      setEngine(query.data.engine)
+      setCustomTemplate(query.data.customTemplate ?? '')
     }
-  }, [])
+  }, [query.data])
+  useEffect(() => {
+    if (query.error) setStatus(`读取失败：${query.error.message}`)
+  }, [query.error])
+  useEffect(
+    () => () => {
+      if (savedTimerRef.current) window.clearTimeout(savedTimerRef.current)
+    },
+    [],
+  )
 
   const customTemplateError = engine === 'custom' ? getCustomTemplateError(customTemplate) : null
 

@@ -6,11 +6,8 @@ import {
   getRemoteUserScriptInstallPreview,
   getPendingUserScriptInstall,
 } from '../../hooks/browserShellApi'
-import type {
-  PendingUserScriptInstall,
-  UserScriptInstallAction,
-  UserScriptInstallPreview,
-} from '@shared/types/scripts'
+import type { UserScriptInstallAction } from '@shared/types/scripts'
+import { useIpcQuery } from '../../hooks/useIpcQuery'
 
 interface UserScriptInstallPageProps {
   installId: string
@@ -18,36 +15,21 @@ interface UserScriptInstallPageProps {
 }
 
 export function UserScriptInstallPage({ installId, onClose }: UserScriptInstallPageProps) {
-  const [request, setRequest] = useState<PendingUserScriptInstall | null | undefined>(undefined)
-  const [preview, setPreview] = useState<UserScriptInstallPreview | null | undefined>(undefined)
+  const query = useIpcQuery(() => getPendingUserScriptInstall(installId), [installId])
+  const request = query.isLoading ? undefined : (query.data ?? null)
+  const previewQuery = useIpcQuery(
+    () => getRemoteUserScriptInstallPreview(installId),
+    [installId],
+    { enabled: Boolean(request) },
+  )
+  const [invalidatedPreviewFor, setInvalidatedPreviewFor] = useState<string | null>(null)
+  const preview = invalidatedPreviewFor === installId ? undefined : previewQuery.data
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
 
   useEffect(() => {
-    let active = true
-    void getPendingUserScriptInstall(installId)
-      .then((value) => {
-        if (!active) return
-        setRequest(value)
-        if (!value) {
-          setPreview(null)
-          return
-        }
-        return getRemoteUserScriptInstallPreview(installId).then((nextPreview) => {
-          if (active) setPreview(nextPreview)
-        })
-      })
-      .catch(() => {
-        if (active) {
-          setRequest(null)
-          setPreview(null)
-          setError('读取远程脚本失败，请稍后重试。')
-        }
-      })
-    return () => {
-      active = false
-    }
-  }, [installId])
+    if (query.error || previewQuery.error) setError('读取远程脚本失败，请稍后重试。')
+  }, [query.error, previewQuery.error])
 
   const sourceOrigin = useMemo(() => {
     if (!request) return ''
@@ -75,9 +57,10 @@ export function UserScriptInstallPage({ installId, onClose }: UserScriptInstallP
       const result = await confirmRemoteUserScriptInstall(installId, action)
       if (!result) throw new Error('安装请求已过期或不可用。')
       if (result.status === 'stale') {
-        setPreview(undefined)
-        const nextPreview = await getRemoteUserScriptInstallPreview(installId)
-        setPreview(nextPreview)
+        setInvalidatedPreviewFor(installId)
+        const refreshed = await previewQuery.refetch()
+        if (!refreshed) throw new Error('读取远程脚本失败，请稍后重试。')
+        setInvalidatedPreviewFor(null)
         setError('本地脚本状态已变化，安装信息已刷新，请重新确认。')
         setBusy(false)
         return

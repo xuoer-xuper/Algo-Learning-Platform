@@ -21,6 +21,7 @@ which today.
 | [git-workflow.md](./git-workflow.md) | Branch model (master ← dev ← feat/fix), merge strategy, commit format with Chinese description, scope enum, tooling gates | Before committing or opening a PR |
 | [migration-status.md](./migration-status.md) | Current path → template path mapping per layer, what is already aligned, what is still legacy, which phase moves it | Before writing code in any layer; tells you whether to follow the current file or the template target |
 | [regression-checks.md](./regression-checks.md) | Executable regression checks for IPC scanner migrations and lazy renderer test teardown | When moving IPC entrypoints, changing guards, or testing lazy routes |
+| [data-refresh.md](./data-refresh.md) | Committed-write notifications, transaction scopes, query invalidation and live snapshot races | When changing persisted writes, refresh subscriptions or query hooks |
 
 ---
 

@@ -5,6 +5,7 @@
 `src/shared/types/` 存放渲染层与主进程共享的类型与校验定义。当前内容：
 
 - `ipc/`——每个带参 IPC channel 的输入 schema（zod），按业务域拆分，见该目录 README。
+- `data.ts`——八个逻辑失效域的 `DataTable` 与 `DataChangedPayload`，只包含域名，不包含用户数据。
 - `<域>.ts`（problem/submission/stats/coach/browser/scripts/sites/credentials/cookies/
   notes/backup/ai/rating/config/window）——数据库实体的 IPC 输出形状与主进程→渲染层
   事件负载（zod schema + `z.infer`，仅编译期用的标量联合是纯 `export type`）。

@@ -17,10 +17,6 @@ export function loadRecentProblems(
   return window.api.problem.listRecent({ limit, platform, status })
 }
 
-export function subscribeProblemsUpdated(callback: () => void): () => void {
-  return window.api.problem.onUpdated(callback)
-}
-
 export function setProblemSidebarWidth(width: number): void {
   window.api.browser.setSidebarWidth(width)
 }
