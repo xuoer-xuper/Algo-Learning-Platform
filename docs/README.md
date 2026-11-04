@@ -153,6 +153,7 @@
 | test ai | [tests/ai/README](../algo-electron/tests/ai/README.md) |
 | test browser | [tests/browser/README](../algo-electron/tests/browser/README.md) |
 | test db | [tests/db/README](../algo-electron/tests/db/README.md) |
+| historical db fixtures | [tests/db/fixtures/README](../algo-electron/tests/db/fixtures/README.md) |
 | test coach | [tests/coach/README](../algo-electron/tests/coach/README.md) |
 | test components | [tests/components/README](../algo-electron/tests/components/README.md) |
 | test app | [tests/app/README](../algo-electron/tests/app/README.md) |

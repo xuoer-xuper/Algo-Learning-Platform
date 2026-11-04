@@ -116,18 +116,43 @@ declare global { interface Window { api: typeof api } }
 
 ## 6. 时间戳迁移（migration 030）
 
-- 转换函数 `parseLegacyTimestamp(text, tz): number | null`：
-  - `/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{3})?$/` → 本地时间，用 `Date.UTC(...) - tzOffsetAt(thatInstant)`（用迁移时系统时区；记录到 `schema_migrations.name` 后缀或单独日志）。
-  - 以 `Z` 或 `±HH:MM` 结尾 → `Date.parse`。
-  - 其他 → `null` 并记日志（不中断）。
-- 表/列清单：从 `docs/DESIGN/DATABASE_SCHEMA.md` 与 001–029 提取 65 列，写成数组驱动循环；每表一个事务。
-- `local_day`：`user_daily_stats.local_day` 保留字符串（它是分组键），由 `toLocalDay(ms)` 生成；重算一次 `recomputeDailyStatsForDates(all)`。
-- 备份导出 JSON `schemaVersion` 升到新值；导入器按 `schemaVersion` 分支转换。
+> **2026-11-04 用户纠正与 Git 证据**：不再以不可恢复的三份真实历史库
+> 为唯一验收输入。先完成 `research/r5-git-history.md` 和 `research/r5-reconstruction-plan.md`
+> 的固定提交重建：`0758b253`/schema21、`b27debfc`/schema24、`7d052efc`/schema29。
+> 只把文本 schema/provenance/seed 纳入版本控制，SQLite 文件在临时目录生成。
+> v1.0.0/beta.2 脚本时间为 `toISOString()` 带 Z，`e35212b` 后才改固定 UTC+8 无后缀，
+> 因而已知 script 写入的旧新语义可按后缀与列来源区分，不需要猜同一无后缀值的版本。
+
+- 重建生成器仅在显式再生成时用 `git show` 读取固定提交的 migration/runtime helper 闭包，
+  不 checkout、不运行旧 app/bootstrap、不读用户 profile；记录源 blob hash 和 snapshot hash。
+  普通 CI 读取已提交文本快照，无需网络、旧 tag 或完整 Git 历史。
+- 第一块只证明 21/24/29 重建库升级到现有 29 的路径，不能称为 030 完成；随后 030 验收
+  扩展相同 fixtures，并补现有真实 24/29 样本的隔离副本。
+- 82 列显式清单排除 `run_at`、HTTP `last_modified` 与日期分组键；显式 offset 优先，
+  无后缀按历史列写入契约（local / UTC+8）转换。历史 VJudge 透传无后缀值没有源时区信息，
+  按既有系统本地契约处理并记载这一限制，不凭日期或平台猜测时区。
+- 非法非空值中止并恢复备份；禁止静默 NULL。表重建必须在外层事务前安排外键状态，
+  用完整事务与 `foreign_key_check` 防止级联删除，不在事务中假装 `foreign_keys=OFF` 生效。
+- 统计重算使用显式传入的迁移 DB；迁移运行时全局 getDb 尚未赋值。毫秒迁移后按实际
+  时刻派生 local_day，UTC/offset 跨日造成的正确重分组要与期望比较，不强求旧错误聚合一致。
+- 不修改已发布 001–029。它们仍直接 import `nowBeijing`：允许冻结的旧迁移兼容 helper
+  保留为唯一生产调用例外；新的 repository/IPC 不得再使用。删除 helper 必须先设计完整
+  legacy migration 隔离，不以破坏旧迁移换取 grep 为零。
+
+- 转换 parser 接受明确的 local/fixed-UTC+8 策略，支持带 Z/offset 和已知 T/空格 wall-time
+  格式；严格验证日期和毫秒，nullable 原值保留 NULL，非法非空值抛错。DST gap/fold 行为
+  必须由独立时区测试固定，不采用一次猜测 offset 的算法。
+- 表重建方案需在 030 实施评审时确定：82 列、完整外键/索引/约束保留，在真正提交后才
+  发布刷新；不是“每表嵌套事务即可隔离”。
+- `local_day` 保持字符串分组键，由毫秒+系统时区派生；迁移使用显式 DB 的重算入口。
+- 备份 JSON 实际字段 `schema_version` 从1升到2；旧1版在预览/冲突比较/导入之前规范化。
 - 回滚：`sqliteMigrationBackup` 自动备份 + `DATABASE_MIGRATION_ROLLBACK.md` 步骤；030 失败 ⇒ 自动恢复备份 + failure marker（现有机制）。
 
 ## 7. 测试
 
 - 单元：`tests/shared/time.test.ts`（毫秒/本地日/展示）、`tests/db/migration030.test.ts`（三种格式 + 三个时区 `TZ=` 环境变量各跑）。
-- 集成：`tests/db/fixtures/` 放三份脱敏真实库（v1.0.0、beta.2、rc.1 时期），`tests/db/upgradePath.test.ts` 逐份升级到 030 并断言行数、时间列类型、抽样值。
+- 集成：`tests/db/fixtures/` 保存 pinned-source 的 schema21/24/29 文本快照与 provenance，
+  `tests/db/historicalUpgradePath.test.ts` 动态生成带合成数据的临时库，先验到29，030实施后
+  扩展到30并检查行数、关系、类型、值和回滚；现有真实样本副本作为分开报告的本地补充证据。
 - 契约：`tests/ipc/channels.test.ts`、`preloadSurface.test.ts`、`apiConsumers.test.ts`（每个 preload 方法有调用者）。
 - UI：Playwright `dataRefresh.pw.spec.ts`。

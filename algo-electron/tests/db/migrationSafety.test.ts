@@ -33,6 +33,52 @@ function test(name: string, fn: () => void | Promise<void>): void {
   tests.push({ name, fn })
 }
 
+test('upgrades a pinned reconstructed v1 schema through the real Electron SQLite ABI', async () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'algo-historical-electron-'))
+  const dbPath = path.join(tempDir, 'historical.sqlite')
+  const backupDir = path.join(tempDir, 'backups')
+  const legacyTime = '2026-01-15T10:20:30.123'
+  const source = new Database(dbPath)
+  try {
+    source.exec(
+      fs.readFileSync(path.join(process.cwd(), 'tests/db/fixtures/v1.schema.sql'), 'utf8'),
+    )
+    source
+      .prepare(
+        `INSERT INTO problems
+      (id, platform, platform_problem_id, canonical_url, first_seen_at, created_at, updated_at)
+      VALUES ('synthetic', 'codeforces', '1000A', 'https://example.test/problem', ?, ?, ?)`,
+      )
+      .run(legacyTime, legacyTime, legacyTime)
+  } finally {
+    source.close()
+  }
+  try {
+    const database = await initDbAtPathWithMigrationSafety(dbPath, {
+      backupDir,
+      logger: new MemoryLogger(),
+    })
+    assert.deepStrictEqual(
+      database.prepare('SELECT MAX(version) AS version FROM schema_migrations').get(),
+      { version: 29 },
+    )
+    assert.deepStrictEqual(
+      database.prepare('SELECT first_seen_at, typeof(first_seen_at) AS type FROM problems').get(),
+      { first_seen_at: legacyTime, type: 'text' },
+    )
+    assert.deepStrictEqual(database.pragma('foreign_key_check'), [])
+    assert.equal(database.pragma('integrity_check', { simple: true }), 'ok')
+    assert.equal(fs.readdirSync(backupDir).filter((file) => file.endsWith('.sqlite')).length, 1)
+  } finally {
+    closeDb()
+    const resolved = path.resolve(tempDir)
+    assert.ok(
+      resolved.startsWith(`${path.resolve(os.tmpdir())}${path.sep}algo-historical-electron-`),
+    )
+    fs.rmSync(resolved, { recursive: true, force: true, maxRetries: 8, retryDelay: 100 })
+  }
+})
+
 test('backs up before migrations, restores on failure, and blocks the same retry', async () => {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'algo-migration-safety-'))
   const dbPath = path.join(tempDir, 'data', 'algo-learning.sqlite')
