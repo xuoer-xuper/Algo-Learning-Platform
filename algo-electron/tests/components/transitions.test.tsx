@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { render, screen, waitFor } from '@testing-library/react'
+import { cleanup, render, screen, waitFor } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import React from 'react'
 import { ShellRouter } from '../../src/components/ShellRouter'
@@ -27,12 +27,7 @@ function internalTab(overrides: Partial<InternalTab> = {}): InternalTab {
   return { ...baseTab, kind: 'internal', page: { type: 'dashboard' }, ...overrides }
 }
 
-// Mock window.api 避免 HomePage / 设置页加载时报错。
-// CI 实测（2026-10-31，run 41162618391）：设置页是懒加载，时序不利时其挂载/effect
-// 重连发生在用例结束之后；缺一个方法（getTheme）就以 uncaught exception 把整个
-// vitest 进程炸成退出码 1——1387 用例全过也白搭。因此设置页挂载时读取的 API
-// 必须全部在场；让它们 reject 而不是硬编返回形状：每个 panel 的挂载 handler 都有
-// .catch，会走自己的「读取失败」路径（读取类全是 try/catch/.catch，见各 Panel）。
+// Lazy routes must finish mounting before teardown, with every mount-time read wired.
 const stubRejection = () =>
   vi.fn().mockRejectedValue(new Error('transitions fixture: API not wired in this test'))
 beforeEach(() => {
@@ -41,12 +36,22 @@ beforeEach(() => {
   type DomainStub = { [K in keyof typeof window.api]?: Partial<(typeof window.api)[K]> }
   const apiStub: DomainStub = {
     stats: {
-      getOverview: vi.fn().mockResolvedValue({
+      getOverview: vi.fn<typeof window.api.stats.getOverview>().mockResolvedValue({
         totalProblems: 0,
-        solvedProblems: 0,
-        reviewDue: 0,
-        recentActivity: [],
+        todayVisited: 0,
+        platformDistribution: [],
+        lastActiveTime: null,
       }),
+      getStreakDays: vi.fn<typeof window.api.stats.getStreakDays>().mockResolvedValue({
+        current: 0,
+        longest: 0,
+      }),
+      getWrongProblems: vi.fn<typeof window.api.stats.getWrongProblems>().mockResolvedValue([]),
+      getUnreviewed: vi.fn<typeof window.api.stats.getUnreviewed>().mockResolvedValue([]),
+      getTimeline: vi.fn<typeof window.api.stats.getTimeline>().mockResolvedValue([]),
+      getRevisitStats: vi.fn<typeof window.api.stats.getRevisitStats>().mockResolvedValue([]),
+      getVisitedTrend: vi.fn<typeof window.api.stats.getVisitedTrend>().mockResolvedValue([]),
+      getAcTrend: vi.fn<typeof window.api.stats.getAcTrend>().mockResolvedValue([]),
     },
     problem: {
       listRecent: vi.fn().mockResolvedValue([]),
@@ -56,16 +61,47 @@ beforeEach(() => {
       getHomeShortcuts: vi.fn().mockResolvedValue([]),
       // 设置页挂载时的读取类 API（AppearancePanel/SearchEnginePanel/LlmConfigPanel/
       // CodeforcesSyncPanel/SiteManagementPanel/SettingsPage 本体）。
-      getTheme: stubRejection(),
+      getTheme: vi.fn<typeof window.api.config.getTheme>().mockResolvedValue('system'),
       getSearchEngine: stubRejection(),
     },
     coach: { getLlmConfig: stubRejection() },
-    rating: { getAccounts: stubRejection() },
+    rating: {
+      getAccounts: stubRejection(),
+      getCodeforcesAccount: vi
+        .fn<typeof window.api.rating.getCodeforcesAccount>()
+        .mockResolvedValue(null),
+    },
+    ai: {
+      getReviewRecommendations: vi
+        .fn<typeof window.api.ai.getReviewRecommendations>()
+        .mockResolvedValue({
+          generated_at: '2026-11-04T12:00:00',
+          rule_version: 1,
+          recommendations: [],
+        }),
+      getWeaknessAnalysis: vi.fn<typeof window.api.ai.getWeaknessAnalysis>().mockResolvedValue({
+        generated_at: '2026-11-04T12:00:00',
+        rule_version: 1,
+        weaknesses: [],
+        data_note: '',
+      }),
+    },
     sites: { getAll: stubRejection() },
     submissions: { getRealtimeStatus: stubRejection() },
   }
   window.api = apiStub as typeof window.api
 })
+
+// Vitest globals are disabled, so Testing Library cannot register automatic cleanup.
+afterEach(cleanup)
+
+async function waitForSettingsPage(): Promise<void> {
+  await vi.dynamicImportSettled()
+  expect(await screen.findByRole('heading', { name: '设置', level: 2 })).toBeTruthy()
+  await waitFor(() => {
+    expect(screen.getByRole('combobox', { name: '主题' }).hasAttribute('disabled')).toBe(false)
+  })
+}
 
 describe('View Transitions（B5.3）', () => {
   let originalStartViewTransition: typeof document.startViewTransition | undefined
@@ -126,6 +162,7 @@ describe('View Transitions（B5.3）', () => {
     await waitFor(() => {
       expect(mockTransition).toHaveBeenCalledTimes(1)
     })
+    await waitForSettingsPage()
   })
 
   it('能力检测：不支持时仍能正常切换（降级分支）', async () => {
@@ -164,6 +201,7 @@ describe('View Transitions（B5.3）', () => {
     await waitFor(() => {
       expect(container.querySelector('.shell-route-settings')).toBeTruthy()
     })
+    await waitForSettingsPage()
   })
 
   it('过渡被跳过时不产生 unhandled rejection', async () => {
@@ -215,16 +253,12 @@ describe('View Transitions（B5.3）', () => {
       />,
     )
 
-    await waitFor(() => {
+    try {
+      await waitForSettingsPage()
       expect(container.querySelector('.shell-route-settings')).toBeTruthy()
-    })
-    /*
-     * 等懒加载落地。测试结束时 jsdom 拆掉，若懒加载还在飞会冒 EnvironmentTeardownError。
-     * 这里只关心 rejection 有没有接住，不验证页面内容，所以给足够时间让所有嵌套 import 结算。
-     */
-    await new Promise((resolve) => setTimeout(resolve, 500))
-
-    process.off('unhandledRejection', onUnhandled)
+    } finally {
+      process.off('unhandledRejection', onUnhandled)
+    }
     expect(rejections).toEqual([])
   })
 
@@ -262,9 +296,15 @@ describe('View Transitions（B5.3）', () => {
       />,
     )
 
+    await vi.dynamicImportSettled()
+    expect(await screen.findByRole('heading', { name: '学习统计', level: 2 })).toBeTruthy()
     await waitFor(() => {
-      expect(mockTransition).not.toHaveBeenCalled()
+      expect(screen.queryByLabelText('总题数加载中')).toBeNull()
+      expect(window.api.stats.getVisitedTrend).toHaveBeenCalledWith(30)
+      expect(window.api.ai.getWeaknessAnalysis).toHaveBeenCalledWith(8)
     })
+    expect(screen.getAllByTestId('shell-route')).toHaveLength(1)
+    expect(mockTransition).not.toHaveBeenCalled()
   })
 })
 

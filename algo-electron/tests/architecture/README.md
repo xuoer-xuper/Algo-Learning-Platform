@@ -6,7 +6,7 @@
 
 ## 2. 当前检查
 
-`check-architecture.mjs` 当前覆盖 20 条。
+`check-architecture.mjs` 当前覆盖 21 条。
 
 安全边界：
 
@@ -15,6 +15,9 @@
   豁免的边界由下一条守住）。
 - `src/shared/` 不得 import `electron`：shared 层同时进渲染与主进程 bundle，
   import electron 会把主进程模块打进渲染包。
+- `electron/` 与 `src/` 的顶层导出 `interface` / `type` 声明不得跨文件重名；
+  通过 TypeScript AST 识别声明，转导出同一声明不算重复。回归用例验证重新引入
+  `CoachLlmConfig` 镜像时守卫失败。
 - IPC channel 名只能引用 `src/shared/constants/channels.ts` 的 `IPC_CHANNELS` 常量：
   `ipcMain` / `ipcRenderer` 通道方法（handle/on/once/off/invoke/send/sendSync/postMessage/
   removeListener/removeAllListeners/removeHandler）的首参字面量预算为 0。判定与反向验证在

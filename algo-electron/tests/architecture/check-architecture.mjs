@@ -10,6 +10,7 @@ import {
   countIpcChannelLiterals,
   countRawIpcSchemas,
   countUnschemadIpc,
+  findDuplicateExportedTypes,
   themeDirectiveHasTailwindImport,
 } from './guards.mjs'
 
@@ -113,10 +114,25 @@ check('src/shared stays process-neutral (no electron imports)', () => {
   // 打进渲染包（阶段 1 复核 MEDIUM 项，.trellis 任务 implement.md 启动评审注记 ③）。
   failIfMatches(walkSourceFiles(path.join(projectRoot, 'src', 'shared')), [
     {
-      regex: /from\s+['"]electron['"]/,
+      regex: /\b(?:from\s+|import\s*\(\s*|import\s+)['"]electron(?:\/[^'"]*)?['"]/,
       reason: 'src/shared is shared by renderer and main; it must not import electron',
     },
+    {
+      regex: /\b(?:from\s+|import\s*\(\s*|import\s+)['"](?:\.\.?\/)+electron\/[^'"]+['"]/,
+      reason: 'src/shared must not import main-process modules from electron/',
+    },
   ])
+})
+
+check('exported type declarations have a single source', () => {
+  const duplicates = findDuplicateExportedTypes(
+    sourceFiles()
+      .filter((file) => /\.tsx?$/.test(file))
+      .map((file) => ({ path: relative(file), source: read(file) })),
+  )
+  if (duplicates.length > 0) {
+    throw new Error(duplicates.map(({ name, files }) => `${name}: ${files.join(', ')}`).join('\n'))
+  }
 })
 
 check('preload does not expose generic ipcRenderer', () => {
@@ -143,7 +159,7 @@ check('IPC channel names come from the shared constants, not literals', () => {
   // 拼写错误在编译期就报）。这里拦的是绕过常量的字面量回归——值改了编译器不说话，
   // 只在 runtime 静默失联。判定逻辑与反向验证见 guards.mjs 的 countIpcChannelLiterals。
   const failures = []
-  for (const file of walkSourceFiles(path.join(projectRoot, 'electron'))) {
+  for (const file of sourceFiles()) {
     const count = countIpcChannelLiterals(read(file))
     if (count > 0) {
       failures.push(

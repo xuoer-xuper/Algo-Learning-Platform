@@ -12,6 +12,11 @@
 
 ## Checklist
 
+> **R1-R3 复核（2026-11-04）**：修复 3 个 IPC 架构守卫漏检点与过渡测试清理/懒加载竞态；
+> 类型收口后 `pnpm test:all` 179 文件 / 1447 用例、Playwright 9/9 全过；此前 `build:check` 全过。
+> `CoachLlmConfig` 已改为 shared 单一来源，AST 新守卫保证“同名导出 = 0”，密钥不跨 IPC。
+> 详见 [复核记录](./review-2026-11-04.md)。用户已授权提交/推送并继续 R4/R5。
+
 ### R1 channel 常量
 
 - [ ] 脚本抽取：`grep -rhoE "(invoke|send|on|handle)\('([a-z-]+:[A-Za-z]+)'" electron | sort -u` 生成 `channels.ts` 初稿（158 + 内部）。
@@ -80,6 +85,11 @@
 - 验证：`pnpm test:ui`。commit `feat(renderer): 数据变更订阅与 useIpcQuery`。
 
 ### R5 时间戳毫秒（独立分支）
+
+> **2026-11-04 安全预检**：实际 82 个时间列（含台账），非原计划 65；仅找到 1-29 当前库及
+> 1-24 备份，缺少 1-21 真实历史副本。无后缀时间存在 local / 固定 UTC+8 两种语义；
+> 原“全部按迁移机器本地时间、非法值置 NULL、逐表重建”设计不能直接执行。
+> 详见 [R5 可行性记录](./research/r5-feasibility.md)。先解决安全设计和真实副本验收，再写 030。
 
 - [ ] 准备三份脱敏真实库到 `tests/db/fixtures/`（**由用户提供或从本机 userData 复制后脱敏**）。
 - [ ] `parseLegacyTimestamp` + 单测（3 格式 × 3 时区）。

@@ -7,7 +7,9 @@
 > Plan and evidence: `.trellis/tasks/archive/2026-09/00-bootstrap-guidelines/research/spec-alignment-plan.md`,
 > `spec-alignment-report.md`, `reinvented-wheels-audit.md`.
 
-Last updated: 2026-09-17 (phase 0.2 in progress on `chore/phase-0-tooling-gates`).
+Last reviewed: 2026-11-04 (phase 2 R1-R3 on `refactor/phase-2-ipc-contract`).
+The historical baseline rows remain descriptive; the R1-R3 review does not imply
+that pending R4/R5 or later phases are complete.
 
 ---
 
@@ -19,7 +21,7 @@ Last updated: 2026-09-17 (phase 0.2 in progress on `chore/phase-0-tooling-gates`
 | Main process | `algo-electron/electron/` (26 flat domain dirs + `main.ts` 945 lines) | `src/main/{index.ts, db/, ipc/, services/{domain}/{types.ts,procedures/,lib/}}` | 3.2, 3.3 |
 | Preload | ✅ 2.3（2026-11-01）：`src/preload/index.ts` 暴露域分组 `window.api`（16 域 + `browserLayout`，144 个方法），类型由 `typeof api` 推导，`as Promise<X>` 只在 preload；多参数 invoke 收成单对象（27 通道）；31 个无消费者方法删除（`tests/ipc/apiConsumers` 守卫守住零基线） | 同左（已达成模板目标） | 2.1, 2.3 |
 | Renderer | `src/{App.tsx, components/, features/, hooks/, shared/, styles/}` flat features | `src/renderer/src/{components/{ui,layout}, features/, modules/{name}/{components,hooks,context,constants.ts,types.ts,index.ts}, hooks/, context/, lib/, styles/}` | 4.1 |
-| Shared | ✅ 2.2（2026-11-01）：`src/shared/{types/{common,ipc/*,<15 域>},constants/{channels,errorCodes,preferences}}`；`electron-env.d.ts` 已删除（`ProcessEnv` → `src/main/env.d.ts`，`Window.electronAPI` → `electron/preload.ts`，R3 换 `typeof api`）；渲染层 import `@shared/*`，主进程相对路径；跨文件同名导出 0 | 同左（已达成模板目标；`electron/shared/` 仍留 main 内部工具，阶段 3 搬 `src/main`） | 2.1, 2.2 |
+| Shared | Phase 2 R2/R3: domain schemas and types in `src/shared/`; legacy environment types removed; `ProcessEnv` in `src/main/env.d.ts`, `Window.api` inferred from `src/preload/index.ts`. Renderer uses `@shared`, main uses relative imports. Review closure 2026-11-04: `CoachLlmConfig` has one shared definition; AST guard rejects duplicate exported type/interface declarations. | Shared type layout reached. `electron/shared/` remains main-only until phase 3. | 2.1, 2.2 |
 | Tests | `tests/<module>/` × 26 dirs, `electronMock.ts` in `tests/electron/`, no factories | `tests/{setup,factories,mocks,unit/services/{domain},integration}` | 5.1, 5.2 |
 | TypeScript | 7.0.2, babel eslint parser, no path alias | 6.0.3 (last stable before 6.1; fallback 5.9.3), typescript-eslint, `@shared` alias in tsconfig + vite + vitest | 0.3, 0.4, 0.8 |
 | Formatting | `.editorconfig` only | prettier + `.editorconfig` | 0.5 |

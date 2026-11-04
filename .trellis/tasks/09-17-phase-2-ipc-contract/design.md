@@ -42,6 +42,11 @@ export type IpcChannel = (typeof IPC_CHANNELS)[keyof typeof IPC_CHANNELS][keyof 
 
 改名副本处理：`HomeOverviewStats` → `OverviewStats`；`HomeProblemRecord` → `Pick<ProblemRecord, …>`；`NoteItem` → `Omit<NoteRecord, 'problem_id'>`；两份 `CodeforcesAccount` 合为 `PlatformAccount`（主进程定义为准，渲染层补 `handle` 从 `platform_handle` 派生）。
 
+> **2026-11-04 R2 收口**：`CoachLlmConfig` 继续以 shared zod schema 推导为唯一来源，
+> `LlmConfigStore` 直接 import 该类型，删除 `app/config.ts` 的同名 interface；不改变存储或
+> IPC 形状。`getCoachConfigForRenderer` 仍移除 `encrypted_api_key`，密文也不传给 renderer。
+> 新增 AST 架构守卫，区分重复定义与合法 re-export。
+
 ## 4. preload
 
 ```ts

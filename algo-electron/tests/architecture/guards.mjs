@@ -5,6 +5,29 @@
  * 守卫的价值全在"违规重新出现时会失败"，而这一点没法靠守卫自己通过来证明。
  * 这里只做文本判定与棘轮比对，不碰文件系统；遍历与读文件留在 runner 里。
  */
+import ts from 'typescript'
+
+/** Re-exports share a declaration; only distinct top-level definitions are duplicates. */
+export function findDuplicateExportedTypes(sources) {
+  const declarations = new Map()
+  for (const { path: filePath, source } of sources) {
+    const sourceFile = ts.createSourceFile(filePath, source, ts.ScriptTarget.Latest, true)
+    for (const statement of sourceFile.statements) {
+      if (!ts.isInterfaceDeclaration(statement) && !ts.isTypeAliasDeclaration(statement)) continue
+      if (!statement.modifiers?.some((modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword)) {
+        continue
+      }
+      const name = statement.name.text
+      const files = declarations.get(name) ?? new Set()
+      files.add(filePath)
+      declarations.set(name, files)
+    }
+  }
+  return [...declarations]
+    .filter(([, files]) => files.size > 1)
+    .map(([name, files]) => ({ name, files: [...files].sort() }))
+    .sort((left, right) => left.name.localeCompare(right.name))
+}
 
 /**
  * 裸 SQL 的判定口径是"在 db 层之外构造语句"，即对 db / database / getDb() 调
@@ -141,7 +164,7 @@ export function themeDirectiveHasTailwindImport(cssSource) {
  * 文本判定必然算错；而"有没有 schema 元组"是注册处一眼可见的单一事实。
  */
 const IPC_REGISTRATION_PATTERN =
-  /\b(?:ipcMain|coachPetIpcMain|ipcMainHandle)\s*\.?\s*(?:handle|on)\(\s*'[^']+'\s*,\s*(\[[\s\S]*?\]|[A-Za-z_$][A-Za-z0-9_$]*Input\b)?\s*(?:async\s*)?(?:\(([^)]*)\))?/g
+  /\b(?:(?:ipcMain|coachPetIpcMain|shellIpcMain)\s*\.\s*(?:handle|on)|ipcMainHandle|handleFromShell|onFromShell|handleFromCoach|onFromCoach)\s*\(\s*(?:'[^']+'|"[^"]+"|[A-Za-z_$][A-Za-z0-9_$]*(?:\s*\.\s*[A-Za-z_$][A-Za-z0-9_$]*)*)\s*,\s*(\[[\s\S]*?\]|[A-Za-z_$][A-Za-z0-9_$]*Input\b)?\s*(?:async\s*)?(?:\(([^)]*)\))?/g
 
 export function countUnschemadIpc(text) {
   let count = 0

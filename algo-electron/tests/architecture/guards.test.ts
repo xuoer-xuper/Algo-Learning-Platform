@@ -1,3 +1,4 @@
+import { spawnSync } from 'node:child_process'
 import { describe, expect, it } from 'vitest'
 import {
   collectRatchetFailures,
@@ -9,6 +10,7 @@ import {
   countIpcChannelLiterals,
   countRawIpcSchemas,
   countUnschemadIpc,
+  findDuplicateExportedTypes,
   themeDirectiveHasTailwindImport,
   // @ts-expect-error 守卫判定是 runner 共用的 .mjs，无类型声明；此处只需运行时行为。
   // 抑制点必须在模块说明符上一行：TS7016 报在 `from './guards.mjs'` 处，
@@ -29,6 +31,45 @@ const HINT = '清理提示'
 function ratchet(entries: Array<{ path: string; count: number }>, budgets: Record<string, number>) {
   return collectRatchetFailures({ entries, budgets, describe: describeCount, cleanupHint: HINT })
 }
+
+describe('findDuplicateExportedTypes', () => {
+  it('should find duplicate interface and type declarations across source files', () => {
+    expect(
+      findDuplicateExportedTypes([
+        { path: 'main/config.ts', source: 'export interface Config { enabled: boolean }' },
+        { path: 'shared/config.ts', source: 'export type Config = { enabled: boolean }' },
+      ]),
+    ).toEqual([{ name: 'Config', files: ['main/config.ts', 'shared/config.ts'] }])
+  })
+
+  it('should ignore re-exports, local types, nested declarations and comment text', () => {
+    expect(
+      findDuplicateExportedTypes([
+        { path: 'shared/config.ts', source: 'export type Config = { enabled: boolean }' },
+        {
+          path: 'main/config.ts',
+          source: [
+            "export type { Config } from '../shared/config'",
+            'type Config = { internal: boolean }',
+            'namespace Internal { export interface Config {} }',
+            '// export interface Config {}',
+          ].join('\n'),
+        },
+      ]),
+    ).toEqual([])
+  })
+
+  it('should allow interface merging inside the same file', () => {
+    expect(
+      findDuplicateExportedTypes([
+        {
+          path: 'shared/config.ts',
+          source: 'export interface Config {}\nexport interface Config { enabled: boolean }',
+        },
+      ]),
+    ).toEqual([])
+  })
+})
 
 describe('countBareSql', () => {
   it('抓到 db 层之外构造的语句', () => {
@@ -52,6 +93,38 @@ describe('countBareSql', () => {
 })
 
 describe('countUnschemadIpc', () => {
+  it('detects missing schemas after channels migrate to shared constants', () => {
+    const valid =
+      'ipcMain.handle(IPC_CHANNELS.PROBLEM.GET_DETAIL, getDetailInput, (_event, id) => {})'
+    expect(countUnschemadIpc(valid)).toBe(0)
+    expect(countUnschemadIpc(valid.replace('getDetailInput, ', ''))).toBe(1)
+    expect(countUnschemadIpc('ipcMain.on(CHANNEL_ALIAS, (_event, input) => {})')).toBe(1)
+    expect(
+      countUnschemadIpc('ipcMain . handle ( IPC_CHANNELS . PROBLEM . DELETE, (_e, id) => {})'),
+    ).toBe(1)
+    expect(
+      countUnschemadIpc(
+        'ipcMain.handle(IPC_CHANNELS.PROBLEM.DELETE, [z.string()], (_e, id) => {})',
+      ),
+    ).toBe(0)
+    expect(countUnschemadIpc('ipcMain.handle(IPC_CHANNELS.STATS.GET_OVERVIEW, () => {})')).toBe(0)
+  })
+
+  it.each([
+    'coachPetIpcMain.handle',
+    'shellIpcMain.on',
+    'ipcMainHandle',
+    'handleFromShell',
+    'onFromShell',
+    'handleFromCoach',
+    'onFromCoach',
+  ])('checks the guarded registration form %s', (registrar) => {
+    expect(countUnschemadIpc(`${registrar}(IPC_CHANNELS.COACH.CHAT, (_e, input) => {})`)).toBe(1)
+    expect(
+      countUnschemadIpc(`${registrar}(IPC_CHANNELS.COACH.CHAT, chatInput, (_e, input) => {})`),
+    ).toBe(0)
+  })
+
   it('接收渲染进程参数却没声明 schema 的算欠账', () => {
     expect(countUnschemadIpc("ipcMain.handle('a:b', (_event, id: string) => {})")).toBe(1)
     expect(countUnschemadIpc("ipcMain.on('a:b', (event, x: unknown) => {})")).toBe(1)
@@ -93,6 +166,62 @@ describe('countUnschemadIpc', () => {
       "ipcMain.on('a:4', (_e, y) => {})",
     ].join('\n')
     expect(countUnschemadIpc(source)).toBe(2)
+  })
+})
+
+describe('IPC architecture guard mutations', () => {
+  it.each([
+    {
+      file: 'electron/ipc/registerProblemIpc.ts',
+      before: 'IPC_CHANNELS.PROBLEM.GET_DETAIL, getDetailInput,',
+      after: 'IPC_CHANNELS.PROBLEM.GET_DETAIL,',
+      check: 'IPC handlers declare a payload schema',
+    },
+    {
+      file: 'src/preload/index.ts',
+      before: 'IPC_CHANNELS.PROBLEM.LIST_RECENT',
+      after: "'problem:listRecent'",
+      check: 'IPC channel names come from the shared constants, not literals',
+    },
+    {
+      file: 'src/shared/types/ipc/coach.ts',
+      before: "from '../../constants/preferences'",
+      after: "from '../../../../electron/coach/petPinPolicy'",
+      check: 'src/shared stays process-neutral (no electron imports)',
+    },
+    {
+      file: 'electron/app/config.ts',
+      before: 'export interface AppConfig',
+      after: 'export interface CoachLlmConfig {}\nexport interface AppConfig',
+      check: 'exported type declarations have a single source',
+    },
+  ])('rejects an in-memory violation in $file', ({ file, before, after, check }) => {
+    // Mutate reads in an isolated runner, never the shared checkout.
+    const script = `
+      import fs from 'node:fs'
+      import path from 'node:path'
+      const target = path.resolve(${JSON.stringify(file)})
+      const readFileSync = fs.readFileSync
+      fs.readFileSync = function (file, ...args) {
+        const value = readFileSync.call(this, file, ...args)
+        if (typeof file !== 'string' || path.resolve(file) !== target) return value
+        if (typeof value !== 'string' || !value.includes(${JSON.stringify(before)})) {
+          throw new Error('Mutation target no longer matches')
+        }
+        return value.replace(${JSON.stringify(before)}, ${JSON.stringify(after)})
+      }
+      await import('./tests/architecture/check-architecture.mjs')
+    `
+    const result = spawnSync(process.execPath, ['--input-type=module', '-e', script], {
+      cwd: process.cwd(),
+      encoding: 'utf8',
+      windowsHide: true,
+    })
+    expect(result.error).toBeUndefined()
+    expect(result.status).toBe(1)
+    expect(result.stderr).toContain(`[FAIL] ${check}`)
+    expect(result.stderr).toContain(file)
+    expect(result.stdout).toContain('Checks finished. Failed: 1/')
   })
 })
 

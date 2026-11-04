@@ -20,21 +20,9 @@ import type { CoachConfig } from '../../src/shared/types/coach'
 /*
  * Coach 桌宠配置的类型面（`CoachConfig`）已收口到 `src/shared/types/coach.ts`
  * （阶段 2 R2）：存储形状以本模块为准（含 disclaimer_dismissed），shared 侧的
- * schema 与渲染层消费同一份。`CoachLlmConfig` 是 config.json 的存储内部名，
- * 不跨进程，留在本文件。
+ * schema 是类型的唯一来源。读取给渲染层之前，getCoachConfigForRenderer 会移除
+ * coach.llm.encrypted_api_key；存储密文不会跨 IPC 暴露。
  */
-
-/** LLM 配置（存储在 config.json 的 coach.llm 字段；渲染层拿到的 coachConfig.llm 同形状）。 */
-export interface CoachLlmConfig {
-  /** 加密后的 API Key（base64 编码的 safeStorage 加密数据） */
-  encrypted_api_key?: string
-  /** Base URL */
-  base_url?: string
-  /** 模型 ID */
-  model?: string
-  /** 是否启用 LLM 提示 */
-  enabled?: boolean
-}
 
 export interface AppConfig {
   homeShortcuts: string[]

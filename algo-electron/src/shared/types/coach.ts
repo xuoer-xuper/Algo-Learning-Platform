@@ -339,14 +339,14 @@ export const coachBubblePayloadSchema = z.object({
 export type CoachBubblePayload = z.infer<typeof coachBubblePayloadSchema>
 
 export const coachLlmConfigSchema = z.object({
-  /** safeStorage 加密后的 API Key（base64）；渲染层不可写（domain-rules §7）。 */
+  /** safeStorage 存储密文（base64）；renderer 读路径会移除，写路径禁止传入。 */
   encrypted_api_key: z.string().optional(),
   base_url: z.string().optional(),
   model: z.string().optional(),
   enabled: z.boolean().optional(),
 })
 
-/** config.json 里 coach.llm 字段的形状（主进程内部名 CoachLlmConfig）。 */
+/** config.json 里 coach.llm 字段的存储形状，主进程统一导入此类型。 */
 export type CoachLlmConfig = z.infer<typeof coachLlmConfigSchema>
 
 export const coachConfigSchema = z.object({
@@ -363,8 +363,8 @@ export const coachConfigSchema = z.object({
 })
 
 /**
- * Coach 桌宠配置（coach:getConfig / saveConfig 载荷）。以 electron/app/config.ts
- * 的存储形状为准（含 disclaimer_dismissed）；API Key 只有加密形态过 IPC。
+ * Coach 桌宠配置的存储形状（含 disclaimer_dismissed）。coach:getConfig 及配置推送
+ * 会移除 llm.encrypted_api_key；coach:saveConfig 另由 IPC 输入 schema 限制可写字段。
  */
 export type CoachConfig = z.infer<typeof coachConfigSchema>
 
