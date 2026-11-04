@@ -37,6 +37,10 @@
 
 ## 最终验证
 
+功能提交 `a12c09b` 已推送；推送钩子的 `pnpm test:ci` 通过，远端 CI
+`41837918446`（对应同一 SHA）的 fast-guard 和 Electron/renderer smoke 均成功。
+PR #6 已更新，未合并。R1-R3 修复提交 `c0c6cc3` 的 CI `41829793654` 也通过。
+
 | 检查 | 结果 |
 | --- | --- |
 | `pnpm test:all` | 退出 0；184 文件 / 1493 用例；真实 Electron/DB/AI/Coach 套件通过 |

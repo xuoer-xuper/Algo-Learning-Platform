@@ -325,3 +325,34 @@
 ### Next Steps
 
 - 继续 R4(数据刷新订阅,重启时按 implement.md 清单重做,channels.ts 的 DATA.CHANGED 需重加)→ R5(时间戳毫秒,独立分支)→ 两道收口门 → PR #6 squash 合入。
+
+
+## Session 11: 阶段 2 R1-R4 收口推送，R5 保留迁移安全门
+<!-- trellis-session: v=2 fp=11acf5026e3f6f27 -->
+
+**Date**: 2026-11-04
+**Task**: 阶段 2 R1-R4 收口推送，R5 保留迁移安全门
+**Branch**: `refactor/phase-2-ipc-contract`
+
+### Summary
+
+修复 R1-R3 守卫漏检与 CoachLlmConfig 重复；完成 R4 事务提交后数据刷新、17 个组件查询迁移与真实同步 E2E。两批功能已推送，CI 41829793654/41837918446 全绿。R5 仅只读预检，未写用户数据库：缺少1-21真实旧库，且local/UTC+8无后缀语义混用，需修订安全设计。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `c0c6cc3` | fix(ipc): 修复契约守卫漏检并收口共享类型 |
+| `a12c09b` | feat(renderer): 数据变更订阅与 useIpcQuery |
+
+### Testing
+
+- [OK] test:all 184文件/1493用例，Playwright10/10，build:check，pre-push test:ci，远端CI全绿；jscpd1.69%
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- 提供或定位真实v1.0.0/schema1-21备份，确认现有两份库的验收资格；修订R5时区/非法值/FK重建/统计策略后另开独立分支。当前任务不归档，PR6未合并。
