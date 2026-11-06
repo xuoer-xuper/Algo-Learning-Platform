@@ -326,8 +326,15 @@ test('adapters/specializedScraperSiteAdapters.test.ts', async () => {
   assert.strictEqual(luoguSubmissions[0].language, 'C++14')
   assert.strictEqual(luoguSubmissions[0].runtimeMs, 52)
   assert.strictEqual(luoguSubmissions[0].memoryKb, 2048)
-  assert.strictEqual(typeof luoguSubmissions[0].submittedAt, 'string')
-  assert.match(luoguSubmissions[0].submittedAt, /^\d{4}-\d{2}-\d{2}T/)
+  assert.strictEqual(typeof luoguSubmissions[0].submittedAt, 'number')
+  assert.ok(Number.isSafeInteger(luoguSubmissions[0].submittedAt))
+  const epochSubmission = await luoguAdapter.scrapeSubmissions!(
+    createHost('https://www.luogu.com.cn/record/list', {
+      fromInjection: true,
+      records: [{ id: 246811, status: 12, language: 11, submitTime: 0 }],
+    }),
+  )
+  assert.strictEqual(epochSubmission[0]?.submittedAt, 0, 'epoch zero is a valid upstream instant')
   assert.deepStrictEqual(JSON.parse(luoguSubmissions[0].rawJson || '{}'), {
     _luoguProblemId: 'P1001',
     _luoguProblemTitle: 'A+B Problem',
@@ -692,7 +699,7 @@ test('adapters/specializedScraperSiteAdapters.test.ts', async () => {
     'numeric strings should become numbers, not stay strings',
   )
   assert.strictEqual(luoguStringMetricsSubmission.memoryKb, 2048)
-  assert.match(luoguStringMetricsSubmission.submittedAt, /^\d{4}-\d{2}-\d{2}T/)
+  assert.ok(Number.isSafeInteger(luoguStringMetricsSubmission.submittedAt))
 
   // 非数字的 time/memory 应该变成"没这项"，而不是 NaN 或原值。
   const luoguBadMetricsSubmission = luoguAdapter.parseSubmissionResult!({

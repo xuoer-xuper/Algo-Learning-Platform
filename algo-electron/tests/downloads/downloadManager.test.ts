@@ -118,7 +118,7 @@ describe('DownloadManager', () => {
         state: 'completed',
         receivedBytes: 10,
         totalBytes: 10,
-        finishedAt: '2026-08-18T12:00:00.000Z',
+        finishedAt: Date.parse('2026-08-18T12:00:00.000Z'),
       },
     ])
   })
@@ -150,7 +150,7 @@ describe('DownloadManager', () => {
       state: 'interrupted',
       receivedBytes: 0,
       totalBytes: 0,
-      finishedAt: '1970-01-01T00:00:00.000Z',
+      finishedAt: Date.parse('1970-01-01T00:00:00.000Z'),
       errorCode: 'path-setup-failed',
     })
   })

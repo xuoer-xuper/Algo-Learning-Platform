@@ -67,7 +67,7 @@ function submissionRow(overrides: Partial<SubmissionRow> = {}): SubmissionRow {
     verdict: 'WA',
     raw_verdict: 'SENTINEL_RAW_VERDICT',
     language: 'C++17',
-    submitted_at: '2026-08-31 10:00:00',
+    submitted_at: Date.parse('2026-08-31 10:00:00'),
     runtime_ms: 15,
     memory_kb: 65536,
     source_url:
@@ -76,8 +76,8 @@ function submissionRow(overrides: Partial<SubmissionRow> = {}): SubmissionRow {
     // 而它没法分辨真假 token——那个保守判定是对的，不该为测试放宽。泄漏探针改由后面的
     // SENTINEL_COOKIE_VALUE 承担，它不挨着 cookie 名，形状仍是"raw_json 里裹着 cookie"。
     raw_json: '{"cookie":"JSESSIONID=abc; auth=SENTINEL_COOKIE_VALUE","handle":"SENTINEL_HANDLE"}',
-    created_at: '2026-08-31 10:00:01',
-    updated_at: '2026-08-31 10:00:02',
+    created_at: Date.parse('2026-08-31 10:00:01'),
+    updated_at: Date.parse('2026-08-31 10:00:02'),
     ...overrides,
   }
 }
@@ -102,7 +102,7 @@ function problemDetail(overrides: Partial<ProblemDetail> = {}): ProblemDetail {
         platform: 'codeforces',
         platform_submission_id: 'SENTINEL_DETAIL_SUBMISSION_ID',
         verdict: 'WA',
-        submitted_at: '2026-08-31 10:00:00',
+        submitted_at: Date.parse('2026-08-31 10:00:00'),
         raw_json: '{"cookie":"SENTINEL_DETAIL_COOKIE"}',
       },
     ],
@@ -140,7 +140,7 @@ function event(overrides: Partial<CoachEvent> = {}): CoachEvent {
     problem_id: 'problem-1',
     platform: 'codeforces',
     evidence: { verdict: 'WA' },
-    created_at: '2026-08-31 10:20:00',
+    created_at: Date.parse('2026-08-31 10:20:00'),
     ...overrides,
   }
 }
@@ -286,7 +286,7 @@ test('只保留最近 10 条提交，且保持升序', () => {
   repo.submissions = Array.from({ length: 14 }, (_value, index) =>
     submissionRow({
       verdict: `V${index}`,
-      submitted_at: `2026-08-31 10:${String(index).padStart(2, '0')}:00`,
+      submitted_at: Date.parse(`2026-08-31 10:${String(index).padStart(2, '0')}:00`),
     }),
   )
 

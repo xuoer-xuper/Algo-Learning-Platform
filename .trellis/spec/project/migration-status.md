@@ -7,8 +7,8 @@
 > Plan and evidence: `.trellis/tasks/archive/2026-09/00-bootstrap-guidelines/research/spec-alignment-plan.md`,
 > `spec-alignment-report.md`, `reinvented-wheels-audit.md`.
 
-Last reviewed: 2026-11-04 (phase 2 R1-R4 on `refactor/phase-2-ipc-contract`).
-The historical baseline rows remain descriptive; R5 and later phases are not complete.
+Last reviewed: 2026-11-05 (phase 2 R5 implementation and local verification complete on
+`feat/db-unix-ms-timestamps`; PR integration remains pending). Later phases are not complete.
 
 ---
 
@@ -35,8 +35,8 @@ The historical baseline rows remain descriptive; R5 and later phases are not com
 | Logging | ✅ 1.1（2026-11-01）：**electron-log 5.4.4**，`logger.scope()` + 脱敏 hook（原 regex 全量迁移 + `cookie=`）；RUN_AS_NODE 下文件 transport 关闭 | 同左 | 1.2 |
 | Config | ✅ 1.1（2026-11-01）：**electron-store 12**（原子存储层）+ zod 单层校验（`.default()`/`.catch()` 取代 normalizers）；conf 16 的 schema 校验会"坏文件即拒启"，与不清空红线冲突——故 schema 不传给 electron-store | 同左 | 1.3 |
 | Dev/prod isolation | ✅ 1.1（2026-11-01）：`envSetup.ts` 为 main.ts 首个 import（架构守卫强制），非打包且无冒烟 env 时 userData 加 `-dev`；冒烟覆盖优先 | 同左 | 1.3 |
-| Database | bare better-sqlite3, 249 `prepare()` sites, 114 `as Row` casts, hand-written migration runner + 29 migrations | **Drizzle ORM** schema + `drizzle-kit` migrations; 001–029 imported as baseline; pre-migration backup kept | 3.1 |
-| Timestamps | R5 precheck: 82 TEXT timestamp columns including migration ledger; suffixless values mix system-local and fixed UTC+8 writers. Day keys remain strings. Required version-21 real fixture is missing; migration not implemented. | **Unix milliseconds INTEGER** (`{ mode: 'timestamp_ms' }`), `z.number()` in schemas, `Intl` formatting in UI only, after provenance and migration safety review | 2.5 |
+| Database | better-sqlite3 with repositories and hand-written migrations 001-030; 030 uses guarded FK-safe rebuild, pre-backup and retry marker | **Drizzle ORM** schema + `drizzle-kit` migrations; 001-030 baseline; preserve backup safety | 3.1 |
+| Timestamps | R5: 82 INTEGER Unix-ms columns, numeric live writers/IPC/shared schemas, display-only Intl; strict history-derived local/UTC+8/SQLite `.0` conversion. Reconstructed 21/24/29 and isolated actual 24/29 copies pass; original user DBs unchanged. | Numeric timestamp target reached; future Drizzle uses timestamp_ms. See `unix-millisecond-time.md`. | 2.5 |
 | Result shape | ✅ 1.1（2026-11-01）：20 处真正的 IPC 返回统一为 `createOutputSchema()` 判别联合（6 个封闭 `code`）；34 处 `{ok:}` 经复核确认是内部校验器/运行时协议形状、不跨 IPC 边界，不转换 | 同左 | 1.4 |
 | Event bus | 9 hand-written `Set<callback>` buses + 3 `EventEmitter` | typed `EventEmitter` wrapper | 3.6 |
 | Debounce | `DebouncedWindowFollower.ts` + 12 ad-hoc `setTimeout` pairs | one `shared/lib/timing.ts` | 3.6 |

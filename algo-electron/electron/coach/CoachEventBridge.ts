@@ -1,5 +1,5 @@
 import crypto from 'node:crypto'
-import { nowBeijing } from '../shared/time'
+import { nowMillis } from '../shared/time'
 import type { SubmissionNotification } from '../submissions/SubmissionWatcherCore'
 import type { ProblemIdentity } from '../shared/types'
 import type { Verdict } from '../shared/types'
@@ -261,7 +261,7 @@ export class CoachEventBridge {
       problem_id: input.problem_id,
       platform: input.platform,
       evidence: input.evidence,
-      created_at: nowBeijing(),
+      created_at: nowMillis(),
     }
   }
 }

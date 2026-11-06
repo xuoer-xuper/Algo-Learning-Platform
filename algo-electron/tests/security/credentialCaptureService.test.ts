@@ -56,8 +56,8 @@ function savedSummary(): CredentialSummary {
     displayName: null,
     masked: '********',
     lastUsedAt: null,
-    createdAt: 'now',
-    updatedAt: 'now',
+    createdAt: 0,
+    updatedAt: 0,
   }
 }
 
@@ -133,8 +133,8 @@ test('same username and password is ignored, changed password requests update', 
         displayName: 'Main',
         masked: '********',
         lastUsedAt: null,
-        createdAt: 'now',
-        updatedAt: 'now',
+        createdAt: 0,
+        updatedAt: 0,
       },
     ],
     getForAutofill: async () => ({

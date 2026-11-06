@@ -96,20 +96,39 @@
 
 ### R5 时间戳毫秒（独立分支）
 
+> **2026-11-04 用户纠正后的执行方向**：缺少 v1.0.0 原库不再阻塞；从固定 Git 提交的旧迁移
+> 和 helper 重建 21/24/29 schema，用文本快照+来源 hash+合成数据在 CI 动态生成测试库。
+> 第一块先验证到现有 schema29，明确不是 030 已完成；之后迁移测试扩展到30并补已有真实
+> 样本隔离副本验证。已切独立分支 `feat/db-unix-ms-timestamps`，基于未合并的 R1-R4 分支。
+
 > **2026-11-04 安全预检**：实际 82 个时间列（含台账），非原计划 65；仅找到 1-29 当前库及
 > 1-24 备份，缺少 1-21 真实历史副本。无后缀时间存在 local / 固定 UTC+8 两种语义；
 > 原“全部按迁移机器本地时间、非法值置 NULL、逐表重建”设计不能直接执行。
 > 详见 [R5 可行性记录](./research/r5-feasibility.md)。先解决安全设计和真实副本验收，再写 030。
 
-- [ ] 准备三份脱敏真实库到 `tests/db/fixtures/`（**由用户提供或从本机 userData 复制后脱敏**）。
-- [ ] `parseLegacyTimestamp` + 单测（3 格式 × 3 时区）。
-- [ ] `030_timestamps_to_unix_ms.ts` 数组驱动 65 列；`upgradePath.test.ts`。
-- [ ] `time.ts` 重写；`stats/date.ts`、`periodSummaryDates.ts` 改毫秒；repository 返回 `number`；shared types `z.number()`。
-- [ ] 渲染 11 处 `formatForDisplay`；备份导出/导入 `schemaVersion`。
-- [ ] `DATABASE_SCHEMA.md`、`DATABASE_MIGRATION_ROLLBACK.md`、`DATA_EXPORT_AND_IMPORT.md` 更新。
-- 验证：`pnpm test:db`（真实 Electron ABI）；三份 fixture 升级通过；`pnpm test:all`。commit `feat(db): 时间戳迁移为 Unix 毫秒（migration 030）`。
+- [x] 固定 Git 提交重建三种历史 schema；提交文本 snapshot/provenance/合成 seed，测试时生成临时 DB，先验 21/24/29→29。
+- [x] 030 完成后补现有真实 24/29 样本的隔离副本验证；无需再寻找已经不存在的真实 1.0.0 用户库。
+- [x] `parseLegacyTimestamp` + 单测（3 格式 × 3 时区）。
+- [x] `030_timestamps_to_unix_ms.ts` 显式清单转换实测 82 列（含台账）；升级/回滚/外键测试。
+- [x] 当前业务时间改毫秒，保留冻结的旧迁移 formatter 兼容入口；`stats/date.ts`、`periodSummaryDates.ts`、repository、shared types 同步。
+- [x] 按实际渲染消费点接 `formatForDisplay`；备份导出/导入使用实际字段 `schema_version`，旧 v1 输入先规范化再预览/比较/导入。
+- [x] `DATABASE_SCHEMA.md`、`DATABASE_MIGRATION_ROLLBACK.md`、`DATA_EXPORT_AND_IMPORT.md` 更新。
+- 验证：`pnpm test:db`（真实 Electron ABI）；三条重建路径与现有真实副本分别报告；`pnpm test:all`。commit `feat(db): 时间戳迁移为 Unix 毫秒（migration 030）`。
+
+> **R5 历史基础验收（2026-11-04）**：三种 pinned-source SQL 重建、来源 hash、逐字节再生、
+> 无 Git 的离线测试通过；21/24/29→29 五条回归及真实 Electron 历史升级通过。
+> 完整 `test:all` 185 文件 / 1498 用例、Playwright 10/10 通过。详见
+> [历史重建验证](./r5-history-verification-2026-11-04.md)。030 尚未实现。
 
 ## Review Gates
+
+> **R5 最终本地验收（2026-11-05）**：030及全栈数值时间完成，重建21/24/29→30、两个实际
+> 24/29只读备份副本均升级通过；82列类型、1407/1097时间值、事实行数、FK/integrity及独立
+> 日统计核对通过，原件哈希未变。test:all192文件/1563用例、UI11/11、build:win和打包程序
+> schema29→30补测通过；复核无待修复项。详见 [R5验收](./r5-verification-2026-11-05.md)。
+> 下方PR合并/发布仍待授权，不以本地验收擅自合并；无需继续索要真实1.0.0库。
+> **收口确认（2026-11-06）**：`e789841` 与 `682231d` 已推送，CI `42195138160` /
+> `42197937618` 全绿。PR #7 已待评审，阶段2实现工作完成；仅待授权集成 PR #6/#7 后归档。
 
 - R1–R4 一个 PR `refactor(ipc): 阶段 2 IPC 契约与共享层`；R5 单独 PR，描述附三份库升级前后对照表。
 - 阶段结束：安装包在 rc.1 userData 上启动，数据完整，Dashboard 时间显示正确。

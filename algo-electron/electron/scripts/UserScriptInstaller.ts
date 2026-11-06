@@ -15,7 +15,6 @@ import {
 import { logger } from '../shared/logger'
 
 const log = logger.scope('userscript')
-import { toChinaStandardTime } from '../shared/time'
 import { writeUserScriptImport, type UserScriptImportDecision } from './userScriptImport'
 import type { PreparedUserScriptResource } from './UserScriptResourceCache'
 import { isManagedScriptArtifactName } from './managedScriptPath'
@@ -55,8 +54,8 @@ export async function persistUserScriptInstall(
           const now = options.now ?? new Date()
           upsertUserScriptUpdateState({
             scriptId,
-            lastCheckedAt: toChinaStandardTime(now),
-            nextCheckAt: toChinaStandardTime(new Date(now.getTime() + UPDATE_INTERVAL_MS)),
+            lastCheckedAt: now.getTime(),
+            nextCheckAt: now.getTime() + UPDATE_INTERVAL_MS,
             etag: options.etag ?? null,
             lastModified: options.lastModified ?? null,
             availableVersion: null,
@@ -67,8 +66,8 @@ export async function persistUserScriptInstall(
           const now = options.now ?? new Date()
           upsertUserScriptUpdateState({
             scriptId,
-            lastCheckedAt: toChinaStandardTime(now),
-            nextCheckAt: toChinaStandardTime(new Date(now.getTime() + UPDATE_INTERVAL_MS)),
+            lastCheckedAt: now.getTime(),
+            nextCheckAt: now.getTime() + UPDATE_INTERVAL_MS,
             etag: null,
             lastModified: null,
             availableVersion: null,
@@ -203,8 +202,8 @@ export function markUserScriptUpdateError(
   const message = errorMessage(error)
   upsertUserScriptUpdateState({
     scriptId,
-    lastCheckedAt: toChinaStandardTime(now),
-    nextCheckAt: toChinaStandardTime(new Date(now.getTime() + UPDATE_INTERVAL_MS)),
+    lastCheckedAt: now.getTime(),
+    nextCheckAt: now.getTime() + UPDATE_INTERVAL_MS,
     status: 'error',
     lastError: message.slice(0, 1_000),
   })
@@ -221,8 +220,8 @@ export function markUserScriptUpdateCurrent(
   const now = options.now ?? new Date()
   upsertUserScriptUpdateState({
     scriptId,
-    lastCheckedAt: toChinaStandardTime(now),
-    nextCheckAt: toChinaStandardTime(new Date(now.getTime() + UPDATE_INTERVAL_MS)),
+    lastCheckedAt: now.getTime(),
+    nextCheckAt: now.getTime() + UPDATE_INTERVAL_MS,
     etag: options.etag,
     lastModified: options.lastModified,
     availableVersion: null,

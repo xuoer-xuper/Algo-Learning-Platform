@@ -9,12 +9,12 @@ export interface ProblemRow {
   problem_index: string | null
   source_platform?: string | null
   source_problem_id?: string | null
-  first_seen_at?: string
-  last_visited_at?: string
-  first_solved_at?: string | null
-  created_at?: string
-  updated_at?: string
-  deleted_at?: string | null
+  first_seen_at?: number
+  last_visited_at?: number
+  first_solved_at?: number | null
+  created_at?: number
+  updated_at?: number
+  deleted_at?: number | null
 }
 
 export interface RecentProblem {
@@ -23,7 +23,7 @@ export interface RecentProblem {
   platform_problem_id: string
   canonical_url: string
   title: string | null
-  last_visited_at: string
+  last_visited_at: number
   status: string
   submission_count: number
 }
@@ -36,13 +36,13 @@ export interface ProblemSubmissionRow {
   verdict: string
   raw_verdict?: string | null
   language?: string | null
-  submitted_at: string
+  submitted_at: number
   runtime_ms?: number | null
   memory_kb?: number | null
   source_url?: string | null
   raw_json?: string | null
-  created_at?: string
-  updated_at?: string
+  created_at?: number
+  updated_at?: number
 }
 
 export type ProblemDetail = ProblemRow & {
@@ -62,8 +62,8 @@ export interface ProblemVisitRow {
   session_id: string | null
   platform: string
   url: string
-  entered_at: string
-  left_at: string | null
+  entered_at: number
+  left_at: number | null
   duration_seconds: number | null
   active_seconds: number | null
   leave_reason: string | null

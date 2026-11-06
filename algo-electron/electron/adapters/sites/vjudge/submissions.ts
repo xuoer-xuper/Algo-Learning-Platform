@@ -1,5 +1,6 @@
 import type { ScrapedSubmission, SubmissionData } from '../../../shared/types'
-import { nowBeijing } from '../../../shared/time'
+import { nowMillis } from '../../../shared/time'
+import { parseLegacyTimestamp } from '../../../shared/legacyTimestamp'
 import { pickFinalRealtimeSubmission } from '../../../submissions/realtimeSubmissionFilter'
 import { unknownToText } from '../../../shared/textCoercion'
 import { normalizeVerdict } from '../../verdictMap'
@@ -125,6 +126,16 @@ function parseNumberOrUnit(
   return undefined
 }
 
+function submittedAtMillis(result: Record<string, unknown>): number {
+  for (const key of ['submittedAt', 'submitTime', 'submittedTime', 'submissionTime', 'createdAt']) {
+    const value = result[key]
+    if (value === undefined || value === null || value === '') continue
+    if (typeof value !== 'string') throw new TypeError('Invalid VJudge submission timestamp')
+    return parseLegacyTimestamp(stripHtml(value), 'local')
+  }
+  return nowMillis()
+}
+
 export function parseVjudgeStatusData(raw: SubmissionDetectionPayload): SubmissionData | null {
   if (!/\/status\/data\/?/.test(String(raw.requestUrl || ''))) return null
   const response =
@@ -157,7 +168,7 @@ export function parseVjudgeStatusData(raw: SubmissionDetectionPayload): Submissi
       language,
       runtimeMs: runtime ? parseRuntimeMs(runtime) : undefined,
       memoryKb: memory ? parseMemoryKb(memory) : undefined,
-      submittedAt: nowBeijing(),
+      submittedAt: nowMillis(),
       sourceUrl: `https://vjudge.net/solution/${idCell}`,
       rawJson: JSON.stringify({
         row: { texts: cells },
@@ -201,13 +212,6 @@ export function parseVjudgeSolutionData(raw: SubmissionDetectionPayload): Submis
   const problem = parsedProblem
     ? `${parsedProblem.sourcePlatform}-${parsedProblem.sourceProblemId}`
     : pickString(result, ['problem', 'problemId', 'problemNum', 'probNum', 'num'])
-  const submittedAt = pickString(result, [
-    'submittedAt',
-    'submitTime',
-    'submittedTime',
-    'submissionTime',
-    'createdAt',
-  ])
 
   return {
     platform: 'vjudge',
@@ -223,7 +227,7 @@ export function parseVjudgeSolutionData(raw: SubmissionDetectionPayload): Submis
       result.memory ?? result.memoryCost ?? result.memoryKb ?? result.mem,
       parseMemoryKb,
     ),
-    submittedAt: submittedAt || nowBeijing(),
+    submittedAt: submittedAtMillis(result),
     sourceUrl: `https://vjudge.net/solution/${id}`,
     rawJson: JSON.stringify({
       _source: source,

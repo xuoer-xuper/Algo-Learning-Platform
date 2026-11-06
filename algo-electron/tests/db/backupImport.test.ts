@@ -78,13 +78,13 @@ function seedSourceDatabase(): void {
     'backup-test',
     problem.platform,
     problem.canonical_url,
-    `${day}T09:00:00+08:00`,
-    `${day}T09:10:00+08:00`,
+    Date.parse(`${day}T09:00:00+08:00`),
+    Date.parse(`${day}T09:10:00+08:00`),
     600,
     540,
     'test',
-    `${day}T09:00:00+08:00`,
-    `${day}T09:10:00+08:00`,
+    Date.parse(`${day}T09:00:00+08:00`),
+    Date.parse(`${day}T09:10:00+08:00`),
   )
 
   upsertSubmission({
@@ -94,7 +94,7 @@ function seedSourceDatabase(): void {
     verdict: 'WA',
     rawVerdict: 'WRONG_ANSWER',
     language: 'GNU C++23',
-    submittedAt: `${day}T10:00:00+08:00`,
+    submittedAt: Date.parse(`${day}T10:00:00+08:00`),
     sourceUrl: forbiddenLocalPath,
     rawJson: JSON.stringify({ diagnostic: forbiddenCookieHeader, path: forbiddenLocalPath }),
   })
@@ -117,9 +117,9 @@ function seedSourceDatabase(): void {
     1,
     0,
     JSON.stringify([{ platform: 'codeforces', count: 1 }]),
-    `${day}T11:00:00+08:00`,
-    `${day}T11:00:00+08:00`,
-    `${day}T11:00:00+08:00`,
+    Date.parse(`${day}T11:00:00+08:00`),
+    Date.parse(`${day}T11:00:00+08:00`),
+    Date.parse(`${day}T11:00:00+08:00`),
   )
 
   const accountId = upsertAccount('codeforces', 'tourist', 'tourist')
@@ -132,7 +132,7 @@ function seedSourceDatabase(): void {
     ratingBefore: 3800,
     ratingAfter: 3900,
     delta: 100,
-    contestAt: `${day}T12:00:00+08:00`,
+    contestAt: Date.parse(`${day}T12:00:00+08:00`),
     rawJson: JSON.stringify({ path: forbiddenLocalPath }),
   })
 
@@ -388,7 +388,7 @@ test('detects same-id metadata conflicts and rebuilds dates after correcting or 
     corrected.tables.problems[0].title = 'Restored title'
     corrected.tables.problems[0].difficulty = '1800'
     corrected.tables.submissions[0].verdict = 'AC'
-    corrected.tables.submissions[0].submitted_at = '2026-07-05T10:00:00+08:00'
+    corrected.tables.submissions[0].submitted_at = Date.parse('2026-07-05T10:00:00+08:00')
     corrected.tables.user_daily_stats = []
 
     assert.deepStrictEqual(
@@ -411,7 +411,7 @@ test('detects same-id metadata conflicts and rebuilds dates after correcting or 
     assert.strictEqual(applied.updated.submissions, 1)
     assert.deepStrictEqual(readProblemState(problemId), {
       status: 'solved',
-      first_solved_at: '2026-07-05T10:00:00+08:00',
+      first_solved_at: Date.parse('2026-07-05T10:00:00+08:00'),
     })
     const restored = getDb()
       .prepare('SELECT title, difficulty FROM problems WHERE id = ?')
@@ -423,7 +423,7 @@ test('detects same-id metadata conflicts and rebuilds dates after correcting or 
 
     const revoked = exportLearningData()
     revoked.tables.submissions[0].verdict = 'WA'
-    revoked.tables.submissions[0].submitted_at = '2026-07-06T11:00:00+08:00'
+    revoked.tables.submissions[0].submitted_at = Date.parse('2026-07-06T11:00:00+08:00')
     revoked.tables.user_daily_stats = []
     assert.strictEqual(previewLearningDataImport(revoked).conflicts.length, 1)
     assert.strictEqual(importLearningData(revoked, true).success, true)
@@ -478,7 +478,7 @@ test('merges disjoint same-day facts, preserves visit time semantics and remains
       .prepare(
         `
       INSERT INTO user_daily_stats (local_day, active_seconds, created_at, updated_at)
-      VALUES ('2000-01-01', 777, 'sentinel', 'sentinel')
+      VALUES ('2000-01-01', 777, 946684800000, 946684800000)
     `,
       )
       .run()
@@ -530,12 +530,12 @@ test('new AC submissions refresh an existing problem and move its first solve to
       id: 'later-ac',
       platform_submission_id: 'later-ac',
       verdict: 'AC',
-      submitted_at: '2026-07-06T12:00:00+08:00',
+      submitted_at: Date.parse('2026-07-06T12:00:00+08:00'),
     }
     assert.strictEqual(importLearningData(later).success, true)
     assert.deepStrictEqual(readProblemState(problemId), {
       status: 'solved',
-      first_solved_at: '2026-07-06T12:00:00+08:00',
+      first_solved_at: Date.parse('2026-07-06T12:00:00+08:00'),
     })
     assert.strictEqual(readDailyStats('2026-07-06').solved_problem_count, 1)
 
@@ -544,12 +544,12 @@ test('new AC submissions refresh an existing problem and move its first solve to
       ...earlier.tables.submissions[0],
       id: 'earlier-ac',
       platform_submission_id: 'earlier-ac',
-      submitted_at: '2026-07-03T12:00:00+08:00',
+      submitted_at: Date.parse('2026-07-03T12:00:00+08:00'),
     }
     assert.strictEqual(importLearningData(earlier).success, true)
     assert.deepStrictEqual(readProblemState(problemId), {
       status: 'solved',
-      first_solved_at: '2026-07-03T12:00:00+08:00',
+      first_solved_at: Date.parse('2026-07-03T12:00:00+08:00'),
     })
     assert.strictEqual(readDailyStats('2026-07-06').solved_problem_count, 0)
     assert.strictEqual(readDailyStats('2026-07-06').ac_submission_count, 1)
@@ -579,9 +579,9 @@ test('rebuilds old and new problems and dates when overwritten facts move', () =
       first_solved_at: null,
     })
     moved.tables.submissions[0].problem_id = 'new-problem'
-    moved.tables.submissions[0].submitted_at = '2026-07-05T12:00:00+08:00'
-    moved.tables.problem_visits[0].entered_at = '2026-07-06T09:00:00+08:00'
-    moved.tables.problem_visits[0].left_at = '2026-07-06T09:15:00+08:00'
+    moved.tables.submissions[0].submitted_at = Date.parse('2026-07-05T12:00:00+08:00')
+    moved.tables.problem_visits[0].entered_at = Date.parse('2026-07-06T09:00:00+08:00')
+    moved.tables.problem_visits[0].left_at = Date.parse('2026-07-06T09:15:00+08:00')
     moved.tables.problem_visits[0].duration_seconds = 900
     moved.tables.problem_visits[0].active_seconds = 720
     moved.tables.user_daily_stats = []
@@ -594,7 +594,7 @@ test('rebuilds old and new problems and dates when overwritten facts move', () =
     })
     assert.deepStrictEqual(readProblemState('new-problem'), {
       status: 'solved',
-      first_solved_at: '2026-07-05T12:00:00+08:00',
+      first_solved_at: Date.parse('2026-07-05T12:00:00+08:00'),
     })
     assert.strictEqual(readDailyStats(day).active_seconds, 0)
     assert.strictEqual(readDailyStats(day).submission_count, 0)
@@ -651,10 +651,10 @@ function seedImportedDatabase(paths: TestPaths): LearningDataExport {
   return archived
 }
 
-function readProblemState(id: string): { status: string; first_solved_at: string | null } {
+function readProblemState(id: string): { status: string; first_solved_at: number | null } {
   return getDb().prepare('SELECT status, first_solved_at FROM problems WHERE id = ?').get(id) as {
     status: string
-    first_solved_at: string | null
+    first_solved_at: number | null
   }
 }
 

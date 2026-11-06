@@ -6,9 +6,8 @@ export const WEAKNESS_ANALYSIS_RULE_VERSION = 2
 export const REVIEW_PLAN_RULE_VERSION = 1
 export const WEAKNESS_AC_RATE_THRESHOLD = 70
 
-export function daysSince(timestamp: string, now = Date.now()): number {
-  const time = timestamp ? new Date(timestamp).getTime() : 0
-  return Math.max(0, Math.floor((now - time) / 86400000))
+export function daysSince(timestamp: number, now = Date.now()): number {
+  return Math.max(0, Math.floor((now - timestamp) / 86400000))
 }
 
 export function scoreReviewCandidate(

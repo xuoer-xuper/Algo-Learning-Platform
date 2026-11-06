@@ -1,6 +1,6 @@
 // P6-004: AI 上下文导出层。该入口负责聚合脱敏本地学习数据，供规则引擎或外部 AI 工具消费。
 import { getDb } from '../db/connection'
-import { nowBeijing } from '../shared/time'
+import { nowMillis } from '../shared/time'
 import {
   getDailyActiveStats,
   getPlatformDistribution,
@@ -15,7 +15,7 @@ import type { AIContextExport } from './contextTypes'
 export { renderContextAsMarkdown } from './contextMarkdown'
 export type { AIContextExport } from './contextTypes'
 
-export const AI_CONTEXT_VERSION = 1
+export const AI_CONTEXT_VERSION = 2
 
 interface ProblemOverviewRow {
   total: number
@@ -70,7 +70,7 @@ export function exportAIContext(): AIContextExport {
 
   return {
     schema_version: AI_CONTEXT_VERSION,
-    exported_at: nowBeijing(),
+    exported_at: nowMillis(),
     overview: {
       total_problems: overview.total || 0,
       solved_problems: overview.solved || 0,

@@ -23,7 +23,6 @@ import {
   listContestAuditRecords,
 } from '../../electron/db/repositories/coach/interventionsRepository.ts'
 import { listCoachFeedback } from '../../electron/db/repositories/coach/feedbackRepository.ts'
-import { toBeijing } from '../../electron/shared/time.ts'
 import { getRecentProblems } from '../../electron/db/repositories/problemRepository.ts'
 import { upsertSubmission } from '../../electron/db/repositories/submissionRepository.ts'
 import {
@@ -808,7 +807,7 @@ test('进入比赛页：桌宠睡下、每个窗口都收到通知与顶栏、�
         url: 'https://codeforces.com/contest/1900',
         platform: 'codeforces',
         contest_id: '1900',
-        entered_at: new Date('2026-09-01T10:00:00+08:00').toISOString(),
+        entered_at: new Date('2026-09-01T10:00:00+08:00').getTime(),
       },
     })
     assert.deepEqual(h.tabManagers[index].contestNoticeCalls, [true], '两个窗口都应升起比赛顶栏')
@@ -1270,9 +1269,8 @@ test('离开比赛页：顶栏落下、桌宠回 idle、弹复盘气泡并把 co
     row.trigger_reason.startsWith('contest_end'),
   )
   assert.ok(endRow?.contest_end, '离开比赛必须把 contest_end 写进审计行本身')
-  // R5 后 contest_start 与 created_at 同格式（nowBeijing/toBeijing 的本地朴素格式），
-  // 不再是 toISOString 的 UTC-Z 格式；期望值用同一 helper 生成以对宿主时区不敏感。
-  assert.equal(endRow.contest_start, toBeijing(new Date('2026-09-01T10:00:00+08:00')))
+  // Audit instants retain the absolute epoch independently of the host timezone.
+  assert.equal(endRow.contest_start, Date.parse('2026-09-01T10:00:00+08:00'))
   h.coach.stop()
 })
 
@@ -1699,12 +1697,12 @@ test('单题时间轴把四张表合到一起，first_ac 与最近活动按真�
     identity,
     visitId: 'visit-1',
     activityId: 'activity-1',
-    now: '2026-08-30T09:00:00.000',
+    now: Date.parse('2026-08-30T09:00:00.000'),
     localDay: '2026-08-30',
   })
   finishProblemVisit({
     visitId: 'visit-1',
-    leftAt: '2026-08-30T09:30:00.000',
+    leftAt: Date.parse('2026-08-30T09:30:00.000'),
     durationSeconds: 1800,
   })
   const problemId = getRecentProblems(1)[0].id
@@ -1714,7 +1712,7 @@ test('单题时间轴把四张表合到一起，first_ac 与最近活动按真�
     platformSubmissionId: 's-1',
     problemId,
     verdict: 'WA',
-    submittedAt: '2026-08-30T09:10:00.000',
+    submittedAt: Date.parse('2026-08-30T09:10:00.000'),
     language: 'C++',
   })
   upsertSubmission({
@@ -1722,7 +1720,7 @@ test('单题时间轴把四张表合到一起，first_ac 与最近活动按真�
     platformSubmissionId: 's-2',
     problemId,
     verdict: 'AC',
-    submittedAt: '2026-08-30T09:25:00.000',
+    submittedAt: Date.parse('2026-08-30T09:25:00.000'),
     language: 'C++',
   })
 
@@ -1769,7 +1767,11 @@ test('单题时间轴把四张表合到一起，first_ac 与最近活动按真�
     ['WA', 'AC'],
     '提交应按时间升序',
   )
-  assert.equal(timeline.first_ac_at, '2026-08-30T09:25:00.000', 'first_ac 应取第一条 AC 的时间')
+  assert.equal(
+    timeline.first_ac_at,
+    Date.parse('2026-08-30T09:25:00.000'),
+    'first_ac 应取第一条 AC 的时间',
+  )
   assert.equal(timeline.events.length, 3, 'Issue #3 修复后，带 problem_id 的事件应被合进轴')
   assert.equal(timeline.events[0].evidence.wrong_count, 2, 'evidence 应反序列化后原样带出')
 
@@ -1778,7 +1780,7 @@ test('单题时间轴把四张表合到一起，first_ac 与最近活动按真�
    * 这里最晚的是访问的 left_at（09:30）而不是最后一次提交（09:25）——写成"取最后一条
    * 提交"的话，只看题不提交的那些题在复盘列表里会永远显示"从未活动"。
    */
-  assert.equal(timeline.last_activity_at, new Date('2026-08-30T09:30:00.000').toISOString())
+  assert.equal(timeline.last_activity_at, new Date('2026-08-30T09:30:00.000').getTime())
   assert.equal(h.coach.getProblemTimeline('missing-problem'), null, '未知题目应返回 null')
 
   /*
@@ -1804,7 +1806,7 @@ test('单题时间轴把四张表合到一起，first_ac 与最近活动按真�
   const bundle = h.coach.getMetricsBundle()
   assert.deepEqual(
     bundle.problem_ac_status,
-    [{ problem_id: problemId, first_ac_at: '2026-08-30T09:25:00.000' }],
+    [{ problem_id: problemId, first_ac_at: Date.parse('2026-08-30T09:25:00.000') }],
     'bundle 应把有干预的题目与它的首次 AC 对齐，供 renderer 算转化率',
   )
   h.coach.stop()
@@ -2302,7 +2304,7 @@ test('免责声明本会话内只弹一次；未开始的访问与未 AC 的题�
     identity,
     visitId: 'visit-open',
     activityId: 'activity-open',
-    now: '2026-08-31T20:00:00.000',
+    now: Date.parse('2026-08-31T20:00:00.000'),
     localDay: '2026-08-31',
   })
   const problemId = getRecentProblems(1)[0].id
@@ -2311,7 +2313,7 @@ test('免责声明本会话内只弹一次；未开始的访问与未 AC 的题�
     platformSubmissionId: 's-wa',
     problemId,
     verdict: 'WA',
-    submittedAt: '2026-08-31T20:05:00.000',
+    submittedAt: Date.parse('2026-08-31T20:05:00.000'),
     language: 'C++',
   })
 
@@ -2322,7 +2324,7 @@ test('免责声明本会话内只弹一次；未开始的访问与未 AC 的题�
   assert.equal(timeline.first_ac_at, null, '没有 AC 时 first_ac_at 应是 null 而不是报错')
   assert.equal(
     timeline.last_activity_at,
-    new Date('2026-08-31T20:05:00.000').toISOString(),
+    new Date('2026-08-31T20:05:00.000').getTime(),
     '最近活动应取已有时间点里最晚的那个，不能被 null 的 left_at 污染成 Invalid Date',
   )
   h.coach.stop()

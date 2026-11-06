@@ -41,6 +41,7 @@ import { migration026 } from './migrations/026_site_credentials'
 import { migration027 } from './migrations/027_userscript_runtime'
 import { migration028 } from './migrations/028_site_login_autofill'
 import { migration029 } from './migrations/029_site_credential_labels'
+import { migration030 } from './migrations/030_timestamps_to_unix_ms'
 import { errorMessage } from '../shared/errors'
 
 let db: Database.Database | null = null
@@ -78,6 +79,7 @@ const allMigrations = [
   migration027,
   migration028,
   migration029,
+  migration030,
 ]
 
 export function getDb(): Database.Database {

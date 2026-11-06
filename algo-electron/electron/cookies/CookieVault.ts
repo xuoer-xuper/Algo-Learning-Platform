@@ -79,9 +79,7 @@ function toCookieMetadataInput(
     domain,
     name: entry.name,
     expiresAt:
-      typeof entry.expirationDate === 'number'
-        ? new Date(entry.expirationDate * 1000).toISOString()
-        : null,
+      typeof entry.expirationDate === 'number' ? Math.round(entry.expirationDate * 1000) : null,
     httpOnly: entry.httpOnly,
     secure: entry.secure,
     sameSite: entry.sameSite,

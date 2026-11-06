@@ -1,12 +1,12 @@
 import type Database from 'better-sqlite3'
-import { nowBeijing } from '../shared/time'
+import { nowMillis } from '../shared/time'
 import { emitDataChanged } from '../shared/dataEvents'
 
 export const ORPHAN_VISIT_LEAVE_REASON = 'startup_recovery'
 
 export function closeOrphanProblemVisits(
   database: Database.Database,
-  updatedAt: string = nowBeijing(),
+  updatedAt: number = nowMillis(),
 ): number {
   const result = database
     .prepare(

@@ -1,3 +1,4 @@
+import { formatForDisplay } from '@shared/time'
 import { NOTE_TYPE_LABELS, type NoteItem } from './notesTypes'
 import { Empty, IconButton } from '../../components/ui'
 
@@ -42,7 +43,7 @@ export function NoteList({ notes, activeNoteId, onOpenNote, onDeleteNote }: Note
                 </div>
                 <div className="note-item-meta">
                   <span className="note-item-time">
-                    {note.updated_at?.replace('T', ' ').slice(0, 16)}
+                    {formatForDisplay(note.updated_at, { second: undefined })}
                   </span>
                   <span className="note-item-words">
                     {note.word_count > 0 ? `${note.word_count} 字` : ''}

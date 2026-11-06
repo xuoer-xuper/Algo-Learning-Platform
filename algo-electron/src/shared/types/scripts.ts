@@ -32,7 +32,7 @@ export const pendingUserScriptInstallSchema = z.object({
   installId: z.string(),
   sourceUrl: z.string(),
   sourceFileName: z.string(),
-  createdAt: z.string(),
+  createdAt: z.number().int(),
 })
 
 /** 待确认的远程脚本安装（browser:getUserScriptInstall，带 TTL 的注册表条目）。 */

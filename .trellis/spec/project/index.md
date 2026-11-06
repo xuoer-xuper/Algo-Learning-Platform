@@ -22,6 +22,8 @@ which today.
 | [migration-status.md](./migration-status.md) | Current path → template path mapping per layer, what is already aligned, what is still legacy, which phase moves it | Before writing code in any layer; tells you whether to follow the current file or the template target |
 | [regression-checks.md](./regression-checks.md) | Executable regression checks for IPC scanner migrations and lazy renderer test teardown | When moving IPC entrypoints, changing guards, or testing lazy routes |
 | [data-refresh.md](./data-refresh.md) | Committed-write notifications, transaction scopes, query invalidation and live snapshot races | When changing persisted writes, refresh subscriptions or query hooks |
+| [historical-database-fixtures.md](./historical-database-fixtures.md) | Pinned-source schema reconstruction, evidence provenance and historical time-writer contracts | When validating upgrades without an original old user database |
+| [unix-millisecond-time.md](./unix-millisecond-time.md) | Migration 030, strict legacy time compatibility, numeric IPC and safe import/statistics contracts | When changing any stored or cross-process instant |
 
 ---
 

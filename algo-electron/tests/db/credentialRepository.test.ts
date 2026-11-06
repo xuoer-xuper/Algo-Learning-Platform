@@ -101,7 +101,7 @@ test('credential repository stores only a versioned envelope, revives tombstones
     assert.ok(deletedRow, 'soft delete must keep the row')
     assert.strictEqual(deletedRow.secret_envelope, null, 'soft delete must wipe the ciphertext')
     assert.ok(
-      typeof deletedRow.deleted_at === 'string' && deletedRow.deleted_at.length > 0,
+      typeof deletedRow.deleted_at === 'number' && Number.isSafeInteger(deletedRow.deleted_at),
       'soft delete must stamp deleted_at',
     )
 

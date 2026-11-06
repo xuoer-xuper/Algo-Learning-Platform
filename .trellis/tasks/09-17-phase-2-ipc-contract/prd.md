@@ -31,22 +31,24 @@
 - 15 个取数组件迁到 `useIpcQuery`；`App.tsx` 4 处竞态模板删除。
 
 ### R5 时间戳迁到 Unix 毫秒（D1，A5，高-5 根治）
-- migration `030_timestamps_to_unix_ms.ts`：对 65 个 TEXT 时间列逐表 `ALTER TABLE … ADD COLUMN <col>_ms INTEGER` → `UPDATE` 转换（识别 `YYYY-MM-DDTHH:mm:ss.SSS`（本地）与 `…Z`/`+08:00`（UTC/带偏移）两种历史格式；本地格式按**执行迁移时的系统时区**解释并在迁移日志记录时区）→ 重建表去掉旧列（SQLite 无 DROP COLUMN 的老版本兼容路径已在 013 用过）。`local_day` 列保留，改由毫秒 + 系统时区派生。
-- `electron/shared/time.ts` 只剩 `nowMillis()`、`toLocalDay(ms)`、`formatForDisplay(ms)`（`Intl.DateTimeFormat('zh-CN', { timeZone })`）；`nowBeijing/toBeijing/toChinaStandardTime` 删除；`stats/date.ts` 与 `periodSummaryDates.ts` 改基于毫秒。
+- migration `030_timestamps_to_unix_ms.ts`：将实测 82 个 TEXT 时间列（含迁移台账）迁为 Unix 毫秒，保留约束、索引、外键和非时间字段；无损转换失败时回滚并保留备份/failure marker，不将非法非空值静默改成 NULL。`local_day` 列保留，改由毫秒 + 系统时区派生。
+- 历史时间解释以 Git 写入代码为证据：显式 `Z`/offset 按绝对时间处理；普通无后缀值沿用旧版系统本地时间契约；script/credential/runtime 域的无后缀值按已验证的固定 UTC+8 写入契约转换。记录迁移时系统时区与适用策略，不根据函数名猜测，不自动修正无证据的外部站点时间。
+- 当前业务时间 API 使用 `nowMillis()`、`toLocalDay(ms)`、`formatForDisplay(ms)`（`Intl.DateTimeFormat('zh-CN', { timeZone })`）；当前 repository/IPC 不再调用 `nowBeijing/toBeijing/toChinaStandardTime`。已发布 001–029 的导入保持兼容，允许其冻结的 legacy helper 作为明确例外；`stats/date.ts` 与 `periodSummaryDates.ts` 改基于毫秒。
 - repository 返回 `number`；shared types 中时间字段 `z.number()`；渲染 11 处消费点改 `formatForDisplay`。
 - `DATABASE_SCHEMA.md` 时间规则改写；`DATABASE_MIGRATION_ROLLBACK.md` 记录 030 的回滚（用迁移前自动备份）。
 - 备份导出 JSON 的时间字段同步为毫秒；导入器兼容旧 JSON（字符串→毫秒）。
 
 ## Acceptance Criteria
 
-- [ ] 架构守卫：IPC 字面量 0；`grep -rn "electronAPI" electron src tests` = 0；`electron-env.d.ts` 不存在。
-- [ ] `grep -rhoE "^export (interface|type) \w+" electron src | sort | uniq -d` = 0（跨文件无同名类型）。
-- [ ] `window.api` 类型完全由 preload 推导：删除任一 preload 方法，渲染层对应调用 `tsc` 报错（用一次临时删除验证）。
-- [ ] `Dashboard`、`ProblemDetail` 在后台 `syncCodeforces` 写库后 2 秒内自动刷新（Playwright 用例）。
-- [ ] refetch 期间 `CredentialsPage`、`CoachMetricsView` 不显示骨架屏（`isRefetching` 路径）。
-- [ ] migration 030：用 rc.1 真实库副本（`tests/db/fixtures/rc1.sqlite`，脱敏）升级后所有时间列 `typeof === 'integer'`，抽样 20 行与原字符串按时区换算一致；`user_daily_stats` 重算结果与升级前一致。
-- [ ] `grep -rn "toISOString\|nowBeijing\|toBeijing" electron src` 只剩日志/文件名场景（≤ 5 处，各有注释）。
-- [ ] `pnpm test:all` 全绿；`tests/ipc` 契约测试覆盖 158 个 channel。
+- [x] 架构守卫：IPC 字面量 0；生产代码无旧 `electronAPI` 调用（负向守卫自身字符串不计）；`electron-env.d.ts` 不存在。
+- [x] `grep -rhoE "^export (interface|type) \w+" electron src | sort | uniq -d` = 0（跨文件无同名类型）。
+- [x] `window.api` 类型完全由 preload 推导：删除任一 preload 方法，渲染层对应调用 `tsc` 报错（用一次临时删除验证）。
+- [x] `Dashboard`、`ProblemDetail` 在后台 `syncCodeforces` 写库后 2 秒内自动刷新（Playwright 用例）。
+- [x] refetch 期间 `CredentialsPage`、`CoachMetricsView` 不显示骨架屏（`isRefetching` 路径）。
+- [x] migration 030：由固定 Git 提交的历史迁移代码重建 v1.0.0/beta.2/rc.1 三种 schema，记录来源 hash 并用合成数据覆盖旧时间格式；测试库在临时目录生成，不提交二进制 SQLite，不称为真实用户历史库。三条路径升级后非空时间列均为 integer、值与历史写入策略一致、关系/约束/行数完整；统计与按相同策略计算的期望值一致，时区跨日差异单独说明。
+- [x] 现有真实当前库及旧备份只在隔离副本上补充升级验证；原件不修改、不提交。缺失不可恢复的 v1.0.0 实际用户库不再作为必须提供的前置条件；历史代码重建与真实样本证据分开报告。
+- [x] 当前业务写入及 IPC 时间统一毫秒；`nowBeijing/toBeijing/toChinaStandardTime` 的剩余生产调用只允许已发布旧迁移的兼容路径，逐处记录。`toISOString` 仅允许日志/文件名或明确外部协议边界，不能用其生成数据库/普通 IPC 时间。
+- [x] `pnpm test:all` 全绿；IPC常量快照覆盖实测179个channel，preload暴露面/输入输出/订阅契约测试通过。
 
 ## Out of Scope
 
@@ -57,4 +59,5 @@
 
 - 前置：阶段 1（zod、返回形状）。
 - 顺序：R1 → R2 → R3 → R4 → R5。R5 单独分支 `feat/db-unix-ms-timestamps`，PR 需附升级前后对照数据。
-- 风险：R5 是用户数据迁移，`initDbAtPathWithMigrationSafety` 的备份 + failure marker 是安全网；PR 前必须在三份不同时期的真实库副本上验证。
+- 风险：R5 是用户数据迁移，`initDbAtPathWithMigrationSafety` 的备份 + failure marker 是安全网；PR 前完成三种历史代码重建路径及已有真实样本的隔离副本验证。
+- 2026-11-04 用户纠正：不要要求已不存在的 1.0.0 用户库，改查 Git 历史确认旧版实现并重建验证输入；重建样本不得冒充真实历史数据。

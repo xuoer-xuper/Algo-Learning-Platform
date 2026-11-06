@@ -440,7 +440,7 @@ export function createFrontendVerdictHookScript(adapterId: string): string {
             pageTitle: typeof document !== 'undefined' ? document.title : '',
             submitIntent: true
           },
-          detectedAt: new Date().toISOString()
+          detectedAt: Date.now()
         };
         if (window[CHANNEL] && typeof window[CHANNEL].reportSubmission === 'function') {
           window[CHANNEL].reportSubmission(payload);
@@ -487,7 +487,7 @@ export function createFrontendVerdictHookScript(adapterId: string): string {
             pageTitle: typeof document !== 'undefined' ? document.title : '',
             submitIntent: true
           },
-          detectedAt: new Date().toISOString()
+          detectedAt: Date.now()
         };
         if (window[CHANNEL] && typeof window[CHANNEL].reportSubmission === 'function') {
           window[CHANNEL].reportSubmission(payload);

@@ -19,6 +19,10 @@ channel 常量（`../constants/`）与全部跨进程域类型迁入本目录，
 （`grep -rhoE "^export (interface|type) \w+" electron src | sort | uniq -d`）清零。
 阶段 3 引入 Drizzle 后，`$inferSelect` 与这里的实体输出 schema 对照、procedures 负责转换。
 
+R5 的所有时间点（包含诊断、下载、待安装与 Coach 快照）采用 Unix 毫秒整数，schema 使用
+`z.number().int()` 并保留原 optional/nullability。`local_day` 等日历键仍为字符串，时长维持
+各自声明的单位；renderer 只在展示边界调用 `@shared/time` 格式化，不解析旧时间字符串。
+
 ## 3. 边界与维护规则
 
 - 类型文件零 electron 运行时依赖（可以 `import type` 引 electron 侧类型，但不得引入会在渲染层打包的 electron 运行时模块）。

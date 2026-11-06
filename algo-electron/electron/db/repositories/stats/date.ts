@@ -1,44 +1,28 @@
+import { localDayBounds, nowMillis, shiftLocalDay, toLocalDay } from '../../../../src/shared/time'
+
 export function localDateDaysAgo(days: number): string {
-  const date = new Date(Date.now() - days * 24 * 60 * 60 * 1000)
-  return formatLocalDate(date)
+  return shiftLocalDay(toLocalDay(nowMillis()), -days)
 }
 
 export function formatLocalDate(date: Date): string {
-  return [
-    date.getFullYear(),
-    String(date.getMonth() + 1).padStart(2, '0'),
-    String(date.getDate()).padStart(2, '0'),
-  ].join('-')
+  return toLocalDay(date.getTime())
 }
 
-export function nextLocalDay(localDay: string): string {
-  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(localDay)
-  if (!match) throw new Error(`Invalid local day: ${localDay}`)
-
-  const year = Number(match[1])
-  const month = Number(match[2])
-  const day = Number(match[3])
-  const date = new Date(year, month - 1, day)
-  if (date.getFullYear() !== year || date.getMonth() !== month - 1 || date.getDate() !== day) {
-    throw new Error(`Invalid local day: ${localDay}`)
-  }
-
-  date.setDate(date.getDate() + 1)
-  return formatLocalDate(date)
+export function nextLocalDay(day: string): string {
+  return shiftLocalDay(day, 1)
 }
 
-export function localDayFromTimestamp(timestamp: string): string | null {
-  const localDay = timestamp.slice(0, 10)
+export function localDayFromTimestamp(timestamp: number): string | null {
   try {
-    nextLocalDay(localDay)
-    return localDay
+    return toLocalDay(timestamp)
   } catch {
     return null
   }
 }
 
-export function dayDiff(laterLocalDay: string, earlierLocalDay: string): number {
-  const later = new Date(`${laterLocalDay}T00:00:00`).getTime()
-  const earlier = new Date(`${earlierLocalDay}T00:00:00`).getTime()
-  return Math.round((later - earlier) / 86400000)
+export function dayDiff(laterDay: string, earlierDay: string): number {
+  // Calendar ordinals avoid 23/25-hour DST days changing a streak.
+  localDayBounds(laterDay)
+  localDayBounds(earlierDay)
+  return (Date.parse(`${laterDay}T00:00:00Z`) - Date.parse(`${earlierDay}T00:00:00Z`)) / 86_400_000
 }

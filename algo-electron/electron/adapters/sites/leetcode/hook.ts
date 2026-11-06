@@ -75,7 +75,7 @@ export function createLeetcodeRealtimeHookScript(): string {
             meta: {
               pageTitle: typeof document !== 'undefined' ? document.title : ''
             },
-            detectedAt: new Date().toISOString()
+            detectedAt: Date.now()
           };
           if (window[CHANNEL] && typeof window[CHANNEL].reportSubmission === 'function') {
             window[CHANNEL].reportSubmission(payload);

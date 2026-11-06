@@ -1,5 +1,4 @@
 import crypto from 'node:crypto'
-import { nowBeijing } from '../../shared/time'
 import type {
   CoachEvent,
   CoachEventType,
@@ -72,8 +71,6 @@ export interface RuleEngineOptions {
   now?: () => number
   /** 注入式 uuid 生成（便于测试） */
   uuid?: () => string
-  /** 注入式 nowIso（便于测试） */
-  nowIso?: () => string
 }
 
 interface LastTriggerRecord {
@@ -127,7 +124,6 @@ export class RuleEngine {
       triggerScoreThreshold: options.triggerScoreThreshold ?? DEFAULT_TRIGGER_SCORE_THRESHOLD,
       now: options.now ?? Date.now,
       uuid: options.uuid ?? defaultUuid,
-      nowIso: options.nowIso ?? nowBeijing,
       getSession: options.getSession,
       getProblemRating: options.getProblemRating,
       getIsContestMode: options.getIsContestMode,
@@ -417,7 +413,7 @@ export class RuleEngine {
       problem_id: event.problem_id,
       platform: event.platform,
       session_id: event.session_id,
-      created_at: this.options.nowIso(),
+      created_at: this.options.now(),
       is_contest_mode: false,
       contest_url: null,
       contest_start: null,

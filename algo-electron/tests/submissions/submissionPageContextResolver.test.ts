@@ -9,7 +9,7 @@ test('submissions/submissionPageContextResolver.test.ts', async () => {
       platform,
       platformSubmissionId: `${platform}-1`,
       verdict: 'AC',
-      submittedAt: '2026-06-29 10:00:00',
+      submittedAt: Date.parse('2026-06-29 10:00:00'),
       rawJson,
     }
   }

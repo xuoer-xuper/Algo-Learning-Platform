@@ -6,15 +6,15 @@ export interface SubmissionRow {
   verdict: string
   raw_verdict: string | null
   language: string | null
-  submitted_at: string
+  submitted_at: number
   runtime_ms: number | null
   memory_kb: number | null
   source_url: string | null
   raw_json: string | null
-  created_at: string
-  updated_at: string
+  created_at: number
+  updated_at: number
 }
 
 export interface FirstAcRow {
-  submitted_at: string
+  submitted_at: number
 }

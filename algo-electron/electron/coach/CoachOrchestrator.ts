@@ -5,7 +5,7 @@ import type { TrackingService } from '../tracking/TrackingService'
 import type { RealtimeSubmissionService } from '../submissions/RealtimeSubmissionService'
 import type { AppWindow } from '../windows/AppWindow'
 import { parseUrl } from '../parsers/registry'
-import { nowBeijing, todayBeijing, toBeijing } from '../shared/time'
+import { nowMillis, toLocalDay, localDayBounds, shiftLocalDay } from '../shared/time'
 import { logger } from '../shared/logger'
 import { IPC_CHANNELS } from '../../src/shared/constants/channels'
 
@@ -666,7 +666,7 @@ export class CoachOrchestrator {
             url: contest.contestUrl,
             platform: contest.platform,
             contest_id: contest.contestId,
-            entered_at: new Date(contest.enteredAt).toISOString(),
+            entered_at: contest.enteredAt,
           }
         : null,
       pet_state: this.options.getCoachPetWindow()?.getPetState() ?? 'idle',
@@ -706,7 +706,7 @@ export class CoachOrchestrator {
 
   getMetrics(): CoachMetricsSnapshot {
     const since = this.computeMetricsSince()
-    const until = nowBeijing()
+    const until = nowMillis()
     const eventsByType = countCoachEventsByTypeSince(since)
     const totalEvents = Object.values(eventsByType).reduce((a, b) => a + b, 0)
     const totalInterventions = countCoachInterventionsSince(since)
@@ -813,13 +813,12 @@ export class CoachOrchestrator {
     // 最近一次活动 = visits.last left_at / entered_at 与 submissions.last submitted_at 取最晚
     const candidateTimes: number[] = []
     for (const v of visits) {
-      candidateTimes.push(Date.parse(v.entered_at))
-      if (v.left_at) candidateTimes.push(Date.parse(v.left_at))
+      candidateTimes.push(v.entered_at)
+      if (v.left_at !== null) candidateTimes.push(v.left_at)
     }
-    for (const s of submissions) candidateTimes.push(Date.parse(s.submitted_at))
+    for (const s of submissions) candidateTimes.push(s.submitted_at)
     const validTimes = candidateTimes.filter((t) => !Number.isNaN(t))
-    const lastActivityAt =
-      validTimes.length > 0 ? new Date(Math.max(...validTimes)).toISOString() : null
+    const lastActivityAt = validTimes.length > 0 ? Math.max(...validTimes) : null
 
     return {
       problem_id: problem.id,
@@ -852,7 +851,7 @@ export class CoachOrchestrator {
    */
   getMetricsBundle(): CoachMetricsBundle {
     const since = this.computeMetricsSince()
-    const until = nowBeijing()
+    const until = nowMillis()
 
     const events = listCoachEventsSince(since, 2000)
     const interventions = listCoachInterventionsSince(since, 2000)
@@ -873,7 +872,7 @@ export class CoachOrchestrator {
       new Set(interventions.map((i) => i.problem_id).filter((id): id is string => id !== null)),
     )
     const firstAcRows = getFirstAcByProblemIds(problemIds)
-    const firstAcMap = new Map<string, string>()
+    const firstAcMap = new Map<string, number>()
     for (const r of firstAcRows) firstAcMap.set(r.problem_id, r.first_ac_at)
     const problemAcStatus: ProblemAcStatus[] = problemIds.map((id) => ({
       problem_id: id,
@@ -1011,7 +1010,7 @@ export class CoachOrchestrator {
           problem_id: this.sessionTracker.getCurrentSession()?.problem_id ?? null,
           platform: this.sessionTracker.getCurrentSession()?.platform ?? null,
           evidence: {},
-          created_at: nowBeijing(),
+          created_at: nowMillis(),
         }
 
         // 立即展示加载气泡，避免用户以为点击无效
@@ -1352,7 +1351,7 @@ export class CoachOrchestrator {
               url: contest.contestUrl,
               platform: contest.platform,
               contest_id: contest.contestId,
-              entered_at: new Date(contest.enteredAt).toISOString(),
+              entered_at: contest.enteredAt,
             },
           }
         : { isContestMode: false, contest: null },
@@ -1363,7 +1362,7 @@ export class CoachOrchestrator {
     appWindow: AppWindow,
     payload: {
       isContestMode: boolean
-      contest: { url: string; platform: string; contest_id: string; entered_at: string } | null
+      contest: { url: string; platform: string; contest_id: string; entered_at: number } | null
     },
   ): void {
     appWindow.tabManager.setContestNoticeVisible(payload.isContestMode)
@@ -1390,7 +1389,7 @@ export class CoachOrchestrator {
           url: info.contestUrl,
           platform: info.platform,
           contest_id: info.contestId,
-          entered_at: new Date(info.enteredAt).toISOString(),
+          entered_at: info.enteredAt,
         },
       })
     }
@@ -1403,10 +1402,7 @@ export class CoachOrchestrator {
       message: `进入比赛页 ${info.contestUrl}，规则引擎硬关闭`,
       is_contest_mode: true,
       contest_url: info.contestUrl,
-      // 与 created_at（nowBeijing 写入）同格式：本地朴素 YYYY-MM-DDTHH:mm:ss.SSS。
-      // 此前的 toISOString()（UTC 带 Z）与同表 created_at 混用两种格式，历史 UTC 值
-      // 由阶段 2.5 的 migration 030 统一转毫秒。
-      contest_start: toBeijing(new Date(info.enteredAt)),
+      contest_start: info.enteredAt,
       contest_end: null,
       zero_intervention: true,
       user_action: 'shown',
@@ -1429,8 +1425,7 @@ export class CoachOrchestrator {
     }
 
     // 写审计日志：离开比赛（更新 contest_end）
-    // 与 created_at（nowBeijing 写入）同格式，理由同 handleContestEnter。
-    const end = nowBeijing()
+    const end = nowMillis()
     const intervention = buildCoachIntervention({
       trigger_reason: `contest_end (${info.platform}:${info.contestId}, ${durationSec}s)`,
       intervention_level: 0,
@@ -1438,7 +1433,7 @@ export class CoachOrchestrator {
       message: `离开比赛页 ${info.contestUrl}，规则引擎恢复。建议复盘 / upsolve。`,
       is_contest_mode: false,
       contest_url: info.contestUrl,
-      contest_start: toBeijing(new Date(info.enteredAt)),
+      contest_start: info.enteredAt,
       contest_end: end,
       zero_intervention: true,
       user_action: 'shown',
@@ -1463,16 +1458,11 @@ export class CoachOrchestrator {
   }
 
   private loadSuppressedTypes(): Set<CoachEventType> {
-    return getNeverTodayEventTypes(todayBeijing())
+    return getNeverTodayEventTypes(toLocalDay(nowMillis()))
   }
 
-  private computeMetricsSince(): string {
-    const d = new Date()
-    d.setDate(d.getDate() - METRICS_LOOKBACK_DAYS)
-    const y = d.getFullYear()
-    const m = String(d.getMonth() + 1).padStart(2, '0')
-    const day = String(d.getDate()).padStart(2, '0')
-    return `${y}-${m}-${day}T00:00:00.000`
+  private computeMetricsSince(): number {
+    return localDayBounds(shiftLocalDay(toLocalDay(nowMillis()), -METRICS_LOOKBACK_DAYS)).start
   }
 }
 

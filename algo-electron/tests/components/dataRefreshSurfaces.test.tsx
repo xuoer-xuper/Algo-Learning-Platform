@@ -210,8 +210,8 @@ describe('data refresh surfaces', () => {
 
   it('should retain coach metrics during refetch and keep mock mode independent', async () => {
     const emptyBundle = {
-      since: '',
-      until: '',
+      since: 0,
+      until: 0,
       events: [],
       interventions: [],
       feedback: [],
@@ -250,7 +250,7 @@ describe('data refresh surfaces', () => {
       title: 'Saved title',
       content: 'body',
       note_type: 'solution',
-      updated_at: '',
+      updated_at: 0,
     }
     api.listNotesByProblem.mockResolvedValue([note])
     api.loadNote.mockResolvedValue(note)

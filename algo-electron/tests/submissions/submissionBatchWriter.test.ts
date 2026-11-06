@@ -82,7 +82,7 @@ test('submissions/submissionBatchWriter.test.ts', async () => {
     platform: 'codeforces',
     platformSubmissionId: 'cf-1',
     verdict: 'AC',
-    submittedAt: '2026-06-29 10:00:00',
+    submittedAt: Date.parse('2026-06-29 10:00:00'),
     rawJson: JSON.stringify({ problem: { contestId: 1900, index: 'A' } }),
   }
 
@@ -103,7 +103,7 @@ test('submissions/submissionBatchWriter.test.ts', async () => {
     platform: 'codeforces',
     platformSubmissionId: 'cf-2',
     verdict: 'WA',
-    submittedAt: '2026-06-29 10:00:30',
+    submittedAt: Date.parse('2026-06-29 10:00:30'),
     rawJson: JSON.stringify({
       row: {
         links: [
@@ -125,7 +125,7 @@ test('submissions/submissionBatchWriter.test.ts', async () => {
     platform: 'codeforces',
     platformSubmissionId: 'cf-3',
     verdict: 'WA',
-    submittedAt: '2026-06-29 10:00:45',
+    submittedAt: Date.parse('2026-06-29 10:00:45'),
     sourceUrl: 'https://codeforces.com/contest/2224/submission/380860544',
   }
 
@@ -151,7 +151,7 @@ test('submissions/submissionBatchWriter.test.ts', async () => {
     platform: 'nowcoder',
     platformSubmissionId: 'nc-1',
     verdict: 'WA',
-    submittedAt: '2026-06-29 10:01:00',
+    submittedAt: Date.parse('2026-06-29 10:01:00'),
   }
 
   writer.write({
@@ -176,7 +176,7 @@ test('submissions/submissionBatchWriter.test.ts', async () => {
     platform: 'vjudge',
     platformSubmissionId: 'vj-1',
     verdict: 'AC',
-    submittedAt: '2026-06-29 10:01:30',
+    submittedAt: Date.parse('2026-06-29 10:01:30'),
     rawJson: JSON.stringify({
       row: {
         links: ['https://vjudge.net/solution/998877', 'https://vjudge.net/problem/POJ-1001'],
@@ -195,7 +195,7 @@ test('submissions/submissionBatchWriter.test.ts', async () => {
     platform: 'vjudge',
     platformSubmissionId: 'vj-2',
     verdict: 'WA',
-    submittedAt: '2026-06-29 10:01:45',
+    submittedAt: Date.parse('2026-06-29 10:01:45'),
     rawJson: JSON.stringify({
       _vjudgeProblemId: 'Gym-105173E',
       _vjudgeSourcePlatform: 'Gym',
@@ -214,7 +214,7 @@ test('submissions/submissionBatchWriter.test.ts', async () => {
     platform: 'pta',
     platformSubmissionId: 'pta-1',
     verdict: 'AC',
-    submittedAt: '2026-06-29 10:02:00',
+    submittedAt: Date.parse('2026-06-29 10:02:00'),
     _ptaProblemId: '994805260223102976-1478636081501847552',
   }
 
@@ -229,7 +229,7 @@ test('submissions/submissionBatchWriter.test.ts', async () => {
     platform: 'pta',
     platformSubmissionId: 'pta-2',
     verdict: 'WA',
-    submittedAt: '2026-06-29 10:03:00',
+    submittedAt: Date.parse('2026-06-29 10:03:00'),
     sourceUrl: 'https://pintia.cn/fallback-pta',
   }
 
@@ -244,7 +244,7 @@ test('submissions/submissionBatchWriter.test.ts', async () => {
     platform: 'luogu',
     platformSubmissionId: 'lg-1',
     verdict: 'AC',
-    submittedAt: '2026-06-29 10:04:00',
+    submittedAt: Date.parse('2026-06-29 10:04:00'),
     rawJson: JSON.stringify({
       _luoguProblemId: 'P1001',
       _luoguProblemTitle: 'A+B Problem',
@@ -268,7 +268,7 @@ test('submissions/submissionBatchWriter.test.ts', async () => {
     platform: 'nowcoder',
     platformSubmissionId: 'nc-2',
     verdict: 'AC',
-    submittedAt: '2026-06-29 10:05:00',
+    submittedAt: Date.parse('2026-06-29 10:05:00'),
     _ncContestId: '789',
     _ncProbLetter: 'A',
   }
@@ -277,7 +277,7 @@ test('submissions/submissionBatchWriter.test.ts', async () => {
     platform: 'nowcoder',
     platformSubmissionId: 'nc-3',
     verdict: 'WA',
-    submittedAt: '2026-06-29 10:05:30',
+    submittedAt: Date.parse('2026-06-29 10:05:30'),
     _ncContestId: '789',
     _ncProbLetter: 'B',
   }
@@ -335,19 +335,19 @@ test('recomputes only unique dates affected by newly inserted submissions', () =
         platformSubmissionId: 'affected-1',
         problemId: 'problem-1',
         verdict: 'AC',
-        submittedAt: '2026-06-29T10:00:00.000',
+        submittedAt: Date.parse('2026-06-29T10:00:00.000'),
       },
       {
         platform: 'codeforces',
         platformSubmissionId: 'affected-2',
         verdict: 'WA',
-        submittedAt: '2026-06-29T11:00:00.000',
+        submittedAt: Date.parse('2026-06-29T11:00:00.000'),
       },
       {
         platform: 'codeforces',
         platformSubmissionId: 'affected-3',
         verdict: 'WA',
-        submittedAt: '2026-06-30T00:00:00.000',
+        submittedAt: Date.parse('2026-06-30T00:00:00.000'),
       },
     ],
   })
@@ -362,7 +362,7 @@ test('recomputes only unique dates affected by newly inserted submissions', () =
         platform: 'codeforces',
         platformSubmissionId: 'affected-1',
         verdict: 'AC',
-        submittedAt: '2026-06-29T10:00:00.000',
+        submittedAt: Date.parse('2026-06-29T10:00:00.000'),
       },
     ],
   })

@@ -1,12 +1,12 @@
 import { emitDataChanged } from '../../../shared/dataEvents'
 import crypto from 'node:crypto'
 import { getDb } from '../../connection'
-import { nowBeijing } from '../../../shared/time'
+import { nowMillis } from '../../../shared/time'
 import type { RatingHistoryInput, RatingHistoryRow } from './types'
 
 export function upsertRatingHistory(data: RatingHistoryInput): boolean {
   const db = getDb()
-  const now = nowBeijing()
+  const now = nowMillis()
 
   const existing = db
     .prepare(

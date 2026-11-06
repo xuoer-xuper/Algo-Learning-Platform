@@ -12,7 +12,7 @@ import type { PlatformAccount } from '@shared/types/rating'
 import type { FindInPageCommand, TabInfo, ZoomCommand } from '@shared/types/browser'
 import type { OmniboxSuggestion, ProblemRecord } from '@shared/types/problem'
 
-const now = '2026-07-03T10:00:00+08:00'
+const now = Date.parse('2026-07-03T10:00:00+08:00')
 
 const screenshotNote = {
   id: 'note-1',

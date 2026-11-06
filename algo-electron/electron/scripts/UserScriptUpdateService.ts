@@ -6,7 +6,6 @@ import {
 } from '../db/repositories/userScriptRepository'
 import { getUserScriptUpdateState } from '../db/repositories/userScriptRuntimeRepository'
 import { logger, type Logger } from '../shared/logger'
-import { toChinaStandardTime } from '../shared/time'
 import {
   compareUserScriptVersions,
   resolveUserScriptImportDecision,
@@ -148,7 +147,7 @@ export class UserScriptUpdateService {
       return false
     if (force) return true
     const state = this.dependencies.getUpdateState(script.id)
-    return !state?.next_check_at || state.next_check_at <= toChinaStandardTime(this.clock())
+    return !state?.next_check_at || state.next_check_at <= this.clock().getTime()
   }
 
   private async checkScriptOnce(scriptId: string): Promise<UserScriptUpdateResult> {

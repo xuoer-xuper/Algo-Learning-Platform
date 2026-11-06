@@ -1,7 +1,7 @@
 import { emitDataChanged } from '../shared/dataEvents'
 import crypto from 'node:crypto'
 import { getDb } from '../db/connection'
-import { nowBeijing } from '../shared/time'
+import { nowMillis } from '../shared/time'
 import {
   createNoteFile,
   deleteNoteFiles,
@@ -24,8 +24,8 @@ export interface Note {
   note_type: NoteType
   content: string
   word_count: number
-  created_at: string
-  updated_at: string
+  created_at: number
+  updated_at: number
 }
 
 export type NoteListItem = Note
@@ -53,8 +53,8 @@ interface NoteRow {
   note_type: string
   content: string
   word_count: number
-  created_at: string
-  updated_at: string
+  created_at: number
+  updated_at: number
 }
 
 function rowToNote(row: NoteRow): Note {
@@ -77,7 +77,7 @@ function rowToNote(row: NoteRow): Note {
 // 创建笔记（DB 记录 + Markdown 文件 + DB 内容缓存）
 export function createNote(input: CreateNoteInput): Note {
   const db = getDb()
-  const now = nowBeijing()
+  const now = nowMillis()
   const id = crypto.randomUUID()
   const problemId = input.problem_id ?? '_standalone'
   const noteType = input.note_type ?? 'solution'
@@ -152,7 +152,7 @@ export function getNoteWithContent(noteId: string): NoteWithContent | null {
 // 更新笔记标题
 export function updateNoteTitle(noteId: string, title: string): boolean {
   const db = getDb()
-  const now = nowBeijing()
+  const now = nowMillis()
   const result = db
     .prepare(
       `
@@ -173,7 +173,7 @@ export function updateNoteContent(noteId: string, content: string): boolean {
 
   try {
     writeNoteContent(note.file_path, content)
-    const now = nowBeijing()
+    const now = nowMillis()
     const wordCount = countWords(content)
     db.prepare(
       `
@@ -212,7 +212,7 @@ export function resolveNoteAssetPath(noteId: string, relativeUrl: string): strin
 // 更新笔记类型
 export function updateNoteType(noteId: string, noteType: NoteType): boolean {
   const db = getDb()
-  const now = nowBeijing()
+  const now = nowMillis()
   const result = db
     .prepare(
       `

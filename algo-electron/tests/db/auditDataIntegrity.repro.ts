@@ -32,7 +32,7 @@ import { getProblemDetail, getRecentProblems } from '../../electron/db/repositor
 const outputDir = path.resolve('tmp/audit-20260911')
 const runDir = path.join(outputDir, `data-${crypto.randomUUID()}`)
 const day = '2026-09-10'
-const timestamp = `${day}T10:00:00+08:00`
+const timestamp = Date.parse(`${day}T10:00:00+08:00`)
 const observations: Record<string, unknown> = {}
 fs.mkdirSync(runDir, { recursive: true })
 app.setPath('userData', runDir)
@@ -109,7 +109,7 @@ function visit(problemId: string, overrides: ExportRow = {}): ExportRow {
     platform: 'codeforces',
     url: 'https://codeforces.com/problemset/problem/1000/A',
     entered_at: timestamp,
-    left_at: `${day}T10:10:00+08:00`,
+    left_at: Date.parse(`${day}T10:10:00+08:00`),
     duration_seconds: 600,
     active_seconds: 540,
     leave_reason: 'test',
@@ -156,7 +156,7 @@ function rating(): ExportRow {
 function payload(tables: Partial<LearningDataExport['tables']>): LearningDataExport {
   return {
     app: 'algo-learning-platform',
-    schema_version: 1,
+    schema_version: 2,
     exported_at: timestamp,
     metadata: { excluded: [], excluded_tables: [], excluded_fields: [], complete_backup_hint: '' },
     tables: {
@@ -291,8 +291,10 @@ function deletedFacts(): void {
     'deleted-facts-input',
     payload({
       problems: [problem()],
-      submissions: [submission('audit-problem', { deleted_at: `${day}T12:00:00+08:00` })],
-      problem_visits: [visit('audit-problem', { deleted_at: `${day}T12:00:00+08:00` })],
+      submissions: [
+        submission('audit-problem', { deleted_at: Date.parse(`${day}T12:00:00+08:00`) }),
+      ],
+      problem_visits: [visit('audit-problem', { deleted_at: Date.parse(`${day}T12:00:00+08:00`) })],
     }),
   )
   const detail = getProblemDetail('audit-problem')!
@@ -378,8 +380,8 @@ function recentStatusFilter(): void {
   const problems = Array.from({ length: 200 }, (_, i) => problem(`recent-${i}`))
   problems.push(
     problem('older-solved', {
-      first_seen_at: '2026-09-01T10:00:00+08:00',
-      last_visited_at: '2026-09-01T10:00:00+08:00',
+      first_seen_at: Date.parse('2026-09-01T10:00:00+08:00'),
+      last_visited_at: Date.parse('2026-09-01T10:00:00+08:00'),
     }),
   )
   assert.equal(
@@ -452,7 +454,7 @@ async function main(): Promise<void> {
   rollbackControl()
   closeDb()
   const result = {
-    observedAt: new Date().toISOString(),
+    observedAt: Date.now(),
     environment: {
       platform: process.platform,
       os: os.release(),

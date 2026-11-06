@@ -1,3 +1,4 @@
+import { normalizeLegacyAIContext } from '../../legacy-ai-context'
 import type { AIContextExport } from '../../../ai/contextExporter'
 import type { AIContextSnapshot, AIContextSnapshotWithContext } from './types'
 
@@ -6,7 +7,7 @@ export function buildAIContextSnapshotRecord(options: {
   snapshotDate: string
   context: AIContextExport
   schemaVersion: number
-  createdAt: string
+  createdAt: number
 }): AIContextSnapshot {
   return {
     id: options.id,
@@ -20,6 +21,8 @@ export function buildAIContextSnapshotRecord(options: {
 export function attachParsedContext(snapshot: AIContextSnapshot): AIContextSnapshotWithContext {
   return {
     ...snapshot,
-    context: JSON.parse(snapshot.context_json) as AIContextExport,
+    context: normalizeLegacyAIContext(
+      JSON.parse(snapshot.context_json) as unknown,
+    ) as unknown as AIContextExport,
   }
 }

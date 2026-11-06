@@ -102,3 +102,21 @@ await vi.dynamicImportSettled()
 expect(await screen.findByRole('heading', { name: settingsHeading })).toBeTruthy()
 await waitFor(() => expect(themeSelector.hasAttribute('disabled')).toBe(false))
 ```
+
+## Native Electron Interaction Tests
+
+- Chromium DOM focus is not native BrowserWindow activation. Wait for the window
+  to be visible/focused and `document.hasFocus()` before keyboard assertions;
+  focus the fixture window explicitly when the test requires keyboard input.
+- Playwright CDP pointer input does not move the desktop cursor. A transparent
+  fixture using native mouse forwarding must start fully on-screen away from the
+  physical cursor, rather than mixing two pointer sources or moving the user's
+  cursor. Keep `forward: true` and original hit-test assertions enabled.
+- Observe capture state synchronously beside `setIgnoreMouseEvents` in the main
+  process. A Node-side mirror updated after an async binding acknowledgement can
+  regress to an older value when acknowledgements finish out of order.
+- Pin that observation bug with a controlled delayed-acknowledgement regression,
+  not a fixed sleep. Attach native state plus recent pointer/focus events on failure.
+- These test-harness controls do not establish the exact cause of an old trace
+  without event data, and do not replace cross-application/manual native-pointer
+  testing. Do not solve intermittent failures by weakening assertions or retries.

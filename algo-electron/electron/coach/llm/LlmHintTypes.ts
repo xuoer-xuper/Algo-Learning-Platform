@@ -37,7 +37,7 @@ export interface LlmHintRequestContext {
     verdict: string
     language?: string | null
     runtime_ms?: number | null
-    submitted_at: string
+    submitted_at: number
   }>
   /** 完整学习者画像 Markdown（来自 renderContextAsMarkdown，含错题/待复习/标签统计/趋势） */
   learner_profile_md: string

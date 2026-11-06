@@ -1,3 +1,4 @@
+import { formatForDisplay } from '@shared/time'
 import { useState, useEffect } from 'react'
 import { PLATFORM_NAMES, STATUS_COLORS, STATUS_LABELS, VERDICT_COLORS } from '../../shared/display'
 import {
@@ -163,15 +164,13 @@ export function ProblemDetail({ problemId, onClose }: Props) {
         <div className="detail-row">
           <span className="detail-label">首次访问</span>
           <span className="detail-value num">
-            {detail.first_seen_at?.replace('T', ' ').slice(0, 19)}
+            {detail.first_seen_at == null ? '' : formatForDisplay(detail.first_seen_at)}
           </span>
         </div>
-        {detail.last_visited_at && (
+        {detail.last_visited_at !== null && (
           <div className="detail-row">
             <span className="detail-label">最近访问</span>
-            <span className="detail-value num">
-              {detail.last_visited_at?.replace('T', ' ').slice(0, 19)}
-            </span>
+            <span className="detail-value num">{formatForDisplay(detail.last_visited_at)}</span>
           </div>
         )}
         <div className="detail-row">
@@ -208,7 +207,7 @@ export function ProblemDetail({ problemId, onClose }: Props) {
                 </span>
                 <span className="submission-lang">{s.language || '-'}</span>
                 <span className="submission-time num">
-                  {s.submitted_at?.replace('T', ' ').slice(0, 19)}
+                  {s.submitted_at == null ? '' : formatForDisplay(s.submitted_at)}
                 </span>
               </div>
             ))}

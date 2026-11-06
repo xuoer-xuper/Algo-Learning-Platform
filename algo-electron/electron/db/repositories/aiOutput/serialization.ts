@@ -4,7 +4,7 @@ function stringifyMetadata(value: AIOutputMetadata | undefined): string | null {
   return value ? JSON.stringify(value) : null
 }
 
-export function buildAIOutputRecord(id: string, now: string, input: SaveAIOutputInput): AIOutput {
+export function buildAIOutputRecord(id: string, now: number, input: SaveAIOutputInput): AIOutput {
   return {
     id,
     output_type: input.output_type,

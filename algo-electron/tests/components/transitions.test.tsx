@@ -76,12 +76,12 @@ beforeEach(() => {
       getReviewRecommendations: vi
         .fn<typeof window.api.ai.getReviewRecommendations>()
         .mockResolvedValue({
-          generated_at: '2026-11-04T12:00:00',
+          generated_at: Date.parse('2026-11-04T12:00:00'),
           rule_version: 1,
           recommendations: [],
         }),
       getWeaknessAnalysis: vi.fn<typeof window.api.ai.getWeaknessAnalysis>().mockResolvedValue({
-        generated_at: '2026-11-04T12:00:00',
+        generated_at: Date.parse('2026-11-04T12:00:00'),
         rule_version: 1,
         weaknesses: [],
         data_note: '',

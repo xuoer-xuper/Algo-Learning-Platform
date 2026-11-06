@@ -1,7 +1,7 @@
 import { emitDataChanged } from '../../../shared/dataEvents'
 import crypto from 'node:crypto'
 import { getDb } from '../../connection'
-import { nowBeijing } from '../../../shared/time'
+import { nowMillis } from '../../../shared/time'
 import type {
   CoachIntervention,
   CoachInterventionLevel,
@@ -35,11 +35,11 @@ interface CoachInterventionRow {
   problem_id: string | null
   platform: string | null
   session_id: string | null
-  created_at: string
+  created_at: number
   is_contest_mode: number
   contest_url: string | null
-  contest_start: string | null
-  contest_end: string | null
+  contest_start: number | null
+  contest_end: number | null
   zero_intervention: number
 }
 
@@ -92,8 +92,8 @@ export function buildCoachIntervention(input: {
   session_id?: string | null
   is_contest_mode?: boolean
   contest_url?: string | null
-  contest_start?: string | null
-  contest_end?: string | null
+  contest_start?: number | null
+  contest_end?: number | null
   zero_intervention?: boolean
 }): CoachIntervention {
   return {
@@ -108,7 +108,7 @@ export function buildCoachIntervention(input: {
     problem_id: input.problem_id ?? null,
     platform: input.platform ?? null,
     session_id: input.session_id ?? null,
-    created_at: nowBeijing(),
+    created_at: nowMillis(),
     is_contest_mode: input.is_contest_mode ?? false,
     contest_url: input.contest_url ?? null,
     contest_start: input.contest_start ?? null,
@@ -145,7 +145,7 @@ export function listCoachInterventions(limit = 50): CoachIntervention[] {
   return rows.map(deserializeIntervention)
 }
 
-export function listCoachInterventionsSince(since: string, limit = 500): CoachIntervention[] {
+export function listCoachInterventionsSince(since: number, limit = 500): CoachIntervention[] {
   const db = getDb()
   const rows = db
     .prepare(
@@ -172,7 +172,7 @@ export function listCoachInterventionsByProblem(
   return rows.map(deserializeIntervention)
 }
 
-export function countCoachInterventionsSince(since: string): number {
+export function countCoachInterventionsSince(since: number): number {
   const db = getDb()
   const row = db
     .prepare(
@@ -183,7 +183,7 @@ export function countCoachInterventionsSince(since: string): number {
   return row.n
 }
 
-export function countUserActionSince(action: CoachInterventionUserAction, since: string): number {
+export function countUserActionSince(action: CoachInterventionUserAction, since: number): number {
   const db = getDb()
   const row = db
     .prepare(
@@ -201,18 +201,18 @@ export interface ContestAuditRow {
   contest_url: string
   platform: string
   contest_id: string
-  contest_start: string
-  contest_end: string
+  contest_start: number
+  contest_end: number
   duration_seconds: number
   zero_intervention: boolean
   had_any_intervention: boolean
-  exported_at: string
+  exported_at: number
 }
 
-export function listContestAuditRecords(since?: string): ContestAuditRow[] {
+export function listContestAuditRecords(since?: number): ContestAuditRow[] {
   const db = getDb()
   const rows = (
-    since
+    since !== undefined
       ? db
           .prepare(
             `SELECT * FROM coach_interventions
@@ -232,7 +232,7 @@ export function listContestAuditRecords(since?: string): ContestAuditRow[] {
   return rows.map((row) => {
     const start = row.contest_start ?? row.created_at
     const end = row.contest_end ?? row.created_at
-    const duration = Math.max(0, Math.floor((Date.parse(end) - Date.parse(start)) / 1000))
+    const duration = Math.max(0, Math.floor((end - start) / 1000))
     return {
       audit_id: row.intervention_id,
       contest_url: row.contest_url ?? '',
@@ -243,12 +243,12 @@ export function listContestAuditRecords(since?: string): ContestAuditRow[] {
       duration_seconds: duration,
       zero_intervention: row.zero_intervention === 1,
       had_any_intervention: row.zero_intervention === 0,
-      exported_at: nowBeijing(),
+      exported_at: nowMillis(),
     }
   })
 }
 
-export function countContestAuditSince(since: string): number {
+export function countContestAuditSince(since: number): number {
   const db = getDb()
   const row = db
     .prepare(
@@ -259,7 +259,7 @@ export function countContestAuditSince(since: string): number {
   return row.n
 }
 
-export function sumContestSecondsSince(since: string): number {
+export function sumContestSecondsSince(since: number): number {
   const db = getDb()
   const rows = db
     .prepare(
@@ -267,11 +267,11 @@ export function sumContestSecondsSince(since: string): number {
        WHERE source_type = 'contest_audit' AND created_at >= ?
          AND contest_start IS NOT NULL AND contest_end IS NOT NULL`,
     )
-    .all(since) as { contest_start: string; contest_end: string }[]
+    .all(since) as { contest_start: number; contest_end: number }[]
   let total = 0
   for (const r of rows) {
-    const start = Date.parse(r.contest_start)
-    const end = Date.parse(r.contest_end)
+    const start = r.contest_start
+    const end = r.contest_end
     if (!Number.isNaN(start) && !Number.isNaN(end) && end > start) {
       total += Math.floor((end - start) / 1000)
     }

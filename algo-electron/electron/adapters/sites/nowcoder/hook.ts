@@ -296,7 +296,7 @@ export function createNowcoderJudgeStatusHookScript(): string {
             pageTitle: typeof document !== 'undefined' ? document.title : '',
             submitIntent: true
           },
-          detectedAt: new Date().toISOString()
+          detectedAt: Date.now()
         };
         if (window[CHANNEL] && typeof window[CHANNEL].reportSubmission === 'function') {
           window[CHANNEL].reportSubmission(payload);

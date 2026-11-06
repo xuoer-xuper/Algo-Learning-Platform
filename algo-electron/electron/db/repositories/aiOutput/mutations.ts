@@ -1,13 +1,13 @@
 import crypto from 'node:crypto'
 import { getDb } from '../../connection'
-import { nowBeijing } from '../../../shared/time'
+import { nowMillis } from '../../../shared/time'
 import type { AIOutput, AIOutputUpdateInput, SaveAIOutputInput } from './types'
 import { buildAIOutputRecord } from './serialization'
 import { getAIOutput } from './queries'
 
 export function saveAIOutput(input: SaveAIOutputInput): AIOutput {
   const db = getDb()
-  const output = buildAIOutputRecord(crypto.randomUUID(), nowBeijing(), input)
+  const output = buildAIOutputRecord(crypto.randomUUID(), nowMillis(), input)
 
   db.prepare(
     `
@@ -39,10 +39,10 @@ export function deleteAIOutput(id: string): boolean {
 
 export function updateAIOutput(id: string, updates: AIOutputUpdateInput): AIOutput | null {
   const db = getDb()
-  const now = nowBeijing()
+  const now = nowMillis()
 
   const sets: string[] = []
-  const params: Array<string | null> = []
+  const params: Array<string | number | null> = []
 
   if (updates.title !== undefined) {
     sets.push('title = ?')

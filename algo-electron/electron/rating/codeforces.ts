@@ -1,5 +1,3 @@
-import { toBeijing } from '../shared/time'
-
 interface CFUserInfo {
   handle: string
   rating: number
@@ -56,7 +54,7 @@ export function formatCFRatingHistory(history: CFRatingChange[]) {
     ratingBefore: h.oldRating,
     ratingAfter: h.newRating,
     delta: h.newRating - h.oldRating,
-    contestAt: toBeijing(new Date(h.ratingUpdateTimeSeconds * 1000)),
+    contestAt: h.ratingUpdateTimeSeconds * 1000,
     rawJson: JSON.stringify(h),
   }))
 }

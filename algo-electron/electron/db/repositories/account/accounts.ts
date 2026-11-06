@@ -1,12 +1,12 @@
 import { emitDataChanged } from '../../../shared/dataEvents'
 import crypto from 'node:crypto'
 import { getDb } from '../../connection'
-import { nowBeijing } from '../../../shared/time'
+import { nowMillis } from '../../../shared/time'
 import type { PlatformAccountRow } from './types'
 
 export function upsertAccount(platform: string, handle: string, displayName?: string): string {
   const db = getDb()
-  const now = nowBeijing()
+  const now = nowMillis()
 
   const existing = db
     .prepare('SELECT id FROM platform_accounts WHERE platform = ? AND handle = ?')
@@ -36,7 +36,7 @@ export function upsertAccount(platform: string, handle: string, displayName?: st
 
 export function updateCurrentRating(accountId: string, rating: number): void {
   const db = getDb()
-  const now = nowBeijing()
+  const now = nowMillis()
   const result = db
     .prepare(
       `
@@ -50,7 +50,7 @@ export function updateCurrentRating(accountId: string, rating: number): void {
 
 export function updatePeakRating(accountId: string, peak: number): void {
   const db = getDb()
-  const now = nowBeijing()
+  const now = nowMillis()
   const result = db
     .prepare(
       `

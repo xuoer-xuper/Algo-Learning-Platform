@@ -143,7 +143,7 @@ export class PendingUserScriptInstallRegistry {
     const stored: StoredInstallRequest = {
       installId,
       ...navigation,
-      createdAt: new Date(now).toISOString(),
+      createdAt: now,
       createdAtMs: now,
     }
     this.requests.set(installId, stored)

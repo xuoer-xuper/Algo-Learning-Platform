@@ -9,7 +9,7 @@ import {
 } from '../../electron/adapters/registry.ts'
 
 test('adapters/genericTableSiteAdapters.test.ts', async () => {
-  const now = () => '2026-06-29 10:00:00'
+  const now = () => Date.parse('2026-06-29T10:00:00')
 
   const acwingSubmissions = acwingAdapter.parseSubmissionTables!(
     [
@@ -1124,7 +1124,7 @@ test('adapters/genericTableSiteAdapters.test.ts', async () => {
   assert.strictEqual(vjudgeSolutionDetailSubmission.runtimeMs, 15)
   assert.strictEqual(vjudgeSolutionDetailSubmission.memoryKb, 800)
   assert.strictEqual(vjudgeSolutionDetailSubmission.language, 'GNU G++23 14.2 (64 bit, msys2)')
-  assert.strictEqual(vjudgeSolutionDetailSubmission.submittedAt, '2026-07-02 13:50:39')
+  assert.strictEqual(vjudgeSolutionDetailSubmission.submittedAt, Date.parse('2026-07-02 13:50:39'))
   assert.strictEqual(
     JSON.parse(vjudgeSolutionDetailSubmission.rawJson || '{}')._vjudgeProblemId,
     'Gym-105924G',

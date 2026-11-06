@@ -19,7 +19,7 @@ export interface ReviewPlanItem {
 }
 
 export interface ReviewPlan {
-  generated_at: string
+  generated_at: number
   rule_version: number
   plan_days: number
   title: string

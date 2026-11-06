@@ -12,7 +12,7 @@
 - 数据库位置：`app.getPath('userData')/data/algo-learning.sqlite`。
 - 连接配置：启用 WAL、foreign keys、`busy_timeout = 5000`。
 - 迁移系统：`schema_migrations` 表记录已执行版本；迁移在事务内执行。
-- 当前迁移版本：001 到 029。
+- 当前迁移版本：001 到 030；030将显式清单中的82个时间点列改为INTEGER毫秒，日历键保持字符串。
 - 应用启动使用异步初始化：检测到 pending migration 时先用 SQLite backup API 写入 `userData/backups`，只保留最近 3 份。
 - 迁移失败会关闭连接、恢复迁移前备份、写 failure marker；同一 pending migration 下次启动不会自动重试。
 - 启动完成会把未正常结束的 `problem_visits` 按 `entered_at` 安全封闭，并标记 `startup_recovery`。
@@ -25,6 +25,7 @@
 
 - `connection.ts`：数据库生命周期。
 - `migrate.ts`：迁移执行器。
+- `timestampColumns.ts`、`legacy-ai-context.ts`：已知时间列策略和版本化AI JSON定向转换；不递归处理任意用户JSON。
 - `migrations/`：按版本追加的 schema/data migration。
 - `repositories/`：按业务域拆分的数据库访问函数。
 - `repositories/aiContextSnapshot/`：每日 AI 上下文快照创建、读取、列表和 JSON context 解析实现。

@@ -13,11 +13,11 @@ export interface SiteCredentialRow {
   username: string
   display_name: string | null
   secret_envelope: string | null
-  last_used_at: string | null
+  last_used_at: number | null
   sync_excluded: number
-  created_at: string
-  updated_at: string
-  deleted_at: string | null
+  created_at: number
+  updated_at: number
+  deleted_at: number | null
 }
 
 export interface SiteCredential {
@@ -26,10 +26,10 @@ export interface SiteCredential {
   username: string
   display_name: string | null
   secret_envelope: CredentialSecretEnvelopeV1
-  last_used_at: string | null
+  last_used_at: number | null
   sync_excluded: true
-  created_at: string
-  updated_at: string
+  created_at: number
+  updated_at: number
 }
 
 export interface SiteCredentialSummary {
@@ -37,9 +37,9 @@ export interface SiteCredentialSummary {
   site_id: string
   username: string
   display_name: string | null
-  last_used_at: string | null
-  created_at: string
-  updated_at: string
+  last_used_at: number | null
+  created_at: number
+  updated_at: number
 }
 
 export interface SiteCredentialWriteInput {

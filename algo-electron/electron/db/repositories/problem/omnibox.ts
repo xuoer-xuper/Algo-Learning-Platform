@@ -14,7 +14,7 @@ interface OmniboxCandidateRow {
   platform_problem_id: string
   canonical_url: string
   suggestion_url: string
-  suggestion_last_visited_at: string | null
+  suggestion_last_visited_at: number | null
   source: 'history' | 'problem'
 }
 
@@ -203,7 +203,7 @@ function compareCandidates(left: OmniboxCandidate, right: OmniboxCandidate, quer
   const rankDifference = getMatchRank(left, query) - getMatchRank(right, query)
   if (rankDifference !== 0) return rankDifference
 
-  const recencyDifference = parseTimestamp(right.lastVisitedAt) - parseTimestamp(left.lastVisitedAt)
+  const recencyDifference = (right.lastVisitedAt ?? 0) - (left.lastVisitedAt ?? 0)
   if (recencyDifference !== 0) return recencyDifference
 
   if (left.source !== right.source) return left.source === 'history' ? -1 : 1
@@ -225,12 +225,6 @@ function getMatchRank(candidate: OmniboxCandidate, query: string): number {
   if (fields.some((value) => value === normalizedQuery)) return 0
   if (fields.some((value) => value.startsWith(normalizedQuery))) return 1
   return 2
-}
-
-function parseTimestamp(value: string | null): number {
-  if (!value) return 0
-  const timestamp = Date.parse(value)
-  return Number.isFinite(timestamp) ? timestamp : 0
 }
 
 function normalizeUrlKey(value: string): string {

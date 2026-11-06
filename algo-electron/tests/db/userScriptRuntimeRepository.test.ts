@@ -94,7 +94,7 @@ test('userscript runtime repositories round-trip metadata, values, resources, ho
       contentEncoding: 'utf8',
       contentType: 'application/javascript',
       integrity: 'sha256-demo',
-      fetchedAt: '2026-08-19T13:00:00+08:00',
+      fetchedAt: Date.parse('2026-08-19T13:00:00+08:00'),
     })
     assert.strictEqual(
       upsertUserScriptResource({
@@ -146,19 +146,19 @@ test('userscript runtime repositories round-trip metadata, values, resources, ho
       scriptId,
       status: 'checking',
       etag: 'etag-1',
-      nextCheckAt: '2026-08-20T13:00:00+08:00',
+      nextCheckAt: Date.parse('2026-08-20T13:00:00+08:00'),
     })
     upsertUserScriptUpdateState({
       scriptId,
       status: 'available',
       availableVersion: '1.1.0',
-      lastCheckedAt: '2026-08-19T13:10:00+08:00',
+      lastCheckedAt: Date.parse('2026-08-19T13:10:00+08:00'),
     })
     const updateState = getUserScriptUpdateState(scriptId)
     assert.strictEqual(updateState?.status, 'available')
     assert.strictEqual(updateState?.etag, 'etag-1')
     assert.strictEqual(updateState?.available_version, '1.1.0')
-    assert.strictEqual(updateState?.next_check_at, '2026-08-20T13:00:00+08:00')
+    assert.strictEqual(updateState?.next_check_at, Date.parse('2026-08-20T13:00:00+08:00'))
 
     assert.strictEqual(deleteScript(scriptId), true)
     assert.deepStrictEqual(listUserScriptResources(scriptId), [])

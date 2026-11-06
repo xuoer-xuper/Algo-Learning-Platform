@@ -14,13 +14,13 @@ export interface StartProblemVisitInput {
   identity: ProblemIdentity
   visitId: string
   activityId: string
-  now: string
+  now: number
   localDay: string
 }
 
 export interface FinishProblemVisitInput {
   visitId: string
-  leftAt: string
+  leftAt: number
   durationSeconds: number
 }
 

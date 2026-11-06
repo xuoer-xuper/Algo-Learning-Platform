@@ -7,9 +7,11 @@
 ## 2. 当前实现
 
 - SQLite 备份：设置页可选择目录生成时间戳 `.sqlite` 备份，供本机恢复使用。
-- JSON 导出：导出题目、访问、提交、每日统计、平台账号和 rating 历史，格式版本为 `schema_version: 1`。
+- JSON 导出：导出题目、访问、提交、每日统计、平台账号和 rating 历史，格式版本为 `schema_version: 2`；`exported_at` 和各时间点均为 Unix 毫秒 number。
 - 导出 metadata 同时提供 `excluded_tables`、`excluded_fields` 和完整备份提示；排除表清单按当前 SQLite `sqlite_master` 动态闭合，避免新增敏感表后文档失真。
 - JSON 导入：导入前预览新增、重复和冲突；默认遇到冲突不写库，只有用户明确选择覆盖才更新冲突字段。
+- 兼容旧 `schema_version: 1`：预览、冲突比较和确认导入之前先将已知时间列按历史规则转为统一的 v2 数值；显式 Z/offset 优先、普通无后缀按 local。v2 必须使用有效整数毫秒，不猜秒数或宽松解析非法时间。日期键仍是字符串。
+- 非法非空时间在预检阶段拒绝；不出现预览比较字符串、实际导入才转换而导致两阶段不一致的情况。日志/错误只描述字段位置，不输出私密行内容。
 - 同步兼容字段：核心历史表保留 nullable `deleted_at`，少数早期表补 `updated_at` 并以 `created_at` 回填，用于导入覆盖和数据恢复时表达状态。
 - `sync_queue` 表已经存在，但当前 v1.0 不自动写入、上传或连接远端服务。
 
@@ -58,11 +60,15 @@
 - 活跃时长与总时长沿用统计 repository 的口径，按访问开始日期累加记录中的 `active_seconds` 与 `duration_seconds`；不合计两端日统计，不重新切分跨午夜访问。
 - 重复导入不增加已有事实或重复累计时长；无关历史日期不重算。结果中的新增、更新、跳过计数对应导入文件行数，派生重算不额外计入。
 
+AI 上下文导出单独使用 `schema_version: 2`：仅 `exported_at`、错误题最近尝试、未复习题最近
+访问、最近活动的时间点改毫秒。迁移仅转换这些版本化路径，不递归修改 raw_json、用户脚本
+values、正文、Markdown 或日期形状的用户字符串；`snapshot_date` 仍是历史快照日期标签。
+
 ## 5. 验证入口
 
 ```powershell
 cd algo-electron
-npm run test:db
-npm run test:docs
-npm run test:all
+pnpm test:db
+pnpm test:docs
+pnpm test:all
 ```

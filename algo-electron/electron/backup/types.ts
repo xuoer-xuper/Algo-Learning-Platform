@@ -1,4 +1,4 @@
-export const LEARNING_DATA_EXPORT_VERSION = 1
+export const LEARNING_DATA_EXPORT_VERSION = 2
 export const LEARNING_DATA_EXPORT_APP = 'algo-learning-platform'
 
 export type ExportRow = Record<string, string | number | null>
@@ -6,7 +6,7 @@ export type ExportRow = Record<string, string | number | null>
 export interface LearningDataExport {
   app: typeof LEARNING_DATA_EXPORT_APP
   schema_version: typeof LEARNING_DATA_EXPORT_VERSION
-  exported_at: string
+  exported_at: number
   metadata: {
     excluded: string[]
     excluded_tables: string[]

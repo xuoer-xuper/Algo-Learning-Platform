@@ -3,7 +3,9 @@ import { getDb } from '../db/connection'
 import { recomputeProblemSubmissionState } from '../db/repositories/submissionRepository'
 import { recomputeDailyStatsForDates } from '../db/repositories/statsRepository'
 import { localDayFromTimestamp } from '../db/repositories/stats/date'
-import { nowBeijing } from '../shared/time'
+import { nowMillis, shiftLocalDay } from '../shared/time'
+import { parseLegacyTimestamp } from '../shared/legacyTimestamp'
+import { TIMESTAMP_COLUMNS } from '../db/timestampColumns'
 import {
   LEARNING_DATA_EXPORT_APP,
   LEARNING_DATA_EXPORT_VERSION,
@@ -27,6 +29,15 @@ const EXPORT_TABLES = [
 const EXCLUDED_FIELDS = ['submissions.raw_json', 'local absolute file paths', 'logs'] as const
 
 type ExportTableName = (typeof EXPORT_TABLES)[number]
+
+const REQUIRED_TIMESTAMPS: Record<ExportTableName, readonly string[]> = {
+  problems: ['first_seen_at', 'created_at', 'updated_at'],
+  problem_visits: ['entered_at', 'created_at', 'updated_at'],
+  submissions: ['submitted_at', 'created_at', 'updated_at'],
+  user_daily_stats: ['created_at', 'updated_at'],
+  platform_accounts: ['created_at', 'updated_at'],
+  rating_history: ['created_at'],
+}
 
 interface ExistingKeyRow {
   id?: string
@@ -59,7 +70,7 @@ export function exportLearningData(): LearningDataExport {
   return {
     app: LEARNING_DATA_EXPORT_APP,
     schema_version: LEARNING_DATA_EXPORT_VERSION,
-    exported_at: nowBeijing(),
+    exported_at: nowMillis(),
     metadata: {
       excluded: [...excludedTables, ...EXCLUDED_FIELDS],
       excluded_tables: excludedTables,
@@ -163,28 +174,108 @@ function isLocalPathLike(value: string): boolean {
 }
 
 export function parseLearningDataExport(raw: unknown): LearningDataExport {
-  if (!raw || typeof raw !== 'object') {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
     throw new Error('导入文件不是有效 JSON 对象')
   }
 
-  const data = raw as Partial<LearningDataExport>
+  const data = raw as Record<string, unknown>
   if (data.app !== LEARNING_DATA_EXPORT_APP) {
     throw new Error('导入文件不是 Algo Learning Platform 学习数据导出')
   }
-  if (data.schema_version !== LEARNING_DATA_EXPORT_VERSION) {
+  if (data.schema_version !== 1 && data.schema_version !== LEARNING_DATA_EXPORT_VERSION) {
     throw new Error(`不支持的导出版本：${String(data.schema_version)}`)
   }
-  if (!data.tables || typeof data.tables !== 'object') {
+  if (!data.tables || typeof data.tables !== 'object' || Array.isArray(data.tables)) {
     throw new Error('导入文件缺少 tables')
   }
 
+  const inputTables = data.tables as Record<string, unknown>
+  const tables = {} as LearningDataExport['tables']
   for (const table of EXPORT_TABLES) {
-    if (!Array.isArray(data.tables[table])) {
+    const rows = inputTables[table]
+    if (!Array.isArray(rows)) {
       throw new Error(`导入文件缺少 ${table} 数组`)
     }
+    const timestamps = TIMESTAMP_COLUMNS[table]
+    tables[table] = rows.map((input: unknown) => {
+      if (!input || typeof input !== 'object' || Array.isArray(input)) {
+        throw new Error(`导入文件 ${table} 记录不是对象`)
+      }
+      const record = input as Record<string, unknown>
+      const normalized: ExportRow = {}
+      for (const [key, value] of Object.entries(record)) {
+        if (value !== null && typeof value !== 'string' && typeof value !== 'number') {
+          throw new Error(`导入文件 ${table} 字段类型无效`)
+        }
+        normalized[key] = timestamps.columns.includes(key)
+          ? normalizeExportTimestamp(value, data.schema_version, table, key)
+          : value
+      }
+      for (const column of REQUIRED_TIMESTAMPS[table]) {
+        if (typeof normalized[column] !== 'number') {
+          throw new Error(`导入文件 ${table}.${column} 缺少必需时间`)
+        }
+      }
+      return normalized
+    })
   }
+  const exportedAt = normalizeExportTimestamp(
+    data.exported_at,
+    data.schema_version,
+    'export',
+    'exported_at',
+  )
+  if (exportedAt === null) throw new Error('导入文件 exported_at 缺少必需时间')
+  const metadata = data.metadata
+  if (!metadata || typeof metadata !== 'object' || Array.isArray(metadata)) {
+    throw new Error('导入文件缺少 metadata')
+  }
+  const info = metadata as Record<string, unknown>
+  const strings = (value: unknown): value is string[] =>
+    Array.isArray(value) && value.every((item: unknown) => typeof item === 'string')
+  if (!strings(info.excluded)) {
+    throw new Error('导入文件 metadata 类型无效')
+  }
+  // v1.0 exported only `excluded`; do not invent finer provenance for those old files.
+  const excludedTables =
+    data.schema_version === 1 && info.excluded_tables === undefined ? [] : info.excluded_tables
+  const excludedFields =
+    data.schema_version === 1 && info.excluded_fields === undefined ? [] : info.excluded_fields
+  const backupHint =
+    data.schema_version === 1 && info.complete_backup_hint === undefined
+      ? '完整备份请用数据库备份。'
+      : info.complete_backup_hint
+  if (!strings(excludedTables) || !strings(excludedFields) || typeof backupHint !== 'string') {
+    throw new Error('导入文件 metadata 类型无效')
+  }
+  return {
+    app: LEARNING_DATA_EXPORT_APP,
+    schema_version: LEARNING_DATA_EXPORT_VERSION,
+    exported_at: exportedAt,
+    metadata: {
+      excluded: info.excluded,
+      excluded_tables: excludedTables,
+      excluded_fields: excludedFields,
+      complete_backup_hint: backupHint,
+    },
+    tables,
+  }
+}
 
-  return data as LearningDataExport
+function normalizeExportTimestamp(
+  value: unknown,
+  version: unknown,
+  table: string,
+  column: string,
+): number | null {
+  if (value === null) return null
+  if (
+    (version === 2 && typeof value !== 'number') ||
+    (typeof value !== 'number' && typeof value !== 'string')
+  ) {
+    throw new Error(`导入文件 ${table}.${column} 时间类型无效`)
+  }
+  return parseLegacyTimestamp(value, 'local', { table, column })
 }
 
 export function previewLearningDataImport(raw: unknown): ImportPreview {
@@ -212,10 +303,9 @@ export function previewLearningDataImport(raw: unknown): ImportPreview {
   }
 }
 
-export function importLearningData(
-  data: LearningDataExport,
-  overwriteConflicts = false,
-): ImportResult {
+export function importLearningData(raw: unknown, overwriteConflicts = false): ImportResult {
+  // Validate and normalize direct callers too, before conflicts or any write transaction.
+  const data = parseLearningDataExport(raw)
   const db = getDb()
   const conflicts = collectConflicts(data)
   if (conflicts.length > 0 && !overwriteConflicts) {
@@ -463,7 +553,7 @@ function importProblems(
     `,
       )
       .get(row.platform, row.platform_problem_id) as
-      { id: string; first_solved_at: string | null } | undefined
+      { id: string; first_solved_at: number | null } | undefined
 
     if (existing) {
       idMap.set(exportedId, existing.id)
@@ -557,7 +647,7 @@ function importProblemVisits(
       SELECT problem_id, entered_at FROM problem_visits WHERE id = ?
     `,
       )
-      .get(row.id) as { problem_id: string; entered_at: string } | undefined
+      .get(row.id) as { problem_id: string; entered_at: number } | undefined
     const targetProblemId = row.problem_id ? problemIdMap.get(String(row.problem_id)) : null
     if (!targetProblemId) {
       skipped.problem_visits++
@@ -644,7 +734,7 @@ function importSubmissions(
       | {
           id: string
           problem_id: string | null
-          submitted_at: string
+          submitted_at: number
         }
       | undefined
     const targetProblemId = row.problem_id
@@ -752,7 +842,7 @@ function importDailyStats(
         row.local_day,
       )
       updated.user_daily_stats++
-      markAffected(effects, null, row.local_day)
+      markAffectedDay(effects, row.local_day)
       continue
     }
 
@@ -780,7 +870,7 @@ function importDailyStats(
       row.deleted_at,
     )
     inserted.user_daily_stats++
-    markAffected(effects, null, row.local_day)
+    markAffectedDay(effects, row.local_day)
   }
 }
 
@@ -953,9 +1043,13 @@ function markAffected(
   timestamp: ExportRow[string] | undefined,
 ): void {
   if (problemId) effects.problemIds.add(problemId)
-  if (typeof timestamp !== 'string') return
+  if (typeof timestamp !== 'number') return
   const date = localDayFromTimestamp(timestamp)
   if (date) effects.dates.add(date)
+}
+
+function markAffectedDay(effects: ImportEffects, day: ExportRow[string] | undefined): void {
+  if (typeof day === 'string') effects.dates.add(shiftLocalDay(day, 0))
 }
 
 function existsByLocalDay(db: ReturnType<typeof getDb>, row: ExportRow): boolean {

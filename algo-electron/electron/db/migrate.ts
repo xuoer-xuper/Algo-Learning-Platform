@@ -11,6 +11,7 @@ export interface Migration {
   version: number
   name: string
   up: (db: Database.Database) => void
+  requiresForeignKeysDisabled?: boolean
 }
 
 export function getPendingMigrations(
@@ -57,27 +58,69 @@ export function runMigrations(
       .map((row) => row.version),
   )
 
-  const insertMigration = db.prepare(
-    'INSERT INTO schema_migrations (version, name, applied_at) VALUES (?, ?, ?)',
-  )
-
   for (const migration of migrations) {
     if (applied.has(migration.version)) continue
 
     logger.info('db.migration-started', { version: migration.version, name: migration.name })
+    const foreignKeys = db.pragma('foreign_keys', { simple: true }) as number
+    const disableForeignKeys = migration.requiresForeignKeysDisabled === true
+    if (disableForeignKeys && db.inTransaction) {
+      throw new Error('Cannot disable foreign keys inside an existing transaction')
+    }
+    let failure: { error: unknown } | null = null
     try {
+      if (disableForeignKeys) {
+        db.pragma('foreign_keys = OFF')
+        if (db.pragma('foreign_keys', { simple: true }) !== 0)
+          throw new Error('Unable to disable foreign keys for migration')
+      }
       db.transaction(() => {
         migration.up(db)
-        insertMigration.run(migration.version, migration.name, nowBeijing())
+        // The migration may have rebuilt the ledger; prepare only after up has completed.
+        const columns = db.pragma('table_info(schema_migrations)') as {
+          name: string
+          type: string
+        }[]
+        const numericLedger =
+          columns.find((column) => column.name === 'applied_at')?.type.toUpperCase() === 'INTEGER'
+        db.prepare(
+          'INSERT INTO schema_migrations (version, name, applied_at) VALUES (?, ?, ?)',
+        ).run(migration.version, migration.name, numericLedger ? Date.now() : nowBeijing())
+        if (disableForeignKeys) {
+          if ((db.pragma('foreign_key_check') as unknown[]).length > 0)
+            throw new Error('Foreign key verification failed after migration')
+          if (db.pragma('integrity_check', { simple: true }) !== 'ok')
+            throw new Error('Integrity verification failed after migration')
+        }
       })()
-      logger.info('db.migration-completed', { version: migration.version, name: migration.name })
     } catch (error) {
+      failure = { error }
+    }
+    if (disableForeignKeys) {
+      try {
+        db.pragma(`foreign_keys = ${foreignKeys ? 'ON' : 'OFF'}`)
+        if (db.pragma('foreign_keys', { simple: true }) !== foreignKeys)
+          throw new Error('Unable to restore foreign key enforcement')
+      } catch (error) {
+        // Preserve the migration failure if restoring the connection state also fails.
+        if (failure) {
+          logger.error('db.migration-foreign-keys-restore-failed', {
+            version: migration.version,
+            error,
+          })
+        } else {
+          failure = { error }
+        }
+      }
+    }
+    if (failure) {
       logger.error('db.migration-failed', {
         version: migration.version,
         name: migration.name,
-        error,
+        error: failure.error,
       })
-      throw error
+      throw failure.error
     }
+    logger.info('db.migration-completed', { version: migration.version, name: migration.name })
   }
 }

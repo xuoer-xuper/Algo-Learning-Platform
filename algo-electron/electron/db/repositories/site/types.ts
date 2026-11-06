@@ -33,7 +33,7 @@ export interface SiteConfigRow {
 
 export interface SitesExportData {
   version: number
-  exportedAt: string
+  exportedAt: number
   sites: SiteConfigData[]
 }
 

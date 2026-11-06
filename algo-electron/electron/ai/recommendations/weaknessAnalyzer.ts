@@ -2,7 +2,7 @@
 // 基于 AC 率、错误次数、停留时长等本地统计，识别薄弱标签
 // 结果解释使用本地统计依据，不调用大模型
 import { getDb } from '../../db/connection'
-import { nowBeijing } from '../../shared/time'
+import { nowMillis } from '../../shared/time'
 import {
   buildWeaknessEvidence,
   scoreTagWeakness,
@@ -49,7 +49,7 @@ export function getWeaknessAnalysis(limit = 10): WeaknessAnalysisResult {
 
   if (rows.length === 0) {
     return {
-      generated_at: nowBeijing(),
+      generated_at: nowMillis(),
       rule_version: WEAKNESS_ANALYSIS_RULE_VERSION,
       weaknesses: [],
       data_note: '暂无标签数据。请在题目详情中补充标签后重试。',
@@ -108,7 +108,7 @@ export function getWeaknessAnalysis(limit = 10): WeaknessAnalysisResult {
       : `暂无 AC 率低于 ${WEAKNESS_AC_RATE_THRESHOLD}% 的薄弱标签（已掌握的标签不在此列表）。`
 
   return {
-    generated_at: nowBeijing(),
+    generated_at: nowMillis(),
     rule_version: WEAKNESS_ANALYSIS_RULE_VERSION,
     weaknesses,
     data_note: dataNote,

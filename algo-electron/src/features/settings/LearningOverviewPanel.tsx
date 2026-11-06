@@ -1,3 +1,4 @@
+import { formatForDisplay } from '@shared/time'
 import type { OverviewStats } from '@shared/types/stats'
 import { Card, Skeleton } from '../../components/ui'
 
@@ -5,8 +6,8 @@ interface LearningOverviewPanelProps {
   stats: OverviewStats | null
 }
 
-function formatLastActive(value: string | null): string {
-  return value ? value.replace('T', ' ').slice(0, 19) : '暂无'
+function formatLastActive(value: number | null): string {
+  return value === null ? '暂无' : formatForDisplay(value)
 }
 
 export function LearningOverviewPanel({ stats }: LearningOverviewPanelProps) {

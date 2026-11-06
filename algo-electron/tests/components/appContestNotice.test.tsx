@@ -41,7 +41,7 @@ function createCoachState(isContestMode: boolean): CoachStateSnapshot {
           url: 'https://codeforces.com/contest/1000',
           platform: 'codeforces',
           contest_id: '1000',
-          entered_at: '2026-08-19T00:00:00.000Z',
+          entered_at: Date.parse('2026-08-19T00:00:00.000Z'),
         }
       : null,
     pet_state: 'idle',
@@ -159,7 +159,7 @@ test('shows a persistent layout notice while contest mode is active', () => {
         url: 'https://codeforces.com/contest/1000',
         platform: 'codeforces',
         contest_id: '1000',
-        entered_at: '2026-08-19T00:00:00.000Z',
+        entered_at: Date.parse('2026-08-19T00:00:00.000Z'),
       },
     })
   })

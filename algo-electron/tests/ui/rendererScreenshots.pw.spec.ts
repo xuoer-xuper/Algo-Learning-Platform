@@ -285,6 +285,15 @@ async function launchScenario(scenario: {
 }
 
 async function assertNativeViewport(app: ElectronApplication, page: Page): Promise<void> {
+  await expect
+    .poll(() =>
+      app.evaluate(({ BrowserWindow }) => {
+        const window = BrowserWindow.getAllWindows()[0]
+        return Boolean(window?.isVisible() && window.isFocused())
+      }),
+    )
+    .toBe(true)
+  await expect.poll(() => page.evaluate(() => document.hasFocus())).toBe(true)
   const viewport = await page.evaluate(() => ({
     width: window.innerWidth,
     height: window.innerHeight,
@@ -596,6 +605,15 @@ for (const scenario of viewportScenarios) {
       await expect(page.locator('.sidebar')).toHaveCount(0)
       await capture(page, scenario.name, 'omnibox.png')
 
+      // Native activation is independent of DOM focus in Electron.
+      await electronApp.evaluate(({ BrowserWindow }) => {
+        const window = BrowserWindow.getAllWindows()[0]
+        if (!window) throw new Error('Screenshot window is missing')
+        window.focus()
+        window.webContents.focus()
+      })
+      await expect.poll(() => page.evaluate(() => document.hasFocus())).toBe(true)
+      await expect(omnibox).toBeFocused()
       await omnibox.press('Escape')
       await expect(page.getByRole('listbox', { name: '本地浏览建议' })).toHaveCount(0)
       await expect(page.locator('.content-area')).toBeVisible()

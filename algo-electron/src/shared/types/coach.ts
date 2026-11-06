@@ -107,7 +107,7 @@ export const coachEventSchema = z.object({
   problem_id: z.string().nullable(),
   platform: z.string().nullable(),
   evidence: coachEventEvidenceSchema,
-  created_at: z.string(),
+  created_at: z.number().int(),
 })
 
 /** coach_events 表行的内存表示（阶段 2/3/4 数据流的原子单位）。 */
@@ -118,9 +118,9 @@ export const problemSessionSchema = z.object({
   problem_id: z.string().nullable(),
   platform: z.string(),
   platform_problem_id: z.string(),
-  /** 进入题目页时间戳（ms；本类型是 Coach 域里唯一已是毫秒的时间字段）。 */
-  started_at: z.number(),
-  last_active_at: z.number(),
+  /** 进入题目页时间戳（Unix 毫秒）。 */
+  started_at: z.number().int(),
+  last_active_at: z.number().int(),
   /** 只累计有效活跃（壳聚焦 + 系统空闲 < 阈值），每 30s 聚合一次。 */
   active_seconds: z.number(),
   submit_count: z.number(),
@@ -150,11 +150,11 @@ export const coachInterventionSchema = z.object({
   problem_id: z.string().nullable(),
   platform: z.string().nullable(),
   session_id: z.string().nullable(),
-  created_at: z.string(),
+  created_at: z.number().int(),
   is_contest_mode: z.boolean(),
   contest_url: z.string().nullable(),
-  contest_start: z.string().nullable(),
-  contest_end: z.string().nullable(),
+  contest_start: z.number().int().nullable(),
+  contest_end: z.number().int().nullable(),
   zero_intervention: z.boolean(),
 })
 
@@ -170,12 +170,12 @@ export const contestAuditRecordSchema = z.object({
   contest_url: z.string(),
   platform: z.string(),
   contest_id: z.string(),
-  contest_start: z.string(),
-  contest_end: z.string(),
+  contest_start: z.number().int(),
+  contest_end: z.number().int(),
   duration_seconds: z.number(),
   zero_intervention: z.boolean(),
   had_any_intervention: z.boolean(),
-  exported_at: z.string(),
+  exported_at: z.number().int(),
 })
 
 /** 比赛审计日志的简化视图（coach:exportAuditLog 导出，作为诚信证明）。 */
@@ -189,13 +189,13 @@ export const coachStateSnapshotSchema = z.object({
       url: z.string(),
       platform: z.string(),
       contest_id: z.string(),
-      entered_at: z.string(),
+      entered_at: z.number().int(),
     })
     .nullable(),
   pet_state: z.enum(['idle', 'thinking', 'alert', 'celebrate', 'sleep', 'focus']),
   llm_enabled: z.boolean(),
   suppressed_types: z.array(z.enum(COACH_EVENT_TYPES)),
-  last_event_at: z.string().nullable(),
+  last_event_at: z.number().int().nullable(),
 })
 
 /** Coach 服务运行时状态快照（coach:getState，渲染层调试面板用）。 */
@@ -210,8 +210,8 @@ export const coachMetricsSnapshotSchema = z.object({
   never_today_count: z.number(),
   contest_audit_count: z.number(),
   contest_total_seconds: z.number(),
-  since: z.string(),
-  until: z.string(),
+  since: z.number().int(),
+  until: z.number().int(),
 })
 
 /** Coach 指标聚合（coach:getMetrics）。 */
@@ -219,8 +219,8 @@ export type CoachMetricsSnapshot = z.infer<typeof coachMetricsSnapshotSchema>
 
 export const problemVisitPointSchema = z.object({
   visit_id: z.string(),
-  entered_at: z.string(),
-  left_at: z.string().nullable(),
+  entered_at: z.number().int(),
+  left_at: z.number().int().nullable(),
   duration_seconds: z.number().nullable(),
   active_seconds: z.number().nullable(),
   leave_reason: z.string().nullable(),
@@ -232,7 +232,7 @@ export type ProblemVisitPoint = z.infer<typeof problemVisitPointSchema>
 
 export const timelineSubmissionPointSchema = z.object({
   submission_id: z.string(),
-  submitted_at: z.string(),
+  submitted_at: z.number().int(),
   verdict: z.string(),
   language: z.string().nullable(),
   runtime_ms: z.number().nullable(),
@@ -245,7 +245,7 @@ export const timelineEventPointSchema = z.object({
   event_id: z.string(),
   event_type: z.enum(COACH_EVENT_TYPES),
   severity: z.enum(COACH_EVENT_SEVERITIES),
-  created_at: z.string(),
+  created_at: z.number().int(),
   evidence: coachEventEvidenceSchema,
 })
 
@@ -254,7 +254,7 @@ export type TimelineEventPoint = z.infer<typeof timelineEventPointSchema>
 
 export const timelineInterventionPointSchema = z.object({
   intervention_id: z.string(),
-  created_at: z.string(),
+  created_at: z.number().int(),
   intervention_level: z.number().int().min(0).max(5),
   source_type: z.enum(INTERVENTION_SOURCE_TYPES),
   trigger_reason: z.string(),
@@ -273,14 +273,14 @@ export const problemTimelineDataSchema = z.object({
   title: z.string().nullable(),
   canonical_url: z.string(),
   status: z.string(),
-  first_seen_at: z.string().nullable(),
-  last_visited_at: z.string().nullable(),
+  first_seen_at: z.number().int().nullable(),
+  last_visited_at: z.number().int().nullable(),
   visits: z.array(problemVisitPointSchema),
   submissions: z.array(timelineSubmissionPointSchema),
   events: z.array(timelineEventPointSchema),
   interventions: z.array(timelineInterventionPointSchema),
-  first_ac_at: z.string().nullable(),
-  last_activity_at: z.string().nullable(),
+  first_ac_at: z.number().int().nullable(),
+  last_activity_at: z.number().int().nullable(),
 })
 
 /** 单题时间轴复盘（coach:getProblemTimeline；四表同题数据按时间归并）。 */
@@ -294,7 +294,7 @@ export const coachFeedbackRecordSchema = z.object({
   event_type: z.enum(COACH_EVENT_TYPES).nullable(),
   problem_id: z.string().nullable(),
   local_day: z.string(),
-  created_at: z.string(),
+  created_at: z.number().int(),
 })
 
 /** coach_feedback 表行的内存表示（阶段 4 指标页聚合用）。 */
@@ -302,15 +302,15 @@ export type CoachFeedbackRecord = z.infer<typeof coachFeedbackRecordSchema>
 
 export const problemAcStatusSchema = z.object({
   problem_id: z.string(),
-  first_ac_at: z.string().nullable(),
+  first_ac_at: z.number().int().nullable(),
 })
 
 /** 题目 AC 状态（干预后同题 AC 转化率计算用）。 */
 export type ProblemAcStatus = z.infer<typeof problemAcStatusSchema>
 
 export const coachMetricsBundleSchema = z.object({
-  since: z.string(),
-  until: z.string(),
+  since: z.number().int(),
+  until: z.number().int(),
   events: z.array(coachEventSchema),
   interventions: z.array(coachInterventionSchema),
   feedback: z.array(coachFeedbackRecordSchema),
@@ -397,7 +397,7 @@ export const coachContestModePayloadSchema = z.object({
       url: z.string(),
       platform: z.string(),
       contest_id: z.string(),
-      entered_at: z.string(),
+      entered_at: z.number().int(),
     })
     .nullable(),
 })

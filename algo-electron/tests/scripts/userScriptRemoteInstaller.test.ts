@@ -23,7 +23,7 @@ function request(overrides: Partial<PendingUserScriptInstall> = {}): PendingUser
     installId: 'install-1',
     sourceUrl: 'https://example.com/helper.user.js',
     sourceFileName: 'helper.user.js',
-    createdAt: '2026-08-20T10:00:00.000Z',
+    createdAt: Date.parse('2026-08-20T10:00:00.000Z'),
     ...overrides,
   }
 }

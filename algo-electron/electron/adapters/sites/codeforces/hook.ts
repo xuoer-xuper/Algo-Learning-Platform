@@ -200,7 +200,7 @@ export function createCodeforcesRealtimeHookScript(): string {
             pageTitle: typeof document !== 'undefined' ? document.title : '',
             submitIntent: hasRecentSubmitIntent()
           },
-          detectedAt: new Date().toISOString()
+          detectedAt: Date.now()
         };
         if (window[CHANNEL] && typeof window[CHANNEL].reportSubmission === 'function') {
           window[CHANNEL].reportSubmission(payload);

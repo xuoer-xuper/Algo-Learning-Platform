@@ -22,13 +22,9 @@ import type {
   ProblemAcStatus,
 } from '@shared/types/coach'
 
-/** 模拟时间基准：2026-07-01 10:00:00 */
-const T0 = '2026-07-01T10:00:00.000'
-const T_PLUS = (mins: number) => {
-  const d = new Date(T0)
-  d.setMinutes(d.getMinutes() + mins)
-  return d.toISOString().replace(/\.\d{3}Z$/, '.000')
-}
+/** 模拟时间基准：2026-07-01 10:00:00 UTC+8 */
+const T0 = Date.UTC(2026, 6, 1, 2)
+const T_PLUS = (mins: number): number => T0 + mins * 60_000
 
 const MOCK_PROBLEM_1 = 'mock-prob-1'
 const MOCK_PROBLEM_2 = 'mock-prob-2'

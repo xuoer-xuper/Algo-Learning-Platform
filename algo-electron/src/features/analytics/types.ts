@@ -12,7 +12,7 @@ export interface DashboardTimelineEvent {
   id?: string | number
   event_type: string
   platform?: string | null
-  occurred_at?: string | null
+  occurred_at?: number | null
 }
 
 export interface DashboardProblemListItem {

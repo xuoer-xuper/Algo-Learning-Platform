@@ -23,9 +23,9 @@ export interface UserScript {
   site_ids_json: string | null
   enabled: boolean
   auto_update_enabled: boolean
-  created_at: string
-  updated_at: string
-  deleted_at: string | null
+  created_at: number
+  updated_at: number
+  deleted_at: number | null
 }
 
 export interface UserScriptRow extends Omit<

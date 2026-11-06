@@ -3,7 +3,7 @@ import { parseUrl } from '../parsers/registry'
 import { getSiteById } from '../db/repositories/siteRepository'
 import { recomputeDailyStats } from '../db/repositories/statsRepository'
 import type { ProblemIdentity } from '../shared/types'
-import { nowBeijing } from '../shared/time'
+import { nowMillis, toLocalDay } from '../shared/time'
 import { logger, type Logger } from '../shared/logger'
 import type { BrowserPageEvent } from '../browser/TabManager'
 import { finishProblemVisit, startProblemVisit } from '../db/repositories/problemVisitRepository'
@@ -21,7 +21,7 @@ interface CurrentVisit {
 export interface TrackingServiceOptions {
   logger?: Logger
   clock?: () => number
-  now?: () => string
+  now?: () => number
 }
 
 export class TrackingService {
@@ -31,13 +31,13 @@ export class TrackingService {
   >()
   private readonly logger: Logger
   private readonly clock: () => number
-  private readonly now: () => string
+  private readonly now: () => number
 
   constructor(options: TrackingServiceOptions | Logger = {}) {
     const normalized = 'debug' in options ? { logger: options } : options
     this.logger = normalized.logger ?? logger
     this.clock = normalized.clock ?? Date.now
-    this.now = normalized.now ?? nowBeijing
+    this.now = normalized.now ?? nowMillis
   }
 
   setProblemDetectedCallback(callback: (identity: ProblemIdentity) => void) {
@@ -89,7 +89,7 @@ export class TrackingService {
     this.endVisitForWindow(windowId)
 
     const now = this.now()
-    const today = now.slice(0, 10)
+    const today = toLocalDay(now)
     const visitId = crypto.randomUUID()
     const started = startProblemVisit({
       identity,

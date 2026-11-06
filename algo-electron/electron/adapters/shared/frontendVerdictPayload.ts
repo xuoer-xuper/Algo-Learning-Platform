@@ -1,5 +1,5 @@
 import type { SubmissionData } from '../../shared/types'
-import { nowBeijing } from '../../shared/time'
+import { nowMillis } from '../../shared/time'
 import type { SubmissionDetectionPayload } from '../types'
 import { extractLanguage, parseMemoryKb, parseRuntimeMs } from './text'
 function hasStandaloneLatinToken(value: string, token: string): boolean {
@@ -193,7 +193,7 @@ export function parseFrontendVerdictPayload(
         : extractLanguage(text),
     runtimeMs: parseRuntimeMs(text),
     memoryKb: parseMemoryKb(text),
-    submittedAt: nowBeijing(),
+    submittedAt: nowMillis(),
     sourceUrl,
     rawJson: JSON.stringify({
       _source: 'frontend-verdict-observer',

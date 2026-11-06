@@ -3,6 +3,12 @@
 {"file": ".trellis/spec/project/domain-rules.md", "reason": "红线不得回退"}
 {"file": ".trellis/spec/project/regression-checks.md", "reason": "IPC guard mutation tests and lazy-route teardown checks"}
 {"file": ".trellis/spec/project/data-refresh.md", "reason": "Committed write and renderer refresh contracts"}
+{"file": ".trellis/spec/project/historical-database-fixtures.md", "reason": "Historical source/fixture/user-copy evidence must stay distinct"}
+{"file": ".trellis/spec/project/unix-millisecond-time.md", "reason": "Final numeric time, migration and real-copy safety contract"}
+{"file": ".trellis/tasks/09-17-phase-2-ipc-contract/research/r5-git-history.md", "reason": "Review historical writer assumptions against Git evidence"}
+{"file": ".trellis/tasks/09-17-phase-2-ipc-contract/research/r5-reconstruction-plan.md", "reason": "R5 fixture invariants and future030 acceptance boundaries"}
+{"file": ".trellis/tasks/09-17-phase-2-ipc-contract/research/r5-030-design.md", "reason": "030 FK/rollback/DST/JSON safety verification"}
+{"file": ".trellis/tasks/09-17-phase-2-ipc-contract/research/r5-fullstack-map.md", "reason": "Numeric IPC and live producer/consumer coverage"}
 {"file": ".trellis/spec/frontend/ipc-electron.md", "reason": "契约检查"}
 {"file": ".trellis/tasks/09-17-phase-2-ipc-contract/research/r4-data-refresh.md", "reason": "R4 rollback safety, reader completeness and true sync acceptance"}
 {"file": ".trellis/spec/shared/timestamp.md", "reason": "时间格式检查"}

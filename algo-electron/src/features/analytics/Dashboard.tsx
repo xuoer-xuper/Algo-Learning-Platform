@@ -1,3 +1,4 @@
+import { formatForDisplay } from '@shared/time'
 import { useState } from 'react'
 import { Button, Card, IconButton, Skeleton } from '../../components/ui'
 import { AiSuggestionsPanel } from './AiSuggestionsPanel'
@@ -169,14 +170,10 @@ export function Dashboard({
         onNavigate={onNavigate}
       />
 
-      {stats?.lastActiveTime && (
+      {stats?.lastActiveTime != null && (
         <div className="dashboard-footer">
           最近活跃：
-          <span className="num">
-            {typeof stats.lastActiveTime === 'string'
-              ? stats.lastActiveTime.replace('T', ' ').slice(0, 19)
-              : ''}
-          </span>
+          <span className="num">{formatForDisplay(stats.lastActiveTime)}</span>
         </div>
       )}
     </div>

@@ -2,6 +2,14 @@
 
 Read-only investigation. No migrations, application startup, user-data copies, or application edits were performed. Local SQLite connections used `mode=ro` and `PRAGMA query_only=ON`; only schema and `schema_migrations` metadata were queried. No cookie, credential, script, note, or learning-data rows were read or printed.
 
+> Follow-up correction, 2026-11-04: the user directed us to inspect historical Git
+> rather than require an unavailable v1.0.0 user database. That requirement is
+> superseded by pinned-source reconstruction plus existing real-copy evidence.
+> Git also establishes old scripts wrote UTC `Z`, and only later fixed-UTC+8
+> writers emitted suffixless values: the suspected suffixless script ambiguity
+> below is not supported by history. See `r5-git-history.md` and
+> `r5-reconstruction-plan.md`; preserve the remaining migration safety findings.
+
 ## Decision gates before implementation
 
 1. **Three real historical fixtures are not available in the inspected locations.** Only a current version-29 database and one version-24 pre-migration backup were found. The version-21/v1.0.0 real copy is missing. Do not label a generated database or a downgraded current copy as historical evidence.

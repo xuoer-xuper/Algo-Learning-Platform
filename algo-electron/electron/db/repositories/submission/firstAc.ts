@@ -1,19 +1,19 @@
 import { getDb } from '../../connection'
-import { nowBeijing } from '../../../shared/time'
+import { nowMillis } from '../../../shared/time'
 import type { FirstAcRow } from './types'
 import { localDayFromTimestamp } from '../stats/date'
 import { emitDataChanged } from '../../../shared/dataEvents'
 
 export function updateFirstAc(problemId: string): string[] {
   const db = getDb()
-  const now = nowBeijing()
+  const now = nowMillis()
   const existing = db
     .prepare(
       `
     SELECT first_solved_at FROM problems WHERE id = ?
   `,
     )
-    .get(problemId) as { first_solved_at: string | null } | undefined
+    .get(problemId) as { first_solved_at: number | null } | undefined
 
   const firstAc = db
     .prepare(
@@ -38,9 +38,8 @@ export function updateFirstAc(problemId: string): string[] {
   }
 
   const affectedDays = new Set<string>()
-  const previousDay = existing?.first_solved_at
-    ? localDayFromTimestamp(existing.first_solved_at)
-    : null
+  const previousDay =
+    existing?.first_solved_at != null ? localDayFromTimestamp(existing.first_solved_at) : null
   const nextDay = firstAc ? localDayFromTimestamp(firstAc.submitted_at) : null
   if (previousDay) affectedDays.add(previousDay)
   if (nextDay) affectedDays.add(nextDay)
@@ -50,7 +49,7 @@ export function updateFirstAc(problemId: string): string[] {
 /** Imports can replace or move an AC, unlike the append-only submission writer. */
 export function recomputeProblemSubmissionState(problemIds: Iterable<string>): string[] {
   const db = getDb()
-  const now = nowBeijing()
+  const now = nowMillis()
   const findProblem = db.prepare('SELECT status, first_solved_at FROM problems WHERE id = ?')
   const aggregate = db.prepare(`
     SELECT COUNT(*) AS total,
@@ -67,18 +66,19 @@ export function recomputeProblemSubmissionState(problemIds: Iterable<string>): s
     const existing = findProblem.get(problemId) as
       | {
           status: string
-          first_solved_at: string | null
+          first_solved_at: number | null
         }
       | undefined
     if (!existing) continue
-    const submissions = aggregate.get(problemId) as { total: number; first_ac: string | null }
-    const status = submissions.first_ac
-      ? 'solved'
-      : submissions.total > 0
-        ? 'attempted'
-        : existing.status === 'unknown'
-          ? 'unknown'
-          : 'visited'
+    const submissions = aggregate.get(problemId) as { total: number; first_ac: number | null }
+    const status =
+      submissions.first_ac !== null
+        ? 'solved'
+        : submissions.total > 0
+          ? 'attempted'
+          : existing.status === 'unknown'
+            ? 'unknown'
+            : 'visited'
     const result = update.run(
       status,
       submissions.first_ac,
@@ -89,7 +89,7 @@ export function recomputeProblemSubmissionState(problemIds: Iterable<string>): s
     )
     if (result.changes > 0) emitDataChanged(['problems', 'stats'])
     for (const timestamp of [existing.first_solved_at, submissions.first_ac]) {
-      const date = timestamp ? localDayFromTimestamp(timestamp) : null
+      const date = timestamp !== null ? localDayFromTimestamp(timestamp) : null
       if (date) affectedDates.add(date)
     }
   }

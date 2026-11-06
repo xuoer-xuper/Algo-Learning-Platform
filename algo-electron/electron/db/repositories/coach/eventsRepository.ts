@@ -1,7 +1,7 @@
 import { emitDataChanged } from '../../../shared/dataEvents'
 import crypto from 'node:crypto'
 import { getDb } from '../../connection'
-import { nowBeijing } from '../../../shared/time'
+import { nowMillis } from '../../../shared/time'
 import type {
   CoachEvent,
   CoachEventEvidence,
@@ -27,7 +27,7 @@ interface CoachEventRow {
   problem_id: string | null
   platform: string | null
   evidence_json: string | null
-  created_at: string
+  created_at: number
 }
 
 export function insertCoachEvent(event: CoachEvent): CoachEvent {
@@ -73,7 +73,7 @@ export function buildCoachEvent(input: {
     problem_id: input.problem_id ?? null,
     platform: input.platform ?? null,
     evidence: input.evidence,
-    created_at: nowBeijing(),
+    created_at: nowMillis(),
   }
 }
 
@@ -100,7 +100,7 @@ export function listCoachEventsByType(eventType: CoachEventType, limit = 50): Co
   return rows.map(deserializeCoachEvent)
 }
 
-export function listCoachEventsSince(since: string, limit = 500): CoachEvent[] {
+export function listCoachEventsSince(since: number, limit = 500): CoachEvent[] {
   const db = getDb()
   const rows = db
     .prepare('SELECT * FROM coach_events WHERE created_at >= ? ORDER BY created_at DESC LIMIT ?')
@@ -108,7 +108,7 @@ export function listCoachEventsSince(since: string, limit = 500): CoachEvent[] {
   return rows.map(deserializeCoachEvent)
 }
 
-export function countCoachEventsSince(since: string): number {
+export function countCoachEventsSince(since: number): number {
   const db = getDb()
   const row = db
     .prepare('SELECT COUNT(*) AS n FROM coach_events WHERE created_at >= ?')
@@ -128,7 +128,7 @@ export function listCoachEventsByProblem(problemId: string, limit = 500): CoachE
   return rows.map(deserializeCoachEvent)
 }
 
-export function countCoachEventsByTypeSince(since: string): Record<CoachEventType, number> {
+export function countCoachEventsByTypeSince(since: number): Record<CoachEventType, number> {
   const db = getDb()
   const rows = db
     .prepare(
@@ -145,11 +145,11 @@ export function countCoachEventsByTypeSince(since: string): Record<CoachEventTyp
   return result
 }
 
-export function getLastEventAt(): string | null {
+export function getLastEventAt(): number | null {
   const db = getDb()
   const row = db
     .prepare('SELECT created_at FROM coach_events ORDER BY created_at DESC LIMIT 1')
-    .get() as { created_at: string } | undefined
+    .get() as { created_at: number } | undefined
   return row?.created_at ?? null
 }
 

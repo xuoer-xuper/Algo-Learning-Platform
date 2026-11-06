@@ -1,12 +1,12 @@
 import crypto from 'node:crypto'
 import { getDb } from '../../connection'
-import { nowBeijing } from '../../../shared/time'
+import { nowMillis } from '../../../shared/time'
 import type { CookieMetadataInput, CookieRecord } from './types'
 import { getCookieRecordsByDomain } from './queries'
 
 export function upsertCookieMetadata(input: CookieMetadataInput): CookieRecord {
   const db = getDb()
-  const now = nowBeijing()
+  const now = nowMillis()
   const existing = db
     .prepare(
       `

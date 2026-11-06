@@ -13,7 +13,7 @@ export const submissionRecordSchema = z.object({
   platform: z.string().optional(),
   verdict: z.string(),
   language: z.string().nullable().optional(),
-  submitted_at: z.string().nullable().optional(),
+  submitted_at: z.number().int().nullable().optional(),
 })
 
 /** 题目详情里内嵌的提交行（problem:getDetail 的 submissions 列表项）。 */
@@ -37,7 +37,7 @@ export const realtimeSubmissionStatusSchema = z.object({
       url: z.string(),
       realtimeAdapterId: z.string().optional(),
       realtimeSupported: z.boolean(),
-      at: z.string(),
+      at: z.number().int(),
     })
     .optional(),
   lastHook: z
@@ -47,7 +47,7 @@ export const realtimeSubmissionStatusSchema = z.object({
       status: z.enum(['success', 'failed', 'skipped']),
       reason: z.string().optional(),
       error: z.string().optional(),
-      at: z.string(),
+      at: z.number().int(),
     })
     .optional(),
   lastDetection: z
@@ -58,7 +58,7 @@ export const realtimeSubmissionStatusSchema = z.object({
       platform: z.string().optional(),
       verdict: z.string().optional(),
       problemId: z.string().optional(),
-      at: z.string(),
+      at: z.number().int(),
     })
     .optional(),
 })

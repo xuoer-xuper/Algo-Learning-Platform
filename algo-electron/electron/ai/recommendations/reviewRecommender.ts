@@ -2,7 +2,7 @@
 // 依据本地统计数据排序推荐复习题目，不调用大模型，不修改题目状态
 // 推荐结果可追溯到具体题目和提交（source 字段）
 import { getDb } from '../../db/connection'
-import { nowBeijing } from '../../shared/time'
+import { nowMillis } from '../../shared/time'
 import {
   buildReviewReason,
   daysSince,
@@ -50,7 +50,7 @@ export function getReviewRecommendations(limit = 10): ReviewRecommendationResult
     title: string | null
     canonical_url: string
     wrong_count: number
-    last_attempt: string
+    last_attempt: number
     visit_count: number
   }[]
 
@@ -81,7 +81,7 @@ export function getReviewRecommendations(limit = 10): ReviewRecommendationResult
     .slice(0, limit)
 
   return {
-    generated_at: nowBeijing(),
+    generated_at: nowMillis(),
     rule_version: REVIEW_RECOMMENDATION_RULE_VERSION,
     recommendations,
   }

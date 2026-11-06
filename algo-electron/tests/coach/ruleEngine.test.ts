@@ -40,8 +40,8 @@ function fakeUuid(): string {
   return `test-uuid-${uuidCounter}`
 }
 
-function fakeNowIso(): string {
-  return new Date(fakeNow).toISOString()
+function fakeNowMillis(): number {
+  return fakeNow
 }
 
 function buildEvent(overrides: Partial<CoachEvent> & { event_type: CoachEventType }): CoachEvent {
@@ -53,7 +53,7 @@ function buildEvent(overrides: Partial<CoachEvent> & { event_type: CoachEventTyp
     problem_id: null,
     platform: 'codeforces',
     evidence: {},
-    created_at: fakeNowIso(),
+    created_at: fakeNowMillis(),
     ...overrides,
   }
 }
@@ -107,7 +107,6 @@ function createEngine(
     },
     now: () => fakeNow,
     uuid: fakeUuid,
-    nowIso: fakeNowIso,
   })
 
   return { engine, interventions }

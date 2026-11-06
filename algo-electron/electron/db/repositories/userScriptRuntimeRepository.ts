@@ -1,6 +1,6 @@
 import crypto from 'node:crypto'
 import { getDb } from '../connection'
-import { nowChinaStandardTime } from '../../shared/time'
+import { nowMillis } from '../../shared/time'
 import { emitDataChanged } from '../../shared/dataEvents'
 
 export type UserScriptResourceKind = 'require' | 'resource'
@@ -12,8 +12,8 @@ interface UserScriptValueRow {
   script_id: string
   value_key: string
   value_json: string
-  created_at: string
-  updated_at: string
+  created_at: number
+  updated_at: number
 }
 
 export interface UserScriptValue extends Omit<UserScriptValueRow, 'value_json'> {
@@ -31,9 +31,9 @@ export interface UserScriptResource {
   content_encoding: UserScriptResourceEncoding
   content_type: string | null
   integrity: string | null
-  fetched_at: string | null
-  created_at: string
-  updated_at: string
+  fetched_at: number | null
+  created_at: number
+  updated_at: number
 }
 
 export interface UserScriptResourceWriteInput {
@@ -46,34 +46,34 @@ export interface UserScriptResourceWriteInput {
   contentEncoding?: UserScriptResourceEncoding
   contentType?: string | null
   integrity?: string | null
-  fetchedAt?: string | null
+  fetchedAt?: number | null
 }
 
 export interface UserScriptHostPermission {
   id: string
   script_id: string
   host_pattern: string
-  granted_at: string
-  last_used_at: string | null
-  revoked_at: string | null
+  granted_at: number
+  last_used_at: number | null
+  revoked_at: number | null
 }
 
 export interface UserScriptUpdateState {
   script_id: string
-  last_checked_at: string | null
-  next_check_at: string | null
+  last_checked_at: number | null
+  next_check_at: number | null
   etag: string | null
   last_modified: string | null
   available_version: string | null
   status: UserScriptUpdateStatus
   last_error: string | null
-  updated_at: string
+  updated_at: number
 }
 
 export interface UserScriptUpdateStateInput {
   scriptId: string
-  lastCheckedAt?: string | null
-  nextCheckAt?: string | null
+  lastCheckedAt?: number | null
+  nextCheckAt?: number | null
   etag?: string | null
   lastModified?: string | null
   availableVersion?: string | null
@@ -86,7 +86,7 @@ export function setUserScriptValue(scriptId: string, key: string, value: unknown
   const normalizedKey = requireNonEmpty(key, 'key')
   const valueJson = serializeJson(value)
   const db = getDb()
-  const now = nowChinaStandardTime()
+  const now = nowMillis()
   const existing = db
     .prepare(
       `
@@ -167,7 +167,7 @@ export function upsertUserScriptResource(input: UserScriptResourceWriteInput): s
   }
 
   const db = getDb()
-  const now = nowChinaStandardTime()
+  const now = nowMillis()
   const existing = db
     .prepare(
       `
@@ -265,7 +265,7 @@ export function grantUserScriptHost(scriptId: string, hostPattern: string): stri
   const normalizedScriptId = requireNonEmpty(scriptId, 'scriptId')
   const normalizedHost = normalizeHostPattern(hostPattern)
   const db = getDb()
-  const now = nowChinaStandardTime()
+  const now = nowMillis()
   const existing = db
     .prepare(
       `
@@ -308,7 +308,7 @@ export function revokeUserScriptHost(scriptId: string, hostPattern: string): boo
     WHERE script_id = ? AND host_pattern = ? AND revoked_at IS NULL
   `,
     )
-    .run(nowChinaStandardTime(), scriptId, normalizeHostPattern(hostPattern))
+    .run(nowMillis(), scriptId, normalizeHostPattern(hostPattern))
   if (result.changes > 0) emitDataChanged(['scripts'])
   return result.changes > 0
 }
@@ -322,7 +322,7 @@ export function markUserScriptHostUsed(scriptId: string, hostPattern: string): b
     WHERE script_id = ? AND host_pattern = ? AND revoked_at IS NULL
   `,
     )
-    .run(nowChinaStandardTime(), scriptId, normalizeHostPattern(hostPattern))
+    .run(nowMillis(), scriptId, normalizeHostPattern(hostPattern))
   if (result.changes > 0) emitDataChanged(['scripts'])
   return result.changes > 0
 }
@@ -370,7 +370,7 @@ export function upsertUserScriptUpdateState(input: UserScriptUpdateStateInput): 
   const existing = getUserScriptUpdateState(scriptId)
   const value = <T>(next: T | undefined, current: T | undefined, fallback: T): T =>
     next === undefined ? (current ?? fallback) : next
-  const now = nowChinaStandardTime()
+  const now = nowMillis()
 
   getDb()
     .prepare(
