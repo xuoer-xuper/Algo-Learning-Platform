@@ -115,6 +115,12 @@ proved that `test:core` alone is not CI parity. `pnpm test:core` (typecheck ×2 
 + security + jscpd + full vitest) remains the per-section gate; `test:packaging` and `test:docs` ride
 along at push time, and the two smoke scripts cover what CI's `Electron and renderer smoke` job runs.
 
+Windows large-change commits use `lint-staged --max-arg-length 6000` in the pre-commit hook.
+The package manager's `.cmd` shims and argument quoting need headroom below the 8191-character
+shell limit; the default limit was insufficient for the R5 batch on 2026-11-05. This only chunks
+the same staged files into smaller commands. It does not skip formatting, lint, stashing or
+either full typecheck; a command failure still blocks the commit.
+
 ---
 
 ## Trellis auto-commits

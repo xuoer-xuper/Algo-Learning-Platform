@@ -23,7 +23,8 @@ cd "$toplevel/algo-electron" || exit 1
 # lint-staged 只处理 staged 文件；algo-electron/ 之外的 staged 文件（如 .trellis/**）
 # 会被 lint-staged 以 warning 跳过——与 0.5 的格式化范围决策（algo-electron/ 全树）一致，
 # 属预期行为而非错误。
-pnpm exec lint-staged || exit 1
+# Leave headroom for Windows .cmd shims and quoted paths below the 8191-character limit.
+pnpm exec lint-staged --max-arg-length 6000 || exit 1
 
 # 两次 typecheck 是全量的：类型检查没有增量可信路径，墙钟代价已知并接受（design.md §6）。
 pnpm run typecheck && pnpm run typecheck:tests
