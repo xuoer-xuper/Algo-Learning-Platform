@@ -16,9 +16,9 @@ export const credentialSummarySchema = z.object({
   username: z.string(),
   displayName: z.string().nullable(),
   masked: z.string(),
-  lastUsedAt: z.string().nullable(),
-  createdAt: z.string(),
-  updatedAt: z.string(),
+  lastUsedAt: z.number().int().nullable(),
+  createdAt: z.number().int(),
+  updatedAt: z.number().int(),
 })
 
 /** 凭据列表项（credentials:list / rename 的输出；值永远是掩码）。 */

@@ -12,5 +12,5 @@ export interface GenericTableData {
 export interface GenericTableScanOptions {
   platform: string
   submissionPrefix: string
-  now: () => string
+  now: () => number
 }

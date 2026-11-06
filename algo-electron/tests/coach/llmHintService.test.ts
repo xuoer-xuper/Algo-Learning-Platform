@@ -115,15 +115,15 @@ vi.mock('../../electron/db/repositories/submissionRepository', () => ({
       verdict: 'WA',
       raw_verdict: null,
       language: 'C++17',
-      submitted_at: '2026-08-31 10:00:00',
+      submitted_at: Date.parse('2026-08-31 10:00:00'),
       runtime_ms: 15,
       memory_kb: 65536,
       source_url: 'https://codeforces.com/contest/1/submission/9?sessionId=SENTINEL_SESSION_COOKIE',
       // 同 contextGatherer.test.ts：cookie 名后只留 3 个字符，避开敏感文件守卫的
       // "会话 cookie = 12 位以上值"判定，泄漏探针交给不挨着 cookie 名的 SENTINEL_COOKIE_VALUE。
       raw_json: '{"cookie":"JSESSIONID=abc; auth=SENTINEL_COOKIE_VALUE"}',
-      created_at: '2026-08-31 10:00:00',
-      updated_at: '2026-08-31 10:00:00',
+      created_at: Date.parse('2026-08-31 10:00:00'),
+      updated_at: Date.parse('2026-08-31 10:00:00'),
     },
   ],
 }))
@@ -207,7 +207,7 @@ function event(): CoachEvent {
     problem_id: 'problem-1',
     platform: 'codeforces',
     evidence: { verdict: 'WA' },
-    created_at: '2026-08-31 10:20:00',
+    created_at: Date.parse('2026-08-31 10:20:00'),
   }
 }
 

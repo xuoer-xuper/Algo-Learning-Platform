@@ -15,8 +15,8 @@ export const cookieSafeDomainSummarySchema = z.object({
   cookie_count: z.number(),
   http_only_count: z.number(),
   secure_count: z.number(),
-  earliest_expires_at: z.string().nullable(),
-  last_seen_at: z.string().nullable(),
+  earliest_expires_at: z.number().int().nullable(),
+  last_seen_at: z.number().int().nullable(),
   /** 刻意是字面量 true：同步排除标记在类型上成立，不存在 false 的可能。 */
   sync_excluded: z.literal(true),
 })

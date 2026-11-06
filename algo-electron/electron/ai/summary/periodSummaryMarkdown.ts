@@ -1,4 +1,5 @@
 import type { PeriodSummary } from './periodSummaryTypes'
+import { formatForDisplay } from '../../shared/time'
 
 export function renderSummaryAsMarkdown(summary: PeriodSummary): string {
   const lines: string[] = []
@@ -7,7 +8,7 @@ export function renderSummaryAsMarkdown(summary: PeriodSummary): string {
   lines.push(
     `> 周期：${summary.period.start_date} 至 ${summary.period.end_date}（${summary.period.days} 天）`,
   )
-  lines.push(`> 生成时间：${summary.generated_at}`)
+  lines.push(`> 生成时间：${formatForDisplay(summary.generated_at)}`)
   lines.push('')
   lines.push('## 学习量')
   lines.push(`- 活跃天数：${summary.study_stats.active_days} / ${summary.period.days} 天`)

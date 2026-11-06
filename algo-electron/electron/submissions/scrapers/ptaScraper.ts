@@ -1,5 +1,5 @@
 import type { SubmissionData, Verdict } from '../../shared/types'
-import { nowBeijing } from '../../shared/time'
+import { nowMillis } from '../../shared/time'
 import type { SubmissionDetectionPayload, SubmissionScrapeContext } from '../../adapters/types'
 
 function mapVerdict(result: string): Verdict {
@@ -321,7 +321,7 @@ export function createPtaRealtimeHookScript(adapterId = 'pta'): string {
             pageTitle: typeof document !== 'undefined' ? document.title : '',
             submitIntent: hasRecentSubmitIntent()
           },
-          detectedAt: new Date().toISOString(),
+          detectedAt: Date.now(),
         };
         sendPayload(payload);
       } catch (_) {}
@@ -408,7 +408,7 @@ export function createPtaRealtimeHookScript(adapterId = 'pta'): string {
             pageTitle: typeof document !== 'undefined' ? document.title : '',
             submitIntent: true
           },
-          detectedAt: new Date().toISOString(),
+          detectedAt: Date.now(),
         };
         sendPayload(payload);
       } catch (_) {}
@@ -594,7 +594,7 @@ export function parsePtaFrontendVerdictPayload(
     language: extractLanguage(text),
     runtimeMs: parseRuntimeMs(text),
     memoryKb: parseMemoryKb(text),
-    submittedAt: nowBeijing(),
+    submittedAt: nowMillis(),
     sourceUrl,
     rawJson: JSON.stringify(rawJson),
   }
@@ -806,7 +806,7 @@ export function parsePtaSubmissionData(currentUrl: string, data: unknown): Submi
       language,
       runtimeMs: runtimeIdx >= 0 ? parseInt(cells[runtimeIdx]) || undefined : undefined,
       memoryKb: memoryIdx >= 0 ? parseInt(cells[memoryIdx]) || undefined : undefined,
-      submittedAt: nowBeijing(),
+      submittedAt: nowMillis(),
       sourceUrl: links.find((link) => link) || '',
       rawJson: ptaProblemId ? JSON.stringify({ _ptaProblemId: ptaProblemId }) : undefined,
     })

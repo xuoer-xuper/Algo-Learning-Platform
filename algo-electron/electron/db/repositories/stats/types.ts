@@ -22,7 +22,7 @@ export interface RevisitStat {
   title: string | null
   canonical_url: string
   visit_count: number
-  last_visit: string
+  last_visit: number
 }
 
 export interface StreakDays {
@@ -37,7 +37,7 @@ export interface WrongProblem {
   title: string | null
   canonical_url: string
   wrong_count: number
-  last_attempt: string
+  last_attempt: number
 }
 
 export interface UnreviewedProblem {
@@ -46,6 +46,6 @@ export interface UnreviewedProblem {
   platform_problem_id: string
   title: string | null
   canonical_url: string
-  last_visited_at: string
+  last_visited_at: number
   days_since: number
 }

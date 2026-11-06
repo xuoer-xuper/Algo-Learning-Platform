@@ -50,7 +50,7 @@ it('records the current false-success display when note persistence returns fals
     content: 'Old body',
     note_type: 'solution',
     word_count: 2,
-    updated_at: '2026-09-10T10:00:00+08:00',
+    updated_at: Date.parse('2026-09-10T10:00:00+08:00'),
   }
   api.listNotesByProblem.mockResolvedValue([note])
   api.loadNote.mockResolvedValue(note)

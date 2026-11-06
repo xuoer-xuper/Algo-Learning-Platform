@@ -5,7 +5,6 @@ import {
   type FeedbackRepositoryAdapter,
 } from '../../electron/coach/CoachFeedbackStore.ts'
 import type { CoachEventType } from '@shared/types/coach'
-import { toBeijing } from '../../electron/shared/time.ts'
 
 /**
  * CoachFeedbackStore 单元测试（阶段 3 Task 16）。
@@ -35,7 +34,7 @@ interface MockFeedbackRow {
   event_type: string | null
   problem_id: string | null
   local_day: string
-  created_at: string
+  created_at: number
 }
 
 function createMockRepository(
@@ -66,7 +65,7 @@ function createMockRepository(
         event_type: input.event_type ?? null,
         problem_id: input.problem_id ?? null,
         local_day: '2024-01-01',
-        created_at: new Date().toISOString(),
+        created_at: new Date().getTime(),
       }
       state.inserted.push(row)
       return row.feedback_id
@@ -445,7 +444,7 @@ test('loadHistoryForWarmup: 从 DB 重建计数器', () => {
       event_type: 'multiple_wrong',
       problem_id: null,
       local_day: '2024-01-01',
-      created_at: new Date(baseTime - 1000).toISOString(),
+      created_at: new Date(baseTime - 1000).getTime(),
     },
     {
       feedback_id: 'fb-2',
@@ -455,7 +454,7 @@ test('loadHistoryForWarmup: 从 DB 重建计数器', () => {
       event_type: 'multiple_wrong',
       problem_id: null,
       local_day: '2024-01-01',
-      created_at: new Date(baseTime - 500).toISOString(),
+      created_at: new Date(baseTime - 500).getTime(),
     },
     {
       feedback_id: 'fb-3',
@@ -465,7 +464,7 @@ test('loadHistoryForWarmup: 从 DB 重建计数器', () => {
       event_type: 'multiple_wrong',
       problem_id: null,
       local_day: '2024-01-01',
-      created_at: new Date(baseTime - 200).toISOString(),
+      created_at: new Date(baseTime - 200).getTime(),
     },
     {
       feedback_id: 'fb-4',
@@ -475,7 +474,7 @@ test('loadHistoryForWarmup: 从 DB 重建计数器', () => {
       event_type: 'idle_too_long',
       problem_id: null,
       local_day: '2024-01-01',
-      created_at: new Date(baseTime - 100).toISOString(),
+      created_at: new Date(baseTime - 100).getTime(),
     },
   ]
   const repo = createMockRepository({ historyRows })
@@ -496,8 +495,8 @@ test('loadHistoryForWarmup: 从 DB 重建计数器', () => {
 
 test('loadHistoryForWarmup: 跳过超出 lookback 的旧记录', () => {
   const baseTime = Date.now()
-  const veryOld = new Date(baseTime - 100 * 24 * 60 * 60 * 1000).toISOString() // 100 天前
-  const recent = new Date(baseTime - 1000).toISOString()
+  const veryOld = new Date(baseTime - 100 * 24 * 60 * 60 * 1000).getTime() // 100 天前
+  const recent = new Date(baseTime - 1000).getTime()
   const historyRows: MockFeedbackRow[] = [
     {
       feedback_id: 'old',
@@ -547,7 +546,7 @@ test('loadHistoryForWarmup: computeSince 与 created_at 同格式（东八区窗
       problem_id: null,
       local_day: '2024-01-01',
       // 6.5 天前：窗口内，必须重建进计数器
-      created_at: toBeijing(new Date(nowMs - 6.5 * DAY_MS)),
+      created_at: nowMs - 6.5 * DAY_MS,
     },
     {
       feedback_id: 'skew-victim',
@@ -558,7 +557,7 @@ test('loadHistoryForWarmup: computeSince 与 created_at 同格式（东八区窗
       problem_id: null,
       local_day: '2024-01-01',
       // 7 天 4 小时前：窗口外；格式混用时会在东八区下被错误纳入（8 小时偏移的受害记录）
-      created_at: toBeijing(new Date(nowMs - (7 * DAY_MS + 4 * 60 * 60 * 1000))),
+      created_at: nowMs - (7 * DAY_MS + 4 * 60 * 60 * 1000),
     },
   ]
   const repo = createMockRepository({ historyRows })
@@ -594,7 +593,7 @@ test('loadHistoryForWarmup: never_today 计数', () => {
       event_type: 'idle_too_long',
       problem_id: null,
       local_day: '2024-01-01',
-      created_at: new Date().toISOString(),
+      created_at: new Date().getTime(),
     },
     {
       feedback_id: 'fb-2',
@@ -604,7 +603,7 @@ test('loadHistoryForWarmup: never_today 计数', () => {
       event_type: 'idle_too_long',
       problem_id: null,
       local_day: '2024-01-01',
-      created_at: new Date().toISOString(),
+      created_at: new Date().getTime(),
     },
   ]
   const repo = createMockRepository({ historyRows })
@@ -627,7 +626,7 @@ test('重启后历史反馈仍存在：loadHistoryForWarmup 重建节流策略',
     event_type: 'multiple_wrong',
     problem_id: null,
     local_day: '2024-01-01',
-    created_at: new Date(baseTime - (3 - i) * 1000).toISOString(),
+    created_at: new Date(baseTime - (3 - i) * 1000).getTime(),
   }))
   const repo = createMockRepository({ historyRows })
 

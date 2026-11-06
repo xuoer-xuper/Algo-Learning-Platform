@@ -37,8 +37,8 @@ function createHarness(
     username: 'alice',
     display_name: null,
     last_used_at: null,
-    created_at: '2026-08-19 10:00:00',
-    updated_at: '2026-08-19 10:00:00',
+    created_at: Date.parse('2026-08-19 10:00:00'),
+    updated_at: Date.parse('2026-08-19 10:00:00'),
   }
   let credential = options.getCredential ?? null
   const repository: CredentialRepository = {
@@ -109,8 +109,8 @@ test('save encrypts before repository write and only returns a masked renderer s
     displayName: null,
     masked: '********',
     lastUsedAt: null,
-    createdAt: '2026-08-19 10:00:00',
-    updatedAt: '2026-08-19 10:00:00',
+    createdAt: Date.parse('2026-08-19 10:00:00'),
+    updatedAt: Date.parse('2026-08-19 10:00:00'),
   })
   assert.deepStrictEqual(calls.encrypt, ['secret'])
   assert.strictEqual(calls.upsert.length, 1)
@@ -135,8 +135,8 @@ test('getForAutofill rejects unsupported envelopes and never falls back to plain
     secret_envelope: { version: 9, provider: 'legacy', ciphertextBase64: 'c2VjcmV0' },
     last_used_at: null,
     sync_excluded: true,
-    created_at: '2026-08-19 10:00:00',
-    updated_at: '2026-08-19 10:00:00',
+    created_at: Date.parse('2026-08-19 10:00:00'),
+    updated_at: Date.parse('2026-08-19 10:00:00'),
   } as unknown as SiteCredential
   const { vault, calls } = createHarness({ getCredential: unsupported })
   await assert.rejects(
@@ -160,8 +160,8 @@ test('rotates an old safeStorage key before returning the main-process-only auto
     },
     last_used_at: null,
     sync_excluded: true,
-    created_at: '2026-08-19 10:00:00',
-    updated_at: '2026-08-19 10:00:00',
+    created_at: Date.parse('2026-08-19 10:00:00'),
+    updated_at: Date.parse('2026-08-19 10:00:00'),
   }
   const { vault, calls } = createHarness({
     getCredential: credential,
@@ -198,8 +198,8 @@ test('list and delete expose no envelope and preserve structured validation erro
       displayName: null,
       masked: '********',
       lastUsedAt: null,
-      createdAt: '2026-08-19 10:00:00',
-      updatedAt: '2026-08-19 10:00:00',
+      createdAt: Date.parse('2026-08-19 10:00:00'),
+      updatedAt: Date.parse('2026-08-19 10:00:00'),
     },
   ])
   assert.strictEqual(vault.delete('credential-1'), true)

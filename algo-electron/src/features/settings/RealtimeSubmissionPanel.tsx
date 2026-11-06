@@ -1,3 +1,4 @@
+import { formatForDisplay } from '@shared/time'
 import { Button } from '../../components/ui'
 import { PLATFORM_NAMES } from '../../shared/display'
 import type { RealtimeSubmissionStatus } from '@shared/types/submission'
@@ -8,9 +9,8 @@ interface RealtimeSubmissionPanelProps {
   onRefresh: () => void
 }
 
-function formatStatusTime(value?: string) {
-  if (!value) return '暂无'
-  return value.replace('T', ' ').slice(0, 19)
+function formatStatusTime(value?: number): string {
+  return value === undefined ? '暂无' : formatForDisplay(value)
 }
 
 function hookStatusLabel(status?: RealtimeSubmissionStatus['lastHook']) {

@@ -42,8 +42,8 @@ test('global web-contents-created listener attaches only the persistent OJ sessi
         displayName: null,
         masked: '********',
         lastUsedAt: null,
-        createdAt: 'now',
-        updatedAt: 'now',
+        createdAt: 0,
+        updatedAt: 0,
       },
     ],
     getForAutofill: async () => ({
@@ -108,8 +108,8 @@ test('multi-account prompt is window-scoped, exposes only summaries, and respond
         displayName: null,
         masked: '********',
         lastUsedAt: null,
-        createdAt: 'now',
-        updatedAt: 'now',
+        createdAt: 0,
+        updatedAt: 0,
       },
       {
         credentialId: 'credential-2',
@@ -118,8 +118,8 @@ test('multi-account prompt is window-scoped, exposes only summaries, and respond
         displayName: 'Primary',
         masked: '********',
         lastUsedAt: null,
-        createdAt: 'now',
-        updatedAt: 'now',
+        createdAt: 0,
+        updatedAt: 0,
       },
     ],
     getForAutofill: async (credentialId: string) => ({

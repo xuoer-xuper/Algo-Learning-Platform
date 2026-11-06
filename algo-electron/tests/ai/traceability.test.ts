@@ -75,13 +75,13 @@ function insertVisit(problem: ProblemRow, id: string, durationSeconds: number): 
     'ai-traceability',
     problem.platform,
     problem.canonical_url,
-    `${day}T09:00:00+08:00`,
-    `${day}T09:10:00+08:00`,
+    Date.parse(`${day}T09:00:00+08:00`),
+    Date.parse(`${day}T09:10:00+08:00`),
     durationSeconds,
     Math.max(1, durationSeconds - 30),
     'test',
-    `${day}T09:00:00+08:00`,
-    `${day}T09:10:00+08:00`,
+    Date.parse(`${day}T09:00:00+08:00`),
+    Date.parse(`${day}T09:10:00+08:00`),
   )
 }
 
@@ -97,7 +97,7 @@ function seedLocalLearningData(): ProblemRow[] {
     verdict: 'WA',
     rawVerdict: 'WRONG_ANSWER',
     language: 'GNU C++23',
-    submittedAt: `${day}T10:00:00+08:00`,
+    submittedAt: Date.parse(`${day}T10:00:00+08:00`),
     rawJson: JSON.stringify({ diagnostic: forbiddenCookieHeader, path: forbiddenLocalPath }),
   })
   upsertSubmission({
@@ -107,7 +107,7 @@ function seedLocalLearningData(): ProblemRow[] {
     verdict: 'WA',
     rawVerdict: 'WRONG_ANSWER',
     language: 'GNU C++23',
-    submittedAt: `${day}T10:05:00+08:00`,
+    submittedAt: Date.parse(`${day}T10:05:00+08:00`),
   })
   upsertSubmission({
     platform: 'codeforces',
@@ -116,7 +116,7 @@ function seedLocalLearningData(): ProblemRow[] {
     verdict: 'WA',
     rawVerdict: 'WRONG_ANSWER',
     language: 'GNU C++23',
-    submittedAt: `${day}T10:10:00+08:00`,
+    submittedAt: Date.parse(`${day}T10:10:00+08:00`),
   })
   upsertSubmission({
     platform: 'codeforces',
@@ -125,7 +125,7 @@ function seedLocalLearningData(): ProblemRow[] {
     verdict: 'AC',
     rawVerdict: 'OK',
     language: 'GNU C++23',
-    submittedAt: `${day}T10:15:00+08:00`,
+    submittedAt: Date.parse(`${day}T10:15:00+08:00`),
   })
 
   insertVisit(dpA, 'visit-dp-a', 600)

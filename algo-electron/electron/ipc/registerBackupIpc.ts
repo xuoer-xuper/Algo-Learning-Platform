@@ -63,6 +63,7 @@ export function registerBackupIpc(options: RegisterBackupIpcOptions = {}): void 
       const parentWindow = getParentWindow(event, options)
       const dialogOptions: SaveDialogOptions = {
         title: '导出学习数据',
+        // ISO text is a human-readable filename, not an exported timestamp field.
         defaultPath: `algo-learning-data-${new Date().toISOString().slice(0, 10)}.json`,
         filters: [{ name: 'JSON', extensions: ['json'] }],
       }

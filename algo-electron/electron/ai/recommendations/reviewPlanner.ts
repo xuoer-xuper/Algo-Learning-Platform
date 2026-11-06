@@ -3,7 +3,7 @@
 // 生成短期复习计划，关联具体题目和标签，用户可接受/忽略/调整
 // 不调用大模型，结果含可追溯依据
 import { getDb } from '../../db/connection'
-import { nowBeijing } from '../../shared/time'
+import { nowMillis } from '../../shared/time'
 import { getReviewRecommendations } from './reviewRecommender'
 import { getWeaknessAnalysis } from './weaknessAnalyzer'
 import {
@@ -89,7 +89,7 @@ export function getReviewPlan(planDays = 7): ReviewPlan {
   evidenceParts.push(`数据来源于 reviewRecommender + weaknessAnalyzer`)
 
   return {
-    generated_at: nowBeijing(),
+    generated_at: nowMillis(),
     rule_version: REVIEW_PLAN_RULE_VERSION,
     plan_days: planDays,
     title: `${planDays} 天复习计划`,

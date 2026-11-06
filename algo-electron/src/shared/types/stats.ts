@@ -19,7 +19,7 @@ export const overviewStatsSchema = z.object({
   totalProblems: z.number(),
   todayVisited: z.number(),
   platformDistribution: z.array(platformDistributionRowSchema),
-  lastActiveTime: z.string().nullable(),
+  lastActiveTime: z.number().int().nullable(),
 })
 
 /** 首页/设置页共用的学习总览（stats:getOverview）。 */
@@ -68,7 +68,7 @@ export type ProblemVisitStats = z.infer<typeof problemVisitStatsSchema>
 export const timelineEventSchema = z.object({
   id: z.string(),
   event_type: z.string(),
-  occurred_at: z.string(),
+  occurred_at: z.number().int(),
   platform: z.string().nullable(),
   url: z.string().nullable(),
   problem_id: z.string().nullable(),
@@ -84,7 +84,7 @@ export const revisitStatsItemSchema = z.object({
   title: z.string().nullable(),
   canonical_url: z.string(),
   visit_count: z.number(),
-  last_visit: z.string(),
+  last_visit: z.number().int(),
 })
 
 /** 复习统计行（stats:getRevisitStats）。 */
@@ -97,7 +97,7 @@ export const wrongProblemItemSchema = z.object({
   title: z.string().nullable(),
   canonical_url: z.string(),
   wrong_count: z.number(),
-  last_attempt: z.string(),
+  last_attempt: z.number().int(),
 })
 
 /** 错题行（stats:getWrongProblems）。 */
@@ -109,7 +109,7 @@ export const unreviewedProblemItemSchema = z.object({
   platform_problem_id: z.string(),
   title: z.string().nullable(),
   canonical_url: z.string(),
-  last_visited_at: z.string(),
+  last_visited_at: z.number().int(),
   days_since: z.number(),
 })
 

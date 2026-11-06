@@ -1,5 +1,5 @@
 import { getDb } from '../../connection'
-import { todayBeijing } from '../../../shared/time'
+import { nowMillis, toLocalDay, localDayBounds } from '../../../shared/time'
 import { dayDiff, localDateDaysAgo } from './date'
 import type {
   ProblemVisitStat,
@@ -54,7 +54,7 @@ export function getTimeline(limit = 50): TimelineEvent[] {
     .all(limit) as TimelineEvent[]
 }
 
-export function getLastActiveTime(): string | null {
+export function getLastActiveTime(): number | null {
   const db = getDb()
   const row = db
     .prepare(
@@ -63,7 +63,7 @@ export function getLastActiveTime(): string | null {
     ORDER BY occurred_at DESC LIMIT 1
   `,
     )
-    .get() as { occurred_at: string } | undefined
+    .get() as { occurred_at: number } | undefined
   return row?.occurred_at ?? null
 }
 
@@ -118,7 +118,7 @@ export function getStreakDays(): StreakDays {
   }
   if (streak > longest) longest = streak
 
-  if (rows[0].local_day !== todayBeijing()) {
+  if (rows[0].local_day !== toLocalDay(nowMillis())) {
     return { current: 0, longest }
   }
 
@@ -175,7 +175,7 @@ export function getUnreviewedProblems(days = 30, limit = 50): UnreviewedProblem[
       title,
       canonical_url,
       last_visited_at,
-      CAST(julianday('now') - julianday(last_visited_at) AS INTEGER) as days_since
+      CAST((? - last_visited_at) / 86400000 AS INTEGER) as days_since
     FROM problems
     WHERE deleted_at IS NULL
       AND last_visited_at < ?
@@ -184,5 +184,5 @@ export function getUnreviewedProblems(days = 30, limit = 50): UnreviewedProblem[
     LIMIT ?
   `,
     )
-    .all(localDateDaysAgo(days), limit) as UnreviewedProblem[]
+    .all(nowMillis(), localDayBounds(localDateDaysAgo(days)).start, limit) as UnreviewedProblem[]
 }

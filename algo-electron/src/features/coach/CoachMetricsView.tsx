@@ -1,3 +1,4 @@
+import { formatForDisplay } from '@shared/time'
 import { useCallback, useMemo, useState } from 'react'
 import {
   Bar,
@@ -66,13 +67,8 @@ const FEEDBACK_COLORS: Record<string, string> = {
 /** 未知反馈类型的兜底色：中性墨色 token */
 const FEEDBACK_FALLBACK_COLOR = 'var(--color-ink-3)'
 
-function fmtTime(s: string | null | undefined): string {
-  if (!s) return '-'
-  const t = Date.parse(s)
-  if (Number.isNaN(t)) return s
-  const d = new Date(t)
-  const pad = (n: number) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
+function fmtTime(value: number | null | undefined): string {
+  return value == null ? '-' : formatForDisplay(value, { second: undefined })
 }
 
 export function CoachMetricsView({ onClose }: Props) {

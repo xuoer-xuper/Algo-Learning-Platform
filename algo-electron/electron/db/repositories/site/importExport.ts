@@ -1,4 +1,4 @@
-import { nowBeijing } from '../../../shared/time'
+import { nowMillis } from '../../../shared/time'
 import { unknownToText } from '../../../shared/textCoercion'
 import { createSite, getAllSites, getSiteById, updateSite } from './crud'
 import type { ImportPreviewResult, SiteConfigData, SitesExportData } from './types'
@@ -7,8 +7,8 @@ import { parseImportedSite } from './types'
 
 export function exportSitesConfig(): SitesExportData {
   return {
-    version: 1,
-    exportedAt: nowBeijing(),
+    version: 2,
+    exportedAt: nowMillis(),
     sites: getAllSites(),
   }
 }
@@ -19,7 +19,7 @@ export function previewImportSites(data: unknown): ImportPreviewResult {
   }
 
   const payload = data as { version?: unknown; sites?: unknown }
-  if (payload.version !== 1) {
+  if (payload.version !== 1 && payload.version !== 2) {
     return { valid: false, error: `不支持的配置版本: ${unknownToText(payload.version)}` }
   }
 

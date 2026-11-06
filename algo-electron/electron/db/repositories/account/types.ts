@@ -5,10 +5,10 @@ export interface PlatformAccountRow {
   display_name: string | null
   current_rating: number | null
   peak_rating: number | null
-  last_synced_at: string | null
+  last_synced_at: number | null
   raw_json: string | null
-  created_at: string
-  updated_at: string
+  created_at: number
+  updated_at: number
 }
 
 export interface RatingHistoryInput {
@@ -20,7 +20,7 @@ export interface RatingHistoryInput {
   ratingBefore?: number
   ratingAfter?: number
   delta?: number
-  contestAt?: string
+  contestAt?: number
   rawJson?: string
 }
 
@@ -34,7 +34,7 @@ export interface RatingHistoryRow {
   rating_before: number | null
   rating_after: number | null
   delta: number | null
-  contest_at: string | null
+  contest_at: number | null
   raw_json: string | null
-  created_at: string
+  created_at: number
 }

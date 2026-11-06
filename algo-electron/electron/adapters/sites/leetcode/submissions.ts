@@ -1,5 +1,5 @@
 import type { ProblemIdentity, SubmissionData } from '../../../shared/types'
-import { nowBeijing } from '../../../shared/time'
+import { nowMillis } from '../../../shared/time'
 import type { SubmissionDetectionPayload } from '../../types'
 import { normalizeVerdict } from '../../verdictMap'
 import { cleanBrowserProblemTitle } from '../../../parsers/browserTitle'
@@ -217,7 +217,7 @@ export function parseLeetcodeSubmissionResult(
       'language',
       'language_name',
     ]),
-    submittedAt: nowBeijing(),
+    submittedAt: nowMillis(),
     runtimeMs: parseRuntimeMs(
       getValue(response, [
         'runtime',

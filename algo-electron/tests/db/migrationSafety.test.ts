@@ -60,11 +60,11 @@ test('upgrades a pinned reconstructed v1 schema through the real Electron SQLite
     })
     assert.deepStrictEqual(
       database.prepare('SELECT MAX(version) AS version FROM schema_migrations').get(),
-      { version: 29 },
+      { version: 30 },
     )
     assert.deepStrictEqual(
       database.prepare('SELECT first_seen_at, typeof(first_seen_at) AS type FROM problems').get(),
-      { first_seen_at: legacyTime, type: 'text' },
+      { first_seen_at: Date.parse(legacyTime), type: 'integer' },
     )
     assert.deepStrictEqual(database.pragma('foreign_key_check'), [])
     assert.equal(database.pragma('integrity_check', { simple: true }), 'ok')

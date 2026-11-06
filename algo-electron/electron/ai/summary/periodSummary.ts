@@ -1,5 +1,5 @@
 // P6-007: 阶段学习总结，本地规则引擎，不调用大模型。
-import { nowBeijing } from '../../shared/time'
+import { nowMillis } from '../../shared/time'
 import { listSnapshots } from '../../db/repositories/aiContextSnapshotRepository'
 import {
   getStreakDays,
@@ -64,7 +64,7 @@ export function getPeriodSummary(input: PeriodSummaryInput): PeriodSummary {
   evidenceParts.push('数据来源于 ai_context_snapshots 和 statsRepository')
 
   return {
-    generated_at: nowBeijing(),
+    generated_at: nowMillis(),
     rule_version: RULE_VERSION,
     period: {
       type: getPeriodType(days),

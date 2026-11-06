@@ -1,6 +1,5 @@
 import { getDb } from '../../connection'
-import { todayBeijing } from '../../../shared/time'
-import { nextLocalDay } from '../stats/date'
+import { nowMillis, toLocalDay, localDayBounds } from '../../../shared/time'
 import type { OverviewStats, PlatformDistributionRow } from '../../../../src/shared/types/stats'
 
 export function getProblemCount(): number {
@@ -26,8 +25,8 @@ export function getPlatformDistribution(): PlatformDistributionRow[] {
 
 export function getTodayVisitedCount(): number {
   const db = getDb()
-  const today = todayBeijing()
-  const tomorrow = nextLocalDay(today)
+  const today = toLocalDay(nowMillis())
+  const { start, end } = localDayBounds(today)
   const row = db
     .prepare(
       `
@@ -36,11 +35,11 @@ export function getTodayVisitedCount(): number {
     WHERE entered_at >= ? AND entered_at < ?
   `,
     )
-    .get(today, tomorrow) as { count: number }
+    .get(start, end) as { count: number }
   return row.count
 }
 
-export function getLastActiveTime(): string | null {
+export function getLastActiveTime(): number | null {
   const db = getDb()
   const row = db
     .prepare(
@@ -49,7 +48,7 @@ export function getLastActiveTime(): string | null {
     ORDER BY occurred_at DESC LIMIT 1
   `,
     )
-    .get() as { occurred_at: string } | undefined
+    .get() as { occurred_at: number } | undefined
   return row?.occurred_at ?? null
 }
 

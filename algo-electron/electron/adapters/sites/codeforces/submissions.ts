@@ -1,5 +1,5 @@
 import type { ProblemIdentity, SubmissionData, Verdict } from '../../../shared/types'
-import { nowBeijing, toBeijing } from '../../../shared/time'
+import { nowMillis } from '../../../shared/time'
 import { pickFinalRealtimeSubmission } from '../../../submissions/realtimeSubmissionFilter'
 import {
   scanGenericSubmissionTable,
@@ -62,7 +62,7 @@ export function parseCodeforcesApiSubmission(submission: CodeforcesSubmission): 
     verdict: mapCodeforcesVerdict(submission.verdict),
     rawVerdict: submission.verdict,
     language: submission.programmingLanguage,
-    submittedAt: toBeijing(new Date(submission.creationTimeSeconds * 1000)),
+    submittedAt: submission.creationTimeSeconds * 1000,
     runtimeMs: submission.timeConsumedMillis,
     memoryKb:
       typeof submission.memoryConsumedBytes === 'number'
@@ -120,7 +120,7 @@ export function parseCodeforcesRealtimeTablePayload(
     ...table,
     rows: [table.rows[0]],
   }
-  const latestSubmissions = parseCodeforcesSubmissionTables([latestOnlyTable], { now: nowBeijing })
+  const latestSubmissions = parseCodeforcesSubmissionTables([latestOnlyTable], { now: nowMillis })
   return pickFinalRealtimeSubmission(latestSubmissions)
 }
 

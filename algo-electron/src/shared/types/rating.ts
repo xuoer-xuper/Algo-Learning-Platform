@@ -15,9 +15,9 @@ export const platformAccountSchema = z.object({
   display_name: z.string().nullable().optional(),
   current_rating: z.number().nullable().optional(),
   peak_rating: z.number().nullable().optional(),
-  last_synced_at: z.string().nullable().optional(),
-  created_at: z.string().optional(),
-  updated_at: z.string().optional(),
+  last_synced_at: z.number().int().nullable().optional(),
+  created_at: z.number().int().optional(),
+  updated_at: z.number().int().optional(),
 })
 
 /** platform_accounts 行的 IPC 投影（rating:getAccount / getAccounts / getCodeforcesAccount）。 */
@@ -33,7 +33,7 @@ export const ratingHistoryRecordSchema = z.object({
   rating_before: z.number().nullable().optional(),
   rating_after: z.number(),
   delta: z.number(),
-  contest_at: z.string().nullable().optional(),
+  contest_at: z.number().int().nullable().optional(),
 })
 
 /** rating_history 行的 IPC 投影（rating:getHistory）。 */

@@ -29,8 +29,8 @@ const ALL_FEEDBACK_TYPES: CoachFeedbackType[] = ['helpful', 'not_helpful', 'dism
 
 export interface CoachMetricsComputed {
   /** 统计窗口 */
-  since: string
-  until: string
+  since: number
+  until: number
   /** 1. 提示展示数（非审计类干预） */
   total_shown: number
   /** "再给一点"点击数 */
@@ -94,14 +94,14 @@ export function computeCoachMetrics(
 
   // 4. 干预后同题 AC 转化率
   //    有干预记录的题目中，存在 AC 且 AC 时间 >= 该题最早干预时间的题数
-  const acMap = new Map<string, string | null>()
+  const acMap = new Map<string, number | null>()
   for (const p of bundle.problem_ac_status) acMap.set(p.problem_id, p.first_ac_at)
   // 每题最早干预时间
   const earliestInterventionByProblem = new Map<string, number>()
   for (const i of shownInterventions) {
     if (!i.problem_id) continue
-    const t = Date.parse(i.created_at)
-    if (Number.isNaN(t)) continue
+    const t = i.created_at
+    if (!Number.isFinite(t)) continue
     const prev = earliestInterventionByProblem.get(i.problem_id)
     if (prev === undefined || t < prev) earliestInterventionByProblem.set(i.problem_id, t)
   }
@@ -109,9 +109,9 @@ export function computeCoachMetrics(
   let postInterventionAcCount = 0
   for (const [pid, earliest] of earliestInterventionByProblem) {
     const firstAcAt = acMap.get(pid) ?? null
-    if (!firstAcAt) continue
-    const acTs = Date.parse(firstAcAt)
-    if (Number.isNaN(acTs)) continue
+    if (firstAcAt === null) continue
+    const acTs = firstAcAt
+    if (!Number.isFinite(acTs)) continue
     if (acTs >= earliest) postInterventionAcCount++
   }
   const interventionProblemCount = interventionProblemIds.length

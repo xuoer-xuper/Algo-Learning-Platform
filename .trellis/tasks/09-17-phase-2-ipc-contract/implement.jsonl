@@ -5,6 +5,8 @@
 {"file": ".trellis/spec/project/historical-database-fixtures.md", "reason": "R5 reconstructed fixture provenance and isolated upgrades"}
 {"file": ".trellis/tasks/09-17-phase-2-ipc-contract/research/r5-git-history.md", "reason": "Pinned historic timestamp writer evidence and migration closure"}
 {"file": ".trellis/tasks/09-17-phase-2-ipc-contract/research/r5-reconstruction-plan.md", "reason": "Offline historical schema reconstruction and upgrade matrix"}
+{"file": ".trellis/tasks/09-17-phase-2-ipc-contract/research/r5-030-design.md", "reason": "030 atomic rebuild, strict legacy parser, explicit DB stats and AI JSON"}
+{"file": ".trellis/tasks/09-17-phase-2-ipc-contract/research/r5-fullstack-map.md", "reason": "Full-stack timestamp producer/consumer map and worker boundaries"}
 {"file": ".trellis/tasks/09-17-phase-2-ipc-contract/research/r4-data-refresh.md", "reason": "R4 writer transactions, reader inventory and integration tests"}
 {"file": ".trellis/tasks/archive/2026-09/00-bootstrap-guidelines/research/spec-alignment-plan.md", "reason": "本阶段步骤与决策编号"}
 {"file": ".trellis/spec/frontend/ipc-electron.md", "reason": "window.api、channel 常量、数据刷新订阅"}

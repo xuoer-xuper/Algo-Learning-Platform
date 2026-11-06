@@ -82,7 +82,7 @@ function test(name: string, fn: () => void) {
 }
 
 const day = '2026-07-03'
-const now = `${day}T10:00:00+08:00`
+const now = Date.parse(`${day}T10:00:00+08:00`)
 
 test('publishes script changes after native commit and suppresses failed nested writes', () => {
   const events: DataChangedPayload[] = []
@@ -139,7 +139,7 @@ interface ProblemRow {
   status: string
   contest_id: string | null
   problem_index: string | null
-  first_solved_at: string | null
+  first_solved_at: number | null
 }
 
 interface DailyStatsRow {
@@ -190,8 +190,8 @@ function insertVisit(
     'session-repository-test',
     problem.platform,
     problem.canonical_url,
-    `${day}T09:00:00+08:00`,
-    `${day}T09:05:00+08:00`,
+    Date.parse(`${day}T09:00:00+08:00`),
+    Date.parse(`${day}T09:05:00+08:00`),
     durationSeconds,
     activeSeconds,
     'test',
@@ -223,7 +223,7 @@ function seedCodeforcesSubmissions(problem: ProblemRow): void {
       verdict: 'WA',
       rawVerdict: 'WRONG_ANSWER',
       language: 'GNU C++23',
-      submittedAt: `${day}T10:00:00+08:00`,
+      submittedAt: Date.parse(`${day}T10:00:00+08:00`),
       runtimeMs: 15,
       memoryKb: 800,
       sourceUrl: 'https://codeforces.com/contest/1000/submission/1',
@@ -239,7 +239,7 @@ function seedCodeforcesSubmissions(problem: ProblemRow): void {
       verdict: 'AC',
       rawVerdict: 'OK',
       language: 'GNU C++23',
-      submittedAt: `${day}T10:02:00+08:00`,
+      submittedAt: Date.parse(`${day}T10:02:00+08:00`),
     }),
     true,
   )
@@ -250,7 +250,7 @@ test('runs migrations into a temporary database', () => {
   const migrations = db.prepare('SELECT COUNT(*) as count FROM schema_migrations').get() as {
     count: number
   }
-  assert.strictEqual(migrations.count, 29)
+  assert.strictEqual(migrations.count, 30)
 
   const tables = db
     .prepare(
@@ -293,7 +293,7 @@ test('persists cookie metadata without storing cookie values or enabling sync', 
     siteId: 'leetcode-cn',
     domain: 'leetcode.cn',
     name: 'LEETCODE_SESSION',
-    expiresAt: '2026-07-10T00:00:00.000Z',
+    expiresAt: Date.parse('2026-07-10T00:00:00.000Z'),
     httpOnly: true,
     secure: true,
     sameSite: 'no_restriction',
@@ -309,7 +309,7 @@ test('persists cookie metadata without storing cookie values or enabling sync', 
     siteId: 'leetcode-cn',
     domain: 'leetcode.cn',
     name: 'LEETCODE_SESSION',
-    expiresAt: '2026-07-11T00:00:00.000Z',
+    expiresAt: Date.parse('2026-07-11T00:00:00.000Z'),
     httpOnly: true,
     secure: true,
     sameSite: 'lax',
@@ -317,7 +317,7 @@ test('persists cookie metadata without storing cookie values or enabling sync', 
   })
 
   assert.strictEqual(updated.id, first.id)
-  assert.strictEqual(updated.expires_at, '2026-07-11T00:00:00.000Z')
+  assert.strictEqual(updated.expires_at, Date.parse('2026-07-11T00:00:00.000Z'))
   assert.strictEqual(updated.same_site, 'lax')
 
   replaceCookieMetadataForDomain('leetcode-cn', 'www.leetcode.cn', [
@@ -426,7 +426,7 @@ test('deduplicates submissions and updates first AC metadata', () => {
       verdict: 'WA',
       rawVerdict: 'WRONG_ANSWER',
       language: 'GNU C++23',
-      submittedAt: `${day}T10:00:00+08:00`,
+      submittedAt: Date.parse(`${day}T10:00:00+08:00`),
       runtimeMs: 15,
       memoryKb: 800,
       sourceUrl: 'https://codeforces.com/contest/1000/submission/1',
@@ -440,7 +440,7 @@ test('deduplicates submissions and updates first AC metadata', () => {
       platformSubmissionId: 'cf-1',
       problemId: problem.id,
       verdict: 'AC',
-      submittedAt: `${day}T10:01:00+08:00`,
+      submittedAt: Date.parse(`${day}T10:01:00+08:00`),
     }),
     false,
   )
@@ -453,7 +453,7 @@ test('deduplicates submissions and updates first AC metadata', () => {
       verdict: 'AC',
       rawVerdict: 'OK',
       language: 'GNU C++23',
-      submittedAt: `${day}T10:02:00+08:00`,
+      submittedAt: Date.parse(`${day}T10:02:00+08:00`),
     }),
     true,
   )
@@ -480,7 +480,7 @@ test('deduplicates submissions and updates first AC metadata', () => {
   updateFirstAc(problem.id)
   const updatedProblem = getProblemByPlatformId(db, 'codeforces', '1000A')
   assert.strictEqual(updatedProblem.status, 'solved')
-  assert.strictEqual(updatedProblem.first_solved_at, `${day}T10:02:00+08:00`)
+  assert.strictEqual(updatedProblem.first_solved_at, Date.parse(`${day}T10:02:00+08:00`))
 
   const detail = getProblemDetail(problem.id)
   assert.ok(detail)
@@ -566,7 +566,7 @@ test('manages accounts and rating history with stable deduplication', () => {
       ratingBefore: 3800,
       ratingAfter: 3900,
       delta: 100,
-      contestAt: `${day}T09:00:00+08:00`,
+      contestAt: Date.parse(`${day}T09:00:00+08:00`),
     }),
     true,
   )
@@ -589,7 +589,7 @@ test('manages accounts and rating history with stable deduplication', () => {
       ratingBefore: 3900,
       ratingAfter: 4050,
       delta: 150,
-      contestAt: `${day}T11:00:00+08:00`,
+      contestAt: Date.parse(`${day}T11:00:00+08:00`),
     }),
     true,
   )
@@ -711,12 +711,12 @@ test('creates AI context snapshots idempotently and parses stored context', () =
 
   assert.strictEqual(second.id, first.id)
   assert.strictEqual(second.snapshot_date, first.snapshot_date)
-  assert.strictEqual(first.schema_version, 1)
+  assert.strictEqual(first.schema_version, 2)
 
   const snapshot = getSnapshotByDate(first.snapshot_date)
   assert.ok(snapshot)
   assert.strictEqual(snapshot.id, first.id)
-  assert.strictEqual(snapshot.context.schema_version, 1)
+  assert.strictEqual(snapshot.context.schema_version, 2)
   assert.strictEqual(snapshot.context.overview.total_problems, 0)
   assert.strictEqual(snapshot.context.overview.total_submissions, 0)
 

@@ -135,6 +135,10 @@ declare global { interface Window { api: typeof api } }
   用完整事务与 `foreign_key_check` 防止级联删除，不在事务中假装 `foreign_keys=OFF` 生效。
 - 统计重算使用显式传入的迁移 DB；迁移运行时全局 getDb 尚未赋值。毫秒迁移后按实际
   时刻派生 local_day，UTC/offset 跨日造成的正确重分组要与期望比较，不强求旧错误聚合一致。
+- 旧统计曾对 `.0` 毫秒文本使用 `substr(...,1,10)`，生成十位数字伪日期桶；实库副本各5个，
+  含已无事实对应的旧缓存。仅030识别 `^\d{10}$` 的该已知衍生缓存并删除后按全部事实重建，
+  原缓存由升级前备份保留；有效日期桶保留元数据，其他非法日期仍拒绝。不得删除事实行或
+  把十位数字猜成日期，也不在日常重算入口悄悄清理任意非法数据。
 - 不修改已发布 001–029。它们仍直接 import `nowBeijing`：允许冻结的旧迁移兼容 helper
   保留为唯一生产调用例外；新的 repository/IPC 不得再使用。删除 helper 必须先设计完整
   legacy migration 隔离，不以破坏旧迁移换取 grep 为零。
@@ -142,6 +146,10 @@ declare global { interface Window { api: typeof api } }
 - 转换 parser 接受明确的 local/fixed-UTC+8 策略，支持带 Z/offset 和已知 T/空格 wall-time
   格式；严格验证日期和毫秒，nullable 原值保留 NULL，非法非空值抛错。DST gap/fold 行为
   必须由独立时区测试固定，不采用一次猜测 offset 的算法。
+- **2026-11-05 实际副本补充证据**：早期洛谷提交 `5f0c96c` 将 `submitTime * 1000`
+  直接绑定 TEXT 列，better-sqlite3/SQLite 会保存为十进制整数加 `.0` 的字符串。
+  parser 明确兼容 `^-?(0|[1-9]\d*)\.0+$`，按**毫秒原值**做安全整数/Date范围校验；
+  不乘1000、不按长度猜秒，不接受任意数值字符串、非零小数或溢出。此分支与时区策略无关。
 - 表重建方案需在 030 实施评审时确定：82 列、完整外键/索引/约束保留，在真正提交后才
   发布刷新；不是“每表嵌套事务即可隔离”。
 - `local_day` 保持字符串分组键，由毫秒+系统时区派生；迁移使用显式 DB 的重算入口。
@@ -156,3 +164,39 @@ declare global { interface Window { api: typeof api } }
   扩展到30并检查行数、关系、类型、值和回滚；现有真实样本副本作为分开报告的本地补充证据。
 - 契约：`tests/ipc/channels.test.ts`、`preloadSurface.test.ts`、`apiConsumers.test.ts`（每个 preload 方法有调用者）。
 - UI：Playwright `dataRefresh.pw.spec.ts`。
+
+## 8. R5 实施契约（2026-11-04）
+
+- 纯时间函数放 `src/shared/time.ts`：`nowMillis()`、`toLocalDay(ms)`、
+  `formatForDisplay(ms, options?)`、`localDayBounds(day)`、`shiftLocalDay(day, days)`。
+  local_day/startDate/endDate 等日历键仍是 YYYY-MM-DD；duration/秒数、HTTP validator 不变。
+- `electron/shared/time.ts` 转导出新的毫秒 helper，同时仅保留冻结 `nowBeijing()` 供旧
+  001–029 migration 使用；其余当前业务写入必须改 numeric，不用同名字符串 helper 混过检查。
+- `electron/shared/legacyTimestamp.ts` 提供 `parseLegacyTimestamp(value, policy, location?)`：
+  value 为 string/number/null，policy 为 `'local'|'utc8'`；已有安全整数毫秒保持，NULL保持；
+  显式Z/offset优先，严格 T/空格年月日时分秒（可有1–3位小数），无后缀按 policy。
+  日历溢出和DST gap拒绝，DST fold采用JS兼容的较早时刻，测试明确该不可恢复歧义。
+  错误只含表/列等元数据，不输出原始敏感字段值。
+  兼容早期SQLite TEXT affinity保留的整数毫秒 `.0+` 形状，见本节及历史来源记录；
+  这是精确旧写入表示转换，不是宽松数字/秒数猜测。
+- `electron/db/timestampColumns.ts` 是82列与时区策略显式清单；其他数据/用户JSON不自动识别。
+  `Migration.requiresForeignKeysDisabled` 仅030使用；runner在事务外关闭FK，拒绝已有外层事务，
+  一次事务执行up、重新prepare台账INSERT、foreign_key_check，成功后提交；finally恢复FK。
+  030.up必须断言已在事务内且FK关闭，不能被普通旧runner直接调用。
+- 030捕获sqlite_schema表/index/trigger定义，按明确列名替换TEXT类型、创建临时新表并复制转换后行，
+  drop原表后rename新表回原名，再重建index/trigger；不rename旧表以免SQLite自动改写外键引用。
+  保留所有其他列、CHECK/UNIQUE/BLOB及关系，最终FK/integrity验收；失败由原安全入口恢复备份。
+- 台账 applied_at 一起变INTEGER；runner按实际列affinity写字符串（旧阶段）或数值（030后），
+  不能在重建台账前缓存INSERT statement；新库仍顺序执行1–29，再030，不修改已发布文件。
+- 统计计算拆DB显式参数helper，migration可调用不依赖全局getDb；转换后对旧bucket与新fact日键
+  并集重算，旧已空bucket置零保留元数据。activity/feedback local_day从转换后时刻更新。
+- AI context schema_version升2，仅转换已定义 `exported_at`、wrong_problems[].last_attempt、
+  unreviewed_problems[].last_visited_at、recent_activity[].occurred_at；同步row版本，
+  任意raw_json/user-script values/content不递归改写。无法识别的非空context版本安全失败。
+- 学习导出 schema_version升2；parse/preview/import均先统一规范化，v1字符串按local历史契约
+  转数值，v2必须数值；预览与确认相同语义。`markAffected` 明确区分毫秒值和local_day键。
+- 全部跨IPC的时间点（含diagnostics/realtime/download/待安装/Coach指标快照）统一数值；
+  外部站点日期在adapter/受控注入桥入口转换，上游秒数显式乘1000，不能靠Number日期字符串。
+- 三个worker所有权：core负责DB/迁移/纯时间/legacy parser及DB测试；runtime负责DB以外主进程
+  业务/backup/adapters/Coach及其测试；shared-renderer负责schema/preload/renderer及components/UI。
+  相互文件不覆盖，类型变更期间的跨worker失败集中集成后验证。

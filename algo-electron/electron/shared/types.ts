@@ -22,7 +22,7 @@ export interface SubmissionData {
   verdict: Verdict
   rawVerdict?: string
   language?: string
-  submittedAt: string
+  submittedAt: number
   runtimeMs?: number
   memoryKb?: number
   sourceUrl?: string

@@ -1,4 +1,4 @@
-import { nowBeijing } from '../shared/time'
+import { nowMillis } from '../shared/time'
 import { logger as baseLogger, type Logger } from '../shared/logger'
 import { errorMessage } from '../shared/errors'
 import type { BrowserDiagnosticsSnapshot } from '../../src/shared/types/browser'
@@ -12,7 +12,7 @@ export interface BrowserDiagnosticEntry {
   status: BrowserDiagnosticStatus
   url?: string
   detail?: string
-  at: string
+  at: number
 }
 
 const MAX_ENTRIES = 100
@@ -38,7 +38,7 @@ export class BrowserDiagnostics {
       status,
       url: options.url,
       detail: options.detail === undefined ? undefined : errorMessage(options.detail),
-      at: nowBeijing(),
+      at: nowMillis(),
     }
     this.entries.push(entry)
     if (this.entries.length > MAX_ENTRIES) this.entries.splice(0, this.entries.length - MAX_ENTRIES)

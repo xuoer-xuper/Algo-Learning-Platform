@@ -18,7 +18,7 @@ export const reviewRecommendationSchema = z.object({
   score: z.number(),
   source: z.object({
     wrong_count: z.number(),
-    last_attempt: z.string(),
+    last_attempt: z.number().int(),
     days_since_attempt: z.number(),
     visit_count: z.number(),
     has_ac: z.boolean(),
@@ -29,7 +29,7 @@ export const reviewRecommendationSchema = z.object({
 export type ReviewRecommendation = z.infer<typeof reviewRecommendationSchema>
 
 export const reviewRecommendationResultSchema = z.object({
-  generated_at: z.string(),
+  generated_at: z.number().int(),
   rule_version: z.number(),
   recommendations: z.array(reviewRecommendationSchema),
 })
@@ -53,7 +53,7 @@ export const tagWeaknessSchema = z.object({
 export type TagWeakness = z.infer<typeof tagWeaknessSchema>
 
 export const weaknessAnalysisResultSchema = z.object({
-  generated_at: z.string(),
+  generated_at: z.number().int(),
   rule_version: z.number(),
   weaknesses: z.array(tagWeaknessSchema),
   data_note: z.string(),
@@ -77,8 +77,8 @@ export type AIOutputSaveInput = z.infer<typeof aiOutputSaveInputSchema>
 
 export const aiOutputRecordSchema = aiOutputSaveInputSchema.extend({
   id: z.string(),
-  created_at: z.string().optional(),
-  updated_at: z.string().optional(),
+  created_at: z.number().int().optional(),
+  updated_at: z.number().int().optional(),
 })
 
 /** ai_outputs 表行的 IPC 投影（ai:getOutput / listOutputs）。 */

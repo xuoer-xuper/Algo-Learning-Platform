@@ -51,8 +51,8 @@ function createCoordinator(options: { credentialCount?: number; delayed?: boolea
     displayName: null,
     masked: '********',
     lastUsedAt: null,
-    createdAt: 'now',
-    updatedAt: 'now',
+    createdAt: 0,
+    updatedAt: 0,
   }))
   const coordinator = new CredentialAutofillCoordinator({
     getSites: () => [
@@ -121,8 +121,8 @@ test('fills only the explicitly selected account and drops a selection after nav
       displayName: null,
       masked: '********',
       lastUsedAt: null,
-      createdAt: 'now',
-      updatedAt: 'now',
+      createdAt: 0,
+      updatedAt: 0,
     },
     {
       credentialId: 'credential-2',
@@ -131,8 +131,8 @@ test('fills only the explicitly selected account and drops a selection after nav
       displayName: 'Primary',
       masked: '********',
       lastUsedAt: null,
-      createdAt: 'now',
-      updatedAt: 'now',
+      createdAt: 0,
+      updatedAt: 0,
     },
   ]
   /*

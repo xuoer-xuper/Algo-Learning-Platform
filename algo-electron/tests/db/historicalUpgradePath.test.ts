@@ -11,6 +11,8 @@ import {
   MigrationRetryBlockedError,
 } from '../../electron/backup/sqliteMigrationBackup'
 import provenance from './fixtures/provenance.json'
+import { TIMESTAMP_COLUMNS } from '../../electron/db/timestampColumns'
+import { toLocalDay } from '../../src/shared/time'
 
 const fixtureRoot = path.join(process.cwd(), 'tests/db/fixtures')
 const directories: string[] = []
@@ -277,6 +279,49 @@ function backupFiles(backupDir: string): string[] {
     : []
 }
 
+function convertedFacts(facts: ReturnType<typeof stableFacts>) {
+  return Object.fromEntries(
+    Object.entries(facts).map(([table, rows]) => [
+      table,
+      (rows as Record<string, unknown>[]).map((row) =>
+        Object.fromEntries(
+          Object.entries(row).map(([key, value]) => {
+            const specification = TIMESTAMP_COLUMNS[table]
+            if (value === null || !specification?.columns.includes(key)) return [key, value]
+            const text = String(value)
+            const zoned = /(?:Z|[+-]\d{2}:\d{2})$/.test(text)
+            return [
+              key,
+              Date.parse(text + (!zoned && specification.policy === 'utc8' ? '+08:00' : '')),
+            ]
+          }),
+        ),
+      ),
+    ]),
+  )
+}
+
+function assertNumericTimes(db: Database.Database) {
+  expect(Object.values(TIMESTAMP_COLUMNS).reduce((sum, item) => sum + item.columns.length, 0)).toBe(
+    82,
+  )
+  for (const [table, specification] of Object.entries(TIMESTAMP_COLUMNS)) {
+    const metadata = db.pragma(`table_info(${table})`) as { name: string; type: string }[]
+    for (const column of specification.columns) {
+      expect(metadata.find((item) => item.name === column)?.type, `${table}.${column}`).toBe(
+        'INTEGER',
+      )
+      expect(
+        db
+          .prepare(
+            `SELECT 1 FROM ${table} WHERE ${column} IS NOT NULL AND typeof(${column}) != 'integer'`,
+          )
+          .all(),
+      ).toEqual([])
+    }
+  }
+}
+
 describe('pinned historical schema reconstruction', () => {
   it('should identify synthetic fixtures and their complete pinned provenance without Git at test time', () => {
     expect(provenance.kind).toBe('historical-schema-reconstruction-with-synthetic-test-data')
@@ -303,7 +348,7 @@ describe('pinned historical schema reconstruction', () => {
   })
 
   it.each(provenance.releases)(
-    'should safely upgrade $tag schema $version to 29 without changing historical TEXT instants',
+    'should safely upgrade $tag schema $version to 30 with numeric instants and preserved facts',
     async (release) => {
       const { dbPath, backupDir } = temporaryPaths()
       createHistoricalDatabase(dbPath, release)
@@ -315,21 +360,53 @@ describe('pinned historical schema reconstruction', () => {
         now: () => new Date('2026-11-04T00:00:00Z'),
       })
       expect(db.prepare('SELECT MAX(version) AS version FROM schema_migrations').get()).toEqual({
-        version: 29,
+        version: 30,
       })
       expect(
         db.prepare('SELECT version, name FROM schema_migrations ORDER BY version').all(),
-      ).toEqual(provenance.releases[2].migrations)
-      expect(stableFacts(db)).toEqual(before)
+      ).toEqual([
+        ...provenance.releases[2].migrations,
+        { version: 30, name: 'timestamps_to_unix_ms' },
+      ])
+      const expectedFacts = convertedFacts(before)
+      const actualFacts = stableFacts(db)
+      expect({ ...actualFacts, user_daily_stats: undefined }).toEqual({
+        ...expectedFacts,
+        user_daily_stats: undefined,
+      })
+      assertNumericTimes(db)
+      const expectedStats = db
+        .prepare(
+          'SELECT duration_seconds, visited_problem_count, submission_count, ac_submission_count FROM user_daily_stats WHERE local_day = ?',
+        )
+        .get(toLocalDay(Date.parse(LOCAL)))
+      expect(expectedStats).toEqual({
+        duration_seconds: 60,
+        visited_problem_count: 1,
+        submission_count: toLocalDay(Date.parse(OFFSET)) === toLocalDay(Date.parse(LOCAL)) ? 1 : 0,
+        ac_submission_count:
+          toLocalDay(Date.parse(OFFSET)) === toLocalDay(Date.parse(LOCAL)) ? 1 : 0,
+      })
       expect(db.pragma('foreign_key_check')).toEqual([])
       expect(db.pragma('integrity_check', { simple: true })).toBe('ok')
       expect(db.prepare('SELECT typeof(first_seen_at) AS type FROM problems').get()).toEqual({
-        type: 'text',
+        type: 'integer',
       })
       const expected = new Database(':memory:')
       try {
         expected.exec(fs.readFileSync(path.join(fixtureRoot, 'rc1.schema.sql'), 'utf8'))
-        expect(schemaObjects(db)).toEqual(schemaObjects(expected))
+        const beforeObjects = schemaObjects(expected) as {
+          type: string
+          name: string
+          sql: string
+        }[]
+        const afterObjects = schemaObjects(db) as { type: string; name: string; sql: string }[]
+        expect(afterObjects.map(({ type, name }) => ({ type, name }))).toEqual(
+          beforeObjects.map(({ type, name }) => ({ type, name })),
+        )
+        expect(afterObjects.filter(({ type }) => type === 'index')).toEqual(
+          beforeObjects.filter(({ type }) => type === 'index'),
+        )
       } finally {
         expected.close()
       }
@@ -371,7 +448,7 @@ describe('pinned historical schema reconstruction', () => {
         })
       }
       const backups = backupFiles(backupDir)
-      expect(backups).toHaveLength(release.version < 29 ? 1 : 0)
+      expect(backups).toHaveLength(1)
       if (backups[0]) {
         const backup = new Database(path.join(backupDir, backups[0]), { readonly: true })
         try {
@@ -387,8 +464,11 @@ describe('pinned historical schema reconstruction', () => {
       const reopened = await initDbAtPathWithMigrationSafety(dbPath, { backupDir })
       expect(
         reopened.prepare('SELECT version, name FROM schema_migrations ORDER BY version').all(),
-      ).toEqual(provenance.releases[2].migrations)
-      expect(stableFacts(reopened)).toEqual(before)
+      ).toEqual([
+        ...provenance.releases[2].migrations,
+        { version: 30, name: 'timestamps_to_unix_ms' },
+      ])
+      expect(stableFacts(reopened)).toEqual(actualFacts)
       expect(backupFiles(backupDir)).toEqual(backups)
     },
   )

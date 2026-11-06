@@ -8,7 +8,7 @@ import {
 } from '../../electron/submissions/scrapers/GenericTableScanner.ts'
 
 test('submissions/genericTableScanner.test.ts', async () => {
-  const fixedNow = () => '2026-06-29 20:00:00'
+  const fixedNow = () => Date.parse('2026-06-29T20:00:00')
 
   const nowcoderTable: GenericTableData = {
     headers: ['运行ID', '题号', '运行结果', '使用语言', '运行时间', '使用内存'],

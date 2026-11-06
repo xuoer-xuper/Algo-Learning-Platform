@@ -20,7 +20,9 @@ vi.mock('better-sqlite3', async () => {
         if (!fsModule.existsSync(databasePath)) fsModule.writeFileSync(databasePath, 'original')
       }
 
-      pragma(): void {}
+      pragma(name: string) {
+        return name === 'table_info(schema_migrations)' ? [{ name: 'applied_at', type: 'TEXT' }] : 1
+      }
       exec(): void {}
       close(): void {}
 

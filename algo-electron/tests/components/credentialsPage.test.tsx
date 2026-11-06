@@ -38,8 +38,8 @@ beforeEach(() => {
       displayName: 'Primary',
       masked: '********',
       lastUsedAt: null,
-      createdAt: 'now',
-      updatedAt: 'now',
+      createdAt: 0,
+      updatedAt: 0,
     },
   ])
   api.loadCookieSummaryForSite.mockResolvedValue({ has_cookies: true, domains: [] })

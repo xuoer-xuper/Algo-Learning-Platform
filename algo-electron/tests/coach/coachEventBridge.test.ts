@@ -202,11 +202,7 @@ test('会话与题目上下文由注入的 provider 决定，缺 provider 时落
   )
   assert.equal(event.platform, 'codeforces', 'platform 取自 notification')
   assert.equal(event.evidence.problem_rating, 1500)
-  assert.match(
-    event.created_at,
-    /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}$/,
-    '时间戳用本地时间，不带 Z 后缀',
-  )
+  assert.ok(Number.isSafeInteger(event.created_at), '事件时间戳使用 Unix 毫秒')
   assert.match(event.event_id, /^[0-9a-f-]{36}$/, 'event_id 应是 uuid')
 
   // 无 provider 的实例：三项都必须是 null，而不是 undefined——落库列不允许 undefined。

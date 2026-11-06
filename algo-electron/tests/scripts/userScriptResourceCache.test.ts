@@ -41,7 +41,7 @@ test('downloads resources in declaration order, verifies SRI, and stores bounded
     },
     {
       fetch,
-      now: () => '2026-08-20 10:00:00',
+      now: () => Date.parse('2026-08-20 10:00:00'),
     },
   )
 
@@ -63,7 +63,7 @@ test('downloads resources in declaration order, verifies SRI, and stores bounded
         'https://cdn.example.com/dependency.js',
         'utf8',
         'application/javascript',
-        '2026-08-20 10:00:00',
+        Date.parse('2026-08-20 10:00:00'),
       ],
       [
         'resource',
@@ -72,7 +72,7 @@ test('downloads resources in declaration order, verifies SRI, and stores bounded
         'https://cdn.example.com/theme.css',
         'binary',
         'text/css',
-        '2026-08-20 10:00:00',
+        Date.parse('2026-08-20 10:00:00'),
       ],
     ],
   )

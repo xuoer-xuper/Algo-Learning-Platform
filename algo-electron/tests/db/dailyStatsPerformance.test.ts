@@ -13,7 +13,7 @@ const targetDay = '2026-06-15'
 try {
   initDbAtPath(dbPath)
   const database = getDb()
-  const createdAt = '2025-01-01T00:00:00.000'
+  const createdAt = Date.parse('2025-01-01T00:00:00.000')
   database
     .prepare(
       `
@@ -48,7 +48,7 @@ try {
         String(day.getDate()).padStart(2, '0'),
       ].join('-')
       for (let row = 0; row < 20; row += 1) {
-        const timestamp = `${localDay}T10:${String(row).padStart(2, '0')}:00.000`
+        const timestamp = Date.parse(`${localDay}T10:${String(row).padStart(2, '0')}:00.000`)
         const id = `${dayOffset}-${row}`
         insertVisit.run(`visit-${id}`, timestamp, timestamp, timestamp, timestamp)
         insertSubmission.run(

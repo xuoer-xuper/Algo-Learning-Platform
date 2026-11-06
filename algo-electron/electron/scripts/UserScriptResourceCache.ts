@@ -1,6 +1,6 @@
 import { createHash, timingSafeEqual } from 'node:crypto'
 import type { UserScriptResourceWriteInput } from '../db/repositories/userScriptRuntimeRepository'
-import { nowChinaStandardTime } from '../shared/time'
+import { nowMillis } from '../shared/time'
 import type { UserScriptMetadata, UserScriptResourceReference } from './userScriptMetadata'
 import { resolveUserScriptRequestTarget } from './userScriptConnectPolicy'
 
@@ -23,7 +23,7 @@ export type PreparedUserScriptResource = Omit<UserScriptResourceWriteInput, 'scr
 interface PrepareUserScriptResourcesOptions {
   fetch: (input: string, init: RequestInit) => Promise<Response>
   allowInsecureLocalhost?: boolean
-  now?: () => string
+  now?: () => number
   signal?: AbortSignal
 }
 
@@ -96,7 +96,7 @@ export async function prepareUserScriptResources(
       contentEncoding: declaration.kind === 'require' ? 'utf8' : 'binary',
       contentType: downloaded.contentType,
       integrity: downloaded.integrity,
-      fetchedAt: (options.now ?? nowChinaStandardTime)(),
+      fetchedAt: (options.now ?? nowMillis)(),
     })
   }
   return prepared

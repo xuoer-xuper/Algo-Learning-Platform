@@ -19,6 +19,7 @@
   - `CHART_COLORS`：统计图表通用颜色序列。
 - `errors.ts`
   - `errorMessage(error: unknown)`：把未知 reject 原因转成可展示文案。各面板原先各写一遍 `e instanceof Error ? e.message : String(e)`，对主进程返回的普通对象会得到 `[object Object]`；这里补上对象与空 message 分支，作为唯一入口。
+- `time.ts`：纯Unix毫秒、local_day边界和展示函数，主进程与renderer共用；日期键按日历推进，epoch0有效，无Node/Electron依赖。
 
 ## 3. 边界规则
 

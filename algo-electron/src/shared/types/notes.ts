@@ -14,7 +14,7 @@ export const noteRecordSchema = z.object({
   content: z.string(),
   note_type: z.string(),
   word_count: z.number(),
-  updated_at: z.string(),
+  updated_at: z.number().int(),
 })
 
 /** 笔记元数据行（notes:listByProblem / get / create 的输出）。 */

@@ -1,3 +1,4 @@
+import { formatForDisplay } from '@shared/time'
 import { useMemo } from 'react'
 import { Bar, BarChart, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { loadProblemTimeline } from './coachDataApi'
@@ -26,7 +27,7 @@ type TimelinePointKind = 'visit' | 'submission' | 'event' | 'intervention' | 'ac
 
 interface TimelinePoint {
   kind: TimelinePointKind
-  time: string
+  time: number
   timestamp: number
   title: string
   subtitle: string
@@ -65,18 +66,12 @@ const INTERVENTION_LEVEL_LABELS: Record<number, string> = {
   5: 'L5 概念/标签',
 }
 
-function parseTs(s: string | null | undefined): number {
-  if (!s) return NaN
-  return Date.parse(s)
+function parseTs(value: number | null | undefined): number {
+  return value == null ? NaN : value
 }
 
-function fmtTime(s: string | null | undefined): string {
-  if (!s) return '-'
-  const t = parseTs(s)
-  if (Number.isNaN(t)) return s
-  const d = new Date(t)
-  const pad = (n: number) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
+function fmtTime(value: number | null | undefined): string {
+  return value == null ? '-' : formatForDisplay(value)
 }
 
 function fmtDuration(seconds: number): string {
@@ -114,9 +109,10 @@ export function SessionTimelineView({ problemId, onClose }: Props) {
         time: v.entered_at,
         timestamp: parseTs(v.entered_at),
         title: '进入题目',
-        subtitle: v.left_at
-          ? `停留 ${fmtDuration(v.duration_seconds ?? 0)}（活跃 ${fmtDuration(v.active_seconds ?? 0)}）`
-          : '尚未离开',
+        subtitle:
+          v.left_at !== null
+            ? `停留 ${fmtDuration(v.duration_seconds ?? 0)}（活跃 ${fmtDuration(v.active_seconds ?? 0)}）`
+            : '尚未离开',
         color: STATUS_COLORS.visited,
         icon: KIND_META.visit.icon,
         detail: v.url,
@@ -198,10 +194,10 @@ export function SessionTimelineView({ problemId, onClose }: Props) {
 
     // 思考时间 = 首次进入 → 首次提交
     let thinkingSeconds = 0
-    if (firstVisit && firstSubmit) {
+    if (firstVisit != null && firstSubmit != null) {
       const diff = (parseTs(firstSubmit) - parseTs(firstVisit)) / 1000
       thinkingSeconds = diff > 0 ? diff : 0
-    } else if (firstVisit && lastActivity) {
+    } else if (firstVisit != null && lastActivity != null) {
       // 无提交：全部视为思考/卡壳时间
       const diff = (parseTs(lastActivity) - parseTs(firstVisit)) / 1000
       thinkingSeconds = diff > 0 ? diff : 0
@@ -209,7 +205,7 @@ export function SessionTimelineView({ problemId, onClose }: Props) {
 
     // 实现时间 = 首次提交 → 末次提交（或 AC）
     let codingSeconds = 0
-    if (firstSubmit && lastSubmit) {
+    if (firstSubmit != null && lastSubmit != null) {
       const diff = (parseTs(lastSubmit) - parseTs(firstSubmit)) / 1000
       codingSeconds = diff > 0 ? diff : 0
     }

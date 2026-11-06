@@ -101,7 +101,7 @@ export const managedDownloadResultSchema = z.object({
   state: z.enum(['completed', 'cancelled', 'interrupted']),
   receivedBytes: z.number(),
   totalBytes: z.number(),
-  finishedAt: z.string(),
+  finishedAt: z.number().int(),
   errorCode: z.enum(['path-setup-failed', 'intercept-failed']).optional(),
 })
 
@@ -116,7 +116,7 @@ export const browserDiagnosticsSnapshotSchema = z.object({
       status: z.enum(['success', 'failed', 'skipped']),
       url: z.string().optional(),
       detail: z.string().optional(),
-      at: z.string(),
+      at: z.number().int(),
     }),
   ),
 })

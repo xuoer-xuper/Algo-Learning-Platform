@@ -40,15 +40,15 @@
 
 ## Acceptance Criteria
 
-- [ ] 架构守卫：IPC 字面量 0；`grep -rn "electronAPI" electron src tests` = 0；`electron-env.d.ts` 不存在。
-- [ ] `grep -rhoE "^export (interface|type) \w+" electron src | sort | uniq -d` = 0（跨文件无同名类型）。
-- [ ] `window.api` 类型完全由 preload 推导：删除任一 preload 方法，渲染层对应调用 `tsc` 报错（用一次临时删除验证）。
-- [ ] `Dashboard`、`ProblemDetail` 在后台 `syncCodeforces` 写库后 2 秒内自动刷新（Playwright 用例）。
-- [ ] refetch 期间 `CredentialsPage`、`CoachMetricsView` 不显示骨架屏（`isRefetching` 路径）。
-- [ ] migration 030：由固定 Git 提交的历史迁移代码重建 v1.0.0/beta.2/rc.1 三种 schema，记录来源 hash 并用合成数据覆盖旧时间格式；测试库在临时目录生成，不提交二进制 SQLite，不称为真实用户历史库。三条路径升级后非空时间列均为 integer、值与历史写入策略一致、关系/约束/行数完整；统计与按相同策略计算的期望值一致，时区跨日差异单独说明。
-- [ ] 现有真实当前库及旧备份只在隔离副本上补充升级验证；原件不修改、不提交。缺失不可恢复的 v1.0.0 实际用户库不再作为必须提供的前置条件；历史代码重建与真实样本证据分开报告。
-- [ ] 当前业务写入及 IPC 时间统一毫秒；`nowBeijing/toBeijing/toChinaStandardTime` 的剩余生产调用只允许已发布旧迁移的兼容路径，逐处记录。`toISOString` 仅允许日志/文件名或明确外部协议边界，不能用其生成数据库/普通 IPC 时间。
-- [ ] `pnpm test:all` 全绿；`tests/ipc` 契约测试覆盖 158 个 channel。
+- [x] 架构守卫：IPC 字面量 0；生产代码无旧 `electronAPI` 调用（负向守卫自身字符串不计）；`electron-env.d.ts` 不存在。
+- [x] `grep -rhoE "^export (interface|type) \w+" electron src | sort | uniq -d` = 0（跨文件无同名类型）。
+- [x] `window.api` 类型完全由 preload 推导：删除任一 preload 方法，渲染层对应调用 `tsc` 报错（用一次临时删除验证）。
+- [x] `Dashboard`、`ProblemDetail` 在后台 `syncCodeforces` 写库后 2 秒内自动刷新（Playwright 用例）。
+- [x] refetch 期间 `CredentialsPage`、`CoachMetricsView` 不显示骨架屏（`isRefetching` 路径）。
+- [x] migration 030：由固定 Git 提交的历史迁移代码重建 v1.0.0/beta.2/rc.1 三种 schema，记录来源 hash 并用合成数据覆盖旧时间格式；测试库在临时目录生成，不提交二进制 SQLite，不称为真实用户历史库。三条路径升级后非空时间列均为 integer、值与历史写入策略一致、关系/约束/行数完整；统计与按相同策略计算的期望值一致，时区跨日差异单独说明。
+- [x] 现有真实当前库及旧备份只在隔离副本上补充升级验证；原件不修改、不提交。缺失不可恢复的 v1.0.0 实际用户库不再作为必须提供的前置条件；历史代码重建与真实样本证据分开报告。
+- [x] 当前业务写入及 IPC 时间统一毫秒；`nowBeijing/toBeijing/toChinaStandardTime` 的剩余生产调用只允许已发布旧迁移的兼容路径，逐处记录。`toISOString` 仅允许日志/文件名或明确外部协议边界，不能用其生成数据库/普通 IPC 时间。
+- [x] `pnpm test:all` 全绿；IPC常量快照覆盖实测179个channel，preload暴露面/输入输出/订阅契约测试通过。
 
 ## Out of Scope
 

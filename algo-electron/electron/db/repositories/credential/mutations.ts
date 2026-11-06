@@ -1,7 +1,7 @@
 import { emitDataChanged } from '../../../shared/dataEvents'
 import crypto from 'node:crypto'
 import { getDb } from '../../connection'
-import { nowChinaStandardTime } from '../../../shared/time'
+import { nowMillis } from '../../../shared/time'
 import { serializeCredentialEnvelope } from './serialization'
 import type { SiteCredentialWriteInput } from './types'
 
@@ -10,7 +10,7 @@ export function upsertCredential(input: SiteCredentialWriteInput): string {
   const username = requireNonEmpty(input.username, 'username')
   const envelope = serializeCredentialEnvelope(input.secretEnvelope)
   const db = getDb()
-  const now = nowChinaStandardTime()
+  const now = nowMillis()
   const existing = db
     .prepare(
       `
@@ -47,7 +47,7 @@ export function upsertCredential(input: SiteCredentialWriteInput): string {
 
 export function softDeleteCredential(id: string): boolean {
   const db = getDb()
-  const now = nowChinaStandardTime()
+  const now = nowMillis()
   const result = db
     .prepare(
       `
@@ -62,7 +62,7 @@ export function softDeleteCredential(id: string): boolean {
 }
 
 export function markCredentialUsed(id: string): boolean {
-  const now = nowChinaStandardTime()
+  const now = nowMillis()
   const result = getDb()
     .prepare(
       `
@@ -78,7 +78,7 @@ export function markCredentialUsed(id: string): boolean {
 
 export function renameCredential(id: string, displayName: string | null): boolean {
   const db = getDb()
-  const now = nowChinaStandardTime()
+  const now = nowMillis()
   const result = db
     .prepare(
       `

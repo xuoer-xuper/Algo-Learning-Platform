@@ -46,6 +46,18 @@ not the provenance or contents of a user's database.
   UTC+8 policy. It is not a known mixture of two suffixless script formats.
 - Credential/runtime tables were introduced with the fixed UTC+8 writers.
   Ordinary local timestamps retain their documented local-time interpretation.
+- Early Luogu commit `5f0c96c` bound `submitTime * 1000` directly into a TEXT column.
+  SQLite preserves such native numeric bindings as decimal integer text ending in
+  `.0`. Explicitly support canonical `^-?(0|[1-9]\d*)\.0+$` as milliseconds after
+  safe-integer/Date-range checks; never multiply again or infer seconds by length.
+  Plain numeric strings, nonzero fractions and overflow remain rejected. Both
+  real-copy evidence and an independent in-memory TEXT-affinity regression pin it.
+- Old `substr(timestamp, 1, 10)` aggregation produced ten-digit pseudo-day keys
+  from those numeric TEXT values. Migration 030 alone may remove that exact
+  derived-cache shape and rebuild from authoritative fact timestamps, including
+  orphaned stale buckets. Preserve valid-day metadata and the original backup;
+  reject other malformed day keys. Never reinterpret the digits as a calendar day
+  or delete fact rows to satisfy migration checks.
 - Historical VJudge passthrough strings do not record the source timezone. Do not
   invent per-row provenance; retain/document the existing local interpretation
   for suffixless values unless explicit offset evidence exists.

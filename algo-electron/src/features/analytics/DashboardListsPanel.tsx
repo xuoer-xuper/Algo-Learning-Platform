@@ -1,3 +1,4 @@
+import { formatForDisplay } from '@shared/time'
 import { Empty, ListRow, Skeleton } from '../../components/ui'
 import { PLATFORM_NAMES } from '../../shared/display'
 import type {
@@ -27,8 +28,8 @@ interface ProblemListSectionProps<T extends DashboardProblemListItem | Dashboard
   onNavigate: (url: string) => void
 }
 
-function formatTime(value: string | null | undefined): string {
-  return typeof value === 'string' ? value.replace('T', ' ').slice(0, 19) : ''
+function formatTime(value: number | null | undefined): string {
+  return value == null ? '' : formatForDisplay(value)
 }
 
 function formatProblemTitle(item: DashboardProblemListItem | DashboardRevisitItem): string {

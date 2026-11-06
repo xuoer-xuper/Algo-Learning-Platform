@@ -1,12 +1,12 @@
 import { session } from 'electron'
 import { getDb } from '../db/connection'
 import { getSiteById } from '../db/repositories/siteRepository'
+import { localDayBounds, nowMillis, shiftLocalDay, toLocalDay } from '../shared/time'
 
 export function preconnectRecentSiteOrigins(): void {
   try {
     const db = getDb()
-    const cutoffDate = new Date(Date.now() - 7 * 86400000)
-    const cutoff = `${cutoffDate.getFullYear()}-${String(cutoffDate.getMonth() + 1).padStart(2, '0')}-${String(cutoffDate.getDate()).padStart(2, '0')}`
+    const cutoff = localDayBounds(shiftLocalDay(toLocalDay(nowMillis()), -7)).start
     const recentPlatforms = db
       .prepare(
         `

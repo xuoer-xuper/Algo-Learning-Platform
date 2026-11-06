@@ -1,3 +1,4 @@
+import { formatForDisplay } from '@shared/time'
 import { useEffect, useState } from 'react'
 import { Button, ConfirmDialog, Empty, IconButton, Input, Skeleton } from '../../components/ui'
 import {
@@ -44,8 +45,8 @@ function loginUrlForSite(site: SiteConfigRecord): string {
   }
 }
 
-function formatUsedAt(value: string | null): string {
-  return value ? `最近使用 ${value.replace('T', ' ').slice(0, 16)}` : '尚未使用'
+function formatUsedAt(value: number | null): string {
+  return value === null ? '尚未使用' : `最近使用 ${formatForDisplay(value, { second: undefined })}`
 }
 
 export function CredentialsPage({ onClose }: CredentialsPageProps) {

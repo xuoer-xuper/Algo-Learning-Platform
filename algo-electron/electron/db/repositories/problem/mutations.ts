@@ -1,7 +1,7 @@
 import crypto from 'node:crypto'
 import { getDb } from '../../connection'
 import type { ProblemIdentity } from '../../../shared/types'
-import { nowBeijing } from '../../../shared/time'
+import { nowMillis, toLocalDay } from '../../../shared/time'
 import { logger as baseLogger, type Logger } from '../../../shared/logger'
 import { isValidScrapedTitle, shouldReplaceScrapedTitle } from '../../../parsers/titleValidation'
 import { recomputeDailyStatsForDates } from '../stats/recompute'
@@ -14,7 +14,7 @@ interface ExistingProblemTitleRow {
 
 export function upsertProblem(identity: ProblemIdentity): void {
   const db = getDb()
-  const now = nowBeijing()
+  const now = nowMillis()
   const canonicalUrl = identity.canonicalUrl
 
   const existing = db
@@ -83,22 +83,22 @@ export function deleteProblem(problemId: string, logger: Logger = baseLogger): b
   const rows = db
     .prepare(
       `
-    SELECT substr(entered_at, 1, 10) AS local_day
+    SELECT entered_at AS instant
     FROM problem_visits WHERE problem_id = ?
     UNION
-    SELECT substr(submitted_at, 1, 10) AS local_day
+    SELECT submitted_at AS instant
     FROM submissions WHERE problem_id = ?
     UNION
-    SELECT substr(occurred_at, 1, 10) AS local_day
+    SELECT occurred_at AS instant
     FROM activity_events WHERE problem_id = ?
     UNION
-    SELECT substr(first_solved_at, 1, 10) AS local_day
+    SELECT first_solved_at AS instant
     FROM problems WHERE id = ? AND first_solved_at IS NOT NULL
   `,
     )
-    .all(problemId, problemId, problemId, problemId) as Array<{ local_day: string | null }>
+    .all(problemId, problemId, problemId, problemId) as Array<{ instant: number | null }>
   for (const row of rows) {
-    if (row.local_day) affectedDates.add(row.local_day)
+    if (row.instant !== null) affectedDates.add(toLocalDay(row.instant))
   }
 
   const deleted = withDataChangeTransaction(() =>

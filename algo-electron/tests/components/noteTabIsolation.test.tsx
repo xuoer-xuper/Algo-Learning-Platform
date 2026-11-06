@@ -71,7 +71,7 @@ const noteA: NoteItem = {
   content: 'Body A',
   note_type: 'solution',
   word_count: 2,
-  updated_at: '2026-09-05 10:00:00',
+  updated_at: Date.parse('2026-09-05 10:00:00'),
 }
 const noteB: NoteItem = { ...noteA, id: 'note-b', title: 'Note B', content: 'Body B' }
 

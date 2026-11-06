@@ -216,21 +216,41 @@ test('提交历史只发 verdict/语言/耗时，且没有提交时整段消失'
     buildHintPrompt(
       context({
         submissions: [
-          { verdict: 'WA', language: 'C++17', runtime_ms: 15, submitted_at: '2026-08-31 10:00:00' },
-          { verdict: 'AC', language: 'C++17', runtime_ms: 31, submitted_at: '2026-08-31 10:05:00' },
+          {
+            verdict: 'WA',
+            language: 'C++17',
+            runtime_ms: 15,
+            submitted_at: Date.parse('2026-08-31 10:00:00'),
+          },
+          {
+            verdict: 'AC',
+            language: 'C++17',
+            runtime_ms: 31,
+            submitted_at: Date.parse('2026-08-31 10:05:00'),
+          },
           {
             verdict: 'TLE',
             language: 'C++17',
             runtime_ms: 2000,
-            submitted_at: '2026-08-31 10:10:00',
+            submitted_at: Date.parse('2026-08-31 10:10:00'),
           },
-          { verdict: 'WA', language: 'C++17', runtime_ms: 20, submitted_at: '2026-08-31 10:15:00' },
-          { verdict: 'RE', language: 'C++17', runtime_ms: 10, submitted_at: '2026-08-31 10:20:00' },
+          {
+            verdict: 'WA',
+            language: 'C++17',
+            runtime_ms: 20,
+            submitted_at: Date.parse('2026-08-31 10:15:00'),
+          },
+          {
+            verdict: 'RE',
+            language: 'C++17',
+            runtime_ms: 10,
+            submitted_at: Date.parse('2026-08-31 10:20:00'),
+          },
           {
             verdict: 'WA',
             language: 'Python3',
             runtime_ms: 120,
-            submitted_at: '2026-08-31 10:25:00',
+            submitted_at: Date.parse('2026-08-31 10:25:00'),
           },
         ],
       }),
@@ -256,7 +276,12 @@ test('runtime_ms 为 0 仍然发出，只有 null/undefined 才省略', () => {
     buildHintPrompt(
       context({
         submissions: [
-          { verdict: 'AC', language: 'C++17', runtime_ms: 0, submitted_at: '2026-08-31 10:00:00' },
+          {
+            verdict: 'AC',
+            language: 'C++17',
+            runtime_ms: 0,
+            submitted_at: Date.parse('2026-08-31 10:00:00'),
+          },
         ],
       }),
     ),
@@ -268,7 +293,12 @@ test('runtime_ms 为 0 仍然发出，只有 null/undefined 才省略', () => {
     buildHintPrompt(
       context({
         submissions: [
-          { verdict: 'AC', language: null, runtime_ms: null, submitted_at: '2026-08-31 10:00:00' },
+          {
+            verdict: 'AC',
+            language: null,
+            runtime_ms: null,
+            submitted_at: Date.parse('2026-08-31 10:00:00'),
+          },
         ],
       }),
     ),
@@ -354,7 +384,12 @@ test('每个 XML 段落都成对闭合，用户数据落在标签内部', () => 
     buildHintPrompt(
       context({
         submissions: [
-          { verdict: 'WA', language: 'C++17', runtime_ms: 12, submitted_at: '2026-08-31 10:00:00' },
+          {
+            verdict: 'WA',
+            language: 'C++17',
+            runtime_ms: 12,
+            submitted_at: Date.parse('2026-08-31 10:00:00'),
+          },
         ],
         learner_profile_md: '# 画像',
       }),
@@ -428,8 +463,18 @@ test('聊天段的学生状态只给分钟级摘要与提交计数', () => {
           phase: 'stuck',
         },
         submissions: [
-          { verdict: 'WA', language: 'C++17', runtime_ms: 10, submitted_at: '2026-08-31 10:00:00' },
-          { verdict: 'AC', language: 'C++17', runtime_ms: 20, submitted_at: '2026-08-31 10:05:00' },
+          {
+            verdict: 'WA',
+            language: 'C++17',
+            runtime_ms: 10,
+            submitted_at: Date.parse('2026-08-31 10:00:00'),
+          },
+          {
+            verdict: 'AC',
+            language: 'C++17',
+            runtime_ms: 20,
+            submitted_at: Date.parse('2026-08-31 10:05:00'),
+          },
         ],
       }),
       '卡住了',

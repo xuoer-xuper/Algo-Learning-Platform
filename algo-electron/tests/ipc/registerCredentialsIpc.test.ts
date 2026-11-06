@@ -41,8 +41,8 @@ test('credentials IPC exposes only masked list and delete operations', async () 
       displayName: null,
       masked: '********',
       lastUsedAt: null,
-      createdAt: '2026-08-19 10:00:00',
-      updatedAt: '2026-08-19 10:00:00',
+      createdAt: Date.parse('2026-08-19 10:00:00'),
+      updatedAt: Date.parse('2026-08-19 10:00:00'),
     },
   ])
   const remove = vi.fn<CredentialVault['delete']>(() => true)
@@ -59,8 +59,8 @@ test('credentials IPC exposes only masked list and delete operations', async () 
       displayName: null,
       masked: '********',
       lastUsedAt: null,
-      createdAt: '2026-08-19 10:00:00',
-      updatedAt: '2026-08-19 10:00:00',
+      createdAt: Date.parse('2026-08-19 10:00:00'),
+      updatedAt: Date.parse('2026-08-19 10:00:00'),
     },
   ])
   assert.deepStrictEqual(list.mock.calls, [['codeforces']])
@@ -115,8 +115,8 @@ test('credentials IPC renames credentials and routes autofill prompt responses b
     displayName: 'Primary',
     masked: '********',
     lastUsedAt: null,
-    createdAt: 'now',
-    updatedAt: 'now',
+    createdAt: 0,
+    updatedAt: 0,
   }))
   const vault = {
     list: vi.fn<CredentialVault['list']>(() => []),
@@ -150,8 +150,8 @@ test('credentials IPC renames credentials and routes autofill prompt responses b
       displayName: 'Primary',
       masked: '********',
       lastUsedAt: null,
-      createdAt: 'now',
-      updatedAt: 'now',
+      createdAt: 0,
+      updatedAt: 0,
     },
   )
   assert.deepStrictEqual(rename.mock.calls, [['credential-1', 'Primary']])

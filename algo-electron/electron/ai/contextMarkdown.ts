@@ -1,10 +1,11 @@
 import type { AIContextExport } from './contextTypes'
+import { formatForDisplay } from '../shared/time'
 
 export function renderContextAsMarkdown(ctx: AIContextExport): string {
   const lines: string[] = []
   lines.push('# 学习数据上下文')
   lines.push('')
-  lines.push(`> 导出时间：${ctx.exported_at} ｜ schema v${ctx.schema_version}`)
+  lines.push(`> 导出时间：${formatForDisplay(ctx.exported_at)} ｜ schema v${ctx.schema_version}`)
   lines.push('')
   lines.push('## 概览')
   lines.push(
@@ -40,7 +41,7 @@ function appendWrongProblems(lines: string[], ctx: AIContextExport): void {
   lines.push(`## 错题（${ctx.wrong_problems.length}）`)
   for (const problem of ctx.wrong_problems.slice(0, 15)) {
     lines.push(
-      `- [${problem.platform} ${problem.platform_problem_id}] ${problem.title || '无标题'} — 错误 ${problem.wrong_count} 次，最近 ${problem.last_attempt.replace('T', ' ').slice(0, 16)}`,
+      `- [${problem.platform} ${problem.platform_problem_id}] ${problem.title || '无标题'} — 错误 ${problem.wrong_count} 次，最近 ${formatForDisplay(problem.last_attempt)}`,
     )
   }
   lines.push('')

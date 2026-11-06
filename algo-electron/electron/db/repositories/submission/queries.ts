@@ -48,7 +48,7 @@ export function getSubmissionsByPlatform(platform: string, limit = 50): Submissi
  */
 export function getFirstAcByProblemIds(
   problemIds: string[],
-): { problem_id: string; first_ac_at: string }[] {
+): { problem_id: string; first_ac_at: number }[] {
   if (problemIds.length === 0) return []
   const db = getDb()
   const placeholders = problemIds.map(() => '?').join(',')
@@ -59,5 +59,5 @@ export function getFirstAcByProblemIds(
        WHERE verdict = 'AC' AND problem_id IN (${placeholders})
        GROUP BY problem_id`,
     )
-    .all(...problemIds) as { problem_id: string; first_ac_at: string }[]
+    .all(...problemIds) as { problem_id: string; first_ac_at: number }[]
 }

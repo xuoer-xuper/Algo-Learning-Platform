@@ -1,5 +1,5 @@
 import type { SubmissionData } from '../../../shared/types'
-import { nowBeijing } from '../../../shared/time'
+import { nowMillis } from '../../../shared/time'
 import type { SubmissionDetectionPayload } from '../../types'
 import { parseMemoryKb, parseRuntimeMs } from '../../shared/genericSubmission'
 
@@ -122,7 +122,7 @@ export function parseNowcoderJudgeStatusPayload(
       parseRuntimeMs,
     ),
     memoryKb: parseNumberOrUnit(result.memoryConsumption ?? result.memory, parseMemoryKb),
-    submittedAt: nowBeijing(),
+    submittedAt: nowMillis(),
     sourceUrl,
     rawJson: JSON.stringify({
       _source: 'nowcoder-judge-status',

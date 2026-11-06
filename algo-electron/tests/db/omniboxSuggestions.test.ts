@@ -42,7 +42,7 @@ function insertProblem(fixture: ProblemFixture): void {
   const platform = fixture.platform ?? 'codeforces'
   const platformProblemId = fixture.platformProblemId ?? fixture.id
   const canonicalUrl = fixture.canonicalUrl ?? `https://example.com/problems/${fixture.id}`
-  const timestamp = fixture.lastVisitedAt ?? '2026-07-03T10:00:00+08:00'
+  const timestamp = fixture.lastVisitedAt ?? Date.parse('2026-07-03T10:00:00+08:00')
   getDb()
     .prepare(
       `

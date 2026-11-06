@@ -1,5 +1,5 @@
 import type { ScrapedSubmission } from '../../shared/types'
-import { nowBeijing } from '../../shared/time'
+import { nowMillis } from '../../shared/time'
 import { getAdapterForUrl } from '../../adapters/registry'
 import type { SubmissionScrapeContext } from '../../adapters/types'
 import { EXTRACT_GENERIC_TABLES_SCRIPT } from './GenericTableDomExtractor'
@@ -39,7 +39,7 @@ export async function scrapeCurrentPage(
 
   if (adapter.parseSubmissionTables) {
     const data = await browserHost.executeScript(EXTRACT_GENERIC_TABLES_SCRIPT)
-    return adapter.parseSubmissionTables(readExtractedTables(data), { now: nowBeijing })
+    return adapter.parseSubmissionTables(readExtractedTables(data), { now: nowMillis })
   }
 
   return null

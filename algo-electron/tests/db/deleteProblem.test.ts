@@ -1,3 +1,4 @@
+import { toLocalDay } from '../../src/shared/time'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -24,9 +25,9 @@ function insertProblem(
   db: Database.Database,
   id: string,
   platformProblemId: string,
-  firstSolvedAt: string | null = null,
+  firstSolvedAt: number | null = null,
 ): void {
-  const now = '2026-08-18T08:00:00+08:00'
+  const now = Date.parse('2026-08-18T08:00:00+08:00')
   db.prepare(
     `
     INSERT INTO problems (
@@ -49,7 +50,7 @@ function insertVisit(
   db: Database.Database,
   id: string,
   problemId: string,
-  enteredAt: string,
+  enteredAt: number,
   durationSeconds: number,
   activeSeconds: number,
 ): void {
@@ -77,7 +78,7 @@ function insertSubmission(
   db: Database.Database,
   id: string,
   problemId: string,
-  submittedAt: string,
+  submittedAt: number,
   verdict: 'AC' | 'WA',
 ): void {
   db.prepare(
@@ -94,7 +95,7 @@ function insertActivity(
   db: Database.Database,
   id: string,
   problemId: string,
-  occurredAt: string,
+  occurredAt: number,
 ): void {
   db.prepare(
     `
@@ -102,7 +103,7 @@ function insertActivity(
       id, event_type, occurred_at, local_day, problem_id, platform, created_at
     ) VALUES (?, 'visit_start', ?, ?, ?, 'codeforces', ?)
   `,
-  ).run(id, occurredAt, occurredAt.slice(0, 10), problemId, occurredAt)
+  ).run(id, occurredAt, toLocalDay(occurredAt), problemId, occurredAt)
 }
 
 interface DailyStatsRow {
@@ -146,13 +147,25 @@ class MemoryLogger implements Logger {
 describe('deleteProblem', () => {
   it('recomputes every affected daily-stat date from the remaining facts', () => {
     const db = getDb()
-    insertProblem(db, 'target', '1900A', '2026-08-20T08:00:00+08:00')
-    insertProblem(db, 'retained', '1900B', '2026-08-20T09:00:00+08:00')
-    insertVisit(db, 'target-visit', 'target', '2026-08-18T10:00:00+08:00', 100, 80)
-    insertVisit(db, 'retained-visit', 'retained', '2026-08-18T11:00:00+08:00', 60, 50)
-    insertSubmission(db, 'target-submission', 'target', '2026-08-19T10:00:00+08:00', 'AC')
-    insertSubmission(db, 'retained-submission', 'retained', '2026-08-19T11:00:00+08:00', 'WA')
-    insertActivity(db, 'target-activity', 'target', '2026-08-21T10:00:00+08:00')
+    insertProblem(db, 'target', '1900A', Date.parse('2026-08-20T08:00:00+08:00'))
+    insertProblem(db, 'retained', '1900B', Date.parse('2026-08-20T09:00:00+08:00'))
+    insertVisit(db, 'target-visit', 'target', Date.parse('2026-08-18T10:00:00+08:00'), 100, 80)
+    insertVisit(db, 'retained-visit', 'retained', Date.parse('2026-08-18T11:00:00+08:00'), 60, 50)
+    insertSubmission(
+      db,
+      'target-submission',
+      'target',
+      Date.parse('2026-08-19T10:00:00+08:00'),
+      'AC',
+    )
+    insertSubmission(
+      db,
+      'retained-submission',
+      'retained',
+      Date.parse('2026-08-19T11:00:00+08:00'),
+      'WA',
+    )
+    insertActivity(db, 'target-activity', 'target', Date.parse('2026-08-21T10:00:00+08:00'))
 
     const days = ['2026-08-18', '2026-08-19', '2026-08-20', '2026-08-21']
     recomputeDailyStatsForDates(days)
@@ -190,9 +203,15 @@ describe('deleteProblem', () => {
   it('rolls back earlier deletes when a later table delete fails', () => {
     const db = getDb()
     insertProblem(db, 'target', '2000A')
-    insertVisit(db, 'target-visit', 'target', '2026-08-18T10:00:00+08:00', 100, 80)
-    insertSubmission(db, 'target-submission', 'target', '2026-08-18T10:01:00+08:00', 'AC')
-    insertActivity(db, 'target-activity', 'target', '2026-08-18T10:00:00+08:00')
+    insertVisit(db, 'target-visit', 'target', Date.parse('2026-08-18T10:00:00+08:00'), 100, 80)
+    insertSubmission(
+      db,
+      'target-submission',
+      'target',
+      Date.parse('2026-08-18T10:01:00+08:00'),
+      'AC',
+    )
+    insertActivity(db, 'target-activity', 'target', Date.parse('2026-08-18T10:00:00+08:00'))
     db.exec(`
       CREATE TRIGGER reject_problem_visit_delete
       BEFORE DELETE ON problem_visits
@@ -213,7 +232,7 @@ describe('deleteProblem', () => {
     const db = getDb()
     const logger = new MemoryLogger()
     insertProblem(db, 'target', '2100A')
-    insertVisit(db, 'target-visit', 'target', '2026-08-18T10:00:00+08:00', 100, 80)
+    insertVisit(db, 'target-visit', 'target', Date.parse('2026-08-18T10:00:00+08:00'), 100, 80)
     recomputeDailyStatsForDates(['2026-08-18'])
     db.exec(`
       CREATE TRIGGER reject_daily_stats_update

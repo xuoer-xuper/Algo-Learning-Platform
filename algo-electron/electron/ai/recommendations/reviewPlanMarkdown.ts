@@ -1,10 +1,11 @@
 import type { ReviewPlan } from './types'
+import { formatForDisplay } from '../../shared/time'
 
 export function renderPlanAsMarkdown(plan: ReviewPlan): string {
   const lines: string[] = []
   lines.push(`# ${plan.title}`)
   lines.push('')
-  lines.push(`> 生成时间：${plan.generated_at} ｜ 周期 ${plan.plan_days} 天`)
+  lines.push(`> 生成时间：${formatForDisplay(plan.generated_at)} ｜ 周期 ${plan.plan_days} 天`)
   lines.push('')
   appendPrioritySection(lines, '优先复习（高）', plan, 1, true)
   appendPrioritySection(lines, '建议复习（中）', plan, 2, true)

@@ -5,7 +5,7 @@ import type {
   ProblemSession,
 } from '../../../src/shared/types/coach'
 import type { ProblemConstraints } from '../problemFacts/ConstraintParser'
-import { nowBeijing } from '../../shared/time'
+import { nowMillis } from '../../shared/time'
 import { logger } from '../../shared/logger'
 
 const log = logger.scope('llm')
@@ -203,7 +203,7 @@ export class LlmHintService {
       problem_id: session?.problem_id ?? null,
       platform: session?.platform ?? null,
       evidence: {},
-      created_at: nowBeijing(),
+      created_at: nowMillis(),
     }
   }
 

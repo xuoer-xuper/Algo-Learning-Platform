@@ -13,7 +13,7 @@ export interface SyncContext {
 }
 
 export interface TableParseContext {
-  now: () => string
+  now: () => number
 }
 
 export interface SubmissionScrapeContext {
@@ -27,7 +27,7 @@ export interface SubmissionDetectionPayload {
   requestUrl?: string
   response?: unknown
   meta?: Record<string, unknown>
-  detectedAt?: string
+  detectedAt?: number
 }
 
 export interface SiteAdapter {

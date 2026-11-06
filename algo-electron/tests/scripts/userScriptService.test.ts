@@ -41,8 +41,8 @@ function createScript(options: ScriptOptions): UserScript {
     site_ids_json: options.siteIds ?? '[]',
     enabled: true,
     auto_update_enabled: true,
-    created_at: '2026-08-19 12:00:00',
-    updated_at: '2026-08-19 12:00:00',
+    created_at: Date.parse('2026-08-19 12:00:00'),
+    updated_at: Date.parse('2026-08-19 12:00:00'),
     deleted_at: null,
   }
 }

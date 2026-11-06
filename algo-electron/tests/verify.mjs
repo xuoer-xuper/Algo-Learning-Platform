@@ -24,6 +24,8 @@ const dbVitestFiles = [
   'tests/db/credentialRepository.test.ts',
   'tests/db/databaseInitialization.test.ts',
   'tests/db/historicalUpgradePath.test.ts',
+  'tests/db/migration030.test.ts',
+  'tests/shared/legacyTimestamp.test.ts',
   'tests/db/migrateLogging.test.ts',
   'tests/db/omniboxSuggestions.test.ts',
   'tests/db/problemContextMigration.test.ts',

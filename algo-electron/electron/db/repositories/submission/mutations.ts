@@ -1,13 +1,13 @@
 import crypto from 'node:crypto'
 import { getDb } from '../../connection'
 import type { SubmissionData } from '../../../shared/types'
-import { nowBeijing } from '../../../shared/time'
+import { nowMillis } from '../../../shared/time'
 import type { SubmissionRow } from './types'
 import { emitDataChanged } from '../../../shared/dataEvents'
 
 export function upsertSubmission(data: SubmissionData): boolean {
   const db = getDb()
-  const now = nowBeijing()
+  const now = nowMillis()
 
   const existing = db
     .prepare('SELECT id FROM submissions WHERE platform = ? AND platform_submission_id = ?')

@@ -58,6 +58,7 @@ export async function createPreMigrationBackup(
 ): Promise<string> {
   fs.mkdirSync(backupDir, { recursive: true })
   const prefix = migrationBackupPrefix(databasePath)
+  // Human-readable backup filename; migration data timestamps use integer milliseconds.
   const timestamp = now.toISOString().replace(/[-:TZ.]/g, '')
   let backupPath = path.join(backupDir, `${prefix}${timestamp}.sqlite`)
   let suffix = 1

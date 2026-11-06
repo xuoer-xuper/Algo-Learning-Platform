@@ -1,5 +1,5 @@
 import type { SubmissionData, Verdict } from '../../shared/types'
-import { nowBeijing, toBeijing } from '../../shared/time'
+import { nowMillis } from '../../shared/time'
 import { unknownToText } from '../../shared/textCoercion'
 import type { SubmissionScrapeContext } from '../../adapters/types'
 
@@ -483,7 +483,7 @@ function parseInjectedRecords(
       language: getLuoguLanguageName(record, languageMap),
       runtimeMs: finiteNumber(record.time),
       memoryKb: finiteNumber(record.memory),
-      submittedAt: submitTime ? toBeijing(new Date(submitTime * 1000)) : nowBeijing(),
+      submittedAt: submitTime !== undefined ? submitTime * 1000 : nowMillis(),
       sourceUrl: `https://www.luogu.com.cn/record/${submissionId}`,
       rawJson: buildLuoguRawJson(record),
     })
@@ -531,7 +531,7 @@ function parseDomRows(rows: unknown): SubmissionData[] {
         verdict: mapTextVerdict(verdictText),
         rawVerdict: verdictText,
         language: '',
-        submittedAt: nowBeijing(),
+        submittedAt: nowMillis(),
         sourceUrl: `https://www.luogu.com.cn/record/${submissionId}`,
         rawJson: problemId ? JSON.stringify({ _luoguProblemId: problemId }) : undefined,
       })

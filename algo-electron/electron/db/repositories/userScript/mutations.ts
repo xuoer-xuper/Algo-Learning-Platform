@@ -1,13 +1,13 @@
 import crypto from 'node:crypto'
 import { getDb } from '../../connection'
-import { nowChinaStandardTime } from '../../../shared/time'
+import { nowMillis } from '../../../shared/time'
 import type { UserScriptUpdateInput, UserScriptWriteInput } from './types'
 import { emitDataChanged, withDataChangeTransaction } from '../../../shared/dataEvents'
 
 export function createScript(data: UserScriptWriteInput): string {
   const db = getDb()
   const id = crypto.randomUUID()
-  const now = nowChinaStandardTime()
+  const now = nowMillis()
   const namespace = data.namespace === undefined ? `local:${id}` : data.namespace
   const identityName = data.identity_name ?? data.name
   const autoUpdateEnabled = data.auto_update_enabled ?? namespace?.startsWith('local:') !== true
@@ -65,7 +65,7 @@ export function createScript(data: UserScriptWriteInput): string {
 
 export function updateScript(id: string, data: UserScriptUpdateInput): boolean {
   const db = getDb()
-  const now = nowChinaStandardTime()
+  const now = nowMillis()
 
   const sets: string[] = []
   const values: Array<string | number | null> = []
@@ -198,7 +198,7 @@ export function claimLegacyScriptIdentity(id: string, namespace: string): boolea
       AND deleted_at IS NULL
   `,
     )
-    .run(namespace, nowChinaStandardTime(), id)
+    .run(namespace, nowMillis(), id)
   if (info.changes > 0) emitDataChanged(['scripts'])
   return info.changes > 0
 }
@@ -227,7 +227,7 @@ export function updateScriptWithLegacyClaim(
         AND deleted_at IS NULL
     `,
       )
-      .run(namespace, nowChinaStandardTime(), id)
+      .run(namespace, nowMillis(), id)
     if (claim.changes !== 1) throw new Error('Legacy userscript identity is no longer available')
 
     const sets: string[] = []
@@ -303,7 +303,7 @@ export function updateScriptWithLegacyClaim(
 
     if (sets.length === 0) throw new Error('Imported userscript update has no content changes')
     sets.push('updated_at = ?')
-    values.push(nowChinaStandardTime())
+    values.push(nowMillis())
     values.push(id)
 
     const update = db

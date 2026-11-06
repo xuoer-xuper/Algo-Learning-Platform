@@ -8,7 +8,7 @@
 
 ## 2. 当前实现程度
 
-当前 migration 版本为 `001` 到 `029`：
+当前 migration 版本为 `001` 到 `030`：
 
 - `001_initial.ts`：初始问题、访问、事件等基础结构。
 - `002_submissions.ts`：提交记录相关结构。
@@ -31,6 +31,7 @@
 - `027_userscript_runtime.ts`：用户脚本完整 metadata 列、旧 `@include` 回填拆分，以及 values、资源缓存、host 授权和更新状态表。
 - `028_site_login_autofill.ts`：为 `site_configs` 增加登录 URL pattern、用户名选择器和密码选择器，并为七个内置站点回填初始配置。
 - `029_site_credential_labels.ts`：为 `site_credentials` 增加可选脱敏显示名，供账户中心重命名，不保存密码或其他秘密。
+- `030_timestamps_to_unix_ms.ts`：受控外键关闭事务内重建82个时间列为INTEGER毫秒，保留关系/索引/约束；严格转换旧local/UTC+8/offset/SQLite `.0` 表示，仅定向转换AI context时间字段，重建日统计。失败恢复备份，不修改001–029。
 
 ## 3. 编写规则
 

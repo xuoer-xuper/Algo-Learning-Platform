@@ -19,7 +19,12 @@ import {
   finishProblemVisit,
 } from '../../electron/db/repositories/problemVisitRepository'
 import { recomputeDailyStats } from '../../electron/db/repositories/statsRepository'
-import { createSite, deleteSite } from '../../electron/db/repositories/siteRepository'
+import {
+  createSite,
+  deleteSite,
+  exportSitesConfig,
+  previewImportSites,
+} from '../../electron/db/repositories/siteRepository'
 import {
   upsertCredential,
   renameCredential,
@@ -101,6 +106,16 @@ function topics(): string[] {
 }
 
 describe('committed repository invalidations', () => {
+  it('should import numeric site export metadata and retain legacy version-one compatibility', () => {
+    const exported = exportSitesConfig()
+    expect(exported.version).toBe(2)
+    expect(typeof exported.exportedAt).toBe('number')
+    expect(previewImportSites(exported).valid).toBe(true)
+    expect(
+      previewImportSites({ ...exported, version: 1, exportedAt: '2026-01-15T00:00:00Z' }).valid,
+    ).toBe(true)
+    expect(previewImportSites({ ...exported, version: 3 }).valid).toBe(false)
+  })
   it('should cover problem, submission and derived statistics writes without emitting for duplicates', () => {
     upsertProblem(identity)
     const problem = getRecentProblems(1)[0]
@@ -111,7 +126,7 @@ describe('committed repository invalidations', () => {
       platformSubmissionId: 'refresh-submission',
       problemId: problem.id,
       verdict: 'AC' as const,
-      submittedAt: '2026-11-04T10:00:00',
+      submittedAt: Date.parse('2026-11-04T10:00:00'),
     }
     expect(upsertSubmission(input)).toBe(true)
     updateFirstAc(problem.id)
@@ -130,7 +145,7 @@ describe('committed repository invalidations', () => {
       identity,
       visitId: 'visit-1',
       activityId: 'activity-1',
-      now: '2026-11-04T10:00:00',
+      now: Date.parse('2026-11-04T10:00:00'),
       localDay: '2026-11-04',
     }
     expect(startProblemVisit(input)).toBe(true)
@@ -278,7 +293,7 @@ describe('committed repository invalidations', () => {
           platformSubmissionId,
           problemId,
           verdict: 'WA' as const,
-          submittedAt: '2026-11-04T10:00:00',
+          submittedAt: Date.parse('2026-11-04T10:00:00'),
         })),
       }),
     ).toThrow('second item rejected')
@@ -310,9 +325,9 @@ describe('committed repository invalidations', () => {
         platform_submission_id: 'incoming-ac',
         verdict: 'AC',
         is_first_ac: 0,
-        submitted_at: '2026-11-04T10:00:00',
-        created_at: '2026-11-04T10:00:00',
-        updated_at: '2026-11-04T10:00:00',
+        submitted_at: Date.parse('2026-11-04T10:00:00'),
+        created_at: Date.parse('2026-11-04T10:00:00'),
+        updated_at: Date.parse('2026-11-04T10:00:00'),
       },
     ]
     observed.length = 0

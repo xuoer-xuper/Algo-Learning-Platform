@@ -9,7 +9,8 @@
 当前包含：
 
 - `types.ts`：统一题目标识、统一提交结果类型。
-- `time.ts`：本地时间格式化工具。
+- `time.ts`：转导出纯毫秒/日期边界/展示函数，仅保留旧迁移使用的冻结 `nowBeijing`。
+- `legacyTimestamp.ts`：历史local/UTC+8/offset及SQLite整数毫秒`.0`的严格转换边界；非法值抛安全诊断，不猜秒或吞错。
 - `logger.ts`：主进程滚动文件日志、隐私遮蔽和早期启动日志缓冲。
 - `dataEvents.ts`：提交后的逻辑域失效通知；同步事务调用用 `withDataChangeTransaction` 缓冲，回滚丢弃，最外层提交后才发布。
 - `dataRefreshBridge.ts`：订阅总线，用固定 50ms 窗口合并域后发到 shell 窗口；退出时清理订阅与计时器，失败仅记无私有数据的诊断事件。

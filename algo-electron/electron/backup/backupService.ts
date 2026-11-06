@@ -1,7 +1,6 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { getDb, getDbPath } from '../db/connection'
-import { nowBeijing } from '../shared/time'
 import { ERROR_CODES } from '../../src/shared/constants/errorCodes'
 import type { IpcOutput } from '../../src/shared/types/common'
 import { logger } from '../shared/logger'
@@ -129,7 +128,9 @@ export function importLearningDataFromParsedExport(
 }
 
 function backupTimestamp(): string {
-  return nowBeijing()
+  // Human-readable filename only; exported record timestamps remain numeric.
+  return new Date()
+    .toISOString()
     .replace(/[-:T.]/g, '')
     .slice(0, 14)
 }

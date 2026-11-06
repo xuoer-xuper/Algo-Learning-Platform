@@ -1,7 +1,7 @@
 import { emitDataChanged } from '../../../shared/dataEvents'
 import crypto from 'node:crypto'
 import { getDb } from '../../connection'
-import { nowBeijing } from '../../../shared/time'
+import { nowMillis } from '../../../shared/time'
 import type { SiteConfigData, SiteConfigRow } from './types'
 import { rowToSite } from './types'
 
@@ -30,7 +30,7 @@ export function getSiteById(id: string): SiteConfigData | null {
 
 export function createSite(data: Omit<SiteConfigData, 'isBuiltin'>): string {
   const db = getDb()
-  const now = nowBeijing()
+  const now = nowMillis()
   const id = data.id || crypto.randomUUID()
 
   db.prepare(
@@ -61,7 +61,7 @@ export function createSite(data: Omit<SiteConfigData, 'isBuiltin'>): string {
 
 export function updateSite(id: string, data: Partial<SiteConfigData>): boolean {
   const db = getDb()
-  const now = nowBeijing()
+  const now = nowMillis()
   const existing = getSiteById(id)
   if (!existing) return false
 
@@ -98,7 +98,7 @@ export function updateSite(id: string, data: Partial<SiteConfigData>): boolean {
 
 export function toggleSite(id: string, enabled: boolean): boolean {
   const db = getDb()
-  const now = nowBeijing()
+  const now = nowMillis()
   const result = db
     .prepare('UPDATE site_configs SET enabled = ?, updated_at = ? WHERE id = ?')
     .run(enabled ? 1 : 0, now, id)

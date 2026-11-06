@@ -1,5 +1,5 @@
 import { getDb } from '../../connection'
-import { nowBeijing } from '../../../shared/time'
+import { nowMillis } from '../../../shared/time'
 import { emitDataChanged } from '../../../shared/dataEvents'
 
 interface BuiltinSiteSeed {
@@ -136,7 +136,7 @@ const BUILTIN_SITE_SEEDS: BuiltinSiteSeed[] = [
 
 export function seedBuiltinSites(): void {
   const db = getDb()
-  const now = nowBeijing()
+  const now = nowMillis()
   const insert = db.prepare(`
     INSERT OR IGNORE INTO site_configs (id, name, domains_json, home_url, enabled, problem_url_patterns_json, submit_url_patterns_json, login_url_patterns_json, login_username_selectors_json, login_password_selectors_json, cookie_policy, adapter, is_builtin, created_at, updated_at)
     VALUES (?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)

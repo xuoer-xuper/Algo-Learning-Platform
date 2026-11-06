@@ -25,7 +25,7 @@ const historySuggestion: OmniboxSuggestion = {
   platform: 'leetcode-cn',
   platformProblemId: '1',
   url: 'https://leetcode.cn/problems/two-sum/',
-  lastVisitedAt: '2026-08-18T10:00:00+08:00',
+  lastVisitedAt: Date.parse('2026-08-18T10:00:00+08:00'),
   source: 'history',
 }
 

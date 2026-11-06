@@ -55,7 +55,7 @@ describe('PendingUserScriptInstallRegistry', () => {
         installId: 'install_123',
         sourceUrl: 'https://example.com/scripts/helper.user.js?version=2',
         sourceFileName: 'helper.user.js',
-        createdAt: '2026-08-18T12:00:00.000Z',
+        createdAt: Date.parse('2026-08-18T12:00:00.000Z'),
       },
       page: { type: 'script-install', installId: 'install_123' },
     })

@@ -39,12 +39,12 @@ export function buildCookieDomainSummary(
   const sortedNames = records.map((record) => record.name).sort()
   const expiringRecords = records
     .map((record) => record.expires_at)
-    .filter((expiresAt): expiresAt is string => Boolean(expiresAt))
-    .sort()
+    .filter((expiresAt): expiresAt is number => expiresAt !== null)
+    .sort((a, b) => a - b)
   const lastSeen = records
     .map((record) => record.last_seen_at)
-    .filter(Boolean)
-    .sort()
+    .filter((value) => value !== null)
+    .sort((a, b) => a - b)
   const latestSeenAt = lastSeen.length > 0 ? lastSeen[lastSeen.length - 1] : null
 
   return {

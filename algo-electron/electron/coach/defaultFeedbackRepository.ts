@@ -14,7 +14,7 @@ import {
   countFeedbackByTypeSince,
   type InsertCoachFeedbackInput,
 } from '../db/repositories/coach/feedbackRepository'
-import { nowBeijing } from '../shared/time'
+import { nowMillis } from '../shared/time'
 import type { FeedbackRepositoryAdapter } from './CoachFeedbackStore'
 import type { CoachFeedbackType } from '../../src/shared/types/coach'
 
@@ -26,7 +26,7 @@ export function createDefaultRepository(): FeedbackRepositoryAdapter {
     insert: (input: InsertCoachFeedbackInput) => insertCoachFeedback(input),
     list: (limit: number) => listCoachFeedback(limit),
     getNeverTodayEventTypes: (day: string) => getNeverTodayEventTypes(day),
-    countByTypeSince: (feedbackType: CoachFeedbackType, since: string) =>
+    countByTypeSince: (feedbackType: CoachFeedbackType, since: number) =>
       countFeedbackByTypeSince(feedbackType, since),
   }
 }
@@ -35,11 +35,11 @@ export function createDefaultRepository(): FeedbackRepositoryAdapter {
  * 静态工具：统计某类型反馈在指定时间窗口内的次数。
  * 供 CoachMetricsView（阶段 4）使用。
  */
-export function countFeedbackSince(feedbackType: CoachFeedbackType, since: string): number {
+export function countFeedbackSince(feedbackType: CoachFeedbackType, since: number): number {
   return countFeedbackByTypeSince(feedbackType, since)
 }
 
-/** 当前时间戳（与 nowBeijing 一致，便于审计追溯） */
-export function currentTimestamp(): string {
-  return nowBeijing()
+/** 当前时间戳（与 nowMillis 一致，便于审计追溯） */
+export function currentTimestamp(): number {
+  return nowMillis()
 }
