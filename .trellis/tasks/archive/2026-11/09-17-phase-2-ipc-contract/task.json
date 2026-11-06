@@ -3,7 +3,7 @@
   "name": "phase-2-ipc-contract",
   "title": "阶段 2 IPC 契约与共享层",
   "description": "src/shared/constants/channels.ts 集中 158 个 channel、src/shared/types 用 zod 替代 electron-env.d.ts 的 112 个手抄类型、preload 改 window.api 用 typeof 推导、DataRefreshContext + useIpcQuery、时间戳迁移到 Unix 毫秒（migration 030）。",
-  "status": "in_progress",
+  "status": "completed",
   "dev_type": null,
   "scope": null,
   "package": null,
@@ -11,16 +11,22 @@
   "creator": "xuper",
   "assignee": "xuper",
   "createdAt": "2026-09-17",
-  "completedAt": null,
+  "completedAt": "2026-11-06",
   "branch": "feat/db-unix-ms-timestamps",
-  "base_branch": "refactor/phase-2-ipc-contract",
+  "base_branch": "dev",
   "worktree_path": null,
-  "commit": null,
+  "commit": "b74773ba8e74cc47a591b19a5a27d4f0eb983556",
   "pr_url": "https://github.com/xuoer-xuper/Algo-Learning-Platform/pull/7",
   "subtasks": [],
   "children": [],
   "parent": "09-17-spec-alignment",
   "relatedFiles": [],
-  "notes": "2026-11-06: R1-R5 implementation, verification and push complete. R5 commit e789841 and Windows hook fix 682231d are on origin; CI 42195138160/42197937618 passed. PR7 is ready for review and stacked on unmerged PR6. Migration030 covers82columns; test:all192files/1563tests+UI11, build:win and packaged29to30 smoke pass. Actual readonly copies24/29 pass with1407/1097 timestamp comparisons and independent stats; originals unchanged. See r5-verification-2026-11-05.md. No coding work remains in phase2; keep task in_progress only for authorized PR integration, then archive. Do not merge/release automatically.",
-  "meta": {}
+  "notes": "2026-11-06: User authorized integration. PR6 squash merged to dev as d9f5583; PR7 synchronized baseline without content changes and squash merged as b74773b. dev CI42224226176 passed. R1-R5 complete and archived; original user databases unchanged. Next existing task phase3-main-process.",
+  "meta": {
+    "merged_prs": {
+      "6": "d9f55836c5957f2e39aa961378b654e0ad540101",
+      "7": "b74773ba8e74cc47a591b19a5a27d4f0eb983556",
+      "dev_ci": 42224226176
+    }
+  }
 }

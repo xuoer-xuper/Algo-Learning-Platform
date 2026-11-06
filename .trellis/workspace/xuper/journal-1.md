@@ -389,3 +389,34 @@
 ### Next Steps
 
 - 按授权处理PR6→dev，再调整/集成依赖PR7；合入后归档阶段2并对阶段3做启动评审。当前无需追加代码，原有.zcode保持未跟踪。
+
+
+## Session 13: 阶段 2 合并归档：PR6/7 入 dev，开启阶段 3
+<!-- trellis-session: v=2 fp=325a47c3603bb60c -->
+
+**Date**: 2026-11-06
+**Task**: 阶段 2 合并归档：PR6/7 入 dev，开启阶段 3
+**Branch**: `dev`
+
+### Summary
+
+用户授权按依赖顺序合并。PR6 squash为d9f5583；PR7同步dev解决squash历史关联冲突，验证文件树不变，CI通过后squash为b74773b。dev CI42224226176全绿，阶段2R1-R5完成归档。原.zcode未动。阶段3开始先做Drizzle基础，不同时搬目录。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `d9f5583` | refactor(ipc): 阶段 2 IPC 契约与共享层 |
+| `b74773b` | feat(db): 时间戳迁移为 Unix 毫秒 |
+
+### Testing
+
+- [OK] PR7同步基线后test:ci通过、PRCI42222689306通过；devCI42224226176通过。一次Vitest worker异常退出未计绿，缺失文件聚焦9/9后完整门重跑通过。
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- 阶段3启动评审：更新25表/SQL统计、固定Drizzle版本、第一块PR-A0建立schema/client与等价测试，迁移runner及逐域改写后续独立验证。

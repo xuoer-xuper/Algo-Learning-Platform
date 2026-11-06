@@ -7,8 +7,8 @@
 > Plan and evidence: `.trellis/tasks/archive/2026-09/00-bootstrap-guidelines/research/spec-alignment-plan.md`,
 > `spec-alignment-report.md`, `reinvented-wheels-audit.md`.
 
-Last reviewed: 2026-11-05 (phase 2 R5 implementation and local verification complete on
-`feat/db-unix-ms-timestamps`; PR integration remains pending). Later phases are not complete.
+Last reviewed: 2026-11-06. Phase 2 PR6/PR7 are merged into `dev` as `d9f5583`/`b74773b`;
+dev CI `42224226176` passed. Phase 2 is archived; phase 3 starts with a bounded Drizzle foundation.
 
 ---
 
