@@ -1,3 +1,4 @@
+import type { BrowserLayoutConfig } from '@shared/types/window'
 export interface BrowserLayoutVariableTarget {
   setProperty(name: string, value: string): void
 }

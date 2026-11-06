@@ -3,7 +3,7 @@ import { nowBeijing } from '../shared/time'
 import type { SubmissionNotification } from '../submissions/SubmissionWatcherCore'
 import type { ProblemIdentity } from '../shared/types'
 import type { Verdict } from '../shared/types'
-import type { CoachEvent, CoachEventEvidence, CoachEventType } from './types'
+import type { CoachEvent, CoachEventEvidence, CoachEventType } from '../../src/shared/types/coach'
 
 /**
  * CoachEventBridge：把 SubmissionWatcher 的提交检测通知与

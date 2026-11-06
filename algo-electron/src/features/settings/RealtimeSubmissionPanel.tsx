@@ -1,6 +1,6 @@
 import { Button } from '../../components/ui'
 import { PLATFORM_NAMES } from '../../shared/display'
-import type { RealtimeSubmissionStatus } from './settingsTypes'
+import type { RealtimeSubmissionStatus } from '@shared/types/submission'
 
 interface RealtimeSubmissionPanelProps {
   status: RealtimeSubmissionStatus | null

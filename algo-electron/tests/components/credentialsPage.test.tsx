@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
+import { render } from './renderWithDataRefresh'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, screen, waitFor } from '@testing-library/react'
 
 const api = vi.hoisted(() => ({
   loadSites: vi.fn(),

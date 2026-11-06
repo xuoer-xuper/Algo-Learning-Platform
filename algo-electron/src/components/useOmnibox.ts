@@ -14,6 +14,7 @@ import {
   setBrowserOmniboxOpen,
   subscribeUiCommand,
 } from '../hooks/browserShellApi'
+import type { OmniboxSuggestion } from '@shared/types/problem'
 
 const OMNIBOX_DEBOUNCE_MS = 140
 export const OMNIBOX_LISTBOX_ID = 'omnibox-suggestions-listbox'

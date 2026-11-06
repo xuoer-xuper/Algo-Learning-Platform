@@ -5,20 +5,10 @@ import {
   sanitizeDownloadFilename,
   type DownloadPathFileSystem,
 } from './downloadPath'
+import type { ManagedDownloadResult } from '../../src/shared/types/browser'
 
 export type NativeDownloadState = 'completed' | 'cancelled' | 'interrupted'
 export type ManagedDownloadErrorCode = 'path-setup-failed' | 'intercept-failed'
-
-export interface ManagedDownloadResult {
-  downloadId: string
-  fileName: string
-  savePath: string | null
-  state: NativeDownloadState
-  receivedBytes: number
-  totalBytes: number
-  finishedAt: string
-  errorCode?: ManagedDownloadErrorCode
-}
 
 export interface DownloadWillStartEvent {
   preventDefault(): void

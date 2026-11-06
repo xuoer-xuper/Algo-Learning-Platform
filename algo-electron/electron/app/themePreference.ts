@@ -9,11 +9,14 @@
  * 接受的就是 `'system' | 'light' | 'dark'`，同名可以省掉一层映射表——映射表是
  * 后续加档位时第一个会漏改的地方。渲染进程那边不消费本文件，它读的是
  * `prefers-color-scheme`（`themeSource` 会驱动它），见 src/theme.ts 的说明。
+ * 取值数组与类型已下沉到 `src/shared/constants/preferences.ts` 与
+ * `src/shared/types/config.ts`（阶段 2 R2 常量下沉）：渲染层设置面板与
+ * `src/shared/types/ipc/config.ts` 的输入 schema 都要消费它们，不能反向依赖
+ * 本主进程模块。本模块保留默认值与判定/兜底逻辑。
  */
 
-export const THEME_PREFERENCES = ['system', 'light', 'dark'] as const
-
-export type ThemePreference = (typeof THEME_PREFERENCES)[number]
+import { THEME_PREFERENCES } from '../../src/shared/constants/preferences'
+import type { ThemePreference } from '../../src/shared/types/config'
 
 export const DEFAULT_THEME_PREFERENCE: ThemePreference = 'system'
 

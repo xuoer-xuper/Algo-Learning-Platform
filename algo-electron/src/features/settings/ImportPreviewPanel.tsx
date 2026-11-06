@@ -1,8 +1,8 @@
 import { Button } from '../../components/ui'
-import type { ImportPreview } from './siteManagementTypes'
+import type { SiteImportPreview } from '@shared/types/sites'
 
 interface ImportPreviewPanelProps {
-  preview: ImportPreview
+  preview: SiteImportPreview
   overwriteIds: string[]
   onToggleOverwrite: (id: string) => void
   onConfirm: () => void

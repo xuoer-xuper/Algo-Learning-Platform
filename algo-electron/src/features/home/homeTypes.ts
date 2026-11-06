@@ -1,31 +1,16 @@
-export interface HomeOverviewStats {
-  totalProblems: number
-  todayVisited: number
-  platformDistribution: { platform: string; count: number }[]
-  lastActiveTime: string | null
-}
+import type { ProblemRecord } from '@shared/types/problem'
 
-export interface HomeProblemRecord {
-  id: string
-  platform: string
-  platform_problem_id: string
-  canonical_url: string
-  title: string | null
-  status: string
-  last_visited_at: string | null
-}
-
-export interface HomeRecommendation {
-  problem_id: string
-  platform: string
-  platform_problem_id: string
-  title: string | null
-  canonical_url: string
-  reason: string
-  source: {
-    wrong_count: number
-    last_attempt: string
-    days_since_attempt: number
-    visit_count: number
-  }
-}
+/**
+ * 首页"最近题目"卡片只读 ProblemRecord 的展示字段（不需要 submission_count）。
+ * 收口前这里是整份手抄副本（阶段 2 R2 删除，改为 Pick 单一来源）。
+ */
+export type HomeProblemRecord = Pick<
+  ProblemRecord,
+  | 'id'
+  | 'platform'
+  | 'platform_problem_id'
+  | 'canonical_url'
+  | 'title'
+  | 'status'
+  | 'last_visited_at'
+>

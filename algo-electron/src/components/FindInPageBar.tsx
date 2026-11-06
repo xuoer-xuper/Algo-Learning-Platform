@@ -5,6 +5,7 @@ import {
   subscribeUiCommand,
 } from '../hooks/browserShellApi'
 import { IconButton } from './ui'
+import type { FindInPageCommand, FindInPageViewState } from '@shared/types/browser'
 
 const CLOSED_FIND_STATE: FindInPageViewState = {
   open: false,

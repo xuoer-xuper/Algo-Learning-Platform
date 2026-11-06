@@ -25,7 +25,7 @@
 
 ## 边界规则
 
-- 组件不查业务数据、不调 `window.electronAPI`（沿用 components 层既有边界）。
+- 组件不查业务数据、不调 `window.api`（沿用 components 层既有边界）。
 - ConfirmDialog 仅可在内部页/弹层上下文使用（WebContentsView 已摘除时）；web 标签激活场景的询问走通知条（重构计划 §4 浮层三分法）。
 - Dialog/DropdownMenu/Toast 仅用于内部页；web 标签场景的询问和下载状态使用 NoticeBar，让内容区域主动让位。
 - NoticeBar 必须保持普通文档流布局，不得改成 fixed/absolute 浮层。

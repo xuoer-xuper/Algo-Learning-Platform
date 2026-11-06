@@ -1,4 +1,5 @@
-import type { ReviewPriority, TagAggregate, TagWeakness } from './types'
+import type { ReviewPriority, TagAggregate } from './types'
+import type { TagWeakness } from '../../../src/shared/types/ai'
 
 export const REVIEW_RECOMMENDATION_RULE_VERSION = 1
 export const WEAKNESS_ANALYSIS_RULE_VERSION = 2

@@ -38,8 +38,13 @@ const identifier = z.string().min(1).max(200)
 
 export const getReviewRecommendationsInput = [rowLimit] as const
 export const getWeaknessAnalysisInput = [rowLimit] as const
-export const getPeriodSummaryInput = [localDate, localDate] as const
-export const getPeriodSummaryMarkdownInput = [localDate, localDate] as const
+/* R3 起 getPeriodSummary(+Markdown) / listOutputs / updateOutput 的 wire 形状是单对象参数。 */
+export const getPeriodSummaryInput = [
+  z.strictObject({ startDate: localDate, endDate: localDate }),
+] as const
+export const getPeriodSummaryMarkdownInput = [
+  z.strictObject({ startDate: localDate, endDate: localDate }),
+] as const
 export const getReviewPlanInput = [planDays] as const
 export const getReviewPlanMarkdownInput = [planDays] as const
 
@@ -61,7 +66,9 @@ const saveOutput = z.strictObject({
 
 export const saveOutputInput = [saveOutput] as const
 export const getOutputInput = [identifier] as const
-export const listOutputsInput = [aiOutputType.optional(), rowLimit] as const
+export const listOutputsInput = [
+  z.strictObject({ outputType: aiOutputType.optional(), limit: rowLimit }),
+] as const
 export const deleteOutputInput = [identifier] as const
 
 /*
@@ -76,4 +83,6 @@ const updateOutput = z.strictObject({
   content_markdown: aiOutputBody.nullable().optional(),
 })
 
-export const updateOutputInput = [identifier, updateOutput] as const
+export const updateOutputInput = [
+  z.strictObject({ id: identifier, updates: updateOutput }),
+] as const

@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
+import { render } from './renderWithDataRefresh'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, screen, waitFor } from '@testing-library/react'
 import {
   applyThemeAttribute,
   DARK_COLOR_SCHEME_QUERY,
@@ -61,6 +62,7 @@ vi.mock('../../src/features/settings/RealtimeSubmissionPanel', () => ({
 import { AppearancePanel } from '../../src/features/settings/AppearancePanel'
 import { SettingsPage } from '../../src/features/settings/SettingsPage'
 import { SETTINGS_SECTIONS } from '../../src/features/settings/settingsSections'
+import type { ThemePreference } from '@shared/types/config'
 
 class FakeColorSchemeQuery {
   matches: boolean

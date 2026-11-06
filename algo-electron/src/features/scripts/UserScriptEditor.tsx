@@ -1,5 +1,6 @@
 import { Button, Input, Textarea } from '../../components/ui'
-import type { ScriptSite, UserScriptRecord } from './types'
+import type { UserScriptRecord } from '@shared/types/scripts'
+import type { ScriptSite } from './types'
 
 interface UserScriptEditorProps {
   script: UserScriptRecord

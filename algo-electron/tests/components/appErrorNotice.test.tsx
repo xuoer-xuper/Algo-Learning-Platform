@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
-import { act, cleanup, render, screen } from '@testing-library/react'
+import { render } from './renderWithDataRefresh'
+import { act, cleanup, screen } from '@testing-library/react'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 
 const setErrorNoticeVisible = vi.fn<(visible: boolean) => void>()

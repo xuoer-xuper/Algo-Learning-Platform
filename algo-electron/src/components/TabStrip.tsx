@@ -11,6 +11,7 @@ import {
 import { showBrowserTabContextMenu } from '../hooks/browserShellApi'
 import { Icon, type IconName } from './ui'
 import './TabStrip.css'
+import type { InternalPage } from '@shared/types/browser'
 
 interface TabStripProps {
   onTabUrlChange?: (url: string) => void

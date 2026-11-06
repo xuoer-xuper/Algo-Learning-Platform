@@ -5,6 +5,29 @@
  * 守卫的价值全在"违规重新出现时会失败"，而这一点没法靠守卫自己通过来证明。
  * 这里只做文本判定与棘轮比对，不碰文件系统；遍历与读文件留在 runner 里。
  */
+import ts from 'typescript'
+
+/** Re-exports share a declaration; only distinct top-level definitions are duplicates. */
+export function findDuplicateExportedTypes(sources) {
+  const declarations = new Map()
+  for (const { path: filePath, source } of sources) {
+    const sourceFile = ts.createSourceFile(filePath, source, ts.ScriptTarget.Latest, true)
+    for (const statement of sourceFile.statements) {
+      if (!ts.isInterfaceDeclaration(statement) && !ts.isTypeAliasDeclaration(statement)) continue
+      if (!statement.modifiers?.some((modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword)) {
+        continue
+      }
+      const name = statement.name.text
+      const files = declarations.get(name) ?? new Set()
+      files.add(filePath)
+      declarations.set(name, files)
+    }
+  }
+  return [...declarations]
+    .filter(([, files]) => files.size > 1)
+    .map(([name, files]) => ({ name, files: [...files].sort() }))
+    .sort((left, right) => left.name.localeCompare(right.name))
+}
 
 /**
  * 裸 SQL 的判定口径是"在 db 层之外构造语句"，即对 db / database / getDb() 调
@@ -141,7 +164,7 @@ export function themeDirectiveHasTailwindImport(cssSource) {
  * 文本判定必然算错；而"有没有 schema 元组"是注册处一眼可见的单一事实。
  */
 const IPC_REGISTRATION_PATTERN =
-  /\b(?:ipcMain|coachPetIpcMain|ipcMainHandle)\s*\.?\s*(?:handle|on)\(\s*'[^']+'\s*,\s*(\[[\s\S]*?\]|[A-Za-z_$][A-Za-z0-9_$]*Input\b)?\s*(?:async\s*)?(?:\(([^)]*)\))?/g
+  /\b(?:(?:ipcMain|coachPetIpcMain|shellIpcMain)\s*\.\s*(?:handle|on)|ipcMainHandle|handleFromShell|onFromShell|handleFromCoach|onFromCoach)\s*\(\s*(?:'[^']+'|"[^"]+"|[A-Za-z_$][A-Za-z0-9_$]*(?:\s*\.\s*[A-Za-z_$][A-Za-z0-9_$]*)*)\s*,\s*(\[[\s\S]*?\]|[A-Za-z_$][A-Za-z0-9_$]*Input\b)?\s*(?:async\s*)?(?:\(([^)]*)\))?/g
 
 export function countUnschemadIpc(text) {
   let count = 0
@@ -159,7 +182,7 @@ export function countUnschemadIpc(text) {
 }
 
 /**
- * 无形状放行的用量（`z.unknown()`，旧组合子 `raw()` 的等价物）。
+ * 无形状放行（`z.unknown()`，旧组合子 `raw()` 的等价物）。
  *
  * 它的语义是"这个参数由 handler 自己校验"，存在的意义是让"没校验"和
  * "在别处校验"在代码里可区分。但它同时也是一个逃逸口：写上去就能让
@@ -170,6 +193,27 @@ export function countUnschemadIpc(text) {
  */
 export function countRawIpcSchemas(text) {
   return text.match(/\bz\.unknown\(\s*\)/g)?.length ?? 0
+}
+
+/**
+ * 以字符串字面量出现的 IPC channel（阶段 2 R1 收口后的回归守卫）。
+ *
+ * channel 名的唯一来源是 `src/shared/constants/channels.ts`；注册与发送处引用常量，
+ * 拼写错误在编译期就报。这里数的是绕过常量直接写 `'xxx:yyy'` 的调用——值改了编译器
+ * 不会说话，只在 runtime 静默失联，所以必须靠文本判定拦住。
+ *
+ * 判定口径：`ipcMain` / `ipcRenderer` 接收者的通道型方法，第一个实参以引号开头。
+ * 除 prd 点名的 `handle|on` 与 `invoke|send|on` 外，把同族的 `off` / `once` /
+ * `sendSync` / `postMessage` / `removeListener` / `removeAllListeners` 一并计入——
+ * 它们同样以 channel 为首参，只字面量写 `.on(...)` 再用常量写 `.off(...)` 会让
+ * 订阅与退订悄悄错开。首个实参不是 channel 的同名方法（如 `emitter.on`）不匹配
+ * 接收者限定，不会误伤。
+ */
+const IPC_CHANNEL_LITERAL_PATTERN =
+  /\b(?:ipcMain|ipcRenderer)\s*\.\s*(?:handle|on|once|off|invoke|send|sendSync|postMessage|removeListener|removeAllListeners|removeHandler)\s*\(\s*['"]/
+
+export function countIpcChannelLiterals(text) {
+  return (text.match(new RegExp(IPC_CHANNEL_LITERAL_PATTERN.source, 'g')) ?? []).length
 }
 
 export function collectRatchetFailures({ entries, budgets, describe, cleanupHint }) {

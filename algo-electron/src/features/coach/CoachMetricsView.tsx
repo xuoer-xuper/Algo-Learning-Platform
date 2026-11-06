@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import {
   Bar,
   BarChart,
@@ -16,6 +16,7 @@ import { computeCoachMetrics, formatPercent, type CoachMetricsComputed } from '.
 import { MOCK_METRICS_BUNDLE, MOCK_EXPECTED } from './mockMetricsBundle'
 import { Button, Card, IconButton, Skeleton } from '../../components/ui'
 import { CHART_COLORS } from '../../shared/display'
+import { useIpcQuery } from '../../hooks/useIpcQuery'
 
 /**
  * Coach 干预效果指标页（阶段 4 Task 19）。
@@ -75,35 +76,19 @@ function fmtTime(s: string | null | undefined): string {
 }
 
 export function CoachMetricsView({ onClose }: Props) {
-  const [bundle, setBundle] = useState<CoachMetricsBundle | null>(null)
   const [isMock, setIsMock] = useState(false)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-
-  const loadReal = useCallback(async () => {
-    setLoading(true)
-    setError(null)
-    try {
-      const b = await loadMetricsBundle()
-      setBundle(b)
-      setIsMock(false)
-    } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : String(e)
-      setError(`加载指标失败: ${msg}`)
-    } finally {
-      setLoading(false)
-    }
+  const query = useIpcQuery(loadMetricsBundle, [], {
+    tables: ['coach', 'problems', 'submissions'],
+    enabled: !isMock,
+  })
+  const bundle = isMock ? MOCK_METRICS_BUNDLE : query.data
+  const loading = !isMock && query.isLoading
+  const error = !isMock && query.error ? `加载指标失败: ${query.error.message}` : null
+  const loadReal = useCallback(() => {
+    setIsMock(false)
   }, [])
-
-  useEffect(() => {
-    void loadReal()
-  }, [loadReal])
-
   const loadMock = useCallback(() => {
-    setBundle(MOCK_METRICS_BUNDLE)
     setIsMock(true)
-    setLoading(false)
-    setError(null)
   }, [])
 
   const metrics: CoachMetricsComputed | null = useMemo(() => {

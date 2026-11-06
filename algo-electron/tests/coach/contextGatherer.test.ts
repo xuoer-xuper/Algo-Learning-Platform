@@ -3,7 +3,7 @@ import { beforeEach, test, vi } from 'vitest'
 import type { AIContextExport } from '../../electron/ai/contextTypes.ts'
 import type { ProblemDetail } from '../../electron/db/repositories/problem/types.ts'
 import type { SubmissionRow } from '../../electron/db/repositories/submission/types.ts'
-import type { CoachEvent, ProblemSession } from '../../electron/coach/types.ts'
+import type { CoachEvent, ProblemSession } from '@shared/types/coach'
 import { ContextGatherer } from '../../electron/coach/llm/ContextGatherer.ts'
 import { buildHintPrompt } from '../../electron/coach/llm/PromptBuilder.ts'
 

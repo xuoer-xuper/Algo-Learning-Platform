@@ -10,8 +10,9 @@ import {
   WEAKNESS_ANALYSIS_RULE_VERSION,
 } from './rules'
 import { parseTagsJson } from './tagParsing'
-import type { TagAggregate, TagWeakness, WeaknessAnalysisResult } from './types'
-export type { TagWeakness, WeaknessAnalysisResult } from './types'
+import type { TagAggregate } from './types'
+import type { TagWeakness, WeaknessAnalysisResult } from '../../../src/shared/types/ai'
+export type { TagWeakness, WeaknessAnalysisResult } from '../../../src/shared/types/ai'
 
 // 薄弱评分规则（纯本地统计）：
 // 1. AC 率越低越薄弱（权重 50）

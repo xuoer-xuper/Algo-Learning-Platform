@@ -1,4 +1,8 @@
 import { randomUUID } from 'node:crypto'
+import type {
+  UserScriptHostPermissionPrompt,
+  UserScriptHostPermissionResponse,
+} from '../../src/shared/types/scripts'
 
 const DEFAULT_TIMEOUT_MS = 30_000
 const MAX_TIMEOUT_MS = 5 * 60_000
@@ -7,13 +11,6 @@ const MAX_SCRIPT_NAME_LENGTH = 256
 const MAX_HOST_LENGTH = 512
 const MAX_PENDING_PER_WINDOW = 32
 const MAX_TOTAL_PENDING = 256
-
-export interface UserScriptHostPermissionPrompt {
-  promptId: string
-  scriptName: string
-  targetHost: string
-  sourceHost: string
-}
 
 export interface UserScriptHostPermissionRequest {
   windowId: string
@@ -24,8 +21,6 @@ export interface UserScriptHostPermissionRequest {
   sourceHost: string
   webContentsId?: number
 }
-
-export type UserScriptHostPermissionResponse = 'allowed' | 'denied' | 'persist-failed' | 'stale'
 
 export interface UserScriptHostPermissionBrokerOptions {
   grantUserScriptHost: (scriptId: string, exactHost: string) => unknown

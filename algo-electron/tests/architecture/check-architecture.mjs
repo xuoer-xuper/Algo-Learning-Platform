@@ -7,8 +7,10 @@ import {
   countBareHex,
   countBareRgb,
   countBareSql,
+  countIpcChannelLiterals,
   countRawIpcSchemas,
   countUnschemadIpc,
+  findDuplicateExportedTypes,
   themeDirectiveHasTailwindImport,
 } from './guards.mjs'
 
@@ -89,16 +91,53 @@ check('runtime code does not reintroduce Electron BrowserView', () => {
 })
 
 check('renderer code does not access ipcRenderer directly', () => {
-  failIfMatches(walkSourceFiles(path.join(projectRoot, 'src')), [
+  // src/shared/ 是跨进程共享层：channels.ts 的守卫说明里会以 API 名指称这条规则本身，
+  // 那里没有也不允许有真实的 electron 访问（由下一条检查反向守住）。src/preload/ 是
+  // 唯一合法的 ipcRenderer 使用者（下一组检查管它暴露什么），也从这里豁免。
+  failIfMatches(
+    walkSourceFiles(path.join(projectRoot, 'src')).filter(
+      (file) =>
+        !relative(file).startsWith('src/shared/') && !relative(file).startsWith('src/preload/'),
+    ),
+    [
+      {
+        regex: /\bipcRenderer\b/,
+        reason: 'renderer must use window.api helpers instead of ipcRenderer',
+      },
+    ],
+  )
+})
+
+check('src/shared stays process-neutral (no electron imports)', () => {
+  // 上一条把 src/shared 从渲染层 ipcRenderer 检查里豁免，豁免的边界由这条守住：
+  // shared 层要同时进渲染进程与主进程的 bundle，import electron 会把主进程模块
+  // 打进渲染包（阶段 1 复核 MEDIUM 项，.trellis 任务 implement.md 启动评审注记 ③）。
+  failIfMatches(walkSourceFiles(path.join(projectRoot, 'src', 'shared')), [
     {
-      regex: /\bipcRenderer\b/,
-      reason: 'renderer must use window.electronAPI helpers instead of ipcRenderer',
+      regex: /\b(?:from\s+|import\s*\(\s*|import\s+)['"]electron(?:\/[^'"]*)?['"]/,
+      reason: 'src/shared is shared by renderer and main; it must not import electron',
+    },
+    {
+      regex: /\b(?:from\s+|import\s*\(\s*|import\s+)['"](?:\.\.?\/)+electron\/[^'"]+['"]/,
+      reason: 'src/shared must not import main-process modules from electron/',
     },
   ])
 })
 
+check('exported type declarations have a single source', () => {
+  const duplicates = findDuplicateExportedTypes(
+    sourceFiles()
+      .filter((file) => /\.tsx?$/.test(file))
+      .map((file) => ({ path: relative(file), source: read(file) })),
+  )
+  if (duplicates.length > 0) {
+    throw new Error(duplicates.map(({ name, files }) => `${name}: ${files.join(', ')}`).join('\n'))
+  }
+})
+
 check('preload does not expose generic ipcRenderer', () => {
-  const preload = read(path.join(projectRoot, 'electron', 'preload.ts'))
+  // R3 起 shell preload 在 src/preload/index.ts（域分组的 api 对象）。
+  const preload = read(path.join(projectRoot, 'src', 'preload', 'index.ts'))
 
   const forbidden = [
     /exposeInMainWorld\(\s*['"]ipcRenderer['"]/,
@@ -109,9 +148,26 @@ check('preload does not expose generic ipcRenderer', () => {
 
   for (const pattern of forbidden) {
     if (pattern.test(preload)) {
-      throw new Error('electron/preload.ts exposes generic ipcRenderer capability')
+      throw new Error('src/preload/index.ts exposes generic ipcRenderer capability')
     }
   }
+})
+
+check('IPC channel names come from the shared constants, not literals', () => {
+  // 阶段 2 R1 收口：channel 名的唯一来源是 src/shared/constants/channels.ts，
+  // 注册与发送处引用常量（trustedSender 的 channel 参数已收窄为 IpcChannel 闭集，
+  // 拼写错误在编译期就报）。这里拦的是绕过常量的字面量回归——值改了编译器不说话，
+  // 只在 runtime 静默失联。判定逻辑与反向验证见 guards.mjs 的 countIpcChannelLiterals。
+  const failures = []
+  for (const file of sourceFiles()) {
+    const count = countIpcChannelLiterals(read(file))
+    if (count > 0) {
+      failures.push(
+        `${relative(file)}: 有 ${count} 处 IPC channel 字面量，channel 名必须引用 src/shared/constants/channels.ts 的 IPC_CHANNELS`,
+      )
+    }
+  }
+  if (failures.length > 0) throw new Error(failures.join('\n'))
 })
 
 check('ordinary IPC handlers use the trusted shell sender facade', () => {
@@ -319,24 +375,40 @@ check('bare SQL stays inside electron/db/', () => {
   })
 })
 
-check('renderer components reach the main process only through *Api.ts', () => {
-  // main.tsx 同步读取 preload 注入的布局常量（不是 IPC 调用），且是入口文件，
-  // 没有更上层可以搬。这是唯一豁免。
-  const ENTRY_EXEMPT = new Set(['src/main.tsx'])
-  const failures = []
+check(
+  'renderer reaches the main process only through window.api, only in hooks/ and *Api.ts',
+  () => {
+    // R3 重写：跨进程面是 `window.api`（typeof api 推导）。谁可以直接引用它：
+    //   - `*Api.ts` 数据访问层（约定不变）；
+    //   - `src/hooks/` 下的 hook 文件（R4 的 useIpcQuery 在这里直接订阅/取数）；
+    //   - `src/main.tsx`——入口同步读取 preload 注入的布局常量（不是 IPC 调用），
+    //     没有更上层可以搬，唯一豁免。
+    // 组件与其他模块一律经由上面两层。`window.electronAPI` 这个死名字出现即失败
+    // （AC：`grep -rn electronAPI` = 0，防止旧名回归）。
+    const ENTRY_EXEMPT = new Set(['src/main.tsx'])
+    const failures = []
 
-  for (const file of walkSourceFiles(path.join(projectRoot, 'src'))) {
-    const rel = relative(file)
-    if (ENTRY_EXEMPT.has(rel)) continue
-    // *Api.ts 是约定的数据访问层，通道名只应出现在这里。
-    if (/Api\.ts$/.test(rel)) continue
-    if (!/\bwindow\.electronAPI\b/.test(read(file))) continue
+    for (const file of walkSourceFiles(path.join(projectRoot, 'src'))) {
+      const rel = relative(file)
+      const text = read(file)
 
-    failures.push(`${rel}: 组件与 hook 不得直连 window.electronAPI，请收进同域的 *Api.ts`)
-  }
+      if (/\bwindow\.electronAPI\b/.test(text)) {
+        failures.push(`${rel}: window.electronAPI 已被 window.api 取代（R3）`)
+        continue
+      }
 
-  if (failures.length > 0) throw new Error(failures.join('\n'))
-})
+      if (ENTRY_EXEMPT.has(rel)) continue
+      if (/Api\.ts$/.test(rel)) continue
+      if (rel.startsWith('src/hooks/')) continue
+      if (rel.startsWith('src/preload/')) continue
+      if (!/\bwindow\.api\b/.test(text)) continue
+
+      failures.push(`${rel}: 组件与 hook 不得直连 window.api，请收进同域的 *Api.ts 或 src/hooks/`)
+    }
+
+    if (failures.length > 0) throw new Error(failures.join('\n'))
+  },
+)
 
 // 全部为长期例外，条目里注明属于哪一类。Q4 已清完待办欠账：
 // ProblemSidebar（IconButton + Select size="sm"）、NoteEditorPane（Input/Select）、

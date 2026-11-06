@@ -1,6 +1,6 @@
 import assert from 'node:assert'
 import { test } from 'vitest'
-import type { CoachEvent, CoachEventType, ProblemSession } from '../../electron/coach/types.ts'
+import type { CoachEvent, CoachEventType, ProblemSession } from '@shared/types/coach'
 import { RuleEngine } from '../../electron/coach/rules/RuleEngine.ts'
 import {
   RULE_THROTTLE_MS,

@@ -1,6 +1,7 @@
 import React from 'react'
 import { createRoot } from 'react-dom/client'
 import { CoachPet } from '../../src/features/coach/CoachPet'
+import type { CoachBubblePayload } from '@shared/types/coach'
 import '../../src/index.css'
 
 declare global {
@@ -30,49 +31,54 @@ window.__coachHarness = {
   dismissBubble: () => dismissBubble?.(),
 }
 
-const api = {
-  coachGetPetState: async () => 'idle',
-  coachGetConfig: async () => ({
-    enabled: true,
-    sound: false,
-    bubbleFrequency: 'medium',
-    position: null,
-    scale: 1,
-    opacity: 1,
-    pinMode: 'follow',
-  }),
-  onCoachPetStateChanged: () => () => {},
-  onCoachConfigChanged: () => () => {},
-  onCoachShowBubble: (listener: (payload: CoachBubblePayload) => void) => {
-    showBubble = listener
-    return () => {
-      showBubble = null
-    }
-  },
-  onCoachDismissBubble: (listener: () => void) => {
-    dismissBubble = listener
-    return () => {
-      dismissBubble = null
-    }
-  },
-  coachToggleIgnoreMouseEvents: async (ignore: boolean) => {
-    window.__coachHarness.ignore = ignore
-    await window.__applyNativeMouseCapture?.(ignore)
-    return true
-  },
-  coachStartDrag: async () => true,
-  coachEndDrag: async () => true,
-  coachPetClick: async () => {
-    window.__coachHarness.showBubble()
-    return { triggered: true, level: 1, llmEnabled: true }
-  },
-  coachDismissHint: async () => true,
-  coachTriggerHint: async () => ({ accepted: true, level: 2 }),
-  coachDismissDisclaimer: async () => true,
-  coachFeedback: async () => true,
-  coachChat: async () => ({ success: true, reply: 'Check the input constraints.' }),
-} satisfies Partial<ElectronAPI>
+/** 只需要 coach 域的一个子集：域内方法保持完整签名，域对象本身允许缺方法。 */
+type DomainStub = { [K in keyof typeof window.api]?: Partial<(typeof window.api)[K]> }
 
-Object.defineProperty(window, 'electronAPI', { value: api, configurable: true })
+const api: DomainStub = {
+  coach: {
+    getPetState: async () => 'idle',
+    getConfig: async () => ({
+      enabled: true,
+      sound: false,
+      bubbleFrequency: 'medium',
+      position: null,
+      scale: 1,
+      opacity: 1,
+      pinMode: 'follow',
+    }),
+    onPetStateChanged: () => () => {},
+    onConfigChanged: () => () => {},
+    onShowBubble: (listener: (payload: CoachBubblePayload) => void) => {
+      showBubble = listener
+      return () => {
+        showBubble = null
+      }
+    },
+    onDismissBubble: (listener: () => void) => {
+      dismissBubble = listener
+      return () => {
+        dismissBubble = null
+      }
+    },
+    toggleIgnoreMouseEvents: async (ignore: boolean) => {
+      window.__coachHarness.ignore = ignore
+      await window.__applyNativeMouseCapture?.(ignore)
+      return true
+    },
+    startDrag: async () => true,
+    endDrag: async () => true,
+    petClick: async () => {
+      window.__coachHarness.showBubble()
+      return { triggered: true, level: 1, llmEnabled: true }
+    },
+    dismissHint: async () => true,
+    triggerHint: async () => ({ accepted: true, level: 2 }),
+    dismissDisclaimer: async () => true,
+    feedback: async () => true,
+    chat: async () => ({ success: true, reply: 'Check the input constraints.' }),
+  },
+}
+
+Object.defineProperty(window, 'api', { value: api, configurable: true })
 
 createRoot(document.getElementById('root')!).render(<CoachPet />)

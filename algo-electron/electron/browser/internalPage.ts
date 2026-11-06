@@ -1,4 +1,5 @@
-import { isInternalPage, type InternalPage } from './tabManagerTypes'
+import { isInternalPage } from './tabManagerTypes'
+import type { InternalPage } from '../../src/shared/types/browser'
 
 const INTERNAL_PAGE_TITLES: Record<InternalPage['type'], string> = {
   home: '首页',

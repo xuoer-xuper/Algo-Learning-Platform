@@ -1,15 +1,19 @@
 export type {
   DailyActiveStat,
-  PlatformDistributionRow,
   ProblemVisitStat,
   RevisitStat,
   StreakDays,
-  SubmissionTrendPoint,
-  TimelineEvent,
-  TrendPoint,
   UnreviewedProblem,
   WrongProblem,
 } from './stats/types'
+
+// 趋势点与时间线事件是跨进程类型（阶段 2 R2 收口），单一来源在 shared。
+export type {
+  PlatformDistributionRow,
+  SubmissionTrendPoint,
+  TimelineEvent,
+  TrendPoint,
+} from '../../../src/shared/types/stats'
 
 export {
   getAcTrend,

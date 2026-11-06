@@ -1,4 +1,10 @@
-import type { ScriptSite, UserScriptRecord } from './types'
+import type { UserScriptRecord } from '@shared/types/scripts'
+import type { ScriptSite } from './types'
+import type {
+  UserScriptCodeView,
+  UserScriptOpenEditorResult,
+  UserScriptUpdateSummary,
+} from '@shared/types/scripts'
 
 export interface UserScriptManagerData {
   scripts: UserScriptRecord[]
@@ -7,8 +13,8 @@ export interface UserScriptManagerData {
 
 export async function loadUserScriptManagerData(): Promise<UserScriptManagerData> {
   const [scripts, sites] = await Promise.all([
-    window.electronAPI.scriptsGetAll(),
-    window.electronAPI.getAllSites(),
+    window.api.scripts.getAll(),
+    window.api.sites.getAll(),
   ])
 
   return {
@@ -18,7 +24,7 @@ export async function loadUserScriptManagerData(): Promise<UserScriptManagerData
 }
 
 export async function importUserScriptFile(): Promise<string | null> {
-  return window.electronAPI.scriptsImportFile()
+  return window.api.scripts.importFile()
 }
 
 export async function saveUserScriptSites(
@@ -26,30 +32,33 @@ export async function saveUserScriptSites(
   name: string,
   selectedSiteIds: string[],
 ): Promise<string> {
-  return window.electronAPI.scriptsSave(scriptId, {
-    name,
-    site_ids_json: JSON.stringify(selectedSiteIds),
+  return window.api.scripts.save({
+    id: scriptId,
+    data: {
+      name,
+      site_ids_json: JSON.stringify(selectedSiteIds),
+    },
   })
 }
 
 export async function toggleUserScript(scriptId: string, enabled: boolean): Promise<boolean> {
-  return window.electronAPI.scriptsToggle(scriptId, enabled)
+  return window.api.scripts.toggle({ id: scriptId, enabled })
 }
 
 export async function deleteUserScript(scriptId: string): Promise<boolean> {
-  return window.electronAPI.scriptsDelete(scriptId)
+  return window.api.scripts.delete(scriptId)
 }
 
 export function openUserScriptsFolder(): Promise<string> {
-  return window.electronAPI.scriptsOpenFolder()
+  return window.api.scripts.openFolder()
 }
 
 export function getUserScriptCode(scriptId: string): Promise<UserScriptCodeView> {
-  return window.electronAPI.scriptsGetCode(scriptId)
+  return window.api.scripts.getCode(scriptId)
 }
 
 export function openUserScriptEditor(scriptId: string): Promise<UserScriptOpenEditorResult> {
-  return window.electronAPI.scriptsOpenEditor(scriptId)
+  return window.api.scripts.openEditor(scriptId)
 }
 
 const CODE_VIEW_MESSAGES: Record<Exclude<UserScriptCodeView['status'], 'ok'>, string> = {
@@ -76,5 +85,5 @@ export function describeUserScriptOpenEditorResult(
 }
 
 export function checkUserScriptUpdates(): Promise<UserScriptUpdateSummary | null> {
-  return window.electronAPI.scriptsCheckUpdates()
+  return window.api.scripts.checkUpdates()
 }

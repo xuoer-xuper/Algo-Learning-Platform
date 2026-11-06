@@ -75,16 +75,16 @@ npx vitest run tests/coach/coachOrchestratorLifecycle.test.ts
 运行时手动验证：
 
 - 启动应用后桌宠出现在右下角。
-- DevTools 调用 `window.electronAPI.coachSetPetState('celebrate')` 验证状态切换。
+- DevTools 调用 `await window.api.coach.getPetState()` 验证状态读取（状态切换由主进程推送 `coach.onPetStateChanged`，`coachSetPetState` 通道等对应 UI 落地后再按 `apiConsumers` 守卫放回暴露面）。
 - 进入 CF 比赛页验证零提示与审计日志。
-- `await window.electronAPI.coachGetState()` 返回当前会话/比赛模式快照。
-- `await window.electronAPI.coachExportAuditLog()` 返回比赛审计记录。
+- `await window.api.coach.getState()` 返回当前会话/比赛模式快照。
+- `await window.api.coach.getMetricsBundle()` 返回干预效果指标 bundle（`coachExportAuditLog` 通道等审计 UI 落地后按 `apiConsumers` 守卫放回暴露面）。
 
 ## 跨模块依赖
 
 - `electron/app/config.ts`：`loadCoachConfig` / `saveCoachConfig`。
 - `electron/ipc/registerCoachIpc.ts`：IPC 注册（接入 `registerMainIpc.ts`）。
-- `electron/preload.ts`：`electronAPI.coach*` 暴露。
+- `src/preload/index.ts`：`api.coach.*` 暴露。
 - `electron/main.ts`：初始化入口与生命周期绑定。
 - `electron/submissions/SubmissionWatcher.ts`：EventEmitter 出口。
 - `electron/db/repositories/coach/`：数据仓库。

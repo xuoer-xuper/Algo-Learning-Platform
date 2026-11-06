@@ -1,3 +1,4 @@
+import { emitDataChanged } from '../../../shared/dataEvents'
 import crypto from 'node:crypto'
 import { getDb } from '../../connection'
 import { nowBeijing } from '../../../shared/time'
@@ -18,6 +19,7 @@ export function upsertAccount(platform: string, handle: string, displayName?: st
       WHERE id = ?
     `,
     ).run(displayName ?? null, now, existing.id)
+    emitDataChanged(['stats'])
     return existing.id
   }
 
@@ -28,29 +30,36 @@ export function upsertAccount(platform: string, handle: string, displayName?: st
     VALUES (?, ?, ?, ?, ?, ?)
   `,
   ).run(id, platform, handle, displayName ?? null, now, now)
+  emitDataChanged(['stats'])
   return id
 }
 
 export function updateCurrentRating(accountId: string, rating: number): void {
   const db = getDb()
   const now = nowBeijing()
-  db.prepare(
-    `
+  const result = db
+    .prepare(
+      `
     UPDATE platform_accounts SET current_rating = ?, last_synced_at = ?, updated_at = ?
     WHERE id = ?
   `,
-  ).run(rating, now, now, accountId)
+    )
+    .run(rating, now, now, accountId)
+  if (result.changes > 0) emitDataChanged(['stats'])
 }
 
 export function updatePeakRating(accountId: string, peak: number): void {
   const db = getDb()
   const now = nowBeijing()
-  db.prepare(
-    `
+  const result = db
+    .prepare(
+      `
     UPDATE platform_accounts SET peak_rating = ?, updated_at = ?
     WHERE id = ?
   `,
-  ).run(peak, now, accountId)
+    )
+    .run(peak, now, accountId)
+  if (result.changes > 0) emitDataChanged(['stats'])
 }
 
 export function getAccount(platform: string, handle: string): PlatformAccountRow | null {

@@ -10,6 +10,7 @@ import {
   type ZodParsedArgs,
   type ZodSchemaTuple,
 } from './ipcPayload'
+import { type IpcChannel } from '../../src/shared/constants/channels'
 import { SHELL_ORIGIN } from '../app/appProtocol'
 import { logger } from '../shared/logger'
 
@@ -332,14 +333,17 @@ function parseOrReject(channel: string, schemas: ZodSchemaTuple, args: unknown[]
   }
 }
 
-export function handleFromShell(channel: string, listener: IpcListener<IpcMainInvokeEvent>): void
+export function handleFromShell(
+  channel: IpcChannel,
+  listener: IpcListener<IpcMainInvokeEvent>,
+): void
 export function handleFromShell<const S extends ZodSchemaTuple>(
-  channel: string,
+  channel: IpcChannel,
   schemas: S,
   listener: (event: IpcMainInvokeEvent, ...args: ZodParsedArgs<S>) => unknown,
 ): void
 export function handleFromShell(
-  channel: string,
+  channel: IpcChannel,
   second: SchemaOrListener<IpcMainInvokeEvent>,
   third?: IpcListener<IpcMainInvokeEvent>,
 ): void {
@@ -353,14 +357,14 @@ export function handleFromShell(
   })
 }
 
-export function onFromShell(channel: string, listener: IpcListener<IpcMainEvent>): void
+export function onFromShell(channel: IpcChannel, listener: IpcListener<IpcMainEvent>): void
 export function onFromShell<const S extends ZodSchemaTuple>(
-  channel: string,
+  channel: IpcChannel,
   schemas: S,
   listener: (event: IpcMainEvent, ...args: ZodParsedArgs<S>) => unknown,
 ): void
 export function onFromShell(
-  channel: string,
+  channel: IpcChannel,
   second: SchemaOrListener<IpcMainEvent>,
   third?: IpcListener<IpcMainEvent>,
 ): void {
@@ -385,14 +389,17 @@ export function onFromShell(
   })
 }
 
-export function handleFromCoach(channel: string, listener: IpcListener<IpcMainInvokeEvent>): void
+export function handleFromCoach(
+  channel: IpcChannel,
+  listener: IpcListener<IpcMainInvokeEvent>,
+): void
 export function handleFromCoach<const S extends ZodSchemaTuple>(
-  channel: string,
+  channel: IpcChannel,
   schemas: S,
   listener: (event: IpcMainInvokeEvent, ...args: ZodParsedArgs<S>) => unknown,
 ): void
 export function handleFromCoach(
-  channel: string,
+  channel: IpcChannel,
   second: SchemaOrListener<IpcMainInvokeEvent>,
   third?: IpcListener<IpcMainInvokeEvent>,
 ): void {
@@ -406,14 +413,14 @@ export function handleFromCoach(
   })
 }
 
-export function onFromCoach(channel: string, listener: IpcListener<IpcMainEvent>): void
+export function onFromCoach(channel: IpcChannel, listener: IpcListener<IpcMainEvent>): void
 export function onFromCoach<const S extends ZodSchemaTuple>(
-  channel: string,
+  channel: IpcChannel,
   schemas: S,
   listener: (event: IpcMainEvent, ...args: ZodParsedArgs<S>) => unknown,
 ): void
 export function onFromCoach(
-  channel: string,
+  channel: IpcChannel,
   second: SchemaOrListener<IpcMainEvent>,
   third?: IpcListener<IpcMainEvent>,
 ): void {
@@ -437,7 +444,7 @@ export function onFromCoach(
 }
 
 export function onFromOj(
-  channel: string,
+  channel: IpcChannel,
   listener: IpcListener<IpcMainEvent>,
 ): IpcListener<IpcMainEvent> {
   const guardedListener: IpcListener<IpcMainEvent> = (event, ...args) => {
@@ -457,7 +464,7 @@ export function onFromOj(
  * main-to-renderer push can race a not-yet-registered listener.
  */
 export function handleFromOj(
-  channel: string,
+  channel: IpcChannel,
   listener: IpcListener<IpcMainInvokeEvent>,
 ): IpcListener<IpcMainInvokeEvent> {
   const guardedListener: IpcListener<IpcMainInvokeEvent> = (event, ...args) => {

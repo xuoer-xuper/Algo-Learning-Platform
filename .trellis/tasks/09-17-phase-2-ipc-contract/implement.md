@@ -2,38 +2,105 @@
 
 分支：`refactor/phase-2-ipc-contract`；R5 单独 `feat/db-unix-ms-timestamps`。前置：阶段 1 合入 dev。
 
+> **启动评审注记（2026-11-01，1.4 评审结论）**：
+> ①**R4 路径勘误**：prd/implement 写的 `src/renderer/src/context|hooks/` 是阶段 4 的目标布局；本阶段明确"src/（渲染）不动"，正确路径为 `src/context/DataRefreshContext.tsx` 与 `src/hooks/useIpcQuery.ts`；
+> ②**全部计数过时**（158/139/21/112/155/72/40/31/65/15/9 等）——以实施时 grep 实测为准并回填注记；
+> ③**shared→electron 方向（阶段 1 复核 MEDIUM 项）**：R2 必须把 `COACH_PIN_MODES`/`SEARCH_ENGINE_IDS`/`THEME_PREFERENCES` 下沉到 `src/shared/`（electron 侧 re-export 或直接 import shared），否则渲染层经 @shared 消费阶段 1 schema 时会把主进程模块打进渲染包；同时建议加守卫"`src/shared/**` 不得 import `electron/`"；
+> ④阶段 1 事实衔接：zod 4.6.7（discriminatedUnion 已实测）、`createOutputSchema`/`errorCodes`/13 域 `*Input` 已存在（R2 的实体类型与它们是兄弟层，勿重复）、架构守卫按 `*Input` 后缀识别、顶层 electron 导入必须跑一次 test:all（R2 教训）；
+> ⑤新门遵守：verbatimModuleSyntax、prettier、jscpd 3%、test:ci 推送纪律、R1–R4 每节推送盯 CI、R5 单独分支单独 PR；
+> ⑥R5 真实库 fixture：从本机 userData 复制后脱敏（prd 预授权路径），三时期（v1.0.0/beta.2/rc.1）各一份。
+
 ## Checklist
 
+> **R1-R3 复核（2026-11-04）**：修复 3 个 IPC 架构守卫漏检点与过渡测试清理/懒加载竞态；
+> 类型收口后 `pnpm test:all` 179 文件 / 1447 用例、Playwright 9/9 全过；此前 `build:check` 全过。
+> `CoachLlmConfig` 已改为 shared 单一来源，AST 新守卫保证“同名导出 = 0”，密钥不跨 IPC。
+> 详见 [复核记录](./review-2026-11-04.md)。用户已授权提交/推送并继续 R4/R5。
+
 ### R1 channel 常量
-- [ ] 脚本抽取：`grep -rhoE "(invoke|send|on|handle)\('([a-z-]+:[A-Za-z]+)'" electron | sort -u` 生成 `channels.ts` 初稿（158 + 内部）。
-- [ ] `tests/ipc/channels.test.ts` 快照当前值集合（先写测试再改代码）。
-- [ ] 替换 preload 158 处、`register*Ipc.ts` 160 处、其余 4 处；`trustedSender` 参数收窄为 `IpcChannel`。
-- [ ] 架构守卫：字面量预算 0；放行主进程 import `src/shared`。
+
+- [x] 脚本抽取：`grep -rhoE "(invoke|send|on|handle)\('([a-z-]+:[A-Za-z]+)'" electron | sort -u` 生成 `channels.ts` 初稿（158 + 内部）。
+- [x] `tests/ipc/channels.test.ts` 快照当前值集合（先写测试再改代码）。
+- [x] 替换 preload 158 处、`register*Ipc.ts` 160 处、其余 4 处；`trustedSender` 参数收窄为 `IpcChannel`。
+- [x] 架构守卫：字面量预算 0；放行主进程 import `src/shared`。
 - 验证：`pnpm test:core`；`pnpm vitest run tests/ipc`。commit `refactor(ipc): IPC channel 名集中为共享常量`。
 
+> **R1 实测回填（2026-11-01 实施时 grep）**：唯一 channel 共 **178**（不是 158+内部：含
+> `userscript:*` 3、`userscript-runtime:*` 2、`oj-*` 4、`log-to-main`、`realtimeSubmission:getStatus`、
+> `download:result` 等）。调用点字面量实测：主进程注册 158、guarded 注册 1、preload 渲染侧
+> 192（含 on/off 成对）、主进程推送 30——全部换用 `IPC_CHANNELS`；4 个原本就是常量的
+> channel（`oj-submission:*` ×2、`userscript-runtime:*` ×2）改为从 shared 常量 re-export。
+> 设计 §2 的 `IpcChannel` 直取推导在异构分组下塌成 `never`（keyof 并集 = 键集交集），
+> 实施改为 mapped type。
+
 ### R2 shared types
-- [ ] 从 `electron-env.d.ts` 按域拆 15 个文件到 `src/shared/types/`，实体用 zod。
-- [ ] 主进程 72 处 `export interface` → `import type`（脚本：对 112 个名字 grep 定位）。
-- [ ] 渲染 10 处 + 6 组副本删除改 import；`Pick/Omit` 处理子集。
-- [ ] 删 `electron-env.d.ts`；`src/main/env.d.ts` 只留 `ProcessEnv`；`tsconfig.tests.json` include 改。
+
+- [x] 从 `electron-env.d.ts` 按域拆 15 个文件到 `src/shared/types/`，实体用 zod。
+- [x] 主进程 72 处 `export interface` → `import type`（脚本：对 112 个名字 grep 定位）。
+- [x] 渲染 10 处 + 6 组副本删除改 import；`Pick/Omit` 处理子集。
+- [x] 删 `electron-env.d.ts`；`src/main/env.d.ts` 只留 `ProcessEnv`；`tsconfig.tests.json` include 改。
 - 验证：`uniq -d` 同名导出 = 0；`pnpm typecheck` ×2。commit `refactor(shared): 跨进程类型收口到 src/shared/types`。
 
+> **R2 实测回填（2026-11-01 实施时 grep）**：`electron-env.d.ts` 顶层类型声明 **111** 个
+> （不是 112；含 `ElectronAPI` 与 `Window` 两个 API 面声明，域类型实为 109），按域拆成
+> `src/shared/types/` 的 15 个文件 + `common.ts` 的 `IpcOutput`（`*Result` 七个手写镜像改为
+> `IpcOutput<T>` 推导）。主进程同名声明（export + 局部）实测 **77 处分布于 28 个文件**
+> （prd 写 72；含 `electron/coach/types.ts` 整文件删除改 import、3 个仓库 barrels 的
+> `export type` 转指向 shared）；渲染层声明删除 **22 处分布于 8 个文件**——同名 10 +
+> 改名 **9 组**（`HomeOverviewStats`、`SettingsOverviewStats`、`SidebarProblemRecord`、
+> `HomeProblemRecord`(→`Pick<ProblemRecord,…>`)、`HomeRecommendation`、`ImportPreviewSite`、
+> `SiteConfigView`、`NoteItem`(→`Omit<NoteRecord,'problem_id'>`)、两份
+> `CodeforcesAccount`(→`PlatformAccount`)，另有 site 域 `ImportPreview`/`ImportConflict`
+> 改用 shared 的 `SiteImportPreview`/`SiteImportConflict`，与 backup 域的旧同名收敛）。
+> 常量下沉：
+> `COACH_PIN_MODES`/`SEARCH_ENGINE_IDS`/`THEME_PREFERENCES` → `src/shared/constants/preferences.ts`
+> （`src/shared/types/ipc/{coach,config}.ts` 对 electron 的反向 import 全部消除，
+> "src/shared stays process-neutral" 守卫保持绿）。实测发现并修复的两处既有漂移：
+> ① env.d.ts 的 `CoachConfig` 镜像漏了 `disclaimer_dismissed`（以 app/config.ts 存储形状为准）；
+> ② env.d.ts 的 `coachTestLlmConnection` 返回类型误引主进程内部名 `LlmConnectionTestResult`
+> （skipLibCheck 掩盖），已改 `LlmConnectionTestOutput`。`tsconfig.tests.json` include 换为
+> `electron/preload.ts` + `src/main/env.d.ts`；ipcContracts 文本提取器收到
+> `exposeInMainWorld` 对象字面量范围内（接口成员同名不再污染）。验证：typecheck ×2 = 0、
+> lint 0/0、`uniq -d` = 0、test:core 1429 全绿、架构守卫 0/20。
+
 ### R3 window.api
-- [ ] 新建 `src/preload/index.ts`（design §4）；`vite.config.ts` preload input 改路径。
-- [ ] 多参数 invoke → 单对象（列出清单：`listRecentProblems(limit, platform, status)` 等，预计约 40 个）；主进程 handler 与 zod schema 同步。
-- [ ] 渲染 155 处调用改 `window.api.<domain>.<method>`；删除退化的 `*Api.ts`。
-- [ ] 删除 31 个无消费者的 preload 方法；守卫 `apiConsumers`。
-- [ ] `electronMock.exposedMainWorld` 键名、`tests/ipc/preloadSurface`、`tests/components` 替身同步。
+
+- [x] 新建 `src/preload/index.ts`（design §4）；`vite.config.ts` preload input 改路径。
+- [x] 多参数 invoke → 单对象（列出清单：`listRecentProblems(limit, platform, status)` 等，预计约 40 个）；主进程 handler 与 zod schema 同步。
+- [x] 渲染 155 处调用改 `window.api.<domain>.<method>`；删除退化的 `*Api.ts`。
+- [x] 删除 31 个无消费者的 preload 方法；守卫 `apiConsumers`。
+- [x] `electronMock.exposedMainWorld` 键名、`tests/ipc/preloadSurface`、`tests/components` 替身同步。
 - 验证：临时删一个 preload 方法看 `tsc` 报错；`pnpm test:all`。commit `refactor(preload): 改为 window.api 并由 typeof 推导类型`。
 
 ### R4 数据刷新
-- [ ] `dataEvents` EventEmitter + `main.ts` 广播；写路径接入（列表：problem/submission/notes/stats/site/userScript/credential/coach 的 mutations，`SubmissionBatchWriter`，`TrackingService`，`NoteService`，`learningDataExport` 导入，`syncService`）。
-- [ ] preload `api.data.onChanged`；`DataRefreshContext`；`useIpcQuery`。
-- [ ] 15 个组件迁移；`App.tsx` 4 处模板删除；`problems:updated` 标记 deprecated。
-- [ ] Playwright `dataRefresh.pw.spec.ts`。
+> **暂停点（2026-11-01，用户指示 R3 完成后停下）**：R4 派发已被取消，仅产生了 channels.ts 的
+> `DATA.CHANGED` 声明与 UPDATED @deprecated 注释（已丢弃，重启时按下方清单重做即可）。R1–R3
+> 已推送且 CI 绿（1588b8b）；R4/R5 待后续会话继续。
+
+> **恢复执行（2026-11-04）**：用户授权收口并推送后继续。本轮按 `design.md` §5 最新勘误和
+> `research/r4-data-refresh.md` 分成 main/shared、renderer、真实 E2E 三个互不覆盖的实施区域，
+> 集成复核后作为一个完整 R4 提交推送。禁止在事务提交前发事件、从 Cookie summary 读路径
+> 发刷新、或丢掉 App 的 live-wins 行为。
+
+
+- [x] `dataEvents` EventEmitter + `main.ts` 广播；写路径接入（列表：problem/submission/notes/stats/site/userScript/credential/coach 的 mutations，`SubmissionBatchWriter`，`TrackingService`，`NoteService`，`learningDataExport` 导入，`syncService`）。
+- [x] preload `api.data.onChanged`；`DataRefreshContext`；`useIpcQuery`。
+- [x] 17 个实测取数组件迁移；`App.tsx` 4 处模板由 live-wins hook 替代；`problems:updated` 标记 deprecated。
+- [x] Playwright `dataRefresh.pw.spec.ts`。
 - 验证：`pnpm test:ui`。commit `feat(renderer): 数据变更订阅与 useIpcQuery`。
 
+> **R4 验收（2026-11-04）**：独立复核后完整 `test:all` 184 文件 / 1493 用例、Playwright
+> 10/10（含真实同步两秒刷新）、架构 21/21、build:check 全过，重复率 1.69%。
+> 实施范围、复核修复和日志见 [R4 验收记录](./r4-verification-2026-11-04.md)。
+> 已提交推送 `a12c09b`，CI `41837918446` 全绿；PR #6 未合并。下一步仅剩 R5 安全前置确认。
+
 ### R5 时间戳毫秒（独立分支）
+
+> **2026-11-04 安全预检**：实际 82 个时间列（含台账），非原计划 65；仅找到 1-29 当前库及
+> 1-24 备份，缺少 1-21 真实历史副本。无后缀时间存在 local / 固定 UTC+8 两种语义；
+> 原“全部按迁移机器本地时间、非法值置 NULL、逐表重建”设计不能直接执行。
+> 详见 [R5 可行性记录](./research/r5-feasibility.md)。先解决安全设计和真实副本验收，再写 030。
+
 - [ ] 准备三份脱敏真实库到 `tests/db/fixtures/`（**由用户提供或从本机 userData 复制后脱敏**）。
 - [ ] `parseLegacyTimestamp` + 单测（3 格式 × 3 时区）。
 - [ ] `030_timestamps_to_unix_ms.ts` 数组驱动 65 列；`upgradePath.test.ts`。
@@ -43,9 +110,11 @@
 - 验证：`pnpm test:db`（真实 Electron ABI）；三份 fixture 升级通过；`pnpm test:all`。commit `feat(db): 时间戳迁移为 Unix 毫秒（migration 030）`。
 
 ## Review Gates
+
 - R1–R4 一个 PR `refactor(ipc): 阶段 2 IPC 契约与共享层`；R5 单独 PR，描述附三份库升级前后对照表。
 - 阶段结束：安装包在 rc.1 userData 上启动，数据完整，Dashboard 时间显示正确。
 
 ## Rollback
+
 - R1–R4 无数据变更，revert 即可。
 - R5：迁移失败自动恢复备份；合入后若发现换算错误，写 031 修正（不回写 030）。

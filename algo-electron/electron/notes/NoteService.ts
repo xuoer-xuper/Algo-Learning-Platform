@@ -1,3 +1,4 @@
+import { emitDataChanged } from '../shared/dataEvents'
 import crypto from 'node:crypto'
 import { getDb } from '../db/connection'
 import { nowBeijing } from '../shared/time'
@@ -10,9 +11,8 @@ import {
   saveNoteImageAsset,
   writeNoteContent,
 } from './noteStorage'
-import type { SaveNoteImageResult } from './noteStorage'
 import { countWords } from './noteText'
-export type { SaveNoteImageResult } from './noteStorage'
+import type { SaveNoteImageResult } from '../../src/shared/types/notes'
 
 export type NoteType = 'solution' | 'review' | 'summary'
 
@@ -94,6 +94,7 @@ export function createNote(input: CreateNoteInput): Note {
   `,
   ).run(id, input.problem_id ?? null, input.title, filePath, noteType, content, wordCount, now, now)
 
+  emitDataChanged(['notes'])
   return {
     id,
     problem_id: input.problem_id ?? null,
@@ -159,6 +160,7 @@ export function updateNoteTitle(noteId: string, title: string): boolean {
   `,
     )
     .run(title, now, noteId)
+  if (result.changes > 0) emitDataChanged(['notes'])
   return result.changes > 0
 }
 
@@ -178,6 +180,7 @@ export function updateNoteContent(noteId: string, content: string): boolean {
       UPDATE notes SET content = ?, word_count = ?, updated_at = ? WHERE id = ?
     `,
     ).run(content, wordCount, now, noteId)
+    emitDataChanged(['notes'])
     return true
   } catch {
     return false
@@ -217,6 +220,7 @@ export function updateNoteType(noteId: string, noteType: NoteType): boolean {
   `,
     )
     .run(noteType, now, noteId)
+  if (result.changes > 0) emitDataChanged(['notes'])
   return result.changes > 0
 }
 
@@ -231,6 +235,7 @@ export function deleteNote(noteId: string): boolean {
 
   // 删除 DB 记录
   const result = db.prepare(`DELETE FROM notes WHERE id = ?`).run(noteId)
+  if (result.changes > 0) emitDataChanged(['notes'])
   return result.changes > 0
 }
 

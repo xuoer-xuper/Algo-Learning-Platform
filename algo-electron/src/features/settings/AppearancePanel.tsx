@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import { Select } from '../../components/ui'
 import { errorMessage } from '../../shared/errors'
 import { loadThemePreference, saveThemePreference } from './settingsApi'
+import type { ThemePreference } from '@shared/types/config'
+import { useIpcQuery } from '../../hooks/useIpcQuery'
 
 /*
  * 外观（B5.4，决策 D6）。
@@ -21,16 +23,15 @@ const THEME_LABELS: Array<{ value: ThemePreference; label: string }> = [
 ]
 
 export function AppearancePanel() {
-  const [theme, setTheme] = useState<ThemePreference>('system')
-  const [loading, setLoading] = useState(true)
+  const query = useIpcQuery(loadThemePreference, [])
+  const [themeDraft, setTheme] = useState<ThemePreference | null>(null)
+  const theme = themeDraft ?? query.data ?? 'system'
+  const loading = query.isLoading
   const [status, setStatus] = useState('')
 
   useEffect(() => {
-    void loadThemePreference()
-      .then(setTheme)
-      .catch((error: unknown) => setStatus(`读取失败：${errorMessage(error)}`))
-      .finally(() => setLoading(false))
-  }, [])
+    if (query.error) setStatus(`读取失败：${errorMessage(query.error)}`)
+  }, [query.error])
 
   const handleChange = async (next: ThemePreference) => {
     const previous = theme

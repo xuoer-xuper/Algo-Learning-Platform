@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
+import { render } from './renderWithDataRefresh'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, screen, waitFor } from '@testing-library/react'
 
 /**
  * 设置页三个面板的读路径失败契约。
@@ -25,6 +26,7 @@ vi.mock('../../src/features/settings/settingsApi', () => ({
 import { CoachPanel } from '../../src/features/settings/CoachPanel'
 import { CodeforcesSyncPanel } from '../../src/features/settings/CodeforcesSyncPanel'
 import { LlmConfigPanel } from '../../src/features/settings/LlmConfigPanel'
+import type { CoachConfig, LlmConfigStatus } from '@shared/types/coach'
 
 const coachGetConfig = vi.fn<() => Promise<CoachConfig>>()
 const coachSaveConfig = vi.fn<(partial: Partial<CoachConfig>) => Promise<unknown>>()
@@ -45,13 +47,15 @@ beforeEach(() => {
   loadPrimaryCodeforcesAccount.mockResolvedValue(null)
   coachGetConfig.mockResolvedValue(createCoachConfig())
   coachSaveConfig.mockResolvedValue(undefined)
-  Object.defineProperty(window, 'electronAPI', {
+  Object.defineProperty(window, 'api', {
     configurable: true,
     value: {
-      coachGetConfig: () => coachGetConfig(),
-      coachSaveConfig: (partial: Partial<CoachConfig>) => coachSaveConfig(partial),
-      coachTestHint: vi.fn(),
-      coachResetPosition: vi.fn(),
+      coach: {
+        getConfig: () => coachGetConfig(),
+        saveConfig: (partial: Partial<CoachConfig>) => coachSaveConfig(partial),
+        testHint: vi.fn(),
+        resetPosition: vi.fn(),
+      },
     },
   })
 })

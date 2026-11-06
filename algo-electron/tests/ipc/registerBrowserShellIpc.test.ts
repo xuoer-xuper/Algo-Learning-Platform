@@ -12,8 +12,8 @@ import {
   registerShellWebContents,
   resetTrustedSenderRegistry,
 } from '../../electron/ipc/trustedSender.ts'
-import type { InternalPage } from '../../electron/browser/tabManagerTypes.ts'
 import { AppWindow } from '../../electron/windows/AppWindow.ts'
+import type { InternalPage } from '@shared/types/browser'
 
 test('browser shell IPC resolves omnibox input and validates transient UI commands', async () => {
   resetElectronMock()
@@ -232,7 +232,10 @@ test('tab transfer IPC validates payloads and preserves the trusted source windo
 
   assert.strictEqual(await move(trustedEvent, 'tab-1'), true)
   assert.throws(() => move(untrustedEvent, 'tab-2'), /Rejected IPC sender/)
-  assert.strictEqual(await finishDrag(trustedEvent, 'tab-1', 2, 300, 20), true)
+  assert.strictEqual(
+    await finishDrag(trustedEvent, { tabId: 'tab-1', targetIndex: 2, screenX: 300, screenY: 20 }),
+    true,
+  )
 
   /*
    * 空 tabId 与小数 targetIndex 原先返回 false，现在是拒绝。
@@ -250,17 +253,20 @@ test('tab transfer IPC validates payloads and preserves the trusted source windo
     '空 tabId 应被拒绝',
   )
   assert.throws(
-    () => finishDrag(trustedEvent, 'tab-1', 2.5, 300, 20),
+    () => finishDrag(trustedEvent, { tabId: 'tab-1', targetIndex: 2.5, screenX: 300, screenY: 20 }),
     /Rejected IPC sender \(payload\)/,
     '小数 targetIndex 应被拒绝',
   )
   assert.throws(
-    () => finishDrag(trustedEvent, 'tab-1', -1, 300, 20),
+    () => finishDrag(trustedEvent, { tabId: 'tab-1', targetIndex: -1, screenX: 300, screenY: 20 }),
     /Rejected IPC sender \(payload\)/,
     '负 targetIndex 应被拒绝',
   )
   // NaN 坐标此前就被 `checkIpcPayload` 的非有限数检查拦住了；现在 schema 也拦，两层都在。
-  assert.throws(() => finishDrag(trustedEvent, 'tab-1', 2, NaN, 20), /Rejected IPC sender/)
+  assert.throws(
+    () => finishDrag(trustedEvent, { tabId: 'tab-1', targetIndex: 2, screenX: NaN, screenY: 20 }),
+    /Rejected IPC sender/,
+  )
   assert.deepStrictEqual(moves, [['window-1', 'tab-1']])
   assert.deepStrictEqual(drags, [['window-1', 'tab-1', 2, 300, 20]])
 })
@@ -309,7 +315,10 @@ test('userscript host permission IPC is bound to the trusted owning shell window
     targetHost: 'api.example.com',
     sourceHost: 'codeforces.com',
   })
-  assert.strictEqual(await respond(trustedEvent, 'prompt-window-1', true), 'allowed')
+  assert.strictEqual(
+    await respond(trustedEvent, { promptId: 'prompt-window-1', allow: true }),
+    'allowed',
+  )
   assert.throws(() => getPrompt(untrustedEvent), /Rejected IPC sender/)
 
   /*
@@ -321,13 +330,13 @@ test('userscript host permission IPC is bound to the trusted owning shell window
    * 承重的仍是下面那条 deepStrictEqual：非法参数不能到达 broker。
    */
   assert.throws(
-    () => respond(trustedEvent, '', true),
+    () => respond(trustedEvent, { promptId: '', allow: true }),
     /Rejected IPC sender \(payload\)/,
     '空 promptId 应被拒绝，而不是答成 stale',
   )
   for (const badAllow of [1, 'true', null, undefined]) {
     assert.throws(
-      () => respond(trustedEvent, 'prompt-window-1', badAllow),
+      () => respond(trustedEvent, { promptId: 'prompt-window-1', allow: badAllow }),
       /Rejected IPC sender \(payload\)/,
       `allow 应拒绝 ${JSON.stringify(badAllow) ?? 'undefined'}`,
     )

@@ -1,3 +1,4 @@
+import { spawnSync } from 'node:child_process'
 import { describe, expect, it } from 'vitest'
 import {
   collectRatchetFailures,
@@ -6,8 +7,10 @@ import {
   countBareHex,
   countBareRgb,
   countBareSql,
+  countIpcChannelLiterals,
   countRawIpcSchemas,
   countUnschemadIpc,
+  findDuplicateExportedTypes,
   themeDirectiveHasTailwindImport,
   // @ts-expect-error 守卫判定是 runner 共用的 .mjs，无类型声明；此处只需运行时行为。
   // 抑制点必须在模块说明符上一行：TS7016 报在 `from './guards.mjs'` 处，
@@ -28,6 +31,45 @@ const HINT = '清理提示'
 function ratchet(entries: Array<{ path: string; count: number }>, budgets: Record<string, number>) {
   return collectRatchetFailures({ entries, budgets, describe: describeCount, cleanupHint: HINT })
 }
+
+describe('findDuplicateExportedTypes', () => {
+  it('should find duplicate interface and type declarations across source files', () => {
+    expect(
+      findDuplicateExportedTypes([
+        { path: 'main/config.ts', source: 'export interface Config { enabled: boolean }' },
+        { path: 'shared/config.ts', source: 'export type Config = { enabled: boolean }' },
+      ]),
+    ).toEqual([{ name: 'Config', files: ['main/config.ts', 'shared/config.ts'] }])
+  })
+
+  it('should ignore re-exports, local types, nested declarations and comment text', () => {
+    expect(
+      findDuplicateExportedTypes([
+        { path: 'shared/config.ts', source: 'export type Config = { enabled: boolean }' },
+        {
+          path: 'main/config.ts',
+          source: [
+            "export type { Config } from '../shared/config'",
+            'type Config = { internal: boolean }',
+            'namespace Internal { export interface Config {} }',
+            '// export interface Config {}',
+          ].join('\n'),
+        },
+      ]),
+    ).toEqual([])
+  })
+
+  it('should allow interface merging inside the same file', () => {
+    expect(
+      findDuplicateExportedTypes([
+        {
+          path: 'shared/config.ts',
+          source: 'export interface Config {}\nexport interface Config { enabled: boolean }',
+        },
+      ]),
+    ).toEqual([])
+  })
+})
 
 describe('countBareSql', () => {
   it('抓到 db 层之外构造的语句', () => {
@@ -51,6 +93,38 @@ describe('countBareSql', () => {
 })
 
 describe('countUnschemadIpc', () => {
+  it('detects missing schemas after channels migrate to shared constants', () => {
+    const valid =
+      'ipcMain.handle(IPC_CHANNELS.PROBLEM.GET_DETAIL, getDetailInput, (_event, id) => {})'
+    expect(countUnschemadIpc(valid)).toBe(0)
+    expect(countUnschemadIpc(valid.replace('getDetailInput, ', ''))).toBe(1)
+    expect(countUnschemadIpc('ipcMain.on(CHANNEL_ALIAS, (_event, input) => {})')).toBe(1)
+    expect(
+      countUnschemadIpc('ipcMain . handle ( IPC_CHANNELS . PROBLEM . DELETE, (_e, id) => {})'),
+    ).toBe(1)
+    expect(
+      countUnschemadIpc(
+        'ipcMain.handle(IPC_CHANNELS.PROBLEM.DELETE, [z.string()], (_e, id) => {})',
+      ),
+    ).toBe(0)
+    expect(countUnschemadIpc('ipcMain.handle(IPC_CHANNELS.STATS.GET_OVERVIEW, () => {})')).toBe(0)
+  })
+
+  it.each([
+    'coachPetIpcMain.handle',
+    'shellIpcMain.on',
+    'ipcMainHandle',
+    'handleFromShell',
+    'onFromShell',
+    'handleFromCoach',
+    'onFromCoach',
+  ])('checks the guarded registration form %s', (registrar) => {
+    expect(countUnschemadIpc(`${registrar}(IPC_CHANNELS.COACH.CHAT, (_e, input) => {})`)).toBe(1)
+    expect(
+      countUnschemadIpc(`${registrar}(IPC_CHANNELS.COACH.CHAT, chatInput, (_e, input) => {})`),
+    ).toBe(0)
+  })
+
   it('接收渲染进程参数却没声明 schema 的算欠账', () => {
     expect(countUnschemadIpc("ipcMain.handle('a:b', (_event, id: string) => {})")).toBe(1)
     expect(countUnschemadIpc("ipcMain.on('a:b', (event, x: unknown) => {})")).toBe(1)
@@ -92,6 +166,101 @@ describe('countUnschemadIpc', () => {
       "ipcMain.on('a:4', (_e, y) => {})",
     ].join('\n')
     expect(countUnschemadIpc(source)).toBe(2)
+  })
+})
+
+describe('IPC architecture guard mutations', () => {
+  it.each([
+    {
+      file: 'electron/ipc/registerProblemIpc.ts',
+      before: 'IPC_CHANNELS.PROBLEM.GET_DETAIL, getDetailInput,',
+      after: 'IPC_CHANNELS.PROBLEM.GET_DETAIL,',
+      check: 'IPC handlers declare a payload schema',
+    },
+    {
+      file: 'src/preload/index.ts',
+      before: 'IPC_CHANNELS.PROBLEM.LIST_RECENT',
+      after: "'problem:listRecent'",
+      check: 'IPC channel names come from the shared constants, not literals',
+    },
+    {
+      file: 'src/shared/types/ipc/coach.ts',
+      before: "from '../../constants/preferences'",
+      after: "from '../../../../electron/coach/petPinPolicy'",
+      check: 'src/shared stays process-neutral (no electron imports)',
+    },
+    {
+      file: 'electron/app/config.ts',
+      before: 'export interface AppConfig',
+      after: 'export interface CoachLlmConfig {}\nexport interface AppConfig',
+      check: 'exported type declarations have a single source',
+    },
+  ])('rejects an in-memory violation in $file', ({ file, before, after, check }) => {
+    // Mutate reads in an isolated runner, never the shared checkout.
+    const script = `
+      import fs from 'node:fs'
+      import path from 'node:path'
+      const target = path.resolve(${JSON.stringify(file)})
+      const readFileSync = fs.readFileSync
+      fs.readFileSync = function (file, ...args) {
+        const value = readFileSync.call(this, file, ...args)
+        if (typeof file !== 'string' || path.resolve(file) !== target) return value
+        if (typeof value !== 'string' || !value.includes(${JSON.stringify(before)})) {
+          throw new Error('Mutation target no longer matches')
+        }
+        return value.replace(${JSON.stringify(before)}, ${JSON.stringify(after)})
+      }
+      await import('./tests/architecture/check-architecture.mjs')
+    `
+    const result = spawnSync(process.execPath, ['--input-type=module', '-e', script], {
+      cwd: process.cwd(),
+      encoding: 'utf8',
+      windowsHide: true,
+    })
+    expect(result.error).toBeUndefined()
+    expect(result.status).toBe(1)
+    expect(result.stderr).toContain(`[FAIL] ${check}`)
+    expect(result.stderr).toContain(file)
+    expect(result.stdout).toContain('Checks finished. Failed: 1/')
+  })
+})
+
+describe('countIpcChannelLiterals', () => {
+  it('抓到以字面量注册/发送的 channel', () => {
+    expect(countIpcChannelLiterals("ipcMain.handle('a:b', () => {})")).toBe(1)
+    expect(countIpcChannelLiterals("ipcMain.on('a:b', (event) => {})")).toBe(1)
+    expect(countIpcChannelLiterals("ipcRenderer.invoke('a:b', arg)")).toBe(1)
+    expect(countIpcChannelLiterals("ipcRenderer.send('a:b')")).toBe(1)
+    expect(countIpcChannelLiterals("ipcRenderer.on('a:b', handler)")).toBe(1)
+  })
+
+  it('同一族的其他通道方法也算：订阅与退订不能一半字面量一半常量', () => {
+    expect(countIpcChannelLiterals("ipcRenderer.off('a:b', handler)")).toBe(1)
+    expect(countIpcChannelLiterals("ipcRenderer.once('a:b', handler)")).toBe(1)
+    expect(countIpcChannelLiterals("ipcRenderer.sendSync('a:b', payload)")).toBe(1)
+    expect(countIpcChannelLiterals("ipcRenderer.postMessage('a:b', payload, [port])")).toBe(1)
+    expect(countIpcChannelLiterals("ipcMain.removeListener('a:b', handler)")).toBe(1)
+    expect(countIpcChannelLiterals("ipcMain.removeAllListeners('a:b')")).toBe(1)
+    expect(countIpcChannelLiterals("ipcMain.removeHandler('a:b')")).toBe(1)
+  })
+
+  it('引用 IPC_CHANNELS 常量的不算', () => {
+    expect(countIpcChannelLiterals('ipcMain.handle(IPC_CHANNELS.AI.GET_OUTPUT, () => {})')).toBe(0)
+    expect(countIpcChannelLiterals('ipcRenderer.send(IPC_CHANNELS.BROWSER.NAVIGATE, url)')).toBe(0)
+  })
+
+  it('容忍换行与空格，不靠固定写法', () => {
+    expect(countIpcChannelLiterals("ipcMain.handle(\n  'a:b',\n  handler,\n)")).toBe(1)
+    expect(countIpcChannelLiterals('ipcRenderer . invoke ( "a:b" )')).toBe(1)
+  })
+
+  it('不误伤同名的非 IPC 调用', () => {
+    // 接收者限定是判定的一半：任意 emitter 的 on/handle 不归这条守卫管。
+    expect(countIpcChannelLiterals("emitter.on('a:b', handler)")).toBe(0)
+    expect(countIpcChannelLiterals("registry.handle('a:b', fn)")).toBe(0)
+    // webContents.send 的字面量归"主进程→渲染推送"，由 IpcChannel 收窄的
+    // AppWindow.send/WindowManager.sendToAll 签名在编译期拦，不在这里数。
+    expect(countIpcChannelLiterals("webContents.send('a:b', payload)")).toBe(0)
   })
 })
 

@@ -176,14 +176,14 @@ export async function runStartupSmokeTest(options: RunStartupSmokeOptions): Prom
 
     const hasBasicIpc = (await win.webContents.executeJavaScript(`
       Boolean(
-        window.electronAPI
-        && typeof window.electronAPI.getHomeShortcuts === 'function'
-        && typeof window.electronAPI.openInternalTab === 'function'
-        && typeof window.electronAPI.createTab === 'function'
-        && typeof window.electronAPI.isWindowMaximized === 'function'
+        window.api
+        && typeof window.api.config.getHomeShortcuts === 'function'
+        && typeof window.api.tab.openInternal === 'function'
+        && typeof window.api.tab.create === 'function'
+        && typeof window.api.window.isMaximized === 'function'
       )
     `)) as boolean
-    if (!hasBasicIpc) throw new Error('Preload electronAPI is not available')
+    if (!hasBasicIpc) throw new Error('Preload api is not available')
 
     const initialTab = tabManager.getTabList().find((tab) => tab.isActive)
     if (initialTab?.kind !== 'internal' || initialTab.page.type !== 'home') {
@@ -193,7 +193,7 @@ export async function runStartupSmokeTest(options: RunStartupSmokeOptions): Prom
     const legacyHomeUrl = process.env.ALGO_ELECTRON_SMOKE_LEGACY_HOME_URL
     if (!legacyHomeUrl) throw new Error('Missing ALGO_ELECTRON_SMOKE_LEGACY_HOME_URL')
     const homeShortcuts = (await win.webContents.executeJavaScript(
-      'window.electronAPI.getHomeShortcuts()',
+      'window.api.config.getHomeShortcuts()',
     )) as string[]
     if (!homeShortcuts.includes(legacyHomeUrl)) {
       throw new Error(`Legacy default URL was not migrated: ${JSON.stringify(homeShortcuts)}`)
@@ -204,7 +204,7 @@ export async function runStartupSmokeTest(options: RunStartupSmokeOptions): Prom
     }
 
     const tabId = (await win.webContents.executeJavaScript(
-      `window.electronAPI.createTab(${JSON.stringify(legacyHomeUrl)})`,
+      `window.api.tab.create(${JSON.stringify(legacyHomeUrl)})`,
     )) as string
     if (!tabId) throw new Error('createTab IPC returned an empty tab id')
 
@@ -212,7 +212,7 @@ export async function runStartupSmokeTest(options: RunStartupSmokeOptions): Prom
     step('web-tab-loaded')
 
     const maximized = (await win.webContents.executeJavaScript(
-      'window.electronAPI.isWindowMaximized()',
+      'window.api.window.isMaximized()',
     )) as boolean
     if (typeof maximized !== 'boolean') throw new Error('Basic IPC did not return a boolean result')
 
@@ -318,7 +318,7 @@ export async function runStartupSmokeTest(options: RunStartupSmokeOptions): Prom
     step('oauth-popup')
 
     const moved = (await win.webContents.executeJavaScript(
-      `window.electronAPI.moveTabToNewWindow(${JSON.stringify(openerTabId)})`,
+      `window.api.tab.moveToNewWindow(${JSON.stringify(openerTabId)})`,
     )) as boolean
     if (!moved) throw new Error('Moving the active tab to a complete shell window failed')
     const splitWindows = await waitForAppWindowCount(options.getAppWindows, 2)
@@ -356,7 +356,7 @@ export async function runStartupSmokeTest(options: RunStartupSmokeOptions): Prom
       )
     }
     const newTabId = (await targetWindow.browserWindow.webContents.executeJavaScript(
-      'window.electronAPI.createTab()',
+      'window.api.tab.create()',
     )) as string
     if (!newTabId) throw new Error('Surviving complete shell IPC stopped working')
     step('source-shell-closed')

@@ -21,8 +21,13 @@ const cfHandle = z.string().min(1).max(64)
 /** 标识符类字符串：非空、上限 200（accountId，标识符 200 的既有口径）。 */
 const identifier = z.string().min(1).max(200)
 
-export const bindHandleInput = [ratingPlatform, cfHandle] as const
-export const getAccountInput = [ratingPlatform, cfHandle] as const
+/* R3 起 bindHandle / getAccount 的 wire 形状是单对象参数（原先是两个位置参数）。 */
+export const bindHandleInput = [
+  z.strictObject({ platform: ratingPlatform, handle: cfHandle }),
+] as const
+export const getAccountInput = [
+  z.strictObject({ platform: ratingPlatform, handle: cfHandle }),
+] as const
 export const getAccountsInput = [ratingPlatform] as const
 export const syncCodeforcesInput = [cfHandle] as const
 export const getHistoryInput = [identifier] as const

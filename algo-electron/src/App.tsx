@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useIpcSubscription } from './hooks/useIpcSubscription'
 import { ProblemSidebar } from './features/problems/ProblemSidebar'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { WindowControls } from './components/WindowControls'
@@ -40,18 +41,56 @@ import {
   type RendererErrorReport,
 } from './rendererErrors'
 import './App.css'
+import type { InternalPage, ManagedDownloadResult } from '@shared/types/browser'
+import type { CoachContestModePayload } from '@shared/types/coach'
+import type { CredentialCaptureAction, CredentialCapturePrompt } from '@shared/types/credentials'
+import type { ShellContextMenuKind } from '@shared/types/window'
+
+async function loadContestMode(): Promise<CoachContestModePayload | null> {
+  const state = await loadCoachState()
+  return { isContestMode: state?.is_contest_mode === true, contest: state?.contest ?? null }
+}
 
 function App() {
   const [activeTab, setActiveTab] = useState<TabStripTabInfo | null>(null)
   const [downloadResult, setDownloadResult] = useState<ManagedDownloadResult | null>(null)
-  const [contestMode, setContestMode] = useState<CoachContestModePayload | null>(null)
-  const [userScriptPermission, setUserScriptPermission] =
-    useState<UserScriptHostPermissionPrompt | null>(null)
-  const [credentialAutofillPrompt, setCredentialAutofillPrompt] =
-    useState<CredentialAutofillPrompt | null>(null)
-  const [credentialCapturePrompt, setCredentialCapturePrompt] =
-    useState<CredentialCapturePrompt | null>(null)
+  const [contestMode] = useIpcSubscription(loadContestMode, subscribeCoachContestMode, null)
+  const [userScriptPermission, setUserScriptPermission] = useIpcSubscription(
+    getUserScriptHostPermissionPrompt,
+    subscribeUserScriptHostPermissionPrompt,
+    null,
+  )
+  const [credentialAutofillPrompt, setCredentialAutofillPrompt] = useIpcSubscription(
+    getCredentialAutofillPrompt,
+    subscribeCredentialAutofillPrompt,
+    null,
+  )
   const [credentialCaptureError, setCredentialCaptureError] = useState(false)
+  const capturePromptRef = useRef<CredentialCapturePrompt | null>(null)
+  const subscribeCapture = useCallback(
+    (listener: (prompt: CredentialCapturePrompt | null) => void) => {
+      let disposed = false
+      const unsubscribe = subscribeCredentialCapturePrompt((prompt) => {
+        if (disposed) return
+        capturePromptRef.current = prompt
+        setCredentialCaptureError(false)
+        listener(prompt)
+      })
+      return () => {
+        disposed = true
+        unsubscribe()
+      }
+    },
+    [],
+  )
+  const [credentialCapturePrompt, setCredentialCapturePrompt] = useIpcSubscription(
+    getCredentialCapturePrompt,
+    subscribeCapture,
+    null,
+  )
+  useLayoutEffect(() => {
+    capturePromptRef.current = credentialCapturePrompt
+  }, [credentialCapturePrompt])
   const [rendererError, setRendererError] = useState<RendererErrorReport | null>(null)
   const {
     url,
@@ -116,92 +155,19 @@ function App() {
 
   useEffect(() => {
     let disposed = false
-    let receivedLiveUpdate = false
-    const unsubscribe = subscribeUserScriptHostPermissionPrompt((prompt) => {
-      receivedLiveUpdate = true
-      if (!disposed) setUserScriptPermission(prompt)
-    })
-    void getUserScriptHostPermissionPrompt()
-      .then((prompt) => {
-        if (!disposed && !receivedLiveUpdate) setUserScriptPermission(prompt)
-      })
-      .catch(() => undefined)
-    return () => {
-      disposed = true
-      unsubscribe()
-    }
-  }, [])
-
-  useEffect(() => {
-    let disposed = false
-    let receivedLiveUpdate = false
-    const unsubscribePrompt = subscribeCredentialCapturePrompt((prompt) => {
-      receivedLiveUpdate = true
-      if (!disposed) {
-        setCredentialCaptureError(false)
-        setCredentialCapturePrompt(prompt)
-      }
-    })
-    const unsubscribeResult = subscribeCredentialCaptureResult((result) => {
+    const unsubscribe = subscribeCredentialCaptureResult((result) => {
       if (disposed) return
-      setCredentialCapturePrompt((current) =>
-        current?.captureId === result.captureId ? null : current,
-      )
+      if (capturePromptRef.current?.captureId === result.captureId) {
+        capturePromptRef.current = null
+        setCredentialCapturePrompt(null)
+      }
       setCredentialCaptureError(!result.success)
     })
-    void getCredentialCapturePrompt()
-      .then((prompt) => {
-        if (!disposed && !receivedLiveUpdate) setCredentialCapturePrompt(prompt)
-      })
-      .catch(() => undefined)
-    return () => {
-      disposed = true
-      unsubscribePrompt()
-      unsubscribeResult()
-    }
-  }, [])
-
-  useEffect(() => {
-    let disposed = false
-    let receivedLiveUpdate = false
-    const unsubscribe = subscribeCredentialAutofillPrompt((prompt) => {
-      receivedLiveUpdate = true
-      if (!disposed) setCredentialAutofillPrompt(prompt)
-    })
-    void getCredentialAutofillPrompt()
-      .then((prompt) => {
-        if (!disposed && !receivedLiveUpdate) setCredentialAutofillPrompt(prompt)
-      })
-      .catch(() => undefined)
     return () => {
       disposed = true
       unsubscribe()
     }
-  }, [])
-
-  useEffect(() => {
-    let disposed = false
-    let receivedLiveUpdate = false
-    const unsubscribe = subscribeCoachContestMode((payload) => {
-      receivedLiveUpdate = true
-      if (!disposed) setContestMode(payload)
-    })
-
-    void loadCoachState()
-      .then((state) => {
-        if (disposed || receivedLiveUpdate) return
-        setContestMode({
-          isContestMode: state?.is_contest_mode === true,
-          contest: state?.contest ?? null,
-        })
-      })
-      .catch(() => undefined)
-
-    return () => {
-      disposed = true
-      unsubscribe()
-    }
-  }, [])
+  }, [setCredentialCapturePrompt])
 
   const dismissDownloadNotice = useCallback(() => {
     setDownloadResult(null)
@@ -218,7 +184,7 @@ function App() {
         .then((prompt) => setUserScriptPermission(prompt))
         .catch(() => setUserScriptPermission(null))
     },
-    [userScriptPermission],
+    [userScriptPermission, setUserScriptPermission],
   )
 
   const answerCredentialAutofill = useCallback(
@@ -228,7 +194,7 @@ function App() {
       setCredentialAutofillPrompt(null)
       void respondCredentialAutofill(prompt.requestId, credentialId).catch(() => undefined)
     },
-    [credentialAutofillPrompt],
+    [credentialAutofillPrompt, setCredentialAutofillPrompt],
   )
 
   const answerCredentialCapture = useCallback(
@@ -241,7 +207,7 @@ function App() {
         setCredentialCaptureError(true),
       )
     },
-    [credentialCapturePrompt],
+    [credentialCapturePrompt, setCredentialCapturePrompt],
   )
 
   const showUnresponsiveNotice = Boolean(

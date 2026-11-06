@@ -33,7 +33,7 @@
 - 统计口径以主进程 repository 和 service 为准，renderer 不重新推导事实数据。
 - AI 建议在本 feature 中只能展示和降级，不能修改核心数据。
 - 图表必须在截图测试中保持可绘制，避免动画导致 headless 截图为空；平台分布使用固定网格和独立图例，避免饼图 label 挤压或裁剪。
-- 新增统计数据优先扩展 `analyticsApi.ts` 和 `types.ts`，不要在面板组件里散落 `window.electronAPI`。
+- 新增统计数据优先扩展 `analyticsApi.ts` 和 `types.ts`，不要在面板组件里散落 `window.api`。
 
 ## 5. 验证入口
 

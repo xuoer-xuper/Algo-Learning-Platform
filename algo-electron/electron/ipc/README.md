@@ -55,7 +55,7 @@
 
 ## 4. 边界规则
 
-- 新增 IPC handler 时必须同步 `electron/preload.ts`、`electron/electron-env.d.ts`、相关 renderer helper 和本目录 README。
+- 新增 IPC handler 时必须同步 `src/preload/index.ts`、`src/shared/types/ipc/` 的 `*Input` schema、相关 renderer helper（`*Api.ts` / `src/hooks/`）和本目录 README。
 - 不改变已有 channel 名称，除非同步迁移 preload、renderer 和 IPC 合约测试。
 - 注册函数应由 `main.ts` 在应用初始化阶段调用，避免模块 import 时产生隐式副作用。
 - 具体 channel 逻辑应留在单域 `register*Ipc.ts`，不要把业务 handler 塞进 `registerMainIpc.ts`。

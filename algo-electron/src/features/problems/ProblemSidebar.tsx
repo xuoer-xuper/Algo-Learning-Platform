@@ -1,9 +1,9 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { PLATFORM_LABELS, STATUS_COLORS } from '../../shared/display'
 import { Empty, IconButton, ListRow, Select, Skeleton } from '../../components/ui'
-import { reportRendererError } from '../../rendererErrors'
-import { loadRecentProblems, setProblemSidebarWidth, subscribeProblemsUpdated } from './problemsApi'
-import type { SidebarProblemRecord } from './problemTypes'
+import { useIpcQuery } from '../../hooks/useIpcQuery'
+import { useIpcQueryError } from '../../hooks/useIpcQueryError'
+import { loadRecentProblems, setProblemSidebarWidth } from './problemsApi'
 
 interface Props {
   onNavigate: (url: string) => void
@@ -15,36 +15,25 @@ interface Props {
 export function ProblemSidebar({ onNavigate, onShowDetail, onShowNotes, onWidthChange }: Props) {
   // null = 还没读到（渲染骨架），[] = 读到了且确实没有（渲染空态）。
   // B5.2 之前这里是 useState<...[]>([])，于是加载中和"你没有记录"长得一模一样。
-  const [problems, setProblems] = useState<SidebarProblemRecord[] | null>(null)
   const [collapsed, setCollapsed] = useState(false)
-  const [filterPlatform, setFilterPlatform] = useState<string>('')
-  const [filterStatus, setFilterStatus] = useState<string>('')
+  /*
+   * 筛选值收成 preload 暴露面的闭集枚举（'' = 全部）：下拉框的选项与 schema 枚举
+   * 一一对应，e.target.value 的 string 在 onChange 的 DOM 边界收窄。
+   */
+  type PlatformFilter = NonNullable<Parameters<typeof loadRecentProblems>[1]> | ''
+  type StatusFilter = NonNullable<Parameters<typeof loadRecentProblems>[2]> | ''
+  const [filterPlatform, setFilterPlatform] = useState<PlatformFilter>('')
+  const [filterStatus, setFilterStatus] = useState<StatusFilter>('')
   const sidebarRef = useRef<HTMLDivElement>(null)
   const hasFilter = filterPlatform !== '' || filterStatus !== ''
 
-  const loadProblems = useCallback(async () => {
-    try {
-      const list = await loadRecentProblems(
-        200,
-        filterPlatform || undefined,
-        filterStatus || undefined,
-      )
-      setProblems(list)
-    } catch (error: unknown) {
-      // 读失败必须落到"读到了且为空"，否则骨架会一直转下去，看起来像卡死。
-      // 空态与「筛选无结果」现在已经分开，剩下的混淆面只有失败与真空。
-      setProblems([])
-      reportRendererError('题目侧栏读取', error)
-    }
-  }, [filterPlatform, filterStatus])
-
-  useEffect(() => {
-    void loadProblems()
-    const unsubscribe = subscribeProblemsUpdated(() => {
-      void loadProblems()
-    })
-    return unsubscribe
-  }, [loadProblems])
+  const query = useIpcQuery(
+    () => loadRecentProblems(200, filterPlatform || undefined, filterStatus || undefined),
+    [filterPlatform, filterStatus],
+    { tables: ['problems', 'submissions', 'stats'] },
+  )
+  useIpcQueryError(query.error, '题目侧栏读取')
+  const problems = query.isLoading ? null : (query.data ?? [])
 
   useEffect(() => {
     const sidebar = sidebarRef.current
@@ -109,7 +98,7 @@ export function ProblemSidebar({ onNavigate, onShowDetail, onShowNotes, onWidthC
           size="sm"
           className="sidebar-select"
           value={filterPlatform}
-          onChange={(e) => setFilterPlatform(e.target.value)}
+          onChange={(e) => setFilterPlatform(e.target.value as PlatformFilter)}
         >
           <option value="">全部平台</option>
           <option value="codeforces">Codeforces</option>
@@ -124,7 +113,7 @@ export function ProblemSidebar({ onNavigate, onShowDetail, onShowNotes, onWidthC
           size="sm"
           className="sidebar-select"
           value={filterStatus}
-          onChange={(e) => setFilterStatus(e.target.value)}
+          onChange={(e) => setFilterStatus(e.target.value as StatusFilter)}
         >
           <option value="">全部状态</option>
           <option value="solved">已通过</option>

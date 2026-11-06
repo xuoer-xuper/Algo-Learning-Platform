@@ -2,11 +2,14 @@ import { useState, useEffect, useRef } from 'react'
 import { Button, Icon, Input } from '../../components/ui'
 import { errorMessage } from '../../shared/errors'
 import { loadLlmConfig, saveLlmApiKey, saveLlmConfig, testLlmConnection } from './settingsApi'
+import type { LlmConfigStatus, LlmConnectionTestOutput } from '@shared/types/coach'
+import { useIpcQuery } from '../../hooks/useIpcQuery'
 
 const DEFAULT_BASE_URL = 'https://ark.cn-beijing.volces.com/api/v3'
 const DEFAULT_MODEL = 'doubao-seed-1-6-flash-250715'
 
 export function LlmConfigPanel() {
+  const query = useIpcQuery(loadLlmConfig, [])
   const [status, setStatus] = useState<LlmConfigStatus | null>(null)
   const [apiKeyInput, setApiKeyInput] = useState('')
   const [baseUrl, setBaseUrl] = useState(DEFAULT_BASE_URL)
@@ -19,20 +22,22 @@ export function LlmConfigPanel() {
   const savedTimerRef = useRef<number | undefined>(undefined)
 
   useEffect(() => {
-    void loadLlmConfig()
-      .then((s) => {
-        if (!s) return
-        setStatus(s)
-        setBaseUrl(s.base_url || DEFAULT_BASE_URL)
-        setModel(s.model || DEFAULT_MODEL)
-        setEnabled(s.enabled)
-      })
-      // 读失败时若不提示，面板会显示「未配置 API Key」，与真正没配置无法区分。
-      .catch((error: unknown) => setLoadError(`读取失败：${errorMessage(error)}`))
-    return () => {
+    const initial = query.data
+    if (!initial) return
+    setStatus(initial)
+    setBaseUrl(initial.base_url || DEFAULT_BASE_URL)
+    setModel(initial.model || DEFAULT_MODEL)
+    setEnabled(initial.enabled)
+  }, [query.data])
+  useEffect(() => {
+    if (query.error) setLoadError(`读取失败：${errorMessage(query.error)}`)
+  }, [query.error])
+  useEffect(
+    () => () => {
       if (savedTimerRef.current) window.clearTimeout(savedTimerRef.current)
-    }
-  }, [])
+    },
+    [],
+  )
 
   const flashSaved = () => {
     setSavedFlag(true)

@@ -35,7 +35,7 @@
 - 笔记标题保存逻辑必须通过 `useDebouncedNoteTitleSave()` 统一处理。
 - 切换笔记标签或替换标签的题目时，卸载旧笔记页并 flush 该笔记待保存的标题和正文，再显示新题目的笔记列表；不能沿用旧页的选中笔记、编辑器内容或迟到读取结果。相同标签和题目的元数据更新保留编辑器。
 - 图片上传不得暴露本地绝对路径给 Markdown 正文，使用主进程返回的 markdown URL。
-- 新增题目/笔记 IPC 时同步 `problemsApi.ts`、类型文件和 `electron-env.d.ts`。
+- 新增题目/笔记 IPC 时同步 `problemsApi.ts`、`src/shared/types/` 的类型与输入 schema，以及 `src/preload/index.ts` 的域方法。
 
 ## 5. 验证入口
 

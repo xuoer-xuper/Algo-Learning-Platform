@@ -1,3 +1,4 @@
+import { emitDataChanged } from '../../../shared/dataEvents'
 import crypto from 'node:crypto'
 import { getDb } from '../../connection'
 import { nowBeijing } from '../../../shared/time'
@@ -6,7 +7,7 @@ import type {
   CoachInterventionLevel,
   CoachInterventionSourceType,
   CoachInterventionUserAction,
-} from '../../../coach/types'
+} from '../../../../src/shared/types/coach'
 
 /**
  * Coach 干预与比赛模式审计 repository。
@@ -44,8 +45,9 @@ interface CoachInterventionRow {
 
 export function insertCoachIntervention(intervention: CoachIntervention): CoachIntervention {
   const db = getDb()
-  db.prepare(
-    `
+  const result = db
+    .prepare(
+      `
     INSERT OR IGNORE INTO coach_interventions
       (intervention_id, event_id, trigger_reason, intervention_level,
        source_type, message, related_tags_json, user_action,
@@ -53,25 +55,27 @@ export function insertCoachIntervention(intervention: CoachIntervention): CoachI
        is_contest_mode, contest_url, contest_start, contest_end, zero_intervention)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `,
-  ).run(
-    intervention.intervention_id,
-    intervention.event_id,
-    intervention.trigger_reason,
-    intervention.intervention_level,
-    intervention.source_type,
-    intervention.message,
-    JSON.stringify(intervention.related_tags),
-    intervention.user_action,
-    intervention.problem_id,
-    intervention.platform,
-    intervention.session_id,
-    intervention.created_at,
-    intervention.is_contest_mode ? 1 : 0,
-    intervention.contest_url,
-    intervention.contest_start,
-    intervention.contest_end,
-    intervention.zero_intervention ? 1 : 0,
-  )
+    )
+    .run(
+      intervention.intervention_id,
+      intervention.event_id,
+      intervention.trigger_reason,
+      intervention.intervention_level,
+      intervention.source_type,
+      intervention.message,
+      JSON.stringify(intervention.related_tags),
+      intervention.user_action,
+      intervention.problem_id,
+      intervention.platform,
+      intervention.session_id,
+      intervention.created_at,
+      intervention.is_contest_mode ? 1 : 0,
+      intervention.contest_url,
+      intervention.contest_start,
+      intervention.contest_end,
+      intervention.zero_intervention ? 1 : 0,
+    )
+  if (result.changes > 0) emitDataChanged(['coach'])
   return intervention
 }
 
@@ -121,6 +125,7 @@ export function updateInterventionUserAction(
   const result = db
     .prepare('UPDATE coach_interventions SET user_action = ? WHERE intervention_id = ?')
     .run(action, interventionId)
+  if (result.changes > 0) emitDataChanged(['coach'])
   return result.changes > 0
 }
 
@@ -279,7 +284,7 @@ function deserializeIntervention(row: CoachInterventionRow): CoachIntervention {
     intervention_id: row.intervention_id,
     event_id: row.event_id,
     trigger_reason: row.trigger_reason,
-    intervention_level: row.intervention_level as CoachInterventionLevel,
+    intervention_level: row.intervention_level,
     source_type: row.source_type as CoachInterventionSourceType,
     message: row.message,
     related_tags: parseTags(row.related_tags_json),

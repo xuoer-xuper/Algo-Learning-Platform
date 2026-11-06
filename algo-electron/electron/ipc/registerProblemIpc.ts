@@ -6,6 +6,7 @@ import {
   getProblemDetail,
   getRecentProblems,
 } from '../db/repositories/problemRepository'
+import { IPC_CHANNELS } from '../../src/shared/constants/channels'
 
 interface RegisterProblemIpcOptions {
   notifyProblemsUpdated?: (event: IpcMainInvokeEvent) => void
@@ -16,15 +17,15 @@ interface RegisterProblemIpcOptions {
  * limit 1000、平台/状态枚举、"optional 而非 nullable"的理由写在那里。
  */
 export function registerProblemIpc(options: RegisterProblemIpcOptions = {}): void {
-  ipcMain.handle('problem:listRecent', listRecentInput, (_event, limit, platform, status) => {
-    return getRecentProblems(limit, platform, status)
+  ipcMain.handle(IPC_CHANNELS.PROBLEM.LIST_RECENT, listRecentInput, (_event, input) => {
+    return getRecentProblems(input.limit, input.platform, input.status)
   })
 
-  ipcMain.handle('problem:getDetail', getDetailInput, (_event, problemId) => {
+  ipcMain.handle(IPC_CHANNELS.PROBLEM.GET_DETAIL, getDetailInput, (_event, problemId) => {
     return getProblemDetail(problemId)
   })
 
-  ipcMain.handle('problem:delete', deleteInput, (event, problemId) => {
+  ipcMain.handle(IPC_CHANNELS.PROBLEM.DELETE, deleteInput, (event, problemId) => {
     const ok = deleteProblem(problemId)
     if (ok) {
       options.notifyProblemsUpdated?.(event)

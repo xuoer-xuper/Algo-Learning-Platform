@@ -7,7 +7,7 @@ import {
   type ProblemSessionPhase,
   type StuckLevel,
   type ProblemSessionStatus,
-} from './types'
+} from '../../src/shared/types/coach'
 
 /**
  * ProblemSessionTracker：维护当前做题会话，区分三态（读题/写码/卡壳），

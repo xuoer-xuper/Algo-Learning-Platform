@@ -1,7 +1,9 @@
 // @vitest-environment jsdom
+import { render } from './renderWithDataRefresh'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, screen, waitFor } from '@testing-library/react'
 import { SearchEnginePanel } from '../../src/features/settings/SearchEnginePanel'
+import type { SearchEngineConfig } from '@shared/types/config'
 
 const getSearchEngine = vi.fn<() => Promise<SearchEngineConfig>>()
 const setSearchEngine = vi.fn<(search: SearchEngineConfig) => Promise<SearchEngineConfig>>()
@@ -11,9 +13,9 @@ beforeEach(() => {
   setSearchEngine.mockReset()
   getSearchEngine.mockResolvedValue({ engine: 'bing', customTemplate: null })
   setSearchEngine.mockImplementation(async (search) => search)
-  Object.defineProperty(window, 'electronAPI', {
+  Object.defineProperty(window, 'api', {
     configurable: true,
-    value: { getSearchEngine, setSearchEngine },
+    value: { config: { getSearchEngine, setSearchEngine } },
   })
 })
 

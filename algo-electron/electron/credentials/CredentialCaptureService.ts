@@ -3,12 +3,12 @@ import { randomUUID } from 'node:crypto'
 import { getAllSites } from '../db/repositories/siteRepository'
 import { resolveCredentialAutofillTarget } from './autofill/autofillPolicy'
 import { CredentialVault } from './CredentialVault'
-import {
-  isOjCredentialCapturePayload,
-  type CredentialCaptureAction,
-  type CredentialCapturePrompt,
-  type CredentialCaptureResult,
-} from './captureTypes'
+import { isOjCredentialCapturePayload } from './captureTypes'
+import type {
+  CredentialCaptureAction,
+  CredentialCapturePrompt,
+  CredentialCaptureResult,
+} from '../../src/shared/types/credentials'
 
 export interface CredentialCaptureHost {
   getWindowId: (contents: Pick<WebContents, 'id'>) => string | null

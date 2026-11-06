@@ -9,7 +9,7 @@ import {
 } from 'recharts'
 import { Button } from '../../components/ui'
 import { CHART_COLORS } from '../../shared/display'
-import type { TrendPoint } from './types'
+import type { TrendPoint } from '@shared/types/stats'
 
 interface TrendPanelProps {
   visitedTrend: TrendPoint[]

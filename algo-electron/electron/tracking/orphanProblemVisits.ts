@@ -1,5 +1,6 @@
 import type Database from 'better-sqlite3'
 import { nowBeijing } from '../shared/time'
+import { emitDataChanged } from '../shared/dataEvents'
 
 export const ORPHAN_VISIT_LEAVE_REASON = 'startup_recovery'
 
@@ -20,5 +21,6 @@ export function closeOrphanProblemVisits(
   `,
     )
     .run(ORPHAN_VISIT_LEAVE_REASON, updatedAt)
+  if (result.changes > 0) emitDataChanged(['problems', 'stats'])
   return result.changes
 }

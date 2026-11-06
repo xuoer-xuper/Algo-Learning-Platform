@@ -1,3 +1,4 @@
+import { emitDataChanged } from '../../../shared/dataEvents'
 import crypto from 'node:crypto'
 import { getDb } from '../../connection'
 import { nowBeijing } from '../../../shared/time'
@@ -35,6 +36,7 @@ export function upsertRatingHistory(data: RatingHistoryInput): boolean {
     now,
   )
 
+  emitDataChanged(['stats'])
   return true
 }
 

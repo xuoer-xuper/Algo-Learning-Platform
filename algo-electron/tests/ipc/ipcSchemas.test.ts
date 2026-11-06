@@ -97,11 +97,13 @@ describe('整数界（旧 int()：进 LIMIT 与日期偏移的数字）', () => 
     rejects(getDailyActiveInput, ['30'])
   })
 
-  test('两个位置各自校验，错误路径带参数序号', () => {
-    const error = rejects(getUnreviewedInput, [0, 20])
-    assert.strictEqual(error.path, 'arg0')
-    assert.strictEqual(rejects(getUnreviewedInput, [30, 0]).path, 'arg1')
-    assert.deepStrictEqual(parseIpcArgs('ch', getUnreviewedInput, [30, 20]), [30, 20])
+  test('对象字段各自校验，错误路径带字段名', () => {
+    const error = rejects(getUnreviewedInput, [{ days: 0, limit: 20 }])
+    assert.strictEqual(error.path, 'arg0.days')
+    assert.strictEqual(rejects(getUnreviewedInput, [{ days: 30, limit: 0 }]).path, 'arg0.limit')
+    assert.deepStrictEqual(parseIpcArgs('ch', getUnreviewedInput, [{ days: 30, limit: 20 }]), [
+      { days: 30, limit: 20 },
+    ])
   })
 })
 
@@ -118,10 +120,14 @@ describe('小数界（旧 decimal()：缩放、透明度、屏幕坐标）', () 
 
 describe('布尔（旧 bool：不接受 0/1 等价物）', () => {
   test('只接受真正的布尔值', () => {
-    assert.deepStrictEqual(parseIpcArgs('ch', toggleInput, ['site-1', true]), ['site-1', true])
-    assert.deepStrictEqual(parseIpcArgs('ch', toggleInput, ['site-1', false]), ['site-1', false])
+    assert.deepStrictEqual(parseIpcArgs('ch', toggleInput, [{ id: 'site-1', enabled: true }]), [
+      { id: 'site-1', enabled: true },
+    ])
+    assert.deepStrictEqual(parseIpcArgs('ch', toggleInput, [{ id: 'site-1', enabled: false }]), [
+      { id: 'site-1', enabled: false },
+    ])
     for (const value of [0, 1, 'true', 'false', null, undefined, {}]) {
-      rejects(toggleInput, ['site-1', value])
+      rejects(toggleInput, [{ id: 'site-1', enabled: value }])
     }
   })
 })
@@ -144,17 +150,17 @@ describe('optional 与 nullable 的区分', () => {
   test('optional 只放过 undefined，nullable 只放过 null', () => {
     assert.deepStrictEqual(parseIpcArgs('ch', recomputeDailyInput, []), [undefined])
     rejects(recomputeDailyInput, [null])
-    assert.deepStrictEqual(parseIpcArgs('ch', autofillRespondInput, ['req-1', null]), [
-      'req-1',
-      null,
-    ])
-    rejects(autofillRespondInput, ['req-1', undefined])
+    assert.deepStrictEqual(
+      parseIpcArgs('ch', autofillRespondInput, [{ requestId: 'req-1', credentialId: null }]),
+      [{ requestId: 'req-1', credentialId: null }],
+    )
+    rejects(autofillRespondInput, [{ requestId: 'req-1', credentialId: undefined }])
   })
 
   test('内层校验仍然生效', () => {
     rejects(recomputeDailyInput, ['2026-1-2'])
     rejects(recomputeDailyInput, ['not-a-date'])
-    rejects(autofillRespondInput, ['req-1', ''])
+    rejects(autofillRespondInput, [{ requestId: 'req-1', credentialId: '' }])
   })
 })
 
@@ -170,12 +176,16 @@ describe('本地日期（旧 localDate：yyyy-mm-dd 正则）', () => {
 describe('非空白标识符（旧 pattern 的 /\\S/：纯空白要拒）', () => {
   test('接受含非空白字符的 id，拒绝纯空白', () => {
     assert.deepStrictEqual(
-      parseIpcArgs('ch', scriptSaveInput, ['a b', { name: 'n', site_ids_json: '["s1"]' }]),
-      ['a b', { name: 'n', site_ids_json: '["s1"]' }],
+      parseIpcArgs('ch', scriptSaveInput, [
+        { id: 'a b', data: { name: 'n', site_ids_json: '["s1"]' } },
+      ]),
+      [{ id: 'a b', data: { name: 'n', site_ids_json: '["s1"]' } }],
     )
-    rejects(scriptSaveInput, ['   '])
-    rejects(scriptSaveInput, ['a'.repeat(201)])
-    rejects(scriptSaveInput, ['a', { name: '  ', site_ids_json: '["s1"]' }])
+    rejects(scriptSaveInput, [{ id: '   ', data: { name: 'n', site_ids_json: '["s1"]' } }])
+    rejects(scriptSaveInput, [
+      { id: 'a'.repeat(201), data: { name: 'n', site_ids_json: '["s1"]' } },
+    ])
+    rejects(scriptSaveInput, [{ id: 'a', data: { name: '  ', site_ids_json: '["s1"]' } }])
   })
 })
 
@@ -216,9 +226,16 @@ describe('数组（旧 arrayOf：元素逐个校验、长度界）', () => {
       enabled: true,
       isBuiltin: false,
     }
-    assert.deepStrictEqual(parseIpcArgs('ch', confirmImportInput, [[entry], []]), [[entry], []])
-    rejects(confirmImportInput, [Array.from({ length: 51 }, () => entry), []])
-    rejects(confirmImportInput, [[entry], Array.from({ length: 51 }, () => 'site-1')])
+    assert.deepStrictEqual(
+      parseIpcArgs('ch', confirmImportInput, [{ sites: [entry], overwriteIds: [] }]),
+      [{ sites: [entry], overwriteIds: [] }],
+    )
+    rejects(confirmImportInput, [
+      { sites: Array.from({ length: 51 }, () => entry), overwriteIds: [] },
+    ])
+    rejects(confirmImportInput, [
+      { sites: [entry], overwriteIds: Array.from({ length: 51 }, () => 'site-1') },
+    ])
   })
 })
 
@@ -308,20 +325,14 @@ describe('二进制（旧 binary：ArrayBuffer | Uint8Array 都收）', () => {
     // 唯一产出方 MilkdownEditor 走 `file.arrayBuffer()`，preload 原样透传、
     // 结构化克隆把 ArrayBuffer 原样送达主进程——旧 binary() 正是按这两种类型判的。
     const buffer = new ArrayBuffer(8)
-    assert.deepStrictEqual(
-      parseIpcArgs('ch', saveImageInput, ['note-1', '', 'image/png', buffer]),
-      ['note-1', '', 'image/png', buffer],
-    )
+    const args = { noteId: 'note-1', fileName: '', mimeType: 'image/png', data: buffer }
+    assert.deepStrictEqual(parseIpcArgs('ch', saveImageInput, [args]), [args])
     const view = new Uint8Array([1, 2, 3])
-    assert.deepStrictEqual(parseIpcArgs('ch', saveImageInput, ['note-1', '', 'image/png', view]), [
-      'note-1',
-      '',
-      'image/png',
-      view,
-    ])
+    const viewArgs = { noteId: 'note-1', fileName: '', mimeType: 'image/png', data: view }
+    assert.deepStrictEqual(parseIpcArgs('ch', saveImageInput, [viewArgs]), [viewArgs])
     // 体积上限由 checkIpcPayload 的 16 MiB 兜住（见 src/shared/types/ipc/notes.ts 的说明）。
-    rejects(saveImageInput, ['note-1', '', 'image/png', 'not-binary'])
-    rejects(saveImageInput, ['note-1', '', 'image/png', null])
+    rejects(saveImageInput, [{ ...args, data: 'not-binary' }])
+    rejects(saveImageInput, [{ ...args, data: null }])
   })
 })
 
@@ -351,8 +362,8 @@ describe('自由文本与 URL 上限（4096 口径、允许空串）', () => {
 
 describe('按位置解析与实参个数（ipcPayload.parseIpcArgs）', () => {
   test('错误路径带参数序号与 channel', () => {
-    const error = rejects(getUnreviewedInput, ['abc', 20])
-    assert.strictEqual(error.path, 'arg0')
+    const error = rejects(getUnreviewedInput, [{ days: 'abc', limit: 20 }])
+    assert.strictEqual(error.path, 'arg0.days')
     assert.strictEqual(error.name, 'IpcPayloadError')
   })
 
@@ -369,13 +380,13 @@ describe('按位置解析与实参个数（ipcPayload.parseIpcArgs）', () => {
 
 describe('FQDN 与 handle 的既有上限', () => {
   test('rating 平台收成闭集，handle 64', () => {
-    assert.deepStrictEqual(parseIpcArgs('ch', bindHandleInput, ['codeforces', 'user-1']), [
-      'codeforces',
-      'user-1',
-    ])
-    rejects(bindHandleInput, ['leetcode', 'user-1'])
-    rejects(bindHandleInput, ['codeforces', ''])
-    rejects(bindHandleInput, ['codeforces', 'a'.repeat(65)])
+    assert.deepStrictEqual(
+      parseIpcArgs('ch', bindHandleInput, [{ platform: 'codeforces', handle: 'user-1' }]),
+      [{ platform: 'codeforces', handle: 'user-1' }],
+    )
+    rejects(bindHandleInput, [{ platform: 'leetcode', handle: 'user-1' }])
+    rejects(bindHandleInput, [{ platform: 'codeforces', handle: '' }])
+    rejects(bindHandleInput, [{ platform: 'codeforces', handle: 'a'.repeat(65) }])
   })
 
   test('搜索引擎形状：engine 闭集 + customTemplate 可空', () => {
@@ -390,13 +401,15 @@ describe('FQDN 与 handle 的既有上限', () => {
 
 describe('ai:updateOutput（Partial + nullable 的组合）', () => {
   test('"没传"与"清空这一列"是两件事', () => {
-    assert.deepStrictEqual(parseIpcArgs('ch', updateOutputInput, ['out-1', {}]), ['out-1', {}])
-    assert.deepStrictEqual(parseIpcArgs('ch', updateOutputInput, ['out-1', { title: null }]), [
-      'out-1',
-      { title: null },
+    assert.deepStrictEqual(parseIpcArgs('ch', updateOutputInput, [{ id: 'out-1', updates: {} }]), [
+      { id: 'out-1', updates: {} },
     ])
-    rejects(updateOutputInput, ['out-1', { title: '' }])
-    rejects(updateOutputInput, ['out-1', { content: null }])
+    assert.deepStrictEqual(
+      parseIpcArgs('ch', updateOutputInput, [{ id: 'out-1', updates: { title: null } }]),
+      [{ id: 'out-1', updates: { title: null } }],
+    )
+    rejects(updateOutputInput, [{ id: 'out-1', updates: { title: '' } }])
+    rejects(updateOutputInput, [{ id: 'out-1', updates: { content: null } }])
   })
 })
 
@@ -405,5 +418,41 @@ describe('delete/get 类单参数 channel 共用标识符界', () => {
     assert.deepStrictEqual(parseIpcArgs('ch', deleteInput, ['site-1']), ['site-1'])
     rejects(deleteInput, [''])
     rejects(deleteInput, [42])
+  })
+})
+
+/*
+ * R3 把多参数 invoke 收成单对象后，这两条转换通道的形状断言不能只靠
+ * register*Ipc 的接线测试兜底——schema 本体的接受/拒绝分支在这里成对钉住，
+ * 与文件里其余通道同口径（对象形状原样通过 + 各界逐项拒绝 + strict 拒多余字段）。
+ */
+describe('R3 单对象通道（problem:listRecent / credentials:captureRespond）', () => {
+  test('listRecent：对象原样通过，limit 界、platform/status 闭集、多余字段被拒', () => {
+    const good = { limit: 200, platform: 'codeforces', status: 'solved' }
+    assert.deepStrictEqual(parseIpcArgs('ch', listRecentInput, [good]), [good])
+    // 三个字段都 optional：空对象与缺字段合法（"没传" = 不过滤）。
+    assert.deepStrictEqual(parseIpcArgs('ch', listRecentInput, [{}]), [{}])
+    rejects(listRecentInput, [{ limit: 0 }])
+    rejects(listRecentInput, [{ limit: 1001 }])
+    rejects(listRecentInput, [{ limit: 1.5 }])
+    rejects(listRecentInput, [{ platform: 'leetcode' }])
+    rejects(listRecentInput, [{ status: 'ac' }])
+    // strict 对象拒绝未声明字段；zod 对多余键的 issue path 为空，字段名在 message 里
+    // （ipcPayload.parseIpcArgs 把它放进 expected——与该文件头注的口径一致）。
+    const extra = rejects(listRecentInput, [{ limit: 10, extra: 1 }])
+    assert.strictEqual(extra.path, 'arg0')
+    assert.ok(extra.expected.includes('extra'), `字段名应在错误信息里，实测 ${extra.expected}`)
+  })
+
+  test('captureRespond：action 闭集 + captureId 走 oneShotId 界', () => {
+    assert.deepStrictEqual(
+      parseIpcArgs('ch', captureRespondInput, [{ captureId: 'capture-1', action: 'update' }]),
+      [{ captureId: 'capture-1', action: 'update' }],
+    )
+    rejects(captureRespondInput, [{ captureId: 'capture-1', action: 'nope' }])
+    rejects(captureRespondInput, [{ captureId: 'capture-1', action: undefined }])
+    // captureId 复用 oneShotId（128）界：空串与超长都要拒。
+    rejects(captureRespondInput, [{ captureId: '', action: 'save' }])
+    rejects(captureRespondInput, [{ captureId: 'a'.repeat(129), action: 'save' }])
   })
 })

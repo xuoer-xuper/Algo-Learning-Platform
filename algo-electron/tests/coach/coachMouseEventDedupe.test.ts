@@ -3,6 +3,7 @@ import React from 'react'
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { CoachPet } from '../../src/features/coach/CoachPet'
+import type { CoachBubblePayload } from '@shared/types/coach'
 
 const api = vi.hoisted(() => ({
   toggle: vi.fn(),

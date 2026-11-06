@@ -1,3 +1,4 @@
+import type { ZoomCommand } from '../../src/shared/types/browser'
 export const DEFAULT_ZOOM_FACTOR = 1
 export const MIN_ZOOM_FACTOR = 0.25
 export const MAX_ZOOM_FACTOR = 5
@@ -8,13 +9,6 @@ export const CHROME_ZOOM_FACTORS = Object.freeze([
 ] as const)
 
 export type ZoomByOrigin = Record<string, number>
-export type ZoomCommand = 'in' | 'out' | 'reset'
-
-export interface ZoomState {
-  tabId: string
-  factor: number
-}
-
 export function isZoomCommand(value: unknown): value is ZoomCommand {
   return value === 'in' || value === 'out' || value === 'reset'
 }

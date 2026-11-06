@@ -3,7 +3,6 @@ import {
   resolveUserScriptImportDecision,
   type ExistingUserScriptIdentity,
   type UserScriptImportDecision,
-  type UserScriptVersionComparison,
 } from './userScriptImport'
 import {
   prepareUserScriptResources,
@@ -12,9 +11,12 @@ import {
 import {
   MAX_PENDING_USER_SCRIPT_INSTALLS,
   resolveUserScriptNavigation,
-  type PendingUserScriptInstall,
 } from '../downloads/userScriptNavigation'
 import { fetchUserScriptDocument, type UserScriptRemoteFetch } from './UserScriptRemoteFetch'
+import type {
+  PendingUserScriptInstall,
+  UserScriptInstallPreview,
+} from '../../src/shared/types/scripts'
 
 const MAX_SCRIPT_BYTES = 4 * 1024 * 1024
 const DEFAULT_TTL_MS = 15 * 60 * 1_000
@@ -28,32 +30,6 @@ export interface UserScriptRemoteInstallerOptions {
   ttlMs?: number
   maxScriptBytes?: number
   maxStaged?: number
-}
-
-export interface UserScriptInstallPreview {
-  installId: string
-  sourceUrl: string
-  finalUrl: string
-  sourceFileName: string
-  name: string
-  namespace: string | null
-  version: string | null
-  installedVersion: string | null
-  description: string | null
-  updateURL: string | null
-  downloadURL: string | null
-  matches: string[]
-  includes: string[]
-  excludes: string[]
-  excludeMatches: string[]
-  grants: string[]
-  connects: string[]
-  antifeatures: string[]
-  requires: number
-  resources: string[]
-  action: UserScriptImportDecision['action']
-  existingScriptId: string | null
-  versionComparison: UserScriptVersionComparison
 }
 
 export interface PreparedUserScriptInstall {

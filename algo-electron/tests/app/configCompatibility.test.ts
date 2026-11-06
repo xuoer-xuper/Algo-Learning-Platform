@@ -2,7 +2,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { CoachConfig } from '../../electron/app/config'
+import type { CoachConfig } from '@shared/types/coach'
 
 /*
  * electron-store 替换（R3）的文件兼容性验收：electron-store 必须能直接读旧读取器

@@ -1,11 +1,10 @@
 import { z } from 'zod'
-import { SEARCH_ENGINE_IDS } from '../../../../electron/browser/omnibox'
-import { THEME_PREFERENCES } from '../../../../electron/app/themePreference'
+import { SEARCH_ENGINE_IDS, THEME_PREFERENCES } from '../../constants/preferences'
 
 /*
  * 应用配置域各 channel 的输入 schema。消费方：electron/ipc/registerConfigIpc.ts。
  *
- * `config:setSearchEngine` 的形状，界都来自 `browser/omnibox.ts`：
+ * `config:setSearchEngine` 的形状，界都来自 `constants/preferences.ts`：
  *
  * - `engine` 用 `z.enum(SEARCH_ENGINE_IDS)`，直接复用那份 `as const` 数组，而不是在这里
  *   重抄一遍字面量——抄一遍就会在加搜索引擎时漏改一处。这也让原先那个
@@ -28,8 +27,8 @@ export const setSearchEngineInput = [
 ] as const
 
 /*
- * `z.enum(THEME_PREFERENCES)` 复用那份 `as const`，与 `engine` 同一手法：
- * 加档位时只改一处。校验后 `set` 仍会跑一遍 `normalizeThemePreference`——
- * 那是给非 IPC 调用方（启动路径）兜底的，不是重复校验。
+ * `z.enum(THEME_PREFERENCES)` 复用 constants/preferences.ts 那份 `as const`，
+ * 与 `engine` 同一手法：加档位时只改一处。校验后 `set` 仍会跑一遍
+ * `normalizeThemePreference`——那是给非 IPC 调用方（启动路径）兜底的，不是重复校验。
  */
 export const setThemeInput = [z.enum(THEME_PREFERENCES)] as const

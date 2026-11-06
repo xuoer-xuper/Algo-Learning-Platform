@@ -25,68 +25,81 @@ import {
   updateAIOutput,
   type SaveAIOutputInput,
 } from '../db/repositories/aiOutputRepository'
+import { IPC_CHANNELS } from '../../src/shared/constants/channels'
 
 /*
  * 各 channel 的输入 schema 元组来自 `src/shared/types/ipc/ai.ts`；
  * limit 1000 / planDays 3650 / output_type 枚举 / 正文 4 MiB 四个界的理由写在那里。
  */
 export function registerAiIpc(): void {
-  ipcMain.handle('ai:exportContext', () => {
+  ipcMain.handle(IPC_CHANNELS.AI.EXPORT_CONTEXT, () => {
     return exportAIContext()
   })
 
-  ipcMain.handle('ai:exportContextMarkdown', () => {
+  ipcMain.handle(IPC_CHANNELS.AI.EXPORT_CONTEXT_MARKDOWN, () => {
     return renderContextAsMarkdown(exportAIContext())
   })
 
-  ipcMain.handle('ai:getReviewRecommendations', getReviewRecommendationsInput, (_event, limit) => {
-    return getReviewRecommendations(limit ?? 10)
-  })
+  ipcMain.handle(
+    IPC_CHANNELS.AI.GET_REVIEW_RECOMMENDATIONS,
+    getReviewRecommendationsInput,
+    (_event, limit) => {
+      return getReviewRecommendations(limit ?? 10)
+    },
+  )
 
-  ipcMain.handle('ai:getWeaknessAnalysis', getWeaknessAnalysisInput, (_event, limit) => {
-    return getWeaknessAnalysis(limit ?? 10)
-  })
+  ipcMain.handle(
+    IPC_CHANNELS.AI.GET_WEAKNESS_ANALYSIS,
+    getWeaknessAnalysisInput,
+    (_event, limit) => {
+      return getWeaknessAnalysis(limit ?? 10)
+    },
+  )
 
-  ipcMain.handle('ai:getPeriodSummary', getPeriodSummaryInput, (_event, startDate, endDate) => {
-    return getPeriodSummary({ start_date: startDate, end_date: endDate })
+  ipcMain.handle(IPC_CHANNELS.AI.GET_PERIOD_SUMMARY, getPeriodSummaryInput, (_event, input) => {
+    return getPeriodSummary({ start_date: input.startDate, end_date: input.endDate })
   })
 
   ipcMain.handle(
-    'ai:getPeriodSummaryMarkdown',
+    IPC_CHANNELS.AI.GET_PERIOD_SUMMARY_MARKDOWN,
     getPeriodSummaryMarkdownInput,
-    (_event, startDate, endDate) => {
-      const summary = getPeriodSummary({ start_date: startDate, end_date: endDate })
+    (_event, input) => {
+      const summary = getPeriodSummary({ start_date: input.startDate, end_date: input.endDate })
       return renderSummaryAsMarkdown(summary)
     },
   )
 
-  ipcMain.handle('ai:getReviewPlan', getReviewPlanInput, (_event, days) => {
+  ipcMain.handle(IPC_CHANNELS.AI.GET_REVIEW_PLAN, getReviewPlanInput, (_event, days) => {
     return getReviewPlan(days ?? 7)
   })
 
-  ipcMain.handle('ai:getReviewPlanMarkdown', getReviewPlanMarkdownInput, (_event, days) => {
-    const plan = getReviewPlan(days ?? 7)
-    return renderPlanAsMarkdown(plan)
-  })
+  ipcMain.handle(
+    IPC_CHANNELS.AI.GET_REVIEW_PLAN_MARKDOWN,
+    getReviewPlanMarkdownInput,
+    (_event, days) => {
+      const plan = getReviewPlan(days ?? 7)
+      return renderPlanAsMarkdown(plan)
+    },
+  )
 
-  ipcMain.handle('ai:saveOutput', saveOutputInput, (_event, input) => {
+  ipcMain.handle(IPC_CHANNELS.AI.SAVE_OUTPUT, saveOutputInput, (_event, input) => {
     const payload: SaveAIOutputInput = input
     return saveAIOutput(payload)
   })
 
-  ipcMain.handle('ai:getOutput', getOutputInput, (_event, id) => {
+  ipcMain.handle(IPC_CHANNELS.AI.GET_OUTPUT, getOutputInput, (_event, id) => {
     return getAIOutput(id)
   })
 
-  ipcMain.handle('ai:listOutputs', listOutputsInput, (_event, outputType, limit) => {
-    return listAIOutputs(outputType, limit ?? 20)
+  ipcMain.handle(IPC_CHANNELS.AI.LIST_OUTPUTS, listOutputsInput, (_event, input) => {
+    return listAIOutputs(input.outputType, input.limit ?? 20)
   })
 
-  ipcMain.handle('ai:deleteOutput', deleteOutputInput, (_event, id) => {
+  ipcMain.handle(IPC_CHANNELS.AI.DELETE_OUTPUT, deleteOutputInput, (_event, id) => {
     return deleteAIOutput(id)
   })
 
-  ipcMain.handle('ai:updateOutput', updateOutputInput, (_event, id, updates) => {
-    return updateAIOutput(id, updates)
+  ipcMain.handle(IPC_CHANNELS.AI.UPDATE_OUTPUT, updateOutputInput, (_event, input) => {
+    return updateAIOutput(input.id, input.updates)
   })
 }

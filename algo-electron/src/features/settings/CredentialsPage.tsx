@@ -1,29 +1,33 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Button, ConfirmDialog, Empty, IconButton, Input, Skeleton } from '../../components/ui'
 import {
   deleteSavedCredential,
   loadCookieSummaryForSite,
   loadCredentialSummaries,
   loadPrimaryCodeforcesAccount,
+  loadCodeforcesAccount,
   loadSites,
   openCredentialLoginPage,
   renameCredential,
   syncCodeforcesRatingProfile,
 } from './settingsApi'
-import type { CodeforcesAccount } from './settingsTypes'
-import type { SiteConfigView } from './siteManagementTypes'
+import { useIpcQuery } from '../../hooks/useIpcQuery'
+import type { PlatformAccount } from '@shared/types/rating'
+import type { SiteConfigRecord } from '@shared/types/sites'
+import type { CredentialSummary } from '@shared/types/credentials'
+import type { CookieSafeSiteSummary } from '@shared/types/cookies'
 
 interface CredentialsPageProps {
   onClose: () => void
 }
 
 interface CredentialSiteState {
-  site: SiteConfigView
+  site: SiteConfigRecord
   credentials: CredentialSummary[]
   cookieSummary: CookieSafeSiteSummary | null
 }
 
-function loginUrlForSite(site: SiteConfigView): string {
+function loginUrlForSite(site: SiteConfigRecord): string {
   const homeUrl = site.homeUrl ?? `https://${site.domains[0] ?? ''}`
   const pattern = site.loginUrlPatterns?.find((value) => value.trim().length > 0)
   if (!pattern) return homeUrl
@@ -45,21 +49,29 @@ function formatUsedAt(value: string | null): string {
 }
 
 export function CredentialsPage({ onClose }: CredentialsPageProps) {
-  const [siteStates, setSiteStates] = useState<CredentialSiteState[]>([])
-  const [loading, setLoading] = useState(true)
   const [status, setStatus] = useState('')
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editingName, setEditingName] = useState('')
   const [pendingDelete, setPendingDelete] = useState<CredentialSummary | null>(null)
-  const [ratingHandle, setRatingHandle] = useState('')
-  const [ratingInfo, setRatingInfo] = useState<CodeforcesAccount | null>(null)
+  const [ratingHandleDraft, setRatingHandle] = useState<string | null>(null)
   const [ratingStatus, setRatingStatus] = useState('')
+  const [selectedAccount, setSelectedAccount] = useState<{
+    handle: string
+    account: PlatformAccount | null
+  } | null>(null)
+  const accountQuery = useIpcQuery(
+    () =>
+      selectedAccount
+        ? loadCodeforcesAccount(selectedAccount.handle)
+        : loadPrimaryCodeforcesAccount(),
+    [selectedAccount?.handle],
+    { tables: ['stats'] },
+  )
 
-  const loadData = async () => {
-    setLoading(true)
-    try {
+  const query = useIpcQuery(
+    async () => {
       const sites = await loadSites()
-      const [credentials, cookieSummaries, account] = await Promise.all([
+      const [credentials, cookieSummaries] = await Promise.all([
         loadCredentialSummaries(),
         Promise.all(
           sites.map(async (site) => {
@@ -70,35 +82,31 @@ export function CredentialsPage({ onClose }: CredentialsPageProps) {
             }
           }),
         ),
-        loadPrimaryCodeforcesAccount(),
       ])
       const cookieMap = new Map(cookieSummaries)
-      setSiteStates(
-        sites.map((site) => ({
-          site,
-          credentials: credentials.filter((credential) => credential.siteId === site.id),
-          cookieSummary: cookieMap.get(site.id) ?? null,
-        })),
-      )
-      if (account) {
-        setRatingHandle(account.handle)
-        setRatingInfo(account)
-      }
-    } catch (error) {
-      setStatus(error instanceof Error ? error.message : '账户信息读取失败')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  useEffect(() => {
-    void loadData()
-  }, [])
-
-  const credentialCount = useMemo(
-    () => siteStates.reduce((total, item) => total + item.credentials.length, 0),
-    [siteStates],
+      const siteStates: CredentialSiteState[] = sites.map((site) => ({
+        site,
+        credentials: credentials.filter((credential) => credential.siteId === site.id),
+        cookieSummary: cookieMap.get(site.id) ?? null,
+      }))
+      return { siteStates }
+    },
+    [],
+    { tables: ['credentials', 'sites'] },
   )
+  const siteStates = query.data?.siteStates ?? []
+  const ratingInfo = accountQuery.data === undefined ? selectedAccount?.account : accountQuery.data
+  const ratingHandle = ratingHandleDraft ?? ratingInfo?.handle ?? ''
+  const loading = query.isLoading
+  const loadData = query.refetch
+  useEffect(() => {
+    if (query.error) setStatus(query.error.message)
+  }, [query.error])
+  useEffect(() => {
+    if (accountQuery.error) setRatingStatus(accountQuery.error.message)
+  }, [accountQuery.error])
+
+  const credentialCount = siteStates.reduce((total, item) => total + item.credentials.length, 0)
 
   const handleRename = async (credentialId: string) => {
     const name = editingName.trim()
@@ -132,12 +140,14 @@ export function CredentialsPage({ onClose }: CredentialsPageProps) {
     }
     setRatingStatus('同步中...')
     try {
-      const { result, account } = await syncCodeforcesRatingProfile(ratingHandle.trim())
+      const handle = ratingHandle.trim()
+      const { result, account } = await syncCodeforcesRatingProfile(handle)
       if (result.success !== true) {
         setRatingStatus(`同步失败: ${result.error}`)
         return
       }
-      setRatingInfo(account)
+      setSelectedAccount({ handle, account })
+      if (selectedAccount?.handle === handle) await accountQuery.refetch()
       setRatingStatus(`已同步，最高 Rating ${result.data.peak ?? '-'}`)
     } catch (error) {
       setRatingStatus(error instanceof Error ? error.message : 'Rating 同步失败')

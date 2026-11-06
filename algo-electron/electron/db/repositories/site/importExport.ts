@@ -1,13 +1,8 @@
 import { nowBeijing } from '../../../shared/time'
 import { unknownToText } from '../../../shared/textCoercion'
 import { createSite, getAllSites, getSiteById, updateSite } from './crud'
-import type {
-  ImportConflict,
-  ImportPreview,
-  ImportPreviewResult,
-  SiteConfigData,
-  SitesExportData,
-} from './types'
+import type { ImportPreviewResult, SiteConfigData, SitesExportData } from './types'
+import type { SiteImportConflict, SiteImportPreview } from '../../../../src/shared/types/sites'
 import { parseImportedSite } from './types'
 
 export function exportSitesConfig(): SitesExportData {
@@ -32,7 +27,7 @@ export function previewImportSites(data: unknown): ImportPreviewResult {
     return { valid: false, error: '配置数据缺少 sites 字段' }
   }
 
-  const preview: ImportPreview = {
+  const preview: SiteImportPreview = {
     newSites: [],
     conflicts: [],
     builtinSkipped: [],
@@ -52,7 +47,7 @@ export function previewImportSites(data: unknown): ImportPreviewResult {
           name: site.name,
           existing,
           incoming: site,
-        } satisfies ImportConflict)
+        } satisfies SiteImportConflict)
       }
     } else {
       preview.newSites.push(site)

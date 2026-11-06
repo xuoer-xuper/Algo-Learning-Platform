@@ -1,5 +1,5 @@
 import { BrowserWindow, screen } from 'electron'
-import type { CoachBubblePayload, CoachPetState } from './types'
+import type { CoachBubblePayload, CoachPetState } from '../../src/shared/types/coach'
 import { getCoachConfigForRenderer, loadCoachConfig, saveCoachConfig } from '../app/config'
 import { shellUrl } from '../app/appProtocol'
 import { registerCoachWebContents, unregisterCoachWebContents } from '../ipc/trustedSender'
@@ -7,9 +7,10 @@ import {
   DEFAULT_COACH_PIN_MODE,
   normalizeCoachPinMode,
   resolvePetPinDecision,
-  type CoachPinMode,
   type PetPinDecision,
 } from './petPinPolicy'
+import type { CoachPinMode } from '../../src/shared/types/coach'
+import { IPC_CHANNELS } from '../../src/shared/constants/channels'
 
 /**
  * Coach 桌宠透明悬浮窗口。
@@ -152,9 +153,9 @@ export class CoachPetWindow {
     this.win.once('ready-to-show', () => {
       this.win?.show()
       // 推送初始状态给渲染层（避免渲染层在 IPC 就绪前错过状态）
-      this.win?.webContents.send('coach:petStateChanged', this.currentState)
+      this.win?.webContents.send(IPC_CHANNELS.COACH.PET_STATE_CHANGED, this.currentState)
       // 推送初始配置
-      this.win?.webContents.send('coach:configChanged', getCoachConfigForRenderer())
+      this.win?.webContents.send(IPC_CHANNELS.COACH.CONFIG_CHANGED, getCoachConfigForRenderer())
     })
 
     this.win.on('closed', () => {
@@ -232,7 +233,7 @@ export class CoachPetWindow {
    */
   setPetState(state: CoachPetState): void {
     this.currentState = state
-    this.win?.webContents.send('coach:petStateChanged', state)
+    this.win?.webContents.send(IPC_CHANNELS.COACH.PET_STATE_CHANGED, state)
   }
 
   getPetState(): CoachPetState {
@@ -295,21 +296,21 @@ export class CoachPetWindow {
    * 推送气泡到桌宠渲染层。
    */
   showBubble(payload: CoachBubblePayload): void {
-    this.win?.webContents.send('coach:showBubble', payload)
+    this.win?.webContents.send(IPC_CHANNELS.COACH.SHOW_BUBBLE, payload)
   }
 
   /**
    * 关闭当前气泡。
    */
   dismissBubble(): void {
-    this.win?.webContents.send('coach:dismissBubble')
+    this.win?.webContents.send(IPC_CHANNELS.COACH.DISMISS_BUBBLE)
   }
 
   /**
    * 推送配置变更到桌宠渲染层（如 scale/opacity 调整后）。
    */
   notifyConfigChanged(): void {
-    this.win?.webContents.send('coach:configChanged', getCoachConfigForRenderer())
+    this.win?.webContents.send(IPC_CHANNELS.COACH.CONFIG_CHANGED, getCoachConfigForRenderer())
     // 同步窗口级透明度
     const cfg = loadCoachConfig()
     this.win?.setOpacity(clamp(cfg.opacity, 0.3, 1))

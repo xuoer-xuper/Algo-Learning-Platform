@@ -39,7 +39,7 @@ import {
 import { AppWindow } from '../../electron/windows/AppWindow.ts'
 import { setEnabledSitesFetcher } from '../../electron/parsers/registry.ts'
 import type { CoachPetWindow } from '../../electron/coach/CoachPetWindow.ts'
-import type { CoachBubblePayload, CoachPetState } from '../../electron/coach/types.ts'
+import type { CoachBubblePayload, CoachPetState } from '@shared/types/coach'
 import type { TrackingService } from '../../electron/tracking/TrackingService.ts'
 import type { RealtimeSubmissionService } from '../../electron/submissions/RealtimeSubmissionService.ts'
 import type { SubmissionNotification } from '../../electron/submissions/SubmissionWatcherCore.ts'

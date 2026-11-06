@@ -1,4 +1,5 @@
-import { normalizeThemePreference, type ThemePreference } from './themePreference'
+import { normalizeThemePreference } from './themePreference'
+import type { ThemePreference } from '../../src/shared/types/config'
 
 /*
  * 主题控制器（B5.4）。

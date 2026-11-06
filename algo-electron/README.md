@@ -166,7 +166,7 @@ pnpm run preview
 
 ## 6. 边界规则
 
-- Renderer 不直接访问 Node、SQLite、Cookie 或文件系统，只通过 `window.electronAPI` 调用 preload 暴露能力。
-- 主进程 IPC/preload API 变更必须同步 `electron/preload.ts`、`electron/electron-env.d.ts`、renderer 调用点和相关文档。
+- Renderer 不直接访问 Node、SQLite、Cookie 或文件系统，只通过 `window.api`（域分组，类型由 preload 的 `typeof api` 推导）调用主进程能力。
+- 主进程 IPC/preload API 变更必须同步 `src/preload/index.ts`、`src/shared/types/*`（zod schema）、renderer 调用点（经 `*Api.ts` 或 `src/hooks/`）和相关文档；无消费者的方法不放回暴露面（`tests/ipc/apiConsumers` 守卫）。
 - 生成目录 `dist/`、`dist-electron/`、`release/`、`tmp/` 不作为源码维护。
 - 不把 Cookie、用户源码或完整请求体写入日志或文档示例。

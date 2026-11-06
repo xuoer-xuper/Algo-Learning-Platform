@@ -1,7 +1,8 @@
 import { ipcMain } from './trustedSender'
 import { setSearchEngineInput, setThemeInput } from '../../src/shared/types/ipc/config'
 import { getHomeShortcuts, getSearchConfig, saveSearchConfig } from '../app/config'
-import type { ThemePreference } from '../app/themePreference'
+import type { ThemePreference } from '../../src/shared/types/config'
+import { IPC_CHANNELS } from '../../src/shared/constants/channels'
 
 /*
  * 各 channel 的输入 schema 元组来自 `src/shared/types/ipc/config.ts`；
@@ -21,24 +22,24 @@ export interface ConfigIpcOptions {
 }
 
 export function registerConfigIpc(options: ConfigIpcOptions): void {
-  ipcMain.handle('config:getHomeShortcuts', () => {
+  ipcMain.handle(IPC_CHANNELS.CONFIG.GET_HOME_SHORTCUTS, () => {
     return getHomeShortcuts()
   })
 
-  ipcMain.handle('config:getSearchEngine', () => {
+  ipcMain.handle(IPC_CHANNELS.CONFIG.GET_SEARCH_ENGINE, () => {
     return getSearchConfig()
   })
 
-  ipcMain.handle('config:setSearchEngine', setSearchEngineInput, (_event, search) => {
+  ipcMain.handle(IPC_CHANNELS.CONFIG.SET_SEARCH_ENGINE, setSearchEngineInput, (_event, search) => {
     saveSearchConfig(search)
     return getSearchConfig()
   })
 
-  ipcMain.handle('config:getTheme', () => {
+  ipcMain.handle(IPC_CHANNELS.CONFIG.GET_THEME, () => {
     return options.theme.get()
   })
 
-  ipcMain.handle('config:setTheme', setThemeInput, (_event, theme) => {
+  ipcMain.handle(IPC_CHANNELS.CONFIG.SET_THEME, setThemeInput, (_event, theme) => {
     return options.theme.set(theme)
   })
 }

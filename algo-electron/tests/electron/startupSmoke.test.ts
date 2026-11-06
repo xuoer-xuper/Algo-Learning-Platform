@@ -270,7 +270,7 @@ const userDataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'algo-electron-smoke-u
 
 try {
   runEsbuild('electron/main.ts', mainBundle)
-  runEsbuild('electron/preload.ts', preloadBundle, 'cjs')
+  runEsbuild('src/preload/index.ts', preloadBundle, 'cjs')
   runEsbuild('electron/browser/ojPreload.ts', ojPreloadBundle, 'cjs')
   runEsbuild('electron/scripts/userscriptBootstrapPreload.ts', userscriptPreloadBundle, 'cjs')
   await runSmokeElectron(userDataDir)

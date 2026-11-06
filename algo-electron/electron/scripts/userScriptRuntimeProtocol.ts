@@ -1,5 +1,9 @@
-export const USER_SCRIPT_RUNTIME_INIT_CHANNEL = 'userscript-runtime:init'
-export const USER_SCRIPT_RUNTIME_PORT_CHANNEL = 'userscript-runtime:port'
+import { IPC_CHANNELS } from '../../src/shared/constants/channels'
+
+// channel 名的唯一来源在 src/shared/constants/channels.ts；这里保留导出名，让
+// bootstrap preload 与主进程的既有引用不用改。
+export const USER_SCRIPT_RUNTIME_INIT_CHANNEL = IPC_CHANNELS.USERSCRIPT_RUNTIME.INIT
+export const USER_SCRIPT_RUNTIME_PORT_CHANNEL = IPC_CHANNELS.USERSCRIPT_RUNTIME.PORT
 
 export const USER_SCRIPT_RUNTIME_NONCE_PATTERN = /^[a-f0-9]{32}$/
 export const USER_SCRIPT_RUNTIME_MAX_KEY_LENGTH = 512

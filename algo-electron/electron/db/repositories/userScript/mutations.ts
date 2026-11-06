@@ -2,6 +2,7 @@ import crypto from 'node:crypto'
 import { getDb } from '../../connection'
 import { nowChinaStandardTime } from '../../../shared/time'
 import type { UserScriptUpdateInput, UserScriptWriteInput } from './types'
+import { emitDataChanged, withDataChangeTransaction } from '../../../shared/dataEvents'
 
 export function createScript(data: UserScriptWriteInput): string {
   const db = getDb()
@@ -58,6 +59,7 @@ export function createScript(data: UserScriptWriteInput): string {
     now,
     now,
   )
+  emitDataChanged(['scripts'])
   return id
 }
 
@@ -168,6 +170,7 @@ export function updateScript(id: string, data: UserScriptUpdateInput): boolean {
   `,
     )
     .run(...values)
+  if (info.changes > 0) emitDataChanged(['scripts'])
   return info.changes > 0
 }
 
@@ -178,6 +181,7 @@ export function toggleScript(id: string, enabled: boolean): boolean {
 export function deleteScript(id: string): boolean {
   const db = getDb()
   const info = db.prepare('DELETE FROM user_scripts WHERE id = ?').run(id)
+  if (info.changes > 0) emitDataChanged(['scripts'])
   return info.changes > 0
 }
 
@@ -195,6 +199,7 @@ export function claimLegacyScriptIdentity(id: string, namespace: string): boolea
   `,
     )
     .run(namespace, nowChinaStandardTime(), id)
+  if (info.changes > 0) emitDataChanged(['scripts'])
   return info.changes > 0
 }
 
@@ -311,10 +316,11 @@ export function updateScriptWithLegacyClaim(
       )
       .run(...values, namespace)
     if (update.changes !== 1) throw new Error('Legacy userscript update failed')
+    emitDataChanged(['scripts'])
   })
 
   try {
-    transaction()
+    withDataChangeTransaction(() => transaction())
     return true
   } catch {
     return false
@@ -322,5 +328,5 @@ export function updateScriptWithLegacyClaim(
 }
 
 export function runUserScriptTransaction<T>(operation: () => T): T {
-  return getDb().transaction(operation)()
+  return withDataChangeTransaction(() => getDb().transaction(operation)())
 }

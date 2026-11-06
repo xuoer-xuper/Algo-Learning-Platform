@@ -6,6 +6,7 @@ import {
   exportLearningData,
   previewLearningDataImport,
 } from './settingsApi'
+import type { LearningDataImportPreview } from '@shared/types/backup'
 
 function formatCounts(counts?: Record<string, number>): string {
   if (!counts) return ''

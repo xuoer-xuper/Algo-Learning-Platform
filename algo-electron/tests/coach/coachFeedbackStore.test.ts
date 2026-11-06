@@ -4,7 +4,7 @@ import {
   CoachFeedbackStore,
   type FeedbackRepositoryAdapter,
 } from '../../electron/coach/CoachFeedbackStore.ts'
-import type { CoachEventType } from '../../electron/coach/types.ts'
+import type { CoachEventType } from '@shared/types/coach'
 import { toBeijing } from '../../electron/shared/time.ts'
 
 /**

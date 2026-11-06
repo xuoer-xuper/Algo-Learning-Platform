@@ -1,7 +1,8 @@
+import { emitDataChanged } from '../../../shared/dataEvents'
 import crypto from 'node:crypto'
 import { getDb } from '../../connection'
 import { nowBeijing, todayBeijing } from '../../../shared/time'
-import type { CoachEventType, CoachFeedbackType } from '../../../coach/types'
+import type { CoachEventType, CoachFeedbackType } from '../../../../src/shared/types/coach'
 
 /**
  * Coach 用户反馈 repository。
@@ -50,6 +51,7 @@ export function insertCoachFeedback(input: InsertCoachFeedbackInput): string {
     todayBeijing(),
     nowBeijing(),
   )
+  emitDataChanged(['coach'])
   return id
 }
 

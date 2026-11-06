@@ -36,22 +36,37 @@ const freeUrl = z.string().max(4096)
 export const tabCreateInput = [freeUrl.optional()] as const
 export const tabCloseInput = [tabId] as const
 export const tabSwitchInput = [tabId] as const
-export const tabReorderInput = [tabId, tabIndex] as const
+/*
+ * R3 起 `tab:reorder` / `tab:finishDrag` 的 wire 形状是单对象参数（原先多参数按位置
+ * 排列）。字段界不变；`finishDrag` 的两个屏幕坐标在对象里有了名字（screenX /
+ * screenY），不再靠元组位置区分。
+ */
+export const tabReorderInput = [z.strictObject({ tabId, targetIndex: tabIndex })] as const
 export const tabMoveToNewWindowInput = [tabId] as const
-export const tabFinishDragInput = [tabId, tabIndex, screenCoord, screenCoord] as const
+export const tabFinishDragInput = [
+  z.strictObject({ tabId, targetIndex: tabIndex, screenX: screenCoord, screenY: screenCoord }),
+] as const
 export const tabReloadInput = [tabId] as const
 export const tabDismissUnresponsiveInput = [tabId] as const
 export const tabOpenInternalInput = [z.unknown()] as const
 export const navigateInput = [freeUrl] as const
 export const omniboxSuggestInput = [z.string().max(256)] as const
 export const setOmniboxOpenInput = [z.boolean()] as const
-export const findInPageInput = [tabId, z.unknown()] as const
-export const setZoomInput = [tabId, z.unknown()] as const
+/*
+ * R3 起 `browser:findInPage` / `browser:setZoom` 的 wire 形状是单对象参数。
+ * `command` 仍是无形状放行（判别联合校验在 `TabManager.findInPage` / `isZoomCommand`，
+ * RAW_IPC_SCHEMA_BUDGET 棘轮管着），只把外层从两个位置参数收成一个 strictObject。
+ */
+export const findInPageInput = [z.strictObject({ tabId, command: z.unknown() })] as const
+export const setZoomInput = [z.strictObject({ tabId, command: z.unknown() })] as const
 export const setDownloadNoticeVisibleInput = [z.boolean()] as const
 export const setErrorNoticeVisibleInput = [z.boolean()] as const
 export const getUserScriptInstallInput = [tabId] as const
 export const cancelUserScriptInstallInput = [tabId] as const
-export const respondHostPermissionInput = [promptId, z.boolean()] as const
+/* R3 起单对象参数（原先是 `(promptId, allow)` 两个位置参数）。 */
+export const respondHostPermissionInput = [
+  z.strictObject({ promptId, allow: z.boolean() }),
+] as const
 export const showAppMenuInput = [z.unknown()] as const
 export const showTabContextMenuInput = [tabId] as const
 export const showShellContextMenuInput = [z.enum(['omnibox', 'editor', 'page'])] as const

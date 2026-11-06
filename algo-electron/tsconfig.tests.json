@@ -14,9 +14,12 @@
  * noUnusedLocals / noUnusedParameters 只在这里关掉：测试替身经常要实现完整签名却只用
  * 其中一两个参数（`(event, channel, ...args) => {}`），那是接口契约的一部分，不是死代码。
  *
- * include 里必须显式列出两个 .d.ts：tsc 只从 include 覆盖到的文件里收集环境声明，
- * 而测试 import 会把生产文件一起拖进来。少了它们，`Cannot find namespace 'Electron'`
- * 和 `Property 'electronAPI' does not exist` 会在生产文件里报出约 470 个假错误。
+ * include 里必须显式列出环境声明文件与 preload：tsc 只从 include 覆盖到的文件里
+ * 收集环境声明，而测试 import 会把生产文件一起拖进来。少了它们，
+ * `Cannot find namespace 'Electron'` 和 `Property 'api' does not exist`
+ * 会在生产文件里报出约 470 个假错误。阶段 2 R2 起 `electron-env.d.ts` 已删除
+ * （`ProcessEnv` 增强在 `src/main/env.d.ts`）；R3 起 `Window.api` 的全局声明
+ * （`typeof api` 推导）在定义它的 `src/preload/index.ts`。
  *
  * 刻意不配 paths 把 'electron' 指向测试替身：类型是会被擦除的，拿替身去检查生产代码
  * 只会得到假结论——试过一次，`CoachPetWindow` 那个真实的 `send` 缺失错误当场消失了。
@@ -30,6 +33,6 @@
     "noUnusedLocals": false,
     "noUnusedParameters": false
   },
-  "include": ["tests", "electron/electron-env.d.ts", "src/vite-env.d.ts"],
+  "include": ["tests", "src/preload/index.ts", "src/main/env.d.ts", "src/vite-env.d.ts"],
   "references": [{ "path": "./tsconfig.node.json" }]
 }

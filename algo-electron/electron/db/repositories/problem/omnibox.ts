@@ -1,5 +1,5 @@
 import { getDb } from '../../connection'
-import type { OmniboxSuggestion } from './types'
+import type { OmniboxSuggestion } from '../../../../src/shared/types/problem'
 
 export const OMNIBOX_SUGGESTION_LIMIT = 8
 

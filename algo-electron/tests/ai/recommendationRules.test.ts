@@ -10,7 +10,8 @@ import {
   scoreTagWeakness,
 } from '../../electron/ai/recommendations/rules.ts'
 import { parseTagsJson } from '../../electron/ai/recommendations/tagParsing.ts'
-import type { TagAggregate, TagWeakness } from '../../electron/ai/recommendations/types.ts'
+import type { TagAggregate } from '../../electron/ai/recommendations/types.ts'
+import type { TagWeakness } from '@shared/types/ai'
 
 test('parses and normalizes tag json safely', () => {
   assert.deepStrictEqual(parseTagsJson('["dp", " graph ", 3, ""]'), ['dp', 'graph'])

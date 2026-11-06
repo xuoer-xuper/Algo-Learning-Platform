@@ -1,25 +1,16 @@
 import { app, type App, type Session, type WebContents } from 'electron'
 import { randomUUID } from 'node:crypto'
 import { getAllSites } from '../../db/repositories/siteRepository'
-import {
-  CredentialVault,
-  type CredentialAutofillValue,
-  type CredentialSummary,
-} from '../CredentialVault'
+import { CredentialVault, type CredentialAutofillValue } from '../CredentialVault'
 import {
   CredentialAutofillCoordinator,
   type AutofillWebContents,
   type CredentialAutofillSelectionRequest,
 } from './autofillServiceCore'
-
-export interface CredentialAutofillPrompt {
-  requestId: string
-  siteId: string
-  pageUrl: string
-  credentials: Array<
-    Pick<CredentialSummary, 'credentialId' | 'siteId' | 'username' | 'displayName' | 'masked'>
-  >
-}
+import type {
+  CredentialAutofillPrompt,
+  CredentialSummary,
+} from '../../../src/shared/types/credentials'
 
 export interface CredentialAutofillSelectionHost {
   getWindowId: (contents: AutofillWebContents) => string | null

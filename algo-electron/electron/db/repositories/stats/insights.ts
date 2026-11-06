@@ -2,14 +2,13 @@ import { getDb } from '../../connection'
 import { todayBeijing } from '../../../shared/time'
 import { dayDiff, localDateDaysAgo } from './date'
 import type {
-  PlatformDistributionRow,
   ProblemVisitStat,
   RevisitStat,
   StreakDays,
-  TimelineEvent,
   UnreviewedProblem,
   WrongProblem,
 } from './types'
+import type { PlatformDistributionRow, TimelineEvent } from '../../../../src/shared/types/stats'
 
 export function getPlatformDistribution(): PlatformDistributionRow[] {
   const db = getDb()

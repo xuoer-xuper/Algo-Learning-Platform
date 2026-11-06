@@ -9,6 +9,7 @@ import {
 import { CredentialVault } from '../credentials/CredentialVault'
 import type { CredentialAutofillService } from '../credentials/autofill/CredentialAutofillService'
 import type { CredentialCaptureService } from '../credentials/CredentialCaptureService'
+import { IPC_CHANNELS } from '../../src/shared/constants/channels'
 
 export interface RegisterCredentialsIpcOptions {
   getAutofillService?: () => CredentialAutofillService | null
@@ -24,47 +25,50 @@ export function registerCredentialsIpc(
   credentialVault = new CredentialVault(),
   options: RegisterCredentialsIpcOptions = {},
 ): void {
-  ipcMain.handle('credentials:list', listInput, (_event, siteId) => {
+  ipcMain.handle(IPC_CHANNELS.CREDENTIALS.LIST, listInput, (_event, siteId) => {
     return credentialVault.list(siteId)
   })
 
-  ipcMain.handle('credentials:delete', deleteInput, (_event, id) => {
+  ipcMain.handle(IPC_CHANNELS.CREDENTIALS.DELETE, deleteInput, (_event, id) => {
     return credentialVault.delete(id)
   })
 
-  ipcMain.handle('credentials:rename', renameInput, (_event, id, displayName) => {
-    return credentialVault.rename(id, displayName)
+  ipcMain.handle(IPC_CHANNELS.CREDENTIALS.RENAME, renameInput, (_event, input) => {
+    return credentialVault.rename(input.credentialId, input.displayName)
   })
 
-  ipcMain.handle('credentials:autofillPrompt', (event) => {
+  ipcMain.handle(IPC_CHANNELS.CREDENTIALS.AUTOFILL_PROMPT, (event) => {
     const owner = getShellWindowOwner(event)
     return owner ? (options.getAutofillService?.()?.getCurrentPrompt(owner.id) ?? null) : null
   })
 
   ipcMain.handle(
-    'credentials:autofillRespond',
+    IPC_CHANNELS.CREDENTIALS.AUTOFILL_RESPOND,
     autofillRespondInput,
-    (event, requestId, chosen) => {
+    (event, input) => {
       const owner = getShellWindowOwner(event)
       return owner
-        ? (options.getAutofillService?.()?.respondSelection(owner.id, requestId, chosen) ?? false)
+        ? (options
+            .getAutofillService?.()
+            ?.respondSelection(owner.id, input.requestId, input.credentialId) ?? false)
         : false
     },
   )
 
-  ipcMain.handle('credentials:capturePrompt', (event) => {
+  ipcMain.handle(IPC_CHANNELS.CREDENTIALS.CAPTURE_PROMPT, (event) => {
     const owner = getShellWindowOwner(event)
     return owner ? (options.getCaptureService?.()?.getCurrentPrompt(owner.id) ?? null) : null
   })
 
   ipcMain.handle(
-    'credentials:captureRespond',
+    IPC_CHANNELS.CREDENTIALS.CAPTURE_RESPOND,
     captureRespondInput,
-    async (event, captureId, action) => {
+    async (event, input) => {
       const owner = getShellWindowOwner(event)
       return owner
-        ? ((await options.getCaptureService?.()?.respondCapture(owner.id, captureId, action)) ??
-            false)
+        ? ((await options
+            .getCaptureService?.()
+            ?.respondCapture(owner.id, input.captureId, input.action)) ?? false)
         : false
     },
   )
@@ -75,7 +79,7 @@ export function registerCredentialsIpc(
    * `onFromOj` 目前只有单一形态（无 schema 元组），所以这里没有可声明的位置——
    * 它也不在壳 renderer 的可达范围内，由 `checkOjSender` 限定只有 persist:oj-main 主 frame 能发。
    */
-  onFromOj('oj-credentials:capture', (event, payload: unknown) => {
+  onFromOj(IPC_CHANNELS.OJ.CREDENTIALS_CAPTURE, (event, payload: unknown) => {
     void options.getCaptureService?.()?.receiveCapture(event.sender, payload)
   })
 }

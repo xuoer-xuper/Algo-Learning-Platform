@@ -16,7 +16,7 @@ import {
 } from '../db/repositories/coach/feedbackRepository'
 import { nowBeijing } from '../shared/time'
 import type { FeedbackRepositoryAdapter } from './CoachFeedbackStore'
-import type { CoachFeedbackType } from './types'
+import type { CoachFeedbackType } from '../../src/shared/types/coach'
 
 /**
  * 创建默认的 FeedbackRepositoryAdapter（委托 feedbackRepository 模块）。

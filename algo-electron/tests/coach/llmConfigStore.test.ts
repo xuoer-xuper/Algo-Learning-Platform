@@ -1,7 +1,7 @@
 import assert from 'node:assert'
 import { app } from 'electron'
-import type { CoachConfig } from '../../electron/app/config.ts'
 import { LlmConfigStore } from '../../electron/coach/llm/LlmConfigStore.ts'
+import type { CoachConfig } from '@shared/types/coach'
 
 interface StoreHarnessOptions {
   encryptionAvailable?: boolean

@@ -5,13 +5,7 @@ import type { SubmissionScrapeContext } from '../adapters/types'
 import type { SubmissionBatchWriter } from './SubmissionBatchWriter'
 import { resolveSubmissionPageContext } from './SubmissionPageContextResolver'
 import { errorMessage } from '../shared/errors'
-
-export interface SyncResult {
-  platform: string
-  fetched: number
-  inserted: number
-  error?: string
-}
+import type { SyncResult } from '../../src/shared/types/submission'
 
 /**
  * 本服务真正需要 batchWriter 的能力：只有 `write`。

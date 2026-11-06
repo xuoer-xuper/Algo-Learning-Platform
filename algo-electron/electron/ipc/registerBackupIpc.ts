@@ -18,6 +18,7 @@ import {
   type LearningDataImportCounts,
 } from '../backup/backupService'
 import type { ImportPreview, LearningDataExport } from '../backup/types'
+import { IPC_CHANNELS } from '../../src/shared/constants/channels'
 
 interface RegisterBackupIpcOptions {
   getParentWindow?: (event: IpcMainInvokeEvent) => BrowserWindow | null
@@ -38,7 +39,7 @@ function getParentWindow(
 
 export function registerBackupIpc(options: RegisterBackupIpcOptions = {}): void {
   ipcMain.handle(
-    'backup:createDatabaseBackup',
+    IPC_CHANNELS.BACKUP.CREATE_DATABASE_BACKUP,
     async (event): Promise<IpcOutput<{ path: string }>> => {
       const parentWindow = getParentWindow(event, options)
       const dialogOptions: OpenDialogOptions = {
@@ -57,7 +58,7 @@ export function registerBackupIpc(options: RegisterBackupIpcOptions = {}): void 
   )
 
   ipcMain.handle(
-    'backup:exportLearningData',
+    IPC_CHANNELS.BACKUP.EXPORT_LEARNING_DATA,
     async (event): Promise<IpcOutput<{ path: string; counts: Record<string, number> }>> => {
       const parentWindow = getParentWindow(event, options)
       const dialogOptions: SaveDialogOptions = {
@@ -81,7 +82,7 @@ export function registerBackupIpc(options: RegisterBackupIpcOptions = {}): void 
   )
 
   ipcMain.handle(
-    'backup:previewLearningDataImport',
+    IPC_CHANNELS.BACKUP.PREVIEW_LEARNING_DATA_IMPORT,
     async (event): Promise<IpcOutput<{ preview: ImportPreview }>> => {
       const ownerId = getOwnerId(event)
       if (!ownerId) {
@@ -135,7 +136,7 @@ export function registerBackupIpc(options: RegisterBackupIpcOptions = {}): void 
    * schema 元组见 `src/shared/types/ipc/backup.ts`。
    */
   ipcMain.handle(
-    'backup:confirmLearningDataImport',
+    IPC_CHANNELS.BACKUP.CONFIRM_LEARNING_DATA_IMPORT,
     confirmLearningDataImportInput,
     (event, overwriteConflicts): IpcOutput<LearningDataImportCounts> => {
       const ownerId = getOwnerId(event)

@@ -1,5 +1,9 @@
 import { getDb } from '../../connection'
-import type { CookieRecord, CookieSafeDomainSummary, CookieSafeSiteSummary } from './types'
+import type { CookieRecord } from './types'
+import type {
+  CookieSafeDomainSummary,
+  CookieSafeSiteSummary,
+} from '../../../../src/shared/types/cookies'
 
 export function getCookieRecordsBySite(siteId: string): CookieRecord[] {
   const db = getDb()

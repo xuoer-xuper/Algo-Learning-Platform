@@ -1,11 +1,6 @@
 import { Menu, type BrowserWindow, type MenuItemConstructorOptions } from 'electron'
-import type { InternalPage } from '../browser/tabManagerTypes'
-import type { ZoomCommand } from '../browser/zoomPreferences'
-
-export interface AppMenuAnchor {
-  x: number
-  y: number
-}
+import type { AppMenuAnchor } from '../../src/shared/types/window'
+import type { InternalPage, ZoomCommand } from '../../src/shared/types/browser'
 
 export interface PopupAppMenuOptions {
   window: BrowserWindow

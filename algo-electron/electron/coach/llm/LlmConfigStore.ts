@@ -1,5 +1,6 @@
 import { safeStorage } from 'electron'
-import { loadCoachConfig, saveCoachConfig, type CoachLlmConfig } from '../../app/config'
+import { loadCoachConfig, saveCoachConfig } from '../../app/config'
+import type { CoachLlmConfig } from '../../../src/shared/types/coach'
 import { DEFAULT_LLM_CONFIG, type LlmConfig } from './LlmHintTypes'
 
 interface LlmConfigStoreDependencies {

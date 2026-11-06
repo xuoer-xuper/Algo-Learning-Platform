@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { COACH_PIN_MODES } from '../../../../electron/coach/petPinPolicy'
+import { COACH_PIN_MODES } from '../../constants/preferences'
 
 /*
  * Coach 域各 channel 的输入 schema。消费方：electron/ipc/registerCoachIpc.ts。

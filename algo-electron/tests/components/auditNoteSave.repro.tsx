@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
+import { render } from './renderWithDataRefresh'
 import { afterEach, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, screen, waitFor } from '@testing-library/react'
 import fs from 'node:fs'
 import path from 'node:path'
 import type { NoteItem } from '../../src/features/problems/notesTypes'

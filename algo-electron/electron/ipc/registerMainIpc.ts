@@ -27,7 +27,7 @@ import type { CredentialCaptureService } from '../credentials/CredentialCaptureS
 import type {
   UserScriptHostPermissionPrompt,
   UserScriptHostPermissionResponse,
-} from '../scripts/UserScriptHostPermissionBroker'
+} from '../../src/shared/types/scripts'
 
 interface RegisterMainIpcOptions {
   getSyncService: () => SyncService | null

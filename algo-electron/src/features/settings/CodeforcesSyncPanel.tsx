@@ -3,10 +3,12 @@ import { Button, Input } from '../../components/ui'
 import { errorMessage } from '../../shared/errors'
 import {
   loadPrimaryCodeforcesAccount,
+  loadCodeforcesAccount,
   syncCodeforcesRatingProfile,
   syncCodeforcesSubmissions,
 } from './settingsApi'
-import type { CodeforcesAccount } from './settingsTypes'
+import { useIpcQuery } from '../../hooks/useIpcQuery'
+import type { PlatformAccount } from '@shared/types/rating'
 
 interface CodeforcesSyncPanelProps {
   onStatsRefresh: () => void | Promise<void>
@@ -14,22 +16,28 @@ interface CodeforcesSyncPanelProps {
 
 export function CodeforcesSyncPanel({ onStatsRefresh }: CodeforcesSyncPanelProps) {
   const [cfHandle, setCfHandle] = useState('')
-  const [ratingHandle, setRatingHandle] = useState('')
-  const [ratingInfo, setRatingInfo] = useState<CodeforcesAccount | null>(null)
+  const [ratingHandleDraft, setRatingHandle] = useState<string | null>(null)
+  const [selectedAccount, setSelectedAccount] = useState<{
+    handle: string
+    account: PlatformAccount | null
+  } | null>(null)
+  const accountQuery = useIpcQuery(
+    () =>
+      selectedAccount
+        ? loadCodeforcesAccount(selectedAccount.handle)
+        : loadPrimaryCodeforcesAccount(),
+    [selectedAccount?.handle],
+    { tables: ['stats'] },
+  )
+  const ratingInfo = accountQuery.data === undefined ? selectedAccount?.account : accountQuery.data
+  const ratingHandle = ratingHandleDraft ?? ratingInfo?.handle ?? ''
   const [ratingStatus, setRatingStatus] = useState('')
   const [submissionSyncStatus, setSubmissionSyncStatus] = useState('')
 
   useEffect(() => {
-    void loadPrimaryCodeforcesAccount()
-      .then((account) => {
-        if (account) {
-          setRatingHandle(account.handle)
-          setRatingInfo(account)
-        }
-      })
-      // 读失败时若不提示，输入框会是空的，与「还没绑定过 Handle」无法区分。
-      .catch((error: unknown) => setRatingStatus(`读取已绑定 Handle 失败: ${errorMessage(error)}`))
-  }, [])
+    if (accountQuery.error)
+      setRatingStatus(`读取已绑定 Handle 失败: ${errorMessage(accountQuery.error)}`)
+  }, [accountQuery.error])
 
   const handleSyncCF = async () => {
     if (!cfHandle.trim()) {
@@ -59,10 +67,12 @@ export function CodeforcesSyncPanel({ onStatsRefresh }: CodeforcesSyncPanelProps
 
     setRatingStatus('同步中...')
     try {
-      const { result, account } = await syncCodeforcesRatingProfile(ratingHandle.trim())
+      const handle = ratingHandle.trim()
+      const { result, account } = await syncCodeforcesRatingProfile(handle)
       if (result.success === true) {
         setRatingStatus(`同步成功，peak: ${result.data.peak}`)
-        setRatingInfo(account)
+        setSelectedAccount({ handle, account })
+        if (selectedAccount?.handle === handle) await accountQuery.refetch()
       } else {
         setRatingStatus(`失败: ${result.error}`)
       }

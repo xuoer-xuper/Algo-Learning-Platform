@@ -1,5 +1,6 @@
 import { Button, Empty, IconButton } from '../../components/ui'
-import type { ScriptSite, UserScriptRecord } from './types'
+import type { UserScriptRecord } from '@shared/types/scripts'
+import type { ScriptSite } from './types'
 
 interface UserScriptListProps {
   scripts: UserScriptRecord[]

@@ -1,12 +1,12 @@
 import assert from 'node:assert/strict'
 import { test } from 'vitest'
 import { MockBrowserWindow, menuPopups, resetElectronMock } from '../electron/electronMock'
+import type { InternalPage } from '@shared/types/browser'
 import {
   createAppMenuTemplate,
   isAppMenuAnchor,
   popupAppMenu,
 } from '../../electron/contextMenus/appMenu.ts'
-import type { InternalPage } from '../../electron/browser/tabManagerTypes.ts'
 
 test('app menu anchor accepts only bounded exact integer coordinates', () => {
   assert.strictEqual(isAppMenuAnchor({ x: 10, y: 20 }), true)

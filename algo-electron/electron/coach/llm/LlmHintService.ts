@@ -1,5 +1,9 @@
 import crypto from 'node:crypto'
-import type { CoachEvent, CoachInterventionLevel, ProblemSession } from '../types'
+import type {
+  CoachEvent,
+  CoachInterventionLevel,
+  ProblemSession,
+} from '../../../src/shared/types/coach'
 import type { ProblemConstraints } from '../problemFacts/ConstraintParser'
 import { nowBeijing } from '../../shared/time'
 import { logger } from '../../shared/logger'

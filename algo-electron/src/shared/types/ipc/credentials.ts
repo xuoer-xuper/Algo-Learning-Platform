@@ -20,6 +20,16 @@ const oneShotId = z.string().min(1).max(128)
 
 export const listInput = [z.string().min(1).max(200).optional()] as const
 export const deleteInput = [credentialId] as const
-export const renameInput = [credentialId, z.string().min(1).max(200)] as const
-export const autofillRespondInput = [oneShotId, credentialId.nullable()] as const
-export const captureRespondInput = [oneShotId, z.enum(['save', 'update', 'cancel'])] as const
+/*
+ * R3 起 rename / autofillRespond / captureRespond 的 wire 形状是单对象参数（原先多参数
+ * 按位置排列）。字段界与原先的元组逐位一致，只是搬进了对象；strictObject 拒绝多余字段。
+ */
+export const renameInput = [
+  z.strictObject({ credentialId, displayName: z.string().min(1).max(200) }),
+] as const
+export const autofillRespondInput = [
+  z.strictObject({ requestId: oneShotId, credentialId: credentialId.nullable() }),
+] as const
+export const captureRespondInput = [
+  z.strictObject({ captureId: oneShotId, action: z.enum(['save', 'update', 'cancel']) }),
+] as const

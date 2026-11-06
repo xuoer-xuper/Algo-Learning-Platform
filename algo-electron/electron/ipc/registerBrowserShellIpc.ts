@@ -35,10 +35,11 @@ import { popupShellContextMenu, readClipboardText } from '../contextMenus/browse
 import { isZoomCommand } from '../browser/zoomPreferences'
 import type { PendingUserScriptInstallRegistry } from '../downloads/userScriptNavigation'
 import type { AppWindow } from '../windows/AppWindow'
+import { IPC_CHANNELS } from '../../src/shared/constants/channels'
 import type {
   UserScriptHostPermissionPrompt,
   UserScriptHostPermissionResponse,
-} from '../scripts/UserScriptHostPermissionBroker'
+} from '../../src/shared/types/scripts'
 
 interface RegisterBrowserShellIpcOptions {
   getBrowserDiagnostics?: () => BrowserDiagnostics | null
@@ -76,19 +77,19 @@ function toNavigationBlockReason(
  * 与四处"在别处校验"的判别参数说明都写在那里。
  */
 export function registerBrowserShellIpc(options: RegisterBrowserShellIpcOptions): void {
-  ipcMain.handle('tab:create', tabCreateInput, (event, url) => {
+  ipcMain.handle(IPC_CHANNELS.TAB.CREATE, tabCreateInput, (event, url) => {
     return getShellWindowOwner(event)?.tabManager.createTab(url) ?? null
   })
 
-  ipcMain.on('tab:close', tabCloseInput, (event, tabId) => {
+  ipcMain.on(IPC_CHANNELS.TAB.CLOSE, tabCloseInput, (event, tabId) => {
     getShellWindowOwner(event)?.tabManager.closeTab(tabId)
   })
 
-  ipcMain.handle('tab:reopenClosed', (event) => {
+  ipcMain.handle(IPC_CHANNELS.TAB.REOPEN_CLOSED, (event) => {
     return getShellWindowOwner(event)?.tabManager.reopenClosedTab() ?? ''
   })
 
-  ipcMain.on('tab:switch', tabSwitchInput, (event, tabId) => {
+  ipcMain.on(IPC_CHANNELS.TAB.SWITCH, tabSwitchInput, (event, tabId) => {
     getShellWindowOwner(event)?.tabManager.switchTab(tabId)
   })
 
@@ -97,31 +98,35 @@ export function registerBrowserShellIpc(options: RegisterBrowserShellIpcOptions)
    * 判完 TS 仍然认为它是 `unknown`，所以只能强转。schema 之后类型是真的收窄了，
    * 两处 `as` 一起删掉。
    */
-  ipcMain.handle('tab:reorder', tabReorderInput, (event, tabId, targetIndex) => {
-    return getShellWindowOwner(event)?.tabManager.reorderTab(tabId, targetIndex) ?? false
+  ipcMain.handle(IPC_CHANNELS.TAB.REORDER, tabReorderInput, (event, input) => {
+    return (
+      getShellWindowOwner(event)?.tabManager.reorderTab(input.tabId, input.targetIndex) ?? false
+    )
   })
 
-  ipcMain.handle('tab:moveToNewWindow', tabMoveToNewWindowInput, (event, tabId) => {
+  ipcMain.handle(IPC_CHANNELS.TAB.MOVE_TO_NEW_WINDOW, tabMoveToNewWindowInput, (event, tabId) => {
     const owner = getShellWindowOwner(event)
     return owner ? (options.moveTabToNewWindow?.(owner, tabId) ?? false) : false
   })
 
-  ipcMain.handle(
-    'tab:finishDrag',
-    tabFinishDragInput,
-    (event, tabId, targetIndex, screenX, screenY) => {
-      const owner = getShellWindowOwner(event)
-      return owner
-        ? (options.finishTabDrag?.(owner, tabId, targetIndex, screenX, screenY) ?? false)
-        : false
-    },
-  )
+  ipcMain.handle(IPC_CHANNELS.TAB.FINISH_DRAG, tabFinishDragInput, (event, input) => {
+    const owner = getShellWindowOwner(event)
+    return owner
+      ? (options.finishTabDrag?.(
+          owner,
+          input.tabId,
+          input.targetIndex,
+          input.screenX,
+          input.screenY,
+        ) ?? false)
+      : false
+  })
 
-  ipcMain.on('tab:reload', tabReloadInput, (event, tabId) => {
+  ipcMain.on(IPC_CHANNELS.TAB.RELOAD, tabReloadInput, (event, tabId) => {
     getShellWindowOwner(event)?.tabManager.reloadTab(tabId)
   })
 
-  ipcMain.on('tab:dismissUnresponsive', tabDismissUnresponsiveInput, (event, tabId) => {
+  ipcMain.on(IPC_CHANNELS.TAB.DISMISS_UNRESPONSIVE, tabDismissUnresponsiveInput, (event, tabId) => {
     getShellWindowOwner(event)?.tabManager.dismissUnresponsive(tabId)
   })
 
@@ -130,12 +135,12 @@ export function registerBrowserShellIpc(options: RegisterBrowserShellIpcOptions)
    * 哪些字段必须在场，schema 层表达不了。这里是四个棘轮封顶的"在别处校验"之一，
    * 元组元素是显式放行的 unknown。
    */
-  ipcMain.handle('tab:openInternal', tabOpenInternalInput, (event, page) => {
+  ipcMain.handle(IPC_CHANNELS.TAB.OPEN_INTERNAL, tabOpenInternalInput, (event, page) => {
     if (!isInternalPage(page)) return ''
     return getShellWindowOwner(event)?.tabManager.openInternalTab(page) ?? ''
   })
 
-  ipcMain.handle('tab:getList', (event) => {
+  ipcMain.handle(IPC_CHANNELS.TAB.GET_LIST, (event) => {
     return getShellWindowOwner(event)?.tabManager.getTabList() ?? []
   })
 
@@ -144,7 +149,7 @@ export function registerBrowserShellIpc(options: RegisterBrowserShellIpcOptions)
    * `empty-input` 并静默返回（`toNavigationBlockReason` 对它返回 null）。
    * 收成 `min(1)` 会把这条正常路径变成一次载荷拒绝日志。
    */
-  ipcMain.on('browser:navigate', navigateInput, (event, input) => {
+  ipcMain.on(IPC_CHANNELS.BROWSER.NAVIGATE, navigateInput, (event, input) => {
     const owner = getShellWindowOwner(event)
     if (!owner) return
     const resolution = resolveOmniboxInput(input, {
@@ -153,7 +158,7 @@ export function registerBrowserShellIpc(options: RegisterBrowserShellIpcOptions)
     })
     if (resolution.kind === 'blocked') {
       const reason = toNavigationBlockReason(resolution.reason)
-      if (reason) owner.send('ui:command', { type: 'navigation-blocked', reason })
+      if (reason) owner.send(IPC_CHANNELS.UI.COMMAND, { type: 'navigation-blocked', reason })
       return
     }
     if (resolution.kind === 'internal') {
@@ -164,11 +169,11 @@ export function registerBrowserShellIpc(options: RegisterBrowserShellIpcOptions)
   })
 
   // 256 沿用原 `query.length > 256`；空串合法（地址栏清空时前端会拉一次空建议）。
-  ipcMain.handle('browser:omniboxSuggest', omniboxSuggestInput, (_event, query) => {
+  ipcMain.handle(IPC_CHANNELS.BROWSER.OMNIBOX_SUGGEST, omniboxSuggestInput, (_event, query) => {
     return getOmniboxSuggestions(query)
   })
 
-  ipcMain.on('browser:setOmniboxOpen', setOmniboxOpenInput, (event, open) => {
+  ipcMain.on(IPC_CHANNELS.BROWSER.SET_OMNIBOX_OPEN, setOmniboxOpenInput, (event, open) => {
     getShellWindowOwner(event)?.tabManager.setOmniboxOpen(open)
   })
 
@@ -177,56 +182,64 @@ export function registerBrowserShellIpc(options: RegisterBrowserShellIpcOptions)
    * （见 tabManagerFindZoom 的用例），`setZoom` 的由 `isZoomCommand` 判。
    * 前者原先连 `unknown` 都没判就传下去了，显式放行至少把这件事写在了通道上。
    */
-  ipcMain.handle('browser:findInPage', findInPageInput, (event, tabId, command) => {
-    return getShellWindowOwner(event)?.tabManager.findInPage(tabId, command) ?? null
+  ipcMain.handle(IPC_CHANNELS.BROWSER.FIND_IN_PAGE, findInPageInput, (event, input) => {
+    return getShellWindowOwner(event)?.tabManager.findInPage(input.tabId, input.command) ?? null
   })
 
-  ipcMain.handle('browser:setZoom', setZoomInput, (event, tabId, command) => {
-    if (!isZoomCommand(command)) return null
-    return getShellWindowOwner(event)?.tabManager.setZoom(tabId, command) ?? null
+  ipcMain.handle(IPC_CHANNELS.BROWSER.SET_ZOOM, setZoomInput, (event, input) => {
+    if (!isZoomCommand(input.command)) return null
+    return getShellWindowOwner(event)?.tabManager.setZoom(input.tabId, input.command) ?? null
   })
 
   ipcMain.on(
-    'browser:setDownloadNoticeVisible',
+    IPC_CHANNELS.BROWSER.SET_DOWNLOAD_NOTICE_VISIBLE,
     setDownloadNoticeVisibleInput,
     (event, visible) => {
       getShellWindowOwner(event)?.tabManager.setDownloadNoticeVisible(visible)
     },
   )
 
-  ipcMain.on('browser:setErrorNoticeVisible', setErrorNoticeVisibleInput, (event, visible) => {
-    getShellWindowOwner(event)?.tabManager.setErrorNoticeVisible(visible)
-  })
-
-  ipcMain.handle('browser:getUserScriptInstall', getUserScriptInstallInput, (_event, installId) => {
-    return options.getUserScriptInstallRegistry?.()?.get(installId) ?? null
-  })
+  ipcMain.on(
+    IPC_CHANNELS.BROWSER.SET_ERROR_NOTICE_VISIBLE,
+    setErrorNoticeVisibleInput,
+    (event, visible) => {
+      getShellWindowOwner(event)?.tabManager.setErrorNoticeVisible(visible)
+    },
+  )
 
   ipcMain.handle(
-    'browser:cancelUserScriptInstall',
+    IPC_CHANNELS.BROWSER.GET_USER_SCRIPT_INSTALL,
+    getUserScriptInstallInput,
+    (_event, installId) => {
+      return options.getUserScriptInstallRegistry?.()?.get(installId) ?? null
+    },
+  )
+
+  ipcMain.handle(
+    IPC_CHANNELS.BROWSER.CANCEL_USER_SCRIPT_INSTALL,
     cancelUserScriptInstallInput,
     (_event, installId) => {
       return options.getUserScriptInstallRegistry?.()?.consume(installId) !== null
     },
   )
 
-  ipcMain.handle('userscript:getHostPermissionPrompt', (event) => {
+  ipcMain.handle(IPC_CHANNELS.USERSCRIPT.GET_HOST_PERMISSION_PROMPT, (event) => {
     const owner = getShellWindowOwner(event)
     return owner ? (options.getUserScriptHostPermissionPrompt?.(owner) ?? null) : null
   })
 
   ipcMain.handle(
-    'userscript:respondHostPermission',
+    IPC_CHANNELS.USERSCRIPT.RESPOND_HOST_PERMISSION,
     respondHostPermissionInput,
-    (event, promptId, allow) => {
+    (event, input) => {
       const owner = getShellWindowOwner(event)
       return owner
-        ? (options.respondUserScriptHostPermission?.(owner, promptId, allow) ?? 'stale')
+        ? (options.respondUserScriptHostPermission?.(owner, input.promptId, input.allow) ?? 'stale')
         : 'stale'
     },
   )
 
-  ipcMain.on('browser:showAppMenu', showAppMenuInput, (event, anchor) => {
+  ipcMain.on(IPC_CHANNELS.BROWSER.SHOW_APP_MENU, showAppMenuInput, (event, anchor) => {
     if (!isAppMenuAnchor(anchor)) return
     const owner = getShellWindowOwner(event)
     if (!owner || owner.isDestroyed()) return
@@ -250,50 +263,58 @@ export function registerBrowserShellIpc(options: RegisterBrowserShellIpcOptions)
     })
   })
 
-  ipcMain.on('browser:showTabContextMenu', showTabContextMenuInput, (event, tabId) => {
-    getShellWindowOwner(event)?.tabManager.showTabContextMenu(tabId)
-  })
+  ipcMain.on(
+    IPC_CHANNELS.BROWSER.SHOW_TAB_CONTEXT_MENU,
+    showTabContextMenuInput,
+    (event, tabId) => {
+      getShellWindowOwner(event)?.tabManager.showTabContextMenu(tabId)
+    },
+  )
 
-  ipcMain.on('browser:showShellContextMenu', showShellContextMenuInput, (event, kind) => {
-    const owner = getShellWindowOwner(event)
-    if (!owner || owner.isDestroyed()) return
-    const { browserWindow: window, tabManager } = owner
-    popupShellContextMenu({
-      window,
-      params: { isEditable: kind !== 'page' },
-      canGoBack: tabManager.canGoBack(),
-      goBack: () => tabManager.goBack(),
-      reload: () => tabManager.reload(),
-      pasteAndGo:
-        kind === 'omnibox'
-          ? () => {
-              const value = readClipboardText()
-              if (!value) return
-              const resolution = resolveOmniboxInput(value, {
-                search: getSearchConfig(),
-                allowInsecureLocalhost: options.allowInsecureLocalhost ?? false,
-              })
-              if (resolution.kind === 'internal') tabManager.navigateInternal(resolution.page)
-              else if (resolution.kind === 'url' || resolution.kind === 'search')
-                tabManager.navigate(resolveNavigateUrl(resolution.url))
-            }
-          : undefined,
-    })
-  })
+  ipcMain.on(
+    IPC_CHANNELS.BROWSER.SHOW_SHELL_CONTEXT_MENU,
+    showShellContextMenuInput,
+    (event, kind) => {
+      const owner = getShellWindowOwner(event)
+      if (!owner || owner.isDestroyed()) return
+      const { browserWindow: window, tabManager } = owner
+      popupShellContextMenu({
+        window,
+        params: { isEditable: kind !== 'page' },
+        canGoBack: tabManager.canGoBack(),
+        goBack: () => tabManager.goBack(),
+        reload: () => tabManager.reload(),
+        pasteAndGo:
+          kind === 'omnibox'
+            ? () => {
+                const value = readClipboardText()
+                if (!value) return
+                const resolution = resolveOmniboxInput(value, {
+                  search: getSearchConfig(),
+                  allowInsecureLocalhost: options.allowInsecureLocalhost ?? false,
+                })
+                if (resolution.kind === 'internal') tabManager.navigateInternal(resolution.page)
+                else if (resolution.kind === 'url' || resolution.kind === 'search')
+                  tabManager.navigate(resolveNavigateUrl(resolution.url))
+              }
+            : undefined,
+      })
+    },
+  )
 
-  ipcMain.on('browser:goBack', (event) => {
+  ipcMain.on(IPC_CHANNELS.BROWSER.GO_BACK, (event) => {
     getShellWindowOwner(event)?.tabManager.goBack()
   })
 
-  ipcMain.on('browser:goForward', (event) => {
+  ipcMain.on(IPC_CHANNELS.BROWSER.GO_FORWARD, (event) => {
     getShellWindowOwner(event)?.tabManager.goForward()
   })
 
-  ipcMain.on('browser:reload', (event) => {
+  ipcMain.on(IPC_CHANNELS.BROWSER.RELOAD, (event) => {
     getShellWindowOwner(event)?.tabManager.reload()
   })
 
-  ipcMain.on('browser:goHome', (event) => {
+  ipcMain.on(IPC_CHANNELS.BROWSER.GO_HOME, (event) => {
     getShellWindowOwner(event)?.tabManager.goHome()
   })
 
@@ -302,30 +323,30 @@ export function registerBrowserShellIpc(options: RegisterBrowserShellIpcOptions)
    * `WebContentsView` 的 bounds。上界 2000 覆盖任何合理的侧栏宽度，整数即可
    * （bounds 本来就取整）。
    */
-  ipcMain.on('browser:setSidebarWidth', setSidebarWidthInput, (event, width) => {
+  ipcMain.on(IPC_CHANNELS.BROWSER.SET_SIDEBAR_WIDTH, setSidebarWidthInput, (event, width) => {
     getShellWindowOwner(event)?.tabManager.setLeftOffset(width)
   })
 
-  ipcMain.handle('browser:getDiagnostics', () => {
+  ipcMain.handle(IPC_CHANNELS.BROWSER.GET_DIAGNOSTICS, () => {
     return options.getBrowserDiagnostics?.()?.getSnapshot() ?? { entries: [] }
   })
 
-  ipcMain.on('window:minimize', (event) => {
+  ipcMain.on(IPC_CHANNELS.WINDOW.MINIMIZE, (event) => {
     getShellWindowOwner(event)?.browserWindow.minimize()
   })
 
-  ipcMain.on('window:maximize', (event) => {
+  ipcMain.on(IPC_CHANNELS.WINDOW.MAXIMIZE, (event) => {
     const win = getShellWindowOwner(event)?.browserWindow
     if (!win) return
     if (win.isMaximized()) win.unmaximize()
     else win.maximize()
   })
 
-  ipcMain.on('window:close', (event) => {
+  ipcMain.on(IPC_CHANNELS.WINDOW.CLOSE, (event) => {
     getShellWindowOwner(event)?.browserWindow.close()
   })
 
-  ipcMain.handle('window:isMaximized', (event) => {
+  ipcMain.handle(IPC_CHANNELS.WINDOW.IS_MAXIMIZED, (event) => {
     return getShellWindowOwner(event)?.browserWindow.isMaximized() ?? false
   })
 }

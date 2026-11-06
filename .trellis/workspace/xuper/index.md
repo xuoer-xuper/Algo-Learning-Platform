@@ -8,8 +8,8 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 9
-- **Last Active**: 2026-11-01
+- **Total Sessions**: 11
+- **Last Active**: 2026-11-04
 <!-- @@@/auto:current-status -->
 
 ---
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~295 | Active |
+| `journal-1.md` | ~358 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,8 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 11 | 2026-11-04 | 阶段 2 R1-R4 收口推送，R5 保留迁移安全门 | `c0c6cc3`, `a12c09b` | `refactor/phase-2-ipc-contract` |
+| 10 | 2026-11-01 | 阶段 2 前三节完成(R1 channel 常量/R2 类型单一来源/R3 window.api),用户指示 R3 后暂停 | `51fe642`, `5c9ba89`, `1588b8b` | `refactor/phase-2-ipc-contract` |
 | 9 | 2026-11-01 | 阶段 1 收官:PR #5 squash 合入 dev(30ffea8),dev CI 绿,任务归档 | `30ffea8` | `dev` |
 | 8 | 2026-11-01 | 阶段 1 基础设施换库完成:R1-R5 五节落地,收口门两连击修复,PR #5 就绪 | `8e96a31`, `1b88369`, `0b97c8a`, `dc008a9`, `c51a9ba`, `2178ff1` | `refactor/phase-1-infra-libraries` |
 | 7 | 2026-10-31 | 阶段 0 收官:PR #4 squash 合入 dev(ff47377),AC1 实证,任务归档 | `ff47377` | `dev` |

@@ -43,13 +43,14 @@ import { isManagedScriptArtifactName, resolveManagedScriptPath } from '../script
 import type { UserScriptUpdateService } from '../scripts/UserScriptUpdateService'
 import { resolveUserScriptRequestTarget } from '../scripts/userScriptConnectPolicy'
 import { logger } from '../shared/logger'
+import { IPC_CHANNELS } from '../../src/shared/constants/channels'
+import type {
+  UserScriptCodeView,
+  UserScriptOpenEditorResult,
+  UserScriptSaveInput,
+} from '../../src/shared/types/scripts'
 
 const log = logger.scope('userscript')
-
-type UserScriptSaveInput = {
-  name: string
-  site_ids_json: string
-}
 
 interface RegisterScriptsIpcOptions {
   getParentWindow?: (event: IpcMainInvokeEvent) => BrowserWindow | null
@@ -75,7 +76,7 @@ interface UserScriptSummary {
  */
 export function registerScriptsIpc(options: RegisterScriptsIpcOptions = {}): void {
   const confirmingRemoteInstalls = new Set<string>()
-  ipcMain.handle('scripts:getAll', () => getAllScripts().map(toUserScriptSummary))
+  ipcMain.handle(IPC_CHANNELS.SCRIPTS.GET_ALL, () => getAllScripts().map(toUserScriptSummary))
 
   /*
    * schema 只管形状；`site_ids_json` 的**内容**仍由 `validateScriptSaveInput` 判。
@@ -84,8 +85,9 @@ export function registerScriptsIpc(options: RegisterScriptsIpcOptions = {}): voi
    * 非对象、多余字段（strict 对象拒绝，等价于原来的 `keys.length !== 2`）、
    * name 的类型与长度。
    */
-  ipcMain.handle('scripts:save', saveInput, (_event, validatedId, data) => {
-    const validatedData = validateScriptSaveInput(data)
+  ipcMain.handle(IPC_CHANNELS.SCRIPTS.SAVE, saveInput, (_event, input) => {
+    const validatedId = input.id
+    const validatedData = validateScriptSaveInput(input.data)
     if (!updateScript(validatedId, validatedData)) {
       throw new Error('User script was not found or could not be updated')
     }
@@ -93,7 +95,7 @@ export function registerScriptsIpc(options: RegisterScriptsIpcOptions = {}): voi
     return validatedId
   })
 
-  ipcMain.handle('scripts:importFile', async (event) => {
+  ipcMain.handle(IPC_CHANNELS.SCRIPTS.IMPORT_FILE, async (event) => {
     const parent = getLiveParentWindow(event, options.getParentWindow)
     const openDialogOptions: OpenDialogOptions = {
       title: '选择用户脚本',
@@ -193,7 +195,7 @@ export function registerScriptsIpc(options: RegisterScriptsIpcOptions = {}): voi
    * 不会产生无人接管的 rejection。
    */
   ipcMain.handle(
-    'scripts:getRemoteInstallPreview',
+    IPC_CHANNELS.SCRIPTS.GET_REMOTE_INSTALL_PREVIEW,
     getRemoteInstallPreviewInput,
     async (_event, installId) => {
       const registry = options.getUserScriptInstallRegistry?.()
@@ -214,9 +216,11 @@ export function registerScriptsIpc(options: RegisterScriptsIpcOptions = {}): voi
   )
 
   ipcMain.handle(
-    'scripts:confirmRemoteInstall',
+    IPC_CHANNELS.SCRIPTS.CONFIRM_REMOTE_INSTALL,
     confirmRemoteInstallInput,
-    async (_event, installId, action) => {
+    async (_event, input) => {
+      const installId = input.installId
+      const action = input.action
       const registry = options.getUserScriptInstallRegistry?.()
       const installer = options.getUserScriptRemoteInstaller?.()
       const request = registry?.get(installId)
@@ -292,23 +296,27 @@ export function registerScriptsIpc(options: RegisterScriptsIpcOptions = {}): voi
     },
   )
 
-  ipcMain.handle('scripts:cancelRemoteInstall', cancelRemoteInstallInput, (_event, installId) => {
-    options.getUserScriptRemoteInstaller?.()?.clear(installId)
-    return options.getUserScriptInstallRegistry?.()?.consume(installId) !== null
-  })
+  ipcMain.handle(
+    IPC_CHANNELS.SCRIPTS.CANCEL_REMOTE_INSTALL,
+    cancelRemoteInstallInput,
+    (_event, installId) => {
+      options.getUserScriptRemoteInstaller?.()?.clear(installId)
+      return options.getUserScriptInstallRegistry?.()?.consume(installId) !== null
+    },
+  )
 
-  ipcMain.handle('scripts:checkUpdates', () => {
+  ipcMain.handle(IPC_CHANNELS.SCRIPTS.CHECK_UPDATES, () => {
     return options.getUserScriptUpdateService?.()?.checkAll(true) ?? null
   })
 
-  ipcMain.handle('scripts:openFolder', async () => {
+  ipcMain.handle(IPC_CHANNELS.SCRIPTS.OPEN_FOLDER, async () => {
     const scriptsDir = path.join(app.getPath('userData'), 'userscripts')
     await fs.mkdir(scriptsDir, { recursive: true })
     return shell.openPath(scriptsDir)
   })
 
   ipcMain.handle(
-    'scripts:getCode',
+    IPC_CHANNELS.SCRIPTS.GET_CODE,
     getCodeInput,
     async (_event, id): Promise<UserScriptCodeView> => {
       const script = getScriptById(id)
@@ -326,7 +334,7 @@ export function registerScriptsIpc(options: RegisterScriptsIpcOptions = {}): voi
   )
 
   ipcMain.handle(
-    'scripts:openEditor',
+    IPC_CHANNELS.SCRIPTS.OPEN_EDITOR,
     openEditorInput,
     async (_event, id): Promise<UserScriptOpenEditorResult> => {
       const script = getScriptById(id)
@@ -345,12 +353,12 @@ export function registerScriptsIpc(options: RegisterScriptsIpcOptions = {}): voi
    * 是本文件里唯一一条真正裸奔的通道：`toggleScript(id, enabled)` 会把 renderer 给的任何值
    * 直接绑进 UPDATE 语句。
    */
-  ipcMain.handle('scripts:toggle', toggleInput, (_event, id, enabled) => {
-    const result = toggleScript(id, enabled)
+  ipcMain.handle(IPC_CHANNELS.SCRIPTS.TOGGLE, toggleInput, (_event, input) => {
+    const result = toggleScript(input.id, input.enabled)
     if (result) options.refreshUserScriptRuntime?.()
     return result
   })
-  ipcMain.handle('scripts:delete', deleteInput, async (_event, id) => {
+  ipcMain.handle(IPC_CHANNELS.SCRIPTS.DELETE, deleteInput, async (_event, id) => {
     const script = getScriptById(id)
     if (!script) return false
     const managedPath = resolveManagedScriptPath(script.file_path, userScriptsDirectory())
