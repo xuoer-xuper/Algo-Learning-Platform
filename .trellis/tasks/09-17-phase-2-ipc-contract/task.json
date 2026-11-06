@@ -21,6 +21,6 @@
   "children": [],
   "parent": "09-17-spec-alignment",
   "relatedFiles": [],
-  "notes": "2026-11-05: R1-R4 in PR6; R5 implementation and local acceptance complete on PR7 stacked over PR6. Migration030 covers82columns and full-stack numeric time; pinned reconstructed21/24/29 and actual readonly backup copies24/29 pass, originals unchanged. test:all192files/1563tests+UI11, build:win and packaged29to30 smoke pass. See r5-verification-2026-11-05.md. Commit/push/finalCI and PR integration tracked separately; do not merge/release or archive as integrated until authorized.",
+  "notes": "2026-11-06: R1-R5 implementation, verification and push complete. R5 commit e789841 and Windows hook fix 682231d are on origin; CI 42195138160/42197937618 passed. PR7 is ready for review and stacked on unmerged PR6. Migration030 covers82columns; test:all192files/1563tests+UI11, build:win and packaged29to30 smoke pass. Actual readonly copies24/29 pass with1407/1097 timestamp comparisons and independent stats; originals unchanged. See r5-verification-2026-11-05.md. No coding work remains in phase2; keep task in_progress only for authorized PR integration, then archive. Do not merge/release automatically.",
   "meta": {}
 }
