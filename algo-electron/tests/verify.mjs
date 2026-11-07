@@ -21,6 +21,9 @@ const suites = new Set(['core', 'ai', 'db', 'electron', 'coach', 'all'])
 const dbVitestFiles = [
   'tests/db/drizzleSchema.test.ts',
   'tests/db/drizzleClient.test.ts',
+  'tests/db/drizzleMigrationSafety.test.ts',
+  'tests/db/drizzleMigrationValidation.test.ts',
+  'tests/db/drizzleMigrationResources.test.ts',
   'tests/db/codeforcesSubmissionIdMigration.test.ts',
   'tests/db/credentialExport.test.ts',
   'tests/db/credentialRepository.test.ts',

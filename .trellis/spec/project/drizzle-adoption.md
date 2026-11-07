@@ -13,6 +13,15 @@ connection ownership or transaction notifications.
 createDrizzleClient(sqlite: Database.Database): DrizzleClient
 // Time columns in schema.ts
 integer('created_at', { mode: 'timestamp_ms' })
+// Default async lifecycle; explicit migrations remain the legacy test seam.
+initDbAtPathWithMigrationSafety(dbPath: string, options: {
+  backupDir: string
+  migrations?: readonly Migration[]
+  drizzle?: { folder: string; expected?: readonly KnownDrizzleMigration[] }
+}): Promise<Database.Database>
+loadMigrationResources(folder: string, expected?: readonly KnownDrizzleMigration[]): MigrationResources
+inspectMigrationState(sqlite, resources, legacy): DrizzleMigrationPlan
+applyDrizzleMigrations(sqlite, resources, legacy): void
 ```
 
 Pinned A0 versions: drizzle-orm 0.45.4 and drizzle-kit 0.31.11. `db:generate` reads
@@ -61,6 +70,13 @@ schema code and emits SQL/snapshots; `pull` is the introspection command.
 | Unique/CHECK/FK/partial-index violation | Same acceptance/rejection behavior as post-030 database |
 | Transaction throws | Native changes roll back, no premature notification |
 | Unsupported or future baseline state | Later A1 fails closed without marking a baseline |
+| Missing/tampered resource or invalid journal | Reject before creating the target DB/data directory; no cwd fallback |
+| Gapped/wrong-name legacy history or nonempty DB without history | Close and reject, without marking the baseline |
+| Unknown/duplicate/future Drizzle ledger entry | Reject instead of trusting the newest timestamp |
+| Pending baseline/later Drizzle migration, no legacy pending | Back up before writes; later failure restores the original whole attempt |
+| Malformed existing failure marker | Block startup; absent marker is normal |
+| Repaired hash with the same failed migration tag | Stable `drizzle:<tag>` key still blocks automatic retry |
+| Explicit legacy `migrations: []` | Skip default Drizzle resources and preserve the existing test route |
 
 ## 5. Good / Base / Bad Cases
 
@@ -82,6 +98,22 @@ schema code and emits SQL/snapshots; `pull` is the introspection command.
   Real Electron ABI verification is required before activating runtime ORM paths.
 - Preserve frozen migrations and pinned historical fixture SQL; no private database
   is a test input and no production initialization path changes in A0.
+- A1 exercises fresh, reconstructed 21/24/29, existing 30 and baseline-only reopen;
+  later successful/failing migrations must prove one backup and complete restoration.
+- Negative schema tests include hidden generated columns, altered CHECKs, explicit
+  index names and DDL semantics not exposed by PRAGMAs. `table_info` hides generated
+  columns; use `table_xinfo`. A CHECK inside a SQL comment or string is not a constraint.
+- Column collations, conflict clauses, deferred FKs and AUTOINCREMENT are absent from
+  the accepted baseline but can change behavior without changing common PRAGMA results.
+  Reject unsupported clauses in real SQL tokens, not comments/literals; do not claim
+  metadata equality alone proves their absence.
+- Object filters must match the literal reserved prefix (`GLOB 'sqlite_*'`), not
+  `LIKE 'sqlite_%'`, whose underscore wildcard hides a custom `sqliteX...` table.
+- Packaged smoke launches the real app from an unrelated cwd, then a development
+  Electron helper reads only the isolated smoke DB after exit. Copied-resource
+  negative tests exercise the production safe initializer before DB creation; they
+  are not evidence of launching a corrupted packaged executable. Keep RunAsNode off
+  in the packaged executable.
 
 ## 7. Wrong vs Correct
 
@@ -94,4 +126,40 @@ id: text('id')
 
 // Wrong: leaking a Date into a public numeric DTO by assertion.
 // Correct: row.created_at.getTime(), with explicit null handling if nullable.
+
+// Wrong: adopting solely because MAX(version) === 30 or the last hash matches.
+// Correct: validate resources, all legacy/Drizzle rows, full baseline schema and
+// integrity, then back up before baseline marking and later migration writes.
 ```
+
+## A1 Safe Migration Activation
+
+- Default asynchronous initialization validates compiled trusted migration tags,
+  journal indexes/timestamps and exact SQL hashes before opening the target file.
+  Resource resolution uses explicit application-root/package-resource paths,
+  never process cwd or a production environment-variable SQL override.
+- Read legacy history as a known continuous version/name prefix. A populated
+  database with no ledger, gaps or unknown versions is not a fresh database.
+- After legacy 1-30, adoption requires physical post-030 schema equality (including
+  semantic constraints and original explicit index names), FK and integrity checks.
+  Missing/empty Drizzle ledger requires backed-up baseline marking, not replaying
+  CREATE TABLE over existing data. Baseline-only reopen revalidates the schema.
+- Read every Drizzle ledger row and validate the exact known hash/timestamp prefix;
+  duplicate, unknown or future rows fail closed. Upstream's newest-timestamp check
+  is insufficient. Later known schema versions need their own physical-schema
+  contracts; do not compare them to the old baseline or replay arbitrary DML in an
+  empty expected database to invent a schema oracle.
+- One consistent backup covers pending legacy, baseline marking and later Drizzle
+  work. A Drizzle-only pending migration still needs a backup. Restore the whole
+  attempt if any stage fails, including a previously committed baseline marker.
+- Failure markers retain `pendingMigrations` for legacy compatibility and add
+  optional `pendingMigrationKeys`: `legacy:<version>` / `drizzle:<tag>`. Same logical
+  migration retry stays blocked after a repaired hash; never disguise timestamps as
+  legacy numeric versions. Malformed markers fail closed.
+- Synchronous `initDbAtPath` stays the legacy-only test helper. Explicit
+  `options.migrations`, including an empty array, retains that test override route;
+  it must not activate default Drizzle implicitly. Production uses the default
+  asynchronous safe initializer and has no such override.
+- Package only migration SQL and `meta/_journal.json` into `resources/drizzle`;
+  generated snapshots, test fixtures and private files are not runtime resources.
+  Test packaged resource resolution and ledger adoption with the real native ABI.

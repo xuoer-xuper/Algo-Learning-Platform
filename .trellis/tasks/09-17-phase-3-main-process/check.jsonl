@@ -4,6 +4,8 @@
 {"file": ".trellis/spec/backend/index.md", "reason": "后端核心规则"}
 {"file": ".trellis/spec/backend/database.md", "reason": "DB 检查"}
 {"file": ".trellis/spec/project/drizzle-adoption.md", "reason": "No side effects, exact physical schema and Date/number contracts"}
+{"file": ".trellis/tasks/09-17-phase-3-main-process/research/a1-migration-protocol.md", "reason": "A1 safety test matrix and explicit override compatibility"}
+{"file": ".trellis/tasks/09-17-phase-3-main-process/research/drizzle-installed-contract.md", "reason": "Do not trust upstream max timestamp as whole-ledger validation"}
 {"file": ".trellis/tasks/09-17-phase-3-main-process/research/start-readiness.md", "reason": "A0 exact post030 schema and no-startup-side-effect boundary"}
 {"file": ".trellis/spec/project/unix-millisecond-time.md", "reason": "82 integer instants and Date/number conversion safety"}
 {"file": ".trellis/spec/project/data-refresh.md", "reason": "Synchronous transaction and notification compatibility"}

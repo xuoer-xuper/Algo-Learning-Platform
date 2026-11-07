@@ -6,9 +6,11 @@
 
 ## 2. 当前覆盖
 
-- `drizzleSchema.test.ts`：A0候选生成SQL与生产0→30结构的25表列/默认值/null/PK、完整索引、FK和CHECK等价，并验证约束行为。
+- `drizzleSchema.test.ts`：固定基线SQL与生产0→30结构的25表列/默认值/null/PK、完整索引、FK和CHECK等价，并验证约束行为。
 - `drizzleClient.test.ts`：传入连接无副作用包装、Date毫秒/epoch0/null、BLOB及事务回滚；`repositories.test.ts`另在真实Electron ABI验证相同契约，不激活Drizzle迁移器。
-
+- `drizzleMigrationResources.test.ts`：可信SQL/journal完整集合、hash/顺序/时间/路径、缺失或篡改资源在开库前拒绝，以及开发/打包解析路径。
+- `drizzleMigrationSafety.test.ts`：默认异步安全入口的新库/030基线登记、幂等重启、Drizzle-only备份、后续迁移失败全量恢复、同tag修复后重试阻断、backup期间资源变更、无额外R4通知与显式legacy-only override。
+- `drizzleMigrationValidation.test.ts`：完整legacy/Drizzle前缀、隐藏列/默认值/CHECK/索引/FK/DDL子句、注释伪装与baseline-only重启结构漂移；拒绝未知结构且不默默修复。
 - `codeforcesSubmissionIdMigration.test.ts`：Codeforces 提交 ID migration 兼容。
 - `problemContextMigration.test.ts`：题目上下文字段 migration 兼容。
 - `backupImport.test.ts`：SQLite 备份、学习数据 JSON 导出/导入、冲突检测和 Cookie/`raw_json` 排除。
@@ -17,7 +19,7 @@
 - `dailyStatsPerformance.test.ts`：两年事实数据下的单日统计重算基准，硬门槛 `<50ms`。
 - `omniboxSuggestions.test.ts`：Omnibox 本地题目/访问建议的固定上限、字段匹配、稳定排序、LIKE 字面量转义、软删除过滤与去重。
 - `statsDate.test.ts`：日期范围边界和 timestamp 日期提取。
-- `historicalUpgradePath.test.ts`：按固定历史 Git 源码重建的文本 schema 加合成数据，验证 21/24/29 → 30 的真实 SQLite 安全升级、82列数值时间、关系/约束、备份、幂等与失败恢复；不依赖 CI Git 历史。来源和再生步骤见 `fixtures/README.md`。
+- `historicalUpgradePath.test.ts`：按固定历史 Git 源码重建的文本 schema 加合成数据，验证 21/24/29 → 30 → Drizzle基线的真实 SQLite 安全升级、82列数值时间、关系/约束、备份、幂等与失败恢复；不依赖 CI Git 历史。来源和再生步骤见 `fixtures/README.md`。
 - `migration030.test.ts`：外键事务使用边界、rowid/view/trigger保留、AI JSON精确转换、晚期非法值回滚、SQLite数值毫秒TEXT及旧伪日期桶兼容，其他错误继续拒绝。
 - `repositories.test.ts`：临时 SQLite 文件中的迁移、题目 upsert、提交 upsert、唯一约束、首次 AC、日统计聚合、站点 seed、站点导入预览和 Cookie 元数据安全边界。
 - `userScriptIdentityMigration.test.ts`：migration 025 的存量 canonical/local 分流、已删除行排序隔离和软删除部分唯一索引。

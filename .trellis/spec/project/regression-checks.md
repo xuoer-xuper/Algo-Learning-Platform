@@ -37,6 +37,12 @@ All command and source paths here are relative to `algo-electron/`.
 - `src/shared/` must not import the Electron package or relative modules beneath
   the main-process `electron/` tree. Check static imports, re-exports, side-effect
   imports, and dynamic imports when adjusting this rule.
+- A1 scans both `electron/` and `src/main/` for bare SQL. Only the old DB boundary
+  and `src/main/db/` are unrestricted DB infrastructure; existing outside budgets
+  remain ratchets. Do not accidentally exempt all new main services.
+- Database modules (`electron/db/`, `src/main/db/`), `better-sqlite3` and
+  `drizzle-orm` remain main-only. Renderer, shared and preload paths cannot import
+  them directly, even while the directory migration is incomplete.
 - Shared entity types have one declaration source. Main-process consumers import
   the shared type instead of copying an interface, even when both shapes happen
   to match. `CoachLlmConfig` is inferred from the shared schema; the renderer-facing
@@ -58,6 +64,9 @@ All command and source paths here are relative to `algo-electron/`.
 | String channel added to relocated preload | Channel-literal architecture check fails |
 | Shared module imports `../../../electron/...` | Process-neutrality architecture check fails |
 | Shared module imports shared constants | No process-neutrality violation |
+| Raw SQL added under `src/main/services/` | Bare-SQL architecture check fails with the new path |
+| Metadata query under `src/main/db/` | Allowed DB-infrastructure boundary |
+| Shared/renderer/preload imports a DB module or native ORM package | Main-only database boundary check fails |
 | A second exported interface/type defines an existing name | Exported-type uniqueness check fails |
 | A barrel re-exports an existing type | No duplicate-definition violation |
 | Lazy route reaches its loaded state and is cleaned up | No missing-API or environment-teardown errors |
@@ -82,6 +91,9 @@ All command and source paths here are relative to `algo-electron/`.
   type. Preserve tests that encrypted keys remain in storage but not renderer DTOs.
 - Apply mutations to reads in an isolated subprocess, not to tracked source files;
   this keeps concurrent review and tests independent.
+- For a new source root, inject a virtual file/directory through subprocess FS
+  reads and prove the actual runner rejects forbidden SQL there; also include the
+  allowed `src/main/db/` control and main-only import violations.
 - For lazy route tests, assert loaded page content and no leaked mounted route
   before finishing. Use typed fixtures so return-shape changes fail typechecking.
 - Run `pnpm typecheck`, `pnpm typecheck:tests`, `pnpm lint`,

@@ -26,6 +26,29 @@ drizzle-kit0.31.11，安装后按实际API和Electron ABI验证，不采用beta�
 
 ## 1. 目标目录
 
+### A1 启动契约（2026-11-07，优先于旧基线示例）
+
+A0已提交`e1e3ae0`，PR #8 CI `42337708058`全绿；下一切片按
+`research/a1-migration-protocol.md`接安全迁移器，不改业务repository或目录。
+
+- 默认`initDbAtPathWithMigrationSafety`先校验编译固定的Drizzle SQL/hash/journal，再开库；
+  生产`initDb`显式提供appRoot/packaged资源路径。测试可显式传资源集合，不新增可重定向SQL的
+  生产环境变量。同步`initDbAtPath`与显式`options.migrations`（含[]）仍legacy-only。
+- legacy台账必须是已知连续prefix且名字正确；有业务表却没台账不是新库。旧库升级到30后
+  验证完整物理schema，再登记基线，不执行基线CREATE到已有表。现有baseline-only库也验结构。
+- 默认ledger使用已安装Drizzle定义，全部记录须是已知hash/timestamp的连续prefix，不依赖
+  upstream只看最大timestamp。未知/重复/未来/损坏ledger拒绝；baselinehash和when固定不重生成。
+- 结构对照以hash已验证SQL在内存库构造的metadata为基准，忽略仅Drizzle ledger；只规范化
+  A0证明的隐式UNIQUE/index表达差异。其他表、列、CHECK、索引、FK、view/trigger漂移失败。
+  日后已应用非baseline迁移时不再拿旧结构比较，必须按对应版本契约扩展验证，不能空库重放任意DML。
+- 基线登记与后续Drizzle-only迁移都算pending写入；一次SQLite backup覆盖legacy→baseline→
+  later全部步骤。failure marker保留旧pendingMigrations，另加optional pendingMigrationKeys，
+  键为`legacy:<version>`/`drizzle:<tag>`，不伪造numeric版本号。原错误/恢复错误分开。
+- `src/main/db`新增resource/schema-validation/migrate模块；metadata查询允许在这一DB边界，
+  SQL守卫扩大扫描而非整体豁免src。资源仅复制SQL和journal到packagedresources/drizzle。
+- 新增fresh/21/24/29/30/已登记/后续失败恢复/资源缺失损坏/伪造台账/结构漂移/explicitoverride
+  测试，真实Electron与打包应用核对实际resource和baselineledger。A1不发布、不操作用户原库。
+
 ```
 algo-electron/src/main/
 ├── index.ts                     # 入口 < 150 行

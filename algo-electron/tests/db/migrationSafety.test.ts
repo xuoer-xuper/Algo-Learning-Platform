@@ -16,6 +16,7 @@ import {
 import type { Migration } from '../../electron/db/migrate.ts'
 import type { Logger } from '../../electron/shared/logger.ts'
 import { ORPHAN_VISIT_LEAVE_REASON } from '../../electron/tracking/orphanProblemVisits.ts'
+import { KNOWN_DRIZZLE_MIGRATIONS } from '../../src/main/db/migration-resources'
 
 class MemoryLogger implements Logger {
   debug(): void {}
@@ -56,6 +57,7 @@ test('upgrades a pinned reconstructed v1 schema through the real Electron SQLite
   try {
     const database = await initDbAtPathWithMigrationSafety(dbPath, {
       backupDir,
+      drizzle: { folder: path.resolve('drizzle') },
       logger: new MemoryLogger(),
     })
     assert.deepStrictEqual(
@@ -67,6 +69,14 @@ test('upgrades a pinned reconstructed v1 schema through the real Electron SQLite
       { first_seen_at: Date.parse(legacyTime), type: 'integer' },
     )
     assert.deepStrictEqual(database.pragma('foreign_key_check'), [])
+    assert.deepStrictEqual(
+      database.prepare('SELECT id,hash,created_at FROM __drizzle_migrations').all(),
+      KNOWN_DRIZZLE_MIGRATIONS.map(({ sha256: hash, when: created_at }) => ({
+        id: null,
+        hash,
+        created_at,
+      })),
+    )
     assert.equal(database.pragma('integrity_check', { simple: true }), 'ok')
     assert.equal(fs.readdirSync(backupDir).filter((file) => file.endsWith('.sqlite')).length, 1)
   } finally {

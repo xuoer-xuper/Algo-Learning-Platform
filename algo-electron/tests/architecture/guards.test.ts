@@ -170,6 +170,52 @@ describe('countUnschemadIpc', () => {
 })
 
 describe('IPC architecture guard mutations', () => {
+  it.each(['src/main/services', 'src/main/db'])(
+    'checks the real runner SQL boundary at %s without writing fixture files',
+    (directory) => {
+      const script = `
+        import fs from 'node:fs'
+        import path from 'node:path'
+        const parent = path.resolve('src/main')
+        const directory = path.resolve(${JSON.stringify(directory)})
+        const target = path.join(directory, 'migration-boundary-mutation.ts')
+        const readdirSync = fs.readdirSync
+        const readFileSync = fs.readFileSync
+        const entry = (name, isDirectory) => ({ name, isDirectory: () => isDirectory, isFile: () => !isDirectory })
+        fs.readdirSync = function (file, ...args) {
+          if (path.resolve(file) === directory) {
+            return [...(fs.existsSync(file) ? readdirSync.call(this, file, ...args) : []), entry(path.basename(target), false)]
+          }
+          const result = readdirSync.call(this, file, ...args)
+          if (path.resolve(file) === parent && !result.some((item) => item.name === path.basename(directory))) {
+            return [...result, entry(path.basename(directory), true)]
+          }
+          return result
+        }
+        fs.readFileSync = function (file, ...args) {
+          if (typeof file === 'string' && path.resolve(file) === target) return 'database.prepare("SELECT 1").get()'
+          return readFileSync.call(this, file, ...args)
+        }
+        await import('./tests/architecture/check-architecture.mjs')
+      `
+      const result = spawnSync(process.execPath, ['--input-type=module', '-e', script], {
+        cwd: process.cwd(),
+        encoding: 'utf8',
+        windowsHide: true,
+      })
+      expect(result.error).toBeUndefined()
+      if (directory.endsWith('/services')) {
+        expect(result.status).toBe(1)
+        expect(result.stderr).toContain('[FAIL] bare SQL stays inside electron/db/ or src/main/db/')
+        expect(result.stderr).toContain('src/main/services/migration-boundary-mutation.ts')
+        expect(result.stdout).toContain('Checks finished. Failed: 1/')
+      } else {
+        expect(result.status).toBe(0)
+        expect(result.stdout).toContain('Checks finished. Failed: 0/')
+      }
+    },
+  )
+
   it.each([
     {
       file: 'electron/ipc/registerProblemIpc.ts',
@@ -194,6 +240,24 @@ describe('IPC architecture guard mutations', () => {
       before: 'export interface AppConfig',
       after: 'export interface CoachLlmConfig {}\nexport interface AppConfig',
       check: 'exported type declarations have a single source',
+    },
+    {
+      file: 'src/shared/types/ipc/coach.ts',
+      before: "from '../../constants/preferences'",
+      after: "from '../../../main/db/schema'",
+      check: 'database modules and native bindings stay main-only',
+    },
+    {
+      file: 'src/preload/index.ts',
+      before: "from 'electron'",
+      after: "from 'better-sqlite3'",
+      check: 'database modules and native bindings stay main-only',
+    },
+    {
+      file: 'src/main.tsx',
+      before: "from 'react'",
+      after: "from 'drizzle-orm'",
+      check: 'database modules and native bindings stay main-only',
     },
   ])('rejects an in-memory violation in $file', ({ file, before, after, check }) => {
     // Mutate reads in an isolated runner, never the shared checkout.

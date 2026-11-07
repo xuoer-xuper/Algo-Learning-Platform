@@ -78,6 +78,7 @@ npm run build:win
 - `electronFuses` 必须保持生产安全基线：`runAsNode=false`、`enableCookieEncryption=true`、`enableNodeOptionsEnvironmentVariable=false`、`enableNodeCliInspectArguments=false`、`enableEmbeddedAsarIntegrityValidation=true`、`onlyLoadAppFromAsar=true`、`grantFileProtocolExtraPrivileges=false`。
 - smoke preload、Renderer dist 覆盖和测试入口只能在显式 `ALGO_ELECTRON_SMOKE=1` 下启用；生产环境不允许通过环境变量替换入口，DevTools 快捷键必须关闭。
 - 打包输入白名单只包含 renderer 构建、主进程构建、`package.json` 和生产依赖。
+- Drizzle 运行资源通过 `extraResources` 单独复制到 `resources/drizzle`，只允许 SQL 和 `meta/_journal.json`；生成 snapshot、测试 fixture 和数据库文件不得进入该目录。
 
 新增构建产物、原生依赖、资源目录或打包入口后，必须重新检查 `electron-builder.json5`，避免把开发缓存或敏感数据带入安装包。
 
@@ -90,7 +91,9 @@ npm run build:win
 - 解包后的 app 产物不包含 `tests/`、`tmp/`、`release/`、`.env`、本地数据库、日志、Cookie 或用户源码。
 - `better-sqlite3` `.node` 文件位于可加载位置，安装后启动不会因 SQLite 原生模块失败而崩溃。
 - 使用 `@electron/fuses` 读取 `release/${version}/win-unpacked/AlgoLearningPlatform.exe`，逐项确认上面的 fuse 安全基线已写入真实 executable。
-- 使用同一隔离 `userData` 启动两次 packaged app：第二实例应快速退出并请求主实例聚焦，主实例继续运行且 SQLite 可加载；失败实例不得写共享日志。
+- 使用同一隔离 `userData` 启动两次 packaged app：第二实例应快速退出并请求主实例聚焦，主实例继续运行且 SQLite 可加载；共享日志保留第二实例被拒绝的诊断，不运行失败实例的数据库初始化。
+- 从非仓库 cwd 启动 packaged app，确认实际 `resources/drizzle` 的 journal/SQL 与编译身份一致，隔离数据库完成 legacy 1–30 和 Drizzle 基线登记；不能依赖开发目录里碰巧存在的资源。
+- `test:packaged-app` 的坏资源检查只在临时资源副本上调用生产 loader/安全初始化器，必须在创建数据库前失败；不修改真实打包资源，也不把这项检查当作损坏安装包启动验收。生产 `RunAsNode` fuse 保持关闭。
 - 安装包不是从未清理的旧 `release/` 目录中误取的旧版本。
 
 如果产物检查失败，先修打包配置或构建输入，再重新运行自动验证和打包；不要手工改安装包内容。

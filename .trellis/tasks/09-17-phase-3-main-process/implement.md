@@ -12,18 +12,30 @@
 - [x] `src/main/db/client.ts`提供无副作用的既有连接包装，不开第二库。
 - [x] 生成SQL临时库和现有0→30库做结构/约束等价；Date/epoch0/null/BLOB/事务回滚验证。
 - [x] 两次typecheck、lint、test:all、build:check与独立检查通过（194文件/1574用例、UI11/11）。
-- [ ] A0提交推送并确认CI。
-- [ ] A0收口后再做A1安全迁移账本/打包资源，再按域改写查询。
+- [x] A0提交`e1e3ae0`已推送，PR #8 CI `42337708058`通过。
+- [x] A0收口后执行A1安全迁移账本/打包资源；业务查询留到后续独立切片。
 
 验收记录：[A0 Drizzle基础](./a0-verification-2026-11-07.md)。A0不接管生产迁移，不宣称整个阶段3完成。
 
+## 当前切片 A1：安全迁移基线接入
+
+- [x] 编译可信migration标识与resourceloader，禁止路径逃逸/未知hash/journal顺序错误。
+- [x] legacy连续台账、baseline物理schema和Drizzle记录prefix校验，安全baseline adoption。
+- [x] 默认异步安全入口装配legacy/Drizzle，pending合并备份与兼容failurekeys；explicitoverride保持。
+- [x] 打包SQL/journal到resources并测试，架构守卫覆盖新DB路径且不放开其他main模块SQL。
+- [x] 增加fresh/历史升级/结构漂移/坏台账/资源/后续失败恢复/重试阻断/原生打包验收。
+- [x] 独立复核无遗留问题；test:all197文件/1665用例、UI11/11、build:win通过。
+- [ ] 提交推送与CI；通过后再逐域替换应用查询。
+
+验收记录：[A1安全迁移接管](./a1-verification-2026-11-07.md)。基线SQL/冻结legacy未改，用户原库未操作。
+
 ## PR A：Drizzle（`refactor/drizzle`，约 4 天）
-- [ ] Drizzle依赖、`drizzle.config.ts`、`src/main/db/client.ts`、`schema.ts`（25表，A0先验证）。
-- [ ] schema代码经`drizzle-kit generate`生成基线，与030结构验证后固定；A1安全`migrate.ts`三路径引导及Drizzle-only pending备份 + 测试。
+- [x] Drizzle依赖、`drizzle.config.ts`、`src/main/db/client.ts`、`schema.ts`（25表，A0先验证）。
+- [x] schema代码经`drizzle-kit generate`生成基线，与030结构验证后固定；A1安全`migrate.ts`三路径引导及Drizzle-only pending备份 + 测试。
 - [ ] 逐域改写查询（顺序：problem → submission → stats → notes → site → user-script → credential → cookie → coach → rating → ai → backup）；每域改完跑 `pnpm vitest run tests/db tests/<域>`。
 - [ ] `BARE_SQL_BUDGET` 守卫改规则；`learningDataExport.ts` 35 处裸 SQL 改 Drizzle 批量。
-- [ ] `electron-builder.json5` `extraResources: drizzle/`；`tests/packaging` 白名单；`test:packaged-app` 验证打包后迁移可运行。
-- [ ] `DATABASE_SCHEMA.md` 重写；`DATABASE_MIGRATION_ROLLBACK.md` 加 drizzle 流程。
+- [x] `electron-builder.json5` `extraResources: drizzle/`；`tests/packaging` 白名单；`test:packaged-app` 验证打包后迁移可运行。
+- [x] `DATABASE_SCHEMA.md` 标明schema映射及Drizzle台账；`DATABASE_MIGRATION_ROLLBACK.md` 加Drizzle流程，域查询变化时继续同步。
 - 验证：`pnpm test:all`；三份 fixture 库启动。commit 拆分按域。
 
 ## PR B：目录迁移 + kebab-case（`refactor/main-layout`，约 3 天，零逻辑变更）

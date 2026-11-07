@@ -90,6 +90,38 @@ check('electron-builder excludes development and sensitive inputs', () => {
   )
 })
 
+check('Drizzle resources include only migration SQL and the runtime journal', () => {
+  const resources = builderConfig.extraResources ?? []
+  assert(Array.isArray(resources), 'extraResources must be an explicit list of copy rules')
+  const migrations = resources.filter(
+    (entry) =>
+      entry && typeof entry === 'object' && entry.from === 'drizzle' && entry.to === 'drizzle',
+  )
+  assert(migrations.length === 1, 'Drizzle resources must have one explicit copy rule')
+  assert(
+    JSON.stringify(migrations[0].filter) === JSON.stringify(['*.sql', 'meta/_journal.json']),
+    'Drizzle resource filter must exclude snapshots, READMEs and unrelated files',
+  )
+  assert(
+    resources.length === 1,
+    'New resource rules need an explicit packaging/security review before inclusion',
+  )
+  const folder = path.join(projectRoot, 'drizzle')
+  const journal = JSON.parse(fs.readFileSync(path.join(folder, 'meta', '_journal.json'), 'utf8'))
+  assert(journal.dialect === 'sqlite', 'Drizzle journal must target SQLite')
+  assert(Array.isArray(journal.entries) && journal.entries.length > 0, 'Drizzle journal is empty')
+  for (const entry of journal.entries) {
+    assert(
+      typeof entry.tag === 'string' && /^[A-Za-z0-9_-]+$/.test(entry.tag),
+      'Drizzle journal migration tags must be safe filenames',
+    )
+    assert(
+      fs.existsSync(path.join(folder, `${entry.tag}.sql`)),
+      `Drizzle migration resource is missing: ${entry.tag}.sql`,
+    )
+  }
+})
+
 check('native SQLite module stays unpacked from asar', () => {
   includesAll(
     asarUnpack,
