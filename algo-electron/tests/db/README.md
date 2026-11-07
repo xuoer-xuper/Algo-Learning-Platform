@@ -6,6 +6,9 @@
 
 ## 2. 当前覆盖
 
+- `drizzleSchema.test.ts`：A0候选生成SQL与生产0→30结构的25表列/默认值/null/PK、完整索引、FK和CHECK等价，并验证约束行为。
+- `drizzleClient.test.ts`：传入连接无副作用包装、Date毫秒/epoch0/null、BLOB及事务回滚；`repositories.test.ts`另在真实Electron ABI验证相同契约，不激活Drizzle迁移器。
+
 - `codeforcesSubmissionIdMigration.test.ts`：Codeforces 提交 ID migration 兼容。
 - `problemContextMigration.test.ts`：题目上下文字段 migration 兼容。
 - `backupImport.test.ts`：SQLite 备份、学习数据 JSON 导出/导入、冲突检测和 Cookie/`raw_json` 排除。

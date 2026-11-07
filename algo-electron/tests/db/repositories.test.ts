@@ -3,6 +3,9 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import type Database from 'better-sqlite3'
+import { eq } from 'drizzle-orm'
+import { createDrizzleClient } from '../../src/main/db/client'
+import { notes as ormNotes, userScriptResources as ormResources } from '../../src/main/db/schema'
 import { subscribeDataChanges } from '../../electron/shared/dataEvents.ts'
 import { runUserScriptTransaction } from '../../electron/db/repositories/userScript/mutations.ts'
 import {
@@ -83,6 +86,67 @@ function test(name: string, fn: () => void) {
 
 const day = '2026-07-03'
 const now = Date.parse(`${day}T10:00:00+08:00`)
+
+test('wraps the existing Electron SQLite connection with millisecond Date and BLOB fidelity', () => {
+  const sqlite = getDbForTest()
+  const orm = createDrizzleClient(sqlite)
+  assert.strictEqual(orm.$client, sqlite)
+  orm
+    .insert(ormNotes)
+    .values({
+      id: 'orm-note',
+      title: 'Synthetic ORM',
+      file_path: 'synthetic.md',
+      created_at: new Date(0),
+      updated_at: new Date(1768443630123),
+      deleted_at: null,
+    })
+    .run()
+  const note = orm.select().from(ormNotes).where(eq(ormNotes.id, 'orm-note')).get()
+  assert.ok(note)
+  assert.strictEqual(note.created_at.getTime(), 0)
+  assert.strictEqual(note.updated_at.getTime(), 1768443630123)
+  assert.strictEqual(note.deleted_at, null)
+  const scriptId = createScript({
+    name: 'ORM bytes',
+    description: null,
+    version: '1',
+    match_urls_json: '[]',
+    code: '',
+    file_path: null,
+    site_ids_json: null,
+    enabled: true,
+  })
+  const bytes = Buffer.from([0, 128, 255])
+  orm
+    .insert(ormResources)
+    .values({
+      id: 'orm-resource',
+      script_id: scriptId,
+      resource_kind: 'resource',
+      resource_key: 'asset',
+      declaration_order: 0,
+      source_url: 'https://example.test/asset',
+      content_blob: bytes,
+      created_at: new Date(0),
+      updated_at: new Date(0),
+    })
+    .run()
+  assert.deepStrictEqual(orm.select().from(ormResources).get()?.content_blob, bytes)
+  assert.throws(
+    () =>
+      orm.transaction((transaction) => {
+        transaction.delete(ormNotes).where(eq(ormNotes.id, 'orm-note')).run()
+        throw new Error('ORM rollback')
+      }),
+    /ORM rollback/,
+  )
+  assert.ok(orm.select().from(ormNotes).where(eq(ormNotes.id, 'orm-note')).get())
+  assert.strictEqual(
+    sqlite.prepare("SELECT name FROM sqlite_schema WHERE name='__drizzle_migrations'").get(),
+    undefined,
+  )
+})
 
 test('publishes script changes after native commit and suppresses failed nested writes', () => {
   const events: DataChangedPayload[] = []

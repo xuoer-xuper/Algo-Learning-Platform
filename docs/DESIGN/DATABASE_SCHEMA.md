@@ -4,6 +4,11 @@
 
 数据库使用 SQLite，访问库推荐 `better-sqlite3`。数据库只允许 Main Process 访问，Renderer 必须通过 IPC 获取数据。
 
+阶段3 A0新增 `algo-electron/src/main/db/schema.ts` 作为030后结构的Drizzle映射，覆盖25表与
+82个timestamp_ms列；`createDrizzleClient(sqlite)`仅包装既有连接。此时生产迁移与备份仍由
+`electron/db/connection.ts`管理，候选`drizzle/0000_baseline.sql`尚未在用户库执行或登记台账。
+ORM读出的Date只能在内部使用，IPC仍传整数毫秒。后续A1必须验证物理结构/台账/备份再接管迁移。
+
 设计目标：
 
 - 本地优先。
