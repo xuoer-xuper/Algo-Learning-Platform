@@ -36,6 +36,9 @@ callback已成功但事实与通知仍回滚。所有fixture仅为合成临时�
 
 ## 后续
 
+A2c已提交`2bba47e`并正常推送，CI `42381032242`两项全绿；pre-push完整test:ci通过，
+无hook绕过。UI诊断`a8f093e`与A2b`5b13d85`也已分别推送并CI通过，旧日志`7d35ed0`已补推。
+
 下一候选A2d是deleteProblem：保留日期UNION原始数值、四表删除顺序、实际提交后通知和
 post-commit统计失败语义。当前删除/DTO读查询/omnibox及其他域迁移仍未完成，阶段3不归档，
 PR #8仍draft，不自动合并、发布或打tag。

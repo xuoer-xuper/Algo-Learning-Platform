@@ -51,15 +51,15 @@
 - [x] upsert已研究/独立复核bound-null策略可保留现有行为；DTO读查询政策仍未决定。
   null-ID UPDATE不更新但仍通知，不能悄悄改成isNull/按平台key更新或conflict-upsert。
 
-## 当前切片 A2c：题目 upsert
+## 已验收切片 A2c：题目 upsert
 
-设计见 `research/a2c-problem-upsert.md`，独立复核通过；A2b交付后已进入实施。
+设计见 `research/a2c-problem-upsert.md`，独立复核和完整门通过，已提交推送且CI全绿。
 
 - [x] 仅替换upsert的三条语句并移除旧row断言，保留真实bound-null UPDATE、六列SET、时间/标题/字段/通知契约。
 - [x] 35个新oracle/事务/异常/nullableID回归接入test:db，并补原生Electron场景。
 - [x] 独立复核、typecheck/lint、test:db26文件207用例、test:all201文件1737用例/UI11通过。
 - [x] build:win通过，包含NSIS和真实打包双实例/资源台账。
-- [ ] 提交推送与CI。
+- [x] 提交`2bba47e`已推送，CI `42381032242`两项全绿；最新build:win/打包资源和UI门通过。
 
 验收记录：[A2c题目Upsert](./a2c-verification-2026-11-07.md)。后续delete/DTO读查询/omnibox仍未完成。
 
@@ -75,8 +75,8 @@
   final-delete/真实COMMIT失败、savepoint及第二天统计失败的部分成功语义；接入test:db与原生用例。
 - [ ] 实施前补细化设计并独立复核，之后运行完整门/提交推送/CI；不牵涉nullableID DTO政策。
 
-单独待办：为native tab-drag失败补pointer/capture/finishDrag诊断，不混入查询迁移；
-`research/a1-pre-push-drag-incident.md`保留未定位的瞬时失败证据，不能以复测通过宣称根因已修。
+原生tab-drag诊断已单独交付；`research/a1-pre-push-drag-incident.md`保留未定位的瞬时
+失败证据，不能以复测通过宣称根因已修。若再次失败先读取新增附件，再决定后续修正。
 
 ## 独立验收：原生 UI 失败诊断
 
