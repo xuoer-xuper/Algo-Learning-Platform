@@ -420,3 +420,46 @@
 ### Next Steps
 
 - 阶段3启动评审：更新25表/SQL统计、固定Drizzle版本、第一块PR-A0建立schema/client与等价测试，迁移runner及逐域改写后续独立验证。
+
+
+## Session 14: 阶段3 A0/A1迁移接管与A2a总览查询完成并推送
+<!-- trellis-session: v=2 fp=ea3f10f224543dbd -->
+
+**Date**: 2026-11-07
+**Task**: 阶段3 A0/A1迁移接管与A2a总览查询完成并推送
+**Branch**: `refactor/drizzle`
+
+### Summary
+
+Drizzle基础、安全基线/资源/备份接管和题目总览四条只读查询已验收；PR8仍draft，阶段3不归档。
+
+### Main Changes
+
+- 固定25表82个timestamp_ms映射；开库前可信资源验证，连续台账和完整物理结构检查，统一backup/restore/稳定tag重试。
+- A2a保留同步计数、nullable ID、tombstone和本地日边界；Date只在内部，外部整数毫秒/epoch0/null不变。
+- 未碰用户原库，冻结001–030与baseline/meta未改，保留无关.zcode。初次pre-push一次拖拽瞬时失败已记录，10次诊断+5次原测试及完整复测/CI通过，不宣称已定位根因。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `e1e3ae0` | refactor(db): 建立 Drizzle schema 与客户端基础 |
+| `1ba968b` | feat(db): 安全接管 Drizzle 迁移与打包资源 |
+| `3869fe2` | refactor(db): 将题目总览查询迁移到 Drizzle |
+
+### Testing
+
+- [OK] 最新test:all198文件/1673用例，UI11/11，test:db24文件/158用例，原生repositories13/13。
+- [OK] A1专用80/80；A2a总览8/8并在纽约23小时DST日期通过，独立复核无遗留发现。
+- [OK] typecheck两次/lint/architecture22/22/packaging9/9/docs通过；jscpd1.76%；最新build:win及真实打包双实例/资源台账通过。
+- [OK] A0 CI42337708058、A1 CI42373778745、A2a CI42375070997全绿；每次正常hook提交/推送，无绕过。
+
+### Status
+
+[OK] **本次 A0/A1/A2a 切片已完成；阶段 3 仍 in_progress，未归档。**
+
+### Next Steps
+
+- 先做A2b findProblemIdByPlatformKey单条查询，再逐域转换读写；nullable ID DTO/upsert兼容策略必须明确，不收紧schema偷渡。
+- PR8仍draft，不自动合并或发布；目录迁移/拆分及阶段4–6仍未完成。
+- 单独补native tab-drag失败pointer/capture/finishDrag诊断，不以sleep/重试/直接reorder掩盖。

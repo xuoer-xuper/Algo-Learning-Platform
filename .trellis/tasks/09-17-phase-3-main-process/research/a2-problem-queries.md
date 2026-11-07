@@ -158,3 +158,20 @@ Required additions beyond current five omnibox cases: 24/25 metadata candidates,
 - SQL remains inside the existing DB boundary; no `BARE_SQL_BUDGET` increase is needed for these conversions (`tests/architecture/check-architecture.mjs:307`). Do not hide whole raw queries behind `sql.raw` or weaken the guard to obtain a zero `.prepare()` count.
 - Before converting DTO-returning queries, choose the nullable-ID handling policy explicitly. Before changing status-limit, tombstone semantics or omnibox horizons, create a separate behavior task. None blocks the overview-first delivery.
 - This report is implementation preparation, not proof that a converted query or new test passed. Parent's A1 verification remains independent; no A1 file was changed during this research.
+
+## 9. Post-A2a Next-Slice Review
+
+A2a shipped as `3869fe2`; its execution evidence is in `../a2a-verification-2026-11-07.md`.
+The next zero-policy-risk slice is `findProblemIdByPlatformKey` alone (one SELECT):
+its existing `row?.id ?? null` handles null IDs without changing a public DTO.
+Preserve exact case-sensitive platform/key equality, bound literal inputs,
+`deleted_at IS NULL`, null for absence/null ID and empty-string ID unchanged.
+Test these against old SQL plus query-only/no-event and connection-reinit behavior.
+
+Upsert remains three statements, not an equivalent replacement with conflict-upsert.
+A matching null-ID row currently selects successfully but `WHERE id = NULL` updates
+nothing and still emits the existing notification. `isNull(id)`, platform-key UPDATE
+or conflict-upsert would change this. Preserve title-quality decisions, nullish
+COALESCE retention versus explicit empty-string overwrite, insert-only source fields,
+explicit visited status, tombstone non-resurrection and outer-transaction R4 timing.
+Characterize this path before resolving its nullable-ID policy; do not cast around it.

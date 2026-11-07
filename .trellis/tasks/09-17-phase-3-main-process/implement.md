@@ -29,15 +29,29 @@
 
 验收记录：[A1安全迁移接管](./a1-verification-2026-11-07.md)。基线SQL/冻结legacy未改，用户原库未操作。
 
-## 下一切片 A2a：题目总览只读查询
+## 已验收切片 A2a：题目总览只读查询
 
-详见 `research/a2-problem-queries.md`；A1已推送且CI通过，A2a已进入实施。
+详见 `research/a2-problem-queries.md`；A1与A2a均已推送且CI通过。
 
 - [x] 只转换 `problem/overview.ts` 四条查询，保留同步输出、日期边界、现有tombstone语义及零值。
 - [x] `problemOverview.test.ts`覆盖空库、nullable ID计数、distinct/day边界、tombstone、epoch0、
   毫秒、旧SQL结果对照、关闭重开与无写入/无通知；接入test:db并补原生ABI用例。
 - [x] 独立复核、typecheck/lint、test:db、test:all；更新领域README及规范。
-- [ ] 提交推送与CI；再选择下一problem域查询切片。
+- [x] 提交`3869fe2`已推送，CI `42375070997`两项全绿；最新build:win也通过。
+
+验收记录：[A2a题目总览](./a2a-verification-2026-11-07.md)。阶段3仍in_progress，PR #8保持draft。
+
+## 下一切片 A2b：按平台题号查找ID
+
+- [ ] 只转换 `findProblemIdByPlatformKey` 的单条SELECT；原string/null接口已经覆盖nullable ID，
+  保留empty-string ID、大小写敏感、精确绑定和deleted_at=0过滤，不改其他queries/mutations。
+- [ ] 对照原SQL测试命中/缺失/平台key不匹配、引号/通配符字面量、NULL/空ID、tombstone、
+  只读/无通知/关闭重开；再按既定门独立复核、提交推送与CI。
+- [ ] 后续upsert/DTO读查询先明确nullableID兼容策略。现有null-ID匹配在WHERE id=NULL下不更新
+  但仍通知，不能悄悄改成isNull/按平台key更新或conflict-upsert。
+
+单独待办：为native tab-drag失败补pointer/capture/finishDrag诊断，不混入查询迁移；
+`research/a1-pre-push-drag-incident.md`保留未定位的瞬时失败证据，不能以复测通过宣称根因已修。
 
 ## PR A：Drizzle（`refactor/drizzle`，约 4 天）
 - [x] Drizzle依赖、`drizzle.config.ts`、`src/main/db/client.ts`、`schema.ts`（25表，A0先验证）。

@@ -25,6 +25,7 @@ A1 `1ba968b` 已推送且CI `42373778745`全绿后，转换
 | `pnpm test:db` | 24文件/158用例；真实Electron repositories13/13含numeric/epoch0新增场景 |
 | `pnpm test:all` | 198文件/1673用例；真实Electron及UI11/11通过 |
 | `pnpm build:check` | 通过；生产构建及native external守卫通过 |
+| 最新 `pnpm build:win` | 通过；重新生成NSIS并验证真实打包双实例、资源/台账和fuses |
 | 覆盖率 | statements75.08%、branches68.90%、functions72.16%、lines78.27% |
 | jscpd | 1.76% |
 
@@ -33,5 +34,7 @@ A1 `1ba968b` 已推送且CI `42373778745`全绿后，转换
 冻结001–030、基线SQL/meta和A1安全协调器无变更。全部使用临时/内存库。
 
 日志在忽略目录 `algo-electron/tmp/drizzle-a2a-{db,all,build,duplication}.log`。
+额外打包/推送/CI日志为 `drizzle-a2a-{build-win,push,ci}.log`。提交`3869fe2`已推送，
+CI `42375070997`两项全绿；pre-push完整test:ci首次通过，无跳过hook。
 本块不是整个problem域完成：identity/visit/recent/detail、mutations和omnibox仍待分批转换，
 nullableID DTO政策必须单独明确，不能通过收紧schema或过滤存量行暗改行为。
