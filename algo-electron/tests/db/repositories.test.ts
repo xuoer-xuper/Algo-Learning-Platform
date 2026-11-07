@@ -15,6 +15,7 @@ import {
 import type { DataChangedPayload } from '../../src/shared/types/data.ts'
 import { closeDb, initDbAtPath } from '../../electron/db/connection.ts'
 import {
+  findProblemIdByPlatformKey,
   getOverviewStats,
   getProblemDetail,
   getRecentProblems,
@@ -178,6 +179,26 @@ test('returns numeric overview counts and preserves epoch zero with the Electron
   })
   sqlite.prepare('UPDATE activity_events SET occurred_at = ?').run(1768443630123)
   assert.strictEqual(getOverviewStats().lastActiveTime, 1768443630123)
+})
+
+test('preserves literal lookup keys and nullable IDs with the Electron SQLite ABI', () => {
+  const sqlite = getDbForTest()
+  const insert = sqlite.prepare(
+    `INSERT INTO problems
+      (id, platform, platform_problem_id, canonical_url, first_seen_at, created_at, updated_at, deleted_at)
+     VALUES (?, 'codeforces', ?, 'https://example.test/lookup', 0, 0, 0, ?)`,
+  )
+  insert.run('literal', "A_%'", null)
+  insert.run(null, 'null', null)
+  insert.run('', 'empty', null)
+  insert.run('deleted', 'deleted', 0)
+
+  assert.strictEqual(findProblemIdByPlatformKey('codeforces', "A_%'"), 'literal')
+  assert.strictEqual(findProblemIdByPlatformKey('Codeforces', "A_%'"), null)
+  assert.strictEqual(findProblemIdByPlatformKey('codeforces', 'null'), null)
+  assert.strictEqual(findProblemIdByPlatformKey('codeforces', 'empty'), '')
+  assert.strictEqual(findProblemIdByPlatformKey('codeforces', 'deleted'), null)
+  assert.strictEqual(findProblemIdByPlatformKey('codeforces', "' OR 1=1 --"), null)
 })
 
 test('publishes script changes after native commit and suppresses failed nested writes', () => {

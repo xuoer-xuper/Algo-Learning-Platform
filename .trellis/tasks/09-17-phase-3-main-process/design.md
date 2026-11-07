@@ -26,6 +26,36 @@ drizzle-kit0.31.11，安装后按实际API和Electron ABI验证，不采用beta�
 
 ## 1. 目标目录
 
+### A2c 题目 upsert（三条语句，A2b交付后实施）
+
+独立复核已确认 `research/a2c-problem-upsert.md` 可不改变nullableID政策完成转换。
+只改 `upsertProblem` 的lookup/update/insert和相关测试，`deleteProblem`及所有DTO查询不动。
+
+- lookup包括tombstone；现有NULL ID通过 `eq(problems.id, sql.param(existing.id))` 保留
+  `id = ?`绑定NULL的UPDATE无匹配语义，仍实际run以保留query_only/schema错误；不提前返回、
+  不改IS NULL、不修ID、不改platform/key更新、不用conflict-upsert。成功仍发既有通知。
+- 六个SET列保持：canonical_url、contest_id、problem_index、title、last_visited_at、updated_at。
+  CASE/COALESCE保留值及UPDATE OF触发语义，missing/null保留旧值、空字符串可覆盖。
+- 原标题质量判断、UUID、insert-only source、visited状态、非复活tombstone和捕获一次的
+  毫秒时间不变。Date只在ORM写入层使用，不改schema/defaults或引入事务/cache。
+- 测试原三语句oracle对比完整行/事件，覆盖null/空/引号ID、query_only-null错误、UPDATE OF、
+  标题矩阵、0/毫秒、source/status/tombstone、外层commit/rollback/延迟FK提交失败/savepoint。
+  裸SQL仅为测试oracle或DB允许的静态表达式，不用sql.raw隐藏整个旧查询。
+
+### A2b 身份查找与单独 UI 诊断边界
+
+A2a之后只转换 `findProblemIdByPlatformKey` 的单条SELECT，保持平台/题号精确大小写敏感
+绑定、`deleted_at IS NULL`及同步 `string | null`。NULL ID/缺行返回null，空ID保持空字符串；
+同文件其他查询不变。使用当前连接typed adapter，对照原SQL验证只读、事务可见性、无R4通知
+和关闭重开，接入test:db及原生Electron用例。nullable DTO/upsert政策不在本块决定。
+
+独立测试诊断切片仅修改 `tests/ui/`：此前两次原生拖拽未重排、一次visible/focused前置
+检查失败没有足够事件证据。为失败添加有界pointer/capture/DnD/focus记录、finishDrag输入/
+结果、窗口visible/focused/minimized/loading/cursor/bounds快照；观测器保持原返回值及异常。
+事件监听不做geometry/style同步读取，详细快照仅失败后采集；记录/附件失败不得掩盖原始错误。
+保留原生操作、顺序/阈值/超时及断言，不改生产组件、不加重试/延时/强制focus/合成release。
+补诊断器行为测试，独立提交；不将诊断增强称为修复了尚未确定的UI失败根因。
+
 ### A2a 题目总览只读查询（A1验收后的下一切片）
 
 以 `research/a2-problem-queries.md` 为行为清单，只转换现有 `problem/overview.ts` 的四条

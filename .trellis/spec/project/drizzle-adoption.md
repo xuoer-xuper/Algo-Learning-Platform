@@ -28,6 +28,8 @@ getPlatformDistribution(): PlatformDistributionRow[]
 getTodayVisitedCount(): number
 getLastActiveTime(): number | null
 getOverviewStats(): OverviewStats
+// A2b selects only the stored ID and preserves the original nullish result.
+findProblemIdByPlatformKey(platform: string, platformProblemId: string): string | null
 ```
 
 Pinned A0 versions: drizzle-orm 0.45.4 and drizzle-kit 0.31.11. `db:generate` reads
@@ -76,6 +78,10 @@ schema code and emits SQL/snapshots; `pull` is the introspection command.
 - Use existing local-day `[start,end)` helpers and Date parameters for timestamp_ms
   comparisons; do not add a fixed 24-hour interval. Latest activity emits `.getTime()`
   with nullish handling, never a truthiness fallback that converts epoch zero to null.
+- Platform-key lookup uses two bound, case-sensitive equality predicates and
+  `deleted_at IS NULL`. Do not trim/case-fold inputs, use LIKE, or add ID validity
+  filters. Absent/null-ID matches return null, but an empty stored ID remains `''`.
+  SQLite failures throw; they must not be disguised as a missing record.
 
 ## 4. Validation & Error Matrix
 
@@ -100,6 +106,10 @@ schema code and emits SQL/snapshots; `pull` is the introspection command.
 | Visit at local day start / next day start | Included / excluded respectively |
 | Latest activity at epoch 0 | Return numeric 0, not null or Date |
 | Read-only overview after connection reinitialization | Uses new current connection; no writes/events/migrations |
+| Platform-key lookup with quote/percent/underscore/backslash | Exact bound literal matching; no SQL/pattern interpretation |
+| Matching lookup row has null / empty-string ID | Return null / empty string respectively |
+| Lookup row has deleted_at = 0 | Excluded, exactly like any non-null deletion timestamp |
+| Lookup fails because schema/connection is invalid | Throw; do not return a not-found null |
 
 ## 5. Good / Base / Bad Cases
 
@@ -144,6 +154,10 @@ schema code and emits SQL/snapshots; `pull` is the introspection command.
 - Fix obsolete string timestamps only in current-schema fixtures when their query
   is converted. Historical migration/export fixtures intentionally contain strings.
   Do not make production Date decoding accept stale test data or assert Date as number.
+- A2b compares lookup results to the original SQL for both key dimensions, case,
+  whitespace, literal/injection-looking strings, null/empty IDs and tombstones.
+  Use real query-only SQLite, transaction reads, notification observation and
+  close/reinitialize coverage; retain a native Electron ABI case.
 
 ## 7. Wrong vs Correct
 
@@ -163,6 +177,9 @@ id: text('id')
 
 // Wrong: count(problems.id), or latest?.occurred_at.getTime() || null.
 // Correct: count() for total rows; latest?.occurred_at.getTime() ?? null for zero.
+
+// Wrong: row?.id || null, trim/case-folding keys, or catch(() => null).
+// Correct: bound equality and row?.id ?? null, preserving database exceptions.
 ```
 
 ## A1 Safe Migration Activation

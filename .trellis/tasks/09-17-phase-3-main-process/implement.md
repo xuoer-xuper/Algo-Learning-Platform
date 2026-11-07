@@ -41,17 +41,33 @@
 
 验收记录：[A2a题目总览](./a2a-verification-2026-11-07.md)。阶段3仍in_progress，PR #8保持draft。
 
-## 下一切片 A2b：按平台题号查找ID
+## 当前切片 A2b：按平台题号查找ID
 
-- [ ] 只转换 `findProblemIdByPlatformKey` 的单条SELECT；原string/null接口已经覆盖nullable ID，
+- [x] 只转换 `findProblemIdByPlatformKey` 的单条SELECT；原string/null接口已经覆盖nullable ID，
   保留empty-string ID、大小写敏感、精确绑定和deleted_at=0过滤，不改其他queries/mutations。
-- [ ] 对照原SQL测试命中/缺失/平台key不匹配、引号/通配符字面量、NULL/空ID、tombstone、
-  只读/无通知/关闭重开；再按既定门独立复核、提交推送与CI。
-- [ ] 后续upsert/DTO读查询先明确nullableID兼容策略。现有null-ID匹配在WHERE id=NULL下不更新
-  但仍通知，不能悄悄改成isNull/按平台key更新或conflict-upsert。
+- [x] 对照原SQL测试命中/缺失/平台key不匹配、引号/通配符字面量、NULL/空ID、tombstone、
+  只读/无通知/关闭重开；独立复核通过，DB25文件/172用例及原生14/14通过。
+- [ ] 提交推送与CI（含上轮日志提交`7d35ed0`）。
+- [x] upsert已研究/独立复核bound-null策略可保留现有行为；DTO读查询政策仍未决定。
+  null-ID UPDATE不更新但仍通知，不能悄悄改成isNull/按平台key更新或conflict-upsert。
+
+## 下一切片 A2c：题目 upsert
+
+设计见 `research/a2c-problem-upsert.md`，独立复核通过；A2b交付后实施。
+
+- [ ] 仅替换upsert的三条语句并移除旧row断言，保留真实bound-null UPDATE、六列SET、时间/标题/字段/通知契约。
+- [ ] 新oracle/事务/异常/nullableID回归接入test:db，并补原生Electron场景。
+- [ ] 独立复核、typecheck/lint、test:db、test:all、build；提交推送与CI。
 
 单独待办：为native tab-drag失败补pointer/capture/finishDrag诊断，不混入查询迁移；
 `research/a1-pre-push-drag-incident.md`保留未定位的瞬时失败证据，不能以复测通过宣称根因已修。
+
+## 独立验收：原生 UI 失败诊断
+
+- [x] 有界事件/finishDrag观测、失败窗口状态附件；不改产品行为、断言、超时或重试策略。
+- [x] 15个行为测试验证记录容量、调用方返回/错误传播、只读快照和失败附件保留原错误。
+- [x] 独立复核与真实UI门通过（完整门200文件/1702用例、UI11/11）；若再次失败使用新证据分类，不无限重复推送碰绿。
+- [x] 诊断独立提交`a8f093e`正常推送，CI `42378532852`全绿，同时带上未推送日志提交`7d35ed0`。
 
 ## PR A：Drizzle（`refactor/drizzle`，约 4 天）
 - [x] Drizzle依赖、`drizzle.config.ts`、`src/main/db/client.ts`、`schema.ts`（25表，A0先验证）。

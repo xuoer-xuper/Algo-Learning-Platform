@@ -1,4 +1,7 @@
+import { and, eq, isNull } from 'drizzle-orm'
 import { getDb } from '../../connection'
+import { createDrizzleClient } from '../../../../src/main/db/client'
+import { problems } from '../../../../src/main/db/schema'
 import type { ProblemDetail, ProblemSubmissionRow, ProblemVisitRow, RecentProblem } from './types'
 
 export function getRecentProblems(limit = 50, platform?: string, status?: string): RecentProblem[] {
@@ -88,11 +91,17 @@ export function findProblemIdByPlatformKey(
   platform: string,
   platformProblemId: string,
 ): string | null {
-  const db = getDb()
+  const db = createDrizzleClient(getDb())
   const row = db
-    .prepare(
-      'SELECT id FROM problems WHERE platform = ? AND platform_problem_id = ? AND deleted_at IS NULL',
+    .select({ id: problems.id })
+    .from(problems)
+    .where(
+      and(
+        eq(problems.platform, platform),
+        eq(problems.platform_problem_id, platformProblemId),
+        isNull(problems.deleted_at),
+      ),
     )
-    .get(platform, platformProblemId) as { id: string } | undefined
+    .get()
   return row?.id ?? null
 }
