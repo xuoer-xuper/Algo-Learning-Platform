@@ -30,6 +30,8 @@ getLastActiveTime(): number | null
 getOverviewStats(): OverviewStats
 // A2b selects only the stored ID and preserves the original nullish result.
 findProblemIdByPlatformKey(platform: string, platformProblemId: string): string | null
+// A2c remains a synchronous mutation over the existing connection.
+upsertProblem(identity: ProblemIdentity): void
 ```
 
 Pinned A0 versions: drizzle-orm 0.45.4 and drizzle-kit 0.31.11. `db:generate` reads
@@ -82,6 +84,17 @@ schema code and emits SQL/snapshots; `pull` is the introspection command.
   `deleted_at IS NULL`. Do not trim/case-fold inputs, use LIKE, or add ID validity
   filters. Absent/null-ID matches return null, but an empty stored ID remains `''`.
   SQLite failures throw; they must not be disguised as a missing record.
+- Problem upsert must keep a real UPDATE for every matched row, including null
+  IDs. `eq(problems.id, sql.param(existing.id))` preserves bound SQL equality with
+  null, not `IS NULL`; do not cast the nullable ID or return early. The successful
+  legacy no-op still notifies; read-only/schema failures must still throw first.
+- Preserve all six original SET targets using CASE/COALESCE, including retained
+  title/contest/index values: SQLite UPDATE OF triggers observe the SET list.
+  Nullish input retains contest/index, empty string overwrites; title quality rules,
+  insert-only source fields, explicit visited status and tombstones stay unchanged.
+- Capture one instant, write it via Date-backed timestamp_ms columns and keep UUID
+  creation only on insert. Do not add conflict-upsert, transaction/cache, schema
+  defaults, resurrection or notification scopes around autocommit batches.
 
 ## 4. Validation & Error Matrix
 
@@ -110,6 +123,10 @@ schema code and emits SQL/snapshots; `pull` is the introspection command.
 | Matching lookup row has null / empty-string ID | Return null / empty string respectively |
 | Lookup row has deleted_at = 0 | Excluded, exactly like any non-null deletion timestamp |
 | Lookup fails because schema/connection is invalid | Throw; do not return a not-found null |
+| Matched problem upsert has a null ID | Execute bound-null UPDATE, retain rows and successful legacy notification |
+| Matched null-ID upsert on query_only connection | Throw before notification; early-return is not equivalent |
+| Update retains title/contest/index | Keep the columns in SET and preserve UPDATE OF trigger behavior |
+| Upsert outer transaction/savepoint/COMMIT fails | Roll back its facts and discard its buffered topics |
 
 ## 5. Good / Base / Bad Cases
 
@@ -158,6 +175,10 @@ schema code and emits SQL/snapshots; `pull` is the introspection command.
   whitespace, literal/injection-looking strings, null/empty IDs and tombstones.
   Use real query-only SQLite, transaction reads, notification observation and
   close/reinitialize coverage; retain a native Electron ABI case.
+- A2c uses the original three-statement SQL as an independent temporary-DB oracle
+  for full rows/events. Include null/empty/quoted IDs, query_only-null failure,
+  UPDATE OF triggers, title rules, missing/null/empty fields, epoch-zero/milliseconds,
+  insert-only sources/tombstones, statement failures and real COMMIT/savepoint tests.
 
 ## 7. Wrong vs Correct
 
@@ -180,6 +201,9 @@ id: text('id')
 
 // Wrong: row?.id || null, trim/case-folding keys, or catch(() => null).
 // Correct: bound equality and row?.id ?? null, preserving database exceptions.
+
+// Wrong: null-ID early return, isNull(problems.id), or conflict-upsert by key.
+// Correct: eq(problems.id, sql.param(existing.id)) and an actual .run() before emit.
 ```
 
 ## A1 Safe Migration Activation

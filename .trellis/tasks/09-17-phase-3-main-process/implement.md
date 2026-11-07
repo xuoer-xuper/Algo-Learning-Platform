@@ -41,23 +41,39 @@
 
 验收记录：[A2a题目总览](./a2a-verification-2026-11-07.md)。阶段3仍in_progress，PR #8保持draft。
 
-## 当前切片 A2b：按平台题号查找ID
+## 已验收切片 A2b：按平台题号查找ID
 
 - [x] 只转换 `findProblemIdByPlatformKey` 的单条SELECT；原string/null接口已经覆盖nullable ID，
   保留empty-string ID、大小写敏感、精确绑定和deleted_at=0过滤，不改其他queries/mutations。
 - [x] 对照原SQL测试命中/缺失/平台key不匹配、引号/通配符字面量、NULL/空ID、tombstone、
   只读/无通知/关闭重开；独立复核通过，DB25文件/172用例及原生14/14通过。
-- [ ] 提交推送与CI（含上轮日志提交`7d35ed0`）。
+- [x] 提交`5b13d85`已推送，CI `42379159788`全绿；上轮日志提交已随UI诊断推送。
 - [x] upsert已研究/独立复核bound-null策略可保留现有行为；DTO读查询政策仍未决定。
   null-ID UPDATE不更新但仍通知，不能悄悄改成isNull/按平台key更新或conflict-upsert。
 
-## 下一切片 A2c：题目 upsert
+## 当前切片 A2c：题目 upsert
 
-设计见 `research/a2c-problem-upsert.md`，独立复核通过；A2b交付后实施。
+设计见 `research/a2c-problem-upsert.md`，独立复核通过；A2b交付后已进入实施。
 
-- [ ] 仅替换upsert的三条语句并移除旧row断言，保留真实bound-null UPDATE、六列SET、时间/标题/字段/通知契约。
-- [ ] 新oracle/事务/异常/nullableID回归接入test:db，并补原生Electron场景。
-- [ ] 独立复核、typecheck/lint、test:db、test:all、build；提交推送与CI。
+- [x] 仅替换upsert的三条语句并移除旧row断言，保留真实bound-null UPDATE、六列SET、时间/标题/字段/通知契约。
+- [x] 35个新oracle/事务/异常/nullableID回归接入test:db，并补原生Electron场景。
+- [x] 独立复核、typecheck/lint、test:db26文件207用例、test:all201文件1737用例/UI11通过。
+- [x] build:win通过，包含NSIS和真实打包双实例/资源台账。
+- [ ] 提交推送与CI。
+
+验收记录：[A2c题目Upsert](./a2c-verification-2026-11-07.md)。后续delete/DTO读查询/omnibox仍未完成。
+
+## 下一候选 A2d：题目删除（尚未实施）
+
+- [ ] 仅转换deleteProblem的受影响日期UNION与四条DELETE，保留原native transaction及外层
+  withDataChangeTransaction，不改变实际提交边界、删除顺序或统计重算所在阶段。
+- [ ] UNION的instant使用一致别名的原始数值SQL投影，保留toLocalDay对非法/小数时间的拒绝；
+  不让Date decoder悄悄截断小数。保留UNION去重、epoch0、本地日Set及first_solved非空过滤。
+- [ ] 不添加tombstone过滤、不扩大删表范围；缺父行仍删children但返回false/不通知/不重算。
+  成功删父行才排队topics；统计失败在commit后记录warning并仍返回true，先完成的日期不回滚。
+- [ ] 扩展deleteProblem.test原SQL对照、原始数值/本地午夜/epoch0、缺父orphan、空/引号ID、
+  final-delete/真实COMMIT失败、savepoint及第二天统计失败的部分成功语义；接入test:db与原生用例。
+- [ ] 实施前补细化设计并独立复核，之后运行完整门/提交推送/CI；不牵涉nullableID DTO政策。
 
 单独待办：为native tab-drag失败补pointer/capture/finishDrag诊断，不混入查询迁移；
 `research/a1-pre-push-drag-incident.md`保留未定位的瞬时失败证据，不能以复测通过宣称根因已修。

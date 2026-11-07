@@ -1,5 +1,8 @@
 import crypto from 'node:crypto'
+import { and, eq, sql } from 'drizzle-orm'
 import { getDb } from '../../connection'
+import { createDrizzleClient } from '../../../../src/main/db/client'
+import { problems } from '../../../../src/main/db/schema'
 import type { ProblemIdentity } from '../../../shared/types'
 import { nowMillis, toLocalDay } from '../../../shared/time'
 import { logger as baseLogger, type Logger } from '../../../shared/logger'
@@ -7,19 +10,21 @@ import { isValidScrapedTitle, shouldReplaceScrapedTitle } from '../../../parsers
 import { recomputeDailyStatsForDates } from '../stats/recompute'
 import { emitDataChanged, withDataChangeTransaction } from '../../../shared/dataEvents'
 
-interface ExistingProblemTitleRow {
-  id: string
-  title: string | null
-}
-
 export function upsertProblem(identity: ProblemIdentity): void {
-  const db = getDb()
-  const now = nowMillis()
+  const db = createDrizzleClient(getDb())
+  const now = new Date(nowMillis())
   const canonicalUrl = identity.canonicalUrl
 
   const existing = db
-    .prepare('SELECT id, title FROM problems WHERE platform = ? AND platform_problem_id = ?')
-    .get(identity.platform, identity.platformProblemId) as ExistingProblemTitleRow | undefined
+    .select({ id: problems.id, title: problems.title })
+    .from(problems)
+    .where(
+      and(
+        eq(problems.platform, identity.platform),
+        eq(problems.platform_problem_id, identity.platformProblemId),
+      ),
+    )
+    .get()
 
   const scrapedTitle = identity.title
   let title: string | null = null
@@ -29,51 +34,46 @@ export function upsertProblem(identity: ProblemIdentity): void {
 
   if (existing) {
     const shouldUpdateTitle = shouldReplaceScrapedTitle(existing.title, title)
-    db.prepare(
-      `
-      UPDATE problems SET
-        canonical_url = ?,
-        contest_id = COALESCE(?, contest_id),
-        problem_index = COALESCE(?, problem_index),
-        title = CASE WHEN ? THEN ? ELSE title END,
-        last_visited_at = ?,
-        updated_at = ?
-      WHERE id = ?
-    `,
-    ).run(
-      canonicalUrl,
-      identity.contestId ?? null,
-      identity.problemIndex ?? null,
-      shouldUpdateTitle ? 1 : 0,
-      title,
-      now,
-      now,
-      existing.id,
-    )
+    db.update(problems)
+      .set({
+        canonical_url: canonicalUrl,
+        contest_id: sql<
+          string | null
+        >`coalesce(${identity.contestId ?? null}, ${problems.contest_id})`,
+        problem_index: sql<
+          string | null
+        >`coalesce(${identity.problemIndex ?? null}, ${problems.problem_index})`,
+        title: sql<
+          string | null
+        >`case when ${shouldUpdateTitle ? 1 : 0} then ${title} else ${problems.title} end`,
+        last_visited_at: now,
+        updated_at: now,
+      })
+      // Keep SQL equality with a bound null: no matching row, but the UPDATE still runs.
+      .where(eq(problems.id, sql.param(existing.id)))
+      .run()
     emitDataChanged(['problems', 'stats'])
     return
   }
 
-  db.prepare(
-    `
-    INSERT INTO problems (id, platform, platform_problem_id, canonical_url, title, status, contest_id, problem_index, source_platform, source_problem_id, first_seen_at, last_visited_at, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, 'visited', ?, ?, ?, ?, ?, ?, ?, ?)
-  `,
-  ).run(
-    crypto.randomUUID(),
-    identity.platform,
-    identity.platformProblemId,
-    canonicalUrl,
-    title,
-    identity.contestId ?? null,
-    identity.problemIndex ?? null,
-    identity.sourcePlatform ?? null,
-    identity.sourceProblemId ?? null,
-    now,
-    now,
-    now,
-    now,
-  )
+  db.insert(problems)
+    .values({
+      id: crypto.randomUUID(),
+      platform: identity.platform,
+      platform_problem_id: identity.platformProblemId,
+      canonical_url: canonicalUrl,
+      title,
+      status: 'visited',
+      contest_id: identity.contestId ?? null,
+      problem_index: identity.problemIndex ?? null,
+      source_platform: identity.sourcePlatform ?? null,
+      source_problem_id: identity.sourceProblemId ?? null,
+      first_seen_at: now,
+      last_visited_at: now,
+      created_at: now,
+      updated_at: now,
+    })
+    .run()
   emitDataChanged(['problems', 'stats'])
 }
 

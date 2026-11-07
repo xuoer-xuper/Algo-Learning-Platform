@@ -201,6 +201,65 @@ test('preserves literal lookup keys and nullable IDs with the Electron SQLite AB
   assert.strictEqual(findProblemIdByPlatformKey('codeforces', "' OR 1=1 --"), null)
 })
 
+test('preserves bound-null upsert notifications and integer time writes with the Electron SQLite ABI', () => {
+  const sqlite = getDbForTest()
+  sqlite
+    .prepare(
+      `INSERT INTO problems
+    (id, platform, platform_problem_id, canonical_url, title, first_seen_at, created_at, updated_at)
+    VALUES (NULL, 'codeforces', 'null-id', 'https://example.test/original', 'Original title', 0, 0, 0)`,
+    )
+    .run()
+  const before = sqlite.prepare('SELECT * FROM problems').all()
+  const events: DataChangedPayload[] = []
+  const dispose = subscribeDataChanges((payload) => events.push(payload))
+  const originalNow = Date.now
+  let clock = 0
+  Date.now = () => clock
+  try {
+    upsertProblem({
+      platform: 'codeforces',
+      platformProblemId: 'null-id',
+      canonicalUrl: 'https://example.test/ignored',
+      confidence: 'url',
+    })
+    assert.deepStrictEqual(sqlite.prepare('SELECT * FROM problems').all(), before)
+    assert.deepStrictEqual(events, [{ tables: ['problems', 'stats'] }])
+    upsertProblem({
+      platform: 'codeforces',
+      platformProblemId: 'normal',
+      canonicalUrl: 'https://example.test/normal',
+      confidence: 'url',
+    })
+    clock = 1768443630123
+    upsertProblem({
+      platform: 'codeforces',
+      platformProblemId: 'normal',
+      canonicalUrl: 'https://example.test/updated',
+      confidence: 'url',
+    })
+    assert.deepStrictEqual(
+      sqlite
+        .prepare(
+          `SELECT first_seen_at, created_at, last_visited_at,
+      updated_at, typeof(updated_at) AS storage FROM problems WHERE platform_problem_id = 'normal'`,
+        )
+        .get(),
+      {
+        first_seen_at: 0,
+        created_at: 0,
+        last_visited_at: clock,
+        updated_at: clock,
+        storage: 'integer',
+      },
+    )
+    assert.strictEqual(events.length, 3)
+  } finally {
+    Date.now = originalNow
+    dispose()
+  }
+})
+
 test('publishes script changes after native commit and suppresses failed nested writes', () => {
   const events: DataChangedPayload[] = []
   const transactionStates: boolean[] = []

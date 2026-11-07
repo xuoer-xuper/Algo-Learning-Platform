@@ -9,7 +9,7 @@
 ## 2. 当前实现程度
 
 - `types.ts`：题目列表、详情、提交行、平台分布和概览返回类型。
-- `mutations.ts`：题目 upsert 和删除。upsert 会校验抓取标题质量，并保护已有有效标题。
+- `mutations.ts`：upsert 的查找/更新/插入使用 Drizzle，保留抓取标题质量判断和已有有效标题；删除暂保留原实现。
 - `queries.ts`：平台/题目键查 ID 使用 Drizzle；最近题目列表、详情和访问记录仍保留原查询，状态根据 submissions 实时计算。
 - `omnibox.ts`：从本地题目与最近访问生成最多 8 条建议。先限制题目/访问候选，再按现有时间索引补最近 URL，不对整张 `problem_visits` 做分组或窗口扫描。
 - `overview.ts`：题目总数、今日访问、平台分布、最近活跃时间和概览聚合。四条只读查询使用 Drizzle 包装当前 SQLite 连接，仍同步返回 number/null，不缓存连接。
@@ -25,6 +25,8 @@
 ## 4. 边界规则
 
 - `upsertProblem()` 只接收已经解析好的 `ProblemIdentity`，不要在 repository 内写站点 URL 解析逻辑。
+- Upsert 保留同一连接和单次时间捕获，不新增事务。已有题目只 SET 原六列，CASE/COALESCE 保留空缺参数及 UPDATE OF 触发语义；空字符串可覆盖 contest/index，source 只在插入时写入，软删除题目不复活。
+- 兼容旧 upsert 的特例：NULL ID 仍实际执行 `id = ?` 绑定 null 的 UPDATE（不改 IS NULL、不提前返回），成功后即使无匹配行也发原有 problems/stats 通知；只读/SQL 错误仍抛出且不通知。其他写入的无变更不通知规则不因此放宽，外层事务继续负责提交后发布及回滚丢弃。
 - 状态展示优先根据 submissions 实时计算，避免依赖可能滞后的 `problems.status`。
 - 删除题目会同步删除关联 submissions、problem_visits、activity_events；UI 侧仍应先处理笔记确认。
 - Omnibox 仅查询本地 `problems`/`problem_visits`；输入按参数绑定，并把 `%`、`_`、`\` 作为 LIKE 字面量处理。结果过滤软删除行，同时按 problem 与 URL 去重。
@@ -42,7 +44,10 @@ cd algo-electron
 pnpm typecheck
 pnpm typecheck:tests
 pnpm vitest run tests/db/problemOverview.test.ts tests/db/problemLookup.test.ts tests/db/drizzleClient.test.ts
+pnpm vitest run tests/db/problemUpsert.test.ts tests/db/dataChangeNotifications.test.ts tests/parsers/titleValidation.test.ts
 pnpm test:db
 ```
 
 `problemOverview.test.ts` 使用冻结时钟与真实临时 SQLite，覆盖旧 SQL 结果对照、日期边界、nullable ID、软删除、0/毫秒精度、只读/无通知及关闭重开。`problemLookup.test.ts` 对照原 SQL 验证查键语义、字面量、null/空 ID、软删除、只读/无通知、事务连接、关闭重开及异常传播。`test:db` 同时运行 `repositories.test.ts` 的真实 Electron ABI 总览和查键用例。
+
+`problemUpsert.test.ts` 与冻结原三语句的 `problem-upsert-oracle.ts` 在独立临时库中比较完整原始行和事件，覆盖标题/字段、NULL/空 ID、0/毫秒、UPDATE OF、真实只读/触发器/提交错误、savepoint 和外层通知。原生 repository 用例另验证 bound-null 无修改仍通知以及整数时间写入。
