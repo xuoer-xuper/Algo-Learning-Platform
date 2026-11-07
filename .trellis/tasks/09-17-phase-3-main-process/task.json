@@ -16,7 +16,7 @@
   "base_branch": "dev",
   "worktree_path": null,
   "commit": null,
-  "pr_url": null,
+  "pr_url": "https://github.com/xuoer-xuper/Algo-Learning-Platform/pull/8",
   "subtasks": [],
   "children": [],
   "parent": "09-17-spec-alignment",

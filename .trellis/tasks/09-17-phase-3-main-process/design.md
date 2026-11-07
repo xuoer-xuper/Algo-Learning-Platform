@@ -26,6 +26,22 @@ drizzle-kit0.31.11，安装后按实际API和Electron ABI验证，不采用beta�
 
 ## 1. 目标目录
 
+### A2a 题目总览只读查询（A1验收后的下一切片）
+
+以 `research/a2-problem-queries.md` 为行为清单，只转换现有 `problem/overview.ts` 的四条
+查询，保持同步函数及兼容导出口；不移动目录，不改schema、事务、IPC或其他域。
+
+- 每次用 `createDrizzleClient(getDb())` 包装当前连接，不缓存已关闭连接、不新增全局ORM单例。
+- 总题数/平台分布只过滤 `problems.deleted_at IS NULL`；用 `count()` 而非 nullable id 的
+  `count(id)`，分布只按count降序，不新增同分排序保证。
+- 今日访问保持本地日期 `[start,end)` 与distinct problem_id，不增加join或软删除过滤；
+  参数用 `new Date(ms)`，由timestamp_ms列编码。最近活跃仍包含tombstone事件，返回number/null，
+  epoch0不能变null。
+- 新增真实临时库行为测试、旧SQL oracle对照、生命周期/只读/R4无事件断言，纳入test:db。
+  原生Electron repository测试补numeric/epoch0证据。
+- nullable TEXT PK与非空ID DTO政策、recent状态filter-after-limit、写入事务与omnibox分别留到
+  后续切片；不要用类型断言、改schema或过滤掉存量数据偷渡政策。
+
 ### A1 启动契约（2026-11-07，优先于旧基线示例）
 
 A0已提交`e1e3ae0`，PR #8 CI `42337708058`全绿；下一切片按

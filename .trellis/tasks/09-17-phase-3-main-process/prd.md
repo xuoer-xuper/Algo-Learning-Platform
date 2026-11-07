@@ -22,7 +22,7 @@
 
 ### R1 Drizzle ORM + drizzle-kit（D12，A3）
 - `src/main/db/client.ts`（`drizzle(sqlite, { schema })`，pragma WAL/foreign_keys/busy_timeout 保留）、`schema.ts`（实测25张表，时间列 `integer({ mode: 'timestamp_ms' })`，与阶段2毫秒列一致）、`migrate.ts`（安全装配后使用Drizzle migrator）。
-- 历史 001–030 作为**基线**：`drizzle/0000_baseline.sql` = 030 之后的完整 schema；`__drizzle_migrations` 表在已有库上通过检测 `schema_migrations.version === 30` 直接标记基线已应用（自定义一次性引导逻辑，写在 `migrate.ts`，有测试）。旧迁移文件移到 `src/main/db/legacy-migrations/` 只供新库从零建时按序执行到 030，再交给 drizzle。
+- 历史 001–030 作为**基线**：`drizzle/0000_baseline.sql` = 030 之后的完整 schema；已有库必须验证可信资源、连续版本/名称台账及完整物理结构，安全备份后才登记Drizzle基线，不能只检查version最大值。旧迁移保持冻结，目录迁移时移到 `src/main/db/legacy-migrations/`，供新库及未到030的旧库升级，再交给Drizzle。
 - 249 处 `prepare()` 改 Drizzle query builder；114 处 `as Row` 由 `$inferSelect` 消除；`userScript/mutations.ts` 动态 SET 用 `.set(partial)`。
 - `initDbAtPathWithMigrationSafety` 的备份 + failure marker 包住 `migrate()`。
 - `drizzle.config.ts`；`pnpm db:generate` / `db:migrate` 脚本；`DATABASE_SCHEMA.md` 改为"schema.ts 为准 + 表说明"。

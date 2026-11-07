@@ -15,6 +15,7 @@ import {
 import type { DataChangedPayload } from '../../src/shared/types/data.ts'
 import { closeDb, initDbAtPath } from '../../electron/db/connection.ts'
 import {
+  getOverviewStats,
   getProblemDetail,
   getRecentProblems,
   upsertProblem,
@@ -146,6 +147,37 @@ test('wraps the existing Electron SQLite connection with millisecond Date and BL
     sqlite.prepare("SELECT name FROM sqlite_schema WHERE name='__drizzle_migrations'").get(),
     undefined,
   )
+})
+
+test('returns numeric overview counts and preserves epoch zero with the Electron SQLite ABI', () => {
+  const sqlite = getDbForTest()
+  assert.deepStrictEqual(getOverviewStats(), {
+    totalProblems: 0,
+    todayVisited: 0,
+    platformDistribution: [],
+    lastActiveTime: null,
+  })
+  sqlite
+    .prepare(
+      `INSERT INTO problems
+        (id, platform, platform_problem_id, canonical_url, first_seen_at, created_at, updated_at)
+       VALUES (NULL, 'codeforces', 'overview', 'https://example.test/overview', 0, 0, 0)`,
+    )
+    .run()
+  sqlite
+    .prepare(
+      `INSERT INTO activity_events (id, event_type, occurred_at, local_day, created_at, deleted_at)
+       VALUES ('overview', 'visit_start', 0, '1970-01-01', 0, 0)`,
+    )
+    .run()
+  assert.deepStrictEqual(getOverviewStats(), {
+    totalProblems: 1,
+    todayVisited: 0,
+    platformDistribution: [{ platform: 'codeforces', count: 1 }],
+    lastActiveTime: 0,
+  })
+  sqlite.prepare('UPDATE activity_events SET occurred_at = ?').run(1768443630123)
+  assert.strictEqual(getOverviewStats().lastActiveTime, 1768443630123)
 })
 
 test('publishes script changes after native commit and suppresses failed nested writes', () => {

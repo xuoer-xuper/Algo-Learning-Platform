@@ -22,6 +22,12 @@ initDbAtPathWithMigrationSafety(dbPath: string, options: {
 loadMigrationResources(folder: string, expected?: readonly KnownDrizzleMigration[]): MigrationResources
 inspectMigrationState(sqlite, resources, legacy): DrizzleMigrationPlan
 applyDrizzleMigrations(sqlite, resources, legacy): void
+// A2a keeps the existing synchronous public overview API.
+getProblemCount(): number
+getPlatformDistribution(): PlatformDistributionRow[]
+getTodayVisitedCount(): number
+getLastActiveTime(): number | null
+getOverviewStats(): OverviewStats
 ```
 
 Pinned A0 versions: drizzle-orm 0.45.4 and drizzle-kit 0.31.11. `db:generate` reads
@@ -58,6 +64,18 @@ schema code and emits SQL/snapshots; `pull` is the introspection command.
   rollback and real partial-autocommit semantics when replacing queries.
 - Keep schema and migration resource access main-only. No renderer/preload/shared
   imports of database code or Drizzle native bindings.
+- Convert application queries in bounded domain slices without coupling them to
+  the later directory move. Wrap the current native connection at the call site;
+  do not retain an adapter across close/reinitialization or introduce a new global
+  connection/cache. Use synchronous `.get()`/`.all()` for synchronous repository APIs.
+- In problem overview, `count()` counts rows, including nullable legacy IDs;
+  `count(problems.id)` is not equivalent. Count/distribution filter active problems.
+  Distinct daily visits intentionally include tombstones and visits for deleted
+  problems, while latest activity also includes tombstones. Preserve these existing
+  per-query differences; changing them is a separate behavior decision.
+- Use existing local-day `[start,end)` helpers and Date parameters for timestamp_ms
+  comparisons; do not add a fixed 24-hour interval. Latest activity emits `.getTime()`
+  with nullish handling, never a truthiness fallback that converts epoch zero to null.
 
 ## 4. Validation & Error Matrix
 
@@ -77,6 +95,11 @@ schema code and emits SQL/snapshots; `pull` is the introspection command.
 | Malformed existing failure marker | Block startup; absent marker is normal |
 | Repaired hash with the same failed migration tag | Stable `drizzle:<tag>` key still blocks automatic retry |
 | Explicit legacy `migrations: []` | Skip default Drizzle resources and preserve the existing test route |
+| Active problem with null TEXT primary key | Still counted in total/distribution; no schema tightening |
+| Overview on empty database | Zero totals, empty distribution, null latest activity; synchronous |
+| Visit at local day start / next day start | Included / excluded respectively |
+| Latest activity at epoch 0 | Return numeric 0, not null or Date |
+| Read-only overview after connection reinitialization | Uses new current connection; no writes/events/migrations |
 
 ## 5. Good / Base / Bad Cases
 
@@ -114,6 +137,13 @@ schema code and emits SQL/snapshots; `pull` is the introspection command.
   negative tests exercise the production safe initializer before DB creation; they
   are not evidence of launching a corrupted packaged executable. Keep RunAsNode off
   in the packaged executable.
+- A2a compares overview against the original SQL under a frozen test clock. Include
+  empty, nullable-ID, zero deletion timestamp, distinct visits, local-day boundaries,
+  tombstones and millisecond/epoch-zero results; retain native Electron ABI coverage.
+  Distribution ties are unspecified: do not invent a secondary sort for a refactor.
+- Fix obsolete string timestamps only in current-schema fixtures when their query
+  is converted. Historical migration/export fixtures intentionally contain strings.
+  Do not make production Date decoding accept stale test data or assert Date as number.
 
 ## 7. Wrong vs Correct
 
@@ -130,6 +160,9 @@ id: text('id')
 // Wrong: adopting solely because MAX(version) === 30 or the last hash matches.
 // Correct: validate resources, all legacy/Drizzle rows, full baseline schema and
 // integrity, then back up before baseline marking and later migration writes.
+
+// Wrong: count(problems.id), or latest?.occurred_at.getTime() || null.
+// Correct: count() for total rows; latest?.occurred_at.getTime() ?? null for zero.
 ```
 
 ## A1 Safe Migration Activation

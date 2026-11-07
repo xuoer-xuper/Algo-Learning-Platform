@@ -11,6 +11,7 @@
 {"file": ".trellis/spec/backend/api-patterns.md", "reason": "反模式"}
 {"file": ".trellis/spec/backend/database.md", "reason": "Drizzle client/schema/migrate"}
 {"file": ".trellis/spec/project/drizzle-adoption.md", "reason": "A0 schema equivalence and ownership boundaries"}
+{"file": ".trellis/tasks/09-17-phase-3-main-process/research/a2-problem-queries.md", "reason": "A2a overview-only behavior, Date encoding, null/zero and native ABI tests"}
 {"file": ".trellis/tasks/09-17-phase-3-main-process/research/a1-migration-protocol.md", "reason": "A1 resources, ledger/schema validation, backup/marker and packaging protocol"}
 {"file": ".trellis/tasks/09-17-phase-3-main-process/research/drizzle-installed-contract.md", "reason": "Installed Drizzle migrator actual ledger and transaction behavior"}
 {"file": ".trellis/spec/backend/quality.md", "reason": "import 路径与 BARE SQL"}

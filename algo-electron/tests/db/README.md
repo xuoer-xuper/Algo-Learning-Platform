@@ -11,6 +11,7 @@
 - `drizzleMigrationResources.test.ts`：可信SQL/journal完整集合、hash/顺序/时间/路径、缺失或篡改资源在开库前拒绝，以及开发/打包解析路径。
 - `drizzleMigrationSafety.test.ts`：默认异步安全入口的新库/030基线登记、幂等重启、Drizzle-only备份、后续迁移失败全量恢复、同tag修复后重试阻断、backup期间资源变更、无额外R4通知与显式legacy-only override。
 - `drizzleMigrationValidation.test.ts`：完整legacy/Drizzle前缀、隐藏列/默认值/CHECK/索引/FK/DDL子句、注释伪装与baseline-only重启结构漂移；拒绝未知结构且不默默修复。
+- `problemOverview.test.ts`：A2a四条总览Drizzle只读查询与原SQL等价，覆盖nullable ID按行计数、本地日期边界、tombstone、epoch0/null/毫秒、无写入/通知及关闭重开；原生Electron仓库套件补数字输出验证。
 - `codeforcesSubmissionIdMigration.test.ts`：Codeforces 提交 ID migration 兼容。
 - `problemContextMigration.test.ts`：题目上下文字段 migration 兼容。
 - `backupImport.test.ts`：SQLite 备份、学习数据 JSON 导出/导入、冲突检测和 Cookie/`raw_json` 排除。

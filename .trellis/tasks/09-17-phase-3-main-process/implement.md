@@ -25,9 +25,19 @@
 - [x] 打包SQL/journal到resources并测试，架构守卫覆盖新DB路径且不放开其他main模块SQL。
 - [x] 增加fresh/历史升级/结构漂移/坏台账/资源/后续失败恢复/重试阻断/原生打包验收。
 - [x] 独立复核无遗留问题；test:all197文件/1665用例、UI11/11、build:win通过。
-- [ ] 提交推送与CI；通过后再逐域替换应用查询。
+- [x] A1提交`1ba968b`已推送，CI `42373778745`两项全绿；继续A2a。
 
 验收记录：[A1安全迁移接管](./a1-verification-2026-11-07.md)。基线SQL/冻结legacy未改，用户原库未操作。
+
+## 下一切片 A2a：题目总览只读查询
+
+详见 `research/a2-problem-queries.md`；A1已推送且CI通过，A2a已进入实施。
+
+- [x] 只转换 `problem/overview.ts` 四条查询，保留同步输出、日期边界、现有tombstone语义及零值。
+- [x] `problemOverview.test.ts`覆盖空库、nullable ID计数、distinct/day边界、tombstone、epoch0、
+  毫秒、旧SQL结果对照、关闭重开与无写入/无通知；接入test:db并补原生ABI用例。
+- [x] 独立复核、typecheck/lint、test:db、test:all；更新领域README及规范。
+- [ ] 提交推送与CI；再选择下一problem域查询切片。
 
 ## PR A：Drizzle（`refactor/drizzle`，约 4 天）
 - [x] Drizzle依赖、`drizzle.config.ts`、`src/main/db/client.ts`、`schema.ts`（25表，A0先验证）。
