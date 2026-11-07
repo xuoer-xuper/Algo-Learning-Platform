@@ -1,5 +1,6 @@
 import fs from 'node:fs'
 import path from 'node:path'
+import { z } from 'zod'
 
 interface BackupCapableDatabase {
   backup(destinationFile: string): Promise<unknown>
@@ -10,9 +11,24 @@ export interface MigrationFailureMarker {
   backupPath: string
   failedAt: string
   pendingMigrations: Array<{ version: number; name: string }>
+  pendingMigrationKeys?: string[]
   error: string
   restoreError?: string
 }
+
+const migrationFailureMarkerSchema = z.object({
+  databasePath: z.string().min(1),
+  backupPath: z.string().min(1),
+  failedAt: z.string().min(1),
+  pendingMigrations: z.array(
+    z.object({ version: z.number().int().positive(), name: z.string().min(1) }),
+  ),
+  pendingMigrationKeys: z
+    .array(z.string().regex(/^(?:legacy:[1-9]\d*|drizzle:\d{4}_[a-zA-Z0-9_-]+)$/))
+    .optional(),
+  error: z.string(),
+  restoreError: z.string().optional(),
+})
 
 export class MigrationRetryBlockedError extends Error {
   constructor(readonly markerPath: string) {
@@ -29,14 +45,24 @@ export function assertMigrationRetryAllowed(
   backupDir: string,
   databasePath: string,
   pendingMigrations: ReadonlyArray<{ version: number; name: string }>,
+  pendingMigrationKeys: readonly string[] = [],
 ): void {
   const markerPath = getMigrationFailureMarkerPath(backupDir, databasePath)
   if (!fs.existsSync(markerPath)) return
 
   try {
-    const marker = JSON.parse(fs.readFileSync(markerPath, 'utf8')) as MigrationFailureMarker
-    const blockedVersions = new Set(marker.pendingMigrations.map((migration) => migration.version))
-    if (pendingMigrations.some((migration) => blockedVersions.has(migration.version))) {
+    const marker = migrationFailureMarkerSchema.parse(
+      JSON.parse(fs.readFileSync(markerPath, 'utf8')),
+    )
+    const blockedKeys = new Set([
+      ...marker.pendingMigrations.map(({ version }) => `legacy:${version}`),
+      ...(marker.pendingMigrationKeys ?? []),
+    ])
+    const currentKeys = [
+      ...pendingMigrations.map(({ version }) => `legacy:${version}`),
+      ...pendingMigrationKeys,
+    ]
+    if (currentKeys.some((key) => blockedKeys.has(key))) {
       throw new MigrationRetryBlockedError(markerPath)
     }
   } catch (error) {

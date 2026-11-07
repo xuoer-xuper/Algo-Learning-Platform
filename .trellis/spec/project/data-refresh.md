@@ -40,6 +40,11 @@ window.api.data.onChanged(handler: (payload: DataChangedPayload) => void): () =>
 - Emit only after the statement succeeds, and skip operations that changed no
   rows. Payloads contain topic names only, never records, IDs, credentials, cookie
   values, URLs, or local paths.
+- Narrow legacy-compatibility exception during ORM adoption: `upsertProblem` has
+  always emitted `problems`/`stats` after a successful existing-row UPDATE even if
+  a nullable stored ID makes `WHERE id = ?` with bound null match nothing. Preserve
+  that notification and real statement/error execution; do not generalize it to
+  new no-op mutations. Outer rollback/COMMIT failure still discards those topics.
 - Wrap the synchronous **transaction invocation**, including commit, in
   `withDataChangeTransaction`. Successful nested scopes merge into the parent;
   failed scopes discard their own changes and rethrow. The outermost successful
@@ -101,6 +106,7 @@ window.api.data.onChanged(handler: (payload: DataChangedPayload) => void): () =>
 | --- | --- |
 | Successful standalone mutation | Publish its logical topics |
 | No-op mutation or duplicate insert rejected | No mutation notification |
+| Legacy problem upsert with a matching null-ID row | Run the bound-null UPDATE; retain its successful post-statement notification, but none on failure/rollback |
 | Outer transaction fails or commit throws | Publish none of that scope's topics |
 | Inner rollback caught, outer commit succeeds | Publish only successful outer topics |
 | Earlier autocommit succeeds, later batch item fails | Preserve notification for earlier commit |

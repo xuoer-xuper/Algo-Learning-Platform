@@ -4,6 +4,11 @@
 
 数据库使用 SQLite，访问库推荐 `better-sqlite3`。数据库只允许 Main Process 访问，Renderer 必须通过 IPC 获取数据。
 
+阶段3新增 `algo-electron/src/main/db/schema.ts` 作为030后结构的Drizzle映射，覆盖25表与
+82个timestamp_ms列；`createDrizzleClient(sqlite)`仅包装既有连接。A1默认异步安全初始化在
+legacy001–030之后校验结构与台账、登记Drizzle基线，再处理后续迁移，备份/恢复仍由既有
+`electron/db/connection.ts`拥有。ORM读出的Date只在内部使用，IPC仍传整数毫秒；业务查询逐域迁移。
+
 设计目标：
 
 - 本地优先。
@@ -107,6 +112,20 @@ runner 在事务外暂时关闭，提交前检查、finally 恢复；失败恢�
 上述元数据保留仅针对合法日期键。早期统计对数字毫秒文本截取前10位产生的十位数字伪日期
 缓存，在030中识别后删除并从事实重建，不能当成有效 local_day；旧缓存留在迁移前备份。
 其他非法日期仍中止迁移，不删除题目/访问/提交事实。
+
+### 2.2 Drizzle 基线与台账
+
+`drizzle/0000_baseline.sql` 及 `meta/_journal.json` 是版本控制的可信迁移资源。运行时校验
+编译固定的tag/when/SHA256、完整资源集合、legacy连续版本和名称；不能只看MAX(version)=30。
+已有030库通过完整物理结构/FK/integrity检查后，仅登记基线，不重复CREATE应用表。
+
+Drizzle自己的 `__drizzle_migrations` 不属于25张旧schema表，其定义遵循固定版本ORM：
+`id SERIAL PRIMARY KEY`、`hash TEXT NOT NULL`、`created_at NUMERIC`。SERIAL不是SQLite的
+INTEGER rowid别名，id可能为空；正确性由已知hash/timestamp连续前缀保证，不猜id序列。
+baseline-only库继续校验030结构，未来非baseline版本须增加对应结构契约，不能拿旧表结构误判。
+
+缺失/损坏资源、未知或跳号台账、结构漂移均安全失败；不自动修复用户自定义列/view/trigger。
+资源从开发appRoot/drizzle或打包resources/drizzle解析，不依赖启动cwd。
 
 ## 3. Phase 1 核心表
 

@@ -7,8 +7,11 @@
 > Plan and evidence: `.trellis/tasks/archive/2026-09/00-bootstrap-guidelines/research/spec-alignment-plan.md`,
 > `spec-alignment-report.md`, `reinvented-wheels-audit.md`.
 
-Last reviewed: 2026-11-06. Phase 2 PR6/PR7 are merged into `dev` as `d9f5583`/`b74773b`;
-dev CI `42224226176` passed. Phase 2 is archived; phase 3 starts with a bounded Drizzle foundation.
+Last reviewed: 2026-11-07. Phase 2 PR6/PR7 are merged and archived. Phase 3 A0/A1 add
+the verified Drizzle schema/client and safe migration adoption on `refactor/drizzle`.
+The existing native lifecycle owns backup/restore. A2a converts only problem overview's
+four read statements, A2b converts platform-key ID lookup, and A2c converts the
+three-statement problem upsert path; other queries await their own domain slices.
 
 ---
 
@@ -35,7 +38,7 @@ dev CI `42224226176` passed. Phase 2 is archived; phase 3 starts with a bounded 
 | Logging | ✅ 1.1（2026-11-01）：**electron-log 5.4.4**，`logger.scope()` + 脱敏 hook（原 regex 全量迁移 + `cookie=`）；RUN_AS_NODE 下文件 transport 关闭 | 同左 | 1.2 |
 | Config | ✅ 1.1（2026-11-01）：**electron-store 12**（原子存储层）+ zod 单层校验（`.default()`/`.catch()` 取代 normalizers）；conf 16 的 schema 校验会"坏文件即拒启"，与不清空红线冲突——故 schema 不传给 electron-store | 同左 | 1.3 |
 | Dev/prod isolation | ✅ 1.1（2026-11-01）：`envSetup.ts` 为 main.ts 首个 import（架构守卫强制），非打包且无冒烟 env 时 userData 加 `-dev`；冒烟覆盖优先 | 同左 | 1.3 |
-| Database | better-sqlite3 with repositories and hand-written migrations 001-030; 030 uses guarded FK-safe rebuild, pre-backup and retry marker | **Drizzle ORM** schema + `drizzle-kit` migrations; 001-030 baseline; preserve backup safety | 3.1 |
+| Database | A1: Drizzle0.45.4/Kit0.31.11 schema/client and safe migration coordinator in `src/main/db`; default async initialization validates resources/history/physical030 schema, adopts the baseline and delegates later migrations. Existing connection owner retains backup/restore. A2a-A2c: overview, platform-key ID lookup and problem upsert use Drizzle, retaining legacy nullable-ID/write-notification contracts; delete and other queries remain native. | Continue application query conversion by domain, then move lifecycle and frozen legacy migrations with the main-process layout | 3.1 |
 | Timestamps | R5: 82 INTEGER Unix-ms columns, numeric live writers/IPC/shared schemas, display-only Intl; strict history-derived local/UTC+8/SQLite `.0` conversion. Reconstructed 21/24/29 and isolated actual 24/29 copies pass; original user DBs unchanged. | Numeric timestamp target reached; future Drizzle uses timestamp_ms. See `unix-millisecond-time.md`. | 2.5 |
 | Result shape | ✅ 1.1（2026-11-01）：20 处真正的 IPC 返回统一为 `createOutputSchema()` 判别联合（6 个封闭 `code`）；34 处 `{ok:}` 经复核确认是内部校验器/运行时协议形状、不跨 IPC 边界，不转换 | 同左 | 1.4 |
 | Event bus | 9 hand-written `Set<callback>` buses + 3 `EventEmitter` | typed `EventEmitter` wrapper | 3.6 |

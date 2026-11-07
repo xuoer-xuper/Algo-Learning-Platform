@@ -13,6 +13,7 @@ import {
 import provenance from './fixtures/provenance.json'
 import { TIMESTAMP_COLUMNS } from '../../electron/db/timestampColumns'
 import { toLocalDay } from '../../src/shared/time'
+import { drizzleRows, expectedDrizzleRows } from './drizzle-migration-test-helpers'
 
 const fixtureRoot = path.join(process.cwd(), 'tests/db/fixtures')
 const directories: string[] = []
@@ -268,7 +269,7 @@ function stableFacts(db: Database.Database) {
 function schemaObjects(db: Database.Database) {
   return db
     .prepare(
-      `SELECT type, name, sql FROM sqlite_master WHERE sql IS NOT NULL AND name NOT LIKE 'sqlite_%' ORDER BY type, name`,
+      `SELECT type, name, sql FROM sqlite_master WHERE sql IS NOT NULL AND name NOT GLOB 'sqlite_*' AND name != '__drizzle_migrations' ORDER BY type, name`,
     )
     .all()
 }
@@ -388,6 +389,7 @@ describe('pinned historical schema reconstruction', () => {
           toLocalDay(Date.parse(OFFSET)) === toLocalDay(Date.parse(LOCAL)) ? 1 : 0,
       })
       expect(db.pragma('foreign_key_check')).toEqual([])
+      expect(drizzleRows(db)).toEqual(expectedDrizzleRows())
       expect(db.pragma('integrity_check', { simple: true })).toBe('ok')
       expect(db.prepare('SELECT typeof(first_seen_at) AS type FROM problems').get()).toEqual({
         type: 'integer',
@@ -469,6 +471,7 @@ describe('pinned historical schema reconstruction', () => {
         { version: 30, name: 'timestamps_to_unix_ms' },
       ])
       expect(stableFacts(reopened)).toEqual(actualFacts)
+      expect(drizzleRows(reopened)).toEqual(expectedDrizzleRows())
       expect(backupFiles(backupDir)).toEqual(backups)
     },
   )

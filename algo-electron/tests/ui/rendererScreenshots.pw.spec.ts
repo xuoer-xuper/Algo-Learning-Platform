@@ -11,6 +11,12 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { MAIN_WINDOW_BOUNDS } from '../../electron/app/windowBounds'
 import type { InternalPage } from '@shared/types/browser'
+import {
+  installNativeInputDiagnostics,
+  readNativeInputDiagnostics,
+  readNativeWindowDiagnostics,
+  rethrowWithNativeInputDiagnostics,
+} from './native-input-diagnostics'
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const tmpRoot = path.join(projectRoot, 'tmp')
@@ -285,26 +291,52 @@ async function launchScenario(scenario: {
 }
 
 async function assertNativeViewport(app: ElectronApplication, page: Page): Promise<void> {
-  await expect
-    .poll(() =>
-      app.evaluate(({ BrowserWindow }) => {
-        const window = BrowserWindow.getAllWindows()[0]
-        return Boolean(window?.isVisible() && window.isFocused())
-      }),
-    )
-    .toBe(true)
-  await expect.poll(() => page.evaluate(() => document.hasFocus())).toBe(true)
-  const viewport = await page.evaluate(() => ({
-    width: window.innerWidth,
-    height: window.innerHeight,
-  }))
-  expect(viewport.width).toBeGreaterThanOrEqual(MAIN_WINDOW_BOUNDS.minWidth)
-  expect(viewport.height).toBeGreaterThanOrEqual(MAIN_WINDOW_BOUNDS.minHeight)
+  try {
+    await page.evaluate(installNativeInputDiagnostics, 256)
+  } catch (error) {
+    try {
+      console.warn('Unable to install native input diagnostics', error)
+    } catch {
+      // Installation is best effort; native readiness assertions remain authoritative.
+    }
+  }
+  try {
+    await expect
+      .poll(() =>
+        app.evaluate(({ BrowserWindow }) => {
+          const window = BrowserWindow.getAllWindows()[0]
+          return Boolean(window?.isVisible() && window.isFocused())
+        }),
+      )
+      .toBe(true)
+    await expect.poll(() => page.evaluate(() => document.hasFocus())).toBe(true)
+    const viewport = await page.evaluate(() => ({
+      width: window.innerWidth,
+      height: window.innerHeight,
+    }))
+    expect(viewport.width).toBeGreaterThanOrEqual(MAIN_WINDOW_BOUNDS.minWidth)
+    expect(viewport.height).toBeGreaterThanOrEqual(MAIN_WINDOW_BOUNDS.minHeight)
 
-  const zoomFactor = await app.evaluate(({ BrowserWindow }) => {
-    return BrowserWindow.getAllWindows()[0]?.webContents.getZoomFactor() ?? 0
+    const zoomFactor = await app.evaluate(({ BrowserWindow }) => {
+      return BrowserWindow.getAllWindows()[0]?.webContents.getZoomFactor() ?? 0
+    })
+    expect(zoomFactor).toBeCloseTo(1, 3)
+  } catch (error) {
+    await attachNativeInputFailure(error, app, page, 'native-readiness')
+  }
+}
+
+function attachNativeInputFailure(
+  error: unknown,
+  app: ElectronApplication,
+  page: Page,
+  name: string,
+): Promise<never> {
+  return rethrowWithNativeInputDiagnostics(error, {
+    renderer: () => page.evaluate(readNativeInputDiagnostics),
+    native: () => app.evaluate(readNativeWindowDiagnostics),
+    attach: (body) => test.info().attach(name, { body, contentType: 'application/json' }),
   })
-  expect(zoomFactor).toBeCloseTo(1, 3)
 }
 
 async function openInternalPageTab(
@@ -770,14 +802,18 @@ for (const scenario of viewportScenarios) {
 test('native tab strip overflows horizontally and reorders with a pointer drag', async () => {
   const scenario = viewportScenarios.find((candidate) => candidate.name === 'narrow')!
   const electronApp = await launchScenario(scenario)
+  let diagnosticPage: Page | undefined
+  let readyForDrag = false
 
   try {
     const page = await electronApp.firstWindow()
+    diagnosticPage = page
     // firstWindow() 可能在 harness 模块求值完成前解析；截图用例靠 DOM 断言的自动轮询
     // 间接等到 mock，这里第一个动作就直调 window.api，必须显式等 mock 就绪，
     // 否则偶发 ReferenceError（复核 2026-11-01：先于 R4 的既有竞态，父提交可复现）。
     await page.waitForFunction(() => 'api' in window, undefined, { timeout: 15000 })
     await assertNativeViewport(electronApp, page)
+    readyForDrag = true
     await page.evaluate(async () => {
       for (let index = 0; index < 12; index += 1) {
         await window.api.tab.openInternal({ type: 'notes', problemId: `drag-${index}` })
@@ -842,6 +878,11 @@ test('native tab strip overflows horizontally and reorders with a pointer drag',
       elements.map((element) => element.getAttribute('data-tab-id')),
     )
     expect(after.filter((tabId) => tabId !== before[0])).toEqual(before.slice(1))
+  } catch (error) {
+    // Readiness failures already carry their own attachment; dump before closing the window.
+    if (diagnosticPage && readyForDrag)
+      await attachNativeInputFailure(error, electronApp, diagnosticPage, 'native-tab-drag')
+    throw error
   } finally {
     await electronApp.close()
   }

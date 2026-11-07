@@ -98,3 +98,65 @@ test('fails closed when a migration marker is unreadable', () => {
     fs.rmSync(tempDir, { recursive: true, force: true })
   }
 })
+
+test('blocks logical Drizzle keys independently of legacy versions and repaired resource hashes', () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'algo-migration-marker-drizzle-'))
+  const databasePath = path.join(tempDir, 'algo-learning.sqlite')
+  const backupDir = path.join(tempDir, 'backups')
+  try {
+    writeMigrationFailureMarker(backupDir, databasePath, {
+      databasePath,
+      backupPath: path.join(backupDir, 'backup.sqlite'),
+      failedAt: '2026-11-07',
+      pendingMigrations: [{ version: 30, name: 'timestamps_to_unix_ms' }],
+      pendingMigrationKeys: ['drizzle:0000_baseline', 'drizzle:0001_future'],
+      error: 'failed',
+    })
+    assert.throws(
+      () => assertMigrationRetryAllowed(backupDir, databasePath, [], ['drizzle:0001_future']),
+      MigrationRetryBlockedError,
+    )
+    assert.throws(
+      () =>
+        assertMigrationRetryAllowed(backupDir, databasePath, [{ version: 30, name: 'renamed' }]),
+      MigrationRetryBlockedError,
+    )
+    assert.doesNotThrow(() =>
+      assertMigrationRetryAllowed(backupDir, databasePath, [], ['drizzle:0002_other']),
+    )
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true })
+  }
+})
+
+test.each([
+  {},
+  { pendingMigrationKeys: ['drizzle:../outside'] },
+  { pendingMigrationKeys: [123] },
+  { pendingMigrationKeys: 'drizzle:0000_baseline' },
+  { pendingMigrations: [{ version: '30', name: 'wrong-type' }] },
+])('fails closed on malformed marker fields: %j', (corrupt) => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'algo-migration-marker-shape-'))
+  const databasePath = path.join(tempDir, 'algo-learning.sqlite')
+  const backupDir = path.join(tempDir, 'backups')
+  try {
+    const markerPath = writeMigrationFailureMarker(backupDir, databasePath, {
+      databasePath,
+      backupPath: 'backup.sqlite',
+      failedAt: '2026-11-07',
+      pendingMigrations: [],
+      error: 'failed',
+    })
+    const valid: Record<string, unknown> = JSON.parse(fs.readFileSync(markerPath, 'utf8'))
+    fs.writeFileSync(
+      markerPath,
+      JSON.stringify(Object.keys(corrupt).length ? { ...valid, ...corrupt } : corrupt),
+    )
+    assert.throws(
+      () => assertMigrationRetryAllowed(backupDir, databasePath, []),
+      MigrationRetryBlockedError,
+    )
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true })
+  }
+})

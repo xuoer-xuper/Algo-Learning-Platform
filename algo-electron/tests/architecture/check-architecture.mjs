@@ -124,6 +124,33 @@ check('src/shared stays process-neutral (no electron imports)', () => {
   ])
 })
 
+check('database modules and native bindings stay main-only', () => {
+  const files = sourceFiles().filter((file) => {
+    const name = relative(file)
+    return (name.startsWith('src/') && !name.startsWith('src/main/')) || /preload\.ts$/i.test(name)
+  })
+  const failures = []
+  for (const file of files) {
+    const imports = read(file).matchAll(
+      /\b(?:from\s+|import\s*\(\s*|require\s*\(\s*|import\s+)['"]([^'"]+)['"]/g,
+    )
+    for (const [, imported] of imports) {
+      const resolved = imported.startsWith('.')
+        ? relative(path.resolve(path.dirname(file), imported))
+        : imported
+      if (
+        /^(?:better-sqlite3|drizzle-orm)(?:\/|$)/.test(imported) ||
+        /^(?:src\/main\/db|electron\/db|@main\/db)(?:\/|$)/.test(resolved)
+      ) {
+        failures.push(
+          `${relative(file)}: database import ${imported} is restricted to the main process`,
+        )
+      }
+    }
+  }
+  if (failures.length > 0) throw new Error(failures.join('\n'))
+})
+
 check('exported type declarations have a single source', () => {
   const duplicates = findDuplicateExportedTypes(
     sourceFiles()
@@ -361,17 +388,21 @@ check('z.unknown() payload escapes stay capped', () => {
   })
 })
 
-check('bare SQL stays inside electron/db/', () => {
-  const files = walkSourceFiles(path.join(projectRoot, 'electron')).filter(
-    (file) => !relative(file).startsWith('electron/db/'),
+check('bare SQL stays inside electron/db/ or src/main/db/', () => {
+  const files = [
+    ...walkSourceFiles(path.join(projectRoot, 'electron')),
+    ...walkSourceFiles(path.join(projectRoot, 'src', 'main')),
+  ].filter(
+    (file) =>
+      !relative(file).startsWith('electron/db/') && !relative(file).startsWith('src/main/db/'),
   )
 
   checkRatchet({
     files,
     budgets: BARE_SQL_BUDGET,
     countMatches: countBareSql,
-    describe: (count) => `在 electron/db/ 之外构造了 ${count} 处 SQL 语句`,
-    cleanupHint: '查询应放进 electron/db/repositories/ 下的 repository，由业务层调用',
+    describe: (count) => `在 electron/db/ 或 src/main/db/ 之外构造了 ${count} 处 SQL 语句`,
+    cleanupHint: '查询应放进数据库边界 electron/db/ 或 src/main/db/，由业务层调用',
   })
 })
 

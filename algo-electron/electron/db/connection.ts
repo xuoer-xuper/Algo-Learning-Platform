@@ -2,6 +2,13 @@ import Database from 'better-sqlite3'
 import path from 'node:path'
 import fs from 'node:fs'
 import { createRequire } from 'node:module'
+import { fileURLToPath } from 'node:url'
+import {
+  loadMigrationResources,
+  resolveMigrationFolder,
+  type KnownDrizzleMigration,
+} from '../../src/main/db/migration-resources'
+import { applyDrizzleMigrations, inspectMigrationState } from '../../src/main/db/migrate'
 import { logger as baseLogger, type Logger } from '../shared/logger'
 import { closeOrphanProblemVisits } from '../tracking/orphanProblemVisits'
 import {
@@ -93,7 +100,9 @@ export async function initDb(): Promise<Database.Database> {
   if (db) return db
   if (dbInitialization) return dbInitialization
 
-  const electron = require('electron') as { app?: { getPath: (name: string) => string } }
+  const electron = require('electron') as {
+    app?: { getPath: (name: string) => string; getAppPath: () => string; isPackaged: boolean }
+  }
   if (!electron.app) {
     throw new Error('Electron app is not available. Use initDbAtPath() in Node tests.')
   }
@@ -102,12 +111,22 @@ export async function initDb(): Promise<Database.Database> {
   const dataDir = path.join(userDataDir, 'data')
   const dbPath = path.join(dataDir, 'algo-learning.sqlite')
   const backupDir = path.join(userDataDir, 'backups')
-  const initialization = initDbAtPathWithMigrationSafety(dbPath, { backupDir })
+  const initialization = initDbAtPathWithMigrationSafety(dbPath, {
+    backupDir,
+    drizzle: {
+      folder: resolveMigrationFolder({
+        packaged: electron.app.isPackaged,
+        appRoot: electron.app.getAppPath(),
+        resourcesPath: process.resourcesPath,
+      }),
+    },
+  })
   dbInitialization = initialization
   void initialization.then(clearDatabaseInitialization, clearDatabaseInitialization)
   return initialization
 }
 
+/** Legacy-only synchronous test helper; production uses the backed-up async initializer. */
 export function initDbAtPath(dbPath: string): Database.Database {
   if (db) return db
   if (dbInitialization) throw new Error('Database initialization is already in progress.')
@@ -127,6 +146,7 @@ export function initDbAtPath(dbPath: string): Database.Database {
 export interface SafeDatabaseInitializationOptions {
   backupDir: string
   migrations?: readonly Migration[]
+  drizzle?: { folder: string; expected?: readonly KnownDrizzleMigration[] }
   logger?: Logger
   now?: () => Date
 }
@@ -138,13 +158,25 @@ export async function initDbAtPathWithMigrationSafety(
   if (db) return db
   const logger = options.logger ?? baseLogger
   const migrations = options.migrations ?? allMigrations
+  // Explicit legacy test overrides, including [], never activate default Drizzle resources.
+  const resources =
+    options.migrations !== undefined
+      ? null
+      : loadMigrationResources(
+          options.drizzle?.folder ?? fileURLToPath(new URL('../../drizzle', import.meta.url)),
+          options.drizzle?.expected,
+        )
   const database = openDatabase(dbPath)
   let backupPath: string | null = null
-  const pendingMigrations = getPendingMigrations(database, migrations)
+  let pendingMigrations: readonly Pick<Migration, 'version' | 'name'>[] = []
+  let pendingMigrationKeys: readonly string[] | undefined
 
   try {
-    assertMigrationRetryAllowed(options.backupDir, dbPath, pendingMigrations)
-    if (pendingMigrations.length > 0) {
+    const plan = resources ? inspectMigrationState(database, resources, allMigrations) : null
+    pendingMigrations = plan?.pendingLegacy ?? getPendingMigrations(database, migrations)
+    pendingMigrationKeys = plan?.pendingKeys
+    assertMigrationRetryAllowed(options.backupDir, dbPath, pendingMigrations, pendingMigrationKeys)
+    if (pendingMigrations.length > 0 || (pendingMigrationKeys?.length ?? 0) > 0) {
       backupPath = await createPreMigrationBackup(
         database,
         dbPath,
@@ -154,10 +186,12 @@ export async function initDbAtPathWithMigrationSafety(
       logger.info('db.pre-migration-backup-completed', {
         backupPath,
         pendingVersions: pendingMigrations.map((migration) => migration.version),
+        ...(pendingMigrationKeys ? { pendingMigrationKeys } : {}),
       })
     }
 
     runMigrations(database, migrations, logger)
+    if (resources) applyDrizzleMigrations(database, resources, allMigrations)
     closeStartupOrphans(database, logger)
     clearMigrationFailureMarker(options.backupDir, dbPath)
     assignDatabase(database, dbPath)
@@ -184,6 +218,7 @@ export async function initDbAtPathWithMigrationSafety(
       backupPath,
       failedAt: new Date().toISOString(),
       pendingMigrations: pendingMigrations.map(({ version, name }) => ({ version, name })),
+      ...(pendingMigrationKeys ? { pendingMigrationKeys: [...pendingMigrationKeys] } : {}),
       error: errorMessage(error),
       ...(restoreError ? { restoreError: errorMessage(restoreError) } : {}),
     })

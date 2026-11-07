@@ -9,8 +9,8 @@
 - 引擎：SQLite
 - 访问库：`better-sqlite3`
 - 数据库路径：`app.getPath('userData')/data/algo-learning.sqlite`
-- 迁移记录表：`schema_migrations`
-- 迁移执行入口：`electron/db/connection.ts` 和 `electron/db/migrate.ts`
+- 迁移记录表：legacy `schema_migrations` 与 Drizzle `__drizzle_migrations`
+- 迁移执行入口：`electron/db/connection.ts` 管生命周期和备份；legacy执行器及 `src/main/db/` 安全Drizzle协调器
 
 ## 2. 基本原则
 
@@ -172,6 +172,20 @@ migration 026 创建 `site_credentials` 作为凭据数据地基。活动行必�
 migration 027 扩展 `user_scripts` metadata，并从存量源码重新拆分旧版混存的 `@match/@include`；同时创建 values、BLOB 资源、host 授权和更新状态四张级联表。SQLite 无法可靠地通过简单 `down` 删除新增列，因此 027 失败或需要回到旧版本时必须恢复迁移前完整数据库备份，不能只删除四张表或手工把版本号改回 026。自动迁移安全测试已覆盖 027 成功后紧随 migration 失败时恢复到无新增列/表的原数据库。
 
 ## 10. 验证命令
+
+### Drizzle 接管后的恢复边界
+
+- 资源tag/journal/SQL hash在打开目标数据库之前校验。完整legacy台账和030结构验证后才能
+  登记基线，禁止直接把MAX(version)=30当作可信。
+- 即使legacy没有pending，Drizzle基线登记或后续迁移也需要备份。一次SQLite一致备份覆盖
+  legacy升级、基线登记及后续Drizzle事务；后一步失败仍恢复整个尝试之前的数据库。
+- failure marker保留旧`pendingMigrations`数组，并增加可选`pendingMigrationKeys`，格式
+  `legacy:<version>`/`drizzle:<tag>`。同一逻辑迁移失败后改SQL hash不能自动绕过重试闸门。
+- 没有failure marker是正常状态；已有marker损坏、跳号/未知/重复/未来Drizzle记录或结构漂移均拒绝，不清空数据继续启动。
+- 生产走默认异步安全入口。同步`initDbAtPath`及显式`migrations`（含空列表）只是已约定的
+  legacy测试注入路径，不用于绕过生产基线校验。迁移资源不允许通过环境变量随意替换。
+- 打包仅带SQL及journal；`extraResources`的resources/drizzle必须存在且与编译hash匹配。
+  恢复时使用受保护备份，不编辑台账伪造已升级，不运行Drizzle push直接改用户库。
 
 ### migration 030 的恢复边界
 

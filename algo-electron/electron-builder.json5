@@ -20,6 +20,13 @@
   extraMetadata: {
     main: 'dist-electron/main.js',
   },
+  extraResources: [
+    {
+      from: 'drizzle',
+      to: 'drizzle',
+      filter: ['*.sql', 'meta/_journal.json'],
+    },
+  ],
   files: [
     'dist/**',
     'dist-electron/**',

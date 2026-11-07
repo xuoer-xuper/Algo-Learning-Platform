@@ -3,6 +3,9 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import type Database from 'better-sqlite3'
+import { eq } from 'drizzle-orm'
+import { createDrizzleClient } from '../../src/main/db/client'
+import { notes as ormNotes, userScriptResources as ormResources } from '../../src/main/db/schema'
 import { subscribeDataChanges } from '../../electron/shared/dataEvents.ts'
 import { runUserScriptTransaction } from '../../electron/db/repositories/userScript/mutations.ts'
 import {
@@ -12,6 +15,8 @@ import {
 import type { DataChangedPayload } from '../../src/shared/types/data.ts'
 import { closeDb, initDbAtPath } from '../../electron/db/connection.ts'
 import {
+  findProblemIdByPlatformKey,
+  getOverviewStats,
   getProblemDetail,
   getRecentProblems,
   upsertProblem,
@@ -83,6 +88,177 @@ function test(name: string, fn: () => void) {
 
 const day = '2026-07-03'
 const now = Date.parse(`${day}T10:00:00+08:00`)
+
+test('wraps the existing Electron SQLite connection with millisecond Date and BLOB fidelity', () => {
+  const sqlite = getDbForTest()
+  const orm = createDrizzleClient(sqlite)
+  assert.strictEqual(orm.$client, sqlite)
+  orm
+    .insert(ormNotes)
+    .values({
+      id: 'orm-note',
+      title: 'Synthetic ORM',
+      file_path: 'synthetic.md',
+      created_at: new Date(0),
+      updated_at: new Date(1768443630123),
+      deleted_at: null,
+    })
+    .run()
+  const note = orm.select().from(ormNotes).where(eq(ormNotes.id, 'orm-note')).get()
+  assert.ok(note)
+  assert.strictEqual(note.created_at.getTime(), 0)
+  assert.strictEqual(note.updated_at.getTime(), 1768443630123)
+  assert.strictEqual(note.deleted_at, null)
+  const scriptId = createScript({
+    name: 'ORM bytes',
+    description: null,
+    version: '1',
+    match_urls_json: '[]',
+    code: '',
+    file_path: null,
+    site_ids_json: null,
+    enabled: true,
+  })
+  const bytes = Buffer.from([0, 128, 255])
+  orm
+    .insert(ormResources)
+    .values({
+      id: 'orm-resource',
+      script_id: scriptId,
+      resource_kind: 'resource',
+      resource_key: 'asset',
+      declaration_order: 0,
+      source_url: 'https://example.test/asset',
+      content_blob: bytes,
+      created_at: new Date(0),
+      updated_at: new Date(0),
+    })
+    .run()
+  assert.deepStrictEqual(orm.select().from(ormResources).get()?.content_blob, bytes)
+  assert.throws(
+    () =>
+      orm.transaction((transaction) => {
+        transaction.delete(ormNotes).where(eq(ormNotes.id, 'orm-note')).run()
+        throw new Error('ORM rollback')
+      }),
+    /ORM rollback/,
+  )
+  assert.ok(orm.select().from(ormNotes).where(eq(ormNotes.id, 'orm-note')).get())
+  assert.strictEqual(
+    sqlite.prepare("SELECT name FROM sqlite_schema WHERE name='__drizzle_migrations'").get(),
+    undefined,
+  )
+})
+
+test('returns numeric overview counts and preserves epoch zero with the Electron SQLite ABI', () => {
+  const sqlite = getDbForTest()
+  assert.deepStrictEqual(getOverviewStats(), {
+    totalProblems: 0,
+    todayVisited: 0,
+    platformDistribution: [],
+    lastActiveTime: null,
+  })
+  sqlite
+    .prepare(
+      `INSERT INTO problems
+        (id, platform, platform_problem_id, canonical_url, first_seen_at, created_at, updated_at)
+       VALUES (NULL, 'codeforces', 'overview', 'https://example.test/overview', 0, 0, 0)`,
+    )
+    .run()
+  sqlite
+    .prepare(
+      `INSERT INTO activity_events (id, event_type, occurred_at, local_day, created_at, deleted_at)
+       VALUES ('overview', 'visit_start', 0, '1970-01-01', 0, 0)`,
+    )
+    .run()
+  assert.deepStrictEqual(getOverviewStats(), {
+    totalProblems: 1,
+    todayVisited: 0,
+    platformDistribution: [{ platform: 'codeforces', count: 1 }],
+    lastActiveTime: 0,
+  })
+  sqlite.prepare('UPDATE activity_events SET occurred_at = ?').run(1768443630123)
+  assert.strictEqual(getOverviewStats().lastActiveTime, 1768443630123)
+})
+
+test('preserves literal lookup keys and nullable IDs with the Electron SQLite ABI', () => {
+  const sqlite = getDbForTest()
+  const insert = sqlite.prepare(
+    `INSERT INTO problems
+      (id, platform, platform_problem_id, canonical_url, first_seen_at, created_at, updated_at, deleted_at)
+     VALUES (?, 'codeforces', ?, 'https://example.test/lookup', 0, 0, 0, ?)`,
+  )
+  insert.run('literal', "A_%'", null)
+  insert.run(null, 'null', null)
+  insert.run('', 'empty', null)
+  insert.run('deleted', 'deleted', 0)
+
+  assert.strictEqual(findProblemIdByPlatformKey('codeforces', "A_%'"), 'literal')
+  assert.strictEqual(findProblemIdByPlatformKey('Codeforces', "A_%'"), null)
+  assert.strictEqual(findProblemIdByPlatformKey('codeforces', 'null'), null)
+  assert.strictEqual(findProblemIdByPlatformKey('codeforces', 'empty'), '')
+  assert.strictEqual(findProblemIdByPlatformKey('codeforces', 'deleted'), null)
+  assert.strictEqual(findProblemIdByPlatformKey('codeforces', "' OR 1=1 --"), null)
+})
+
+test('preserves bound-null upsert notifications and integer time writes with the Electron SQLite ABI', () => {
+  const sqlite = getDbForTest()
+  sqlite
+    .prepare(
+      `INSERT INTO problems
+    (id, platform, platform_problem_id, canonical_url, title, first_seen_at, created_at, updated_at)
+    VALUES (NULL, 'codeforces', 'null-id', 'https://example.test/original', 'Original title', 0, 0, 0)`,
+    )
+    .run()
+  const before = sqlite.prepare('SELECT * FROM problems').all()
+  const events: DataChangedPayload[] = []
+  const dispose = subscribeDataChanges((payload) => events.push(payload))
+  const originalNow = Date.now
+  let clock = 0
+  Date.now = () => clock
+  try {
+    upsertProblem({
+      platform: 'codeforces',
+      platformProblemId: 'null-id',
+      canonicalUrl: 'https://example.test/ignored',
+      confidence: 'url',
+    })
+    assert.deepStrictEqual(sqlite.prepare('SELECT * FROM problems').all(), before)
+    assert.deepStrictEqual(events, [{ tables: ['problems', 'stats'] }])
+    upsertProblem({
+      platform: 'codeforces',
+      platformProblemId: 'normal',
+      canonicalUrl: 'https://example.test/normal',
+      confidence: 'url',
+    })
+    clock = 1768443630123
+    upsertProblem({
+      platform: 'codeforces',
+      platformProblemId: 'normal',
+      canonicalUrl: 'https://example.test/updated',
+      confidence: 'url',
+    })
+    assert.deepStrictEqual(
+      sqlite
+        .prepare(
+          `SELECT first_seen_at, created_at, last_visited_at,
+      updated_at, typeof(updated_at) AS storage FROM problems WHERE platform_problem_id = 'normal'`,
+        )
+        .get(),
+      {
+        first_seen_at: 0,
+        created_at: 0,
+        last_visited_at: clock,
+        updated_at: clock,
+        storage: 'integer',
+      },
+    )
+    assert.strictEqual(events.length, 3)
+  } finally {
+    Date.now = originalNow
+    dispose()
+  }
+})
 
 test('publishes script changes after native commit and suppresses failed nested writes', () => {
   const events: DataChangedPayload[] = []

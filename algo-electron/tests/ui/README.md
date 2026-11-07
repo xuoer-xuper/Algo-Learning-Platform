@@ -13,6 +13,8 @@
 - `electronScreenshotApp.mjs`：Playwright 专用 Electron 主进程入口，不访问真实 userData、OJ 登录态或网络。
 - `coachPetHarness.tsx` / `coachPetMouseCapture.pw.spec.ts`：真实透明 Electron 窗口中的生产桌宠组件，验证本体、气泡、自由对话与透明空白的命中区域，并实际调用原生 `setIgnoreMouseEvents`；截图输出到 `tmp/coach-pet-ui/`。该用例验证原生开关与 Chromium 几何边界，跨应用真实鼠标、DPI 和多屏拖拽仍需手测。
 - 原生交互夹具先等待窗口可见、原生聚焦及 document focus；透明窗口放到屏幕内且避开实际桌面光标，避免 CDP 虚拟输入与原生转发混用。捕获断言读取主进程同步应用的状态，而非异步回执后的 Node 镜像；新增延迟旧回执回归，失败附原生状态/鼠标事件诊断，不关闭 forwarding 或放宽断言。
+- `native-input-diagnostics.ts`：截图窗口保留最近256条pointer/capture/DnD/focus与finishDrag调用/结果记录；热路径不读布局。原生就绪或拖拽断言失败时，在关闭窗口前附加renderer记录及visible/focused/minimized/loading/cursor/bounds快照；采集/附件各有2秒上限，失败不替换原断言错误。包装保留API的this、参数、返回promise和值/异常；观察拒绝会将promise标记为已处理，不宣称保留全局unhandledrejection行为。该功能仅增补证据，不修复尚未定位的瞬时输入问题，不增加重试/强制focus或替代拖拽。
+- `native-input-diagnostics.test.ts`：验证记录容量、无热路径布局读取、API返回/异常透明性、清理、可序列化eval函数、只读快照及失败附件保留原错误。
 - `dataRefresh.pw.spec.ts`：临时 SQLite 中的真实 Codeforces 同步链路验收。`dataRefreshMain.ts` 使用生产 SyncService、batch writer、带 sender/schema 校验的 IPC 注册、preload 和数据广播 bridge；测试仅替换预期 Codeforces HTTP 响应且禁止外网。`dataRefreshHarness.tsx` 同时挂载生产 Dashboard 和 ProblemDetail，验证提交后两秒内自动更新且不重挂载。窗口隐藏，context isolation/sandbox 保持开启，userData 在任何 DB/logger 初始化前重定向到 `tmp/` 并在退出后清理，不访问实际学习数据或登录态。
 
 ## 3. 运行方式

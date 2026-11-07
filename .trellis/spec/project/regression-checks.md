@@ -37,6 +37,12 @@ All command and source paths here are relative to `algo-electron/`.
 - `src/shared/` must not import the Electron package or relative modules beneath
   the main-process `electron/` tree. Check static imports, re-exports, side-effect
   imports, and dynamic imports when adjusting this rule.
+- A1 scans both `electron/` and `src/main/` for bare SQL. Only the old DB boundary
+  and `src/main/db/` are unrestricted DB infrastructure; existing outside budgets
+  remain ratchets. Do not accidentally exempt all new main services.
+- Database modules (`electron/db/`, `src/main/db/`), `better-sqlite3` and
+  `drizzle-orm` remain main-only. Renderer, shared and preload paths cannot import
+  them directly, even while the directory migration is incomplete.
 - Shared entity types have one declaration source. Main-process consumers import
   the shared type instead of copying an interface, even when both shapes happen
   to match. `CoachLlmConfig` is inferred from the shared schema; the renderer-facing
@@ -58,6 +64,9 @@ All command and source paths here are relative to `algo-electron/`.
 | String channel added to relocated preload | Channel-literal architecture check fails |
 | Shared module imports `../../../electron/...` | Process-neutrality architecture check fails |
 | Shared module imports shared constants | No process-neutrality violation |
+| Raw SQL added under `src/main/services/` | Bare-SQL architecture check fails with the new path |
+| Metadata query under `src/main/db/` | Allowed DB-infrastructure boundary |
+| Shared/renderer/preload imports a DB module or native ORM package | Main-only database boundary check fails |
 | A second exported interface/type defines an existing name | Exported-type uniqueness check fails |
 | A barrel re-exports an existing type | No duplicate-definition violation |
 | Lazy route reaches its loaded state and is cleaned up | No missing-API or environment-teardown errors |
@@ -82,6 +91,9 @@ All command and source paths here are relative to `algo-electron/`.
   type. Preserve tests that encrypted keys remain in storage but not renderer DTOs.
 - Apply mutations to reads in an isolated subprocess, not to tracked source files;
   this keeps concurrent review and tests independent.
+- For a new source root, inject a virtual file/directory through subprocess FS
+  reads and prove the actual runner rejects forbidden SQL there; also include the
+  allowed `src/main/db/` control and main-only import violations.
 - For lazy route tests, assert loaded page content and no leaked mounted route
   before finishing. Use typed fixtures so return-shape changes fail typechecking.
 - Run `pnpm typecheck`, `pnpm typecheck:tests`, `pnpm lint`,
@@ -120,3 +132,20 @@ await waitFor(() => expect(themeSelector.hasAttribute('disabled')).toBe(false))
 - These test-harness controls do not establish the exact cause of an old trace
   without event data, and do not replace cross-application/manual native-pointer
   testing. Do not solve intermittent failures by weakening assertions or retries.
+- `tests/ui/native-input-diagnostics.ts` observes input only within synthetic test fixtures.
+  Keep the renderer event buffer bounded and passive; hot-path listeners must not
+  read layout/styles or introduce awaited IPC. Collect detailed geometry and native
+  visible/focused/minimized/loading/cursor state only after the original failure.
+- Preserve `finishDrag`'s receiver, arguments, exact returned promise, synchronous
+  throw and rejection value. The observer attaches a rejection handler; it is not
+  a general promise wrapper preserving unhandled-rejection reporting. The actual
+  drag caller already handles rejection. Never invoke the original twice or retry
+  drag completion from an observer.
+- `rethrowWithNativeInputDiagnostics(error, sources)` captures renderer/native
+  independently, attaches JSON before closing the fixture and rethrows the same
+  original error even if collection, serialization or attachment fails. Bound hung
+  diagnostic collection without changing test/assertion timeouts or retry policy.
+- Behavioral tests cover buffer capacity, cleanup/reinstall, observer failure,
+  promise/receiver identity and failed/hung attachment. Exercise serialized
+  functions as Playwright evaluates them; passing direct-call unit tests alone
+  does not prove a serialized function has no closed-over dependencies.

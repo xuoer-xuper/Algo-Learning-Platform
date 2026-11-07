@@ -1,6 +1,99 @@
 # 阶段 3 技术设计
 
+## 0. 启动评审与当前切片（2026-11-07）
+
+本节优先于后续历史示例。依据`research/start-readiness.md`，第一交付A0只包括依赖、
+完整schema、typed client与行为/结构等价测试。候选固定版本为drizzle-orm0.45.4、
+drizzle-kit0.31.11，安装后按实际API和Electron ABI验证，不采用beta。
+
+- A0新代码写`src/main/db/{schema,client}.ts`，旧`electron/db/connection.ts`仍拥有连接/备份/
+  migration/关闭生命周期。工厂`createDrizzleClient(sqlite)`只包装传入连接，不能import即开库。
+- schema覆盖25表；沿用现有snake_case列名及精确null/default/PK/unique/partialindex/CHECK/FK，
+  不添加模板示例中的额外默认值或业务约束。82时间列映射timestamp_ms，读Date、写Date，
+  DTO输出明确getTime，绝不把Date直接送IPC。BLOB使用buffer模式，0与null独立验证。
+- A0提供`drizzle.config.ts`和`db:generate`，schema生成输出`drizzle/`，不运行push/migrate。
+  用生成SQL构造空临时库，与生产0→30库逐表比较列/默认值/索引/FK和CHECK行为；生成物若
+  自动命名约束导致非语义差异须明确比较，不因文字不同删约束。测试不使用用户数据库。
+- A1基线引导必须验证连续1–30台账与真实schema，而非只看MAX=30；读取固定版本Drizzle
+  migrator的hash/timestamp台账契约，缺资源/未知schema安全失败。Drizzle-only pending也必须
+  触发原备份及failure marker，禁止绕开安全层。A0不提前写台账或激活此路径。
+- `generate`读取schema代码和snapshot；数据库反向解析是`pull`，不能混称。A0只生成/核对
+  schema，后续才固定不可变基线hash并打包资源。
+- 现有IPC的返回形状（数组/对象/联合）保持，不套用下方示例改变公共接口。R4事务通知scope
+  包住实际commit调用，部分autocommit语义不变。不新增tag或在dev执行release-it。
+- 当前规模：25表、electron321个TS文件、250处prepare；排除迁移222处，repository162处。
+  main1164/TabManager2494/CoachOrchestrator1474行，仅作分批规划，不硬套旧计数。
+
 ## 1. 目标目录
+
+### A2c 题目 upsert（三条语句，A2b交付后实施）
+
+独立复核已确认 `research/a2c-problem-upsert.md` 可不改变nullableID政策完成转换。
+只改 `upsertProblem` 的lookup/update/insert和相关测试，`deleteProblem`及所有DTO查询不动。
+
+- lookup包括tombstone；现有NULL ID通过 `eq(problems.id, sql.param(existing.id))` 保留
+  `id = ?`绑定NULL的UPDATE无匹配语义，仍实际run以保留query_only/schema错误；不提前返回、
+  不改IS NULL、不修ID、不改platform/key更新、不用conflict-upsert。成功仍发既有通知。
+- 六个SET列保持：canonical_url、contest_id、problem_index、title、last_visited_at、updated_at。
+  CASE/COALESCE保留值及UPDATE OF触发语义，missing/null保留旧值、空字符串可覆盖。
+- 原标题质量判断、UUID、insert-only source、visited状态、非复活tombstone和捕获一次的
+  毫秒时间不变。Date只在ORM写入层使用，不改schema/defaults或引入事务/cache。
+- 测试原三语句oracle对比完整行/事件，覆盖null/空/引号ID、query_only-null错误、UPDATE OF、
+  标题矩阵、0/毫秒、source/status/tombstone、外层commit/rollback/延迟FK提交失败/savepoint。
+  裸SQL仅为测试oracle或DB允许的静态表达式，不用sql.raw隐藏整个旧查询。
+
+### A2b 身份查找与单独 UI 诊断边界
+
+A2a之后只转换 `findProblemIdByPlatformKey` 的单条SELECT，保持平台/题号精确大小写敏感
+绑定、`deleted_at IS NULL`及同步 `string | null`。NULL ID/缺行返回null，空ID保持空字符串；
+同文件其他查询不变。使用当前连接typed adapter，对照原SQL验证只读、事务可见性、无R4通知
+和关闭重开，接入test:db及原生Electron用例。nullable DTO/upsert政策不在本块决定。
+
+独立测试诊断切片仅修改 `tests/ui/`：此前两次原生拖拽未重排、一次visible/focused前置
+检查失败没有足够事件证据。为失败添加有界pointer/capture/DnD/focus记录、finishDrag输入/
+结果、窗口visible/focused/minimized/loading/cursor/bounds快照；观测器保持原返回值及异常。
+事件监听不做geometry/style同步读取，详细快照仅失败后采集；记录/附件失败不得掩盖原始错误。
+保留原生操作、顺序/阈值/超时及断言，不改生产组件、不加重试/延时/强制focus/合成release。
+补诊断器行为测试，独立提交；不将诊断增强称为修复了尚未确定的UI失败根因。
+
+### A2a 题目总览只读查询（A1验收后的下一切片）
+
+以 `research/a2-problem-queries.md` 为行为清单，只转换现有 `problem/overview.ts` 的四条
+查询，保持同步函数及兼容导出口；不移动目录，不改schema、事务、IPC或其他域。
+
+- 每次用 `createDrizzleClient(getDb())` 包装当前连接，不缓存已关闭连接、不新增全局ORM单例。
+- 总题数/平台分布只过滤 `problems.deleted_at IS NULL`；用 `count()` 而非 nullable id 的
+  `count(id)`，分布只按count降序，不新增同分排序保证。
+- 今日访问保持本地日期 `[start,end)` 与distinct problem_id，不增加join或软删除过滤；
+  参数用 `new Date(ms)`，由timestamp_ms列编码。最近活跃仍包含tombstone事件，返回number/null，
+  epoch0不能变null。
+- 新增真实临时库行为测试、旧SQL oracle对照、生命周期/只读/R4无事件断言，纳入test:db。
+  原生Electron repository测试补numeric/epoch0证据。
+- nullable TEXT PK与非空ID DTO政策、recent状态filter-after-limit、写入事务与omnibox分别留到
+  后续切片；不要用类型断言、改schema或过滤掉存量数据偷渡政策。
+
+### A1 启动契约（2026-11-07，优先于旧基线示例）
+
+A0已提交`e1e3ae0`，PR #8 CI `42337708058`全绿；下一切片按
+`research/a1-migration-protocol.md`接安全迁移器，不改业务repository或目录。
+
+- 默认`initDbAtPathWithMigrationSafety`先校验编译固定的Drizzle SQL/hash/journal，再开库；
+  生产`initDb`显式提供appRoot/packaged资源路径。测试可显式传资源集合，不新增可重定向SQL的
+  生产环境变量。同步`initDbAtPath`与显式`options.migrations`（含[]）仍legacy-only。
+- legacy台账必须是已知连续prefix且名字正确；有业务表却没台账不是新库。旧库升级到30后
+  验证完整物理schema，再登记基线，不执行基线CREATE到已有表。现有baseline-only库也验结构。
+- 默认ledger使用已安装Drizzle定义，全部记录须是已知hash/timestamp的连续prefix，不依赖
+  upstream只看最大timestamp。未知/重复/未来/损坏ledger拒绝；baselinehash和when固定不重生成。
+- 结构对照以hash已验证SQL在内存库构造的metadata为基准，忽略仅Drizzle ledger；只规范化
+  A0证明的隐式UNIQUE/index表达差异。其他表、列、CHECK、索引、FK、view/trigger漂移失败。
+  日后已应用非baseline迁移时不再拿旧结构比较，必须按对应版本契约扩展验证，不能空库重放任意DML。
+- 基线登记与后续Drizzle-only迁移都算pending写入；一次SQLite backup覆盖legacy→baseline→
+  later全部步骤。failure marker保留旧pendingMigrations，另加optional pendingMigrationKeys，
+  键为`legacy:<version>`/`drizzle:<tag>`，不伪造numeric版本号。原错误/恢复错误分开。
+- `src/main/db`新增resource/schema-validation/migrate模块；metadata查询允许在这一DB边界，
+  SQL守卫扩大扫描而非整体豁免src。资源仅复制SQL和journal到packagedresources/drizzle。
+- 新增fresh/21/24/29/30/已登记/后续失败恢复/资源缺失损坏/伪造台账/结构漂移/explicitoverride
+  测试，真实Electron与打包应用核对实际resource和baselineledger。A1不发布、不操作用户原库。
 
 ```
 algo-electron/src/main/

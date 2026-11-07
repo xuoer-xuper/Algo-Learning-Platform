@@ -1,11 +1,20 @@
 {"file": ".trellis/spec/shared/code-quality.md", "reason": "强制规则：无 !、无 any、命名、错误处理"}
 {"file": ".trellis/spec/project/domain-rules.md", "reason": "不可放松的产品/安全红线"}
 {"file": ".trellis/spec/project/migration-status.md", "reason": "当前位置与目标位置对照"}
+{"file": ".trellis/tasks/09-17-phase-3-main-process/research/start-readiness.md", "reason": "Post030 inventory and bounded A0 scope, schema/Date/backup compatibility"}
+{"file": ".trellis/spec/project/unix-millisecond-time.md", "reason": "Preserve numeric IPC and legacy030 contracts through ORM Date mapping"}
+{"file": ".trellis/spec/project/data-refresh.md", "reason": "Transactions and committed-write notifications must remain correct"}
+{"file": ".trellis/spec/project/regression-checks.md", "reason": "Guard coverage and real-runner mutation tests"}
 {"file": ".trellis/tasks/archive/2026-09/00-bootstrap-guidelines/research/spec-alignment-plan.md", "reason": "本阶段步骤与决策编号"}
 {"file": ".trellis/spec/backend/directory-structure.md", "reason": "services/{domain} 布局"}
 {"file": ".trellis/spec/backend/api-module.md", "reason": "procedure 形状"}
 {"file": ".trellis/spec/backend/api-patterns.md", "reason": "反模式"}
 {"file": ".trellis/spec/backend/database.md", "reason": "Drizzle client/schema/migrate"}
+{"file": ".trellis/spec/project/drizzle-adoption.md", "reason": "A0 schema equivalence and ownership boundaries"}
+{"file": ".trellis/tasks/09-17-phase-3-main-process/research/a2-problem-queries.md", "reason": "A2a overview-only behavior, Date encoding, null/zero and native ABI tests"}
+{"file": ".trellis/tasks/09-17-phase-3-main-process/research/a2c-problem-upsert.md", "reason": "A2c exact bound-null UPDATE, SET-list triggers, title/time and transaction notification parity"}
+{"file": ".trellis/tasks/09-17-phase-3-main-process/research/a1-migration-protocol.md", "reason": "A1 resources, ledger/schema validation, backup/marker and packaging protocol"}
+{"file": ".trellis/tasks/09-17-phase-3-main-process/research/drizzle-installed-contract.md", "reason": "Installed Drizzle migrator actual ledger and transaction behavior"}
 {"file": ".trellis/spec/backend/quality.md", "reason": "import 路径与 BARE SQL"}
 {"file": ".trellis/spec/guides/code-reuse-thinking-guide.md", "reason": "收敛项"}
 {"file": ".trellis/spec/guides/transaction-consistency-guide.md", "reason": "事务"}
