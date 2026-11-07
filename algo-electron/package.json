@@ -44,7 +44,8 @@
     "test:coach": "node tests/verify.mjs coach",
     "test:all": "node tests/verify.mjs all",
     "test:ci": "pnpm run test:core && pnpm run test:packaging && pnpm run test:docs && pnpm run test:electron && pnpm run test:ui",
-    "prepare": "cd .. && husky algo-electron/.husky"
+    "prepare": "cd .. && husky algo-electron/.husky",
+    "db:generate": "drizzle-kit generate"
   },
   "lint-staged": {
     "*.{ts,tsx,js,mjs,cjs}": [
@@ -58,6 +59,7 @@
   "dependencies": {
     "@milkdown/crepe": "7.22.0",
     "better-sqlite3": "13.0.3",
+    "drizzle-orm": "0.45.4",
     "electron-log": "^5.4.4",
     "electron-store": "^12.0.0",
     "openai": "7.4.0",
@@ -84,6 +86,7 @@
     "@types/react-dom": "19.2.4",
     "@vitejs/plugin-react": "6.0.5",
     "@vitest/coverage-v8": "4.1.10",
+    "drizzle-kit": "0.31.11",
     "electron": "43.4.0",
     "electron-builder": "26.15.3",
     "esbuild": "0.28.2",

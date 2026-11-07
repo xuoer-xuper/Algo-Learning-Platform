@@ -2,9 +2,24 @@
 
 前置：阶段 2 合入 dev。三个 PR：`refactor/drizzle`、`refactor/main-layout`（含 kebab-case）、`refactor/main-split`。
 
+## 启动切片 A0（2026-11-07）
+
+用户已授权合并阶段2并继续后续任务；阶段2的dev CI通过。先在`refactor/drizzle`执行A0，
+不把后续查询替换/目录迁移一起混入首批。具体决策以design §0为准。
+
+- [x] 固定Drizzle0.45.4/kit0.31.11，配置schema生成命令。
+- [x] `src/main/db/schema.ts`精确描述030后25表与82个timestamp_ms列。
+- [x] `src/main/db/client.ts`提供无副作用的既有连接包装，不开第二库。
+- [x] 生成SQL临时库和现有0→30库做结构/约束等价；Date/epoch0/null/BLOB/事务回滚验证。
+- [x] 两次typecheck、lint、test:all、build:check与独立检查通过（194文件/1574用例、UI11/11）。
+- [ ] A0提交推送并确认CI。
+- [ ] A0收口后再做A1安全迁移账本/打包资源，再按域改写查询。
+
+验收记录：[A0 Drizzle基础](./a0-verification-2026-11-07.md)。A0不接管生产迁移，不宣称整个阶段3完成。
+
 ## PR A：Drizzle（`refactor/drizzle`，约 4 天）
-- [ ] `pnpm add drizzle-orm && pnpm add -D drizzle-kit`；`drizzle.config.ts`；`db/client.ts`、`schema.ts`（21 表，从 `DATABASE_SCHEMA.md` + 001–030 抄列，时间列 `timestamp_ms`）。
-- [ ] 在 030 之后空库上 `drizzle-kit generate` → `drizzle/0000_baseline.sql`；`migrate.ts` 三路径引导 + 测试。
+- [ ] Drizzle依赖、`drizzle.config.ts`、`src/main/db/client.ts`、`schema.ts`（25表，A0先验证）。
+- [ ] schema代码经`drizzle-kit generate`生成基线，与030结构验证后固定；A1安全`migrate.ts`三路径引导及Drizzle-only pending备份 + 测试。
 - [ ] 逐域改写查询（顺序：problem → submission → stats → notes → site → user-script → credential → cookie → coach → rating → ai → backup）；每域改完跑 `pnpm vitest run tests/db tests/<域>`。
 - [ ] `BARE_SQL_BUDGET` 守卫改规则；`learningDataExport.ts` 35 处裸 SQL 改 Drizzle 批量。
 - [ ] `electron-builder.json5` `extraResources: drizzle/`；`tests/packaging` 白名单；`test:packaged-app` 验证打包后迁移可运行。
@@ -30,7 +45,7 @@
 - 验证：行数守卫；jscpd < 2%；`pnpm test:all` + `pnpm build:win`。commit 按拆分对象。
 
 ## Review Gates
-- 每 PR squash 合入 dev；PR C 合入后打 `v3.0.0-alpha.1`（release-it `--preRelease=alpha`，在 dev 上允许 alpha）。
+- 每PR验证后squash合入dev；发版遵守项目master/release-it规则，需要单独授权，不在dev自动打alpha tag。
 - 阶段结束安装包在 rc.1 userData 升级启动 + 七站手测提交监测（红线 §6）。
 
 ## Rollback

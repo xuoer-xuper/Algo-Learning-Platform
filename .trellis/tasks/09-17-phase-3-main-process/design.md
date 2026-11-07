@@ -1,5 +1,29 @@
 # 阶段 3 技术设计
 
+## 0. 启动评审与当前切片（2026-11-07）
+
+本节优先于后续历史示例。依据`research/start-readiness.md`，第一交付A0只包括依赖、
+完整schema、typed client与行为/结构等价测试。候选固定版本为drizzle-orm0.45.4、
+drizzle-kit0.31.11，安装后按实际API和Electron ABI验证，不采用beta。
+
+- A0新代码写`src/main/db/{schema,client}.ts`，旧`electron/db/connection.ts`仍拥有连接/备份/
+  migration/关闭生命周期。工厂`createDrizzleClient(sqlite)`只包装传入连接，不能import即开库。
+- schema覆盖25表；沿用现有snake_case列名及精确null/default/PK/unique/partialindex/CHECK/FK，
+  不添加模板示例中的额外默认值或业务约束。82时间列映射timestamp_ms，读Date、写Date，
+  DTO输出明确getTime，绝不把Date直接送IPC。BLOB使用buffer模式，0与null独立验证。
+- A0提供`drizzle.config.ts`和`db:generate`，schema生成输出`drizzle/`，不运行push/migrate。
+  用生成SQL构造空临时库，与生产0→30库逐表比较列/默认值/索引/FK和CHECK行为；生成物若
+  自动命名约束导致非语义差异须明确比较，不因文字不同删约束。测试不使用用户数据库。
+- A1基线引导必须验证连续1–30台账与真实schema，而非只看MAX=30；读取固定版本Drizzle
+  migrator的hash/timestamp台账契约，缺资源/未知schema安全失败。Drizzle-only pending也必须
+  触发原备份及failure marker，禁止绕开安全层。A0不提前写台账或激活此路径。
+- `generate`读取schema代码和snapshot；数据库反向解析是`pull`，不能混称。A0只生成/核对
+  schema，后续才固定不可变基线hash并打包资源。
+- 现有IPC的返回形状（数组/对象/联合）保持，不套用下方示例改变公共接口。R4事务通知scope
+  包住实际commit调用，部分autocommit语义不变。不新增tag或在dev执行release-it。
+- 当前规模：25表、electron321个TS文件、250处prepare；排除迁移222处，repository162处。
+  main1164/TabManager2494/CoachOrchestrator1474行，仅作分批规划，不硬套旧计数。
+
 ## 1. 目标目录
 
 ```

@@ -3,3 +3,8 @@
 {"file": ".trellis/spec/project/domain-rules.md", "reason": "红线不得回退"}
 {"file": ".trellis/spec/backend/index.md", "reason": "后端核心规则"}
 {"file": ".trellis/spec/backend/database.md", "reason": "DB 检查"}
+{"file": ".trellis/spec/project/drizzle-adoption.md", "reason": "No side effects, exact physical schema and Date/number contracts"}
+{"file": ".trellis/tasks/09-17-phase-3-main-process/research/start-readiness.md", "reason": "A0 exact post030 schema and no-startup-side-effect boundary"}
+{"file": ".trellis/spec/project/unix-millisecond-time.md", "reason": "82 integer instants and Date/number conversion safety"}
+{"file": ".trellis/spec/project/data-refresh.md", "reason": "Synchronous transaction and notification compatibility"}
+{"file": ".trellis/spec/project/regression-checks.md", "reason": "No scanner blind spots when new main path is introduced"}

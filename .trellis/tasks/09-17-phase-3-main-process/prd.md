@@ -6,8 +6,22 @@
 
 ## Requirements
 
+> **2026-11-07 启动评审**：阶段2已合入dev并归档。当前schema为25表（24个应用表和迁移
+> 台账）、82个INTEGER时间列；旧计数只作历史估计。新基础代码位于`src/main/db/`，既有
+> `electron/`生命周期与repository暂留原位，不同时做目录迁移。用户已授权继续后续阶段。
+
+### 首个可验收切片 A0：Drizzle schema 与客户端
+
+- 固定并验证兼容的`drizzle-orm`/`drizzle-kit`，完整映射030之后的表、列、空值、默认值、
+  唯一/部分索引、CHECK、FK和BLOB；时间列采用timestamp_ms，外部接口仍是整数毫秒。
+- 客户端封装现有better-sqlite3连接，不打开第二连接、不在import时初始化数据库或读userData。
+- 使用临时库验证schema元数据等价、Date/数字边界、epoch0/null、BLOB与事务回滚；
+  既有IPC结果、备份/failure marker和R4提交后通知不变。
+- 此切片不启用Drizzle迁移器、不写`__drizzle_migrations`基线、不重写业务查询；生成配置
+  仅供后续显式schema生成。A0通过后进入A1迁移基线及安全装配，再逐域查询替换。
+
 ### R1 Drizzle ORM + drizzle-kit（D12，A3）
-- `src/main/db/client.ts`（`drizzle(sqlite, { schema })`，pragma WAL/foreign_keys/busy_timeout 保留）、`schema.ts`（21 张表，时间列 `integer({ mode: 'timestamp_ms' })`，与阶段 2 的毫秒列一致）、`migrate.ts`（`migrate(db, { migrationsFolder })`）。
+- `src/main/db/client.ts`（`drizzle(sqlite, { schema })`，pragma WAL/foreign_keys/busy_timeout 保留）、`schema.ts`（实测25张表，时间列 `integer({ mode: 'timestamp_ms' })`，与阶段2毫秒列一致）、`migrate.ts`（安全装配后使用Drizzle migrator）。
 - 历史 001–030 作为**基线**：`drizzle/0000_baseline.sql` = 030 之后的完整 schema；`__drizzle_migrations` 表在已有库上通过检测 `schema_migrations.version === 30` 直接标记基线已应用（自定义一次性引导逻辑，写在 `migrate.ts`，有测试）。旧迁移文件移到 `src/main/db/legacy-migrations/` 只供新库从零建时按序执行到 030，再交给 drizzle。
 - 249 处 `prepare()` 改 Drizzle query builder；114 处 `as Row` 由 `$inferSelect` 消除；`userScript/mutations.ts` 动态 SET 用 `.set(partial)`。
 - `initDbAtPathWithMigrationSafety` 的备份 + failure marker 包住 `migrate()`。
@@ -51,7 +65,7 @@
 ## Acceptance Criteria
 
 - [ ] `algo-electron/electron/` 目录不存在；`src/main/` 结构与 `backend/directory-structure.md` 一致（每个域有 `types.ts` + `procedures/`）。
-- [ ] `grep -rn "\.prepare(" src/main` = 0（除 `db/client.ts` pragma）；`grep -rn " as .*Row" src/main` = 0。
+- [ ] 应用查询不再使用裸`prepare`或手抄`as Row`；冻结legacy migration、schema校验、pragma和迁移恢复基础设施为明确且测试覆盖的例外，不用全局grep=0迫使改写历史迁移。
 - [ ] 新库从零启动：legacy 001–030 → drizzle 基线 → 后续 drizzle 迁移；旧库（rc.1 + 030）启动：直接识别基线；两条路径各有测试。
 - [ ] `src/main/index.ts` < 150 行；`tab-manager.ts` < 600；`coach-orchestrator.ts` < 400；全项目无 > 700 行的非注入脚本 TS 文件（注入脚本模板与 `.d.ts` 例外清单写在守卫）。
 - [ ] 每个 `ipc/*.handler.ts` 的 handler 体 ≤ 5 行（守卫统计）。

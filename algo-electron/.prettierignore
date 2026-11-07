@@ -6,3 +6,5 @@ tmp
 pnpm-lock.yaml
 # 构建增量状态文件（未入库），避免 --check 输出 "no parser" 噪音。
 *.tsbuildinfo
+# Drizzle Kit owns snapshot/journal bytes; hand-written schema and READMEs remain checked.
+/drizzle/meta/
