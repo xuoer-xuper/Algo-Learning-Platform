@@ -45,3 +45,18 @@ Local ignored evidence: `algo-electron/tmp/drizzle-a1-push.log`,
 `drizzle-a1-drag-failure-trace.zip`, `diagnose-tab-drag.{mjs,json,log}` and
 `drizzle-a1-drag-focused.log`. A passing recheck establishes current-checkout gate
 success, not an explanation for the original failure.
+
+## Second Occurrence And Observability Slice
+
+The documentation-only `7d35ed0` pre-push later failed UI9/11: a narrow-page case
+timed out on the combined `isVisible() && isFocused()` precondition, and the drag
+again remained at index0 after successful drag/scroll checks. Business `3869fe2`
+was already pushed with CI `42375070997` green. Five additional low-overhead
+diagnostic launches passed; neither failure mechanism was reproduced. The combined
+precondition trace does not establish whether visibility or focus was false.
+
+After the user's continuation, a separately scoped test-only observability slice
+adds bounded pointer/capture/focus/finishDrag records and separate native state
+fields on failure. It changes neither product drag logic nor assertions, input
+actions, timeout/retry settings or focus control. This is improved evidence for
+the next failure, not a claim the previous cause has been identified or fixed.

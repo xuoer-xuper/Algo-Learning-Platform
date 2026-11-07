@@ -132,3 +132,20 @@ await waitFor(() => expect(themeSelector.hasAttribute('disabled')).toBe(false))
 - These test-harness controls do not establish the exact cause of an old trace
   without event data, and do not replace cross-application/manual native-pointer
   testing. Do not solve intermittent failures by weakening assertions or retries.
+- `tests/ui/native-input-diagnostics.ts` observes input only within synthetic test fixtures.
+  Keep the renderer event buffer bounded and passive; hot-path listeners must not
+  read layout/styles or introduce awaited IPC. Collect detailed geometry and native
+  visible/focused/minimized/loading/cursor state only after the original failure.
+- Preserve `finishDrag`'s receiver, arguments, exact returned promise, synchronous
+  throw and rejection value. The observer attaches a rejection handler; it is not
+  a general promise wrapper preserving unhandled-rejection reporting. The actual
+  drag caller already handles rejection. Never invoke the original twice or retry
+  drag completion from an observer.
+- `rethrowWithNativeInputDiagnostics(error, sources)` captures renderer/native
+  independently, attaches JSON before closing the fixture and rethrows the same
+  original error even if collection, serialization or attachment fails. Bound hung
+  diagnostic collection without changing test/assertion timeouts or retry policy.
+- Behavioral tests cover buffer capacity, cleanup/reinstall, observer failure,
+  promise/receiver identity and failed/hung attachment. Exercise serialized
+  functions as Playwright evaluates them; passing direct-call unit tests alone
+  does not prove a serialized function has no closed-over dependencies.
