@@ -1,14 +1,26 @@
-# Run only inside the disposable Windows Sandbox guest described in README.md.
-# This harness never changes APPDATA, uses smoke flags, downloads files, or launches Sandbox.
+# Run only inside Windows Sandbox or an explicit GitHub-hosted disposable Windows runner.
+# This harness never changes APPDATA, uses smoke flags, downloads files, or changes security policy.
 [CmdletBinding()]
-param()
+param(
+    [ValidateSet('Sandbox', 'GitHubActions')]
+    [string]$Environment = 'Sandbox',
+    [string]$InputRoot,
+    [string]$OutputRoot
+)
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
-$inputRoot = 'C:\ReleaseTestInput'
-$outputRoot = 'C:\ReleaseTestOutput'
+$requestedInputRoot = $InputRoot
+$requestedOutputRoot = $OutputRoot
+$inputRoot = if ($Environment -eq 'Sandbox') { 'C:\ReleaseTestInput' } else { $requestedInputRoot }
+$outputRoot = if ($Environment -eq 'Sandbox') { 'C:\ReleaseTestOutput' } else { $requestedOutputRoot }
 $workRoot = 'C:\ReleaseTest'
 $guestRoot = 'C:\Users\WDAGUtilityAccount'
+$roamingRoot = Join-Path $guestRoot 'AppData\Roaming'
+$localRoot = Join-Path $guestRoot 'AppData\Local'
+$runRoot = $null
+$runnerTempRoot = $null
+$githubIdentity = $null
 $profileRoot = Join-Path $guestRoot 'AppData\Roaming\algo-electron'
 $installRoot = Join-Path $guestRoot 'AppData\Local\Programs\AlgoLearningPlatform'
 $appPath = Join-Path $installRoot 'AlgoLearningPlatform.exe'
@@ -42,14 +54,25 @@ function Assert-ChildPath([string]$File, [string]$Root) {
 
 function Assert-NoLinks([string]$File, [string]$StopAt) {
     $current = [IO.Path]::GetFullPath($File)
-    Assert-True (($current -ieq $StopAt) -or $current.StartsWith($StopAt + '\', [StringComparison]::OrdinalIgnoreCase)) 'Invalid path boundary'
-    while ($current -ine $StopAt) {
+    $boundary = [IO.Path]::GetFullPath($StopAt).TrimEnd('\')
+    Assert-True (($current.TrimEnd('\') -ieq $boundary) -or $current.StartsWith($boundary + '\', [StringComparison]::OrdinalIgnoreCase)) 'Invalid path boundary'
+    while ($true) {
         if (Test-Path -LiteralPath $current) {
             $item = Get-Item -LiteralPath $current -Force
             Assert-True (($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -eq 0) "Linked path refused: $current"
         }
+        if ($current.TrimEnd('\') -ieq $boundary) { break }
         $current = [IO.Path]::GetDirectoryName($current)
     }
+}
+
+function Resolve-LocalAbsolutePath([string]$Value) {
+    Assert-True (-not [string]::IsNullOrWhiteSpace($Value) -and $Value -match '^[A-Za-z]:[\\/]') 'An absolute local drive path is required'
+    $full = [IO.Path]::GetFullPath($Value).TrimEnd('\')
+    $drive = [IO.Path]::GetPathRoot($full)
+    Assert-True ($full.Length -gt $drive.Length) 'A drive root cannot be an owned test directory'
+    Assert-NoLinks $full $drive
+    return $full
 }
 
 function Get-Sha256([string]$File) {
@@ -109,6 +132,11 @@ function Start-GuestProcess([string]$File, [string[]]$Arguments, [string]$Direct
     $start.WindowStyle = [Diagnostics.ProcessWindowStyle]::Hidden
     $start.RedirectStandardOutput = $CaptureOutput
     $start.RedirectStandardError = $CaptureOutput
+    # Keep runner/upload credentials in the parent only, including ambient Actions tokens.
+    # The real default-profile folders and non-authentication environment remain unchanged.
+    foreach ($name in @('GH_TOKEN', 'GITHUB_TOKEN', 'GH_ENTERPRISE_TOKEN', 'GITHUB_ENTERPRISE_TOKEN', 'ACTIONS_RUNTIME_TOKEN', 'ACTIONS_ID_TOKEN_REQUEST_TOKEN')) {
+        $start.EnvironmentVariables.Remove($name)
+    }
     $process = New-Object System.Diagnostics.Process
     $process.StartInfo = $start
     Assert-True ($process.Start()) 'Unable to start owned guest process'
@@ -162,7 +190,9 @@ function Invoke-Data([string]$Action) {
     $prefix = '{0:D2}-{1}' -f $script:stepNumber, $Action
     $stdout = Join-Path $outputRoot "$prefix.stdout.json"
     $stderr = Join-Path $outputRoot "$prefix.stderr.txt"
-    $process = Start-GuestProcess (Join-Path $workRoot 'node.exe') @((Join-Path $workRoot 'sandbox-upgrade-data.mjs'), $Action) $workRoot $true
+    $arguments = @((Join-Path $workRoot 'sandbox-upgrade-data.mjs'), $Action)
+    if ($Environment -eq 'GitHubActions') { $arguments += '--environment=GitHubActions' }
+    $process = Start-GuestProcess (Join-Path $workRoot 'node.exe') $arguments $workRoot $true
     $stdoutTask = $process.StandardOutput.ReadToEndAsync()
     $stderrTask = $process.StandardError.ReadToEndAsync()
     $timedOut = -not $process.WaitForExit(60000)
@@ -202,7 +232,7 @@ function Get-InstallRegistrations {
 }
 
 function Get-ProductShortcuts {
-    $menu = Join-Path $guestRoot 'AppData\Roaming\Microsoft\Windows\Start Menu\Programs'
+    $menu = Join-Path $roamingRoot 'Microsoft\Windows\Start Menu\Programs'
     Assert-NoLinks $menu $guestRoot
     if (Test-Path -LiteralPath $menu) {
         return @(Get-ChildItem -LiteralPath $menu -Filter 'AlgoLearningPlatform.lnk' -Recurse -File)
@@ -420,13 +450,55 @@ function Copy-Evidence {
 }
 
 try {
-    Assert-True ([Environment]::UserName -ceq 'WDAGUtilityAccount') 'Refusing to run outside the Windows Sandbox guest account'
-    Assert-SamePath $env:USERPROFILE $guestRoot
-    Assert-SamePath $env:APPDATA (Join-Path $guestRoot 'AppData\Roaming')
-    Assert-SamePath $env:LOCALAPPDATA (Join-Path $guestRoot 'AppData\Local')
-    Assert-ChildPath $env:TEMP $guestRoot
+    Assert-True ([Environment]::OSVersion.Platform -eq [PlatformID]::Win32NT -and [Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString() -ceq 'X64') 'A Windows x64 guest is required'
+    if ($Environment -eq 'Sandbox') {
+        Assert-True (-not $PSBoundParameters.ContainsKey('InputRoot') -and -not $PSBoundParameters.ContainsKey('OutputRoot')) 'Path overrides are forbidden in Sandbox mode'
+        Assert-True ([Environment]::UserName -ceq 'WDAGUtilityAccount') 'Refusing to run outside the Windows Sandbox guest account'
+        Assert-SamePath $env:USERPROFILE $guestRoot
+        Assert-SamePath $env:APPDATA $roamingRoot
+        Assert-SamePath $env:LOCALAPPDATA $localRoot
+        Assert-ChildPath $env:TEMP $guestRoot
+    } else {
+        Assert-True ($env:GITHUB_ACTIONS -ceq 'true' -and $env:RUNNER_ENVIRONMENT -ceq 'github-hosted' -and $env:RUNNER_OS -ceq 'Windows') 'Only a GitHub-hosted Windows Actions runner is allowed'
+        Assert-True ($PSBoundParameters.ContainsKey('InputRoot') -and $PSBoundParameters.ContainsKey('OutputRoot')) 'GitHubActions requires explicit input and output directories'
+        Assert-True ($env:GITHUB_RUN_ID -cmatch '^[1-9][0-9]*$' -and $env:GITHUB_RUN_ATTEMPT -cmatch '^[1-9][0-9]*$' -and $env:GITHUB_REPOSITORY -cmatch '^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$' -and $env:GITHUB_SHA -cmatch '^[0-9a-f]{40}$') 'Incomplete GitHub run identity'
+        $guestRoot = Resolve-LocalAbsolutePath $env:USERPROFILE
+        Assert-SamePath $guestRoot ([Environment]::GetFolderPath([Environment+SpecialFolder]::UserProfile))
+        $roamingRoot = Resolve-LocalAbsolutePath $env:APPDATA
+        $localRoot = Resolve-LocalAbsolutePath $env:LOCALAPPDATA
+        Assert-ChildPath $roamingRoot $guestRoot
+        Assert-ChildPath $localRoot $guestRoot
+        Assert-SamePath $roamingRoot ([Environment]::GetFolderPath([Environment+SpecialFolder]::ApplicationData))
+        Assert-SamePath $localRoot ([Environment]::GetFolderPath([Environment+SpecialFolder]::LocalApplicationData))
+        Assert-SamePath $roamingRoot (Join-Path $guestRoot 'AppData\Roaming')
+        Assert-SamePath $localRoot (Join-Path $guestRoot 'AppData\Local')
+        $runnerTempRoot = Resolve-LocalAbsolutePath $env:RUNNER_TEMP
+        Assert-True (Test-Path -LiteralPath $runnerTempRoot -PathType Container) 'Runner temporary root missing'
+        $inputRoot = Resolve-LocalAbsolutePath $requestedInputRoot
+        $outputRoot = Resolve-LocalAbsolutePath $requestedOutputRoot
+        Assert-ChildPath $inputRoot $runnerTempRoot
+        Assert-ChildPath $outputRoot $runnerTempRoot
+        $runRoot = [IO.Path]::GetDirectoryName($inputRoot)
+        Assert-ChildPath $runRoot $runnerTempRoot
+        Assert-SamePath ([IO.Path]::GetDirectoryName($runRoot)) $runnerTempRoot
+        Assert-SamePath $inputRoot (Join-Path $runRoot 'input')
+        Assert-SamePath $outputRoot (Join-Path $runRoot 'output')
+        Assert-True ([IO.Path]::GetFileName($runRoot) -cmatch '^algo-installer-[A-Za-z0-9_-]+$') 'Expected an exclusive installer job directory'
+        $workRoot = Join-Path $runRoot 'work'
+        Assert-NoLinks $workRoot $runnerTempRoot
+        Assert-True (Test-Path -LiteralPath $inputRoot -PathType Container) 'Prepared job input directory missing'
+        $profileRoot = Join-Path $roamingRoot 'algo-electron'
+        $installRoot = Join-Path $localRoot 'Programs\AlgoLearningPlatform'
+        $appPath = Join-Path $installRoot 'AlgoLearningPlatform.exe'
+        $asarPath = Join-Path $installRoot 'resources\app.asar'
+        $dbPath = Join-Path $profileRoot 'data\algo-learning.sqlite'
+        $checkpointPath = "$dbPath.migration-attempt.json"
+        $appLog = Join-Path $profileRoot 'logs\main.log'
+        $githubIdentity = [ordered]@{ runId = $env:GITHUB_RUN_ID; runAttempt = $env:GITHUB_RUN_ATTEMPT; repository = $env:GITHUB_REPOSITORY; sha = $env:GITHUB_SHA }
+    }
     Assert-SamePath $PSScriptRoot $inputRoot
-    Assert-True ([Environment]::Is64BitOperatingSystem) 'A Windows x64 guest is required'
+    Assert-NoLinks $profileRoot $guestRoot
+    Assert-NoLinks $installRoot $guestRoot
     Assert-True (-not (Test-Path -LiteralPath $workRoot)) 'Fresh work root required; do not blindly retry'
     Assert-True (-not (Test-Path -LiteralPath $profileRoot)) 'Guest app profile already exists'
     Assert-True (-not (Test-Path -LiteralPath $installRoot)) 'Guest installation already exists'
@@ -437,11 +509,15 @@ try {
         Assert-True (-not $entry.Name.StartsWith('ALGO_ELECTRON_SMOKE_')) 'Smoke profile environment is forbidden'
         Assert-True ($entry.Name -notin @('ELECTRON_RUN_AS_NODE', 'NODE_OPTIONS', 'VITE_DEV_SERVER_URL')) 'Runtime override environment is forbidden'
     }
-    Assert-True (Test-Path -LiteralPath $outputRoot -PathType Container) 'Dedicated writable output mapping is required'
+    if ($Environment -eq 'GitHubActions' -and -not (Test-Path -LiteralPath $outputRoot)) {
+        New-Item -ItemType Directory -Path $outputRoot | Out-Null
+    }
+    Assert-True (Test-Path -LiteralPath $outputRoot -PathType Container) 'Dedicated writable output directory is required'
     Assert-True (@(Get-ChildItem -LiteralPath $outputRoot -Force).Count -eq 0) 'Output must be empty; previous evidence is never overwritten'
     $script:mayWriteEvidence = $true
     $script:report = [ordered]@{
         formatVersion = 1; status = 'running'; startedAt = [DateTime]::UtcNow.ToString('o'); updatedAt = ''
+        environment = $Environment; github = $githubIdentity; workRoot = $workRoot
         sourceSha = $null; sourceTreeSha256 = $null; sourceDirty = $null
         username = [Environment]::UserName; machine = [Environment]::MachineName; windowsVersion = [Environment]::OSVersion.VersionString
         profile = $profileRoot; installation = $installRoot
@@ -455,10 +531,16 @@ try {
     $actualInputs = @(Get-ChildItem -LiteralPath $inputRoot -Force)
     Assert-True (@($actualInputs | Where-Object { $_.PSIsContainer }).Count -eq 0) 'Input mapping must contain only the six dedicated files'
     Assert-True ((($actualInputs.Name | Sort-Object) -join '|') -ceq ($expectedInputs -join '|')) 'Unexpected/missing input file; do not map the repository or a host profile'
+    foreach ($item in $actualInputs) {
+        Assert-True (($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -eq 0) 'Linked input file refused'
+    }
     $manifest = Get-Content -LiteralPath (Join-Path $inputRoot 'input-manifest.json') -Raw | ConvertFrom-Json
     $manifestFields = @('formatVersion', 'sourceSha', 'sourceTreeSha256', 'sourceDirty', 'candidateSize', 'candidateSha256', 'candidateAsarSha256', 'nodeSha256', 'guestScriptSha256', 'fixtureHelperSha256') | Sort-Object
     Assert-True ((($manifest.PSObject.Properties.Name | Sort-Object) -join '|') -ceq ($manifestFields -join '|')) 'Unexpected or missing input manifest field'
     Assert-True ($manifest.formatVersion -eq 1 -and $manifest.sourceSha -cmatch '^[0-9a-f]{40}$' -and $manifest.sourceTreeSha256 -cmatch '^[0-9a-f]{64}$' -and $manifest.sourceDirty -is [bool]) 'Invalid input source identity'
+    if ($Environment -eq 'GitHubActions') {
+        Assert-True ($manifest.sourceSha -ceq $githubIdentity.sha -and -not $manifest.sourceDirty) 'GitHub installer acceptance requires the clean checked-out run SHA'
+    }
     foreach ($field in @('candidateSha256', 'candidateAsarSha256', 'nodeSha256', 'guestScriptSha256', 'fixtureHelperSha256')) {
         Assert-True ($manifest.$field -is [string] -and $manifest.$field -cmatch '^[0-9a-f]{64}$') "Invalid input hash: $field"
     }
@@ -481,12 +563,15 @@ try {
     $script:report['helperSha256'] = Get-Sha256 (Join-Path $inputRoot 'sandbox-upgrade-data.mjs')
     Save-Report
     New-Item -ItemType Directory -Path $workRoot | Out-Null
-    $owner = @{ kind = 'algo-nsis-synthetic-guest-v1'; runId = [Guid]::NewGuid().ToString(); username = 'WDAGUtilityAccount'; profile = $profileRoot }
+    $owner = @{ kind = 'algo-nsis-synthetic-guest-v1'; runId = [Guid]::NewGuid().ToString(); environment = $Environment; username = [Environment]::UserName; profile = $profileRoot; workRoot = $workRoot; github = $githubIdentity }
     [IO.File]::WriteAllText((Join-Path $workRoot 'owner.json'), ($owner | ConvertTo-Json), $utf8)
     Copy-Item -LiteralPath (Join-Path $inputRoot 'node.exe') -Destination $workRoot
     Copy-Item -LiteralPath (Join-Path $inputRoot 'sandbox-upgrade-data.mjs') -Destination $workRoot
-    $nodeVersion = & (Join-Path $workRoot 'node.exe') --version
-    Assert-True ($LASTEXITCODE -eq 0 -and $nodeVersion -match '^v22\.(\d+)\.\d+$' -and [int]$Matches[1] -ge 18) 'Use real Node 22.18+ with node:sqlite'
+    $nodeProbe = Start-GuestProcess (Join-Path $workRoot 'node.exe') @('--version') $workRoot $true
+    Assert-True ($nodeProbe.WaitForExit(10000)) 'Node version probe timed out'
+    $nodeVersion = $nodeProbe.StandardOutput.ReadToEnd().Trim()
+    $nodeProbe.WaitForExit()
+    Assert-True ((Get-VerifiedExitCode $nodeProbe) -eq 0 -and $nodeVersion -match '^v22\.(\d+)\.\d+$' -and [int]$Matches[1] -ge 18) 'Use real Node 22.18+ with node:sqlite'
     $script:report['nodeVersion'] = $nodeVersion
     [void](Invoke-Step 'Create isolated default-profile config' { Invoke-Data 'bootstrap' })
     [void](Invoke-Step 'Install published 2.0.0 using default current-user location' { Invoke-Installer $baseline '2.0.0' })

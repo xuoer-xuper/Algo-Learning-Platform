@@ -6,8 +6,12 @@ import path from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
 
 // Standalone guest fixture code. Do not import application migrations or bootstrap code here.
-const WORK = 'C:\\ReleaseTest'
-const PROFILE = 'C:\\Users\\WDAGUtilityAccount\\AppData\\Roaming\\algo-electron'
+const [ACTION, ...OPTIONS] = process.argv.slice(2)
+const IS_GITHUB = OPTIONS.length === 1 && OPTIONS[0] === '--environment=GitHubActions'
+const WORK = IS_GITHUB ? process.cwd() : 'C:\\ReleaseTest'
+const PROFILE = IS_GITHUB
+  ? path.join(process.env.APPDATA ?? '', 'algo-electron')
+  : 'C:\\Users\\WDAGUtilityAccount\\AppData\\Roaming\\algo-electron'
 const DATABASE = path.join(PROFILE, 'data', 'algo-learning.sqlite')
 const CHECKPOINT = `${DATABASE}.migration-attempt.json`
 const SEED = path.join(WORK, 'seed.json')
@@ -529,16 +533,54 @@ function verifyResolved() {
 
 function assertGuest() {
   assert.equal(process.platform, 'win32', 'Windows guest required')
-  assert.equal(os.userInfo().username, 'WDAGUtilityAccount', 'Refusing a non-Sandbox account')
-  assert.ok(samePath(process.env.USERPROFILE ?? '', 'C:\\Users\\WDAGUtilityAccount'))
-  assert.ok(samePath(process.env.APPDATA ?? '', path.dirname(PROFILE)))
+  assert.ok(OPTIONS.length === 0 || IS_GITHUB, 'Profile/path overrides are forbidden')
+  const user = os.userInfo()
+  if (IS_GITHUB) {
+    assert.equal(process.env.GITHUB_ACTIONS, 'true', 'GitHub Actions is required')
+    assert.equal(process.env.RUNNER_ENVIRONMENT, 'github-hosted', 'Self-hosted runners are refused')
+    assert.equal(process.env.RUNNER_OS, 'Windows', 'Windows runner is required')
+    assert.ok(samePath(process.env.USERPROFILE ?? '', user.homedir), 'Unexpected user profile')
+    assert.ok(samePath(process.env.APPDATA ?? '', path.join(user.homedir, 'AppData', 'Roaming')))
+    assert.ok(samePath(process.env.LOCALAPPDATA ?? '', path.join(user.homedir, 'AppData', 'Local')))
+    const runnerTemp = process.env.RUNNER_TEMP ?? ''
+    assert.ok(path.isAbsolute(runnerTemp), 'Absolute runner temporary directory required')
+    assert.ok(
+      samePath(path.dirname(path.dirname(WORK)), runnerTemp),
+      'Work must be in the isolated runner directory',
+    )
+    assert.equal(path.basename(WORK), 'work', 'Dedicated work directory required')
+    assert.match(path.basename(path.dirname(WORK)), /^algo-installer-[A-Za-z0-9_-]+$/)
+    assert.match(process.env.GITHUB_RUN_ID ?? '', /^[1-9][0-9]*$/)
+    assert.match(process.env.GITHUB_RUN_ATTEMPT ?? '', /^[1-9][0-9]*$/)
+    assert.equal(process.env.GITHUB_REPOSITORY, 'xuoer-xuper/Algo-Learning-Platform')
+    assert.match(process.env.GITHUB_SHA ?? '', /^[0-9a-f]{40}$/)
+  } else {
+    assert.equal(user.username, 'WDAGUtilityAccount', 'Refusing a non-Sandbox account')
+    assert.ok(samePath(process.env.USERPROFILE ?? '', 'C:\\Users\\WDAGUtilityAccount'))
+    assert.ok(samePath(process.env.APPDATA ?? '', path.dirname(PROFILE)))
+  }
   const owner = json(path.join(WORK, 'owner.json'))
   assert.equal(owner.kind, 'algo-nsis-synthetic-guest-v1')
-  assert.equal(owner.username, 'WDAGUtilityAccount')
+  assert.equal(owner.username, user.username)
   assert.equal(owner.profile, PROFILE)
   assert.match(owner.runId, /^[0-9a-f-]{36}$/)
+  if (IS_GITHUB) {
+    assert.equal(owner.environment, 'GitHubActions')
+    assert.ok(samePath(owner.workRoot, WORK))
+    assert.deepEqual(owner.github, {
+      runId: process.env.GITHUB_RUN_ID,
+      runAttempt: process.env.GITHUB_RUN_ATTEMPT,
+      repository: process.env.GITHUB_REPOSITORY,
+      sha: process.env.GITHUB_SHA,
+    })
+  }
   for (const key of Object.keys(process.env)) {
     assert.equal(key.startsWith('ALGO_ELECTRON_SMOKE_'), false, 'No smoke-mode redirection allowed')
+    assert.equal(
+      ['ELECTRON_RUN_AS_NODE', 'NODE_OPTIONS', 'VITE_DEV_SERVER_URL'].includes(key),
+      false,
+      'Runtime override environment is forbidden',
+    )
   }
 }
 
@@ -570,8 +612,7 @@ const actions = {
 
 try {
   assertGuest()
-  const [action, ...extra] = process.argv.slice(2)
-  assert.equal(extra.length, 0, 'Profile/path overrides are forbidden')
+  const action = ACTION
   assert.ok(Object.hasOwn(actions, action ?? ''), 'Unknown fixture action')
   const result = actions[action]()
   process.stdout.write(`${JSON.stringify({ action, status: 'passed', ...result })}\n`)

@@ -109,6 +109,14 @@ name/version/main，资产与 asar 必须匹配 build.json 哈希。其他 exe/b
 NSIS `/D=<temp>` 或改变 APPDATA 不是隔离，仍会写真实产品注册表与快捷方式；不得在维护者
 真实 profile 偷跑安装器。隔离环境不可用时保持阻塞，不能用 win-unpacked 冒烟代替。
 
+现有 CI 可显式执行 `gh workflow run ci.yml --ref <候选分支> -f installer_acceptance=true`，
+在全新的 GitHub-hosted Windows VM 构建并跑实际 NSIS 生命周期。默认 push/PR 不运行安装器。
+该 job 核对已发布2.0.0的确切哈希、当前干净 SHA 与候选资产，使用真实默认 profile 和
+current-user 安装位置；仅接受 RUNNER_TEMP 内独占输入目录，拒绝复用已有 profile/安装目录。
+只读下载 token 不传给实际应用。三个合成验收 JSON 摘要在 Actions 保留14天，安装包、
+数据库、配置、日志及 profile 不上传。失败或 passed-with-limitations 保留未完成项，
+不改应用控制策略。候选分支的运行不能直接替代接受 master merge SHA 的最终发行证据。
+
 用有来源标记的合成数据验证题目、提交、笔记/图片、配置、脚本、密文保留与读取；固定 schema29
 fixture 与已发布2.0.0结构相同不等于真实用户原库。测试不得读取或上传实际登录态。
 SQLite 恢复点及学习 JSON 都不是完整 profile 备份。先保留当前状态，旧恢复点不含后续新增数据。
@@ -126,8 +134,8 @@ SQLite 恢复点及学习 JSON 都不是完整 profile 备份。先保留当前�
 
 独立复核及兼容性评审针对最终树。工具读取 release PR 已合并状态、dev SHA、master merge SHA；
 要求该 dev SHA 上 GitHub Actions 的两个 required checks 均成功：`Fast core, packaging and docs guard`、
-`Electron and renderer smoke`。另要求 merge SHA 上 fast check 成功（当前 master push CI 只跑 fast，
-最终树完整本地门见 build.json）。网络、认证、API 或分页失败一律拒绝，不能解释成不存在或通过。
+`Electron and renderer smoke`。另要求 merge SHA 上 fast check 成功；当前 master push 也运行
+renderer smoke，最终树完整本地门见 build.json。网络、认证、API 或分页失败一律拒绝，不能解释成不存在或通过。
 
 ## 6. 接受文件与预检
 

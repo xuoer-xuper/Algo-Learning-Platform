@@ -65,6 +65,18 @@ evidence checks live in `release-guards.mjs`. External commands use the injected
 - Never upload local acceptance reports, private profiles, logs, reusable login state or
   synthetic test databases as release assets. NSIS runs only inside an isolated Windows
   environment; changing APPDATA or `/D=` alone does not isolate registry/shortcuts.
+- Explicit manual installer CI may run the same acceptance harness in a fresh GitHub-hosted
+  Windows VM. Require the hosted-runner identity, real default user folders, absent application
+  profile/install folders, and exclusive input/output/work siblings below RUNNER_TEMP. Keep
+  Sandbox's fixed WDAG paths as the default. Never weaken application-control policy to run it.
+- The installer job downloads the pinned shipped baseline with a step-scoped read-only token,
+  validates its exact hash/size, and builds the candidate from its own clean source SHA with
+  publication disabled. Application processes do not inherit that token. Record run identity,
+  source snapshot, candidate/ASAR hashes and the actual lifecycle results.
+- Only three synthetic summary JSON files may be uploaded as CI artifacts for 14 days:
+  report.json, input-manifest.json and engineering-build.json. Do not upload installers,
+  database/profile copies, configuration, logs or source snapshots. These CI summaries are
+  engineering evidence, not public Release assets or final-master acceptance by themselves.
 
 ## 4. Validation & Error Matrix
 
@@ -104,6 +116,9 @@ evidence checks live in `release-guards.mjs`. External commands use the injected
 - Isolated actual NSIS install, shipped 2.0.0 upgrade, data/recovery, uninstall retention
   and reinstall are separate from unpacked smoke. Keep seven-site/sync/core-page manual
   acceptance; distinguish synthetic cases, current checks and justified historical evidence.
+- Installer harness environment/path/owner validation must reject local or self-hosted runs,
+  redirected or linked folders, reused profile/output, wrong source identity and unexpected
+  inputs. A successful launcher or passed-with-limitations report is not a complete pass.
 
 ## 7. Wrong vs Correct
 

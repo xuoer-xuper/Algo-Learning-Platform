@@ -51,9 +51,11 @@ pnpm run build:win
 - 发行守卫单测不算 NSIS 隔离验收，也不等于生产上传已验证。操作顺序及证据契约见 `docs/OPERATIONS/RELEASE_PROCESS.md`；发行保持暂停。
 - `test:packaged-app` 的双实例检查必须共用临时 `userData`，并在任一断言失败时释放 HTTP gate、终止残留进程后再删除临时目录。
 
-## 5. Windows Sandbox 安装验收
+## 5. 隔离 Windows 安装验收
 
-`sandbox-upgrade-guest.ps1` 只能由新建 Windows Sandbox 的 LogonCommand 执行，不能直接在宿主运行。它核对 `WDAGUtilityAccount`、默认 profile/install 路径、空输出目录和输入文件集合；不会重定向 APPDATA、使用 smoke 参数、下载依赖或主动启动 Sandbox。`sandbox-upgrade-data.mjs` 使用独立 Node 22.18+ 的 `node:sqlite` 读写关闭后的合成 guest 数据，不导入应用迁移或 bootstrap，也不接受数据库路径参数。
+`sandbox-upgrade-guest.ps1` 支持默认的 `Sandbox` 和显式的 `GitHubActions` 两种隔离环境，不能在普通宿主或 self-hosted runner 执行。两种模式都使用真实默认 profile/install 路径，要求全新工作目录和空输出目录，核对六文件输入；不会重定向 APPDATA、使用 smoke 参数、下载依赖、更改安全策略或主动启动 Sandbox。`sandbox-upgrade-data.mjs` 使用独立 Node 22.18+ 的 `node:sqlite` 读写关闭后的合成 guest 数据，不导入应用迁移或 bootstrap，也不接受数据库路径参数。
+
+`Sandbox` 模式仅由新建 Windows Sandbox 的 LogonCommand 执行，核对 `WDAGUtilityAccount` 与固定 guest 路径，拒绝任何 `InputRoot/OutputRoot` 参数，包括填写默认值的情况。`GitHubActions` 模式的严格入口见下文；它不解除或绕过 Sandbox 的应用控制策略。
 
 主会话串行执行完整测试与 `build:win` 后，固定源码快照及三个发行资产的哈希，再准备一对全新宿主目录。只将以下六个文件放入只读输入目录，映射到 `C:\ReleaseTestInput`；空的专用输出目录映射到 `C:\ReleaseTestOutput`。仓库、宿主 profile 和登录态均不映射。
 
@@ -93,6 +95,26 @@ powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File C:\ReleaseTestIn
 
 脚本按步骤安装并启动真正的 2.0.0，确认 schema 29 后写入合成题目/提交/笔记/图片/停用脚本/BLOB/不透明密文样本，再通过候选 NSIS 升级、验证 schema 30 和原始配置保护。随后验证新数据重启保留、受控 `keep-current`、实际卸载留数据和重装。恢复情景只把真实完成 checkpoint 的 `completed` 改为 `prepared`，明确不冒称真实进程崩溃；真实强制终止矩阵仍由 `tests/db/migrationInterruption.test.ts` 独立覆盖。
 
-每步更新 `report.json`，输出各阶段日志、helper 断言和仅合成的 profile 证据。宿主读取最终 `status` 与 `finishedAt`，不能将 WindowsSandbox 进程的存活/退出直接当成 guest 成功。脚本返回 `0/passed`、`1/failed` 或 `2/passed-with-limitations`；若恢复对话框只能强制结束，缺失自然关闭及退出码验收会明确记录，不能将 `passed-with-limitations` 等同于全部验收通过。失败后保留输出，用新的 Sandbox 和目录重跑，不覆盖前次证据。
+### GitHub 托管 Windows runner
 
-这些样本证明本次安装生命周期中的数据保留，不证明真实账号的解密/登录、七站提交、同步、核心页面人工导航或完整 profile 回滚。输出包含合成数据库和日志，仅保留为本地验收材料，不纳入发行资产。
+CI 使用全新的 GitHub 托管 Windows x64 runner，完成 clean checkout 和本 run 的候选构建后，在 `algo-electron/` 执行：
+
+```text
+node tests/packaging/prepare-installer-acceptance.mjs
+```
+
+准备器固定 Node 22.23.2，校验 `GITHUB_ACTIONS=true`、`RUNNER_ENVIRONMENT=github-hosted`、Windows、仓库、run ID/attempt、当前干净 HEAD 与 `GITHUB_SHA`；下载并校验已发布基线，核对当前候选三资产及 ASAR。它创建 `RUNNER_TEMP/algo-installer-<random>/input` 和空 `output`，保留 `work` 尚不存在，再生成同一六文件 manifest。通过 `GITHUB_OUTPUT` 返回 `inputDirectory`、`outputDirectory`、`runDirectory`。源码快照在准备前后保持一致；该检查不冒称记录了构建前快照。`engineering-build.json` 的状态为 `prepared`，仅说明输入准备完成。
+
+workflow 使用返回路径，运行输入目录中的原字节脚本：
+
+```text
+powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File "<inputDirectory>\sandbox-upgrade-guest.ps1" -Environment GitHubActions -InputRoot "<inputDirectory>" -OutputRoot "<outputDirectory>"
+```
+
+guest 和 helper 核对真实 Windows 用户主目录、标准 `AppData/Roaming` 与 `AppData/Local`，拒绝环境变量重定向。input/output/work 必须同属 `RUNNER_TEMP` 下直接子目录 `algo-installer-<random>`，路径不可穿越、使用 UNC/device 路径或链接；既存 profile、安装、work、非空 output 均拒绝。owner 记录绑定当前用户、profile/work、随机运行 ID 和 GitHub run/attempt/repository/SHA，helper 每次操作重新核对。NSIS 仍只使用 `/S /currentuser` 和默认安装路径。manifest 要求 `sourceDirty=false`、`sourceSha=GITHUB_SHA`，report 同时记录执行环境和 run 身份。
+
+该模式执行同一26步安装生命周期，不改变 runner 的安全或网络策略。环境身份检查是防误用守卫，不是可信平台远程证明。`installerAcceptanceGuards.test.ts` 覆盖环境/身份/路径重定向/链接及 CLI 提前拒绝；它不能代替真实 NSIS 运行。
+
+每步更新 `report.json`，输出各阶段日志、helper 断言和仅合成的 profile 证据。宿主或 CI 读取最终 `status` 与 `finishedAt`，不能将 WindowsSandbox 进程的存活/退出或准备器的成功直接当成 guest 成功。脚本返回 `0/passed`、`1/failed` 或 `2/passed-with-limitations`；若恢复对话框只能强制结束，缺失自然关闭及退出码验收会明确记录，不能将 `passed-with-limitations` 等同于全部验收通过。失败后保留已允许的证据，用新的 Sandbox 或新的 hosted runner 和目录重跑，不覆盖前次输出。
+
+这些样本证明本次安装生命周期中的数据保留，不证明真实账号的解密/登录、七站提交、同步、核心页面人工导航或完整 profile 回滚。Sandbox 的原始输出只留本地；CI 仅上传 `report.json`、`input-manifest.json`、`engineering-build.json` 三份摘要作为 workflow artifact，不上传原始合成 profile、数据库、日志、源码快照或安装资产。工程验证不等于最终 master 发行验收；任何测试证据均不纳入 Release 资产。
