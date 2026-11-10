@@ -47,6 +47,10 @@ All command and source paths here are relative to `algo-electron/`.
 - A lazy-route container can exist while its page is still suspended. Await both
   import settlement and the page's visible loaded state before teardown. Wire all
   IPC reads made by that route and its mounted children.
+- Nested lazy content needs another settlement after the action/read that mounts it.
+  For the note route, settle the route, await the note-selection action in `act`,
+  then settle MilkdownEditor/Crepe imports before asserting the editable body. A
+  larger DOM polling timeout alone does not synchronize either module boundary.
 
 ## 4. Validation & Error Matrix
 
