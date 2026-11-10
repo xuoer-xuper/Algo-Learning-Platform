@@ -30,6 +30,10 @@
   无害NSIS探针已复现给`/S`加引号会失去静默模式，正修复参数并补回归。
   详见`research/hosted-installer-validation.md`，
   不能把PR CI或构建通过记作安装验收通过。
+- 修复`717eda6`已正常提交推送，pre-push197文件/1737用例及11项Playwright通过。
+  PR CI`42793939679`通过；托管安装`42794016408`重新构建、26步全部通过，
+  errors/limitations均为空，恢复对话框自然退出，无强制结束。安装环境阻塞已解除。
+  结果及本次资产hash见`research/hosted-installer-validation.md`，其余人工/最终master门仍待完成。
 
 ## S1 源码集成与基线
 
@@ -91,10 +95,11 @@
 - [x] `pnpm install --frozen-lockfile`；首次核对postinstall原生依赖与固定Electron ABI。
 - [x] `pnpm test:db`、配置/导出定向Vitest、故障/子进程终止；不得仅用文本假DB证明可恢复。
 - [x] `pnpm test:all`、`pnpm build:win`；实际fuses/native/单实例、schema29→30、重复启动。
-- [ ] 合成笔记/图片/配置/脚本/凭据样本，声明来源；不打开用户原库或冒称原始release数据。
-- [ ] WindowsSandbox/可用VM内执行NSIS安装2.0.0→候选、卸载保留数据/重装、受控恢复。
+- [x] 合成笔记/图片/配置/脚本/凭据样本，声明来源；不打开用户原库或冒称原始release数据。
+- [x] WindowsSandbox/可用VM内执行NSIS安装2.0.0→候选、卸载保留数据/重装、受控恢复。
       只发现WindowsSandbox.exe不能打勾；无隔离环境时保留该验收阻塞，不在宿主profile操作。
       Sandbox已确认策略阻止；2026-11-10按用户要求接入显式GitHub-hosted Windows VM验收。
+      修复NSIS参数后运行`42794016408`的26步全部通过，真实默认目录、安装ASAR和报告身份已核对。
 - [ ] 保留既有发布流程的七站/同步/核心页面人工验收，明确新验证与可复用旧证据；真实登录态
       或正式提交由用户授权并控制，不将本地假站/合成密文测试冒充七站实测。
 - [x] 最终集成树独立trellis-check，通过后记录实际命令/结果/来源SHA/资产hash与缺口。
@@ -103,11 +108,12 @@
 
 ## Commit / Handoff
 
-- [ ] 每次提交前读Git规范、正常钩子；原子中文conventional commit，提交后及时推送。
-- [ ] pre-push `pnpm test:ci`通过；CI用`gh run watch --exit-status`跟到结果，不靠重复重跑碰绿。
+- [x] 本轮工程提交前读Git规范、正常钩子；原子中文conventional commit，提交后及时推送。
+- [x] 本轮pre-push `pnpm test:ci`通过；CI用`gh run watch --exit-status`跟到结果，不靠重复重跑碰绿。
 - [ ] 检查无发布阻塞、征得恢复发行确认后，才进入dev→master PR/tag/Release操作。
 - [ ] 将加固修复按祖先/冲突边界同步到原Drizzle分支，避免覆盖其安全迁移接管代码。
 - [ ] 完成独立加固任务后记录会话；不归档阶段3或整个对齐计划，不预设3.0.0。
+      本轮工程与安装验收会话已记录为Session16；任务尚有人工/集成/发行门，未归档。
 
 ## Stop Conditions
 

@@ -56,3 +56,15 @@ GitHub hosted run `42788578461`、源码 `54265bcc20052bf6bf9319b6267722c44a2cb2
 - 安装与卸载均保持180秒超时；exit1失败、exit2限制通过、原始证据保留及26步生命周期不变。文档、release-evidence spec和任务元数据明确首轮失败、修复范围及尚待全新hosted VM验收，不存在通过或发布授权的提前声明。
 
 限定范围内没有遗留实现问题。所有局部检查进程已完成，文件冻结，可由主会话继续正常Git钩子和新一轮托管验收。
+
+## 托管成功结果独立复核
+
+2026-11-10，`release_final_check` 独立读取 `algo-electron/tmp/installer-ci-42794016408-5da2d191/` 的三份原始摘要，并用只读断言核对关联及源码。run `42794016408` / attempt1 对应干净候选 `717eda65e4fface06bac95245c55b0a57aa199ea`；report 为 `passed`，连续26步名称与该提交的实际脚本一致，全部passed，errors/limitations均为空。前次失败记录继续保留。
+
+- 下载目录恰好只有三份JSON。重新计算SHA256：report为`e9dde29435225f7e52366c4dd2fbcd7a2b71bad63665b44895342d0aea44307c`，manifest为`cca18fda3c20592d351f00bcccc52a3a0b0b1a3e7aff40bb7b092ed247e3e5f7`，engineering为`8f47ebd3361724844747640a01d9042ca244d8752effeb159647865238126595`。run/source/tree/manifest关联一致；PS的CRLF checkout字节及helper的Git字节分别匹配manifest哈希，阅读的本地源码内容也与该提交一致。engineering仍正确标为prepared，不冒充安装结果。
+- 官方2.0.0的确切大小/哈希匹配固定基线，安装退出0，PE/注册表版本为2.0.0；候选升级及重装均退出0，版本2.0.1，安装器哈希`79f1bd9605b686e59f961e0de6598f7204fc7a63ffb991c822087bbc04757d3c`、ASAR哈希`b90d796d803b5a7316a44890e350694fb5e3bb0a0ed5aca705ccd6d16c59c127`与输入一致。用户为runneradmin，profile和安装目录分别为其真实默认Roaming/algo-electron、Local/Programs/AlgoLearningPlatform；HKCU注册、开始菜单目标、启动窗口和自然关闭均有对应断言。
+- 基线应用实际创建schema29；合成题目、提交、笔记、脚本、站点配置、密文envelope及BLOB经升级变为schema30，台账前29项一致，TEXT时间转换为正确Unix毫秒且完整性/外键检查通过。笔记、图片、脚本三个文件哈希全程一致；配置原字节与归一化备份哈希一致，归一化配置及合成密文保持；schema29恢复点通过helper重新打开核验。
+- 升级后新增记录在重启、阻断、keep-current、卸载及重装后均保留。prepared checkpoint拒绝启动，数据库和checkpoint原字节断言不变，退出1；keep-current在同一默认profile写入verified审计和含新增记录的当前状态备份，退出0，随后正常重启成功。所有关闭记录均`forcedDialogStop=false`且进程树已结束；这些退出由正常窗口关闭请求完成，没有强杀代替通过。
+- 卸载退出0，并观察到EXE、卸载注册和快捷方式消失而profile保留；重装后的PE/ASAR、配置、附件、密文、恢复审计及新增记录再次通过。只读核对还验证了26步顺序、时间连续性及最终文件摘要关联。
+
+结论：本候选的实际隔离NSIS安装、2.0.0升级、合成数据保留、受控keep-current、卸载留数据和重装阻塞已解除，无新增发现。证据仍限于合成数据；completed→prepared是状态模拟而非真实崩溃注入，不证明真实账号解密、七站登录/提交/同步或核心页面人工导航，也不是最终master合并提交的发行验收或公开授权。原始数据库和日志未下载，本复核依据匹配源码的执行断言及三份摘要，没有重新运行测试、构建、UI或安装器。
