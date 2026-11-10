@@ -1,4 +1,9 @@
-# 版本号规划
+# 版本号规划（历史记录）
+
+> 本文保留 2026-09-05 的 RC 规划与当时命令，已被后续发布决策取代，不是当前操作指南。
+> 当前流程见[发行流程](docs/OPERATIONS/RELEASE_PROCESS.md)和[提交规则](docs/GOVERNANCE/COMMIT_RULES.md)。
+> 后续按已验收增量发布；对齐完成不预设 3.0.0。下文直接 npm version/gh release、
+> 架构重构即 major 等旧约定不再适用。
 
 ## 当前状况（2026-09-05）
 

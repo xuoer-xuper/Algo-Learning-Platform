@@ -1,3 +1,4 @@
 {"file": ".trellis/spec/shared/code-quality.md", "reason": "检查清单"}
 {"file": ".trellis/spec/project/git-workflow.md", "reason": "commit 格式与 PR 门"}
+{"file": ".trellis/tasks/09-17-spec-alignment/prd.md", "reason": "阶段性 dev 到 master 发布及取消固定最终版本，检查不得恢复旧 v3.0.0 绑定"}
 {"file": ".trellis/spec/project/domain-rules.md", "reason": "红线不得回退"}

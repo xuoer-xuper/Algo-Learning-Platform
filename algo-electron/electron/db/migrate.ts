@@ -1,6 +1,7 @@
 import type Database from 'better-sqlite3'
 import { nowBeijing } from '../shared/time'
 import { logger as baseLogger, type Logger } from '../shared/logger'
+import { reportMigrationDiagnostic } from '../../src/main/db/migration-diagnostics'
 
 /** `schema_migrations` 只查 version 一列时的行形状。 */
 interface AppliedVersionRow {
@@ -104,21 +105,19 @@ export function runMigrations(
       } catch (error) {
         // Preserve the migration failure if restoring the connection state also fails.
         if (failure) {
-          logger.error('db.migration-foreign-keys-restore-failed', {
-            version: migration.version,
+          reportMigrationDiagnostic(
+            failure.error,
+            'db.migration-foreign-keys-restore-failed',
             error,
-          })
+            logger,
+          )
         } else {
           failure = { error }
         }
       }
     }
     if (failure) {
-      logger.error('db.migration-failed', {
-        version: migration.version,
-        name: migration.name,
-        error: failure.error,
-      })
+      reportMigrationDiagnostic(failure.error, 'db.migration-failed', failure.error, logger)
       throw failure.error
     }
     logger.info('db.migration-completed', { version: migration.version, name: migration.name })

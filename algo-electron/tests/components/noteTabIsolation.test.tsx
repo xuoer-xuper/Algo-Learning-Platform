@@ -103,17 +103,27 @@ function route(tab: TabStripTabInfo) {
 }
 
 function deferred<T>() {
-  let resolve!: (value: T) => void
+  let resolve: ((value: T) => void) | undefined
   const promise = new Promise<T>((done) => {
     resolve = done
   })
+  if (!resolve) throw new Error('Deferred promise did not initialize its resolver')
   return { promise, resolve }
 }
 
 async function openNote(note: NoteItem) {
-  fireEvent.click(await screen.findByText(note.title))
-  // 预算 15s：pre-push 门在全量并行 fork 下跑，本机曾观测到环境负载把 5s 预算
-  // 顶穿（noteTabIsolation 间歇红、卡住推送）。断言本身不变，只是等得更久。
+  await act(async () => {
+    await vi.dynamicImportSettled()
+  })
+  const noteButton = await screen.findByText(note.title)
+  await act(async () => {
+    fireEvent.click(noteButton)
+  })
+  // Loading the note triggers a second lazy boundary for MilkdownEditor. Its Crepe
+  // mock imports the real package exports; settle those imports before polling DOM.
+  await act(async () => {
+    await vi.dynamicImportSettled()
+  })
   const editor = await screen.findByRole<HTMLTextAreaElement>(
     'textbox',
     { name: 'Markdown body' },
@@ -131,7 +141,12 @@ beforeEach(() => {
   api.loadNote.mockImplementation(async (noteId: string) => (noteId === noteA.id ? noteA : noteB))
 })
 
-afterEach(() => cleanup())
+afterEach(async () => {
+  await act(async () => {
+    await vi.dynamicImportSettled()
+  })
+  cleanup()
+})
 
 describe('notes tab identity', () => {
   it.each([
@@ -159,7 +174,9 @@ describe('notes tab identity', () => {
     const view = render(route(notesTab('tab-a', 'problem-a')))
     const editorA = await openNote(noteA)
     fireEvent.input(editorA, { target: { value: 'Pending body A' } })
-    fireEvent.change(view.container.querySelector('.note-editor-title')!, {
+    const titleInput = view.container.querySelector('.note-editor-title')
+    if (!titleInput) throw new Error('Missing note title input')
+    fireEvent.change(titleInput, {
       target: { value: 'Pending title A' },
     })
 

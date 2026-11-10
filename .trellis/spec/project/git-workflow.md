@@ -7,6 +7,10 @@
 Chosen by the developer on 2026-09-17. Before that date all 248 commits were made directly on
 `master` with no merges; the `dev` branch was created in the same session.
 
+Release cadence was revised on 2026-11-08: validated increments may ship from `dev` through
+`master` before the alignment program finishes. Completing the program no longer implies
+`v3.0.0`; the final version and product positioning await the developer's new plan.
+
 ---
 
 ## Branch Model
@@ -22,12 +26,13 @@ master   ── stable only; receives --no-ff merges from dev; tags live here
 
 | Rule | Detail |
 | --- | --- |
-| Never commit on `master` | GitHub branch protection **enabled 2026-09-17**: PR required, checks `Fast core, packaging and docs guard` + `Electron and renderer smoke` (strict), no force push, no deletion, conversations resolved; `enforce_admins` off so `release-it` can commit on master. A local `pre-commit` hook (phase 0) refuses when `git branch --show-current` is `master`. |
+| Never commit on `master` | GitHub branch protection **enabled 2026-09-17**: PR required, checks `Fast core, packaging and docs guard` + `Electron and renderer smoke` (strict), no force push, no deletion, conversations resolved. Historical `enforce_admins: false` is not permission to bypass gates. The local `pre-commit` hook refuses when `git branch --show-current` is `master`; preparation metadata is committed on a PR branch, never during master publication. |
 | Small edits may land on `dev` directly | Typo, doc line, single-line fix. Anything that needs more than one commit gets a branch. |
 | feature → dev | **Squash merge** via PR. The PR title becomes the commit subject and must follow the commit format below. |
 | dev → master | **Merge commit with `--no-ff`** via PR. Tag `vX.Y.Z` on that merge commit. |
+| master → dev synchronization | Preserve shipped fixes and ancestry with a reviewed **merge commit** PR. Do not squash this branch-sync operation; the feature-branch squash rule does not apply. Resolve and test overlapping changes before the next release. |
 | Branch names | English, kebab-case, `type/description` as in the template. Trellis task ids may be used: `feat/00-bootstrap-guidelines`. |
-| CI | `.github/workflows/ci.yml` runs `fast-guard` on push to `dev` and `master`, and the full matrix on pull requests. Pushing to a feature branch alone does not run CI; open the PR. |
+| CI | `.github/workflows/ci.yml` runs `fast-guard` and `renderer-smoke` on pull requests and pushes to `dev`/`master`. Full validation, packaged smoke and isolated NSIS acceptance are explicit manual jobs. Pushing to a feature branch alone does not run CI; open the PR. |
 | Push | **Push immediately after every commit** (developer rule 2026-09-17: no local backlog). **Push discipline (2026-10-31, after two CI-only reds): before pushing, `pnpm test:ci` must be green locally — the pre-push hook enforces this; after pushing, watch CI to green with `gh run watch <run-id> --exit-status` before calling the work done; a red run gets a root cause and a locally-reproduced fix before the next push.** Always the developer's identity; no AI co-author trailers. `.claude/settings.json` sets `attribution` (`commit` and `pr` empty, `sessionUrl` false) so Claude Code stops requesting the trailer at the source (added 2026-09-17 after commit `ffba568` slipped through, had to be rewritten, and left a stale contributor avatar on GitHub). Repo merge settings: squash (title = PR title) and merge commit allowed, rebase merge disabled, branches auto-deleted after merge. |
 
 ---
@@ -106,9 +111,9 @@ style: 全仓 prettier 格式化
 | `pre-push` | `pnpm test:ci` — the five-step CI-parity gate (`test:core` + `test:packaging` + `test:docs` + `test:electron` + `test:ui`) | any gate, smoke or unit failure |
 
 `pre-commit`/`pre-push` hooks live in `algo-electron/.husky/` and `cd` into the package first (git
-runs hooks with repo-root CWD). `release-it` is the only sanctioned `--no-verify` bypass: it must
-commit on `master` (which `pre-commit` refuses), so `.release-it.json` carries
-`git.commitArgs: ["--no-verify"]` — decided 2026-10-31, no env sniffing, no marker files.
+runs hooks with repo-root CWD). The former release-it bypass is removed: publication no longer
+creates a master commit. Version and changelog preparation uses ordinary reviewed commits and
+normal hooks. Do not use `--no-verify`, `HUSKY=0`, or a replacement hooks path for release work.
 
 `pre-push` was upgraded from `pnpm test:core` to `pnpm test:ci` on 2026-10-31 after two CI-only reds
 proved that `test:core` alone is not CI parity. `pnpm test:core` (typecheck ×2 + lint + architecture
@@ -143,24 +148,67 @@ Use `.github/pull_request_template.md` (Chinese). In addition to the template's 
 
 ## Tags and Releases
 
+### Incremental release cadence (2026-11-08)
+
+- Normal releases use feature branch -> `dev` -> `master` PR (`--no-ff`) -> annotated tag and
+  GitHub Release. Ship useful, independently accepted increments rather than waiting for every
+  alignment phase. `2.0.1`, `2.0.2` and later releases are candidates, not a promise that every
+  change qualifies as a patch or every merge triggers a release.
+- Review the complete proposed `dev` -> `master` diff, including already-merged migrations.
+  Passing one slice's tests does not certify all of `dev`. Keep unfinished work on feature
+  branches; do not merge an unready `dev` merely to show maintenance activity.
+- Each release requires local `pnpm test:all`, `pnpm build:win`, green required PR checks,
+  install/upgrade/data-preservation acceptance and matching source/version/tag/assets. Fix
+  release-tooling blockers before the first incremental release, not only in phase 6.
+- `release/<major.minor>` is an exception for urgent shipped-line fixes when `dev` cannot ship,
+  not a mandatory parallel track for all 2.x updates. Start from the actual shipped tag, not an
+  obsolete RC. Sync maintenance fixes and release-only metadata back to `dev` via PR.
+- No final version is preselected for alignment completion. Do not infer `3.0.0`, substitute
+  another final version or auto-bump major from task completion. Evaluate actual compatibility
+  and migration/restore risks before confirming each version; the semver rules below still apply.
+- A package version or local installer is not a published release. Cadence approval alone does
+  not authorize merging a particular PR, tagging or publishing.
+
+### Tooling and version contracts
+
 - Single source of the version number: `algo-electron/package.json`. Nothing else is hand-edited
   (README badge reads GitHub Releases; CHANGELOG is generated).
-- Releases are cut with **release-it** (`pnpm exec release-it`, `pnpm exec release-it -- --preRelease=rc`)
-  which bumps from conventional commits, regenerates `docs/PRODUCT/CHANGELOG.md`, commits
-  `chore(release): 发布 v${version}` (via `git.commitArgs: ["--no-verify"]` — the sanctioned pre-commit
-  bypass on `master`), creates an **annotated** tag `v${version}`, pushes with `--follow-tags`, and
-  uploads `.exe` + `.blockmap` + `latest.yml` to the GitHub Release.
-  - pnpm 12 nuance (2026-10-31): `pnpm release -- --dry-run` passes the `--` separator itself to
-    release-it and fails with "Unexpected positional argument" — use `pnpm exec release-it …` forms.
-  - Prerequisites for a real release: `GITHUB_TOKEN` set (otherwise release-it falls back to a
-    web-based release), clean working dir (`requireCleanWorkingDir` counts untracked files as dirty),
-    on `master` (`requireBranch`). `hooks.before:init` (`pnpm test:all`, `pnpm build:win`) runs for
-    real only outside `--dry-run` (dry-run logs them skipped).
-- Semver for a desktop app: **major** = data format / migration that cannot be rolled back or needs the
-  user to act; **minor** = new feature; **patch** = fix. Pre-releases `-alpha.N` / `-beta.N` / `-rc.N`.
+- Release preparation and publication are separate operations. Prepare package version and
+  reviewed changelog on a PR branch against the explicit actual shipped baseline, then commit
+  normally. Publication reads that version without bumping, rewriting changelog, or committing.
+  The standalone publication configuration keeps the npm plugin for package-version discovery
+  with `npm.publish: false`, omits conventional-changelog, and uses `git.commit: false`.
+- `pnpm release` is not an automatic bump/upload command. Guarded `release:prepare`,
+  `release:build`, `release:check`, `release:draft`, `release:verify`, and `release:publish` stages
+  are defined in `docs/OPERATIONS/RELEASE_PROCESS.md`. Draft/tag authorization and public-release
+  authorization are explicit, tied to the accepted SHA; task progress never supplies them.
+- Require a clean `git status --porcelain=v1 --untracked-files=all`, accepted current master SHA
+  and merge parents, green CI, local build/acceptance evidence and exactly the expected installer,
+  blockmap and latest.yml. Installed release-it's clean check ignores untracked files and its
+  asset globs can miss individual patterns, so neither substitutes for the explicit guards.
+- Build with `--publish never`. Create an annotated tag on the accepted merge and a draft release,
+  verify remote tag and downloaded asset hashes, then publish only after renewed explicit approval.
+  On partial failure preserve evidence and inspect external state before retry; never silently
+  delete/rewrite remote tags. Generating latest.yml is not implementing an automatic updater.
+- Version policy revision (2026-11-08): **major** = incompatible changes to declared supported
+  user/integration contracts; **minor** = compatible functionality; **patch** = compatible fixes.
+  Declare the relevant contracts first, including supported upgrade sources and versioned export
+  formats. Internal schema changes or lack of arbitrary binary downgrade do not by themselves
+  force a major version. Conversely, do not label new functionality or a broken public contract
+  as a patch merely because `package.json` already contains that number. Pre-releases use
+  `-alpha.N` / `-beta.N` / `-rc.N`.
+- Release safety is independent of the version label: require verified upgrade checkpoints,
+  failure/interruption recovery, and final-artifact validation. Fix forward after successful use;
+  any controlled restoration preserves the current state and declares the recovery point's limits.
+  No arbitrary lossless downgrade is promised, and no disclaimer/"version exception" replaces
+  safety checks. The accepted direction and pending implementation plan live in
+  `.trellis/tasks/11-08-release-upgrade-safety/`; this policy is not evidence those gates passed.
 - Tag only the `--no-ff` merge commit on `master`. Hotfixes for a shipped line go on
   `release/<major.minor>` branches.
-- Version numbers are monotonic from `v2.1.0` on. Older tags (`v1.1.0-beta.*` pointing at
+- Future versions must increase from the actual published version, not a planned milestone.
+  Older tags (`v1.1.0-beta.*` pointing at
   `2.0.0-beta.*` code, `0.0.0` in early tags) are historical and are never rewritten; the CHANGELOG
   carries a note explaining them.
-- Full procedure: `docs/OPERATIONS/RELEASE_PROCESS.md` (rewritten in alignment phase 0.10 / 6.3).
+- Full procedure: `docs/OPERATIONS/RELEASE_PROCESS.md`. Implementation and final-artifact acceptance
+  are tracked by `11-08-release-upgrade-safety`; these rules do not certify that task as complete.
+  Public release remains paused until its safety/installer/manual gates and user confirmation.

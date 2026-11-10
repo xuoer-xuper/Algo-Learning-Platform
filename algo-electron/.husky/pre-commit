@@ -1,10 +1,9 @@
 # pre-commit 三道门：master 分支拒绝 → lint-staged → pnpm typecheck && pnpm typecheck:tests。
 # husky 以 sh -e 运行本脚本，任何未兜底的命令失败都会中止提交。
 #
-# 【release-it 冲突决策（design.md §6 方案 1，2026-10-31 定案）】
+# 发布版本与 CHANGELOG 在准备分支正常提交并评审，master 上不再生成发布提交。
 # 本钩子无条件拒绝 master：不做 release-it 环境变量嗅探、不设标记文件。
-# release-it 的发布提交改在其 .release-it.json 配置 git.commitArgs: ["--no-verify"] 绕过本钩子；
-# 该接线属于 0.9（release-it 节），0.9 实施时必须落到配置并在 dry-run 复核。
+# 发行仅在已验收的 master 合并提交上打标签，不允许绕过提交或推送钩子。
 #
 # 分支检查：detached HEAD（rebase、CI checkout 等）下 git branch --show-current 返回空串，
 # 空串不按 master 处理（否则 rebase 与 CI 全被拦）——只在字面等于 master 时拒绝。
@@ -12,7 +11,7 @@ branch="$(git branch --show-current)"
 if [ "$branch" = "master" ]; then
   echo "✖ pre-commit：禁止在 master 上直接提交。" >&2
   echo "  流程：feat|fix|chore/* 分支 → squash PR → dev → --no-ff PR → master。" >&2
-  echo "  release-it 发布提交由 .release-it.json 的 git.commitArgs: [\"--no-verify\"] 绕过（0.9 接线）。" >&2
+  echo "  版本与 CHANGELOG 请在准备分支提交；master 发行只给已验收的合并提交打标签。" >&2
   exit 1
 fi
 

@@ -254,6 +254,13 @@ async function runSmoke(): Promise<void> {
       console.error(`[userscript-smoke-console] ${level}: ${message}`)
     })
     await mainWindow.loadURL(`${origin}/main`)
+    // did-finish-load sends the idle phase over MessagePort; delivery in the
+    // renderer can finish after loadURL resolves. Wait for the script itself.
+    await waitFor(async () =>
+      mainWindow.webContents.executeJavaScript(
+        "globalThis.__runtimeOrder?.includes('userscript-idle:complete') === true",
+      ),
+    )
     const mainResult = (await mainWindow.webContents.executeJavaScript(`({
     order: globalThis.__runtimeOrder,
     noframesRuns: globalThis.__noframesRuns,
@@ -355,6 +362,11 @@ async function runSmoke(): Promise<void> {
       raceWindow.webContents.once('did-finish-load', () => resolve())
       raceWindow.reload()
     })
+    await waitFor(async () =>
+      raceWindow.webContents.executeJavaScript(
+        "globalThis.__raceRuns?.includes('v2-idle') === true",
+      ),
+    )
     assert.deepStrictEqual(
       await raceWindow.webContents.executeJavaScript('globalThis.__raceRuns'),
       ['v2-start', 'inline-before-hold', 'page-script', 'v2-end', 'v2-idle'],

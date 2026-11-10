@@ -1,5 +1,4 @@
 import { app } from 'electron'
-import fs from 'node:fs'
 import { isDeepStrictEqual } from 'node:util'
 import Store from 'electron-store'
 import { z } from 'zod'
@@ -16,6 +15,10 @@ import { DEFAULT_COACH_PIN_MODE } from '../coach/petPinPolicy'
 import { COACH_PIN_MODES, THEME_PREFERENCES } from '../../src/shared/constants/preferences'
 import type { SearchEngineConfig, ThemePreference } from '../../src/shared/types/config'
 import type { CoachConfig } from '../../src/shared/types/coach'
+import {
+  readConfigNormalizationSource,
+  writeNormalizedConfigWithBackup,
+} from '../../src/main/services/backup/lib/config-normalization-backup'
 
 /*
  * Coach 桌宠配置的类型面（`CoachConfig`）已收口到 `src/shared/types/coach.ts`
@@ -69,9 +72,33 @@ type ConfigStore = Store<RawConfig>
 let config: AppConfig | null = null
 let configStore: ConfigStore | null = null
 
+function configFailureReason(error: unknown): string {
+  // JSON parser messages can quote user data; never pass messages/stacks to the logger.
+  if (error instanceof SyntaxError) return 'INVALID_JSON'
+  const code = error instanceof Error && 'code' in error ? error.code : undefined
+  switch (code) {
+    case 'ENOSPC':
+    case 'EACCES':
+    case 'EPERM':
+    case 'EROFS':
+    case 'ENOENT':
+    case 'EIO':
+    case 'EXDEV':
+    case 'EBUSY':
+    case 'CONFIG_UNSAFE_PATH':
+    case 'CONFIG_SOURCE_CHANGED':
+    case 'CONFIG_BACKUP_MISMATCH':
+    case 'CONFIG_WRITE_MISMATCH':
+      return code
+    default:
+      return 'UNAVAILABLE'
+  }
+}
+
 function getStore(): ConfigStore | null {
   if (configStore) return configStore
   try {
+    readConfigNormalizationSource(app.getPath('userData'))
     configStore = new Store<RawConfig>({
       name: CONFIG_FILE_NAME,
       cwd: app.getPath('userData'),
@@ -82,7 +109,7 @@ function getStore(): ConfigStore | null {
     // conf 在 config.json 无法解析（SyntaxError）时拒绝构造；clearInvalidConfig: false
     // 保证坏文件一个字节都不会被清掉。这里降级为内存默认值运行，并在下一次写入时
     // 重试构造（用户手动修复文件后无需重启即可恢复持久化）。
-    log.warn('config.store-unreadable', { error: String(error) })
+    log.warn('config.store-unreadable', { reason: configFailureReason(error) })
     return null
   }
   return configStore
@@ -192,22 +219,26 @@ function migrateLegacyDefaultHomeUrl(raw: RawConfig): RawConfig {
   return { ...rest, homeShortcuts: [...shortcuts, legacyHomeUrl] }
 }
 
-function readRawConfig(): { raw: RawConfig; isFreshInstall: boolean } {
-  const store = getStore()
-  if (!store) return { raw: {}, isFreshInstall: false }
-  // 文件不存在与"存在但内容不合法"要走不同分支：前者只给内存默认值（旧读取器
-  // 对首次启动从不写盘），后者要触发一次收敛写入。conf 的 ENOENT 已把缺文件
-  // 读成空对象，这里用文件是否存在来区分。
-  if (!fs.existsSync(store.path)) return { raw: {}, isFreshInstall: true }
+function readRawConfig(): { raw: RawConfig; original: Buffer | null } {
   try {
+    const original = readConfigNormalizationSource(app.getPath('userData'))
+    if (original === null) return { raw: {}, original: null }
+    const store = getStore()
+    if (!store) return { raw: {}, original: null }
     // conf 的顶层 store 对象是无原型的（防原型链读取）；迁移比较与 zod parse
     // 都按普通对象来，边界上先 JSON 往返归一（isDeepStrictEqual 会把原型差异
     // 当作不相等，导致已规范的文件每次启动都被无谓回写）。
-    return { raw: JSON.parse(JSON.stringify(store.store)) as RawConfig, isFreshInstall: false }
+    const raw = JSON.parse(JSON.stringify(store.store)) as RawConfig
+    if (!readConfigNormalizationSource(app.getPath('userData'))?.equals(original)) {
+      throw Object.assign(new Error('Config changed during read'), {
+        code: 'CONFIG_SOURCE_CHANGED',
+      })
+    }
+    return { raw, original }
   } catch (error) {
     // 构造之后文件被外部改坏：同样按"读不到"处理，文件保持原样。
-    log.warn('config.store-unreadable', { error: String(error) })
-    return { raw: {}, isFreshInstall: false }
+    log.warn('config.store-unreadable', { reason: configFailureReason(error) })
+    return { raw: {}, original: null }
   }
 }
 
@@ -226,19 +257,25 @@ function writeConfig(value: AppConfig): void {
 export function loadConfig(): AppConfig {
   if (config) return config
 
-  const { raw, isFreshInstall } = readRawConfig()
+  const { raw, original } = readRawConfig()
   const migrated = migrateLegacyDefaultHomeUrl(raw)
   const parsed = AppConfigSchema.parse(migrated)
   config = parsed
 
   // 旧文件（缺键、含 defaultHomeUrl、值不规范）收敛写入一次，与旧读取器的迁移
-  // 回写同语义；已规范的文件与首次安装（无文件）都不动。写入失败保留内存值，
-  // 之后的保存会再试。
-  if (!isFreshInstall && !isDeepStrictEqual(migrated, parsed)) {
+  // 回写同语义；原字节备份验证通过后才写，已规范/不可读/首次安装都不动。
+  // 保护或写入失败保留内存值，之后的显式保存仍按原契约执行。
+  if (original !== null && !isDeepStrictEqual(raw, parsed)) {
     try {
-      writeConfig(parsed)
+      writeNormalizedConfigWithBackup(
+        app.getPath('userData'),
+        original,
+        JSON.stringify(parsed, null, 2),
+      )
+      // Discard any electron-store read cache after the normalization-only atomic write.
+      configStore = null
     } catch (error) {
-      log.warn('config.migration-writeback-failed', { error: String(error) })
+      log.warn('config.migration-writeback-failed', { reason: configFailureReason(error) })
     }
   }
   return config

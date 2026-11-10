@@ -84,7 +84,10 @@ beforeEach(() => {
   HTMLElement.prototype.scrollIntoView = vi.fn()
 })
 
-afterEach(() => {
+afterEach(async () => {
+  await act(async () => {
+    await vi.dynamicImportSettled()
+  })
   cleanup()
   vi.restoreAllMocks()
   vi.unstubAllGlobals()
@@ -167,7 +170,12 @@ describe('CoachPet native mouse capture', () => {
     await waitFor(() => expect(api.click).toHaveBeenCalledOnce())
     expect(api.toggle).toHaveBeenLastCalledWith(false)
     act(() => api.showBubble?.(hint))
-    fireEvent.click(await screen.findByRole('button', { name: '自由对话' }))
+    const openChat = await screen.findByRole('button', { name: '自由对话' })
+    await act(async () => {
+      fireEvent.click(openChat)
+      // Wait for the real lazy panel and Markdown dependencies, not coverage-time import speed.
+      await vi.dynamicImportSettled()
+    })
     await screen.findByRole('button', { name: '关闭对话' })
 
     moveTo(200, 60)

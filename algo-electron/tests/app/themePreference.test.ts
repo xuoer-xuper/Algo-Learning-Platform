@@ -10,7 +10,7 @@ import {
 import { ThemeController } from '../../electron/app/themeController'
 import { THEME_PREFERENCES } from '@shared/constants/preferences'
 
-const harness = vi.hoisted(() => ({ userDataDir: '', writeCalls: 0 }))
+const harness = vi.hoisted(() => ({ userDataDir: '' }))
 
 vi.mock('electron', async (importOriginal) => {
   const actual = await importOriginal<Record<string, unknown>>()
@@ -22,29 +22,8 @@ vi.mock('electron', async (importOriginal) => {
   }
 })
 
-/*
- * conf（electron-store 的存储内核）经 atomically 写盘，且 node_modules 依赖在
- * vitest 里默认外置、fs 调用又被 stubborn-fs 在加载期捕获——两条路都拦不到。
- * 写入的代码面收口在 `store.store =`，所以在 electron-store 这一层派生子类计数。
- */
-vi.mock('electron-store', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('electron-store')>()
-  const ActualStore = actual.default
-  class HarnessStore extends ActualStore {
-    override get store(): Record<string, unknown> {
-      return super.store
-    }
-    override set store(value: Record<string, unknown>) {
-      harness.writeCalls += 1
-      super.store = value
-    }
-  }
-  return { ...actual, default: HarnessStore }
-})
-
 beforeEach(() => {
   harness.userDataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'algo-theme-config-'))
-  harness.writeCalls = 0
   vi.resetModules()
 })
 
@@ -119,9 +98,13 @@ describe('主题偏好持久化', () => {
       }),
     )
 
+    const original = fs.readFileSync(configPath)
     const configModule = await import('../../electron/app/config.ts')
     expect(configModule.getThemePreference()).toBe('dark')
-    expect(harness.writeCalls).toBe(0)
+    expect(fs.readFileSync(configPath)).toEqual(original)
+    expect(fs.existsSync(path.join(harness.userDataDir, 'config-normalization-backups'))).toBe(
+      false,
+    )
   })
 
   it('appearance 是唯一未规范化的段时也会回写', async () => {
@@ -145,9 +128,24 @@ describe('主题偏好持久化', () => {
       }),
     )
 
+    const original = fs.readFileSync(configPath)
     const configModule = await import('../../electron/app/config.ts')
     expect(configModule.getThemePreference()).toBe('system')
-    expect(harness.writeCalls).toBe(1)
+    const normalized = fs.readFileSync(configPath)
+    expect(JSON.parse(normalized.toString('utf8'))).toEqual({
+      ...JSON.parse(original.toString('utf8')),
+      appearance: { theme: 'system' },
+    })
+    const backupDir = path.join(harness.userDataDir, 'config-normalization-backups')
+    const backups = fs.readdirSync(backupDir)
+    expect(backups).toHaveLength(1)
+    expect(fs.readFileSync(path.join(backupDir, backups[0]))).toEqual(original)
+
+    vi.resetModules()
+    const restartedConfig = await import('../../electron/app/config.ts')
+    expect(restartedConfig.getThemePreference()).toBe('system')
+    expect(fs.readFileSync(configPath)).toEqual(normalized)
+    expect(fs.readdirSync(backupDir)).toEqual(backups)
   })
 
   it('保存返回落盘后的值，并且不动其他配置段', async () => {

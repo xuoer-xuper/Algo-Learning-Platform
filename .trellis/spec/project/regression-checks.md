@@ -47,6 +47,10 @@ All command and source paths here are relative to `algo-electron/`.
 - A lazy-route container can exist while its page is still suspended. Await both
   import settlement and the page's visible loaded state before teardown. Wire all
   IPC reads made by that route and its mounted children.
+- Nested lazy content needs another settlement after the action/read that mounts it.
+  For the note route, settle the route, await the note-selection action in `act`,
+  then settle MilkdownEditor/Crepe imports before asserting the editable body. A
+  larger DOM polling timeout alone does not synchronize either module boundary.
 
 ## 4. Validation & Error Matrix
 
@@ -105,6 +109,11 @@ await waitFor(() => expect(themeSelector.hasAttribute('disabled')).toBe(false))
 
 ## Native Electron Interaction Tests
 
+- Electron's `did-finish-load` is not acknowledgement that a MessagePort event sent by
+  its handler has run in the renderer. Userscript document-idle smoke assertions must
+  wait for the actual idle script sentinel before checking the exact execution order.
+  Keep duplicate/stale-generation/order assertions; a page-load event or fixed sleep
+  alone cannot establish completion of the asynchronous runtime phase.
 - Chromium DOM focus is not native BrowserWindow activation. Wait for the window
   to be visible/focused and `document.hasFocus()` before keyboard assertions;
   focus the fixture window explicitly when the test requires keyboard input.

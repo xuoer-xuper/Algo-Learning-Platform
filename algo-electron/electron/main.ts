@@ -114,6 +114,9 @@ import { UserScriptRemoteInstaller } from './scripts/UserScriptRemoteInstaller'
 import { UserScriptUpdateService } from './scripts/UserScriptUpdateService'
 import { UserScriptFileWatcher } from './scripts/UserScriptFileWatcher'
 import { IPC_CHANNELS } from '../src/shared/constants/channels'
+import { inspectUpgradeRecovery, resolveUpgrade } from '../src/main/db/resolve-upgrade'
+import { parseUpgradeMaintenanceCommand } from '../src/main/services/backup/lib/upgrade-maintenance-command'
+import { MigrationRetryBlockedError } from './backup/sqliteMigrationBackup'
 
 // 域日志器：scope = 点分事件名第一段（design §2 调用点迁移规则）。main.ts 装配
 // 面覆盖多个域，各域一个常量；动态转发的完整点分事件（TabTransferCoordinator
@@ -130,7 +133,10 @@ const themeLog = logger.scope('theme')
 
 configureChromiumCommandLine()
 
-applyStartupSmokeUserDataPath()
+const maintenanceCommand = parseUpgradeMaintenanceCommand(
+  process.argv.slice(process.defaultApp ? 2 : 1),
+)
+if (maintenanceCommand.kind === 'normal') applyStartupSmokeUserDataPath()
 
 let services: MainServices | null = null
 let userScriptRuntimeBridge: UserScriptRuntimeBridge | null = null
@@ -163,7 +169,8 @@ let quitSessionFlushPromise: Promise<void> | null = null
 
 const viewRegistry = new ViewRegistry()
 const windowManager = new WindowManager({ viewRegistry })
-const disposeDataRefreshBridge = installDataRefreshBridge(windowManager)
+const disposeDataRefreshBridge =
+  maintenanceCommand.kind === 'normal' ? installDataRefreshBridge(windowManager) : () => undefined
 const windowCreationGate = new WindowCreationGate<AppWindow>()
 const credentialVault = new CredentialVault()
 const themeController = new ThemeController({
@@ -182,11 +189,12 @@ function quitIfLastShellWindowClosed(): void {
   app.quit()
 }
 
-const hasSingleInstanceLock = installSingleInstanceLock(
-  app,
-  () => getMostRecentAppWindow()?.browserWindow ?? null,
-  { logger },
-)
+const hasSingleInstanceLock =
+  maintenanceCommand.kind === 'normal'
+    ? installSingleInstanceLock(app, () => getMostRecentAppWindow()?.browserWindow ?? null, {
+        logger,
+      })
+    : app.requestSingleInstanceLock()
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -205,7 +213,52 @@ process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL
 
 // The losing process has already requested app.quit(). Keep every protocol,
 // IPC, lifecycle, and database-backed service registration behind this gate.
-if (hasSingleInstanceLock) {
+if (maintenanceCommand.kind !== 'normal') {
+  if (!hasSingleInstanceLock) {
+    try {
+      dialog.showErrorBox(
+        'Upgrade maintenance refused',
+        'Another application instance owns this profile. Close it completely before running upgrade maintenance.',
+      )
+    } finally {
+      app.exit(2)
+    }
+  } else {
+    void app
+      .whenReady()
+      .then(async () => {
+        let exitCode = 0
+        let message: string
+        try {
+          if (maintenanceCommand.kind === 'invalid') throw new Error(maintenanceCommand.message)
+          if (process.env.ALGO_ELECTRON_SMOKE_USER_DATA || STARTUP_SMOKE_MODE) {
+            throw new Error(
+              'Upgrade maintenance cannot use smoke-mode profile redirection. Run it normally for the current installed profile.',
+            )
+          }
+          message = await resolveUpgrade(app.getPath('userData'), maintenanceCommand.request)
+        } catch (error) {
+          exitCode = 1
+          message =
+            error instanceof Error
+              ? error.message
+              : 'Upgrade verification failed. Preserve the current database and all recovery files.'
+        }
+        try {
+          await dialog.showMessageBox({
+            type: exitCode === 0 ? 'info' : 'error',
+            title: 'Upgrade maintenance',
+            message,
+            buttons: ['Close'],
+            noLink: true,
+          })
+        } finally {
+          app.exit(exitCode)
+        }
+      })
+      .catch(() => app.exit(1))
+  }
+} else if (hasSingleInstanceLock) {
   // electron-log 在首次写入时才懒初始化文件 transport（mkdir + 落盘），无需显式
   // 初始化调用；这行在 app.ready 之前执行，是"启动前日志落盘"的探针——
   // tests/electron/startupSmoke 据此断言 ready 前的日志已写入 main.log。
@@ -1159,6 +1212,14 @@ if (hasSingleInstanceLock) {
       }
     })
     .catch((error) => {
+      if (error instanceof MigrationRetryBlockedError) {
+        try {
+          error.message += `\n\n${inspectUpgradeRecovery(app.getPath('userData'))}`
+        } catch {
+          error.message +=
+            '\nRecovery evidence could not be verified. Preserve the current database, failure records, and backup directory for local support review. Do not delete markers.'
+        }
+      }
       reportFatalError('startup', error)
     })
 }
