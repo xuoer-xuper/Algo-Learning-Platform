@@ -41,6 +41,11 @@ export function countBareSql(text) {
   return (text.match(BARE_SQL_PATTERN) ?? []).length
 }
 
+export function isDatabaseLayerPath(filePath) {
+  const normalized = filePath.replaceAll('\\', '/')
+  return normalized.startsWith('electron/db/') || normalized.startsWith('src/main/db/')
+}
+
 /**
  * checkbox / radio / range 在 src/components/ui/fields.tsx 里还没有对应组件，
  * 先按类型豁免。补齐组件后删掉这个豁免，届时会有 6 处需要改。
