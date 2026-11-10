@@ -23,6 +23,7 @@ export default defineConfig({
       'tests/db/backupImport.test.ts',
       'tests/db/dailyStatsPerformance.test.ts',
       'tests/db/migrationSafety.test.ts',
+      'tests/db/migrationInterruption.test.ts',
       'tests/db/repositories.test.ts',
       'tests/electron/ojSubmissionBridgeSmoke.test.ts',
       'tests/electron/startupSmoke.test.ts',

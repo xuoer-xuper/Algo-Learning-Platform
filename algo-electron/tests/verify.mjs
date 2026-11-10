@@ -24,11 +24,13 @@ const dbVitestFiles = [
   'tests/db/credentialRepository.test.ts',
   'tests/db/databaseInitialization.test.ts',
   'tests/db/historicalUpgradePath.test.ts',
+  'tests/db/migrationCheckpoint.test.ts',
   'tests/db/migration030.test.ts',
   'tests/shared/legacyTimestamp.test.ts',
   'tests/db/migrateLogging.test.ts',
   'tests/db/omniboxSuggestions.test.ts',
   'tests/db/problemContextMigration.test.ts',
+  'tests/db/resolve-upgrade.test.ts',
   'tests/db/sqliteMigrationBackup.test.ts',
   'tests/db/siteCredentialMigration.test.ts',
   'tests/db/siteLoginAutofillMigration.test.ts',
@@ -155,6 +157,10 @@ function runDbElectronTests() {
   runElectronNodeTest(path.join('tests', 'db', 'backupImport.test.ts'), 'db-backupImport')
   runElectronNodeTest(path.join('tests', 'db', 'migrationSafety.test.ts'), 'db-migrationSafety')
   runElectronNodeTest(
+    path.join('tests', 'db', 'migrationInterruption.test.ts'),
+    'db-migrationInterruption',
+  )
+  runElectronNodeTest(
     path.join('tests', 'db', 'dailyStatsPerformance.test.ts'),
     'db-dailyStatsPerformance',
   )
@@ -249,6 +255,7 @@ function runAllSuite() {
   runLint()
   runArchitecture()
   runSecurity()
+  runJscpd()
   runVitest([], true)
   runAiElectronTests()
   runDbElectronTests()
