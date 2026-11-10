@@ -1,6 +1,7 @@
 {"file": ".trellis/spec/shared/code-quality.md", "reason": "强制规则：无 !、无 any、命名、错误处理"}
 {"file": ".trellis/spec/project/domain-rules.md", "reason": "不可放松的产品/安全红线"}
 {"file": ".trellis/spec/project/migration-status.md", "reason": "当前位置与目标位置对照"}
-{"file": ".trellis/tasks/archive/2026-09/00-bootstrap-guidelines/research/spec-alignment-plan.md", "reason": "本阶段步骤与决策编号"}
+{"file": ".trellis/tasks/archive/2026-09/00-bootstrap-guidelines/research/spec-alignment-plan.md", "reason": "历史步骤与决策编号；固定 v3.0.0 与强制维护分支安排已由 2026-11-08 修订取代，以当前 PRD 为准"}
+{"file": ".trellis/tasks/09-17-spec-alignment/prd.md", "reason": "2026-11-08 阶段性发布决策与最终版本待定；优先于归档发布安排"}
 {"file": ".trellis/spec/project/git-workflow.md", "reason": "tag 与发布规则"}
 {"file": ".trellis/tasks/archive/2026-09/00-bootstrap-guidelines/research/tooling-tests-git-audit.md", "reason": "残留清单"}
