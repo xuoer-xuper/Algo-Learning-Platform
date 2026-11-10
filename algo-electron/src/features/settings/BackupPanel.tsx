@@ -110,8 +110,8 @@ export function BackupPanel() {
 
       {status && <div className="sync-status">{status}</div>}
       <div className="sync-hint">
-        JSON
-        导出仅包含学习数据，不包含登录态、原始调试载荷、日志或本机路径；完整备份请用数据库备份，数据库备份含本机敏感数据，仅用于受保护的本机恢复。
+        JSON 导出仅包含学习数据，不包含登录态、原始调试载荷、日志或本机路径。SQLite
+        备份包含库内数据，但图片附件、配置、脚本文件及浏览器会话需分别保护；两者都不是完整用户目录备份。数据库和配置备份可能含本机敏感数据，仅用于受保护的本机恢复。
       </div>
     </div>
   )
