@@ -15,12 +15,12 @@
   "branch": "fix/release-upgrade-safety",
   "base_branch": "dev",
   "worktree_path": "C:/Users/drxuo/.codex/worktrees/release-2-0-1/Algo-Learning-Platform",
-  "commit": null,
-  "pr_url": null,
+  "commit": "54265bcc20052bf6bf9319b6267722c44a2cb23e",
+  "pr_url": "https://github.com/xuoer-xuper/Algo-Learning-Platform/pull/9",
   "subtasks": [],
   "children": [],
   "parent": "09-17-spec-alignment",
   "relatedFiles": [],
-  "notes": "升级/配置/发行加固及独立复核完成，完整自动门和本地构建通过。Sandbox实际事件确认SAC拒绝未签名2.0.0；按用户要求增加GitHub托管临时Windows安装验收，待实际运行。公开发行、master合并、tag与草稿上传仍暂停；原Drizzle工作区和PR8不动。",
+  "notes": "升级/配置/发行加固及独立复核完成，完整自动门和本地构建通过，PR9到dev的必需CI通过。Sandbox确认SAC拒绝未签名2.0.0；GitHub托管运行42788578461构建和准备通过，NSIS第2步180秒未退出；无害NSIS探针已复现给/S加引号导致静默失效，正在修复，安装验收待重验。公开发行、master合并、tag与草稿上传仍暂停；原Drizzle工作区和PR8不动。",
   "meta": {}
 }

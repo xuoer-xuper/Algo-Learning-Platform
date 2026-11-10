@@ -92,35 +92,50 @@ describe('installer acceptance environment guards', () => {
     fs.unlinkSync(link)
   })
 
-  it.skipIf(process.platform !== 'win32')(
-    'removes authentication tokens only from launched children',
-    () => {
-      const { directory } = fixture()
-      const tokenNames = [
-        'GH_TOKEN',
-        'GITHUB_TOKEN',
-        'GH_ENTERPRISE_TOKEN',
-        'GITHUB_ENTERPRISE_TOKEN',
-        'ACTIONS_RUNTIME_TOKEN',
-        'ACTIONS_ID_TOKEN_REQUEST_TOKEN',
-      ]
-      const preservedNames = ['USERPROFILE', 'APPDATA', 'LOCALAPPDATA', 'GITHUB_ACTIONS']
-      const childProbe = path.join(directory, 'environment-probe.mjs')
-      const powershellProbe = path.join(directory, 'process-probe.ps1')
-      const env = { ...process.env, GITHUB_ACTIONS: 'synthetic-identity' }
-      fs.writeFileSync(
-        childProbe,
-        `const tokens = ${JSON.stringify(tokenNames)};
+  it.skipIf(process.platform !== 'win32').each([
+    { name: 'authentication isolation', arguments: [], rawSuffix: '' },
+    {
+      name: 'raw NSIS switches and spaced/empty argument boundaries',
+      arguments: [
+        '/S',
+        '/currentuser',
+        '--resolve-upgrade=00000000-0000-4000-8000-000000000001',
+        '--resolution=keep-current',
+        'contains space',
+        'contains\ttab',
+        '',
+      ],
+      rawSuffix:
+        ' /S /currentuser --resolve-upgrade=00000000-0000-4000-8000-000000000001 --resolution=keep-current "contains space" "contains\ttab" ""',
+    },
+  ])('preserves $name when launching a real child', ({ arguments: childArguments, rawSuffix }) => {
+    const { directory } = fixture()
+    const tokenNames = [
+      'GH_TOKEN',
+      'GITHUB_TOKEN',
+      'GH_ENTERPRISE_TOKEN',
+      'GITHUB_ENTERPRISE_TOKEN',
+      'ACTIONS_RUNTIME_TOKEN',
+      'ACTIONS_ID_TOKEN_REQUEST_TOKEN',
+    ]
+    const preservedNames = ['USERPROFILE', 'APPDATA', 'LOCALAPPDATA', 'GITHUB_ACTIONS']
+    const childProbe = path.join(directory, 'environment probe.mjs')
+    const powershellProbe = path.join(directory, 'process-probe.ps1')
+    const env = { ...process.env, GITHUB_ACTIONS: 'synthetic-identity' }
+    fs.writeFileSync(
+      childProbe,
+      `const tokens = ${JSON.stringify(tokenNames)};
 const expected = ${JSON.stringify(Object.fromEntries(preservedNames.map((name) => [name, env[name as keyof typeof env]])))};
 process.stdout.write(JSON.stringify({
+  arguments: process.argv.slice(2),
   tokenPresence: Object.fromEntries(tokens.map(name => [name, Object.hasOwn(process.env, name)])),
   identityPreserved: Object.entries(expected).every(([name, value]) => process.env[name] === value),
 }));
 `,
-      )
-      fs.writeFileSync(
-        powershellProbe,
-        `param([string]$Harness, [string]$NodeExecutable, [string]$Probe)
+    )
+    fs.writeFileSync(
+      powershellProbe,
+      `param([string]$Harness, [string]$NodeExecutable, [string]$Probe)
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 $tokens = $null
@@ -132,7 +147,8 @@ foreach ($name in @('Assert-True', 'Start-GuestProcess', 'Get-VerifiedExitCode')
     if ($definitions.Count -ne 1) { throw 'Expected a unique process function' }
     . ([scriptblock]::Create($definitions[0].Extent.Text))
 }
-$child = Start-GuestProcess $NodeExecutable @($Probe) ([IO.Path]::GetDirectoryName($Probe)) $true
+$childArguments = @($Probe) + @(${childArguments.map((argument) => `'${argument}'`).join(', ')})
+$child = Start-GuestProcess $NodeExecutable $childArguments ([IO.Path]::GetDirectoryName($Probe)) $true
 $stdout = $child.StandardOutput.ReadToEndAsync()
 $stderr = $child.StandardError.ReadToEndAsync()
 if (-not $child.WaitForExit(10000)) { $child.Kill(); throw 'Environment probe timed out' }
@@ -144,48 +160,62 @@ $parentUnchanged = $true
 foreach ($name in @(${tokenNames.map((name) => `'${name}'`).join(', ')})) {
     if ([Environment]::GetEnvironmentVariable($name) -cne 'synthetic-auth-value') { $parentUnchanged = $false }
 }
-[ordered]@{ child = $result; parentTokensUnchanged = $parentUnchanged } | ConvertTo-Json -Depth 5 -Compress
+$refusedArguments = 0
+foreach ($argument in @('embedded"quote', ('line' + [char]13 + 'return'), ('line' + [char]10 + 'feed'), ('trailing' + [char]92), ('space trailing' + [char]92))) {
+    $refused = $false
+    try {
+        Start-GuestProcess ($Probe + '.does-not-exist') @($argument) ([IO.Path]::GetDirectoryName($Probe)) $true | Out-Null
+    } catch {
+        if ($_.Exception.Message -cne 'Unsupported harness process argument') { throw }
+        $refused = $true
+    }
+    if (-not $refused) { throw 'Unsafe process argument was accepted' }
+    $refusedArguments += 1
+}
+[ordered]@{ child = $result; rawArguments = $child.StartInfo.Arguments; parentTokensUnchanged = $parentUnchanged; refusedArguments = $refusedArguments } | ConvertTo-Json -Depth 5 -Compress
 `,
-      )
-      const result = spawnSync(
-        'powershell.exe',
-        [
-          '-NoLogo',
-          '-NoProfile',
-          '-NonInteractive',
-          '-ExecutionPolicy',
-          'Bypass',
-          '-File',
-          powershellProbe,
-          '-Harness',
-          path.resolve('tests/packaging/sandbox-upgrade-guest.ps1'),
-          '-NodeExecutable',
-          process.execPath,
-          '-Probe',
-          childProbe,
-        ],
-        {
-          cwd: directory,
-          env: {
-            ...env,
-            ...Object.fromEntries(tokenNames.map((name) => [name, 'synthetic-auth-value'])),
-          },
-          encoding: 'utf8',
-          windowsHide: true,
-          timeout: 20000,
+    )
+    const result = spawnSync(
+      'powershell.exe',
+      [
+        '-NoLogo',
+        '-NoProfile',
+        '-NonInteractive',
+        '-ExecutionPolicy',
+        'Bypass',
+        '-File',
+        powershellProbe,
+        '-Harness',
+        path.resolve('tests/packaging/sandbox-upgrade-guest.ps1'),
+        '-NodeExecutable',
+        process.execPath,
+        '-Probe',
+        childProbe,
+      ],
+      {
+        cwd: directory,
+        env: {
+          ...env,
+          ...Object.fromEntries(tokenNames.map((name) => [name, 'synthetic-auth-value'])),
         },
-      )
-      expect(result.stderr).toBe('')
-      expect(result.status).toBe(0)
-      expect(JSON.parse(result.stdout)).toEqual({
-        child: {
-          tokenPresence: Object.fromEntries(tokenNames.map((name) => [name, false])),
-          identityPreserved: true,
-        },
-        parentTokensUnchanged: true,
-      })
-    },
-  )
+        encoding: 'utf8',
+        windowsHide: true,
+        timeout: 20000,
+      },
+    )
+    expect(result.stderr).toBe('')
+    expect(result.status).toBe(0)
+    expect(JSON.parse(result.stdout)).toEqual({
+      child: {
+        arguments: childArguments,
+        tokenPresence: Object.fromEntries(tokenNames.map((name) => [name, false])),
+        identityPreserved: true,
+      },
+      parentTokensUnchanged: true,
+      rawArguments: `"${childProbe}"${rawSuffix}`,
+      refusedArguments: 5,
+    })
+  })
 
   it('refuses local CLI invocation before downloading or writing installer inputs', () => {
     const { directory } = fixture()

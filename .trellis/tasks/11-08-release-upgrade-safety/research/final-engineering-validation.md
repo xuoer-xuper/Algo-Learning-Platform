@@ -74,7 +74,9 @@ manifest仍指向实际构建源码，同时记录独立脚本hash和harness-rev
 4ec347c074b2448e8b9fabefbc632c8f7ec0cb2997d587d8ebdd2fc777e7a9ab、
 29ec1ef08a45deafb504eccc2f791f5a710be4564c0e982eb7a8e6b3f36c03be。
 诊断guest已关闭；没有改动策略。现新增显式GitHub-hosted Windows临时VM安装验收，
-沿用同26步、默认用户profile及严格失败语义，实际远程结果待记录。
+沿用同26步、默认用户profile及严格失败语义。首次运行`42788578461`的前置CI、
+候选构建、输入准备通过，但第2步2.0.0安装180秒未退出；安装验收仍失败，
+正在定位修复。三份摘要身份核验和失败证据见`hosted-installer-validation.md`。
 
 实现及文档已分组正常提交/推送至58f1e5c；祖先同步为c340c16（parents 3702f01、d2d2b0c），
 代码组为f23c6aa、efdf573、982cf7d、8e9dbe2，验收组e952f01。每次推送的test:ci均退出0。
@@ -82,7 +84,9 @@ manifest仍指向实际构建源码，同时记录独立脚本hash和harness-rev
 冒烟拦住：重载数组暂缺v2-idle。源码确认did-finish-load只发送MessagePort idle消息，
 测试没有等待renderer处理。独立checker在隔离tmp bundle延迟该消息，确定性复现同一失败；
 修复只等待真实idle sentinel后保留精确顺序断言，没有改生产调度、增加超时或重试。
-修复后的定向验证和正常pre-push结果另记，不将首次失败隐藏为已通过。
+修复后的定向验证通过；随后`9b30e9b`和`54265bc`的正常pre-push均通过，
+197文件/1736用例、Electron冒烟和11项Playwright通过。PR9已创建到dev，
+CI `42788558182`两项必需检查通过，watch退出0。首次失败仍保留。
 构建快照与提交后逐文件哈希对比，仅任务文档及PS验收脚本改变，产品代码/构建配置/依赖
 字节保持一致。这仍是工程候选证据；后续CI包须记录其自身提交和实际哈希。
 

@@ -121,7 +121,8 @@ function Start-GuestProcess([string]$File, [string[]]$Arguments, [string]$Direct
     $quoted = foreach ($argument in $Arguments) {
         # All arguments are fixed harness tokens, paths or a validated UUID.
         Assert-True ($argument -notmatch '["\r\n]' -and -not $argument.EndsWith('\')) 'Unsupported harness process argument'
-        '"' + $argument + '"'
+        # NSIS parses its raw command line: quoting /S disables silent mode.
+        if ($argument.Length -eq 0 -or $argument -match '\s') { '"' + $argument + '"' } else { $argument }
     }
     $start = New-Object System.Diagnostics.ProcessStartInfo
     $start.FileName = $File

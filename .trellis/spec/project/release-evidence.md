@@ -77,6 +77,11 @@ evidence checks live in `release-guards.mjs`. External commands use the injected
   report.json, input-manifest.json and engineering-build.json. Do not upload installers,
   database/profile copies, configuration, logs or source snapshots. These CI summaries are
   engineering evidence, not public Release assets or final-master acceptance by themselves.
+- The Windows PowerShell launcher passes NSIS switches as raw `/S /currentuser` tokens.
+  NSIS does not recognize a quoted `"/S"` as silent mode; quoting every argument can leave
+  an invisible interactive installer until the 180-second timeout. Quote empty or whitespace
+  arguments only, retain rejection of embedded quotes/newlines/trailing backslashes, and
+  keep `UseShellExecute:false`. This is argument serialization, not a shell command string.
 
 ## 4. Validation & Error Matrix
 
@@ -92,6 +97,7 @@ evidence checks live in `release-guards.mjs`. External commands use the injected
 | Target local/remote tag or Release already exists | Stop for state inspection |
 | Tag push/upload/PATCH result uncertain | Preserve attempts and external state; no automatic deletion/retry |
 | Draft assets verified but no separate public approval | Keep draft private; do not PATCH |
+| NSIS fails to exit within 180 seconds | Fail acceptance; preserve evidence; no longer timeout or blind retry |
 
 ## 5. Good / Base / Bad Cases
 
@@ -119,6 +125,11 @@ evidence checks live in `release-guards.mjs`. External commands use the injected
 - Installer harness environment/path/owner validation must reject local or self-hosted runs,
   redirected or linked folders, reused profile/output, wrong source identity and unexpected
   inputs. A successful launcher or passed-with-limitations report is not a complete pass.
+- Launcher regressions must inspect both child argv and the raw Windows command line:
+  `/S /currentuser` stays unquoted, whitespace paths and empty arguments survive, and unsafe
+  quotes/newlines/trailing backslashes remain refused. When changing NSIS serialization,
+  a harmless `.onInit`/`IfSilent`/`Quit` probe can prove parser behavior without running a
+  product installer on the host; the actual isolated lifecycle still must pass separately.
 
 ## 7. Wrong vs Correct
 

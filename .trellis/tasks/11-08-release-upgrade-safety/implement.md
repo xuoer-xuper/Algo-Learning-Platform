@@ -25,6 +25,11 @@
   job，在GitHub-hosted临时Windows VM继续同范围验收；不关闭策略、不用宿主profile。
   已实现并独立复核，14项Node/PS子进程守卫和20项PS路径检查通过；实际远程结果待记录，
   不能把环境方案写成通过证据。详见 research/installer-ci-review.md。
+- PR9已推送至`54265bc`，必需CI `42788558182`通过。首轮托管安装`42788578461`
+  前置检查/候选构建/输入准备通过；第2步官方2.0.0安装180秒未退出，失败保留，
+  无害NSIS探针已复现给`/S`加引号会失去静默模式，正修复参数并补回归。
+  详见`research/hosted-installer-validation.md`，
+  不能把PR CI或构建通过记作安装验收通过。
 
 ## S1 源码集成与基线
 

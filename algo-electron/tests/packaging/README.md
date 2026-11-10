@@ -115,6 +115,8 @@ guest 和 helper 核对真实 Windows 用户主目录、标准 `AppData/Roaming`
 
 该模式执行同一26步安装生命周期，不改变 runner 的安全或网络策略。环境身份检查是防误用守卫，不是可信平台远程证明。`installerAcceptanceGuards.test.ts` 覆盖环境/身份/路径重定向/链接及 CLI 提前拒绝；它不能代替真实 NSIS 运行。
 
+进程启动器仅对空值或含空白的参数加引号；NSIS 读取原始命令行，`"/S"` 不会启用静默模式，`/S /currentuser` 必须保留原样。回归使用 AST 提取的真实 PowerShell 启动器和 Node 子进程，核对原始命令行、含空格/制表符/空值参数边界，以及认证变量过滤。一次性无安装 NSIS 探针在 `.onInit` 内读取 `IfSilent`/`GetOptions` 后立即退出，已复现修复前后差异；安装/卸载180秒超时与失败退出语义不变。
+
 每步更新 `report.json`，输出各阶段日志、helper 断言和仅合成的 profile 证据。宿主或 CI 读取最终 `status` 与 `finishedAt`，不能将 WindowsSandbox 进程的存活/退出或准备器的成功直接当成 guest 成功。脚本返回 `0/passed`、`1/failed` 或 `2/passed-with-limitations`；若恢复对话框只能强制结束，缺失自然关闭及退出码验收会明确记录，不能将 `passed-with-limitations` 等同于全部验收通过。失败后保留已允许的证据，用新的 Sandbox 或新的 hosted runner 和目录重跑，不覆盖前次输出。
 
 这些样本证明本次安装生命周期中的数据保留，不证明真实账号的解密/登录、七站提交、同步、核心页面人工导航或完整 profile 回滚。Sandbox 的原始输出只留本地；CI 仅上传 `report.json`、`input-manifest.json`、`engineering-build.json` 三份摘要作为 workflow artifact，不上传原始合成 profile、数据库、日志、源码快照或安装资产。工程验证不等于最终 master 发行验收；任何测试证据均不纳入 Release 资产。
