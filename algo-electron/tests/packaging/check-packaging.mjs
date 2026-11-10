@@ -33,6 +33,15 @@ function check(name, fn) {
 
 const builderConfig = readBuilderConfig(builderConfigPath)
 const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'))
+const releaseDefault = JSON.parse(
+  fs.readFileSync(path.join(projectRoot, '.release-it.json'), 'utf8'),
+)
+const releasePrepare = JSON.parse(
+  fs.readFileSync(path.join(projectRoot, '.release-it.prepare.json'), 'utf8'),
+)
+const releasePublish = JSON.parse(
+  fs.readFileSync(path.join(projectRoot, '.release-it.publish.json'), 'utf8'),
+)
 const files = builderConfig.files ?? []
 const asarUnpack = builderConfig.asarUnpack ?? []
 const electronFuses = builderConfig.electronFuses ?? {}
@@ -169,14 +178,14 @@ check('package scripts expose standard build commands', () => {
   assert(
     build.startsWith('tsc && vite build') &&
       build.includes('test:packaged-main') &&
-      build.endsWith('electron-builder'),
+      build.endsWith('electron-builder --publish never'),
     'build script must verify the main bundle before electron-builder',
   )
 
   const buildWin = packageJson.scripts?.['build:win'] ?? ''
   assert(
     buildWin.includes('test:packaged-main') &&
-      buildWin.includes('--win nsis') &&
+      buildWin.includes('--win nsis --publish never') &&
       buildWin.includes('test:packaged-app'),
     'build:win script must verify the main bundle and smoke test Windows output',
   )
@@ -184,6 +193,97 @@ check('package scripts expose standard build commands', () => {
     buildWin.indexOf('test:packaged-main') < buildWin.indexOf('electron-builder'),
     'build:win must verify the main bundle before electron-builder',
   )
+})
+
+check('build metadata has a provider without implicit uploads or updater claims', () => {
+  assert(
+    builderConfig.publish?.provider === 'github',
+    'Update metadata requires an explicit GitHub provider',
+  )
+  assert(builderConfig.publish.owner === 'xuoer-xuper', 'Unexpected publication owner')
+  assert(
+    builderConfig.publish.repo === 'Algo-Learning-Platform',
+    'Unexpected publication repository',
+  )
+  assert(builderConfig.publish.publishAutoUpdate !== false, 'Do not suppress latest.yml generation')
+  for (const [name, command] of Object.entries(packageJson.scripts)) {
+    if (command.includes('electron-builder') && !command.includes('install-app-deps')) {
+      assert(command.includes('--publish never'), `${name} must not upload during a build`)
+    }
+  }
+})
+
+check('release preparation is PR-only with the actual shipped changelog baseline', () => {
+  assert(
+    JSON.stringify(releasePrepare.git.requireBranch) === JSON.stringify(['!master', '!dev']),
+    'Prepare only on a PR branch',
+  )
+  assert(
+    releasePrepare.npm.publish === false && releasePrepare.npm.allowSameVersion === true,
+    'Preparation must not npm-publish',
+  )
+  for (const field of ['commit', 'tag', 'push'])
+    assert(releasePrepare.git[field] === false, `Preparation git.${field} must be false`)
+  assert(releasePrepare.github.release === false, 'Preparation must not create a release')
+  const plugin = releasePrepare.plugins['@release-it/conventional-changelog']
+  assert(
+    plugin.context.previousTag === 'v2.0.0' && plugin.gitRawCommitsOpts.from === 'v2.0.0',
+    'Do not infer release notes from an obsolete RC',
+  )
+  assert(
+    releasePrepare.hooks['before:init'] === 'node scripts/release-cli.mjs guard-prepare',
+    'Preparation requires fail-closed branch/remote checks',
+  )
+})
+
+check('publication never bumps, commits, regenerates changelog or bypasses hooks', () => {
+  assert(releasePublish.increment === false, 'Publication must not bump')
+  assert(
+    releasePublish.npm?.publish === false && releasePublish.npm.ignoreVersion !== true,
+    'Keep npm package version discovery enabled',
+  )
+  assert(
+    releasePublish.git.commit === false && releasePublish.git.changelog === false,
+    'Publication must be source-read-only',
+  )
+  assert(releasePublish.git.requireBranch === 'master', 'Only accepted master can be tagged')
+  assert(
+    releasePublish.git.tagName === 'v${version}' &&
+      releasePublish.git.tagAnnotation === 'v${version}',
+    'Publication requires an annotated version tag',
+  )
+  assert(
+    !releasePublish.plugins && !releasePublish.extends,
+    'Publishing config must not inherit changelog plugins',
+  )
+  assert(
+    releasePublish.git.push === false && releasePublish.github.release === false,
+    'Guarded wrapper exclusively owns exact tag push and draft publication',
+  )
+  assert(
+    releasePublish.hooks['before:git:release'] === 'node scripts/release-cli.mjs guard-tag',
+    'Recheck before local tag side effect',
+  )
+  for (const config of [releaseDefault, releasePrepare, releasePublish]) {
+    assert(!JSON.stringify(config).includes('--no-verify'), 'Normal Git hooks must remain active')
+    assert(!JSON.stringify(config).includes('HUSKY='), 'Do not bypass Husky')
+  }
+  assert(
+    releaseDefault.increment === false &&
+      releaseDefault.git.tag === false &&
+      releaseDefault.git.push === false,
+    'Default config must be inert',
+  )
+  assert(
+    packageJson.scripts.release === 'node scripts/release-cli.mjs help',
+    'Default release must require an explicit stage',
+  )
+  for (const stage of ['prepare', 'build', 'check', 'draft', 'verify', 'publish']) {
+    assert(
+      packageJson.scripts[`release:${stage}`] === `node scripts/release-cli.mjs ${stage}`,
+      `Missing guarded ${stage} command`,
+    )
+  }
 })
 
 check('pnpm settings keep the flat layout and allow dependency build scripts', () => {

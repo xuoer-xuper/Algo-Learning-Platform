@@ -13,6 +13,11 @@
     grantFileProtocolExtraPrivileges: false,
   },
   productName: 'AlgoLearningPlatform',
+  publish: {
+    provider: 'github',
+    owner: 'xuoer-xuper',
+    repo: 'Algo-Learning-Platform',
+  },
   directories: {
     buildResources: 'build',
     output: 'release/${version}',

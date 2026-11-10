@@ -201,7 +201,7 @@ jobs:
         run: pnpm run build:check
 
       - name: Build unpacked Windows application
-        run: pnpm exec electron-builder --win --dir
+        run: pnpm exec electron-builder --win --dir --publish never
 
       - name: Smoke test unpacked Windows application
         run: pnpm run test:packaged-app

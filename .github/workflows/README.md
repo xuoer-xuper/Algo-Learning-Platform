@@ -44,7 +44,7 @@ gh workflow run ci.yml --ref master
 
 `npm run build:check` 额外覆盖生产 renderer/main/preload 构建与 packaged-main 外部依赖检查，不生成安装包。
 
-`packaged-smoke` 在 `build:check` 后使用 electron-builder 的 `--dir` 模式，只生成供 CI 启动验证的 `win-unpacked`，不生成或上传 NSIS 安装包。`npm run test:packaged-app` 使用系统临时目录中的隔离 userData、本地 HTTP smoke 页面和 SQLite，结束后清理临时目录。
+`packaged-smoke` 在 `build:check` 后使用 electron-builder 的 `--dir --publish never` 模式，只生成供 CI 启动验证的 `win-unpacked`，不生成或上传 NSIS 安装包。显式禁止上传，避免 CI 或 GitHub provider 自动推断发布行为。`npm run test:packaged-app` 使用系统临时目录中的隔离 userData、本地 HTTP smoke 页面和 SQLite，结束后清理临时目录。
 
 不覆盖：
 
