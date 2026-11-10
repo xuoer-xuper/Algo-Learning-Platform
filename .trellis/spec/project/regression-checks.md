@@ -109,6 +109,11 @@ await waitFor(() => expect(themeSelector.hasAttribute('disabled')).toBe(false))
 
 ## Native Electron Interaction Tests
 
+- Electron's `did-finish-load` is not acknowledgement that a MessagePort event sent by
+  its handler has run in the renderer. Userscript document-idle smoke assertions must
+  wait for the actual idle script sentinel before checking the exact execution order.
+  Keep duplicate/stale-generation/order assertions; a page-load event or fixed sleep
+  alone cannot establish completion of the asynchronous runtime phase.
 - Chromium DOM focus is not native BrowserWindow activation. Wait for the window
   to be visible/focused and `document.hasFocus()` before keyboard assertions;
   focus the fixture window explicitly when the test requires keyboard input.
