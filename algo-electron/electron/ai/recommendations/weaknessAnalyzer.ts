@@ -2,11 +2,17 @@
 // 基于 AC 率、错误次数、停留时长等本地统计，识别薄弱标签
 // 结果解释使用本地统计依据，不调用大模型
 import { getDb } from '../../db/connection'
-import { nowBeijing } from '../../shared/time'
-import { buildWeaknessEvidence, scoreTagWeakness, WEAKNESS_AC_RATE_THRESHOLD, WEAKNESS_ANALYSIS_RULE_VERSION } from './rules'
+import { nowMillis } from '../../shared/time'
+import {
+  buildWeaknessEvidence,
+  scoreTagWeakness,
+  WEAKNESS_AC_RATE_THRESHOLD,
+  WEAKNESS_ANALYSIS_RULE_VERSION,
+} from './rules'
 import { parseTagsJson } from './tagParsing'
-import type { TagAggregate, TagWeakness, WeaknessAnalysisResult } from './types'
-export type { TagWeakness, WeaknessAnalysisResult } from './types'
+import type { TagAggregate } from './types'
+import type { TagWeakness, WeaknessAnalysisResult } from '../../../src/shared/types/ai'
+export type { TagWeakness, WeaknessAnalysisResult } from '../../../src/shared/types/ai'
 
 // 薄弱评分规则（纯本地统计）：
 // 1. AC 率越低越薄弱（权重 50）
@@ -17,7 +23,9 @@ export function getWeaknessAnalysis(limit = 10): WeaknessAnalysisResult {
   const db = getDb()
 
   // 收集带标签的题目及其状态
-  const rows = db.prepare(`
+  const rows = db
+    .prepare(
+      `
     SELECT
       p.id, p.tags_json,
       CASE
@@ -29,11 +37,19 @@ export function getWeaknessAnalysis(limit = 10): WeaknessAnalysisResult {
       (SELECT COALESCE(SUM(duration_seconds), 0) FROM problem_visits pv WHERE pv.problem_id = p.id) as duration
     FROM problems p
     WHERE p.deleted_at IS NULL AND p.tags_json IS NOT NULL AND p.tags_json != '[]' AND p.tags_json != ''
-  `).all() as { id: string; tags_json: string | null; status: string; wrong_subs: number; duration: number }[]
+  `,
+    )
+    .all() as {
+    id: string
+    tags_json: string | null
+    status: string
+    wrong_subs: number
+    duration: number
+  }[]
 
   if (rows.length === 0) {
     return {
-      generated_at: nowBeijing(),
+      generated_at: nowMillis(),
       rule_version: WEAKNESS_ANALYSIS_RULE_VERSION,
       weaknesses: [],
       data_note: '暂无标签数据。请在题目详情中补充标签后重试。',
@@ -44,10 +60,17 @@ export function getWeaknessAnalysis(limit = 10): WeaknessAnalysisResult {
 
   for (const row of rows) {
     for (const key of parseTagsJson(row.tags_json)) {
-      if (!tagMap.has(key)) {
-        tagMap.set(key, { total: 0, solved: 0, attempted: 0, wrong_submissions: 0, total_duration_seconds: 0 })
+      let entry = tagMap.get(key)
+      if (!entry) {
+        entry = {
+          total: 0,
+          solved: 0,
+          attempted: 0,
+          wrong_submissions: 0,
+          total_duration_seconds: 0,
+        }
+        tagMap.set(key, entry)
       }
-      const entry = tagMap.get(key)!
       entry.total++
       if (row.status === 'solved') entry.solved++
       else if (row.status === 'attempted') entry.attempted++
@@ -75,16 +98,17 @@ export function getWeaknessAnalysis(limit = 10): WeaknessAnalysisResult {
       }
     })
     // 修复：过滤掉 AC 率 >= 阈值的"已掌握"标签，避免出现在薄弱列表中误导用户
-    .filter(w => w.ac_rate < WEAKNESS_AC_RATE_THRESHOLD)
+    .filter((w) => w.ac_rate < WEAKNESS_AC_RATE_THRESHOLD)
     .sort((a, b) => b.weakness_score - a.weakness_score)
     .slice(0, limit)
 
-  const dataNote = weaknesses.length > 0
-    ? '基于本地 AC 率、错误次数与停留时长统计生成。'
-    : `暂无 AC 率低于 ${WEAKNESS_AC_RATE_THRESHOLD}% 的薄弱标签（已掌握的标签不在此列表）。`
+  const dataNote =
+    weaknesses.length > 0
+      ? '基于本地 AC 率、错误次数与停留时长统计生成。'
+      : `暂无 AC 率低于 ${WEAKNESS_AC_RATE_THRESHOLD}% 的薄弱标签（已掌握的标签不在此列表）。`
 
   return {
-    generated_at: nowBeijing(),
+    generated_at: nowMillis(),
     rule_version: WEAKNESS_ANALYSIS_RULE_VERSION,
     weaknesses,
     data_note: dataNote,

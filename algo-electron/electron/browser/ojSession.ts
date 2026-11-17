@@ -26,7 +26,8 @@ export function configureOjSession(options: ConfigureOjSessionOptions): Session 
     if (details.resourceType === 'mainFrame') {
       const adapter = getRealtimeAdapterForUrl(details.url)
       const site = adapter ? options.getSiteById(adapter.id) : null
-      const hookScript = adapter && (!site || site.enabled) ? adapter.injectHookScript?.() : undefined
+      const hookScript =
+        adapter && (!site || site.enabled) ? adapter.injectHookScript?.() : undefined
       if (hookScript) {
         // Some OJ editors cache fetch/XMLHttpRequest during module startup.
         const earlyRealtimeScript = `try { window.__ALGO_TOP_PAGE_URL = ${JSON.stringify(details.url)}; } catch (_) {}\n${hookScript}`
@@ -34,8 +35,9 @@ export function configureOjSession(options: ConfigureOjSessionOptions): Session 
       }
     }
 
-    const contentType = Object.entries(details.responseHeaders ?? {})
-      .find(([key]) => key.toLowerCase() === 'content-type')?.[1]?.[0]
+    const contentType = Object.entries(details.responseHeaders ?? {}).find(
+      ([key]) => key.toLowerCase() === 'content-type',
+    )?.[1]?.[0]
     if (details.resourceType === 'mainFrame' && contentType?.toLowerCase().includes('text/html')) {
       const earlyScript = `
         if (typeof navigator !== 'undefined') {

@@ -268,14 +268,20 @@ export function extractConstraintText(html: string, platform: string): string | 
   let cleaned = html.replace(/<script[\s\S]*?<\/script>/gi, ' ')
   cleaned = cleaned.replace(/<style[\s\S]*?<\/style>/gi, ' ')
   // 2. 块级标签 → 换行
-  cleaned = cleaned.replace(/<\/(div|p|section|article|li|h\d|tr|td|th|br|ul|ol|table|pre|code)>/gi, '\n')
+  cleaned = cleaned.replace(
+    /<\/(div|p|section|article|li|h\d|tr|td|th|br|ul|ol|table|pre|code)>/gi,
+    '\n',
+  )
   cleaned = cleaned.replace(/<br\s*\/?>/gi, '\n')
   // 3. 移除所有剩余标签
   cleaned = cleaned.replace(/<[^>]+>/g, ' ')
   // 4. 解码 HTML 实体
   cleaned = decodeHtmlEntities(cleaned)
   // 5. 归一化空白
-  cleaned = cleaned.replace(/[ \t]+/g, ' ').replace(/\n{3,}/g, '\n\n').trim()
+  cleaned = cleaned
+    .replace(/[ \t]+/g, ' ')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
 
   // 平台特定的段落筛选（保留约束相关段）
   const relevant = filterRelevantParagraphs(cleaned, platform)
@@ -341,12 +347,7 @@ function getPlatformSelectors(platform: string): string[] {
         '.section-title',
       ]
     case 'luogu':
-      return [
-        '.problem-content',
-        '.lg-content-card',
-        '.field',
-        '.problem-statement',
-      ]
+      return ['.problem-content', '.lg-content-card', '.field', '.problem-statement']
     case 'leetcode-cn':
     case 'leetcode':
       return ['.question-content', '.notranslate', '[data-track-load="description_content"]']
@@ -489,15 +490,21 @@ function parsePrimaryRange(text: string): {
   // 支持 ≤ / <= / ≤（全角）
   const patterns = [
     // "1 ≤ n ≤ 2·10^5" / "1 ≤ n ≤ 2e5" / "1 <= n <= 200000"
-    new RegExp(String.raw`([0-9]+(?:\.[0-9]+)?)\s*(?:≤|<=)\s*([a-zA-Z][a-zA-Z0-9_]*)\s*(?:≤|<=)\s*([0-9eE·.*^+\-()]+?)${RANGE_END}`, 'g'),
+    new RegExp(
+      String.raw`([0-9]+(?:\.[0-9]+)?)\s*(?:≤|<=)\s*([a-zA-Z][a-zA-Z0-9_]*)\s*(?:≤|<=)\s*([0-9eE·.*^+\-()]+?)${RANGE_END}`,
+      'g',
+    ),
     // "1 ≤ n, m ≤ 1e5"（取第一个变量）
-    new RegExp(String.raw`([0-9]+(?:\.[0-9]+)?)\s*(?:≤|<=)\s*([a-zA-Z][a-zA-Z0-9_]*)\s*,\s*[a-zA-Z][a-zA-Z0-9_]*\s*(?:≤|<=)\s*([0-9eE·.*^+\-()]+?)${RANGE_END}`, 'g'),
+    new RegExp(
+      String.raw`([0-9]+(?:\.[0-9]+)?)\s*(?:≤|<=)\s*([a-zA-Z][a-zA-Z0-9_]*)\s*,\s*[a-zA-Z][a-zA-Z0-9_]*\s*(?:≤|<=)\s*([0-9eE·.*^+\-()]+?)${RANGE_END}`,
+      'g',
+    ),
   ]
 
   for (const pattern of patterns) {
     const matches = Array.from(text.matchAll(pattern))
     if (matches.length === 0) continue
-    const candidates: Array<{ varName: string, lower: number, upper: number }> = []
+    const candidates: Array<{ varName: string; lower: number; upper: number }> = []
     for (const m of matches) {
       const varName = m[2]
       const lower = parseLooseInt(m[1])
@@ -509,7 +516,7 @@ function parsePrimaryRange(text: string): {
     if (candidates.length === 0) continue
     // 同档之内保持出现顺序（`find` 天然如此），所以只需按档从低到高找第一个命中的。
     for (const rank of [0, 1, 2]) {
-      const best = candidates.find(candidate => primaryVarRank(candidate.varName) === rank)
+      const best = candidates.find((candidate) => primaryVarRank(candidate.varName) === rank)
       if (best) return best
     }
   }
@@ -643,8 +650,22 @@ function filterRelevantParagraphs(text: string, _platform: string): string {
   if (!text) return ''
   const lines = text.split('\n')
   const keywords = [
-    '限制', 'limit', '范围', 'range', '≤', '<=', 'data', 'constraint',
-    'input', 'specification', '说明', '格式', 'n ', 'n=', 't ', 't=',
+    '限制',
+    'limit',
+    '范围',
+    'range',
+    '≤',
+    '<=',
+    'data',
+    'constraint',
+    'input',
+    'specification',
+    '说明',
+    '格式',
+    'n ',
+    'n=',
+    't ',
+    't=',
   ]
   const relevant = lines.filter((line) =>
     keywords.some((kw) => line.toLowerCase().includes(kw.toLowerCase())),

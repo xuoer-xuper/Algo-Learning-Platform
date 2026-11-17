@@ -58,4 +58,4 @@ cd algo-electron
 node node_modules\typescript\bin\tsc --noEmit
 ```
 
-涉及标签、窗口控制或内部页路由时追加运行对应 jsdom 测试和 `npm run test:ui`。
+涉及标签、窗口控制或内部页路由时追加运行对应 jsdom 测试和 `pnpm run test:ui`。

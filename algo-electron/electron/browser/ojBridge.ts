@@ -1,18 +1,22 @@
+import { IPC_CHANNELS } from '../../src/shared/constants/channels'
+
 export const OJ_SUBMISSION_BRIDGE_CHANNEL = '__algo_submission_v1'
-export const OJ_SUBMISSION_IPC_CHANNEL = 'oj-submission:detected'
+export const OJ_SUBMISSION_IPC_CHANNEL = IPC_CHANNELS.OJ.SUBMISSION_DETECTED
 /**
  * Pull-only channel. The isolated preload requests the document token; main
  * never pushes it, because a push emitted on `did-navigate` can arrive before
  * the new document's preload has registered a listener and would then be lost
  * for the whole page lifetime.
  */
-export const OJ_SUBMISSION_TOKEN_CHANNEL = 'oj-submission:getDocumentToken'
+export const OJ_SUBMISSION_TOKEN_CHANNEL = IPC_CHANNELS.OJ.SUBMISSION_GET_TOKEN
 
 export interface OjSubmissionBridge {
   reportSubmission(payload: unknown): void
 }
 
-export function createOjSubmissionBridge(reportSubmission: (payload: unknown) => void): OjSubmissionBridge {
+export function createOjSubmissionBridge(
+  reportSubmission: (payload: unknown) => void,
+): OjSubmissionBridge {
   return { reportSubmission }
 }
 
@@ -31,7 +35,9 @@ function isMessageFromWindowOrChild(
       if (frame === source) return true
       if (isMessageFromWindowOrChild(frame, source, depth + 1)) return true
     }
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
 
   return false
 }

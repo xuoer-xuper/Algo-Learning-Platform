@@ -73,20 +73,31 @@ test('会话快照的四个触发源都接到防抖调度上', () => {
   )
   // 快照要带上"最近使用的是哪个窗口"。恢复顺序语义由
   // tests/windows/applicationSessionSnapshot.test.ts 覆盖，这里只钉 main.ts 真把它传了进去。
-  assert.match(mainSource, /createApplicationSessionSnapshot\([\s\S]+?windowManager\.getMostRecent\(\)\?\.id/)
-  assert.match(mainSource, /new ApplicationSessionPersistence\([\s\S]+?getCurrentApplicationSessionSnapshot/)
+  assert.match(
+    mainSource,
+    /createApplicationSessionSnapshot\([\s\S]+?windowManager\.getMostRecent\(\)\?\.id/,
+  )
+  assert.match(
+    mainSource,
+    /new ApplicationSessionPersistence\([\s\S]+?getCurrentApplicationSessionSnapshot/,
+  )
 })
 
 test('窗口关闭与进程退出前都要把会话写完', () => {
   // installWindowSessionFlush 自身行为见 tests/browser/tabSessionLifecycle.test.ts；
   // 这里钉 main.ts 把 flush 接到了全局持久化上，而不是接了个空实现。
-  assert.match(mainSource, /installWindowSessionFlush\(win, \{[\s\S]+?applicationSessionPersistence\?\.flush\(\)/)
+  assert.match(
+    mainSource,
+    /installWindowSessionFlush\(win, \{[\s\S]+?applicationSessionPersistence\?\.flush\(\)/,
+  )
   // 退出时还有窗口在建就得等它建完再写，否则那个窗口不会进存档。
   // mainStartupContract 只能覆盖"无事可冲时不拦截"那一侧——要造出 isRunning 为真，
   // 得先让 whenReady 跑完并真建窗口，所以这一侧留在源码断言里。
+  // windowCreationGate 的成员访问要容忍换行：prettier 会把长成员链拆成
+  // `gate\n  .waitForIdle()` 的形状，`gate\.waitForIdle` 那种写法会漏配。
   assert.match(
     mainSource,
-    /hasPendingWindowCreation = windowCreationGate\.isRunning[\s\S]+?windowCreationGate\.stop\(\)[\s\S]+?windowCreationGate\.waitForIdle\(\)/,
+    /hasPendingWindowCreation = windowCreationGate\s*\.\s*isRunning[\s\S]+?windowCreationGate\s*\.\s*stop\(\)[\s\S]+?windowCreationGate\s*\.\s*waitForIdle\(\)/,
   )
   assert.match(
     mainSource,
@@ -122,7 +133,10 @@ test('关掉最后一个 shell 时连桌宠一起收掉', () => {
     /function quitIfLastShellWindowClosed\(\): void \{[\s\S]+?windowManager\.getAll\(\)\.length > 0[\s\S]+?coachPetWindow\?\.destroy\(\)[\s\S]+?app\.quit\(\)/,
   )
   // 顺序有意义：先 destroy 掉 TabManager（它持有 WebContentsView），再判断要不要退出。
-  assert.match(mainSource, /win\.on\('closed', \(\) => \{[\s\S]+?tabManager\.destroy\(\)[\s\S]+?quitIfLastShellWindowClosed\(\)/)
+  assert.match(
+    mainSource,
+    /win\.on\('closed', \(\) => \{[\s\S]+?tabManager\.destroy\(\)[\s\S]+?quitIfLastShellWindowClosed\(\)/,
+  )
 })
 
 test('生产构建里 smoke 专用 preload 与 DevTools 都进不来', () => {
@@ -134,7 +148,8 @@ test('生产构建里 smoke 专用 preload 与 DevTools 都进不来', () => {
   // preload 跑在有 Node 能力的上下文里：少了 STARTUP_SMOKE_MODE 前置判断，
   // 一个环境变量就能让生产构建加载任意本地脚本。两处（shell 窗口与桌宠）都要钉。
   assert.strictEqual(
-    mainSource.match(/STARTUP_SMOKE_MODE && process\.env\.ALGO_ELECTRON_SMOKE_PRELOAD_PATH/g)?.length,
+    mainSource.match(/STARTUP_SMOKE_MODE && process\.env\.ALGO_ELECTRON_SMOKE_PRELOAD_PATH/g)
+      ?.length,
     2,
     'shell 窗口与桌宠的 preload 覆盖都必须带 smoke 前置判断',
   )

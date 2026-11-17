@@ -10,11 +10,19 @@ export function getAIOutput(id: string): AIOutput | null {
 export function listAIOutputs(outputType?: AIOutputType, limit = 20): AIOutput[] {
   const db = getDb()
   if (outputType) {
-    return db.prepare(`
+    return db
+      .prepare(
+        `
       SELECT * FROM ai_outputs WHERE output_type = ? ORDER BY created_at DESC LIMIT ?
-    `).all(outputType, limit) as AIOutput[]
+    `,
+      )
+      .all(outputType, limit) as AIOutput[]
   }
-  return db.prepare(`
+  return db
+    .prepare(
+      `
     SELECT * FROM ai_outputs ORDER BY created_at DESC LIMIT ?
-  `).all(limit) as AIOutput[]
+  `,
+    )
+    .all(limit) as AIOutput[]
 }

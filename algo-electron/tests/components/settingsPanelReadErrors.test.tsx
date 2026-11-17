@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
+import { render } from './renderWithDataRefresh'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, screen, waitFor } from '@testing-library/react'
 
 /**
  * 设置页三个面板的读路径失败契约。
@@ -16,7 +17,7 @@ vi.mock('../../src/features/settings/settingsApi', () => ({
   loadLlmConfig: () => loadLlmConfig(),
   saveLlmApiKey: vi.fn(async () => true),
   saveLlmConfig: vi.fn(async () => undefined),
-  testLlmConnection: vi.fn(async () => ({ success: true, message: 'ok' })),
+  testLlmConnection: vi.fn(async () => ({ success: true, data: { message: 'ok' } })),
   loadPrimaryCodeforcesAccount: () => loadPrimaryCodeforcesAccount(),
   syncCodeforcesRatingProfile: vi.fn(),
   syncCodeforcesSubmissions: vi.fn(),
@@ -25,6 +26,7 @@ vi.mock('../../src/features/settings/settingsApi', () => ({
 import { CoachPanel } from '../../src/features/settings/CoachPanel'
 import { CodeforcesSyncPanel } from '../../src/features/settings/CodeforcesSyncPanel'
 import { LlmConfigPanel } from '../../src/features/settings/LlmConfigPanel'
+import type { CoachConfig, LlmConfigStatus } from '@shared/types/coach'
 
 const coachGetConfig = vi.fn<() => Promise<CoachConfig>>()
 const coachSaveConfig = vi.fn<(partial: Partial<CoachConfig>) => Promise<unknown>>()
@@ -45,13 +47,15 @@ beforeEach(() => {
   loadPrimaryCodeforcesAccount.mockResolvedValue(null)
   coachGetConfig.mockResolvedValue(createCoachConfig())
   coachSaveConfig.mockResolvedValue(undefined)
-  Object.defineProperty(window, 'electronAPI', {
+  Object.defineProperty(window, 'api', {
     configurable: true,
     value: {
-      coachGetConfig: () => coachGetConfig(),
-      coachSaveConfig: (partial: Partial<CoachConfig>) => coachSaveConfig(partial),
-      coachTestHint: vi.fn(),
-      coachResetPosition: vi.fn(),
+      coach: {
+        getConfig: () => coachGetConfig(),
+        saveConfig: (partial: Partial<CoachConfig>) => coachSaveConfig(partial),
+        testHint: vi.fn(),
+        resetPosition: vi.fn(),
+      },
     },
   })
 })
@@ -70,7 +74,13 @@ describe('LlmConfigPanel', () => {
   })
 
   it('读成功且确实没配置时，保留原有空态文案', async () => {
-    loadLlmConfig.mockResolvedValue({ has_key: false, key_masked: '', base_url: '', model: '', enabled: false } as LlmConfigStatus)
+    loadLlmConfig.mockResolvedValue({
+      has_key: false,
+      key_masked: '',
+      base_url: '',
+      model: '',
+      enabled: false,
+    } as LlmConfigStatus)
     render(<LlmConfigPanel />)
 
     expect(await screen.findByText('未配置 API Key，请先填写并保存')).not.toBeNull()
@@ -83,7 +93,9 @@ describe('CoachPanel', () => {
     coachGetConfig.mockRejectedValue(new Error('config.json 损坏'))
     render(<CoachPanel />)
 
-    expect((await screen.findByRole('alert')).textContent).toContain('读取配置失败：config.json 损坏')
+    expect((await screen.findByRole('alert')).textContent).toContain(
+      '读取配置失败：config.json 损坏',
+    )
     expect(screen.queryByText('加载中...')).toBeNull()
   })
 
@@ -91,7 +103,7 @@ describe('CoachPanel', () => {
     coachSaveConfig.mockRejectedValue(new Error('磁盘只读'))
     render(<CoachPanel />)
 
-    const sound = await screen.findByLabelText('提示声音') as HTMLInputElement
+    const sound = (await screen.findByLabelText('提示声音')) as HTMLInputElement
     expect(sound.checked).toBe(false)
 
     fireEvent.click(sound)

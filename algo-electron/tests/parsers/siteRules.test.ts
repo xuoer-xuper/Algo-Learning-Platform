@@ -1,14 +1,25 @@
 import assert from 'node:assert'
 import { test } from 'vitest'
-import { parseUrl, registerAdapter, parseConfigUrl, setEnabledSitesFetcher, type ProblemParserAdapter } from '../../electron/parsers/registry'
+import {
+  parseUrl,
+  registerAdapter,
+  parseConfigUrl,
+  setEnabledSitesFetcher,
+  type ProblemParserAdapter,
+} from '../../electron/parsers/registry'
 import type { ProblemIdentity } from '../../electron/shared/types'
 
-type ExpectedIdentity = Pick<ProblemIdentity, 'platform' | 'platformProblemId'> & Partial<ProblemIdentity>
+type ExpectedIdentity = Pick<ProblemIdentity, 'platform' | 'platformProblemId'> &
+  Partial<ProblemIdentity>
 
 setEnabledSitesFetcher(() => [
   { id: 'codeforces', domains: ['codeforces.com', 'www.codeforces.com'], enabled: true },
   { id: 'acwing', domains: ['acwing.com', 'www.acwing.com'], enabled: true },
-  { id: 'nowcoder', domains: ['nowcoder.com', 'www.nowcoder.com', 'ac.nowcoder.com'], enabled: true },
+  {
+    id: 'nowcoder',
+    domains: ['nowcoder.com', 'www.nowcoder.com', 'ac.nowcoder.com'],
+    enabled: true,
+  },
   { id: 'vjudge', domains: ['vjudge.net', 'www.vjudge.net'], enabled: true },
   { id: 'pta', domains: ['pintia.cn', 'www.pintia.cn'], enabled: true },
   { id: 'luogu', domains: ['luogu.com.cn', 'www.luogu.com.cn'], enabled: true },
@@ -19,13 +30,23 @@ function assertProblemIdentity(url: string, expected: ExpectedIdentity): Problem
   const identity = parseUrl(url)
   assert.ok(identity, `Should parse problem URL: ${url}`)
   assert.strictEqual(identity.platform, expected.platform, `${url} platform`)
-  assert.strictEqual(identity.platformProblemId, expected.platformProblemId, `${url} platformProblemId`)
-  if (expected.canonicalUrl !== undefined) assert.strictEqual(identity.canonicalUrl, expected.canonicalUrl, `${url} canonicalUrl`)
-  if (expected.contestId !== undefined) assert.strictEqual(identity.contestId, expected.contestId, `${url} contestId`)
-  if (expected.problemIndex !== undefined) assert.strictEqual(identity.problemIndex, expected.problemIndex, `${url} problemIndex`)
-  if (expected.sourcePlatform !== undefined) assert.strictEqual(identity.sourcePlatform, expected.sourcePlatform, `${url} sourcePlatform`)
-  if (expected.sourceProblemId !== undefined) assert.strictEqual(identity.sourceProblemId, expected.sourceProblemId, `${url} sourceProblemId`)
-  if (expected.confidence !== undefined) assert.strictEqual(identity.confidence, expected.confidence, `${url} confidence`)
+  assert.strictEqual(
+    identity.platformProblemId,
+    expected.platformProblemId,
+    `${url} platformProblemId`,
+  )
+  if (expected.canonicalUrl !== undefined)
+    assert.strictEqual(identity.canonicalUrl, expected.canonicalUrl, `${url} canonicalUrl`)
+  if (expected.contestId !== undefined)
+    assert.strictEqual(identity.contestId, expected.contestId, `${url} contestId`)
+  if (expected.problemIndex !== undefined)
+    assert.strictEqual(identity.problemIndex, expected.problemIndex, `${url} problemIndex`)
+  if (expected.sourcePlatform !== undefined)
+    assert.strictEqual(identity.sourcePlatform, expected.sourcePlatform, `${url} sourcePlatform`)
+  if (expected.sourceProblemId !== undefined)
+    assert.strictEqual(identity.sourceProblemId, expected.sourceProblemId, `${url} sourceProblemId`)
+  if (expected.confidence !== undefined)
+    assert.strictEqual(identity.confidence, expected.confidence, `${url} confidence`)
   return identity
 }
 
@@ -89,10 +110,7 @@ test('AcWing URL parsing', () => {
     confidence: 'url',
   })
 
-  const invalidUrls = [
-    'https://www.acwing.com/problem/content/',
-    'https://www.acwing.com/about/',
-  ]
+  const invalidUrls = ['https://www.acwing.com/problem/content/', 'https://www.acwing.com/about/']
 
   for (const url of invalidUrls) {
     const identity = parseUrl(url)
@@ -165,10 +183,7 @@ test('VJudge URL parsing', () => {
     confidence: 'url',
   })
 
-  const invalidUrls = [
-    'https://vjudge.net',
-    'https://vjudge.net/contest',
-  ]
+  const invalidUrls = ['https://vjudge.net', 'https://vjudge.net/contest']
 
   for (const url of invalidUrls) {
     const identity = parseUrl(url)
@@ -199,10 +214,7 @@ test('PTA URL parsing', () => {
     confidence: 'url',
   })
 
-  const invalidUrls = [
-    'https://pintia.cn',
-    'https://pintia.cn/problem-sets/123',
-  ]
+  const invalidUrls = ['https://pintia.cn', 'https://pintia.cn/problem-sets/123']
 
   for (const url of invalidUrls) {
     const identity = parseUrl(url)
@@ -292,16 +304,24 @@ test('Custom adapter registration', () => {
             confidence: 'url',
           }
         }
-      } catch { /* ignore invalid HDU URLs in this test adapter */ }
+      } catch {
+        /* ignore invalid HDU URLs in this test adapter */
+      }
       return null
-    }
+    },
   }
 
   registerAdapter(hduAdapter)
 
   // Mock enabled sites fetcher to include HDU configuration
   setEnabledSitesFetcher(() => [
-    { id: 'hdu', domains: ['acm.hdu.edu.cn'], enabled: true, adapter: 'hdu', problemUrlPatterns: [] }
+    {
+      id: 'hdu',
+      domains: ['acm.hdu.edu.cn'],
+      enabled: true,
+      adapter: 'hdu',
+      problemUrlPatterns: [],
+    },
   ])
 
   const testUrl = 'https://acm.hdu.edu.cn/showproblem.php?pid=1000'
@@ -321,7 +341,7 @@ test('Dynamic configuration pattern parsing fallback', () => {
     'https://leetcode.com/problems/two-sum',
     'leetcode',
     ['leetcode.com'],
-    ['/problems/{id}']
+    ['/problems/{id}'],
   )
   assert.ok(leetcodeIdentity, 'Should match pattern /problems/{id}')
   assert.strictEqual(leetcodeIdentity!.platform, 'leetcode')
@@ -333,7 +353,7 @@ test('Dynamic configuration pattern parsing fallback', () => {
     'https://example.com/contest/123/problem/A',
     'example',
     ['example.com'],
-    ['/contest/{contestId}/problem/{index}']
+    ['/contest/{contestId}/problem/{index}'],
   )
   assert.ok(contestIdentity, 'Should match multi-variable pattern')
   assert.strictEqual(contestIdentity!.platform, 'example')
@@ -351,7 +371,7 @@ test('Custom site config matching via parseUrl', () => {
       homeUrl: 'https://acm.hdu.edu.cn',
       enabled: true,
       problemUrlPatterns: ['/showproblem.php?pid={id}'],
-    }
+    },
   ])
 
   // 2. Parse a valid URL
@@ -370,7 +390,7 @@ test('Custom site config matching via parseUrl', () => {
       homeUrl: 'https://acm.hdu.edu.cn',
       enabled: false,
       problemUrlPatterns: ['/showproblem.php?pid={id}'],
-    }
+    },
   ])
 
   const disabledIdentity = parseUrl(validUrl)

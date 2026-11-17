@@ -1,3 +1,4 @@
+import { formatForDisplay } from '@shared/time'
 import { useState, useEffect } from 'react'
 import { PLATFORM_NAMES, STATUS_COLORS, STATUS_LABELS, VERDICT_COLORS } from '../../shared/display'
 import {
@@ -7,10 +8,11 @@ import {
   loadProblemDetail,
   navigateToProblemUrl,
 } from './problemsApi'
-import type { ProblemDetailRecord, SubmissionRecord } from './problemTypes'
+import type { SubmissionRecord } from '@shared/types/submission'
 import { SessionTimelineView } from '../coach/SessionTimelineView'
 import { Button, ConfirmDialog, Icon, IconButton, Skeleton } from '../../components/ui'
-import { reportRendererError } from '../../rendererErrors'
+import { useIpcQuery } from '../../hooks/useIpcQuery'
+import { useIpcQueryError } from '../../hooks/useIpcQueryError'
 
 interface Props {
   problemId: string
@@ -23,19 +25,17 @@ function isContestPageLink(url: string): boolean {
 }
 
 export function ProblemDetail({ problemId, onClose }: Props) {
-  const [detail, setDetail] = useState<ProblemDetailRecord | null>(null)
+  const query = useIpcQuery(() => loadProblemDetail(problemId), [problemId], {
+    tables: ['problems', 'submissions', 'stats'],
+  })
+  const detail = query.data
+  useIpcQueryError(query.error, '题目详情读取')
   const [deleting, setDeleting] = useState(false)
   const [view, setView] = useState<'detail' | 'timeline'>('detail')
   // B1.4：删除二连问合并为单个确认对话框 + 「同时删除笔记」勾选项
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [noteCount, setNoteCount] = useState(0)
   const [alsoDeleteNotes, setAlsoDeleteNotes] = useState(false)
-
-  useEffect(() => {
-    void loadProblemDetail(problemId)
-      .then(setDetail)
-      .catch((error: unknown) => reportRendererError('题目详情读取', error))
-  }, [problemId])
 
   // 切题时重置子视图
   useEffect(() => {
@@ -52,7 +52,9 @@ export function ProblemDetail({ problemId, onClose }: Props) {
     try {
       const notes = await loadNotesForDelete(problemId)
       count = notes.length
-    } catch { /* 查询失败时按无笔记处理 */ }
+    } catch {
+      /* 查询失败时按无笔记处理 */
+    }
     setNoteCount(count)
     setAlsoDeleteNotes(false)
     setConfirmOpen(true)
@@ -77,13 +79,15 @@ export function ProblemDetail({ problemId, onClose }: Props) {
    * detail-info 的平台/题号/状态/提交/停留五行，读完不跳。
    * 关闭按钮照旧渲染：读不出来时用户仍然要能退出去。
    */
-  if (!detail) {
+  if (query.isLoading) {
     return (
       <div className="detail-page">
         <div className="detail-header">
           {/* 标题位的骨架整块 aria-hidden：播报交给下方那一个 role="status"，
               否则读屏会把同一句「加载中」念两遍。 */}
-          <span className="detail-title" aria-hidden="true"><Skeleton inline /></span>
+          <span className="detail-title" aria-hidden="true">
+            <Skeleton inline />
+          </span>
           <IconButton icon="close" title="关闭" className="detail-close" onClick={onClose} />
         </div>
         <div className="detail-info">
@@ -92,6 +96,14 @@ export function ProblemDetail({ problemId, onClose }: Props) {
       </div>
     )
   }
+
+  if (!detail)
+    return (
+      <div className="detail-page">
+        <IconButton icon="close" title="关闭" onClick={onClose} />
+        <p>{query.error ? '题目详情读取失败' : '题目记录不存在'}</p>
+      </div>
+    )
 
   return (
     <div className="detail-page">
@@ -136,25 +148,29 @@ export function ProblemDetail({ problemId, onClose }: Props) {
         </div>
         <div className="detail-row">
           <span className="detail-label">提交</span>
-          <span className="detail-value num">{detail.submission_count} 次（AC {detail.ac_count} 次）</span>
+          <span className="detail-value num">
+            {detail.submission_count} 次（AC {detail.ac_count} 次）
+          </span>
         </div>
         {detail.visitStats && detail.visitStats.total_visits > 0 && (
           <div className="detail-row">
             <span className="detail-label">停留</span>
             <span className="detail-value num">
-              {detail.visitStats.total_visits} 次访问，
-              累计 {Math.round(detail.visitStats.total_duration / 60)} 分钟
+              {detail.visitStats.total_visits} 次访问， 累计{' '}
+              {Math.round(detail.visitStats.total_duration / 60)} 分钟
             </span>
           </div>
         )}
         <div className="detail-row">
           <span className="detail-label">首次访问</span>
-          <span className="detail-value num">{detail.first_seen_at?.replace('T', ' ').slice(0, 19)}</span>
+          <span className="detail-value num">
+            {detail.first_seen_at == null ? '' : formatForDisplay(detail.first_seen_at)}
+          </span>
         </div>
-        {detail.last_visited_at && (
+        {detail.last_visited_at !== null && (
           <div className="detail-row">
             <span className="detail-label">最近访问</span>
-            <span className="detail-value num">{detail.last_visited_at?.replace('T', ' ').slice(0, 19)}</span>
+            <span className="detail-value num">{formatForDisplay(detail.last_visited_at)}</span>
           </div>
         )}
         <div className="detail-row">
@@ -190,7 +206,9 @@ export function ProblemDetail({ problemId, onClose }: Props) {
                   {s.verdict}
                 </span>
                 <span className="submission-lang">{s.language || '-'}</span>
-                <span className="submission-time num">{s.submitted_at?.replace('T', ' ').slice(0, 19)}</span>
+                <span className="submission-time num">
+                  {s.submitted_at == null ? '' : formatForDisplay(s.submitted_at)}
+                </span>
               </div>
             ))}
           </div>

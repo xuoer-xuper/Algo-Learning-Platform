@@ -1,7 +1,9 @@
 // @vitest-environment jsdom
+import { render } from './renderWithDataRefresh'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, screen, waitFor } from '@testing-library/react'
 import { SearchEnginePanel } from '../../src/features/settings/SearchEnginePanel'
+import type { SearchEngineConfig } from '@shared/types/config'
 
 const getSearchEngine = vi.fn<() => Promise<SearchEngineConfig>>()
 const setSearchEngine = vi.fn<(search: SearchEngineConfig) => Promise<SearchEngineConfig>>()
@@ -11,9 +13,9 @@ beforeEach(() => {
   setSearchEngine.mockReset()
   getSearchEngine.mockResolvedValue({ engine: 'bing', customTemplate: null })
   setSearchEngine.mockImplementation(async (search) => search)
-  Object.defineProperty(window, 'electronAPI', {
+  Object.defineProperty(window, 'api', {
     configurable: true,
-    value: { getSearchEngine, setSearchEngine },
+    value: { config: { getSearchEngine, setSearchEngine } },
   })
 })
 
@@ -24,7 +26,7 @@ describe('SearchEnginePanel', () => {
     getSearchEngine.mockResolvedValue({ engine: 'google', customTemplate: null })
     render(<SearchEnginePanel />)
 
-    const select = await screen.findByLabelText('搜索引擎') as HTMLSelectElement
+    const select = (await screen.findByLabelText('搜索引擎')) as HTMLSelectElement
     await waitFor(() => expect(select.value).toBe('google'))
     expect(screen.getAllByRole('option').map((option) => option.textContent)).toEqual([
       'Bing',
@@ -45,14 +47,16 @@ describe('SearchEnginePanel', () => {
 
     expect(screen.getByRole('alert').textContent).toContain('必须使用 HTTPS')
     expect(input.getAttribute('aria-invalid')).toBe('true')
-    expect((screen.getByRole('button', { name: '保存搜索设置' }) as HTMLButtonElement).disabled).toBe(true)
+    expect(
+      (screen.getByRole('button', { name: '保存搜索设置' }) as HTMLButtonElement).disabled,
+    ).toBe(true)
     expect(setSearchEngine).not.toHaveBeenCalled()
   })
 
   it('保存自定义模板并用主进程返回配置回填', async () => {
     setSearchEngine.mockResolvedValue({ engine: 'baidu', customTemplate: null })
     render(<SearchEnginePanel />)
-    const select = await screen.findByLabelText('搜索引擎') as HTMLSelectElement
+    const select = (await screen.findByLabelText('搜索引擎')) as HTMLSelectElement
     await waitFor(() => expect(select.disabled).toBe(false))
 
     fireEvent.change(select, { target: { value: 'custom' } })
@@ -74,7 +78,7 @@ describe('SearchEnginePanel', () => {
 
   it('成功保存自定义模板并展示保存反馈', async () => {
     render(<SearchEnginePanel />)
-    const select = await screen.findByLabelText('搜索引擎') as HTMLSelectElement
+    const select = (await screen.findByLabelText('搜索引擎')) as HTMLSelectElement
     await waitFor(() => expect(select.disabled).toBe(false))
 
     fireEvent.change(select, { target: { value: 'custom' } })

@@ -1,0 +1,19 @@
+# commit-msg：commitlint 校验提交信息（type-enum / scope-enum / subject-case off）。
+# 规范来源：.trellis/spec/project/git-workflow.md §"Commit Message Format" 与
+# .trellis/spec/shared/git-conventions.md；词表实现见 algo-electron/commitlint.config.js。
+#
+# Git 钩子以仓库根为 CWD 运行，而 package.json 与 commitlint.config.js 都在 algo-electron/ 下，
+# 必须先切进去，否则 commitlint 找不到配置与依赖（husky 的 h 脚本把"仓库根"的 node_modules/.bin
+# 塞进 PATH，而本仓库依赖装在 algo-electron/node_modules，所以一律走 pnpm exec）。
+toplevel="$(git rev-parse --show-toplevel)" || exit 1
+
+# $1 是 commit message 临时文件，相对仓库根；在 cd 之前先规整成绝对路径，
+# 并兼容 Git for Windows 可能传来的盘符绝对路径（D:/...）。
+case "$1" in
+  /* | [A-Za-z]:/* | [A-Za-z]:\\*) msg_file="$1" ;;
+  *) msg_file="$(pwd)/$1" ;;
+esac
+[ -f "$msg_file" ] || msg_file="$toplevel/$1"
+
+cd "$toplevel/algo-electron" || exit 1
+pnpm exec commitlint --edit "$msg_file"

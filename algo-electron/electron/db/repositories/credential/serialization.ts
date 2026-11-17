@@ -33,10 +33,10 @@ export function parseCredentialEnvelope(raw: unknown): CredentialSecretEnvelopeV
     throw new TypeError('Credential secret envelope provider is unsupported')
   }
   if (
-    typeof record.ciphertextBase64 !== 'string'
-    || record.ciphertextBase64.length === 0
-    || record.ciphertextBase64.length % 4 !== 0
-    || !BASE64_PATTERN.test(record.ciphertextBase64)
+    typeof record.ciphertextBase64 !== 'string' ||
+    record.ciphertextBase64.length === 0 ||
+    record.ciphertextBase64.length % 4 !== 0 ||
+    !BASE64_PATTERN.test(record.ciphertextBase64)
   ) {
     throw new TypeError('Credential secret envelope ciphertext must be non-empty base64')
   }

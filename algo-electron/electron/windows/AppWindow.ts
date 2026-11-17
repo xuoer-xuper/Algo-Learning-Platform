@@ -1,4 +1,5 @@
 import type { BrowserWindow } from 'electron'
+import type { IpcChannel } from '../../src/shared/constants/channels'
 import type { TabManager } from '../browser/TabManager'
 
 export interface AppWindowOptions {
@@ -22,7 +23,7 @@ export class AppWindow {
     return this.browserWindow.isDestroyed()
   }
 
-  send(channel: string, ...args: unknown[]): boolean {
+  send(channel: IpcChannel, ...args: unknown[]): boolean {
     try {
       if (this.isDestroyed() || this.browserWindow.webContents.isDestroyed()) return false
       this.browserWindow.webContents.send(channel, ...args)

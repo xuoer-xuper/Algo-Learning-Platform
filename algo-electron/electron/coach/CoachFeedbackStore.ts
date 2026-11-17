@@ -1,9 +1,9 @@
-import type { CoachEventType, CoachFeedbackType } from './types'
+import type { CoachEventType, CoachFeedbackType } from '../../src/shared/types/coach'
 // 仅导入类型（type-only import），避免在单元测试中拉入 better-sqlite3。
 // 默认 FeedbackRepositoryAdapter 实现已移至 ./defaultFeedbackRepository.ts，
 // 由 CoachOrchestrator 在生产环境显式注入。
 import type { InsertCoachFeedbackInput } from '../db/repositories/coach/feedbackRepository'
-import { todayBeijing } from '../shared/time'
+import { toLocalDay } from '../shared/time'
 
 /**
  * CoachFeedbackStore：用户反馈持久化与节流策略（阶段 3 Task 16）。
@@ -42,10 +42,10 @@ export interface FeedbackRepositoryAdapter {
     event_type: string | null
     problem_id: string | null
     local_day: string
-    created_at: string
+    created_at: number
   }>
   getNeverTodayEventTypes(day: string): Set<CoachEventType>
-  countByTypeSince(feedbackType: CoachFeedbackType, since: string): number
+  countByTypeSince(feedbackType: CoachFeedbackType, since: number): number
 }
 
 /**
@@ -65,7 +65,7 @@ const DAILY_UPGRADE_QUOTA = 10
 export interface CoachFeedbackStoreOptions {
   /** 注入式 Date.now（测试用） */
   now?: () => number
-  /** 注入式 todayBeijing（测试用） */
+  /** 注入式本地日历日期（测试用） */
   today?: () => string
   /** not_helpful 降频阈值 */
   notHelpfulThreshold?: number
@@ -115,7 +115,7 @@ export class CoachFeedbackStore {
 
   constructor(options: CoachFeedbackStoreOptions = {}) {
     this.now = options.now ?? Date.now
-    this.today = options.today ?? todayBeijing
+    this.today = options.today ?? (() => toLocalDay(this.now()))
     this.notHelpfulThreshold = options.notHelpfulThreshold ?? NOT_HELPFUL_THRESHOLD
     this.throttleIntervalMs = options.throttleIntervalMs ?? THROTTLE_INTERVAL_MS
     this.dailyUpgradeQuota = options.dailyUpgradeQuota ?? DAILY_UPGRADE_QUOTA
@@ -125,8 +125,8 @@ export class CoachFeedbackStore {
     if (!options.repository) {
       throw new Error(
         'CoachFeedbackStore: repository is required. ' +
-        'Import createDefaultRepository from ./defaultFeedbackRepository for production, ' +
-        'or inject a mock FeedbackRepositoryAdapter for tests.',
+          'Import createDefaultRepository from ./defaultFeedbackRepository for production, ' +
+          'or inject a mock FeedbackRepositoryAdapter for tests.',
       )
     }
     this.repository = options.repository
@@ -293,8 +293,8 @@ export class CoachFeedbackStore {
           counter.neverTodayCount += 1
           break
       }
-      const ts = Date.parse(row.created_at)
-      if (!Number.isNaN(ts)) {
+      const ts = row.created_at
+      if (Number.isFinite(ts)) {
         if (counter.lastTriggerAt === null || ts > counter.lastTriggerAt) {
           counter.lastTriggerAt = ts
         }
@@ -310,7 +310,10 @@ export class CoachFeedbackStore {
   }
 
   /** 仅测试用：读取计数器 */
-  getCounterForTest(eventType: CoachEventType | null, category?: string): CategoryCounter | undefined {
+  getCounterForTest(
+    eventType: CoachEventType | null,
+    category?: string,
+  ): CategoryCounter | undefined {
     return this.counters.get(this.counterKey(eventType, category))
   }
 
@@ -322,7 +325,11 @@ export class CoachFeedbackStore {
   }
 
   /** 仅测试用：直接设置计数器 */
-  setCounterForTest(eventType: CoachEventType | null, category: string | undefined, counter: CategoryCounter): void {
+  setCounterForTest(
+    eventType: CoachEventType | null,
+    category: string | undefined,
+    counter: CategoryCounter,
+  ): void {
     this.counters.set(this.counterKey(eventType, category), counter)
   }
 
@@ -342,13 +349,12 @@ export class CoachFeedbackStore {
     }
   }
 
-  private computeSince(days: number): string {
-    const d = new Date()
+  private computeSince(days: number): number {
+    const d = new Date(this.now())
     d.setDate(d.getDate() - days)
-    return d.toISOString().slice(0, 19).replace('T', 'T') // YYYY-MM-DDTHH:MM:SS
+    return d.getTime()
   }
 }
 
 // 静态工具函数 countFeedbackSince / currentTimestamp 已移至 ./defaultFeedbackRepository.ts，
 // 以隔离 better-sqlite3 依赖（便于单元测试）。
-

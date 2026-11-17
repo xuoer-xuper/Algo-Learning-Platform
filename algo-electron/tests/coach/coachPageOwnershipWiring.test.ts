@@ -20,7 +20,10 @@ import type { BrowserPageEvent, TabManager } from '../../electron/browser/TabMan
  * 因为那些是控制流而不是文本。
  */
 
-interface ScriptCall { pageEvent: BrowserPageEvent, code: string }
+interface ScriptCall {
+  pageEvent: BrowserPageEvent
+  code: string
+}
 
 class FakeTabManager {
   readonly scriptCalls: ScriptCall[] = []
@@ -30,7 +33,9 @@ class FakeTabManager {
 
   addPageEventListener(listener: (event: BrowserPageEvent) => void): () => void {
     this.pageListener = listener
-    return () => { this.pageListener = null }
+    return () => {
+      this.pageListener = null
+    }
   }
 
   addActiveTabChangeListener(_listener: () => void): () => void {
@@ -71,7 +76,9 @@ class FakeTabManager {
   async executeScriptForPage(pageEvent: BrowserPageEvent, code: string): Promise<unknown> {
     this.scriptCalls.push({ pageEvent, code })
     if (this.holdScripts) {
-      return new Promise<unknown>((resolve) => { this.heldResolvers.push(resolve) })
+      return new Promise<unknown>((resolve) => {
+        this.heldResolvers.push(resolve)
+      })
     }
     // 返回 null 让 ConstraintParser 走"取不到"的静默分支：本测试验的是注入去了哪儿，
     // 不是解析结果对不对（那由 constraintParser.test.ts 负责）。
@@ -142,9 +149,7 @@ function orchestrator(tabManager: FakeTabManager): {
  */
 beforeEach(() => {
   resetElectronMock()
-  setEnabledSitesFetcher(() => [
-    { id: 'codeforces', domains: ['codeforces.com'], enabled: true },
-  ])
+  setEnabledSitesFetcher(() => [{ id: 'codeforces', domains: ['codeforces.com'], enabled: true }])
 })
 
 // 模块级状态，跑完还回去：Vitest 默认按文件隔离，但不指望这一点。
@@ -250,7 +255,9 @@ test('抓取还在飞时，同题同页的非导航事件不再重复注入', as
   // 用 setImmediate 排空而不是数几个 `await Promise.resolve()`：收尾要穿过
   // `fetchAndParse` 的 await、它的 return、再到 `.then()`，靠数微任务轮次很脆。
   tabManager.releaseScripts()
-  await new Promise((resolve) => { setImmediate(resolve) })
+  await new Promise((resolve) => {
+    setImmediate(resolve)
+  })
   tabManager.holdScripts = false
   tabManager.emitPageEvent(pageEvent({ reason: 'active-tab-changed' }))
   await Promise.resolve()

@@ -5,20 +5,10 @@ import {
   sanitizeDownloadFilename,
   type DownloadPathFileSystem,
 } from './downloadPath'
+import type { ManagedDownloadResult } from '../../src/shared/types/browser'
 
 export type NativeDownloadState = 'completed' | 'cancelled' | 'interrupted'
 export type ManagedDownloadErrorCode = 'path-setup-failed' | 'intercept-failed'
-
-export interface ManagedDownloadResult {
-  downloadId: string
-  fileName: string
-  savePath: string | null
-  state: NativeDownloadState
-  receivedBytes: number
-  totalBytes: number
-  finishedAt: string
-  errorCode?: ManagedDownloadErrorCode
-}
 
 export interface DownloadWillStartEvent {
   preventDefault(): void
@@ -59,9 +49,7 @@ export interface DownloadManagerOptions {
 export type DownloadResultListener = (result: ManagedDownloadResult, webContents?: unknown) => void
 
 function safeByteCount(value: number | undefined): number {
-  return typeof value === 'number' && Number.isFinite(value) && value >= 0
-    ? Math.floor(value)
-    : 0
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0 ? Math.floor(value) : 0
 }
 
 function normalizeDownloadState(value: NativeDownloadState): NativeDownloadState {
@@ -142,16 +130,19 @@ export class DownloadManager {
         }
       } catch {
         event.preventDefault()
-        this.emitResult({
-          downloadId: this.idFactory(),
-          fileName,
-          savePath: null,
-          state: 'interrupted',
-          receivedBytes: 0,
-          totalBytes: 0,
-          finishedAt: new Date(this.clock()).toISOString(),
-          errorCode: 'intercept-failed',
-        }, resultContext)
+        this.emitResult(
+          {
+            downloadId: this.idFactory(),
+            fileName,
+            savePath: null,
+            state: 'interrupted',
+            receivedBytes: 0,
+            totalBytes: 0,
+            finishedAt: this.clock(),
+            errorCode: 'intercept-failed',
+          },
+          resultContext,
+        )
         return
       }
     }
@@ -164,31 +155,37 @@ export class DownloadManager {
     } catch {
       if (savePath) this.pathAllocator.release(savePath)
       event.preventDefault()
-      this.emitResult({
-        downloadId,
-        fileName,
-        savePath: null,
-        state: 'interrupted',
-        receivedBytes: 0,
-        totalBytes: 0,
-        finishedAt: new Date(this.clock()).toISOString(),
-        errorCode: 'path-setup-failed',
-      }, resultContext)
+      this.emitResult(
+        {
+          downloadId,
+          fileName,
+          savePath: null,
+          state: 'interrupted',
+          receivedBytes: 0,
+          totalBytes: 0,
+          finishedAt: this.clock(),
+          errorCode: 'path-setup-failed',
+        },
+        resultContext,
+      )
       return
     }
 
     const completedSavePath = savePath
     item.once('done', (_doneEvent, state) => {
       this.pathAllocator.release(completedSavePath)
-      this.emitResult({
-        downloadId,
-        fileName,
-        savePath: completedSavePath,
-        state: normalizeDownloadState(state),
-        receivedBytes: safeByteCount(item.getReceivedBytes?.()),
-        totalBytes: safeByteCount(item.getTotalBytes?.()),
-        finishedAt: new Date(this.clock()).toISOString(),
-      }, resultContext)
+      this.emitResult(
+        {
+          downloadId,
+          fileName,
+          savePath: completedSavePath,
+          state: normalizeDownloadState(state),
+          receivedBytes: safeByteCount(item.getReceivedBytes?.()),
+          totalBytes: safeByteCount(item.getTotalBytes?.()),
+          finishedAt: this.clock(),
+        },
+        resultContext,
+      )
     })
   }
 

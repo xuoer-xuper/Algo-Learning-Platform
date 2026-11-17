@@ -1,0 +1,5 @@
+{"file": ".trellis/spec/shared/code-quality.md", "reason": "检查清单"}
+{"file": ".trellis/spec/project/git-workflow.md", "reason": "commit 格式与 PR 门"}
+{"file": ".trellis/spec/project/domain-rules.md", "reason": "红线不得回退"}
+{"file": ".trellis/spec/frontend/index.md", "reason": "前端核心规则"}
+{"file": ".trellis/spec/frontend/css-design.md", "reason": "CSS 检查"}

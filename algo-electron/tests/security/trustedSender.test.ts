@@ -3,7 +3,13 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { test, vi } from 'vitest'
-import { MockWebContents, MockWebFrame, protocolHandlers, protocolSchemes, resetElectronMock } from '../electron/electronMock'
+import {
+  MockWebContents,
+  MockWebFrame,
+  protocolHandlers,
+  protocolSchemes,
+  resetElectronMock,
+} from '../electron/electronMock'
 import {
   SHELL_CSP,
   registerShellSchemeAsPrivileged,
@@ -39,18 +45,34 @@ test('app shell protocol is privileged, origin-stable, CSP-bound, and traversal-
   assert.match(SHELL_CSP, /default-src 'self'/)
   assert.match(SHELL_CSP, /object-src 'none'/)
   assert.match(SHELL_CSP, /frame-ancestors 'none'/)
+  // web 标签的 favicon 全是远程 https URL（page-favicon-updated 捕获），
+  // img-src 不放行 https: 时打包态永远显示不出真实图标。
+  const imgSrcDirective = SHELL_CSP.split('; ').find((directive) => directive.startsWith('img-src'))
+  assert.ok(imgSrcDirective, 'SHELL_CSP must declare an img-src directive')
+  assert.ok(
+    imgSrcDirective.split(' ').includes('https:'),
+    `img-src must allow https: for remote favicons, got: ${imgSrcDirective}`,
+  )
   assert.ok(JSON.stringify(protocolSchemes).includes('supportFetchAPI'))
 
   const root = path.resolve('dist')
-  assert.strictEqual(resolveShellAsset(root, 'app://shell/assets/index.js'), path.join(root, 'assets', 'index.js'))
+  assert.strictEqual(
+    resolveShellAsset(root, 'app://shell/assets/index.js'),
+    path.join(root, 'assets', 'index.js'),
+  )
   assert.strictEqual(resolveShellAsset(root, 'app://other/index.html'), null)
   assert.strictEqual(resolveShellAsset(root, 'app://shell/%2e%2e%2fpackage.json'), null)
 
   const rendererDist = fs.mkdtempSync(path.join(os.tmpdir(), 'alp-shell-protocol-'))
   try {
-    fs.writeFileSync(path.join(rendererDist, 'index.html'), '<!doctype html><title>shell</title>', 'utf8')
+    fs.writeFileSync(
+      path.join(rendererDist, 'index.html'),
+      '<!doctype html><title>shell</title>',
+      'utf8',
+    )
     registerShellProtocol(rendererDist)
-    const handler = protocolHandlers.get('app') as ((request: { url: string }) => Promise<Response>) | undefined
+    const handler = protocolHandlers.get('app') as
+      ((request: { url: string }) => Promise<Response>) | undefined
     assert.ok(handler)
     const response = await handler({ url: 'app://shell/index.html' })
     assert.strictEqual(response.status, 200)
@@ -86,7 +108,10 @@ test('trusted shell sender rejects remote views, iframes, forged origins, and no
 
     const iframe = new MockWebFrame()
     iframe.url = 'app://shell/index.html'
-    assert.deepStrictEqual(checkShellSender(eventFor(shell, iframe)), { trusted: false, reason: 'frame' })
+    assert.deepStrictEqual(checkShellSender(eventFor(shell, iframe)), {
+      trusted: false,
+      reason: 'frame',
+    })
 
     const forged = new MockWebContents()
     await forged.loadURL('https://evil.example/')
@@ -122,7 +147,10 @@ test('coach shell can use Coach IPC without receiving full browser-shell capabil
 
   assert.strictEqual(checkShellSender(eventFor(browserShell)).trusted, true)
   assert.strictEqual(checkCoachSender(eventFor(browserShell)).trusted, true)
-  assert.deepStrictEqual(checkShellSender(eventFor(coachShell)), { trusted: false, reason: 'sender' })
+  assert.deepStrictEqual(checkShellSender(eventFor(coachShell)), {
+    trusted: false,
+    reason: 'sender',
+  })
   assert.strictEqual(checkCoachSender(eventFor(coachShell)).trusted, true)
 })
 
@@ -136,7 +164,10 @@ test('OJ sender validator and payload guard fail closed', async () => {
   await oj.loadURL('http://localhost:3000/')
   assert.deepStrictEqual(checkOjSender(eventFor(oj)), { trusted: false, reason: 'origin' })
 
-  assert.strictEqual(checkIpcPayload([{ adapterId: 'leetcode-cn', result: { status: 'Accepted' } }]).trusted, true)
+  assert.strictEqual(
+    checkIpcPayload([{ adapterId: 'leetcode-cn', result: { status: 'Accepted' } }]).trusted,
+    true,
+  )
   assert.deepStrictEqual(checkIpcPayload([Number.NaN]), { trusted: false, reason: 'payload' })
   const cyclic: Record<string, unknown> = {}
   cyclic.self = cyclic

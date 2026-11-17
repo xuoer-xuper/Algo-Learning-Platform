@@ -30,7 +30,7 @@ export function createScriptedRealtimeHookScript(
           requestUrl: location.href,
           response,
           meta: { pageTitle: typeof document !== 'undefined' ? document.title : '' },
-          detectedAt: new Date().toISOString(),
+          detectedAt: Date.now(),
         };
         if (window[CHANNEL] && typeof window[CHANNEL].reportSubmission === 'function') {
           window[CHANNEL].reportSubmission(payload);

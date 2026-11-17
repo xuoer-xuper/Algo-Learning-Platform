@@ -23,7 +23,15 @@ export interface CredentialAutofillTarget {
 
 export function resolveCredentialAutofillTarget(
   rawUrl: string,
-  site: Pick<SiteConfigData, 'id' | 'enabled' | 'domains' | 'loginUrlPatterns' | 'loginUsernameSelectors' | 'loginPasswordSelectors'>,
+  site: Pick<
+    SiteConfigData,
+    | 'id'
+    | 'enabled'
+    | 'domains'
+    | 'loginUrlPatterns'
+    | 'loginUsernameSelectors'
+    | 'loginPasswordSelectors'
+  >,
 ): CredentialAutofillTarget | null {
   if (!site.enabled || !isAllowedSiteUrl(rawUrl, site.domains)) return null
 
@@ -48,9 +56,14 @@ export function isAllowedSiteUrl(rawUrl: string, domains: readonly string[]): bo
     const url = new URL(rawUrl)
     if (url.protocol !== 'https:' || url.username || url.password) return false
     const hostname = url.hostname.toLowerCase().replace(/\.$/, '')
-    return domains.some(domain => {
-      const normalized = domain.trim().toLowerCase().replace(/^\.+|\.+$/g, '')
-      return normalized.length > 0 && (hostname === normalized || hostname.endsWith(`.${normalized}`))
+    return domains.some((domain) => {
+      const normalized = domain
+        .trim()
+        .toLowerCase()
+        .replace(/^\.+|\.+$/g, '')
+      return (
+        normalized.length > 0 && (hostname === normalized || hostname.endsWith(`.${normalized}`))
+      )
     })
   } catch {
     return false
@@ -60,7 +73,7 @@ export function isAllowedSiteUrl(rawUrl: string, domains: readonly string[]): bo
 export function matchesLoginUrl(url: URL, patterns: readonly string[]): boolean {
   const path = `${url.pathname}${url.search}`
   const absolute = `${url.origin}${path}`
-  return patterns.some(pattern => {
+  return patterns.some((pattern) => {
     const normalized = pattern.trim()
     if (!normalized || normalized.length > 512) return false
     if (normalized.startsWith('/')) {

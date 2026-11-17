@@ -5,7 +5,7 @@ export interface AIContextSnapshot {
   snapshot_date: string
   context_json: string
   schema_version: number
-  created_at: string
+  created_at: number
 }
 
 export type AIContextSnapshotMetadata = Omit<AIContextSnapshot, 'context_json'>

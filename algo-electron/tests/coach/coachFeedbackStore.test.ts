@@ -4,7 +4,7 @@ import {
   CoachFeedbackStore,
   type FeedbackRepositoryAdapter,
 } from '../../electron/coach/CoachFeedbackStore.ts'
-import type { CoachEventType } from '../../electron/coach/types.ts'
+import type { CoachEventType } from '@shared/types/coach'
 
 /**
  * CoachFeedbackStore 单元测试（阶段 3 Task 16）。
@@ -16,7 +16,8 @@ import type { CoachEventType } from '../../electron/coach/types.ts'
  * 4. shouldSuppress: not_helpful 累计达阈值后 6 小时内节流
  * 5. getFrequencyMultiplier: not_helpful 降频系数 0.5；helpful 提升 1.2
  * 6. markTriggered: 更新 lastTriggerAt
- * 7. loadHistoryForWarmup: 从 DB 重建计数器
+ * 7. loadHistoryForWarmup: 从 DB 重建计数器（含 computeSince 与 created_at 同格式、
+ *    东八区下暖机窗口不多 8 小时的用例，TZ=Asia/Shanghai 与 TZ=UTC 各跑一次）
  * 8. 缓存失效与跨天重置
  * 9. 重启后历史反馈仍存在（通过 warmup 模拟）
  *
@@ -33,13 +34,15 @@ interface MockFeedbackRow {
   event_type: string | null
   problem_id: string | null
   local_day: string
-  created_at: string
+  created_at: number
 }
 
-function createMockRepository(options: {
-  neverTodayTypes?: Set<CoachEventType>
-  historyRows?: MockFeedbackRow[]
-} = {}): FeedbackRepositoryAdapter & {
+function createMockRepository(
+  options: {
+    neverTodayTypes?: Set<CoachEventType>
+    historyRows?: MockFeedbackRow[]
+  } = {},
+): FeedbackRepositoryAdapter & {
   inserted: MockFeedbackRow[]
   listCalls: number
   neverTodayCalls: number
@@ -62,7 +65,7 @@ function createMockRepository(options: {
         event_type: input.event_type ?? null,
         problem_id: input.problem_id ?? null,
         local_day: '2024-01-01',
-        created_at: new Date().toISOString(),
+        created_at: new Date().getTime(),
       }
       state.inserted.push(row)
       return row.feedback_id
@@ -81,9 +84,15 @@ function createMockRepository(options: {
     setNeverTodayTypes(types: Set<CoachEventType>) {
       state.neverTodayTypes = new Set(types)
     },
-    get inserted() { return state.inserted },
-    get listCalls() { return state.listCalls },
-    get neverTodayCalls() { return state.neverTodayCalls },
+    get inserted() {
+      return state.inserted
+    },
+    get listCalls() {
+      return state.listCalls
+    },
+    get neverTodayCalls() {
+      return state.neverTodayCalls
+    },
   } as FeedbackRepositoryAdapter & {
     inserted: MockFeedbackRow[]
     listCalls: number
@@ -166,7 +175,10 @@ test('recordFeedback: never_today 写入并更新计数器 + 失效缓存', () =
   // never_today 应失效缓存（下次查询会重新读 DB）
   const callsBefore = (repo as any).neverTodayCalls
   store.shouldSuppressToday('multiple_wrong')
-  assert.ok((repo as any).neverTodayCalls > callsBefore, 'cache should be invalidated after never_today')
+  assert.ok(
+    (repo as any).neverTodayCalls > callsBefore,
+    'cache should be invalidated after never_today',
+  )
 })
 
 test('recordFeedback: 带 intervention_id 与 bubble_id', () => {
@@ -425,24 +437,44 @@ test('loadHistoryForWarmup: 从 DB 重建计数器', () => {
   const baseTime = Date.now()
   const historyRows: MockFeedbackRow[] = [
     {
-      feedback_id: 'fb-1', intervention_id: null, bubble_id: null,
-      feedback_type: 'helpful', event_type: 'multiple_wrong', problem_id: null,
-      local_day: '2024-01-01', created_at: new Date(baseTime - 1000).toISOString(),
+      feedback_id: 'fb-1',
+      intervention_id: null,
+      bubble_id: null,
+      feedback_type: 'helpful',
+      event_type: 'multiple_wrong',
+      problem_id: null,
+      local_day: '2024-01-01',
+      created_at: new Date(baseTime - 1000).getTime(),
     },
     {
-      feedback_id: 'fb-2', intervention_id: null, bubble_id: null,
-      feedback_type: 'not_helpful', event_type: 'multiple_wrong', problem_id: null,
-      local_day: '2024-01-01', created_at: new Date(baseTime - 500).toISOString(),
+      feedback_id: 'fb-2',
+      intervention_id: null,
+      bubble_id: null,
+      feedback_type: 'not_helpful',
+      event_type: 'multiple_wrong',
+      problem_id: null,
+      local_day: '2024-01-01',
+      created_at: new Date(baseTime - 500).getTime(),
     },
     {
-      feedback_id: 'fb-3', intervention_id: null, bubble_id: null,
-      feedback_type: 'not_helpful', event_type: 'multiple_wrong', problem_id: null,
-      local_day: '2024-01-01', created_at: new Date(baseTime - 200).toISOString(),
+      feedback_id: 'fb-3',
+      intervention_id: null,
+      bubble_id: null,
+      feedback_type: 'not_helpful',
+      event_type: 'multiple_wrong',
+      problem_id: null,
+      local_day: '2024-01-01',
+      created_at: new Date(baseTime - 200).getTime(),
     },
     {
-      feedback_id: 'fb-4', intervention_id: null, bubble_id: null,
-      feedback_type: 'dismiss', event_type: 'idle_too_long', problem_id: null,
-      local_day: '2024-01-01', created_at: new Date(baseTime - 100).toISOString(),
+      feedback_id: 'fb-4',
+      intervention_id: null,
+      bubble_id: null,
+      feedback_type: 'dismiss',
+      event_type: 'idle_too_long',
+      problem_id: null,
+      local_day: '2024-01-01',
+      created_at: new Date(baseTime - 100).getTime(),
     },
   ]
   const repo = createMockRepository({ historyRows })
@@ -463,18 +495,28 @@ test('loadHistoryForWarmup: 从 DB 重建计数器', () => {
 
 test('loadHistoryForWarmup: 跳过超出 lookback 的旧记录', () => {
   const baseTime = Date.now()
-  const veryOld = new Date(baseTime - 100 * 24 * 60 * 60 * 1000).toISOString() // 100 天前
-  const recent = new Date(baseTime - 1000).toISOString()
+  const veryOld = new Date(baseTime - 100 * 24 * 60 * 60 * 1000).getTime() // 100 天前
+  const recent = new Date(baseTime - 1000).getTime()
   const historyRows: MockFeedbackRow[] = [
     {
-      feedback_id: 'old', intervention_id: null, bubble_id: null,
-      feedback_type: 'helpful', event_type: 'multiple_wrong', problem_id: null,
-      local_day: '2024-01-01', created_at: veryOld,
+      feedback_id: 'old',
+      intervention_id: null,
+      bubble_id: null,
+      feedback_type: 'helpful',
+      event_type: 'multiple_wrong',
+      problem_id: null,
+      local_day: '2024-01-01',
+      created_at: veryOld,
     },
     {
-      feedback_id: 'new', intervention_id: null, bubble_id: null,
-      feedback_type: 'not_helpful', event_type: 'multiple_wrong', problem_id: null,
-      local_day: '2024-01-01', created_at: recent,
+      feedback_id: 'new',
+      intervention_id: null,
+      bubble_id: null,
+      feedback_type: 'not_helpful',
+      event_type: 'multiple_wrong',
+      problem_id: null,
+      local_day: '2024-01-01',
+      created_at: recent,
     },
   ]
   const repo = createMockRepository({ historyRows })
@@ -484,6 +526,52 @@ test('loadHistoryForWarmup: 跳过超出 lookback 的旧记录', () => {
   // 旧记录应被跳过
   assert.strictEqual(counter!.helpfulCount, 0)
   assert.strictEqual(counter!.notHelpfulCount, 1)
+})
+
+test('loadHistoryForWarmup: computeSince 与 created_at 同格式（东八区窗口不多 8 小时）', () => {
+  // 生产环境 created_at 由 nowBeijing() 写入：本地朴素格式 YYYY-MM-DDTHH:mm:ss.SSS（无时区后缀）。
+  // 若 computeSince 用 toISOString()（UTC 挂历）与之做字符串比较，东八区（TZ=Asia/Shanghai）
+  // 下 UTC 挂历比本地挂历慢 8 小时，暖机窗口会多出 8 小时——本应排除的
+  // "lookback 天数 ~ lookback 天数+8h" 的旧记录被错误纳入。
+  // 本用例在 TZ=Asia/Shanghai 与 TZ=UTC 下都必须通过（4 小时窗口余量，对 ±1h 的夏令时也安全）。
+  const nowMs = Date.now()
+  const DAY_MS = 24 * 60 * 60 * 1000
+  const historyRows: MockFeedbackRow[] = [
+    {
+      feedback_id: 'in-window',
+      intervention_id: null,
+      bubble_id: null,
+      feedback_type: 'helpful',
+      event_type: 'multiple_wrong',
+      problem_id: null,
+      local_day: '2024-01-01',
+      // 6.5 天前：窗口内，必须重建进计数器
+      created_at: nowMs - 6.5 * DAY_MS,
+    },
+    {
+      feedback_id: 'skew-victim',
+      intervention_id: null,
+      bubble_id: null,
+      feedback_type: 'not_helpful',
+      event_type: 'multiple_wrong',
+      problem_id: null,
+      local_day: '2024-01-01',
+      // 7 天 4 小时前：窗口外；格式混用时会在东八区下被错误纳入（8 小时偏移的受害记录）
+      created_at: nowMs - (7 * DAY_MS + 4 * 60 * 60 * 1000),
+    },
+  ]
+  const repo = createMockRepository({ historyRows })
+  const store = new CoachFeedbackStore({ repository: repo })
+  store.loadHistoryForWarmup(7)
+
+  const counter = store.getCounterForTest('multiple_wrong')
+  assert.ok(counter, '窗口内记录存在时计数器应被重建')
+  assert.strictEqual(counter.helpfulCount, 1, '6.5 天前的记录在 7 天窗口内，必须被重建')
+  assert.strictEqual(
+    counter.notHelpfulCount,
+    0,
+    '7 天 4 小时前的记录在 7 天窗口外，必须被排除（暖机窗口不多 8 小时）',
+  )
 })
 
 test('loadHistoryForWarmup: 空历史不报错', () => {
@@ -498,14 +586,24 @@ test('loadHistoryForWarmup: 空历史不报错', () => {
 test('loadHistoryForWarmup: never_today 计数', () => {
   const historyRows: MockFeedbackRow[] = [
     {
-      feedback_id: 'fb-1', intervention_id: null, bubble_id: null,
-      feedback_type: 'never_today', event_type: 'idle_too_long', problem_id: null,
-      local_day: '2024-01-01', created_at: new Date().toISOString(),
+      feedback_id: 'fb-1',
+      intervention_id: null,
+      bubble_id: null,
+      feedback_type: 'never_today',
+      event_type: 'idle_too_long',
+      problem_id: null,
+      local_day: '2024-01-01',
+      created_at: new Date().getTime(),
     },
     {
-      feedback_id: 'fb-2', intervention_id: null, bubble_id: null,
-      feedback_type: 'never_today', event_type: 'idle_too_long', problem_id: null,
-      local_day: '2024-01-01', created_at: new Date().toISOString(),
+      feedback_id: 'fb-2',
+      intervention_id: null,
+      bubble_id: null,
+      feedback_type: 'never_today',
+      event_type: 'idle_too_long',
+      problem_id: null,
+      local_day: '2024-01-01',
+      created_at: new Date().getTime(),
     },
   ]
   const repo = createMockRepository({ historyRows })
@@ -521,9 +619,14 @@ test('重启后历史反馈仍存在：loadHistoryForWarmup 重建节流策略',
   // 模拟：应用上次运行时累积了 3 次 not_helpful
   const baseTime = Date.now()
   const historyRows: MockFeedbackRow[] = Array.from({ length: 3 }, (_, i) => ({
-    feedback_id: `fb-${i}`, intervention_id: null, bubble_id: null,
-    feedback_type: 'not_helpful', event_type: 'multiple_wrong', problem_id: null,
-    local_day: '2024-01-01', created_at: new Date(baseTime - (3 - i) * 1000).toISOString(),
+    feedback_id: `fb-${i}`,
+    intervention_id: null,
+    bubble_id: null,
+    feedback_type: 'not_helpful',
+    event_type: 'multiple_wrong',
+    problem_id: null,
+    local_day: '2024-01-01',
+    created_at: new Date(baseTime - (3 - i) * 1000).getTime(),
   }))
   const repo = createMockRepository({ historyRows })
 

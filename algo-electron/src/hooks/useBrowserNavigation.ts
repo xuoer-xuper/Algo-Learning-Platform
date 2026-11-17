@@ -39,11 +39,12 @@ export function useBrowserNavigation() {
         return
       }
       if (command.type === 'navigation-blocked') {
-        const message = command.reason === 'insecure-http'
-          ? '已阻止不安全的 HTTP 导航'
-          : command.reason === 'invalid-url'
-            ? '链接格式无效'
-            : '已阻止不受支持的链接'
+        const message =
+          command.reason === 'insecure-http'
+            ? '已阻止不安全的 HTTP 导航'
+            : command.reason === 'invalid-url'
+              ? '链接格式无效'
+              : '已阻止不受支持的链接'
         showTransientMessage(message)
       }
     })
@@ -63,10 +64,13 @@ export function useBrowserNavigation() {
     navigateBrowser(targetUrl)
   }, [])
 
-  const navigateFromInput = useCallback((input: string) => {
-    if (!input.trim()) return
-    navigateTo(input)
-  }, [navigateTo])
+  const navigateFromInput = useCallback(
+    (input: string) => {
+      if (!input.trim()) return
+      navigateTo(input)
+    },
+    [navigateTo],
+  )
 
   const goHome = useCallback(() => {
     goBrowserHome()

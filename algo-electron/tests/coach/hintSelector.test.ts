@@ -179,7 +179,11 @@ test('select: L3 + WA + valueUpper>=1e9 → 切到 overflow 类', () => {
   const constraints = makeConstraints({ valueUpper: 1e9 })
   const result = selector.select({ verdict: 'WA', level: 3, constraints })
   assert.ok(result !== null)
-  assert.strictEqual(result!.category, 'overflow', 'WA + value>=1e9 at L3 should override to overflow')
+  assert.strictEqual(
+    result!.category,
+    'overflow',
+    'WA + value>=1e9 at L3 should override to overflow',
+  )
 })
 
 test('select: L3 + WA + valueUpper<1e9 → 保持 boundary 类', () => {
@@ -196,8 +200,10 @@ test('select: L3 + TLE + nUpper>=1e5 → 复杂度类带 large_n tag', () => {
   const result = selector.select({ verdict: 'TLE', level: 3, constraints })
   assert.ok(result !== null)
   assert.strictEqual(result!.category, 'complexity')
-  assert.ok(result!.tags.includes('large_n') || result!.tags.includes('nested_loop'),
-    `TLE + n>=1e5 should have large_n/nested_loop tag: ${JSON.stringify(result!.tags)}`)
+  assert.ok(
+    result!.tags.includes('large_n') || result!.tags.includes('nested_loop'),
+    `TLE + n>=1e5 should have large_n/nested_loop tag: ${JSON.stringify(result!.tags)}`,
+  )
 })
 
 test('select: L3 + TLE + nUpper<1e5 → 复杂度类（不强制 large_n 模板）', () => {
@@ -218,10 +224,14 @@ test('select: L3 + WA + constraints → 文本占位符被替换', () => {
   const result = selector.select({ verdict: 'WA', level: 3, constraints })
   assert.ok(result !== null)
   // overflow 类模板含 {value_upper} 占位符，应被替换
-  assert.ok(!result!.text.includes('{value_upper}'),
-    `placeholder should be replaced: ${result!.text}`)
-  assert.ok(result!.text.includes('1·10^9') || result!.text.includes('1e9'),
-    `text should contain value: ${result!.text}`)
+  assert.ok(
+    !result!.text.includes('{value_upper}'),
+    `placeholder should be replaced: ${result!.text}`,
+  )
+  assert.ok(
+    result!.text.includes('1·10^9') || result!.text.includes('1e9'),
+    `text should contain value: ${result!.text}`,
+  )
 })
 
 test('select: L1 不替换占位符（无 constraints 联动）', () => {
@@ -312,7 +322,10 @@ test('select: roundRobin 启用时同 verdict 多次返回不同模板', () => {
   // WA 有 3 个候选类目，但每次只返回第一个类目的模板
   // roundRobin 在类目内的模板间轮询（boundary 类有 4 条模板）
   const unique = new Set(results)
-  assert.ok(unique.size >= 2, `roundRobin should produce >= 2 unique templates, got ${unique.size}: ${results.join(', ')}`)
+  assert.ok(
+    unique.size >= 2,
+    `roundRobin should produce >= 2 unique templates, got ${unique.size}: ${results.join(', ')}`,
+  )
 })
 
 test('select: roundRobin 关闭时同 verdict 多次返回相同模板', () => {
@@ -323,7 +336,11 @@ test('select: roundRobin 关闭时同 verdict 多次返回相同模板', () => {
     if (r) results.push(r.templateId)
   }
   const unique = new Set(results)
-  assert.strictEqual(unique.size, 1, `non-roundRobin should always return same template: ${results.join(', ')}`)
+  assert.strictEqual(
+    unique.size,
+    1,
+    `non-roundRobin should always return same template: ${results.join(', ')}`,
+  )
 })
 
 test('select: resetCursorForTest 清空轮询游标', () => {
@@ -354,8 +371,7 @@ test('selectByCategory: 带 constraints 时替换占位符', () => {
   const result = selector.selectByCategory('complexity', constraints)
   assert.ok(result !== null)
   // complexity 类模板含 {n_upper} 占位符，应被替换
-  assert.ok(!result!.text.includes('{n_upper}'),
-    `placeholder should be replaced: ${result!.text}`)
+  assert.ok(!result!.text.includes('{n_upper}'), `placeholder should be replaced: ${result!.text}`)
 })
 
 test('selectByCategory: 无 constraints 时保留占位符', () => {

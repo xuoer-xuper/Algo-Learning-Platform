@@ -1,3 +1,4 @@
+import type { CoachEventType, CoachFeedbackType, CoachMetricsBundle } from '@shared/types/coach'
 /**
  * Coach 干预效果指标计算（纯函数）。
  *
@@ -24,17 +25,12 @@ const ALL_EVENT_TYPES: CoachEventType[] = [
   'complexity_warning',
 ]
 
-const ALL_FEEDBACK_TYPES: CoachFeedbackType[] = [
-  'helpful',
-  'not_helpful',
-  'dismiss',
-  'never_today',
-]
+const ALL_FEEDBACK_TYPES: CoachFeedbackType[] = ['helpful', 'not_helpful', 'dismiss', 'never_today']
 
 export interface CoachMetricsComputed {
   /** 统计窗口 */
-  since: string
-  until: string
+  since: number
+  until: number
   /** 1. 提示展示数（非审计类干预） */
   total_shown: number
   /** "再给一点"点击数 */
@@ -82,9 +78,7 @@ export function computeCoachMetrics(
   isMock = false,
 ): CoachMetricsComputed {
   // 1. 提示展示数：排除比赛模式审计记录（contest_audit 不展示给用户）
-  const shownInterventions = bundle.interventions.filter(
-    (i) => i.source_type !== 'contest_audit',
-  )
+  const shownInterventions = bundle.interventions.filter((i) => i.source_type !== 'contest_audit')
   const totalShown = shownInterventions.length
 
   // 2. "再给一点"点击率
@@ -95,32 +89,29 @@ export function computeCoachMetrics(
 
   // 3. "有帮助"反馈率
   const totalFeedback = bundle.feedback.length
-  const helpfulCount = bundle.feedback.filter(
-    (f) => f.feedback_type === 'helpful',
-  ).length
+  const helpfulCount = bundle.feedback.filter((f) => f.feedback_type === 'helpful').length
   const helpfulRate = totalFeedback > 0 ? helpfulCount / totalFeedback : 0
 
   // 4. 干预后同题 AC 转化率
   //    有干预记录的题目中，存在 AC 且 AC 时间 >= 该题最早干预时间的题数
-  const acMap = new Map<string, string | null>()
+  const acMap = new Map<string, number | null>()
   for (const p of bundle.problem_ac_status) acMap.set(p.problem_id, p.first_ac_at)
   // 每题最早干预时间
   const earliestInterventionByProblem = new Map<string, number>()
   for (const i of shownInterventions) {
     if (!i.problem_id) continue
-    const t = Date.parse(i.created_at)
-    if (Number.isNaN(t)) continue
+    const t = i.created_at
+    if (!Number.isFinite(t)) continue
     const prev = earliestInterventionByProblem.get(i.problem_id)
     if (prev === undefined || t < prev) earliestInterventionByProblem.set(i.problem_id, t)
   }
   const interventionProblemIds = Array.from(earliestInterventionByProblem.keys())
   let postInterventionAcCount = 0
-  for (const pid of interventionProblemIds) {
+  for (const [pid, earliest] of earliestInterventionByProblem) {
     const firstAcAt = acMap.get(pid) ?? null
-    if (!firstAcAt) continue
-    const acTs = Date.parse(firstAcAt)
-    if (Number.isNaN(acTs)) continue
-    const earliest = earliestInterventionByProblem.get(pid)!
+    if (firstAcAt === null) continue
+    const acTs = firstAcAt
+    if (!Number.isFinite(acTs)) continue
     if (acTs >= earliest) postInterventionAcCount++
   }
   const interventionProblemCount = interventionProblemIds.length
@@ -131,12 +122,8 @@ export function computeCoachMetrics(
   //    注：dismiss 在 interventions.user_action 与 coach_feedback.feedback_type 都可能记录，
   //    为避免双重计数，dismiss 取自 interventions（user_action='dismissed'），
   //    never_today 取自 feedback（feedback_type='never_today'，仅反馈表记录）。
-  const dismissedCount = shownInterventions.filter(
-    (i) => i.user_action === 'dismissed',
-  ).length
-  const neverTodayCount = bundle.feedback.filter(
-    (f) => f.feedback_type === 'never_today',
-  ).length
+  const dismissedCount = shownInterventions.filter((i) => i.user_action === 'dismissed').length
+  const neverTodayCount = bundle.feedback.filter((f) => f.feedback_type === 'never_today').length
   const dismissRate = totalShown > 0 ? (dismissedCount + neverTodayCount) / totalShown : 0
 
   // 事件按类型分组

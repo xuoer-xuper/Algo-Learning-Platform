@@ -1,0 +1,90 @@
+# 阶段 0 工具门与工程底座
+
+## Goal
+
+把"规范靠自觉"变成"过不了门就提交不了"，并把工程底座（包管理、TS 版本、格式化、版本发布）切到模板标准。**不动业务代码**；业务代码只在为通过新 lint 规则而做的最小修改范围内变化（13 处非空断言）。
+
+## Requirements
+
+### R1 分支模型与 CI（D6）
+- ~~推送 `dev` 到 origin~~ **已完成 2026-09-17**（`dev` track `origin/dev`）。
+- ~~GitHub `master` 分支保护~~ **已完成 2026-09-17**（`gh api`）：必须 PR；required checks = `Fast core, packaging and docs guard` + `Electron and renderer smoke`（strict）；禁 force push / 删除；对话须解决；`enforce_admins=false`（solo 开发保留 admin 绕过，用于 release-it 在 master 提交）。仓库合并策略：squash（标题=PR 标题）+ merge commit，rebase 禁用，合并后删分支。
+- 待做：`.github/workflows/ci.yml` `on.push.branches` 增加 `dev`；`pull_request` 触发全部 job。
+
+### R2 pnpm（D17）
+- 项目设置写在 `algo-electron/pnpm-workspace.yaml`：`nodeLinker: hoisted`、`shamefullyHoist: true`、`strictPeerDependencies: false`、`allowBuilds`（`esbuild`、`electron-winstaller`）。**2026-09-17 修订**：pnpm 12 只从 `.npmrc` 读认证/registry 设置，`nodeLinker`/`shamefullyHoist` 只能在 `pnpm-workspace.yaml` 设置，原 `.npmrc` 方案已失效。
+- `package.json` 增加 `"packageManager": "pnpm@12.8.1"`（`npm view pnpm version` 的 latest）；删除 `package-lock.json`，生成 `pnpm-lock.yaml`。
+- `postinstall` 内联（`install-electron --no && electron-builder install-app-deps`），**不**嵌套 `pnpm run`：pnpm 生命周期里嵌套调用会撞 `packageManager` 版本门。
+- CI 改 `pnpm/action-setup@v4`（带 `package_json_file: algo-electron/package.json`，且置于 `setup-node` 之前）+ `pnpm install --frozen-lockfile`，缓存改 pnpm store（`cache: pnpm` + `pnpm-lock.yaml`）。
+- `docs/GOVERNANCE/CONTRIBUTING.md`、`.github/COLLABORATION.md`、各 README 中 `npm run` → `pnpm run`；同时更新因此变红的守卫 `tests/packaging/check-packaging.mjs`（改为断言命令顺序 + 新增 `pnpm-workspace.yaml` 配置守卫）、`tests/docs/check-docs.mjs`（脚本引用检查接受 `pnpm run`）与它们的 README。
+
+### R3 TypeScript 6.0.3（D19）
+- `typescript` 7.0.2 → 6.0.3；`vite-plugin-electron` 1.1.1 → 1.1.2。
+- `tsc --noEmit` 与 `tsc -p tsconfig.tests.json --noEmit` 0 error、0 弃用提示（6.0 对将在 7 移除的选项报提示，逐条改）。
+- 若 vite-plugin-electron / vitest / esbuild 在 6.0 下有无法绕过的问题，回退 5.9.3，并在本 PRD Notes 记录原因。
+
+### R4 typescript-eslint（D19、高-8）——2026-09-17 按实测修订
+- 替换 `@babel/eslint-parser` 为 `typescript-eslint`（实测 8.71.0），`tseslint.configs.recommended` + `recommendedTypeChecked`，`parserOptions.projectService: true`。
+- **作用范围分档**：生产代码 `src/**` + `electron/**` 跑 TS 规则（含类型感知）；`tests/**` 与根级 `*.config.ts` 维持 0.4 之前的规则面。原因：typed lint 要求文件属于某个 tsconfig 项目，而 `tests/` 只被 `tsconfig.tests.json` 收录、projectService 不把它当可发现项目；上游文档明确 `allowDefaultProject` 只适合少量配置文件（默认上限 8 文件、glob 不允许 `**`），192 个测试文件属于误用。
+- 类型感知规则必须用 `files` 限定到进入 tsconfig 项目的文件，否则连 `eslint.config.js` / `tests/*.mjs` 一起套用，会以 "You have used a rule which requires type information" 中止整个 lint。
+- 启用的规则：`no-non-null-assertion`、`no-explicit-any`、`consistent-type-imports`、`no-floating-promises`、`no-unnecessary-type-assertion`、`no-unused-vars`（`argsIgnorePattern`/`varsIgnorePattern: '^_'`、`ignoreRestSiblings`）全为 error；`no-console` error 仅作用于 `electron/**`（父任务 AC 只承诺 "main 中 0"，渲染层 4 处不为凑绿而改）；override 例外仍是 `electron/app/startupSmoke.ts`、`electron/scripts/userscriptBootstrapPreload.ts`。
+- **实测违规量远超原估**：原估"13 处非空断言 + 40 处返回类型"，实际生产代码 367 error / 22 条规则（613 文件）。按风险分三组：机械型约 73 处本节修完；`explicit-module-boundary-types` 128、`no-unsafe-*` 121、`no-misused-promises` 30 共 279 处在配置里**显式关闭并注明**，单独立项偿还：`.trellis/tasks/09-30-typed-lint-debt`。清单与分布见 `design.md` §4。
+- 删除 `@babel/*` eslint 相关依赖。
+
+### R5 prettier（D20）
+- `prettier` + `.prettierrc`：`semi: false`、`singleQuote: true`、`printWidth: 100`、`trailingComma: 'all'`；`.prettierignore` 含 `dist*`、`release`、`tmp`、`pnpm-lock.yaml`。
+- `eslint-config-prettier` 关闭冲突规则。
+- 全仓一次性格式化，单独 commit `style: 全仓 prettier 格式化`（不与其他改动混合）。
+
+### R6 husky + commitlint + lint-staged（D5、高-8）
+- `commitlint.config.js`：extends `@commitlint/config-conventional`；`type-enum` = feat/fix/docs/refactor/test/chore/style/perf/ci；`scope-enum` = `git-workflow.md` 词表；`subject-case` 关闭（中文）。
+- husky：`commit-msg` → `commitlint --edit`；`pre-commit` → 当前分支为 `master` 时拒绝 + `lint-staged`（prettier + eslint）+ `pnpm typecheck && pnpm typecheck:tests`；`pre-push` → `pnpm test:core`。
+
+### R7 jscpd 门（低-22 补强）
+- `jscpd` 进 `test:core`：`--threshold 3`，范围 `electron src`，报告到 `tmp/jscpd`。
+
+### R8 路径别名（D9）
+- `tsconfig.json` `paths: { "@shared/*": ["src/shared/*"] }`（目录在阶段 2 才有内容，先建空目录与 `index.ts`）；`vite.config.ts` renderer `resolve.alias`、`vitest.config.ts` alias 同步。
+- `tsconfig.json` 增加 `verbatimModuleSyntax: true`。
+
+### R9 release-it（D24）
+- `release-it` + `@release-it/conventional-changelog`；`.release-it.json`：`git.commitMessage = "chore(release): 发布 v${version}"`、`git.tagName = "v${version}"`、`git.tagAnnotation = "v${version}"`、`git.requireBranch = master`、`git.requireCleanWorkingDir`、`github.release = true`、`github.assets = ["release/${version}/*.exe", "release/${version}/*.blockmap", "release/${version}/latest.yml"]`、`plugins.@release-it/conventional-changelog.infile = docs/PRODUCT/CHANGELOG.md`、`preset: conventionalcommits`、`hooks.before:init = ["pnpm test:all", "pnpm build:win"]`。
+- scripts：`"release": "release-it"`；预发布 `pnpm release -- --preRelease=rc`。
+- 只做配置与 `--dry-run` 验证，本阶段不发布。
+
+### R10 COMMIT_RULES 重写
+- `docs/GOVERNANCE/COMMIT_RULES.md` 与 `.trellis/spec/project/git-workflow.md` 一致：格式、type 表、scope 词表、必带规则、分支模型、合并方式、husky 门、release-it。
+
+## Acceptance Criteria
+
+- [ ] `git push origin dev` 触发 CI 且 `fast-guard` 通过；对 `master` 直接 push 被 GitHub 拒绝（保护已开，待 ci.yml 加 dev 后验证触发）。
+- [ ] 干净目录 `pnpm install --frozen-lockfile && pnpm test:all && pnpm build:win` 全绿；`test:packaged-main` 确认 better-sqlite3 在 hoisted 布局下可加载。
+- [ ] `node_modules/typescript/package.json` 版本 6.0.3；`pnpm typecheck` / `pnpm typecheck:tests` 0 error 0 deprecation。
+- [ ] `pnpm lint` 0 error 0 warning，且 `eslint.config.js` 含 R4 全部规则；故意加一行 `const x = y!.z` 使 lint 红。
+- [ ] `pnpm prettier --check .` 通过。
+- [ ] `git commit -m "update"` 被 commit-msg 钩子拒绝；`git commit -m "feat(coach): x"` 通过；在 `master` 上 commit 被 pre-commit 拒绝。
+- [ ] `pnpm test:core` 包含 jscpd 且通过（当前 1.76%）。
+- [ ] `import x from '@shared/index'` 在 renderer 与 vitest 中可解析。
+- [ ] `pnpm release --dry-run` 输出下一版本、CHANGELOG 片段与将上传的资产列表，无错误。
+- [ ] `COMMIT_RULES.md` 更新；`test:docs` 通过。
+
+## Out of Scope
+
+- 任何业务逻辑修改；目录搬迁；换库（阶段 1）。
+- 实际发布版本。
+
+## Notes
+
+- 前置：无。这是所有后续阶段的门。
+- 顺序建议：R2 → R3 → R4 → R5（格式化在 lint 规则定稿后做一次）→ R6 → R7 → R8 → R9 → R1 → R10。R1 放最后是因为分支保护开启后本阶段的 PR 才好走通。
+- 风险：pnpm hoist 对 electron-builder `asarUnpack` 白名单的影响，用 `test:packaging` + `test:packaged-app` 验。
+- R2 实施发现（2026-09-17，细节见 `design.md` §2）：
+  - `corepack enable` 在本机被 `EPERM`（需管理员权限写 `C:\Program Files\nodejs`）拒绝；改用 pnpm 自身的 `packageManager` 版本切换（裸 `pnpm` 在项目内 11.21.0 → 12.8.1）与 `corepack prepare`，仓库不依赖 corepack 已 enable。
+  - pnpm 12 把被忽略的依赖构建脚本从警告升级为 `ERR_PNPM_IGNORED_BUILDS` **安装失败**；`allowBuilds` 是必需配置而非可选优化。
+  - `electron` 与 `better-sqlite3` 自身没有 install/postinstall 脚本，Electron 二进制与 native ABI 重建全靠根 `postinstall`；`better-sqlite3` 使用 `prebuilds/*.node`。
+  - 文档范围只改 `CONTRIBUTING.md`、`.github/COLLABORATION.md` 与各 README；历史叙述类文档（CHANGELOG、`*PLAN`、审计、TASKS、`AI_HANDOFF.md`、`VERSION_PLAN.md`、`RELEASE_PROCESS.md`）随 6.3 文档重写处理，不改写历史（`migration-status.md` 已记）。
+- 顺带治本的既有缺陷（不属 0.2 产出，但阻塞 0.2 的验收命令 `pnpm test:all`）：
+  - `pnpm test:coverage` 在"覆盖率插桩 + forks 池全量并行"下会红：Testing Library 的 `findBy*`/`waitFor` 默认只轮询 1000ms，`tests/coach/coachMouseEventDedupe.test.ts` 里等「关闭对话」按钮的断言单独跑 345ms 通过、全量跑 1157ms 才就绪，于是超时。**换包管理器之前的 npm 依赖图上同样失败（基线 2/2）**，是既有缺陷。
+  - 处理：新增 `tests/setup/testing-library-timeout.ts`（`asyncUtilTimeout` → 5000ms，仅 jsdom 生效）挂到 `vitest.config.ts` 的 `setupFiles`，并把 `@testing-library/dom`（`configure` 的宿主）提升为直接 devDependency，不再借传递依赖。不放松任何断言，连续 3 次 `pnpm test:coverage` 全绿（169 文件 / 1362 用例）。
+  - `pnpm test:docs` 的 6 条既有红灯同批清掉，口径见 0.10。
+  - 第三处既有红灯**未修**，需单独排期：`pnpm test:all` 走到 `tests/verify.mjs` 的 `runCoachElectronTests()` 时，`coach-llmConfigStore` 在真实 Electron 应用态报 `import { app } from "electron"` "does not provide an export named 'app'"。已确认与包管理器无关：在 `093df52` 的 worktree 上用 `npm ci` 装回 npm 依赖图、按 `verify.mjs` 同样两步（esbuild `--format=esm` 打包 → `electron.exe` 运行）复现同一错误；改用 `--format=cjs` 打包后错误变成 `app` undefined。这是 `runElectronAppTest` 夹具的 ESM/electron 互操作设计问题（`runElectronAppTest` 全仓只有这一处调用），属阶段 5（测试体系对齐）范围，0.2 不以 `test:all` 全绿收口。

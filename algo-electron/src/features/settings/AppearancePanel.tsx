@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import { Select } from '../../components/ui'
 import { errorMessage } from '../../shared/errors'
 import { loadThemePreference, saveThemePreference } from './settingsApi'
+import type { ThemePreference } from '@shared/types/config'
+import { useIpcQuery } from '../../hooks/useIpcQuery'
 
 /*
  * 外观（B5.4，决策 D6）。
@@ -14,23 +16,22 @@ import { loadThemePreference, saveThemePreference } from './settingsApi'
  * 停在新值就会和实际显示的主题对不上。
  */
 
-const THEME_LABELS: Array<{ value: ThemePreference, label: string }> = [
+const THEME_LABELS: Array<{ value: ThemePreference; label: string }> = [
   { value: 'system', label: '跟随系统' },
   { value: 'light', label: '浅色' },
   { value: 'dark', label: '深色' },
 ]
 
 export function AppearancePanel() {
-  const [theme, setTheme] = useState<ThemePreference>('system')
-  const [loading, setLoading] = useState(true)
+  const query = useIpcQuery(loadThemePreference, [])
+  const [themeDraft, setTheme] = useState<ThemePreference | null>(null)
+  const theme = themeDraft ?? query.data ?? 'system'
+  const loading = query.isLoading
   const [status, setStatus] = useState('')
 
   useEffect(() => {
-    void loadThemePreference()
-      .then(setTheme)
-      .catch((error: unknown) => setStatus(`读取失败：${errorMessage(error)}`))
-      .finally(() => setLoading(false))
-  }, [])
+    if (query.error) setStatus(`读取失败：${errorMessage(query.error)}`)
+  }, [query.error])
 
   const handleChange = async (next: ThemePreference) => {
     const previous = theme
@@ -46,10 +47,14 @@ export function AppearancePanel() {
 
   return (
     <section className="settings-section" aria-labelledby="appearance-title">
-      <h3 id="appearance-title" className="settings-section-title">外观</h3>
+      <h3 id="appearance-title" className="settings-section-title">
+        外观
+      </h3>
 
       <div className="settings-row">
-        <label className="settings-label" htmlFor="theme-select">主题</label>
+        <label className="settings-label" htmlFor="theme-select">
+          主题
+        </label>
         <Select
           id="theme-select"
           className="settings-input settings-select"
@@ -58,7 +63,9 @@ export function AppearancePanel() {
           onChange={(event) => void handleChange(event.target.value as ThemePreference)}
         >
           {THEME_LABELS.map(({ value, label }) => (
-            <option key={value} value={value}>{label}</option>
+            <option key={value} value={value}>
+              {label}
+            </option>
           ))}
         </Select>
       </div>

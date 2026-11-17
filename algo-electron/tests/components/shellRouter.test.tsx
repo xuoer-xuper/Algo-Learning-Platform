@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
+import { render } from './renderWithDataRefresh'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, screen } from '@testing-library/react'
 import type { TabStripTabInfo } from '../../src/components/tabApi'
 
 vi.mock('../../src/features/home/HomePage', () => ({
@@ -9,7 +10,9 @@ vi.mock('../../src/features/home/HomePage', () => ({
   ),
 }))
 vi.mock('../../src/features/settings/SettingsPage', () => ({
-  SettingsPage: ({ onClose }: { onClose: () => void }) => <button onClick={onClose}>Settings route</button>,
+  SettingsPage: ({ onClose }: { onClose: () => void }) => (
+    <button onClick={onClose}>Settings route</button>
+  ),
 }))
 vi.mock('../../src/features/analytics/Dashboard', () => ({
   Dashboard: () => <div>Dashboard route</div>,

@@ -3,7 +3,10 @@ import { beforeEach, test } from 'vitest'
 import { ipcMain } from 'electron'
 import { MockBrowserWindow, MockWebContents, resetElectronMock } from '../electron/electronMock'
 import { registerSubmissionsIpc } from '../../electron/ipc/registerSubmissionsIpc.ts'
-import { registerShellWebContents, resetTrustedSenderRegistry } from '../../electron/ipc/trustedSender.ts'
+import {
+  registerShellWebContents,
+  resetTrustedSenderRegistry,
+} from '../../electron/ipc/trustedSender.ts'
 import type { SyncService } from '../../electron/submissions/syncService.ts'
 import { AppWindow } from '../../electron/windows/AppWindow.ts'
 
@@ -19,16 +22,22 @@ test('routes DOM submission sync to the trusted sender window tab manager', asyn
   await secondShell.loadURL('app://shell/index.html')
   const firstManager = { id: 'first-manager' }
   const secondManager = { id: 'second-manager' }
-  registerShellWebContents(firstShell, new AppWindow({
-    id: 'window-1',
-    browserWindow: new MockBrowserWindow() as never,
-    tabManager: firstManager as never,
-  }))
-  registerShellWebContents(secondShell, new AppWindow({
-    id: 'window-2',
-    browserWindow: new MockBrowserWindow() as never,
-    tabManager: secondManager as never,
-  }))
+  registerShellWebContents(
+    firstShell,
+    new AppWindow({
+      id: 'window-1',
+      browserWindow: new MockBrowserWindow() as never,
+      tabManager: firstManager as never,
+    }),
+  )
+  registerShellWebContents(
+    secondShell,
+    new AppWindow({
+      id: 'window-2',
+      browserWindow: new MockBrowserWindow() as never,
+      tabManager: secondManager as never,
+    }),
+  )
 
   const hosts: unknown[] = []
   const syncService = {

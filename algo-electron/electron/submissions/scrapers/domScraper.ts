@@ -1,5 +1,5 @@
 import type { ScrapedSubmission } from '../../shared/types'
-import { nowBeijing } from '../../shared/time'
+import { nowMillis } from '../../shared/time'
 import { getAdapterForUrl } from '../../adapters/registry'
 import type { SubmissionScrapeContext } from '../../adapters/types'
 import { EXTRACT_GENERIC_TABLES_SCRIPT } from './GenericTableDomExtractor'
@@ -18,7 +18,7 @@ import { type GenericTableData } from './GenericTableScanner'
 function readExtractedTables(data: unknown): GenericTableData[] {
   if (!data || typeof data !== 'object') return []
   const tables = (data as { tables?: unknown }).tables
-  return Array.isArray(tables) ? tables as GenericTableData[] : []
+  return Array.isArray(tables) ? (tables as GenericTableData[]) : []
 }
 
 /**
@@ -26,7 +26,9 @@ function readExtractedTables(data: unknown): GenericTableData[] {
  * `SubmissionProblemAttacher` 才被消费，这里收窄成 `SubmissionData[]` 会把线索
  * 的类型抹掉，下游只能靠 `as any` 捞回来。线索在 `upsertSubmission` 之前丢弃，不入库。
  */
-export async function scrapeCurrentPage(browserHost: SubmissionScrapeContext): Promise<ScrapedSubmission[] | null> {
+export async function scrapeCurrentPage(
+  browserHost: SubmissionScrapeContext,
+): Promise<ScrapedSubmission[] | null> {
   const url = browserHost.getUrl()
   const adapter = getAdapterForUrl(url)
   if (!adapter) return null
@@ -37,7 +39,7 @@ export async function scrapeCurrentPage(browserHost: SubmissionScrapeContext): P
 
   if (adapter.parseSubmissionTables) {
     const data = await browserHost.executeScript(EXTRACT_GENERIC_TABLES_SCRIPT)
-    return adapter.parseSubmissionTables(readExtractedTables(data), { now: nowBeijing })
+    return adapter.parseSubmissionTables(readExtractedTables(data), { now: nowMillis })
   }
 
   return null

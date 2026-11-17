@@ -1,14 +1,19 @@
 import assert from 'node:assert/strict'
 import { test } from 'vitest'
 import { clipboard, ipcMain } from 'electron'
-import { menuPopups, MockBrowserWindow, MockWebContents, resetElectronMock } from '../electron/electronMock'
+import {
+  menuPopups,
+  MockBrowserWindow,
+  MockWebContents,
+  resetElectronMock,
+} from '../electron/electronMock'
 import { registerBrowserShellIpc } from '../../electron/ipc/registerBrowserShellIpc.ts'
 import {
   registerShellWebContents,
   resetTrustedSenderRegistry,
 } from '../../electron/ipc/trustedSender.ts'
-import type { InternalPage } from '../../electron/browser/tabManagerTypes.ts'
 import { AppWindow } from '../../electron/windows/AppWindow.ts'
+import type { InternalPage } from '@shared/types/browser'
 
 test('browser shell IPC resolves omnibox input and validates transient UI commands', async () => {
   resetElectronMock()
@@ -20,24 +25,38 @@ test('browser shell IPC resolves omnibox input and validates transient UI comman
   const window = new MockBrowserWindow()
   const sentMessages: unknown[][] = []
   Object.assign(window.webContents, {
-    send: (...args: unknown[]) => { sentMessages.push(args) },
+    send: (...args: unknown[]) => {
+      sentMessages.push(args)
+    },
   })
   const webNavigations: string[] = []
   const internalNavigations: InternalPage[] = []
   const openedPages: InternalPage[] = []
   const omniboxStates: boolean[] = []
   const tabManager = {
-    navigate: (url: string) => { webNavigations.push(url) },
-    navigateInternal: (page: InternalPage) => { internalNavigations.push(page) },
-    setOmniboxOpen: (open: boolean) => { omniboxStates.push(open) },
-    openInternalTab: (page: InternalPage) => { openedPages.push(page); return 'tab-1' },
+    navigate: (url: string) => {
+      webNavigations.push(url)
+    },
+    navigateInternal: (page: InternalPage) => {
+      internalNavigations.push(page)
+    },
+    setOmniboxOpen: (open: boolean) => {
+      omniboxStates.push(open)
+    },
+    openInternalTab: (page: InternalPage) => {
+      openedPages.push(page)
+      return 'tab-1'
+    },
     getActiveZoomState: () => null,
   }
-  registerShellWebContents(shell, new AppWindow({
-    id: 'window-1',
-    browserWindow: window as never,
-    tabManager: tabManager as never,
-  }))
+  registerShellWebContents(
+    shell,
+    new AppWindow({
+      id: 'window-1',
+      browserWindow: window as never,
+      tabManager: tabManager as never,
+    }),
+  )
 
   registerBrowserShellIpc({})
 
@@ -51,10 +70,9 @@ test('browser shell IPC resolves omnibox input and validates transient UI comman
 
   assert.deepStrictEqual(internalNavigations, [{ type: 'settings' }])
   assert.deepStrictEqual(webNavigations, ['https://www.bing.com/search?q=two%20sum'])
-  assert.deepStrictEqual(sentMessages, [[
-    'ui:command',
-    { type: 'navigation-blocked', reason: 'unsupported-protocol' },
-  ]])
+  assert.deepStrictEqual(sentMessages, [
+    ['ui:command', { type: 'navigation-blocked', reason: 'unsupported-protocol' }],
+  ])
   assert.deepStrictEqual(omniboxStates, [true])
   assert.strictEqual(menuPopups.length, 1)
 
@@ -79,15 +97,22 @@ test('browser context-menu IPC validates senders and supports omnibox paste-and-
     canGoBack: () => false,
     goBack: () => undefined,
     reload: () => undefined,
-    navigate: (url: string) => { webNavigations.push(url) },
+    navigate: (url: string) => {
+      webNavigations.push(url)
+    },
     navigateInternal: () => undefined,
-    showTabContextMenu: (tabId: string) => { tabMenuIds.push(tabId) },
+    showTabContextMenu: (tabId: string) => {
+      tabMenuIds.push(tabId)
+    },
   }
-  registerShellWebContents(shell, new AppWindow({
-    id: 'window-1',
-    browserWindow: window as never,
-    tabManager: tabManager as never,
-  }))
+  registerShellWebContents(
+    shell,
+    new AppWindow({
+      id: 'window-1',
+      browserWindow: window as never,
+      tabManager: tabManager as never,
+    }),
+  )
 
   registerBrowserShellIpc({})
 
@@ -101,11 +126,9 @@ test('browser context-menu IPC validates senders and supports omnibox paste-and-
   ipcMain.emit('browser:showShellContextMenu', event, 'omnibox')
   assert.strictEqual(menuPopups.length, 2)
   const omniboxTemplate = menuPopups[1].template as Electron.MenuItemConstructorOptions[]
-  omniboxTemplate.find((item) => item.label === '粘贴并前往')?.click?.(
-    {} as never,
-    {} as never,
-    {} as never,
-  )
+  omniboxTemplate
+    .find((item) => item.label === '粘贴并前往')
+    ?.click?.({} as never, {} as never, {} as never)
   assert.deepStrictEqual(webNavigations, ['https://example.com/'])
 
   ipcMain.emit('browser:showTabContextMenu', event, 'tab-1')
@@ -126,20 +149,42 @@ test('browser shell IPC routes each trusted sender only to its owning window', a
   const secondWindow = new MockBrowserWindow()
   const firstNavigations: string[] = []
   const secondNavigations: string[] = []
-  registerShellWebContents(firstShell, new AppWindow({
-    id: 'window-1',
-    browserWindow: firstWindow as never,
-    tabManager: { navigate: (url: string) => { firstNavigations.push(url) } } as never,
-  }))
-  registerShellWebContents(secondShell, new AppWindow({
-    id: 'window-2',
-    browserWindow: secondWindow as never,
-    tabManager: { navigate: (url: string) => { secondNavigations.push(url) } } as never,
-  }))
+  registerShellWebContents(
+    firstShell,
+    new AppWindow({
+      id: 'window-1',
+      browserWindow: firstWindow as never,
+      tabManager: {
+        navigate: (url: string) => {
+          firstNavigations.push(url)
+        },
+      } as never,
+    }),
+  )
+  registerShellWebContents(
+    secondShell,
+    new AppWindow({
+      id: 'window-2',
+      browserWindow: secondWindow as never,
+      tabManager: {
+        navigate: (url: string) => {
+          secondNavigations.push(url)
+        },
+      } as never,
+    }),
+  )
   registerBrowserShellIpc({})
 
-  ipcMain.emit('browser:navigate', { sender: firstShell, senderFrame: firstShell.mainFrame }, 'first.example')
-  ipcMain.emit('browser:navigate', { sender: secondShell, senderFrame: secondShell.mainFrame }, 'second.example')
+  ipcMain.emit(
+    'browser:navigate',
+    { sender: firstShell, senderFrame: firstShell.mainFrame },
+    'first.example',
+  )
+  ipcMain.emit(
+    'browser:navigate',
+    { sender: secondShell, senderFrame: secondShell.mainFrame },
+    'second.example',
+  )
   ipcMain.emit('window:minimize', { sender: firstShell, senderFrame: firstShell.mainFrame })
 
   assert.deepStrictEqual(firstNavigations, ['https://first.example/'])
@@ -187,7 +232,10 @@ test('tab transfer IPC validates payloads and preserves the trusted source windo
 
   assert.strictEqual(await move(trustedEvent, 'tab-1'), true)
   assert.throws(() => move(untrustedEvent, 'tab-2'), /Rejected IPC sender/)
-  assert.strictEqual(await finishDrag(trustedEvent, 'tab-1', 2, 300, 20), true)
+  assert.strictEqual(
+    await finishDrag(trustedEvent, { tabId: 'tab-1', targetIndex: 2, screenX: 300, screenY: 20 }),
+    true,
+  )
 
   /*
    * 空 tabId 与小数 targetIndex 原先返回 false，现在是拒绝。
@@ -199,19 +247,26 @@ test('tab transfer IPC validates payloads and preserves the trusted source windo
    * （窗口已销毁、标签已关）混在一起，调用方分不出。两个调用点都是
    * `.catch(() => false)`，不会产生无人接管的 rejection。
    */
-  assert.throws(() => move(trustedEvent, ''), /Rejected IPC sender \(payload\)/, '空 tabId 应被拒绝')
   assert.throws(
-    () => finishDrag(trustedEvent, 'tab-1', 2.5, 300, 20),
+    () => move(trustedEvent, ''),
+    /Rejected IPC sender \(payload\)/,
+    '空 tabId 应被拒绝',
+  )
+  assert.throws(
+    () => finishDrag(trustedEvent, { tabId: 'tab-1', targetIndex: 2.5, screenX: 300, screenY: 20 }),
     /Rejected IPC sender \(payload\)/,
     '小数 targetIndex 应被拒绝',
   )
   assert.throws(
-    () => finishDrag(trustedEvent, 'tab-1', -1, 300, 20),
+    () => finishDrag(trustedEvent, { tabId: 'tab-1', targetIndex: -1, screenX: 300, screenY: 20 }),
     /Rejected IPC sender \(payload\)/,
     '负 targetIndex 应被拒绝',
   )
   // NaN 坐标此前就被 `checkIpcPayload` 的非有限数检查拦住了；现在 schema 也拦，两层都在。
-  assert.throws(() => finishDrag(trustedEvent, 'tab-1', 2, NaN, 20), /Rejected IPC sender/)
+  assert.throws(
+    () => finishDrag(trustedEvent, { tabId: 'tab-1', targetIndex: 2, screenX: NaN, screenY: 20 }),
+    /Rejected IPC sender/,
+  )
   assert.deepStrictEqual(moves, [['window-1', 'tab-1']])
   assert.deepStrictEqual(drags, [['window-1', 'tab-1', 2, 300, 20]])
 })
@@ -237,7 +292,7 @@ test('userscript host permission IPC is bound to the trusted owning shell window
   }
   const responses: Array<[string, string, boolean]> = []
   registerBrowserShellIpc({
-    getUserScriptHostPermissionPrompt: owner => ({
+    getUserScriptHostPermissionPrompt: (owner) => ({
       promptId: `prompt-${owner.id}`,
       scriptName: 'Helper',
       targetHost: 'api.example.com',
@@ -255,9 +310,15 @@ test('userscript host permission IPC is bound to the trusted owning shell window
   const respond = handlers.get('userscript:respondHostPermission')!
 
   assert.deepStrictEqual(await getPrompt(trustedEvent), {
-    promptId: 'prompt-window-1', scriptName: 'Helper', targetHost: 'api.example.com', sourceHost: 'codeforces.com',
+    promptId: 'prompt-window-1',
+    scriptName: 'Helper',
+    targetHost: 'api.example.com',
+    sourceHost: 'codeforces.com',
   })
-  assert.strictEqual(await respond(trustedEvent, 'prompt-window-1', true), 'allowed')
+  assert.strictEqual(
+    await respond(trustedEvent, { promptId: 'prompt-window-1', allow: true }),
+    'allowed',
+  )
   assert.throws(() => getPrompt(untrustedEvent), /Rejected IPC sender/)
 
   /*
@@ -269,13 +330,13 @@ test('userscript host permission IPC is bound to the trusted owning shell window
    * 承重的仍是下面那条 deepStrictEqual：非法参数不能到达 broker。
    */
   assert.throws(
-    () => respond(trustedEvent, '', true),
+    () => respond(trustedEvent, { promptId: '', allow: true }),
     /Rejected IPC sender \(payload\)/,
     '空 promptId 应被拒绝，而不是答成 stale',
   )
   for (const badAllow of [1, 'true', null, undefined]) {
     assert.throws(
-      () => respond(trustedEvent, 'prompt-window-1', badAllow),
+      () => respond(trustedEvent, { promptId: 'prompt-window-1', allow: badAllow }),
       /Rejected IPC sender \(payload\)/,
       `allow 应拒绝 ${JSON.stringify(badAllow) ?? 'undefined'}`,
     )

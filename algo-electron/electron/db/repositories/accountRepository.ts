@@ -1,8 +1,4 @@
-export type {
-  PlatformAccountRow,
-  RatingHistoryInput,
-  RatingHistoryRow,
-} from './account/types'
+export type { PlatformAccountRow, RatingHistoryInput, RatingHistoryRow } from './account/types'
 
 export {
   getAccount,
@@ -13,8 +9,4 @@ export {
   upsertAccount,
 } from './account/accounts'
 
-export {
-  computePeakRating,
-  getRatingHistory,
-  upsertRatingHistory,
-} from './account/ratingHistory'
+export { computePeakRating, getRatingHistory, upsertRatingHistory } from './account/ratingHistory'

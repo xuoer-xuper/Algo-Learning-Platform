@@ -22,7 +22,11 @@ export interface SubmissionWatcherCoreDeps {
   getAdapter(id: string): SiteAdapter | undefined
   getAdapterForUrl(url: string): SiteAdapter | null
   isSiteEnabled(id: string): boolean
-  writeSubmission(submission: SubmissionData, identity: ProblemIdentity | null, raw: SubmissionDetectionPayload): boolean
+  writeSubmission(
+    submission: SubmissionData,
+    identity: ProblemIdentity | null,
+    raw: SubmissionDetectionPayload,
+  ): boolean
   notifyUpdated(notification: SubmissionNotification): void
   logError(message: string, error: unknown): void
 }
@@ -42,8 +46,11 @@ export class SubmissionWatcherCore {
     if (!isPayload(raw)) return { inserted: false, error: 'Invalid payload' }
 
     try {
-      const adapter = raw.adapterId ? this.deps.getAdapter(raw.adapterId) : this.deps.getAdapterForUrl(raw.pageUrl)
-      if (!adapter?.parseSubmissionResult) return { inserted: false, error: 'No adapter for payload' }
+      const adapter = raw.adapterId
+        ? this.deps.getAdapter(raw.adapterId)
+        : this.deps.getAdapterForUrl(raw.pageUrl)
+      if (!adapter?.parseSubmissionResult)
+        return { inserted: false, error: 'No adapter for payload' }
 
       const pageAdapter = this.deps.getAdapterForUrl(raw.pageUrl)
       if (!pageAdapter || pageAdapter.id !== adapter.id) {

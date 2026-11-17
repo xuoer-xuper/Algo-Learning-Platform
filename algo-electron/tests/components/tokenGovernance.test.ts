@@ -26,23 +26,50 @@ describe('设计 token 治理', () => {
     for (const token of ['--accent:', '--bg-code:']) {
       expect(source).toContain(token)
     }
-    for (const token of ['var(--radius-control)', 'var(--radius-surface)', 'var(--radius-overlay)']) {
+    for (const token of [
+      'var(--radius-control)',
+      'var(--radius-surface)',
+      'var(--radius-overlay)',
+    ]) {
       expect(uiSource).toContain(token)
     }
   })
 
   it('暗色主题同时覆盖语义 color token 与兼容别名', () => {
-    const darkBlock = source.match(/:root\[data-theme="dark"\]\s*\{([\s\S]*?)\n\}/)?.[1] ?? ''
+    // prettier 会把 CSS 属性选择器的引号统一成单引号，这里两种引号都接受。
+    const darkBlock = source.match(/:root\[data-theme=['"]dark['"]\]\s*\{([\s\S]*?)\n\}/)?.[1] ?? ''
     for (const token of [
-      '--color-app', '--color-chrome', '--color-card', '--color-inset', '--color-hover',
-      '--color-ink', '--color-ink-2', '--color-ink-3', '--color-line', '--color-line-soft',
-      '--color-accent', '--color-accent-strong', '--color-accent-soft',
-      '--color-ok', '--color-ok-soft', '--color-warn', '--color-warn-soft',
-      '--color-danger', '--color-danger-soft',
+      '--color-app',
+      '--color-chrome',
+      '--color-card',
+      '--color-inset',
+      '--color-hover',
+      '--color-ink',
+      '--color-ink-2',
+      '--color-ink-3',
+      '--color-line',
+      '--color-line-soft',
+      '--color-accent',
+      '--color-accent-strong',
+      '--color-accent-soft',
+      '--color-ok',
+      '--color-ok-soft',
+      '--color-warn',
+      '--color-warn-soft',
+      '--color-danger',
+      '--color-danger-soft',
     ]) {
       expect(darkBlock, `dark theme missing ${token}`).toContain(token)
     }
-    for (const token of ['--bg', '--bg-surface', '--bg-card', '--bg-code', '--text', '--text-secondary', '--text-muted']) {
+    for (const token of [
+      '--bg',
+      '--bg-surface',
+      '--bg-card',
+      '--bg-code',
+      '--text',
+      '--text-secondary',
+      '--text-muted',
+    ]) {
       expect(darkBlock, `dark theme missing alias ${token}`).toContain(token)
     }
   })
@@ -53,18 +80,26 @@ describe('设计 token 治理', () => {
    * 缺陷，没有测试会因此变红——所以在这里钉住。
    */
   it('暗色主题翻转叠加层、阴影与滚动条滑块', () => {
-    const darkBlock = source.match(/:root\[data-theme="dark"\]\s*\{([\s\S]*?)\n\}/)?.[1] ?? ''
+    const darkBlock = source.match(/:root\[data-theme=['"]dark['"]\]\s*\{([\s\S]*?)\n\}/)?.[1] ?? ''
     for (const token of [
-      '--color-overlay-hover', '--color-overlay-hover-strong', '--color-scrim',
-      '--color-scrollbar-thumb', '--color-scrollbar-thumb-hover',
-      '--shadow-sm', '--shadow-md', '--shadow-lg',
+      '--color-overlay-hover',
+      '--color-overlay-hover-strong',
+      '--color-scrim',
+      '--color-scrollbar-thumb',
+      '--color-scrollbar-thumb-hover',
+      '--shadow-sm',
+      '--shadow-md',
+      '--shadow-lg',
     ]) {
       expect(darkBlock, `dark theme missing ${token}`).toContain(token)
     }
   })
 
   it('叠加层与滚动条由 token 供给，不再写死 rgba', () => {
-    const tabStrip = readFileSync(new URL('../../src/components/TabStrip.css', import.meta.url), 'utf8')
+    const tabStrip = readFileSync(
+      new URL('../../src/components/TabStrip.css', import.meta.url),
+      'utf8',
+    )
     expect(tabStrip).toContain('var(--color-overlay-hover)')
     expect(tabStrip).toContain('var(--color-overlay-hover-strong)')
     expect(uiSource).toContain('var(--color-scrim)')

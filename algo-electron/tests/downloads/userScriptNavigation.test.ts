@@ -7,9 +7,11 @@ import {
 
 describe('resolveUserScriptNavigation', () => {
   it('recognizes canonical and encoded HTTPS userscript paths', () => {
-    expect(resolveUserScriptNavigation(
-      'https://greasyfork.org/scripts/123/code/helper.user.js?version=4#install',
-    )).toEqual({
+    expect(
+      resolveUserScriptNavigation(
+        'https://greasyfork.org/scripts/123/code/helper.user.js?version=4#install',
+      ),
+    ).toEqual({
       sourceUrl: 'https://greasyfork.org/scripts/123/code/helper.user.js?version=4',
       sourceFileName: 'helper.user.js',
     })
@@ -53,7 +55,7 @@ describe('PendingUserScriptInstallRegistry', () => {
         installId: 'install_123',
         sourceUrl: 'https://example.com/scripts/helper.user.js?version=2',
         sourceFileName: 'helper.user.js',
-        createdAt: '2026-08-18T12:00:00.000Z',
+        createdAt: Date.parse('2026-08-18T12:00:00.000Z'),
       },
       page: { type: 'script-install', installId: 'install_123' },
     })
@@ -87,7 +89,7 @@ describe('PendingUserScriptInstallRegistry', () => {
     const removed: string[] = []
     const registry = new PendingUserScriptInstallRegistry({
       idFactory: () => `install-${++id}`,
-      onRemove: installId => removed.push(installId),
+      onRemove: (installId) => removed.push(installId),
     })
 
     for (let index = 0; index <= MAX_PENDING_USER_SCRIPT_INSTALLS; index += 1) {
@@ -106,7 +108,9 @@ describe('PendingUserScriptInstallRegistry', () => {
       idFactory: () => invalidIds[index++] ?? 'still invalid!',
     })
     expect(registry.register('https://example.com/plain.js')).toBeNull()
-    expect(() => registry.register('https://example.com/helper.user.js')).toThrow('safe userscript install id')
+    expect(() => registry.register('https://example.com/helper.user.js')).toThrow(
+      'safe userscript install id',
+    )
     expect(registry.get('../install')).toBeNull()
   })
 })

@@ -138,7 +138,10 @@ export class ArkClient {
   }
 
   /** 调用 chat completions，返回结构化 JSON。 */
-  async chat(messages: ChatMessage[], options: ArkChatOptions): Promise<{
+  async chat(
+    messages: ChatMessage[],
+    options: ArkChatOptions,
+  ): Promise<{
     response: LlmHintResponse
     model: string
     tokens_input: number
@@ -150,14 +153,16 @@ export class ArkClient {
     }
 
     const startTime = Date.now()
-    const completion = await this.client.createCompletion(buildArkRequest({
-      model: this.config.model,
-      messages,
-      temperature: options.temperature ?? 0.3,
-      maxTokens: options.max_tokens ?? 1024,
-      disableThinking: options.disable_thinking ?? true,
-      structured: true,
-    }))
+    const completion = await this.client.createCompletion(
+      buildArkRequest({
+        model: this.config.model,
+        messages,
+        temperature: options.temperature ?? 0.3,
+        maxTokens: options.max_tokens ?? 1024,
+        disableThinking: options.disable_thinking ?? true,
+        structured: true,
+      }),
+    )
 
     const latencyMs = Date.now() - startTime
     const content = completion.choices[0]?.message?.content
@@ -195,7 +200,10 @@ export class ArkClient {
   }
 
   /** 调用 chat completions，返回纯文本（用于自由聊天场景）。 */
-  async chatText(messages: ChatMessage[], options: ArkChatOptions): Promise<{
+  async chatText(
+    messages: ChatMessage[],
+    options: ArkChatOptions,
+  ): Promise<{
     content: string
     model: string
     tokens_input: number
@@ -207,14 +215,16 @@ export class ArkClient {
     }
 
     const startTime = Date.now()
-    const completion = await this.client.createCompletion(buildArkRequest({
-      model: this.config.model,
-      messages,
-      temperature: options.temperature ?? 0.5,
-      maxTokens: options.max_tokens ?? 2048,
-      disableThinking: options.disable_thinking ?? true,
-      structured: false,
-    }))
+    const completion = await this.client.createCompletion(
+      buildArkRequest({
+        model: this.config.model,
+        messages,
+        temperature: options.temperature ?? 0.5,
+        maxTokens: options.max_tokens ?? 2048,
+        disableThinking: options.disable_thinking ?? true,
+        structured: false,
+      }),
+    )
 
     const latencyMs = Date.now() - startTime
     const content = completion.choices[0]?.message?.content
@@ -242,14 +252,16 @@ export class ArkClient {
         maxRetries: 0,
       })
 
-      const completion = await testClient.createCompletion(buildArkRequest({
-        model: config.model,
-        messages: [{ role: 'user', content: '请回复 "ok"' }],
-        temperature: 0,
-        maxTokens: 16,
-        disableThinking: true,
-        structured: false,
-      }))
+      const completion = await testClient.createCompletion(
+        buildArkRequest({
+          model: config.model,
+          messages: [{ role: 'user', content: '请回复 "ok"' }],
+          temperature: 0,
+          maxTokens: 16,
+          disableThinking: true,
+          structured: false,
+        }),
+      )
 
       const content = completion.choices[0]?.message?.content
       if (!content) {

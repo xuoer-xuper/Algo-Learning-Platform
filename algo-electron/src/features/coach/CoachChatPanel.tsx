@@ -38,7 +38,10 @@ export function CoachChatPanel({ onClose }: CoachChatPanelProps) {
       })
       setMessages((prev) => [
         ...prev,
-        { role: 'assistant', content: result.success ? result.reply : (result.error ?? '调用失败') },
+        {
+          role: 'assistant',
+          content: result.success ? result.reply : (result.error ?? '调用失败'),
+        },
       ])
     } catch {
       setMessages((prev) => [...prev, { role: 'assistant', content: '调用失败' }])
@@ -55,13 +58,12 @@ export function CoachChatPanel({ onClose }: CoachChatPanelProps) {
   }
 
   return (
-    <div
-      className="coach-chat-panel"
-      data-coach-interactive
-    >
+    <div className="coach-chat-panel" data-coach-interactive>
       <div className="coach-chat-header">
         <span className="coach-chat-title">AI 教练对话</span>
-        <span className="coach-chat-source" data-source="llm">LLM</span>
+        <span className="coach-chat-source" data-source="llm">
+          LLM
+        </span>
         <button
           type="button"
           className="coach-bubble-close"
@@ -83,9 +85,11 @@ export function CoachChatPanel({ onClose }: CoachChatPanelProps) {
           <div key={i} className={`coach-chat-msg coach-chat-msg-${msg.role}`}>
             <span className="coach-chat-msg-role">{msg.role === 'user' ? '我' : '教练'}</span>
             <div className="coach-chat-msg-content">
-              {msg.role === 'assistant'
-                ? <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
-                : msg.content}
+              {msg.role === 'assistant' ? (
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
+              ) : (
+                msg.content
+              )}
             </div>
           </div>
         ))}

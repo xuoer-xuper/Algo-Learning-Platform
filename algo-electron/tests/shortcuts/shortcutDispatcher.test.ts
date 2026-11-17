@@ -36,7 +36,10 @@ test('resolves shell and OJ browser shortcuts consistently', () => {
     [{ control: true, key: '0' }, { type: 'reset-zoom' }],
     [{ alt: true, key: 'ArrowLeft' }, { type: 'back' }],
     [{ alt: true, key: 'ArrowRight' }, { type: 'forward' }],
-    [{ control: true, key: '3', code: 'Digit3' }, { type: 'switch-tab', index: 2 }],
+    [
+      { control: true, key: '3', code: 'Digit3' },
+      { type: 'switch-tab', index: 2 },
+    ],
     [{ control: true, shift: true, key: 'i', code: 'KeyI' }, { type: 'toggle-devtools' }],
     [{ key: 'F12' }, { type: 'toggle-devtools' }],
   ]

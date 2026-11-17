@@ -1,11 +1,7 @@
 import type { RefObject } from 'react'
 import { PLATFORM_NAMES } from '../shared/display'
 import { Empty, Icon, Skeleton } from './ui'
-import {
-  getOmniboxOptionId,
-  OMNIBOX_LISTBOX_ID,
-  type OmniboxController,
-} from './useOmnibox'
+import { getOmniboxOptionId, OMNIBOX_LISTBOX_ID, type OmniboxController } from './useOmnibox'
 import './Omnibox.css'
 
 interface OmniboxProps {
@@ -94,11 +90,16 @@ export function OmniboxSuggestionsPanel({ controller }: OmniboxProps) {
           骨架整块 aria-hidden —— 外层 listbox 已经带 aria-busy，
           role="status" 再塞进 listbox 既重复播报又不是合法的 option。
         */}
-        {controller.suggestions.length === 0 && (
-          controller.loading
-            ? <div aria-hidden="true"><Skeleton rows={3} className="omnibox-suggestions-skeleton" /></div>
-            : <Empty compact className="omnibox-suggestions-empty">暂无本地建议</Empty>
-        )}
+        {controller.suggestions.length === 0 &&
+          (controller.loading ? (
+            <div aria-hidden="true">
+              <Skeleton rows={3} className="omnibox-suggestions-skeleton" />
+            </div>
+          ) : (
+            <Empty compact className="omnibox-suggestions-empty">
+              暂无本地建议
+            </Empty>
+          ))}
       </div>
     </section>
   )

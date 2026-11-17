@@ -35,7 +35,10 @@ export const leetcodeAdapter: SiteAdapter = {
     return parseLeetcodeSubmissionResult(raw)
   },
 
-  resolveProblemIdentity(_submission: SubmissionData, raw: SubmissionDetectionPayload): ProblemIdentity | null {
+  resolveProblemIdentity(
+    _submission: SubmissionData,
+    raw: SubmissionDetectionPayload,
+  ): ProblemIdentity | null {
     return resolveLeetcodeProblemIdentity(raw)
   },
 }

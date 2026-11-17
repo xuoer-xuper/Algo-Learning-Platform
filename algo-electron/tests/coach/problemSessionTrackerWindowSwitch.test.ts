@@ -13,10 +13,9 @@ type TrackingSource = {
 } | null
 
 class FakeTrackingService {
-  private readonly listeners = new Set<(
-    identity: ProblemIdentity,
-    source: TrackingSource,
-  ) => void>()
+  private readonly listeners = new Set<
+    (identity: ProblemIdentity, source: TrackingSource) => void
+  >()
 
   addProblemDetectedListener(
     listener: (identity: ProblemIdentity, source: TrackingSource) => void,
@@ -59,7 +58,10 @@ function identity(id: string): ProblemIdentity {
   }
 }
 
-function createAppWindow(id: string, url: string): {
+function createAppWindow(
+  id: string,
+  url: string,
+): {
   appWindow: AppWindow
   browserWindow: MockBrowserWindow
   tabManager: FakeTabManager
@@ -87,7 +89,8 @@ describe('ProblemSessionTracker window switching', () => {
     second.browserWindow.focus()
     const tracker = new ProblemSessionTracker({
       trackingService: tracking as unknown as TrackingService,
-      parseProblemUrl: (url) => url.startsWith('problem:') ? identity(url.slice('problem:'.length)) : null,
+      parseProblemUrl: (url) =>
+        url.startsWith('problem:') ? identity(url.slice('problem:'.length)) : null,
       setInterval: (_callback, _delayMs) => ({}) as NodeJS.Timeout,
       clearInterval: (_handle) => undefined,
       now: () => 1_000,
@@ -127,7 +130,8 @@ describe('ProblemSessionTracker window switching', () => {
     let anyWindowFocused = true
     const tracker = new ProblemSessionTracker({
       trackingService: tracking as unknown as TrackingService,
-      parseProblemUrl: (url) => url.startsWith('problem:') ? identity(url.slice('problem:'.length)) : null,
+      parseProblemUrl: (url) =>
+        url.startsWith('problem:') ? identity(url.slice('problem:'.length)) : null,
       isAnyAppWindowFocused: () => anyWindowFocused,
       setInterval: (_callback, _delayMs) => ({}) as NodeJS.Timeout,
       clearInterval: (_handle) => undefined,

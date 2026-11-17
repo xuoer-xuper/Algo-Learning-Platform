@@ -3,7 +3,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-const harness = vi.hoisted(() => ({ userDataDir: '' }))
+const harness = vi.hoisted(() => ({ userDataDir: '', failNextWrite: false }))
 
 vi.mock('electron', async (importOriginal) => {
   const actual = await importOriginal<Record<string, unknown>>()
@@ -15,22 +15,55 @@ vi.mock('electron', async (importOriginal) => {
   }
 })
 
+/*
+ * conf（electron-store 的存储内核）经 atomically 写盘，且 node_modules 依赖在
+ * vitest 里默认外置、fs 调用又被 stubborn-fs 在加载期捕获——两条路都拦不到。
+ * 显式保存仍收口在 `store.store =`，所以派生子类注入它的"下一次写盘失败"。
+ * 自动归一化只用独立的受保护暂存/rename 路径，测试直接注入 rename 故障。
+ */
+vi.mock('electron-store', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('electron-store')>()
+  const ActualStore = actual.default
+  class HarnessStore extends ActualStore {
+    override get store(): Record<string, unknown> {
+      return super.store
+    }
+    override set store(value: Record<string, unknown>) {
+      if (harness.failNextWrite) {
+        harness.failNextWrite = false
+        throw new Error('read-only config')
+      }
+      super.store = value
+    }
+  }
+  return { ...actual, default: HarnessStore }
+})
+
 beforeEach(() => {
   harness.userDataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'algo-config-migration-'))
   vi.resetModules()
 })
 
 afterEach(() => {
-  fs.rmSync(harness.userDataDir, { recursive: true, force: true })
+  vi.restoreAllMocks()
+  const resolved = path.resolve(harness.userDataDir)
+  expect(resolved.startsWith(`${path.resolve(os.tmpdir())}${path.sep}algo-config-migration-`)).toBe(
+    true,
+  )
+  fs.rmSync(resolved, { recursive: true, force: true })
 })
 
 describe('app config migration', () => {
   it('moves the legacy default home URL into shortcuts and removes the old field', async () => {
     const configPath = path.join(harness.userDataDir, 'config.json')
-    fs.writeFileSync(configPath, JSON.stringify({
-      defaultHomeUrl: 'https://legacy.example/problemset',
-      coach: { enabled: false },
-    }))
+    fs.writeFileSync(
+      configPath,
+      JSON.stringify({
+        defaultHomeUrl: 'https://legacy.example/problemset',
+        coach: { enabled: false },
+      }),
+    )
+    const original = fs.readFileSync(configPath)
 
     const configModule = await import('../../electron/app/config.ts')
     const config = configModule.loadConfig()
@@ -43,19 +76,26 @@ describe('app config migration', () => {
     const migrated = JSON.parse(fs.readFileSync(configPath, 'utf-8')) as Record<string, unknown>
     expect(migrated.defaultHomeUrl).toBeUndefined()
     expect(migrated.homeShortcuts).toEqual(['https://legacy.example/problemset'])
+    const backupDir = path.join(harness.userDataDir, 'config-normalization-backups')
+    const backups = fs.readdirSync(backupDir)
+    expect(backups).toHaveLength(1)
+    expect(fs.readFileSync(path.join(backupDir, backups[0]))).toEqual(original)
   })
 
   it('deduplicates valid HTTP shortcuts and drops unsupported legacy values', async () => {
     const configPath = path.join(harness.userDataDir, 'config.json')
-    fs.writeFileSync(configPath, JSON.stringify({
-      defaultHomeUrl: 'https://legacy.example/',
-      homeShortcuts: [
-        'https://legacy.example/',
-        'not a url',
-        'ftp://legacy.example/file',
-        'https://user:password@private.example/problemset',
-      ],
-    }))
+    fs.writeFileSync(
+      configPath,
+      JSON.stringify({
+        defaultHomeUrl: 'https://legacy.example/',
+        homeShortcuts: [
+          'https://legacy.example/',
+          'not a url',
+          'ftp://legacy.example/file',
+          'https://user:password@private.example/problemset',
+        ],
+      }),
+    )
 
     const { loadConfig } = await import('../../electron/app/config.ts')
     expect(loadConfig().homeShortcuts).toEqual(['https://legacy.example/'])
@@ -63,24 +103,26 @@ describe('app config migration', () => {
 
   it('keeps the migrated config in memory when legacy writeback fails', async () => {
     const configPath = path.join(harness.userDataDir, 'config.json')
-    fs.writeFileSync(configPath, JSON.stringify({
-      defaultHomeUrl: 'https://legacy.example/problemset',
-      coach: { enabled: false },
-    }))
+    fs.writeFileSync(
+      configPath,
+      JSON.stringify({
+        defaultHomeUrl: 'https://legacy.example/problemset',
+        coach: { enabled: false },
+      }),
+    )
 
-    const writeSpy = vi.spyOn(fs, 'writeFileSync').mockImplementationOnce(() => {
-      throw new Error('read-only config')
+    const rename = fs.renameSync
+    vi.spyOn(fs, 'renameSync').mockImplementation((source, target) => {
+      if (target === configPath)
+        throw Object.assign(new Error('read-only config'), { code: 'EPERM' })
+      rename(source, target)
     })
-    try {
-      const configModule = await import('../../electron/app/config.ts')
-      expect(configModule.loadConfig()).toMatchObject({
-        homeShortcuts: ['https://legacy.example/problemset'],
-        coach: { enabled: false, sound: true },
-      })
-      expect(configModule.getHomeShortcuts()).toEqual(['https://legacy.example/problemset'])
-    } finally {
-      writeSpy.mockRestore()
-    }
+    const configModule = await import('../../electron/app/config.ts')
+    expect(configModule.loadConfig()).toMatchObject({
+      homeShortcuts: ['https://legacy.example/problemset'],
+      coach: { enabled: false, sound: true },
+    })
+    expect(configModule.getHomeShortcuts()).toEqual(['https://legacy.example/problemset'])
 
     const unchanged = JSON.parse(fs.readFileSync(configPath, 'utf-8')) as Record<string, unknown>
     expect(unchanged.defaultHomeUrl).toBe('https://legacy.example/problemset')
@@ -112,12 +154,15 @@ describe('app config migration', () => {
 
   it('sanitizes an unsafe custom search template to the Bing default', async () => {
     const configPath = path.join(harness.userDataDir, 'config.json')
-    fs.writeFileSync(configPath, JSON.stringify({
-      search: {
-        engine: 'custom',
-        customTemplate: 'http://user:password@search.example/?q={query}',
-      },
-    }))
+    fs.writeFileSync(
+      configPath,
+      JSON.stringify({
+        search: {
+          engine: 'custom',
+          customTemplate: 'http://user:password@search.example/?q={query}',
+        },
+      }),
+    )
 
     const configModule = await import('../../electron/app/config.ts')
     expect(configModule.loadConfig().search).toEqual({ engine: 'bing', customTemplate: null })
@@ -148,16 +193,16 @@ describe('app config migration', () => {
     const configModule = await import('../../electron/app/config.ts')
     expect(configModule.getSearchConfig()).toEqual(originalSearch)
 
-    const writeSpy = vi.spyOn(fs, 'writeFileSync').mockImplementationOnce(() => {
-      throw new Error('read-only config')
-    })
+    harness.failNextWrite = true
     try {
-      expect(() => configModule.saveSearchConfig({
-        engine: 'custom',
-        customTemplate: 'https://search.example/?q={query}',
-      })).toThrow('read-only config')
+      expect(() =>
+        configModule.saveSearchConfig({
+          engine: 'custom',
+          customTemplate: 'https://search.example/?q={query}',
+        }),
+      ).toThrow('read-only config')
     } finally {
-      writeSpy.mockRestore()
+      harness.failNextWrite = false
     }
 
     expect(configModule.getSearchConfig()).toEqual(originalSearch)
@@ -167,17 +212,20 @@ describe('app config migration', () => {
 
   it('does not expose the encrypted LLM envelope in renderer Coach config', async () => {
     const configPath = path.join(harness.userDataDir, 'config.json')
-    fs.writeFileSync(configPath, JSON.stringify({
-      coach: {
-        enabled: true,
-        llm: {
-          encrypted_api_key: 'encrypted-envelope',
-          base_url: 'https://llm.example/v1',
-          model: 'model-a',
+    fs.writeFileSync(
+      configPath,
+      JSON.stringify({
+        coach: {
           enabled: true,
+          llm: {
+            encrypted_api_key: 'encrypted-envelope',
+            base_url: 'https://llm.example/v1',
+            model: 'model-a',
+            enabled: true,
+          },
         },
-      },
-    }))
+      }),
+    )
 
     const configModule = await import('../../electron/app/config.ts')
     expect(configModule.loadCoachConfig().llm?.encrypted_api_key).toBe('encrypted-envelope')

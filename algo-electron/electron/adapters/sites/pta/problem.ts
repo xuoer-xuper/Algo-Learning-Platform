@@ -9,9 +9,11 @@ export function parsePtaProblem(url: string): ProblemIdentity | null {
     const parsed = new URL(url)
     if (parsed.hostname !== 'pintia.cn' && parsed.hostname !== 'www.pintia.cn') return null
 
-    const typeMatch = parsed.pathname.match(/^\/problem-sets\/(\d+)\/(?:exam\/)?problems\/type\/\d+/)
-    const typeProblemId = parsed.searchParams.get('problemSetProblemId')
-      ?? parsed.searchParams.get('problemId')
+    const typeMatch = parsed.pathname.match(
+      /^\/problem-sets\/(\d+)\/(?:exam\/)?problems\/type\/\d+/,
+    )
+    const typeProblemId =
+      parsed.searchParams.get('problemSetProblemId') ?? parsed.searchParams.get('problemId')
     if (typeMatch && typeProblemId) {
       const setId = typeMatch[1]
       return {
@@ -24,7 +26,9 @@ export function parsePtaProblem(url: string): ProblemIdentity | null {
       }
     }
 
-    const problemMatch = parsed.pathname.match(/^\/problem-sets\/(\d+)\/(?:exam\/problems|exam-problems|problems)\/(\d+)/)
+    const problemMatch = parsed.pathname.match(
+      /^\/problem-sets\/(\d+)\/(?:exam\/problems|exam-problems|problems)\/(\d+)/,
+    )
     if (!problemMatch) return null
 
     const setId = problemMatch[1]

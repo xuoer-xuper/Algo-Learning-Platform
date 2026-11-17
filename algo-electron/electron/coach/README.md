@@ -9,10 +9,12 @@
 ## 2. 当前实现程度（阶段 1-4）
 
 ### 阶段 1：桌宠视觉壳
+
 - `CoachPetWindow.ts`：透明桌宠窗口封装（BrowserWindow 配置、点击穿透、拖拽、生命周期、状态/气泡/配置推送）；默认作为普通子窗口跟随最近活跃完整壳，并在父壳关闭前解绑，不以全局置顶窗口维持应用进程。
 - `petPinPolicy.ts`（B5.5 / D30）：置顶策略纯逻辑。三档 `follow`/`always`/`dock`，输入「模式 + 是否有活跃壳 + 该壳是否聚焦」，输出「alwaysOnTop / level / 是否绑 parent」。不 import electron，在 node 环境直接测；`CoachPetWindow` 只负责把决策设到窗口上。
 
 ### 阶段 2：事件触发 + 比赛模式
+
 - `ProblemSessionTracker.ts`：三态计时（读题/写码/卡壳），active_seconds 只在任一完整应用壳聚焦且系统未空闲时累计。
 - `CoachEventBridge.ts`：订阅提交事件，转为 CoachEvent（multiple_wrong / same_error / first_ac）。
 - `rules/RuleEngine.ts` + `rules.ts`：规则引擎（节流、防 hint abuse、难度自适应、比赛硬关闭、never_today）。
@@ -22,6 +24,7 @@
 - `CoachOrchestrator.ts`：服务编排，黏合 tracker/bridge/ruleEngine/contestGuard/repositories/petWindow。
 
 ### 阶段 3：通用提示 + 靶向提示
+
 - `hints/hintTemplates.ts`：34 条内置模板，10 类。
 - `hints/HintSelector.ts`：verdict → 类别映射。
 - `hints/HintLadder.ts`：6 级 Socratic Ladder，L5 二次确认。
@@ -29,6 +32,7 @@
 - `problemFacts/ConstraintParser.ts`：题面约束解析，零 LLM 靶向提示。
 
 ### 阶段 4：过程复盘 + 答辩数据
+
 - `CoachOrchestrator.getProblemTimeline()`：合并四表数据生成时间轴。
 - `CoachOrchestrator.getMetricsBundle()`：聚合 30 天窗口指标。
 
@@ -61,25 +65,26 @@
 
 ```powershell
 cd algo-electron
-npm run typecheck
-npm run lint
-npm run test:coach
-npm run test:all
+pnpm run typecheck
+pnpm run lint
+pnpm run test:coach
+pnpm run test:all
 npx vitest run tests/coach/coachOrchestratorLifecycle.test.ts
 ```
 
 运行时手动验证：
+
 - 启动应用后桌宠出现在右下角。
-- DevTools 调用 `window.electronAPI.coachSetPetState('celebrate')` 验证状态切换。
+- DevTools 调用 `await window.api.coach.getPetState()` 验证状态读取（状态切换由主进程推送 `coach.onPetStateChanged`，`coachSetPetState` 通道等对应 UI 落地后再按 `apiConsumers` 守卫放回暴露面）。
 - 进入 CF 比赛页验证零提示与审计日志。
-- `await window.electronAPI.coachGetState()` 返回当前会话/比赛模式快照。
-- `await window.electronAPI.coachExportAuditLog()` 返回比赛审计记录。
+- `await window.api.coach.getState()` 返回当前会话/比赛模式快照。
+- `await window.api.coach.getMetricsBundle()` 返回干预效果指标 bundle（`coachExportAuditLog` 通道等审计 UI 落地后按 `apiConsumers` 守卫放回暴露面）。
 
 ## 跨模块依赖
 
 - `electron/app/config.ts`：`loadCoachConfig` / `saveCoachConfig`。
 - `electron/ipc/registerCoachIpc.ts`：IPC 注册（接入 `registerMainIpc.ts`）。
-- `electron/preload.ts`：`electronAPI.coach*` 暴露。
+- `src/preload/index.ts`：`api.coach.*` 暴露。
 - `electron/main.ts`：初始化入口与生命周期绑定。
 - `electron/submissions/SubmissionWatcher.ts`：EventEmitter 出口。
 - `electron/db/repositories/coach/`：数据仓库。

@@ -1,10 +1,11 @@
 import crypto from 'node:crypto'
 import { getDb } from '../../connection'
 import type { ProblemIdentity } from '../../../shared/types'
-import { nowBeijing } from '../../../shared/time'
-import { appLogger, type Logger } from '../../../shared/logger'
+import { nowMillis, toLocalDay } from '../../../shared/time'
+import { logger as baseLogger, type Logger } from '../../../shared/logger'
 import { isValidScrapedTitle, shouldReplaceScrapedTitle } from '../../../parsers/titleValidation'
 import { recomputeDailyStatsForDates } from '../stats/recompute'
+import { emitDataChanged, withDataChangeTransaction } from '../../../shared/dataEvents'
 
 interface ExistingProblemTitleRow {
   id: string
@@ -13,18 +14,23 @@ interface ExistingProblemTitleRow {
 
 export function upsertProblem(identity: ProblemIdentity): void {
   const db = getDb()
-  const now = nowBeijing()
+  const now = nowMillis()
   const canonicalUrl = identity.canonicalUrl
 
-  const existing = db.prepare(
-    'SELECT id, title FROM problems WHERE platform = ? AND platform_problem_id = ?',
-  ).get(identity.platform, identity.platformProblemId) as ExistingProblemTitleRow | undefined
+  const existing = db
+    .prepare('SELECT id, title FROM problems WHERE platform = ? AND platform_problem_id = ?')
+    .get(identity.platform, identity.platformProblemId) as ExistingProblemTitleRow | undefined
 
-  const title = isValidScrapedTitle(identity.title) ? identity.title!.trim() : null
+  const scrapedTitle = identity.title
+  let title: string | null = null
+  if (isValidScrapedTitle(scrapedTitle)) {
+    title = scrapedTitle.trim()
+  }
 
   if (existing) {
     const shouldUpdateTitle = shouldReplaceScrapedTitle(existing.title, title)
-    db.prepare(`
+    db.prepare(
+      `
       UPDATE problems SET
         canonical_url = ?,
         contest_id = COALESCE(?, contest_id),
@@ -33,7 +39,8 @@ export function upsertProblem(identity: ProblemIdentity): void {
         last_visited_at = ?,
         updated_at = ?
       WHERE id = ?
-    `).run(
+    `,
+    ).run(
       canonicalUrl,
       identity.contestId ?? null,
       identity.problemIndex ?? null,
@@ -43,13 +50,16 @@ export function upsertProblem(identity: ProblemIdentity): void {
       now,
       existing.id,
     )
+    emitDataChanged(['problems', 'stats'])
     return
   }
 
-  db.prepare(`
+  db.prepare(
+    `
     INSERT INTO problems (id, platform, platform_problem_id, canonical_url, title, status, contest_id, problem_index, source_platform, source_problem_id, first_seen_at, last_visited_at, created_at, updated_at)
     VALUES (?, ?, ?, ?, ?, 'visited', ?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(
+  `,
+  ).run(
     crypto.randomUUID(),
     identity.platform,
     identity.platformProblemId,
@@ -64,34 +74,43 @@ export function upsertProblem(identity: ProblemIdentity): void {
     now,
     now,
   )
+  emitDataChanged(['problems', 'stats'])
 }
 
-export function deleteProblem(problemId: string, logger: Logger = appLogger): boolean {
+export function deleteProblem(problemId: string, logger: Logger = baseLogger): boolean {
   const db = getDb()
   const affectedDates = new Set<string>()
-  const rows = db.prepare(`
-    SELECT substr(entered_at, 1, 10) AS local_day
+  const rows = db
+    .prepare(
+      `
+    SELECT entered_at AS instant
     FROM problem_visits WHERE problem_id = ?
     UNION
-    SELECT substr(submitted_at, 1, 10) AS local_day
+    SELECT submitted_at AS instant
     FROM submissions WHERE problem_id = ?
     UNION
-    SELECT substr(occurred_at, 1, 10) AS local_day
+    SELECT occurred_at AS instant
     FROM activity_events WHERE problem_id = ?
     UNION
-    SELECT substr(first_solved_at, 1, 10) AS local_day
+    SELECT first_solved_at AS instant
     FROM problems WHERE id = ? AND first_solved_at IS NOT NULL
-  `).all(problemId, problemId, problemId, problemId) as Array<{ local_day: string | null }>
+  `,
+    )
+    .all(problemId, problemId, problemId, problemId) as Array<{ instant: number | null }>
   for (const row of rows) {
-    if (row.local_day) affectedDates.add(row.local_day)
+    if (row.instant !== null) affectedDates.add(toLocalDay(row.instant))
   }
 
-  const deleted = db.transaction(() => {
-    db.prepare('DELETE FROM submissions WHERE problem_id = ?').run(problemId)
-    db.prepare('DELETE FROM problem_visits WHERE problem_id = ?').run(problemId)
-    db.prepare('DELETE FROM activity_events WHERE problem_id = ?').run(problemId)
-    return db.prepare('DELETE FROM problems WHERE id = ?').run(problemId).changes > 0
-  })()
+  const deleted = withDataChangeTransaction(() =>
+    db.transaction(() => {
+      db.prepare('DELETE FROM submissions WHERE problem_id = ?').run(problemId)
+      db.prepare('DELETE FROM problem_visits WHERE problem_id = ?').run(problemId)
+      db.prepare('DELETE FROM activity_events WHERE problem_id = ?').run(problemId)
+      const removed = db.prepare('DELETE FROM problems WHERE id = ?').run(problemId).changes > 0
+      if (removed) emitDataChanged(['problems', 'submissions', 'stats'])
+      return removed
+    })(),
+  )
   if (deleted) {
     try {
       recomputeDailyStatsForDates(affectedDates)

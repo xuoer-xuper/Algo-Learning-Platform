@@ -1,8 +1,15 @@
 import { getShellWindowOwner, ipcMain, onFromOj } from './trustedSender'
-import { nullable, oneOf, optional, text } from './payloadSchema'
+import {
+  autofillRespondInput,
+  captureRespondInput,
+  deleteInput,
+  listInput,
+  renameInput,
+} from '../../src/shared/types/ipc/credentials'
 import { CredentialVault } from '../credentials/CredentialVault'
 import type { CredentialAutofillService } from '../credentials/autofill/CredentialAutofillService'
 import type { CredentialCaptureService } from '../credentials/CredentialCaptureService'
+import { IPC_CHANNELS } from '../../src/shared/constants/channels'
 
 export interface RegisterCredentialsIpcOptions {
   getAutofillService?: () => CredentialAutofillService | null
@@ -10,65 +17,58 @@ export interface RegisterCredentialsIpcOptions {
 }
 
 /*
- * 两个复用的界，沿用本文件原先手写检查里的数字，不另立标准：
- *
- * - `credentialId`：Vault 生成的 id，上限按通用标识符 200。
- * - `oneShotId`：`requestId` / `captureId` 这类一次性令牌，原先手写的是
- *   `length === 0 || length > 128`，照搬 128。
- *
- * 迁移改变了非法输入的表现：原先 `rename` 返回 null、两个 respond 返回 false，
- * 现在一律在进 handler 之前被拒。这是刻意的——这些值只可能来自壳 renderer 自己的代码，
- * 形状不对说明我们的代码有 bug，而返回 false 会和"服务说不"（没有待处理的 prompt、
- * owner 已销毁）混在一起看不出区别。App.tsx 两处调用点本来就 catch，不会产生
- * 无人接管的 rejection；captureRespond 那处 catch 还会把错误提示显示出来，正是想要的。
+ * 各 channel 的输入 schema 元组来自 `src/shared/types/ipc/credentials.ts`；
+ * credentialId 200 / oneShotId 128 两个界的来历与"非法输入从返回 false 改为拒绝"的
+ * 理由写在那里。
  */
-const credentialId = () => text({ max: 200 })
-const oneShotId = () => text({ max: 128 })
-
 export function registerCredentialsIpc(
   credentialVault = new CredentialVault(),
   options: RegisterCredentialsIpcOptions = {},
 ): void {
-  ipcMain.handle('credentials:list', [optional(text())], (_event, siteId) => {
+  ipcMain.handle(IPC_CHANNELS.CREDENTIALS.LIST, listInput, (_event, siteId) => {
     return credentialVault.list(siteId)
   })
 
-  ipcMain.handle('credentials:delete', [credentialId()], (_event, id) => {
+  ipcMain.handle(IPC_CHANNELS.CREDENTIALS.DELETE, deleteInput, (_event, id) => {
     return credentialVault.delete(id)
   })
 
-  ipcMain.handle('credentials:rename', [credentialId(), text({ max: 200 })], (_event, id, displayName) => {
-    return credentialVault.rename(id, displayName)
+  ipcMain.handle(IPC_CHANNELS.CREDENTIALS.RENAME, renameInput, (_event, input) => {
+    return credentialVault.rename(input.credentialId, input.displayName)
   })
 
-  ipcMain.handle('credentials:autofillPrompt', (event) => {
+  ipcMain.handle(IPC_CHANNELS.CREDENTIALS.AUTOFILL_PROMPT, (event) => {
     const owner = getShellWindowOwner(event)
-    return owner ? options.getAutofillService?.()?.getCurrentPrompt(owner.id) ?? null : null
+    return owner ? (options.getAutofillService?.()?.getCurrentPrompt(owner.id) ?? null) : null
   })
 
   ipcMain.handle(
-    'credentials:autofillRespond',
-    [oneShotId(), nullable(credentialId())],
-    (event, requestId, chosen) => {
+    IPC_CHANNELS.CREDENTIALS.AUTOFILL_RESPOND,
+    autofillRespondInput,
+    (event, input) => {
       const owner = getShellWindowOwner(event)
       return owner
-        ? options.getAutofillService?.()?.respondSelection(owner.id, requestId, chosen) ?? false
+        ? (options
+            .getAutofillService?.()
+            ?.respondSelection(owner.id, input.requestId, input.credentialId) ?? false)
         : false
     },
   )
 
-  ipcMain.handle('credentials:capturePrompt', (event) => {
+  ipcMain.handle(IPC_CHANNELS.CREDENTIALS.CAPTURE_PROMPT, (event) => {
     const owner = getShellWindowOwner(event)
-    return owner ? options.getCaptureService?.()?.getCurrentPrompt(owner.id) ?? null : null
+    return owner ? (options.getCaptureService?.()?.getCurrentPrompt(owner.id) ?? null) : null
   })
 
   ipcMain.handle(
-    'credentials:captureRespond',
-    [oneShotId(), oneOf(['save', 'update', 'cancel'] as const)],
-    async (event, captureId, action) => {
+    IPC_CHANNELS.CREDENTIALS.CAPTURE_RESPOND,
+    captureRespondInput,
+    async (event, input) => {
       const owner = getShellWindowOwner(event)
       return owner
-        ? await options.getCaptureService?.()?.respondCapture(owner.id, captureId, action) ?? false
+        ? ((await options
+            .getCaptureService?.()
+            ?.respondCapture(owner.id, input.captureId, input.action)) ?? false)
         : false
     },
   )
@@ -79,7 +79,7 @@ export function registerCredentialsIpc(
    * `onFromOj` 目前只有单一形态（无 schema 元组），所以这里没有可声明的位置——
    * 它也不在壳 renderer 的可达范围内，由 `checkOjSender` 限定只有 persist:oj-main 主 frame 能发。
    */
-  onFromOj('oj-credentials:capture', (event, payload: unknown) => {
+  onFromOj(IPC_CHANNELS.OJ.CREDENTIALS_CAPTURE, (event, payload: unknown) => {
     void options.getCaptureService?.()?.receiveCapture(event.sender, payload)
   })
 }

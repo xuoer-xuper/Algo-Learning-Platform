@@ -7,13 +7,16 @@ import {
   saveCoachConfig,
 } from '../coach/coachDataApi'
 import { errorMessage } from '../../shared/errors'
+import type { CoachConfig, CoachPinMode } from '@shared/types/coach'
+import { useIpcQuery } from '../../hooks/useIpcQuery'
 
 /**
  * 三档置顶方式的效果说明。写在界面上而不是只写文档：这三档的差别是
  * 「谁能盖住桌宠」，光看模式名看不出来。
  */
 const PIN_MODE_HINTS: Record<CoachPinMode, string> = {
-  follow: '桌宠浮在当前活跃窗口之上；该窗口失去焦点（弹出右键菜单、文件对话框或切到别的程序）时自动退到后面。',
+  follow:
+    '桌宠浮在当前活跃窗口之上；该窗口失去焦点（弹出右键菜单、文件对话框或切到别的程序）时自动退到后面。',
   always: '桌宠始终盖在所有窗口之上，包括本应用的对话框和其他程序。',
   dock: '桌宠停在桌面上不置顶，任何窗口都能盖住它。',
 }
@@ -34,17 +37,16 @@ const PIN_MODE_HINTS: Record<CoachPinMode, string> = {
  * 阶段 1 暂不支持运行时启停桌宠窗口（需重启），仅持久化配置。
  */
 export function CoachPanel() {
-  const [config, setConfig] = useState<CoachConfig | null>(null)
+  const query = useIpcQuery(loadCoachConfig, [])
+  const [configDraft, setConfig] = useState<CoachConfig | null>(null)
+  const config = configDraft ?? query.data
   const [saved, setSaved] = useState(false)
   const [testMsg, setTestMsg] = useState('')
   const [loadError, setLoadError] = useState('')
 
   useEffect(() => {
-    void loadCoachConfig()
-      .then(setConfig)
-      // 读失败时若不提示，面板会永远停在骨架屏上。
-      .catch((error: unknown) => setLoadError(`读取配置失败：${errorMessage(error)}`))
-  }, [])
+    if (query.error) setLoadError(`读取配置失败：${errorMessage(query.error)}`)
+  }, [query.error])
 
   const updateConfig = (partial: Partial<CoachConfig>) => {
     if (!config) return
@@ -85,9 +87,13 @@ export function CoachPanel() {
     return (
       <div className="settings-section">
         <h3 className="settings-section-title">Coach 桌宠</h3>
-        {loadError
-          ? <div className="settings-row settings-error-text" role="alert">{loadError}</div>
-          : <Skeleton rows={4} label="Coach 配置读取中" />}
+        {loadError ? (
+          <div className="settings-row settings-error-text" role="alert">
+            {loadError}
+          </div>
+        ) : (
+          <Skeleton rows={4} label="Coach 配置读取中" />
+        )}
       </div>
     )
   }
@@ -154,9 +160,7 @@ export function CoachPanel() {
         </label>
       </div>
 
-      <div className="settings-row settings-hint-text">
-        {PIN_MODE_HINTS[config.pinMode]}
-      </div>
+      <div className="settings-row settings-hint-text">{PIN_MODE_HINTS[config.pinMode]}</div>
 
       <div className="settings-row">
         <label className="settings-label-row">
@@ -197,9 +201,7 @@ export function CoachPanel() {
         </Button>
       </div>
 
-      {testMsg && (
-        <div className="settings-row settings-hint-text">{testMsg}</div>
-      )}
+      {testMsg && <div className="settings-row settings-hint-text">{testMsg}</div>}
 
       <div className="settings-row settings-hint-text">
         提示：缩放/透明度即时生效；启用开关需重启应用。

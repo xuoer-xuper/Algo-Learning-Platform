@@ -16,16 +16,16 @@
 
 /** 提示类目（9 类 + 1 元认知类） */
 export type HintCategory =
-  | 'complexity'      // 复杂度类
-  | 'boundary'         // 边界类
-  | 'data_range'       // 数据范围类
-  | 'initialization'   // 初始化类
-  | 'overflow'         // 溢出类
-  | 'io'               // 输入输出类
-  | 'special_case'     // 特判类
-  | 'array_bounds'     // 数组越界类
-  | 'loop'             // 循环条件类
-  | 'metacognition'    // 元认知类（idle_too_long / 卡壳用）
+  | 'complexity' // 复杂度类
+  | 'boundary' // 边界类
+  | 'data_range' // 数据范围类
+  | 'initialization' // 初始化类
+  | 'overflow' // 溢出类
+  | 'io' // 输入输出类
+  | 'special_case' // 特判类
+  | 'array_bounds' // 数组越界类
+  | 'loop' // 循环条件类
+  | 'metacognition' // 元认知类（idle_too_long / 卡壳用）
 
 export interface HintTemplate {
   /** 模板 id（用于审计追溯） */
@@ -327,7 +327,10 @@ export function fillTemplatePlaceholders(
   if (constraints.nUpper !== undefined) {
     const nUpperStr = formatNumber(constraints.nUpper)
     replacements['n_upper'] = nUpperStr
-    const nUpperNum = typeof constraints.nUpper === 'number' ? constraints.nUpper : parseLooseInt(constraints.nUpper)
+    const nUpperNum =
+      typeof constraints.nUpper === 'number'
+        ? constraints.nUpper
+        : parseLooseInt(constraints.nUpper)
     if (nUpperNum !== null) {
       replacements['n_upper_sq'] = formatNumber(nUpperNum * nUpperNum)
       replacements['n_upper_safe'] = formatNumber(nUpperNum + 10)

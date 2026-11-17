@@ -6,7 +6,7 @@ export interface PeriodSummaryInput {
 }
 
 export interface PeriodSummary {
-  generated_at: string
+  generated_at: number
   rule_version: number
   period: {
     type: PeriodType
@@ -39,7 +39,7 @@ export interface PeriodSummary {
     }[]
   } | null
   evidence: string
-  source_snapshots: { snapshot_date: string; created_at: string }[]
+  source_snapshots: { snapshot_date: string; created_at: number }[]
 }
 
 export interface AggregatedPeriodStats {

@@ -4,7 +4,7 @@
 
 `src/shared/` 存放 renderer 侧跨 feature 共享的纯展示常量和轻量工具。
 
-本目录不访问 `window.electronAPI`，不保存 React state，不包含主进程业务规则。
+本目录不访问 `window.api`，不保存 React state，不包含主进程业务规则。
 
 ## 2. 当前内容
 
@@ -19,6 +19,7 @@
   - `CHART_COLORS`：统计图表通用颜色序列。
 - `errors.ts`
   - `errorMessage(error: unknown)`：把未知 reject 原因转成可展示文案。各面板原先各写一遍 `e instanceof Error ? e.message : String(e)`，对主进程返回的普通对象会得到 `[object Object]`；这里补上对象与空 message 分支，作为唯一入口。
+- `time.ts`：纯Unix毫秒、local_day边界和展示函数，主进程与renderer共用；日期键按日历推进，epoch0有效，无Node/Electron依赖。
 
 ## 3. 边界规则
 
@@ -32,8 +33,8 @@
 
 ```powershell
 cd algo-electron
-npm run typecheck
-npm run test:ui
+pnpm run typecheck
+pnpm run test:ui
 ```
 
 涉及平台名称、状态颜色或图表颜色时，还需要手测题目侧栏、题目详情、统计页和设置页，确认展示文案、颜色和窄屏布局没有错位。

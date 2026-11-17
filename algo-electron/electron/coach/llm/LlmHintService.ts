@@ -1,8 +1,14 @@
 import crypto from 'node:crypto'
-import type { CoachEvent, CoachInterventionLevel, ProblemSession } from '../types'
+import type {
+  CoachEvent,
+  CoachInterventionLevel,
+  ProblemSession,
+} from '../../../src/shared/types/coach'
 import type { ProblemConstraints } from '../problemFacts/ConstraintParser'
-import { nowBeijing } from '../../shared/time'
-import { appLogger } from '../../shared/logger'
+import { nowMillis } from '../../shared/time'
+import { logger } from '../../shared/logger'
+
+const log = logger.scope('llm')
 import { ArkClient } from './ArkClient'
 import { LlmConfigStore } from './LlmConfigStore'
 import { ContextGatherer } from './ContextGatherer'
@@ -23,7 +29,7 @@ import type { LlmHintResult, LlmConfig, LlmConnectionTestResult } from './LlmHin
  * 缓存策略：
  *   同题同等级 5 分钟内复用上一次 LLM 响应，减少 80% API 调用。
  */
-const CACHE_TTL_MS = 5 * 60 * 1000      // 缓存 5 分钟
+const CACHE_TTL_MS = 5 * 60 * 1000 // 缓存 5 分钟
 
 interface CacheEntry {
   result: LlmHintResult
@@ -172,7 +178,7 @@ export class LlmHintService {
 
       return hintResult
     } catch (err) {
-      appLogger.warn('llm.generate-hint-failed', err)
+      log.warn('generate-hint-failed', err)
       return null
     }
   }
@@ -197,7 +203,7 @@ export class LlmHintService {
       problem_id: session?.problem_id ?? null,
       platform: session?.platform ?? null,
       evidence: {},
-      created_at: nowBeijing(),
+      created_at: nowMillis(),
     }
   }
 
@@ -218,14 +224,7 @@ export class LlmHintService {
     const stubEvent = this.buildStubEvent(session)
 
     // 采集上下文
-    const ctx = this.contextGatherer.collect(
-      stubEvent,
-      session,
-      constraints,
-      1,
-      true,
-      problemUrl,
-    )
+    const ctx = this.contextGatherer.collect(stubEvent, session, constraints, 1, true, problemUrl)
 
     // 构建聊天 messages
     const messages = buildChatPrompt(ctx, userMessage, history)
@@ -239,7 +238,7 @@ export class LlmHintService {
       })
       return result.content
     } catch (err) {
-      appLogger.warn('llm.chat-failed', err)
+      log.warn('chat-failed', err)
       return null
     }
   }
@@ -279,7 +278,7 @@ export class LlmHintService {
       })
       return result.response.message
     } catch (err) {
-      appLogger.warn('llm.request-hint-failed', err)
+      log.warn('request-hint-failed', err)
       return null
     }
   }

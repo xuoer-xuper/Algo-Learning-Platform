@@ -1,0 +1,10 @@
+{"file": ".trellis/spec/shared/code-quality.md", "reason": "强制规则：无 !、无 any、命名、错误处理"}
+{"file": ".trellis/spec/project/domain-rules.md", "reason": "不可放松的产品/安全红线"}
+{"file": ".trellis/spec/project/migration-status.md", "reason": "当前位置与目标位置对照"}
+{"file": ".trellis/tasks/archive/2026-09/00-bootstrap-guidelines/research/spec-alignment-plan.md", "reason": "本阶段步骤与决策编号"}
+{"file": ".trellis/spec/backend/type-safety.md", "reason": "zod 模式"}
+{"file": ".trellis/spec/backend/logging.md", "reason": "electron-log scope"}
+{"file": ".trellis/spec/backend/environment.md", "reason": "electron-store 与 env-setup 顺序"}
+{"file": ".trellis/spec/backend/error-handling.md", "reason": "返回形状与错误分类"}
+{"file": ".trellis/spec/shared/typescript.md", "reason": "safeParse、判别联合"}
+{"file": ".trellis/tasks/archive/2026-09/00-bootstrap-guidelines/research/reinvented-wheels-audit.md", "reason": "A1/A2/A4 替换范围"}

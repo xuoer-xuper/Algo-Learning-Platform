@@ -16,7 +16,10 @@ export function buildCodeforcesProblemUrl(
   }
 }
 
-export function buildCodeforcesProblemUrlFromApi(contestId: string | number, index: string): string {
+export function buildCodeforcesProblemUrlFromApi(
+  contestId: string | number,
+  index: string,
+): string {
   return buildCodeforcesProblemUrl(String(contestId), index, 'problemset')
 }
 

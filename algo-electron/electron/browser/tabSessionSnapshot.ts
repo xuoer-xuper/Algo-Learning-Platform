@@ -48,8 +48,7 @@ export type TabSessionValidationReason =
   | 'invalid-active-tab'
 
 export type TabSessionValidationResult =
-  | { ok: true; snapshot: TabSessionSnapshot }
-  | { ok: false; reason: TabSessionValidationReason }
+  { ok: true; snapshot: TabSessionSnapshot } | { ok: false; reason: TabSessionValidationReason }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -76,16 +75,20 @@ function containsEncodedControlCharacter(value: string): boolean {
 }
 
 function isValidTabId(value: unknown): value is string {
-  return typeof value === 'string'
-    && value.length >= 1
-    && value.length <= MAX_TAB_ID_LENGTH
-    && TAB_ID_PATTERN.test(value)
+  return (
+    typeof value === 'string' &&
+    value.length >= 1 &&
+    value.length <= MAX_TAB_ID_LENGTH &&
+    TAB_ID_PATTERN.test(value)
+  )
 }
 
 function isValidTabTitle(value: unknown): value is string {
-  return typeof value === 'string'
-    && value.length <= MAX_TAB_TITLE_LENGTH
-    && !containsControlCharacter(value)
+  return (
+    typeof value === 'string' &&
+    value.length <= MAX_TAB_TITLE_LENGTH &&
+    !containsControlCharacter(value)
+  )
 }
 
 function normalizeUrlKey(value: string): string {
@@ -114,11 +117,11 @@ export function normalizeRestorableWebUrl(
   options: TabSessionSnapshotOptions = {},
 ): string | null {
   if (
-    value.length < 1
-    || value.length > MAX_TAB_URL_LENGTH
-    || containsControlCharacter(value)
-    || MALFORMED_PERCENT_PATTERN.test(value)
-    || containsEncodedControlCharacter(value)
+    value.length < 1 ||
+    value.length > MAX_TAB_URL_LENGTH ||
+    containsControlCharacter(value) ||
+    MALFORMED_PERCENT_PATTERN.test(value) ||
+    containsEncodedControlCharacter(value)
   ) {
     return null
   }
@@ -136,7 +139,8 @@ export function normalizeRestorableWebUrl(
     return null
   }
   if (parsed.username || parsed.password) return null
-  if (hasSensitiveSearchParams(parsed.searchParams) || hasSensitiveFragment(parsed.hash)) return null
+  if (hasSensitiveSearchParams(parsed.searchParams) || hasSensitiveFragment(parsed.hash))
+    return null
 
   const normalized = parsed.toString()
   return normalized.length <= MAX_TAB_URL_LENGTH ? normalized : null
@@ -149,13 +153,15 @@ function normalizeSnapshotTab(
   if (!isRecord(value) || !isValidTabId(value.id) || !isValidTabTitle(value.title)) return null
 
   if (value.kind === 'web') {
-    if (!hasOnlyKeys(value, ['id', 'kind', 'url', 'title']) || typeof value.url !== 'string') return null
+    if (!hasOnlyKeys(value, ['id', 'kind', 'url', 'title']) || typeof value.url !== 'string')
+      return null
     const url = normalizeRestorableWebUrl(value.url, options)
     return url ? { id: value.id, kind: 'web', url, title: value.title } : null
   }
 
   if (value.kind === 'internal') {
-    if (!hasOnlyKeys(value, ['id', 'kind', 'page', 'title']) || !isInternalPage(value.page)) return null
+    if (!hasOnlyKeys(value, ['id', 'kind', 'page', 'title']) || !isInternalPage(value.page))
+      return null
     return { id: value.id, kind: 'internal', page: value.page, title: value.title }
   }
 
@@ -193,7 +199,7 @@ export function parseTabSessionSnapshot(
     ok: true,
     snapshot: {
       version: 1,
-      activeTabId: value.activeTabId as string | null,
+      activeTabId: value.activeTabId,
       tabs,
     },
   }
@@ -215,7 +221,7 @@ export function parseTabSessionSnapshotJson(
 
 function sanitizeTitle(value: string): string {
   return [...value]
-    .map((character) => containsControlCharacter(character) ? ' ' : character)
+    .map((character) => (containsControlCharacter(character) ? ' ' : character))
     .join('')
     .slice(0, MAX_TAB_TITLE_LENGTH)
 }
@@ -237,9 +243,9 @@ export function createTabSessionSnapshot(
       tabs.push({ id: candidate.id, kind: 'web', url, title: sanitizeTitle(candidate.title) })
       survivingIds.add(candidate.id)
     } else if (
-      candidate.kind === 'internal'
-      && typeof candidate.title === 'string'
-      && isInternalPage(candidate.page)
+      candidate.kind === 'internal' &&
+      typeof candidate.title === 'string' &&
+      isInternalPage(candidate.page)
     ) {
       tabs.push({
         id: candidate.id,

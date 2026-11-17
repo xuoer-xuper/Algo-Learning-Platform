@@ -17,7 +17,7 @@ cd algo-electron
 npx vitest run tests/downloads
 ```
 
-`npm run test:core` 跑整个 Vitest 套件，本目录自然包含在内——不需要往任何名单里登记。
+`pnpm run test:core` 跑整个 Vitest 套件，本目录自然包含在内——不需要往任何名单里登记。
 
 ## 4. 边界规则
 

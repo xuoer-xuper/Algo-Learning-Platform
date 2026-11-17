@@ -1,33 +1,6 @@
-import { nowBeijing } from '../shared/time'
+import { nowMillis } from '../shared/time'
 import { errorMessage } from '../shared/errors'
-
-export interface RealtimeSubmissionStatus {
-  ipcRegistered: boolean
-  supportedAdapterIds: string[]
-  lastPage?: {
-    url: string
-    realtimeAdapterId?: string
-    realtimeSupported: boolean
-    at: string
-  }
-  lastHook?: {
-    adapterId: string
-    url: string
-    status: 'success' | 'failed' | 'skipped'
-    reason?: string
-    error?: string
-    at: string
-  }
-  lastDetection?: {
-    senderUrl?: string
-    inserted: boolean
-    error?: string
-    platform?: string
-    verdict?: string
-    problemId?: string
-    at: string
-  }
-}
+import type { RealtimeSubmissionStatus } from '../../src/shared/types/submission'
 
 export class RealtimeSubmissionDiagnostics {
   private ipcRegistered = false
@@ -49,7 +22,7 @@ export class RealtimeSubmissionDiagnostics {
       url,
       realtimeAdapterId,
       realtimeSupported: Boolean(realtimeAdapterId),
-      at: nowBeijing(),
+      at: nowMillis(),
     }
   }
 
@@ -58,7 +31,7 @@ export class RealtimeSubmissionDiagnostics {
       adapterId,
       url,
       status: 'success',
-      at: nowBeijing(),
+      at: nowMillis(),
     }
   }
 
@@ -68,7 +41,7 @@ export class RealtimeSubmissionDiagnostics {
       url,
       status: 'skipped',
       reason,
-      at: nowBeijing(),
+      at: nowMillis(),
     }
   }
 
@@ -78,7 +51,7 @@ export class RealtimeSubmissionDiagnostics {
       url,
       status: 'failed',
       error: errorMessage(error),
-      at: nowBeijing(),
+      at: nowMillis(),
     }
   }
 
@@ -101,7 +74,7 @@ export class RealtimeSubmissionDiagnostics {
       platform: result.notification?.platform,
       verdict: result.notification?.verdict,
       problemId: result.notification?.problemId,
-      at: nowBeijing(),
+      at: nowMillis(),
     }
   }
 

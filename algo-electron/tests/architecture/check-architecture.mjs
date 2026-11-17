@@ -1,12 +1,22 @@
 import fs from 'node:fs'
 import path from 'node:path'
-import { collectRatchetFailures, coreSuiteRunsEverything, countBareControls, countBareHex, countBareRgb, countBareSql, countRawIpcSchemas, countUnschemadIpc, themeDirectiveHasTailwindImport } from './guards.mjs'
+import {
+  collectRatchetFailures,
+  coreSuiteRunsEverything,
+  countBareControls,
+  countBareHex,
+  countBareRgb,
+  countBareSql,
+  countIpcChannelLiterals,
+  countRawIpcSchemas,
+  countUnschemadIpc,
+  findDuplicateExportedTypes,
+  isDatabaseLayerPath,
+  themeDirectiveHasTailwindImport,
+} from './guards.mjs'
 
 const projectRoot = process.cwd()
-const sourceRoots = [
-  path.join(projectRoot, 'electron'),
-  path.join(projectRoot, 'src'),
-]
+const sourceRoots = [path.join(projectRoot, 'electron'), path.join(projectRoot, 'src')]
 
 const checks = []
 
@@ -82,16 +92,53 @@ check('runtime code does not reintroduce Electron BrowserView', () => {
 })
 
 check('renderer code does not access ipcRenderer directly', () => {
-  failIfMatches(walkSourceFiles(path.join(projectRoot, 'src')), [
+  // src/shared/ 是跨进程共享层：channels.ts 的守卫说明里会以 API 名指称这条规则本身，
+  // 那里没有也不允许有真实的 electron 访问（由下一条检查反向守住）。src/preload/ 是
+  // 唯一合法的 ipcRenderer 使用者（下一组检查管它暴露什么），也从这里豁免。
+  failIfMatches(
+    walkSourceFiles(path.join(projectRoot, 'src')).filter(
+      (file) =>
+        !relative(file).startsWith('src/shared/') && !relative(file).startsWith('src/preload/'),
+    ),
+    [
+      {
+        regex: /\bipcRenderer\b/,
+        reason: 'renderer must use window.api helpers instead of ipcRenderer',
+      },
+    ],
+  )
+})
+
+check('src/shared stays process-neutral (no electron imports)', () => {
+  // 上一条把 src/shared 从渲染层 ipcRenderer 检查里豁免，豁免的边界由这条守住：
+  // shared 层要同时进渲染进程与主进程的 bundle，import electron 会把主进程模块
+  // 打进渲染包（阶段 1 复核 MEDIUM 项，.trellis 任务 implement.md 启动评审注记 ③）。
+  failIfMatches(walkSourceFiles(path.join(projectRoot, 'src', 'shared')), [
     {
-      regex: /\bipcRenderer\b/,
-      reason: 'renderer must use window.electronAPI helpers instead of ipcRenderer',
+      regex: /\b(?:from\s+|import\s*\(\s*|import\s+)['"]electron(?:\/[^'"]*)?['"]/,
+      reason: 'src/shared is shared by renderer and main; it must not import electron',
+    },
+    {
+      regex: /\b(?:from\s+|import\s*\(\s*|import\s+)['"](?:\.\.?\/)+electron\/[^'"]+['"]/,
+      reason: 'src/shared must not import main-process modules from electron/',
     },
   ])
 })
 
+check('exported type declarations have a single source', () => {
+  const duplicates = findDuplicateExportedTypes(
+    sourceFiles()
+      .filter((file) => /\.tsx?$/.test(file))
+      .map((file) => ({ path: relative(file), source: read(file) })),
+  )
+  if (duplicates.length > 0) {
+    throw new Error(duplicates.map(({ name, files }) => `${name}: ${files.join(', ')}`).join('\n'))
+  }
+})
+
 check('preload does not expose generic ipcRenderer', () => {
-  const preload = read(path.join(projectRoot, 'electron', 'preload.ts'))
+  // R3 起 shell preload 在 src/preload/index.ts（域分组的 api 对象）。
+  const preload = read(path.join(projectRoot, 'src', 'preload', 'index.ts'))
 
   const forbidden = [
     /exposeInMainWorld\(\s*['"]ipcRenderer['"]/,
@@ -102,14 +149,33 @@ check('preload does not expose generic ipcRenderer', () => {
 
   for (const pattern of forbidden) {
     if (pattern.test(preload)) {
-      throw new Error('electron/preload.ts exposes generic ipcRenderer capability')
+      throw new Error('src/preload/index.ts exposes generic ipcRenderer capability')
     }
   }
 })
 
+check('IPC channel names come from the shared constants, not literals', () => {
+  // 阶段 2 R1 收口：channel 名的唯一来源是 src/shared/constants/channels.ts，
+  // 注册与发送处引用常量（trustedSender 的 channel 参数已收窄为 IpcChannel 闭集，
+  // 拼写错误在编译期就报）。这里拦的是绕过常量的字面量回归——值改了编译器不说话，
+  // 只在 runtime 静默失联。判定逻辑与反向验证见 guards.mjs 的 countIpcChannelLiterals。
+  const failures = []
+  for (const file of sourceFiles()) {
+    const count = countIpcChannelLiterals(read(file))
+    if (count > 0) {
+      failures.push(
+        `${relative(file)}: 有 ${count} 处 IPC channel 字面量，channel 名必须引用 src/shared/constants/channels.ts 的 IPC_CHANNELS`,
+      )
+    }
+  }
+  if (failures.length > 0) throw new Error(failures.join('\n'))
+})
+
 check('ordinary IPC handlers use the trusted shell sender facade', () => {
   const ipcDir = path.join(projectRoot, 'electron', 'ipc')
-  const registerFiles = walkSourceFiles(ipcDir).filter((file) => path.basename(file).startsWith('register'))
+  const registerFiles = walkSourceFiles(ipcDir).filter((file) =>
+    path.basename(file).startsWith('register'),
+  )
 
   failIfMatches(registerFiles, [
     {
@@ -129,7 +195,9 @@ check('ordinary IPC handlers use the trusted shell sender facade', () => {
 check('window-sensitive shell actions resolve ownership from the trusted sender', () => {
   const main = read(path.join(projectRoot, 'electron', 'main.ts'))
   if (!main.includes('new WindowManager({ viewRegistry })') || !main.includes('new AppWindow({')) {
-    throw new Error('electron/main.ts must create shell windows through WindowManager/AppWindow ownership')
+    throw new Error(
+      'electron/main.ts must create shell windows through WindowManager/AppWindow ownership',
+    )
   }
   if (/^let\s+(?:win|tabManager)\b/m.test(main)) {
     throw new Error('electron/main.ts must not restore module-level win/tabManager singletons')
@@ -151,6 +219,22 @@ check('window-sensitive shell actions resolve ownership from the trusted sender'
   }
 })
 
+check('main.ts wires envSetup as its first import', () => {
+  // dev/prod userData 隔离（-dev 后缀）是纯副作用模块：ESM import 按序求值，
+  // 它不是第一个 import 就会晚于其他模块的初始化（electron-store、日志、会话
+  // 存储都可能在初始化时读 userData 路径），隔离就漏了。
+  const main = read(path.join(projectRoot, 'electron', 'main.ts'))
+  const firstImport = /^import\s[^\n]*$/m.exec(main)
+  if (!firstImport) {
+    throw new Error('electron/main.ts has no import statement')
+  }
+  if (!/^import\s+['"]\.\/app\/envSetup['"]/.test(firstImport[0])) {
+    throw new Error(
+      `electron/main.ts 的第一个 import 必须是 './app/envSetup'（dev userData 隔离必须先于其他模块初始化），现在是：${firstImport[0]}`,
+    )
+  }
+})
+
 check('Nowcoder realtime path stays network-result driven', () => {
   const nowcoderDir = path.join(projectRoot, 'electron', 'adapters', 'sites', 'nowcoder')
   const files = walkSourceFiles(nowcoderDir)
@@ -164,7 +248,9 @@ check('Nowcoder realtime path stays network-result driven', () => {
 
   const submissions = read(path.join(nowcoderDir, 'submissions.ts'))
   if (!/nowcoder-judge-status/.test(submissions)) {
-    throw new Error('Nowcoder submissions parser must require nowcoder-judge-status network payloads')
+    throw new Error(
+      'Nowcoder submissions parser must require nowcoder-judge-status network payloads',
+    )
   }
 })
 
@@ -235,17 +321,17 @@ const BARE_SQL_BUDGET = {
 const UNSCHEMAD_IPC_BUDGET = {}
 
 /*
- * `raw()` 自己的棘轮。
+ * 无形状放行（`z.unknown()`，旧组合子 `raw()` 的等价物）自己的棘轮。
  *
- * `raw()` 的语义是"这个参数由 handler 自己校验"，但它同时是 `countUnschemadIpc` 的
- * 逃逸口——写上去就能让那条守卫闭嘴。所以它也要只减不增，否则迁移可以靠刷 `raw()` 完成。
+ * 它的语义是"这个参数由 handler 自己校验"，但它同时是 `countUnschemadIpc` 的
+ * 逃逸口——写上去就能让那条守卫闭嘴。所以它也要只减不增，否则迁移可以靠刷它完成。
  *
- * 当前 4 处全在浏览器壳层，且都指向一个真实存在的判别函数：
- * `isInternalPage`、`isZoomCommand`、`isAppMenuAnchor`、`TabManager.findInPage`。
- * 要让这个数字降下去，得先给本层加"判别联合"组合子，那是独立的一项。
+ * schema 迁到 `src/shared/types/ipc/` 之后，这几处也在那边：当前 4 处全在浏览器壳域，
+ * 且都指向一个真实存在的判别函数：`isInternalPage`、`isZoomCommand`、`isAppMenuAnchor`、
+ * `TabManager.findInPage`。要让这个数字降下去，得先把那四处判别联合搬进 schema 层。
  */
 const RAW_IPC_SCHEMA_BUDGET = {
-  'electron/ipc/registerBrowserShellIpc.ts': 4,
+  'src/shared/types/ipc/browser.ts': 4,
 }
 
 check('IPC handlers declare a payload schema', () => {
@@ -256,53 +342,74 @@ check('IPC handlers declare a payload schema', () => {
     budgets: UNSCHEMAD_IPC_BUDGET,
     countMatches: countUnschemadIpc,
     describe: (count) => `有 ${count} 个 IPC handler 接收渲染进程参数但没声明 schema`,
-    cleanupHint: '在 channel 名后加 schema 元组，组合子见 electron/ipc/payloadSchema.ts',
+    cleanupHint:
+      '在 channel 名后加 schema 元组：src/shared/types/ipc/<域>.ts 里按命名约定 <camelCaseChannel>Input 导出',
   })
 })
 
-check('raw() payload escapes stay capped', () => {
-  const files = walkSourceFiles(path.join(projectRoot, 'electron', 'ipc'))
+check('z.unknown() payload escapes stay capped', () => {
+  const files = [
+    ...walkSourceFiles(path.join(projectRoot, 'electron', 'ipc')),
+    ...walkSourceFiles(path.join(projectRoot, 'src', 'shared', 'types', 'ipc')),
+  ]
 
   checkRatchet({
     files,
     budgets: RAW_IPC_SCHEMA_BUDGET,
     countMatches: countRawIpcSchemas,
-    describe: (count) => `用了 ${count} 处 raw()，即 ${count} 个参数的形状校验不在通道上`,
-    cleanupHint: 'raw() 只用于 handler 自己有判别函数的参数；能用组合子表达的请换成组合子',
+    describe: (count) => `用了 ${count} 处无形状放行，即 ${count} 个参数的形状校验不在通道上`,
+    cleanupHint: '无形状放行只用于 handler 自己有判别函数的参数；能写成 zod 形状的请写形状',
   })
 })
 
-check('bare SQL stays inside electron/db/', () => {
-  const files = walkSourceFiles(path.join(projectRoot, 'electron'))
-    .filter((file) => !relative(file).startsWith('electron/db/'))
+check('bare SQL stays inside the legacy or template database layer', () => {
+  const files = sourceRoots
+    .flatMap((root) => walkSourceFiles(root))
+    .filter((file) => !isDatabaseLayerPath(relative(file)))
 
   checkRatchet({
     files,
     budgets: BARE_SQL_BUDGET,
     countMatches: countBareSql,
-    describe: (count) => `在 electron/db/ 之外构造了 ${count} 处 SQL 语句`,
-    cleanupHint: '查询应放进 electron/db/repositories/ 下的 repository，由业务层调用',
+    describe: (count) => `在数据库层之外构造了 ${count} 处 SQL 语句`,
+    cleanupHint: '查询应放进 src/main/db/（或既有 electron/db/），由业务层调用',
   })
 })
 
-check('renderer components reach the main process only through *Api.ts', () => {
-  // main.tsx 同步读取 preload 注入的布局常量（不是 IPC 调用），且是入口文件，
-  // 没有更上层可以搬。这是唯一豁免。
-  const ENTRY_EXEMPT = new Set(['src/main.tsx'])
-  const failures = []
+check(
+  'renderer reaches the main process only through window.api, only in hooks/ and *Api.ts',
+  () => {
+    // R3 重写：跨进程面是 `window.api`（typeof api 推导）。谁可以直接引用它：
+    //   - `*Api.ts` 数据访问层（约定不变）；
+    //   - `src/hooks/` 下的 hook 文件（R4 的 useIpcQuery 在这里直接订阅/取数）；
+    //   - `src/main.tsx`——入口同步读取 preload 注入的布局常量（不是 IPC 调用），
+    //     没有更上层可以搬，唯一豁免。
+    // 组件与其他模块一律经由上面两层。`window.electronAPI` 这个死名字出现即失败
+    // （AC：`grep -rn electronAPI` = 0，防止旧名回归）。
+    const ENTRY_EXEMPT = new Set(['src/main.tsx'])
+    const failures = []
 
-  for (const file of walkSourceFiles(path.join(projectRoot, 'src'))) {
-    const rel = relative(file)
-    if (ENTRY_EXEMPT.has(rel)) continue
-    // *Api.ts 是约定的数据访问层，通道名只应出现在这里。
-    if (/Api\.ts$/.test(rel)) continue
-    if (!/\bwindow\.electronAPI\b/.test(read(file))) continue
+    for (const file of walkSourceFiles(path.join(projectRoot, 'src'))) {
+      const rel = relative(file)
+      const text = read(file)
 
-    failures.push(`${rel}: 组件与 hook 不得直连 window.electronAPI，请收进同域的 *Api.ts`)
-  }
+      if (/\bwindow\.electronAPI\b/.test(text)) {
+        failures.push(`${rel}: window.electronAPI 已被 window.api 取代（R3）`)
+        continue
+      }
 
-  if (failures.length > 0) throw new Error(failures.join('\n'))
-})
+      if (ENTRY_EXEMPT.has(rel)) continue
+      if (/Api\.ts$/.test(rel)) continue
+      if (rel.startsWith('src/hooks/')) continue
+      if (rel.startsWith('src/preload/')) continue
+      if (!/\bwindow\.api\b/.test(text)) continue
+
+      failures.push(`${rel}: 组件与 hook 不得直连 window.api，请收进同域的 *Api.ts 或 src/hooks/`)
+    }
+
+    if (failures.length > 0) throw new Error(failures.join('\n'))
+  },
+)
 
 // 全部为长期例外，条目里注明属于哪一类。Q4 已清完待办欠账：
 // ProblemSidebar（IconButton + Select size="sm"）、NoteEditorPane（Input/Select）、
@@ -331,15 +438,17 @@ const BARE_CONTROL_BUDGET = {
 }
 
 check('interactive controls come from src/components/ui/', () => {
-  const files = walkSourceFiles(path.join(projectRoot, 'src'))
-    .filter((file) => /\.tsx$/.test(file) && !relative(file).startsWith('src/components/ui/'))
+  const files = walkSourceFiles(path.join(projectRoot, 'src')).filter(
+    (file) => /\.tsx$/.test(file) && !relative(file).startsWith('src/components/ui/'),
+  )
 
   checkRatchet({
     files,
     budgets: BARE_CONTROL_BUDGET,
     countMatches: countBareControls,
     describe: (count) => `有 ${count} 处裸交互控件`,
-    cleanupHint: '按钮与表单控件从 src/components/ui 取用（Button/IconButton/Input/Select/Textarea）',
+    cleanupHint:
+      '按钮与表单控件从 src/components/ui 取用（Button/IconButton/Input/Select/Textarea）',
   })
 })
 
@@ -350,17 +459,14 @@ check('interactive controls come from src/components/ui/', () => {
  * （规则见 docs/REFACTOR_HANDOFF.md 第 40 行，此前只有文字约定没有守卫）。
  */
 const COLOR_SOURCE_FILES = new Set([
-  'src/index.css',                          // 设计 token 唯一源
-  'src/features/coach/styles/tokens.css',   // Coach 独立视觉域的第二套 token
-  'src/shared/display.ts',                  // 平台品牌色与图表色板（已过 dataviz 校验）
+  'src/index.css', // 设计 token 唯一源
+  'src/features/coach/styles/tokens.css', // Coach 独立视觉域的第二套 token
+  'src/shared/display.ts', // 平台品牌色与图表色板（已过 dataviz 校验）
 ])
 
 check('colors come from design tokens, not bare hex', () => {
   const srcRoot = path.join(projectRoot, 'src')
-  const files = [
-    ...walkFiles(srcRoot, SOURCE_EXT),
-    ...walkFiles(srcRoot, STYLE_EXT),
-  ]
+  const files = [...walkFiles(srcRoot, SOURCE_EXT), ...walkFiles(srcRoot, STYLE_EXT)]
   const failures = []
 
   for (const file of files) {
@@ -378,7 +484,9 @@ check('colors come from design tokens, not bare hex', () => {
     if (rel === 'src/components/ui/ui.css') continue
     const rgbCount = countBareRgb(source)
     if (rgbCount > 0) {
-      failures.push(`${rel}: 有 ${rgbCount} 处裸 rgb()/rgba()，半透明叠加值必须走 token 才能随主题翻转`)
+      failures.push(
+        `${rel}: 有 ${rgbCount} 处裸 rgb()/rgba()，半透明叠加值必须走 token 才能随主题翻转`,
+      )
     }
   }
 
@@ -390,9 +498,11 @@ check('the design-token source keeps its Tailwind import', () => {
   const indexCss = read(path.join(projectRoot, 'src', 'index.css'))
   const result = themeDirectiveHasTailwindImport(indexCss)
   if (!result.ok) {
-    throw new Error(result.reason === 'missing-import'
-      ? 'src/index.css: 有 @theme 却没有 @import "tailwindcss"，token 会全部失效（工具类零消费者不等于依赖可删）'
-      : 'src/index.css: 有 @import "tailwindcss" 却没有 @theme，设计 token 源不在这里了，请更新守卫')
+    throw new Error(
+      result.reason === 'missing-import'
+        ? 'src/index.css: 有 @theme 却没有 @import "tailwindcss"，token 会全部失效（工具类零消费者不等于依赖可删）'
+        : 'src/index.css: 有 @import "tailwindcss" 却没有 @theme，设计 token 源不在这里了，请更新守卫',
+    )
   }
 })
 
@@ -400,7 +510,9 @@ check('the core gate runs the whole Vitest suite', () => {
   // core 是每块改动的准入门，名单化过一次就漏了 47 个文件，不要再回来。判定见 guards.mjs。
   const verify = read(path.join(projectRoot, 'tests', 'verify.mjs'))
   if (!coreSuiteRunsEverything(verify)) {
-    throw new Error('tests/verify.mjs: runCoreSuite() 必须用 runVitest() 跑整个套件，不能传文件名单')
+    throw new Error(
+      'tests/verify.mjs: runCoreSuite() 必须用 runVitest() 跑整个套件，不能传文件名单',
+    )
   }
 })
 
@@ -420,7 +532,9 @@ check('real-Electron suites stay out of the Vitest run', () => {
     // (mainResilience) or spawn their own Electron child are fine under Vitest.
     if (!/^const \w+ = requiredEnvironment\(/m.test(read(file))) continue
     if (!vitestConfig.includes(relativePath)) {
-      missing.push(`${relativePath}: needs a bundle env var but is not excluded in vitest.config.ts`)
+      missing.push(
+        `${relativePath}: needs a bundle env var but is not excluded in vitest.config.ts`,
+      )
     }
     if (!verify.includes(path.basename(file))) {
       missing.push(`${relativePath}: excluded from Vitest but never run by tests/verify.mjs`)
@@ -445,7 +559,8 @@ const SOURCE_TEXT_DEBT = new Set([
 ])
 
 check('tests assert behaviour instead of production source text', () => {
-  const readsProductionSource = /readFileSync\([^)\n]*['"][^'"\n]*(?:\belectron\/|\bsrc\/)[^'"\n]*\.(?:ts|tsx|css)['"]/
+  const readsProductionSource =
+    /readFileSync\([^)\n]*['"][^'"\n]*(?:\belectron\/|\bsrc\/)[^'"\n]*\.(?:ts|tsx|css)['"]/
   const failures = []
   const seen = new Set()
 
@@ -454,7 +569,9 @@ check('tests assert behaviour instead of production source text', () => {
     if (!readsProductionSource.test(read(file))) continue
     seen.add(relativePath)
     if (SOURCE_TEXT_AS_ARTIFACT.has(relativePath) || SOURCE_TEXT_DEBT.has(relativePath)) continue
-    failures.push(`${relativePath}: reads production source to assert on its text; assert behaviour instead`)
+    failures.push(
+      `${relativePath}: reads production source to assert on its text; assert behaviour instead`,
+    )
   }
 
   for (const allowed of [...SOURCE_TEXT_AS_ARTIFACT, ...SOURCE_TEXT_DEBT]) {

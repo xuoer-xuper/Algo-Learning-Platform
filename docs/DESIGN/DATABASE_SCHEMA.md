@@ -14,9 +14,12 @@
 
 时间规则：
 
-- 精确时间字段使用北京时间 ISO 字符串（UTC+8），格式如 `2026-05-14T16:19:44.967+08:00`。
-- 与连续活跃天数相关的统计额外保存 `local_day`。
-- UI 展示时直接使用数据库中的时间。
+- migration 030 后精确时间统一为 Unix 毫秒 `INTEGER`，例如 `Date.now()`；repository、IPC 和 shared schema 同样使用 number，展示边界才格式化。
+- `local_day`、`snapshot_date`、周期起止日期仍为 `YYYY-MM-DD` 字符串；时长仍使用字段注明的秒/毫秒，不属于本次转换。
+- UI 用 `src/shared/time.ts` 的 `formatForDisplay` 展示系统时区时间；本地日边界按日历计算，不能用固定 24 小时代替 DST 日期。
+- 历史值显式 `Z`/offset 优先；一般无后缀值按旧版系统本地契约解释，脚本/凭据/runtime 六组表的无后缀值按 Git 证明的固定 UTC+8 策略。非法非空值中止迁移，不静默变 NULL。
+- 旧 user_scripts 在 v1.0.0/beta.2 写 UTC Z，后续 `e35212b` 才改无后缀 UTC+8；不能只因 helper 叫 `nowBeijing` 就把全部旧值当北京时间。
+- 早期洛谷代码直接将 `submitTime * 1000` 绑定到 TEXT 列，实际可能存为整数毫秒加 `.0` 的文本；030 仅对这类精确、无小数损失的表示转整数，不再次乘1000，也不猜测秒数。
 
 命名规则：
 
@@ -54,7 +57,7 @@ schema_migrations
 | --- | --- | --- |
 | version | INTEGER PRIMARY KEY | 迁移版本 |
 | name | TEXT NOT NULL | 迁移名称 |
-| applied_at | TEXT NOT NULL | 应用时间 |
+| applied_at | INTEGER NOT NULL | 应用时间 |
 
 规则：
 
@@ -62,6 +65,48 @@ schema_migrations
 - 每次 schema 变更必须更新本文档。
 - migration 失败前必须保证数据库已备份或事务可回滚。
 - 禁止业务代码散落建表 SQL。
+
+### 2.1 migration 030 时间列清单
+
+权威显式清单为 `algo-electron/electron/db/timestampColumns.ts`：25 张表共 82 列（含迁移台账）。
+`run_at`、HTTP `last_modified`、日期键及任意用户 JSON 不按字段后缀猜测转换。
+
+| 表 | Unix 毫秒列 |
+| --- | --- |
+| activity_events | occurred_at, created_at, updated_at, deleted_at |
+| ai_context_snapshots | created_at, updated_at, deleted_at |
+| ai_outputs | created_at, updated_at, deleted_at |
+| coach_events | created_at |
+| coach_feedback | created_at |
+| coach_interventions | created_at, contest_start, contest_end |
+| contest_results | contest_at, created_at, updated_at, deleted_at |
+| cookie_records | expires_at, last_seen_at, created_at, updated_at |
+| notes | created_at, updated_at, deleted_at |
+| platform_accounts | last_synced_at, created_at, updated_at, deleted_at |
+| problem_visits | entered_at, left_at, created_at, updated_at, deleted_at |
+| problems | first_seen_at, last_visited_at, first_solved_at, created_at, updated_at, deleted_at |
+| rating_history | contest_at, created_at, updated_at, deleted_at |
+| schema_migrations | applied_at |
+| site_configs | created_at, updated_at, deleted_at |
+| site_credentials | last_used_at, created_at, updated_at, deleted_at |
+| study_sessions | started_at, ended_at, created_at, updated_at, deleted_at |
+| submissions | submitted_at, created_at, updated_at, deleted_at |
+| sync_queue | created_at, synced_at |
+| user_daily_stats | recomputed_at, created_at, updated_at, deleted_at |
+| user_script_host_permissions | granted_at, last_used_at, revoked_at |
+| user_script_resources | fetched_at, created_at, updated_at |
+| user_script_update_state | last_checked_at, next_check_at, updated_at |
+| user_script_values | created_at, updated_at |
+| user_scripts | created_at, updated_at, deleted_at |
+
+030 用完整事务重建表，保留外键、索引、CHECK/UNIQUE、BLOB 和非时间字段。外键仅由受控
+runner 在事务外暂时关闭，提交前检查、finally 恢复；失败恢复迁移前一致备份。
+迁移后的 activity/feedback 日期由转换后的时间派生，日统计按事实重算；旧错误日期桶置零，
+不删除其元数据。已发布 001–029 和其 legacy formatter 保持兼容。
+
+上述元数据保留仅针对合法日期键。早期统计对数字毫秒文本截取前10位产生的十位数字伪日期
+缓存，在030中识别后删除并从事实重建，不能当成有效 local_day；旧缓存留在迁移前备份。
+其他非法日期仍中止迁移，不删除题目/访问/提交事实。
 
 ## 3. Phase 1 核心表
 
@@ -83,13 +128,13 @@ schema_migrations
 | source_problem_id | TEXT | VJudge 原始题号 |
 | difficulty | TEXT | 难度或 Rating |
 | tags_json | TEXT | 标签 JSON，Phase 2 细化 |
-| first_seen_at | TEXT NOT NULL | 首次发现时间 |
-| last_visited_at | TEXT | 最近访问时间 |
-| first_solved_at | TEXT | 首次 AC 时间 |
+| first_seen_at | INTEGER NOT NULL | 首次发现时间 |
+| last_visited_at | INTEGER | 最近访问时间 |
+| first_solved_at | INTEGER | 首次 AC 时间 |
 | extra_json | TEXT | 平台扩展字段 |
-| created_at | TEXT NOT NULL | 创建时间 |
-| updated_at | TEXT NOT NULL | 更新时间 |
-| deleted_at | TEXT | 软删除预留 |
+| created_at | INTEGER NOT NULL | 创建时间 |
+| updated_at | INTEGER NOT NULL | 更新时间 |
+| deleted_at | INTEGER | 软删除预留 |
 
 索引：
 
@@ -111,13 +156,13 @@ INDEX problems_source(source_platform, source_problem_id)
 | session_id | TEXT | 关联 study_sessions.id |
 | platform | TEXT NOT NULL | 平台 |
 | url | TEXT NOT NULL | 访问 URL |
-| entered_at | TEXT NOT NULL | 进入时间 |
-| left_at | TEXT | 离开时间 |
+| entered_at | INTEGER NOT NULL | 进入时间 |
+| left_at | INTEGER | 离开时间 |
 | duration_seconds | INTEGER | 页面停留秒数 |
 | active_seconds | INTEGER | 活跃秒数 |
 | leave_reason | TEXT | navigate、close、idle、crash |
-| created_at | TEXT NOT NULL | 创建时间 |
-| updated_at | TEXT NOT NULL | 更新时间 |
+| created_at | INTEGER NOT NULL | 创建时间 |
+| updated_at | INTEGER NOT NULL | 更新时间 |
 
 索引：
 
@@ -135,14 +180,14 @@ INDEX problem_visits_entered_at(entered_at)
 | --- | --- | --- |
 | id | TEXT PRIMARY KEY | 事件 ID |
 | event_type | TEXT NOT NULL | navigation、problem_detected、visit_start 等 |
-| occurred_at | TEXT NOT NULL | 发生时间 |
+| occurred_at | INTEGER NOT NULL | 发生时间 |
 | local_day | TEXT NOT NULL | 本地日期 YYYY-MM-DD |
 | session_id | TEXT | 学习会话 ID |
 | problem_id | TEXT | 关联题目 |
 | platform | TEXT | 平台 |
 | url | TEXT | 当前 URL |
 | payload_json | TEXT | 扩展数据 |
-| created_at | TEXT NOT NULL | 写入时间 |
+| created_at | INTEGER NOT NULL | 写入时间 |
 
 索引：
 
@@ -169,14 +214,14 @@ INDEX activity_events_problem(problem_id)
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
 | id | TEXT PRIMARY KEY | 会话 ID |
-| started_at | TEXT NOT NULL | 开始时间 |
-| ended_at | TEXT | 结束时间 |
+| started_at | INTEGER NOT NULL | 开始时间 |
+| ended_at | INTEGER | 结束时间 |
 | duration_seconds | INTEGER | 总时长 |
 | active_seconds | INTEGER | 活跃时长 |
 | main_platform | TEXT | 主要平台 |
 | end_reason | TEXT | close、idle、crash |
-| created_at | TEXT NOT NULL | 创建时间 |
-| updated_at | TEXT NOT NULL | 更新时间 |
+| created_at | INTEGER NOT NULL | 创建时间 |
+| updated_at | INTEGER NOT NULL | 更新时间 |
 
 索引：
 
@@ -204,8 +249,8 @@ INDEX study_sessions_ended_at(ended_at)
 | cookie_policy | TEXT | Cookie 策略 |
 | adapter | TEXT | 专用 adapter 名称 |
 | is_builtin | INTEGER NOT NULL | 是否内置 |
-| created_at | TEXT NOT NULL | 创建时间 |
-| updated_at | TEXT NOT NULL | 更新时间 |
+| created_at | INTEGER NOT NULL | 创建时间 |
+| updated_at | INTEGER NOT NULL | 更新时间 |
 
 索引：
 
@@ -224,15 +269,15 @@ CookieVault 的本地记录表。注意：是否保存完整 Cookie 值由实现
 | domain | TEXT NOT NULL | Cookie 域 |
 | name | TEXT NOT NULL | Cookie 名 |
 | value_encrypted | TEXT | 加密或本地保护后的值 |
-| expires_at | TEXT | 过期时间 |
+| expires_at | INTEGER | 过期时间 |
 | http_only | INTEGER | 是否 HttpOnly |
 | secure | INTEGER | 是否 Secure |
 | same_site | TEXT | SameSite |
-| last_seen_at | TEXT NOT NULL | 最近读取时间 |
+| last_seen_at | INTEGER NOT NULL | 最近读取时间 |
 | purpose | TEXT | login、submit、sync |
 | sync_excluded | INTEGER NOT NULL DEFAULT 1 | 固定排除同步 |
-| created_at | TEXT NOT NULL | 创建时间 |
-| updated_at | TEXT NOT NULL | 更新时间 |
+| created_at | INTEGER NOT NULL | 创建时间 |
+| updated_at | INTEGER NOT NULL | 更新时间 |
 
 索引：
 
@@ -265,14 +310,14 @@ INDEX cookie_records_expires_at(expires_at)
 | verdict | TEXT NOT NULL | 统一 verdict |
 | raw_verdict | TEXT | 平台原始 verdict |
 | language | TEXT | 提交语言 |
-| submitted_at | TEXT NOT NULL | 提交时间 |
+| submitted_at | INTEGER NOT NULL | 提交时间 |
 | is_first_ac | INTEGER NOT NULL DEFAULT 0 | 是否首次 AC |
 | runtime_ms | INTEGER | 运行时间 |
 | memory_kb | INTEGER | 内存 |
 | source_url | TEXT | 提交详情 URL |
 | raw_json | TEXT | 原始数据 |
-| created_at | TEXT NOT NULL | 创建时间 |
-| updated_at | TEXT NOT NULL | 更新时间 |
+| created_at | INTEGER NOT NULL | 创建时间 |
+| updated_at | INTEGER NOT NULL | 更新时间 |
 
 索引：
 
@@ -292,7 +337,7 @@ INDEX submissions_submitted_at(submitted_at)
 > 本节是一份未落地的设计。同步运行的实际信息现由
 > `electron/submissions/syncService.ts` 以 `{ platform, fetched, inserted, error }`
 > 逐次返回给调用方，不落表——历史同步记录目前不可追溯。
-> 真要启用需新开 migration（当前最新 029，新表从 030 起）并同步本节。
+> 真要启用需新开 migration（030 为既有表时间转换，不建立本表）并同步本节。
 
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
@@ -323,9 +368,9 @@ INDEX submissions_submitted_at(submitted_at)
 | submission_count | INTEGER NOT NULL DEFAULT 0 | 提交数 |
 | ac_submission_count | INTEGER NOT NULL DEFAULT 0 | AC 提交数 |
 | platform_distribution_json | TEXT | 平台分布 |
-| recomputed_at | TEXT | 最近重算时间 |
-| created_at | TEXT NOT NULL | 创建时间 |
-| updated_at | TEXT NOT NULL | 更新时间 |
+| recomputed_at | INTEGER | 最近重算时间 |
+| created_at | INTEGER NOT NULL | 创建时间 |
+| updated_at | INTEGER NOT NULL | 更新时间 |
 
 索引：
 
@@ -345,10 +390,10 @@ INDEX user_daily_stats_recomputed_at(recomputed_at)
 | display_name | TEXT | 显示名称 |
 | current_rating | INTEGER | 当前 Rating |
 | peak_rating | INTEGER | 历史最高 Rating |
-| last_synced_at | TEXT | 最近同步时间 |
+| last_synced_at | INTEGER | 最近同步时间 |
 | raw_json | TEXT | 原始数据 |
-| created_at | TEXT NOT NULL | 创建时间 |
-| updated_at | TEXT NOT NULL | 更新时间 |
+| created_at | INTEGER NOT NULL | 创建时间 |
+| updated_at | INTEGER NOT NULL | 更新时间 |
 
 索引：
 
@@ -369,9 +414,9 @@ UNIQUE(platform, handle)
 | rating_before | INTEGER | 变化前 |
 | rating_after | INTEGER | 变化后 |
 | delta | INTEGER | 变化值 |
-| contest_at | TEXT | 比赛时间 |
+| contest_at | INTEGER | 比赛时间 |
 | raw_json | TEXT | 原始数据 |
-| created_at | TEXT NOT NULL | 创建时间 |
+| created_at | INTEGER NOT NULL | 创建时间 |
 
 索引：
 
@@ -400,9 +445,9 @@ UNIQUE(platform, account_id, contest_id)
 | solved_count | INTEGER | 解题数 |
 | penalty | INTEGER | 罚时 |
 | rating_delta | INTEGER | Rating 变化 |
-| contest_at | TEXT | 比赛时间 |
+| contest_at | INTEGER | 比赛时间 |
 | raw_json | TEXT | 原始数据 |
-| created_at | TEXT NOT NULL | 创建时间 |
+| created_at | INTEGER NOT NULL | 创建时间 |
 
 索引：
 
@@ -426,8 +471,8 @@ UNIQUE(platform, contest_id, account_id)
 | note_type | TEXT NOT NULL | solution、review、summary |
 | content | TEXT NOT NULL DEFAULT '' | Markdown 正文缓存（migration 011，用于快速预览/搜索） |
 | word_count | INTEGER NOT NULL DEFAULT 0 | 字数估算（中英文混排，migration 011） |
-| created_at | TEXT NOT NULL | 创建时间 |
-| updated_at | TEXT NOT NULL | 更新时间 |
+| created_at | INTEGER NOT NULL | 创建时间 |
+| updated_at | INTEGER NOT NULL | 更新时间 |
 
 INDEX notes_updated_at(updated_at)
 
@@ -439,9 +484,9 @@ INDEX notes_updated_at(updated_at)
 | --- | --- | --- |
 | id | TEXT PRIMARY KEY | 快照 ID |
 | snapshot_date | TEXT NOT NULL UNIQUE | 快照日期（YYYY-MM-DD，本地日期） |
-| context_json | TEXT NOT NULL | 完整 AI 上下文 JSON（schema_version=1） |
+| context_json | TEXT NOT NULL | 完整 AI 上下文 JSON（schema_version=2；明确的时间点字段为毫秒） |
 | schema_version | INTEGER NOT NULL | 上下文版本号 |
-| created_at | TEXT NOT NULL | 生成时间（本地时间） |
+| created_at | INTEGER NOT NULL | 生成时间（本地时间） |
 
 UNIQUE INDEX snapshots_date_unique(snapshot_date)
 
@@ -461,8 +506,8 @@ AI 输出独立保存，不污染核心事实表。migration 015 建表。
 | input_summary_json | TEXT | 输入摘要（来源快照、参数等） |
 | source_refs_json | TEXT | 题目、提交、统计引用 |
 | model_info_json | TEXT | 模型信息（本地规则引擎版本等） |
-| created_at | TEXT NOT NULL | 创建时间（本地时间） |
-| updated_at | TEXT NOT NULL | 更新时间（本地时间） |
+| created_at | INTEGER NOT NULL | 创建时间（本地时间） |
+| updated_at | INTEGER NOT NULL | 更新时间（本地时间） |
 
 INDEX ai_outputs_type_idx(output_type)
 INDEX ai_outputs_created_idx(created_at DESC)
@@ -489,8 +534,8 @@ Phase 7 追加 `deleted_at` 字段，用于未来同步和导入覆盖时表达�
 | operation | TEXT NOT NULL | upsert、delete |
 | status | TEXT NOT NULL | pending、synced、failed |
 | payload_hash | TEXT | 数据摘要 |
-| created_at | TEXT NOT NULL | 创建时间 |
-| synced_at | TEXT | 同步时间 |
+| created_at | INTEGER NOT NULL | 创建时间 |
+| synced_at | INTEGER | 同步时间 |
 | error_message | TEXT | 错误 |
 
 索引：
@@ -543,9 +588,9 @@ Phase 7 通过 migration 021 为历史核心表追加同步兼容字段，均为
 | site_ids_json | TEXT | 关联的作用站点 ID 列表 |
 | enabled | INTEGER NOT NULL DEFAULT 1 | 是否启用 |
 | auto_update_enabled | INTEGER NOT NULL DEFAULT 1 | 是否允许自动更新；本地副本默认关闭 |
-| created_at | TEXT NOT NULL | 创建时间 |
-| updated_at | TEXT NOT NULL | 更新时间 |
-| deleted_at | TEXT | 软删除预留 |
+| created_at | INTEGER NOT NULL | 创建时间 |
+| updated_at | INTEGER NOT NULL | 更新时间 |
+| deleted_at | INTEGER | 软删除预留 |
 
 活动脚本身份索引（migration 025）：
 
@@ -570,8 +615,8 @@ GM 值的主进程持久化地基。值按 JSON 保存，站点页面不能直�
 | script_id | TEXT NOT NULL | 关联脚本，删除脚本时级联清理 |
 | value_key | TEXT NOT NULL | 脚本内键名 |
 | value_json | TEXT NOT NULL | JSON 值，带 `json_valid` CHECK |
-| created_at | TEXT NOT NULL | 创建时间 |
-| updated_at | TEXT NOT NULL | 更新时间 |
+| created_at | INTEGER NOT NULL | 创建时间 |
+| updated_at | INTEGER NOT NULL | 更新时间 |
 
 约束：`UNIQUE(script_id, value_key)`、`FOREIGN KEY(script_id) ... ON DELETE CASCADE`。
 
@@ -591,8 +636,8 @@ GM 值的主进程持久化地基。值按 JSON 保存，站点页面不能直�
 | content_encoding | TEXT NOT NULL | `binary` 或 `utf8` |
 | content_type | TEXT | MIME 类型 |
 | integrity | TEXT | 已验证并规范化的 `sha256-<base64>` / `md5-<base64>`；未声明时为 NULL |
-| fetched_at | TEXT | 成功抓取时间 |
-| created_at / updated_at | TEXT NOT NULL | 创建/更新时间 |
+| fetched_at | INTEGER | 成功抓取时间 |
+| created_at / updated_at | INTEGER NOT NULL | 创建/更新时间 |
 
 约束：`UNIQUE(script_id, resource_kind, resource_key)`、`UNIQUE(script_id, resource_kind, declaration_order)`、脚本外键级联；查询索引按脚本、kind、声明顺序排列。导入时先完成全部下载/SRI，再在脚本 create/update 同一 SQLite transaction 中全量替换资源；运行时复验声明 URL、顺序、integrity 与 `fetched_at`。
 
@@ -605,9 +650,9 @@ GM 值的主进程持久化地基。值按 JSON 保存，站点页面不能直�
 | id | TEXT PRIMARY KEY | 授权 ID |
 | script_id | TEXT NOT NULL | 关联脚本 |
 | host_pattern | TEXT NOT NULL | 已批准 host pattern |
-| granted_at | TEXT NOT NULL | 授权时间 |
-| last_used_at | TEXT | 最近使用时间 |
-| revoked_at | TEXT | 撤销时间；NULL 为活动授权 |
+| granted_at | INTEGER NOT NULL | 授权时间 |
+| last_used_at | INTEGER | 最近使用时间 |
+| revoked_at | INTEGER | 撤销时间；NULL 为活动授权 |
 
 ### 8.7 user_script_update_state
 
@@ -624,11 +669,11 @@ GM 值的主进程持久化地基。值按 JSON 保存，站点页面不能直�
 | username | TEXT NOT NULL | 登录用户名或账号标识，不是密码 |
 | display_name | TEXT | 账户中心中的可选脱敏显示名，不是密码或密钥 |
 | secret_envelope | TEXT | V1 `electron-safe-storage` 版本化 JSON；活动行必有，软删除行清空 |
-| last_used_at | TEXT | 最近一次填充/使用时间 |
+| last_used_at | INTEGER | 最近一次填充/使用时间 |
 | sync_excluded | INTEGER NOT NULL DEFAULT 1 | 固定为 `1`，不进入同步和普通 JSON 导出 |
-| created_at | TEXT NOT NULL | 北京时间时间戳 |
-| updated_at | TEXT NOT NULL | 北京时间时间戳 |
-| deleted_at | TEXT | 软删除时间；软删除同时清空 envelope |
+| created_at | INTEGER NOT NULL | Unix 毫秒时间戳 |
+| updated_at | INTEGER NOT NULL | Unix 毫秒时间戳 |
+| deleted_at | INTEGER | 软删除时间；软删除同时清空 envelope |
 
 约束和索引：
 
@@ -674,7 +719,7 @@ INDEX site_credentials_last_used_idx(last_used_at DESC)
 
 当前实现约束：
 
-- 时间字段使用文本时间字符串，业务日期使用本地日期键；统计聚合必须可从原始事件重算。
+- 时间字段使用 INTEGER Unix 毫秒，业务日期使用本地日期键；统计聚合必须可从原始事件重算。
 - 主键 ID 使用代码侧生成的字符串 ID，repository 负责去重和 upsert 边界。
 - Cookie 明文不进入普通导出、日志或测试快照；Cookie 策略以 Electron session 和 CookieVault 边界为准。
 - 站点凭据只允许版本化 safeStorage envelope 进入 `site_credentials`；凭据表固定 `sync_excluded=1`，不得进入普通 JSON 导出、同步队列、日志或 renderer payload。

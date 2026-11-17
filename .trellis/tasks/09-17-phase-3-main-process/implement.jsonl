@@ -1,0 +1,13 @@
+{"file": ".trellis/spec/shared/code-quality.md", "reason": "强制规则：无 !、无 any、命名、错误处理"}
+{"file": ".trellis/spec/project/domain-rules.md", "reason": "不可放松的产品/安全红线"}
+{"file": ".trellis/spec/project/migration-status.md", "reason": "当前位置与目标位置对照"}
+{"file": ".trellis/tasks/archive/2026-09/00-bootstrap-guidelines/research/spec-alignment-plan.md", "reason": "本阶段步骤与决策编号"}
+{"file": ".trellis/spec/backend/directory-structure.md", "reason": "services/{domain} 布局"}
+{"file": ".trellis/spec/backend/api-module.md", "reason": "procedure 形状"}
+{"file": ".trellis/spec/backend/api-patterns.md", "reason": "反模式"}
+{"file": ".trellis/spec/backend/database.md", "reason": "Drizzle client/schema/migrate"}
+{"file": ".trellis/spec/backend/quality.md", "reason": "import 路径与 BARE SQL"}
+{"file": ".trellis/spec/guides/code-reuse-thinking-guide.md", "reason": "收敛项"}
+{"file": ".trellis/spec/guides/transaction-consistency-guide.md", "reason": "事务"}
+{"file": ".trellis/tasks/archive/2026-09/00-bootstrap-guidelines/research/backend-audit.md", "reason": "主进程审计证据"}
+{"file": ".trellis/tasks/archive/2026-09/00-bootstrap-guidelines/research/reinvented-wheels-audit.md", "reason": "A3/A6/A9/A12/B 类"}

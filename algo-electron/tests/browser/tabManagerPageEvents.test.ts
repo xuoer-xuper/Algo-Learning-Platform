@@ -33,7 +33,10 @@ describe('TabManager page events', () => {
     resetElectronMock()
     const window = new MockBrowserWindow()
     const registry = new ViewRegistry()
-    const manager = new TabManager(window as never, { windowId: 'window-1', viewRegistry: registry })
+    const manager = new TabManager(window as never, {
+      windowId: 'window-1',
+      viewRegistry: registry,
+    })
     const events: BrowserPageEvent[] = []
     manager.addPageEventListener((event) => events.push(event))
 
@@ -41,9 +44,12 @@ describe('TabManager page events', () => {
     const backgroundTabId = manager.createTab('https://example.com/background')
     await drain()
     manager.switchTab(activeTabId)
-    const backgroundEntry = registry.getByWindow('window-1').find((entry) => entry.tabId === backgroundTabId)
+    const backgroundEntry = registry
+      .getByWindow('window-1')
+      .find((entry) => entry.tabId === backgroundTabId)
     expect(backgroundEntry?.kind).toBe('tab')
-    if (!backgroundEntry || backgroundEntry.kind !== 'tab') throw new Error('background tab missing')
+    if (!backgroundEntry || backgroundEntry.kind !== 'tab')
+      throw new Error('background tab missing')
 
     events.length = 0
     await backgroundEntry.view.webContents.loadURL('https://example.com/background/next')
@@ -52,26 +58,92 @@ describe('TabManager page events', () => {
     backgroundEntry.view.webContents.emit('did-frame-finish-load', {}, false)
 
     expect(manager.getActiveTabId()).toBe(activeTabId)
-    expect(events).toEqual(expect.arrayContaining([
-      expect.objectContaining({
-        windowId: 'window-1',
-        tabId: backgroundTabId,
-        webContentsId: backgroundEntry.webContentsId,
-        url: 'https://example.com/background/next',
-        isMainFrame: true,
-        reason: 'did-navigate',
-      }),
-      expect.objectContaining({ tabId: backgroundTabId, reason: 'page-title-updated', title: 'Background title' }),
-      expect.objectContaining({ tabId: backgroundTabId, reason: 'dom-ready', isMainFrame: true }),
-      expect.objectContaining({ tabId: backgroundTabId, reason: 'did-frame-finish-load', isMainFrame: false }),
-    ]))
+    expect(events).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          windowId: 'window-1',
+          tabId: backgroundTabId,
+          webContentsId: backgroundEntry.webContentsId,
+          url: 'https://example.com/background/next',
+          isMainFrame: true,
+          reason: 'did-navigate',
+        }),
+        expect.objectContaining({
+          tabId: backgroundTabId,
+          reason: 'page-title-updated',
+          title: 'Background title',
+        }),
+        expect.objectContaining({ tabId: backgroundTabId, reason: 'dom-ready', isMainFrame: true }),
+        expect.objectContaining({
+          tabId: backgroundTabId,
+          reason: 'did-frame-finish-load',
+          isMainFrame: false,
+        }),
+      ]),
+    )
+  })
+
+  it('captures an allowed page favicon into tab state and notifies the tab list only on change', async () => {
+    resetElectronMock()
+    const window = new MockBrowserWindow()
+    const registry = new ViewRegistry()
+    const manager = new TabManager(window as never, {
+      windowId: 'window-1',
+      viewRegistry: registry,
+    })
+    const tabId = manager.createTab('https://example.com/problem')
+    await drain()
+    const entry = registry.getByWindow('window-1').find((candidate) => candidate.tabId === tabId)
+    if (!entry || entry.kind !== 'tab') throw new Error('tab missing')
+
+    const faviconOf = () => manager.getTabList().find((tab) => tab.id === tabId)?.favicon ?? null
+    const notifiedFavicons: Array<string | null> = []
+    manager.setTabListChangedCallback((tabs) => {
+      const favicon = tabs.find((tab) => tab.id === tabId)?.favicon
+      notifiedFavicons.push(favicon === undefined ? 'missing' : favicon)
+    })
+
+    // 允许的 https 图标：捕获进 tab 状态并通知 tab:listChanged。
+    entry.view.webContents.emit('page-favicon-updated', {}, ['https://example.com/favicon.ico'])
+    expect(faviconOf()).toBe('https://example.com/favicon.ico')
+    expect(notifiedFavicons).toEqual(['https://example.com/favicon.ico'])
+
+    // 同一图标重复上报：去重，不重复通知。
+    entry.view.webContents.emit('page-favicon-updated', {}, ['https://example.com/favicon.ico'])
+    expect(notifiedFavicons).toEqual(['https://example.com/favicon.ico'])
+
+    // URL 过滤：超长远程地址（> 4096）、非图片 data:、非 http(s) 协议全部拒绝；
+    // 只剩非法候选时回落 null，且这次回落是一次状态变化、必须通知。
+    const oversizeRemote = `https://example.com/${'a'.repeat(4097)}.ico`
+    entry.view.webContents.emit('page-favicon-updated', {}, [
+      oversizeRemote,
+      'data:text/html;base64,PGgxPmhpPC9oMT4=',
+      'ftp://example.com/favicon.ico',
+    ])
+    expect(faviconOf()).toBe(null)
+    expect(notifiedFavicons).toEqual(['https://example.com/favicon.ico', null])
+
+    // 混合候选时取第一个允许的：data:image 在白名单内，超长的 https 被跳过。
+    entry.view.webContents.emit('page-favicon-updated', {}, [
+      oversizeRemote,
+      'data:image/png;base64,iVBORw0KGgo=',
+    ])
+    expect(faviconOf()).toBe('data:image/png;base64,iVBORw0KGgo=')
+    expect(notifiedFavicons).toEqual([
+      'https://example.com/favicon.ico',
+      null,
+      'data:image/png;base64,iVBORw0KGgo=',
+    ])
   })
 
   it('reports iframe navigation without replacing the tab or top-level webContents URL', async () => {
     resetElectronMock()
     const window = new MockBrowserWindow()
     const registry = new ViewRegistry()
-    const manager = new TabManager(window as never, { windowId: 'window-1', viewRegistry: registry })
+    const manager = new TabManager(window as never, {
+      windowId: 'window-1',
+      viewRegistry: registry,
+    })
     const tabId = manager.createTab('https://example.com/problem')
     await drain()
     const entry = registry.getByWindow('window-1').find((candidate) => candidate.tabId === tabId)
@@ -113,7 +185,9 @@ describe('TabManager page events', () => {
         reason: 'did-navigate-in-page',
       }),
     ])
-    expect(manager.getTabList().find((tab) => tab.id === tabId)?.url).toBe('https://example.com/problem')
+    expect(manager.getTabList().find((tab) => tab.id === tabId)?.url).toBe(
+      'https://example.com/problem',
+    )
     expect(manager.getActivePageEvent()?.url).toBe('https://example.com/problem')
     expect(urlSnapshots).toEqual([])
   })
@@ -122,7 +196,10 @@ describe('TabManager page events', () => {
     resetElectronMock()
     const window = new MockBrowserWindow()
     const registry = new ViewRegistry()
-    const manager = new TabManager(window as never, { windowId: 'window-1', viewRegistry: registry })
+    const manager = new TabManager(window as never, {
+      windowId: 'window-1',
+      viewRegistry: registry,
+    })
     const tabId = manager.createTab('https://example.com/problem')
     await drain()
     const entry = registry.getByWindow('window-1').find((candidate) => candidate.tabId === tabId)
@@ -134,9 +211,11 @@ describe('TabManager page events', () => {
     manager.closeTab(tabId)
     contents.emit('destroyed')
 
-    expect(events.filter((event) => (
-      event.webContentsId === entry.webContentsId && event.reason === 'destroyed'
-    ))).toEqual([
+    expect(
+      events.filter(
+        (event) => event.webContentsId === entry.webContentsId && event.reason === 'destroyed',
+      ),
+    ).toEqual([
       expect.objectContaining({
         windowId: 'window-1',
         tabId,
@@ -150,11 +229,16 @@ describe('TabManager page events', () => {
     resetElectronMock()
     const window = new MockBrowserWindow()
     const registry = new ViewRegistry()
-    const manager = new TabManager(window as never, { windowId: 'window-1', viewRegistry: registry })
+    const manager = new TabManager(window as never, {
+      windowId: 'window-1',
+      viewRegistry: registry,
+    })
     const firstTabId = manager.createTab('https://example.com/same')
     const secondTabId = manager.createTab('https://example.com/same')
     await drain()
-    const secondEntry = registry.getByWindow('window-1').find((entry) => entry.tabId === secondTabId)
+    const secondEntry = registry
+      .getByWindow('window-1')
+      .find((entry) => entry.tabId === secondTabId)
     if (!secondEntry || secondEntry.kind !== 'tab') throw new Error('second tab missing')
     const event: BrowserPageEvent = {
       windowId: 'window-1',
@@ -170,9 +254,13 @@ describe('TabManager page events', () => {
       return 'second-result'
     }) as never
 
-    await expect(manager.executeScriptForPage(event, 'window.marker = 2')).resolves.toBe('second-result')
+    await expect(manager.executeScriptForPage(event, 'window.marker = 2')).resolves.toBe(
+      'second-result',
+    )
     expect(calls).toEqual(['window.marker = 2'])
-    await expect(manager.executeScriptForPage({ ...event, tabId: firstTabId }, 'wrong')).rejects.toThrow('unavailable')
+    await expect(
+      manager.executeScriptForPage({ ...event, tabId: firstTabId }, 'wrong'),
+    ).rejects.toThrow('unavailable')
 
     await secondEntry.view.webContents.loadURL('https://example.com/next')
     await expect(manager.executeScriptForPage(event, 'stale-navigation')).rejects.toThrow('stale')
@@ -211,7 +299,9 @@ describe('TabManager page events', () => {
       manager.addWebContentsUrlListener((snapshot) => urlSnapshots.push(snapshot))
       manager.addNavigateListener((url) => navigated.push(url))
       manager.setZoomChangedHandler((state) => zoomStates.push(state))
-      manager.addSessionChangeListener(() => { sessionChanges += 1 })
+      manager.addSessionChangeListener(() => {
+        sessionChanges += 1
+      })
       // addWebContentsUrlListener 注册时会回放已知快照，先清掉再观测。
       urlSnapshots.length = 0
       // 站点缩放偏好在导航之后才改，用来证明处理体是重新读取并重新施加缩放，
@@ -220,21 +310,25 @@ describe('TabManager page events', () => {
 
       emitMainFrameNavigation(contents, eventName, 'https://example.com/problem/2')
 
-      expect(events).toEqual([expect.objectContaining({
-        windowId: 'window-1',
-        tabId,
-        webContentsId: entry.webContentsId,
-        url: 'https://example.com/problem/2',
-        isMainFrame: true,
-        reason: eventName,
-      })])
+      expect(events).toEqual([
+        expect.objectContaining({
+          windowId: 'window-1',
+          tabId,
+          webContentsId: entry.webContentsId,
+          url: 'https://example.com/problem/2',
+          isMainFrame: true,
+          reason: eventName,
+        }),
+      ])
       expect(urlSnapshots).toEqual([
         { webContentsId: entry.webContentsId, url: 'https://example.com/problem/2' },
       ])
       expect(contents.getZoomFactor()).toBe(1.5)
       expect(zoomStates).toEqual([{ tabId, factor: 1.5 }])
       expect(navigated).toEqual(['https://example.com/problem/2'])
-      expect(manager.getTabList().find((tab) => tab.id === tabId)?.url).toBe('https://example.com/problem/2')
+      expect(manager.getTabList().find((tab) => tab.id === tabId)?.url).toBe(
+        'https://example.com/problem/2',
+      )
       // 查找栏归这个标签页、且 url 变了：必须先把 findInPageTabId 清空再重算布局。
       // 顺序颠倒的话查找栏的 38px 会留在版面里，这里会停在 116 而不是 78。
       expect(entry.view.getBounds().y).toBe(BROWSER_LAYOUT.topOffset)
@@ -248,7 +342,10 @@ describe('TabManager page events', () => {
       resetElectronMock()
       const window = new MockBrowserWindow({ width: 1200, height: 800 })
       const registry = new ViewRegistry()
-      const manager = new TabManager(window as never, { windowId: 'window-1', viewRegistry: registry })
+      const manager = new TabManager(window as never, {
+        windowId: 'window-1',
+        viewRegistry: registry,
+      })
       const tabId = manager.createTab('https://example.com/problem/1')
       await drain()
       const entry = registry.getByWindow('window-1').find((candidate) => candidate.tabId === tabId)
@@ -260,7 +357,9 @@ describe('TabManager page events', () => {
       let sessionChanges = 0
       manager.addPageEventListener((event) => events.push(event))
       manager.addNavigateListener((url) => navigated.push(url))
-      manager.addSessionChangeListener(() => { sessionChanges += 1 })
+      manager.addSessionChangeListener(() => {
+        sessionChanges += 1
+      })
 
       emitMainFrameNavigation(entry.view.webContents, eventName, 'https://example.com/problem/1')
 
@@ -269,12 +368,14 @@ describe('TabManager page events', () => {
       expect(sessionChanges).toBe(0)
       expect(entry.view.getBounds().y).toBe(BROWSER_LAYOUT.topOffset + BROWSER_LAYOUT.findBarHeight)
       // 但页面事件和导航回调仍然要发，实时钩子依赖它们确认文档还在。
-      expect(events).toEqual([expect.objectContaining({
-        tabId,
-        url: 'https://example.com/problem/1',
-        isMainFrame: true,
-        reason: eventName,
-      })])
+      expect(events).toEqual([
+        expect.objectContaining({
+          tabId,
+          url: 'https://example.com/problem/1',
+          isMainFrame: true,
+          reason: eventName,
+        }),
+      ])
       expect(navigated).toEqual(['https://example.com/problem/1'])
     },
   )

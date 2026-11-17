@@ -6,17 +6,23 @@ import Database from 'better-sqlite3'
 import { test } from 'vitest'
 import { closeDb, initDbAtPath } from '../../electron/db/connection'
 import { migration028 } from '../../electron/db/migrations/028_site_login_autofill'
-import { getAllSites, getSiteById, seedBuiltinSites } from '../../electron/db/repositories/siteRepository'
+import {
+  getAllSites,
+  getSiteById,
+  seedBuiltinSites,
+} from '../../electron/db/repositories/siteRepository'
 
 test('migration 028 adds login autofill columns and backfills existing built-in rows', () => {
   const db = new Database(':memory:')
   try {
     createPre028SiteTable(db)
-    db.prepare(`
+    db.prepare(
+      `
       INSERT INTO site_configs (
         id, name, domains_json, home_url, enabled, is_builtin, created_at, updated_at
       ) VALUES ('codeforces', 'Codeforces', '["codeforces.com"]', 'https://codeforces.com', 1, 1, 'now', 'now')
-    `).run()
+    `,
+    ).run()
     migration028.up(db)
 
     const columns = db.prepare('PRAGMA table_info(site_configs)').all() as Array<{ name: string }>
@@ -25,19 +31,32 @@ test('migration 028 adds login autofill columns and backfills existing built-in 
       'login_username_selectors_json',
       'login_password_selectors_json',
     ]) {
-      assert.ok(columns.some(candidate => candidate.name === column), `missing ${column}`)
+      assert.ok(
+        columns.some((candidate) => candidate.name === column),
+        `missing ${column}`,
+      )
     }
 
-    const row = db.prepare(`
+    const row = db
+      .prepare(
+        `
       SELECT adapter, cookie_policy, login_url_patterns_json,
         login_username_selectors_json, login_password_selectors_json
       FROM site_configs WHERE id = 'codeforces'
-    `).get() as Record<string, unknown>
+    `,
+      )
+      .get() as Record<string, unknown>
     assert.strictEqual(row.adapter, 'codeforces')
     assert.strictEqual(row.cookie_policy, 'session-only')
     assert.deepStrictEqual(JSON.parse(row.login_url_patterns_json as string), ['/enter'])
-    assert.ok(JSON.parse(row.login_username_selectors_json as string).includes('input[name="handleOrEmail"]'))
-    assert.ok(JSON.parse(row.login_password_selectors_json as string).includes('input[name="password"]'))
+    assert.ok(
+      JSON.parse(row.login_username_selectors_json as string).includes(
+        'input[name="handleOrEmail"]',
+      ),
+    )
+    assert.ok(
+      JSON.parse(row.login_password_selectors_json as string).includes('input[name="password"]'),
+    )
   } finally {
     db.close()
   }

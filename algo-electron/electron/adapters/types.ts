@@ -13,7 +13,7 @@ export interface SyncContext {
 }
 
 export interface TableParseContext {
-  now: () => string
+  now: () => number
 }
 
 export interface SubmissionScrapeContext {
@@ -27,7 +27,7 @@ export interface SubmissionDetectionPayload {
   requestUrl?: string
   response?: unknown
   meta?: Record<string, unknown>
-  detectedAt?: string
+  detectedAt?: number
 }
 
 export interface SiteAdapter {
@@ -56,9 +56,16 @@ export interface SiteAdapter {
    * 声明成 `SubmissionData` 会在这里就把线索类型抹掉，下游只能靠 `as any` 捞回来。
    */
   parseSubmissionResult?(raw: SubmissionDetectionPayload): ScrapedSubmission | null
-  resolveProblemIdentity?(submission: ScrapedSubmission, raw: SubmissionDetectionPayload): ProblemIdentity | null
+  resolveProblemIdentity?(
+    submission: ScrapedSubmission,
+    raw: SubmissionDetectionPayload,
+  ): ProblemIdentity | null
   parseSubmissionTables?(tables: GenericTableData[], ctx: TableParseContext): ScrapedSubmission[]
   scrapeSubmissions?(ctx: SubmissionScrapeContext): Promise<ScrapedSubmission[]>
 
-  syncSubmissions?(ctx: SyncContext): Promise<ScrapedSubmission[]>
+  /**
+   * 声明 `this: void`：内建实现都不读适配器对象上的状态，调用方把方法摘下来传递
+   * （`const sync = adapter.syncSubmissions`）是安全的，这里把这一事实写进类型。
+   */
+  syncSubmissions?(this: void, ctx: SyncContext): Promise<ScrapedSubmission[]>
 }

@@ -48,10 +48,14 @@ test('replaces crashed webContents ownership without leaving the destroyed id re
   assert.ok(initialEntry && initialEntry.kind === 'tab')
   const initialWebContentsId = initialEntry.webContentsId
 
-  initialEntry.view.webContents.emit('render-process-gone', {}, {
-    reason: 'crashed',
-    exitCode: 1,
-  })
+  initialEntry.view.webContents.emit(
+    'render-process-gone',
+    {},
+    {
+      reason: 'crashed',
+      exitCode: 1,
+    },
+  )
   initialEntry.view.webContents.close()
 
   const replacementEntry = registry.getByWindow('window-1')[0]
@@ -73,7 +77,10 @@ test('registers restored web tabs and removes every owner on manager destroy', (
   }
 
   assert.strictEqual(manager.restoreSession(snapshot), true)
-  assert.deepStrictEqual(registry.getByWindow('window-1').map((entry) => entry.tabId), ['web-tab'])
+  assert.deepStrictEqual(
+    registry.getByWindow('window-1').map((entry) => entry.tabId),
+    ['web-tab'],
+  )
 
   manager.destroy()
   assert.deepStrictEqual(registry.getByWindow('window-1'), [])

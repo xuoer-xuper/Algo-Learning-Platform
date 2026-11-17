@@ -36,7 +36,9 @@ function stripTrailingSiteBrand(value: string): string {
   let title = value
   const brandPattern = SITE_BRANDS.map(escapeRegex).join('|')
   for (let i = 0; i < 4; i++) {
-    const next = title.replace(new RegExp(`\\s*[-–—|_]\\s*[^-–—|_]*(${brandPattern})[^-–—|_]*$`, 'i'), '').trim()
+    const next = title
+      .replace(new RegExp(`\\s*[-–—|_]\\s*[^-–—|_]*(${brandPattern})[^-–—|_]*$`, 'i'), '')
+      .trim()
     if (next === title || !next) break
     title = next
   }
@@ -46,9 +48,7 @@ function stripTrailingSiteBrand(value: string): string {
 function stripLeadingToken(value: string, token: string | undefined): string {
   if (!token?.trim()) return value
   const escaped = escapeRegex(token.trim())
-  return value
-    .replace(new RegExp(`^${escaped}(?:\\s*[.．、:：-]\\s*|\\s+)`, 'i'), '')
-    .trim()
+  return value.replace(new RegExp(`^${escaped}(?:\\s*[.．、:：-]\\s*|\\s+)`, 'i'), '').trim()
 }
 
 function isPlatformNoiseTitle(title: string, options: BrowserTitleCleanOptions): boolean {

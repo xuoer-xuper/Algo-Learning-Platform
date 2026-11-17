@@ -34,7 +34,10 @@ test('checks and persists authorization for the initial URL and every redirect h
   const fetch = vi.fn(async (url: string | URL | Request, init?: RequestInit) => {
     const target = String(url)
     if (target === 'https://api.example.com/start') {
-      return new Response(null, { status: 302, headers: { location: 'https://cdn.example.net/result' } })
+      return new Response(null, {
+        status: 302,
+        headers: { location: 'https://cdn.example.net/result' },
+      })
     }
     assert.strictEqual((init?.headers as Record<string, string>).Authorization, undefined)
     return new Response('{"rating":1900}', {
@@ -54,11 +57,11 @@ test('checks and persists authorization for the initial URL and every redirect h
     markPermissionUsed: vi.fn(() => true),
   })
 
-  proxy.start('port:request-1', context, 'request-1', details, event => events.push(event))
-  await vi.waitFor(() => assert.ok(events.some(event => event.type === 'xhr:complete')))
+  proxy.start('port:request-1', context, 'request-1', details, (event) => events.push(event))
+  await vi.waitFor(() => assert.ok(events.some((event) => event.type === 'xhr:complete')))
   assert.deepStrictEqual(requested, ['api.example.com', 'cdn.example.net'])
   assert.strictEqual(fetch.mock.calls.length, 2)
-  const completed = events.find(event => event.type === 'xhr:complete')
+  const completed = events.find((event) => event.type === 'xhr:complete')
   assert.ok(completed?.type === 'xhr:complete')
   assert.strictEqual(completed.response.finalUrl, 'https://cdn.example.net/result')
   assert.strictEqual(completed.response.responseHeaders.includes('set-cookie'), false)
@@ -66,10 +69,13 @@ test('checks and persists authorization for the initial URL and every redirect h
 })
 
 test('fails closed before fetching an undeclared initial or redirect target', async () => {
-  const fetch = vi.fn(async () => new Response(null, {
-    status: 302,
-    headers: { location: 'https://attacker.test/collect' },
-  }))
+  const fetch = vi.fn(
+    async () =>
+      new Response(null, {
+        status: 302,
+        headers: { location: 'https://attacker.test/collect' },
+      }),
+  )
   const events: UserScriptRuntimeEvent[] = []
   const proxy = new UserScriptNetworkProxy({
     fetch: fetch as never,
@@ -78,16 +84,25 @@ test('fails closed before fetching an undeclared initial or redirect target', as
     markPermissionUsed: () => true,
   })
 
-  proxy.start('port:request-1', context, 'request-1', details, event => events.push(event))
-  await vi.waitFor(() => assert.ok(events.some(event => event.type === 'xhr:failed')))
-  assert.deepStrictEqual(events.at(-1), { type: 'xhr:failed', requestId: 'request-1', reason: 'denied' })
+  proxy.start('port:request-1', context, 'request-1', details, (event) => events.push(event))
+  await vi.waitFor(() => assert.ok(events.some((event) => event.type === 'xhr:failed')))
+  assert.deepStrictEqual(events.at(-1), {
+    type: 'xhr:failed',
+    requestId: 'request-1',
+    reason: 'denied',
+  })
   assert.strictEqual(fetch.mock.calls.length, 1)
 })
 
 test('aborts active requests and reports abort without exposing the internal error', async () => {
-  const fetch = vi.fn((_url: string | URL | Request, init?: RequestInit) => new Promise<Response>((_resolve, reject) => {
-    init?.signal?.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')))
-  }))
+  const fetch = vi.fn(
+    (_url: string | URL | Request, init?: RequestInit) =>
+      new Promise<Response>((_resolve, reject) => {
+        init?.signal?.addEventListener('abort', () =>
+          reject(new DOMException('Aborted', 'AbortError')),
+        )
+      }),
+  )
   const events: UserScriptRuntimeEvent[] = []
   const proxy = new UserScriptNetworkProxy({
     fetch: fetch as never,
@@ -95,12 +110,16 @@ test('aborts active requests and reports abort without exposing the internal err
     requestPermission: async () => true,
     markPermissionUsed: () => true,
   })
-  proxy.start('port:request-1', context, 'request-1', details, event => events.push(event))
+  proxy.start('port:request-1', context, 'request-1', details, (event) => events.push(event))
   await vi.waitFor(() => assert.strictEqual(fetch.mock.calls.length, 1))
   assert.strictEqual(proxy.abort('port:request-1'), true)
-  await vi.waitFor(() => assert.deepStrictEqual(events.at(-1), {
-    type: 'xhr:failed', requestId: 'request-1', reason: 'abort',
-  }))
+  await vi.waitFor(() =>
+    assert.deepStrictEqual(events.at(-1), {
+      type: 'xhr:failed',
+      requestId: 'request-1',
+      reason: 'abort',
+    }),
+  )
 })
 
 test('filters browser-owned and security-sensitive request headers', async () => {
@@ -115,40 +134,59 @@ test('filters browser-owned and security-sensitive request headers', async () =>
   const events: UserScriptRuntimeEvent[] = []
   const proxy = createAllowedProxy(fetch)
 
-  proxy.start('port\u0000script\u0000headers', context, 'headers', {
-    ...details,
-    headers: {
-      ...details.headers,
-      Referer: 'https://spoofed.example/',
-      Origin: 'https://spoofed.example',
-      ['Cookie']: 'blocked',
-      Host: 'spoofed.example',
-      'Content-Length': '999',
-      'Proxy-Authorization': 'Basic secret',
-      'Sec-Fetch-Site': 'same-origin',
-      'X-Userscript': 'allowed',
+  proxy.start(
+    'port\u0000script\u0000headers',
+    context,
+    'headers',
+    {
+      ...details,
+      headers: {
+        ...details.headers,
+        Referer: 'https://spoofed.example/',
+        Origin: 'https://spoofed.example',
+        ['Cookie']: 'blocked',
+        Host: 'spoofed.example',
+        'Content-Length': '999',
+        'Proxy-Authorization': 'Basic secret',
+        'Sec-Fetch-Site': 'same-origin',
+        'X-Userscript': 'allowed',
+      },
     },
-  }, event => events.push(event))
+    (event) => events.push(event),
+  )
 
-  await vi.waitFor(() => assert.ok(events.some(event => event.type === 'xhr:complete')))
+  await vi.waitFor(() => assert.ok(events.some((event) => event.type === 'xhr:complete')))
 })
 
 test('reports timeout when an active fetch exceeds the bounded request timeout', async () => {
   vi.useFakeTimers()
-  const fetch = vi.fn((_url: string | URL | Request, init?: RequestInit) => new Promise<Response>((_resolve, reject) => {
-    init?.signal?.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')))
-  }))
+  const fetch = vi.fn(
+    (_url: string | URL | Request, init?: RequestInit) =>
+      new Promise<Response>((_resolve, reject) => {
+        init?.signal?.addEventListener('abort', () =>
+          reject(new DOMException('Aborted', 'AbortError')),
+        )
+      }),
+  )
   const events: UserScriptRuntimeEvent[] = []
   const proxy = createAllowedProxy(fetch)
 
-  proxy.start('port\u0000script\u0000timeout', context, 'timeout', {
-    ...details,
-    timeout: 25,
-  }, event => events.push(event))
+  proxy.start(
+    'port\u0000script\u0000timeout',
+    context,
+    'timeout',
+    {
+      ...details,
+      timeout: 25,
+    },
+    (event) => events.push(event),
+  )
   await vi.advanceTimersByTimeAsync(25)
 
   assert.deepStrictEqual(events.at(-1), {
-    type: 'xhr:failed', requestId: 'timeout', reason: 'timeout',
+    type: 'xhr:failed',
+    requestId: 'timeout',
+    reason: 'timeout',
   })
 })
 
@@ -163,67 +201,110 @@ test('reports timeout while the first-host permission decision is still pending'
     markPermissionUsed: () => true,
   })
 
-  proxy.start('port\u0000script\u0000permission-timeout', context, 'permission-timeout', {
-    ...details,
-    timeout: 25,
-  }, event => events.push(event))
+  proxy.start(
+    'port\u0000script\u0000permission-timeout',
+    context,
+    'permission-timeout',
+    {
+      ...details,
+      timeout: 25,
+    },
+    (event) => events.push(event),
+  )
   await vi.advanceTimersByTimeAsync(25)
 
   assert.deepStrictEqual(events.at(-1), {
-    type: 'xhr:failed', requestId: 'permission-timeout', reason: 'timeout',
+    type: 'xhr:failed',
+    requestId: 'permission-timeout',
+    reason: 'timeout',
   })
   assert.strictEqual(fetch.mock.calls.length, 0)
 })
 
 test('rejects streamed responses that exceed the 16 MiB body limit', async () => {
-  const fetch = vi.fn(async () => new Response(new ReadableStream<Uint8Array>({
-    start(controller) {
-      controller.enqueue(new Uint8Array(USER_SCRIPT_RUNTIME_MAX_RESPONSE_BYTES + 1))
-      controller.close()
-    },
-  })))
+  const fetch = vi.fn(
+    async () =>
+      new Response(
+        new ReadableStream<Uint8Array>({
+          start(controller) {
+            controller.enqueue(new Uint8Array(USER_SCRIPT_RUNTIME_MAX_RESPONSE_BYTES + 1))
+            controller.close()
+          },
+        }),
+      ),
+  )
   const events: UserScriptRuntimeEvent[] = []
   const proxy = createAllowedProxy(fetch)
 
-  proxy.start('port\u0000script\u0000oversized', context, 'oversized', details, event => events.push(event))
+  proxy.start('port\u0000script\u0000oversized', context, 'oversized', details, (event) =>
+    events.push(event),
+  )
 
-  await vi.waitFor(() => assert.deepStrictEqual(events.at(-1), {
-    type: 'xhr:failed', requestId: 'oversized', reason: 'error',
-  }))
+  await vi.waitFor(() =>
+    assert.deepStrictEqual(events.at(-1), {
+      type: 'xhr:failed',
+      requestId: 'oversized',
+      reason: 'error',
+    }),
+  )
 })
 
 test('limits each runtime port to eight concurrent requests', async () => {
-  const fetch = vi.fn((_url: string | URL | Request, init?: RequestInit) => new Promise<Response>((_resolve, reject) => {
-    init?.signal?.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')))
-  }))
+  const fetch = vi.fn(
+    (_url: string | URL | Request, init?: RequestInit) =>
+      new Promise<Response>((_resolve, reject) => {
+        init?.signal?.addEventListener('abort', () =>
+          reject(new DOMException('Aborted', 'AbortError')),
+        )
+      }),
+  )
   const events: UserScriptRuntimeEvent[] = []
   const proxy = createAllowedProxy(fetch)
 
   for (let index = 0; index < 9; index += 1) {
-    proxy.start(`port\u0000script\u0000request-${index}`, context, `request-${index}`, details, event => events.push(event))
+    proxy.start(
+      `port\u0000script\u0000request-${index}`,
+      context,
+      `request-${index}`,
+      details,
+      (event) => events.push(event),
+    )
   }
 
   await vi.waitFor(() => assert.strictEqual(fetch.mock.calls.length, 8))
-  assert.deepStrictEqual(events, [{
-    type: 'xhr:failed', requestId: 'request-8', reason: 'error',
-  }])
+  assert.deepStrictEqual(events, [
+    {
+      type: 'xhr:failed',
+      requestId: 'request-8',
+      reason: 'error',
+    },
+  ])
   proxy.abortPrefix('port\u0000')
   await vi.waitFor(() => assert.strictEqual(events.length, 9))
 })
 
 test('rejects a redirect containing userinfo before issuing the next fetch', async () => {
-  const fetch = vi.fn(async () => new Response(null, {
-    status: 302,
-    headers: { location: 'https://user:secret@cdn.example.net/result' },
-  }))
+  const fetch = vi.fn(
+    async () =>
+      new Response(null, {
+        status: 302,
+        headers: { location: 'https://user:secret@cdn.example.net/result' },
+      }),
+  )
   const events: UserScriptRuntimeEvent[] = []
   const proxy = createAllowedProxy(fetch)
 
-  proxy.start('port\u0000script\u0000userinfo', context, 'userinfo', details, event => events.push(event))
+  proxy.start('port\u0000script\u0000userinfo', context, 'userinfo', details, (event) =>
+    events.push(event),
+  )
 
-  await vi.waitFor(() => assert.deepStrictEqual(events.at(-1), {
-    type: 'xhr:failed', requestId: 'userinfo', reason: 'denied',
-  }))
+  await vi.waitFor(() =>
+    assert.deepStrictEqual(events.at(-1), {
+      type: 'xhr:failed',
+      requestId: 'userinfo',
+      reason: 'denied',
+    }),
+  )
   assert.strictEqual(fetch.mock.calls.length, 1)
 })
 

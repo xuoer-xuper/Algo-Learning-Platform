@@ -1,4 +1,4 @@
-import { Database } from 'better-sqlite3'
+import type { Database } from 'better-sqlite3'
 
 export const migration010 = {
   version: 10,
@@ -22,5 +22,5 @@ export const migration010 = {
       DROP INDEX IF EXISTS notes_problem;
       DROP TABLE IF EXISTS notes;
     `)
-  }
+  },
 }

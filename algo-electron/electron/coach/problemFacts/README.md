@@ -29,7 +29,7 @@
 
 ```powershell
 cd algo-electron
-npm run test:coach
+pnpm run test:coach
 ```
 
 覆盖测试：62 个单元测试，对样例题面抽取准确率 91.5%（目标 ≥ 80%）。

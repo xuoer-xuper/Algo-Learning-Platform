@@ -126,11 +126,7 @@ export function detectContestFromUrl(
  *
  * 后续优化：接入 CF contest.standings API 获取真实开始/结束时间。
  */
-export function isContestActive(
-  now: number,
-  contestStart?: number,
-  contestEnd?: number,
-): boolean {
+export function isContestActive(now: number, contestStart?: number, contestEnd?: number): boolean {
   if (contestStart == null || contestEnd == null) {
     // 保守：无时间窗时视为进行中
     return true
@@ -151,7 +147,9 @@ export interface ContestGuardOptions {
 }
 
 export class ContestGuard {
-  private readonly options: Required<Omit<ContestGuardOptions, 'onContestEnter' | 'onContestEnd' | 'detectContest' | 'isActive'>> & {
+  private readonly options: Required<
+    Omit<ContestGuardOptions, 'onContestEnter' | 'onContestEnd' | 'detectContest' | 'isActive'>
+  > & {
     detectContest: typeof detectContestFromUrl
     isActive: typeof isContestActive
     onContestEnter?: (info: ContestInfo) => void
@@ -189,7 +187,11 @@ export class ContestGuard {
     const detected = this.options.detectContest(url)
     if (detected) {
       // 进入比赛页（或切换到另一个比赛）
-      if (this.current && this.current.platform === detected.platform && this.current.contestId === detected.contestId) {
+      if (
+        this.current &&
+        this.current.platform === detected.platform &&
+        this.current.contestId === detected.contestId
+      ) {
         // 同一比赛，无变化
         return
       }

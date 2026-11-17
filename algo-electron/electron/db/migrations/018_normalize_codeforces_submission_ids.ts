@@ -14,13 +14,17 @@ interface CodeforcesNumericSubmissionRow {
 }
 
 export function normalizeCodeforcesSubmissionIds(db: Database.Database): void {
-  const rows = db.prepare(`
+  const rows = db
+    .prepare(
+      `
     SELECT id, problem_id, platform_submission_id, raw_verdict, language, runtime_ms, memory_kb, source_url, raw_json
     FROM submissions
     WHERE platform = 'codeforces'
       AND platform_submission_id GLOB '[0-9]*'
       AND platform_submission_id NOT GLOB '*[^0-9]*'
-  `).all() as CodeforcesNumericSubmissionRow[]
+  `,
+    )
+    .all() as CodeforcesNumericSubmissionRow[]
 
   if (!rows.length) return
 

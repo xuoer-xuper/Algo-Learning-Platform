@@ -27,7 +27,7 @@ import type { CredentialCaptureService } from '../credentials/CredentialCaptureS
 import type {
   UserScriptHostPermissionPrompt,
   UserScriptHostPermissionResponse,
-} from '../scripts/UserScriptHostPermissionBroker'
+} from '../../src/shared/types/scripts'
 
 interface RegisterMainIpcOptions {
   getSyncService: () => SyncService | null
@@ -64,8 +64,12 @@ interface RegisterMainIpcOptions {
 }
 
 export function registerMainIpc(options: RegisterMainIpcOptions): void {
-  const notifyProblemsUpdated = (): void => { options.notifyProblemsUpdated() }
-  const refreshUserScriptRuntime = (): void => { options.getUserScriptRuntime?.()?.refresh() }
+  const notifyProblemsUpdated = (): void => {
+    options.notifyProblemsUpdated()
+  }
+  const refreshUserScriptRuntime = (): void => {
+    options.getUserScriptRuntime?.()?.refresh()
+  }
 
   registerAiIpc()
   registerBackupIpc()

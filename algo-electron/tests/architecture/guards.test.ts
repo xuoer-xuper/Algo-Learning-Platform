@@ -1,6 +1,22 @@
+import { spawnSync } from 'node:child_process'
 import { describe, expect, it } from 'vitest'
-// @ts-expect-error 守卫判定是 runner 共用的 .mjs，无类型声明；此处只需运行时行为
-import { collectRatchetFailures, coreSuiteRunsEverything, countBareControls, countBareHex, countBareRgb, countBareSql, countRawIpcSchemas, countUnschemadIpc, themeDirectiveHasTailwindImport } from './guards.mjs'
+import {
+  collectRatchetFailures,
+  coreSuiteRunsEverything,
+  countBareControls,
+  countBareHex,
+  countBareRgb,
+  countBareSql,
+  countIpcChannelLiterals,
+  countRawIpcSchemas,
+  countUnschemadIpc,
+  findDuplicateExportedTypes,
+  isDatabaseLayerPath,
+  themeDirectiveHasTailwindImport,
+  // @ts-expect-error 守卫判定是 runner 共用的 .mjs，无类型声明；此处只需运行时行为。
+  // 抑制点必须在模块说明符上一行：TS7016 报在 `from './guards.mjs'` 处，
+  // prettier 把单行 import 拆成多行后，写在 import 前的指令覆盖不到它。
+} from './guards.mjs'
 
 /**
  * 守卫的反向验证。
@@ -13,11 +29,68 @@ import { collectRatchetFailures, coreSuiteRunsEverything, countBareControls, cou
 const describeCount = (count: number) => `${count} 处`
 const HINT = '清理提示'
 
-function ratchet(entries: Array<{ path: string, count: number }>, budgets: Record<string, number>) {
+function ratchet(entries: Array<{ path: string; count: number }>, budgets: Record<string, number>) {
   return collectRatchetFailures({ entries, budgets, describe: describeCount, cleanupHint: HINT })
 }
 
+describe('findDuplicateExportedTypes', () => {
+  it('should find duplicate interface and type declarations across source files', () => {
+    expect(
+      findDuplicateExportedTypes([
+        { path: 'main/config.ts', source: 'export interface Config { enabled: boolean }' },
+        { path: 'shared/config.ts', source: 'export type Config = { enabled: boolean }' },
+      ]),
+    ).toEqual([{ name: 'Config', files: ['main/config.ts', 'shared/config.ts'] }])
+  })
+
+  it('should ignore re-exports, local types, nested declarations and comment text', () => {
+    expect(
+      findDuplicateExportedTypes([
+        { path: 'shared/config.ts', source: 'export type Config = { enabled: boolean }' },
+        {
+          path: 'main/config.ts',
+          source: [
+            "export type { Config } from '../shared/config'",
+            'type Config = { internal: boolean }',
+            'namespace Internal { export interface Config {} }',
+            '// export interface Config {}',
+          ].join('\n'),
+        },
+      ]),
+    ).toEqual([])
+  })
+
+  it('should allow interface merging inside the same file', () => {
+    expect(
+      findDuplicateExportedTypes([
+        {
+          path: 'shared/config.ts',
+          source: 'export interface Config {}\nexport interface Config { enabled: boolean }',
+        },
+      ]),
+    ).toEqual([])
+  })
+})
+
 describe('countBareSql', () => {
+  it('exempts only legacy and template DB directories, not similarly named services or renderer paths', () => {
+    for (const file of [
+      'electron/db/migrate.ts',
+      'src/main/db/legacy-ledger-validation.ts',
+      'src\\main\\db\\schema.ts',
+    ]) {
+      expect(isDatabaseLayerPath(file)).toBe(true)
+    }
+    for (const file of [
+      'electron/db-backup/index.ts',
+      'src/main/services/db/helper.ts',
+      'src/renderer/db/query.ts',
+      'src/main/db.ts',
+    ]) {
+      expect(isDatabaseLayerPath(file)).toBe(false)
+      expect(countBareSql('database.prepare("SELECT 1")')).toBe(1)
+    }
+  })
   it('抓到 db 层之外构造的语句', () => {
     expect(countBareSql('db.prepare("SELECT 1")')).toBe(1)
     expect(countBareSql('getDb().prepare(`SELECT 1`)')).toBe(1)
@@ -39,6 +112,38 @@ describe('countBareSql', () => {
 })
 
 describe('countUnschemadIpc', () => {
+  it('detects missing schemas after channels migrate to shared constants', () => {
+    const valid =
+      'ipcMain.handle(IPC_CHANNELS.PROBLEM.GET_DETAIL, getDetailInput, (_event, id) => {})'
+    expect(countUnschemadIpc(valid)).toBe(0)
+    expect(countUnschemadIpc(valid.replace('getDetailInput, ', ''))).toBe(1)
+    expect(countUnschemadIpc('ipcMain.on(CHANNEL_ALIAS, (_event, input) => {})')).toBe(1)
+    expect(
+      countUnschemadIpc('ipcMain . handle ( IPC_CHANNELS . PROBLEM . DELETE, (_e, id) => {})'),
+    ).toBe(1)
+    expect(
+      countUnschemadIpc(
+        'ipcMain.handle(IPC_CHANNELS.PROBLEM.DELETE, [z.string()], (_e, id) => {})',
+      ),
+    ).toBe(0)
+    expect(countUnschemadIpc('ipcMain.handle(IPC_CHANNELS.STATS.GET_OVERVIEW, () => {})')).toBe(0)
+  })
+
+  it.each([
+    'coachPetIpcMain.handle',
+    'shellIpcMain.on',
+    'ipcMainHandle',
+    'handleFromShell',
+    'onFromShell',
+    'handleFromCoach',
+    'onFromCoach',
+  ])('checks the guarded registration form %s', (registrar) => {
+    expect(countUnschemadIpc(`${registrar}(IPC_CHANNELS.COACH.CHAT, (_e, input) => {})`)).toBe(1)
+    expect(
+      countUnschemadIpc(`${registrar}(IPC_CHANNELS.COACH.CHAT, chatInput, (_e, input) => {})`),
+    ).toBe(0)
+  })
+
   it('接收渲染进程参数却没声明 schema 的算欠账', () => {
     expect(countUnschemadIpc("ipcMain.handle('a:b', (_event, id: string) => {})")).toBe(1)
     expect(countUnschemadIpc("ipcMain.on('a:b', (event, x: unknown) => {})")).toBe(1)
@@ -48,10 +153,16 @@ describe('countUnschemadIpc', () => {
     expect(countUnschemadIpc("ipcMain.handle('a:b', (_e, a, b, c) => {})")).toBe(1)
   })
 
-  it('声明了 schema 元组的不算', () => {
-    expect(countUnschemadIpc("ipcMain.handle('a:b', [text()], (_event, id) => {})")).toBe(0)
-    expect(countUnschemadIpc("ipcMain.handle('a:b', [daysRange(), rowLimit()], (_e, d, l) => {})")).toBe(0)
-    expect(countUnschemadIpc("ipcMain.handle(\n  'a:b',\n  [text()],\n  (_event, id) => {},\n)")).toBe(0)
+  it('声明了 schema 元组的不算：内联数组与命名元组两种形态都认', () => {
+    expect(countUnschemadIpc("ipcMain.handle('a:b', [z.string()], (_event, id) => {})")).toBe(0)
+    // zod 迁移后的主形态：schema 元组是 src/shared/types/ipc/ 导出的命名元组，约定 Input 结尾。
+    expect(countUnschemadIpc("ipcMain.handle('a:b', getDailyActiveInput, (_e, d) => {})")).toBe(0)
+    expect(
+      countUnschemadIpc("ipcMain.handle(\n  'a:b',\n  getListInput,\n  (_event, id) => {},\n)"),
+    ).toBe(0)
+    expect(
+      countUnschemadIpc("ipcMain.handle(\n  'a:b',\n  [z.string()],\n  (_event, id) => {},\n)"),
+    ).toBe(0)
   })
 
   it('零参 handler 不算欠账', () => {
@@ -77,29 +188,125 @@ describe('countUnschemadIpc', () => {
   })
 })
 
+describe('architecture guard mutations', () => {
+  it.each([
+    {
+      file: 'electron/ipc/registerProblemIpc.ts',
+      before: 'IPC_CHANNELS.PROBLEM.GET_DETAIL, getDetailInput,',
+      after: 'IPC_CHANNELS.PROBLEM.GET_DETAIL,',
+      check: 'IPC handlers declare a payload schema',
+    },
+    {
+      file: 'src/preload/index.ts',
+      before: 'IPC_CHANNELS.PROBLEM.LIST_RECENT',
+      after: "'problem:listRecent'",
+      check: 'IPC channel names come from the shared constants, not literals',
+    },
+    {
+      file: 'src/shared/types/ipc/coach.ts',
+      before: "from '../../constants/preferences'",
+      after: "from '../../../../electron/coach/petPinPolicy'",
+      check: 'src/shared stays process-neutral (no electron imports)',
+    },
+    {
+      file: 'electron/app/config.ts',
+      before: 'export interface AppConfig',
+      after: 'export interface CoachLlmConfig {}\nexport interface AppConfig',
+      check: 'exported type declarations have a single source',
+    },
+    {
+      file: 'src/main/services/backup/lib/migration-checkpoint.ts',
+      before: 'const basenameSchema = z',
+      after: 'database.prepare("SELECT 1")\nconst basenameSchema = z',
+      check: 'bare SQL stays inside the legacy or template database layer',
+    },
+  ])('rejects an in-memory violation in $file', ({ file, before, after, check }) => {
+    // Mutate reads in an isolated runner, never the shared checkout.
+    const script = `
+      import fs from 'node:fs'
+      import path from 'node:path'
+      const target = path.resolve(${JSON.stringify(file)})
+      const readFileSync = fs.readFileSync
+      fs.readFileSync = function (file, ...args) {
+        const value = readFileSync.call(this, file, ...args)
+        if (typeof file !== 'string' || path.resolve(file) !== target) return value
+        if (typeof value !== 'string' || !value.includes(${JSON.stringify(before)})) {
+          throw new Error('Mutation target no longer matches')
+        }
+        return value.replace(${JSON.stringify(before)}, ${JSON.stringify(after)})
+      }
+      await import('./tests/architecture/check-architecture.mjs')
+    `
+    const result = spawnSync(process.execPath, ['--input-type=module', '-e', script], {
+      cwd: process.cwd(),
+      encoding: 'utf8',
+      windowsHide: true,
+    })
+    expect(result.error).toBeUndefined()
+    expect(result.status).toBe(1)
+    expect(result.stderr).toContain(`[FAIL] ${check}`)
+    expect(result.stderr).toContain(file)
+    expect(result.stdout).toContain('Checks finished. Failed: 1/')
+  })
+})
+
+describe('countIpcChannelLiterals', () => {
+  it('抓到以字面量注册/发送的 channel', () => {
+    expect(countIpcChannelLiterals("ipcMain.handle('a:b', () => {})")).toBe(1)
+    expect(countIpcChannelLiterals("ipcMain.on('a:b', (event) => {})")).toBe(1)
+    expect(countIpcChannelLiterals("ipcRenderer.invoke('a:b', arg)")).toBe(1)
+    expect(countIpcChannelLiterals("ipcRenderer.send('a:b')")).toBe(1)
+    expect(countIpcChannelLiterals("ipcRenderer.on('a:b', handler)")).toBe(1)
+  })
+
+  it('同一族的其他通道方法也算：订阅与退订不能一半字面量一半常量', () => {
+    expect(countIpcChannelLiterals("ipcRenderer.off('a:b', handler)")).toBe(1)
+    expect(countIpcChannelLiterals("ipcRenderer.once('a:b', handler)")).toBe(1)
+    expect(countIpcChannelLiterals("ipcRenderer.sendSync('a:b', payload)")).toBe(1)
+    expect(countIpcChannelLiterals("ipcRenderer.postMessage('a:b', payload, [port])")).toBe(1)
+    expect(countIpcChannelLiterals("ipcMain.removeListener('a:b', handler)")).toBe(1)
+    expect(countIpcChannelLiterals("ipcMain.removeAllListeners('a:b')")).toBe(1)
+    expect(countIpcChannelLiterals("ipcMain.removeHandler('a:b')")).toBe(1)
+  })
+
+  it('引用 IPC_CHANNELS 常量的不算', () => {
+    expect(countIpcChannelLiterals('ipcMain.handle(IPC_CHANNELS.AI.GET_OUTPUT, () => {})')).toBe(0)
+    expect(countIpcChannelLiterals('ipcRenderer.send(IPC_CHANNELS.BROWSER.NAVIGATE, url)')).toBe(0)
+  })
+
+  it('容忍换行与空格，不靠固定写法', () => {
+    expect(countIpcChannelLiterals("ipcMain.handle(\n  'a:b',\n  handler,\n)")).toBe(1)
+    expect(countIpcChannelLiterals('ipcRenderer . invoke ( "a:b" )')).toBe(1)
+  })
+
+  it('不误伤同名的非 IPC 调用', () => {
+    // 接收者限定是判定的一半：任意 emitter 的 on/handle 不归这条守卫管。
+    expect(countIpcChannelLiterals("emitter.on('a:b', handler)")).toBe(0)
+    expect(countIpcChannelLiterals("registry.handle('a:b', fn)")).toBe(0)
+    // webContents.send 的字面量归"主进程→渲染推送"，由 IpcChannel 收窄的
+    // AppWindow.send/WindowManager.sendToAll 签名在编译期拦，不在这里数。
+    expect(countIpcChannelLiterals("webContents.send('a:b', payload)")).toBe(0)
+  })
+})
+
 describe('countRawIpcSchemas', () => {
-  it('数出 raw() 调用', () => {
-    expect(countRawIpcSchemas("ipcMain.handle('a:b', [raw('由 isFoo 判别')], h)")).toBe(1)
-    expect(countRawIpcSchemas("[raw('x'), text()], [raw(`y`)]")).toBe(2)
-    expect(countRawIpcSchemas('raw(\n  "换行也算",\n)')).toBe(1)
+  it('数出无形状放行（z.unknown）的调用', () => {
+    expect(countRawIpcSchemas('export const tabOpenInternalInput = [z.unknown()] as const')).toBe(1)
+    expect(countRawIpcSchemas('[z.unknown(), z.string()], [z.unknown()]')).toBe(2)
+    expect(countRawIpcSchemas('z.unknown( )')).toBe(1)
   })
 
-  it('不把 import 与注释里的提及算进来', () => {
-    // 这两处是实测存在的误报源：按 /\braw\b/ 数会把 import 行和说明文字一起命中。
-    expect(countRawIpcSchemas("import { nullable, raw, text } from './payloadSchema'")).toBe(0)
-    expect(countRawIpcSchemas("import { oneOf, raw } from './payloadSchema'")).toBe(0)
-    expect(countRawIpcSchemas(' * `raw()` 的语义是"在别处校验了"，没有别处就不要用它。')).toBe(0)
+  it('不把非调用的提及算进来', () => {
+    // 类型引用不带括号、带其他后缀的标识符都不是字面调用。
+    expect(countRawIpcSchemas('const t: z.ZodUnknown = value')).toBe(0)
+    expect(countRawIpcSchemas('z.unknownParser(value)')).toBe(0)
+    // 旧组合子的写法不再是计数对象。
+    expect(countRawIpcSchemas("raw('x')")).toBe(0)
   })
 
-  it('要求首参是字符串字面量，顺带排掉多数同名调用', () => {
-    expect(countRawIpcSchemas("parseRaw('x')")).toBe(0)
-    // 无参或首参非字符串的 raw( 不算：本层的 raw() 强制要求写明理由。
-    expect(countRawIpcSchemas('raw()')).toBe(0)
-    expect(countRawIpcSchemas('raw(reason)')).toBe(0)
-    // 已知限制：`\b` 会让 `obj.raw('x')` 也命中。electron/ipc/ 下没有这种写法
-    // （唯一的 raw 是 payloadSchema 的导出函数），真出现了宁可多报——
-    // 多报会在守卫里当场失败并被看见，漏报则是静默的。
-    expect(countRawIpcSchemas("obj.raw('x')")).toBe(1)
+  it('已知限制：接收者前缀不参与判定，宁可多报', () => {
+    // 与旧口径同一取舍：多报会在守卫里当场失败并被看见，漏报则是静默的。
+    expect(countRawIpcSchemas('obj.z.unknown()')).toBe(1)
   })
 })
 
@@ -222,7 +429,10 @@ describe('collectRatchetFailures', () => {
 
   it('一次报全部问题，不在第一条就短路', () => {
     const failures = ratchet(
-      [{ path: 'new.ts', count: 1 }, { path: 'over.ts', count: 5 }],
+      [
+        { path: 'new.ts', count: 1 },
+        { path: 'over.ts', count: 5 },
+      ],
       { 'over.ts': 2, 'stale.ts': 1 },
     )
     expect(failures).toHaveLength(3)
@@ -231,14 +441,20 @@ describe('collectRatchetFailures', () => {
 
 describe('coreSuiteRunsEverything', () => {
   it('无参 runVitest() 视为跑全套', () => {
-    expect(coreSuiteRunsEverything('function runCoreSuite() {\n  runLint()\n  runVitest()\n}')).toBe(true)
+    expect(
+      coreSuiteRunsEverything('function runCoreSuite() {\n  runLint()\n  runVitest()\n}'),
+    ).toBe(true)
     expect(coreSuiteRunsEverything('function runCoreSuite() {\n  runVitest( )\n}')).toBe(true)
   })
 
   it('传文件名单就不算', () => {
     // 这正是漏掉 47 个文件的那种写法：名单式调用必须被判为不合格。
-    expect(coreSuiteRunsEverything("function runCoreSuite() {\n  runVitest(['tests/app'])\n}")).toBe(false)
-    expect(coreSuiteRunsEverything('function runCoreSuite() {\n  runVitest(coreVitestFiles)\n}')).toBe(false)
+    expect(
+      coreSuiteRunsEverything("function runCoreSuite() {\n  runVitest(['tests/app'])\n}"),
+    ).toBe(false)
+    expect(
+      coreSuiteRunsEverything('function runCoreSuite() {\n  runVitest(coreVitestFiles)\n}'),
+    ).toBe(false)
   })
 
   it('只看 runCoreSuite 自己的函数体', () => {

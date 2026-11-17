@@ -1,10 +1,10 @@
+import type { PlatformAccount } from '@shared/types/rating'
+import type { TrendPoint } from '@shared/types/stats'
 import type {
-  CodeforcesAccount,
   DashboardAiSuggestionData,
   DashboardCoreData,
   DashboardTrendData,
   RatingHistoryItem,
-  TrendPoint,
 } from './types'
 
 function fillMissingDays(data: TrendPoint[], days: number): TrendPoint[] {
@@ -23,10 +23,12 @@ function fillMissingDays(data: TrendPoint[], days: number): TrendPoint[] {
   return result
 }
 
-export async function loadDashboardTrends(trendRange: number | undefined): Promise<DashboardTrendData> {
+export async function loadDashboardTrends(
+  trendRange: number | undefined,
+): Promise<DashboardTrendData> {
   const [visitedTrend, acTrend] = await Promise.all([
-    window.electronAPI.getVisitedTrend(trendRange),
-    window.electronAPI.getAcTrend(trendRange),
+    window.api.stats.getVisitedTrend(trendRange),
+    window.api.stats.getAcTrend(trendRange),
   ])
 
   return {
@@ -36,15 +38,16 @@ export async function loadDashboardTrends(trendRange: number | undefined): Promi
 }
 
 export async function loadDashboardCoreData(): Promise<DashboardCoreData> {
-  const [stats, streak, wrongProblems, unreviewed, timeline, revisits, cfAccount] = await Promise.all([
-    window.electronAPI.getOverviewStats(),
-    window.electronAPI.getStreakDays(),
-    window.electronAPI.getWrongProblems(10),
-    window.electronAPI.getUnreviewedProblems(30, 10),
-    window.electronAPI.getTimeline(20),
-    window.electronAPI.getRevisitStats(10),
-    window.electronAPI.getCodeforcesAccount(),
-  ])
+  const [stats, streak, wrongProblems, unreviewed, timeline, revisits, cfAccount] =
+    await Promise.all([
+      window.api.stats.getOverview(),
+      window.api.stats.getStreakDays(),
+      window.api.stats.getWrongProblems(10),
+      window.api.stats.getUnreviewed({ days: 30, limit: 10 }),
+      window.api.stats.getTimeline(20),
+      window.api.stats.getRevisitStats(10),
+      window.api.rating.getCodeforcesAccount(),
+    ])
 
   return {
     stats,
@@ -60,8 +63,8 @@ export async function loadDashboardCoreData(): Promise<DashboardCoreData> {
 export async function loadDashboardAiSuggestions(): Promise<DashboardAiSuggestionData> {
   try {
     const [recommendations, weaknesses] = await Promise.all([
-      window.electronAPI.getReviewRecommendations(5),
-      window.electronAPI.getWeaknessAnalysis(8),
+      window.api.ai.getReviewRecommendations(5),
+      window.api.ai.getWeaknessAnalysis(8),
     ])
 
     return {
@@ -79,11 +82,13 @@ export async function loadDashboardAiSuggestions(): Promise<DashboardAiSuggestio
   }
 }
 
-export async function loadRatingHistory(account: CodeforcesAccount | null): Promise<RatingHistoryItem[]> {
+export async function loadRatingHistory(
+  account: PlatformAccount | null,
+): Promise<RatingHistoryItem[]> {
   if (!account) return []
-  return window.electronAPI.getRatingHistory(account.id)
+  return window.api.rating.getHistory(account.id)
 }
 
 export function recomputeDashboardDailyStats(): Promise<number> {
-  return window.electronAPI.recomputeAllDailyStats()
+  return window.api.stats.recomputeAll()
 }

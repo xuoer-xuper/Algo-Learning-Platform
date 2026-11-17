@@ -1,33 +1,42 @@
-import { useEffect, useMemo, useState } from 'react'
+import { formatForDisplay } from '@shared/time'
+import { useEffect, useState } from 'react'
 import { Button, ConfirmDialog, Empty, IconButton, Input, Skeleton } from '../../components/ui'
 import {
   deleteSavedCredential,
   loadCookieSummaryForSite,
   loadCredentialSummaries,
   loadPrimaryCodeforcesAccount,
+  loadCodeforcesAccount,
   loadSites,
   openCredentialLoginPage,
   renameCredential,
   syncCodeforcesRatingProfile,
 } from './settingsApi'
-import type { CodeforcesAccount } from './settingsTypes'
-import type { SiteConfigView } from './siteManagementTypes'
+import { useIpcQuery } from '../../hooks/useIpcQuery'
+import type { PlatformAccount } from '@shared/types/rating'
+import type { SiteConfigRecord } from '@shared/types/sites'
+import type { CredentialSummary } from '@shared/types/credentials'
+import type { CookieSafeSiteSummary } from '@shared/types/cookies'
 
 interface CredentialsPageProps {
   onClose: () => void
 }
 
 interface CredentialSiteState {
-  site: SiteConfigView
+  site: SiteConfigRecord
   credentials: CredentialSummary[]
   cookieSummary: CookieSafeSiteSummary | null
 }
 
-function loginUrlForSite(site: SiteConfigView): string {
+function loginUrlForSite(site: SiteConfigRecord): string {
   const homeUrl = site.homeUrl ?? `https://${site.domains[0] ?? ''}`
   const pattern = site.loginUrlPatterns?.find((value) => value.trim().length > 0)
   if (!pattern) return homeUrl
-  const candidate = pattern.trim().replace(/\*.*$/u, '').replace(/\{[^}]+\}/gu, '') || '/'
+  const candidate =
+    pattern
+      .trim()
+      .replace(/\*.*$/u, '')
+      .replace(/\{[^}]+\}/gu, '') || '/'
   try {
     const url = /^https?:\/\//iu.test(candidate) ? new URL(candidate) : new URL(candidate, homeUrl)
     return url.protocol === 'https:' && !url.username && !url.password ? url.toString() : homeUrl
@@ -36,56 +45,69 @@ function loginUrlForSite(site: SiteConfigView): string {
   }
 }
 
-function formatUsedAt(value: string | null): string {
-  return value ? `最近使用 ${value.replace('T', ' ').slice(0, 16)}` : '尚未使用'
+function formatUsedAt(value: number | null): string {
+  return value === null ? '尚未使用' : `最近使用 ${formatForDisplay(value, { second: undefined })}`
 }
 
 export function CredentialsPage({ onClose }: CredentialsPageProps) {
-  const [siteStates, setSiteStates] = useState<CredentialSiteState[]>([])
-  const [loading, setLoading] = useState(true)
   const [status, setStatus] = useState('')
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editingName, setEditingName] = useState('')
   const [pendingDelete, setPendingDelete] = useState<CredentialSummary | null>(null)
-  const [ratingHandle, setRatingHandle] = useState('')
-  const [ratingInfo, setRatingInfo] = useState<CodeforcesAccount | null>(null)
+  const [ratingHandleDraft, setRatingHandle] = useState<string | null>(null)
   const [ratingStatus, setRatingStatus] = useState('')
+  const [selectedAccount, setSelectedAccount] = useState<{
+    handle: string
+    account: PlatformAccount | null
+  } | null>(null)
+  const accountQuery = useIpcQuery(
+    () =>
+      selectedAccount
+        ? loadCodeforcesAccount(selectedAccount.handle)
+        : loadPrimaryCodeforcesAccount(),
+    [selectedAccount?.handle],
+    { tables: ['stats'] },
+  )
 
-  const loadData = async () => {
-    setLoading(true)
-    try {
+  const query = useIpcQuery(
+    async () => {
       const sites = await loadSites()
-      const [credentials, cookieSummaries, account] = await Promise.all([
+      const [credentials, cookieSummaries] = await Promise.all([
         loadCredentialSummaries(),
-        Promise.all(sites.map(async (site) => {
-          try { return [site.id, await loadCookieSummaryForSite(site.id)] as const }
-          catch { return [site.id, null] as const }
-        })),
-        loadPrimaryCodeforcesAccount(),
+        Promise.all(
+          sites.map(async (site) => {
+            try {
+              return [site.id, await loadCookieSummaryForSite(site.id)] as const
+            } catch {
+              return [site.id, null] as const
+            }
+          }),
+        ),
       ])
       const cookieMap = new Map(cookieSummaries)
-      setSiteStates(sites.map((site) => ({
+      const siteStates: CredentialSiteState[] = sites.map((site) => ({
         site,
         credentials: credentials.filter((credential) => credential.siteId === site.id),
         cookieSummary: cookieMap.get(site.id) ?? null,
-      })))
-      if (account) {
-        setRatingHandle(account.handle)
-        setRatingInfo(account)
-      }
-    } catch (error) {
-      setStatus(error instanceof Error ? error.message : '账户信息读取失败')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  useEffect(() => { void loadData() }, [])
-
-  const credentialCount = useMemo(
-    () => siteStates.reduce((total, item) => total + item.credentials.length, 0),
-    [siteStates],
+      }))
+      return { siteStates }
+    },
+    [],
+    { tables: ['credentials', 'sites'] },
   )
+  const siteStates = query.data?.siteStates ?? []
+  const ratingInfo = accountQuery.data === undefined ? selectedAccount?.account : accountQuery.data
+  const ratingHandle = ratingHandleDraft ?? ratingInfo?.handle ?? ''
+  const loading = query.isLoading
+  const loadData = query.refetch
+  useEffect(() => {
+    if (query.error) setStatus(query.error.message)
+  }, [query.error])
+  useEffect(() => {
+    if (accountQuery.error) setRatingStatus(accountQuery.error.message)
+  }, [accountQuery.error])
+
+  const credentialCount = siteStates.reduce((total, item) => total + item.credentials.length, 0)
 
   const handleRename = async (credentialId: string) => {
     const name = editingName.trim()
@@ -119,13 +141,15 @@ export function CredentialsPage({ onClose }: CredentialsPageProps) {
     }
     setRatingStatus('同步中...')
     try {
-      const { result, account } = await syncCodeforcesRatingProfile(ratingHandle.trim())
-      if (!result.success) {
-        setRatingStatus(`同步失败: ${result.error ?? '未知错误'}`)
+      const handle = ratingHandle.trim()
+      const { result, account } = await syncCodeforcesRatingProfile(handle)
+      if (result.success !== true) {
+        setRatingStatus(`同步失败: ${result.error}`)
         return
       }
-      setRatingInfo(account)
-      setRatingStatus(`已同步，最高 Rating ${result.peak ?? '-'}`)
+      setSelectedAccount({ handle, account })
+      if (selectedAccount?.handle === handle) await accountQuery.refetch()
+      setRatingStatus(`已同步，最高 Rating ${result.data.peak ?? '-'}`)
     } catch (error) {
       setRatingStatus(error instanceof Error ? error.message : 'Rating 同步失败')
     }
@@ -136,7 +160,9 @@ export function CredentialsPage({ onClose }: CredentialsPageProps) {
       <div className="settings-header">
         <div>
           <h2 className="settings-title">账户</h2>
-          <div className="settings-hint-text">{credentialCount} 组已保存凭据，密码仅保存在系统安全存储中</div>
+          <div className="settings-hint-text">
+            {credentialCount} 组已保存凭据，密码仅保存在系统安全存储中
+          </div>
         </div>
         <IconButton icon="close" title="关闭" className="settings-close" onClick={onClose} />
       </div>
@@ -153,11 +179,17 @@ export function CredentialsPage({ onClose }: CredentialsPageProps) {
                   <div className="site-info">
                     <span className="site-name">{site.name}</span>
                     <span className="site-domains">
-                      {cookieSummary?.has_cookies ? '已检测到持久登录态' : '未检测到登录 Cookie'} · {credentials.length} 组凭据
+                      {cookieSummary?.has_cookies ? '已检测到持久登录态' : '未检测到登录 Cookie'} ·{' '}
+                      {credentials.length} 组凭据
                     </span>
                   </div>
                   <div className="site-actions">
-                    <Button size="sm" onClick={() => void openCredentialLoginPage(loginUrlForSite(site))}>打开登录页</Button>
+                    <Button
+                      size="sm"
+                      onClick={() => void openCredentialLoginPage(loginUrlForSite(site))}
+                    >
+                      打开登录页
+                    </Button>
                   </div>
                 </div>
               ))}
@@ -173,11 +205,16 @@ export function CredentialsPage({ onClose }: CredentialsPageProps) {
                 onChange={(event) => setRatingHandle(event.target.value)}
                 placeholder="Codeforces Handle"
               />
-              <Button variant="primary" onClick={() => void handleRatingSync()}>绑定并同步</Button>
+              <Button variant="primary" onClick={() => void handleRatingSync()}>
+                绑定并同步
+              </Button>
             </div>
             {ratingStatus && <div className="sync-status">{ratingStatus}</div>}
             {ratingInfo && (
-              <div className="sync-hint">{ratingInfo.handle} · 当前 {ratingInfo.current_rating ?? '-'} · 最高 {ratingInfo.peak_rating ?? '-'}</div>
+              <div className="sync-hint">
+                {ratingInfo.handle} · 当前 {ratingInfo.current_rating ?? '-'} · 最高{' '}
+                {ratingInfo.peak_rating ?? '-'}
+              </div>
             )}
           </div>
         </div>
@@ -188,33 +225,61 @@ export function CredentialsPage({ onClose }: CredentialsPageProps) {
             {status && <div className="sync-status">{status}</div>}
             {credentialCount === 0 && !loading && <Empty compact>暂无保存的凭据</Empty>}
             <div className="site-list">
-              {siteStates.flatMap(({ site, credentials }) => credentials.map((credential) => (
-                <div key={credential.credentialId} className="site-item">
-                  <div className="site-info">
-                    <span className="site-name">{credential.displayName || credential.username}</span>
-                    <span className="site-domains">{site.name} · {credential.username} · {formatUsedAt(credential.lastUsedAt)}</span>
-                    {editingId === credential.credentialId && (
-                      <div className="settings-row">
-                        <Input value={editingName} onChange={(event) => setEditingName(event.target.value)} placeholder="账户名称" />
-                        <Button size="sm" variant="primary" onClick={() => void handleRename(credential.credentialId)}>保存</Button>
-                        <Button size="sm" variant="ghost" onClick={() => setEditingId(null)}>取消</Button>
-                      </div>
-                    )}
+              {siteStates.flatMap(({ site, credentials }) =>
+                credentials.map((credential) => (
+                  <div key={credential.credentialId} className="site-item">
+                    <div className="site-info">
+                      <span className="site-name">
+                        {credential.displayName || credential.username}
+                      </span>
+                      <span className="site-domains">
+                        {site.name} · {credential.username} · {formatUsedAt(credential.lastUsedAt)}
+                      </span>
+                      {editingId === credential.credentialId && (
+                        <div className="settings-row">
+                          <Input
+                            value={editingName}
+                            onChange={(event) => setEditingName(event.target.value)}
+                            placeholder="账户名称"
+                          />
+                          <Button
+                            size="sm"
+                            variant="primary"
+                            onClick={() => void handleRename(credential.credentialId)}
+                          >
+                            保存
+                          </Button>
+                          <Button size="sm" variant="ghost" onClick={() => setEditingId(null)}>
+                            取消
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                    <div className="site-actions">
+                      <IconButton
+                        icon="edit"
+                        title="重命名账户"
+                        onClick={() => {
+                          setEditingId(credential.credentialId)
+                          setEditingName(credential.displayName ?? '')
+                        }}
+                      />
+                      <IconButton
+                        icon="trash"
+                        title="删除凭据"
+                        danger
+                        onClick={() => setPendingDelete(credential)}
+                      />
+                      <Button
+                        size="sm"
+                        onClick={() => void openCredentialLoginPage(loginUrlForSite(site))}
+                      >
+                        更新密码
+                      </Button>
+                    </div>
                   </div>
-                  <div className="site-actions">
-                    <IconButton
-                      icon="edit"
-                      title="重命名账户"
-                      onClick={() => {
-                        setEditingId(credential.credentialId)
-                        setEditingName(credential.displayName ?? '')
-                      }}
-                    />
-                    <IconButton icon="trash" title="删除凭据" danger onClick={() => setPendingDelete(credential)} />
-                    <Button size="sm" onClick={() => void openCredentialLoginPage(loginUrlForSite(site))}>更新密码</Button>
-                  </div>
-                </div>
-              )))}
+                )),
+              )}
             </div>
           </div>
         </div>
@@ -222,7 +287,11 @@ export function CredentialsPage({ onClose }: CredentialsPageProps) {
       <ConfirmDialog
         open={pendingDelete !== null}
         title="删除凭据"
-        description={pendingDelete ? `确定删除账户「${pendingDelete.displayName || pendingDelete.username}」保存的凭据？` : ''}
+        description={
+          pendingDelete
+            ? `确定删除账户「${pendingDelete.displayName || pendingDelete.username}」保存的凭据？`
+            : ''
+        }
         danger
         confirmText="删除"
         onConfirm={() => {

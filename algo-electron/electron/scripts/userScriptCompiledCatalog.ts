@@ -29,6 +29,7 @@ export interface UserScriptCompiledCatalogBuildResult {
 
 export function buildUserScriptCompiledCatalogPreload(
   snapshot: UserScriptRuntimeNavigationSnapshot,
+  options?: { exposeInvalidationMarker?: boolean },
 ): UserScriptCompiledCatalogBuildResult {
   const snapshotBytes = new TextEncoder().encode(JSON.stringify(snapshot)).byteLength
   if (snapshotBytes > USER_SCRIPT_RUNTIME_MAX_SNAPSHOT_BYTES) {
@@ -40,12 +41,13 @@ export function buildUserScriptCompiledCatalogPreload(
     targetOrigin: 'https://catalog.invalid',
     generation: snapshot.generation,
     scripts: snapshot.scripts.map(toMainWorldScript),
+    exposeInvalidationMarker: options?.exposeInvalidationMarker,
   })
   const body = built.execution.args[1]
   const compiled = new Function('payloadArg', 'sendArg', 'subscribeArg', body)
   const entry = `[${JSON.stringify(catalogGenerationKey(snapshot.generation))},{func:${compiled.toString()},payload:${JSON.stringify(built.execution.args[0])},body:${JSON.stringify(body)}}]`
 
-  const rejectedScriptIds = built.rejectedScripts.map(script => script.id)
+  const rejectedScriptIds = built.rejectedScripts.map((script) => script.id)
 
   return {
     source: [

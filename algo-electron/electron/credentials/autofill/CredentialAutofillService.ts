@@ -1,19 +1,16 @@
 import { app, type App, type Session, type WebContents } from 'electron'
 import { randomUUID } from 'node:crypto'
 import { getAllSites } from '../../db/repositories/siteRepository'
-import { CredentialVault, type CredentialAutofillValue, type CredentialSummary } from '../CredentialVault'
+import { CredentialVault, type CredentialAutofillValue } from '../CredentialVault'
 import {
   CredentialAutofillCoordinator,
   type AutofillWebContents,
   type CredentialAutofillSelectionRequest,
 } from './autofillServiceCore'
-
-export interface CredentialAutofillPrompt {
-  requestId: string
-  siteId: string
-  pageUrl: string
-  credentials: Array<Pick<CredentialSummary, 'credentialId' | 'siteId' | 'username' | 'displayName' | 'masked'>>
-}
+import type {
+  CredentialAutofillPrompt,
+  CredentialSummary,
+} from '../../../src/shared/types/credentials'
 
 export interface CredentialAutofillSelectionHost {
   getWindowId: (contents: AutofillWebContents) => string | null
@@ -47,13 +44,17 @@ export class CredentialAutofillService {
   private readonly selectionHost: CredentialAutofillSelectionHost | null
   private readonly pendingSelections = new Map<string, PendingSelection>()
 
-  constructor(dependencies: { app?: Pick<App, 'on' | 'off'>; ojSession: Session }, options: CredentialAutofillServiceOptions = {}) {
+  constructor(
+    dependencies: { app?: Pick<App, 'on' | 'off'>; ojSession: Session },
+    options: CredentialAutofillServiceOptions = {},
+  ) {
     const vault = options.vault ?? new CredentialVault()
     this.selectionHost = options.selectionHost ?? null
     this.coordinator = new CredentialAutofillCoordinator({
       getSites: options.getSites ?? getAllSites,
       listCredentials: (siteId): CredentialSummary[] => vault.list(siteId),
-      getForAutofill: (credentialId): Promise<CredentialAutofillValue | null> => vault.getForAutofill(credentialId),
+      getForAutofill: (credentialId): Promise<CredentialAutofillValue | null> =>
+        vault.getForAutofill(credentialId),
       selectCredential: (contents, request) => this.selectCredential(contents, request),
     })
     this.app = dependencies.app ?? app
@@ -75,7 +76,8 @@ export class CredentialAutofillService {
 
   dispose(): void {
     this.app.off('web-contents-created', this.listener)
-    for (const requestId of [...this.pendingSelections.keys()]) this.finishSelection(requestId, null)
+    for (const requestId of [...this.pendingSelections.keys()])
+      this.finishSelection(requestId, null)
   }
 
   getCoordinatorForTests(): CredentialAutofillCoordinator {
@@ -92,7 +94,10 @@ export class CredentialAutofillService {
   respondSelection(windowId: string, requestId: string, credentialId: string | null): boolean {
     const pending = this.pendingSelections.get(requestId)
     if (!pending || pending.windowId !== windowId) return false
-    if (credentialId !== null && !pending.prompt.credentials.some((credential) => credential.credentialId === credentialId)) {
+    if (
+      credentialId !== null &&
+      !pending.prompt.credentials.some((credential) => credential.credentialId === credentialId)
+    ) {
       return false
     }
     this.finishSelection(requestId, credentialId)
@@ -114,13 +119,15 @@ export class CredentialAutofillService {
       requestId,
       siteId: request.siteId,
       pageUrl: request.pageUrl,
-      credentials: request.credentials.map(({ credentialId, siteId, username, displayName, masked }) => ({
-        credentialId,
-        siteId,
-        username,
-        displayName,
-        masked,
-      })),
+      credentials: request.credentials.map(
+        ({ credentialId, siteId, username, displayName, masked }) => ({
+          credentialId,
+          siteId,
+          username,
+          displayName,
+          masked,
+        }),
+      ),
     }
     return new Promise((resolve) => {
       const timeout = setTimeout(() => this.finishSelection(requestId, null), 30_000)

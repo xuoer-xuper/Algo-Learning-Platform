@@ -1,12 +1,13 @@
+import { emitDataChanged } from '../../../shared/dataEvents'
 import crypto from 'node:crypto'
 import { getDb } from '../../connection'
-import { nowBeijing } from '../../../shared/time'
+import { nowMillis } from '../../../shared/time'
 import type {
   CoachIntervention,
   CoachInterventionLevel,
   CoachInterventionSourceType,
   CoachInterventionUserAction,
-} from '../../../coach/types'
+} from '../../../../src/shared/types/coach'
 
 /**
  * Coach 干预与比赛模式审计 repository。
@@ -34,44 +35,47 @@ interface CoachInterventionRow {
   problem_id: string | null
   platform: string | null
   session_id: string | null
-  created_at: string
+  created_at: number
   is_contest_mode: number
   contest_url: string | null
-  contest_start: string | null
-  contest_end: string | null
+  contest_start: number | null
+  contest_end: number | null
   zero_intervention: number
 }
 
-export function insertCoachIntervention(
-  intervention: CoachIntervention,
-): CoachIntervention {
+export function insertCoachIntervention(intervention: CoachIntervention): CoachIntervention {
   const db = getDb()
-  db.prepare(`
+  const result = db
+    .prepare(
+      `
     INSERT OR IGNORE INTO coach_interventions
       (intervention_id, event_id, trigger_reason, intervention_level,
        source_type, message, related_tags_json, user_action,
        problem_id, platform, session_id, created_at,
        is_contest_mode, contest_url, contest_start, contest_end, zero_intervention)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(
-    intervention.intervention_id,
-    intervention.event_id,
-    intervention.trigger_reason,
-    intervention.intervention_level,
-    intervention.source_type,
-    intervention.message,
-    JSON.stringify(intervention.related_tags),
-    intervention.user_action,
-    intervention.problem_id,
-    intervention.platform,
-    intervention.session_id,
-    intervention.created_at,
-    intervention.is_contest_mode ? 1 : 0,
-    intervention.contest_url,
-    intervention.contest_start,
-    intervention.contest_end,
-    intervention.zero_intervention ? 1 : 0,
-  )
+  `,
+    )
+    .run(
+      intervention.intervention_id,
+      intervention.event_id,
+      intervention.trigger_reason,
+      intervention.intervention_level,
+      intervention.source_type,
+      intervention.message,
+      JSON.stringify(intervention.related_tags),
+      intervention.user_action,
+      intervention.problem_id,
+      intervention.platform,
+      intervention.session_id,
+      intervention.created_at,
+      intervention.is_contest_mode ? 1 : 0,
+      intervention.contest_url,
+      intervention.contest_start,
+      intervention.contest_end,
+      intervention.zero_intervention ? 1 : 0,
+    )
+  if (result.changes > 0) emitDataChanged(['coach'])
   return intervention
 }
 
@@ -88,8 +92,8 @@ export function buildCoachIntervention(input: {
   session_id?: string | null
   is_contest_mode?: boolean
   contest_url?: string | null
-  contest_start?: string | null
-  contest_end?: string | null
+  contest_start?: number | null
+  contest_end?: number | null
   zero_intervention?: boolean
 }): CoachIntervention {
   return {
@@ -104,7 +108,7 @@ export function buildCoachIntervention(input: {
     problem_id: input.problem_id ?? null,
     platform: input.platform ?? null,
     session_id: input.session_id ?? null,
-    created_at: nowBeijing(),
+    created_at: nowMillis(),
     is_contest_mode: input.is_contest_mode ?? false,
     contest_url: input.contest_url ?? null,
     contest_start: input.contest_start ?? null,
@@ -118,15 +122,14 @@ export function updateInterventionUserAction(
   action: CoachInterventionUserAction,
 ): boolean {
   const db = getDb()
-  const result = db.prepare(
-    'UPDATE coach_interventions SET user_action = ? WHERE intervention_id = ?',
-  ).run(action, interventionId)
+  const result = db
+    .prepare('UPDATE coach_interventions SET user_action = ? WHERE intervention_id = ?')
+    .run(action, interventionId)
+  if (result.changes > 0) emitDataChanged(['coach'])
   return result.changes > 0
 }
 
-export function getCoachIntervention(
-  interventionId: string,
-): CoachIntervention | null {
+export function getCoachIntervention(interventionId: string): CoachIntervention | null {
   const db = getDb()
   const row = db
     .prepare('SELECT * FROM coach_interventions WHERE intervention_id = ?')
@@ -137,17 +140,12 @@ export function getCoachIntervention(
 export function listCoachInterventions(limit = 50): CoachIntervention[] {
   const db = getDb()
   const rows = db
-    .prepare(
-      'SELECT * FROM coach_interventions ORDER BY created_at DESC LIMIT ?',
-    )
+    .prepare('SELECT * FROM coach_interventions ORDER BY created_at DESC LIMIT ?')
     .all(limit) as CoachInterventionRow[]
   return rows.map(deserializeIntervention)
 }
 
-export function listCoachInterventionsSince(
-  since: string,
-  limit = 500,
-): CoachIntervention[] {
+export function listCoachInterventionsSince(since: number, limit = 500): CoachIntervention[] {
   const db = getDb()
   const rows = db
     .prepare(
@@ -174,7 +172,7 @@ export function listCoachInterventionsByProblem(
   return rows.map(deserializeIntervention)
 }
 
-export function countCoachInterventionsSince(since: string): number {
+export function countCoachInterventionsSince(since: number): number {
   const db = getDb()
   const row = db
     .prepare(
@@ -185,10 +183,7 @@ export function countCoachInterventionsSince(since: string): number {
   return row.n
 }
 
-export function countUserActionSince(
-  action: CoachInterventionUserAction,
-  since: string,
-): number {
+export function countUserActionSince(action: CoachInterventionUserAction, since: number): number {
   const db = getDb()
   const row = db
     .prepare(
@@ -206,36 +201,38 @@ export interface ContestAuditRow {
   contest_url: string
   platform: string
   contest_id: string
-  contest_start: string
-  contest_end: string
+  contest_start: number
+  contest_end: number
   duration_seconds: number
   zero_intervention: boolean
   had_any_intervention: boolean
-  exported_at: string
+  exported_at: number
 }
 
-export function listContestAuditRecords(since?: string): ContestAuditRow[] {
+export function listContestAuditRecords(since?: number): ContestAuditRow[] {
   const db = getDb()
-  const rows = (since
-    ? db
-        .prepare(
-          `SELECT * FROM coach_interventions
+  const rows = (
+    since !== undefined
+      ? db
+          .prepare(
+            `SELECT * FROM coach_interventions
            WHERE source_type = 'contest_audit' AND created_at >= ?
            ORDER BY contest_start ASC`,
-        )
-        .all(since)
-    : db
-        .prepare(
-          `SELECT * FROM coach_interventions
+          )
+          .all(since)
+      : db
+          .prepare(
+            `SELECT * FROM coach_interventions
            WHERE source_type = 'contest_audit'
            ORDER BY contest_start ASC`,
-        )
-        .all()) as CoachInterventionRow[]
+          )
+          .all()
+  ) as CoachInterventionRow[]
 
   return rows.map((row) => {
     const start = row.contest_start ?? row.created_at
     const end = row.contest_end ?? row.created_at
-    const duration = Math.max(0, Math.floor((Date.parse(end) - Date.parse(start)) / 1000))
+    const duration = Math.max(0, Math.floor((end - start) / 1000))
     return {
       audit_id: row.intervention_id,
       contest_url: row.contest_url ?? '',
@@ -246,12 +243,12 @@ export function listContestAuditRecords(since?: string): ContestAuditRow[] {
       duration_seconds: duration,
       zero_intervention: row.zero_intervention === 1,
       had_any_intervention: row.zero_intervention === 0,
-      exported_at: nowBeijing(),
+      exported_at: nowMillis(),
     }
   })
 }
 
-export function countContestAuditSince(since: string): number {
+export function countContestAuditSince(since: number): number {
   const db = getDb()
   const row = db
     .prepare(
@@ -262,7 +259,7 @@ export function countContestAuditSince(since: string): number {
   return row.n
 }
 
-export function sumContestSecondsSince(since: string): number {
+export function sumContestSecondsSince(since: number): number {
   const db = getDb()
   const rows = db
     .prepare(
@@ -270,11 +267,11 @@ export function sumContestSecondsSince(since: string): number {
        WHERE source_type = 'contest_audit' AND created_at >= ?
          AND contest_start IS NOT NULL AND contest_end IS NOT NULL`,
     )
-    .all(since) as { contest_start: string; contest_end: string }[]
+    .all(since) as { contest_start: number; contest_end: number }[]
   let total = 0
   for (const r of rows) {
-    const start = Date.parse(r.contest_start)
-    const end = Date.parse(r.contest_end)
+    const start = r.contest_start
+    const end = r.contest_end
     if (!Number.isNaN(start) && !Number.isNaN(end) && end > start) {
       total += Math.floor((end - start) / 1000)
     }
@@ -287,7 +284,7 @@ function deserializeIntervention(row: CoachInterventionRow): CoachIntervention {
     intervention_id: row.intervention_id,
     event_id: row.event_id,
     trigger_reason: row.trigger_reason,
-    intervention_level: row.intervention_level as CoachInterventionLevel,
+    intervention_level: row.intervention_level,
     source_type: row.source_type as CoachInterventionSourceType,
     message: row.message,
     related_tags: parseTags(row.related_tags_json),

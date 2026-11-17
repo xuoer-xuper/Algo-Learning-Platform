@@ -1,4 +1,5 @@
-export type AIOutputType = 'review_recommendation' | 'review_plan' | 'period_summary' | 'weakness_analysis'
+export type AIOutputType =
+  'review_recommendation' | 'review_plan' | 'period_summary' | 'weakness_analysis'
 
 export type AIOutputMetadata = Record<string, unknown>
 
@@ -11,8 +12,8 @@ export interface AIOutput {
   input_summary_json: string | null
   source_refs_json: string | null
   model_info_json: string | null
-  created_at: string
-  updated_at: string
+  created_at: number
+  updated_at: number
 }
 
 export interface SaveAIOutputInput {

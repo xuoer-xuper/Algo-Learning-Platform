@@ -1,11 +1,14 @@
 import { EventEmitter } from 'node:events'
 import assert from 'node:assert/strict'
 import { afterEach, beforeEach, test, vi } from 'vitest'
-import { ipcMain, MockWebContents, MockWebFrame, resetElectronMock, session } from '../electron/electronMock'
 import {
-  registerOjWebContents,
-  resetTrustedSenderRegistry,
-} from '../../electron/ipc/trustedSender'
+  ipcMain,
+  MockWebContents,
+  MockWebFrame,
+  resetElectronMock,
+  session,
+} from '../electron/electronMock'
+import { registerOjWebContents, resetTrustedSenderRegistry } from '../../electron/ipc/trustedSender'
 import { installUserScriptRuntimeBridge } from '../../electron/scripts/userScriptRuntimeBridge'
 import { UserScriptMenuRegistry } from '../../electron/scripts/UserScriptMenuRegistry'
 import {
@@ -18,10 +21,21 @@ class MockPort extends EventEmitter {
   started = false
   sentMessages: unknown[] = []
   timeline: string[] = []
-  close(): void { this.closed = true; this.timeline.push('close'); this.emit('close') }
-  start(): void { this.started = true }
-  postMessage(message: unknown): void { this.sentMessages.push(message); this.timeline.push(`message:${(message as { type?: string }).type ?? 'unknown'}`) }
-  receive(data: unknown): void { this.emit('message', { data }) }
+  close(): void {
+    this.closed = true
+    this.timeline.push('close')
+    this.emit('close')
+  }
+  start(): void {
+    this.started = true
+  }
+  postMessage(message: unknown): void {
+    this.sentMessages.push(message)
+    this.timeline.push(`message:${(message as { type?: string }).type ?? 'unknown'}`)
+  }
+  receive(data: unknown): void {
+    this.emit('message', { data })
+  }
 }
 
 const nonce = 'a'.repeat(32)
@@ -44,10 +58,12 @@ test('registers one fixed frame preload and serves source only to a registered O
     session: ojSession as never,
     preloadPath: 'C:\\app\\userscriptBootstrapPreload.mjs',
   })
-  assert.deepStrictEqual(Array.from(ojSession.preloadScripts.values()), [{
-    type: 'frame',
-    filePath: 'C:\\app\\userscriptBootstrapPreload.mjs',
-  }])
+  assert.deepStrictEqual(Array.from(ojSession.preloadScripts.values()), [
+    {
+      type: 'frame',
+      filePath: 'C:\\app\\userscriptBootstrapPreload.mjs',
+    },
+  ])
 
   const sender = await createSender(ojSession)
   const rejectedEvent = createEvent(sender, [])
@@ -93,7 +109,9 @@ test('binds value mutations to the navigation generation, script grants, and exa
 
   sender.emit('did-finish-load')
   assert.deepStrictEqual(port.sentMessages[1], {
-    type: 'runtime:phase', generation: 1, phase: 'document-idle',
+    type: 'runtime:phase',
+    generation: 1,
+    phase: 'document-idle',
   })
 
   port.receive({ type: 'value:set', scriptId: 'script-1', key: 'count', value: 2 })
@@ -125,13 +143,17 @@ test('opens a private port for an initially unmatched frame and marks the exact 
   childFrame.url = 'https://frames.example.com/embedded'
   const childEvent = createEvent(sender, [], childFrame)
   ipcMain.emit(USER_SCRIPT_RUNTIME_INIT_CHANNEL, childEvent, {
-    nonce, frameUrl: childFrame.url, isMainFrame: false,
+    nonce,
+    frameUrl: childFrame.url,
+    isMainFrame: false,
   })
   assert.deepStrictEqual(childEvent.returnValue, { ok: true, nonce, generation: 1, scripts: [] })
 
   const port = new MockPort()
   ipcMain.emit(USER_SCRIPT_RUNTIME_PORT_CHANNEL, createEvent(sender, [port], childFrame), {
-    nonce, frameUrl: childFrame.url, generation: 1,
+    nonce,
+    frameUrl: childFrame.url,
+    generation: 1,
   })
   assert.strictEqual(port.started, true)
   sender.emit('did-frame-finish-load', {}, false, childFrame.processId, childFrame.routingId)
@@ -163,10 +185,19 @@ test('recomputes SPA matches, updates command authority, and revokes scripts tha
   ipcMain.emit(USER_SCRIPT_RUNTIME_INIT_CHANNEL, createEvent(sender, []), initPayload())
   const port = new MockPort()
   ipcMain.emit(USER_SCRIPT_RUNTIME_PORT_CHANNEL, createEvent(sender, [port]), {
-    nonce, frameUrl: sender.getURL(), generation: 1,
+    nonce,
+    frameUrl: sender.getURL(),
+    generation: 1,
   })
 
-  sender.emit('did-navigate-in-page', {}, 'https://example.com/matched', true, sender.mainFrame.processId, sender.mainFrame.routingId)
+  sender.emit(
+    'did-navigate-in-page',
+    {},
+    'https://example.com/matched',
+    true,
+    sender.mainFrame.processId,
+    sender.mainFrame.routingId,
+  )
   assert.deepStrictEqual(port.sentMessages.at(-1), {
     type: 'runtime:sync',
     generation: 1,
@@ -177,14 +208,26 @@ test('recomputes SPA matches, updates command authority, and revokes scripts tha
   port.receive({ type: 'value:set', scriptId: 'script-1', key: 'count', value: 2 })
   assert.deepStrictEqual(runtime.setValue.mock.calls, [['script-1', 'count', 2]])
 
-  sender.emit('did-navigate-in-page', {}, 'https://example.com/unmatched', true, sender.mainFrame.processId, sender.mainFrame.routingId)
+  sender.emit(
+    'did-navigate-in-page',
+    {},
+    'https://example.com/unmatched',
+    true,
+    sender.mainFrame.processId,
+    sender.mainFrame.routingId,
+  )
   assert.deepStrictEqual(port.sentMessages.at(-1), {
-    type: 'runtime:sync', generation: 1, frameUrl: 'https://example.com/unmatched',
-    scripts: [], inactiveScriptIds: ['script-1'],
+    type: 'runtime:sync',
+    generation: 1,
+    frameUrl: 'https://example.com/unmatched',
+    scripts: [],
+    inactiveScriptIds: ['script-1'],
   })
   port.receive({ type: 'value:set', scriptId: 'script-1', key: 'count', value: 3 })
   assert.strictEqual(runtime.setValue.mock.calls.length, 1)
-  assert.ok(networkProxy.abortPrefix.mock.calls.some(call => String(call[0]).includes('script-1')))
+  assert.ok(
+    networkProxy.abortPrefix.mock.calls.some((call) => String(call[0]).includes('script-1')),
+  )
   bridge.dispose()
 })
 
@@ -205,9 +248,16 @@ test('remote port close clears its network operations and menu commands', async 
   ipcMain.emit(USER_SCRIPT_RUNTIME_INIT_CHANNEL, createEvent(sender, []), initPayload())
   const port = new MockPort()
   ipcMain.emit(USER_SCRIPT_RUNTIME_PORT_CHANNEL, createEvent(sender, [port]), {
-    nonce, frameUrl: sender.getURL(), generation: 1,
+    nonce,
+    frameUrl: sender.getURL(),
+    generation: 1,
   })
-  port.receive({ type: 'menu:register', scriptId: 'script-1', commandId: 'menu-1', name: 'Refresh' })
+  port.receive({
+    type: 'menu:register',
+    scriptId: 'script-1',
+    commandId: 'menu-1',
+    name: 'Refresh',
+  })
   assert.strictEqual(menuRegistry.getForWebContents(sender.id).length, 1)
 
   port.close()
@@ -245,11 +295,32 @@ test('@grant none blocks value mutations even when mutation grants are also pers
   port.receive({ type: 'value:set', scriptId: 'script-1', key: 'count', value: 2 })
   port.receive({ type: 'value:delete', scriptId: 'script-1', key: 'count' })
   port.receive({
-    type: 'xhr:start', scriptId: 'script-1', requestId: 'request-1',
-    details: { method: 'GET', url: 'https://api.example.com/', headers: {}, data: null, responseType: '', timeout: 0, anonymous: false },
+    type: 'xhr:start',
+    scriptId: 'script-1',
+    requestId: 'request-1',
+    details: {
+      method: 'GET',
+      url: 'https://api.example.com/',
+      headers: {},
+      data: null,
+      responseType: '',
+      timeout: 0,
+      anonymous: false,
+    },
   })
-  port.receive({ type: 'clipboard:set', scriptId: 'script-1', requestId: 'clipboard-1', data: 'blocked', dataType: 'text' })
-  port.receive({ type: 'menu:register', scriptId: 'script-1', commandId: 'menu-1', name: 'Blocked' })
+  port.receive({
+    type: 'clipboard:set',
+    scriptId: 'script-1',
+    requestId: 'clipboard-1',
+    data: 'blocked',
+    dataType: 'text',
+  })
+  port.receive({
+    type: 'menu:register',
+    scriptId: 'script-1',
+    commandId: 'menu-1',
+    name: 'Blocked',
+  })
   assert.strictEqual(runtime.setValue.mock.calls.length, 0)
   assert.strictEqual(runtime.deleteValue.mock.calls.length, 0)
   assert.strictEqual(networkProxy.start.mock.calls.length, 0)
@@ -261,7 +332,10 @@ test('@grant none blocks value mutations even when mutation grants are also pers
 test('routes granted network, clipboard, and menu commands and revokes them on generation change', async () => {
   const ojSession = session.fromPartition('persist:oj-main')
   const runtime = createRuntime([
-    'GM_xmlhttpRequest', 'GM_setClipboard', 'GM_registerMenuCommand', 'GM_unregisterMenuCommand',
+    'GM_xmlhttpRequest',
+    'GM_setClipboard',
+    'GM_registerMenuCommand',
+    'GM_unregisterMenuCommand',
   ])
   const networkProxy = { start: vi.fn(), abort: vi.fn(), abortPrefix: vi.fn() }
   const menuRegistry = new UserScriptMenuRegistry()
@@ -285,8 +359,18 @@ test('routes granted network, clipboard, and menu commands and revokes them on g
   })
 
   port.receive({
-    type: 'xhr:start', scriptId: 'script-1', requestId: 'request-1',
-    details: { method: 'GET', url: 'https://api.example.com/', headers: {}, data: null, responseType: '', timeout: 0, anonymous: false },
+    type: 'xhr:start',
+    scriptId: 'script-1',
+    requestId: 'request-1',
+    details: {
+      method: 'GET',
+      url: 'https://api.example.com/',
+      headers: {},
+      data: null,
+      responseType: '',
+      timeout: 0,
+      anonymous: false,
+    },
   })
   assert.strictEqual(networkProxy.start.mock.calls.length, 1)
   assert.deepStrictEqual(networkProxy.start.mock.calls[0][1], {
@@ -297,22 +381,43 @@ test('routes granted network, clipboard, and menu commands and revokes them on g
     webContentsId: sender.id,
   })
   networkProxy.start.mock.calls[0][4]({
-    type: 'xhr:failed', requestId: 'request-1', reason: 'denied',
+    type: 'xhr:failed',
+    requestId: 'request-1',
+    reason: 'denied',
   })
   assert.deepStrictEqual(port.sentMessages.at(-1), {
-    type: 'xhr:failed', requestId: 'request-1', reason: 'denied',
+    type: 'xhr:failed',
+    requestId: 'request-1',
+    reason: 'denied',
   })
 
-  port.receive({ type: 'clipboard:set', scriptId: 'script-1', requestId: 'clipboard-1', data: 'answer', dataType: 'text' })
+  port.receive({
+    type: 'clipboard:set',
+    scriptId: 'script-1',
+    requestId: 'clipboard-1',
+    data: 'answer',
+    dataType: 'text',
+  })
   assert.deepStrictEqual(writeClipboard.mock.calls, [['answer', 'text']])
-  assert.deepStrictEqual(port.sentMessages.at(-1), { type: 'clipboard:result', requestId: 'clipboard-1', ok: true })
+  assert.deepStrictEqual(port.sentMessages.at(-1), {
+    type: 'clipboard:result',
+    requestId: 'clipboard-1',
+    ok: true,
+  })
 
-  port.receive({ type: 'menu:register', scriptId: 'script-1', commandId: 'menu-1', name: 'Refresh' })
+  port.receive({
+    type: 'menu:register',
+    scriptId: 'script-1',
+    commandId: 'menu-1',
+    name: 'Refresh',
+  })
   const commands = menuRegistry.getForWebContents(sender.id)
   assert.strictEqual(commands.length, 1)
   commands[0].invoke()
   assert.deepStrictEqual(port.sentMessages.at(-1), {
-    type: 'menu:invoke', scriptId: 'script-1', commandId: 'menu-1',
+    type: 'menu:invoke',
+    scriptId: 'script-1',
+    commandId: 'menu-1',
   })
 
   runtime.advanceGeneration()
@@ -366,20 +471,47 @@ test('rejects stale or mismatched port handoffs', async () => {
   bridge.dispose()
 })
 
+test('invalidates a stale pending runtime before rejecting its late port handoff', async () => {
+  const ojSession = session.fromPartition('persist:oj-main')
+  const runtime = createRuntime()
+  const bridge = installUserScriptRuntimeBridge({
+    runtime: runtime as never,
+    session: ojSession as never,
+    preloadPath: 'C:\\app\\userscriptBootstrapPreload.mjs',
+  })
+  const sender = await createSender(ojSession)
+  registerOjWebContents(sender)
+  ipcMain.emit(USER_SCRIPT_RUNTIME_INIT_CHANNEL, createEvent(sender, []), initPayload())
+
+  runtime.advanceGeneration()
+  const latePort = new MockPort()
+  ipcMain.emit(USER_SCRIPT_RUNTIME_PORT_CHANNEL, createEvent(sender, [latePort]), {
+    nonce,
+    frameUrl: sender.getURL(),
+    generation: 1,
+  })
+  assert.deepStrictEqual(latePort.sentMessages, [{ type: 'runtime:invalidate', generation: 1 }])
+  assert.strictEqual(latePort.closed, true)
+  bridge.dispose()
+})
+
 function createRuntime(grants?: string[]) {
   let generationListener: ((generation: number) => void) | null = null
   const runtime = {
     generation: 1,
     // 形参照生产签名写全，哪怕默认实现不看它们：用例要 mockImplementation 成
     // 按 frameUrl 分支的版本，替身的形参表少一个，那次覆盖就过不了类型检查。
-    getNavigationSnapshot: vi.fn((_frameUrl: string, _isMainFrame: boolean) => (
-      { generation: 1, scripts: [expectScriptSnapshot(grants)] }
-    )),
+    getNavigationSnapshot: vi.fn((_frameUrl: string, _isMainFrame: boolean) => ({
+      generation: 1,
+      scripts: [expectScriptSnapshot(grants)],
+    })),
     setValue: vi.fn(),
     deleteValue: vi.fn(),
     addGenerationChangeListener: vi.fn((listener: (generation: number) => void) => {
       generationListener = listener
-      return () => { generationListener = null }
+      return () => {
+        generationListener = null
+      }
     }),
     advanceGeneration: () => {
       runtime.generation += 1
@@ -406,7 +538,9 @@ function expectScriptSnapshot(grants = ['GM_getValue', 'GM_setValue', 'GM_delete
   }
 }
 
-async function createSender(ojSession: ReturnType<typeof session.fromPartition>): Promise<MockWebContents> {
+async function createSender(
+  ojSession: ReturnType<typeof session.fromPartition>,
+): Promise<MockWebContents> {
   const sender = new MockWebContents()
   Object.defineProperty(sender, 'session', { value: ojSession })
   await sender.loadURL('https://example.com/problem/1')
@@ -417,7 +551,11 @@ function initPayload() {
   return { nonce, frameUrl: 'https://example.com/problem/1', isMainFrame: true }
 }
 
-function createEvent(sender: MockWebContents, ports: MockPort[], senderFrame: MockWebFrame = sender.mainFrame) {
+function createEvent(
+  sender: MockWebContents,
+  ports: MockPort[],
+  senderFrame: MockWebFrame = sender.mainFrame,
+) {
   return {
     sender,
     senderFrame,

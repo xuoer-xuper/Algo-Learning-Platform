@@ -12,16 +12,22 @@ import type {
   SiteCredentialSummary,
 } from '../../electron/db/repositories/credentialRepository'
 
-function createHarness(options: {
-  available?: boolean
-  encrypted?: Buffer
-  decryptResults?: Array<{ result: string; shouldReEncrypt: boolean }>
-  getCredential?: SiteCredential | null
-} = {}) {
+function createHarness(
+  options: {
+    available?: boolean
+    encrypted?: Buffer
+    decryptResults?: Array<{ result: string; shouldReEncrypt: boolean }>
+    getCredential?: SiteCredential | null
+  } = {},
+) {
   const calls = {
     encrypt: [] as string[],
     decrypt: [] as Buffer[],
-    upsert: [] as Array<{ siteId: string; username: string; secretEnvelope: CredentialSecretEnvelopeV1 }>,
+    upsert: [] as Array<{
+      siteId: string
+      username: string
+      secretEnvelope: CredentialSecretEnvelopeV1
+    }>,
     marked: [] as string[],
   }
   let nextId = 'credential-1'
@@ -31,8 +37,8 @@ function createHarness(options: {
     username: 'alice',
     display_name: null,
     last_used_at: null,
-    created_at: '2026-08-19 10:00:00',
-    updated_at: '2026-08-19 10:00:00',
+    created_at: Date.parse('2026-08-19 10:00:00'),
+    updated_at: Date.parse('2026-08-19 10:00:00'),
   }
   let credential = options.getCredential ?? null
   const repository: CredentialRepository = {
@@ -52,10 +58,14 @@ function createHarness(options: {
       }
       return nextId
     },
-    listCredentials: (siteId) => siteId && siteId !== summary.site_id ? [] : [{ ...summary, id: nextId }],
+    listCredentials: (siteId) =>
+      siteId && siteId !== summary.site_id ? [] : [{ ...summary, id: nextId }],
     getCredentialById: () => credential,
     softDeleteCredential: () => true,
-    markCredentialUsed: (id) => { calls.marked.push(id); return true },
+    markCredentialUsed: (id) => {
+      calls.marked.push(id)
+      return true
+    },
     renameCredential: (_id, displayName) => {
       summary.display_name = displayName
       return true
@@ -82,7 +92,8 @@ test('rejects save when system encryption is unavailable without touching storag
   const { vault, calls } = createHarness({ available: false })
   await assert.rejects(
     vault.save({ siteId: 'codeforces', username: 'alice', password: 'secret' }),
-    (error: unknown) => error instanceof CredentialVaultError && error.code === 'encryption-unavailable',
+    (error: unknown) =>
+      error instanceof CredentialVaultError && error.code === 'encryption-unavailable',
   )
   assert.deepStrictEqual(calls.encrypt, [])
   assert.deepStrictEqual(calls.upsert, [])
@@ -98,8 +109,8 @@ test('save encrypts before repository write and only returns a masked renderer s
     displayName: null,
     masked: '********',
     lastUsedAt: null,
-    createdAt: '2026-08-19 10:00:00',
-    updatedAt: '2026-08-19 10:00:00',
+    createdAt: Date.parse('2026-08-19 10:00:00'),
+    updatedAt: Date.parse('2026-08-19 10:00:00'),
   })
   assert.deepStrictEqual(calls.encrypt, ['secret'])
   assert.strictEqual(calls.upsert.length, 1)
@@ -124,8 +135,8 @@ test('getForAutofill rejects unsupported envelopes and never falls back to plain
     secret_envelope: { version: 9, provider: 'legacy', ciphertextBase64: 'c2VjcmV0' },
     last_used_at: null,
     sync_excluded: true,
-    created_at: '2026-08-19 10:00:00',
-    updated_at: '2026-08-19 10:00:00',
+    created_at: Date.parse('2026-08-19 10:00:00'),
+    updated_at: Date.parse('2026-08-19 10:00:00'),
   } as unknown as SiteCredential
   const { vault, calls } = createHarness({ getCredential: unsupported })
   await assert.rejects(
@@ -149,8 +160,8 @@ test('rotates an old safeStorage key before returning the main-process-only auto
     },
     last_used_at: null,
     sync_excluded: true,
-    created_at: '2026-08-19 10:00:00',
-    updated_at: '2026-08-19 10:00:00',
+    created_at: Date.parse('2026-08-19 10:00:00'),
+    updated_at: Date.parse('2026-08-19 10:00:00'),
   }
   const { vault, calls } = createHarness({
     getCredential: credential,
@@ -170,22 +181,27 @@ test('rotates an old safeStorage key before returning the main-process-only auto
   assert.strictEqual(calls.decrypt.length, 2)
   assert.deepStrictEqual(calls.encrypt, ['secret'])
   assert.strictEqual(calls.upsert.length, 1)
-  assert.strictEqual(calls.upsert[0].secretEnvelope.ciphertextBase64, Buffer.from('new-ciphertext').toString('base64'))
+  assert.strictEqual(
+    calls.upsert[0].secretEnvelope.ciphertextBase64,
+    Buffer.from('new-ciphertext').toString('base64'),
+  )
   assert.deepStrictEqual(calls.marked, ['credential-1'])
 })
 
 test('list and delete expose no envelope and preserve structured validation errors', () => {
   const { vault } = createHarness()
-  assert.deepStrictEqual(vault.list(), [{
-    credentialId: 'credential-1',
-    siteId: 'codeforces',
-    username: 'alice',
-    displayName: null,
-    masked: '********',
-    lastUsedAt: null,
-    createdAt: '2026-08-19 10:00:00',
-    updatedAt: '2026-08-19 10:00:00',
-  }])
+  assert.deepStrictEqual(vault.list(), [
+    {
+      credentialId: 'credential-1',
+      siteId: 'codeforces',
+      username: 'alice',
+      displayName: null,
+      masked: '********',
+      lastUsedAt: null,
+      createdAt: Date.parse('2026-08-19 10:00:00'),
+      updatedAt: Date.parse('2026-08-19 10:00:00'),
+    },
+  ])
   assert.strictEqual(vault.delete('credential-1'), true)
   assert.throws(
     () => vault.delete(''),

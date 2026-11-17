@@ -20,6 +20,6 @@ export const SETTINGS_SECTIONS = [
   { id: 'data', label: '数据与备份', icon: 'database' },
   { id: 'overview', label: '学习概览', icon: 'chart' },
   { id: 'diagnostics', label: '运行诊断', icon: 'bolt' },
-] as const satisfies readonly { id: string, label: string, icon: IconName }[]
+] as const satisfies readonly { id: string; label: string; icon: IconName }[]
 
-export type SettingsSectionId = typeof SETTINGS_SECTIONS[number]['id']
+export type SettingsSectionId = (typeof SETTINGS_SECTIONS)[number]['id']

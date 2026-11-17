@@ -9,10 +9,14 @@ import {
 
 describe('find-in-page command validation', () => {
   it('accepts exact bounded commands', () => {
-    expect(parseFindInPageCommand({ type: 'query', query: 'shortest path' }))
-      .toEqual({ type: 'query', query: 'shortest path' })
-    expect(parseFindInPageCommand({ type: 'query', query: '' }))
-      .toEqual({ type: 'query', query: '' })
+    expect(parseFindInPageCommand({ type: 'query', query: 'shortest path' })).toEqual({
+      type: 'query',
+      query: 'shortest path',
+    })
+    expect(parseFindInPageCommand({ type: 'query', query: '' })).toEqual({
+      type: 'query',
+      query: '',
+    })
     expect(parseFindInPageCommand({ type: 'next' })).toEqual({ type: 'next' })
     expect(parseFindInPageCommand({ type: 'previous' })).toEqual({ type: 'previous' })
     expect(parseFindInPageCommand({ type: 'close' })).toEqual({ type: 'close' })
@@ -77,32 +81,38 @@ describe('find-in-page state transitions', () => {
   })
 
   it('ignores continuation commands without an active query', () => {
-    expect(reduceFindInPageCommand(
-      { ...INITIAL_FIND_IN_PAGE_STATE },
-      { type: 'next' },
-    ).effect).toEqual({ type: 'none' })
+    expect(
+      reduceFindInPageCommand({ ...INITIAL_FIND_IN_PAGE_STATE }, { type: 'next' }).effect,
+    ).toEqual({ type: 'none' })
   })
 
   it('accepts only results for the latest registered request', () => {
-    const state = registerFindInPageRequest({
-      ...INITIAL_FIND_IN_PAGE_STATE,
-      query: 'dp',
-      finalUpdate: false,
-    }, 8)
+    const state = registerFindInPageRequest(
+      {
+        ...INITIAL_FIND_IN_PAGE_STATE,
+        query: 'dp',
+        finalUpdate: false,
+      },
+      8,
+    )
 
-    expect(applyFindInPageResult(state, {
-      requestId: 7,
-      activeMatchOrdinal: 1,
-      matches: 3,
-      finalUpdate: true,
-    })).toBeNull()
-    expect(applyFindInPageResult(state, {
-      requestId: 8,
-      activeMatchOrdinal: 2,
-      matches: 3,
-      finalUpdate: true,
-      selectionArea: { x: 0, y: 0, width: 10, height: 10 },
-    })).toEqual({
+    expect(
+      applyFindInPageResult(state, {
+        requestId: 7,
+        activeMatchOrdinal: 1,
+        matches: 3,
+        finalUpdate: true,
+      }),
+    ).toBeNull()
+    expect(
+      applyFindInPageResult(state, {
+        requestId: 8,
+        activeMatchOrdinal: 2,
+        matches: 3,
+        finalUpdate: true,
+        selectionArea: { x: 0, y: 0, width: 10, height: 10 },
+      }),
+    ).toEqual({
       ...state,
       activeMatchOrdinal: 2,
       matches: 3,

@@ -1,12 +1,9 @@
 import crypto from 'node:crypto'
+import { nowMillis } from '../shared/time'
 import type { SubmissionNotification } from '../submissions/SubmissionWatcherCore'
 import type { ProblemIdentity } from '../shared/types'
 import type { Verdict } from '../shared/types'
-import type {
-  CoachEvent,
-  CoachEventEvidence,
-  CoachEventType,
-} from './types'
+import type { CoachEvent, CoachEventEvidence, CoachEventType } from '../../src/shared/types/coach'
 
 /**
  * CoachEventBridge：把 SubmissionWatcher 的提交检测通知与
@@ -29,7 +26,15 @@ import type {
 /** Verdict 是否为"错误"（计入 wrong_count） */
 export function isWrongVerdict(verdict: string): boolean {
   const v = verdict.toUpperCase()
-  return v === 'WA' || v === 'TLE' || v === 'MLE' || v === 'RE' || v === 'CE' || v === 'PE' || v === 'OLE'
+  return (
+    v === 'WA' ||
+    v === 'TLE' ||
+    v === 'MLE' ||
+    v === 'RE' ||
+    v === 'CE' ||
+    v === 'PE' ||
+    v === 'OLE'
+  )
 }
 
 /** Verdict 是否为 AC */
@@ -110,34 +115,38 @@ export class CoachEventBridge {
 
     // 1. multiple_wrong：同题累计 WA 类 ≥ 2
     if (isWrongVerdict(verdict) && state.wrongCount >= 2 && previousWrongCount < 2) {
-      events.push(this.buildEvent({
-        session_id: sessionId,
-        event_type: 'multiple_wrong',
-        severity: state.wrongCount >= 3 ? 'critical' : 'warn',
-        score: 60 + state.wrongCount * 10,
-        problem_id: problemId,
-        platform,
-        evidence: {
-          verdict,
-          wrong_count: state.wrongCount,
-          problem_rating: rating ?? undefined,
-        },
-      }))
+      events.push(
+        this.buildEvent({
+          session_id: sessionId,
+          event_type: 'multiple_wrong',
+          severity: state.wrongCount >= 3 ? 'critical' : 'warn',
+          score: 60 + state.wrongCount * 10,
+          problem_id: problemId,
+          platform,
+          evidence: {
+            verdict,
+            wrong_count: state.wrongCount,
+            problem_rating: rating ?? undefined,
+          },
+        }),
+      )
     } else if (isWrongVerdict(verdict) && state.wrongCount >= 2) {
       // 已达到 multiple_wrong 后续仍写一条事件（RuleEngine 内部节流）
-      events.push(this.buildEvent({
-        session_id: sessionId,
-        event_type: 'multiple_wrong',
-        severity: state.wrongCount >= 3 ? 'critical' : 'warn',
-        score: 60 + state.wrongCount * 10,
-        problem_id: problemId,
-        platform,
-        evidence: {
-          verdict,
-          wrong_count: state.wrongCount,
-          problem_rating: rating ?? undefined,
-        },
-      }))
+      events.push(
+        this.buildEvent({
+          session_id: sessionId,
+          event_type: 'multiple_wrong',
+          severity: state.wrongCount >= 3 ? 'critical' : 'warn',
+          score: 60 + state.wrongCount * 10,
+          problem_id: problemId,
+          platform,
+          evidence: {
+            verdict,
+            wrong_count: state.wrongCount,
+            problem_rating: rating ?? undefined,
+          },
+        }),
+      )
     }
 
     // 2. same_error：同题相同 verdict 连续重复 ≥ 2
@@ -151,19 +160,21 @@ export class CoachEventBridge {
           else break
         }
         if (repeat >= 2) {
-          events.push(this.buildEvent({
-            session_id: sessionId,
-            event_type: 'same_error',
-            severity: repeat >= 3 ? 'critical' : 'warn',
-            score: 55 + repeat * 10,
-            problem_id: problemId,
-            platform,
-            evidence: {
-              verdict,
-              same_verdict_repeat: repeat,
-              problem_rating: rating ?? undefined,
-            },
-          }))
+          events.push(
+            this.buildEvent({
+              session_id: sessionId,
+              event_type: 'same_error',
+              severity: repeat >= 3 ? 'critical' : 'warn',
+              score: 55 + repeat * 10,
+              problem_id: problemId,
+              platform,
+              evidence: {
+                verdict,
+                same_verdict_repeat: repeat,
+                problem_rating: rating ?? undefined,
+              },
+            }),
+          )
         }
       }
     }
@@ -171,18 +182,20 @@ export class CoachEventBridge {
     // 3. first_ac：同题首次 AC
     if (isAcVerdict(verdict) && !state.hadAc) {
       state.hadAc = true
-      events.push(this.buildEvent({
-        session_id: sessionId,
-        event_type: 'first_ac',
-        severity: 'info',
-        score: 30,
-        problem_id: problemId,
-        platform,
-        evidence: {
-          verdict,
-          problem_rating: rating ?? undefined,
-        },
-      }))
+      events.push(
+        this.buildEvent({
+          session_id: sessionId,
+          event_type: 'first_ac',
+          severity: 'info',
+          score: 30,
+          problem_id: problemId,
+          platform,
+          evidence: {
+            verdict,
+            problem_rating: rating ?? undefined,
+          },
+        }),
+      )
     }
 
     // 派发给上游
@@ -248,20 +261,7 @@ export class CoachEventBridge {
       problem_id: input.problem_id,
       platform: input.platform,
       evidence: input.evidence,
-      created_at: nowIsoLocal(),
+      created_at: nowMillis(),
     }
   }
-}
-
-// 系统本地时间字符串（与 shared/time.nowBeijing 同语义）
-function nowIsoLocal(): string {
-  const d = new Date()
-  const y = d.getFullYear()
-  const m = String(d.getMonth() + 1).padStart(2, '0')
-  const day = String(d.getDate()).padStart(2, '0')
-  const h = String(d.getHours()).padStart(2, '0')
-  const min = String(d.getMinutes()).padStart(2, '0')
-  const s = String(d.getSeconds()).padStart(2, '0')
-  const ms = String(d.getMilliseconds()).padStart(3, '0')
-  return `${y}-${m}-${day}T${h}:${min}:${s}.${ms}`
 }

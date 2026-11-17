@@ -69,7 +69,9 @@ export interface SkeletonProps {
 export function Skeleton({ rows = 1, inline = false, className, label = '加载中' }: SkeletonProps) {
   return (
     <div
-      className={['ui-skeleton', inline && 'ui-skeleton-inline', className].filter(Boolean).join(' ')}
+      className={['ui-skeleton', inline && 'ui-skeleton-inline', className]
+        .filter(Boolean)
+        .join(' ')}
       role="status"
       aria-busy="true"
       data-testid="skeleton"

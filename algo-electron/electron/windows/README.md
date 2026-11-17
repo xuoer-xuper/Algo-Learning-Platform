@@ -34,5 +34,5 @@ B3.2 已完成页面事件、Tracking、ContestGuard、实时提交和 Coach 的
 ```powershell
 cd algo-electron
 npx vitest run tests/windows tests/ipc/registerBrowserShellIpc.test.ts tests/security/trustedSender.test.ts
-npm run test:architecture
+pnpm run test:architecture
 ```

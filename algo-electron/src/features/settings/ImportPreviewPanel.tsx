@@ -1,8 +1,8 @@
 import { Button } from '../../components/ui'
-import type { ImportPreview } from './siteManagementTypes'
+import type { SiteImportPreview } from '@shared/types/sites'
 
 interface ImportPreviewPanelProps {
-  preview: ImportPreview
+  preview: SiteImportPreview
   overwriteIds: string[]
   onToggleOverwrite: (id: string) => void
   onConfirm: () => void
@@ -60,8 +60,12 @@ export function ImportPreviewPanel({
         </div>
       )}
       <div className="import-actions">
-        <Button variant="primary" onClick={onConfirm}>确认导入</Button>
-        <Button variant="ghost" onClick={onCancel}>取消</Button>
+        <Button variant="primary" onClick={onConfirm}>
+          确认导入
+        </Button>
+        <Button variant="ghost" onClick={onCancel}>
+          取消
+        </Button>
       </div>
     </div>
   )

@@ -1,6 +1,7 @@
 import { Empty, ListRow } from '../../components/ui'
 import { PLATFORM_NAMES } from '../../shared/display'
-import type { ReviewRecommendation, WeaknessItem } from './types'
+import type { ReviewRecommendation } from '@shared/types/ai'
+import type { WeaknessItem } from './types'
 
 interface AiSuggestionsPanelProps {
   recommendations: ReviewRecommendation[]
@@ -32,12 +33,15 @@ export function AiSuggestionsPanel({
                 label={`打开 ${r.title || r.platform_problem_id}`}
               >
                 <div className="ai-rec-head">
-                  <span className="ai-rec-platform">{PLATFORM_NAMES[r.platform] || r.platform}</span>
+                  <span className="ai-rec-platform">
+                    {PLATFORM_NAMES[r.platform] || r.platform}
+                  </span>
                   <span className="ai-rec-title">{r.title || r.platform_problem_id}</span>
                 </div>
                 <div className="ai-rec-reason">{r.reason}</div>
                 <div className="ai-rec-evidence">
-                  {r.source.wrong_count} 次错误 · {r.source.days_since_attempt} 天前 · 访问 {r.source.visit_count} 次
+                  {r.source.wrong_count} 次错误 · {r.source.days_since_attempt} 天前 · 访问{' '}
+                  {r.source.visit_count} 次
                 </div>
               </ListRow>
             ))
@@ -56,7 +60,10 @@ export function AiSuggestionsPanel({
                 </div>
                 <div className="ai-weak-evidence">{w.evidence}</div>
                 <div className="ai-weak-bar">
-                  <div className="ai-weak-bar-fill" style={{ width: `${Math.min(w.weakness_score, 100)}%` }} />
+                  <div
+                    className="ai-weak-bar-fill"
+                    style={{ width: `${Math.min(w.weakness_score, 100)}%` }}
+                  />
                 </div>
               </div>
             ))

@@ -1,0 +1,7 @@
+{
+  "threshold": 3,
+  "format": ["typescript", "tsx", "css"],
+  "ignore": ["tests", "dist", "dist-electron", "release", "tmp", "node_modules"],
+  "output": "tmp/jscpd",
+  "reporters": ["console", "json"]
+}

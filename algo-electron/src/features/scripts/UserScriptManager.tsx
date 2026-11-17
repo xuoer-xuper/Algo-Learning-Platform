@@ -1,4 +1,4 @@
-import { useCallback, useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { ConfirmDialog, Icon, IconButton } from '../../components/ui'
 import { errorMessage } from '../../shared/errors'
 import { UserScriptEditor } from './UserScriptEditor'
@@ -16,11 +16,13 @@ import {
   saveUserScriptSites,
   toggleUserScript,
 } from './scriptsApi'
-import type { ScriptSite, UserScriptRecord } from './types'
+import type { UserScriptRecord } from '@shared/types/scripts'
+import { useIpcQuery } from '../../hooks/useIpcQuery'
 
 export function UserScriptManager({ onClose }: { onClose: () => void }) {
-  const [scripts, setScripts] = useState<UserScriptRecord[]>([])
-  const [sites, setSites] = useState<ScriptSite[]>([])
+  const query = useIpcQuery(loadUserScriptManagerData, [], { tables: ['scripts', 'sites'] })
+  const scripts = query.data?.scripts ?? []
+  const sites = query.data?.sites ?? []
   const [editingScript, setEditingScript] = useState<UserScriptRecord | null>(null)
   const [editName, setEditName] = useState('')
   const [selectedSiteIds, setSelectedSiteIds] = useState<string[]>([])
@@ -34,21 +36,10 @@ export function UserScriptManager({ onClose }: { onClose: () => void }) {
   /* 待删除脚本 id：仅用于驱动 ConfirmDialog（替代原生 confirm） */
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
 
-  const loadScripts = useCallback(async () => {
-    const data = await loadUserScriptManagerData()
-    setScripts(data.scripts)
-    setSites(data.sites)
-    return data
-  }, [])
-
-  // loadScripts 会向外抛：调用方要么已在 try 里，要么在这里落到 errorMsg。
-  const loadScriptsGuarded = useCallback(() => {
-    void loadScripts().catch((error: unknown) => setErrorMsg(errorMessage(error)))
-  }, [loadScripts])
-
+  const loadScripts = query.refetch
   useEffect(() => {
-    loadScriptsGuarded()
-  }, [loadScriptsGuarded])
+    if (query.error) setErrorMsg(query.error.message)
+  }, [query.error])
 
   const handleEdit = (script: UserScriptRecord) => {
     setEditingScript(script)
@@ -65,7 +56,7 @@ export function UserScriptManager({ onClose }: { onClose: () => void }) {
     const requestId = codeRequestRef.current + 1
     codeRequestRef.current = requestId
     void getUserScriptCode(script.id)
-      .then(result => {
+      .then((result) => {
         if (requestId !== codeRequestRef.current) return
         setScriptCode(result.status === 'ok' ? result.code : null)
         setCodeNotice(describeUserScriptCodeView(result) ?? '')
@@ -85,7 +76,7 @@ export function UserScriptManager({ onClose }: { onClose: () => void }) {
       const id = await importUserScriptFile()
       if (id) {
         const data = await loadScripts()
-        const newScript = data.scripts.find((s) => s.id === id)
+        const newScript = data?.scripts.find((s) => s.id === id)
         if (newScript) {
           handleEdit(newScript)
         }
@@ -124,7 +115,9 @@ export function UserScriptManager({ onClose }: { onClose: () => void }) {
       const summary = await checkUserScriptUpdates()
       if (!summary) throw new Error('更新服务尚未就绪。')
       await loadScripts()
-      setUpdateMsg(`已检查 ${summary.checked} 个脚本，更新 ${summary.updated} 个，失败 ${summary.failed} 个。`)
+      setUpdateMsg(
+        `已检查 ${summary.checked} 个脚本，更新 ${summary.updated} 个，失败 ${summary.failed} 个。`,
+      )
     } catch (e: unknown) {
       setErrorMsg(errorMessage(e))
     } finally {
@@ -134,7 +127,7 @@ export function UserScriptManager({ onClose }: { onClose: () => void }) {
 
   const toggleSiteSelection = (siteId: string) => {
     if (selectedSiteIds.includes(siteId)) {
-      setSelectedSiteIds(selectedSiteIds.filter(id => id !== siteId))
+      setSelectedSiteIds(selectedSiteIds.filter((id) => id !== siteId))
     } else {
       setSelectedSiteIds([...selectedSiteIds, siteId])
     }
@@ -163,7 +156,7 @@ export function UserScriptManager({ onClose }: { onClose: () => void }) {
           onSave={handleSave}
           onOpenFolder={openUserScriptsFolder}
           onOpenEditor={() => {
-            void openUserScriptEditor(editingScript.id).then(result => {
+            void openUserScriptEditor(editingScript.id).then((result) => {
               setErrorMsg(describeUserScriptOpenEditorResult(result) ?? '')
             })
           }}

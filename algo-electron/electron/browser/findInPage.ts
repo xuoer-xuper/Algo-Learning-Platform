@@ -1,10 +1,5 @@
+import type { FindInPageCommand } from '../../src/shared/types/browser'
 export const MAX_FIND_IN_PAGE_QUERY_LENGTH = 512
-
-export type FindInPageCommand =
-  | { type: 'query'; query: string }
-  | { type: 'next' }
-  | { type: 'previous' }
-  | { type: 'close' }
 
 export interface FindInPageState {
   query: string
@@ -12,11 +7,6 @@ export interface FindInPageState {
   activeMatchOrdinal: number
   matches: number
   finalUpdate: boolean
-}
-
-export interface FindInPageViewState extends FindInPageState {
-  open: boolean
-  tabId: string | null
 }
 
 export type FindInPageEffect =
@@ -64,9 +54,11 @@ function hasOnlyKeys(value: Record<string, unknown>, keys: string[]): boolean {
 }
 
 function isValidQuery(value: unknown): value is string {
-  return typeof value === 'string'
-    && value.length <= MAX_FIND_IN_PAGE_QUERY_LENGTH
-    && !value.includes('\0')
+  return (
+    typeof value === 'string' &&
+    value.length <= MAX_FIND_IN_PAGE_QUERY_LENGTH &&
+    !value.includes('\0')
+  )
 }
 
 function createPendingState(query: string): FindInPageState {
@@ -149,13 +141,13 @@ export function applyFindInPageResult(
   if (!isRecord(value)) return null
   const { requestId, activeMatchOrdinal, matches, finalUpdate } = value
   if (
-    !Number.isInteger(requestId)
-    || !Number.isInteger(activeMatchOrdinal)
-    || !Number.isInteger(matches)
-    || typeof finalUpdate !== 'boolean'
-    || (requestId as number) < 0
-    || (activeMatchOrdinal as number) < 0
-    || (matches as number) < 0
+    !Number.isInteger(requestId) ||
+    !Number.isInteger(activeMatchOrdinal) ||
+    !Number.isInteger(matches) ||
+    typeof finalUpdate !== 'boolean' ||
+    (requestId as number) < 0 ||
+    (activeMatchOrdinal as number) < 0 ||
+    (matches as number) < 0
   ) {
     return null
   }

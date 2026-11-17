@@ -10,7 +10,7 @@ import { CoachPetWindow } from '../../electron/coach/CoachPetWindow.ts'
  * CoachPetWindow 有没有把判定真的设到 BrowserWindow 上，以及四条入口
  * （create / 切壳 / 焦点变化 / 改模式）是否都会重算。
  *
- * 替身的默认配置路径（`C:\mock-user-data\config.json`）不存在，
+ * 替身的默认配置路径（os.tmpdir() 下的 algo-electron-mock-user-data）不存在，
  * 因此 `loadCoachConfig()` 返回默认值，`create()` 起点恒为 follow 档。
  *
  * 失焦解绑是**延后复核**的（`BLUR_DETACH_VERIFY_MS`），所以凡是断言"失焦后
@@ -247,26 +247,29 @@ describe('桌宠置顶策略三模式', () => {
     pet.destroy()
   })
 
-  test.each(['follow', 'always', 'dock'] as const)('minimize preserves the %s pin policy', (mode) => {
-    resetElectronMock()
-    const { pet, petWindow } = createPet()
-    const shell = focusedShell()
-    pet.followWindow(shell as never)
-    pet.setPinMode(mode)
-    vi.advanceTimersByTime(50)
+  test.each(['follow', 'always', 'dock'] as const)(
+    'minimize preserves the %s pin policy',
+    (mode) => {
+      resetElectronMock()
+      const { pet, petWindow } = createPet()
+      const shell = focusedShell()
+      pet.followWindow(shell as never)
+      pet.setPinMode(mode)
+      vi.advanceTimersByTime(50)
 
-    shell.minimize()
-    settleBlur()
-    assert.strictEqual(petWindow.getParentWindow(), null)
-    assert.strictEqual(petWindow.isAlwaysOnTop(), mode !== 'dock')
-    assert.strictEqual(petWindow.getAlwaysOnTopLevel(), mode === 'always' ? 'floating' : 'normal')
-    assert.strictEqual(petWindow.isVisible(), true)
+      shell.minimize()
+      settleBlur()
+      assert.strictEqual(petWindow.getParentWindow(), null)
+      assert.strictEqual(petWindow.isAlwaysOnTop(), mode !== 'dock')
+      assert.strictEqual(petWindow.getAlwaysOnTopLevel(), mode === 'always' ? 'floating' : 'normal')
+      assert.strictEqual(petWindow.isVisible(), true)
 
-    shell.restore()
-    settleBlur()
-    assert.strictEqual(petWindow.isAlwaysOnTop(), mode === 'always')
-    pet.destroy()
-  })
+      shell.restore()
+      settleBlur()
+      assert.strictEqual(petWindow.isAlwaysOnTop(), mode === 'always')
+      pet.destroy()
+    },
+  )
 
   test('非法模式被拒在 setPinMode，不改动窗口', () => {
     resetElectronMock()

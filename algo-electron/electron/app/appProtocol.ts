@@ -11,7 +11,10 @@ export const SHELL_CSP = [
   "default-src 'self'",
   "script-src 'self'",
   "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: blob: note-asset:",
+  // img-src 需放行 https:：web 标签的 favicon（TabManager 从 page-favicon-updated
+  // 捕获）全是远程 https URL。壳是受信 UI（不可信 web 内容在独立 WebContentsView /
+  // persist:oj-main partition），放行仅限图片加载，其余指令不动。
+  "img-src 'self' data: blob: note-asset: https:",
   "font-src 'self' data:",
   "connect-src 'self' https: http://localhost:* ws://localhost:*",
   "object-src 'none'",
@@ -67,11 +70,17 @@ export function registerShellProtocol(rendererDist: string): void {
     try {
       const assetPath = resolveShellAsset(root, request.url)
       if (!assetPath || !fs.existsSync(assetPath) || !fs.statSync(assetPath).isFile()) {
-        return new Response('Not Found', { status: 404, headers: { 'Content-Security-Policy': SHELL_CSP } })
+        return new Response('Not Found', {
+          status: 404,
+          headers: { 'Content-Security-Policy': SHELL_CSP },
+        })
       }
       return responseWithCsp(await net.fetch(pathToFileURL(assetPath).toString()))
     } catch {
-      return new Response('Not Found', { status: 404, headers: { 'Content-Security-Policy': SHELL_CSP } })
+      return new Response('Not Found', {
+        status: 404,
+        headers: { 'Content-Security-Policy': SHELL_CSP },
+      })
     }
   })
   protocolRegistered = true

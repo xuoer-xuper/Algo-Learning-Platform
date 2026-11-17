@@ -48,19 +48,16 @@ function neverMatch(): RegExp {
 
 function isValidHostName(value: string): boolean {
   if (!value || value.length > 253 || value.includes('..')) return false
-  return value.split('.').every(label => (
-    label.length <= 63
-    && /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/i.test(label)
-  ))
+  return value
+    .split('.')
+    .every((label) => label.length <= 63 && /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/i.test(label))
 }
 
 function compileAllUrlsPattern(): RegExp {
   const http = `${asciiCaseInsensitiveLiteral('http')}${asciiCaseInsensitiveLiteral('s')}?`
   const ftp = asciiCaseInsensitiveLiteral('ftp')
   const file = asciiCaseInsensitiveLiteral('file')
-  return new RegExp(
-    `^(?:(?:${http}|${ftp})\\://[^/:?#]+(?::\\d+)?|${file}\\://)/.*(?:[?#].*)?$`,
-  )
+  return new RegExp(`^(?:(?:${http}|${ftp})\\://[^/:?#]+(?::\\d+)?|${file}\\://)/.*(?:[?#].*)?$`)
 }
 
 function compileMatchPattern(rule: string): RegExp | null {
@@ -74,9 +71,10 @@ function compileMatchPattern(rule: string): RegExp | null {
   const schemeToken = match[1].toLowerCase()
   const hostToken = match[2]
   const pathToken = match[3]
-  const schemePattern = schemeToken === '*'
-    ? `${asciiCaseInsensitiveLiteral('http')}${asciiCaseInsensitiveLiteral('s')}?`
-    : asciiCaseInsensitiveLiteral(schemeToken)
+  const schemePattern =
+    schemeToken === '*'
+      ? `${asciiCaseInsensitiveLiteral('http')}${asciiCaseInsensitiveLiteral('s')}?`
+      : asciiCaseInsensitiveLiteral(schemeToken)
 
   if (schemeToken === 'file') {
     if (hostToken) return null
@@ -185,13 +183,11 @@ export function parseScriptMetadata(code: string): UserScriptMetadata {
     else if (key === 'require' && value) {
       const reference = parseResourceReference(value)
       if (reference) meta.requires.push(reference)
-    }
-    else if (key === 'resource' && value) {
+    } else if (key === 'resource' && value) {
       const match = value.match(/^(\S+)\s+(.+)$/)
       const reference = match ? parseResourceReference(match[2]) : null
       if (match && reference) meta.resources.push({ name: match[1], ...reference })
-    }
-    else if (key === 'run-at' && value) meta.runAt = value
+    } else if (key === 'run-at' && value) meta.runAt = value
   }
   return meta
 }
@@ -212,23 +208,27 @@ function testRule(regex: RegExp, value: string): boolean {
 }
 
 /** Excludes always win, then at least one valid @match or @include must match. */
-export function isUserScriptUrlExcluded(url: string, metadata: Pick<
-  UserScriptMetadata,
-  'excludes' | 'excludeMatches'
->): boolean {
-  return metadata.excludeMatches.some(rule => testRule(matchRuleToRegExp(rule), url))
-    || metadata.excludes.some(rule => testRule(includeRuleToRegExp(rule), url))
+export function isUserScriptUrlExcluded(
+  url: string,
+  metadata: Pick<UserScriptMetadata, 'excludes' | 'excludeMatches'>,
+): boolean {
+  return (
+    metadata.excludeMatches.some((rule) => testRule(matchRuleToRegExp(rule), url)) ||
+    metadata.excludes.some((rule) => testRule(includeRuleToRegExp(rule), url))
+  )
 }
 
 /** Excludes always win, then at least one valid @match or @include must match. */
-export function matchesUserScriptUrl(url: string, metadata: Pick<
-  UserScriptMetadata,
-  'matches' | 'includes' | 'excludes' | 'excludeMatches'
->): boolean {
+export function matchesUserScriptUrl(
+  url: string,
+  metadata: Pick<UserScriptMetadata, 'matches' | 'includes' | 'excludes' | 'excludeMatches'>,
+): boolean {
   if (isUserScriptUrlExcluded(url, metadata)) return false
 
-  return metadata.matches.some(rule => testRule(matchRuleToRegExp(rule), url))
-    || metadata.includes.some(rule => testRule(includeRuleToRegExp(rule), url))
+  return (
+    metadata.matches.some((rule) => testRule(matchRuleToRegExp(rule), url)) ||
+    metadata.includes.some((rule) => testRule(includeRuleToRegExp(rule), url))
+  )
 }
 
 export const matchesMetadataUrl = matchesUserScriptUrl

@@ -16,13 +16,15 @@ export interface CredentialFormFillResult {
 export function isCredentialFormFillPayload(value: unknown): value is CredentialFormFillPayload {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return false
   const record = value as Record<string, unknown>
-  return typeof record.credentialId === 'string'
-    && typeof record.siteId === 'string'
-    && typeof record.username === 'string'
-    && typeof record.password === 'string'
-    && typeof record.pageUrl === 'string'
-    && isSelectorList(record.usernameSelectors)
-    && isSelectorList(record.passwordSelectors)
+  return (
+    typeof record.credentialId === 'string' &&
+    typeof record.siteId === 'string' &&
+    typeof record.username === 'string' &&
+    typeof record.password === 'string' &&
+    typeof record.pageUrl === 'string' &&
+    isSelectorList(record.usernameSelectors) &&
+    isSelectorList(record.passwordSelectors)
+  )
 }
 
 export async function fillCredentialFormWithRetry(
@@ -87,9 +89,13 @@ function setFieldValue(field: HTMLInputElement | HTMLTextAreaElement, value: str
 }
 
 function isSelectorList(value: unknown): value is string[] {
-  return Array.isArray(value)
-    && value.length <= 16
-    && value.every(selector => typeof selector === 'string' && selector.length > 0 && selector.length <= 512)
+  return (
+    Array.isArray(value) &&
+    value.length <= 16 &&
+    value.every(
+      (selector) => typeof selector === 'string' && selector.length > 0 && selector.length <= 512,
+    )
+  )
 }
 
 function delay(milliseconds: number): Promise<void> {

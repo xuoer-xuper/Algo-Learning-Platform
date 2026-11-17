@@ -3,10 +3,7 @@ import { MockBrowserWindow, resetElectronMock } from '../electron/electronMock'
 import { TabManager } from '../../electron/browser/TabManager.ts'
 import type { TabSessionSnapshot } from '../../electron/browser/tabManagerTypes.ts'
 import { ViewRegistry } from '../../electron/windows/ViewRegistry.ts'
-import {
-  checkOjSender,
-  resetTrustedSenderRegistry,
-} from '../../electron/ipc/trustedSender.ts'
+import { checkOjSender, resetTrustedSenderRegistry } from '../../electron/ipc/trustedSender.ts'
 
 const harness = vi.hoisted(() => ({
   createAttempts: 0,
@@ -27,9 +24,9 @@ interface TestWebContents {
 
 vi.mock('electron', async (importOriginal) => {
   const actual = await importOriginal<Record<string, unknown>>()
-  const BaseWebContentsView = actual.WebContentsView as new (
-    options?: Record<string, unknown>,
-  ) => { webContents: TestWebContents }
+  const BaseWebContentsView = actual.WebContentsView as new (options?: Record<string, unknown>) => {
+    webContents: TestWebContents
+  }
 
   class InstrumentedWebContentsView extends BaseWebContentsView {
     constructor(options: Record<string, unknown> = {}) {
@@ -121,11 +118,13 @@ describe('TabManager session restore', () => {
     contents.emit('render-process-gone', {}, { reason: 'crashed', exitCode: 1 })
     contents.emit('destroyed')
 
-    expect(manager.getTabList()).toMatchObject([{
-      id: tabId,
-      url: 'https://example.com/retry',
-      isCrashed: true,
-    }])
+    expect(manager.getTabList()).toMatchObject([
+      {
+        id: tabId,
+        url: 'https://example.com/retry',
+        isCrashed: true,
+      },
+    ])
     expect(harness.createAttempts).toBe(2)
     expect(registry.get(contents.id)).toBeNull()
     expect(registry.getByWindow('window-retry')).toEqual([])
@@ -134,19 +133,23 @@ describe('TabManager session restore', () => {
     manager.reloadTab(tabId)
     await drainNavigationEvents()
 
-    expect(manager.getTabList()).toMatchObject([{
-      id: tabId,
-      url: 'https://example.com/retry',
-      isCrashed: false,
-    }])
+    expect(manager.getTabList()).toMatchObject([
+      {
+        id: tabId,
+        url: 'https://example.com/retry',
+        isCrashed: false,
+      },
+    ])
     expect(harness.createAttempts).toBe(3)
     expect(window.contentView.children).toEqual([harness.createdViews[1]])
-    expect(registry.getByWindow('window-retry')).toMatchObject([{
-      kind: 'tab',
-      windowId: 'window-retry',
-      tabId,
-      webContentsId: harness.createdContents[1].id,
-    }])
+    expect(registry.getByWindow('window-retry')).toMatchObject([
+      {
+        kind: 'tab',
+        windowId: 'window-retry',
+        tabId,
+        webContentsId: harness.createdContents[1].id,
+      },
+    ])
   })
 
   test('restores ordered web tabs with stable metadata and mounts only the active view after setup', async () => {
@@ -287,24 +290,30 @@ describe('TabManager session restore', () => {
 
     const internalWindow = new MockBrowserWindow()
     const internalManager = new TabManager(internalWindow as never)
-    expect(internalManager.restoreSession({
-      version: 1,
-      activeTabId: 'settings-tab',
-      tabs: [{
+    expect(
+      internalManager.restoreSession({
+        version: 1,
+        activeTabId: 'settings-tab',
+        tabs: [
+          {
+            id: 'settings-tab',
+            kind: 'internal',
+            page: { type: 'settings' },
+            title: 'Settings',
+          },
+        ],
+      }),
+    ).toBe(true)
+    expect(internalManager.getTabList()).toMatchObject([
+      {
         id: 'settings-tab',
         kind: 'internal',
         page: { type: 'settings' },
+        url: 'algo://settings',
         title: 'Settings',
-      }],
-    })).toBe(true)
-    expect(internalManager.getTabList()).toMatchObject([{
-      id: 'settings-tab',
-      kind: 'internal',
-      page: { type: 'settings' },
-      url: 'algo://settings',
-      title: 'Settings',
-      isActive: true,
-    }])
+        isActive: true,
+      },
+    ])
     expect(internalWindow.contentView.children).toEqual([])
     expect(harness.createdViews).toEqual([])
   })
@@ -313,15 +322,17 @@ describe('TabManager session restore', () => {
     const window = new MockBrowserWindow()
     const manager = new TabManager(window as never)
 
-    expect(manager.restoreSession({
-      version: 1,
-      activeTabId: 'web-1',
-      tabs: [
-        { id: 'home-1', kind: 'internal', page: { type: 'home' }, title: '首页' },
-        { id: 'web-1', kind: 'web', url: 'https://example.com/problem', title: 'Problem' },
-        { id: 'settings-1', kind: 'internal', page: { type: 'settings' }, title: '设置' },
-      ],
-    })).toBe(true)
+    expect(
+      manager.restoreSession({
+        version: 1,
+        activeTabId: 'web-1',
+        tabs: [
+          { id: 'home-1', kind: 'internal', page: { type: 'home' }, title: '首页' },
+          { id: 'web-1', kind: 'web', url: 'https://example.com/problem', title: 'Problem' },
+          { id: 'settings-1', kind: 'internal', page: { type: 'settings' }, title: '设置' },
+        ],
+      }),
+    ).toBe(true)
     await drainNavigationEvents()
 
     expect(manager.getTabList().map((tab) => [tab.id, tab.kind, tab.isActive])).toEqual([

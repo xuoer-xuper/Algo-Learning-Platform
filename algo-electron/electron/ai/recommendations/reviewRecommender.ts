@@ -2,10 +2,15 @@
 // 依据本地统计数据排序推荐复习题目，不调用大模型，不修改题目状态
 // 推荐结果可追溯到具体题目和提交（source 字段）
 import { getDb } from '../../db/connection'
-import { nowBeijing } from '../../shared/time'
-import { buildReviewReason, daysSince, REVIEW_RECOMMENDATION_RULE_VERSION, scoreReviewCandidate } from './rules'
-import type { ReviewRecommendation, ReviewRecommendationResult } from './types'
-export type { ReviewRecommendation, ReviewRecommendationResult } from './types'
+import { nowMillis } from '../../shared/time'
+import {
+  buildReviewReason,
+  daysSince,
+  REVIEW_RECOMMENDATION_RULE_VERSION,
+  scoreReviewCandidate,
+} from './rules'
+import type { ReviewRecommendation, ReviewRecommendationResult } from '../../../src/shared/types/ai'
+export type { ReviewRecommendation, ReviewRecommendationResult } from '../../../src/shared/types/ai'
 
 // 单题评分规则（纯本地统计，可解释）：
 // 1. 错误次数越多，越需复习（权重 40）
@@ -17,7 +22,9 @@ export function getReviewRecommendations(limit = 10): ReviewRecommendationResult
   const now = Date.now()
 
   // SQL 先过滤从未 AC 的题目，避免 LIMIT 配额被已解决题目占用。
-  const rows = db.prepare(`
+  const rows = db
+    .prepare(
+      `
     SELECT
       p.id, p.platform, p.platform_problem_id, p.title, p.canonical_url,
       COUNT(s.id) as wrong_count,
@@ -34,19 +41,21 @@ export function getReviewRecommendations(limit = 10): ReviewRecommendationResult
     GROUP BY p.id
     ORDER BY wrong_count DESC, last_attempt DESC
     LIMIT 100
-  `).all() as {
+  `,
+    )
+    .all() as {
     id: string
     platform: string
     platform_problem_id: string
     title: string | null
     canonical_url: string
     wrong_count: number
-    last_attempt: string
+    last_attempt: number
     visit_count: number
   }[]
 
   const recommendations: ReviewRecommendation[] = rows
-    .map(r => {
+    .map((r) => {
       const daysSinceAttempt = daysSince(r.last_attempt, now)
       const score = scoreReviewCandidate(r.wrong_count, daysSinceAttempt, r.visit_count)
       const reason = buildReviewReason(r.wrong_count, daysSinceAttempt, r.visit_count)
@@ -72,7 +81,7 @@ export function getReviewRecommendations(limit = 10): ReviewRecommendationResult
     .slice(0, limit)
 
   return {
-    generated_at: nowBeijing(),
+    generated_at: nowMillis(),
     rule_version: REVIEW_RECOMMENDATION_RULE_VERSION,
     recommendations,
   }

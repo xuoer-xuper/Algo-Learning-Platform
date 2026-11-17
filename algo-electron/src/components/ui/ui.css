@@ -427,9 +427,15 @@
     overlay var(--duration-base) var(--ease-out) allow-discrete;
 }
 
-.ui-toast-success { border-left-color: var(--color-ok); }
-.ui-toast-warning { border-left-color: var(--color-warn); }
-.ui-toast-danger { border-left-color: var(--color-danger); }
+.ui-toast-success {
+  border-left-color: var(--color-ok);
+}
+.ui-toast-warning {
+  border-left-color: var(--color-warn);
+}
+.ui-toast-danger {
+  border-left-color: var(--color-danger);
+}
 
 .ui-toast-content {
   min-width: 0;
@@ -470,9 +476,15 @@
   font-size: 12px;
 }
 
-.ui-notice-bar-success { background: var(--color-ok-soft); }
-.ui-notice-bar-warning { background: var(--color-warn-soft); }
-.ui-notice-bar-danger { background: var(--color-danger-soft); }
+.ui-notice-bar-success {
+  background: var(--color-ok-soft);
+}
+.ui-notice-bar-warning {
+  background: var(--color-warn-soft);
+}
+.ui-notice-bar-danger {
+  background: var(--color-danger-soft);
+}
 
 .ui-notice-content {
   display: flex;
@@ -600,8 +612,13 @@
 }
 
 @keyframes ui-skeleton-pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.45; }
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
 }
 
 /*

@@ -5,7 +5,11 @@ import { BrowserWindow, WebContentsView } from 'electron'
 // 是替身的观测点，真实 Electron 的 App 类型上并不存在。
 import { app, commandLineSwitches, resetElectronMock } from './electronMock'
 import { configureChromiumCommandLine } from '../../electron/app/chromiumFlags.ts'
-import { setTabViewBounds, safeCloseWebContents, safeRemoveChildView } from '../../electron/browser/tabViewLayout.ts'
+import {
+  setTabViewBounds,
+  safeCloseWebContents,
+  safeRemoveChildView,
+} from '../../electron/browser/tabViewLayout.ts'
 
 test('Electron test double exposes observable command-line and view primitives', () => {
   resetElectronMock()

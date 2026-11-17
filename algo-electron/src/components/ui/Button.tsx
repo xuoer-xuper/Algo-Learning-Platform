@@ -23,7 +23,9 @@ export function Button({
   'data-testid': testId = 'ui-button',
   ...rest
 }: ButtonProps) {
-  const classes = ['ui-btn', `ui-btn-${variant}`, `ui-btn-${size}`, className].filter(Boolean).join(' ')
+  const classes = ['ui-btn', `ui-btn-${variant}`, `ui-btn-${size}`, className]
+    .filter(Boolean)
+    .join(' ')
   return (
     <button type={type ?? 'button'} className={classes} data-testid={testId} {...rest}>
       {icon && <Icon name={icon} size={size === 'sm' ? 13 : 15} />}
@@ -51,9 +53,18 @@ export function IconButton({
   'data-testid': testId = 'ui-icon-button',
   ...rest
 }: IconButtonProps) {
-  const classes = ['ui-icon-btn', danger ? 'ui-icon-btn-danger' : '', className].filter(Boolean).join(' ')
+  const classes = ['ui-icon-btn', danger ? 'ui-icon-btn-danger' : '', className]
+    .filter(Boolean)
+    .join(' ')
   return (
-    <button type={type ?? 'button'} className={classes} title={title} aria-label={title} data-testid={testId} {...rest}>
+    <button
+      type={type ?? 'button'}
+      className={classes}
+      title={title}
+      aria-label={title}
+      data-testid={testId}
+      {...rest}
+    >
       <Icon name={icon} size={size} />
     </button>
   )

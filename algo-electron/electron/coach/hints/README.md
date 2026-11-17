@@ -39,7 +39,7 @@
 
 ```powershell
 cd algo-electron
-npm run test:coach
+pnpm run test:coach
 ```
 
 覆盖测试：31（hintTemplates）+ 45（HintSelector）+ 41（HintLadder）= 117 个单元测试。

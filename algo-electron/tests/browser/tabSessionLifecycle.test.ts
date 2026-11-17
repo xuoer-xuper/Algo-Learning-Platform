@@ -88,8 +88,12 @@ describe('window tab session flush', () => {
     const window = new MockBrowserWindow()
     installWindowSessionFlush(window as never, {
       shouldFlush: () => true,
-      flush: () => { throw new Error('synchronous flush failure') },
-      onFailure: () => { throw new Error('diagnostic failure') },
+      flush: () => {
+        throw new Error('synchronous flush failure')
+      },
+      onFailure: () => {
+        throw new Error('diagnostic failure')
+      },
     })
 
     window.close()

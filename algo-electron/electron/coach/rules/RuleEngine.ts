@@ -4,10 +4,9 @@ import type {
   CoachEventType,
   CoachIntervention,
   CoachInterventionLevel,
-  CoachInterventionSourceType,
   CoachInterventionUserAction,
   ProblemSession,
-} from '../types'
+} from '../../../src/shared/types/coach'
 import {
   type RuleContext,
   type RuleResult,
@@ -16,10 +15,7 @@ import {
   HINT_UPGRADE_COOLDOWN_MS,
   DEFAULT_TRIGGER_SCORE_THRESHOLD,
 } from './rules'
-import {
-  type LadderHintContent,
-  type GetMessageForLevelContext,
-} from '../hints/HintLadder'
+import { type LadderHintContent, type GetMessageForLevelContext } from '../hints/HintLadder'
 import type { ProblemConstraints } from '../problemFacts/ConstraintParser'
 
 /**
@@ -75,8 +71,6 @@ export interface RuleEngineOptions {
   now?: () => number
   /** 注入式 uuid 生成（便于测试） */
   uuid?: () => string
-  /** 注入式 nowIso（便于测试） */
-  nowIso?: () => string
 }
 
 interface LastTriggerRecord {
@@ -89,7 +83,19 @@ interface LastTriggerRecord {
 }
 
 export class RuleEngine {
-  private readonly options: Required<Omit<RuleEngineOptions, 'getSession' | 'getProblemRating' | 'getIsContestMode' | 'getSuppressedTypes' | 'onIntervention' | 'getHintForUpgrade' | 'getConstraints' | 'getProblemTags'>> & {
+  private readonly options: Required<
+    Omit<
+      RuleEngineOptions,
+      | 'getSession'
+      | 'getProblemRating'
+      | 'getIsContestMode'
+      | 'getSuppressedTypes'
+      | 'onIntervention'
+      | 'getHintForUpgrade'
+      | 'getConstraints'
+      | 'getProblemTags'
+    >
+  > & {
     getSession?: () => ProblemSession | null
     getProblemRating?: () => number | null
     getIsContestMode?: () => boolean
@@ -118,7 +124,6 @@ export class RuleEngine {
       triggerScoreThreshold: options.triggerScoreThreshold ?? DEFAULT_TRIGGER_SCORE_THRESHOLD,
       now: options.now ?? Date.now,
       uuid: options.uuid ?? defaultUuid,
-      nowIso: options.nowIso ?? defaultNowIso,
       getSession: options.getSession,
       getProblemRating: options.getProblemRating,
       getIsContestMode: options.getIsContestMode,
@@ -181,6 +186,7 @@ export class RuleEngine {
 
     // 6. 产出 RuleResult
     const built = rule.build(ctx)
+    if (!built) return null
     const result: RuleResult = {
       triggered: true,
       trigger_reason: built.trigger_reason,
@@ -254,7 +260,11 @@ export class RuleEngine {
     // 注意：L5 二次确认（isConfirmation=true）跳过冷却（用户已主动确认）
     if (!isConfirmation) {
       const cooldownStart = lastUpgrade ?? last?.at
-      if (cooldownStart != null && now - cooldownStart < this.options.upgradeCooldownMs && !hasNewSubmission) {
+      if (
+        cooldownStart != null &&
+        now - cooldownStart < this.options.upgradeCooldownMs &&
+        !hasNewSubmission
+      ) {
         return null
       }
     }
@@ -322,7 +332,10 @@ export class RuleEngine {
   }
 
   /** 构建 HintLadder 上下文 */
-  private buildLadderContext(event: CoachEvent, eventType: CoachEventType): GetMessageForLevelContext {
+  private buildLadderContext(
+    event: CoachEvent,
+    eventType: CoachEventType,
+  ): GetMessageForLevelContext {
     return {
       eventType,
       verdict: event.evidence.verdict,
@@ -393,14 +406,14 @@ export class RuleEngine {
       event_id: event.event_id,
       trigger_reason: result.trigger_reason,
       intervention_level: result.intervention_level,
-      source_type: 'local_rule' as CoachInterventionSourceType,
+      source_type: 'local_rule',
       message: result.message,
       related_tags: result.related_tags,
       user_action: overrides?.user_action ?? 'shown',
       problem_id: event.problem_id,
       platform: event.platform,
       session_id: event.session_id,
-      created_at: this.options.nowIso(),
+      created_at: this.options.now(),
       is_contest_mode: false,
       contest_url: null,
       contest_start: null,
@@ -433,16 +446,4 @@ function defaultUuid(): string {
   } catch {
     return `id-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
   }
-}
-
-function defaultNowIso(): string {
-  const d = new Date()
-  const y = d.getFullYear()
-  const m = String(d.getMonth() + 1).padStart(2, '0')
-  const day = String(d.getDate()).padStart(2, '0')
-  const h = String(d.getHours()).padStart(2, '0')
-  const min = String(d.getMinutes()).padStart(2, '0')
-  const s = String(d.getSeconds()).padStart(2, '0')
-  const ms = String(d.getMilliseconds()).padStart(3, '0')
-  return `${y}-${m}-${day}T${h}:${min}:${s}.${ms}`
 }

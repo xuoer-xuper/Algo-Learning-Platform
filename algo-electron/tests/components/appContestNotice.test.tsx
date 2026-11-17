@@ -1,6 +1,17 @@
 // @vitest-environment jsdom
-import { act, cleanup, render, screen } from '@testing-library/react'
+import { render } from './renderWithDataRefresh'
+import { act, cleanup, screen } from '@testing-library/react'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
+import type {
+  CredentialCaptureAction,
+  CredentialCapturePrompt,
+  CredentialCaptureResult,
+} from '@shared/types/credentials'
+import type {
+  UserScriptHostPermissionPrompt,
+  UserScriptHostPermissionResponse,
+} from '@shared/types/scripts'
+import type { CoachContestModePayload, CoachStateSnapshot } from '@shared/types/coach'
 
 let contestListener: ((payload: CoachContestModePayload) => void) | null = null
 const unsubscribeContest = vi.fn()
@@ -16,8 +27,9 @@ let permissionListener: ((prompt: UserScriptHostPermissionPrompt) => void) | nul
 const respondPermission = vi.fn(
   async (_promptId: string, _allow: boolean) => 'allowed' as UserScriptHostPermissionResponse,
 )
-let capturePromptListener: ((prompt: CredentialCapturePrompt) => void) | null = null
+let capturePromptListener: ((prompt: CredentialCapturePrompt | null) => void) | null = null
 let captureResultListener: ((result: CredentialCaptureResult) => void) | null = null
+let getCapturePrompt = vi.fn<() => Promise<CredentialCapturePrompt | null>>()
 const respondCapture = vi.fn(async (_captureId: string, _action: CredentialCaptureAction) => true)
 
 function createCoachState(isContestMode: boolean): CoachStateSnapshot {
@@ -29,7 +41,7 @@ function createCoachState(isContestMode: boolean): CoachStateSnapshot {
           url: 'https://codeforces.com/contest/1000',
           platform: 'codeforces',
           contest_id: '1000',
-          entered_at: '2026-08-19T00:00:00.000Z',
+          entered_at: Date.parse('2026-08-19T00:00:00.000Z'),
         }
       : null,
     pet_state: 'idle',
@@ -40,7 +52,9 @@ function createCoachState(isContestMode: boolean): CoachStateSnapshot {
 }
 
 vi.mock('../../src/features/problems/ProblemSidebar', () => ({ ProblemSidebar: () => null }))
-vi.mock('../../src/components/ErrorBoundary', () => ({ ErrorBoundary: ({ children }: { children: React.ReactNode }) => children }))
+vi.mock('../../src/components/ErrorBoundary', () => ({
+  ErrorBoundary: ({ children }: { children: React.ReactNode }) => children,
+}))
 vi.mock('../../src/components/WindowControls', () => ({ WindowControls: () => null }))
 vi.mock('../../src/components/TabStrip', () => ({ TabStrip: () => null }))
 vi.mock('../../src/components/BrowserToolbar', () => ({ BrowserToolbar: () => null }))
@@ -73,28 +87,40 @@ vi.mock('../../src/hooks/useBrowserNavigation', () => ({
 }))
 vi.mock('../../src/hooks/browserShellApi', () => ({
   getUserScriptHostPermissionPrompt: async () => null,
-  respondUserScriptHostPermission: (promptId: string, allow: boolean) => respondPermission(promptId, allow),
+  respondUserScriptHostPermission: (promptId: string, allow: boolean) =>
+    respondPermission(promptId, allow),
   setDownloadNoticeVisible: vi.fn(),
   setErrorNoticeVisible: vi.fn(),
   showBrowserShellContextMenu: vi.fn(),
   subscribeDownloadResult: () => () => undefined,
-  subscribeUserScriptHostPermissionPrompt: (listener: (prompt: UserScriptHostPermissionPrompt) => void) => {
+  subscribeUserScriptHostPermissionPrompt: (
+    listener: (prompt: UserScriptHostPermissionPrompt) => void,
+  ) => {
     permissionListener = listener
-    return () => { permissionListener = null }
+    return () => {
+      permissionListener = null
+    }
   },
   getCredentialAutofillPrompt: async () => null,
   subscribeCredentialAutofillPrompt: () => () => undefined,
   respondCredentialAutofill: vi.fn(async () => true),
-  getCredentialCapturePrompt: async () => null,
-  subscribeCredentialCapturePrompt: (listener: (prompt: CredentialCapturePrompt) => void) => {
+  getCredentialCapturePrompt: () => getCapturePrompt(),
+  subscribeCredentialCapturePrompt: (
+    listener: (prompt: CredentialCapturePrompt | null) => void,
+  ) => {
     capturePromptListener = listener
-    return () => { capturePromptListener = null }
+    return () => {
+      capturePromptListener = null
+    }
   },
   subscribeCredentialCaptureResult: (listener: (result: CredentialCaptureResult) => void) => {
     captureResultListener = listener
-    return () => { captureResultListener = null }
+    return () => {
+      captureResultListener = null
+    }
   },
-  respondCredentialCapture: (captureId: string, action: CredentialCaptureAction) => respondCapture(captureId, action),
+  respondCredentialCapture: (captureId: string, action: CredentialCaptureAction) =>
+    respondCapture(captureId, action),
 }))
 vi.mock('../../src/features/coach/coachDataApi', () => ({
   loadCoachState: () => getCoachState(),
@@ -115,6 +141,7 @@ beforeEach(() => {
   respondPermission.mockClear()
   respondCapture.mockClear()
   getCoachState = vi.fn(async () => null)
+  getCapturePrompt = vi.fn(async () => null)
 })
 
 afterEach(() => {
@@ -132,7 +159,7 @@ test('shows a persistent layout notice while contest mode is active', () => {
         url: 'https://codeforces.com/contest/1000',
         platform: 'codeforces',
         contest_id: '1000',
-        entered_at: '2026-08-19T00:00:00.000Z',
+        entered_at: Date.parse('2026-08-19T00:00:00.000Z'),
       },
     })
   })
@@ -160,7 +187,9 @@ test('shows the userscript host prompt in the existing NoticeBar and returns the
   })
   expect(screen.getByText(/Ratings helper/)).toBeTruthy()
   expect(screen.getByText(/api\.example\.com/)).toBeTruthy()
-  await act(async () => { screen.getByRole('button', { name: '允许' }).click() })
+  await act(async () => {
+    screen.getByRole('button', { name: '允许' }).click()
+  })
   expect(respondPermission).toHaveBeenCalledWith('prompt-1', true)
 })
 
@@ -174,9 +203,12 @@ test('hydrates contest mode from the current Coach state after subscribing', asy
 
 test('does not let a late initial snapshot overwrite a newer contest event', async () => {
   let resolveState!: (state: CoachStateSnapshot | null) => void
-  getCoachState.mockImplementation(() => new Promise((resolve) => {
-    resolveState = resolve
-  }))
+  getCoachState.mockImplementation(
+    () =>
+      new Promise((resolve) => {
+        resolveState = resolve
+      }),
+  )
   render(<App />)
 
   act(() => {
@@ -209,7 +241,9 @@ test('shows a redacted capture prompt and responds with save/update/cancel actio
   expect(screen.getByRole('button', { name: '保存账户' })).toBeTruthy()
   expect(screen.getByText(/alice/)).toBeTruthy()
   expect(document.body.textContent).not.toContain('secret')
-  await act(async () => { screen.getByRole('button', { name: '保存账户' }).click() })
+  await act(async () => {
+    screen.getByRole('button', { name: '保存账户' }).click()
+  })
   expect(respondCapture).toHaveBeenCalledWith('capture-1', 'save')
 
   act(() => {
@@ -224,11 +258,57 @@ test('shows a redacted capture prompt and responds with save/update/cancel actio
     })
   })
   expect(screen.getByRole('button', { name: '更新密码' })).toBeTruthy()
-  await act(async () => { screen.getByRole('button', { name: '暂不保存' }).click() })
+  await act(async () => {
+    screen.getByRole('button', { name: '暂不保存' }).click()
+  })
   expect(respondCapture).toHaveBeenCalledWith('capture-2', 'cancel')
 
   act(() => {
     captureResultListener?.({ captureId: 'capture-1', success: false, error: 'save-failed' })
   })
   expect(screen.getByText('凭据保存失败')).toBeTruthy()
+})
+
+test('clears capture errors on a null live prompt and ignores callbacks after unmount', async () => {
+  const { unmount } = render(<App />)
+  await act(async () => {})
+  act(() => captureResultListener?.({ captureId: 'failed', success: false, error: 'save-failed' }))
+  expect(screen.getByText('凭据保存失败')).toBeTruthy()
+  act(() => capturePromptListener?.(null))
+  expect(screen.queryByText('凭据保存失败')).toBeNull()
+  const oldPrompt = capturePromptListener
+  const oldResult = captureResultListener
+  unmount()
+  act(() => {
+    oldPrompt?.(null)
+    oldResult?.({ captureId: 'failed', success: false, error: 'save-failed' })
+  })
+  expect(screen.queryByText('凭据保存失败')).toBeNull()
+})
+
+test('keeps a pending capture snapshot when an unrelated capture result arrives', async () => {
+  let resolveSnapshot!: (prompt: CredentialCapturePrompt) => void
+  getCapturePrompt.mockImplementation(
+    () =>
+      new Promise((resolve) => {
+        resolveSnapshot = resolve
+      }),
+  )
+  render(<App />)
+  act(() => captureResultListener?.({ captureId: 'old-A', success: false, error: 'save-failed' }))
+  await act(async () =>
+    resolveSnapshot({
+      captureId: 'pending-B',
+      siteId: 'codeforces',
+      siteName: 'Codeforces',
+      username: 'snapshot-b',
+      displayName: null,
+      masked: '********',
+      isUpdate: false,
+    }),
+  )
+  expect(screen.getByText(/snapshot-b/)).toBeTruthy()
+  expect(screen.getByRole('button', { name: '保存账户' })).toBeTruthy()
+  act(() => captureResultListener?.({ captureId: 'pending-B', success: true }))
+  expect(screen.queryByRole('button', { name: '保存账户' })).toBeNull()
 })

@@ -10,12 +10,24 @@ import type { Logger } from '../../electron/shared/logger.ts'
 
 class MemoryLogger implements Logger {
   readonly entries: Array<{ level: string; message: string; data: unknown[] }> = []
-  debug(message: string, ...data: unknown[]): void { this.entries.push({ level: 'debug', message, data }) }
-  info(message: string, ...data: unknown[]): void { this.entries.push({ level: 'info', message, data }) }
-  warn(message: string, ...data: unknown[]): void { this.entries.push({ level: 'warn', message, data }) }
-  error(message: string, ...data: unknown[]): void { this.entries.push({ level: 'error', message, data }) }
-  fatal(message: string, ...data: unknown[]): void { this.entries.push({ level: 'fatal', message, data }) }
-  getLogFilePath(): string { return 'C:\\user-data\\logs\\main.log' }
+  debug(message: string, ...data: unknown[]): void {
+    this.entries.push({ level: 'debug', message, data })
+  }
+  info(message: string, ...data: unknown[]): void {
+    this.entries.push({ level: 'info', message, data })
+  }
+  warn(message: string, ...data: unknown[]): void {
+    this.entries.push({ level: 'warn', message, data })
+  }
+  error(message: string, ...data: unknown[]): void {
+    this.entries.push({ level: 'error', message, data })
+  }
+  fatal(message: string, ...data: unknown[]): void {
+    this.entries.push({ level: 'fatal', message, data })
+  }
+  getLogFilePath(): string {
+    return 'C:\\user-data\\logs\\main.log'
+  }
 }
 
 test('global process errors are logged while dialog and exit run only once', () => {
@@ -50,7 +62,9 @@ test('startup failure can skip the blocking dialog in smoke mode', () => {
   const exits: number[] = []
   const report = createFatalErrorReporter({
     logger,
-    showErrorBox: () => { throw new Error('dialog must stay disabled') },
+    showErrorBox: () => {
+      throw new Error('dialog must stay disabled')
+    },
     exit: (code) => exits.push(code),
     showDialog: false,
   })
@@ -60,5 +74,8 @@ test('startup failure can skip the blocking dialog in smoke mode', () => {
 
   assert.deepStrictEqual(sources, ['startup'])
   assert.deepStrictEqual(exits, [1])
-  assert.strictEqual(logger.entries.some((entry) => entry.message === 'main-process.fatal-dialog-failed'), false)
+  assert.strictEqual(
+    logger.entries.some((entry) => entry.message === 'main-process.fatal-dialog-failed'),
+    false,
+  )
 })

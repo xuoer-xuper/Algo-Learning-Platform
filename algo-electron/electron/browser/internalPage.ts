@@ -1,4 +1,5 @@
-import { isInternalPage, type InternalPage } from './tabManagerTypes'
+import { isInternalPage } from './tabManagerTypes'
+import type { InternalPage } from '../../src/shared/types/browser'
 
 const INTERNAL_PAGE_TITLES: Record<InternalPage['type'], string> = {
   home: '首页',
@@ -37,12 +38,12 @@ export function parseInternalPageUrl(value: string): InternalPage | null {
     return null
   }
   if (
-    parsed.protocol !== 'algo:'
-    || parsed.username
-    || parsed.password
-    || parsed.port
-    || parsed.pathname
-    || parsed.hash
+    parsed.protocol !== 'algo:' ||
+    parsed.username ||
+    parsed.password ||
+    parsed.port ||
+    parsed.pathname ||
+    parsed.hash
   ) {
     return null
   }
@@ -50,12 +51,24 @@ export function parseInternalPageUrl(value: string): InternalPage | null {
   let page: InternalPage | null = null
   if (!parsed.search) {
     switch (parsed.hostname) {
-      case 'home': page = { type: 'home' }; break
-      case 'settings': page = { type: 'settings' }; break
-      case 'dashboard': page = { type: 'dashboard' }; break
-      case 'scripts': page = { type: 'scripts' }; break
-      case 'coach-metrics': page = { type: 'coach-metrics' }; break
-      case 'credentials': page = { type: 'credentials' }; break
+      case 'home':
+        page = { type: 'home' }
+        break
+      case 'settings':
+        page = { type: 'settings' }
+        break
+      case 'dashboard':
+        page = { type: 'dashboard' }
+        break
+      case 'scripts':
+        page = { type: 'scripts' }
+        break
+      case 'coach-metrics':
+        page = { type: 'coach-metrics' }
+        break
+      case 'credentials':
+        page = { type: 'credentials' }
+        break
     }
   } else if (parsed.searchParams.size === 1) {
     if (parsed.hostname === 'problem-detail' && parsed.searchParams.has('problemId')) {

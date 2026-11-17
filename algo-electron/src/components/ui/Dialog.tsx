@@ -50,9 +50,8 @@ export function Dialog({
 
   useEffect(() => {
     if (!open) return
-    const previousFocus = document.activeElement instanceof HTMLElement
-      ? document.activeElement
-      : null
+    const previousFocus =
+      document.activeElement instanceof HTMLElement ? document.activeElement : null
     const focusInitial = () => {
       const requested = initialFocusRef?.current
       const first = panelRef.current?.querySelector<HTMLElement>(FOCUSABLE_SELECTOR)
@@ -68,8 +67,9 @@ export function Dialog({
       }
       if (event.key !== 'Tab' || !panelRef.current) return
 
-      const focusable = [...panelRef.current.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)]
-        .filter(element => !element.hidden && element.getAttribute('aria-hidden') !== 'true')
+      const focusable = [
+        ...panelRef.current.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR),
+      ].filter((element) => !element.hidden && element.getAttribute('aria-hidden') !== 'true')
       if (focusable.length === 0) {
         event.preventDefault()
         panelRef.current.focus()
@@ -78,11 +78,13 @@ export function Dialog({
 
       const first = focusable[0]
       const last = focusable[focusable.length - 1]
-      if (event.shiftKey && (document.activeElement === first || document.activeElement === panelRef.current)) {
+      if (
+        event.shiftKey &&
+        (document.activeElement === first || document.activeElement === panelRef.current)
+      ) {
         event.preventDefault()
         last.focus()
-      }
-      else if (!event.shiftKey && document.activeElement === last) {
+      } else if (!event.shiftKey && document.activeElement === last) {
         event.preventDefault()
         first.focus()
       }
@@ -118,10 +120,16 @@ export function Dialog({
         {...rest}
       >
         <div className="ui-dialog-header">
-          <div id={titleId} className="ui-dialog-title">{title}</div>
+          <div id={titleId} className="ui-dialog-title">
+            {title}
+          </div>
           <IconButton icon="close" title={closeLabel} onClick={onClose} />
         </div>
-        {description && <div id={descriptionId} className="ui-dialog-desc">{description}</div>}
+        {description && (
+          <div id={descriptionId} className="ui-dialog-desc">
+            {description}
+          </div>
+        )}
         <div className="ui-dialog-body">{children}</div>
         {footer && <div className="ui-dialog-actions">{footer}</div>}
       </div>

@@ -27,7 +27,10 @@ import { OJ_CREDENTIAL_CAPTURE_CHANNEL } from '../../electron/credentials/captur
 
 const VALID_TOKEN = 'a'.repeat(32)
 
-interface SendCall { channel: string, payload: unknown }
+interface SendCall {
+  channel: string
+  payload: unknown
+}
 
 interface Harness {
   /** 暴露给页面的提交桥 */
@@ -35,7 +38,7 @@ interface Harness {
   /** 本次加载暴露到 main world 的全部键 */
   exposedKeys: string[]
   /** 录下 ipcRenderer.send 的流量，返回值随录随读 */
-  recordSends: () => { calls: SendCall[], stop: () => void }
+  recordSends: () => { calls: SendCall[]; stop: () => void }
   /** 向本次加载的 ipcRenderer 投递一条主进程事件 */
   emit: (channel: string, payload: unknown) => void
 }
@@ -82,9 +85,16 @@ async function loadPreload(tokens: unknown[]): Promise<Harness> {
         calls.push({ channel: String(channel), payload })
       }
       electron.ipcRenderer.on('send', onSend)
-      return { calls, stop: () => { electron.ipcRenderer.off('send', onSend) } }
+      return {
+        calls,
+        stop: () => {
+          electron.ipcRenderer.off('send', onSend)
+        },
+      }
     },
-    emit: (channel, payload) => { electron.ipcRenderer.emit(channel, {}, payload) },
+    emit: (channel, payload) => {
+      electron.ipcRenderer.emit(channel, {}, payload)
+    },
   }
 }
 
@@ -114,10 +124,12 @@ describe('ojPreload 模块级行为', () => {
     harness.bridge.reportSubmission({ verdict: 'AC' })
     await flush()
     recorder.stop()
-    assert.deepStrictEqual(recorder.calls, [{
-      channel: OJ_SUBMISSION_IPC_CHANNEL,
-      payload: { token: VALID_TOKEN, payload: { verdict: 'AC' } },
-    }])
+    assert.deepStrictEqual(recorder.calls, [
+      {
+        channel: OJ_SUBMISSION_IPC_CHANNEL,
+        payload: { token: VALID_TOKEN, payload: { verdict: 'AC' } },
+      },
+    ])
   })
 
   test('页面 postMessage 也走同一条上报路径', async () => {
@@ -125,10 +137,12 @@ describe('ojPreload 模块级行为', () => {
     const recorder = harness.recordSends()
     // source 必须是 window 自身或其子帧，否则转发器丢弃（防跨窗口伪造）。
     // 只能在构造时给：MessageEvent.source 是只读访问器，事后赋值会抛。
-    window.dispatchEvent(new MessageEvent('message', {
-      data: { channel: OJ_SUBMISSION_BRIDGE_CHANNEL, payload: { verdict: 'WA' } },
-      source: window,
-    }))
+    window.dispatchEvent(
+      new MessageEvent('message', {
+        data: { channel: OJ_SUBMISSION_BRIDGE_CHANNEL, payload: { verdict: 'WA' } },
+        source: window,
+      }),
+    )
     await flush()
     recorder.stop()
     assert.strictEqual(recorder.calls.length, 1)
@@ -145,10 +159,12 @@ describe('ojPreload 模块级行为', () => {
     harness.bridge.reportSubmission({ verdict: 'TLE' })
     await flush()
     recorder.stop()
-    assert.deepStrictEqual(recorder.calls, [{
-      channel: OJ_SUBMISSION_IPC_CHANNEL,
-      payload: { token: VALID_TOKEN, payload: { verdict: 'TLE' } },
-    }])
+    assert.deepStrictEqual(recorder.calls, [
+      {
+        channel: OJ_SUBMISSION_IPC_CHANNEL,
+        payload: { token: VALID_TOKEN, payload: { verdict: 'TLE' } },
+      },
+    ])
   })
 
   test('重试仍拿不到 token 就静默丢弃，不发无 token 的上报', async () => {
@@ -183,7 +199,7 @@ describe('ojPreload 凭据填充', () => {
     pageUrl: '',
   }
 
-  function loginForm(): { username: HTMLInputElement, password: HTMLInputElement } {
+  function loginForm(): { username: HTMLInputElement; password: HTMLInputElement } {
     document.body.innerHTML = `
       <form>
         <input name="handle" />
@@ -210,7 +226,10 @@ describe('ojPreload 凭据填充', () => {
     // 上一条正向用例是这条的对照——没有它，接线断了这条也会空过。
     const harness = await loadPreload([VALID_TOKEN])
     const fields = loginForm()
-    harness.emit(OJ_CREDENTIAL_FILL_CHANNEL, { ...fillPayload, pageUrl: 'https://other.example.com/login' })
+    harness.emit(OJ_CREDENTIAL_FILL_CHANNEL, {
+      ...fillPayload,
+      pageUrl: 'https://other.example.com/login',
+    })
     await flush()
     assert.strictEqual(fields.username.value, '')
     assert.strictEqual(fields.password.value, '')
@@ -219,7 +238,12 @@ describe('ojPreload 凭据填充', () => {
   test('payload 形状不对时不填', async () => {
     const harness = await loadPreload([VALID_TOKEN])
     const fields = loginForm()
-    for (const bad of [null, 'string', { pageUrl: window.location.href }, { ...fillPayload, password: 42 }]) {
+    for (const bad of [
+      null,
+      'string',
+      { pageUrl: window.location.href },
+      { ...fillPayload, password: 42 },
+    ]) {
       harness.emit(OJ_CREDENTIAL_FILL_CHANNEL, bad)
     }
     await flush()
@@ -248,10 +272,12 @@ describe('ojPreload 凭据捕获', () => {
     document.querySelector('input[name="password"]')?.dispatchEvent(typed)
     document.querySelector('form')?.dispatchEvent(new Event('submit', { bubbles: true }))
     recorder.stop()
-    assert.deepStrictEqual(recorder.calls, [{
-      channel: OJ_CREDENTIAL_CAPTURE_CHANNEL,
-      payload: { username: 'tourist', password: 'secret-value' },
-    }])
+    assert.deepStrictEqual(recorder.calls, [
+      {
+        channel: OJ_CREDENTIAL_CAPTURE_CHANNEL,
+        payload: { username: 'tourist', password: 'secret-value' },
+      },
+    ])
   })
 
   test('用户从未亲手输入的提交不上报', async () => {

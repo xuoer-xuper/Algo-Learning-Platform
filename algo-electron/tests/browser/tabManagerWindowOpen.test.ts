@@ -32,7 +32,10 @@ test('window.open adopts Chromium-created contents as managed tabs', () => {
   assert.ok(popup.webContents)
   assert.notStrictEqual(popup.webContents, parent)
   assert.strictEqual(manager.getTabList().length, 2)
-  assert.strictEqual(manager.getTabList().find((tab) => tab.isActive)?.url, 'https://codeforces.com/oauth/authorize')
+  assert.strictEqual(
+    manager.getTabList().find((tab) => tab.isActive)?.url,
+    'https://codeforces.com/oauth/authorize',
+  )
 
   popup.webContents?.close()
   assert.strictEqual(manager.getTabList().length, 1)
@@ -69,7 +72,9 @@ test('window.open preserves about:blank, background tabs, and rejects unsafe pro
   manager.createTab('https://leetcode.cn/problems/two-sum/')
 
   const parent = window.contentView.children[0].webContents as MockWebContents
-  const background = parent.simulateWindowOpen(popupDetails('https://leetcode.cn/accounts/login/', 'background-tab'))
+  const background = parent.simulateWindowOpen(
+    popupDetails('https://leetcode.cn/accounts/login/', 'background-tab'),
+  )
   assert.strictEqual(background.response.action, 'allow')
   assert.strictEqual(manager.getTabList().length, 2)
   assert.strictEqual(manager.getTabList()[0].isActive, true)

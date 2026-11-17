@@ -41,7 +41,7 @@
 ```powershell
 cd algo-electron
 node node_modules\typescript\bin\tsc --noEmit
-npm run test:ui
+pnpm run test:ui
 ```
 
-涉及脚本文件操作时还需要 `npm run dev` 手测导入、启停、绑定站点、删除和打开目录。
+涉及脚本文件操作时还需要 `pnpm run dev` 手测导入、启停、绑定站点、删除和打开目录。

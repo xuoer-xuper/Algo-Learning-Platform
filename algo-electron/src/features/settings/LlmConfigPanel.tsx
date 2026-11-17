@@ -2,11 +2,14 @@ import { useState, useEffect, useRef } from 'react'
 import { Button, Icon, Input } from '../../components/ui'
 import { errorMessage } from '../../shared/errors'
 import { loadLlmConfig, saveLlmApiKey, saveLlmConfig, testLlmConnection } from './settingsApi'
+import type { LlmConfigStatus, LlmConnectionTestOutput } from '@shared/types/coach'
+import { useIpcQuery } from '../../hooks/useIpcQuery'
 
 const DEFAULT_BASE_URL = 'https://ark.cn-beijing.volces.com/api/v3'
 const DEFAULT_MODEL = 'doubao-seed-1-6-flash-250715'
 
 export function LlmConfigPanel() {
+  const query = useIpcQuery(loadLlmConfig, [])
   const [status, setStatus] = useState<LlmConfigStatus | null>(null)
   const [apiKeyInput, setApiKeyInput] = useState('')
   const [baseUrl, setBaseUrl] = useState(DEFAULT_BASE_URL)
@@ -14,25 +17,27 @@ export function LlmConfigPanel() {
   const [enabled, setEnabled] = useState(false)
   const [savedFlag, setSavedFlag] = useState(false)
   const [testing, setTesting] = useState(false)
-  const [testResult, setTestResult] = useState<LlmConnectionTestResult | null>(null)
+  const [testResult, setTestResult] = useState<LlmConnectionTestOutput | null>(null)
   const [loadError, setLoadError] = useState('')
   const savedTimerRef = useRef<number | undefined>(undefined)
 
   useEffect(() => {
-    void loadLlmConfig()
-      .then((s) => {
-        if (!s) return
-        setStatus(s)
-        setBaseUrl(s.base_url || DEFAULT_BASE_URL)
-        setModel(s.model || DEFAULT_MODEL)
-        setEnabled(s.enabled)
-      })
-      // 读失败时若不提示，面板会显示「未配置 API Key」，与真正没配置无法区分。
-      .catch((error: unknown) => setLoadError(`读取失败：${errorMessage(error)}`))
-    return () => {
+    const initial = query.data
+    if (!initial) return
+    setStatus(initial)
+    setBaseUrl(initial.base_url || DEFAULT_BASE_URL)
+    setModel(initial.model || DEFAULT_MODEL)
+    setEnabled(initial.enabled)
+  }, [query.data])
+  useEffect(() => {
+    if (query.error) setLoadError(`读取失败：${errorMessage(query.error)}`)
+  }, [query.error])
+  useEffect(
+    () => () => {
       if (savedTimerRef.current) window.clearTimeout(savedTimerRef.current)
-    }
-  }, [])
+    },
+    [],
+  )
 
   const flashSaved = () => {
     setSavedFlag(true)
@@ -47,7 +52,7 @@ export function LlmConfigPanel() {
       if (!saved) {
         setTestResult({
           success: false,
-          message: '系统安全存储不可用，API Key 未保存',
+          error: '系统安全存储不可用，API Key 未保存',
         })
         return
       }
@@ -55,17 +60,21 @@ export function LlmConfigPanel() {
       setStatus(await loadLlmConfig())
       flashSaved()
     } catch (error: unknown) {
-      setTestResult({ success: false, message: `保存失败：${errorMessage(error)}` })
+      setTestResult({ success: false, error: `保存失败：${errorMessage(error)}` })
     }
   }
 
-  const handleSaveConfig = async (partial: { base_url?: string; model?: string; enabled?: boolean }) => {
+  const handleSaveConfig = async (partial: {
+    base_url?: string
+    model?: string
+    enabled?: boolean
+  }) => {
     try {
       await saveLlmConfig(partial)
       setStatus(await loadLlmConfig())
       flashSaved()
     } catch (error: unknown) {
-      setTestResult({ success: false, message: `保存失败：${errorMessage(error)}` })
+      setTestResult({ success: false, error: `保存失败：${errorMessage(error)}` })
     }
   }
 
@@ -85,12 +94,12 @@ export function LlmConfigPanel() {
         model,
       })
       setTestResult(result)
-      if (result.success && key) {
+      if (result.success === true && key) {
         const saved = await saveLlmApiKey(key)
         if (!saved) {
           setTestResult({
             success: false,
-            message: '连接成功，但系统安全存储不可用，API Key 未保存',
+            error: '连接成功，但系统安全存储不可用，API Key 未保存',
           })
           return
         }
@@ -101,7 +110,7 @@ export function LlmConfigPanel() {
     } catch (err: unknown) {
       setTestResult({
         success: false,
-        message: err instanceof Error ? err.message : String(err),
+        error: err instanceof Error ? err.message : String(err),
       })
     } finally {
       setTesting(false)
@@ -128,15 +137,21 @@ export function LlmConfigPanel() {
       </div>
 
       {loadError && (
-        <div className="settings-row settings-error-text" role="alert">{loadError}</div>
+        <div className="settings-row settings-error-text" role="alert">
+          {loadError}
+        </div>
       )}
 
       <div className="settings-row settings-hint-text">
-        {loadError
-          ? '配置状态未知'
-          : status?.has_key
-            ? <>当前 Key: <span className="mono">{status.key_masked}</span></>
-            : '未配置 API Key，请先填写并保存'}
+        {loadError ? (
+          '配置状态未知'
+        ) : status?.has_key ? (
+          <>
+            当前 Key: <span className="mono">{status.key_masked}</span>
+          </>
+        ) : (
+          '未配置 API Key，请先填写并保存'
+        )}
       </div>
 
       <div className="settings-row">
@@ -146,7 +161,9 @@ export function LlmConfigPanel() {
           type="password"
           value={apiKeyInput}
           onChange={(e) => setApiKeyInput(e.target.value)}
-          placeholder={status?.has_key ? `已配置（${status.key_masked}），输入新 Key 覆盖` : 'ark-xxxxxxxxxxxx'}
+          placeholder={
+            status?.has_key ? `已配置（${status.key_masked}），输入新 Key 覆盖` : 'ark-xxxxxxxxxxxx'
+          }
         />
         <Button
           variant="primary"
@@ -188,12 +205,14 @@ export function LlmConfigPanel() {
           {testing ? '测试中...' : '测试连接'}
         </Button>
         {testResult && (
-          <span className={`settings-test-result ${testResult.success ? 'settings-test-ok' : 'settings-test-err'}`}>
-            <Icon name={testResult.success ? 'check' : 'close'} size={12} />
+          <span
+            className={`settings-test-result ${testResult.success === true ? 'settings-test-ok' : 'settings-test-err'}`}
+          >
+            <Icon name={testResult.success === true ? 'check' : 'close'} size={12} />
             <span>
-              {testResult.message}
-              {testResult.success && testResult.latency_ms != null && (
-                <span className="num">（{testResult.latency_ms}ms）</span>
+              {testResult.success === true ? testResult.data.message : testResult.error}
+              {testResult.success === true && testResult.data.latency_ms != null && (
+                <span className="num">（{testResult.data.latency_ms}ms）</span>
               )}
             </span>
           </span>
@@ -202,7 +221,9 @@ export function LlmConfigPanel() {
 
       <div className="settings-row settings-hint-text">
         推荐火山引擎豆包（新用户赠 50 万 tokens）：
-        <a href="https://console.volcengine.com/ark" target="_blank" rel="noopener noreferrer">火山方舟控制台</a>
+        <a href="https://console.volcengine.com/ark" target="_blank" rel="noopener noreferrer">
+          火山方舟控制台
+        </a>
       </div>
     </div>
   )

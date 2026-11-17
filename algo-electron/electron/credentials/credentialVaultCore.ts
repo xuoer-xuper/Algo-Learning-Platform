@@ -13,6 +13,7 @@ import {
   parseCredentialEnvelope,
   type CredentialSecretEnvelopeV1,
 } from '../db/repositories/credentialRepository'
+import type { CredentialSummary } from '../../src/shared/types/credentials'
 
 export type CredentialVaultErrorCode =
   | 'invalid-input'
@@ -63,17 +64,6 @@ export interface CredentialSaveInput {
   siteId: string
   username: string
   password: string
-}
-
-export interface CredentialSummary {
-  credentialId: string
-  siteId: string
-  username: string
-  displayName: string | null
-  masked: string
-  lastUsedAt: string | null
-  createdAt: string
-  updatedAt: string
 }
 
 /**
@@ -127,7 +117,7 @@ export class CredentialVaultCore {
       throw new CredentialVaultError('storage-failed', 'Credential could not be stored')
     }
 
-    const summary = this.list(validated.siteId).find(entry => entry.credentialId === id)
+    const summary = this.list(validated.siteId).find((entry) => entry.credentialId === id)
     if (!summary) {
       throw new CredentialVaultError('storage-failed', 'Stored credential could not be read back')
     }
@@ -157,7 +147,7 @@ export class CredentialVaultCore {
     const normalized = normalizeDisplayName(displayName)
     try {
       if (!this.dependencies.repository.renameCredential(credentialId, normalized)) return null
-      return this.list().find(entry => entry.credentialId === credentialId) ?? null
+      return this.list().find((entry) => entry.credentialId === credentialId) ?? null
     } catch {
       throw new CredentialVaultError('storage-failed', 'Credential could not be renamed')
     }
@@ -265,10 +255,16 @@ export class CredentialVaultCore {
         available = await this.dependencies.safeStorage.isAsyncEncryptionAvailable()
       }
     } catch {
-      throw new CredentialVaultError('encryption-unavailable', 'Secure credential storage is unavailable')
+      throw new CredentialVaultError(
+        'encryption-unavailable',
+        'Secure credential storage is unavailable',
+      )
     }
     if (!available) {
-      throw new CredentialVaultError('encryption-unavailable', 'Secure credential storage is unavailable')
+      throw new CredentialVaultError(
+        'encryption-unavailable',
+        'Secure credential storage is unavailable',
+      )
     }
   }
 }
@@ -312,13 +308,17 @@ function validateSaveInput(input: CredentialSaveInput): CredentialSaveInput {
   if (!input || typeof input !== 'object' || Array.isArray(input)) {
     throw new CredentialVaultError('invalid-input', 'Credential input is invalid')
   }
-  const keys = Object.keys(input as object).sort()
+  const keys = Object.keys(input).sort()
   if (keys.length !== 3 || keys.join(',') !== 'password,siteId,username') {
     throw new CredentialVaultError('invalid-input', 'Credential input is invalid')
   }
   validateIdentifier(input.siteId, 'siteId')
   validateIdentifier(input.username, 'username')
-  if (typeof input.password !== 'string' || input.password.length === 0 || input.password.length > 16 * 1024) {
+  if (
+    typeof input.password !== 'string' ||
+    input.password.length === 0 ||
+    input.password.length > 16 * 1024
+  ) {
     throw new CredentialVaultError('invalid-input', 'Credential password is invalid')
   }
   return {
@@ -343,8 +343,10 @@ function normalizeDisplayName(value: unknown): string | null {
 }
 
 function isDecryptResult(value: unknown): value is { result: string; shouldReEncrypt: boolean } {
-  return Boolean(value)
-    && typeof value === 'object'
-    && typeof (value as { result?: unknown }).result === 'string'
-    && typeof (value as { shouldReEncrypt?: unknown }).shouldReEncrypt === 'boolean'
+  return (
+    Boolean(value) &&
+    typeof value === 'object' &&
+    typeof (value as { result?: unknown }).result === 'string' &&
+    typeof (value as { shouldReEncrypt?: unknown }).shouldReEncrypt === 'boolean'
+  )
 }

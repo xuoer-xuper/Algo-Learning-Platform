@@ -1,6 +1,11 @@
+import { formatForDisplay } from '@shared/time'
 import { Empty, ListRow, Skeleton } from '../../components/ui'
 import { PLATFORM_NAMES } from '../../shared/display'
-import type { DashboardProblemListItem, DashboardRevisitItem, DashboardTimelineEvent } from './types'
+import type {
+  DashboardProblemListItem,
+  DashboardRevisitItem,
+  DashboardTimelineEvent,
+} from './types'
 
 /*
  * 四个列表的数据都用 `T[] | null`（B5.2）：`null` = 还没读到，`[]` = 读到了且为空。
@@ -23,8 +28,8 @@ interface ProblemListSectionProps<T extends DashboardProblemListItem | Dashboard
   onNavigate: (url: string) => void
 }
 
-function formatTime(value: string | null | undefined): string {
-  return typeof value === 'string' ? value.replace('T', ' ').slice(0, 19) : ''
+function formatTime(value: number | null | undefined): string {
+  return value == null ? '' : formatForDisplay(value)
 }
 
 function formatProblemTitle(item: DashboardProblemListItem | DashboardRevisitItem): string {
@@ -54,7 +59,9 @@ function ProblemListSection<T extends DashboardProblemListItem | DashboardRevisi
             onActivate={() => onNavigate(item.canonical_url)}
             label={`打开 ${formatProblemTitle(item)}`}
           >
-            <span className="dashboard-list-platform">{PLATFORM_NAMES[item.platform] || item.platform}</span>
+            <span className="dashboard-list-platform">
+              {PLATFORM_NAMES[item.platform] || item.platform}
+            </span>
             <span className="dashboard-list-title">{formatProblemTitle(item)}</span>
             <span className="dashboard-list-count">{getCountLabel(item)}</span>
           </ListRow>
@@ -86,7 +93,9 @@ export function DashboardListsPanel({
                 <div className="dashboard-timeline-dot" />
                 <div className="dashboard-timeline-content">
                   <span className="dashboard-timeline-type">{event.event_type}</span>
-                  {event.platform && <span className="dashboard-timeline-platform">{event.platform}</span>}
+                  {event.platform && (
+                    <span className="dashboard-timeline-platform">{event.platform}</span>
+                  )}
                   <span className="dashboard-timeline-time">{formatTime(event.occurred_at)}</span>
                 </div>
               </div>

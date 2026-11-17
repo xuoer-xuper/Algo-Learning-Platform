@@ -22,15 +22,16 @@ function isCodeforcesUrl(url: string): boolean {
   }
 }
 
-export function installProblemTitleTracking(options: InstallProblemTitleTrackingOptions): BrowserDiagnostics {
+export function installProblemTitleTracking(
+  options: InstallProblemTitleTrackingOptions,
+): BrowserDiagnostics {
   const { tabManager } = options
   const diagnostics = options.diagnostics ?? new BrowserDiagnostics()
   const extractionTimers = new Map<string, NodeJS.Timeout[]>()
   const successfulExtractions = new Set<string>()
 
-  const pageKey = (event: BrowserPageEvent): string => (
+  const pageKey = (event: BrowserPageEvent): string =>
     `${event.windowId}:${event.tabId}:${event.webContentsId}:${event.url}`
-  )
 
   const updateProblemTitle = (
     url: string,
@@ -41,7 +42,10 @@ export function installProblemTitleTracking(options: InstallProblemTitleTracking
       if (source === 'browser-title' && isCodeforcesUrl(url)) return false
       const identity = resolveBrowserTitleProblemIdentity(url, title, parseUrl)
       if (!identity) {
-        diagnostics.record('title', 'extract', 'skipped', { url, detail: `${source}: no valid title` })
+        diagnostics.record('title', 'extract', 'skipped', {
+          url,
+          detail: `${source}: no valid title`,
+        })
         return false
       }
       upsertProblem(identity)
@@ -76,9 +80,16 @@ export function installProblemTitleTracking(options: InstallProblemTitleTracking
 
       const script = createProblemTitleFallbackScript(url)
       if (!script) return
-      tabManager.executeScriptForPage(event, script)
+      tabManager
+        .executeScriptForPage(event, script)
         .then((fallbackTitle) => {
-          if (updateProblemTitle(url, typeof fallbackTitle === 'string' ? fallbackTitle : null, 'dom-fallback')) {
+          if (
+            updateProblemTitle(
+              url,
+              typeof fallbackTitle === 'string' ? fallbackTitle : null,
+              'dom-fallback',
+            )
+          ) {
             successfulExtractions.add(key)
             timers.forEach(clearTimeout)
             extractionTimers.delete(key)
@@ -115,9 +126,9 @@ export function installProblemTitleTracking(options: InstallProblemTitleTracking
     }
 
     if (
-      event.reason === 'did-navigate'
-      || event.reason === 'did-navigate-in-page'
-      || event.reason === 'active-tab-changed'
+      event.reason === 'did-navigate' ||
+      event.reason === 'did-navigate-in-page' ||
+      event.reason === 'active-tab-changed'
     ) {
       if (!event.isMainFrame) return
       if (tabManager.isPageActive(event)) {
@@ -133,7 +144,10 @@ export function installProblemTitleTracking(options: InstallProblemTitleTracking
           options.notifyProblemsUpdated()
           scheduleTitleExtraction(event)
         } else {
-          diagnostics.record('tracking', 'navigate', 'skipped', { url, detail: 'No enabled problem identity' })
+          diagnostics.record('tracking', 'navigate', 'skipped', {
+            url,
+            detail: 'No enabled problem identity',
+          })
         }
       }
       if (event.reason !== 'active-tab-changed') return

@@ -1,5 +1,5 @@
 import { getDb } from '../../connection'
-import type { OmniboxSuggestion } from './types'
+import type { OmniboxSuggestion } from '../../../../src/shared/types/problem'
 
 export const OMNIBOX_SUGGESTION_LIMIT = 8
 
@@ -14,7 +14,7 @@ interface OmniboxCandidateRow {
   platform_problem_id: string
   canonical_url: string
   suggestion_url: string
-  suggestion_last_visited_at: string | null
+  suggestion_last_visited_at: number | null
   source: 'history' | 'problem'
 }
 
@@ -92,7 +92,9 @@ function listProblemCandidates(
     ? 'match_rank ASC, p.last_visited_at DESC, p.id ASC'
     : 'p.last_visited_at DESC, p.id ASC'
 
-  return db.prepare(`
+  return db
+    .prepare(
+      `
     WITH candidates AS (
       SELECT
         p.id AS problem_id,
@@ -126,7 +128,9 @@ function listProblemCandidates(
         ORDER BY recent.entered_at DESC, recent.id ASC
         LIMIT 1
       )
-  `).all({ ...params, problemCandidateLimit: PROBLEM_CANDIDATE_LIMIT }) as OmniboxCandidateRow[]
+  `,
+    )
+    .all({ ...params, problemCandidateLimit: PROBLEM_CANDIDATE_LIMIT }) as OmniboxCandidateRow[]
 }
 
 function listRecentVisitCandidates(
@@ -138,7 +142,9 @@ function listRecentVisitCandidates(
     ? `AND (${FIELD_MATCH_SQL} OR recent_visits.url COLLATE NOCASE LIKE @contains ESCAPE '\\')`
     : ''
 
-  return db.prepare(`
+  return db
+    .prepare(
+      `
     WITH recent_visits AS (
       SELECT pv.id, pv.problem_id, pv.url, pv.entered_at
       FROM problem_visits pv
@@ -159,7 +165,12 @@ function listRecentVisitCandidates(
     JOIN problems p ON p.id = recent_visits.problem_id
     WHERE p.deleted_at IS NULL
       ${visitMatch}
-  `).all({ ...params, recentVisitCandidateLimit: RECENT_VISIT_CANDIDATE_LIMIT }) as OmniboxCandidateRow[]
+  `,
+    )
+    .all({
+      ...params,
+      recentVisitCandidateLimit: RECENT_VISIT_CANDIDATE_LIMIT,
+    }) as OmniboxCandidateRow[]
 }
 
 function createMatchParams(query: string): { exact: string; prefix: string; contains: string } {
@@ -192,7 +203,7 @@ function compareCandidates(left: OmniboxCandidate, right: OmniboxCandidate, quer
   const rankDifference = getMatchRank(left, query) - getMatchRank(right, query)
   if (rankDifference !== 0) return rankDifference
 
-  const recencyDifference = parseTimestamp(right.lastVisitedAt) - parseTimestamp(left.lastVisitedAt)
+  const recencyDifference = (right.lastVisitedAt ?? 0) - (left.lastVisitedAt ?? 0)
   if (recencyDifference !== 0) return recencyDifference
 
   if (left.source !== right.source) return left.source === 'history' ? -1 : 1
@@ -209,17 +220,11 @@ function getMatchRank(candidate: OmniboxCandidate, query: string): number {
     candidate.platform,
     candidate.canonicalUrl,
     candidate.url,
-  ].map(value => value.toLowerCase())
+  ].map((value) => value.toLowerCase())
 
-  if (fields.some(value => value === normalizedQuery)) return 0
-  if (fields.some(value => value.startsWith(normalizedQuery))) return 1
+  if (fields.some((value) => value === normalizedQuery)) return 0
+  if (fields.some((value) => value.startsWith(normalizedQuery))) return 1
   return 2
-}
-
-function parseTimestamp(value: string | null): number {
-  if (!value) return 0
-  const timestamp = Date.parse(value)
-  return Number.isFinite(timestamp) ? timestamp : 0
 }
 
 function normalizeUrlKey(value: string): string {

@@ -1,11 +1,11 @@
 import assert from 'node:assert/strict'
 import { describe, test } from 'vitest'
+import { COACH_PIN_MODES } from '@shared/constants/preferences'
+import type { CoachPinMode } from '@shared/types/coach'
 import {
-  COACH_PIN_MODES,
   DEFAULT_COACH_PIN_MODE,
   normalizeCoachPinMode,
   resolvePetPinDecision,
-  type CoachPinMode,
 } from '../../electron/coach/petPinPolicy.ts'
 
 /**
@@ -19,11 +19,8 @@ import {
  * - dock 既不置顶也不绑 parent
  */
 
-const decide = (
-  mode: CoachPinMode,
-  hasActiveShell: boolean,
-  activeShellFocused: boolean,
-) => resolvePetPinDecision({ mode, hasActiveShell, activeShellFocused })
+const decide = (mode: CoachPinMode, hasActiveShell: boolean, activeShellFocused: boolean) =>
+  resolvePetPinDecision({ mode, hasActiveShell, activeShellFocused })
 
 describe('resolvePetPinDecision', () => {
   test('follow 绑到聚焦中的活跃壳，且从不置顶', () => {

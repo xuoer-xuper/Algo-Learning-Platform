@@ -74,7 +74,7 @@ export class ViewRegistry {
 
   get(identity: WebContentsIdentity): ViewRegistryEntry | null {
     const id = getWebContentsId(identity)
-    return id === null ? null : this.entries.get(id) ?? null
+    return id === null ? null : (this.entries.get(id) ?? null)
   }
 
   getByWindow(windowId: string): ViewRegistryEntry[] {
@@ -95,11 +95,11 @@ export class ViewRegistry {
   ): ViewRegistryTabTransfer | null {
     const entry = this.entries.get(webContentsId)
     if (
-      !entry
-      || entry.kind !== 'tab'
-      || entry.windowId !== expectedWindowId
-      || entry.tabId !== expectedTabId
-      || this.activeTabTransfers.has(webContentsId)
+      !entry ||
+      entry.kind !== 'tab' ||
+      entry.windowId !== expectedWindowId ||
+      entry.tabId !== expectedTabId ||
+      this.activeTabTransfers.has(webContentsId)
     ) {
       return null
     }
@@ -179,11 +179,12 @@ export class ViewRegistry {
     if (this.activeTabTransfers.has(entry.webContentsId)) {
       throw new Error(`webContents ${entry.webContentsId} is being transferred`)
     }
-    if (existing && (
-      existing.windowId !== entry.windowId
-      || existing.tabId !== entry.tabId
-      || existing.kind !== entry.kind
-    )) {
+    if (
+      existing &&
+      (existing.windowId !== entry.windowId ||
+        existing.tabId !== entry.tabId ||
+        existing.kind !== entry.kind)
+    ) {
       throw new Error(`webContents ${entry.webContentsId} already has an owner`)
     }
     this.entries.set(entry.webContentsId, entry)

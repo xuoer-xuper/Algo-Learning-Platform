@@ -16,6 +16,8 @@ vi.mock('../../src/hooks/browserShellApi', () => shellApi)
 import { BrowserToolbar } from '../../src/components/BrowserToolbar'
 import { OmniboxSuggestionsPanel } from '../../src/components/Omnibox'
 import { useOmnibox } from '../../src/components/useOmnibox'
+import type { UiCommand } from '@shared/types/window'
+import type { OmniboxSuggestion } from '@shared/types/problem'
 
 const historySuggestion: OmniboxSuggestion = {
   problemId: 'problem-1',
@@ -23,7 +25,7 @@ const historySuggestion: OmniboxSuggestion = {
   platform: 'leetcode-cn',
   platformProblemId: '1',
   url: 'https://leetcode.cn/problems/two-sum/',
-  lastVisitedAt: '2026-08-18T10:00:00+08:00',
+  lastVisitedAt: Date.parse('2026-08-18T10:00:00+08:00'),
   source: 'history',
 }
 
@@ -115,9 +117,12 @@ describe('Omnibox', () => {
 
   it('debounces empty queries and ignores stale suggestion responses', async () => {
     const resolvers: Array<(suggestions: OmniboxSuggestion[]) => void> = []
-    shellApi.getBrowserOmniboxSuggestions.mockImplementation(() => new Promise((resolve) => {
-      resolvers.push(resolve)
-    }))
+    shellApi.getBrowserOmniboxSuggestions.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolvers.push(resolve)
+        }),
+    )
     render(<Harness />)
     const input = screen.getByRole('combobox')
 
@@ -165,7 +170,9 @@ describe('Omnibox', () => {
 
     fireEvent.keyDown(input, { key: 'ArrowDown' })
     expect(input.getAttribute('aria-activedescendant')).toBe('omnibox-suggestion-0')
-    expect(screen.getByRole('option', { name: /Two Sum/ }).getAttribute('aria-selected')).toBe('true')
+    expect(screen.getByRole('option', { name: /Two Sum/ }).getAttribute('aria-selected')).toBe(
+      'true',
+    )
     fireEvent.keyDown(input, { key: 'Enter' })
     expect(onNavigate).toHaveBeenCalledWith(historySuggestion.url)
     expect(shellApi.setBrowserOmniboxOpen).toHaveBeenLastCalledWith(false)

@@ -47,5 +47,3 @@ describe('hover/focus 状态完备性（B5.3）', () => {
     expect(true).toBe(true)
   })
 })
-
-

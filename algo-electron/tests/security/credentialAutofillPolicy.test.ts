@@ -18,11 +18,23 @@ const site = {
 test('autofill policy requires HTTPS, a domain-label match, and a configured login route', () => {
   assert.ok(resolveCredentialAutofillTarget('https://codeforces.com/enter?back=%2F', site))
   assert.ok(resolveCredentialAutofillTarget('https://www.codeforces.com/login/oauth', site))
-  assert.strictEqual(resolveCredentialAutofillTarget('https://codeforces.com/problemset', site), null)
-  assert.strictEqual(resolveCredentialAutofillTarget('https://codeforces.com.evil.test/enter', site), null)
+  assert.strictEqual(
+    resolveCredentialAutofillTarget('https://codeforces.com/problemset', site),
+    null,
+  )
+  assert.strictEqual(
+    resolveCredentialAutofillTarget('https://codeforces.com.evil.test/enter', site),
+    null,
+  )
   assert.strictEqual(resolveCredentialAutofillTarget('http://codeforces.com/enter', site), null)
-  assert.strictEqual(resolveCredentialAutofillTarget('https://user:pass@codeforces.com/enter', site), null)
-  assert.strictEqual(resolveCredentialAutofillTarget('https://codeforces.com/enter', { ...site, enabled: false }), null)
+  assert.strictEqual(
+    resolveCredentialAutofillTarget('https://user:pass@codeforces.com/enter', site),
+    null,
+  )
+  assert.strictEqual(
+    resolveCredentialAutofillTarget('https://codeforces.com/enter', { ...site, enabled: false }),
+    null,
+  )
 })
 
 test('login URL patterns accept path globs and same-origin absolute patterns only', () => {

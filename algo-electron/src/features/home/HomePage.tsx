@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react'
+import { useIpcQuery } from '../../hooks/useIpcQuery'
+import { useIpcQueryError } from '../../hooks/useIpcQueryError'
 import {
   PLATFORM_COLORS,
   PLATFORM_LABELS,
@@ -12,48 +13,30 @@ import {
   loadHomeRecentProblems,
   loadHomeRecommendations,
   loadHomeShortcuts,
-  subscribeHomeProblemsUpdated,
 } from './homeApi'
-import type { HomeOverviewStats, HomeProblemRecord, HomeRecommendation } from './homeTypes'
 import { Card, Empty, ListRow, Skeleton } from '../../components/ui'
-import { reportRendererError } from '../../rendererErrors'
 
 interface Props {
   onNavigate: (url: string) => void
 }
 
 export function HomePage({ onNavigate }: Props) {
-  const [stats, setStats] = useState<HomeOverviewStats | null>(null)
-  // null = 还没读到，[] = 读到了且为空。首页原本就用 `stats === null` 正确区分了
-  // 两者（不像侧栏和 Dashboard 会说谎），但加载中整块不渲染，数据到了突然弹出。
-  // 这里把 recent 也纳入同一套表达，好让两块都能出骨架占位。
-  const [recent, setRecent] = useState<HomeProblemRecord[] | null>(null)
-  const [recommendations, setRecommendations] = useState<HomeRecommendation[]>([])
-  const [homeShortcuts, setHomeShortcuts] = useState<string[]>([])
-
-  useEffect(() => {
-    // 概览与最近题目是首页主体，失败必须提示；快捷入口和复习建议是附属区块，
-    // 沿用原有的降级为空列表，不打断首页。
-    const loadPrimary = () => {
-      void loadHomeOverviewStats().then(setStats)
-        .catch((error: unknown) => reportRendererError('首页概览读取', error))
-      // 失败落到 []，否则骨架会一直脉冲，看起来像永远在加载
-      void loadHomeRecentProblems(8).then(setRecent)
-        .catch((error: unknown) => {
-          setRecent((prev) => prev ?? [])
-          reportRendererError('首页最近题目读取', error)
-        })
-    }
-
-    loadPrimary()
-    void loadHomeShortcuts().then(setHomeShortcuts).catch(() => setHomeShortcuts([]))
-    void loadHomeRecommendations(5).then(setRecommendations).catch(() => setRecommendations([]))
-    const unsubscribe = subscribeHomeProblemsUpdated(() => {
-      loadPrimary()
-      void loadHomeRecommendations(5).then(setRecommendations).catch(() => {})
-    })
-    return unsubscribe
-  }, [])
+  const statsQuery = useIpcQuery(loadHomeOverviewStats, [], {
+    tables: ['problems', 'submissions', 'stats'],
+  })
+  const recentQuery = useIpcQuery(() => loadHomeRecentProblems(8), [], {
+    tables: ['problems', 'submissions', 'stats'],
+  })
+  const recommendationQuery = useIpcQuery(() => loadHomeRecommendations(5), [], {
+    tables: ['problems', 'submissions', 'stats'],
+  })
+  const shortcutQuery = useIpcQuery(loadHomeShortcuts, [])
+  useIpcQueryError(statsQuery.error, '首页概览读取')
+  useIpcQueryError(recentQuery.error, '首页最近题目读取')
+  const stats = statsQuery.data
+  const recent = recentQuery.data ?? []
+  const recommendations = recommendationQuery.data ?? []
+  const homeShortcuts = shortcutQuery.data ?? []
 
   const builtInUrls = new Set(Object.values(PLATFORM_URLS).map((url) => new URL(url).origin))
   const customShortcuts = homeShortcuts.flatMap((url) => {
@@ -97,7 +80,9 @@ export function HomePage({ onNavigate }: Props) {
                 <span className="home-site-label num">{PLATFORM_LABELS[key] || key}</span>
               </span>
               <span className="home-site-name">{PLATFORM_NAMES[key]}</span>
-              <span className="home-site-url num">{url.replace('https://', '').replace(/\/$/, '')}</span>
+              <span className="home-site-url num">
+                {url.replace('https://', '').replace(/\/$/, '')}
+              </span>
             </button>
           ))}
           {customShortcuts.map(({ url, host }) => (
@@ -108,11 +93,16 @@ export function HomePage({ onNavigate }: Props) {
               onClick={() => onNavigate(url)}
             >
               <span className="home-site-head">
-                <span className="home-site-dot" style={{ backgroundColor: 'var(--color-accent)' }} />
+                <span
+                  className="home-site-dot"
+                  style={{ backgroundColor: 'var(--color-accent)' }}
+                />
                 <span className="home-site-label num">URL</span>
               </span>
               <span className="home-site-name">{host}</span>
-              <span className="home-site-url num">{url.replace(/^https?:\/\//, '').replace(/\/$/, '')}</span>
+              <span className="home-site-url num">
+                {url.replace(/^https?:\/\//, '').replace(/\/$/, '')}
+              </span>
             </button>
           ))}
         </div>
@@ -122,7 +112,7 @@ export function HomePage({ onNavigate }: Props) {
         加载中出骨架而不是留空：改前这块在 stats 到达前完全不渲染，首页会先短暂
         少一整段，然后概览"弹"出来。骨架把高度先占住。
       */}
-      {stats === null && (
+      {statsQuery.isLoading && (
         <div className="home-section">
           <h2 className="home-section-title">学习概览</h2>
           <Skeleton rows={2} label="学习概览加载中" />
@@ -130,7 +120,7 @@ export function HomePage({ onNavigate }: Props) {
       )}
 
       {/*
-        `stats.totalProblems === 0` 才是真空态 —— 与上面的 `stats === null`
+        `stats.totalProblems === 0` 才是真空态 —— 与上面的 `statsQuery.isLoading`
         分成两个分支，是这一版三态词汇的关键：先前两者都可能显示成"没有记录"。
       */}
       {stats && stats.totalProblems === 0 && (
@@ -155,11 +145,14 @@ export function HomePage({ onNavigate }: Props) {
               <div className="home-stat-value num">{stats.todayVisited}</div>
               <div className="home-stat-label">今日访问</div>
             </Card>
-            {stats.platformDistribution.map(p => (
+            {stats.platformDistribution.map((p) => (
               <Card key={p.platform} padded={false} className="home-stat-card">
                 <div className="home-stat-value num">{p.count}</div>
                 <div className="home-stat-label">
-                  <span className="home-stat-dot" style={{ backgroundColor: PLATFORM_COLORS[p.platform] }} />
+                  <span
+                    className="home-stat-dot"
+                    style={{ backgroundColor: PLATFORM_COLORS[p.platform] }}
+                  />
                   <span className="num">{PLATFORM_LABELS[p.platform] || p.platform}</span>
                 </div>
               </Card>
@@ -180,11 +173,17 @@ export function HomePage({ onNavigate }: Props) {
                 onActivate={() => onNavigate(r.canonical_url)}
                 label={`打开 ${r.title || r.platform_problem_id}`}
               >
-                <span className="home-rec-dot" style={{ backgroundColor: PLATFORM_COLORS[r.platform] }} />
-                <span className="home-rec-platform num">{PLATFORM_LABELS[r.platform] || r.platform}</span>
+                <span
+                  className="home-rec-dot"
+                  style={{ backgroundColor: PLATFORM_COLORS[r.platform] }}
+                />
+                <span className="home-rec-platform num">
+                  {PLATFORM_LABELS[r.platform] || r.platform}
+                </span>
                 <span className="home-rec-title">{r.title || r.platform_problem_id}</span>
                 <span className="home-rec-evidence">
-                  <span className="num">{r.source.wrong_count}</span> 次错误 · <span className="num">{r.source.days_since_attempt}</span> 天未复习
+                  <span className="num">{r.source.wrong_count}</span> 次错误 ·{' '}
+                  <span className="num">{r.source.days_since_attempt}</span> 天未复习
                 </span>
               </ListRow>
             ))}
@@ -192,18 +191,18 @@ export function HomePage({ onNavigate }: Props) {
         </div>
       )}
 
-      {recent === null && (
+      {recentQuery.isLoading && (
         <div className="home-section">
           <h2 className="home-section-title">最近访问</h2>
           <Skeleton rows={4} label="最近访问加载中" />
         </div>
       )}
 
-      {recent !== null && recent.length > 0 && (
+      {recent.length > 0 && (
         <div className="home-section">
           <h2 className="home-section-title">最近访问</h2>
           <div className="home-recent">
-            {recent.map(p => (
+            {recent.map((p) => (
               <ListRow
                 key={p.id}
                 className="home-recent-item"
@@ -217,9 +216,7 @@ export function HomePage({ onNavigate }: Props) {
                 <span className="home-recent-platform num">
                   {PLATFORM_LABELS[p.platform] || p.platform}
                 </span>
-                <span className="home-recent-title">
-                  {p.title || p.platform_problem_id}
-                </span>
+                <span className="home-recent-title">{p.title || p.platform_problem_id}</span>
                 {/* 状态色圆点与文字成对出现（display.ts 约定） */}
                 <span
                   className="home-recent-status"

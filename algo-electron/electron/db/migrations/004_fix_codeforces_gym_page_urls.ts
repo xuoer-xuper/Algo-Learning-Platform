@@ -8,14 +8,16 @@ export const migration004 = {
   name: 'fix_codeforces_gym_page_urls',
   up: (db: Database.Database) => {
     const now = nowBeijing()
-    const rows = db.prepare(`
+    const rows = db
+      .prepare(
+        `
       SELECT id, canonical_url FROM problems
       WHERE platform = 'codeforces' AND deleted_at IS NULL
-    `).all() as { id: string; canonical_url: string }[]
+    `,
+      )
+      .all() as { id: string; canonical_url: string }[]
 
-    const update = db.prepare(
-      'UPDATE problems SET canonical_url = ?, updated_at = ? WHERE id = ?'
-    )
+    const update = db.prepare('UPDATE problems SET canonical_url = ?, updated_at = ? WHERE id = ?')
 
     for (const row of rows) {
       const fixed = resolveCodeforcesNavigateUrl(row.canonical_url)

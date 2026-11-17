@@ -25,7 +25,12 @@ export function getEnabledSites(): EnabledSiteConfig[] {
 export function findMatchingEnabledSite(url: string): EnabledSiteConfig | null {
   try {
     const parsed = new URL(url)
-    return getEnabledSites().find(site => site.enabled && site.domains.some(domain => isHostInDomain(parsed.hostname, domain))) ?? null
+    return (
+      getEnabledSites().find(
+        (site) =>
+          site.enabled && site.domains.some((domain) => isHostInDomain(parsed.hostname, domain)),
+      ) ?? null
+    )
   } catch {
     return null
   }

@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Button, ConfirmDialog, IconButton } from '../../components/ui'
-import { reportRendererError } from '../../rendererErrors'
+import { useIpcQuery } from '../../hooks/useIpcQuery'
+import { useIpcQueryError } from '../../hooks/useIpcQueryError'
 import { AddSiteForm } from './AddSiteForm'
 import { ImportPreviewPanel } from './ImportPreviewPanel'
 import {
@@ -13,12 +14,8 @@ import {
   loadSites as loadSiteConfigs,
   toggleSiteEnabled,
 } from './settingsApi'
-import type {
-  ImportPreview,
-  ImportPreviewSite,
-  NewSiteDraft,
-  SiteConfigView,
-} from './siteManagementTypes'
+import type { NewSiteDraft } from './siteManagementTypes'
+import type { SiteConfigRecord, SiteImportPreview } from '@shared/types/sites'
 
 const EMPTY_SITE_DRAFT: NewSiteDraft = {
   id: '',
@@ -29,9 +26,11 @@ const EMPTY_SITE_DRAFT: NewSiteDraft = {
 }
 
 export function SiteManagementPanel() {
-  const [sites, setSites] = useState<SiteConfigView[]>([])
+  const query = useIpcQuery(loadSiteConfigs, [], { tables: ['sites'] })
+  const sites = query.data ?? []
+  useIpcQueryError(query.error, '站点列表读取')
   const [exportStatus, setExportStatus] = useState('')
-  const [importPreview, setImportPreview] = useState<ImportPreview | null>(null)
+  const [importPreview, setImportPreview] = useState<SiteImportPreview | null>(null)
   const [importOverwriteIds, setImportOverwriteIds] = useState<string[]>([])
   const [importStatus, setImportStatus] = useState('')
 
@@ -39,17 +38,11 @@ export function SiteManagementPanel() {
   const [newSiteDraft, setNewSiteDraft] = useState<NewSiteDraft>(EMPTY_SITE_DRAFT)
   const [newSiteError, setNewSiteError] = useState('')
   /** 待删除站点（ConfirmDialog 打开态，替代原生 confirm） */
-  const [pendingDelete, setPendingDelete] = useState<SiteConfigView | null>(null)
+  const [pendingDelete, setPendingDelete] = useState<SiteConfigRecord | null>(null)
 
   const loadSites = () => {
-    void loadSiteConfigs()
-      .then(setSites)
-      .catch((error: unknown) => reportRendererError('站点列表读取', error))
+    void query.refetch()
   }
-
-  useEffect(() => {
-    loadSites()
-  }, [])
 
   const handleToggleSite = async (id: string, enabled: boolean) => {
     await toggleSiteEnabled(id, enabled)
@@ -60,8 +53,8 @@ export function SiteManagementPanel() {
     setExportStatus('导出中...')
     try {
       const result = await exportSitesConfig()
-      if (result.success) {
-        setExportStatus(`已导出 ${result.count} 个站点`)
+      if (result.success === true) {
+        setExportStatus(`已导出 ${result.data.count} 个站点`)
       } else {
         setExportStatus(result.error || '导出失败')
       }
@@ -76,16 +69,14 @@ export function SiteManagementPanel() {
     setImportStatus('选择文件...')
     try {
       const result = await importSitesConfig()
-      if (!result.success) {
+      if (result.success !== true) {
         setImportStatus(result.error || '导入取消')
         setTimeout(() => setImportStatus(''), 3000)
         return
       }
-      if (result.preview) {
-        setImportPreview(result.preview)
-        setImportOverwriteIds([])
-        setImportStatus('')
-      }
+      setImportPreview(result.data.preview)
+      setImportOverwriteIds([])
+      setImportStatus('')
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : String(e)
       setImportStatus(`错误: ${message}`)
@@ -100,11 +91,14 @@ export function SiteManagementPanel() {
 
   const handleConfirmImport = async () => {
     if (!importPreview) return
-    const allSites: ImportPreviewSite[] = [...importPreview.newSites, ...importPreview.conflicts.map((c) => c.incoming)]
+    const allSites: SiteConfigRecord[] = [
+      ...importPreview.newSites,
+      ...importPreview.conflicts.map((c) => c.incoming),
+    ]
     try {
       const result = await confirmImportSites(allSites, importOverwriteIds)
-      if (result.success) {
-        setImportStatus(`导入完成: 新增 ${result.imported}，覆盖 ${result.overwritten}`)
+      if (result.success === true) {
+        setImportStatus(`导入完成: 新增 ${result.data.imported}，覆盖 ${result.data.overwritten}`)
         setImportPreview(null)
         setImportOverwriteIds([])
         loadSites()
@@ -120,7 +114,7 @@ export function SiteManagementPanel() {
 
   const toggleOverwrite = (id: string) => {
     setImportOverwriteIds((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
     )
   }
 
@@ -235,7 +229,9 @@ export function SiteManagementPanel() {
       <ConfirmDialog
         open={pendingDelete !== null}
         title="删除站点"
-        description={pendingDelete ? `确定删除站点「${pendingDelete.name}」？删除后需重新添加才能恢复。` : ''}
+        description={
+          pendingDelete ? `确定删除站点「${pendingDelete.name}」？删除后需重新添加才能恢复。` : ''
+        }
         danger
         confirmText="删除"
         onConfirm={() => {

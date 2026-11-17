@@ -1,12 +1,13 @@
-import type { SettingsOverviewStats } from './settingsTypes'
+import { formatForDisplay } from '@shared/time'
+import type { OverviewStats } from '@shared/types/stats'
 import { Card, Skeleton } from '../../components/ui'
 
 interface LearningOverviewPanelProps {
-  stats: SettingsOverviewStats | null
+  stats: OverviewStats | null
 }
 
-function formatLastActive(value: string | null): string {
-  return value ? value.replace('T', ' ').slice(0, 19) : '暂无'
+function formatLastActive(value: number | null): string {
+  return value === null ? '暂无' : formatForDisplay(value)
 }
 
 export function LearningOverviewPanel({ stats }: LearningOverviewPanelProps) {
@@ -25,7 +26,9 @@ export function LearningOverviewPanel({ stats }: LearningOverviewPanelProps) {
           </Card>
           <Card padded={false} className="stats-card stats-card-wide">
             <div className="stats-label">最近活跃</div>
-            <div className="stats-value stats-value-sm">{formatLastActive(stats.lastActiveTime)}</div>
+            <div className="stats-value stats-value-sm">
+              {formatLastActive(stats.lastActiveTime)}
+            </div>
           </Card>
         </div>
       ) : (

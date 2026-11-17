@@ -1,5 +1,29 @@
 import { getShellWindowOwner, ipcMain } from './trustedSender'
-import { bool, decimal, freeText, int, oneOf, optional, raw, text } from './payloadSchema'
+import {
+  cancelUserScriptInstallInput,
+  findInPageInput,
+  getUserScriptInstallInput,
+  navigateInput,
+  omniboxSuggestInput,
+  respondHostPermissionInput,
+  setSidebarWidthInput,
+  showAppMenuInput,
+  showShellContextMenuInput,
+  showTabContextMenuInput,
+  setDownloadNoticeVisibleInput,
+  setErrorNoticeVisibleInput,
+  setOmniboxOpenInput,
+  setZoomInput,
+  tabCloseInput,
+  tabCreateInput,
+  tabDismissUnresponsiveInput,
+  tabFinishDragInput,
+  tabMoveToNewWindowInput,
+  tabOpenInternalInput,
+  tabReloadInput,
+  tabReorderInput,
+  tabSwitchInput,
+} from '../../src/shared/types/ipc/browser'
 import { resolveNavigateUrl } from '../parsers/navigateUrl'
 import type { BrowserDiagnostics } from '../diagnostics/BrowserDiagnostics'
 import { isInternalPage } from '../browser/tabManagerTypes'
@@ -11,10 +35,11 @@ import { popupShellContextMenu, readClipboardText } from '../contextMenus/browse
 import { isZoomCommand } from '../browser/zoomPreferences'
 import type { PendingUserScriptInstallRegistry } from '../downloads/userScriptNavigation'
 import type { AppWindow } from '../windows/AppWindow'
+import { IPC_CHANNELS } from '../../src/shared/constants/channels'
 import type {
   UserScriptHostPermissionPrompt,
   UserScriptHostPermissionResponse,
-} from '../scripts/UserScriptHostPermissionBroker'
+} from '../../src/shared/types/scripts'
 
 interface RegisterBrowserShellIpcOptions {
   getBrowserDiagnostics?: () => BrowserDiagnostics | null
@@ -47,40 +72,24 @@ function toNavigationBlockReason(
 }
 
 /*
- * 复用的界，数字全部沿用本文件原先手写检查里的值：
- *
- * - `tabId()` 200：原 `tabId.length === 0 || tabId.length > 200`。
- * - `promptId()` 256：原 `promptId.length > 256`。
- * - `tabIndex()`：原检查只有 `Number.isInteger`，没有上下界。这里给 0..999——
- *   标签是同一个窗口里的，`reorderTab` 与 `finishTabDrag` 都会把越界值夹回合法区间，
- *   给个量级上限只是避免把 `Number.MAX_SAFE_INTEGER` 一路带进去。负数本来就不合法。
- * - `screenCoord()`：原检查是 `typeof === 'number' && Number.isFinite`。
- *   `decimal` 恰好就是这两条（屏幕坐标不是整数——DPI 缩放下会有小数），
- *   界给 ±100000，远超任何多屏布局的实际范围。
+ * 各 channel 的输入 schema 元组来自 `src/shared/types/ipc/browser.ts`；
+ * tabId 200 / promptId 256 / tabIndex 0..999 / screenCoord ±100000 这些界的来历
+ * 与四处"在别处校验"的判别参数说明都写在那里。
  */
-const tabId = () => text({ max: 200 })
-const promptId = () => text({ max: 256 })
-const tabIndex = () => int({ min: 0, max: 999 })
-const screenCoord = () => decimal({ min: -100_000, max: 100_000 })
-
 export function registerBrowserShellIpc(options: RegisterBrowserShellIpcOptions): void {
-  /*
-   * `url` 用 `optional(freeText(...))`：`createTab()` 无参是"开新标签页到首页"的正常路径，
-   * 而空串在 `createTab` 里走的也是同一条兜底分支。4096 是项目里 URL 的既有口径。
-   */
-  ipcMain.handle('tab:create', [optional(freeText({ max: 4096 }))], (event, url) => {
+  ipcMain.handle(IPC_CHANNELS.TAB.CREATE, tabCreateInput, (event, url) => {
     return getShellWindowOwner(event)?.tabManager.createTab(url) ?? null
   })
 
-  ipcMain.on('tab:close', [tabId()], (event, tabId) => {
+  ipcMain.on(IPC_CHANNELS.TAB.CLOSE, tabCloseInput, (event, tabId) => {
     getShellWindowOwner(event)?.tabManager.closeTab(tabId)
   })
 
-  ipcMain.handle('tab:reopenClosed', (event) => {
+  ipcMain.handle(IPC_CHANNELS.TAB.REOPEN_CLOSED, (event) => {
     return getShellWindowOwner(event)?.tabManager.reopenClosedTab() ?? ''
   })
 
-  ipcMain.on('tab:switch', [tabId()], (event, tabId) => {
+  ipcMain.on(IPC_CHANNELS.TAB.SWITCH, tabSwitchInput, (event, tabId) => {
     getShellWindowOwner(event)?.tabManager.switchTab(tabId)
   })
 
@@ -89,54 +98,58 @@ export function registerBrowserShellIpc(options: RegisterBrowserShellIpcOptions)
    * 判完 TS 仍然认为它是 `unknown`，所以只能强转。schema 之后类型是真的收窄了，
    * 两处 `as` 一起删掉。
    */
-  ipcMain.handle('tab:reorder', [tabId(), tabIndex()], (event, tabId, targetIndex) => {
-    return getShellWindowOwner(event)?.tabManager.reorderTab(tabId, targetIndex) ?? false
+  ipcMain.handle(IPC_CHANNELS.TAB.REORDER, tabReorderInput, (event, input) => {
+    return (
+      getShellWindowOwner(event)?.tabManager.reorderTab(input.tabId, input.targetIndex) ?? false
+    )
   })
 
-  ipcMain.handle('tab:moveToNewWindow', [tabId()], (event, tabId) => {
+  ipcMain.handle(IPC_CHANNELS.TAB.MOVE_TO_NEW_WINDOW, tabMoveToNewWindowInput, (event, tabId) => {
     const owner = getShellWindowOwner(event)
-    return owner ? options.moveTabToNewWindow?.(owner, tabId) ?? false : false
+    return owner ? (options.moveTabToNewWindow?.(owner, tabId) ?? false) : false
   })
 
-  ipcMain.handle(
-    'tab:finishDrag',
-    [tabId(), tabIndex(), screenCoord(), screenCoord()],
-    (event, tabId, targetIndex, screenX, screenY) => {
-      const owner = getShellWindowOwner(event)
-      return owner
-        ? options.finishTabDrag?.(owner, tabId, targetIndex, screenX, screenY) ?? false
-        : false
-    },
-  )
+  ipcMain.handle(IPC_CHANNELS.TAB.FINISH_DRAG, tabFinishDragInput, (event, input) => {
+    const owner = getShellWindowOwner(event)
+    return owner
+      ? (options.finishTabDrag?.(
+          owner,
+          input.tabId,
+          input.targetIndex,
+          input.screenX,
+          input.screenY,
+        ) ?? false)
+      : false
+  })
 
-  ipcMain.on('tab:reload', [tabId()], (event, tabId) => {
+  ipcMain.on(IPC_CHANNELS.TAB.RELOAD, tabReloadInput, (event, tabId) => {
     getShellWindowOwner(event)?.tabManager.reloadTab(tabId)
   })
 
-  ipcMain.on('tab:dismissUnresponsive', [tabId()], (event, tabId) => {
+  ipcMain.on(IPC_CHANNELS.TAB.DISMISS_UNRESPONSIVE, tabDismissUnresponsiveInput, (event, tabId) => {
     getShellWindowOwner(event)?.tabManager.dismissUnresponsive(tabId)
   })
 
   /*
    * 内部页 payload 是判别联合，形状由 `isInternalPage` 判——它要按 `type` 分支决定
-   * 哪些字段必须在场，本层的组合子表达不了。`raw()` 就是为这种情况留的：
-   * 让"没校验"和"在别处校验"在代码里能区分开，而不是留一个裸 `unknown` 参数。
+   * 哪些字段必须在场，schema 层表达不了。这里是四个棘轮封顶的"在别处校验"之一，
+   * 元组元素是显式放行的 unknown。
    */
-  ipcMain.handle('tab:openInternal', [raw('isInternalPage 判别联合校验')], (event, page) => {
+  ipcMain.handle(IPC_CHANNELS.TAB.OPEN_INTERNAL, tabOpenInternalInput, (event, page) => {
     if (!isInternalPage(page)) return ''
     return getShellWindowOwner(event)?.tabManager.openInternalTab(page) ?? ''
   })
 
-  ipcMain.handle('tab:getList', (event) => {
+  ipcMain.handle(IPC_CHANNELS.TAB.GET_LIST, (event) => {
     return getShellWindowOwner(event)?.tabManager.getTabList() ?? []
   })
 
   /*
-   * `freeText`：地址栏清空后按回车会发空串，`resolveOmniboxInput` 自己判成
+   * 允许空串：地址栏清空后按回车会发空串，`resolveOmniboxInput` 自己判成
    * `empty-input` 并静默返回（`toNavigationBlockReason` 对它返回 null）。
-   * 收成 `text({min:1})` 会把这条正常路径变成一次载荷拒绝日志。
+   * 收成 `min(1)` 会把这条正常路径变成一次载荷拒绝日志。
    */
-  ipcMain.on('browser:navigate', [freeText({ max: 4096 })], (event, input) => {
+  ipcMain.on(IPC_CHANNELS.BROWSER.NAVIGATE, navigateInput, (event, input) => {
     const owner = getShellWindowOwner(event)
     if (!owner) return
     const resolution = resolveOmniboxInput(input, {
@@ -145,7 +158,7 @@ export function registerBrowserShellIpc(options: RegisterBrowserShellIpcOptions)
     })
     if (resolution.kind === 'blocked') {
       const reason = toNavigationBlockReason(resolution.reason)
-      if (reason) owner.send('ui:command', { type: 'navigation-blocked', reason })
+      if (reason) owner.send(IPC_CHANNELS.UI.COMMAND, { type: 'navigation-blocked', reason })
       return
     }
     if (resolution.kind === 'internal') {
@@ -156,57 +169,77 @@ export function registerBrowserShellIpc(options: RegisterBrowserShellIpcOptions)
   })
 
   // 256 沿用原 `query.length > 256`；空串合法（地址栏清空时前端会拉一次空建议）。
-  ipcMain.handle('browser:omniboxSuggest', [freeText({ max: 256 })], (_event, query) => {
+  ipcMain.handle(IPC_CHANNELS.BROWSER.OMNIBOX_SUGGEST, omniboxSuggestInput, (_event, query) => {
     return getOmniboxSuggestions(query)
   })
 
-  ipcMain.on('browser:setOmniboxOpen', [bool], (event, open) => {
+  ipcMain.on(IPC_CHANNELS.BROWSER.SET_OMNIBOX_OPEN, setOmniboxOpenInput, (event, open) => {
     getShellWindowOwner(event)?.tabManager.setOmniboxOpen(open)
   })
 
   /*
    * `command` 两条都交给下游：`findInPage` 的命令对象由 `TabManager.findInPage` 自己判
    * （见 tabManagerFindZoom 的用例），`setZoom` 的由 `isZoomCommand` 判。
-   * 前者原先连 `unknown` 都没判就传下去了，`raw()` 至少把这件事写在了通道上。
+   * 前者原先连 `unknown` 都没判就传下去了，显式放行至少把这件事写在了通道上。
    */
-  ipcMain.handle('browser:findInPage', [tabId(), raw('TabManager.findInPage 内部判别')], (event, tabId, command) => {
-    return getShellWindowOwner(event)?.tabManager.findInPage(tabId, command) ?? null
+  ipcMain.handle(IPC_CHANNELS.BROWSER.FIND_IN_PAGE, findInPageInput, (event, input) => {
+    return getShellWindowOwner(event)?.tabManager.findInPage(input.tabId, input.command) ?? null
   })
 
-  ipcMain.handle('browser:setZoom', [tabId(), raw('isZoomCommand 判别联合校验')], (event, tabId, command) => {
-    if (!isZoomCommand(command)) return null
-    return getShellWindowOwner(event)?.tabManager.setZoom(tabId, command) ?? null
+  ipcMain.handle(IPC_CHANNELS.BROWSER.SET_ZOOM, setZoomInput, (event, input) => {
+    if (!isZoomCommand(input.command)) return null
+    return getShellWindowOwner(event)?.tabManager.setZoom(input.tabId, input.command) ?? null
   })
 
-  ipcMain.on('browser:setDownloadNoticeVisible', [bool], (event, visible) => {
-    getShellWindowOwner(event)?.tabManager.setDownloadNoticeVisible(visible)
-  })
+  ipcMain.on(
+    IPC_CHANNELS.BROWSER.SET_DOWNLOAD_NOTICE_VISIBLE,
+    setDownloadNoticeVisibleInput,
+    (event, visible) => {
+      getShellWindowOwner(event)?.tabManager.setDownloadNoticeVisible(visible)
+    },
+  )
 
-  ipcMain.on('browser:setErrorNoticeVisible', [bool], (event, visible) => {
-    getShellWindowOwner(event)?.tabManager.setErrorNoticeVisible(visible)
-  })
+  ipcMain.on(
+    IPC_CHANNELS.BROWSER.SET_ERROR_NOTICE_VISIBLE,
+    setErrorNoticeVisibleInput,
+    (event, visible) => {
+      getShellWindowOwner(event)?.tabManager.setErrorNoticeVisible(visible)
+    },
+  )
 
-  ipcMain.handle('browser:getUserScriptInstall', [tabId()], (_event, installId) => {
-    return options.getUserScriptInstallRegistry?.()?.get(installId) ?? null
-  })
+  ipcMain.handle(
+    IPC_CHANNELS.BROWSER.GET_USER_SCRIPT_INSTALL,
+    getUserScriptInstallInput,
+    (_event, installId) => {
+      return options.getUserScriptInstallRegistry?.()?.get(installId) ?? null
+    },
+  )
 
-  ipcMain.handle('browser:cancelUserScriptInstall', [tabId()], (_event, installId) => {
-    return options.getUserScriptInstallRegistry?.()?.consume(installId) !== null
-  })
+  ipcMain.handle(
+    IPC_CHANNELS.BROWSER.CANCEL_USER_SCRIPT_INSTALL,
+    cancelUserScriptInstallInput,
+    (_event, installId) => {
+      return options.getUserScriptInstallRegistry?.()?.consume(installId) !== null
+    },
+  )
 
-  ipcMain.handle('userscript:getHostPermissionPrompt', (event) => {
+  ipcMain.handle(IPC_CHANNELS.USERSCRIPT.GET_HOST_PERMISSION_PROMPT, (event) => {
     const owner = getShellWindowOwner(event)
-    return owner ? options.getUserScriptHostPermissionPrompt?.(owner) ?? null : null
+    return owner ? (options.getUserScriptHostPermissionPrompt?.(owner) ?? null) : null
   })
 
-  ipcMain.handle('userscript:respondHostPermission', [promptId(), bool], (event, promptId, allow) => {
-    const owner = getShellWindowOwner(event)
-    return owner
-      ? options.respondUserScriptHostPermission?.(owner, promptId, allow) ?? 'stale'
-      : 'stale'
-  })
+  ipcMain.handle(
+    IPC_CHANNELS.USERSCRIPT.RESPOND_HOST_PERMISSION,
+    respondHostPermissionInput,
+    (event, input) => {
+      const owner = getShellWindowOwner(event)
+      return owner
+        ? (options.respondUserScriptHostPermission?.(owner, input.promptId, input.allow) ?? 'stale')
+        : 'stale'
+    },
+  )
 
-  ipcMain.on('browser:showAppMenu', [raw('isAppMenuAnchor 校验锚点矩形')], (event, anchor) => {
+  ipcMain.on(IPC_CHANNELS.BROWSER.SHOW_APP_MENU, showAppMenuInput, (event, anchor) => {
     if (!isAppMenuAnchor(anchor)) return
     const owner = getShellWindowOwner(event)
     if (!owner || owner.isDestroyed()) return
@@ -215,89 +248,105 @@ export function registerBrowserShellIpc(options: RegisterBrowserShellIpcOptions)
     popupAppMenu({
       window,
       anchor,
-      openInternalPage: (page) => { tabManager.openInternalTab(page) },
+      openInternalPage: (page) => {
+        tabManager.openInternalTab(page)
+      },
       reopenLastSession: options.reopenLastSession,
-      zoom: zoomState ? {
-        factor: zoomState.factor,
-        set: (command) => { tabManager.setZoom(zoomState.tabId, command) },
-      } : undefined,
-    })
-  })
-
-  ipcMain.on('browser:showTabContextMenu', [tabId()], (event, tabId) => {
-    getShellWindowOwner(event)?.tabManager.showTabContextMenu(tabId)
-  })
-
-  ipcMain.on('browser:showShellContextMenu', [oneOf(['omnibox', 'editor', 'page'] as const)], (event, kind) => {
-    const owner = getShellWindowOwner(event)
-    if (!owner || owner.isDestroyed()) return
-    const { browserWindow: window, tabManager } = owner
-    popupShellContextMenu({
-      window,
-      params: { isEditable: kind !== 'page' },
-      canGoBack: tabManager.canGoBack(),
-      goBack: () => tabManager.goBack(),
-      reload: () => tabManager.reload(),
-      pasteAndGo: kind === 'omnibox'
-        ? () => {
-            const value = readClipboardText()
-            if (!value) return
-            const resolution = resolveOmniboxInput(value, {
-              search: getSearchConfig(),
-              allowInsecureLocalhost: options.allowInsecureLocalhost ?? false,
-            })
-            if (resolution.kind === 'internal') tabManager.navigateInternal(resolution.page)
-            else if (resolution.kind === 'url' || resolution.kind === 'search') tabManager.navigate(resolveNavigateUrl(resolution.url))
+      zoom: zoomState
+        ? {
+            factor: zoomState.factor,
+            set: (command) => {
+              tabManager.setZoom(zoomState.tabId, command)
+            },
           }
         : undefined,
     })
   })
 
-  ipcMain.on('browser:goBack', (event) => {
+  ipcMain.on(
+    IPC_CHANNELS.BROWSER.SHOW_TAB_CONTEXT_MENU,
+    showTabContextMenuInput,
+    (event, tabId) => {
+      getShellWindowOwner(event)?.tabManager.showTabContextMenu(tabId)
+    },
+  )
+
+  ipcMain.on(
+    IPC_CHANNELS.BROWSER.SHOW_SHELL_CONTEXT_MENU,
+    showShellContextMenuInput,
+    (event, kind) => {
+      const owner = getShellWindowOwner(event)
+      if (!owner || owner.isDestroyed()) return
+      const { browserWindow: window, tabManager } = owner
+      popupShellContextMenu({
+        window,
+        params: { isEditable: kind !== 'page' },
+        canGoBack: tabManager.canGoBack(),
+        goBack: () => tabManager.goBack(),
+        reload: () => tabManager.reload(),
+        pasteAndGo:
+          kind === 'omnibox'
+            ? () => {
+                const value = readClipboardText()
+                if (!value) return
+                const resolution = resolveOmniboxInput(value, {
+                  search: getSearchConfig(),
+                  allowInsecureLocalhost: options.allowInsecureLocalhost ?? false,
+                })
+                if (resolution.kind === 'internal') tabManager.navigateInternal(resolution.page)
+                else if (resolution.kind === 'url' || resolution.kind === 'search')
+                  tabManager.navigate(resolveNavigateUrl(resolution.url))
+              }
+            : undefined,
+      })
+    },
+  )
+
+  ipcMain.on(IPC_CHANNELS.BROWSER.GO_BACK, (event) => {
     getShellWindowOwner(event)?.tabManager.goBack()
   })
 
-  ipcMain.on('browser:goForward', (event) => {
+  ipcMain.on(IPC_CHANNELS.BROWSER.GO_FORWARD, (event) => {
     getShellWindowOwner(event)?.tabManager.goForward()
   })
 
-  ipcMain.on('browser:reload', (event) => {
+  ipcMain.on(IPC_CHANNELS.BROWSER.RELOAD, (event) => {
     getShellWindowOwner(event)?.tabManager.reload()
   })
 
-  ipcMain.on('browser:goHome', (event) => {
+  ipcMain.on(IPC_CHANNELS.BROWSER.GO_HOME, (event) => {
     getShellWindowOwner(event)?.tabManager.goHome()
   })
 
   /*
    * 这条原先只有类型标注，没有任何运行时检查：`setLeftOffset` 会把值直接算进
-   * `WebContentsView` 的 bounds。上界 2000 覆盖任何合理的侧栏宽度，
-   * 用 `int` 而非 `decimal` 是因为 bounds 本来就取整。
+   * `WebContentsView` 的 bounds。上界 2000 覆盖任何合理的侧栏宽度，整数即可
+   * （bounds 本来就取整）。
    */
-  ipcMain.on('browser:setSidebarWidth', [int({ min: 0, max: 2000 })], (event, width) => {
+  ipcMain.on(IPC_CHANNELS.BROWSER.SET_SIDEBAR_WIDTH, setSidebarWidthInput, (event, width) => {
     getShellWindowOwner(event)?.tabManager.setLeftOffset(width)
   })
 
-  ipcMain.handle('browser:getDiagnostics', () => {
+  ipcMain.handle(IPC_CHANNELS.BROWSER.GET_DIAGNOSTICS, () => {
     return options.getBrowserDiagnostics?.()?.getSnapshot() ?? { entries: [] }
   })
 
-  ipcMain.on('window:minimize', (event) => {
+  ipcMain.on(IPC_CHANNELS.WINDOW.MINIMIZE, (event) => {
     getShellWindowOwner(event)?.browserWindow.minimize()
   })
 
-  ipcMain.on('window:maximize', (event) => {
+  ipcMain.on(IPC_CHANNELS.WINDOW.MAXIMIZE, (event) => {
     const win = getShellWindowOwner(event)?.browserWindow
     if (!win) return
     if (win.isMaximized()) win.unmaximize()
     else win.maximize()
   })
 
-  ipcMain.on('window:close', (event) => {
+  ipcMain.on(IPC_CHANNELS.WINDOW.CLOSE, (event) => {
     getShellWindowOwner(event)?.browserWindow.close()
   })
 
-  ipcMain.handle('window:isMaximized', (event) => {
+  ipcMain.handle(IPC_CHANNELS.WINDOW.IS_MAXIMIZED, (event) => {
     return getShellWindowOwner(event)?.browserWindow.isMaximized() ?? false
   })
 }

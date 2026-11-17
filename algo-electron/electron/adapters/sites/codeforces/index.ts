@@ -39,7 +39,10 @@ export const codeforcesAdapter: SiteAdapter = {
     return parseCodeforcesRealtimeTablePayload(raw)
   },
 
-  resolveProblemIdentity(submission: SubmissionData, raw: SubmissionDetectionPayload): ProblemIdentity | null {
+  resolveProblemIdentity(
+    submission: SubmissionData,
+    raw: SubmissionDetectionPayload,
+  ): ProblemIdentity | null {
     return resolveCodeforcesProblemIdentityFromSubmission(submission, raw)
   },
 
@@ -51,7 +54,7 @@ export const codeforcesAdapter: SiteAdapter = {
     const response = await fetch(url)
     if (!response.ok) throw new Error(`Codeforces API error: ${response.status}`)
 
-    const json = await response.json() as { status: string; result?: CodeforcesSubmission[] }
+    const json = (await response.json()) as { status: string; result?: CodeforcesSubmission[] }
     if (json.status !== 'OK' || !Array.isArray(json.result)) {
       throw new Error('Codeforces API returned non-OK status')
     }

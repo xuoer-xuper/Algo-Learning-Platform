@@ -20,7 +20,11 @@ const BUILTIN_LOGIN_CONFIGS = [
   {
     id: 'nowcoder',
     loginUrlPatterns: ['/user/login*', '/login*'],
-    usernameSelectors: ['input[name="username"]', 'input[name="phone"]', 'input[autocomplete="username"]'],
+    usernameSelectors: [
+      'input[name="username"]',
+      'input[name="phone"]',
+      'input[autocomplete="username"]',
+    ],
     passwordSelectors: ['input[type="password"]', 'input[autocomplete="current-password"]'],
     adapter: 'nowcoder',
     cookiePolicy: 'session-only',
@@ -28,7 +32,11 @@ const BUILTIN_LOGIN_CONFIGS = [
   {
     id: 'vjudge',
     loginUrlPatterns: ['/login*', '/user/login*'],
-    usernameSelectors: ['input[name="username"]', 'input[name="userName"]', 'input[autocomplete="username"]'],
+    usernameSelectors: [
+      'input[name="username"]',
+      'input[name="userName"]',
+      'input[autocomplete="username"]',
+    ],
     passwordSelectors: ['input[type="password"]', 'input[autocomplete="current-password"]'],
     adapter: 'vjudge',
     cookiePolicy: 'session-only',
@@ -44,7 +52,11 @@ const BUILTIN_LOGIN_CONFIGS = [
   {
     id: 'luogu',
     loginUrlPatterns: ['/auth/login*', '/login*'],
-    usernameSelectors: ['input[name="username"]', 'input[name="email"]', 'input[autocomplete="username"]'],
+    usernameSelectors: [
+      'input[name="username"]',
+      'input[name="email"]',
+      'input[autocomplete="username"]',
+    ],
     passwordSelectors: ['input[type="password"]', 'input[autocomplete="current-password"]'],
     adapter: 'luogu',
     cookiePolicy: 'vault-readable',
@@ -52,7 +64,11 @@ const BUILTIN_LOGIN_CONFIGS = [
   {
     id: 'leetcode-cn',
     loginUrlPatterns: ['/accounts/login*', '/login*'],
-    usernameSelectors: ['input[name="login"]', 'input[name="username"]', 'input[autocomplete="username"]'],
+    usernameSelectors: [
+      'input[name="login"]',
+      'input[name="username"]',
+      'input[autocomplete="username"]',
+    ],
     passwordSelectors: ['input[type="password"]', 'input[autocomplete="current-password"]'],
     adapter: 'leetcode-cn',
     cookiePolicy: 'vault-readable',

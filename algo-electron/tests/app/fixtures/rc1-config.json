@@ -1,0 +1,29 @@
+{
+  "homeShortcuts": [],
+  "coach": {
+    "enabled": true,
+    "sound": true,
+    "bubbleFrequency": "medium",
+    "position": {
+      "x": 1272,
+      "y": 219
+    },
+    "scale": 0.9,
+    "opacity": 1,
+    "pinMode": "follow",
+    "llm": {
+      "model": "doubao-seed-2-0-lite-260428",
+      "encrypted_api_key": "ZmFrZS1lbmNyeXB0ZWQta2V5LWVudmVsb3BlLXJwbGFjZWQtZm9yLWZpeHR1cmU=",
+      "enabled": false
+    },
+    "disclaimer_dismissed": true
+  },
+  "search": {
+    "engine": "bing",
+    "customTemplate": null
+  },
+  "zoomByOrigin": {},
+  "appearance": {
+    "theme": "system"
+  }
+}

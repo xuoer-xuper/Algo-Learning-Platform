@@ -5,6 +5,29 @@
  * 守卫的价值全在"违规重新出现时会失败"，而这一点没法靠守卫自己通过来证明。
  * 这里只做文本判定与棘轮比对，不碰文件系统；遍历与读文件留在 runner 里。
  */
+import ts from 'typescript'
+
+/** Re-exports share a declaration; only distinct top-level definitions are duplicates. */
+export function findDuplicateExportedTypes(sources) {
+  const declarations = new Map()
+  for (const { path: filePath, source } of sources) {
+    const sourceFile = ts.createSourceFile(filePath, source, ts.ScriptTarget.Latest, true)
+    for (const statement of sourceFile.statements) {
+      if (!ts.isInterfaceDeclaration(statement) && !ts.isTypeAliasDeclaration(statement)) continue
+      if (!statement.modifiers?.some((modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword)) {
+        continue
+      }
+      const name = statement.name.text
+      const files = declarations.get(name) ?? new Set()
+      files.add(filePath)
+      declarations.set(name, files)
+    }
+  }
+  return [...declarations]
+    .filter(([, files]) => files.size > 1)
+    .map(([name, files]) => ({ name, files: [...files].sort() }))
+    .sort((left, right) => left.name.localeCompare(right.name))
+}
 
 /**
  * 裸 SQL 的判定口径是"在 db 层之外构造语句"，即对 db / database / getDb() 调
@@ -16,6 +39,11 @@ const BARE_SQL_PATTERN = /\b(?:db|database|getDb\(\))\s*\.\s*(?:prepare|exec)\s*
 
 export function countBareSql(text) {
   return (text.match(BARE_SQL_PATTERN) ?? []).length
+}
+
+export function isDatabaseLayerPath(filePath) {
+  const normalized = filePath.replaceAll('\\', '/')
+  return normalized.startsWith('electron/db/') || normalized.startsWith('src/main/db/')
 }
 
 /**
@@ -49,7 +77,8 @@ export function countBareControls(text) {
  * token 定义文件不在这里豁免 —— 判定只回答"这段文本里有几处裸 hex"，
  * 哪些文件允许有由 runner 决定（定义 token 不是欠账，不进棘轮预算）。
  */
-const BARE_HEX_PATTERN = /(?<!&)#(?:[0-9a-fA-F]{8}|[0-9a-fA-F]{6}|[0-9a-fA-F]{4}|[0-9a-fA-F]{3})(?![0-9a-fA-F])/g
+const BARE_HEX_PATTERN =
+  /(?<!&)#(?:[0-9a-fA-F]{8}|[0-9a-fA-F]{6}|[0-9a-fA-F]{4}|[0-9a-fA-F]{3})(?![0-9a-fA-F])/g
 
 export function countBareHex(text) {
   return (text.match(BARE_HEX_PATTERN) ?? []).length
@@ -123,9 +152,15 @@ export function themeDirectiveHasTailwindImport(cssSource) {
 /**
  * 未声明 schema 的 IPC 注册数。
  *
- * 判定口径是"第二个实参不是数组字面量"。`ipcMain.handle(ch, [text()], fn)` 声明了
- * 渠道载荷形状，`ipcMain.handle(ch, fn)` 没有——后者只有 `checkShellSender`（谁能发）
- * 与 `checkIpcPayload`（结构/体积/成环）两道防线，参数形状仍是渲染进程说什么就是什么。
+ * 判定口径是"第二个实参既不是数组字面量、也不是按命名约定导出的 zod schema 元组"。
+ * `ipcMain.handle(ch, [z.string()], fn)`（内联元组）与
+ * `ipcMain.handle(ch, getDailyActiveInput, fn)`（`src/shared/types/ipc/` 导出的命名元组，
+ * 约定以 `Input` 结尾）都声明了渠道载荷形状；`ipcMain.handle(ch, fn)` 没有——后者只有
+ * `checkShellSender`（谁能发）与 `checkIpcPayload`（结构/体积/成环）两道防线，
+ * 参数形状仍是渲染进程说什么就是什么。
+ *
+ * 命名约定是这条判定的一半：schema 元组是 `src/shared/types/ipc/<域>.ts` 导出的
+ * `as const` 数组，导出名一律 `<camelCaseChannel>Input`。不要起别的名字，守卫认的是后缀。
  *
  * 零参 handler（`ipcMain.handle(ch, () => …)`）不算欠账：没有参数就没有形状可校验。
  * 所以要看 `(` 之后有没有第二个形参——`(_event, x)` 算，`()` 与 `(_event)` 不算。
@@ -134,14 +169,17 @@ export function themeDirectiveHasTailwindImport(cssSource) {
  * 文本判定必然算错；而"有没有 schema 元组"是注册处一眼可见的单一事实。
  */
 const IPC_REGISTRATION_PATTERN =
-  /\b(?:ipcMain|coachPetIpcMain|ipcMainHandle)\s*\.?\s*(?:handle|on)\(\s*'[^']+'\s*,\s*(\[?)\s*(?:async\s*)?(?:\(([^)]*)\))?/g
+  /\b(?:(?:ipcMain|coachPetIpcMain|shellIpcMain)\s*\.\s*(?:handle|on)|ipcMainHandle|handleFromShell|onFromShell|handleFromCoach|onFromCoach)\s*\(\s*(?:'[^']+'|"[^"]+"|[A-Za-z_$][A-Za-z0-9_$]*(?:\s*\.\s*[A-Za-z_$][A-Za-z0-9_$]*)*)\s*,\s*(\[[\s\S]*?\]|[A-Za-z_$][A-Za-z0-9_$]*Input\b)?\s*(?:async\s*)?(?:\(([^)]*)\))?/g
 
 export function countUnschemadIpc(text) {
   let count = 0
   for (const match of text.matchAll(IPC_REGISTRATION_PATTERN)) {
-    const hasSchemaTuple = match[1] === '['
+    const hasSchemaTuple = match[1] !== undefined
     if (hasSchemaTuple) continue
-    const params = (match[2] ?? '').split(',').map(part => part.trim()).filter(Boolean)
+    const params = (match[2] ?? '')
+      .split(',')
+      .map((part) => part.trim())
+      .filter(Boolean)
     // 只有形参多于 event 的才算欠账。
     if (params.length > 1) count += 1
   }
@@ -149,17 +187,38 @@ export function countUnschemadIpc(text) {
 }
 
 /**
- * `raw()` 的用量。
+ * 无形状放行（`z.unknown()`，旧组合子 `raw()` 的等价物）。
  *
- * `raw()` 的语义是"这个参数由 handler 自己校验"，存在的意义是让"没校验"和
+ * 它的语义是"这个参数由 handler 自己校验"，存在的意义是让"没校验"和
  * "在别处校验"在代码里可区分。但它同时也是一个逃逸口：写上去就能让
- * `countUnschemadIpc` 闭嘴。所以它自己也得上棘轮，否则迁移可以靠 `raw()` 刷完。
+ * `countUnschemadIpc` 闭嘴。所以它自己也得上棘轮，否则迁移可以靠它刷完。
  *
- * 只数调用，不数 import 与注释里的提及——`from './payloadSchema'` 那行里的 `raw`
- * 后面跟的是 `,` 或 `}`，不是 `(`。
+ * 只数 `electron/ipc/` 与 `src/shared/types/ipc/` 源码里的字面调用（由 runner 决定扫哪些
+ * 文件）；注释与测试里提到 `z.unknown()` 不在被扫的文件里，不受影响。
  */
 export function countRawIpcSchemas(text) {
-  return text.match(/\braw\(\s*['"`]/g)?.length ?? 0
+  return text.match(/\bz\.unknown\(\s*\)/g)?.length ?? 0
+}
+
+/**
+ * 以字符串字面量出现的 IPC channel（阶段 2 R1 收口后的回归守卫）。
+ *
+ * channel 名的唯一来源是 `src/shared/constants/channels.ts`；注册与发送处引用常量，
+ * 拼写错误在编译期就报。这里数的是绕过常量直接写 `'xxx:yyy'` 的调用——值改了编译器
+ * 不会说话，只在 runtime 静默失联，所以必须靠文本判定拦住。
+ *
+ * 判定口径：`ipcMain` / `ipcRenderer` 接收者的通道型方法，第一个实参以引号开头。
+ * 除 prd 点名的 `handle|on` 与 `invoke|send|on` 外，把同族的 `off` / `once` /
+ * `sendSync` / `postMessage` / `removeListener` / `removeAllListeners` 一并计入——
+ * 它们同样以 channel 为首参，只字面量写 `.on(...)` 再用常量写 `.off(...)` 会让
+ * 订阅与退订悄悄错开。首个实参不是 channel 的同名方法（如 `emitter.on`）不匹配
+ * 接收者限定，不会误伤。
+ */
+const IPC_CHANNEL_LITERAL_PATTERN =
+  /\b(?:ipcMain|ipcRenderer)\s*\.\s*(?:handle|on|once|off|invoke|send|sendSync|postMessage|removeListener|removeAllListeners|removeHandler)\s*\(\s*['"]/
+
+export function countIpcChannelLiterals(text) {
+  return (text.match(new RegExp(IPC_CHANNEL_LITERAL_PATTERN.source, 'g')) ?? []).length
 }
 
 export function collectRatchetFailures({ entries, budgets, describe, cleanupHint }) {
@@ -174,7 +233,9 @@ export function collectRatchetFailures({ entries, budgets, describe, cleanupHint
     if (budget === undefined) {
       failures.push(`${filePath}: ${describe(count)}。${cleanupHint}`)
     } else if (count > budget) {
-      failures.push(`${filePath}: ${describe(count)}，白名单预算为 ${budget}。白名单只减不增，不要上调预算`)
+      failures.push(
+        `${filePath}: ${describe(count)}，白名单预算为 ${budget}。白名单只减不增，不要上调预算`,
+      )
     } else if (count < budget) {
       // 第四类：预算高于实际。
       //
@@ -184,7 +245,9 @@ export function collectRatchetFailures({ entries, budgets, describe, cleanupHint
       //
       // 代价是每次清理都要在同一个提交里把数字改小。这正是想要的效果——
       // 清了多少必须记下来，而不是攒着当缓冲。
-      failures.push(`${filePath}: 实际只有 ${count} 处，白名单预算仍写着 ${budget}。请把预算降到 ${count}`)
+      failures.push(
+        `${filePath}: 实际只有 ${count} 处，白名单预算仍写着 ${budget}。请把预算降到 ${count}`,
+      )
     }
   }
 

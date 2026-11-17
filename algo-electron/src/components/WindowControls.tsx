@@ -12,7 +12,7 @@ export function WindowControls() {
   const [maximized, setMaximized] = useState(false)
 
   useEffect(() => {
-    loadWindowMaximized().then(setMaximized)
+    void loadWindowMaximized().then(setMaximized)
     return subscribeWindowMaximized(setMaximized)
   }, [])
 

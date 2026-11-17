@@ -1,9 +1,10 @@
+export type { CookieMetadataInput, CookieRecord } from './cookieRecord/types'
+
+// Cookie 概要是跨进程类型（阶段 2 R2 收口），单一来源在 shared。
 export type {
-  CookieMetadataInput,
-  CookieRecord,
   CookieSafeDomainSummary,
   CookieSafeSiteSummary,
-} from './cookieRecord/types'
+} from '../../../src/shared/types/cookies'
 
 export {
   buildCookieDomainSummary,

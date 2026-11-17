@@ -1,5 +1,3 @@
-import { toBeijing } from '../shared/time'
-
 interface CFUserInfo {
   handle: string
   rating: number
@@ -31,7 +29,7 @@ export async function fetchCFCurrentRating(handle: string): Promise<CFUserInfo |
   const url = `https://codeforces.com/api/user.info?handles=${encodeURIComponent(handle)}`
   const resp = await fetch(url)
   if (!resp.ok) throw new Error(`CF API error: ${resp.status}`)
-  const json = await resp.json() as CFUserInfoResponse
+  const json = (await resp.json()) as CFUserInfoResponse
   const user = json.result?.[0]
   if (json.status !== 'OK' || !user) return null
   return { handle: user.handle, rating: user.rating ?? 0, maxRating: user.maxRating ?? 0 }
@@ -42,21 +40,21 @@ export async function fetchCFRatingHistory(handle: string): Promise<CFRatingChan
   const url = `https://codeforces.com/api/user.rating?handle=${encodeURIComponent(handle)}`
   const resp = await fetch(url)
   if (!resp.ok) throw new Error(`CF API error: ${resp.status}`)
-  const json = await resp.json() as { status: string; result: CFRatingChange[] }
+  const json = (await resp.json()) as { status: string; result: CFRatingChange[] }
   if (json.status !== 'OK') throw new Error('CF API returned non-OK status')
   return json.result
 }
 
 // 格式化 CF rating history 为统一格式
 export function formatCFRatingHistory(history: CFRatingChange[]) {
-  return history.map(h => ({
+  return history.map((h) => ({
     contestId: String(h.contestId),
     contestName: h.contestName,
     rank: h.rank,
     ratingBefore: h.oldRating,
     ratingAfter: h.newRating,
     delta: h.newRating - h.oldRating,
-    contestAt: toBeijing(new Date(h.ratingUpdateTimeSeconds * 1000)),
+    contestAt: h.ratingUpdateTimeSeconds * 1000,
     rawJson: JSON.stringify(h),
   }))
 }

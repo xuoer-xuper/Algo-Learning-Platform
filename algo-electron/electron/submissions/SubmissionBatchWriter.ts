@@ -75,7 +75,11 @@ export class SubmissionBatchWriter {
     }
 
     if (inserted > 0) {
-      try { this.deps.recomputeStats(affectedDates) } catch { /* ignore */ }
+      try {
+        this.deps.recomputeStats(affectedDates)
+      } catch {
+        /* ignore */
+      }
     }
 
     return { platform, fetched: submissions.length, inserted }

@@ -9,7 +9,7 @@
 | [项目导航](../README.md) | 文档导航、快速开始、核心特性、技术栈。 |
 | [项目介绍](../.github/README.md) | 功能特性、支持平台、快速开始、常用命令。 |
 | [CHANGELOG](PRODUCT/CHANGELOG.md) | 已发布版本的用户可见变化。 |
-| [VERSION_PLAN](../VERSION_PLAN.md) | 版本号规划和发布路线图。 |
+| [VERSION_PLAN](../VERSION_PLAN.md) | 历史 RC 规划；当前发布操作以 RELEASE_PROCESS 为准。 |
 | [LICENSE](../LICENSE) | MIT License。 |
 
 ## 协作与治理
@@ -18,10 +18,11 @@
 |---|---|
 | [PROJECT_RULES](GOVERNANCE/PROJECT_RULES.md) | v1.0 稳定技术边界、本地优先原则和模块红线。 |
 | [CONTRIBUTING](GOVERNANCE/CONTRIBUTING.md) | 本地开发、修改边界、PR 检查和 issue 要求。 |
-| [COMMIT_RULES](GOVERNANCE/COMMIT_RULES.md) | Git 提交信息格式和提交粒度约定。 |
+| [COMMIT_RULES](GOVERNANCE/COMMIT_RULES.md) | Git 提交信息格式、分支模型、husky 提交门、推送纪律和 release-it 发版流程的书面镜像。 |
 | [SECURITY](GOVERNANCE/SECURITY.md) | Cookie、用户数据、导出、日志和安全报告边界。 |
 | [COLLABORATION](../.github/COLLABORATION.md) | GitHub 协作配置：CI workflow、PR 模板、issue 模板。 |
 | [AI_HANDOFF](../AI_HANDOFF.md) | AI 助手工作交接记录，记录最近完成任务和待办事项。 |
+| [AGENTS](../AGENTS.md) | 面向 AI 编码代理的项目说明与 Trellis 工作流入口。 |
 
 ## 设计契约
 
@@ -41,6 +42,8 @@
 | 文档 | 作用 |
 |---|---|
 | [RELEASE_PROCESS](OPERATIONS/RELEASE_PROCESS.md) | Windows 发布前版本、验证、打包、产物检查和人工验收流程。 |
+| [PROJECT_AUDIT_CHECKLIST](OPERATIONS/PROJECT_AUDIT_CHECKLIST.md) | 全项目问题排查范围、初查证据、风险优先级、详细检查项和验证方法。 |
+| [PROJECT_AUDIT_BATCH1_2026_09_11](OPERATIONS/PROJECT_AUDIT_BATCH1_2026_09_11.md) | 第一批审计：8 项确认问题、隔离复现、证据边界和未验证安全线索。 |
 | [ALP_HARDENING_VALIDATION_2026_08_12](OPERATIONS/ALP_HARDENING_VALIDATION_2026_08_12.md) | 2.0.0-beta.2 治理、测试、审计、性能和 Windows 打包验证记录。 |
 | [TROUBLESHOOTING](OPERATIONS/TROUBLESHOOTING.md) | 登录、页面加载、提交监测、同步、数据库、笔记、脚本、统计和打包排障。 |
 | [DATABASE_MIGRATION_ROLLBACK](OPERATIONS/DATABASE_MIGRATION_ROLLBACK.md) | SQLite migration 失败识别、备份、恢复、修复和禁止事项。 |
@@ -135,6 +138,16 @@
 | coach styles | [src/features/coach/styles/README](../algo-electron/src/features/coach/styles/README.md) |
 | renderer global styles | [src/styles/README](../algo-electron/src/styles/README.md) |
 | hooks | [src/hooks/README](../algo-electron/src/hooks/README.md) |
+| renderer context | [src/context/README](../algo-electron/src/context/README.md) |
+| preload | [src/preload/README](../algo-electron/src/preload/README.md) |
+| shared types | [src/shared/types/README](../algo-electron/src/shared/types/README.md) |
+| shared constants | [src/shared/constants/README](../algo-electron/src/shared/constants/README.md) |
+| main shared | [src/main/README](../algo-electron/src/main/README.md) |
+| main database | [src/main/db/README](../algo-electron/src/main/db/README.md) |
+| main services | [src/main/services/README](../algo-electron/src/main/services/README.md) |
+| backup safety | [src/main/services/backup/README](../algo-electron/src/main/services/backup/README.md) |
+| backup helpers | [src/main/services/backup/lib/README](../algo-electron/src/main/services/backup/lib/README.md) |
+| ipc input schemas | [src/shared/types/ipc/README](../algo-electron/src/shared/types/ipc/README.md) |
 | renderer shared | [src/shared/README](../algo-electron/src/shared/README.md) |
 | build | [build/README](../algo-electron/build/README.md) |
 | public | [public/README](../algo-electron/public/README.md) |
@@ -144,9 +157,11 @@
 | test ai | [tests/ai/README](../algo-electron/tests/ai/README.md) |
 | test browser | [tests/browser/README](../algo-electron/tests/browser/README.md) |
 | test db | [tests/db/README](../algo-electron/tests/db/README.md) |
+| historical db fixtures | [tests/db/fixtures/README](../algo-electron/tests/db/fixtures/README.md) |
 | test coach | [tests/coach/README](../algo-electron/tests/coach/README.md) |
 | test components | [tests/components/README](../algo-electron/tests/components/README.md) |
 | test app | [tests/app/README](../algo-electron/tests/app/README.md) |
+| test app fixtures | [tests/app/fixtures/README](../algo-electron/tests/app/fixtures/README.md) |
 | test docs | [tests/docs/README](../algo-electron/tests/docs/README.md) |
 | test electron | [tests/electron/README](../algo-electron/tests/electron/README.md) |
 | test electron fixtures | [tests/electron/fixtures/README](../algo-electron/tests/electron/fixtures/README.md) |
@@ -159,6 +174,7 @@
 | test performance | [tests/performance/README](../algo-electron/tests/performance/README.md) |
 | test scripts | [tests/scripts/README](../algo-electron/tests/scripts/README.md) |
 | test security | [tests/security/README](../algo-electron/tests/security/README.md) |
+| test setup | [tests/setup/README](../algo-electron/tests/setup/README.md) |
 | test shared | [tests/shared/README](../algo-electron/tests/shared/README.md) |
 | test shortcuts | [tests/shortcuts/README](../algo-electron/tests/shortcuts/README.md) |
 | test submissions | [tests/submissions/README](../algo-electron/tests/submissions/README.md) |
@@ -173,7 +189,7 @@
 
 - `docs/` 下除 `README.md` 外，Markdown 文件名必须使用大写和下划线。
 - 新增长期 Markdown、ADR 或被覆盖目录 README 后，必须同步本文索引。
-- 文档中引用具体 `npm run <script>` 时，该脚本必须存在于 `algo-electron/package.json`。
+- 文档中引用具体 `pnpm run <script>` 时，该脚本必须存在于 `algo-electron/package.json`。
 - 数据库 schema 变化必须同步 [DATABASE_SCHEMA](DESIGN/DATABASE_SCHEMA.md)。
 - 提交监测、站点 adapter、实时 hook 变化必须同步 [SUBMISSION_MONITORING_DESIGN](DESIGN/SUBMISSION_MONITORING_DESIGN.md) 和 [SITE_ADAPTER_GUIDE](DESIGN/SITE_ADAPTER_GUIDE.md)。
 - 文档和示例不得记录 Cookie、用户源码、完整请求体、本机数据库内容或可复用登录态。

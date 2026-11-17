@@ -1,19 +1,19 @@
 export function loadWindowMaximized(): Promise<boolean> {
-  return window.electronAPI.isWindowMaximized()
+  return window.api.window.isMaximized()
 }
 
 export function subscribeWindowMaximized(callback: (maximized: boolean) => void): () => void {
-  return window.electronAPI.onWindowMaximized(callback)
+  return window.api.window.onMaximized(callback)
 }
 
 export function minimizeAppWindow(): void {
-  window.electronAPI.minimizeWindow()
+  window.api.window.minimize()
 }
 
 export function toggleAppWindowMaximized(): void {
-  window.electronAPI.maximizeWindow()
+  window.api.window.maximize()
 }
 
 export function closeAppWindow(): void {
-  window.electronAPI.closeWindow()
+  window.api.window.close()
 }

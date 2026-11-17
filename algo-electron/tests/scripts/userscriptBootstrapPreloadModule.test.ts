@@ -27,7 +27,7 @@ interface BootstrapHarness {
   /** 本次加载暴露到 main world 的键（桥名带随机 nonce，只看形状） */
   exposedKeys: string[]
   /** postMessage 到主进程的调用：转交 MessagePort 的那一步 */
-  portCalls: { channel: string, payload: unknown, transfer: unknown[] }[]
+  portCalls: { channel: string; payload: unknown; transfer: unknown[] }[]
   /** sendSync 收到的初始化请求 */
   initRequests: unknown[]
   /** 主世界函数的返回值。false 表示 catalog 或桥没就位 */
@@ -43,12 +43,17 @@ interface CatalogInvocation {
 }
 
 /** 在 catalog 里放一条 generation 对应的编译产物，返回它收到的调用 */
-function plantCatalog(generation: number, options: { scriptId?: string, revision?: string } = {}): {
+function plantCatalog(
+  generation: number,
+  options: { scriptId?: string; revision?: string } = {},
+): {
   invocations: CatalogInvocation[]
 } {
   const invocations: CatalogInvocation[] = []
   const entry: UserScriptCompiledCatalogEntry = {
-    func: (payload, sendMessage, subscribe) => { invocations.push({ payload, send: sendMessage, subscribe }) },
+    func: (payload, sendMessage, subscribe) => {
+      invocations.push({ payload, send: sendMessage, subscribe })
+    },
     // payload 里带 code 的完整 descriptor 只存在于主世界 catalog，不过 IPC。
     // 运行时快照只带 id/revision/values，靠这两项在这里对回来。
     /*
@@ -65,19 +70,21 @@ function plantCatalog(generation: number, options: { scriptId?: string, revision
       handshakeId: 'catalog',
       targetOrigin: 'https://catalog.invalid',
       generation,
-      scripts: [{
-        id: options.scriptId ?? 'script-1',
-        revision: options.revision ?? 'rev-1',
-        name: 'demo',
-        namespace: null,
-        description: null,
-        version: null,
-        runAt: 'document-end',
-        source: 'console.log(1)',
-        grants: [],
-        values: [],
-        resources: [],
-      }],
+      scripts: [
+        {
+          id: options.scriptId ?? 'script-1',
+          revision: options.revision ?? 'rev-1',
+          name: 'demo',
+          namespace: null,
+          description: null,
+          version: null,
+          runAt: 'document-end',
+          source: 'console.log(1)',
+          grants: [],
+          values: [],
+          resources: [],
+        },
+      ],
     }).execution.args[0],
     body: '',
   }
@@ -114,21 +121,28 @@ async function loadBootstrap(options: {
 
   const initRequests: unknown[] = []
   let nonce = ''
-  electron.ipcRenderer.on('send-sync', (event: { returnValue: unknown }, channel: unknown, request: unknown) => {
-    if (channel !== USER_SCRIPT_RUNTIME_INIT_CHANNEL) return
-    initRequests.push(request)
-    nonce = (request as { nonce: string }).nonce
-    // 应答里的 nonce 必须回填成请求里那个随机值——测试拿不到它，只能在这里补。
-    const response = options.response
-    event.returnValue = response && typeof response === 'object' && 'nonce' in response
-      ? response
-      : { ...(response as object), nonce }
-  })
+  electron.ipcRenderer.on(
+    'send-sync',
+    (event: { returnValue: unknown }, channel: unknown, request: unknown) => {
+      if (channel !== USER_SCRIPT_RUNTIME_INIT_CHANNEL) return
+      initRequests.push(request)
+      nonce = (request as { nonce: string }).nonce
+      // 应答里的 nonce 必须回填成请求里那个随机值——测试拿不到它，只能在这里补。
+      const response = options.response
+      event.returnValue =
+        response && typeof response === 'object' && 'nonce' in response
+          ? response
+          : { ...(response as object), nonce }
+    },
+  )
 
   const portCalls: BootstrapHarness['portCalls'] = []
-  electron.ipcRenderer.on('post-message', (channel: unknown, payload: unknown, transfer: unknown[]) => {
-    portCalls.push({ channel: String(channel), payload, transfer })
-  })
+  electron.ipcRenderer.on(
+    'post-message',
+    (channel: unknown, payload: unknown, transfer: unknown[]) => {
+      portCalls.push({ channel: String(channel), payload, transfer })
+    },
+  )
 
   let executed: unknown
   const executeArgs: unknown[] = []
@@ -142,7 +156,9 @@ async function loadBootstrap(options: {
 
   await import('../../electron/scripts/userscriptBootstrapPreload')
   // 桥的搭建在 queueMicrotask 里，等它落地。
-  await new Promise(resolve => { queueMicrotask(() => resolve(undefined)) })
+  await new Promise((resolve) => {
+    queueMicrotask(() => resolve(undefined))
+  })
   await Promise.resolve()
 
   return {
@@ -166,7 +182,11 @@ describe('userscriptBootstrapPreload 装载条件', () => {
     const harness = await loadBootstrap({ response: { ok: true, generation: 7, scripts: [] } })
 
     assert.strictEqual(harness.initRequests.length, 1)
-    const request = harness.initRequests[0] as { nonce: string, frameUrl: string, isMainFrame: boolean }
+    const request = harness.initRequests[0] as {
+      nonce: string
+      frameUrl: string
+      isMainFrame: boolean
+    }
     // nonce 是 32 位十六进制随机值，主进程按同样的口径校验。
     expect(request.nonce).toMatch(/^[a-f0-9]{32}$/)
     assert.strictEqual(request.frameUrl, 'https://codeforces.com/problemset/problem/1/A')
@@ -184,7 +204,11 @@ describe('userscriptBootstrapPreload 装载条件', () => {
     assert.strictEqual(harness.portCalls[0].transfer.length, 1)
     assert.deepStrictEqual(
       { ...(harness.portCalls[0].payload as Record<string, unknown>), nonce: 'redacted' },
-      { nonce: 'redacted', frameUrl: 'https://codeforces.com/problemset/problem/1/A', generation: 7 },
+      {
+        nonce: 'redacted',
+        frameUrl: 'https://codeforces.com/problemset/problem/1/A',
+        generation: 7,
+      },
     )
   })
 
@@ -192,7 +216,10 @@ describe('userscriptBootstrapPreload 装载条件', () => {
     // 内部页（app://）、about:、data: 这些不该装用户脚本运行时，也不该发起握手。
     plantCatalog(7)
     for (const url of ['about:blank', 'data:text/html,<p>x', 'file:///C:/tmp/page.html']) {
-      const harness = await loadBootstrap({ url, response: { ok: true, generation: 7, scripts: [] } })
+      const harness = await loadBootstrap({
+        url,
+        response: { ok: true, generation: 7, scripts: [] },
+      })
       assert.deepStrictEqual(harness.initRequests, [], `${url} 不应握手`)
       assert.deepStrictEqual(harness.exposedKeys, [], `${url} 不应暴露桥`)
     }
@@ -256,7 +283,10 @@ describe('userscriptBootstrapPreload 失败清理', () => {
 
   test('主世界执行抛错时不交 port', async () => {
     plantCatalog(7)
-    const harness = await loadBootstrap({ response: { ok: true, generation: 7, scripts: [] }, throwOnExecute: true })
+    const harness = await loadBootstrap({
+      response: { ok: true, generation: 7, scripts: [] },
+      throwOnExecute: true,
+    })
     assert.strictEqual(harness.executeArgs.length, 1, '应已尝试执行')
     assert.deepStrictEqual(harness.portCalls, [])
   })
@@ -290,7 +320,7 @@ describe('userscriptBootstrapPreload 传给运行时的数据', () => {
     const payload = catalog.invocations[0].payload as {
       targetOrigin: string
       generation: number
-      scripts: { id: string, name: string, permissions: object, values: unknown }[]
+      scripts: { id: string; name: string; permissions: object; values: unknown }[]
     }
     assert.strictEqual(payload.targetOrigin, 'https://codeforces.com')
     assert.strictEqual(payload.generation, 7)
@@ -305,7 +335,8 @@ describe('userscriptBootstrapPreload 传给运行时的数据', () => {
     //（它只存在于 catalog entry 的 body 字符串）。原先靠 fixture 编的 `source` 反而把它掩盖了。
     for (const key of ['source', 'code']) {
       assert.strictEqual(
-        Object.hasOwn(payload.scripts[0], key), false,
+        Object.hasOwn(payload.scripts[0], key),
+        false,
         `脚本正文不应出现在 payload 的 ${key} 字段`,
       )
     }
@@ -335,7 +366,9 @@ describe('userscriptBootstrapPreload 消息桥', () => {
    */
   const waitForDelivery = async (received: unknown[]): Promise<void> => {
     for (let attempt = 0; attempt < 50 && received.length === 0; attempt += 1) {
-      await new Promise((resolve) => { setTimeout(resolve, 1) })
+      await new Promise((resolve) => {
+        setTimeout(resolve, 1)
+      })
     }
   }
 
@@ -349,13 +382,17 @@ describe('userscriptBootstrapPreload 消息桥', () => {
     const port = harness.portCalls[0].transfer[0] as MessagePort
 
     const fromRuntime: unknown[] = []
-    port.onmessage = (event) => { fromRuntime.push(event.data) }
+    port.onmessage = (event) => {
+      fromRuntime.push(event.data)
+    }
     bridge.send({ kind: 'log', text: 'hello' })
     await waitForDelivery(fromRuntime)
     assert.deepStrictEqual(fromRuntime, [{ kind: 'log', text: 'hello' }])
 
     const toRuntime: unknown[] = []
-    bridge.subscribe((message) => { toRuntime.push(message) })
+    bridge.subscribe((message) => {
+      toRuntime.push(message)
+    })
     port.postMessage({ kind: 'value', key: 'k' })
     await waitForDelivery(toRuntime)
     // 交给运行时的是 event.data 而不是 MessageEvent：运行时侧的契约按裸数据写的，

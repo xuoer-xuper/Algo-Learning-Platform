@@ -4,14 +4,42 @@ import { HomePage } from '../features/home/HomePage'
 import type { TabStripTabInfo } from './tabApi'
 import { Button, Icon, Skeleton } from './ui'
 
-const SettingsPage = lazy(() => import('../features/settings/SettingsPage').then((module) => ({ default: module.SettingsPage })))
-const Dashboard = lazy(() => import('../features/analytics/Dashboard').then((module) => ({ default: module.Dashboard })))
-const UserScriptManager = lazy(() => import('../features/scripts/UserScriptManager').then((module) => ({ default: module.UserScriptManager })))
-const UserScriptInstallPage = lazy(() => import('../features/scripts/UserScriptInstallPage').then((module) => ({ default: module.UserScriptInstallPage })))
-const CoachMetricsView = lazy(() => import('../features/coach/CoachMetricsView').then((module) => ({ default: module.CoachMetricsView })))
-const CredentialsPage = lazy(() => import('../features/settings/CredentialsPage').then((module) => ({ default: module.CredentialsPage })))
-const ProblemDetail = lazy(() => import('../features/problems/ProblemDetail').then((module) => ({ default: module.ProblemDetail })))
-const NotePanelModal = lazy(() => import('../features/problems/NotePanelModal').then((module) => ({ default: module.NotePanelModal })))
+const SettingsPage = lazy(() =>
+  import('../features/settings/SettingsPage').then((module) => ({ default: module.SettingsPage })),
+)
+const Dashboard = lazy(() =>
+  import('../features/analytics/Dashboard').then((module) => ({ default: module.Dashboard })),
+)
+const UserScriptManager = lazy(() =>
+  import('../features/scripts/UserScriptManager').then((module) => ({
+    default: module.UserScriptManager,
+  })),
+)
+const UserScriptInstallPage = lazy(() =>
+  import('../features/scripts/UserScriptInstallPage').then((module) => ({
+    default: module.UserScriptInstallPage,
+  })),
+)
+const CoachMetricsView = lazy(() =>
+  import('../features/coach/CoachMetricsView').then((module) => ({
+    default: module.CoachMetricsView,
+  })),
+)
+const CredentialsPage = lazy(() =>
+  import('../features/settings/CredentialsPage').then((module) => ({
+    default: module.CredentialsPage,
+  })),
+)
+const ProblemDetail = lazy(() =>
+  import('../features/problems/ProblemDetail').then((module) => ({
+    default: module.ProblemDetail,
+  })),
+)
+const NotePanelModal = lazy(() =>
+  import('../features/problems/NotePanelModal').then((module) => ({
+    default: module.NotePanelModal,
+  })),
+)
 
 interface ShellRouterProps {
   activeTab: TabStripTabInfo | null
@@ -75,7 +103,9 @@ function maybeTransition(callback: () => void) {
   liveTransition = transition
 
   const ignore = () => {}
-  const settle = () => { if (liveTransition === transition) liveTransition = null }
+  const settle = () => {
+    if (liveTransition === transition) liveTransition = null
+  }
   transition.ready.catch(ignore)
   transition.updateCallbackDone.catch(ignore)
   transition.finished.then(settle, settle)
@@ -109,23 +139,24 @@ export function ShellRouter({
     }
 
     // Burst 检测：如果距离上次更新时间太近，直接同步更新不做动画
-    const now = typeof performance === 'object' && typeof performance.now === 'function'
-      ? performance.now()
-      : Date.now()
+    const now =
+      typeof performance === 'object' && typeof performance.now === 'function'
+        ? performance.now()
+        : Date.now()
     const timeSinceLastUpdate = now - lastUpdateTimeRef.current
     lastUpdateTimeRef.current = now
 
     if (timeSinceLastUpdate < TRANSITION_BURST_WINDOW_MS) {
       liveTransition?.skipTransition()
       liveTransition = null
-      transitionVersion += 1  // 取消所有挂起的过渡回调
+      transitionVersion += 1 // 取消所有挂起的过渡回调
       flushSync(() => {
         setRenderTab(activeTab)
       })
       return
     }
 
-    transitionVersion += 1  // 取消之前的过渡回调
+    transitionVersion += 1 // 取消之前的过渡回调
     const currentVersion = transitionVersion
     maybeTransition(() => {
       // 检查版本号，如果过时则不执行
@@ -154,8 +185,12 @@ export function ShellRouter({
         <h1>此页面已停止运行</h1>
         <p>标签仍然保留。重新加载后会尝试恢复当前地址。</p>
         <div className="browser-crash-actions">
-          <Button variant="primary" icon="refresh" onClick={onReloadActiveTab}>重新加载</Button>
-          <Button variant="ghost" onClick={onCloseActiveTab}>关闭标签</Button>
+          <Button variant="primary" icon="refresh" onClick={onReloadActiveTab}>
+            重新加载
+          </Button>
+          <Button variant="ghost" onClick={onCloseActiveTab}>
+            关闭标签
+          </Button>
         </div>
       </div>
     )
@@ -183,7 +218,13 @@ export function ShellRouter({
       page = <ProblemDetail problemId={renderTab.page.problemId} onClose={close} />
       break
     case 'notes':
-      page = <NotePanelModal key={`${renderTab.id}:${renderTab.page.problemId}`} problemId={renderTab.page.problemId} onClose={close} />
+      page = (
+        <NotePanelModal
+          key={`${renderTab.id}:${renderTab.page.problemId}`}
+          problemId={renderTab.page.problemId}
+          onClose={close}
+        />
+      )
       break
     case 'script-install':
       page = <UserScriptInstallPage installId={renderTab.page.installId} onClose={close} />

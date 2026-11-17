@@ -8,7 +8,12 @@ const SNAPSHOT = {
   activeTabId: 't-home',
   tabs: [
     { id: 't-home', kind: 'internal' as const, page: { type: 'home' as const }, title: '首页' },
-    { id: 't-web', kind: 'web' as const, url: 'https://leetcode.cn/problemset/', title: 'LeetCode' },
+    {
+      id: 't-web',
+      kind: 'web' as const,
+      url: 'https://leetcode.cn/problemset/',
+      title: 'LeetCode',
+    },
   ],
 }
 

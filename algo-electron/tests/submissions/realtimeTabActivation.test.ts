@@ -41,17 +41,17 @@ test('switching to a web tab publishes an active-tab page event alongside the le
 
   const pageEvents: BrowserPageEvent[] = []
   const activeUrls: string[] = []
-  manager.addPageEventListener(event => pageEvents.push(event))
-  manager.addActiveTabChangeListener(url => activeUrls.push(url))
+  manager.addPageEventListener((event) => pageEvents.push(event))
+  manager.addActiveTabChangeListener((url) => activeUrls.push(url))
 
   manager.switchTab(first)
 
   // Realtime hook injection keys on this event to re-inject when an already
   // loaded page becomes visible again: a plain switch fires no navigation
   // event, so without it a tab the user comes back to stays un-hooked.
-  const entry = registry.getByWindow('window-1').find(candidate => candidate.tabId === first)
+  const entry = registry.getByWindow('window-1').find((candidate) => candidate.tabId === first)
   assert.equal(entry?.kind, 'tab')
-  const activation = pageEvents.filter(event => event.reason === 'active-tab-changed')
+  const activation = pageEvents.filter((event) => event.reason === 'active-tab-changed')
   assert.equal(activation.length, 1)
   assert.deepEqual(activation[0], {
     windowId: 'window-1',
@@ -76,9 +76,9 @@ test('a late sub-frame load reaches dom-ready listeners only for the visible tab
   manager.switchTab(activeTabId)
 
   const domReadyUrls: string[] = []
-  manager.addDomReadyListener(url => domReadyUrls.push(url))
+  manager.addDomReadyListener((url) => domReadyUrls.push(url))
   const viewFor = (tabId: string) => {
-    const entry = registry.getByWindow('window-1').find(candidate => candidate.tabId === tabId)
+    const entry = registry.getByWindow('window-1').find((candidate) => candidate.tabId === tabId)
     if (!entry || entry.kind !== 'tab') throw new Error(`tab ${tabId} missing`)
     return entry.view
   }
@@ -117,7 +117,9 @@ test('the realtime service forwards exactly the page-event reasons that can expo
     const tabManager = {
       addPageEventListener(callback: (event: BrowserPageEvent) => void) {
         listener = callback
-        return () => { listener = null }
+        return () => {
+          listener = null
+        }
       },
       getTitleForPage: () => null,
       executeScriptAcrossFramesForPage: async () => undefined,

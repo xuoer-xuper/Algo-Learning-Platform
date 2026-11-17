@@ -4,7 +4,10 @@ import { TabManager } from '../../electron/browser/TabManager.ts'
 import { AppWindow } from '../../electron/windows/AppWindow.ts'
 import { TabTransferCoordinator } from '../../electron/windows/TabTransferCoordinator.ts'
 
-function createAppWindow(id: string, bounds?: { x: number; y: number; width: number; height: number }): AppWindow {
+function createAppWindow(
+  id: string,
+  bounds?: { x: number; y: number; width: number; height: number },
+): AppWindow {
   const browserWindow = new MockBrowserWindow(bounds)
   return new AppWindow({
     id,
@@ -30,7 +33,10 @@ describe('TabTransferCoordinator', () => {
     const second = source.tabManager.openInternalTab({ type: 'settings' })
     let createCount = 0
     const coordinator = new TabTransferCoordinator({
-      createWindow: async () => { createCount += 1; return null },
+      createWindow: async () => {
+        createCount += 1
+        return null
+      },
       getWindows: () => [source],
       getMostRecentWindow: () => source,
     })
@@ -85,7 +91,9 @@ describe('TabTransferCoordinator', () => {
     const coordinator = new TabTransferCoordinator({
       createWindow: async () => target,
       getWindows: () => [source, target],
-      onDiagnostic: (event) => { diagnostics.push(event) },
+      onDiagnostic: (event) => {
+        diagnostics.push(event)
+      },
     })
 
     await expect(coordinator.moveToNewWindow(source, 'shared-id')).resolves.toBe(false)

@@ -1,12 +1,14 @@
-import { nowBeijing } from '../../../shared/time'
+import { nowMillis } from '../../../shared/time'
+import { unknownToText } from '../../../shared/textCoercion'
 import { createSite, getAllSites, getSiteById, updateSite } from './crud'
-import type { ImportConflict, ImportPreview, ImportPreviewResult, SiteConfigData, SitesExportData } from './types'
+import type { ImportPreviewResult, SiteConfigData, SitesExportData } from './types'
+import type { SiteImportConflict, SiteImportPreview } from '../../../../src/shared/types/sites'
 import { parseImportedSite } from './types'
 
 export function exportSitesConfig(): SitesExportData {
   return {
-    version: 1,
-    exportedAt: nowBeijing(),
+    version: 2,
+    exportedAt: nowMillis(),
     sites: getAllSites(),
   }
 }
@@ -17,15 +19,15 @@ export function previewImportSites(data: unknown): ImportPreviewResult {
   }
 
   const payload = data as { version?: unknown; sites?: unknown }
-  if (payload.version !== 1) {
-    return { valid: false, error: `不支持的配置版本: ${payload.version}` }
+  if (payload.version !== 1 && payload.version !== 2) {
+    return { valid: false, error: `不支持的配置版本: ${unknownToText(payload.version)}` }
   }
 
   if (!Array.isArray(payload.sites)) {
     return { valid: false, error: '配置数据缺少 sites 字段' }
   }
 
-  const preview: ImportPreview = {
+  const preview: SiteImportPreview = {
     newSites: [],
     conflicts: [],
     builtinSkipped: [],
@@ -40,7 +42,12 @@ export function previewImportSites(data: unknown): ImportPreviewResult {
       if (existing.isBuiltin) {
         preview.builtinSkipped.push(site)
       } else {
-        preview.conflicts.push({ id: site.id, name: site.name, existing, incoming: site } satisfies ImportConflict)
+        preview.conflicts.push({
+          id: site.id,
+          name: site.name,
+          existing,
+          incoming: site,
+        } satisfies SiteImportConflict)
       }
     } else {
       preview.newSites.push(site)
@@ -60,7 +67,10 @@ export function previewImportSites(data: unknown): ImportPreviewResult {
  *
  * 通道上的形状校验拦不住这个：id 和字段形状都是合法的，越权发生在语义层。
  */
-export function confirmImportSites(sites: SiteConfigData[], overwriteIds: string[]): { imported: number; overwritten: number } {
+export function confirmImportSites(
+  sites: SiteConfigData[],
+  overwriteIds: string[],
+): { imported: number; overwritten: number } {
   let imported = 0
   let overwritten = 0
 

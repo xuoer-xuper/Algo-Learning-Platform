@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { Button, IconButton } from '../../components/ui'
 import { AppearancePanel } from './AppearancePanel'
 import { BackupPanel } from './BackupPanel'
@@ -10,11 +10,11 @@ import { PlatformDistributionSummary } from './PlatformDistributionSummary'
 import { RealtimeSubmissionPanel } from './RealtimeSubmissionPanel'
 import { SearchEnginePanel } from './SearchEnginePanel'
 import { SiteManagementPanel } from './SiteManagementPanel'
-import { reportRendererError } from '../../rendererErrors'
+import { useIpcQuery } from '../../hooks/useIpcQuery'
+import { useIpcQueryError } from '../../hooks/useIpcQueryError'
 import { errorMessage } from '../../shared/errors'
 import { loadRealtimeSubmissionStatus, loadSettingsOverviewStats } from './settingsApi'
 import { SETTINGS_SECTIONS, type SettingsSectionId } from './settingsSections'
-import type { RealtimeSubmissionStatus, SettingsOverviewStats } from './settingsTypes'
 
 /*
  * 设置页（B5.1，Chrome 式分区导航）。
@@ -34,84 +34,76 @@ import type { RealtimeSubmissionStatus, SettingsOverviewStats } from './settings
  */
 
 export function SettingsPage({ onClose }: { onClose: () => void }) {
-  const [stats, setStats] = useState<SettingsOverviewStats | null>(null)
-  const [realtimeStatus, setRealtimeStatus] = useState<RealtimeSubmissionStatus | null>(null)
-  const [realtimeStatusText, setRealtimeStatusText] = useState('')
   const [section, setSection] = useState<SettingsSectionId>('appearance')
-
+  const overview = useIpcQuery(loadSettingsOverviewStats, [], {
+    tables: ['problems', 'submissions', 'stats'],
+  })
+  const realtime = useIpcQuery(loadRealtimeSubmissionStatus, [])
+  const stats = overview.data ?? null
+  const realtimeStatus = realtime.data ?? null
+  const realtimeStatusText =
+    realtime.isLoading || realtime.isRefetching
+      ? '刷新中...'
+      : realtime.error
+        ? `读取失败: ${errorMessage(realtime.error)}`
+        : realtimeStatus
+          ? ''
+          : '实时监听服务未就绪'
+  useIpcQueryError(overview.error, '设置页概览读取')
   const loadOverviewStats = async () => {
-    try {
-      setStats(await loadSettingsOverviewStats())
-    } catch (error: unknown) {
-      reportRendererError('设置页概览读取', error)
-    }
+    await overview.refetch()
   }
-
   const loadRealtimeStatus = async () => {
-    setRealtimeStatusText('刷新中...')
-    try {
-      const status = await loadRealtimeSubmissionStatus()
-      setRealtimeStatus(status)
-      setRealtimeStatusText(status ? '' : '实时监听服务未就绪')
-    } catch (e: unknown) {
-      setRealtimeStatusText(`读取失败: ${errorMessage(e)}`)
-    }
+    await realtime.refetch()
   }
-
-  useEffect(() => {
-    void loadOverviewStats()
-    void loadRealtimeStatus()
-  }, [])
 
   return (
-      <div className="settings-page">
-        <div className="settings-header">
-          <h2 className="settings-title">设置</h2>
-          <IconButton icon="close" title="关闭" className="settings-close" onClick={onClose} />
-        </div>
+    <div className="settings-page">
+      <div className="settings-header">
+        <h2 className="settings-title">设置</h2>
+        <IconButton icon="close" title="关闭" className="settings-close" onClick={onClose} />
+      </div>
 
-        <div className="settings-cols">
-          <nav className="settings-nav" aria-label="设置分区">
-            {SETTINGS_SECTIONS.map(({ id, label, icon }) => (
-              <Button
-                key={id}
-                variant="ghost"
-                icon={icon}
-                className="settings-nav-item"
-                data-section={id}
-                aria-current={section === id ? 'page' : undefined}
-                onClick={() => setSection(id)}
-              >
-                <span className="settings-nav-label">{label}</span>
-              </Button>
-            ))}
-          </nav>
+      <div className="settings-cols">
+        <nav className="settings-nav" aria-label="设置分区">
+          {SETTINGS_SECTIONS.map(({ id, label, icon }) => (
+            <Button
+              key={id}
+              variant="ghost"
+              icon={icon}
+              className="settings-nav-item"
+              data-section={id}
+              aria-current={section === id ? 'page' : undefined}
+              onClick={() => setSection(id)}
+            >
+              <span className="settings-nav-label">{label}</span>
+            </Button>
+          ))}
+        </nav>
 
-          <div className="settings-content" data-active-section={section}>
-            {section === 'appearance' && <AppearancePanel />}
-            {section === 'coach' && <CoachPanel />}
-            {section === 'search' && <SearchEnginePanel />}
-            {section === 'llm' && <LlmConfigPanel />}
-            {section === 'sites' && <SiteManagementPanel />}
-            {section === 'sync' && (
-              <CodeforcesSyncPanel onStatsRefresh={loadOverviewStats} />
-            )}
-            {section === 'data' && <BackupPanel />}
-            {section === 'overview' && (
-              <>
-                <LearningOverviewPanel stats={stats} />
-                <PlatformDistributionSummary distribution={stats?.platformDistribution ?? []} />
-              </>
-            )}
-            {section === 'diagnostics' && (
-              <RealtimeSubmissionPanel
-                status={realtimeStatus}
-                statusText={realtimeStatusText}
-                onRefresh={loadRealtimeStatus}
-              />
-            )}
-          </div>
+        <div className="settings-content" data-active-section={section}>
+          {section === 'appearance' && <AppearancePanel />}
+          {section === 'coach' && <CoachPanel />}
+          {section === 'search' && <SearchEnginePanel />}
+          {section === 'llm' && <LlmConfigPanel />}
+          {section === 'sites' && <SiteManagementPanel />}
+          {section === 'sync' && <CodeforcesSyncPanel onStatsRefresh={loadOverviewStats} />}
+          {section === 'data' && <BackupPanel />}
+          {section === 'overview' && (
+            <>
+              <LearningOverviewPanel stats={stats} />
+              <PlatformDistributionSummary distribution={stats?.platformDistribution ?? []} />
+            </>
+          )}
+          {section === 'diagnostics' && (
+            <RealtimeSubmissionPanel
+              status={realtimeStatus}
+              statusText={realtimeStatusText}
+              onRefresh={loadRealtimeStatus}
+            />
+          )}
         </div>
       </div>
+    </div>
   )
 }

@@ -1,6 +1,6 @@
 export interface AIContextExport {
   schema_version: number
-  exported_at: string
+  exported_at: number
   overview: {
     total_problems: number
     solved_problems: number
@@ -28,19 +28,19 @@ export interface AIContextExport {
     platform_problem_id: string
     title: string | null
     wrong_count: number
-    last_attempt: string
+    last_attempt: number
   }[]
   unreviewed_problems: {
     platform: string
     platform_problem_id: string
     title: string | null
-    last_visited_at: string
+    last_visited_at: number
     days_since: number
   }[]
   tag_stats: ContextTagStat[]
   recent_activity: {
     event_type: string
-    occurred_at: string
+    occurred_at: number
     platform: string | null
   }[]
 }

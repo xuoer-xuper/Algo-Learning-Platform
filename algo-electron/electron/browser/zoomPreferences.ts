@@ -1,36 +1,14 @@
+import type { ZoomCommand } from '../../src/shared/types/browser'
 export const DEFAULT_ZOOM_FACTOR = 1
 export const MIN_ZOOM_FACTOR = 0.25
 export const MAX_ZOOM_FACTOR = 5
 export const MAX_STORED_ZOOM_ORIGINS = 256
 
 export const CHROME_ZOOM_FACTORS = Object.freeze([
-  0.25,
-  0.33,
-  0.5,
-  0.67,
-  0.75,
-  0.8,
-  0.9,
-  1,
-  1.1,
-  1.25,
-  1.5,
-  1.75,
-  2,
-  2.5,
-  3,
-  4,
-  5,
+  0.25, 0.33, 0.5, 0.67, 0.75, 0.8, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2, 2.5, 3, 4, 5,
 ] as const)
 
 export type ZoomByOrigin = Record<string, number>
-export type ZoomCommand = 'in' | 'out' | 'reset'
-
-export interface ZoomState {
-  tabId: string
-  factor: number
-}
-
 export function isZoomCommand(value: unknown): value is ZoomCommand {
   return value === 'in' || value === 'out' || value === 'reset'
 }
@@ -75,13 +53,15 @@ export function isStoredZoomByOrigin(value: unknown, normalized: ZoomByOrigin): 
   if (!isRecord(value)) return false
   const entries = Object.entries(value)
   const normalizedEntries = Object.entries(normalized)
-  return entries.length === normalizedEntries.length
-    && entries.every(([origin, factor]) => normalized[origin] === factor)
+  return (
+    entries.length === normalizedEntries.length &&
+    entries.every(([origin, factor]) => normalized[origin] === factor)
+  )
 }
 
 export function getZoomFactorForUrl(preferences: ZoomByOrigin, url: string): number {
   const origin = normalizeZoomOrigin(url)
-  return origin ? preferences[origin] ?? DEFAULT_ZOOM_FACTOR : DEFAULT_ZOOM_FACTOR
+  return origin ? (preferences[origin] ?? DEFAULT_ZOOM_FACTOR) : DEFAULT_ZOOM_FACTOR
 }
 
 export function withZoomFactorForUrl(
@@ -106,14 +86,10 @@ export function withZoomFactorForUrl(
   return next
 }
 
-export function getAdjacentZoomFactor(
-  current: number,
-  direction: 'in' | 'out',
-): number {
+export function getAdjacentZoomFactor(current: number, direction: 'in' | 'out'): number {
   const normalizedCurrent = normalizeZoomFactor(current) ?? DEFAULT_ZOOM_FACTOR
   if (direction === 'in') {
-    return CHROME_ZOOM_FACTORS.find((factor) => factor > normalizedCurrent)
-      ?? MAX_ZOOM_FACTOR
+    return CHROME_ZOOM_FACTORS.find((factor) => factor > normalizedCurrent) ?? MAX_ZOOM_FACTOR
   }
   for (let index = CHROME_ZOOM_FACTORS.length - 1; index >= 0; index -= 1) {
     const factor = CHROME_ZOOM_FACTORS[index]

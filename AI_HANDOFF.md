@@ -2,6 +2,52 @@
 
 > 本文件记录 AI 助手之间的工作交接状态，便于后续 AI 快速了解当前进展与待办事项。
 
+## 最近完成（2026-09-17）
+
+### Trellis 初始化与规范对齐审计
+
+- 引入 Trellis 工作流（`.trellis/`、`AGENTS.md`、`.agents/`、`.codex/`、`.grok/`），spec 采用 electron-fullstack 官方模板并保持原文未改；激活任务 `00-bootstrap-guidelines`。
+- 新建 `dev` 分支并在其上提交；此前 248 个 commit 全部直接落在 master。后续开发在 dev / feature 分支进行，master 只接收合并。
+- 以模板规范为基准完成三份只读审计（主进程、渲染进程、测试/工具链/仓库/Git），合并为 `.trellis/tasks/00-bootstrap-guidelines/research/spec-alignment-report.md`：高优先级 9 条（IPC channel 字面量 158 处、跨进程类型三处手抄、`main.ts` 945 行、超长核心文件、时间格式在约定内混用、dev/prod 共用 userData、15 个组件不订阅刷新、无工具门、无分支模型），中 23 条，低 22 条；亮点 10 条。
+- 分阶段对齐计划在 `research/spec-alignment-plan.md`：阶段 0 建门（分支保护 + commitlint/husky + 类型棘轮，typescript-eslint 因 TS 7 不兼容改用架构守卫正则）→ 1 核心稳定性 → 2 IPC 契约收口 → 3 主进程拆分 → 4 渲染层结构 → 5 测试细节 → 6 spec 落地，约 19–25 个工作日。
+- 开发者决策：**模板是唯一标准，不为旧习惯保留**。计划改为 v2（D1–D23 决策：TS 降到 5.9 + typescript-eslint、pnpm、prettier、husky/commitlint、zod 替换 payloadSchema、electron-log 替换自研 logger、electron-store 替换 config.ts、Drizzle 替换裸 SQL、时间改 Unix 毫秒、目录改 `src/main|preload|renderer|shared`、文件 kebab-case、BEM、`window.api`），7 阶段约 38 个工作日。
+- 重复造轮子审计 `research/reinvented-wheels-audit.md`：jscpd 重复率 1.76%（健康），真正的问题是 6 个自研基础设施模块约 1,600 行可被库替代，以及 `tabSessionStore` / `applicationSessionStore` 522 行双胞胎。
+- spec 落地：模板文件一字未改；新增 `.trellis/spec/project/{index,domain-rules,git-workflow,migration-status}.md` 并从 `spec/README.md` 链接。`.gitignore` 不再忽略 `.claude/`（Trellis 的 hooks/skills/agents 需入库），只忽略 `settings.local.json`。
+- 追加决策：TS 目标改为 **6.0.3**（6.1 之前最后稳定版，typescript-eslint peer 覆盖；不行再退 5.9.3）。版本管理审计 V1–V10 写入计划附录：tag 与 package.json 错位（`v1.1.0-beta.*` 指向 `2.0.0-beta.*` 代码）、版本号倒退、CHANGELOG 日期错、版本号散落 5 处、tag 类型混用、Release 缺 blockmap、三份发布文档互相矛盾。措施 D24：release-it + conventional-changelog 一条命令发布，package.json 单一来源，历史 tag 不重写；对齐完成后因数据格式不可回滚发 **v3.0.0**。
+- bootstrap 任务已归档；`.trellis/config.yaml` 关闭脚本自动提交（内置文案英文且 scope 不在词表）。
+- **Trellis 任务树已建**：父任务 `09-17-spec-alignment`（决策、任务地图、跨阶段验收）+ 7 个子任务 `09-17-phase-0-tooling-gates` … `09-17-phase-6-cleanup-release`。每个子任务有 `prd.md`（需求 + 验收标准）和 `implement.md`（分支、checklist、验证命令、回滚点）；阶段 1/2/3 另有 `design.md`（契约、目录映射、Drizzle 基线引导、migration 030 转换规则、TabManager/CoachOrchestrator 拆分边界）。`implement.jsonl`/`check.jsonl` 已登记 spec 与审计报告上下文。**全部为规划，未实施任何代码改动。**
+- 开工方式：`python ./.trellis/scripts/task.py start .trellis/tasks/09-17-phase-0-tooling-gates`，从 `dev` 切 `chore/phase-0-tooling-gates` 分支，按 `implement.md` 顺序执行（R2 pnpm → R3 TS 6.0.3 → R4 typescript-eslint → R5 prettier → R6 husky/commitlint → R7 jscpd → R8 alias → R9 release-it → R1 分支保护 → R10 COMMIT_RULES）。
+
+### 署名开关落地与贡献者侧栏刷新
+
+- 9 月 3 日的提交 `ffba568` 又带上了 `Co-Authored-By: Claude Opus 5`，改写为 `5dfbf70` 并 force push 后 GitHub 仍保留旧对象（`gh api .../commits/ffba568` 可取到），首页侧栏再次显示两个贡献者，而 `contributors` / `stats/contributors` 接口早已只剩 `xuoer-xuper`。
+- 根因：Claude Code 每个会话都注入"提交末尾加 Co-Authored-By"的提醒，记忆规则只是软约束。已在 `.claude/settings.json` 加 `attribution`（`commit` / `pr` 置空、`sessionUrl` 为 false），写入后提醒即时变为"不要加署名"。
+- 侧栏刷新：默认分支先切到 `dev` 再切回 `master`，有 dev 后不再需要临时分支。前提已核对：master 保护是按分支名的经典规则、无 rulesets、0 fork、0 PR、CI 只在 push master 与 PR 时触发；切换窗口内不要新开 PR。
+
+## 最近完成（2026-09-11）
+
+### 项目审计第一批
+
+- 用户在清单之后要求“开始”，本批执行备份、笔记、导入和数据统计审计；总并发保持 2（主代理加 1 个子代理）。
+- 新增 [第一批报告](docs/OPERATIONS/PROJECT_AUDIT_BATCH1_2026_09_11.md)：8 项确认问题，2 项 P1、5 项 P2、1 项 P3，均未修复。两项 P1 为备份遗漏笔记图片和保存失败仍显示“已保存”。
+- 独立真实 Electron/SQLite 复现完成 8 个异常场景、1 个事务回滚通过场景；真实笔记面板组件加编辑器/IPC 替身复现保存 `false` 后显示成功及重开旧正文。源码为 `tests/db/auditDataIntegrity.repro.ts`、`tests/components/auditNoteSave.repro.tsx`，各目录有 `runAudit*.mjs` 入口。
+- 结果位于 `algo-electron/tmp/audit-20260911/`，均为隔离合成数据；临时 profile 与 JSON 不入 git，报告保留关键值。`.repro` 脚本断言当前异常，不能当作正确行为的默认回归测试；修复时转换断言。
+- 独立只读复核已校准影响：正文可从 DB 备份恢复，图片不可；路径只能控制父目录和随机 UUID 文件；软删除错误需要导入 tombstone；空笔记标题问题为 P3。
+- OJ 后代 frame 转发与凭据删除/解密轮换竞态仍是 2 条未验证线索。安全子任务的跨源动态复现被自动审核拦截，实验未执行，脚本已撤除；不得写成已确认远程越权或凭据泄漏。
+- 新增审计代码的测试 TypeScript 和定向 ESLint 通过；现有备份导入专项在真实 Electron Node 下 11/11 通过，文档与 diff 检查通过。未重跑全量业务测试、真实 UI/安装/OJ 验证；全项目 157 项清单尚未完成，下一批见报告第 5 节。
+- 本次只新增审计脚本和文档，没有改业务代码、提交或推送。
+
+## 最近完成（2026-09-08）
+
+### 项目问题排查清单
+
+- 用户要求先调查“能查哪些问题、怎么查”，再形成详细清单；本阶段未修改业务代码或实施缺陷修复。
+- 新增 [PROJECT_AUDIT_CHECKLIST](docs/OPERATIONS/PROJECT_AUDIT_CHECKLIST.md)，包含 14 类、157 个检查项、11 条初查线索、验证场景/规模、优先级、证据模板和本轮实际检查结果；已加入文档索引。
+- 初查发现备份范围与“完整备份”提示不一致，以及笔记双写、导入资源限制、LLM 缓存等待验证线索。官方 npm audit 报告两个受影响的间接开发依赖，生产依赖审计为零；未将公告评级直接认定为应用可利用漏洞。
+- 2026-09-05 本轮执行的 TypeScript、Lint、架构/安全/文档/打包配置、Vitest 169 文件/1362 测试、DB、Electron smoke、renderer bundle 检查通过；完整 UI/覆盖率/AI/safeStorage/生产打包未在这次清单调查中重跑。交付时文档检查通过，详细边界以清单为准。
+- 后续逐项排查时记录“线索/确认/通过/受阻”和复现证据，不能把清单项当作已确认问题。用户要求代理总并发最多 2，即主代理加 1 个子代理。
+- 本次未提交、未推送。
+
 ## 最近完成（2026-09-05）
 
 ### RC 缺陷修复
@@ -131,8 +177,8 @@ B5 验收中暴露的真机 bug：桌宠持续闪烁、点不动拖不动、主�
 
 ### 必须遵守的约束
 
-1. **Git 身份**: 只用 `xuper <dr.xuoer@gmail.com>` / GitHub `xuoer-xuper`，不加 `Co-Authored-By` trailer
-2. **推送权限**: 明确要求才 push，否则只 commit
+1. **Git 身份**: 只用 `xuper <dr.xuoer@gmail.com>` / GitHub `xuoer-xuper`，不加 `Co-Authored-By` trailer；`.claude/settings.json` 的 `attribution` 已置空（2026-09-17），harness 不再注入署名提醒
+2. **推送规则**: 每次 commit 后立即 push（2026-09-17 起）；master 受保护，只能经 PR 合入
 3. **工作目录**: 直接在 `D:\Algo-Learning-Platform\` 修改，不用 worktree
 4. **时间处理**: 数据库时间用北京本地时间，不用 UTC
 5. **Cookie 规则**: 不写日志、不进 Renderer、不进导出、不进 sync_queue

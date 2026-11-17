@@ -1,7 +1,10 @@
 import type Database from 'better-sqlite3'
 import { nowBeijing } from '../../shared/time'
 
-export function inferProblemContext(platform: string, platformProblemId: string): { contestId?: string; problemIndex?: string } | null {
+export function inferProblemContext(
+  platform: string,
+  platformProblemId: string,
+): { contestId?: string; problemIndex?: string } | null {
   if (platform === 'codeforces') {
     const match = platformProblemId.match(/^(\d+)([A-Za-z]\d*)$/)
     return match ? { contestId: match[1], problemIndex: match[2] } : null
@@ -25,12 +28,16 @@ export const migration017 = {
   version: 17,
   name: 'backfill_problem_context',
   up: (db: Database.Database) => {
-    const rows = db.prepare(`
+    const rows = db
+      .prepare(
+        `
       SELECT id, platform, platform_problem_id, contest_id, problem_index
       FROM problems
       WHERE deleted_at IS NULL
         AND (contest_id IS NULL OR problem_index IS NULL)
-    `).all() as {
+    `,
+      )
+      .all() as {
       id: string
       platform: string
       platform_problem_id: string

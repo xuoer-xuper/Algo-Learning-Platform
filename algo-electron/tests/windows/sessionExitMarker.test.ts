@@ -21,13 +21,25 @@ afterAll(async () => {
 })
 
 test('marker lifecycle: absent means clean exit, present means interrupted, sync clear removes it', async () => {
-  assert.strictEqual(await wasLastSessionInterrupted(dir), false, 'no marker → last session closed cleanly')
+  assert.strictEqual(
+    await wasLastSessionInterrupted(dir),
+    false,
+    'no marker → last session closed cleanly',
+  )
 
   await createSessionRunningMarker(dir)
-  assert.strictEqual(await wasLastSessionInterrupted(dir), true, 'marker present → last session was interrupted')
+  assert.strictEqual(
+    await wasLastSessionInterrupted(dir),
+    true,
+    'marker present → last session was interrupted',
+  )
 
   clearSessionRunningMarkerSync(dir)
-  assert.strictEqual(await wasLastSessionInterrupted(dir), false, 'sync clear on quit removes the marker')
+  assert.strictEqual(
+    await wasLastSessionInterrupted(dir),
+    false,
+    'sync clear on quit removes the marker',
+  )
 })
 
 test('sync clear is a no-op when the marker is already gone', () => {

@@ -17,15 +17,17 @@ function truncateText(value: string, maxLength: number): string {
 }
 
 function removeControlAndBidiCharacters(value: string): string {
-  return Array.from(value).filter((character) => {
-    const codePoint = character.codePointAt(0) ?? 0
-    return !(
-      codePoint <= 0x1f
-      || (codePoint >= 0x7f && codePoint <= 0x9f)
-      || (codePoint >= 0x202a && codePoint <= 0x202e)
-      || (codePoint >= 0x2066 && codePoint <= 0x2069)
-    )
-  }).join('')
+  return Array.from(value)
+    .filter((character) => {
+      const codePoint = character.codePointAt(0) ?? 0
+      return !(
+        codePoint <= 0x1f ||
+        (codePoint >= 0x7f && codePoint <= 0x9f) ||
+        (codePoint >= 0x202a && codePoint <= 0x202e) ||
+        (codePoint >= 0x2066 && codePoint <= 0x2069)
+      )
+    })
+    .join('')
 }
 
 function splitExtension(fileName: string): { stem: string; extension: string } {
@@ -56,8 +58,7 @@ function cleanFilename(value: string, maxLength: number): string {
     .replace(INVALID_FILENAME_CHARACTERS, '-')
     .replace(/-+/g, '-')
     .replace(/^[.\s-]+|[.\s-]+$/g, '')
-  return truncateFilename(avoidWindowsReservedName(cleaned), maxLength)
-    .replace(/[. ]+$/g, '')
+  return truncateFilename(avoidWindowsReservedName(cleaned), maxLength).replace(/[. ]+$/g, '')
 }
 
 export function sanitizeDownloadFilename(

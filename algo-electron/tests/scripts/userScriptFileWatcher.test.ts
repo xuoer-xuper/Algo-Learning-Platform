@@ -22,7 +22,12 @@ function createWatcherHarness(options: { getGeneration?: () => number } = {}) {
     mkdir: () => undefined,
     watch: ((_directory: fs.PathLike, _options: unknown, listener: fs.WatchListener<string>) => {
       watchListeners.push(listener)
-      const fake = { on: () => fake, close: () => { state.closed = true } }
+      const fake = {
+        on: () => fake,
+        close: () => {
+          state.closed = true
+        },
+      }
       return fake
     }) as unknown as typeof fs.watch,
     setTimeout: ((handler: () => void) => {
@@ -31,7 +36,9 @@ function createWatcherHarness(options: { getGeneration?: () => number } = {}) {
     }) as typeof setTimeout,
     clearTimeout: (() => undefined) as typeof clearTimeout,
     getGeneration: options.getGeneration,
-    onChanged: () => { state.refreshes += 1 },
+    onChanged: () => {
+      state.refreshes += 1
+    },
   })
 
   return {
@@ -89,11 +96,19 @@ test('watcher skips its own echo when an in-app write already refreshed the runt
   // The install path refreshes the runtime itself while the debounce is pending.
   generation = 8
   harness.firePendingTimer()
-  assert.strictEqual(harness.state.refreshes, 0, 'An in-app write must not trigger a second runtime refresh')
+  assert.strictEqual(
+    harness.state.refreshes,
+    0,
+    'An in-app write must not trigger a second runtime refresh',
+  )
 
   // An external edit leaves the generation untouched and must still refresh.
   harness.emit('change', 'installed--0123456789ab--ba9876543210.user.js')
   harness.firePendingTimer()
-  assert.strictEqual(harness.state.refreshes, 1, 'An external edit must still invalidate the runtime')
+  assert.strictEqual(
+    harness.state.refreshes,
+    1,
+    'An external edit must still invalidate the runtime',
+  )
   harness.watcher.stop()
 })

@@ -13,11 +13,15 @@ test('migration 025 preserves duplicates and assigns deterministic script identi
 
     migration025.up(db)
 
-    const rows = db.prepare(`
+    const rows = db
+      .prepare(
+        `
       SELECT id, namespace, identity_name, auto_update_enabled
       FROM user_scripts
       ORDER BY id ASC
-    `).all()
+    `,
+      )
+      .all()
 
     assert.deepStrictEqual(rows, [
       {
@@ -75,17 +79,24 @@ test('migration 025 identity indexes ignore deleted rows and constrain legacy NU
       '2026-08-04T10:00:00.000',
     )
 
-    const indexes = db.prepare(`
+    const indexes = db
+      .prepare(
+        `
       SELECT name
       FROM sqlite_master
       WHERE type = 'index' AND tbl_name = 'user_scripts'
       ORDER BY name ASC
-    `).all() as { name: string }[]
-    assert.deepStrictEqual(indexes.map(row => row.name), [
-      'sqlite_autoindex_user_scripts_1',
-      'user_scripts_active_identity_unique',
-      'user_scripts_active_legacy_identity_unique',
-    ])
+    `,
+      )
+      .all() as { name: string }[]
+    assert.deepStrictEqual(
+      indexes.map((row) => row.name),
+      [
+        'sqlite_autoindex_user_scripts_1',
+        'user_scripts_active_identity_unique',
+        'user_scripts_active_legacy_identity_unique',
+      ],
+    )
   } finally {
     db.close()
   }
@@ -104,11 +115,15 @@ test('migration 025 ignores earlier deleted duplicates when choosing the active 
 
     migration025.up(db)
 
-    const rows = db.prepare(`
+    const rows = db
+      .prepare(
+        `
       SELECT id, namespace, auto_update_enabled
       FROM user_scripts
       ORDER BY id ASC
-    `).all()
+    `,
+      )
+      .all()
     assert.deepStrictEqual(rows, [
       { id: 'active-canonical', namespace: null, auto_update_enabled: 1 },
       { id: 'active-copy', namespace: 'local:active-copy', auto_update_enabled: 0 },
@@ -146,11 +161,13 @@ function insertLegacyScript(
   name: string,
   createdAt: string,
 ): void {
-  db.prepare(`
+  db.prepare(
+    `
     INSERT INTO user_scripts (
       id, name, match_urls_json, code, enabled, created_at, updated_at
     ) VALUES (?, ?, '[]', '', 1, ?, ?)
-  `).run(id, name, createdAt, createdAt)
+  `,
+  ).run(id, name, createdAt, createdAt)
 }
 
 function insertIdentityScript(
@@ -160,12 +177,14 @@ function insertIdentityScript(
   identityName: string,
   deletedAt: string | null,
 ): void {
-  db.prepare(`
+  db.prepare(
+    `
     INSERT INTO user_scripts (
       id, name, namespace, identity_name, match_urls_json, code,
       enabled, auto_update_enabled, created_at, updated_at, deleted_at
     ) VALUES (?, ?, ?, ?, '[]', '', 1, 1, ?, ?, ?)
-  `).run(
+  `,
+  ).run(
     id,
     identityName,
     namespace,

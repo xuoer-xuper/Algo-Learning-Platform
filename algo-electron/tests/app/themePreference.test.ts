@@ -4,13 +4,11 @@ import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   DEFAULT_THEME_PREFERENCE,
-  isStoredAppearanceConfig,
   isThemePreference,
-  normalizeAppearanceConfig,
   normalizeThemePreference,
-  THEME_PREFERENCES,
 } from '../../electron/app/themePreference'
 import { ThemeController } from '../../electron/app/themeController'
+import { THEME_PREFERENCES } from '@shared/constants/preferences'
 
 const harness = vi.hoisted(() => ({ userDataDir: '' }))
 
@@ -50,22 +48,9 @@ describe('主题偏好规范化', () => {
     }
   })
 
-  it('appearance 结构缺失、非对象或数组时给出默认外观', () => {
-    for (const value of [undefined, null, 'dark', 42, ['dark']]) {
-      expect(normalizeAppearanceConfig(value)).toEqual({ theme: 'system' })
-    }
-    expect(normalizeAppearanceConfig({ theme: 'dark' })).toEqual({ theme: 'dark' })
-    expect(normalizeAppearanceConfig({ theme: 'nope' })).toEqual({ theme: 'system' })
-  })
-
-  it('存量判定要求键数相符，多出的陌生键算未规范化', () => {
-    expect(isStoredAppearanceConfig({ theme: 'dark' }, { theme: 'dark' })).toBe(true)
-    expect(isStoredAppearanceConfig({ theme: 'light' }, { theme: 'dark' })).toBe(false)
-    // 多一个键：规范化会把它丢掉，因此必须回写，否则那个键永远留在盘上
-    expect(isStoredAppearanceConfig({ theme: 'dark', accent: 'red' }, { theme: 'dark' })).toBe(false)
-    expect(isStoredAppearanceConfig(null, { theme: 'system' })).toBe(false)
-    expect(isStoredAppearanceConfig(['dark'], { theme: 'system' })).toBe(false)
-  })
+  // appearance 域的结构规范化（缺失/非对象 → 默认档）已随 electron-store 替换
+  // 收进 config.ts 的 zod schema（appearanceConfigSchema），行为由下文
+  // "主题偏好持久化"与 tests/app/configCompatibility.test.ts 覆盖。
 })
 
 describe('主题偏好持久化', () => {
@@ -91,51 +76,87 @@ describe('主题偏好持久化', () => {
   })
 
   it('已规范化的完整配置不触发回写', async () => {
-    // 必须每段都规范：只写 appearance 会让 search 那条迁移判定失败而回写，
-    // 于是"appearance 没触发回写"就验不出来了。
+    // 必须每段都规范（含 coach）：electron-store 版的收敛判定是"文件内容 == 解析
+    // 结果则不动盘"，缺任何一段都会触发一次补齐回写。
     const configPath = path.join(harness.userDataDir, 'config.json')
-    fs.writeFileSync(configPath, JSON.stringify({
-      homeShortcuts: [],
-      search: { engine: 'bing', customTemplate: null },
-      zoomByOrigin: {},
-      appearance: { theme: 'dark' },
-    }))
+    fs.writeFileSync(
+      configPath,
+      JSON.stringify({
+        homeShortcuts: [],
+        coach: {
+          enabled: true,
+          sound: true,
+          bubbleFrequency: 'medium',
+          position: null,
+          scale: 1,
+          opacity: 1,
+          pinMode: 'follow',
+        },
+        search: { engine: 'bing', customTemplate: null },
+        zoomByOrigin: {},
+        appearance: { theme: 'dark' },
+      }),
+    )
 
-    const writeSpy = vi.spyOn(fs, 'writeFileSync')
-    try {
-      const configModule = await import('../../electron/app/config.ts')
-      expect(configModule.getThemePreference()).toBe('dark')
-      expect(writeSpy).not.toHaveBeenCalled()
-    } finally {
-      writeSpy.mockRestore()
-    }
+    const original = fs.readFileSync(configPath)
+    const configModule = await import('../../electron/app/config.ts')
+    expect(configModule.getThemePreference()).toBe('dark')
+    expect(fs.readFileSync(configPath)).toEqual(original)
+    expect(fs.existsSync(path.join(harness.userDataDir, 'config-normalization-backups'))).toBe(
+      false,
+    )
   })
 
   it('appearance 是唯一未规范化的段时也会回写', async () => {
     const configPath = path.join(harness.userDataDir, 'config.json')
-    fs.writeFileSync(configPath, JSON.stringify({
-      homeShortcuts: [],
-      search: { engine: 'bing', customTemplate: null },
-      zoomByOrigin: {},
-      appearance: { theme: 'midnight' },
-    }))
+    fs.writeFileSync(
+      configPath,
+      JSON.stringify({
+        homeShortcuts: [],
+        coach: {
+          enabled: true,
+          sound: true,
+          bubbleFrequency: 'medium',
+          position: null,
+          scale: 1,
+          opacity: 1,
+          pinMode: 'follow',
+        },
+        search: { engine: 'bing', customTemplate: null },
+        zoomByOrigin: {},
+        appearance: { theme: 'midnight' },
+      }),
+    )
 
-    const writeSpy = vi.spyOn(fs, 'writeFileSync')
-    try {
-      const configModule = await import('../../electron/app/config.ts')
-      expect(configModule.getThemePreference()).toBe('system')
-      expect(writeSpy).toHaveBeenCalledTimes(1)
-    } finally {
-      writeSpy.mockRestore()
-    }
+    const original = fs.readFileSync(configPath)
+    const configModule = await import('../../electron/app/config.ts')
+    expect(configModule.getThemePreference()).toBe('system')
+    const normalized = fs.readFileSync(configPath)
+    expect(JSON.parse(normalized.toString('utf8'))).toEqual({
+      ...JSON.parse(original.toString('utf8')),
+      appearance: { theme: 'system' },
+    })
+    const backupDir = path.join(harness.userDataDir, 'config-normalization-backups')
+    const backups = fs.readdirSync(backupDir)
+    expect(backups).toHaveLength(1)
+    expect(fs.readFileSync(path.join(backupDir, backups[0]))).toEqual(original)
+
+    vi.resetModules()
+    const restartedConfig = await import('../../electron/app/config.ts')
+    expect(restartedConfig.getThemePreference()).toBe('system')
+    expect(fs.readFileSync(configPath)).toEqual(normalized)
+    expect(fs.readdirSync(backupDir)).toEqual(backups)
   })
 
   it('保存返回落盘后的值，并且不动其他配置段', async () => {
     const configPath = path.join(harness.userDataDir, 'config.json')
-    fs.writeFileSync(configPath, JSON.stringify({
-      homeShortcuts: ['https://codeforces.com/'],
-      appearance: { theme: 'system' },
-    }))
+    fs.writeFileSync(
+      configPath,
+      JSON.stringify({
+        homeShortcuts: ['https://codeforces.com/'],
+        appearance: { theme: 'system' },
+      }),
+    )
 
     const configModule = await import('../../electron/app/config.ts')
     expect(configModule.saveThemePreference('dark')).toBe('dark')
@@ -177,8 +198,12 @@ describe('ThemeController', () => {
   it('set 先落盘再赋值，返回的是落盘结果', () => {
     const order: string[] = []
     const nativeTheme = {
-      get themeSource() { return 'system' as const },
-      set themeSource(_value: 'system' | 'light' | 'dark') { order.push('assign') },
+      get themeSource() {
+        return 'system' as const
+      },
+      set themeSource(_value: 'system' | 'light' | 'dark') {
+        order.push('assign')
+      },
     }
     const controller = new ThemeController({
       nativeTheme,
@@ -198,7 +223,9 @@ describe('ThemeController', () => {
     const controller = new ThemeController({
       nativeTheme,
       readPreference: () => 'light',
-      writePreference: () => { throw new Error('read-only config') },
+      writePreference: () => {
+        throw new Error('read-only config')
+      },
     })
 
     expect(() => controller.set('dark')).toThrow('read-only config')

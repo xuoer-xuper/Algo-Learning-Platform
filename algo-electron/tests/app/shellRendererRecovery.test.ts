@@ -6,19 +6,35 @@ import type { Logger } from '../../electron/shared/logger.ts'
 
 class MemoryLogger implements Logger {
   readonly messages: string[] = []
-  debug(message: string): void { this.messages.push(message) }
-  info(message: string): void { this.messages.push(message) }
-  warn(message: string): void { this.messages.push(message) }
-  error(message: string): void { this.messages.push(message) }
-  fatal(message: string): void { this.messages.push(message) }
-  getLogFilePath(): null { return null }
+  debug(message: string): void {
+    this.messages.push(message)
+  }
+  info(message: string): void {
+    this.messages.push(message)
+  }
+  warn(message: string): void {
+    this.messages.push(message)
+  }
+  error(message: string): void {
+    this.messages.push(message)
+  }
+  fatal(message: string): void {
+    this.messages.push(message)
+  }
+  getLogFilePath(): null {
+    return null
+  }
 }
 
 class FakeWebContents extends EventEmitter {
   destroyed = false
   reloadCount = 0
-  isDestroyed(): boolean { return this.destroyed }
-  reload(): void { this.reloadCount += 1 }
+  isDestroyed(): boolean {
+    return this.destroyed
+  }
+  reload(): void {
+    this.reloadCount += 1
+  }
 }
 
 test('shell renderer crash is logged and reloads the live shell', () => {

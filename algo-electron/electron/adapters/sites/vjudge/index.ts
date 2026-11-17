@@ -1,9 +1,7 @@
 import type { ProblemIdentity, SubmissionData } from '../../../shared/types'
 import { resolveProblemIdentityFromBrowserTitle } from '../../browserTitleIdentity'
 import type { SiteAdapter, SubmissionDetectionPayload, TableParseContext } from '../../types'
-import {
-  scanBestTable,
-} from '../../shared/genericSubmission'
+import { scanBestTable } from '../../shared/genericSubmission'
 import {
   attachVjudgeRawProblemContext,
   matchVjudgeProblem,
@@ -33,8 +31,7 @@ export const vjudgeAdapter: SiteAdapter = {
   },
 
   parseSubmissionTables(tables, ctx: TableParseContext): SubmissionData[] {
-    return scanBestTable(tables, 'vjudge', 'vj', ctx)
-      .map(attachVjudgeRawProblemContext)
+    return scanBestTable(tables, 'vjudge', 'vj', ctx).map(attachVjudgeRawProblemContext)
   },
 
   injectHookScript(): string {
@@ -48,15 +45,19 @@ export const vjudgeAdapter: SiteAdapter = {
     return parseVjudgeSolutionData(raw) ?? parseVjudgeStatusData(raw)
   },
 
-  resolveProblemIdentity(_submission: SubmissionData, raw: SubmissionDetectionPayload): ProblemIdentity | null {
+  resolveProblemIdentity(
+    _submission: SubmissionData,
+    raw: SubmissionDetectionPayload,
+  ): ProblemIdentity | null {
     const identity = resolveProblemIdentityFromBrowserTitle(this, raw)
     if (identity) return identity
 
     try {
       const parsed = new URL(raw.pageUrl)
       const contestMatch = parsed.pathname.match(/\/contest\/(\d+)/)
-      const problemLetter = parsed.hash.match(/#status\/[^/]+\/([A-Za-z0-9]+)/)?.[1]
-        ?? parsed.hash.match(/#problem\/([A-Za-z0-9]+)/)?.[1]
+      const problemLetter =
+        parsed.hash.match(/#status\/[^/]+\/([A-Za-z0-9]+)/)?.[1] ??
+        parsed.hash.match(/#problem\/([A-Za-z0-9]+)/)?.[1]
       if (contestMatch && problemLetter) {
         const contestId = contestMatch[1]
         return {
@@ -68,7 +69,9 @@ export const vjudgeAdapter: SiteAdapter = {
           confidence: 'url',
         }
       }
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
 
     return null
   },

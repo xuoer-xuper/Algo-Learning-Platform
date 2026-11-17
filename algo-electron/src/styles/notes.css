@@ -137,9 +137,15 @@
   line-height: 1.4;
 }
 
-.note-item-type--solution { background: var(--color-ok-soft); }
-.note-item-type--review { background: var(--color-warn-soft); }
-.note-item-type--summary { background: var(--color-accent-soft); }
+.note-item-type--solution {
+  background: var(--color-ok-soft);
+}
+.note-item-type--review {
+  background: var(--color-warn-soft);
+}
+.note-item-type--summary {
+  background: var(--color-accent-soft);
+}
 
 .note-item-title {
   font-size: 13px;

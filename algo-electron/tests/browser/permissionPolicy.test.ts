@@ -27,12 +27,23 @@ test('default and OJ sessions install permission request and check handlers', ()
   assert.ok(ojSession.permissionCheckHandler)
   assert.ok(ojSession.permissionRequestHandler)
 
-  assert.strictEqual(defaultSession.permissionCheckHandler?.(null, 'media', 'https://example.com', {}), false)
-  assert.strictEqual(ojSession.permissionCheckHandler?.(null, 'fullscreen', 'https://example.com', {}), true)
+  assert.strictEqual(
+    defaultSession.permissionCheckHandler?.(null, 'media', 'https://example.com', {}),
+    false,
+  )
+  assert.strictEqual(
+    ojSession.permissionCheckHandler?.(null, 'fullscreen', 'https://example.com', {}),
+    true,
+  )
 
   let requestGranted: boolean | null = null
-  ojSession.permissionRequestHandler?.({}, 'geolocation', (granted: boolean) => {
-    requestGranted = granted
-  }, {})
+  ojSession.permissionRequestHandler?.(
+    {},
+    'geolocation',
+    (granted: boolean) => {
+      requestGranted = granted
+    },
+    {},
+  )
   assert.strictEqual(requestGranted, false)
 })

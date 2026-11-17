@@ -16,6 +16,8 @@
 
 应用数据根目录来自 Electron `app.getPath('userData')`。常见 Windows 打包环境通常在 `%APPDATA%\AlgoLearningPlatform`，开发环境可能随 Electron 应用名变化。
 
+**开发模式的数据目录带 `-dev` 后缀**（如 `%APPDATA%\algo-electron-dev`）：`!app.isPackaged` 时启动最前方的 `electron/app/envSetup.ts` 会给 userData 追加 `-dev`，使开发与正式版的数据互不污染。因此开发模式首次启动看到的是空库/空配置，属预期，不是数据丢失；要在开发里看正式版数据，需手动迁移目录。冒烟测试（`ALGO_ELECTRON_SMOKE_USER_DATA`）显式指定目录，优先级高于 `-dev` 后缀。
+
 关键数据：
 
 - SQLite 数据库：`<userData>/data/algo-learning.sqlite`
@@ -25,6 +27,8 @@
 - 用户脚本目录：`<userData>/userscripts`
 
 任何涉及数据库、笔记或脚本恢复的操作，先关闭应用并备份整个 `<userData>` 目录。
+
+`config.json` 由 electron-store 原子写入。文件损坏（无法解析）时应用以默认配置运行且**不会清空该文件**；此时保存设置会报错，修复方式是手工修正该文件（或自行备份后移除），不要指望应用替你重置。
 
 ## 3. 通用排查步骤
 

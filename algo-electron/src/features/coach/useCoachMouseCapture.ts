@@ -11,11 +11,18 @@ export function useCoachMouseCapture() {
     if (event) pointerRef.current = { clientX: event.clientX, clientY: event.clientY }
     const pointer = pointerRef.current
     const regions = rootRef.current?.querySelectorAll<HTMLElement>('[data-coach-interactive]')
-    const overControl = pointer && regions && Array.from(regions).some((region) => {
-      const rect = region.getBoundingClientRect()
-      return pointer.clientX >= rect.left && pointer.clientX < rect.right
-        && pointer.clientY >= rect.top && pointer.clientY < rect.bottom
-    })
+    const overControl =
+      pointer &&
+      regions &&
+      Array.from(regions).some((region) => {
+        const rect = region.getBoundingClientRect()
+        return (
+          pointer.clientX >= rect.left &&
+          pointer.clientX < rect.right &&
+          pointer.clientY >= rect.top &&
+          pointer.clientY < rect.bottom
+        )
+      })
     const ignore = !dragStartedRef.current && !overControl
     if (lastIgnoreRef.current === ignore) return
     lastIgnoreRef.current = ignore
@@ -45,7 +52,9 @@ export function useCoachMouseCapture() {
     const observeRegions = () => {
       resizeObserver.disconnect()
       resizeObserver.observe(root)
-      root.querySelectorAll('[data-coach-interactive]').forEach((region) => resizeObserver.observe(region))
+      root
+        .querySelectorAll('[data-coach-interactive]')
+        .forEach((region) => resizeObserver.observe(region))
       updateMouseCapture()
     }
     // Also release a stationary pointer when a bubble closes or a lazy panel changes.

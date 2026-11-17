@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
-import { render, screen, waitFor } from '@testing-library/react'
+import { render } from './renderWithDataRefresh'
+import { cleanup, screen, waitFor } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import React from 'react'
 import { ShellRouter } from '../../src/components/ShellRouter'
@@ -27,21 +28,81 @@ function internalTab(overrides: Partial<InternalTab> = {}): InternalTab {
   return { ...baseTab, kind: 'internal', page: { type: 'dashboard' }, ...overrides }
 }
 
-// Mock electronAPI 避免 HomePage 加载时报错
+// Lazy routes must finish mounting before teardown, with every mount-time read wired.
+const stubRejection = () =>
+  vi.fn().mockRejectedValue(new Error('transitions fixture: API not wired in this test'))
 beforeEach(() => {
-  // @ts-expect-error: test stub
-  window.electronAPI = {
-    getOverviewStats: vi.fn().mockResolvedValue({
-      totalProblems: 0,
-      solvedProblems: 0,
-      reviewDue: 0,
-      recentActivity: [],
-    }),
-    listRecentProblems: vi.fn().mockResolvedValue([]),
-    getHomeShortcuts: vi.fn().mockResolvedValue([]),
-    onProblemsUpdated: vi.fn().mockReturnValue(() => {}),
+  // 测试替身只实现挂载路径用到的方法；域内允许缺方法（Partial），整体指回完整的
+  // window.api 形状——多实现了不存在的方法会被 tsc 当场报出来。
+  type DomainStub = { [K in keyof typeof window.api]?: Partial<(typeof window.api)[K]> }
+  const apiStub: DomainStub = {
+    stats: {
+      getOverview: vi.fn<typeof window.api.stats.getOverview>().mockResolvedValue({
+        totalProblems: 0,
+        todayVisited: 0,
+        platformDistribution: [],
+        lastActiveTime: null,
+      }),
+      getStreakDays: vi.fn<typeof window.api.stats.getStreakDays>().mockResolvedValue({
+        current: 0,
+        longest: 0,
+      }),
+      getWrongProblems: vi.fn<typeof window.api.stats.getWrongProblems>().mockResolvedValue([]),
+      getUnreviewed: vi.fn<typeof window.api.stats.getUnreviewed>().mockResolvedValue([]),
+      getTimeline: vi.fn<typeof window.api.stats.getTimeline>().mockResolvedValue([]),
+      getRevisitStats: vi.fn<typeof window.api.stats.getRevisitStats>().mockResolvedValue([]),
+      getVisitedTrend: vi.fn<typeof window.api.stats.getVisitedTrend>().mockResolvedValue([]),
+      getAcTrend: vi.fn<typeof window.api.stats.getAcTrend>().mockResolvedValue([]),
+    },
+    problem: {
+      listRecent: vi.fn().mockResolvedValue([]),
+      onUpdated: vi.fn().mockReturnValue(() => {}),
+    },
+    config: {
+      getHomeShortcuts: vi.fn().mockResolvedValue([]),
+      // 设置页挂载时的读取类 API（AppearancePanel/SearchEnginePanel/LlmConfigPanel/
+      // CodeforcesSyncPanel/SiteManagementPanel/SettingsPage 本体）。
+      getTheme: vi.fn<typeof window.api.config.getTheme>().mockResolvedValue('system'),
+      getSearchEngine: stubRejection(),
+    },
+    coach: { getLlmConfig: stubRejection() },
+    rating: {
+      getAccounts: stubRejection(),
+      getCodeforcesAccount: vi
+        .fn<typeof window.api.rating.getCodeforcesAccount>()
+        .mockResolvedValue(null),
+    },
+    ai: {
+      getReviewRecommendations: vi
+        .fn<typeof window.api.ai.getReviewRecommendations>()
+        .mockResolvedValue({
+          generated_at: Date.parse('2026-11-04T12:00:00'),
+          rule_version: 1,
+          recommendations: [],
+        }),
+      getWeaknessAnalysis: vi.fn<typeof window.api.ai.getWeaknessAnalysis>().mockResolvedValue({
+        generated_at: Date.parse('2026-11-04T12:00:00'),
+        rule_version: 1,
+        weaknesses: [],
+        data_note: '',
+      }),
+    },
+    sites: { getAll: stubRejection() },
+    submissions: { getRealtimeStatus: stubRejection() },
   }
+  window.api = apiStub as typeof window.api
 })
+
+// Vitest globals are disabled, so Testing Library cannot register automatic cleanup.
+afterEach(cleanup)
+
+async function waitForSettingsPage(): Promise<void> {
+  await vi.dynamicImportSettled()
+  expect(await screen.findByRole('heading', { name: '设置', level: 2 })).toBeTruthy()
+  await waitFor(() => {
+    expect(screen.getByRole('combobox', { name: '主题' }).hasAttribute('disabled')).toBe(false)
+  })
+}
 
 describe('View Transitions（B5.3）', () => {
   let originalStartViewTransition: typeof document.startViewTransition | undefined
@@ -102,8 +163,8 @@ describe('View Transitions（B5.3）', () => {
     await waitFor(() => {
       expect(mockTransition).toHaveBeenCalledTimes(1)
     })
+    await waitForSettingsPage()
   })
-
 
   it('能力检测：不支持时仍能正常切换（降级分支）', async () => {
     // @ts-expect-error: 删除 API 模拟不支持
@@ -141,6 +202,7 @@ describe('View Transitions（B5.3）', () => {
     await waitFor(() => {
       expect(container.querySelector('.shell-route-settings')).toBeTruthy()
     })
+    await waitForSettingsPage()
   })
 
   it('过渡被跳过时不产生 unhandled rejection', async () => {
@@ -150,13 +212,20 @@ describe('View Transitions（B5.3）', () => {
      */
     const rejections: unknown[] = []
     // jsdom 里未接住的 rejection 落到 process 而不是 window，所以监听点在 process 上。
-    const onUnhandled = (reason: unknown) => { rejections.push(reason) }
+    const onUnhandled = (reason: unknown) => {
+      rejections.push(reason)
+    }
     process.on('unhandledRejection', onUnhandled)
 
     document.startViewTransition = ((callback: () => void) => {
       callback()
       const skipped = Promise.reject(new DOMException('Transition was skipped', 'AbortError'))
-      return { ready: skipped, finished: skipped, updateCallbackDone: Promise.resolve(), skipTransition: () => {} }
+      return {
+        ready: skipped,
+        finished: skipped,
+        updateCallbackDone: Promise.resolve(),
+        skipTransition: () => {},
+      }
     }) as unknown as typeof document.startViewTransition
 
     const dashboardTab = internalTab()
@@ -185,16 +254,12 @@ describe('View Transitions（B5.3）', () => {
       />,
     )
 
-    await waitFor(() => {
+    try {
+      await waitForSettingsPage()
       expect(container.querySelector('.shell-route-settings')).toBeTruthy()
-    })
-    /*
-     * 等懒加载落地。测试结束时 jsdom 拆掉，若懒加载还在飞会冒 EnvironmentTeardownError。
-     * 这里只关心 rejection 有没有接住，不验证页面内容，所以给足够时间让所有嵌套 import 结算。
-     */
-    await new Promise((resolve) => setTimeout(resolve, 500))
-
-    process.off('unhandledRejection', onUnhandled)
+    } finally {
+      process.off('unhandledRejection', onUnhandled)
+    }
     expect(rejections).toEqual([])
   })
 
@@ -232,9 +297,15 @@ describe('View Transitions（B5.3）', () => {
       />,
     )
 
+    await vi.dynamicImportSettled()
+    expect(await screen.findByRole('heading', { name: '学习统计', level: 2 })).toBeTruthy()
     await waitFor(() => {
-      expect(mockTransition).not.toHaveBeenCalled()
+      expect(screen.queryByLabelText('总题数加载中')).toBeNull()
+      expect(window.api.stats.getVisitedTrend).toHaveBeenCalledWith(30)
+      expect(window.api.ai.getWeaknessAnalysis).toHaveBeenCalledWith(8)
     })
+    expect(screen.getAllByTestId('shell-route')).toHaveLength(1)
+    expect(mockTransition).not.toHaveBeenCalled()
   })
 })
 
@@ -249,9 +320,8 @@ describe('Dialog 出入场动画（B5.3）', () => {
     }
 
     const rules = Array.from(styleSheet.cssRules)
-    const startingRule = rules.find(
-      (rule) => rule instanceof CSSStartingStyleRule,
-    ) as CSSStartingStyleRule | undefined
+    const startingRule = rules.find((rule) => rule instanceof CSSStartingStyleRule) as
+      CSSStartingStyleRule | undefined
 
     expect(startingRule).toBeDefined()
   })

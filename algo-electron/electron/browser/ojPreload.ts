@@ -7,7 +7,10 @@ import {
   OJ_SUBMISSION_TOKEN_CHANNEL,
 } from './ojBridge'
 import { OJ_CREDENTIAL_FILL_CHANNEL } from '../credentials/autofill/credentialAutofillBridge'
-import { fillCredentialFormWithRetry, isCredentialFormFillPayload } from '../credentials/autofill/formFiller'
+import {
+  fillCredentialFormWithRetry,
+  isCredentialFormFillPayload,
+} from '../credentials/autofill/formFiller'
 import { installCredentialCaptureListener } from '../credentials/captureForm'
 import { OJ_CREDENTIAL_CAPTURE_CHANNEL } from '../credentials/captureBridge'
 
@@ -21,9 +24,9 @@ let documentToken: Promise<string | null> = requestDocumentToken()
 function requestDocumentToken(): Promise<string | null> {
   return ipcRenderer
     .invoke(OJ_SUBMISSION_TOKEN_CHANNEL)
-    .then((token: unknown) => (
-      typeof token === 'string' && DOCUMENT_TOKEN_PATTERN.test(token) ? token : null
-    ))
+    .then((token: unknown) =>
+      typeof token === 'string' && DOCUMENT_TOKEN_PATTERN.test(token) ? token : null,
+    )
     .catch(() => null)
 }
 
@@ -35,12 +38,16 @@ function reportSubmission(payload: unknown): void {
     }
     documentToken = requestDocumentToken()
     void documentToken.then((retriedToken) => {
-      if (retriedToken) ipcRenderer.send(OJ_SUBMISSION_IPC_CHANNEL, { token: retriedToken, payload })
+      if (retriedToken)
+        ipcRenderer.send(OJ_SUBMISSION_IPC_CHANNEL, { token: retriedToken, payload })
     })
   })
 }
 
-contextBridge.exposeInMainWorld(OJ_SUBMISSION_BRIDGE_CHANNEL, createOjSubmissionBridge(reportSubmission))
+contextBridge.exposeInMainWorld(
+  OJ_SUBMISSION_BRIDGE_CHANNEL,
+  createOjSubmissionBridge(reportSubmission),
+)
 installOjSubmissionMessageForwarder(window, reportSubmission)
 
 // This listener lives only in the isolated OJ preload. The shell renderer has

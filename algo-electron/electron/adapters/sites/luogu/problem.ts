@@ -29,8 +29,10 @@ export function buildLuoguProblemUrl(problemId: string): string {
 export function matchLuoguSubmissionResult(url: string): boolean {
   try {
     const parsed = new URL(url)
-    return (parsed.hostname === 'luogu.com.cn' || parsed.hostname === 'www.luogu.com.cn')
-      && /^\/record\/\d+\/?$/.test(parsed.pathname)
+    return (
+      (parsed.hostname === 'luogu.com.cn' || parsed.hostname === 'www.luogu.com.cn') &&
+      /^\/record\/\d+\/?$/.test(parsed.pathname)
+    )
   } catch {
     return false
   }

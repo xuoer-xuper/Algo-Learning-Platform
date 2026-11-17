@@ -1,11 +1,14 @@
 // @vitest-environment jsdom
-import { act, cleanup, render, screen } from '@testing-library/react'
+import { render } from './renderWithDataRefresh'
+import { act, cleanup, screen } from '@testing-library/react'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 
 const setErrorNoticeVisible = vi.fn<(visible: boolean) => void>()
 
 vi.mock('../../src/features/problems/ProblemSidebar', () => ({ ProblemSidebar: () => null }))
-vi.mock('../../src/components/ErrorBoundary', () => ({ ErrorBoundary: ({ children }: { children: React.ReactNode }) => children }))
+vi.mock('../../src/components/ErrorBoundary', () => ({
+  ErrorBoundary: ({ children }: { children: React.ReactNode }) => children,
+}))
 vi.mock('../../src/components/WindowControls', () => ({ WindowControls: () => null }))
 vi.mock('../../src/components/TabStrip', () => ({ TabStrip: () => null }))
 vi.mock('../../src/components/BrowserToolbar', () => ({ BrowserToolbar: () => null }))
@@ -58,10 +61,7 @@ vi.mock('../../src/features/coach/coachDataApi', () => ({
 }))
 
 import App from '../../src/App'
-import {
-  reportRendererError,
-  resetRendererErrorsForTest,
-} from '../../src/rendererErrors'
+import { reportRendererError, resetRendererErrorsForTest } from '../../src/rendererErrors'
 
 beforeEach(() => {
   resetRendererErrorsForTest()

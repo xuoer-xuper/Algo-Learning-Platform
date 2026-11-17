@@ -1,5 +1,5 @@
 import type { SubmissionData } from '../../shared/types'
-import { nowBeijing } from '../../shared/time'
+import { nowMillis } from '../../shared/time'
 import { pickFinalRealtimeSubmission } from '../../submissions/realtimeSubmissionFilter'
 import {
   scanGenericSubmissionTable,
@@ -27,9 +27,8 @@ export function parseRealtimeTablePayload(
   raw: SubmissionDetectionPayload,
   parseTables: (tables: GenericTableData[], ctx: TableParseContext) => SubmissionData[],
 ): SubmissionData | null {
-  const response = raw.response && typeof raw.response === 'object'
-    ? raw.response as { tables?: unknown }
-    : null
+  const response =
+    raw.response && typeof raw.response === 'object' ? (raw.response as { tables?: unknown }) : null
   if (!Array.isArray(response?.tables)) return null
 
   const table = selectBestSubmissionTable(response.tables as GenericTableData[])
@@ -39,7 +38,6 @@ export function parseRealtimeTablePayload(
     ...table,
     rows: [table.rows[0]],
   }
-  const submissions = parseTables([latestOnlyTable], { now: nowBeijing })
+  const submissions = parseTables([latestOnlyTable], { now: nowMillis })
   return pickFinalRealtimeSubmission(submissions)
 }
-

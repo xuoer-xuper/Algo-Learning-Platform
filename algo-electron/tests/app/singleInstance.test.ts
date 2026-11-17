@@ -14,8 +14,12 @@ class FakeApp extends EventEmitter {
     super()
   }
 
-  requestSingleInstanceLock(): boolean { return this.lockGranted }
-  quit(): void { this.quitCount += 1 }
+  requestSingleInstanceLock(): boolean {
+    return this.lockGranted
+  }
+  quit(): void {
+    this.quitCount += 1
+  }
 }
 
 class FakeWindow implements FocusableMainWindow {
@@ -25,27 +29,48 @@ class FakeWindow implements FocusableMainWindow {
   showCount = 0
   focusCount = 0
 
-  isDestroyed(): boolean { return this.destroyed }
-  isMinimized(): boolean { return this.minimized }
-  restore(): void { this.minimized = false; this.restoreCount += 1 }
-  show(): void { this.showCount += 1 }
-  focus(): void { this.focusCount += 1 }
+  isDestroyed(): boolean {
+    return this.destroyed
+  }
+  isMinimized(): boolean {
+    return this.minimized
+  }
+  restore(): void {
+    this.minimized = false
+    this.restoreCount += 1
+  }
+  show(): void {
+    this.showCount += 1
+  }
+  focus(): void {
+    this.focusCount += 1
+  }
 }
 
 class MemoryLogger implements SingleInstanceLogger {
   readonly entries: Array<{ level: 'info' | 'warn'; message: string; data: unknown[] }> = []
-  info(message: string, ...data: unknown[]): void { this.entries.push({ level: 'info', message, data }) }
-  warn(message: string, ...data: unknown[]): void { this.entries.push({ level: 'warn', message, data }) }
+  info(message: string, ...data: unknown[]): void {
+    this.entries.push({ level: 'info', message, data })
+  }
+  warn(message: string, ...data: unknown[]): void {
+    this.entries.push({ level: 'warn', message, data })
+  }
 }
 
 test('a losing instance quits without installing a second-instance listener', () => {
   const app = new FakeApp(false)
   const logger = new MemoryLogger()
 
-  assert.strictEqual(installSingleInstanceLock(app, () => null, { logger }), false)
+  assert.strictEqual(
+    installSingleInstanceLock(app, () => null, { logger }),
+    false,
+  )
   assert.strictEqual(app.quitCount, 1)
   assert.strictEqual(app.listenerCount('second-instance'), 0)
-  assert.deepStrictEqual(logger.entries.map((entry) => entry.message), ['app.single-instance-denied'])
+  assert.deepStrictEqual(
+    logger.entries.map((entry) => entry.message),
+    ['app.single-instance-denied'],
+  )
 })
 
 test('a later launch restores, shows, and focuses the current main window', () => {
@@ -54,7 +79,10 @@ test('a later launch restores, shows, and focuses the current main window', () =
   const logger = new MemoryLogger()
   window.minimized = true
 
-  assert.strictEqual(installSingleInstanceLock(app, () => window, { logger }), true)
+  assert.strictEqual(
+    installSingleInstanceLock(app, () => window, { logger }),
+    true,
+  )
   app.emit('second-instance')
 
   assert.strictEqual(app.quitCount, 0)
@@ -62,10 +90,10 @@ test('a later launch restores, shows, and focuses the current main window', () =
   assert.strictEqual(window.restoreCount, 1)
   assert.strictEqual(window.showCount, 1)
   assert.strictEqual(window.focusCount, 1)
-  assert.deepStrictEqual(logger.entries.map((entry) => entry.message), [
-    'app.single-instance-acquired',
-    'app.second-instance-focused',
-  ])
+  assert.deepStrictEqual(
+    logger.entries.map((entry) => entry.message),
+    ['app.single-instance-acquired', 'app.second-instance-focused'],
+  )
 })
 
 test('each later launch resolves and focuses the latest target window', () => {
@@ -94,13 +122,18 @@ test('a later launch tolerates a missing, destroyed, or failing main window', ()
   currentWindow.destroyed = true
   app.emit('second-instance')
   currentWindow.destroyed = false
-  currentWindow.show = () => { throw new Error('show failed') }
+  currentWindow.show = () => {
+    throw new Error('show failed')
+  }
   app.emit('second-instance')
 
-  assert.deepStrictEqual(logger.entries.map((entry) => entry.message), [
-    'app.single-instance-acquired',
-    'app.second-instance-no-window',
-    'app.second-instance-no-window',
-    'app.second-instance-focus-failed',
-  ])
+  assert.deepStrictEqual(
+    logger.entries.map((entry) => entry.message),
+    [
+      'app.single-instance-acquired',
+      'app.second-instance-no-window',
+      'app.second-instance-no-window',
+      'app.second-instance-focus-failed',
+    ],
+  )
 })

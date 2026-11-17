@@ -37,13 +37,15 @@ describe('zoom preference normalization', () => {
   })
 
   it('sanitizes keys, values, duplicate normalized origins, and default entries', () => {
-    expect(normalizeZoomByOrigin({
-      'HTTPS://EXAMPLE.COM:443': 1.25,
-      'https://example.com/path': 1.5,
-      'https://default.example': 1,
-      'file:///tmp/a': 2,
-      'https://invalid.example': 20,
-    })).toEqual({
+    expect(
+      normalizeZoomByOrigin({
+        'HTTPS://EXAMPLE.COM:443': 1.25,
+        'https://example.com/path': 1.5,
+        'https://default.example': 1,
+        'file:///tmp/a': 2,
+        'https://invalid.example': 20,
+      }),
+    ).toEqual({
       'https://example.com': 1.5,
     })
   })
@@ -52,7 +54,9 @@ describe('zoom preference normalization', () => {
     const changed = withZoomFactorForUrl({}, 'https://codeforces.com/problemset/problem/1/A', 1.25)
     expect(changed).toEqual({ 'https://codeforces.com': 1.25 })
     expect(getZoomFactorForUrl(changed ?? {}, 'https://codeforces.com/contest/1')).toBe(1.25)
-    expect(getZoomFactorForUrl(changed ?? {}, 'https://leetcode.com/problems')).toBe(DEFAULT_ZOOM_FACTOR)
+    expect(getZoomFactorForUrl(changed ?? {}, 'https://leetcode.com/problems')).toBe(
+      DEFAULT_ZOOM_FACTOR,
+    )
     expect(withZoomFactorForUrl(changed ?? {}, 'https://codeforces.com/', 1)).toEqual({})
   })
 

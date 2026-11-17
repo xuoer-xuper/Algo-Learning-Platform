@@ -50,16 +50,29 @@ const requiredLazyChunks = [
 ]
 
 for (const pattern of requiredLazyChunks) {
-  assert.ok(assetNames.some((name) => pattern.test(name)), `Missing lazy renderer chunk matching ${pattern}`)
+  assert.ok(
+    assetNames.some((name) => pattern.test(name)),
+    `Missing lazy renderer chunk matching ${pattern}`,
+  )
 }
 
 assert.ok(
   assetNames.some((name) => /^(?:BarChart|PieChart)-.*\.js$/.test(name)),
   'Recharts must remain outside the initial renderer entry',
 )
-assert.ok(!html.includes('MilkdownEditor-'), 'Milkdown must not be preloaded by the initial renderer HTML')
-assert.ok(!html.includes('CoachChatPanel-'), 'Markdown chat must not be preloaded by the initial renderer HTML')
+assert.ok(
+  !html.includes('MilkdownEditor-'),
+  'Milkdown must not be preloaded by the initial renderer HTML',
+)
+assert.ok(
+  !html.includes('CoachChatPanel-'),
+  'Markdown chat must not be preloaded by the initial renderer HTML',
+)
 
 const reduction = (1 - entryBytes / baselineEntryBytes) * 100
-console.log(`[PASS] Renderer entry: ${entryBytes} bytes (${reduction.toFixed(1)}% below ${baselineEntryBytes})`)
-console.log('[PASS] Settings, dashboard, Coach metrics, Markdown chat, Milkdown and Recharts remain lazy chunks')
+console.log(
+  `[PASS] Renderer entry: ${entryBytes} bytes (${reduction.toFixed(1)}% below ${baselineEntryBytes})`,
+)
+console.log(
+  '[PASS] Settings, dashboard, Coach metrics, Markdown chat, Milkdown and Recharts remain lazy chunks',
+)

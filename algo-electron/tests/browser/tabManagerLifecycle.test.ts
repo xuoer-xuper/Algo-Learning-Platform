@@ -20,7 +20,10 @@ test('closing the active tab selects its right neighbor and reopening restores u
   manager.closeActiveTab()
 
   assert.strictEqual(manager.getActiveTabId(), rightId)
-  assert.deepStrictEqual(manager.getTabList().map((tab) => tab.id), [firstId, rightId])
+  assert.deepStrictEqual(
+    manager.getTabList().map((tab) => tab.id),
+    [firstId, rightId],
+  )
 
   const reopenedId = manager.reopenClosedTab()
   const reopened = manager.getTabList().find((tab) => tab.id === reopenedId)
@@ -28,7 +31,10 @@ test('closing the active tab selects its right neighbor and reopening restores u
   assert.strictEqual(reopened.url, 'https://example.com/middle')
   assert.strictEqual(reopened.title, 'Middle title')
   assert.strictEqual(reopened.isActive, true)
-  assert.deepStrictEqual(manager.getTabList().map((tab) => tab.id), [firstId, rightId, reopenedId])
+  assert.deepStrictEqual(
+    manager.getTabList().map((tab) => tab.id),
+    [firstId, rightId, reopenedId],
+  )
 })
 
 test('closing a background tab preserves the remaining order and active tab', () => {
@@ -42,7 +48,10 @@ test('closing a background tab preserves the remaining order and active tab', ()
   manager.closeTab(middleId)
 
   assert.strictEqual(manager.getActiveTabId(), rightId)
-  assert.deepStrictEqual(manager.getTabList().map((tab) => tab.id), [firstId, rightId])
+  assert.deepStrictEqual(
+    manager.getTabList().map((tab) => tab.id),
+    [firstId, rightId],
+  )
 })
 
 test('tab context menu enables move-to-window when a transfer handler is installed', () => {
@@ -55,7 +64,9 @@ test('tab context menu enables move-to-window when a transfer handler is install
   manager.createTab('https://example.com/last')
   manager.switchTab(middleId)
   const detachedIds: string[] = []
-  manager.setTabDetachHandler((tabId) => { detachedIds.push(tabId) })
+  manager.setTabDetachHandler((tabId) => {
+    detachedIds.push(tabId)
+  })
 
   manager.showTabContextMenu(middleId)
   const firstTemplate = menuPopups.at(-1)?.template as Electron.MenuItemConstructorOptions[]
@@ -63,21 +74,23 @@ test('tab context menu enables move-to-window when a transfer handler is install
   assert.strictEqual(detachItem?.enabled, true)
   detachItem?.click?.({} as never, {} as never, {} as never)
   assert.deepStrictEqual(detachedIds, [middleId])
-  firstTemplate.find((item) => item.label === '关闭右侧标签页')?.click?.(
-    {} as never,
-    {} as never,
-    {} as never,
+  firstTemplate
+    .find((item) => item.label === '关闭右侧标签页')
+    ?.click?.({} as never, {} as never, {} as never)
+  assert.deepStrictEqual(
+    manager.getTabList().map((tab) => tab.id),
+    [firstId, middleId],
   )
-  assert.deepStrictEqual(manager.getTabList().map((tab) => tab.id), [firstId, middleId])
 
   manager.showTabContextMenu(middleId)
   const secondTemplate = menuPopups.at(-1)?.template as Electron.MenuItemConstructorOptions[]
-  secondTemplate.find((item) => item.label === '关闭其他标签页')?.click?.(
-    {} as never,
-    {} as never,
-    {} as never,
+  secondTemplate
+    .find((item) => item.label === '关闭其他标签页')
+    ?.click?.({} as never, {} as never, {} as never)
+  assert.deepStrictEqual(
+    manager.getTabList().map((tab) => tab.id),
+    [middleId],
   )
-  assert.deepStrictEqual(manager.getTabList().map((tab) => tab.id), [middleId])
 
   manager.showTabContextMenu(middleId)
   const finalTemplate = menuPopups.at(-1)?.template as Electron.MenuItemConstructorOptions[]
@@ -99,8 +112,10 @@ test('destroying an active middle tab selects its right neighbor', () => {
   destroyedWindow.contentView.children[0].webContents.close()
 
   assert.strictEqual(destroyedManager.getActiveTabId(), rightId)
-  assert.deepStrictEqual(destroyedManager.getTabList().map((tab) => tab.id), [firstId, rightId, lastId])
-
+  assert.deepStrictEqual(
+    destroyedManager.getTabList().map((tab) => tab.id),
+    [firstId, rightId, lastId],
+  )
 })
 
 test('closing the last tab resets it to an internal home tab and keeps it reopenable', () => {
@@ -116,12 +131,17 @@ test('closing the last tab resets it to an internal home tab and keeps it reopen
   assert.notStrictEqual(resetTabs[0].id, originalId)
   assert.strictEqual(resetTabs[0].kind, 'internal')
   assert.strictEqual(resetTabs[0].url, 'algo://home')
-  assert.deepStrictEqual(resetTabs[0].kind === 'internal' ? resetTabs[0].page : null, { type: 'home' })
+  assert.deepStrictEqual(resetTabs[0].kind === 'internal' ? resetTabs[0].page : null, {
+    type: 'home',
+  })
   assert.strictEqual(resetTabs[0].isActive, true)
 
   const reopenedId = manager.reopenClosedTab()
   assert.ok(reopenedId)
-  assert.strictEqual(manager.getTabList().find((tab) => tab.id === reopenedId)?.url, 'https://example.com/problem')
+  assert.strictEqual(
+    manager.getTabList().find((tab) => tab.id === reopenedId)?.url,
+    'https://example.com/problem',
+  )
 })
 
 test('closing the last tab delegates to the owning shell when browser lifecycle mode is enabled', () => {
@@ -130,7 +150,9 @@ test('closing the last tab delegates to the owning shell when browser lifecycle 
   const manager = new TabManager(window as never)
   manager.createTab('https://example.com/problem')
   let closeRequests = 0
-  manager.setLastTabClosedHandler(() => { closeRequests += 1 })
+  manager.setLastTabClosedHandler(() => {
+    closeRequests += 1
+  })
 
   manager.closeActiveTab()
 
@@ -150,19 +172,22 @@ test('internal tabs close and reopen with their validated page payload', () => {
   assert.strictEqual(manager.getActiveTabId(), homeId)
 
   const reopenedId = manager.reopenClosedTab()
-  assert.deepStrictEqual(manager.getTabList().find((tab) => tab.id === reopenedId), {
-    id: reopenedId,
-    kind: 'internal',
-    page: { type: 'notes', problemId: 'problem-1' },
-    url: 'algo://problem-notes?problemId=problem-1',
-    title: '本地笔记',
-    favicon: null,
-    isLoading: false,
-    isCrashed: false,
-    isUnresponsive: false,
-    isUnresponsiveNoticeDismissed: false,
-    isActive: true,
-  })
+  assert.deepStrictEqual(
+    manager.getTabList().find((tab) => tab.id === reopenedId),
+    {
+      id: reopenedId,
+      kind: 'internal',
+      page: { type: 'notes', problemId: 'problem-1' },
+      url: 'algo://problem-notes?problemId=problem-1',
+      title: '本地笔记',
+      favicon: null,
+      isLoading: false,
+      isCrashed: false,
+      isUnresponsive: false,
+      isUnresponsiveNoticeDismissed: false,
+      isActive: true,
+    },
+  )
 })
 
 test('navigating from an internal tab converts the same stable id into a web tab', async () => {
@@ -218,11 +243,16 @@ test('omnibox internal navigation replaces the active tab in place and closes it
   const urls: string[] = []
   let sessionChanges = 0
   manager.setUrlChangeCallback((url) => urls.push(url))
-  manager.addSessionChangeListener(() => { sessionChanges += 1 })
+  manager.addSessionChangeListener(() => {
+    sessionChanges += 1
+  })
 
   manager.navigateInternal({ type: 'settings' })
 
-  assert.deepStrictEqual(manager.getTabList().map((tab) => tab.id), [backgroundId, activeId])
+  assert.deepStrictEqual(
+    manager.getTabList().map((tab) => tab.id),
+    [backgroundId, activeId],
+  )
   assert.deepStrictEqual(manager.getTabList()[1], {
     id: activeId,
     kind: 'internal',
@@ -285,8 +315,14 @@ test('tab list preserves insertion order and reports loading/favicon state', () 
   contents.emit('page-favicon-updated', {}, ['https://example.com/favicon.ico'])
 
   const loadingTabs = manager.getTabList()
-  assert.deepStrictEqual(loadingTabs.map((tab) => tab.id), [firstId, secondId])
-  assert.deepStrictEqual(loadingTabs.map((tab) => tab.kind), ['web', 'web'])
+  assert.deepStrictEqual(
+    loadingTabs.map((tab) => tab.id),
+    [firstId, secondId],
+  )
+  assert.deepStrictEqual(
+    loadingTabs.map((tab) => tab.kind),
+    ['web', 'web'],
+  )
   assert.strictEqual(loadingTabs[1].isLoading, true)
   assert.strictEqual(loadingTabs[1].isCrashed, false)
   assert.strictEqual(loadingTabs[1].favicon, 'https://example.com/favicon.ico')
@@ -315,14 +351,24 @@ test('reordering tabs preserves the active tab and mounted web view while persis
   const activeView = window.contentView.children[0]
   let listChanges = 0
   let sessionChanges = 0
-  manager.setTabListChangedCallback(() => { listChanges += 1 })
-  manager.addSessionChangeListener(() => { sessionChanges += 1 })
+  manager.setTabListChangedCallback(() => {
+    listChanges += 1
+  })
+  manager.addSessionChangeListener(() => {
+    sessionChanges += 1
+  })
 
   assert.strictEqual(manager.reorderTab(firstId, 2), true)
-  assert.deepStrictEqual(manager.getTabList().map((tab) => tab.id), [homeId, activeId, firstId])
+  assert.deepStrictEqual(
+    manager.getTabList().map((tab) => tab.id),
+    [homeId, activeId, firstId],
+  )
   assert.strictEqual(manager.getActiveTabId(), activeId)
   assert.deepStrictEqual(window.contentView.children, [activeView])
-  assert.deepStrictEqual(manager.getSessionSnapshot().tabs.map((tab) => tab.id), [homeId, activeId, firstId])
+  assert.deepStrictEqual(
+    manager.getSessionSnapshot().tabs.map((tab) => tab.id),
+    [homeId, activeId, firstId],
+  )
   assert.strictEqual(listChanges, 1)
   assert.strictEqual(sessionChanges, 1)
 
@@ -338,7 +384,9 @@ test('a userscript download hands every resource of the replaced web tab back be
   resetTrustedSenderRegistry()
   const window = new MockBrowserWindow()
   const viewRegistry = new ViewRegistry()
-  const installRegistry = new PendingUserScriptInstallRegistry({ idFactory: () => 'install-handover' })
+  const installRegistry = new PendingUserScriptInstallRegistry({
+    idFactory: () => 'install-handover',
+  })
   const manager = new TabManager(window as never, {
     windowId: 'window-1',
     viewRegistry,
@@ -358,7 +406,10 @@ test('a userscript download hands every resource of the replaced web tab back be
     if (event.reason === 'destroyed') trustedWhenAnnounced = checkOjSender(senderEvent).trusted
   })
 
-  assert.strictEqual(manager.routeUserScriptDownload('https://example.com/helper.user.js', contents as never), true)
+  assert.strictEqual(
+    manager.routeUserScriptDownload('https://example.com/helper.user.js', contents as never),
+    true,
+  )
   await Promise.resolve()
 
   // The download replaces the tab in place, so the stable tab id has to survive.

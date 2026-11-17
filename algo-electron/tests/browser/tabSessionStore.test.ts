@@ -135,12 +135,14 @@ function webSession(id: string, path = id): TabSessionSnapshot {
   return {
     version: 1,
     activeTabId: id,
-    tabs: [{
-      id,
-      kind: 'web',
-      url: `https://example.com/${path}`,
-      title: `Tab ${id}`,
-    }],
+    tabs: [
+      {
+        id,
+        kind: 'web',
+        url: `https://example.com/${path}`,
+        title: `Tab ${id}`,
+      },
+    ],
   }
 }
 
@@ -181,7 +183,10 @@ describe('TabSessionStore.load', () => {
     unreadableFileSystem.readError = fileError('EACCES', 'access denied')
     const unreadableStore = new TabSessionStore(sessionPath, { fileSystem: unreadableFileSystem })
 
-    await expect(unreadableStore.load()).resolves.toEqual({ kind: 'fallback', reason: 'read-failed' })
+    await expect(unreadableStore.load()).resolves.toEqual({
+      kind: 'fallback',
+      reason: 'read-failed',
+    })
   })
 })
 
@@ -252,7 +257,11 @@ describe('TabSessionPersistence', () => {
     let currentSnapshot = webSession('first')
     let providerCalls = 0
     const persistence = new TabSessionPersistence(
-      { save: async (snapshot) => { saved.push(snapshot) } },
+      {
+        save: async (snapshot) => {
+          saved.push(snapshot)
+        },
+      },
       () => {
         providerCalls += 1
         return currentSnapshot
@@ -302,7 +311,9 @@ describe('TabSessionPersistence', () => {
     persistence.schedule()
     currentSnapshot = webSession('flushed')
     let flushCompleted = false
-    const flushPromise = persistence.flush().then(() => { flushCompleted = true })
+    const flushPromise = persistence.flush().then(() => {
+      flushCompleted = true
+    })
     await saveStarted.promise
 
     expect(timer.delays).toEqual([75])
@@ -358,7 +369,11 @@ describe('TabSessionPersistence', () => {
     const saved: TabSessionSnapshot[] = []
     let currentSnapshot = webSession('scheduled')
     const persistence = new TabSessionPersistence(
-      { save: async (snapshot) => { saved.push(snapshot) } },
+      {
+        save: async (snapshot) => {
+          saved.push(snapshot)
+        },
+      },
       () => currentSnapshot,
       { timer },
     )
@@ -394,7 +409,11 @@ describe('TabSessionPersistence', () => {
         },
       },
       () => currentSnapshot,
-      { onDiagnostic: (reason) => { diagnostics.push(reason) } },
+      {
+        onDiagnostic: (reason) => {
+          diagnostics.push(reason)
+        },
+      },
     )
 
     await expect(persistence.flush()).resolves.toBeUndefined()
@@ -411,7 +430,11 @@ describe('TabSessionPersistence', () => {
     const saved: TabSessionSnapshot[] = []
     let providerShouldFail = true
     const persistence = new TabSessionPersistence(
-      { save: async (snapshot) => { saved.push(snapshot) } },
+      {
+        save: async (snapshot) => {
+          saved.push(snapshot)
+        },
+      },
       () => {
         if (providerShouldFail) throw new Error('snapshot contained https://example.com/private')
         return webSession('recovered')

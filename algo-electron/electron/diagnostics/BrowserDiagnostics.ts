@@ -1,6 +1,7 @@
-import { nowBeijing } from '../shared/time'
-import { appLogger, type Logger } from '../shared/logger'
+import { nowMillis } from '../shared/time'
+import { logger as baseLogger, type Logger } from '../shared/logger'
 import { errorMessage } from '../shared/errors'
+import type { BrowserDiagnosticsSnapshot } from '../../src/shared/types/browser'
 
 export type BrowserDiagnosticArea = 'tracking' | 'title' | 'userscript'
 export type BrowserDiagnosticStatus = 'success' | 'failed' | 'skipped'
@@ -11,11 +12,7 @@ export interface BrowserDiagnosticEntry {
   status: BrowserDiagnosticStatus
   url?: string
   detail?: string
-  at: string
-}
-
-export interface BrowserDiagnosticsSnapshot {
-  entries: BrowserDiagnosticEntry[]
+  at: number
 }
 
 const MAX_ENTRIES = 100
@@ -27,7 +24,7 @@ const MAX_ENTRIES = 100
 export class BrowserDiagnostics {
   private readonly entries: BrowserDiagnosticEntry[] = []
 
-  constructor(private readonly logger: Logger = appLogger) {}
+  constructor(private readonly logger: Logger = baseLogger) {}
 
   record(
     area: BrowserDiagnosticArea,
@@ -41,7 +38,7 @@ export class BrowserDiagnostics {
       status,
       url: options.url,
       detail: options.detail === undefined ? undefined : errorMessage(options.detail),
-      at: nowBeijing(),
+      at: nowMillis(),
     }
     this.entries.push(entry)
     if (this.entries.length > MAX_ENTRIES) this.entries.splice(0, this.entries.length - MAX_ENTRIES)
@@ -59,7 +56,9 @@ export class BrowserDiagnostics {
 
   getSnapshot(limit = MAX_ENTRIES): BrowserDiagnosticsSnapshot {
     const safeLimit = Number.isFinite(limit) ? Math.max(0, Math.floor(limit)) : MAX_ENTRIES
-    return { entries: safeLimit === 0 ? [] : this.entries.slice(-safeLimit).map((entry) => ({ ...entry })) }
+    return {
+      entries: safeLimit === 0 ? [] : this.entries.slice(-safeLimit).map((entry) => ({ ...entry })),
+    }
   }
 
   clear(): void {

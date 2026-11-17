@@ -42,13 +42,19 @@ test('覆盖 9 类核心类目', () => {
   ]
   for (const cat of requiredCategories) {
     const pool = HINT_TEMPLATES_BY_CATEGORY[cat]
-    assert.ok(pool && pool.length >= 3, `category ${cat} should have >= 3 templates, got ${pool?.length ?? 0}`)
+    assert.ok(
+      pool && pool.length >= 3,
+      `category ${cat} should have >= 3 templates, got ${pool?.length ?? 0}`,
+    )
   }
 })
 
 test('元认知类目存在且 >= 2 条', () => {
   const pool = HINT_TEMPLATES_BY_CATEGORY['metacognition']
-  assert.ok(pool && pool.length >= 2, `metacognition should have >= 2 templates, got ${pool?.length ?? 0}`)
+  assert.ok(
+    pool && pool.length >= 2,
+    `metacognition should have >= 2 templates, got ${pool?.length ?? 0}`,
+  )
 })
 
 test('每个类目至少 3 条模板（spec 要求覆盖充分）', () => {
@@ -63,7 +69,10 @@ test('每个类目至少 3 条模板（spec 要求覆盖充分）', () => {
 
 test('每条模板都有 id / category / text', () => {
   for (const t of HINT_TEMPLATES) {
-    assert.ok(typeof t.id === 'string' && t.id.length > 0, `template id missing: ${JSON.stringify(t)}`)
+    assert.ok(
+      typeof t.id === 'string' && t.id.length > 0,
+      `template id missing: ${JSON.stringify(t)}`,
+    )
     assert.ok(typeof t.category === 'string', `template category missing: ${t.id}`)
     assert.ok(typeof t.text === 'string' && t.text.length > 0, `template text missing: ${t.id}`)
   }
@@ -72,7 +81,11 @@ test('每条模板都有 id / category / text', () => {
 test('模板 id 唯一', () => {
   const ids = HINT_TEMPLATES.map((t) => t.id)
   const unique = new Set(ids)
-  assert.strictEqual(unique.size, ids.length, `duplicate template ids: ${ids.length - unique.size} duplicates`)
+  assert.strictEqual(
+    unique.size,
+    ids.length,
+    `duplicate template ids: ${ids.length - unique.size} duplicates`,
+  )
 })
 
 test('模板 id 前缀与类目一致', () => {
@@ -90,7 +103,10 @@ test('模板 id 前缀与类目一致', () => {
   }
   for (const t of HINT_TEMPLATES) {
     const prefix = prefixByCategory[t.category]
-    assert.ok(t.id.startsWith(prefix), `template ${t.id} should start with ${prefix} (category=${t.category})`)
+    assert.ok(
+      t.id.startsWith(prefix),
+      `template ${t.id} should start with ${prefix} (category=${t.category})`,
+    )
   }
 })
 
@@ -148,10 +164,7 @@ test('fillTemplatePlaceholders: 替换 n_upper', () => {
 })
 
 test('fillTemplatePlaceholders: 替换 n_upper_sq 与 n_upper_safe', () => {
-  const result = fillTemplatePlaceholders(
-    'sq={n_upper_sq} safe={n_upper_safe}',
-    { nUpper: 200000 },
-  )
+  const result = fillTemplatePlaceholders('sq={n_upper_sq} safe={n_upper_safe}', { nUpper: 200000 })
   // 200000^2 = 4e10 → formatNumber → 4·10^10
   assert.ok(result.includes('4·10^10'), `n_upper_sq should be 4·10^10, got: ${result}`)
   // 200000 + 10 = 200010 → mantissa 2.0001 → toFixed(1) → "2.0"
@@ -225,35 +238,52 @@ test('complexity-001 模板包含 n_upper 占位符', () => {
 test('boundary-001 模板提到边界场景', () => {
   const t = HINT_TEMPLATES.find((x) => x.id === 'boundary-001')
   assert.ok(t)
-  assert.ok(t!.text.includes('边界') || t!.text.includes('空数组') || t!.text.includes('n=1'),
-    `boundary-001 should mention edge cases: ${t!.text}`)
+  assert.ok(
+    t!.text.includes('边界') || t!.text.includes('空数组') || t!.text.includes('n=1'),
+    `boundary-001 should mention edge cases: ${t!.text}`,
+  )
 })
 
 test('overflow-001 模板提到 long long / BigInt', () => {
   const t = HINT_TEMPLATES.find((x) => x.id === 'overflow-001')
   assert.ok(t)
-  assert.ok(t!.text.includes('long long') || t!.text.includes('BigInt') || t!.text.includes('溢出'),
-    `overflow-001 should mention overflow: ${t!.text}`)
+  assert.ok(
+    t!.text.includes('long long') || t!.text.includes('BigInt') || t!.text.includes('溢出'),
+    `overflow-001 should mention overflow: ${t!.text}`,
+  )
 })
 
 test('数据范围类模板覆盖 9 类中的至少一类', () => {
   // 抽检：data_range 类应至少 1 条提到 long long / BigInt
   const pool = HINT_TEMPLATES_BY_CATEGORY['data_range']
-  const hasOverflowMention = pool.some((t) => t.text.includes('long long') || t.text.includes('BigInt'))
-  assert.ok(hasOverflowMention, 'data_range should have at least one template mentioning long long / BigInt')
+  const hasOverflowMention = pool.some(
+    (t) => t.text.includes('long long') || t.text.includes('BigInt'),
+  )
+  assert.ok(
+    hasOverflowMention,
+    'data_range should have at least one template mentioning long long / BigInt',
+  )
 })
 
 test('元认知类模板引导思考', () => {
   const pool = HINT_TEMPLATES_BY_CATEGORY['metacognition']
-  const hasThinkingGuidance = pool.some((t) =>
-    t.text.includes('想清楚') || t.text.includes('例子') || t.text.includes('思路') || t.text.includes('换'))
+  const hasThinkingGuidance = pool.some(
+    (t) =>
+      t.text.includes('想清楚') ||
+      t.text.includes('例子') ||
+      t.text.includes('思路') ||
+      t.text.includes('换'),
+  )
   assert.ok(hasThinkingGuidance, 'metacognition templates should guide thinking')
 })
 
 test('模板不包含 emoji（spec 未要求）', () => {
   for (const t of HINT_TEMPLATES) {
     // 简单 emoji 检测：不包含常见 emoji 区段
-    assert.ok(!/[\u{1F300}-\u{1F9FF}]/u.test(t.text), `template ${t.id} should not contain emoji: ${t.text}`)
+    assert.ok(
+      !/[\u{1F300}-\u{1F9FF}]/u.test(t.text),
+      `template ${t.id} should not contain emoji: ${t.text}`,
+    )
   }
 })
 
@@ -262,7 +292,13 @@ test('模板不包含完整答案（Socratic 原则）', () => {
   // 允许提到算法名作为"可能涉及"，但不能直接给出完整解法
   for (const t of HINT_TEMPLATES) {
     // 不应包含"答案是"或"应该用"等强答案措辞
-    assert.ok(!t.text.includes('答案是'), `template ${t.id} should not give direct answer: ${t.text}`)
-    assert.ok(!t.text.includes('解法是'), `template ${t.id} should not give direct solution: ${t.text}`)
+    assert.ok(
+      !t.text.includes('答案是'),
+      `template ${t.id} should not give direct answer: ${t.text}`,
+    )
+    assert.ok(
+      !t.text.includes('解法是'),
+      `template ${t.id} should not give direct solution: ${t.text}`,
+    )
   }
 })

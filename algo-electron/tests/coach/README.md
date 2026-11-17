@@ -22,7 +22,7 @@
 ## 3. 关键文件
 
 - 纯逻辑测试由 Vitest 直接发现；`tests/verify.mjs` 的 `coach` suite 额外启动依赖 Electron `safeStorage` 的配置存储测试。
-- 运行命令：`npm run test:coach`。
+- 运行命令：`pnpm run test:coach`。
 
 ## 4. 边界规则
 
@@ -34,8 +34,8 @@
 
 ```powershell
 cd algo-electron
-npm run test:coach
-npm run test:all
+pnpm run test:coach
+pnpm run test:all
 ```
 
 当前 Coach Vitest 测试合计 276 个用例，另有 1 个真实 Electron 配置存储场景。

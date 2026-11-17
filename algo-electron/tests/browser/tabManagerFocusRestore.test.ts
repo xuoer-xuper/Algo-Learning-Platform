@@ -1,6 +1,11 @@
 import assert from 'node:assert/strict'
 import { test } from 'vitest'
-import { MockBrowserWindow, MockWebContents, MockWebContentsView, resetElectronMock } from '../electron/electronMock'
+import {
+  MockBrowserWindow,
+  MockWebContents,
+  MockWebContentsView,
+  resetElectronMock,
+} from '../electron/electronMock'
 import { TabManager } from '../../electron/browser/TabManager.ts'
 
 const flushMicrotasks = async (): Promise<void> => {
@@ -38,7 +43,11 @@ test('window refocus does not steal focus from the shell ui', async () => {
   window.emit('focus')
   await flushMicrotasks()
 
-  assert.strictEqual(contents.focusCalls, 0, 'shell-owned focus must restore naturally, not be stolen')
+  assert.strictEqual(
+    contents.focusCalls,
+    0,
+    'shell-owned focus must restore naturally, not be stolen',
+  )
 })
 
 test('no restore when the blurred tab is no longer active or the omnibox is open', async () => {

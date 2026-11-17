@@ -100,7 +100,10 @@ function buildUserPrompt(ctx: LlmHintRequestContext): string {
       parts.push(`运行时间: ${lastSubmission.runtime_ms}ms`)
     }
     // 列出最近 5 条 verdict 序列
-    const recentVerdicts = ctx.submissions.slice(-5).map((s) => s.verdict).join(' → ')
+    const recentVerdicts = ctx.submissions
+      .slice(-5)
+      .map((s) => s.verdict)
+      .join(' → ')
     parts.push(`最近 verdict 序列: ${recentVerdicts}`)
     parts.push('</submission_history>')
   }
@@ -119,11 +122,7 @@ function buildUserPrompt(ctx: LlmHintRequestContext): string {
   if (ctx.hint_request.verdict) {
     parts.push(`触发 verdict: ${ctx.hint_request.verdict}`)
   }
-  parts.push(
-    ctx.hint_request.user_explicit_ask
-      ? '学生主动请求更深提示'
-      : '系统自动触发',
-  )
+  parts.push(ctx.hint_request.user_explicit_ask ? '学生主动请求更深提示' : '系统自动触发')
   parts.push('</hint_request>')
 
   parts.push(`请给出 L${ctx.hint_request.target_level} 级别的提示，返回 JSON。`)
@@ -231,7 +230,10 @@ export function buildChatPrompt(
 
   const messages: ChatMessage[] = [
     { role: 'system', content: systemContent },
-    { role: 'user', content: `${parts.join('\n')}\n\n<student_message>\n${userMessage}\n</student_message>` },
+    {
+      role: 'user',
+      content: `${parts.join('\n')}\n\n<student_message>\n${userMessage}\n</student_message>`,
+    },
   ]
 
   // 追加聊天历史（如果有的话）

@@ -48,8 +48,8 @@ CookieVault 依赖 Electron session，当前没有纯单元测试。修改后至
 
 ```powershell
 cd algo-electron
-npm run test:db
-npm run test:core
+pnpm run test:db
+pnpm run test:core
 ```
 
 涉及登录态行为时还需要手测对应 OJ 登录保持和同步流程。

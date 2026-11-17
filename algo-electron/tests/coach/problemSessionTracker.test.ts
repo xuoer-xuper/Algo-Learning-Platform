@@ -51,7 +51,9 @@ function createMockAppWindow(id: string): AppWindow {
     } as any,
     tabManager: {
       getUrl: () => currentUrl,
-      setUrl: (url: string) => { currentUrl = url },
+      setUrl: (url: string) => {
+        currentUrl = url
+      },
       addActiveTabChangeListener: (fn: (url: string) => void) => {
         activeTabListeners.push(fn)
         return () => {
@@ -119,7 +121,7 @@ describe('ProblemSessionTracker - Issue #3: problem_id 异步解析', () => {
     assert.strictEqual(capturedPlatformProblemId, 'two-sum')
 
     // 等待异步完成
-    await new Promise(resolve => setTimeout(resolve, 10))
+    await new Promise((resolve) => setTimeout(resolve, 10))
 
     // problem_id 应已更新
     session = tracker.getCurrentSession()
@@ -164,14 +166,14 @@ describe('ProblemSessionTracker - Issue #3: problem_id 异步解析', () => {
       confidence: 'url',
     })
 
-    await new Promise(resolve => setTimeout(resolve, 10))
+    await new Promise((resolve) => setTimeout(resolve, 10))
     assert.strictEqual(resolveCallCount, 1)
     assert.strictEqual(tracker.getCurrentSession()?.problem_id, null)
 
     // 首次提交触发兜底解析
     tracker.recordSubmission('WA')
 
-    await new Promise(resolve => setTimeout(resolve, 10))
+    await new Promise((resolve) => setTimeout(resolve, 10))
     assert.strictEqual(resolveCallCount, 2)
     assert.strictEqual(tracker.getCurrentSession()?.problem_id, 'problem-uuid-456')
 
@@ -203,7 +205,7 @@ describe('ProblemSessionTracker - Issue #3: problem_id 异步解析', () => {
         return null
       },
       resolveProblemId: async (platform, platformProblemId) => {
-        await new Promise(resolve => setTimeout(resolve, resolveDelay))
+        await new Promise((resolve) => setTimeout(resolve, resolveDelay))
         return `problem-${platformProblemId}`
       },
       now: () => 1000,
@@ -223,7 +225,7 @@ describe('ProblemSessionTracker - Issue #3: problem_id 异步解析', () => {
     const firstSessionId = tracker.getCurrentSession()?.session_id
 
     // 立即切到第二题（解析耗时 5ms）
-    await new Promise(resolve => setTimeout(resolve, 5))
+    await new Promise((resolve) => setTimeout(resolve, 5))
     resolveDelay = 5
     tracker.handleProblemDetectedForTest({
       platform: 'leetcode',
@@ -236,7 +238,7 @@ describe('ProblemSessionTracker - Issue #3: problem_id 异步解析', () => {
     assert.notStrictEqual(firstSessionId, secondSessionId)
 
     // 等待所有异步完成
-    await new Promise(resolve => setTimeout(resolve, 100))
+    await new Promise((resolve) => setTimeout(resolve, 100))
 
     // 当前 session 应为第二题，problem_id 已解析
     const current = tracker.getCurrentSession()
@@ -245,7 +247,7 @@ describe('ProblemSessionTracker - Issue #3: problem_id 异步解析', () => {
 
     // 第一题在历史中，problem_id 应仍为 null（异步完成时 session 已关闭）
     const history = tracker.getSessionHistory()
-    const firstSession = history.find(s => s.session_id === firstSessionId)
+    const firstSession = history.find((s) => s.session_id === firstSessionId)
     assert.strictEqual(firstSession?.problem_id, null)
 
     tracker.stop()
@@ -322,7 +324,7 @@ describe('ProblemSessionTracker - Issue #3: problem_id 异步解析', () => {
       confidence: 'url',
     })
 
-    await new Promise(resolve => setTimeout(resolve, 10))
+    await new Promise((resolve) => setTimeout(resolve, 10))
 
     // problem_id 应保持 null
     assert.strictEqual(tracker.getCurrentSession()?.problem_id, null)
@@ -362,7 +364,7 @@ describe('ProblemSessionTracker - Issue #3: problem_id 异步解析', () => {
       })
     })
 
-    await new Promise(resolve => setTimeout(resolve, 10))
+    await new Promise((resolve) => setTimeout(resolve, 10))
 
     // problem_id 应保持 null
     assert.strictEqual(tracker.getCurrentSession()?.problem_id, null)

@@ -1,0 +1,1597 @@
+{
+  "formatVersion": 1,
+  "kind": "historical-schema-reconstruction-with-synthetic-test-data",
+  "generation": {
+    "node": "v22.23.2",
+    "sqlite": "3.53.4",
+    "betterSqlite3": "13.0.3",
+    "esbuild": "0.28.2",
+    "ledgerTimestamp": "2000-01-01T00:00:00.000",
+    "command": "node tests/db/regenerateHistoricalFixtures.mjs",
+    "note": "Current SQLite executes pinned historical migration sources; this does not reproduce an old installer runtime or private user data."
+  },
+  "releases": [
+    {
+      "id": "v1",
+      "tag": "v1.0.0",
+      "commit": "0758b253766db648f47418e95116437762001261",
+      "version": 21,
+      "packageVersion": "1.0.0",
+      "schemaFile": "v1.schema.sql",
+      "schemaSha256": "9aa90aa47770028ed1b25401bcc549f06073abcb664236ce36e3db3284ee1e4e",
+      "schemaObjects": [
+        {
+          "type": "table",
+          "name": "activity_events"
+        },
+        {
+          "type": "table",
+          "name": "ai_context_snapshots"
+        },
+        {
+          "type": "table",
+          "name": "ai_outputs"
+        },
+        {
+          "type": "table",
+          "name": "contest_results"
+        },
+        {
+          "type": "table",
+          "name": "cookie_records"
+        },
+        {
+          "type": "table",
+          "name": "notes"
+        },
+        {
+          "type": "table",
+          "name": "platform_accounts"
+        },
+        {
+          "type": "table",
+          "name": "problem_visits"
+        },
+        {
+          "type": "table",
+          "name": "problems"
+        },
+        {
+          "type": "table",
+          "name": "rating_history"
+        },
+        {
+          "type": "table",
+          "name": "schema_migrations"
+        },
+        {
+          "type": "table",
+          "name": "site_configs"
+        },
+        {
+          "type": "table",
+          "name": "study_sessions"
+        },
+        {
+          "type": "table",
+          "name": "submissions"
+        },
+        {
+          "type": "table",
+          "name": "sync_queue"
+        },
+        {
+          "type": "table",
+          "name": "user_daily_stats"
+        },
+        {
+          "type": "table",
+          "name": "user_scripts"
+        },
+        {
+          "type": "index",
+          "name": "ai_outputs_created_idx"
+        },
+        {
+          "type": "index",
+          "name": "ai_outputs_type_idx"
+        },
+        {
+          "type": "index",
+          "name": "cookie_records_domain_idx"
+        },
+        {
+          "type": "index",
+          "name": "cookie_records_expires_at_idx"
+        },
+        {
+          "type": "index",
+          "name": "cookie_records_site_idx"
+        },
+        {
+          "type": "index",
+          "name": "idx_ae_local_day"
+        },
+        {
+          "type": "index",
+          "name": "idx_ae_problem"
+        },
+        {
+          "type": "index",
+          "name": "idx_ae_time"
+        },
+        {
+          "type": "index",
+          "name": "idx_ae_type_time"
+        },
+        {
+          "type": "index",
+          "name": "idx_contest_results_account_time"
+        },
+        {
+          "type": "index",
+          "name": "idx_contest_results_unique"
+        },
+        {
+          "type": "index",
+          "name": "idx_platform_accounts_handle"
+        },
+        {
+          "type": "index",
+          "name": "idx_problems_last_visited"
+        },
+        {
+          "type": "index",
+          "name": "idx_problems_platform_id"
+        },
+        {
+          "type": "index",
+          "name": "idx_problems_source"
+        },
+        {
+          "type": "index",
+          "name": "idx_problems_status"
+        },
+        {
+          "type": "index",
+          "name": "idx_pv_entered"
+        },
+        {
+          "type": "index",
+          "name": "idx_pv_problem_time"
+        },
+        {
+          "type": "index",
+          "name": "idx_pv_session"
+        },
+        {
+          "type": "index",
+          "name": "idx_rating_history_account_time"
+        },
+        {
+          "type": "index",
+          "name": "idx_rating_history_unique"
+        },
+        {
+          "type": "index",
+          "name": "idx_site_configs_enabled"
+        },
+        {
+          "type": "index",
+          "name": "idx_ss_ended"
+        },
+        {
+          "type": "index",
+          "name": "idx_ss_started"
+        },
+        {
+          "type": "index",
+          "name": "idx_submissions_platform_id"
+        },
+        {
+          "type": "index",
+          "name": "idx_submissions_problem_time"
+        },
+        {
+          "type": "index",
+          "name": "idx_submissions_submitted_at"
+        },
+        {
+          "type": "index",
+          "name": "idx_submissions_verdict"
+        },
+        {
+          "type": "index",
+          "name": "idx_user_daily_stats_recomputed"
+        },
+        {
+          "type": "index",
+          "name": "notes_problem"
+        },
+        {
+          "type": "index",
+          "name": "notes_updated_at"
+        },
+        {
+          "type": "index",
+          "name": "snapshots_date_unique"
+        },
+        {
+          "type": "index",
+          "name": "sync_queue_entity_operation_created_idx"
+        },
+        {
+          "type": "index",
+          "name": "sync_queue_status_created_idx"
+        }
+      ],
+      "migrations": [
+        {
+          "version": 1,
+          "name": "initial_schema"
+        },
+        {
+          "version": 2,
+          "name": "add_submissions_table"
+        },
+        {
+          "version": 3,
+          "name": "fix_codeforces_canonical_urls"
+        },
+        {
+          "version": 4,
+          "name": "fix_codeforces_gym_page_urls"
+        },
+        {
+          "version": 5,
+          "name": "add_user_daily_stats"
+        },
+        {
+          "version": 6,
+          "name": "add_rating_tables"
+        },
+        {
+          "version": 7,
+          "name": "add_site_configs"
+        },
+        {
+          "version": 8,
+          "name": "add_user_scripts"
+        },
+        {
+          "version": 9,
+          "name": "user_scripts_add_file_path"
+        },
+        {
+          "version": 10,
+          "name": "notes"
+        },
+        {
+          "version": 11,
+          "name": "notes_add_content_cache"
+        },
+        {
+          "version": 12,
+          "name": "submission_code_snippets"
+        },
+        {
+          "version": 13,
+          "name": "drop_submission_code_snippets"
+        },
+        {
+          "version": 14,
+          "name": "ai_context_snapshots"
+        },
+        {
+          "version": 15,
+          "name": "ai_outputs"
+        },
+        {
+          "version": 16,
+          "name": "clear_codeforces_placeholder_titles"
+        },
+        {
+          "version": 17,
+          "name": "backfill_problem_context"
+        },
+        {
+          "version": 18,
+          "name": "normalize_codeforces_submission_ids"
+        },
+        {
+          "version": 19,
+          "name": "cookie_records"
+        },
+        {
+          "version": 20,
+          "name": "sync_queue"
+        },
+        {
+          "version": 21,
+          "name": "sync_metadata_fields"
+        }
+      ],
+      "sources": [
+        {
+          "path": "algo-electron/electron/adapters/codeforcesUrls.ts",
+          "gitBlob": "baebf2a9df78984991c0b834436df86a7f02f7ac",
+          "sha256": "c8d94e260b974a45c76fe3923f88d0f9ca28b69ce939e05a2036a5f7e222686c"
+        },
+        {
+          "path": "algo-electron/electron/adapters/sites/codeforces/urls.ts",
+          "gitBlob": "111f5e68a556f5143e41fbd68327a6d915cd28bc",
+          "sha256": "9b7d5997271a471a81865ab554f955586a465615e94c0109be78215cb1010bc2"
+        },
+        {
+          "path": "algo-electron/electron/db/migrate.ts",
+          "gitBlob": "0f54d42c75e8e206a8b838da27cd3934e5e979f3",
+          "sha256": "4c4058013bcdeb8bbab8da870ac5a8244ea6769c9b6c25aa3d05335ac87fa985"
+        },
+        {
+          "path": "algo-electron/electron/db/migrations/001_initial.ts",
+          "gitBlob": "1ecafa2ef5fb469eb1c1fb04d417eddcc68001ce",
+          "sha256": "c08cd29910f3144cb57de655c1d3ecc8fd40ddc4a0d8c28bc7136ab6bd0104f5"
+        },
+        {
+          "path": "algo-electron/electron/db/migrations/002_submissions.ts",
+          "gitBlob": "b9f2335910016219847c2da0dd64e175146249ff",
+          "sha256": "aecf735679c9d5303c38668ccdf1c847b27be1663e9b118095770d094869ad37"
+        },
+        {
+          "path": "algo-electron/electron/db/migrations/003_fix_codeforces_canonical_urls.ts",
+          "gitBlob": "4e239f311a0a7d91a4df1ecc9d8bf864bd63f435",
+          "sha256": "4432184ca1d2124bd94df21737431d9b8193d5964d12ed352b5a9b1a0c57e503"
+        },
+        {
+          "path": "algo-electron/electron/db/migrations/004_fix_codeforces_gym_page_urls.ts",
+          "gitBlob": "42ff5dfc40d049eefadd1af4da1d683e931acb19",
+          "sha256": "fdb2aaed86532fa4ce15f9fbb4b2f2624f6f64ae0c5573eec60e0885f20494e9"
+        },
+        {
+          "path": "algo-electron/electron/db/migrations/005_daily_stats.ts",
+          "gitBlob": "921f5863fe27fab3b0303d6d2697351a6e61a8f2",
+          "sha256": "0c3d55e70794b155d3623158946fae4430793b20467b1b8fc875c7c2feb150bb"
+        },
+        {
+          "path": "algo-electron/electron/db/migrations/006_rating.ts",
+          "gitBlob": "b95f2ebfaee85333cafd32d3f79fd09e698f0453",
+          "sha256": "4f89e0e4ad13a1b3c3dbf7e98d6f803433899fcc7283a71ebd10d0c9355772f4"
+        },
+        {
+          "path": "algo-electron/electron/db/migrations/007_site_configs.ts",
+          "gitBlob": "a0a7eb8aeb6810514ce8714c4010ab1d59f427b4",
+          "sha256": "0093ca88eee756a1dd3b35e791b2cf5bb843dc35543a14e300855ed665892803"
+        },
+        {
+          "path": "algo-electron/electron/db/migrations/008_user_scripts.ts",
+          "gitBlob": "fc86a462e7e41af172ab943e72732aaa06e1948e",
+          "sha256": "ee9ee711f0ad6a1c312650c7df316297da8d98ceebe8dde0b9c68617d9fb600a"
+        },
+        {
+          "path": "algo-electron/electron/db/migrations/009_user_scripts_file.ts",
+          "gitBlob": "7d47e6cae0ea1f409f52e71d86fb9daa416845cd",
+          "sha256": "8146c3d18147133ee07c81dd58f87cd1a0e013a59a91ba98c57217ec8479458e"
+        },
+        {
+          "path": "algo-electron/electron/db/migrations/010_notes.ts",
+          "gitBlob": "05d097be2cfe513e0c151d05aaa94611251bef80",
+          "sha256": "8d29b38a42dbba7a7e51f3a6d50232a90bfc5d2305c6f0ff3de88bc40174e40d"
+        },
+        {
+          "path": "algo-electron/electron/db/migrations/011_notes_content.ts",
+          "gitBlob": "898f116fc98f8947712907933bbc8edb943173fe",
+          "sha256": "c8ba13fc3aa47276b3eede9a2120488b351e6750c464233f196e9e60c7a9e7d4"
+        },
+        {
+          "path": "algo-electron/electron/db/migrations/012_submission_code_snippets.ts",
+          "gitBlob": "9808a637573ae367b271c62562bdc021dbfe2fa5",
+          "sha256": "75271c188ed0c277c68b0c2dfb61059d114dee3ef3964cd4c950c3e188820aea"
+        },
+        {
+          "path": "algo-electron/electron/db/migrations/013_drop_submission_code_snippets.ts",
+          "gitBlob": "457522e38ff0cb8e7b88ecc6df5d05cfab79a251",
+          "sha256": "e27157f62db5dbbd398f56ed9bd8fe4ff8d1aa6374a5f6811ad1d63050c21ff1"
+        },
+        {
+          "path": "algo-electron/electron/db/migrations/014_ai_context_snapshots.ts",
+          "gitBlob": "05e27ed6a4b38dc62aa3f7bcc710ce768abb26d0",
+          "sha256": "422c32ece4591b2eefc75dfa517c2cfb1e1e3b265a8a7be14018293a3dba6d71"
+        },
+        {
+          "path": "algo-electron/electron/db/migrations/015_ai_outputs.ts",
+          "gitBlob": "4b5b3a1710b1f2470c00176386c5b3de7e43ef92",
+          "sha256": "862c723c1f711a442b1cf2f4970261ff7b320ccc1835294f56bcb2b666407e8a"
+        },
+        {
+          "path": "algo-electron/electron/db/migrations/016_clear_codeforces_placeholder_titles.ts",
+          "gitBlob": "64654ed88fe196634078d4b8117c03ffbe77424b",
+          "sha256": "5d7f17447a609530392ad963850dcc7b153d9aaa23c0bb9a4173124a3a4904ba"
+        },
+        {
+          "path": "algo-electron/electron/db/migrations/017_backfill_problem_context.ts",
+          "gitBlob": "4ace77e82dcc1c3d2351dc5acac6e6655460e60c",
+          "sha256": "df3f817b0ac68ff5d24cb8a3562ba133aa19da8ffae3097c59790e4e354753e4"
+        },
+        {
+          "path": "algo-electron/electron/db/migrations/018_normalize_codeforces_submission_ids.ts",
+          "gitBlob": "fc0ed5a5a02e5da8cbce21b740f21bfd7416b153",
+          "sha256": "89903772bfa6c468af4237991f0af594c4a2c9e937b736b882f22c26fe9ca661"
+        },
+        {
+          "path": "algo-electron/electron/db/migrations/019_cookie_records.ts",
+          "gitBlob": "e101f9557f8c0be5c9612bcd64d754775c1d9243",
+          "sha256": "619f7bd4a4952f0f205fd1a5c7e186ae441b6957601e267a67951b66a6a4cada"
+        },
+        {
+          "path": "algo-electron/electron/db/migrations/020_sync_queue.ts",
+          "gitBlob": "7f7490b5e560f061a79012607853fbcfac926f7c",
+          "sha256": "243d67e67f1c4d5b8de95ad44e192ddae5e14ea8f7c586dab2dd2e24f5630c1b"
+        },
+        {
+          "path": "algo-electron/electron/db/migrations/021_sync_metadata_fields.ts",
+          "gitBlob": "0d9dbce234e09f8d8dc85887f1e4132c6f42ba2a",
+          "sha256": "5ab08a711b25247b2363c7311ea28ff13ef903ddb26d5ca0e3e91a97373c6524"
+        },
+        {
+          "path": "algo-electron/electron/parsers/titleValidation.ts",
+          "gitBlob": "e6c24afd7352a21eac544cb495989e4f1331e2a6",
+          "sha256": "3919edad7e2558ad1d1212b2f22f2185446d302d61331a381b37af8c85a03035"
+        },
+        {
+          "path": "algo-electron/electron/shared/time.ts",
+          "gitBlob": "004411a9c1b2ad64e395f0cf63fe752a7f221984",
+          "sha256": "62402780aa8322fd050d5dc4ae67bcdd9419b738fff8ce910cdf8085d31d62a9"
+        },
+        {
+          "path": "algo-electron/package.json",
+          "gitBlob": "28be270b0dc251516e5de94cbe4b188996c514ca",
+          "sha256": "87b6035b7c82504d78ee0257478a34de87fd8ea62197ad6d3d4a0980dd31a9f4"
+        }
+      ]
+    },
+    {
+      "id": "beta2",
+      "tag": "v1.1.0-beta.2",
+      "commit": "b27debfcac5a368da1a19113bd1a48dc87526b79",
+      "version": 24,
+      "packageVersion": "2.0.0-beta.2",
+      "schemaFile": "beta2.schema.sql",
+      "schemaSha256": "9f67fb2a16498b0f139ededa07a53301439d4a93eb88befd584eaf0a3ae06efe",
+      "schemaObjects": [
+        {
+          "type": "table",
+          "name": "activity_events"
+        },
+        {
+          "type": "table",
+          "name": "ai_context_snapshots"
+        },
+        {
+          "type": "table",
+          "name": "ai_outputs"
+        },
+        {
+          "type": "table",
+          "name": "coach_events"
+        },
+        {
+          "type": "table",
+          "name": "coach_feedback"
+        },
+        {
+          "type": "table",
+          "name": "coach_interventions"
+        },
+        {
+          "type": "table",
+          "name": "contest_results"
+        },
+        {
+          "type": "table",
+          "name": "cookie_records"
+        },
+        {
+          "type": "table",
+          "name": "notes"
+        },
+        {
+          "type": "table",
+          "name": "platform_accounts"
+        },
+        {
+          "type": "table",
+          "name": "problem_visits"
+        },
+        {
+          "type": "table",
+          "name": "problems"
+        },
+        {
+          "type": "table",
+          "name": "rating_history"
+        },
+        {
+          "type": "table",
+          "name": "schema_migrations"
+        },
+        {
+          "type": "table",
+          "name": "site_configs"
+        },
+        {
+          "type": "table",
+          "name": "study_sessions"
+        },
+        {
+          "type": "table",
+          "name": "submissions"
+        },
+        {
+          "type": "table",
+          "name": "sync_queue"
+        },
+        {
+          "type": "table",
+          "name": "user_daily_stats"
+        },
+        {
+          "type": "table",
+          "name": "user_scripts"
+        },
+        {
+          "type": "index",
+          "name": "ai_outputs_created_idx"
+        },
+        {
+          "type": "index",
+          "name": "ai_outputs_type_idx"
+        },
+        {
+          "type": "index",
+          "name": "coach_events_created_idx"
+        },
+        {
+          "type": "index",
+          "name": "coach_events_problem_idx"
+        },
+        {
+          "type": "index",
+          "name": "coach_events_session_idx"
+        },
+        {
+          "type": "index",
+          "name": "coach_events_type_idx"
+        },
+        {
+          "type": "index",
+          "name": "coach_feedback_day_idx"
+        },
+        {
+          "type": "index",
+          "name": "coach_feedback_intervention_idx"
+        },
+        {
+          "type": "index",
+          "name": "coach_feedback_type_idx"
+        },
+        {
+          "type": "index",
+          "name": "coach_interventions_contest_idx"
+        },
+        {
+          "type": "index",
+          "name": "coach_interventions_created_idx"
+        },
+        {
+          "type": "index",
+          "name": "coach_interventions_event_idx"
+        },
+        {
+          "type": "index",
+          "name": "coach_interventions_source_idx"
+        },
+        {
+          "type": "index",
+          "name": "cookie_records_domain_idx"
+        },
+        {
+          "type": "index",
+          "name": "cookie_records_expires_at_idx"
+        },
+        {
+          "type": "index",
+          "name": "cookie_records_site_idx"
+        },
+        {
+          "type": "index",
+          "name": "idx_ae_local_day"
+        },
+        {
+          "type": "index",
+          "name": "idx_ae_problem"
+        },
+        {
+          "type": "index",
+          "name": "idx_ae_time"
+        },
+        {
+          "type": "index",
+          "name": "idx_ae_type_time"
+        },
+        {
+          "type": "index",
+          "name": "idx_contest_results_account_time"
+        },
+        {
+          "type": "index",
+          "name": "idx_contest_results_unique"
+        },
+        {
+          "type": "index",
+          "name": "idx_platform_accounts_handle"
+        },
+        {
+          "type": "index",
+          "name": "idx_problems_last_visited"
+        },
+        {
+          "type": "index",
+          "name": "idx_problems_platform_id"
+        },
+        {
+          "type": "index",
+          "name": "idx_problems_source"
+        },
+        {
+          "type": "index",
+          "name": "idx_problems_status"
+        },
+        {
+          "type": "index",
+          "name": "idx_pv_entered"
+        },
+        {
+          "type": "index",
+          "name": "idx_pv_problem_time"
+        },
+        {
+          "type": "index",
+          "name": "idx_pv_session"
+        },
+        {
+          "type": "index",
+          "name": "idx_rating_history_account_time"
+        },
+        {
+          "type": "index",
+          "name": "idx_rating_history_unique"
+        },
+        {
+          "type": "index",
+          "name": "idx_site_configs_enabled"
+        },
+        {
+          "type": "index",
+          "name": "idx_ss_ended"
+        },
+        {
+          "type": "index",
+          "name": "idx_ss_started"
+        },
+        {
+          "type": "index",
+          "name": "idx_submissions_platform_id"
+        },
+        {
+          "type": "index",
+          "name": "idx_submissions_problem_time"
+        },
+        {
+          "type": "index",
+          "name": "idx_submissions_submitted_at"
+        },
+        {
+          "type": "index",
+          "name": "idx_submissions_verdict"
+        },
+        {
+          "type": "index",
+          "name": "idx_user_daily_stats_recomputed"
+        },
+        {
+          "type": "index",
+          "name": "notes_problem"
+        },
+        {
+          "type": "index",
+          "name": "notes_updated_at"
+        },
+        {
+          "type": "index",
+          "name": "snapshots_date_unique"
+        },
+        {
+          "type": "index",
+          "name": "sync_queue_entity_operation_created_idx"
+        },
+        {
+          "type": "index",
+          "name": "sync_queue_status_created_idx"
+        }
+      ],
+      "migrations": [
+        {
+          "version": 1,
+          "name": "initial_schema"
+        },
+        {
+          "version": 2,
+          "name": "add_submissions_table"
+        },
+        {
+          "version": 3,
+          "name": "fix_codeforces_canonical_urls"
+        },
+        {
+          "version": 4,
+          "name": "fix_codeforces_gym_page_urls"
+        },
+        {
+          "version": 5,
+          "name": "add_user_daily_stats"
+        },
+        {
+          "version": 6,
+          "name": "add_rating_tables"
+        },
+        {
+          "version": 7,
+          "name": "add_site_configs"
+        },
+        {
+          "version": 8,
+          "name": "add_user_scripts"
+        },
+        {
+          "version": 9,
+          "name": "user_scripts_add_file_path"
+        },
+        {
+          "version": 10,
+          "name": "notes"
+        },
+        {
+          "version": 11,
+          "name": "notes_add_content_cache"
+        },
+        {
+          "version": 12,
+          "name": "submission_code_snippets"
+        },
+        {
+          "version": 13,
+          "name": "drop_submission_code_snippets"
+        },
+        {
+          "version": 14,
+          "name": "ai_context_snapshots"
+        },
+        {
+          "version": 15,
+          "name": "ai_outputs"
+        },
+        {
+          "version": 16,
+          "name": "clear_codeforces_placeholder_titles"
+        },
+        {
+          "version": 17,
+          "name": "backfill_problem_context"
+        },
+        {
+          "version": 18,
+          "name": "normalize_codeforces_submission_ids"
+        },
+        {
+          "version": 19,
+          "name": "cookie_records"
+        },
+        {
+          "version": 20,
+          "name": "sync_queue"
+        },
+        {
+          "version": 21,
+          "name": "sync_metadata_fields"
+        },
+        {
+          "version": 22,
+          "name": "coach_events"
+        },
+        {
+          "version": 23,
+          "name": "coach_interventions"
+        },
+        {
+          "version": 24,
+          "name": "coach_feedback"
+        }
+      ],
+      "sources": [
+        {
+          "path": "algo-electron/electron/adapters/codeforcesUrls.ts",
+          "gitBlob": "baebf2a9df78984991c0b834436df86a7f02f7ac",
+          "sha256": "c8d94e260b974a45c76fe3923f88d0f9ca28b69ce939e05a2036a5f7e222686c"
+        },
+        {
+          "path": "algo-electron/electron/adapters/sites/codeforces/urls.ts",
+          "gitBlob": "111f5e68a556f5143e41fbd68327a6d915cd28bc",
+          "sha256": "9b7d5997271a471a81865ab554f955586a465615e94c0109be78215cb1010bc2"
+        },
+        {
+          "path": "algo-electron/electron/db/migrate.ts",
+          "gitBlob": "0f54d42c75e8e206a8b838da27cd3934e5e979f3",
+          "sha256": "4c4058013bcdeb8bbab8da870ac5a8244ea6769c9b6c25aa3d05335ac87fa985"
+        },
+        {
+          "path": "algo-electron/electron/db/migrations/001_initial.ts",
+          "gitBlob": "1ecafa2ef5fb469eb1c1fb04d417eddcc68001ce",
+          "sha256": "c08cd29910f3144cb57de655c1d3ecc8fd40ddc4a0d8c28bc7136ab6bd0104f5"
+        },
+        {
+          "path": "algo-electron/electron/db/migrations/002_submissions.ts",
+          "gitBlob": "b9f2335910016219847c2da0dd64e175146249ff",
+          "sha256": "aecf735679c9d5303c38668ccdf1c847b27be1663e9b118095770d094869ad37"
+        },
+        {
+          "path": "algo-electron/electron/db/migrations/003_fix_codeforces_canonical_urls.ts",
+          "gitBlob": "4e239f311a0a7d91a4df1ecc9d8bf864bd63f435",
+          "sha256": "4432184ca1d2124bd94df21737431d9b8193d5964d12ed352b5a9b1a0c57e503"
+        },
+        {
+          "path": "algo-electron/electron/db/migrations/004_fix_codeforces_gym_page_urls.ts",
+          "gitBlob": "42ff5dfc40d049eefadd1af4da1d683e931acb19",
+          "sha256": "fdb2aaed86532fa4ce15f9fbb4b2f2624f6f64ae0c5573eec60e0885f20494e9"
+        },
+        {
+          "path": "algo-electron/electron/db/migrations/005_daily_stats.ts",
+          "gitBlob": "921f5863fe27fab3b0303d6d2697351a6e61a8f2",
+          "sha256": "0c3d55e70794b155d3623158946fae4430793b20467b1b8fc875c7c2feb150bb"
+        },
+        {
+          "path": "algo-electron/electron/db/migrations/006_rating.ts",
+          "gitBlob": "b95f2ebfaee85333cafd32d3f79fd09e698f0453",
+          "sha256": "4f89e0e4ad13a1b3c3dbf7e98d6f803433899fcc7283a71ebd10d0c9355772f4"
+        },
+        {
+          "path": "algo-electron/electron/db/migrations/007_site_configs.ts",
+          "gitBlob": "a0a7eb8aeb6810514ce8714c4010ab1d59f427b4",
+          "sha256": "0093ca88eee756a1dd3b35e791b2cf5bb843dc35543a14e300855ed665892803"
+        },
+        {
+          "path": "algo-electron/electron/db/migrations/008_user_scripts.ts",
+          "gitBlob": "fc86a462e7e41af172ab943e72732aaa06e1948e",
+          "sha256": "ee9ee711f0ad6a1c312650c7df316297da8d98ceebe8dde0b9c68617d9fb600a"
+        },
+        {
+          "path": "algo-electron/electron/db/migrations/009_user_scripts_file.ts",
+          "gitBlob": "7d47e6cae0ea1f409f52e71d86fb9daa416845cd",
+          "sha256": "8146c3d18147133ee07c81dd58f87cd1a0e013a59a91ba98c57217ec8479458e"
+        },
+        {
+          "path": "algo-electron/electron/db/migrations/010_notes.ts",
+          "gitBlob": "05d097be2cfe513e0c151d05aaa94611251bef80",
+          "sha256": "8d29b38a42dbba7a7e51f3a6d50232a90bfc5d2305c6f0ff3de88bc40174e40d"
+        },
+        {
+          "path": "algo-electron/electron/db/migrations/011_notes_content.ts",
+          "gitBlob": "898f116fc98f8947712907933bbc8edb943173fe",
+          "sha256": "c8ba13fc3aa47276b3eede9a2120488b351e6750c464233f196e9e60c7a9e7d4"
+        },
+        {
+          "path": "algo-electron/electron/db/migrations/012_submission_code_snippets.ts",
+          "gitBlob": "9808a637573ae367b271c62562bdc021dbfe2fa5",
+          "sha256": "75271c188ed0c277c68b0c2dfb61059d114dee3ef3964cd4c950c3e188820aea"
+        },
+        {
+          "path": "algo-electron/electron/db/migrations/013_drop_submission_code_snippets.ts",
+          "gitBlob": "457522e38ff0cb8e7b88ecc6df5d05cfab79a251",
+          "sha256": "e27157f62db5dbbd398f56ed9bd8fe4ff8d1aa6374a5f6811ad1d63050c21ff1"
+        },
+        {
+          "path": "algo-electron/electron/db/migrations/014_ai_context_snapshots.ts",
+          "gitBlob": "05e27ed6a4b38dc62aa3f7bcc710ce768abb26d0",
+          "sha256": "422c32ece4591b2eefc75dfa517c2cfb1e1e3b265a8a7be14018293a3dba6d71"
+        },
+        {
+          "path": "algo-electron/electron/db/migrations/015_ai_outputs.ts",
+          "gitBlob": "4b5b3a1710b1f2470c00176386c5b3de7e43ef92",
+          "sha256": "862c723c1f711a442b1cf2f4970261ff7b320ccc1835294f56bcb2b666407e8a"
+        },
+        {
+          "path": "algo-electron/electron/db/migrations/016_clear_codeforces_placeholder_titles.ts",
+          "gitBlob": "64654ed88fe196634078d4b8117c03ffbe77424b",
+          "sha256": "5d7f17447a609530392ad963850dcc7b153d9aaa23c0bb9a4173124a3a4904ba"
+        },
+        {
+          "path": "algo-electron/electron/db/migrations/017_backfill_problem_context.ts",
+          "gitBlob": "4ace77e82dcc1c3d2351dc5acac6e6655460e60c",
+          "sha256": "df3f817b0ac68ff5d24cb8a3562ba133aa19da8ffae3097c59790e4e354753e4"
+        },
+        {
+          "path": "algo-electron/electron/db/migrations/018_normalize_codeforces_submission_ids.ts",
+          "gitBlob": "fc0ed5a5a02e5da8cbce21b740f21bfd7416b153",
+          "sha256": "89903772bfa6c468af4237991f0af594c4a2c9e937b736b882f22c26fe9ca661"
+        },
+        {
+          "path": "algo-electron/electron/db/migrations/019_cookie_records.ts",
+          "gitBlob": "e101f9557f8c0be5c9612bcd64d754775c1d9243",
+          "sha256": "619f7bd4a4952f0f205fd1a5c7e186ae441b6957601e267a67951b66a6a4cada"
+        },
+        {
+          "path": "algo-electron/electron/db/migrations/020_sync_queue.ts",
+          "gitBlob": "7f7490b5e560f061a79012607853fbcfac926f7c",
+          "sha256": "243d67e67f1c4d5b8de95ad44e192ddae5e14ea8f7c586dab2dd2e24f5630c1b"
+        },
+        {
+          "path": "algo-electron/electron/db/migrations/021_sync_metadata_fields.ts",
+          "gitBlob": "0d9dbce234e09f8d8dc85887f1e4132c6f42ba2a",
+          "sha256": "5ab08a711b25247b2363c7311ea28ff13ef903ddb26d5ca0e3e91a97373c6524"
+        },
+        {
+          "path": "algo-electron/electron/db/migrations/022_coach_events.ts",
+          "gitBlob": "7b9b0a99ebaa4a3775dc6dabeb68ffd7e4623bb2",
+          "sha256": "c53efbfcabfb43dd1267f0613fdee33ef67abf8e162dd0370e2887fa53eddfe8"
+        },
+        {
+          "path": "algo-electron/electron/db/migrations/023_coach_interventions.ts",
+          "gitBlob": "310f6dafc835a24aa9e5eff1561d20d6fada0d76",
+          "sha256": "991c476a100aabe12452db1b99b7666cdaa7975d86158835c16eefc83e77816f"
+        },
+        {
+          "path": "algo-electron/electron/db/migrations/024_coach_feedback.ts",
+          "gitBlob": "4d0fadc864f5e7abb92f63418a7581b8e4c1e4fd",
+          "sha256": "113a93dd15cc19e6ef226a94437654fdbb619d87066c7b2adffdecff750d488b"
+        },
+        {
+          "path": "algo-electron/electron/parsers/titleValidation.ts",
+          "gitBlob": "e6c24afd7352a21eac544cb495989e4f1331e2a6",
+          "sha256": "3919edad7e2558ad1d1212b2f22f2185446d302d61331a381b37af8c85a03035"
+        },
+        {
+          "path": "algo-electron/electron/shared/time.ts",
+          "gitBlob": "004411a9c1b2ad64e395f0cf63fe752a7f221984",
+          "sha256": "62402780aa8322fd050d5dc4ae67bcdd9419b738fff8ce910cdf8085d31d62a9"
+        },
+        {
+          "path": "algo-electron/package.json",
+          "gitBlob": "a71b8209582b475a0557db3e04aaab1f2c834503",
+          "sha256": "2cc108f9edfe2b7edc16dbb43bdbd9f05d8138f659ddb5cee66b058da7339d89"
+        }
+      ]
+    },
+    {
+      "id": "rc1",
+      "tag": "v2.0.0-rc.1",
+      "commit": "7d052efcf37903ff22ad0a72d3147e62b600e0b9",
+      "version": 29,
+      "packageVersion": "2.0.0-rc.1",
+      "schemaFile": "rc1.schema.sql",
+      "schemaSha256": "af78d2d6024e4eb938d0fc5d2385edade53da58ceb2c6e0d683e3f16c4e30650",
+      "schemaObjects": [
+        {
+          "type": "table",
+          "name": "activity_events"
+        },
+        {
+          "type": "table",
+          "name": "ai_context_snapshots"
+        },
+        {
+          "type": "table",
+          "name": "ai_outputs"
+        },
+        {
+          "type": "table",
+          "name": "coach_events"
+        },
+        {
+          "type": "table",
+          "name": "coach_feedback"
+        },
+        {
+          "type": "table",
+          "name": "coach_interventions"
+        },
+        {
+          "type": "table",
+          "name": "contest_results"
+        },
+        {
+          "type": "table",
+          "name": "cookie_records"
+        },
+        {
+          "type": "table",
+          "name": "notes"
+        },
+        {
+          "type": "table",
+          "name": "platform_accounts"
+        },
+        {
+          "type": "table",
+          "name": "problem_visits"
+        },
+        {
+          "type": "table",
+          "name": "problems"
+        },
+        {
+          "type": "table",
+          "name": "rating_history"
+        },
+        {
+          "type": "table",
+          "name": "schema_migrations"
+        },
+        {
+          "type": "table",
+          "name": "site_configs"
+        },
+        {
+          "type": "table",
+          "name": "site_credentials"
+        },
+        {
+          "type": "table",
+          "name": "study_sessions"
+        },
+        {
+          "type": "table",
+          "name": "submissions"
+        },
+        {
+          "type": "table",
+          "name": "sync_queue"
+        },
+        {
+          "type": "table",
+          "name": "user_daily_stats"
+        },
+        {
+          "type": "table",
+          "name": "user_script_host_permissions"
+        },
+        {
+          "type": "table",
+          "name": "user_script_resources"
+        },
+        {
+          "type": "table",
+          "name": "user_script_update_state"
+        },
+        {
+          "type": "table",
+          "name": "user_script_values"
+        },
+        {
+          "type": "table",
+          "name": "user_scripts"
+        },
+        {
+          "type": "index",
+          "name": "ai_outputs_created_idx"
+        },
+        {
+          "type": "index",
+          "name": "ai_outputs_type_idx"
+        },
+        {
+          "type": "index",
+          "name": "coach_events_created_idx"
+        },
+        {
+          "type": "index",
+          "name": "coach_events_problem_idx"
+        },
+        {
+          "type": "index",
+          "name": "coach_events_session_idx"
+        },
+        {
+          "type": "index",
+          "name": "coach_events_type_idx"
+        },
+        {
+          "type": "index",
+          "name": "coach_feedback_day_idx"
+        },
+        {
+          "type": "index",
+          "name": "coach_feedback_intervention_idx"
+        },
+        {
+          "type": "index",
+          "name": "coach_feedback_type_idx"
+        },
+        {
+          "type": "index",
+          "name": "coach_interventions_contest_idx"
+        },
+        {
+          "type": "index",
+          "name": "coach_interventions_created_idx"
+        },
+        {
+          "type": "index",
+          "name": "coach_interventions_event_idx"
+        },
+        {
+          "type": "index",
+          "name": "coach_interventions_source_idx"
+        },
+        {
+          "type": "index",
+          "name": "cookie_records_domain_idx"
+        },
+        {
+          "type": "index",
+          "name": "cookie_records_expires_at_idx"
+        },
+        {
+          "type": "index",
+          "name": "cookie_records_site_idx"
+        },
+        {
+          "type": "index",
+          "name": "idx_ae_local_day"
+        },
+        {
+          "type": "index",
+          "name": "idx_ae_problem"
+        },
+        {
+          "type": "index",
+          "name": "idx_ae_time"
+        },
+        {
+          "type": "index",
+          "name": "idx_ae_type_time"
+        },
+        {
+          "type": "index",
+          "name": "idx_contest_results_account_time"
+        },
+        {
+          "type": "index",
+          "name": "idx_contest_results_unique"
+        },
+        {
+          "type": "index",
+          "name": "idx_platform_accounts_handle"
+        },
+        {
+          "type": "index",
+          "name": "idx_problems_last_visited"
+        },
+        {
+          "type": "index",
+          "name": "idx_problems_platform_id"
+        },
+        {
+          "type": "index",
+          "name": "idx_problems_source"
+        },
+        {
+          "type": "index",
+          "name": "idx_problems_status"
+        },
+        {
+          "type": "index",
+          "name": "idx_pv_entered"
+        },
+        {
+          "type": "index",
+          "name": "idx_pv_problem_time"
+        },
+        {
+          "type": "index",
+          "name": "idx_pv_session"
+        },
+        {
+          "type": "index",
+          "name": "idx_rating_history_account_time"
+        },
+        {
+          "type": "index",
+          "name": "idx_rating_history_unique"
+        },
+        {
+          "type": "index",
+          "name": "idx_site_configs_enabled"
+        },
+        {
+          "type": "index",
+          "name": "idx_ss_ended"
+        },
+        {
+          "type": "index",
+          "name": "idx_ss_started"
+        },
+        {
+          "type": "index",
+          "name": "idx_submissions_platform_id"
+        },
+        {
+          "type": "index",
+          "name": "idx_submissions_problem_time"
+        },
+        {
+          "type": "index",
+          "name": "idx_submissions_submitted_at"
+        },
+        {
+          "type": "index",
+          "name": "idx_submissions_verdict"
+        },
+        {
+          "type": "index",
+          "name": "idx_user_daily_stats_recomputed"
+        },
+        {
+          "type": "index",
+          "name": "notes_problem"
+        },
+        {
+          "type": "index",
+          "name": "notes_updated_at"
+        },
+        {
+          "type": "index",
+          "name": "site_credentials_active_site_idx"
+        },
+        {
+          "type": "index",
+          "name": "site_credentials_last_used_idx"
+        },
+        {
+          "type": "index",
+          "name": "snapshots_date_unique"
+        },
+        {
+          "type": "index",
+          "name": "sync_queue_entity_operation_created_idx"
+        },
+        {
+          "type": "index",
+          "name": "sync_queue_status_created_idx"
+        },
+        {
+          "type": "index",
+          "name": "user_script_host_permissions_active_idx"
+        },
+        {
+          "type": "index",
+          "name": "user_script_resources_script_idx"
+        },
+        {
+          "type": "index",
+          "name": "user_script_update_state_next_check_idx"
+        },
+        {
+          "type": "index",
+          "name": "user_script_values_script_idx"
+        },
+        {
+          "type": "index",
+          "name": "user_scripts_active_identity_unique"
+        },
+        {
+          "type": "index",
+          "name": "user_scripts_active_legacy_identity_unique"
+        }
+      ],
+      "migrations": [
+        {
+          "version": 1,
+          "name": "initial_schema"
+        },
+        {
+          "version": 2,
+          "name": "add_submissions_table"
+        },
+        {
+          "version": 3,
+          "name": "fix_codeforces_canonical_urls"
+        },
+        {
+          "version": 4,
+          "name": "fix_codeforces_gym_page_urls"
+        },
+        {
+          "version": 5,
+          "name": "add_user_daily_stats"
+        },
+        {
+          "version": 6,
+          "name": "add_rating_tables"
+        },
+        {
+          "version": 7,
+          "name": "add_site_configs"
+        },
+        {
+          "version": 8,
+          "name": "add_user_scripts"
+        },
+        {
+          "version": 9,
+          "name": "user_scripts_add_file_path"
+        },
+        {
+          "version": 10,
+          "name": "notes"
+        },
+        {
+          "version": 11,
+          "name": "notes_add_content_cache"
+        },
+        {
+          "version": 12,
+          "name": "submission_code_snippets"
+        },
+        {
+          "version": 13,
+          "name": "drop_submission_code_snippets"
+        },
+        {
+          "version": 14,
+          "name": "ai_context_snapshots"
+        },
+        {
+          "version": 15,
+          "name": "ai_outputs"
+        },
+        {
+          "version": 16,
+          "name": "clear_codeforces_placeholder_titles"
+        },
+        {
+          "version": 17,
+          "name": "backfill_problem_context"
+        },
+        {
+          "version": 18,
+          "name": "normalize_codeforces_submission_ids"
+        },
+        {
+          "version": 19,
+          "name": "cookie_records"
+        },
+        {
+          "version": 20,
+          "name": "sync_queue"
+        },
+        {
+          "version": 21,
+          "name": "sync_metadata_fields"
+        },
+        {
+          "version": 22,
+          "name": "coach_events"
+        },
+        {
+          "version": 23,
+          "name": "coach_interventions"
+        },
+        {
+          "version": 24,
+          "name": "coach_feedback"
+        },
+        {
+          "version": 25,
+          "name": "userscript_identity"
+        },
+        {
+          "version": 26,
+          "name": "site_credentials"
+        },
+        {
+          "version": 27,
+          "name": "userscript_runtime"
+        },
+        {
+          "version": 28,
+          "name": "site_login_autofill_config"
+        },
+        {
+          "version": 29,
+          "name": "site_credential_labels"
+        }
+      ],
+      "sources": [
+        {
+          "path": "algo-electron/electron/adapters/codeforcesUrls.ts",
+          "gitBlob": "baebf2a9df78984991c0b834436df86a7f02f7ac",
+          "sha256": "c8d94e260b974a45c76fe3923f88d0f9ca28b69ce939e05a2036a5f7e222686c"
+        },
+        {
+          "path": "algo-electron/electron/adapters/sites/codeforces/urls.ts",
+          "gitBlob": "111f5e68a556f5143e41fbd68327a6d915cd28bc",
+          "sha256": "9b7d5997271a471a81865ab554f955586a465615e94c0109be78215cb1010bc2"
+        },
+        {
+          "path": "algo-electron/electron/db/migrate.ts",
+          "gitBlob": "976be5375ea87a8b94a313ca48b30debdec5c50d",
+          "sha256": "56f6b69476c12172d07500391edbcd3670010569e19f9c049ad779dbf7f2f135"
+        },
+        {
+          "path": "algo-electron/electron/db/migrations/001_initial.ts",
+          "gitBlob": "1ecafa2ef5fb469eb1c1fb04d417eddcc68001ce",
+          "sha256": "c08cd29910f3144cb57de655c1d3ecc8fd40ddc4a0d8c28bc7136ab6bd0104f5"
+        },
+        {
+          "path": "algo-electron/electron/db/migrations/002_submissions.ts",
+          "gitBlob": "b9f2335910016219847c2da0dd64e175146249ff",
+          "sha256": "aecf735679c9d5303c38668ccdf1c847b27be1663e9b118095770d094869ad37"
+        },
+        {
+          "path": "algo-electron/electron/db/migrations/003_fix_codeforces_canonical_urls.ts",
+          "gitBlob": "4e239f311a0a7d91a4df1ecc9d8bf864bd63f435",
+          "sha256": "4432184ca1d2124bd94df21737431d9b8193d5964d12ed352b5a9b1a0c57e503"
+        },
+        {
+          "path": "algo-electron/electron/db/migrations/004_fix_codeforces_gym_page_urls.ts",
+          "gitBlob": "42ff5dfc40d049eefadd1af4da1d683e931acb19",
+          "sha256": "fdb2aaed86532fa4ce15f9fbb4b2f2624f6f64ae0c5573eec60e0885f20494e9"
+        },
+        {
+          "path": "algo-electron/electron/db/migrations/005_daily_stats.ts",
+          "gitBlob": "921f5863fe27fab3b0303d6d2697351a6e61a8f2",
+          "sha256": "0c3d55e70794b155d3623158946fae4430793b20467b1b8fc875c7c2feb150bb"
+        },
+        {
+          "path": "algo-electron/electron/db/migrations/006_rating.ts",
+          "gitBlob": "b95f2ebfaee85333cafd32d3f79fd09e698f0453",
+          "sha256": "4f89e0e4ad13a1b3c3dbf7e98d6f803433899fcc7283a71ebd10d0c9355772f4"
+        },
+        {
+          "path": "algo-electron/electron/db/migrations/007_site_configs.ts",
+          "gitBlob": "a0a7eb8aeb6810514ce8714c4010ab1d59f427b4",
+          "sha256": "0093ca88eee756a1dd3b35e791b2cf5bb843dc35543a14e300855ed665892803"
+        },
+        {
+          "path": "algo-electron/electron/db/migrations/008_user_scripts.ts",
+          "gitBlob": "fc86a462e7e41af172ab943e72732aaa06e1948e",
+          "sha256": "ee9ee711f0ad6a1c312650c7df316297da8d98ceebe8dde0b9c68617d9fb600a"
+        },
+        {
+          "path": "algo-electron/electron/db/migrations/009_user_scripts_file.ts",
+          "gitBlob": "988f41c2ed0363a788166e62dd001bbd3b12377c",
+          "sha256": "13cf2e00cc48e1c4472e9ee5f1a969c4a7359c1dc4cb823f3bb8ba7b1f70f4a9"
+        },
+        {
+          "path": "algo-electron/electron/db/migrations/010_notes.ts",
+          "gitBlob": "05d097be2cfe513e0c151d05aaa94611251bef80",
+          "sha256": "8d29b38a42dbba7a7e51f3a6d50232a90bfc5d2305c6f0ff3de88bc40174e40d"
+        },
+        {
+          "path": "algo-electron/electron/db/migrations/011_notes_content.ts",
+          "gitBlob": "aae9eb4ea1ed24f8de4469b5d7de5fd42a1cb447",
+          "sha256": "4d6f7b4df026cd5179b84036b2af1fa7d0dc2f95a698240f2d8ca42825a7702e"
+        },
+        {
+          "path": "algo-electron/electron/db/migrations/012_submission_code_snippets.ts",
+          "gitBlob": "9808a637573ae367b271c62562bdc021dbfe2fa5",
+          "sha256": "75271c188ed0c277c68b0c2dfb61059d114dee3ef3964cd4c950c3e188820aea"
+        },
+        {
+          "path": "algo-electron/electron/db/migrations/013_drop_submission_code_snippets.ts",
+          "gitBlob": "457522e38ff0cb8e7b88ecc6df5d05cfab79a251",
+          "sha256": "e27157f62db5dbbd398f56ed9bd8fe4ff8d1aa6374a5f6811ad1d63050c21ff1"
+        },
+        {
+          "path": "algo-electron/electron/db/migrations/014_ai_context_snapshots.ts",
+          "gitBlob": "05e27ed6a4b38dc62aa3f7bcc710ce768abb26d0",
+          "sha256": "422c32ece4591b2eefc75dfa517c2cfb1e1e3b265a8a7be14018293a3dba6d71"
+        },
+        {
+          "path": "algo-electron/electron/db/migrations/015_ai_outputs.ts",
+          "gitBlob": "4b5b3a1710b1f2470c00176386c5b3de7e43ef92",
+          "sha256": "862c723c1f711a442b1cf2f4970261ff7b320ccc1835294f56bcb2b666407e8a"
+        },
+        {
+          "path": "algo-electron/electron/db/migrations/016_clear_codeforces_placeholder_titles.ts",
+          "gitBlob": "64654ed88fe196634078d4b8117c03ffbe77424b",
+          "sha256": "5d7f17447a609530392ad963850dcc7b153d9aaa23c0bb9a4173124a3a4904ba"
+        },
+        {
+          "path": "algo-electron/electron/db/migrations/017_backfill_problem_context.ts",
+          "gitBlob": "4ace77e82dcc1c3d2351dc5acac6e6655460e60c",
+          "sha256": "df3f817b0ac68ff5d24cb8a3562ba133aa19da8ffae3097c59790e4e354753e4"
+        },
+        {
+          "path": "algo-electron/electron/db/migrations/018_normalize_codeforces_submission_ids.ts",
+          "gitBlob": "fc0ed5a5a02e5da8cbce21b740f21bfd7416b153",
+          "sha256": "89903772bfa6c468af4237991f0af594c4a2c9e937b736b882f22c26fe9ca661"
+        },
+        {
+          "path": "algo-electron/electron/db/migrations/019_cookie_records.ts",
+          "gitBlob": "e101f9557f8c0be5c9612bcd64d754775c1d9243",
+          "sha256": "619f7bd4a4952f0f205fd1a5c7e186ae441b6957601e267a67951b66a6a4cada"
+        },
+        {
+          "path": "algo-electron/electron/db/migrations/020_sync_queue.ts",
+          "gitBlob": "7f7490b5e560f061a79012607853fbcfac926f7c",
+          "sha256": "243d67e67f1c4d5b8de95ad44e192ddae5e14ea8f7c586dab2dd2e24f5630c1b"
+        },
+        {
+          "path": "algo-electron/electron/db/migrations/021_sync_metadata_fields.ts",
+          "gitBlob": "0d9dbce234e09f8d8dc85887f1e4132c6f42ba2a",
+          "sha256": "5ab08a711b25247b2363c7311ea28ff13ef903ddb26d5ca0e3e91a97373c6524"
+        },
+        {
+          "path": "algo-electron/electron/db/migrations/022_coach_events.ts",
+          "gitBlob": "7b9b0a99ebaa4a3775dc6dabeb68ffd7e4623bb2",
+          "sha256": "c53efbfcabfb43dd1267f0613fdee33ef67abf8e162dd0370e2887fa53eddfe8"
+        },
+        {
+          "path": "algo-electron/electron/db/migrations/023_coach_interventions.ts",
+          "gitBlob": "310f6dafc835a24aa9e5eff1561d20d6fada0d76",
+          "sha256": "991c476a100aabe12452db1b99b7666cdaa7975d86158835c16eefc83e77816f"
+        },
+        {
+          "path": "algo-electron/electron/db/migrations/024_coach_feedback.ts",
+          "gitBlob": "4d0fadc864f5e7abb92f63418a7581b8e4c1e4fd",
+          "sha256": "113a93dd15cc19e6ef226a94437654fdbb619d87066c7b2adffdecff750d488b"
+        },
+        {
+          "path": "algo-electron/electron/db/migrations/025_userscript_identity.ts",
+          "gitBlob": "330bab7411614aed964ac792813276b9a7371b04",
+          "sha256": "cb77d3e8ca642a395f2b00beff52acadb9ea6b1913dc7c5101060a1ae4f922d0"
+        },
+        {
+          "path": "algo-electron/electron/db/migrations/026_site_credentials.ts",
+          "gitBlob": "16c044cc1708fca04ab3e0eb3e8a400974537219",
+          "sha256": "e7dd5bc146b83281445a3a7764c5fcb5ee824c134e7e823a25bddce9965f5ff0"
+        },
+        {
+          "path": "algo-electron/electron/db/migrations/027_userscript_runtime.ts",
+          "gitBlob": "b91a6d0784b8ce5f35686c73ffc5027f2e8e3064",
+          "sha256": "80b8c8eb4c2c566120337d3b6cdead91e48972466e1f2a3a8096fc177b8928c7"
+        },
+        {
+          "path": "algo-electron/electron/db/migrations/028_site_login_autofill.ts",
+          "gitBlob": "6ef41c55d677b0e2cdf380569ae8e965b04c5f7a",
+          "sha256": "8ab2b7655a06ddb8d2e50693ef470cf9c89ce6d9c89d7a04a22446ab86f611d7"
+        },
+        {
+          "path": "algo-electron/electron/db/migrations/029_site_credential_labels.ts",
+          "gitBlob": "5427650172162b8fa28c59edf94dba21eed036a3",
+          "sha256": "af0595a479cb70fe892865ae20c14efb27170c9ea8ebd2a42e7c9bed5b1f8daa"
+        },
+        {
+          "path": "algo-electron/electron/parsers/titleValidation.ts",
+          "gitBlob": "e6c24afd7352a21eac544cb495989e4f1331e2a6",
+          "sha256": "3919edad7e2558ad1d1212b2f22f2185446d302d61331a381b37af8c85a03035"
+        },
+        {
+          "path": "algo-electron/electron/shared/errors.ts",
+          "gitBlob": "e41d6225c9c6caf972a542b1e7de40241210fd1e",
+          "sha256": "da00e27e72c510b244d74ed032d60108d304d2ba2e38c6117122cfc67da5bc67"
+        },
+        {
+          "path": "algo-electron/electron/shared/time.ts",
+          "gitBlob": "800e052368883b2874ce131380e8b4dac5da53a6",
+          "sha256": "2aa6a004bbc4fba1502c263d08b226661937ef7d57081dedc4f61bbce4d87c4f"
+        },
+        {
+          "path": "algo-electron/package.json",
+          "gitBlob": "11f8bb823a38dc0abaab3060a0987b564534049c",
+          "sha256": "655b6358deae7d3e39090e50079dfccc027fc64ffa7ce99e8dae5d67d7fdbd11"
+        }
+      ]
+    }
+  ]
+}

@@ -13,7 +13,10 @@ export function resolveUserScriptRequestTarget(
   try {
     const url = new URL(rawUrl)
     if (url.username || url.password) return null
-    if (url.protocol !== 'https:' && !(allowInsecureLocalhost && url.protocol === 'http:' && isLoopback(url.hostname))) {
+    if (
+      url.protocol !== 'https:' &&
+      !(allowInsecureLocalhost && url.protocol === 'http:' && isLoopback(url.hostname))
+    ) {
       return null
     }
     const hostname = normalizeHostname(url.hostname)
@@ -24,8 +27,7 @@ export function resolveUserScriptRequestTarget(
       hostname,
       permissionHost: hostname,
     }
-  }
-  catch {
+  } catch {
     return null
   }
 }
@@ -51,17 +53,17 @@ function normalizeConnectDeclaration(value: unknown): string | null {
   if (trimmed === '*' || trimmed === 'self') return trimmed
   const withoutWildcard = trimmed.startsWith('*.') ? trimmed.slice(2) : trimmed
   if (
-    withoutWildcard.length === 0
-    || withoutWildcard.length > 253
-    || /[\s/@?#]/.test(withoutWildcard)
-    || withoutWildcard.includes(':')
-  ) return null
+    withoutWildcard.length === 0 ||
+    withoutWildcard.length > 253 ||
+    /[\s/@?#]/.test(withoutWildcard) ||
+    withoutWildcard.includes(':')
+  )
+    return null
   try {
     const parsed = new URL(`https://${withoutWildcard}`)
     if (parsed.hostname !== withoutWildcard || parsed.port || parsed.pathname !== '/') return null
     return normalizeHostname(parsed.hostname)
-  }
-  catch {
+  } catch {
     return null
   }
 }
@@ -71,8 +73,7 @@ function resolveFrameHostname(rawUrl: string): string | null {
     const url = new URL(rawUrl)
     if (url.protocol !== 'http:' && url.protocol !== 'https:') return null
     return normalizeHostname(url.hostname)
-  }
-  catch {
+  } catch {
     return null
   }
 }
@@ -83,8 +84,10 @@ function normalizeHostname(hostname: string): string {
 
 function isLoopback(hostname: string): boolean {
   const normalized = normalizeHostname(hostname)
-  return normalized === 'localhost'
-    || normalized === '::1'
-    || normalized === '[::1]'
-    || /^127(?:\.\d{1,3}){3}$/.test(normalized)
+  return (
+    normalized === 'localhost' ||
+    normalized === '::1' ||
+    normalized === '[::1]' ||
+    /^127(?:\.\d{1,3}){3}$/.test(normalized)
+  )
 }

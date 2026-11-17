@@ -42,7 +42,7 @@ export class UserScriptFileWatcher {
     this.getGeneration = options.getGeneration ?? null
     this.debounceMs = options.debounceMs ?? 150
     this.watch = options.watch ?? fs.watch
-    this.mkdir = options.mkdir ?? (directory => fs.mkdirSync(directory, { recursive: true }))
+    this.mkdir = options.mkdir ?? ((directory) => fs.mkdirSync(directory, { recursive: true }))
     this.setTimeout = options.setTimeout ?? setTimeout
     this.clearTimeout = options.clearTimeout ?? clearTimeout
   }
@@ -56,8 +56,7 @@ export class UserScriptFileWatcher {
         this.scheduleRefresh()
       })
       this.watcher.on('error', () => this.scheduleRefresh())
-    }
-    catch {
+    } catch {
       // A transient directory/watch failure must not prevent startup. A later
       // explicit refresh still keeps the runtime fail-closed.
       this.watcher = null

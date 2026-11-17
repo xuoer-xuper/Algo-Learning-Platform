@@ -33,19 +33,28 @@ const SOURCE_LABEL: Record<string, string> = {
   llm: 'LLM',
 }
 
-export function CoachBubble({ payload, autoDismissMs = 12000, llmEnabled = false, onClose, onOpenChat }: CoachBubbleProps) {
+export function CoachBubble({
+  payload,
+  autoDismissMs = 12000,
+  llmEnabled = false,
+  onClose,
+  onOpenChat,
+}: CoachBubbleProps) {
   const [closing, setClosing] = useState(false)
   const dismissTimerRef = useRef<number | undefined>(undefined)
   const isDisclaimer = payload.bubble_type === 'disclaimer'
   const isLoading = payload.bubble_type === 'loading'
 
-  const handleClose = useCallback((reason: 'auto' | 'manual' | 'dismiss' | 'never_today') => {
-    if (closing) return
-    setClosing(true)
-    if (dismissTimerRef.current) window.clearTimeout(dismissTimerRef.current)
-    onClose()
-    void reason
-  }, [closing, onClose])
+  const handleClose = useCallback(
+    (reason: 'auto' | 'manual' | 'dismiss' | 'never_today') => {
+      if (closing) return
+      setClosing(true)
+      if (dismissTimerRef.current) window.clearTimeout(dismissTimerRef.current)
+      onClose()
+      void reason
+    },
+    [closing, onClose],
+  )
 
   useEffect(() => {
     // 免责声明和加载中气泡不自动消失
@@ -92,8 +101,11 @@ export function CoachBubble({ payload, autoDismissMs = 12000, llmEnabled = false
       <div className="coach-bubble-header">
         <span className="coach-bubble-title">{payload.title}</span>
         {!isDisclaimer && !isLoading && (
-          <span className="coach-bubble-source" data-source={payload.source}
-            title={`来源：${SOURCE_LABEL[payload.source] ?? payload.source}`}>
+          <span
+            className="coach-bubble-source"
+            data-source={payload.source}
+            title={`来源：${SOURCE_LABEL[payload.source] ?? payload.source}`}
+          >
             {SOURCE_LABEL[payload.source] ?? payload.source}
           </span>
         )}
@@ -111,27 +123,39 @@ export function CoachBubble({ payload, autoDismissMs = 12000, llmEnabled = false
       {isLoading ? (
         <div className="coach-bubble-loading">
           <span className="coach-bubble-loading-dots">
-            <span /><span /><span />
+            <span />
+            <span />
+            <span />
           </span>
           <span>{payload.message}</span>
         </div>
       ) : (
         <>
           {typeof payload.level === 'number' && payload.level > 0 && !isDisclaimer && (
-            <span className="coach-bubble-level" key={`${payload.id}:level`}>L{payload.level}</span>
+            <span className="coach-bubble-level" key={`${payload.id}:level`}>
+              L{payload.level}
+            </span>
           )}
-          <div className="coach-bubble-message" key={`${payload.id}:message`}>{payload.message}</div>
+          <div className="coach-bubble-message" key={`${payload.id}:message`}>
+            {payload.message}
+          </div>
         </>
       )}
 
       {isDisclaimer ? (
         <div className="coach-actions" data-bubble-id={payload.id}>
-          <button type="button" className="coach-action-btn coach-action-secondary"
-            onClick={handleDismissThisTime}>
+          <button
+            type="button"
+            className="coach-action-btn coach-action-secondary"
+            onClick={handleDismissThisTime}
+          >
             这次关闭
           </button>
-          <button type="button" className="coach-action-btn coach-action-primary"
-            onClick={handleDismissPermanently}>
+          <button
+            type="button"
+            className="coach-action-btn coach-action-primary"
+            onClick={handleDismissPermanently}
+          >
             永久关闭
           </button>
         </div>

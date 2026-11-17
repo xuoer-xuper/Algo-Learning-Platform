@@ -46,10 +46,15 @@ export function installCredentialCaptureListener(
   }
   const onSubmit = (event: Event): void => {
     const target = event.target
-    if (!target || typeof target !== 'object' || !('tagName' in target) || target.tagName !== 'FORM') return
-    const payload = extractCredentialCapture(
-      target as HTMLFormElement,
-      (field) => userEnteredPasswords.has(field),
+    if (
+      !target ||
+      typeof target !== 'object' ||
+      !('tagName' in target) ||
+      target.tagName !== 'FORM'
+    )
+      return
+    const payload = extractCredentialCapture(target as HTMLFormElement, (field) =>
+      userEnteredPasswords.has(field),
     )
     if (payload) send(payload)
   }
@@ -68,7 +73,7 @@ function findValue(
 ): string | null {
   for (const selector of selectors) {
     try {
-      const field = form.querySelector(selector) as HTMLInputElement | null
+      const field = form.querySelector<HTMLInputElement>(selector)
       if (!field || field.disabled || field.readOnly || field.type === 'hidden') continue
       if (isEligible && !isEligible(field)) continue
       const value = field.value.trim()

@@ -22,21 +22,32 @@ test('keeps valid negative coordinates on a left-side secondary display', () => 
     maximized: false,
   }
 
-  assert.deepStrictEqual(normalizeWindowState(state, [leftDisplay, primaryDisplay], primaryDisplay), state)
+  assert.deepStrictEqual(
+    normalizeWindowState(state, [leftDisplay, primaryDisplay], primaryDisplay),
+    state,
+  )
 })
 
 test('moves a completely offscreen state wholly inside the primary display', () => {
-  const normalized = normalizeWindowState({
-    version: 1,
-    bounds: { x: -2500, y: 1400, width: 1400, height: 900 },
-    maximized: true,
-  }, [primaryDisplay], primaryDisplay)
+  const normalized = normalizeWindowState(
+    {
+      version: 1,
+      bounds: { x: -2500, y: 1400, width: 1400, height: 900 },
+      maximized: true,
+    },
+    [primaryDisplay],
+    primaryDisplay,
+  )
 
   assert.strictEqual(normalized.maximized, true)
   assert.ok(normalized.bounds.x >= primaryDisplay.x)
   assert.ok(normalized.bounds.y >= primaryDisplay.y)
-  assert.ok(normalized.bounds.x + normalized.bounds.width <= primaryDisplay.x + primaryDisplay.width)
-  assert.ok(normalized.bounds.y + normalized.bounds.height <= primaryDisplay.y + primaryDisplay.height)
+  assert.ok(
+    normalized.bounds.x + normalized.bounds.width <= primaryDisplay.x + primaryDisplay.width,
+  )
+  assert.ok(
+    normalized.bounds.y + normalized.bounds.height <= primaryDisplay.y + primaryDisplay.height,
+  )
 })
 
 test('falls back to centered defaults for corrupt, wrong-version, and non-finite state', () => {
@@ -49,7 +60,11 @@ test('falls back to centered defaults for corrupt, wrong-version, and non-finite
     null,
     { version: 2, bounds: { x: 1, y: 2, width: 1000, height: 700 }, maximized: true },
     { version: 1, bounds: { x: Number.NaN, y: 2, width: 1000, height: 700 }, maximized: false },
-    { version: 1, bounds: { x: 1, y: 2, width: Number.POSITIVE_INFINITY, height: 700 }, maximized: false },
+    {
+      version: 1,
+      bounds: { x: 1, y: 2, width: Number.POSITIVE_INFINITY, height: 700 },
+      maximized: false,
+    },
   ]
 
   for (const state of invalidStates) {
@@ -122,7 +137,10 @@ test('maximized persistence saves normal bounds instead of maximized screen boun
     const browserWindow = new MockBrowserWindow({ x: 120, y: 80, width: 1100, height: 720 })
     browserWindow.maximize()
     browserWindow.setBounds({ x: 0, y: 0, width: 1920, height: 1080 })
-    const persistence = installWindowStatePersistence(browserWindow as never, new WindowStateStore(filePath))
+    const persistence = installWindowStatePersistence(
+      browserWindow as never,
+      new WindowStateStore(filePath),
+    )
 
     await persistence.flush()
 

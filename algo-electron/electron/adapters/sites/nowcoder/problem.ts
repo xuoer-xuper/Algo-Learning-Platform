@@ -29,7 +29,9 @@ export function parseNowcoderProblem(url: string): ProblemIdentity | null {
       }
     }
 
-    const contestMatch = path.match(/^\/acm\/contest\/(\d+)\/(?!status|rank|ranking|submission|submissions|view-submission)([^/]+)\/?$/i)
+    const contestMatch = path.match(
+      /^\/acm\/contest\/(\d+)\/(?!status|rank|ranking|submission|submissions|view-submission)([^/]+)\/?$/i,
+    )
     if (!contestMatch) return null
 
     const contestId = contestMatch[1]
@@ -50,11 +52,11 @@ export function parseNowcoderProblem(url: string): ProblemIdentity | null {
 export function matchNowcoderSubmissionResult(url: string): boolean {
   try {
     const parsed = new URL(url)
-    return parsed.hostname === 'ac.nowcoder.com'
-      && (
-        /^\/acm\/contest\/view-submission\/?$/i.test(parsed.pathname)
-        || /^\/acm\/contest\/\d+\/submission\/\d+\/?$/i.test(parsed.pathname)
-      )
+    return (
+      parsed.hostname === 'ac.nowcoder.com' &&
+      (/^\/acm\/contest\/view-submission\/?$/i.test(parsed.pathname) ||
+        /^\/acm\/contest\/\d+\/submission\/\d+\/?$/i.test(parsed.pathname))
+    )
   } catch {
     return false
   }

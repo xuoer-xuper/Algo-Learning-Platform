@@ -3,6 +3,7 @@ import React from 'react'
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { CoachPet } from '../../src/features/coach/CoachPet'
+import type { CoachBubblePayload } from '@shared/types/coach'
 
 const api = vi.hoisted(() => ({
   toggle: vi.fn(),
@@ -20,11 +21,15 @@ vi.mock('../../src/features/coach/coachDataApi', () => ({
   subscribeCoachConfig: () => () => {},
   subscribeCoachShowBubble: (listener: (payload: CoachBubblePayload) => void) => {
     api.showBubble = listener
-    return () => { api.showBubble = null }
+    return () => {
+      api.showBubble = null
+    }
   },
   subscribeCoachDismissBubble: (listener: () => void) => {
     api.dismissBubble = listener
-    return () => { api.dismissBubble = null }
+    return () => {
+      api.dismissBubble = null
+    }
   },
   toggleCoachIgnoreMouseEvents: api.toggle,
   startCoachDrag: api.startDrag,
@@ -38,7 +43,11 @@ vi.mock('../../src/features/coach/coachDataApi', () => ({
 }))
 
 const hint: CoachBubblePayload = {
-  id: 'hint-1', title: 'Hint', message: 'Check the constraints.', source: 'local', level: 1,
+  id: 'hint-1',
+  title: 'Hint',
+  message: 'Check the constraints.',
+  source: 'local',
+  level: 1,
 }
 let petBounds: DOMRect
 
@@ -56,11 +65,16 @@ beforeEach(() => {
   vi.clearAllMocks()
   petBounds = new DOMRect(110, 436, 180, 180)
   api.click.mockResolvedValue({ triggered: true, level: 1, llmEnabled: true })
-  vi.stubGlobal('ResizeObserver', class {
-    observe() {}
-    disconnect() {}
-  })
-  vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
+  vi.stubGlobal(
+    'ResizeObserver',
+    class {
+      observe() {}
+      disconnect() {}
+    },
+  )
+  vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (
+    this: HTMLElement,
+  ) {
     if (this.classList.contains('pet-body')) return petBounds
     if (this.classList.contains('coach-bubble')) return new DOMRect(30, 120, 340, 270)
     if (this.classList.contains('coach-chat-panel')) return new DOMRect(20, 40, 360, 550)
@@ -70,7 +84,10 @@ beforeEach(() => {
   HTMLElement.prototype.scrollIntoView = vi.fn()
 })
 
-afterEach(() => {
+afterEach(async () => {
+  await act(async () => {
+    await vi.dynamicImportSettled()
+  })
   cleanup()
   vi.restoreAllMocks()
   vi.unstubAllGlobals()
@@ -153,7 +170,12 @@ describe('CoachPet native mouse capture', () => {
     await waitFor(() => expect(api.click).toHaveBeenCalledOnce())
     expect(api.toggle).toHaveBeenLastCalledWith(false)
     act(() => api.showBubble?.(hint))
-    fireEvent.click(await screen.findByRole('button', { name: '自由对话' }))
+    const openChat = await screen.findByRole('button', { name: '自由对话' })
+    await act(async () => {
+      fireEvent.click(openChat)
+      // Wait for the real lazy panel and Markdown dependencies, not coverage-time import speed.
+      await vi.dynamicImportSettled()
+    })
     await screen.findByRole('button', { name: '关闭对话' })
 
     moveTo(200, 60)

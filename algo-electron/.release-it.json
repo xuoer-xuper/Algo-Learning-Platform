@@ -1,0 +1,9 @@
+{
+  "increment": false,
+  "npm": { "publish": false },
+  "git": { "commit": false, "tag": false, "push": false, "changelog": false },
+  "github": { "release": false },
+  "hooks": {
+    "before:init": "node scripts/release-cli.mjs help"
+  }
+}

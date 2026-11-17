@@ -2,7 +2,9 @@ import { net, protocol } from 'electron'
 import fs from 'node:fs'
 import { pathToFileURL } from 'node:url'
 import { resolveNoteAssetPath } from './NoteService'
-import { appLogger } from '../shared/logger'
+import { logger } from '../shared/logger'
+
+const log = logger.scope('notes')
 
 export const NOTE_ASSET_SCHEME = 'note-asset'
 
@@ -40,7 +42,7 @@ export function registerNoteAssetProtocol(): void {
 
       return net.fetch(pathToFileURL(assetPath).toString())
     } catch (error) {
-      appLogger.warn('notes.asset-read-failed', error)
+      log.warn('asset-read-failed', error)
       return new Response(null, { status: 404 })
     }
   })

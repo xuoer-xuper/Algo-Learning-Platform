@@ -7,7 +7,8 @@ export const migration003 = {
   name: 'fix_codeforces_canonical_urls',
   up: (db: Database.Database) => {
     const now = nowBeijing()
-    db.prepare(`
+    db.prepare(
+      `
       UPDATE problems
       SET canonical_url = 'https://codeforces.com/problemset/problem/' || contest_id || '/' || problem_index,
           updated_at = ?
@@ -15,6 +16,7 @@ export const migration003 = {
         AND contest_id IS NOT NULL
         AND problem_index IS NOT NULL
         AND canonical_url LIKE 'https://codeforces.com/contest/%'
-    `).run(now)
+    `,
+    ).run(now)
   },
 }

@@ -4,42 +4,24 @@ export interface CookieRecord {
   domain: string
   name: string
   value_encrypted: string | null
-  expires_at: string | null
+  expires_at: number | null
   http_only: number
   secure: number
   same_site: string | null
-  last_seen_at: string
+  last_seen_at: number
   purpose: string | null
   sync_excluded: number
-  created_at: string
-  updated_at: string
+  created_at: number
+  updated_at: number
 }
 
 export interface CookieMetadataInput {
   siteId: string
   domain: string
   name: string
-  expiresAt?: string | null
+  expiresAt?: number | null
   httpOnly?: boolean
   secure?: boolean
   sameSite?: string | null
   purpose?: string | null
-}
-
-export interface CookieSafeDomainSummary {
-  site_id: string
-  domain: string
-  cookie_names: string[]
-  cookie_count: number
-  http_only_count: number
-  secure_count: number
-  earliest_expires_at: string | null
-  last_seen_at: string | null
-  sync_excluded: true
-}
-
-export interface CookieSafeSiteSummary {
-  site_id: string
-  has_cookies: boolean
-  domains: CookieSafeDomainSummary[]
 }

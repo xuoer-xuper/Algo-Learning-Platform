@@ -1,39 +1,11 @@
-export interface SidebarProblemRecord {
-  id: string
-  platform: string
-  platform_problem_id: string
-  canonical_url: string
-  title: string | null
-  status: string
-  last_visited_at: string | null
-  submission_count?: number
-}
+import type { ProblemDetailRecord } from '@shared/types/problem'
+import type { ProblemVisitStats } from '@shared/types/stats'
 
-export interface ProblemVisitStats {
-  total_visits: number
-  total_duration: number
-  total_active: number
-  avg_duration: number
-}
-
-export interface SubmissionRecord {
-  id: string
-  verdict: string
-  language?: string | null
-  submitted_at?: string | null
-}
-
-export interface ProblemDetailRecord {
-  id: string
-  platform: string
-  platform_problem_id: string
-  canonical_url: string
-  title: string | null
-  status: string
-  submission_count: number
-  ac_count: number
-  first_seen_at?: string | null
-  last_visited_at?: string | null
-  submissions?: SubmissionRecord[]
+/**
+ * 详情视图 = problem:getDetail 的输出 + loadProblemDetail 并发取回的访问统计。
+ * 收口前本文件手抄了 ProblemDetailRecord / SidebarProblemRecord / SubmissionRecord /
+ * ProblemVisitStats 四份（阶段 2 R2 删除，单一来源在 @shared/types）。
+ */
+export type ProblemDetailView = ProblemDetailRecord & {
   visitStats?: ProblemVisitStats
 }

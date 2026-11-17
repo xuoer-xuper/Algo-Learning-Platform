@@ -1,36 +1,44 @@
+import { emitDataChanged } from '../../../shared/dataEvents'
 import crypto from 'node:crypto'
 import { getDb } from '../../connection'
-import { nowBeijing } from '../../../shared/time'
+import { nowMillis } from '../../../shared/time'
 import type { SiteConfigData, SiteConfigRow } from './types'
 import { rowToSite } from './types'
 
 export function getAllSites(): SiteConfigData[] {
   const db = getDb()
-  const rows = db.prepare('SELECT * FROM site_configs ORDER BY is_builtin DESC, name ASC').all() as SiteConfigRow[]
+  const rows = db
+    .prepare('SELECT * FROM site_configs ORDER BY is_builtin DESC, name ASC')
+    .all() as SiteConfigRow[]
   return rows.map(rowToSite)
 }
 
 export function getEnabledSites(): SiteConfigData[] {
   const db = getDb()
-  const rows = db.prepare('SELECT * FROM site_configs WHERE enabled = 1 ORDER BY name ASC').all() as SiteConfigRow[]
+  const rows = db
+    .prepare('SELECT * FROM site_configs WHERE enabled = 1 ORDER BY name ASC')
+    .all() as SiteConfigRow[]
   return rows.map(rowToSite)
 }
 
 export function getSiteById(id: string): SiteConfigData | null {
   const db = getDb()
-  const row = db.prepare('SELECT * FROM site_configs WHERE id = ?').get(id) as SiteConfigRow | undefined
+  const row = db.prepare('SELECT * FROM site_configs WHERE id = ?').get(id) as
+    SiteConfigRow | undefined
   return row ? rowToSite(row) : null
 }
 
 export function createSite(data: Omit<SiteConfigData, 'isBuiltin'>): string {
   const db = getDb()
-  const now = nowBeijing()
+  const now = nowMillis()
   const id = data.id || crypto.randomUUID()
 
-  db.prepare(`
+  db.prepare(
+    `
     INSERT INTO site_configs (id, name, domains_json, home_url, enabled, problem_url_patterns_json, submit_url_patterns_json, login_url_patterns_json, login_username_selectors_json, login_password_selectors_json, cookie_policy, adapter, is_builtin, created_at, updated_at)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)
-  `).run(
+  `,
+  ).run(
     id,
     data.name,
     JSON.stringify(data.domains),
@@ -47,25 +55,28 @@ export function createSite(data: Omit<SiteConfigData, 'isBuiltin'>): string {
     now,
   )
 
+  emitDataChanged(['sites'])
   return id
 }
 
 export function updateSite(id: string, data: Partial<SiteConfigData>): boolean {
   const db = getDb()
-  const now = nowBeijing()
+  const now = nowMillis()
   const existing = getSiteById(id)
   if (!existing) return false
 
   const merged = { ...existing, ...data }
 
-  db.prepare(`
+  db.prepare(
+    `
     UPDATE site_configs SET
       name = ?, domains_json = ?, home_url = ?, enabled = ?,
       problem_url_patterns_json = ?, submit_url_patterns_json = ?,
       login_url_patterns_json = ?, login_username_selectors_json = ?, login_password_selectors_json = ?,
       cookie_policy = ?, adapter = ?, updated_at = ?
     WHERE id = ?
-  `).run(
+  `,
+  ).run(
     merged.name,
     JSON.stringify(merged.domains),
     merged.homeUrl,
@@ -81,19 +92,23 @@ export function updateSite(id: string, data: Partial<SiteConfigData>): boolean {
     id,
   )
 
+  emitDataChanged(['sites'])
   return true
 }
 
 export function toggleSite(id: string, enabled: boolean): boolean {
   const db = getDb()
-  const now = nowBeijing()
-  const result = db.prepare('UPDATE site_configs SET enabled = ?, updated_at = ? WHERE id = ?')
+  const now = nowMillis()
+  const result = db
+    .prepare('UPDATE site_configs SET enabled = ?, updated_at = ? WHERE id = ?')
     .run(enabled ? 1 : 0, now, id)
+  if (result.changes > 0) emitDataChanged(['sites'])
   return result.changes > 0
 }
 
 export function deleteSite(id: string): boolean {
   const db = getDb()
   const result = db.prepare('DELETE FROM site_configs WHERE id = ? AND is_builtin = 0').run(id)
+  if (result.changes > 0) emitDataChanged(['sites'])
   return result.changes > 0
 }

@@ -8,36 +8,11 @@ export interface DailyActiveStat {
   ac: number
 }
 
-export interface TrendPoint {
-  local_day: string
-  count: number
-}
-
-export interface SubmissionTrendPoint {
-  local_day: string
-  total: number
-  ac: number
-}
-
-export interface PlatformDistributionRow {
-  platform: string
-  count: number
-}
-
 export interface ProblemVisitStat {
   total_visits: number
   total_duration: number
   total_active: number
   avg_duration: number
-}
-
-export interface TimelineEvent {
-  id: string
-  event_type: string
-  occurred_at: string
-  platform: string | null
-  url: string | null
-  problem_id: string | null
 }
 
 export interface RevisitStat {
@@ -47,7 +22,7 @@ export interface RevisitStat {
   title: string | null
   canonical_url: string
   visit_count: number
-  last_visit: string
+  last_visit: number
 }
 
 export interface StreakDays {
@@ -62,7 +37,7 @@ export interface WrongProblem {
   title: string | null
   canonical_url: string
   wrong_count: number
-  last_attempt: string
+  last_attempt: number
 }
 
 export interface UnreviewedProblem {
@@ -71,6 +46,6 @@ export interface UnreviewedProblem {
   platform_problem_id: string
   title: string | null
   canonical_url: string
-  last_visited_at: string
+  last_visited_at: number
   days_since: number
 }

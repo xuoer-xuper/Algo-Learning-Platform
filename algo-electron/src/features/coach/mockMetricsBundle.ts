@@ -14,15 +14,17 @@
  *   → 干预后同题 AC 转化率 = 1/3 ≈ 33.3%
  * - dismissed 干预 = 2，never_today 反馈 = 2 → 桌宠关闭率 = (2+2)/10 = 40.0%
  */
-import type { CoachEvent } from '../../../electron/coach/types'
+import type { CoachEvent } from '@shared/types/coach'
+import type {
+  CoachFeedbackRecord,
+  CoachIntervention,
+  CoachMetricsBundle,
+  ProblemAcStatus,
+} from '@shared/types/coach'
 
-/** 模拟时间基准：2026-07-01 10:00:00 */
-const T0 = '2026-07-01T10:00:00.000'
-const T_PLUS = (mins: number) => {
-  const d = new Date(T0)
-  d.setMinutes(d.getMinutes() + mins)
-  return d.toISOString().replace(/\.\d{3}Z$/, '.000')
-}
+/** 模拟时间基准：2026-07-01 10:00:00 UTC+8 */
+const T0 = Date.UTC(2026, 6, 1, 2)
+const T_PLUS = (mins: number): number => T0 + mins * 60_000
 
 const MOCK_PROBLEM_1 = 'mock-prob-1'
 const MOCK_PROBLEM_2 = 'mock-prob-2'
@@ -292,14 +294,86 @@ const mockInterventions: CoachIntervention[] = [
 ]
 
 const mockFeedback: CoachFeedbackRecord[] = [
-  { feedback_id: 'mock-fb-1', intervention_id: 'mock-int-1', bubble_id: null, feedback_type: 'helpful', event_type: 'multiple_wrong', problem_id: MOCK_PROBLEM_1, local_day: '2026-07-01', created_at: T_PLUS(6) },
-  { feedback_id: 'mock-fb-2', intervention_id: 'mock-int-2', bubble_id: null, feedback_type: 'helpful', event_type: 'complexity_warning', problem_id: MOCK_PROBLEM_1, local_day: '2026-07-01', created_at: T_PLUS(41) },
-  { feedback_id: 'mock-fb-3', intervention_id: 'mock-int-3', bubble_id: null, feedback_type: 'not_helpful', event_type: 'multiple_wrong', problem_id: MOCK_PROBLEM_1, local_day: '2026-07-01', created_at: T_PLUS(13) },
-  { feedback_id: 'mock-fb-4', intervention_id: 'mock-int-5', bubble_id: null, feedback_type: 'dismiss', event_type: 'idle_too_long', problem_id: MOCK_PROBLEM_2, local_day: '2026-07-01', created_at: T_PLUS(21) },
-  { feedback_id: 'mock-fb-5', intervention_id: 'mock-int-7', bubble_id: null, feedback_type: 'never_today', event_type: 'long_session', problem_id: MOCK_PROBLEM_2, local_day: '2026-07-01', created_at: T_PLUS(51) },
-  { feedback_id: 'mock-fb-6', intervention_id: 'mock-int-8', bubble_id: null, feedback_type: 'helpful', event_type: 'long_session', problem_id: MOCK_PROBLEM_2, local_day: '2026-07-01', created_at: T_PLUS(56) },
-  { feedback_id: 'mock-fb-7', intervention_id: 'mock-int-10', bubble_id: null, feedback_type: 'never_today', event_type: 'review_due', problem_id: MOCK_PROBLEM_3, local_day: '2026-07-01', created_at: T_PLUS(46) },
-  { feedback_id: 'mock-fb-8', intervention_id: 'mock-int-6', bubble_id: null, feedback_type: 'helpful', event_type: 'idle_too_long', problem_id: MOCK_PROBLEM_2, local_day: '2026-07-01', created_at: T_PLUS(36) },
+  {
+    feedback_id: 'mock-fb-1',
+    intervention_id: 'mock-int-1',
+    bubble_id: null,
+    feedback_type: 'helpful',
+    event_type: 'multiple_wrong',
+    problem_id: MOCK_PROBLEM_1,
+    local_day: '2026-07-01',
+    created_at: T_PLUS(6),
+  },
+  {
+    feedback_id: 'mock-fb-2',
+    intervention_id: 'mock-int-2',
+    bubble_id: null,
+    feedback_type: 'helpful',
+    event_type: 'complexity_warning',
+    problem_id: MOCK_PROBLEM_1,
+    local_day: '2026-07-01',
+    created_at: T_PLUS(41),
+  },
+  {
+    feedback_id: 'mock-fb-3',
+    intervention_id: 'mock-int-3',
+    bubble_id: null,
+    feedback_type: 'not_helpful',
+    event_type: 'multiple_wrong',
+    problem_id: MOCK_PROBLEM_1,
+    local_day: '2026-07-01',
+    created_at: T_PLUS(13),
+  },
+  {
+    feedback_id: 'mock-fb-4',
+    intervention_id: 'mock-int-5',
+    bubble_id: null,
+    feedback_type: 'dismiss',
+    event_type: 'idle_too_long',
+    problem_id: MOCK_PROBLEM_2,
+    local_day: '2026-07-01',
+    created_at: T_PLUS(21),
+  },
+  {
+    feedback_id: 'mock-fb-5',
+    intervention_id: 'mock-int-7',
+    bubble_id: null,
+    feedback_type: 'never_today',
+    event_type: 'long_session',
+    problem_id: MOCK_PROBLEM_2,
+    local_day: '2026-07-01',
+    created_at: T_PLUS(51),
+  },
+  {
+    feedback_id: 'mock-fb-6',
+    intervention_id: 'mock-int-8',
+    bubble_id: null,
+    feedback_type: 'helpful',
+    event_type: 'long_session',
+    problem_id: MOCK_PROBLEM_2,
+    local_day: '2026-07-01',
+    created_at: T_PLUS(56),
+  },
+  {
+    feedback_id: 'mock-fb-7',
+    intervention_id: 'mock-int-10',
+    bubble_id: null,
+    feedback_type: 'never_today',
+    event_type: 'review_due',
+    problem_id: MOCK_PROBLEM_3,
+    local_day: '2026-07-01',
+    created_at: T_PLUS(46),
+  },
+  {
+    feedback_id: 'mock-fb-8',
+    intervention_id: 'mock-int-6',
+    bubble_id: null,
+    feedback_type: 'helpful',
+    event_type: 'idle_too_long',
+    problem_id: MOCK_PROBLEM_2,
+    local_day: '2026-07-01',
+    created_at: T_PLUS(36),
+  },
 ]
 
 const mockProblemAcStatus: ProblemAcStatus[] = [

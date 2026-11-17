@@ -50,9 +50,11 @@ export function matchVjudgeProblem(url: string): boolean {
   if (parseVjudgeProblem(url) !== null) return true
   try {
     const parsed = new URL(url)
-    return (parsed.hostname === 'vjudge.net' || parsed.hostname === 'www.vjudge.net')
-      && /^\/contest\/\d+\/?$/.test(parsed.pathname)
-      && (!parsed.hash || parsed.hash.startsWith('#problem'))
+    return (
+      (parsed.hostname === 'vjudge.net' || parsed.hostname === 'www.vjudge.net') &&
+      /^\/contest\/\d+\/?$/.test(parsed.pathname) &&
+      (!parsed.hash || parsed.hash.startsWith('#problem'))
+    )
   } catch {
     return false
   }
@@ -61,13 +63,13 @@ export function matchVjudgeProblem(url: string): boolean {
 export function matchVjudgeSubmissionResult(url: string): boolean {
   try {
     const parsed = new URL(url)
-    return (parsed.hostname === 'vjudge.net' || parsed.hostname === 'www.vjudge.net')
-      && (
-        /^\/solution\/\d+\/?$/.test(parsed.pathname)
-        || /^\/problem\/view\/submission\/\d+\/?$/.test(parsed.pathname)
-        || /^\/status\/?$/.test(parsed.pathname)
-        || (/^\/contest\/\d+\/?$/.test(parsed.pathname) && parsed.hash.startsWith('#status'))
-      )
+    return (
+      (parsed.hostname === 'vjudge.net' || parsed.hostname === 'www.vjudge.net') &&
+      (/^\/solution\/\d+\/?$/.test(parsed.pathname) ||
+        /^\/problem\/view\/submission\/\d+\/?$/.test(parsed.pathname) ||
+        /^\/status\/?$/.test(parsed.pathname) ||
+        (/^\/contest\/\d+\/?$/.test(parsed.pathname) && parsed.hash.startsWith('#status')))
+    )
   } catch {
     return false
   }
@@ -116,13 +118,16 @@ export function attachVjudgeRawProblemContext(submission: SubmissionData): Scrap
   }
 }
 
-export function getVjudgePageProblem(url: string): { problemId?: string; contestId?: string; problemIndex?: string } | null {
+export function getVjudgePageProblem(
+  url: string,
+): { problemId?: string; contestId?: string; problemIndex?: string } | null {
   const identity = parseVjudgeProblem(url)
   if (!identity) return null
   return {
-    problemId: identity.sourcePlatform && identity.sourceProblemId
-      ? `${identity.sourcePlatform}-${identity.sourceProblemId}`
-      : undefined,
+    problemId:
+      identity.sourcePlatform && identity.sourceProblemId
+        ? `${identity.sourcePlatform}-${identity.sourceProblemId}`
+        : undefined,
     contestId: identity.contestId,
     problemIndex: identity.problemIndex,
   }
@@ -144,6 +149,8 @@ export function statusCellsMatchPageProblem(
   if (!problemIndex) return false
   const joined = cells.join(' ')
   const escaped = problemIndex.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-  return new RegExp(`(^|[^A-Za-z0-9])${escaped}($|[^A-Za-z0-9])`, 'i').test(joined)
-    || Boolean(parsedProblem?.sourceProblemId?.toLowerCase().endsWith(problemIndex.toLowerCase()))
+  return (
+    new RegExp(`(^|[^A-Za-z0-9])${escaped}($|[^A-Za-z0-9])`, 'i').test(joined) ||
+    Boolean(parsedProblem?.sourceProblemId?.toLowerCase().endsWith(problemIndex.toLowerCase()))
+  )
 }

@@ -10,10 +10,13 @@
 - `problemContextMigration.test.ts`：题目上下文字段 migration 兼容。
 - `backupImport.test.ts`：SQLite 备份、学习数据 JSON 导出/导入、冲突检测和 Cookie/`raw_json` 排除。
 - `migrationSafety.test.ts`：迁移前备份、失败恢复、failure marker 阻断重试、三份轮换和 orphan visit 启动清理。
+- `migrationInterruption.test.ts`：真实 Electron RUN_AS_NODE 子进程在 fsync rendezvous 后阻塞，由父进程 SIGKILL 并等待 close；覆盖 durable prepared 后首条迁移 SQL 前、冻结030实际事务内完成 shadow 数据复制及 DROP TABLE 后、28→29 已提交但30未开始、30已提交但 checkpoint 未完成四个中断点。默认及 migrations:[] 重启均阻断，原备份按 hash/schema/integrity 复验；源态显式 retry-source、部分29先保留 displaced main/WAL/SHM 并受控恢复28后 retry-source、完整30用 keep-current 保留新数据。正常使用后独立启动故障不恢复旧快照，向前修复后新数据仍在。
 - `databaseInitialization.test.ts`、`sqliteMigrationBackup.test.ts`：用 test double 覆盖异步初始化和备份恢复纯逻辑，纳入全仓覆盖率统计。
 - `dailyStatsPerformance.test.ts`：两年事实数据下的单日统计重算基准，硬门槛 `<50ms`。
 - `omniboxSuggestions.test.ts`：Omnibox 本地题目/访问建议的固定上限、字段匹配、稳定排序、LIKE 字面量转义、软删除过滤与去重。
 - `statsDate.test.ts`：日期范围边界和 timestamp 日期提取。
+- `historicalUpgradePath.test.ts`：按固定历史 Git 源码重建的文本 schema 加合成数据，验证 21/24/29 → 30 的真实 SQLite 安全升级、82列数值时间、关系/约束、备份、幂等与失败恢复；不依赖 CI Git 历史。来源和再生步骤见 `fixtures/README.md`。
+- `migration030.test.ts`：外键事务使用边界、rowid/view/trigger保留、AI JSON精确转换、晚期非法值回滚、SQLite数值毫秒TEXT及旧伪日期桶兼容，其他错误继续拒绝。
 - `repositories.test.ts`：临时 SQLite 文件中的迁移、题目 upsert、提交 upsert、唯一约束、首次 AC、日统计聚合、站点 seed、站点导入预览和 Cookie 元数据安全边界。
 - `userScriptIdentityMigration.test.ts`：migration 025 的存量 canonical/local 分流、已删除行排序隔离和软删除部分唯一索引。
 - `userScriptIdentityRepository.test.ts`：用户脚本精确身份、显示名独立编辑、local copy 默认值、空 namespace canonical 和 legacy canonical 原子认领/回滚。
@@ -21,6 +24,7 @@
 - `userScriptRuntimeRepository.test.ts`：用户脚本 027 字段 round-trip、GM values、资源缓存、host 授权 revoke/revive 和更新状态合并。
 - `siteLoginAutofillMigration.test.ts`：migration 028 的登录 URL pattern、用户名/密码选择器字段和七站 seed 回填。
 - `siteCredentialLabelMigration.test.ts`：migration 029 的凭据可选显示名字段和幂等升级。
+- `auditDataIntegrity.repro.ts`：2026-09-11 审计证据，包含备份附件、笔记双写、导入路径/删除标记/冲突/负时长、题库筛选和回滚对照；断言当前异常，不属于默认回归集合。
 
 ## 3. 运行方式
 
@@ -46,4 +50,9 @@ npx vitest run tests/db/userScriptIdentityMigration.test.ts tests/db/userScriptI
 
 ## 4. 新增规则
 
+中断矩阵的 schema29 来自固定 rc1 SQL/hash，schema28 明确由固定 beta2(schema24) 加未修改的25–28迁移构造，行数据均为合成样本，不是旧版安装器或用户原库。测试只在 `tmp/migration-interruption-tests/case-*` 下操作，清理前验证绝对路径；子进程测试通过测试自有 logger/native prototype 接缝暂停，不添加生产崩溃开关、不修改001–030。
+该文件与 migrationSafety 一样是独立 native 套件，必须由 `tests/verify.mjs` 串行 bundle/执行，并从普通 Vitest 发现中排除。它不是 Electron 主界面或 NSIS 安装验收。
+
 数据库 schema、repository 写入规则或统计口径变更必须补这里。每个用例应使用临时 DB，不读取或修改用户真实数据。
+
+第一批审计可单独执行 `node tests/db/runAuditDataIntegrity.mjs`。它启动真实 Electron 并在 `tmp/audit-20260911/` 新建 profile，保留合成证据；修复后需将对应 `.repro` 的异常断言转换为正确行为的回归用例。详见 [第一批审计报告](../../../docs/OPERATIONS/PROJECT_AUDIT_BATCH1_2026_09_11.md)。

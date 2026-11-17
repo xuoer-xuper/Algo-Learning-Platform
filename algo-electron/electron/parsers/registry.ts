@@ -3,7 +3,10 @@ import {
   getAdapter as getRuntimeAdapter,
   getAdapterForUrl as getRuntimeAdapterForUrl,
 } from '../adapters/registry'
-import { findMatchingEnabledSite, setEnabledSitesFetcher as setEnabledSitesFetcherImpl } from './enabledSites'
+import {
+  findMatchingEnabledSite,
+  setEnabledSitesFetcher as setEnabledSitesFetcherImpl,
+} from './enabledSites'
 import type { EnabledSiteConfig } from './enabledSites'
 import { parseConfigUrl } from './configPattern'
 export type { EnabledSiteConfig } from './enabledSites'

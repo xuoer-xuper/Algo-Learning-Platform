@@ -14,7 +14,10 @@ function createField(type = 'text') {
     type,
     disabled: false,
     readOnly: false,
-    dispatchEvent: (event: Event) => { events.push(event.type); return true },
+    dispatchEvent: (event: Event) => {
+      events.push(event.type)
+      return true
+    },
     events,
   }
 }
@@ -37,9 +40,12 @@ test('fills username and password through input/change events without submitting
     ['input[name="username"]', username],
     ['input[name="password"]', password],
   ])
-  const result = fillCredentialForm({
-    querySelector: (selector: string) => fields.get(selector) ?? null,
-  } as never, payload)
+  const result = fillCredentialForm(
+    {
+      querySelector: (selector: string) => fields.get(selector) ?? null,
+    } as never,
+    payload,
+  )
 
   assert.deepStrictEqual(result, { usernameFilled: true, passwordFilled: true })
   assert.strictEqual(username.value, 'alice')
@@ -53,13 +59,17 @@ test('retries briefly for SPA-rendered login fields and rejects malformed payloa
   const username = createField()
   const password = createField('password')
   let queries = 0
-  const result = await fillCredentialFormWithRetry({
-    querySelector: (selector: string) => {
-      queries += 1
-      if (queries <= 2) return null
-      return selector.includes('username') ? username : password
-    },
-  } as never, payload, { maxAttempts: 3, delayMs: 0 })
+  const result = await fillCredentialFormWithRetry(
+    {
+      querySelector: (selector: string) => {
+        queries += 1
+        if (queries <= 2) return null
+        return selector.includes('username') ? username : password
+      },
+    } as never,
+    payload,
+    { maxAttempts: 3, delayMs: 0 },
+  )
   assert.deepStrictEqual(result, { usernameFilled: true, passwordFilled: true })
   assert.strictEqual(isCredentialFormFillPayload(payload), true)
   assert.strictEqual(isCredentialFormFillPayload({ ...payload, passwordSelectors: [''] }), false)

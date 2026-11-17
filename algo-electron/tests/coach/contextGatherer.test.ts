@@ -3,7 +3,7 @@ import { beforeEach, test, vi } from 'vitest'
 import type { AIContextExport } from '../../electron/ai/contextTypes.ts'
 import type { ProblemDetail } from '../../electron/db/repositories/problem/types.ts'
 import type { SubmissionRow } from '../../electron/db/repositories/submission/types.ts'
-import type { CoachEvent, ProblemSession } from '../../electron/coach/types.ts'
+import type { CoachEvent, ProblemSession } from '@shared/types/coach'
 import { ContextGatherer } from '../../electron/coach/llm/ContextGatherer.ts'
 import { buildHintPrompt } from '../../electron/coach/llm/PromptBuilder.ts'
 
@@ -67,16 +67,17 @@ function submissionRow(overrides: Partial<SubmissionRow> = {}): SubmissionRow {
     verdict: 'WA',
     raw_verdict: 'SENTINEL_RAW_VERDICT',
     language: 'C++17',
-    submitted_at: '2026-08-31 10:00:00',
+    submitted_at: Date.parse('2026-08-31 10:00:00'),
     runtime_ms: 15,
     memory_kb: 65536,
-    source_url: 'https://codeforces.com/contest/1234/submission/999?sessionId=SENTINEL_SESSION_COOKIE',
+    source_url:
+      'https://codeforces.com/contest/1234/submission/999?sessionId=SENTINEL_SESSION_COOKIE',
     // `JSESSIONID=` 后面刻意只留 3 个字符：敏感文件守卫会拦"会话 cookie 名 = 12 位以上的值"，
     // 而它没法分辨真假 token——那个保守判定是对的，不该为测试放宽。泄漏探针改由后面的
     // SENTINEL_COOKIE_VALUE 承担，它不挨着 cookie 名，形状仍是"raw_json 里裹着 cookie"。
     raw_json: '{"cookie":"JSESSIONID=abc; auth=SENTINEL_COOKIE_VALUE","handle":"SENTINEL_HANDLE"}',
-    created_at: '2026-08-31 10:00:01',
-    updated_at: '2026-08-31 10:00:02',
+    created_at: Date.parse('2026-08-31 10:00:01'),
+    updated_at: Date.parse('2026-08-31 10:00:02'),
     ...overrides,
   }
 }
@@ -94,15 +95,17 @@ function problemDetail(overrides: Partial<ProblemDetail> = {}): ProblemDetail {
     submission_count: 3,
     ac_count: 0,
     // getProblemDetail 会额外带回最多 100 条整行提交；gatherer 不读它，但它确实在返回值里。
-    submissions: [{
-      id: 'SENTINEL_DETAIL_SUB_ID',
-      problem_id: 'problem-1',
-      platform: 'codeforces',
-      platform_submission_id: 'SENTINEL_DETAIL_SUBMISSION_ID',
-      verdict: 'WA',
-      submitted_at: '2026-08-31 10:00:00',
-      raw_json: '{"cookie":"SENTINEL_DETAIL_COOKIE"}',
-    }],
+    submissions: [
+      {
+        id: 'SENTINEL_DETAIL_SUB_ID',
+        problem_id: 'problem-1',
+        platform: 'codeforces',
+        platform_submission_id: 'SENTINEL_DETAIL_SUBMISSION_ID',
+        verdict: 'WA',
+        submitted_at: Date.parse('2026-08-31 10:00:00'),
+        raw_json: '{"cookie":"SENTINEL_DETAIL_COOKIE"}',
+      },
+    ],
     ...overrides,
   }
 }
@@ -137,14 +140,16 @@ function event(overrides: Partial<CoachEvent> = {}): CoachEvent {
     problem_id: 'problem-1',
     platform: 'codeforces',
     evidence: { verdict: 'WA' },
-    created_at: '2026-08-31 10:20:00',
+    created_at: Date.parse('2026-08-31 10:20:00'),
     ...overrides,
   }
 }
 
 /** 采到的上下文最终会变成外发文本，断言就打在这段文本上。 */
 function outboundText(ctx: ReturnType<ContextGatherer['collect']>): string {
-  return buildHintPrompt(ctx).map((message) => message.content).join('\n')
+  return buildHintPrompt(ctx)
+    .map((message) => message.content)
+    .join('\n')
 }
 
 beforeEach(() => {
@@ -229,7 +234,13 @@ test('会话对象里的内部字段不外发，只发分钟级摘要与阶段',
 test('attempt_duration 与 active_seconds 都取 session.active_seconds', () => {
   repo.detail = problemDetail()
 
-  const ctx = new ContextGatherer().collect(event(), session({ active_seconds: 754 }), null, 1, false)
+  const ctx = new ContextGatherer().collect(
+    event(),
+    session({ active_seconds: 754 }),
+    null,
+    1,
+    false,
+  )
 
   // 当前实现刻意用有效活跃秒数当"已尝试时长"，而不是 last_active_at - started_at：
   // 挂起时段（切到本地 IDE）不该算进卡壳判断。两个字段同源是这个决定的直接后果。
@@ -243,8 +254,13 @@ test('卡壳状态由 phase 与 detected_stuck_level 推导', () => {
 
   // reading 阶段优先：读题期即使 stuck_level 已经抬起来也报 reading，避免刚打开就被判卡壳。
   assert.equal(
-    gatherer.collect(event(), session({ phase: 'reading', detected_stuck_level: 3 }), null, 1, false)
-      .session.detected_stuck_level,
+    gatherer.collect(
+      event(),
+      session({ phase: 'reading', detected_stuck_level: 3 }),
+      null,
+      1,
+      false,
+    ).session.detected_stuck_level,
     'reading',
   )
   assert.equal(
@@ -267,15 +283,20 @@ test('卡壳状态由 phase 与 detected_stuck_level 推导', () => {
 
 test('只保留最近 10 条提交，且保持升序', () => {
   repo.detail = problemDetail()
-  repo.submissions = Array.from({ length: 14 }, (_value, index) => submissionRow({
-    verdict: `V${index}`,
-    submitted_at: `2026-08-31 10:${String(index).padStart(2, '0')}:00`,
-  }))
+  repo.submissions = Array.from({ length: 14 }, (_value, index) =>
+    submissionRow({
+      verdict: `V${index}`,
+      submitted_at: Date.parse(`2026-08-31 10:${String(index).padStart(2, '0')}:00`),
+    }),
+  )
 
   const ctx = new ContextGatherer().collect(event(), session(), null, 3, false)
 
   assert.equal(ctx.submissions.length, 10, '上下文体积必须有上限，否则长会话会把 token 打满')
-  assert.deepEqual(ctx.submissions.map((item) => item.verdict), ['V4', 'V5', 'V6', 'V7', 'V8', 'V9', 'V10', 'V11', 'V12', 'V13'])
+  assert.deepEqual(
+    ctx.submissions.map((item) => item.verdict),
+    ['V4', 'V5', 'V6', 'V7', 'V8', 'V9', 'V10', 'V11', 'V12', 'V13'],
+  )
   // 取尾部而非头部：模型要看的是"最近在犯什么错"。
   assert.match(outboundText(ctx), /最近 verdict 序列: V9 → V10 → V11 → V12 → V13/)
 })
@@ -332,7 +353,10 @@ test('画像 Markdown 整段透传进 learner_profile 标签', () => {
   const ctx = new ContextGatherer().collect(event(), session(), null, 4, false)
 
   assert.equal(repo.exportCalls, 1, '每次采集只导出一次画像')
-  assert.match(outboundText(ctx), /<learner_profile>\n# 学习数据上下文\n## 错题（2）[\s\S]*<\/learner_profile>/)
+  assert.match(
+    outboundText(ctx),
+    /<learner_profile>\n# 学习数据上下文\n## 错题（2）[\s\S]*<\/learner_profile>/,
+  )
 })
 
 test('没有打开题目（session 为 null）时给出可对话的空上下文，且仍带画像', () => {
@@ -394,7 +418,11 @@ test('problemUrl 优先于 canonical_url，缺省时回落到落库链接', () =
   repo.detail = problemDetail({ canonical_url: 'https://codeforces.com/problemset/problem/1234/A' })
 
   const withLive = new ContextGatherer().collect(
-    event(), session(), null, 1, false,
+    event(),
+    session(),
+    null,
+    1,
+    false,
     'https://codeforces.com/contest/1234/problem/A',
   )
   // 当前页 URL 更准（比赛页/gym 页与 canonical 不同）。
@@ -414,19 +442,25 @@ test('problemUrl 优先于 canonical_url，缺省时回落到落库链接', () =
 test('约束对象原样带入，用于 L3 复杂度提示', () => {
   repo.detail = problemDetail()
 
-  const ctx = new ContextGatherer().collect(event(), session(), {
-    platform: 'codeforces',
-    primaryVarName: 'n',
-    nLower: 1,
-    nUpper: 200000,
-    valueLower: null,
-    valueUpper: null,
-    timeLimitSec: 1,
-    memoryLimitMb: 256,
-    testGroupCount: null,
-    parsedAt: 1_700_000_000_000,
-    source: 'regex',
-  }, 3, false)
+  const ctx = new ContextGatherer().collect(
+    event(),
+    session(),
+    {
+      platform: 'codeforces',
+      primaryVarName: 'n',
+      nLower: 1,
+      nUpper: 200000,
+      valueLower: null,
+      valueUpper: null,
+      timeLimitSec: 1,
+      memoryLimitMb: 256,
+      testGroupCount: null,
+      parsedAt: 1_700_000_000_000,
+      source: 'regex',
+    },
+    3,
+    false,
+  )
 
   assert.equal(ctx.problem.constraints?.nUpper, 200000)
   const outbound = outboundText(ctx)
