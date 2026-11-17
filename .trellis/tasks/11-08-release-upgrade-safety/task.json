@@ -21,6 +21,6 @@
   "children": [],
   "parent": "09-17-spec-alignment",
   "relatedFiles": [],
-  "notes": "工程及隔离安装26步通过。维护者已收到d8b5620本机安装包并反馈正常，明确要求合并正式发行；人工门按维护者整体反馈验收，不编造逐站记录。公开/master/tag/草稿授权已恢复，正在整理正式更新日志并执行PR9到dev、dev到master及最终构建/CI/资产门。原Drizzle工作区和PR8不动，任务保持in_progress。",
+  "notes": "维护者已接受本机候选并授权发行。PR9已merge commit合入dev e1171b2，PR10待合master；dev/PR10 CI绿。真实GitHub push/PR同名检查暴露发行守卫误拒绝，正在独立修复复核，仅工具/测试不变产品。最终master/build/安装/资产门仍待完成，无tag/Release。Drizzle/PR8不动，in_progress。",
   "meta": {}
 }

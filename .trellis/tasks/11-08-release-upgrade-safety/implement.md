@@ -110,6 +110,15 @@
       见 `research/final-code-review.md`、`final-engineering-validation.md`；该工程门不替代安装/人工门。
 - [x] 对外兼容/版本审查，2.0.1合适则保留；发现不适合只报告，不擅自升版。
 
+## 2026-11-17 发行集成续办
+
+- PR #9 已通过正常提交/推送门及 CI 43996785911，merge commit 合入 dev `e1171b2`。
+- dev push CI 43997371383 与发行 PR #10 CI 43997394772 均成功；产品树仍与维护者测试的 d8b5620 相同。
+- 实际 GitHub `filter=latest` 为 push/PR 两套 suite 返回同名检查，原守卫要求唯一项误拒绝全部绿色。
+  在 master 合并前修复为每个名称至少一项，且全部匹配项都属于接受的 SHA、completed/success；
+  不忽略失败/待完成项，不取消检查以绕过。仅发行脚本/测试变化，不改变产品或构建配置。
+- 最终 master 合并、构建、实际隔离安装及远程资产门仍待完成；没有创建 tag/Release。
+
 ## Commit / Handoff
 
 - [x] 本轮工程提交前读Git规范、正常钩子；原子中文conventional commit，提交后及时推送。

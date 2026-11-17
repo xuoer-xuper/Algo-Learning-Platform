@@ -140,7 +140,9 @@ SQLite 恢复点及学习 JSON 都不是完整 profile 备份。先保留当前�
 独立复核及兼容性评审针对最终树。工具读取 release PR 已合并状态、dev SHA、master merge SHA；
 要求该 dev SHA 上 GitHub Actions 的两个 required checks 均成功：`Fast core, packaging and docs guard`、
 `Electron and renderer smoke`。另要求 merge SHA 上 fast check 成功；当前 master push 也运行
-renderer smoke，最终树完整本地门见 build.json。网络、认证、API 或分页失败一律拒绝，不能解释成不存在或通过。
+renderer smoke，最终树完整本地门见 build.json。push 与 PR 可产生同名的多个检查套件；
+每个必需名称至少有一项 GitHub Actions 检查，且返回的所有同名匹配项必须属于接受的 SHA、
+已完成并成功，不能挑一项绿色而忽略失败或待完成项。网络、认证、API 或分页失败一律拒绝，不能解释成不存在或通过。
 
 ## 6. 接受文件与预检
 
