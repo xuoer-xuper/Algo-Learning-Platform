@@ -98,35 +98,35 @@ schema code and emits SQL/snapshots; `pull` is the introspection command.
 
 ## 4. Validation & Error Matrix
 
-| Case | Required behavior |
-| --- | --- |
-| Import schema/client | No userData access, open connection, ledger or schema mutation |
-| Wrap supplied connection | Same native connection and unchanged lifecycle ownership |
-| Read/write epoch 0 or nullable timestamp | Exact integer/Date mapping; null remains null |
-| Generated table constraints differ | Fail A0 equivalence test, do not ignore/tighten silently |
-| Unique/CHECK/FK/partial-index violation | Same acceptance/rejection behavior as post-030 database |
-| Transaction throws | Native changes roll back, no premature notification |
-| Unsupported or future baseline state | Later A1 fails closed without marking a baseline |
-| Missing/tampered resource or invalid journal | Reject before creating the target DB/data directory; no cwd fallback |
-| Gapped/wrong-name legacy history or nonempty DB without history | Close and reject, without marking the baseline |
-| Unknown/duplicate/future Drizzle ledger entry | Reject instead of trusting the newest timestamp |
-| Pending baseline/later Drizzle migration, no legacy pending | Back up before writes; later failure restores the original whole attempt |
-| Malformed existing failure marker | Block startup; absent marker is normal |
-| Repaired hash with the same failed migration tag | Stable `drizzle:<tag>` key still blocks automatic retry |
-| Explicit legacy `migrations: []` | Skip default Drizzle resources and preserve the existing test route |
-| Active problem with null TEXT primary key | Still counted in total/distribution; no schema tightening |
-| Overview on empty database | Zero totals, empty distribution, null latest activity; synchronous |
-| Visit at local day start / next day start | Included / excluded respectively |
-| Latest activity at epoch 0 | Return numeric 0, not null or Date |
-| Read-only overview after connection reinitialization | Uses new current connection; no writes/events/migrations |
-| Platform-key lookup with quote/percent/underscore/backslash | Exact bound literal matching; no SQL/pattern interpretation |
-| Matching lookup row has null / empty-string ID | Return null / empty string respectively |
-| Lookup row has deleted_at = 0 | Excluded, exactly like any non-null deletion timestamp |
-| Lookup fails because schema/connection is invalid | Throw; do not return a not-found null |
-| Matched problem upsert has a null ID | Execute bound-null UPDATE, retain rows and successful legacy notification |
-| Matched null-ID upsert on query_only connection | Throw before notification; early-return is not equivalent |
-| Update retains title/contest/index | Keep the columns in SET and preserve UPDATE OF trigger behavior |
-| Upsert outer transaction/savepoint/COMMIT fails | Roll back its facts and discard its buffered topics |
+| Case                                                            | Required behavior                                                         |
+| --------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| Import schema/client                                            | No userData access, open connection, ledger or schema mutation            |
+| Wrap supplied connection                                        | Same native connection and unchanged lifecycle ownership                  |
+| Read/write epoch 0 or nullable timestamp                        | Exact integer/Date mapping; null remains null                             |
+| Generated table constraints differ                              | Fail A0 equivalence test, do not ignore/tighten silently                  |
+| Unique/CHECK/FK/partial-index violation                         | Same acceptance/rejection behavior as post-030 database                   |
+| Transaction throws                                              | Native changes roll back, no premature notification                       |
+| Unsupported or future baseline state                            | Later A1 fails closed without marking a baseline                          |
+| Missing/tampered resource or invalid journal                    | Reject before creating the target DB/data directory; no cwd fallback      |
+| Gapped/wrong-name legacy history or nonempty DB without history | Close and reject, without marking the baseline                            |
+| Unknown/duplicate/future Drizzle ledger entry                   | Reject instead of trusting the newest timestamp                           |
+| Pending baseline/later Drizzle migration, no legacy pending     | Back up before writes; later failure restores the original whole attempt  |
+| Malformed existing failure marker                               | Block startup; absent marker is normal                                    |
+| Repaired hash with the same failed migration tag                | Stable `drizzle:<tag>` key still blocks automatic retry                   |
+| Explicit legacy `migrations: []`                                | Skip default Drizzle resources and preserve the existing test route       |
+| Active problem with null TEXT primary key                       | Still counted in total/distribution; no schema tightening                 |
+| Overview on empty database                                      | Zero totals, empty distribution, null latest activity; synchronous        |
+| Visit at local day start / next day start                       | Included / excluded respectively                                          |
+| Latest activity at epoch 0                                      | Return numeric 0, not null or Date                                        |
+| Read-only overview after connection reinitialization            | Uses new current connection; no writes/events/migrations                  |
+| Platform-key lookup with quote/percent/underscore/backslash     | Exact bound literal matching; no SQL/pattern interpretation               |
+| Matching lookup row has null / empty-string ID                  | Return null / empty string respectively                                   |
+| Lookup row has deleted_at = 0                                   | Excluded, exactly like any non-null deletion timestamp                    |
+| Lookup fails because schema/connection is invalid               | Throw; do not return a not-found null                                     |
+| Matched problem upsert has a null ID                            | Execute bound-null UPDATE, retain rows and successful legacy notification |
+| Matched null-ID upsert on query_only connection                 | Throw before notification; early-return is not equivalent                 |
+| Update retains title/contest/index                              | Keep the columns in SET and preserve UPDATE OF trigger behavior           |
+| Upsert outer transaction/savepoint/COMMIT fails                 | Roll back its facts and discard its buffered topics                       |
 
 ## 5. Good / Base / Bad Cases
 
@@ -184,9 +184,9 @@ schema code and emits SQL/snapshots; `pull` is the introspection command.
 
 ```ts
 // Wrong when the legacy table permits a null TEXT primary key:
-id: text('id').primaryKey()
+id: text("id").primaryKey();
 // Correct: mirror nullability with a table-level key and verify SQLite behavior.
-id: text('id')
+id: text("id");
 // extraConfig: primaryKey({ columns: [table.id] })
 
 // Wrong: leaking a Date into a public numeric DTO by assertion.
@@ -223,13 +223,24 @@ id: text('id')
   is insufficient. Later known schema versions need their own physical-schema
   contracts; do not compare them to the old baseline or replay arbitrary DML in an
   empty expected database to invent a schema oracle.
-- One consistent backup covers pending legacy, baseline marking and later Drizzle
-  work. A Drizzle-only pending migration still needs a backup. Restore the whole
-  attempt if any stage fails, including a previously committed baseline marker.
-- Failure markers retain `pendingMigrations` for legacy compatibility and add
-  optional `pendingMigrationKeys`: `legacy:<version>` / `drizzle:<tag>`. Same logical
-  migration retry stays blocked after a repaired hash; never disguise timestamps as
-  legacy numeric versions. Malformed markers fail closed.
+- One verified standalone backup and durable format2 checkpoint cover pending
+  legacy, baseline marking and later Drizzle work. Even with legacy source/target30,
+  baseline or Drizzle-only work is protected. Composite source and exact target
+  Drizzle identities must survive sidecar, restore, audit and retention validation.
+  Restore the whole unexposed attempt if a stage fails, including a previously
+  committed baseline marker. Completion follows both histories, cleanup and integrity.
+- Failure markers retain `pendingMigrations` and optional `pendingMigrationKeys`:
+  `legacy:<version>` / `drizzle:<tag>`. Unresolved records always block before DB
+  open, even with no pending work or repaired resources; keys are evidence, not an
+  overlap-based permission to retry. Malformed markers fail closed. Old markers
+  can be explicitly associated only when a verified backup and keys prove a known
+  exact composite target; never disguise timestamps as legacy numeric versions.
+- Preserve released format1 checkpoints, sidecars, audits and historical28-to29
+  recovery. Format2 explicit resolution compares both histories and physical schema
+  against a bounded disposable replay using trusted resources, stopping at the
+  recorded target rather than latest. `keep-current` protects later user rows;
+  `retry-source` permits a later fresh protected attempt, not an immediate migration.
+  The complete cross-version protocol is in `upgrade-recovery.md`.
 - Synchronous `initDbAtPath` stays the legacy-only test helper. Explicit
   `options.migrations`, including an empty array, retains that test override route;
   it must not activate default Drizzle implicitly. Production uses the default

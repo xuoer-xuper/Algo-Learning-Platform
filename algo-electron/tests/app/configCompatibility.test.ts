@@ -39,7 +39,11 @@ beforeEach(() => {
 })
 
 afterEach(() => {
-  fs.rmSync(harness.userDataDir, { recursive: true, force: true })
+  const resolved = path.resolve(harness.userDataDir)
+  expect(resolved.startsWith(`${path.resolve(os.tmpdir())}${path.sep}algo-config-compat-`)).toBe(
+    true,
+  )
+  fs.rmSync(resolved, { recursive: true, force: true })
 })
 
 describe('rc.1 config.json 兼容', () => {
@@ -96,6 +100,9 @@ describe('rc.1 config.json 兼容', () => {
     configModule.loadConfig()
 
     expect(fs.readFileSync(configPath, 'utf-8')).toBe(before)
+    expect(fs.existsSync(path.join(harness.userDataDir, 'config-normalization-backups'))).toBe(
+      false,
+    )
   })
 
   it('默认值只补真正缺失的键，已有字段不动', async () => {
@@ -130,6 +137,9 @@ describe('rc.1 config.json 兼容', () => {
       search: { engine: 'bing', customTemplate: null },
     })
     expect(fs.readFileSync(configPath, 'utf-8')).toBe(corrupt)
+    expect(fs.existsSync(path.join(harness.userDataDir, 'config-normalization-backups'))).toBe(
+      false,
+    )
   })
 
   it('降级态下保存设置会报错给调用方，而不是盲目覆写坏文件', async () => {

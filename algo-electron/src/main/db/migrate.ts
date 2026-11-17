@@ -1,6 +1,7 @@
 import type Database from 'better-sqlite3'
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator'
 import { createDrizzleClient } from './client'
+import { CREATE_DRIZZLE_LEDGER, readDrizzleLedger } from './drizzle-ledger'
 import {
   loadMigrationResources,
   type LoadedDrizzleMigration,
@@ -26,11 +27,6 @@ export interface DrizzleMigrationPlan {
 }
 
 const DRIZZLE_LEDGER = '__drizzle_migrations'
-const CREATE_DRIZZLE_LEDGER = `CREATE TABLE IF NOT EXISTS __drizzle_migrations (
-  id SERIAL PRIMARY KEY,
-  hash TEXT NOT NULL,
-  created_at NUMERIC
-)`
 
 function hasTable(database: Database.Database, name: string): boolean {
   return Boolean(
@@ -96,24 +92,7 @@ function legacyPrefix(
 }
 
 function drizzlePrefix(database: Database.Database, resources: MigrationResources): number {
-  if (!hasTable(database, DRIZZLE_LEDGER)) return 0
-  assertMigrationLedgerSchema(database, DRIZZLE_LEDGER, CREATE_DRIZZLE_LEDGER)
-  const rows = database
-    .prepare<[], { hash: unknown; created_at: unknown }>(
-      'SELECT hash,created_at FROM __drizzle_migrations ORDER BY created_at',
-    )
-    .all()
-  if (
-    rows.length > resources.migrations.length ||
-    rows.some(
-      (row, index) =>
-        row.hash !== resources.migrations[index].sha256 ||
-        row.created_at !== resources.migrations[index].when,
-    )
-  ) {
-    throw new Error('Drizzle migration history is not a known contiguous prefix')
-  }
-  return rows.length
+  return readDrizzleLedger(database, resources.migrations)?.length ?? 0
 }
 
 export function inspectMigrationState(

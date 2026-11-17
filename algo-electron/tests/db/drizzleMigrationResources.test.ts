@@ -1,11 +1,14 @@
 import fs from 'node:fs'
 import path from 'node:path'
+import { createRequire } from 'node:module'
 import Database from 'better-sqlite3'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { initDbAtPathWithMigrationSafety } from '../../electron/db/connection'
 import {
   KNOWN_DRIZZLE_MIGRATIONS,
   loadMigrationResources,
+  loadApplicationMigrationResources,
+  stageMigrationPrefix,
   resolveMigrationFolder,
 } from '../../src/main/db/migration-resources'
 import {
@@ -131,4 +134,55 @@ describe('trusted Drizzle migration resources', () => {
       loadMigrationResources(drizzle.folder, [{ ...drizzle.expected[0], tag: '../outside' }]),
     ).toThrow(/compiled/)
   })
+})
+
+it.each([false, true])(
+  'loads the actual %s application resource root without a working-directory fallback',
+  (packaged) => {
+    const { directory } = migrationTestPaths()
+    const resources = resourceFixture(directory)
+    const wrongRoot = path.join(directory, 'wrong-root')
+    const require = createRequire(import.meta.url)
+    const entry = require.cache[require.resolve('electron')]
+    if (!entry) throw new Error('Electron runtime module has not been loaded')
+    const previous = entry.exports
+    entry.exports = {
+      app: { isPackaged: packaged, getAppPath: () => (packaged ? wrongRoot : directory) },
+    }
+    const descriptor = Object.getOwnPropertyDescriptor(process, 'resourcesPath')
+    Object.defineProperty(process, 'resourcesPath', {
+      configurable: true,
+      value: packaged ? directory : wrongRoot,
+    })
+    try {
+      expect(loadApplicationMigrationResources().folder).toBe(resources.folder)
+    } finally {
+      entry.exports = previous
+      if (descriptor) Object.defineProperty(process, 'resourcesPath', descriptor)
+      else Reflect.deleteProperty(process, 'resourcesPath')
+    }
+  },
+)
+
+it('stages only a verified prefix, preserving journal semantics and original resources', () => {
+  const { directory } = migrationTestPaths()
+  const drizzle = resourceFixture(directory, 'CREATE TABLE future_resource(id INTEGER);')
+  const journalPath = path.join(drizzle.folder, 'meta', '_journal.json')
+  const journal = JSON.parse(fs.readFileSync(journalPath, 'utf8'))
+  journal.entries[0].breakpoints = false
+  fs.writeFileSync(journalPath, JSON.stringify(journal))
+  const before = fs.readFileSync(journalPath)
+  const resources = loadMigrationResources(drizzle.folder, drizzle.expected)
+  const bounded = stageMigrationPrefix(resources, 1, path.join(directory, 'bounded'))
+  expect(bounded.migrations).toHaveLength(1)
+  expect(fs.readdirSync(bounded.folder).sort()).toEqual(['0000_baseline.sql', 'meta'])
+  expect(
+    JSON.parse(fs.readFileSync(path.join(bounded.folder, 'meta', '_journal.json'), 'utf8'))
+      .entries[0].breakpoints,
+  ).toBe(false)
+  expect(fs.readFileSync(journalPath)).toEqual(before)
+  fs.appendFileSync(path.join(drizzle.folder, '0001_future.sql'), '\n-- corrupted later resource')
+  const rejected = path.join(directory, 'rejected')
+  expect(() => stageMigrationPrefix(resources, 1, rejected)).toThrow(/hash/)
+  expect(fs.existsSync(rejected)).toBe(false)
 })

@@ -29,6 +29,7 @@ const dbVitestFiles = [
   'tests/db/credentialRepository.test.ts',
   'tests/db/databaseInitialization.test.ts',
   'tests/db/historicalUpgradePath.test.ts',
+  'tests/db/migrationCheckpoint.test.ts',
   'tests/db/migration030.test.ts',
   'tests/shared/legacyTimestamp.test.ts',
   'tests/db/migrateLogging.test.ts',
@@ -37,6 +38,7 @@ const dbVitestFiles = [
   'tests/db/problemLookup.test.ts',
   'tests/db/problemOverview.test.ts',
   'tests/db/problemUpsert.test.ts',
+  'tests/db/resolve-upgrade.test.ts',
   'tests/db/sqliteMigrationBackup.test.ts',
   'tests/db/siteCredentialMigration.test.ts',
   'tests/db/siteLoginAutofillMigration.test.ts',
@@ -163,6 +165,14 @@ function runDbElectronTests() {
   runElectronNodeTest(path.join('tests', 'db', 'backupImport.test.ts'), 'db-backupImport')
   runElectronNodeTest(path.join('tests', 'db', 'migrationSafety.test.ts'), 'db-migrationSafety')
   runElectronNodeTest(
+    path.join('tests', 'db', 'migrationInterruption.test.ts'),
+    'db-migrationInterruption',
+  )
+  runElectronNodeTest(
+    path.join('tests', 'db', 'drizzleMigrationInterruption.test.ts'),
+    'db-drizzleMigrationInterruption',
+  )
+  runElectronNodeTest(
     path.join('tests', 'db', 'dailyStatsPerformance.test.ts'),
     'db-dailyStatsPerformance',
   )
@@ -233,7 +243,7 @@ function runCoreSuite() {
   // tests/submissions、tests/shared、tests/diagnostics、tests/shortcuts、
   // tests/tracking 与 4 个 tests/security 文件一直在名单外，加进来才发现漏了。
   // 代价是墙钟从 9.9s 到 11.3s（实测），不足以换"门是假的"。
-  // 真实 Electron 那 9 个文件由 vitest.config.ts 的 exclude 挡掉，各自有专属 suite。
+  // 真实 Electron 文件由 vitest.config.ts 的 exclude 挡掉，各自有专属 suite。
   runVitest()
 }
 
@@ -257,6 +267,7 @@ function runAllSuite() {
   runLint()
   runArchitecture()
   runSecurity()
+  runJscpd()
   runVitest([], true)
   runAiElectronTests()
   runDbElectronTests()

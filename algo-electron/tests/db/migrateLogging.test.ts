@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import { test } from 'vitest'
 import { runMigrations } from '../../electron/db/migrate.ts'
 import type { Logger } from '../../electron/shared/logger.ts'
+import { getMigrationDiagnostics } from '../../src/main/db/migration-diagnostics'
 
 class MemoryLogger implements Logger {
   readonly messages: string[] = []
@@ -145,4 +146,37 @@ test('should reject restoration failure after a successful migration without log
   )
   assert.deepStrictEqual(database.inserted, [30])
   assert.deepStrictEqual(logger.messages, ['db.migration-started', 'db.migration-failed'])
+})
+
+test('should preserve transaction failure if error reporting and foreign-key restoration also throw', () => {
+  const { database, restoreError } = databaseWithFailedForeignKeyRestore()
+  const original = new Error('original migration failed')
+  const logger = new MemoryLogger()
+  logger.error = () => {
+    throw new Error('logging failed')
+  }
+  assert.throws(
+    () =>
+      runMigrations(
+        database as never,
+        [
+          {
+            version: 30,
+            name: 'broken',
+            requiresForeignKeysDisabled: true,
+            up: () => {
+              throw original
+            },
+          },
+        ],
+        logger,
+      ),
+    (error) => error === original,
+  )
+  assert.ok(getMigrationDiagnostics(original).some(({ error }) => error === restoreError))
+  assert.ok(
+    getMigrationDiagnostics(original).some(
+      ({ stage }) => stage === 'db.migration-diagnostic-log-failed',
+    ),
+  )
 })

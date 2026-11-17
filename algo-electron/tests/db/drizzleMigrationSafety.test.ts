@@ -233,7 +233,7 @@ describe('safe Drizzle startup', () => {
     const drizzle = resourceFixture(directory, 'INSERT INTO original_failure_target VALUES (1);')
     const copyFile = fs.copyFileSync
     vi.spyOn(fs, 'copyFileSync').mockImplementation((source, destination, mode) => {
-      if (String(destination).startsWith(`${dbPath}.restore-`))
+      if (String(destination).includes(`${path.basename(dbPath)}.recovery-`))
         throw new Error('synthetic restore failure')
       copyFile(source, destination, mode)
     })

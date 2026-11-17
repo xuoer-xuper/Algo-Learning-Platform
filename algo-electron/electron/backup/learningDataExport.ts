@@ -27,6 +27,8 @@ const EXPORT_TABLES = [
 ] as const
 
 const EXCLUDED_FIELDS = ['submissions.raw_json', 'local absolute file paths', 'logs'] as const
+const BACKUP_SCOPE_HINT =
+  '学习数据 JSON 和 SQLite 数据库备份都不是完整用户目录备份；SQLite 备份包含库内笔记正文，但图片附件、配置、脚本文件及浏览器会话需分别保护。数据库和配置备份可能含本机敏感数据，仅用于受保护的本机恢复。'
 
 type ExportTableName = (typeof EXPORT_TABLES)[number]
 
@@ -75,8 +77,7 @@ export function exportLearningData(): LearningDataExport {
       excluded: [...excludedTables, ...EXCLUDED_FIELDS],
       excluded_tables: excludedTables,
       excluded_fields: [...EXCLUDED_FIELDS],
-      complete_backup_hint:
-        '完整备份请用数据库备份；数据库备份含本机敏感数据，仅用于受保护的本机恢复。',
+      complete_backup_hint: BACKUP_SCOPE_HINT,
     },
     tables: {
       problems: sanitizeRows(
@@ -243,7 +244,7 @@ export function parseLearningDataExport(raw: unknown): LearningDataExport {
     data.schema_version === 1 && info.excluded_fields === undefined ? [] : info.excluded_fields
   const backupHint =
     data.schema_version === 1 && info.complete_backup_hint === undefined
-      ? '完整备份请用数据库备份。'
+      ? BACKUP_SCOPE_HINT
       : info.complete_backup_hint
   if (!strings(excludedTables) || !strings(excludedFields) || typeof backupHint !== 'string') {
     throw new Error('导入文件 metadata 类型无效')

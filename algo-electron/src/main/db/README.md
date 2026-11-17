@@ -1,37 +1,41 @@
-# Drizzle 数据库基础
+# Database Foundation And Upgrade Safety
 
-## 1. 职责
+## 1. Responsibilities / 职责
 
-描述 migration 030 后的完整 SQLite 结构，为已经打开的连接提供 typed ORM 包装，并安全接管 legacy 迁移之后的 Drizzle 台账与迁移资源。
+Main-process-only Drizzle schema/client and trusted migration coordination live beside the released upgrade-verification helpers. The native connection and frozen migrations remain owned by `electron/db/connection.ts` and `electron/db/migrations/`. Importing schema/client must not open a database or mutate user data.
 
-## 2. 当前实现
+## 2. Current Implementation / 当前实现
 
-25 张表包含旧迁移台账，82 个时间点使用 `timestamp_ms`。生产仍由 `electron/db/connection.ts` 拥有连接、pragma、备份、恢复和关闭；默认异步安全入口在 001–030 后验证结构并登记 Drizzle 基线。
+The schema describes all 25 post-030 tables and 82 `timestamp_ms` instant columns. Default asynchronous initialization validates legacy history and physical schema before adopting the Drizzle baseline. Synchronous `initDbAtPath` and explicit `options.migrations` (including an empty array) retain their legacy-only test route.
 
-同步 `initDbAtPath` 与显式 `options.migrations`（包括空数组）保持 legacy-only 测试语义。应用 repository 的逐域 ORM 改写不属于 A1，不能把迁移器接入误称为所有查询已完成转换。
+Problem overview, platform-key ID lookup and upsert are bounded ORM slices; other query domains are not yet converted. Integration of released 2.0.1 checkpoint/recovery safety is a separate verification gate, not a claim that this branch or all of phase 3 has shipped.
 
-## 3. 关键文件
+## 3. Key Files / 关键文件
 
-- `schema.ts`：精确保留列、默认值、空值、主键、唯一/部分索引、CHECK 与外键。
-- `client.ts`：`createDrizzleClient(sqlite)` 只包装传入的 `better-sqlite3` 连接，无 import-time 开库、第二连接或关闭行为。
-- `migration-resources.ts`：在打开目标库之前验证编译固定的 tag、时间戳、SQL SHA256 与 journal，按开发 appRoot / 打包 resources 路径解析资源，不回退到 cwd。
-- `schema-validation.ts`：在内存库中解析可信基线，对比完整物理结构与约束，并检查外键和数据库完整性；不打开第二个用户库。
-- `migrate.ts`：验证两套连续台账，安全登记基线，再委托固定版本 Drizzle migrator 执行后续迁移。
-- 根目录 `drizzle.config.ts`：供 `pnpm db:generate` 显式生成 SQL，不连接用户数据库。
+- `schema.ts`: exact columns, defaults, nullability, keys, indexes, CHECK and FK constraints; `client.ts` wraps the supplied native connection without owning its lifecycle.
+- `migration-resources.ts`: validates compiled migration tags, timestamps, SQL hashes and journal before opening the target database; uses development appRoot or packaged resources, never cwd fallback. Startup and maintenance share that provider; recovery stages only a verified recorded target prefix.
+- `drizzle-ledger.ts`: verifies the physical ledger and every trusted hash/time identity, distinguishes an absent ledger from an empty one, and compares exact ordered prefixes.
+- `schema-validation.ts`: compares the complete physical structure against a trusted in-memory baseline, including integrity/FK validation; does not open a second user database.
+- `migrate.ts`: validates continuous legacy/Drizzle histories, adopts the baseline and delegates later migrations to the pinned Drizzle migrator.
+- `legacy-ledger-validation.ts`: strict ordered history and known-prefix validation, integrity/FK checks and exact schema fingerprints, including optional views/triggers rather than silently discarding them.
+- `migration-diagnostics.ts`: associates secondary cleanup/logging failures with the original thrown object without replacing it.
+- `resolve-upgrade.ts`: verifies source/target recovery, protects current data and records explicit resolution; associates provable old failure markers with preserved raw audits. Versioned recovery replays only the recorded legacy/Drizzle target, never all migrations the current binary knows.
+- Root `drizzle.config.ts`: explicit `pnpm db:generate` tooling, never connects to user data.
 
-## 4. 边界与维护规则
+## 4. Boundaries / 边界
 
-- Drizzle 时间列读出 `Date`，底层仍是 INTEGER 毫秒；写入用 `new Date(ms)`，返回公共 DTO 时显式 `.getTime()`，不能把 Date 直接送 IPC。
-- 旧 SQLite 的 TEXT PRIMARY KEY 并未声明 NOT NULL。使用 table-level `primaryKey` 保留该语义，不顺手收紧历史数据约束。
-- BLOB 使用 buffer 模式；未知 JSON 文本仍是文本，不自动解析或转换用户内容。
-- `drizzle/0000_baseline.sql` 已固定；已有 030 库必须通过连续 legacy 台账及完整 schema 验证，之后只登记 `__drizzle_migrations`，不重复执行基线 CREATE。仅有 baseline 的重启也重新核对结构。
-- Drizzle-only pending 同样需要备份。一次备份覆盖 legacy、基线及后续迁移；后一步失败必须恢复整个尝试，并用稳定的 `legacy:<version>` / `drizzle:<tag>` 阻止自动重试。
-- `__drizzle_migrations.id` 遵循上游 `SERIAL PRIMARY KEY`，允许空值；正确性来自完整 hash/timestamp 前缀，不是最大时间戳或自增 id。
-- 未知表、列、约束、view、trigger 或损坏台账拒绝启动，不擅自修复。后续非 baseline 版本需要自己的物理结构契约，不能拿旧基线误判或在空库重放任意 DML。
-- 打包资源只包含 SQL 和 `meta/_journal.json`；生成快照不进入运行资源，不允许用环境变量替换生产迁移来源。
-- 不修改发布过的 001–030，不在客户端管理 pragma、备份、事务通知或用户数据路径。
+- Drizzle `timestamp_ms` reads are `Date`; storage and public DTO/IPC remain integer milliseconds. Write `new Date(ms)` and convert results with `.getTime()`, preserving epoch zero and null.
+- Legacy TEXT PRIMARY KEY permits null. Keep table-level `primaryKey` semantics rather than silently tightening the database; BLOB stays buffer and unknown JSON remains text.
+- Frozen `drizzle/0000_baseline.sql` and legacy 001–030 are not rewritten. An existing 030 database must pass complete history/schema validation before only registering `__drizzle_migrations`; do not re-execute baseline CREATE.
+- Drizzle-only pending changes require the same verified pre-write backup and durable unresolved-state block as legacy changes. No empty pending list, valid-looking latest timestamp or failure-marker deletion may bypass recovery.
+- `__drizzle_migrations.id` follows upstream SERIAL PRIMARY KEY nullability. Identity comes from the complete trusted hash/timestamp prefix, not maximum time or automatic IDs.
+- Unknown/partial/future histories and mismatched physical structures fail closed. Later non-baseline versions require their own physical contracts; do not bless a target using only its current ledger or replay arbitrary DML against an empty database.
+- `readDatabaseState` describes a database, while `validateDatabaseState` validates against an independently established source/target. `inspectUpgradeRecovery(userData)` describes verified instructions; `resolveUpgrade(userData, { attemptId, resolution })` supports `keep-current` or `retry-source` under the main process single-instance lock.
+- Checkpoint persistence belongs to `services/backup/lib/migration-checkpoint.ts`; snapshots and recovery files belong to `electron/backup/sqliteMigrationBackup.ts`. Format1 records retain compatibility; format2 carries both histories through backup, restoration and resolution audits. Only initialization owns automatic restoration before normal business use. Never overwrite later records automatically or call SQLite snapshots complete profile backups.
+- Packaged resources contain only SQL and `meta/_journal.json`; generation snapshots are not runtime resources. No environment-variable replacement of production migration sources.
+- Client wrappers do not manage pragmas, backup, notification transactions or user-data paths. Ongoing integration must validate both released legacy checkpoint compatibility and Drizzle adoption before claiming acceptance.
 
-## 5. 验证入口
+## 5. Verification / 验证
 
 ```powershell
 pnpm db:generate
@@ -42,3 +46,5 @@ pnpm build:win
 pnpm typecheck
 pnpm typecheck:tests
 ```
+
+Safety suites include `databaseInitialization`, `sqliteMigrationBackup`, `migrationCheckpoint`, `migrateLogging`, `resolve-upgrade` and the Drizzle migration/resource/schema suites. `migrationInterruption.test.ts` preserves the four-stage format-1 legacy crash matrix. `drizzleMigrationInterruption.test.ts` adds four format-2 forced exits around baseline/Drizzle-only preparation and commit, checking explicit resolution, later rows and fresh protected retries. Historical fixtures, native ABI tests, unpacked application checks and isolated NSIS acceptance remain distinct evidence.

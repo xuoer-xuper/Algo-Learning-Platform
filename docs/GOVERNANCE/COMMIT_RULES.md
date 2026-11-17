@@ -121,7 +121,7 @@ misc
 - 两次 typecheck 是全量的：类型检查没有增量可信路径，墙钟代价已知并接受。
 - `pre-push` 原为 `pnpm test:core`，2026-10-31 升级为 `pnpm test:ci`——"全绿再推"从口头纪律变成机械保证（当天两次 CI 红都源于本地只跑 `test:core` 的盲区）。jscpd 重复代码门挂在 `test:core` 里，随 pre-push 一起生效。
 - detached HEAD（rebase、CI checkout）下 `git branch --show-current` 返回空串；空串**不**按 `master` 处理——只在字面等于 `master` 时拒绝。
-- `pre-commit` 无条件拒绝 `master`；release-it 的发布提交通过 `.release-it.json` 的 `git.commitArgs: ["--no-verify"]` 绕过钩子（见 §8），不做环境变量嗅探、不设标记文件。
+- `pre-commit` 无条件拒绝 `master`；版本与 CHANGELOG 在准备分支通过普通提交评审，发布时不再创建提交。禁止用 `--no-verify`、`HUSKY=0` 或更换 hooks 路径绕过门禁。
 - lint-staged 从 `algo-electron/` 运行，包目录之外的 staged 文件（`.trellis/**`、`.github/**`、`docs/**`）由其以 warning 跳过——与 prettier 的格式化范围（`algo-electron/` 全树）一致，属预期行为而非错误。
 
 ## 7. 推送纪律
@@ -131,15 +131,14 @@ misc
 - 推送后用 `gh run watch <run-id> --exit-status` 盯到两个 required check 全绿才算收口；红了先本地复现、修复根因，才允许下一次推送。
 - 推送一律用开发者本人的身份，不加 AI co-author trailer。
 
-## 8. 发版流程（release-it）
+## 8. 发版流程
 
 - 版本号单一来源：`algo-electron/package.json`；`docs/PRODUCT/CHANGELOG.md` 由 conventional commits 生成，不手写。
-- 调用形式：**`pnpm exec release-it ...`**（预发布 `pnpm exec release-it --preRelease=rc`）。不要写 `pnpm release -- --dry-run` 这类带 `--` 分隔符的形式——pnpm 12 下分隔符本身会被传给 release-it，报 "Unexpected positional argument"（2026-10-31 实测）。
-- 前提与约束（`.release-it.json`）：
-  - `git.requireBranch: master`——发版必须在 `master` 上执行；
-  - `git.requireCleanWorkingDir: true`——工作树必须干净，**untracked 也算脏**（发版前清掉，包括仓库常驻的 untracked 目录）；
-  - 环境需要 `GITHUB_TOKEN`——缺失时 GitHub Release 步骤回退为在网页上手动发；
-  - `hooks.before:init: ["pnpm test:all", "pnpm build:win"]`——真实发版前自动跑全量验证与打包。
-- 流程产出：提交 `chore(release): 发布 v${version}`（经 `--no-verify` 绕过 pre-commit 的 master 拒绝）、打 annotated tag `v${version}`、推送，并上传 `release/${version}/*.exe`、`*.blockmap`、`latest.yml` 到 GitHub Release；changelog 写入 `../docs/PRODUCT/CHANGELOG.md`（`conventionalcommits` preset，从 `algo-electron/` 运行所以带 `../`）。
-- 版本语义（桌面应用）：**major** = 数据格式 / 无法回滚的迁移；**minor** = 新功能；**patch** = 修复；预发布 `-alpha.N` / `-beta.N` / `-rc.N`。tag 只打在 `master` 上 `--no-ff` 的合并提交上。
+- 准备分支生成并评审版本与 CHANGELOG，经普通提交和 PR 合入 `dev`；发布不 bump、不写 CHANGELOG、不创建 master 提交。
+- 准备、构建、检查、草稿、下载核对、公开由 `release:prepare`、`release:build`、`release:check`、`release:draft`、`release:verify`、`release:publish` 分阶段执行。`pnpm release` 拒绝一键发布并提示流程。
+- 所有构建显式 `--publish never`。已验收 `dev` 通过 `--no-ff` PR 合入 `master`，在该合并提交上构建和打 annotated tag。
+- 发布前核对包含 untracked 的干净状态、远程分支与合并父提交、版本、CHANGELOG、CI、安装验收和确切 exe/blockmap/latest.yml 的大小及哈希。远程查询失败不能当作目标不存在；通配符和 dry-run 不能替代资产验收。
+- tag/草稿和公开分别授权。草稿上传后下载核对资产，确认后才公开；部分失败保留证据并检查远程状态，不盲目重试或删除远程 tag。所有正常 Git hooks 保持启用。
+- 版本语义按已声明的用户/集成兼容契约判断：**major** 是不兼容变化，**minor** 是兼容新功能，**patch** 是兼容修复；预发布用 `-alpha.N` / `-beta.N` / `-rc.N`。内部迁移或不支持任意无损降级本身不决定 major，但不能把新功能或实际契约破坏伪装为 patch。
+- 可验收的增量允许从 `dev` 合到 `master` 发布；整个对齐计划完成后不预设 `3.0.0`。当前 2.0.1 是候选，公开发行仍暂停，完整安全/安装/人工验收和用户重新确认缺一不可。
 - 完整操作手册：[RELEASE_PROCESS.md](../OPERATIONS/RELEASE_PROCESS.md)。

@@ -21,6 +21,6 @@
   "children": [],
   "parent": "09-17-spec-alignment",
   "relatedFiles": [],
-  "notes": "",
+  "notes": "A0/A1/A2a-A2c已完成。2026-11-17发行加固同步在codex/drizzle-release-sync（C工作树）完成独立复核、206文件1967测试/UI11/双原生强杀矩阵/build:win；正常提交推送及同步PR CI待办。PR8已恢复base dev，仍draft；A2d仅研究，原D未提交内容不动，不归档阶段3。",
   "meta": {}
 }

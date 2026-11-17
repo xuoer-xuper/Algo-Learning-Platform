@@ -12,3 +12,7 @@
 {"file": ".trellis/spec/project/unix-millisecond-time.md", "reason": "82 integer instants and Date/number conversion safety"}
 {"file": ".trellis/spec/project/data-refresh.md", "reason": "Synchronous transaction and notification compatibility"}
 {"file": ".trellis/spec/project/regression-checks.md", "reason": "No scanner blind spots when new main path is introduced"}
+{"file": ".trellis/spec/project/upgrade-recovery.md", "reason": "Preserve released verified checkpoints, legacy resolution and fail-closed recovery while adopting Drizzle"}
+{"file": ".trellis/spec/project/config-normalization-protection.md", "reason": "Preserve released raw configuration protection"}
+{"file": ".trellis/spec/project/release-evidence.md", "reason": "Keep published release/tag/evidence immutable; builds must not publish"}
+{"file": ".trellis/tasks/09-17-phase-3-main-process/research/release-hardening-sync-design.md", "reason": "Reviewed format1 compatibility and composite Drizzle checkpoint/recovery synchronization contract"}
