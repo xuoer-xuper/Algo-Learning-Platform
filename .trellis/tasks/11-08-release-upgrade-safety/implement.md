@@ -123,14 +123,20 @@
   修复发行 CLI 对真实 npm_execpath 的调用，不伪造环境、不绕过钩子；随后再经 dev/master PR 重验。
   应用产品、依赖和打包配置不变。无 tag/Release。
 
+## 最终发行结果（2026-11-17）
+
+PR #12修复pnpm入口，PR #13合入master `de89ce4`，最终全门/构建及hosted26步均通过。
+正常check/draft/verify/publish已完成，v2.0.1于11:43:55正式公开并验证为verified-public。
+验收SHA、资产hash、CI及人工边界见`research/publication-2.0.1.md`。以下Drizzle同步继续保留待办。
+
 ## Commit / Handoff
 
 - [x] 本轮工程提交前读Git规范、正常钩子；原子中文conventional commit，提交后及时推送。
 - [x] 本轮pre-push `pnpm test:ci`通过；CI用`gh run watch --exit-status`跟到结果，不靠重复重跑碰绿。
-- [ ] 检查无发布阻塞、征得恢复发行确认后，才进入dev→master PR/tag/Release操作。
+- [x] 检查无发布阻塞、征得恢复发行确认后，才进入dev→master PR/tag/Release操作。
 - [ ] 将加固修复按祖先/冲突边界同步到原Drizzle分支，避免覆盖其安全迁移接管代码。
 - [ ] 完成独立加固任务后记录会话；不归档阶段3或整个对齐计划，不预设3.0.0。
-      本轮工程与安装验收会话已记录为Session16；人工反馈已接受，最终集成/发行门继续，未归档。
+      前轮工程与安装验收为Session16；本轮发行会话另记，Drizzle同步未完成，因此不归档任务。
 
 ## Stop Conditions
 

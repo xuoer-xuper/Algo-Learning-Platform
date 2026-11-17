@@ -473,3 +473,40 @@
 ### Next Steps
 
 - 完成七站/同步/核心页面验收、评审PR9集成及最终master资产验收；恢复发行须另行确认，保留PR8和阶段3工作。
+
+
+## Session 17: 2.0.1正式发行与最终证据闭环
+<!-- trellis-session: v=2 fp=00a3aad6c1b0d56f -->
+
+**Date**: 2026-11-17
+**Task**: 2.0.1正式发行与最终证据闭环
+**Branch**: `codex/release-201-records`
+
+### Summary
+
+维护者接受本机候选后完成PR集成、真实发行工具修复和最终master全门/26步安装验收；v2.0.1正式公开且远程资产后验通过。Drizzle同步仍待办，不归档任务。
+
+### Main Changes
+
+- v2.0.1正式公开，annotated tag指向de89ce4；正常钩子、分支保护和发行守卫全部保留。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `aed30aa` | docs(release): 整理2.0.1发行说明与维护者验收 |
+| `94bb9b7` | fix(release): 接受同提交全部通过的多套CI检查 |
+| `a172a92` | fix(release): 兼容pnpm12原生发行命令入口 |
+| `de89ce4` | chore(release): 合并最终2.0.1发行工具修复 |
+
+### Testing
+
+- [OK] 最终197文件1766用例、UI11、native强杀四阶段、Windows构建与hosted26步通过；公开后三件资产下载SHA一致。
+
+### Status
+
+[OK] **正式发行完成；Drizzle同步交接待办，任务保持in_progress。**
+
+### Next Steps
+
+- 将发行加固按边界同步Drizzle/PR8；为下个版本重新评审baseline和版本号，不改已发tag。
