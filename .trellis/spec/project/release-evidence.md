@@ -23,8 +23,13 @@ pnpm release:publish --acceptance <acceptance.json> --confirm publish-v2.0.1@<ma
 
 `scripts/release-cli.mjs` dispatches to `release-workflow.mjs`; pure identity, asset and
 evidence checks live in `release-guards.mjs`. External commands use the injected
-`run(command, args, options?)` boundary in tests. The default `.release-it.json` and
-`pnpm release` are deliberately not one-command publication entrypoints.
+`run(command, args, options?)` boundary in tests. Resolve pnpm from the actual
+`npm_execpath` supplied by pnpm: regular `pnpm.js`/`pnpm.cjs`/`pnpm.mjs` entries run
+through the current Node executable, while Windows pnpm 12 native `pnpm.exe` runs
+directly without a shell. Reject absent, non-file or unsupported entry names; do not
+forge the environment or invoke an executable through Node. Cover both runtime forms,
+not only injected workflow runners. The default `.release-it.json` and `pnpm release`
+are deliberately not one-command publication entrypoints.
 
 ## 3. Contracts
 

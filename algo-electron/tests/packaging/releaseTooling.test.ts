@@ -3,13 +3,13 @@ import path from 'node:path'
 import { createHash } from 'node:crypto'
 import { createPackage } from '@electron/asar'
 import { stringify } from 'yaml'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 // @ts-expect-error Shared Node CLI guard module is intentionally runtime JavaScript.
 import * as guards from '../../scripts/release-guards.mjs'
 // @ts-expect-error Shared Node CLI workflow is intentionally runtime JavaScript.
 import * as workflow from '../../scripts/release-workflow.mjs'
-// @ts-expect-error Exercise the CLI parser with an injected runner, never real external commands.
-import { main } from '../../scripts/release-cli.mjs'
+// @ts-expect-error Shared CLI module is runtime JavaScript; only harmless runtime probes spawn.
+import { commandRunner, main } from '../../scripts/release-cli.mjs'
 
 const testRoot = path.resolve('tmp', 'release-tooling-tests')
 const createdRoots: string[] = []
@@ -475,6 +475,71 @@ describe.each([
     expect(f.state.localTag).toBe(false)
     expect(f.state.remoteTag).toBe(false)
     expect(f.state.released).toBe(false)
+  })
+})
+
+describe('release command runner', () => {
+  afterEach(() => vi.unstubAllEnvs())
+
+  it.each(['pnpm.js', 'pnpm.cjs', 'pnpm.mjs'])(
+    'executes the %s runtime with Node and preserves arguments and options',
+    async (name) => {
+      const f = await fixture()
+      const runtime = path.join(f.root, 'runtime with spaces', name)
+      fs.mkdirSync(path.dirname(runtime), { recursive: true })
+      fs.writeFileSync(
+        runtime,
+        'console.log(JSON.stringify({ executable: process.execPath, args: process.argv.slice(2), value: process.env.RELEASE_RUNNER_TEST_VALUE, cwd: process.cwd() }))',
+      )
+      vi.stubEnv('npm_execpath', runtime)
+      const logFile = path.join(f.evidenceDirectory, 'runtime.log')
+      const args = ['--version', 'value with spaces', '']
+      const stdout = commandRunner('pnpm', args, {
+        env: { RELEASE_RUNNER_TEST_VALUE: 'synthetic-value' },
+        logFile,
+      })
+      expect(JSON.parse(stdout)).toEqual({
+        executable: process.execPath,
+        args,
+        value: 'synthetic-value',
+        cwd: process.cwd(),
+      })
+      expect(fs.readFileSync(logFile, 'utf8')).toContain(stdout)
+    },
+  )
+
+  it.skipIf(
+    process.platform !== 'win32' || path.basename(process.env.npm_execpath ?? '') !== 'pnpm.exe',
+  )('executes the inherited native Windows pnpm runtime without Node', () => {
+    const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'))
+    expect(commandRunner('pnpm', ['--version']).trim()).toBe(pkg.packageManager.split('@')[1])
+  })
+
+  it.each([
+    'unset',
+    'missing',
+    'directory',
+    'relative',
+    'npm.cjs',
+    'other-pnpm.cjs',
+    'pnpm.cmd',
+    'pnpm.bat',
+    'other.exe',
+  ])('rejects the %s runtime before launch', async (kind) => {
+    const f = await fixture()
+    const rejected = path.join(f.root, 'pnpm.cjs')
+    let runtime: string | undefined = rejected
+    if (kind === 'unset') runtime = undefined
+    else if (kind === 'directory') fs.mkdirSync(rejected)
+    else if (kind === 'relative') runtime = 'pnpm.cjs'
+    else if (kind !== 'missing') {
+      runtime = path.join(f.root, kind)
+      fs.writeFileSync(runtime, 'throw new Error("Rejected runtime must not execute")')
+    }
+    vi.stubEnv('npm_execpath', runtime)
+    expect(() => commandRunner('pnpm', ['--version'])).toThrow(
+      'Run release commands via pnpm run (pnpm CLI identity required)',
+    )
   })
 })
 
