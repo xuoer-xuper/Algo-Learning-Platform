@@ -410,10 +410,13 @@ export async function checkAcceptedCi(run, acceptance) {
         (check) => check.name === name && check.app?.slug === 'github-actions',
       )
       requireCondition(
-        matches.length === 1 &&
-          matches[0].head_sha === commit &&
-          matches[0].status === 'completed' &&
-          matches[0].conclusion === 'success',
+        matches.length > 0 &&
+          matches.every(
+            (check) =>
+              check.head_sha === commit &&
+              check.status === 'completed' &&
+              check.conclusion === 'success',
+          ),
         `Required CI is not successful: ${name}`,
       )
     }

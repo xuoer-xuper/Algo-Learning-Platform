@@ -55,6 +55,10 @@ evidence checks live in `release-guards.mjs`. External commands use the injected
   These are maintainer attestations, not automatic proof that human testing happened.
 - Verify the merged dev-to-master PR and actual GitHub Actions required checks on the
   accepted dev SHA, plus the fast check on master. API/auth/pagination errors fail closed.
+  GitHub `check-runs?filter=latest` can return the same required name from both push and PR
+  check suites. Require at least one GitHub Actions match and require every returned match
+  to identify the accepted SHA with completed/success; never select one green duplicate
+  while ignoring a pending, failed or wrong-SHA match.
 - Release-it creates only a local annotated tag. Its Git init still fetches; do not
   describe it as offline. The wrapper pushes only the exact tag with normal hooks, then
   rechecks evidence and creates a draft with exactly three assets. Avoid release-it's
@@ -92,7 +96,7 @@ evidence checks live in `release-guards.mjs`. External commands use the injected
 | Missing/extra/empty asset or YAML/PE/ASAR/hash mismatch | No draft/publication |
 | Build/test failure or preexisting output/evidence | Preserve evidence; no passed build report or blind overwrite |
 | Incomplete acceptance, stale report SHA or escaped path | Refuse; dry-run is not a passed gate |
-| Required CI missing, pending, failed or ambiguous | Refuse |
+| Required CI missing, pending, failed or wrong-SHA (including duplicate suite matches) | Refuse |
 | GitHub/network/auth/ref parsing failure | Refuse; never reinterpret as absent or successful |
 | Target local/remote tag or Release already exists | Stop for state inspection |
 | Tag push/upload/PATCH result uncertain | Preserve attempts and external state; no automatic deletion/retry |

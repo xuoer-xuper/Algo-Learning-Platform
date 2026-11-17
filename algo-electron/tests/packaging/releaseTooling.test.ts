@@ -414,6 +414,70 @@ describe('release tooling fail-closed preflight', () => {
   )
 })
 
+describe.each([
+  ['dev', source],
+  ['master', master],
+])('accepted %s CI check sets', (_branch, commit) => {
+  it.each([
+    'success',
+    'failure-first',
+    'failure-last',
+    'pending',
+    'wrong-sha',
+    'missing-sha',
+    'missing',
+    'non-github',
+  ])('requires every matching check to succeed (%s)', async (kind) => {
+    const f = await fixture()
+    const run = async (command: string, args: string[], options?: RunOptions): Promise<string> => {
+      if (
+        command === 'gh' &&
+        args.at(-1) === `repos/${repo}/commits/${commit}/check-runs?per_page=100&filter=latest`
+      ) {
+        const checks = guards.REQUIRED_CHECKS.flatMap((name: string, index: number) => {
+          const first = {
+            id: index * 2 + 1,
+            check_suite: { id: 1 },
+            name,
+            head_sha: index === 0 && kind === 'missing-sha' ? undefined : commit,
+            app: { slug: 'github-actions' },
+            status: 'completed',
+            conclusion: 'success',
+          }
+          const second = { ...first, id: index * 2 + 2, check_suite: { id: 2 }, head_sha: commit }
+          if (index === 0) {
+            if (kind === 'missing') return []
+            if (kind === 'non-github') {
+              first.app = { slug: 'other-app' }
+              second.app = { slug: 'other-app' }
+            }
+            if (kind === 'failure-first') first.conclusion = 'failure'
+            if (kind === 'failure-last') second.conclusion = 'failure'
+            if (kind === 'pending') first.status = 'in_progress'
+            if (kind === 'wrong-sha') first.head_sha = target
+          }
+          return [first, second]
+        })
+        return JSON.stringify([{ check_runs: checks }])
+      }
+      return f.run(command, args, options)
+    }
+    if (kind === 'success') {
+      await expect(workflow.preflight({ ...f, run })).resolves.toHaveProperty(
+        'acceptance.masterSha',
+        master,
+      )
+    } else {
+      await expect(workflow.draftRelease({ ...f, run }, `draft-${tag}@${master}`)).rejects.toThrow(
+        'Required CI is not successful',
+      )
+    }
+    expect(f.state.localTag).toBe(false)
+    expect(f.state.remoteTag).toBe(false)
+    expect(f.state.released).toBe(false)
+  })
+})
+
 describe('release preparation and inert defaults', () => {
   it.each(['success', 'guard-failure', 'tag-failure'])(
     'installed release-it publication lifecycle preserves source on %s without rollback',
