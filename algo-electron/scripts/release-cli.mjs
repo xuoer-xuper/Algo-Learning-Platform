@@ -23,12 +23,17 @@ export function commandRunner(command, args, options = {}) {
   if (command === 'node') executable = process.execPath
   if (command === 'pnpm') {
     const cli = process.env.npm_execpath
+    const name = cli ? path.basename(cli) : ''
+    const native = process.platform === 'win32' && name === 'pnpm.exe'
     requireCondition(
-      cli && /pnpm\.(?:c?js)$/.test(cli) && fs.existsSync(cli),
+      cli &&
+        path.isAbsolute(cli) &&
+        (native || /^pnpm\.(?:[cm]?js)$/.test(name)) &&
+        fs.statSync(cli, { throwIfNoEntry: false })?.isFile(),
       'Run release commands via pnpm run (pnpm CLI identity required)',
     )
-    executable = process.execPath
-    argumentsList = [cli, ...args]
+    executable = native ? cli : process.execPath
+    argumentsList = native ? args : [cli, ...args]
   }
   const result = spawnSync(executable, argumentsList, {
     cwd: root,

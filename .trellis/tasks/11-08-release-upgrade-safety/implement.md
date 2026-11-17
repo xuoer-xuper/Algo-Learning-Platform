@@ -117,7 +117,11 @@
 - 实际 GitHub `filter=latest` 为 push/PR 两套 suite 返回同名检查，原守卫要求唯一项误拒绝全部绿色。
   在 master 合并前修复为每个名称至少一项，且全部匹配项都属于接受的 SHA、completed/success；
   不忽略失败/待完成项，不取消检查以绕过。仅发行脚本/测试变化，不改变产品或构建配置。
-- 最终 master 合并、构建、实际隔离安装及远程资产门仍待完成；没有创建 tag/Release。
+- PR #11 工具修复通过后合入 dev `94bb9b7`；更新后的 push/PR CI 均绿，PR #10 已于2026-11-17
+  merge commit 合入 master `c520544`。master push CI 44000458001 通过，安装 CI 44001048002另行记录。
+- 最终 `release:build` 在测试开始前拒绝 pnpm12 的原生 `pnpm.exe` 入口；未产生 test/build 日志或资产。
+  修复发行 CLI 对真实 npm_execpath 的调用，不伪造环境、不绕过钩子；随后再经 dev/master PR 重验。
+  应用产品、依赖和打包配置不变。无 tag/Release。
 
 ## Commit / Handoff
 

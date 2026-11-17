@@ -21,6 +21,6 @@
   "children": [],
   "parent": "09-17-spec-alignment",
   "relatedFiles": [],
-  "notes": "维护者已接受本机候选并授权发行。PR9已merge commit合入dev e1171b2，PR10待合master；dev/PR10 CI绿。真实GitHub push/PR同名检查暴露发行守卫误拒绝，正在独立修复复核，仅工具/测试不变产品。最终master/build/安装/资产门仍待完成，无tag/Release。Drizzle/PR8不动，in_progress。",
+  "notes": "维护者接受本机候选并授权发行。PR9/PR11合入dev，PR10已merge commit入master c520544；全部必需CI绿。release:build测试前发现pnpm12原生exe入口不被CLI识别，无build/assets/tag/Release，正在最小修复并正常PR重验。产品/依赖/构建配置不变，最终master门不可省略。Drizzle/PR8不动，in_progress。",
   "meta": {}
 }
