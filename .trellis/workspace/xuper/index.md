@@ -8,8 +8,8 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 13
-- **Last Active**: 2026-11-06
+- **Total Sessions**: 16
+- **Last Active**: 2026-11-10
 <!-- @@@/auto:current-status -->
 
 ---
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~422 | Active |
+| `journal-1.md` | ~475 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 16 | 2026-11-10 | 发布加固工程完成并通过真实隔离安装验收 | `c340c16`, `f23c6aa`, `efdf573`, `982cf7d`, `8e9dbe2`, `e952f01`, `58f1e5c`, `5e98409`, `9b30e9b`, `54265bc`, `717eda6` | `fix/release-upgrade-safety` |
 | 13 | 2026-11-06 | 阶段 2 合并归档：PR6/7 入 dev，开启阶段 3 | `d9f5583`, `b74773b` | `dev` |
 | 12 | 2026-11-06 | 阶段 2 R5 完成并推送：030 毫秒迁移、真实副本验收与 CI 全绿 | `6891812`, `4f7eaa5`, `e789841`, `682231d` | `feat/db-unix-ms-timestamps` |
 | 11 | 2026-11-04 | 阶段 2 R1-R4 收口推送，R5 保留迁移安全门 | `c0c6cc3`, `a12c09b` | `refactor/phase-2-ipc-contract` |

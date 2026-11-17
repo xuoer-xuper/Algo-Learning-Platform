@@ -11,6 +11,7 @@ import {
   countRawIpcSchemas,
   countUnschemadIpc,
   findDuplicateExportedTypes,
+  isDatabaseLayerPath,
   themeDirectiveHasTailwindImport,
 } from './guards.mjs'
 
@@ -361,17 +362,17 @@ check('z.unknown() payload escapes stay capped', () => {
   })
 })
 
-check('bare SQL stays inside electron/db/', () => {
-  const files = walkSourceFiles(path.join(projectRoot, 'electron')).filter(
-    (file) => !relative(file).startsWith('electron/db/'),
-  )
+check('bare SQL stays inside the legacy or template database layer', () => {
+  const files = sourceRoots
+    .flatMap((root) => walkSourceFiles(root))
+    .filter((file) => !isDatabaseLayerPath(relative(file)))
 
   checkRatchet({
     files,
     budgets: BARE_SQL_BUDGET,
     countMatches: countBareSql,
-    describe: (count) => `在 electron/db/ 之外构造了 ${count} 处 SQL 语句`,
-    cleanupHint: '查询应放进 electron/db/repositories/ 下的 repository，由业务层调用',
+    describe: (count) => `在数据库层之外构造了 ${count} 处 SQL 语句`,
+    cleanupHint: '查询应放进 src/main/db/（或既有 electron/db/），由业务层调用',
   })
 })
 

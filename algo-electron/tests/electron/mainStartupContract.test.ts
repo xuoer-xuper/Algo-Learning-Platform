@@ -40,6 +40,7 @@ function errorListeners(event: 'uncaughtException' | 'unhandledRejection'): Proc
 // 漏还原会让同文件后面的用例读到上一条用例注入的值。
 const SMOKE_ENV_KEYS = [
   'ALGO_ELECTRON_SMOKE',
+  'ALGO_ELECTRON_SMOKE_USER_DATA',
   'ALGO_ELECTRON_SMOKE_RENDERER_DIST',
   'ALGO_ELECTRON_SMOKE_OJ_PRELOAD_PATH',
   'ALGO_ELECTRON_SMOKE_USERSCRIPT_PRELOAD_PATH',
@@ -49,6 +50,7 @@ let tempDir = ''
 let baselineUncaught: ProcessErrorListener[] = []
 let baselineRejection: ProcessErrorListener[] = []
 let savedEnv = new Map<string, string | undefined>()
+let savedArgv: string[] = []
 
 function setEnv(patch: Record<string, string | undefined>): void {
   for (const [key, value] of Object.entries(patch)) {
@@ -109,6 +111,7 @@ beforeEach(() => {
   baselineUncaught = errorListeners('uncaughtException')
   baselineRejection = errorListeners('unhandledRejection')
   savedEnv = new Map(SMOKE_ENV_KEYS.map((key) => [key, process.env[key]]))
+  savedArgv = [...process.argv]
   setEnv(Object.fromEntries(SMOKE_ENV_KEYS.map((key) => [key, undefined])))
 })
 
@@ -118,6 +121,7 @@ beforeEach(() => {
  * 留着的话，前一条用例的 handler 会截走后一条用例故意制造的 rejection。
  */
 afterEach(() => {
+  vi.doUnmock('../../src/main/db/resolve-upgrade')
   for (const listener of errorListeners('uncaughtException')) {
     if (!baselineUncaught.includes(listener)) process.off('uncaughtException', listener)
   }
@@ -125,8 +129,122 @@ afterEach(() => {
     if (!baselineRejection.includes(listener)) process.off('unhandledRejection', listener)
   }
   for (const [key, value] of savedEnv) setEnv({ [key]: value })
+  process.argv = savedArgv
   fs.rmSync(tempDir, { recursive: true, force: true })
 })
+
+test('maintenance refuses a second instance explicitly without config, services, IPC or lifecycle startup', async () => {
+  process.argv = [
+    'AlgoLearningPlatform.exe',
+    '--resolve-upgrade=12345678-1234-4123-8123-123456789abc',
+    '--resolution=keep-current',
+  ]
+  const original = Buffer.from('{ "appearance": "legacy-original" }')
+  fs.writeFileSync(path.join(tempDir, 'config.json'), original)
+  const started = await startMain({ granted: false, whenReady: () => Promise.resolve() })
+  assert.deepStrictEqual(started.mock.app.exitCodes, [2])
+  assert.strictEqual(started.mock.app.quitCallCount, 0)
+  assert.strictEqual(started.whenReadyCalls(), 0)
+  assert.deepStrictEqual(started.ipcChannels, [])
+  assert.strictEqual(started.mock.protocolSchemes.length, 0)
+  assert.strictEqual(started.mock.app.listenerCount('before-quit'), 0)
+  assert.strictEqual(started.mock.app.listenerCount('second-instance'), 0)
+  assert.deepStrictEqual(fs.readFileSync(path.join(tempDir, 'config.json')), original)
+  assert.strictEqual(fs.existsSync(path.join(tempDir, 'data')), false)
+})
+
+test('invalid maintenance flags exit without normal startup even after app readiness', async () => {
+  process.argv = [
+    'AlgoLearningPlatform.exe',
+    '--resolve-upgrade=not-a-uuid',
+    '--resolution=keep-current',
+  ]
+  const original = Buffer.from('{ "appearance": "legacy-original" }')
+  fs.writeFileSync(path.join(tempDir, 'config.json'), original)
+  const started = await startMain({ granted: true, whenReady: () => Promise.resolve() })
+  await vi.waitFor(() => assert.deepStrictEqual(started.mock.app.exitCodes, [1]))
+  assert.deepStrictEqual(started.ipcChannels, [])
+  assert.strictEqual(started.mock.protocolSchemes.length, 0)
+  assert.strictEqual(started.mock.app.listenerCount('before-quit'), 0)
+  assert.strictEqual(started.mock.app.listenerCount('activate'), 0)
+  assert.deepStrictEqual(fs.readFileSync(path.join(tempDir, 'config.json')), original)
+  assert.strictEqual(fs.existsSync(path.join(tempDir, 'data')), false)
+  assert.strictEqual(fs.existsSync(path.join(tempDir, 'userscripts')), false)
+})
+
+test('valid maintenance without a matching attempt fails closed before config/services/IPC', async () => {
+  process.argv = [
+    'AlgoLearningPlatform.exe',
+    '--resolve-upgrade=12345678-1234-4123-8123-123456789abc',
+    '--resolution=retry-source',
+  ]
+  const original = Buffer.from('{ "appearance": "legacy-original" }')
+  fs.writeFileSync(path.join(tempDir, 'config.json'), original)
+  const started = await startMain({ granted: true, whenReady: () => Promise.resolve() })
+  await vi.waitFor(() => assert.deepStrictEqual(started.mock.app.exitCodes, [1]))
+  assert.deepStrictEqual(started.ipcChannels, [])
+  assert.strictEqual(started.mock.protocolSchemes.length, 0)
+  assert.strictEqual(started.mock.app.listenerCount('before-quit'), 0)
+  assert.deepStrictEqual(fs.readFileSync(path.join(tempDir, 'config.json')), original)
+  assert.strictEqual(fs.existsSync(path.join(tempDir, 'data')), false)
+})
+
+test('successful maintenance resolves only the locked current profile and exits before ordinary startup', async () => {
+  const request = {
+    attemptId: '12345678-1234-4123-8123-123456789abc',
+    resolution: 'keep-current',
+  }
+  process.argv = [
+    'AlgoLearningPlatform.exe',
+    `--resolve-upgrade=${request.attemptId}`,
+    `--resolution=${request.resolution}`,
+  ]
+  const resolve = vi.fn(async (..._args: unknown[]) => 'Resolution verified')
+  vi.doMock('../../src/main/db/resolve-upgrade', () => ({
+    resolveUpgrade: resolve,
+    inspectUpgradeRecovery: vi.fn(),
+  }))
+  const original = Buffer.from('{ "appearance": "legacy-original" }')
+  fs.writeFileSync(path.join(tempDir, 'config.json'), original)
+  const started = await startMain({ granted: true, whenReady: () => Promise.resolve() })
+  await vi.waitFor(() => assert.deepStrictEqual(started.mock.app.exitCodes, [0]))
+  assert.strictEqual(started.mock.app.requestSingleInstanceLockCallCount, 1)
+  assert.deepStrictEqual(resolve.mock.calls, [[tempDir, request]])
+  assert.deepStrictEqual(started.ipcChannels, [])
+  assert.strictEqual(started.mock.protocolSchemes.length, 0)
+  assert.strictEqual(started.mock.app.listenerCount('before-quit'), 0)
+  assert.strictEqual(started.mock.app.listenerCount('activate'), 0)
+  assert.deepStrictEqual(fs.readFileSync(path.join(tempDir, 'config.json')), original)
+  assert.strictEqual(fs.existsSync(path.join(tempDir, 'data')), false)
+})
+
+for (const smoke of ['mode', 'profile']) {
+  test(`maintenance rejects smoke ${smoke} redirection before calling the resolver`, async () => {
+    process.argv = [
+      'AlgoLearningPlatform.exe',
+      '--resolve-upgrade=12345678-1234-4123-8123-123456789abc',
+      '--resolution=keep-current',
+    ]
+    const resolve = vi.fn()
+    vi.doMock('../../src/main/db/resolve-upgrade', () => ({
+      resolveUpgrade: resolve,
+      inspectUpgradeRecovery: vi.fn(),
+    }))
+    const redirected = path.join(tempDir, 'redirected')
+    setEnv(
+      smoke === 'mode'
+        ? { ALGO_ELECTRON_SMOKE: '1' }
+        : { ALGO_ELECTRON_SMOKE_USER_DATA: redirected },
+    )
+    const started = await startMain({ granted: true, whenReady: () => Promise.resolve() })
+    await vi.waitFor(() => assert.deepStrictEqual(started.mock.app.exitCodes, [1]))
+    assert.strictEqual(resolve.mock.calls.length, 0)
+    assert.ok(started.mock.app.setPathCalls.every(([, value]) => value !== redirected))
+    assert.deepStrictEqual(started.ipcChannels, [])
+    assert.strictEqual(fs.existsSync(redirected), false)
+    assert.strictEqual(fs.existsSync(path.join(tempDir, 'data')), false)
+  })
+}
 
 test('抢锁失败的进程直接退出，不碰日志、协议、IPC 与生命周期', async () => {
   const started = await startMain({ granted: false })

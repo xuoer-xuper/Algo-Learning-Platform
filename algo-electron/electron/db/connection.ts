@@ -1,13 +1,15 @@
 import Database from 'better-sqlite3'
 import path from 'node:path'
 import fs from 'node:fs'
+import { randomUUID } from 'node:crypto'
 import { createRequire } from 'node:module'
 import { logger as baseLogger, type Logger } from '../shared/logger'
 import { closeOrphanProblemVisits } from '../tracking/orphanProblemVisits'
 import {
   assertMigrationRetryAllowed,
-  clearMigrationFailureMarker,
+  archiveResolvedMigrationFailureMarker,
   createPreMigrationBackup,
+  retainNewestMigrationBackups,
   restoreDatabaseFromBackup,
   writeMigrationFailureMarker,
 } from '../backup/sqliteMigrationBackup'
@@ -42,7 +44,20 @@ import { migration027 } from './migrations/027_userscript_runtime'
 import { migration028 } from './migrations/028_site_login_autofill'
 import { migration029 } from './migrations/029_site_credential_labels'
 import { migration030 } from './migrations/030_timestamps_to_unix_ms'
-import { errorMessage } from '../shared/errors'
+import {
+  assertDatabaseIntegrity,
+  assertLegacyLedgerEquals,
+  readDatabaseState,
+  validateLegacyLedger,
+} from '../../src/main/db/legacy-ledger-validation'
+import { reportMigrationDiagnostic } from '../../src/main/db/migration-diagnostics'
+import {
+  canonicalPath,
+  readMigrationCheckpoint,
+  sha256File,
+  writeMigrationCheckpoint,
+  type MigrationCheckpoint,
+} from '../../src/main/services/backup/lib/migration-checkpoint'
 
 let db: Database.Database | null = null
 let dbFilePath: string | null = null
@@ -82,6 +97,10 @@ const allMigrations = [
   migration030,
 ]
 
+export function getKnownMigrations(): readonly Migration[] {
+  return allMigrations
+}
+
 export function getDb(): Database.Database {
   if (!db) {
     throw new Error('Database not initialized. Call initDb() first.')
@@ -112,14 +131,20 @@ export function initDbAtPath(dbPath: string): Database.Database {
   if (db) return db
   if (dbInitialization) throw new Error('Database initialization is already in progress.')
 
-  const database = openDatabase(dbPath)
+  const previous = readMigrationCheckpoint(dbPath)
+  assertMigrationRetryAllowed(
+    previous?.backupDirectory ?? path.join(path.dirname(path.dirname(dbPath)), 'backups'),
+    dbPath,
+  )
+  const database = openDatabase(dbPath, baseLogger)
   try {
+    validateLegacyLedger(database, allMigrations)
     runMigrations(database, allMigrations)
     closeStartupOrphans(database)
     assignDatabase(database, dbPath)
     return database
   } catch (error) {
-    database.close()
+    closeAfterFailure(database, error, baseLogger)
     throw error
   }
 }
@@ -138,58 +163,72 @@ export async function initDbAtPathWithMigrationSafety(
   if (db) return db
   const logger = options.logger ?? baseLogger
   const migrations = options.migrations ?? allMigrations
-  const database = openDatabase(dbPath)
-  let backupPath: string | null = null
-  const pendingMigrations = getPendingMigrations(database, migrations)
-
+  assertMigrationRetryAllowed(options.backupDir, dbPath)
+  const database = openDatabase(dbPath, logger)
+  let checkpoint: MigrationCheckpoint | null = null
   try {
-    assertMigrationRetryAllowed(options.backupDir, dbPath, pendingMigrations)
+    if (options.migrations === undefined) validateLegacyLedger(database, allMigrations)
+    const source = readDatabaseState(database)
+    const pendingMigrations = getPendingMigrations(database, migrations)
     if (pendingMigrations.length > 0) {
-      backupPath = await createPreMigrationBackup(
+      const backupPath = await createPreMigrationBackup(
         database,
         dbPath,
         options.backupDir,
         options.now?.() ?? new Date(),
+        source,
       )
+      const prepared: MigrationCheckpoint = {
+        formatVersion: 1,
+        attemptId: randomUUID(),
+        databasePath: canonicalPath(dbPath),
+        backupDirectory: canonicalPath(options.backupDir),
+        backupBasename: path.basename(backupPath),
+        backupSha256: sha256File(backupPath),
+        source,
+        targetLedger: [
+          ...source.ledger,
+          ...pendingMigrations.map(({ version, name }) => ({ version, name })),
+        ].sort((left, right) => left.version - right.version),
+        state: 'prepared',
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      }
+      archiveResolvedMigrationFailureMarker(options.backupDir, dbPath)
+      writeMigrationCheckpoint(dbPath, options.backupDir, prepared)
+      checkpoint = prepared
       logger.info('db.pre-migration-backup-completed', {
         backupPath,
         pendingVersions: pendingMigrations.map((migration) => migration.version),
       })
+      runMigrations(database, migrations, logger)
+      assertLegacyLedgerEquals(readDatabaseState(database).ledger, prepared.targetLedger)
     }
-
-    runMigrations(database, migrations, logger)
     closeStartupOrphans(database, logger)
-    clearMigrationFailureMarker(options.backupDir, dbPath)
-    assignDatabase(database, dbPath)
-    return database
-  } catch (error) {
-    database.close()
-    if (!backupPath) throw error
-
-    let restoreError: unknown
-    try {
-      restoreDatabaseFromBackup(backupPath, dbPath)
-      logger.warn('db.migration-backup-restored', { backupPath, dbPath })
-    } catch (caughtRestoreError) {
-      restoreError = caughtRestoreError
-      logger.fatal('db.migration-backup-restore-failed', {
-        backupPath,
-        dbPath,
-        error: caughtRestoreError,
+    if (checkpoint) {
+      assertDatabaseIntegrity(database)
+      writeMigrationCheckpoint(dbPath, options.backupDir, {
+        ...checkpoint,
+        state: 'completed',
+        updatedAt: Date.now(),
       })
     }
-
-    const markerPath = writeMigrationFailureMarker(options.backupDir, dbPath, {
-      databasePath: dbPath,
-      backupPath,
-      failedAt: new Date().toISOString(),
-      pendingMigrations: pendingMigrations.map(({ version, name }) => ({ version, name })),
-      error: errorMessage(error),
-      ...(restoreError ? { restoreError: errorMessage(restoreError) } : {}),
-    })
-    logger.fatal('db.migration-startup-blocked', { markerPath, error, restoreError })
+  } catch (error) {
+    const isClosed = closeAfterFailure(database, error, logger)
+    if (checkpoint)
+      recoverFailedInitialization(dbPath, options.backupDir, checkpoint, isClosed, error, logger)
     throw error
   }
+  // The recovery boundary is over. Cleanup/logging failures must not roll back a usable DB.
+  if (checkpoint) {
+    try {
+      retainNewestMigrationBackups(options.backupDir, dbPath)
+    } catch (error) {
+      reportMigrationDiagnostic(error, 'db.migration-backup-prune-failed', error, logger)
+    }
+  }
+  assignDatabase(database, dbPath)
+  return database
 }
 
 export function closeDb(): void {
@@ -200,13 +239,84 @@ export function closeDb(): void {
   }
 }
 
-function openDatabase(dbPath: string): Database.Database {
+function openDatabase(dbPath: string, logger: Logger): Database.Database {
   fs.mkdirSync(path.dirname(dbPath), { recursive: true })
   const database = new Database(dbPath)
-  database.pragma('journal_mode = WAL')
-  database.pragma('foreign_keys = ON')
-  database.pragma('busy_timeout = 5000')
-  return database
+  try {
+    database.pragma('journal_mode = WAL')
+    database.pragma('foreign_keys = ON')
+    database.pragma('busy_timeout = 5000')
+    return database
+  } catch (error) {
+    closeAfterFailure(database, error, logger)
+    throw error
+  }
+}
+
+function closeAfterFailure(database: Database.Database, primary: unknown, logger: Logger): boolean {
+  try {
+    database.close()
+    return true
+  } catch (error) {
+    reportMigrationDiagnostic(primary, 'db.initialization-close-failed', error, logger)
+    return false
+  }
+}
+
+function recoverFailedInitialization(
+  dbPath: string,
+  backupDirectory: string,
+  prepared: MigrationCheckpoint,
+  isClosed: boolean,
+  primary: unknown,
+  logger: Logger,
+): void {
+  let checkpoint = prepared
+  let hasRestoreFailure = !isClosed
+  const backupPath = path.join(backupDirectory, prepared.backupBasename)
+  if (isClosed) {
+    try {
+      restoreDatabaseFromBackup(backupPath, dbPath, {
+        attemptId: prepared.attemptId,
+        expectedSource: prepared.source,
+        expectedSha256: prepared.backupSha256,
+        beforeDisplace: (recovery) => {
+          checkpoint = { ...prepared, state: 'restoring', recovery, updatedAt: Date.now() }
+          writeMigrationCheckpoint(dbPath, backupDirectory, checkpoint)
+        },
+      })
+    } catch (error) {
+      hasRestoreFailure = true
+      reportMigrationDiagnostic(primary, 'db.migration-backup-restore-failed', error, logger)
+    }
+  }
+  try {
+    writeMigrationCheckpoint(dbPath, backupDirectory, {
+      ...checkpoint,
+      state: hasRestoreFailure ? 'restore-failed' : 'restored',
+      updatedAt: Date.now(),
+    })
+  } catch (error) {
+    reportMigrationDiagnostic(primary, 'db.migration-checkpoint-write-failed', error, logger)
+  }
+  try {
+    writeMigrationFailureMarker(backupDirectory, dbPath, {
+      databasePath: dbPath,
+      backupPath,
+      attemptId: prepared.attemptId,
+      failedAt: new Date().toISOString(),
+      pendingMigrations: prepared.targetLedger.filter(
+        (entry) => !prepared.source.ledger.some((source) => source.version === entry.version),
+      ),
+      error: 'Database initialization failed; original error retained in startup diagnostics.',
+      ...(hasRestoreFailure
+        ? { restoreError: 'Recovery did not complete. Preserve all recovery files.' }
+        : {}),
+    })
+  } catch (error) {
+    reportMigrationDiagnostic(primary, 'db.migration-marker-write-failed', error, logger)
+  }
+  reportMigrationDiagnostic(primary, 'db.migration-startup-blocked', primary, logger)
 }
 
 function assignDatabase(database: Database.Database, dbPath: string): void {

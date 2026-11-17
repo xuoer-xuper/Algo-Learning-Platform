@@ -9,7 +9,7 @@
 | [项目导航](../README.md) | 文档导航、快速开始、核心特性、技术栈。 |
 | [项目介绍](../.github/README.md) | 功能特性、支持平台、快速开始、常用命令。 |
 | [CHANGELOG](PRODUCT/CHANGELOG.md) | 已发布版本的用户可见变化。 |
-| [VERSION_PLAN](../VERSION_PLAN.md) | 版本号规划和发布路线图。 |
+| [VERSION_PLAN](../VERSION_PLAN.md) | 历史 RC 规划；当前发布操作以 RELEASE_PROCESS 为准。 |
 | [LICENSE](../LICENSE) | MIT License。 |
 
 ## 协作与治理
@@ -143,6 +143,10 @@
 | shared types | [src/shared/types/README](../algo-electron/src/shared/types/README.md) |
 | shared constants | [src/shared/constants/README](../algo-electron/src/shared/constants/README.md) |
 | main shared | [src/main/README](../algo-electron/src/main/README.md) |
+| main database | [src/main/db/README](../algo-electron/src/main/db/README.md) |
+| main services | [src/main/services/README](../algo-electron/src/main/services/README.md) |
+| backup safety | [src/main/services/backup/README](../algo-electron/src/main/services/backup/README.md) |
+| backup helpers | [src/main/services/backup/lib/README](../algo-electron/src/main/services/backup/lib/README.md) |
 | ipc input schemas | [src/shared/types/ipc/README](../algo-electron/src/shared/types/ipc/README.md) |
 | renderer shared | [src/shared/README](../algo-electron/src/shared/README.md) |
 | build | [build/README](../algo-electron/build/README.md) |

@@ -153,15 +153,18 @@ test('backs up before migrations, restores on failure, and blocks the same retry
       'Failure marker must prevent retrying the same migration',
     )
 
-    await initDbAtPathWithMigrationSafety(dbPath, {
-      backupDir,
-      migrations: [],
-      logger: new MemoryLogger(),
-    })
+    await assert.rejects(
+      initDbAtPathWithMigrationSafety(dbPath, {
+        backupDir,
+        migrations: [],
+        logger: new MemoryLogger(),
+      }),
+      MigrationRetryBlockedError,
+    )
     assert.strictEqual(
       fs.existsSync(markerPath),
-      false,
-      'Successful initialization clears stale failure markers',
+      true,
+      'An explicit empty migration set must not clear an unresolved failure',
     )
     closeDb()
   } finally {
@@ -285,9 +288,9 @@ for (const currentTest of tests) {
   try {
     await currentTest.fn()
     console.log(`[PASS] ${currentTest.name}`)
-  } catch (error: any) {
+  } catch (error) {
     console.error(`[FAIL] ${currentTest.name}`)
-    console.error(error.stack || error)
+    console.error(error instanceof Error ? error.stack : error)
     failedCount += 1
   }
 }

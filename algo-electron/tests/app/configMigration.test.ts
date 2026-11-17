@@ -18,8 +18,8 @@ vi.mock('electron', async (importOriginal) => {
 /*
  * conf（electron-store 的存储内核）经 atomically 写盘，且 node_modules 依赖在
  * vitest 里默认外置、fs 调用又被 stubborn-fs 在加载期捕获——两条路都拦不到。
- * 写入的代码面收口在 `store.store =`，所以在 electron-store 这一层派生子类注入
- * "下一次写盘失败"。
+ * 显式保存仍收口在 `store.store =`，所以派生子类注入它的"下一次写盘失败"。
+ * 自动归一化只用独立的受保护暂存/rename 路径，测试直接注入 rename 故障。
  */
 vi.mock('electron-store', async (importOriginal) => {
   const actual = await importOriginal<typeof import('electron-store')>()
@@ -45,7 +45,12 @@ beforeEach(() => {
 })
 
 afterEach(() => {
-  fs.rmSync(harness.userDataDir, { recursive: true, force: true })
+  vi.restoreAllMocks()
+  const resolved = path.resolve(harness.userDataDir)
+  expect(resolved.startsWith(`${path.resolve(os.tmpdir())}${path.sep}algo-config-migration-`)).toBe(
+    true,
+  )
+  fs.rmSync(resolved, { recursive: true, force: true })
 })
 
 describe('app config migration', () => {
@@ -58,6 +63,7 @@ describe('app config migration', () => {
         coach: { enabled: false },
       }),
     )
+    const original = fs.readFileSync(configPath)
 
     const configModule = await import('../../electron/app/config.ts')
     const config = configModule.loadConfig()
@@ -70,6 +76,10 @@ describe('app config migration', () => {
     const migrated = JSON.parse(fs.readFileSync(configPath, 'utf-8')) as Record<string, unknown>
     expect(migrated.defaultHomeUrl).toBeUndefined()
     expect(migrated.homeShortcuts).toEqual(['https://legacy.example/problemset'])
+    const backupDir = path.join(harness.userDataDir, 'config-normalization-backups')
+    const backups = fs.readdirSync(backupDir)
+    expect(backups).toHaveLength(1)
+    expect(fs.readFileSync(path.join(backupDir, backups[0]))).toEqual(original)
   })
 
   it('deduplicates valid HTTP shortcuts and drops unsupported legacy values', async () => {
@@ -101,17 +111,18 @@ describe('app config migration', () => {
       }),
     )
 
-    harness.failNextWrite = true
-    try {
-      const configModule = await import('../../electron/app/config.ts')
-      expect(configModule.loadConfig()).toMatchObject({
-        homeShortcuts: ['https://legacy.example/problemset'],
-        coach: { enabled: false, sound: true },
-      })
-      expect(configModule.getHomeShortcuts()).toEqual(['https://legacy.example/problemset'])
-    } finally {
-      harness.failNextWrite = false
-    }
+    const rename = fs.renameSync
+    vi.spyOn(fs, 'renameSync').mockImplementation((source, target) => {
+      if (target === configPath)
+        throw Object.assign(new Error('read-only config'), { code: 'EPERM' })
+      rename(source, target)
+    })
+    const configModule = await import('../../electron/app/config.ts')
+    expect(configModule.loadConfig()).toMatchObject({
+      homeShortcuts: ['https://legacy.example/problemset'],
+      coach: { enabled: false, sound: true },
+    })
+    expect(configModule.getHomeShortcuts()).toEqual(['https://legacy.example/problemset'])
 
     const unchanged = JSON.parse(fs.readFileSync(configPath, 'utf-8')) as Record<string, unknown>
     expect(unchanged.defaultHomeUrl).toBe('https://legacy.example/problemset')

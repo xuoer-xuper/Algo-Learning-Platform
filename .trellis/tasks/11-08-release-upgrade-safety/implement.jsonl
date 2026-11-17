@@ -1,0 +1,15 @@
+{"file":".trellis/spec/shared/code-quality.md","reason":"Mandatory types, errors, no assertions or warning bypasses"}
+{"file":".trellis/spec/project/domain-rules.md","reason":"Local data, privacy, frozen migrations and non-negotiable safety boundaries"}
+{"file":".trellis/spec/project/git-workflow.md","reason":"Accepted incremental release and compatibility policy; normal gates and merge ancestry"}
+{"file":".trellis/spec/project/migration-status.md","reason":"Dev baseline layout; new helper placement without importing unmerged Drizzle"}
+{"file":".trellis/spec/project/unix-millisecond-time.md","reason":"Frozen030, old formats, v1/v2 conversion and transaction contracts"}
+{"file":".trellis/spec/project/historical-database-fixtures.md","reason":"Pinned schema evidence versus synthetic and private data"}
+{"file":".trellis/spec/project/config-normalization-protection.md","reason":"Verified raw configuration backup and safe automatic writeback contract"}
+{"file":".trellis/spec/project/release-evidence.md","reason":"Implemented identity, build evidence and separate draft/publication contracts"}
+{"file":".trellis/spec/project/upgrade-recovery.md","reason":"Implemented checkpoint, known history, source/target resolution and interruption contracts"}
+{"file":".trellis/spec/backend/error-handling.md","reason":"Preserve original failure, close/recovery secondary errors and transaction failures"}
+{"file":".trellis/spec/backend/environment.md","reason":"Isolated test userData and production path identity"}
+{"file":".trellis/tasks/11-08-release-upgrade-safety/research/standards-and-policy.md","reason":"Latest accepted policy supersedes old major/exception proposals"}
+{"file":".trellis/tasks/11-08-release-upgrade-safety/research/upgrade-recovery-gaps.md","reason":"Concrete lifecycle gaps, minimal scope and fault assertions"}
+{"file":".trellis/tasks/11-08-release-upgrade-safety/research/release-201-scope.md","reason":"Source baseline, upgrade provenance, shipped fix and asset scope"}
+{"file":".trellis/tasks/11-08-release-upgrade-safety/research/release-201-tooling.md","reason":"Installed release-it/builder lifecycle and no-upload publication boundaries"}

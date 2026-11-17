@@ -24,6 +24,9 @@ which today.
 | [data-refresh.md](./data-refresh.md) | Committed-write notifications, transaction scopes, query invalidation and live snapshot races | When changing persisted writes, refresh subscriptions or query hooks |
 | [historical-database-fixtures.md](./historical-database-fixtures.md) | Pinned-source schema reconstruction, evidence provenance and historical time-writer contracts | When validating upgrades without an original old user database |
 | [unix-millisecond-time.md](./unix-millisecond-time.md) | Migration 030, strict legacy time compatibility, numeric IPC and safe import/statistics contracts | When changing any stored or cross-process instant |
+| [config-normalization-protection.md](./config-normalization-protection.md) | Verified raw config backup, staged automatic normalization and safe failure diagnostics | When changing config load/writeback or its backup helper |
+| [release-evidence.md](./release-evidence.md) | Release identity, artifact evidence and guarded publication lifecycle | When changing release scripts, packaging or publication gates |
+| [upgrade-recovery.md](./upgrade-recovery.md) | Verified migration checkpoints, interruption and explicit resolution | When changing database initialization, backup, restore or maintenance startup |
 
 ---
 

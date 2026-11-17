@@ -420,3 +420,56 @@
 ### Next Steps
 
 - 阶段3启动评审：更新25表/SQL统计、固定Drizzle版本、第一块PR-A0建立schema/client与等价测试，迁移runner及逐域改写后续独立验证。
+
+
+## Session 16: 发布加固工程完成并通过真实隔离安装验收
+<!-- trellis-session: v=2 fp=418c07d22abc2b37 -->
+
+**Date**: 2026-11-10
+**Task**: 发布加固工程完成并通过真实隔离安装验收
+**Branch**: `fix/release-upgrade-safety`
+
+### Summary
+
+完成安全升级、配置保护、发行工具及独立复核；PR9必需CI通过。解决Sandbox策略限制并修复NSIS参数引用，在GitHub临时Windows VM跑通26步真实安装/升级/恢复/卸载重装。任务仍in_progress，七站人工及最终master发行门未完成。
+
+### Main Changes
+
+本次会话推进11-08-release-upgrade-safety；任务保持in_progress，尚未完成公开发行门。
+
+- 在独立release-2-0-1 worktree集成已发布master祖先，保留dev源码树；数据库恢复点验证、持久检查点、keep-current/retry-source维护入口、配置原字节保护、受控发行工具均完成并独立复核。
+- 分组正常提交推送至fix/release-upgrade-safety并创建Draft PR9到dev。该PR含master祖先同步，后续须merge commit，不能squash。
+- 本地全门196文件/1722用例、原生强杀恢复矩阵、11项Playwright、Windows构建与packaged smoke通过；后续最终正常pre-push197文件/1737用例及11项Playwright通过。
+- Windows Sandbox实际3077/3089事件锁定Smart App Control VerifiedAndReputableDesktop阻止未签名的官方2.0.0。未改策略；用户要求解决，增加显式GitHub-hosted临时Windows安装验收。
+- 首轮托管运行42788578461失败在第2步NSIS180秒超时。无安装NSIS探针确定启动器给/S加引号导致静默失效，当前用户开关也受原始参数影响。修复仅参数引用，独立检查补齐非法参数提前拒绝并通过；没有延长超时或盲目重试。
+- PR CI42788558182及修复后42793939679均通过。新安装运行42794016408全部26步通过，无errors/limitations，无强制结束恢复对话框；三个摘要的源码/run/manifest/资产hash关联一致。安装环境阻塞已解除，R3与S5工程候选安装/数据/恢复/卸载重装已验收。
+- 不操作真实用户profile、OJ登录或正式提交；原D: Drizzle工作区与PR8未改。公开发行/master/tag/草稿继续暂停，七站/同步/核心页面及最终master资产验收仍需完成。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `c340c16` | chore(release): 同步已发布主线祖先并保留稳定修复 |
+| `f23c6aa` | fix(db): 验证升级恢复点并持久阻止未完成迁移 |
+| `efdf573` | fix(db): 提供保留现态和验证源状态的受控恢复 |
+| `982cf7d` | fix(backup): 保护配置原字节并澄清本地备份范围 |
+| `8e9dbe2` | chore(release): 分离准备构建与可验证发行步骤 |
+| `e952f01` | test(release): 增加隔离安装验收并稳定懒加载测试 |
+| `58f1e5c` | docs(release): 对齐增量发行规则与未完成验收边界 |
+| `5e98409` | ci(release): 在独立托管虚拟机验收安装升级恢复 |
+| `9b30e9b` | test(scripts): 等待真实空闲阶段完成再验证执行顺序 |
+| `54265bc` | docs(release): 记录升级加固验证与隔离安装诊断 |
+| `717eda6` | fix(release): 保留 NSIS 静默开关的原始参数 |
+
+### Testing
+
+- [OK] 全门196文件/1722用例、Windows构建通过；最终正常pre-push197文件/1737用例及UI11项通过；CI42793939679与安装42794016408通过。
+
+### Status
+
+[OK] **本轮工程及隔离安装验收完成；任务仍 in_progress，公开发行暂停。**
+
+### Next Steps
+
+- 完成七站/同步/核心页面验收、评审PR9集成及最终master资产验收；恢复发行须另行确认，保留PR8和阶段3工作。

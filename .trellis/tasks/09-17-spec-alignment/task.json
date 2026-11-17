@@ -26,7 +26,8 @@
     "09-17-phase-4-renderer",
     "09-17-phase-5-tests",
     "09-17-phase-6-cleanup-release",
-    "09-30-typed-lint-debt"
+    "09-30-typed-lint-debt",
+    "11-08-release-upgrade-safety"
   ],
   "parent": null,
   "relatedFiles": [],
