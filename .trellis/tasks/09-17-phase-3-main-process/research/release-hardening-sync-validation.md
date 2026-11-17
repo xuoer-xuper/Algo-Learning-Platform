@@ -1,7 +1,7 @@
 # Release hardening synchronization: validation record
 
-Status: implementation, independent review, full test gate and Windows build passed;
-Git/CI synchronization still pending. Not a release or whole-phase completion.
+Status: synchronization accepted and merged into `refactor/drizzle` through PR15.
+No release or whole-phase completion is implied.
 
 ## Scope and source
 
@@ -65,9 +65,15 @@ paths, sizes and hashes. Other release acceptance records remain in place.
   this unpublished synchronization, and no release was uploaded.
 - Frozen legacy001-030 and baseline SQL/meta comparison: no diff. Application
   package version remains2.0.1; this is unpublished branch validation output.
-- Normal hooks commit/push, green sync PR CI, reviewed ancestry-preserving merge.
+- Normal hooks commit/push: `57690f6` retains parents `20ee62c` and `7d8da9c`.
+  Required pre-push `test:ci` passed unchanged, including1967 tests and UI11.
+- PR15 (base `refactor/drizzle`) CI `44025304964` passed; merge commit
+  `317cd9f3b414391f55541132b839c7f2db426f46` preserves released dev ancestry.
+  PR8 remains draft againstdev; its integrated CI `44025992234` also passed.
+  master/dev/tag/public Release were not changed by this synchronization.
 - Original D-drive dirty-file hash comparison: all62 files and HEAD unchanged
-  after full validation/build. Release task handoff remains pending remote integration.
+  after full validation/build. The release task technical handoff is now complete;
+  final journal/archive bookkeeping is separate.
 - A2d remains a separate later slice, not part of this merge acceptance.
 
 Unpublished synchronization build `AlgoLearningPlatform-Windows-2.0.1-x64-Setup.exe` SHA256: `60485a1eef4d663c432f8a064bc229b2b226efbcb9e31f62c1ca78233fdb2a5b`.

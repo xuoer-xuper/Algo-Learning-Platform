@@ -96,6 +96,28 @@ schema code and emits SQL/snapshots; `pull` is the introspection command.
   creation only on insert. Do not add conflict-upsert, transaction/cache, schema
   defaults, resurrection or notification scopes around autocommit batches.
 
+### A2d Deletion Equivalence
+
+- Affected-date UNION uses raw scalar `sql<number | null>` projections of the four
+  stored instants with the same selected key. Do not attach a Date/Number decoder:
+  fractional, unsafe, TEXT and out-of-Date-range values must still reach the old
+  integer-millisecond validator and fail before mutation. Keep one distinct UNION,
+  exact bound equality and all existing tombstone inclusion.
+- Delete submissions, visits, activity events, then the parent with synchronous
+  `.run()`, retaining the original native transaction inside the notification scope.
+  The parent DELETE result alone determines the boolean and base notification.
+  A missing parent can still remove orphan children but returns false without
+  notification or stats recomputation. Notes are not part of the deletion scope.
+- Keep derived-date recomputation after this function's transaction invocation.
+  At top level it follows COMMIT, one sorted day at a time; a later-day failure
+  logs once and preserves successful deletion and earlier day changes/events.
+  Nested invocation follows the inner savepoint and is still inside the caller's
+  outer native transaction/notification scope. Do not add an after-commit scheduler
+  or promise support for arbitrary unwrapped transactions in this query refactor.
+- Preserve raw row/error/event/warning equivalence against the frozen original SQL,
+  including actual deferred-FK COMMIT failures, savepoints and outer rollback. A
+  mocked transaction throw is not evidence that post-commit notification is correct.
+
 ## 4. Validation & Error Matrix
 
 | Case                                                            | Required behavior                                                         |
@@ -179,6 +201,14 @@ schema code and emits SQL/snapshots; `pull` is the introspection command.
   for full rows/events. Include null/empty/quoted IDs, query_only-null failure,
   UPDATE OF triggers, title rules, missing/null/empty fields, epoch-zero/milliseconds,
   insert-only sources/tombstones, statement failures and real COMMIT/savepoint tests.
+
+- A2d uses a separate original-SQL oracle and real isolated databases. Compare
+  boolean/errors, remaining facts/notes/stats, ordered events and warnings. Include
+  local calendar/DST boundaries, epoch0, valid negative and invalid instants,
+  nullable/empty/quoted IDs, tombstones, missing parent with orphans, query_only,
+  child/parent trigger failures, actual COMMIT failure, nested success/rollback,
+  second-day stats failure and close/reinitialize. Register deletion and existing
+  notification tests in test:db and retain native Electron deletion cases.
 
 ## 7. Wrong vs Correct
 

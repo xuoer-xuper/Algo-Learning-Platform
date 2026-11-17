@@ -182,3 +182,28 @@ Do not edit schema/client, frozen migrations, safety synchronization modules, DT
 - The query sketch is source-inspected, not typechecked/executed. Generated compound SQL, raw decoder behavior and native outcomes require differential tests.
 - Nullable stored IDs do not require a public nullable-ID policy here. DTO-returning query slices remain separate.
 - Top-level stats work is post-COMMIT; nested stats is post-inner-savepoint and still inside its caller's outer transaction. Do not promise a universal after-commit hook.
+
+## Independent design precheck (2026-11-17)
+
+No design blocker found. Reviewed current `deleteProblem`, notification scopes,
+integer/local-day validation, stats recomputation and pinned Drizzle0.45.4 /
+better-sqlite3 transaction implementation after the safety synchronization.
+
+- The four same-key scalar SQL projections retain the no-op decoder even when
+  aliased. Chained `.union()` emits distinct UNION, not UNION ALL or independent
+  statements. No Date or Number coercion belongs in this preflight.
+- `.delete(...).where(eq(...)).run()` returns native changes synchronously. Bound
+  strings preserve empty/quoted IDs, while nullable stored IDs do not match them.
+- Keeping the native transaction invocation inside `withDataChangeTransaction`
+  preserves actual COMMIT failure and nested SAVEPOINT/RELEASE behavior. Recompute
+  stays outside this function's inner transaction, not universally outside callers'
+  outer transactions; buffered events must remain paired with the outer scope.
+- Orphan-child removal with a missing parent remains a committed false result with
+  no base/stats notification or recomputation. No early existence check or cascade.
+- Sorted-day recomputation remains individually committed at top level, so a later
+  day failure does not undo earlier days or the successful deletion.
+
+The stated original-SQL differential matrix is sufficient as the implementation
+acceptance plan. Generated SQL/decoder equivalence, real deferred-FK COMMIT failure,
+outer rollback/savepoints and second-day stats failure still need execution proof.
+No runtime/test/Git edits or tests were performed for this design precheck.
