@@ -115,14 +115,21 @@ pnpm run install:app-deps
 pnpm run build
 ```
 
-执行 `tsc && vite build && electron-builder`，生成发行包。
+执行类型检查、Vite 构建、主进程产物检查及 `electron-builder --publish never`，只生成产物、不上传。
 
 ```powershell
 pnpm run build:win
 ```
 
-显式执行 Windows NSIS x64 打包，输出到 `release/${version}`。
-发布前必须按根目录 `docs/OPERATIONS/RELEASE_PROCESS.md` 完成版本/changelog、自动验证、产物检查、安装升级卸载验收和交接记录。
+显式执行 Windows NSIS x64 打包（`--publish never`），输出到 `release/${version}` 并运行打包程序冒烟。
+GitHub provider 生成 `latest.yml`，但没有 electron-updater，不能宣称已提供自动更新。
+
+发行仍暂停。`pnpm release` 只提示安全流程并失败退出，不会 bump、commit、tag 或上传。
+恢复发行须先按根目录 `docs/OPERATIONS/RELEASE_PROCESS.md` 完成最终源码、安装升级恢复及人工验收：
+`release:prepare --version 2.0.1` 仅在 PR 分支准备；`release:build --identity <json>` 对接受的 master
+运行完整门并记录哈希；`release:check --acceptance <json>` 预检；`release:draft` 上传草稿并下载核对；
+`release:verify` 复核草稿；`release:publish` 必须另行明确确认。参数和证据格式以发布流程为准。
+只运行 `pnpm run test:release` 可测试失败拒绝路径，使用假的外部 runner，不会真实发布。
 
 ```powershell
 pnpm run preview

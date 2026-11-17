@@ -11,6 +11,7 @@ import {
   countRawIpcSchemas,
   countUnschemadIpc,
   findDuplicateExportedTypes,
+  isDatabaseLayerPath,
   themeDirectiveHasTailwindImport,
   // @ts-expect-error 守卫判定是 runner 共用的 .mjs，无类型声明；此处只需运行时行为。
   // 抑制点必须在模块说明符上一行：TS7016 报在 `from './guards.mjs'` 处，
@@ -72,6 +73,24 @@ describe('findDuplicateExportedTypes', () => {
 })
 
 describe('countBareSql', () => {
+  it('exempts only legacy and template DB directories, not similarly named services or renderer paths', () => {
+    for (const file of [
+      'electron/db/migrate.ts',
+      'src/main/db/legacy-ledger-validation.ts',
+      'src\\main\\db\\schema.ts',
+    ]) {
+      expect(isDatabaseLayerPath(file)).toBe(true)
+    }
+    for (const file of [
+      'electron/db-backup/index.ts',
+      'src/main/services/db/helper.ts',
+      'src/renderer/db/query.ts',
+      'src/main/db.ts',
+    ]) {
+      expect(isDatabaseLayerPath(file)).toBe(false)
+      expect(countBareSql('database.prepare("SELECT 1")')).toBe(1)
+    }
+  })
   it('抓到 db 层之外构造的语句', () => {
     expect(countBareSql('db.prepare("SELECT 1")')).toBe(1)
     expect(countBareSql('getDb().prepare(`SELECT 1`)')).toBe(1)
@@ -169,7 +188,7 @@ describe('countUnschemadIpc', () => {
   })
 })
 
-describe('IPC architecture guard mutations', () => {
+describe('architecture guard mutations', () => {
   it.each(['src/main/services', 'src/main/db'])(
     'checks the real runner SQL boundary at %s without writing fixture files',
     (directory) => {
@@ -206,7 +225,9 @@ describe('IPC architecture guard mutations', () => {
       expect(result.error).toBeUndefined()
       if (directory.endsWith('/services')) {
         expect(result.status).toBe(1)
-        expect(result.stderr).toContain('[FAIL] bare SQL stays inside electron/db/ or src/main/db/')
+        expect(result.stderr).toContain(
+          '[FAIL] bare SQL stays inside the legacy or template database layer',
+        )
         expect(result.stderr).toContain('src/main/services/migration-boundary-mutation.ts')
         expect(result.stdout).toContain('Checks finished. Failed: 1/')
       } else {
@@ -258,6 +279,12 @@ describe('IPC architecture guard mutations', () => {
       before: "from 'react'",
       after: "from 'drizzle-orm'",
       check: 'database modules and native bindings stay main-only',
+    },
+    {
+      file: 'src/main/services/backup/lib/migration-checkpoint.ts',
+      before: 'const basenameSchema = z',
+      after: 'database.prepare("SELECT 1")\nconst basenameSchema = z',
+      check: 'bare SQL stays inside the legacy or template database layer',
     },
   ])('rejects an in-memory violation in $file', ({ file, before, after, check }) => {
     // Mutate reads in an isolated runner, never the shared checkout.

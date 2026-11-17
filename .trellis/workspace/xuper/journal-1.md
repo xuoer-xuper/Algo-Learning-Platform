@@ -48,7 +48,6 @@
 - 阶段 0.5 prettier（含全仓一次性格式化单独 commit），随后 0.6 husky/commitlint/lint-staged、0.7 jscpd、0.8 @shared alias、0.9 release-it、0.1 分支保护与 dev 触发、0.10 COMMIT_RULES
 - 0.4 的两条遗留：tests/** 规则升级（94 处 any 等）与 runElectronAppTest 的 ESM/electron 互操作问题，前者随阶段 5、后者已记入 0.10/阶段 5 待办
 
-
 ## Session 2: 修复 userscript 烟测失效竞态并合并 v2.0.0 正式版
 <!-- trellis-session: v=2 fp=e87fbcfb0aecb4aa -->
 
@@ -70,7 +69,6 @@
 ### Status
 
 [OK] **Completed**
-
 
 ## Session 3: 阶段 0.5 prettier 接入与源码守卫的格式适配
 <!-- trellis-session: v=2 fp=088598938e83547a -->
@@ -103,7 +101,6 @@
 
 - 下一节 0.6 husky+commitlint+lint-staged(注意 design §6 的 release-it 与 master 提交互斥问题需选方案)；随后 0.7 jscpd、0.8 @shared alias、0.9 release-it、0.1 ci.yml 加 dev、0.10 COMMIT_RULES。当前会话到 0.5 收口为止，0.6 起待后续会话。
 
-
 ## Session 4: CI 连红根因排查与修复：json5 守卫误炸 + transitions 夹具时序，推送纪律定案
 <!-- trellis-session: v=2 fp=a3a374bf65307528 -->
 
@@ -133,7 +130,6 @@
 ### Next Steps
 
 - 0.6 已彻底收口（含 pre-push 抖动治标 29dbece 与本次两修复）。下节 0.7 jscpd（派发已被打断，重新派发）；0.7 起所有推送执行新推送纪律。husky commit-msg 门已实战拦截过一次非法 scope（packaging 不在词表）。
-
 
 ## Session 5: 阶段 0 收官：0.7-0.10 四节完成、CI 合理性审查、spec 同步
 <!-- trellis-session: v=2 fp=9cd801ec9ba443f2 -->
@@ -169,7 +165,6 @@
 
 - 阶段 0 十节全部落地。PR #4 待用户 squash 合入 dev；合入后 AC1（push dev 触发 CI）用 gh run watch 验证；阶段收口门（test:all+build:win+装包冒烟）中 test:all 受 coach 夹具既有红阻塞（阶段 5 范围），建议与用户确认处理口径后再 archive。
 
-
 ## Session 6: 标签 favicon 三层缺陷修复(10-31-tab-favicon):CSP/兜底/Referer,用户实测通过并归档
 <!-- trellis-session: v=2 fp=242538efdad5c956 -->
 
@@ -199,7 +194,6 @@
 
 - 阶段 0 剩:用户 squash 合入 PR #4(现含本修复,建议标题加注)→ 验 AC1(push dev 触发 CI)→ 阶段 0 archive。
 
-
 ## Session 7: 阶段 0 收官:PR #4 squash 合入 dev(ff47377),AC1 实证,任务归档
 <!-- trellis-session: v=2 fp=32a431db185f552a -->
 
@@ -228,7 +222,6 @@
 ### Next Steps
 
 - 阶段 0 完结。下一任务:阶段 1 基础设施换库(09-17-phase-1-infra-libraries,planning)——启动前走 1.4 评审;另记:favicon 的 Fix 4(主进程代理)仅在 AcWing 回归时升格。
-
 
 ## Session 8: 阶段 1 基础设施换库完成:R1-R5 五节落地,收口门两连击修复,PR #5 就绪
 <!-- trellis-session: v=2 fp=5cdc8190cce32a89 -->
@@ -264,7 +257,6 @@
 
 - PR #5 待用户 squash 合入 dev;合入后阶段 1 归档,下一任务阶段 2 IPC 契约与共享层。注意:阶段 2 需处理 shared→electron 常量 import 方向(复核 MEDIUM 发现)。
 
-
 ## Session 9: 阶段 1 收官:PR #5 squash 合入 dev(30ffea8),dev CI 绿,任务归档
 <!-- trellis-session: v=2 fp=c2050edcc6a376b8 -->
 
@@ -293,7 +285,6 @@
 ### Next Steps
 
 - 下一任务:阶段 2 IPC 契约与共享层(09-17-phase-2-ipc-contract,planning)——启动评审时一并处理 shared→electron 常量 import 方向(复核 MEDIUM 发现:常量下沉 shared 或加守卫)。
-
 
 ## Session 10: 阶段 2 前三节完成(R1 channel 常量/R2 类型单一来源/R3 window.api),用户指示 R3 后暂停
 <!-- trellis-session: v=2 fp=ccecd34a2ab7bdeb -->
@@ -326,7 +317,6 @@
 
 - 继续 R4(数据刷新订阅,重启时按 implement.md 清单重做,channels.ts 的 DATA.CHANGED 需重加)→ R5(时间戳毫秒,独立分支)→ 两道收口门 → PR #6 squash 合入。
 
-
 ## Session 11: 阶段 2 R1-R4 收口推送，R5 保留迁移安全门
 <!-- trellis-session: v=2 fp=11acf5026e3f6f27 -->
 
@@ -356,7 +346,6 @@
 ### Next Steps
 
 - 提供或定位真实v1.0.0/schema1-21备份，确认现有两份库的验收资格；修订R5时区/非法值/FK重建/统计策略后另开独立分支。当前任务不归档，PR6未合并。
-
 
 ## Session 12: 阶段 2 R5 完成并推送：030 毫秒迁移、真实副本验收与 CI 全绿
 <!-- trellis-session: v=2 fp=284835c53fcf2f6c -->
@@ -390,7 +379,6 @@
 
 - 按授权处理PR6→dev，再调整/集成依赖PR7；合入后归档阶段2并对阶段3做启动评审。当前无需追加代码，原有.zcode保持未跟踪。
 
-
 ## Session 13: 阶段 2 合并归档：PR6/7 入 dev，开启阶段 3
 <!-- trellis-session: v=2 fp=325a47c3603bb60c -->
 
@@ -420,7 +408,6 @@
 ### Next Steps
 
 - 阶段3启动评审：更新25表/SQL统计、固定Drizzle版本、第一块PR-A0建立schema/client与等价测试，迁移runner及逐域改写后续独立验证。
-
 
 ## Session 14: 阶段3 A0/A1迁移接管与A2a总览查询完成并推送
 <!-- trellis-session: v=2 fp=ea3f10f224543dbd -->
@@ -464,7 +451,6 @@ Drizzle基础、安全基线/资源/备份接管和题目总览四条只读查�
 - PR8仍draft，不自动合并或发布；目录迁移/拆分及阶段4–6仍未完成。
 - 单独补native tab-drag失败pointer/capture/finishDrag诊断，不以sleep/重试/直接reorder掩盖。
 
-
 ## Session 15: 阶段3完成 A2b/A2c 与原生UI失败诊断
 <!-- trellis-session: v=2 fp=4f1528c7e9210442 -->
 
@@ -506,3 +492,91 @@ Drizzle基础、安全基线/资源/备份接管和题目总览四条只读查�
 - A2d细化题目删除：原始数值UNION、四表删除顺序、提交后通知、postcommit统计部分失败；尚未实施。
 - 后续DTO读查询/omnibox/其他域及目录迁移待完成，nullableID返回策略不偷改。
 - 保持PR8 draft，不自动合并/发布/tag，保留用户.zcode不动。
+
+## Session 16: 发布加固工程完成并通过真实隔离安装验收
+<!-- trellis-session: v=2 fp=418c07d22abc2b37 -->
+
+**Date**: 2026-11-10
+**Task**: 发布加固工程完成并通过真实隔离安装验收
+**Branch**: `fix/release-upgrade-safety`
+
+### Summary
+
+完成安全升级、配置保护、发行工具及独立复核；PR9必需CI通过。解决Sandbox策略限制并修复NSIS参数引用，在GitHub临时Windows VM跑通26步真实安装/升级/恢复/卸载重装。任务仍in_progress，七站人工及最终master发行门未完成。
+
+### Main Changes
+
+本次会话推进11-08-release-upgrade-safety；任务保持in_progress，尚未完成公开发行门。
+
+- 在独立release-2-0-1 worktree集成已发布master祖先，保留dev源码树；数据库恢复点验证、持久检查点、keep-current/retry-source维护入口、配置原字节保护、受控发行工具均完成并独立复核。
+- 分组正常提交推送至fix/release-upgrade-safety并创建Draft PR9到dev。该PR含master祖先同步，后续须merge commit，不能squash。
+- 本地全门196文件/1722用例、原生强杀恢复矩阵、11项Playwright、Windows构建与packaged smoke通过；后续最终正常pre-push197文件/1737用例及11项Playwright通过。
+- Windows Sandbox实际3077/3089事件锁定Smart App Control VerifiedAndReputableDesktop阻止未签名的官方2.0.0。未改策略；用户要求解决，增加显式GitHub-hosted临时Windows安装验收。
+- 首轮托管运行42788578461失败在第2步NSIS180秒超时。无安装NSIS探针确定启动器给/S加引号导致静默失效，当前用户开关也受原始参数影响。修复仅参数引用，独立检查补齐非法参数提前拒绝并通过；没有延长超时或盲目重试。
+- PR CI42788558182及修复后42793939679均通过。新安装运行42794016408全部26步通过，无errors/limitations，无强制结束恢复对话框；三个摘要的源码/run/manifest/资产hash关联一致。安装环境阻塞已解除，R3与S5工程候选安装/数据/恢复/卸载重装已验收。
+- 不操作真实用户profile、OJ登录或正式提交；原D: Drizzle工作区与PR8未改。公开发行/master/tag/草稿继续暂停，七站/同步/核心页面及最终master资产验收仍需完成。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `c340c16` | chore(release): 同步已发布主线祖先并保留稳定修复 |
+| `f23c6aa` | fix(db): 验证升级恢复点并持久阻止未完成迁移 |
+| `efdf573` | fix(db): 提供保留现态和验证源状态的受控恢复 |
+| `982cf7d` | fix(backup): 保护配置原字节并澄清本地备份范围 |
+| `8e9dbe2` | chore(release): 分离准备构建与可验证发行步骤 |
+| `e952f01` | test(release): 增加隔离安装验收并稳定懒加载测试 |
+| `58f1e5c` | docs(release): 对齐增量发行规则与未完成验收边界 |
+| `5e98409` | ci(release): 在独立托管虚拟机验收安装升级恢复 |
+| `9b30e9b` | test(scripts): 等待真实空闲阶段完成再验证执行顺序 |
+| `54265bc` | docs(release): 记录升级加固验证与隔离安装诊断 |
+| `717eda6` | fix(release): 保留 NSIS 静默开关的原始参数 |
+
+### Testing
+
+- [OK] 全门196文件/1722用例、Windows构建通过；最终正常pre-push197文件/1737用例及UI11项通过；CI42793939679与安装42794016408通过。
+
+### Status
+
+[OK] **本轮工程及隔离安装验收完成；任务仍 in_progress，公开发行暂停。**
+
+### Next Steps
+
+- 完成七站/同步/核心页面验收、评审PR9集成及最终master资产验收；恢复发行须另行确认，保留PR8和阶段3工作。
+
+## Session 17: 2.0.1正式发行与最终证据闭环
+<!-- trellis-session: v=2 fp=00a3aad6c1b0d56f -->
+
+**Date**: 2026-11-17
+**Task**: 2.0.1正式发行与最终证据闭环
+**Branch**: `codex/release-201-records`
+
+### Summary
+
+维护者接受本机候选后完成PR集成、真实发行工具修复和最终master全门/26步安装验收；v2.0.1正式公开且远程资产后验通过。Drizzle同步仍待办，不归档任务。
+
+### Main Changes
+
+- v2.0.1正式公开，annotated tag指向de89ce4；正常钩子、分支保护和发行守卫全部保留。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `aed30aa` | docs(release): 整理2.0.1发行说明与维护者验收 |
+| `94bb9b7` | fix(release): 接受同提交全部通过的多套CI检查 |
+| `a172a92` | fix(release): 兼容pnpm12原生发行命令入口 |
+| `de89ce4` | chore(release): 合并最终2.0.1发行工具修复 |
+
+### Testing
+
+- [OK] 最终197文件1766用例、UI11、native强杀四阶段、Windows构建与hosted26步通过；公开后三件资产下载SHA一致。
+
+### Status
+
+[OK] **正式发行完成；Drizzle同步交接待办，任务保持in_progress。**
+
+### Next Steps
+
+- 将发行加固按边界同步Drizzle/PR8；为下个版本重新评审baseline和版本号，不改已发tag。

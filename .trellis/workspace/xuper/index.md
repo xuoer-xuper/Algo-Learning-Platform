@@ -8,8 +8,8 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 15
-- **Last Active**: 2026-11-07
+- **Total Sessions**: 17
+- **Last Active**: 2026-11-17
 <!-- @@@/auto:current-status -->
 
 ---
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~508 | Active |
+| `journal-1.md` | ~582 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,8 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 17 | 2026-11-17 | 2.0.1正式发行与最终证据闭环 | `aed30aa`, `94bb9b7`, `a172a92`, `de89ce4` | `codex/release-201-records` |
+| 16 | 2026-11-10 | 发布加固工程完成并通过真实隔离安装验收 | `c340c16`, `f23c6aa`, `efdf573`, `982cf7d`, `8e9dbe2`, `e952f01`, `58f1e5c`, `5e98409`, `9b30e9b`, `54265bc`, `717eda6` | `fix/release-upgrade-safety` |
 | 15 | 2026-11-07 | 阶段3完成 A2b/A2c 与原生UI失败诊断 | `a8f093e`, `5b13d85`, `2bba47e` | `refactor/drizzle` |
 | 14 | 2026-11-07 | 阶段3 A0/A1迁移接管与A2a总览查询完成并推送 | `e1e3ae0`, `1ba968b`, `3869fe2` | `refactor/drizzle` |
 | 13 | 2026-11-06 | 阶段 2 合并归档：PR6/7 入 dev，开启阶段 3 | `d9f5583`, `b74773b` | `dev` |

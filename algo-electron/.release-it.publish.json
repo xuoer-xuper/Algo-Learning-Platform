@@ -1,0 +1,20 @@
+{
+  "increment": false,
+  "npm": { "publish": false },
+  "git": {
+    "requireBranch": "master",
+    "requireCleanWorkingDir": true,
+    "requireUpstream": true,
+    "commit": false,
+    "tag": true,
+    "tagName": "v${version}",
+    "tagAnnotation": "v${version}",
+    "push": false,
+    "changelog": false
+  },
+  "github": { "release": false },
+  "hooks": {
+    "before:init": "node scripts/release-cli.mjs guard-tag",
+    "before:git:release": "node scripts/release-cli.mjs guard-tag"
+  }
+}

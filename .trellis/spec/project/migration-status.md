@@ -7,11 +7,13 @@
 > Plan and evidence: `.trellis/tasks/archive/2026-09/00-bootstrap-guidelines/research/spec-alignment-plan.md`,
 > `spec-alignment-report.md`, `reinvented-wheels-audit.md`.
 
-Last reviewed: 2026-11-07. Phase 2 PR6/PR7 are merged and archived. Phase 3 A0/A1 add
-the verified Drizzle schema/client and safe migration adoption on `refactor/drizzle`.
-The existing native lifecycle owns backup/restore. A2a converts only problem overview's
-four read statements, A2b converts platform-key ID lookup, and A2c converts the
-three-statement problem upsert path; other queries await their own domain slices.
+Last reviewed: 2026-11-17. Released v2.0.1 at `de89ce4` has passed final validation and
+publication. Phase 3 A0/A1/A2a-A2c remain on the Drizzle branch: schema/client, migration
+coordinator and bounded problem queries are implemented. The current synchronization
+slice combines released durable recovery with Drizzle adoption; independent review,
+206 files/1967 tests, native crash matrices, UI11 and Windows packaged build passed.
+Remote branch synchronization is still pending; this unpublished build is not v2.0.1.
+Other queries and main-process layout work remain separate later slices.
 
 ---
 
@@ -28,7 +30,7 @@ three-statement problem upsert path; other queries await their own domain slices
 | TypeScript | 7.0.2, babel eslint parser, no path alias | 6.0.3 (last stable before 6.1; fallback 5.9.3), typescript-eslint, `@shared` alias in tsconfig + vite + vitest | 0.3, 0.4, 0.8 |
 | Formatting | `.editorconfig` only | prettier + `.editorconfig` | 0.5 |
 | Commit gates | none locally | husky + commitlint + lint-staged | 0.6 |
-| Versioning | hand-edited in 5 places; tags partly lightweight; `v1.1.0-beta.*` tags point at `2.0.0-beta.*` code; CHANGELOG dates wrong | release-it + conventional-changelog, annotated tags, package.json single source, app-semver rule (major = irreversible data change) | 0.10, 6.3 |
+| Versioning | Candidate tooling separates prepare/build/check/draft/verify/publish, refuses automatic bump/commit/upload and verifies source/merge/assets/evidence. v2.0.1 is public and verified at master merge `de89ce4`; later versions need renewed explicit source, safety, installer and publication gates. Historical tag/CHANGELOG inconsistencies remain. | Prepared version/changelog then annotated master merge tag; version by declared compatibility contracts, not internal migration alone; independently verified upgrade/recovery gates | 0.10, 6.3; `11-08-release-upgrade-safety` |
 
 ## Infrastructure libraries
 
@@ -38,7 +40,7 @@ three-statement problem upsert path; other queries await their own domain slices
 | Logging | ✅ 1.1（2026-11-01）：**electron-log 5.4.4**，`logger.scope()` + 脱敏 hook（原 regex 全量迁移 + `cookie=`）；RUN_AS_NODE 下文件 transport 关闭 | 同左 | 1.2 |
 | Config | ✅ 1.1（2026-11-01）：**electron-store 12**（原子存储层）+ zod 单层校验（`.default()`/`.catch()` 取代 normalizers）；conf 16 的 schema 校验会"坏文件即拒启"，与不清空红线冲突——故 schema 不传给 electron-store | 同左 | 1.3 |
 | Dev/prod isolation | ✅ 1.1（2026-11-01）：`envSetup.ts` 为 main.ts 首个 import（架构守卫强制），非打包且无冒烟 env 时 userData 加 `-dev`；冒烟覆盖优先 | 同左 | 1.3 |
-| Database | A1: Drizzle0.45.4/Kit0.31.11 schema/client and safe migration coordinator in `src/main/db`; default async initialization validates resources/history/physical030 schema, adopts the baseline and delegates later migrations. Existing connection owner retains backup/restore. A2a-A2c: overview, platform-key ID lookup and problem upsert use Drizzle, retaining legacy nullable-ID/write-notification contracts; delete and other queries remain native. | Continue application query conversion by domain, then move lifecycle and frozen legacy migrations with the main-process layout | 3.1 |
+| Database | Drizzle0.45.4/Kit0.31.11 schema/client, trusted resources and legacy/baseline coordinator in `src/main/db`; A2a-A2c convert problem overview, platform-key lookup and upsert. Released 2.0.1 recovery is combined with versioned legacy/Drizzle checkpoints, snapshots and bounded explicit resolution; local full/build gates pass, branch-sync CI pending. | Validate integrated legacy/Drizzle lifecycle first, then continue bounded query conversion and main layout | 3.1; `11-08-release-upgrade-safety` |
 | Timestamps | R5: 82 INTEGER Unix-ms columns, numeric live writers/IPC/shared schemas, display-only Intl; strict history-derived local/UTC+8/SQLite `.0` conversion. Reconstructed 21/24/29 and isolated actual 24/29 copies pass; original user DBs unchanged. | Numeric timestamp target reached; future Drizzle uses timestamp_ms. See `unix-millisecond-time.md`. | 2.5 |
 | Result shape | ✅ 1.1（2026-11-01）：20 处真正的 IPC 返回统一为 `createOutputSchema()` 判别联合（6 个封闭 `code`）；34 处 `{ok:}` 经复核确认是内部校验器/运行时协议形状、不跨 IPC 边界，不转换 | 同左 | 1.4 |
 | Event bus | 9 hand-written `Set<callback>` buses + 3 `EventEmitter` | typed `EventEmitter` wrapper | 3.6 |
@@ -64,6 +66,12 @@ three-statement problem upsert path; other queries await their own domain slices
 | Coverage gate | global 65/60/62/68 ratchet | per-layer: procedures & lib 80%, handlers 60% (global ratchet kept) | 5.3 |
 
 ## Already aligned (do not regress)
+
+- Candidate automatic config normalization protects exact original bytes through
+  `src/main/services/backup/lib/config-normalization-backup.ts`; ordinary explicit
+  saves still use electron-store. See `config-normalization-protection.md`.
+- Candidate DB recovery contracts are in `upgrade-recovery.md`. These bounded
+  helpers do not justify relocating unrelated legacy modules in this release task.
 
 - No `any`, no `@ts-ignore`, no `eslint-disable` in main; 0 `alert/confirm/prompt/localStorage` in renderer.
 - Renderer never imports electron/node; components never call `window.api` directly (144/144 call sites live in `*Api.ts` adapters + the `src/main.tsx` entry exemption; guard: only `*Api.ts`, `src/hooks/` and the entry may reference `window.api`).

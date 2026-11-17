@@ -2,6 +2,22 @@
 
 前置：阶段 2 合入 dev。三个 PR：`refactor/drizzle`、`refactor/main-layout`（含 kebab-case）、`refactor/main-split`。
 
+## 当前优先切片：2.0.1 加固同步（2026-11-17）
+
+用户要求发行后继续后续工作，先把已发布安全契约同步到Drizzle分支，再做A2d。
+同步分支`codex/drizzle-release-sync`基于`20ee62c`，合并`dev 7d8da9c`并保留双父祖先。
+在现有C盘干净worktree处理；原D盘规划改动和`.zcode`不动，不用stash/reset覆盖。
+
+- 最小行为缺口：Drizzle A1默认迁移接管与2.0.1持久checkpoint/明确恢复尚未组合，
+  不能让Drizzle-only pending、baseline adoption或legacy恢复绕过已发布保护。
+- 变更归属：connection生命周期、SQLite备份适配及必要的legacy/Drizzle历史/恢复映射；
+  同步守卫/测试清单/打包说明/lockfile保留双方能力。冻结001–030、baseline SQL/meta不改。
+- [x] 研究并评审组合迁移/恢复契约，记录`research/release-hardening-sync-design.md`。
+- [x] 合并代码与回归，覆盖已发布v2.0.1 checkpoint、Drizzle baseline/pending失败/中断/明确恢复。
+- [ ] 独立复核、frozen install、全量test:all、build:win，正常hooks提交/推送并跟CI。
+- [x] PR #8目标已恢复dev（发行合并自动删除dev曾导致改向master），仍draft；同步PR须保留祖先。
+- 不在这片修改题目删除/DTO政策、目录布局、版本、已发布tag或Release；不把整个阶段3标完成。
+
 ## 启动切片 A0（2026-11-07）
 
 用户已授权合并阶段2并继续后续任务；阶段2的dev CI通过。先在`refactor/drizzle`执行A0，

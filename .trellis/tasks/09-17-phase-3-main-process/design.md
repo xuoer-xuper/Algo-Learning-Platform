@@ -1,5 +1,25 @@
 # 阶段 3 技术设计
 
+## 0a. 发行加固同步优先契约（2026-11-17）
+
+在A2d之前，先组合已发布2.0.1恢复协议与A1迁移协调器。完整评审见
+`research/release-hardening-sync-design.md`；本节不表示实现或验证已经完成。
+
+- 保留format1 checkpoint/backup manifest/resolution audit严格兼容；Drizzle尝试使用
+  format2组合状态，记录legacy ledger、schema hash、Drizzle账本存在性及精确可信前缀。
+  不用optional字段把旧记录静默解释成Drizzle尝试，也不改应用schema或版本。
+- legacy与Drizzle源态都必须是已知连续前缀，目标不能回退且至少一边推进；Drizzle目标要求
+  legacy到030。legacy源/目标都30时，Drizzle推进仍需备份和持久prepared记录。
+- 恢复重放只到记录的目标：旧28→29不自动运行030或Drizzle；组合目标使用同一可信
+  resource provider，验证全部当前资源后暂存目标prefix，通过官方migrator有界重放。
+  当前库及checkpoint自述都不是物理目标的独立证明，keep-current不能覆盖用户后续数据。
+- unresolved记录在开库前无条件阻断，包括pending为空或explicit migrations:[]；旧
+  pendingMigrationKeys保留并验证，仅当备份+keys能唯一证明目标时才允许明确关联恢复。
+- 保持恢复intent、displaced main/WAL/SHM、原错误+次要诊断、audit验证及resolved归档。
+  冻结001–030、baseline SQL/meta、已发布tag/资产不变；原D盘未提交内容不参与同步。
+- 独立复核、组合状态回归、真实强杀及test:all/build:win通过后，正常hooks提交/推送，
+  用保留祖先的merge PR同步到Drizzle分支并跟CI；PR8继续draft、目标dev，不合入主线。
+
 ## 0. 启动评审与当前切片（2026-11-07）
 
 本节优先于后续历史示例。依据`research/start-readiness.md`，第一交付A0只包括依赖、

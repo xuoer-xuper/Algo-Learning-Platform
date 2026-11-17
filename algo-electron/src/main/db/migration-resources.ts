@@ -1,6 +1,8 @@
 import { createHash } from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
+import { createRequire } from 'node:module'
+import { fileURLToPath } from 'node:url'
 import { z } from 'zod'
 
 export interface KnownDrizzleMigration {
@@ -122,4 +124,57 @@ export function loadMigrationResources(
     return Object.freeze({ ...identity, sql })
   })
   return Object.freeze({ folder, migrations: Object.freeze(migrations) })
+}
+
+export interface MigrationResourceOptions {
+  folder: string
+  expected?: readonly KnownDrizzleMigration[]
+}
+
+export function loadApplicationMigrationResources(
+  options?: MigrationResourceOptions,
+): MigrationResources {
+  if (options) return loadMigrationResources(options.folder, options.expected)
+  const electron = createRequire(import.meta.url)('electron') as {
+    app?: { isPackaged: boolean; getAppPath: () => string }
+  }
+  return loadMigrationResources(
+    electron.app
+      ? resolveMigrationFolder({
+          packaged: electron.app.isPackaged,
+          appRoot: electron.app.getAppPath(),
+          resourcesPath: process.resourcesPath,
+        })
+      : fileURLToPath(new URL('../../../drizzle', import.meta.url)),
+  )
+}
+
+/** Stage a bounded, already trusted prefix without letting upstream read later SQL. */
+export function stageMigrationPrefix(
+  resources: MigrationResources,
+  count: number,
+  directory: string,
+): MigrationResources {
+  const verified = loadMigrationResources(resources.folder, resources.migrations)
+  if (!Number.isSafeInteger(count) || count < 1 || count > verified.migrations.length) {
+    throw new Error('Invalid recovery migration prefix')
+  }
+  const journal = journalSchema.parse(
+    JSON.parse(fs.readFileSync(path.join(verified.folder, 'meta', '_journal.json'), 'utf8')),
+  )
+  fs.mkdirSync(directory)
+  fs.mkdirSync(path.join(directory, 'meta'))
+  const prefix = verified.migrations.slice(0, count)
+  for (const migration of prefix) {
+    fs.writeFileSync(path.join(directory, `${migration.tag}.sql`), migration.sql, { flag: 'wx' })
+  }
+  fs.writeFileSync(
+    path.join(directory, 'meta', '_journal.json'),
+    JSON.stringify({
+      ...journal,
+      entries: journal.entries.slice(0, count),
+    }),
+    { flag: 'wx' },
+  )
+  return loadMigrationResources(directory, prefix)
 }

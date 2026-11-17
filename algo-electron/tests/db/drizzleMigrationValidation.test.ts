@@ -60,23 +60,16 @@ describe('migration history validation', () => {
       'DROP TABLE schema_migrations; CREATE TABLE schema_migrations(version INTEGER PRIMARY KEY, name TEXT NOT NULL, applied_at INTEGER NOT NULL)',
     ],
   ])(
-    'rejects %s before backup, closes the handle, and retains a stale marker',
+    'rejects %s before backup and closes the handle; an unresolved marker then blocks before open',
     async (_name, sql) => {
       const { dbPath, backupDir } = migrationTestPaths()
       const database = initDbAtPath(dbPath)
       database.exec(sql)
       closeDb()
-      const markerPath = writeMigrationFailureMarker(backupDir, dbPath, {
-        databasePath: dbPath,
-        backupPath: 'old.sqlite',
-        failedAt: '2026-01-01',
-        pendingMigrations: [{ version: 99, name: 'unrelated' }],
-        error: 'previous',
-      })
       const close = vi.spyOn(Database.prototype, 'close')
       await expect(
         initDbAtPathWithMigrationSafety(dbPath, { backupDir, logger: quietLogger }),
-      ).rejects.toThrow(/legacy|Legacy|migration ledger/)
+      ).rejects.toThrow(/legacy|Legacy|migration ledger|migration history/)
       const closedTarget = close.mock.contexts.find(
         (instance): instance is Database.Database =>
           instance instanceof Database && instance.name === dbPath,
@@ -84,6 +77,18 @@ describe('migration history validation', () => {
       expect(closedTarget).toBeDefined()
       expect(closedTarget?.open).toBe(false)
       expect(backupFiles(backupDir)).toEqual([])
+      const markerPath = writeMigrationFailureMarker(backupDir, dbPath, {
+        databasePath: dbPath,
+        backupPath: path.join(backupDir, 'old.sqlite'),
+        failedAt: '2026-01-01T00:00:00.000Z',
+        pendingMigrations: [{ version: 99, name: 'unrelated' }],
+        error: 'previous',
+      })
+      close.mockClear()
+      await expect(
+        initDbAtPathWithMigrationSafety(dbPath, { backupDir, logger: quietLogger }),
+      ).rejects.toThrow('verified recovery')
+      expect(close).not.toHaveBeenCalled()
       expect(fs.existsSync(markerPath)).toBe(true)
     },
   )

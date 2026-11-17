@@ -4,7 +4,10 @@ import os from 'node:os'
 import path from 'node:path'
 import { test } from 'vitest'
 import { closeDb, getDb, initDbAtPath } from '../../electron/db/connection'
-import { exportLearningData } from '../../electron/backup/learningDataExport'
+import {
+  exportLearningData,
+  parseLearningDataExport,
+} from '../../electron/backup/learningDataExport'
 import { upsertCredential } from '../../electron/db/repositories/credentialRepository'
 
 test('learning data export lists every excluded table and never includes credentials', () => {
@@ -53,9 +56,28 @@ test('learning data export lists every excluded table and never includes credent
     assert.ok(exported.metadata.excluded_tables.includes('schema_migrations'))
     assert.strictEqual(JSON.stringify(exported).includes('export-user'), false)
     assert.strictEqual(JSON.stringify(exported).includes('export-secret-sentinel'), false)
-    assert.match(exported.metadata.complete_backup_hint, /完整备份请用数据库备份/)
+    assert.match(exported.metadata.complete_backup_hint, /JSON 和 SQLite.*都不是完整用户目录备份/)
+    for (const scope of ['笔记正文', '图片附件', '配置', '脚本文件', '浏览器会话', '敏感数据']) {
+      assert.ok(exported.metadata.complete_backup_hint.includes(scope))
+    }
+    const legacyExport = parseLearningDataExport({
+      ...exported,
+      schema_version: 1,
+      exported_at: new Date(exported.exported_at).toISOString(),
+      metadata: { excluded: exported.metadata.excluded },
+    })
+    assert.strictEqual(
+      legacyExport.metadata.complete_backup_hint,
+      exported.metadata.complete_backup_hint,
+    )
+    assert.throws(
+      () => parseLearningDataExport({ ...exported, schema_version: 3 }),
+      /不支持的导出版本/,
+    )
   } finally {
     closeDb()
-    fs.rmSync(tempDir, { recursive: true, force: true })
+    const resolved = path.resolve(tempDir)
+    assert.ok(resolved.startsWith(`${path.resolve(os.tmpdir())}${path.sep}site-credential-export-`))
+    fs.rmSync(resolved, { recursive: true, force: true })
   }
 })
