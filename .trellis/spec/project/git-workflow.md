@@ -211,4 +211,7 @@ Use `.github/pull_request_template.md` (Chinese). In addition to the template's 
   carries a note explaining them.
 - Full procedure: `docs/OPERATIONS/RELEASE_PROCESS.md`. Implementation and final-artifact acceptance
   are tracked by `11-08-release-upgrade-safety`; these rules do not certify that task as complete.
-  Public release remains paused until its safety/installer/manual gates and user confirmation.
+  Publication always requires its safety/installer/manual gates and explicit user confirmation.
+  The 2.0.1 maintainer has renewed merge and publication authorization after local acceptance;
+  final-master build, CI, installer and asset verification remain mandatory. See the task's
+  `research/maintainer-release-acceptance.md` for evidence boundaries, not per-site test claims.
