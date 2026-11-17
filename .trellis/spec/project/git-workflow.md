@@ -212,6 +212,12 @@ Use `.github/pull_request_template.md` (Chinese). In addition to the template's 
 - Full procedure: `docs/OPERATIONS/RELEASE_PROCESS.md`. Implementation and final-artifact acceptance
   are tracked by `11-08-release-upgrade-safety`; these rules do not certify that task as complete.
   Publication always requires its safety/installer/manual gates and explicit user confirmation.
-  The 2.0.1 maintainer has renewed merge and publication authorization after local acceptance;
-  final-master build, CI, installer and asset verification remain mandatory. See the task's
-  `research/maintainer-release-acceptance.md` for evidence boundaries, not per-site test claims.
+  [v2.0.1](https://github.com/xuoer-xuper/Algo-Learning-Platform/releases/tag/v2.0.1) was published
+  on 2026-11-17 at 11:43:55 Asia/Shanghai and verified as `verified-public`; its annotated tag
+  targets PR #13's master merge `de89ce4b58f240236a7aa249f0a08627df0a996e`.
+  Final-source gates, required CI and downloaded public asset hashes passed. Manual acceptance
+  remains the maintainer's overall candidate feedback, not per-site observations; final ASAR
+  matches that candidate, while the 26-step hosted installer test used a separately built installer.
+  See `research/maintainer-release-acceptance.md` in the task for the manual evidence boundary.
+  Latest stable is now 2.0.1; tooling remains intentionally bound to 2.0.1 / v2.0.0. Review and
+  update version/baseline, preparation config and tests before any later release, never auto-bump.
