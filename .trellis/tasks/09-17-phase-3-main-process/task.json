@@ -21,6 +21,6 @@
   "children": [],
   "parent": "09-17-spec-alignment",
   "relatedFiles": [],
-  "notes": "A0/A1/A2a-A2c已完成。2026-11-17发行加固同步在codex/drizzle-release-sync（C工作树）完成独立复核、206文件1967测试/UI11/双原生强杀矩阵/build:win；正常提交推送及同步PR CI待办。PR8已恢复base dev，仍draft；A2d仅研究，原D未提交内容不动，不归档阶段3。",
+  "notes": "A0/A1/A2a-A2c和安全同步PR15 merge317cd9f已完成且CI通过。A2d题目删除在C工作树codex/drizzle-problem-delete实现并独立复核，上海/纽约各41测试，DB341/native17，全量2005/UI11/build:check通过；提交推送/CI待办。原D62dirty文件保持，PR8仍draft/base dev，不归档阶段3。",
   "meta": {}
 }

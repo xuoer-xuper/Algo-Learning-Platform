@@ -14,6 +14,7 @@
 - `problemOverview.test.ts`：A2a四条总览Drizzle只读查询与原SQL等价，覆盖nullable ID按行计数、本地日期边界、tombstone、epoch0/null/毫秒、无写入/通知及关闭重开；原生Electron仓库套件补数字输出验证。
 - `problemLookup.test.ts`：A2b平台题号查ID与原SQL对照，保留大小写/空白/字面量绑定、NULL/空ID和deleted_at=0语义，验证只读、无通知、事务及关闭重开和数据库异常传播；原生Electron另验字面量、大小写、NULL/空ID和软删除边界。
 - `problemUpsert.test.ts` / `problem-upsert-oracle.ts`：A2c与冻结原三条SQL对照完整行/事件，覆盖bound-null实际UPDATE、六列SET触发语义、标题/字段/时间/软删除，以及语句失败、外层回滚/真实COMMIT失败、savepoint和partial autocommit；原生Electron另验null-ID通知和数值时间。
+- `deleteProblem.test.ts` / `problem-delete-oracle.ts`：A2d四分支raw instant UNION和四条DELETE与冻结原SQL对照；保持非法时间拒绝、NULL/空/字面量ID、tombstone、孤儿false返回、notes、实际COMMIT/savepoint/外层回滚、第二日统计失败及事件时序。`test:db`同时注册删除与R4通知回归，原生repository套件另验成功删除和真实deferred-FK COMMIT失败。
 - `codeforcesSubmissionIdMigration.test.ts`：Codeforces 提交 ID migration 兼容。
 - `problemContextMigration.test.ts`：题目上下文字段 migration 兼容。
 - `backupImport.test.ts`：SQLite 备份、学习数据 JSON 导出/导入、冲突检测和 Cookie/`raw_json` 排除。

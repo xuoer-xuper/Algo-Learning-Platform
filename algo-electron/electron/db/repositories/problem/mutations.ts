@@ -1,8 +1,13 @@
 import crypto from 'node:crypto'
-import { and, eq, sql } from 'drizzle-orm'
+import { and, eq, isNotNull, sql } from 'drizzle-orm'
 import { getDb } from '../../connection'
 import { createDrizzleClient } from '../../../../src/main/db/client'
-import { problems } from '../../../../src/main/db/schema'
+import {
+  activityEvents,
+  problems,
+  problemVisits,
+  submissions,
+} from '../../../../src/main/db/schema'
 import type { ProblemIdentity } from '../../../shared/types'
 import { nowMillis, toLocalDay } from '../../../shared/time'
 import { logger as baseLogger, type Logger } from '../../../shared/logger'
@@ -79,34 +84,42 @@ export function upsertProblem(identity: ProblemIdentity): void {
 
 export function deleteProblem(problemId: string, logger: Logger = baseLogger): boolean {
   const db = getDb()
+  const orm = createDrizzleClient(db)
   const affectedDates = new Set<string>()
-  const rows = db
-    .prepare(
-      `
-    SELECT entered_at AS instant
-    FROM problem_visits WHERE problem_id = ?
-    UNION
-    SELECT submitted_at AS instant
-    FROM submissions WHERE problem_id = ?
-    UNION
-    SELECT occurred_at AS instant
-    FROM activity_events WHERE problem_id = ?
-    UNION
-    SELECT first_solved_at AS instant
-    FROM problems WHERE id = ? AND first_solved_at IS NOT NULL
-  `,
+  // Raw scalar projections preserve invalid stored instants for toLocalDay's validation.
+  const rows = orm
+    .select({ instant: sql<number | null>`${problemVisits.entered_at}`.as('instant') })
+    .from(problemVisits)
+    .where(eq(problemVisits.problem_id, problemId))
+    .union(
+      orm
+        .select({ instant: sql<number | null>`${submissions.submitted_at}`.as('instant') })
+        .from(submissions)
+        .where(eq(submissions.problem_id, problemId)),
     )
-    .all(problemId, problemId, problemId, problemId) as Array<{ instant: number | null }>
+    .union(
+      orm
+        .select({ instant: sql<number | null>`${activityEvents.occurred_at}`.as('instant') })
+        .from(activityEvents)
+        .where(eq(activityEvents.problem_id, problemId)),
+    )
+    .union(
+      orm
+        .select({ instant: sql<number | null>`${problems.first_solved_at}`.as('instant') })
+        .from(problems)
+        .where(and(eq(problems.id, problemId), isNotNull(problems.first_solved_at))),
+    )
+    .all()
   for (const row of rows) {
     if (row.instant !== null) affectedDates.add(toLocalDay(row.instant))
   }
 
   const deleted = withDataChangeTransaction(() =>
     db.transaction(() => {
-      db.prepare('DELETE FROM submissions WHERE problem_id = ?').run(problemId)
-      db.prepare('DELETE FROM problem_visits WHERE problem_id = ?').run(problemId)
-      db.prepare('DELETE FROM activity_events WHERE problem_id = ?').run(problemId)
-      const removed = db.prepare('DELETE FROM problems WHERE id = ?').run(problemId).changes > 0
+      orm.delete(submissions).where(eq(submissions.problem_id, problemId)).run()
+      orm.delete(problemVisits).where(eq(problemVisits.problem_id, problemId)).run()
+      orm.delete(activityEvents).where(eq(activityEvents.problem_id, problemId)).run()
+      const removed = orm.delete(problems).where(eq(problems.id, problemId)).run().changes > 0
       if (removed) emitDataChanged(['problems', 'submissions', 'stats'])
       return removed
     })(),

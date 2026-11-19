@@ -2,7 +2,7 @@
 
 前置：阶段 2 合入 dev。三个 PR：`refactor/drizzle`、`refactor/main-layout`（含 kebab-case）、`refactor/main-split`。
 
-## 当前优先切片：2.0.1 加固同步（2026-11-17）
+## 已验收切片：2.0.1 加固同步（2026-11-17）
 
 用户要求发行后继续后续工作，先把已发布安全契约同步到Drizzle分支，再做A2d。
 同步分支`codex/drizzle-release-sync`基于`20ee62c`，合并`dev 7d8da9c`并保留双父祖先。
@@ -14,9 +14,27 @@
   同步守卫/测试清单/打包说明/lockfile保留双方能力。冻结001–030、baseline SQL/meta不改。
 - [x] 研究并评审组合迁移/恢复契约，记录`research/release-hardening-sync-design.md`。
 - [x] 合并代码与回归，覆盖已发布v2.0.1 checkpoint、Drizzle baseline/pending失败/中断/明确恢复。
-- [ ] 独立复核、frozen install、全量test:all、build:win，正常hooks提交/推送并跟CI。
+- [x] 独立复核、frozen install、全量test:all（206文件1967用例/UI11）、build:win通过；
+  合并提交57690f6正常hooks推送，PR15 CI44025304964全绿并以merge317cd9f合入Drizzle；
+  PR8集成CI44025992234全绿，dev/master及已发布tag不变。
 - [x] PR #8目标已恢复dev（发行合并自动删除dev曾导致改向master），仍draft；同步PR须保留祖先。
 - 不在这片修改题目删除/DTO政策、目录布局、版本、已发布tag或Release；不把整个阶段3标完成。
+
+## 当前切片 A2d：题目删除（2026-11-17）
+
+安全同步已合入Drizzle，独立设计预检通过`research/a2d-problem-delete.md`。
+在C工作树`codex/drizzle-problem-delete`基于`317cd9f`实施；原D工作树不动。
+
+- 最小缺口：deleteProblem仍为四分支UNION+四次原生DELETE，仅将构造转换Drizzle。
+- 归属：problem/mutations.ts；删除差分测试/原SQL oracle；既有native repositories测试；
+  DB suite注册与README/spec。upsert、schema、DTO、IPC、布局、迁移保护、版本均不改。
+- 保留raw数值instant投影与原toLocalDay校验、UNION去重和所有tombstone行为；
+  缺父行仍删children但false/无通知；notes不删除。保留native transaction及commit外通知scope。
+- 顶层统计为删除COMMIT后独立重算；嵌套时是inner savepoint后仍在外层事务中，不能发明aftercommit调度。
+- [x] 最小生产改写与原SQL差分回归，覆盖非法时间/NULL/空ID/缺父行/实际commit与savepoint/后续日期统计失败。
+- [x] 独立复核、上海/纽约各41删除用例、test:db30文件341用例/native17、
+  test:all206文件2005用例/UI11及build:check通过。
+- [ ] 正常hooks提交/立即推送，独立PR回Drizzle并跟CI，PR8仍draft，不发版。
 
 ## 启动切片 A0（2026-11-07）
 

@@ -127,16 +127,20 @@
 
 PR #12修复pnpm入口，PR #13合入master `de89ce4`，最终全门/构建及hosted26步均通过。
 正常check/draft/verify/publish已完成，v2.0.1于11:43:55正式公开并验证为verified-public。
-验收SHA、资产hash、CI及人工边界见`research/publication-2.0.1.md`。以下Drizzle同步继续保留待办。
+验收SHA、资产hash、CI及人工边界见`research/publication-2.0.1.md`。Drizzle同步于同日通过PR15完成，技术交接不再阻塞。
 
 ## Commit / Handoff
 
 - [x] 本轮工程提交前读Git规范、正常钩子；原子中文conventional commit，提交后及时推送。
 - [x] 本轮pre-push `pnpm test:ci`通过；CI用`gh run watch --exit-status`跟到结果，不靠重复重跑碰绿。
 - [x] 检查无发布阻塞、征得恢复发行确认后，才进入dev→master PR/tag/Release操作。
-- [ ] 将加固修复按祖先/冲突边界同步到原Drizzle分支，避免覆盖其安全迁移接管代码。
+- [x] 将加固修复按祖先/冲突边界同步到Drizzle：PR15 merge317cd9f保留dev祖先；
+  format1兼容+format2组合恢复、双真实强杀矩阵、206文件1967测试/UI11/build:win及
+  PR15 CI44025304964、PR8集成CI44025992234全绿；原D工作树未变。
+  详见阶段3`research/release-hardening-sync-validation.md`。
 - [ ] 完成独立加固任务后记录会话；不归档阶段3或整个对齐计划，不预设3.0.0。
-      前轮工程与安装验收为Session16；本轮发行会话另记，Drizzle同步未完成，因此不归档任务。
+      前轮工程与安装验收为Session16，正式发行Session17；本轮同步技术交接已完成，
+      后续只需记录会话/归档加固任务，不归档阶段3或父计划。
 
 ## Stop Conditions
 

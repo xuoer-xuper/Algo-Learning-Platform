@@ -13,8 +13,10 @@ import {
   setUserScriptValue,
 } from '../../electron/db/repositories/userScriptRuntimeRepository.ts'
 import type { DataChangedPayload } from '../../src/shared/types/data.ts'
+import { localDayBounds, shiftLocalDay, toLocalDay } from '../../src/shared/time.ts'
 import { closeDb, initDbAtPath } from '../../electron/db/connection.ts'
 import {
+  deleteProblem,
   findProblemIdByPlatformKey,
   getOverviewStats,
   getProblemDetail,
@@ -420,6 +422,157 @@ function seedCodeforcesSubmissions(problem: ProblemRow): void {
     true,
   )
 }
+
+function seedNativeDeletionRows(activityAt: number): ProblemRow {
+  const sqlite = getDbForTest()
+  const problem = seedCodeforcesProblem()
+  seedCodeforcesSubmissions(problem)
+  insertVisit(sqlite, 'delete-visit', problem, 120, 90)
+  sqlite
+    .prepare(
+      `INSERT INTO activity_events
+    (id, event_type, occurred_at, local_day, problem_id, created_at, deleted_at)
+    VALUES (NULL, 'visit_start', ?, '1900-01-01', ?, 0, 0)`,
+    )
+    .run(activityAt, problem.id)
+  sqlite
+    .prepare(
+      `INSERT INTO notes (id, problem_id, title, file_path, created_at, updated_at)
+    VALUES ('delete-note', ?, 'Preserve this note', 'synthetic.md', 0, 0)`,
+    )
+    .run(problem.id)
+  return problem
+}
+
+test('deletes facts and recomputes affected days after native commit while preserving notes', () => {
+  const sqlite = getDbForTest()
+  const visitDay = toLocalDay(Date.parse(`${day}T09:00:00+08:00`))
+  const submissionDay = shiftLocalDay(visitDay, 1)
+  const activityDay = shiftLocalDay(visitDay, 2)
+  const unaffectedDay = shiftLocalDay(visitDay, 3)
+  const target = seedNativeDeletionRows(localDayBounds(activityDay).start + 321)
+  sqlite
+    .prepare('UPDATE submissions SET submitted_at = ? WHERE problem_id = ?')
+    .run(localDayBounds(submissionDay).start + 123, target.id)
+  sqlite
+    .prepare('UPDATE problems SET first_solved_at = 0, deleted_at = 0 WHERE id = ?')
+    .run(target.id)
+  upsertProblem({
+    platform: 'codeforces',
+    platformProblemId: '1000B',
+    canonicalUrl: 'https://example.test/retained',
+    confidence: 'url',
+  })
+  const retained = getProblemByPlatformId(sqlite, 'codeforces', '1000B')
+  assert.strictEqual(retained.first_solved_at, null)
+  insertVisit(sqlite, 'retained-visit', retained, 40, 30)
+  const affectedDays = [toLocalDay(0), visitDay, submissionDay, activityDay].sort()
+  for (const date of [...affectedDays, unaffectedDay]) recomputeDailyStats(date)
+  sqlite
+    .prepare('UPDATE user_daily_stats SET submission_count = 77 WHERE local_day IN (?, ?)')
+    .run(activityDay, unaffectedDay)
+  const noteBefore = sqlite.prepare('SELECT * FROM notes').all()
+  const unaffectedBefore = sqlite
+    .prepare('SELECT * FROM user_daily_stats WHERE local_day = ?')
+    .get(unaffectedDay)
+  const events: DataChangedPayload[] = []
+  const transactionStates: boolean[] = []
+  const dispose = subscribeDataChanges((payload) => {
+    events.push(payload)
+    transactionStates.push(sqlite.inTransaction)
+  })
+  try {
+    assert.strictEqual(deleteProblem(target.id), true)
+    assert.deepStrictEqual(sqlite.prepare('SELECT id FROM problems').all(), [{ id: retained.id }])
+    assert.deepStrictEqual(sqlite.prepare('SELECT id FROM problem_visits').all(), [
+      { id: 'retained-visit' },
+    ])
+    assert.deepStrictEqual(sqlite.prepare('SELECT * FROM submissions').all(), [])
+    assert.deepStrictEqual(sqlite.prepare('SELECT * FROM activity_events').all(), [])
+    assert.deepStrictEqual(sqlite.prepare('SELECT * FROM notes').all(), noteBefore)
+    assert.deepStrictEqual(
+      sqlite.prepare('SELECT * FROM user_daily_stats WHERE local_day = ?').get(unaffectedDay),
+      unaffectedBefore,
+    )
+    for (const date of affectedDays) {
+      assert.deepStrictEqual(
+        sqlite
+          .prepare(
+            `SELECT active_seconds, duration_seconds,
+        visited_problem_count, solved_problem_count, submission_count, ac_submission_count
+        FROM user_daily_stats WHERE local_day = ?`,
+          )
+          .get(date),
+        {
+          active_seconds: date === visitDay ? 30 : 0,
+          duration_seconds: date === visitDay ? 40 : 0,
+          visited_problem_count: date === visitDay ? 1 : 0,
+          solved_problem_count: 0,
+          submission_count: 0,
+          ac_submission_count: 0,
+        },
+      )
+    }
+    assert.deepStrictEqual(events, [
+      { tables: ['problems', 'submissions', 'stats'] },
+      ...affectedDays.map(() => ({ tables: ['stats'] })),
+    ])
+    assert.deepStrictEqual(
+      transactionStates,
+      events.map(() => false),
+    )
+    events.length = 0
+    assert.strictEqual(deleteProblem(target.id), false)
+    assert.deepStrictEqual(events, [])
+    assert.deepStrictEqual(sqlite.pragma('foreign_key_check'), [])
+  } finally {
+    dispose()
+  }
+})
+
+test('rolls back problem deletion and suppresses notifications when native COMMIT fails', () => {
+  const sqlite = getDbForTest()
+  const target = seedNativeDeletionRows(now)
+  recomputeDailyStats(toLocalDay(now))
+  sqlite.exec(
+    'CREATE TABLE delete_commit_probe (problem_id TEXT REFERENCES problems(id) DEFERRABLE INITIALLY DEFERRED)',
+  )
+  sqlite.prepare('INSERT INTO delete_commit_probe VALUES (?)').run(target.id)
+  let parentDeleteExecuted = false
+  sqlite.function('observe_parent_delete', () => {
+    parentDeleteExecuted = true
+    return 0
+  })
+  sqlite.exec(`CREATE TRIGGER observe_parent_delete AFTER DELETE ON problems
+    BEGIN SELECT observe_parent_delete(); END;`)
+  const snapshot = () =>
+    [
+      'problems',
+      'submissions',
+      'problem_visits',
+      'activity_events',
+      'notes',
+      'user_daily_stats',
+      'delete_commit_probe',
+    ].map((table) => sqlite.prepare(`SELECT * FROM ${table} ORDER BY rowid`).all())
+  const before = snapshot()
+  const events: DataChangedPayload[] = []
+  const dispose = subscribeDataChanges((payload) => events.push(payload))
+  try {
+    assert.throws(() => deleteProblem(target.id), /FOREIGN KEY constraint failed/)
+    assert.strictEqual(
+      parentDeleteExecuted,
+      true,
+      'The deferred constraint must fail after the parent DELETE executed',
+    )
+    assert.strictEqual(sqlite.inTransaction, false)
+    assert.deepStrictEqual(snapshot(), before)
+    assert.deepStrictEqual(events, [])
+    assert.deepStrictEqual(sqlite.pragma('foreign_key_check'), [])
+  } finally {
+    dispose()
+  }
+})
 
 test('runs migrations into a temporary database', () => {
   const db = getDbForTest()

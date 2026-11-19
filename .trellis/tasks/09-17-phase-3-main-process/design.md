@@ -46,6 +46,21 @@ drizzle-kit0.31.11，安装后按实际API和Electron ABI验证，不采用beta�
 
 ## 1. 目标目录
 
+### A2d 题目删除（发行安全同步验收后）
+
+依据`research/a2d-problem-delete.md`及独立预检，只替换四分支UNION和四次DELETE。
+同一native连接的typed adapter使用`sql<number | null>`原始instant投影；不由Date decoder
+截断小数/容忍非法值，不添加tombstone或父行存在性过滤。单条distinct UNION和原toLocalDay
+验证保持，notes不加入删除范围。保留submissions→visits→activity→problem顺序与同步boolean。
+
+native transaction仍被外层withDataChangeTransaction包住；实际COMMIT失败、savepoint及
+外层回滚必须丢弃对应通知。不存在父行时仍删除children但返回false、不重算/发事件。
+统计重算保留在本函数事务调用之后；顶层每个日期单独提交，失败停止后续日期且仅warn，
+已删除事实及较早日期不回滚。嵌套调用的统计仍受调用方事务控制，不新增全局aftercommit机制。
+
+原SQL独立oracle对照行/返回值/错误/事件/告警；实际deferred FK产生COMMIT失败，覆盖
+DST/epoch0/负时间/非法时间、空及引号ID、缺父行、notes、第二日重算失败、关闭重开和native ABI。
+
 ### A2c 题目 upsert（三条语句，A2b交付后实施）
 
 独立复核已确认 `research/a2c-problem-upsert.md` 可不改变nullableID政策完成转换。

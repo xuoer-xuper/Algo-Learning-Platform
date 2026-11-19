@@ -21,6 +21,6 @@
   "children": [],
   "parent": "09-17-spec-alignment",
   "relatedFiles": [],
-  "notes": "v2.0.1已2026-11-17正式公开并verified-public，tag/master de89ce4；全门197文件1766用例/UI11/hosted26步及资产SHA全通过。维护者整体人工验收，包内13557文件与已测候选相同。dev已恢复；记录走dev文档PR。仅Drizzle安全迁移同步交接待办，PR8和原D工作区未动，任务保留in_progress，不归档阶段3或父计划。",
+  "notes": "v2.0.1已2026-11-17正式公开并verified-public，tag/master de89ce4；最终发行验证见publication-2.0.1。Drizzle技术交接已通过PR15 merge317cd9f完成，206文件1967测试/UI11/native8强杀/build:win、PR15与PR8 CI全绿。原D工作树62dirty文件未变；仅同步会话与归档记录待办，阶段3/父任务不归档。",
   "meta": {}
 }
