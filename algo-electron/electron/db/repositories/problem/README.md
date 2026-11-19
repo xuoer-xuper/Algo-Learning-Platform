@@ -32,6 +32,8 @@
 - 按 submissions → problem_visits → activity_events → problems 顺序删除；父行不存在仍删除匹配 children，但返回 false、不发通知/重算。空字符串/引号 ID 精确绑定，nullable parent ID 不匹配；notes 不删，UI 侧仍应先处理笔记确认。
 - native transaction 的实际调用仍处于 `withDataChangeTransaction` 内，COMMIT 失败或 savepoint 回滚丢弃对应事件。统计在本函数内层 transaction 返回后逐个排序日期重算：顶层较早日期已提交，第二日失败仅 warning 并仍返回 true；嵌套调用的重算仍受外层事务回滚约束，不能改成通用 after-commit 调度。
 - Omnibox 仅查询本地 `problems`/`problem_visits`；输入按参数绑定，并把 `%`、`_`、`\` 作为 LIKE 字面量处理。结果过滤软删除行，同时按 problem 与 URL 去重。
+- Omnibox第二候选管线通过Drizzle CTE取最近64条活跃访问，再JOIN活跃题目并匹配；不得将父行/搜索过滤提前到窗口内或新增同分排序。INNER JOIN相等条件下投影非空visit.problem_id，与原parent ID相等，空ID保持；第一管线可返回NULL ID的遗留DTO政策未在本片更改。
+- 第二管线时间使用显式别名的原始scalar投影，保持整数毫秒/epoch0，不由Date转换改变诊断数据；只读不发事件。第一管线及最终排序、去重、8条上限不变，查询异常同步抛出。
 - 高频建议查询不得对整张 `problem_visits` 使用 `GROUP BY` 或窗口函数；继续复用 `idx_problems_last_visited`、`idx_pv_entered` 和 `idx_pv_problem_time`。
 - 总览沿用各查询原有过滤：题目总数/平台分布排除已软删除题目，按行计数（包括 nullable TEXT 主键）；今日访问按本地日 `[start,end)` 统计 distinct problem_id，不排除软删除访问或关联已删除题目的访问；最近活跃时间也保留软删除事件。
 - Drizzle 的 timestamp_ms 参数使用 Date 编码，输出显式转回毫秒数并保留 epoch 0/null。总览读取不写库、不运行迁移、不发 R4 通知；平台分布只按数量降序，不新增同分排序保证。
@@ -45,7 +47,7 @@
 cd algo-electron
 pnpm typecheck
 pnpm typecheck:tests
-pnpm vitest run tests/db/problemOverview.test.ts tests/db/problemLookup.test.ts tests/db/drizzleClient.test.ts
+pnpm vitest run tests/db/problemOverview.test.ts tests/db/problemLookup.test.ts tests/db/drizzleClient.test.ts tests/db/omniboxSuggestions.test.ts
 pnpm vitest run tests/db/problemUpsert.test.ts tests/db/deleteProblem.test.ts tests/db/dataChangeNotifications.test.ts tests/parsers/titleValidation.test.ts
 pnpm test:db
 ```
@@ -55,3 +57,8 @@ pnpm test:db
 `problemUpsert.test.ts` 与冻结原三语句的 `problem-upsert-oracle.ts` 在独立临时库中比较完整原始行和事件，覆盖标题/字段、NULL/空 ID、0/毫秒、UPDATE OF、真实只读/触发器/提交错误、savepoint 和外层通知。原生 repository 用例另验证 bound-null 无修改仍通知以及整数时间写入。
 
 `deleteProblem.test.ts` 与 `problem-delete-oracle.ts` 以独立真实 SQLite 对照冻结原 SQL 的完整原始行、返回值、错误根因、事件时序和告警。41个用例包括四分支非法时间、0/本地午夜、nullable/空/引号ID、tombstone/孤儿/notes、单条UNION和删除顺序、触发器及真实deferred-FK COMMIT失败、嵌套savepoint/外层回滚、第二日统计失败及重初始化。差分矩阵可在`TZ=America/New_York`独立运行验证23小时本地日；原生ABI由协调入口另验，不用Vitest结果替代。
+
+`omniboxSuggestions.test.ts` 使用数字毫秒的当前schema fixture，与独立冻结的
+`omnibox-suggestions-oracle.ts` 比较完整有序结果/异常；覆盖候选窗口、转义、时间同分、
+null/空ID、墓碑、只读无通知及连接生命周期。native repository用例另验真实Electron ABI；
+完整omnibox和列表/详情/访问DTO迁移仍待nullable-ID政策决策，不以本片完成代称全部迁移。

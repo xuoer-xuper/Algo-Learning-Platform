@@ -1,7 +1,7 @@
 # A2d problem deletion: verification
 
-Status: implementation, independent review, full local gates and build check passed.
-Commit/push/remote CI integration pending; not a release or whole-phase completion.
+Status: implementation, independent review, full local gates, build check and remote
+integration passed. Merged into Drizzle on 2026-11-19; not a release or whole-phase completion.
 
 ## Boundary
 
@@ -27,7 +27,7 @@ Commit/push/remote CI integration pending; not a release or whole-phase completi
 
 ## Handoff
 
-PR8 stays draft againstdev; this bounded query slice does not complete phase3 or
+PR8 stays draft against dev; this bounded query slice does not complete phase3 or
 publish a new version. DTO-returning reads and later domains remain separate work.
 
 ## Preliminary execution
@@ -63,3 +63,15 @@ publish a new version. DTO-returning reads and later domains remain separate wor
   belongs to its own earlier snapshot, not this A2d output.
 - Logs: `algo-electron/tmp/drizzle-a2d-{db,all,build}.log`; independent timezone logs
   `drizzle-a2d-review-{shanghai,new-york}.log` retain the corrected full-file runs.
+
+## Remote integration (2026-11-19)
+
+- Work commit `dcd89916f222d6c8f2123fd143bc892c9cdd3dad` passed normal commit and
+  pre-push hooks, including `test:ci`, and was pushed without bypasses.
+- PR16 CI `44049450301` passed both required jobs. Manual jobs were skipped by
+  design; their skip is not installer acceptance evidence.
+- PR16 squash `85b95dc21615eba556d41d07f9de8c3c03f107b1` merged into
+  `refactor/drizzle`; its tree equals the tested work commit.
+- PR8 integration CI `44505395427` passed. PR8 remains draft, targeting `dev`.
+- Released dev ancestry remains reachable. Original D-drive HEAD and all 62 dirty
+  file hashes are unchanged; no release, version, master/dev or public asset changes.

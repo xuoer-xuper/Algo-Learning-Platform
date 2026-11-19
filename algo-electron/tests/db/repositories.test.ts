@@ -3,6 +3,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import type Database from 'better-sqlite3'
+import { getOriginalOmniboxSuggestions } from './omnibox-suggestions-oracle'
 import { eq } from 'drizzle-orm'
 import { createDrizzleClient } from '../../src/main/db/client'
 import { notes as ormNotes, userScriptResources as ormResources } from '../../src/main/db/schema'
@@ -18,6 +19,7 @@ import { closeDb, initDbAtPath } from '../../electron/db/connection.ts'
 import {
   deleteProblem,
   findProblemIdByPlatformKey,
+  getOmniboxSuggestions,
   getOverviewStats,
   getProblemDetail,
   getRecentProblems,
@@ -201,6 +203,136 @@ test('preserves literal lookup keys and nullable IDs with the Electron SQLite AB
   assert.strictEqual(findProblemIdByPlatformKey('codeforces', 'empty'), '')
   assert.strictEqual(findProblemIdByPlatformKey('codeforces', 'deleted'), null)
   assert.strictEqual(findProblemIdByPlatformKey('codeforces', "' OR 1=1 --"), null)
+})
+
+test('preserves the recent visit horizon before parent and query filtering with the Electron SQLite ABI', () => {
+  const sqlite = getDbForTest()
+  const insertProblem = sqlite.prepare(
+    `INSERT INTO problems
+      (id, platform, platform_problem_id, canonical_url, title, first_seen_at, created_at, updated_at, deleted_at)
+     VALUES (?, 'codeforces', ?, 'https://example.test/canonical', 'Unrelated title', 0, 0, 0, ?)`,
+  )
+  const insertHistory = sqlite.prepare(
+    `INSERT INTO problem_visits
+      (id, problem_id, platform, url, entered_at, created_at, updated_at, deleted_at)
+     VALUES (?, ?, 'codeforces', ?, ?, 0, 0, ?)`,
+  )
+  insertProblem.run('candidate', 'candidate', null)
+  insertProblem.run('tombstoned', 'tombstoned', 0)
+  insertHistory.run('cutoff', 'candidate', 'https://example.test/history/needle', 0, null)
+  for (let index = 1; index <= 64; index += 1) {
+    insertHistory.run(
+      `newer-${index}`,
+      index === 64 ? 'tombstoned' : 'candidate',
+      `https://example.test/history/other-${index}`,
+      index,
+      null,
+    )
+  }
+
+  // The sole matching URL is 65th; tombstoned parents still consume a CTE slot.
+  assert.deepStrictEqual(
+    getOmniboxSuggestions('needle'),
+    getOriginalOmniboxSuggestions(sqlite, 'needle'),
+  )
+  assert.deepStrictEqual(getOmniboxSuggestions('needle'), [])
+
+  // Deleted visits, unlike visits to deleted parents, do not consume a slot.
+  sqlite.prepare("UPDATE problem_visits SET deleted_at = 0 WHERE id = 'newer-1'").run()
+  for (let index = 0; index < 70; index += 1) {
+    insertHistory.run(
+      `deleted-${index}`,
+      'candidate',
+      'https://example.test/history/needle-deleted',
+      index + 100,
+      0,
+    )
+  }
+  const suggestions = getOmniboxSuggestions('needle')
+  assert.deepStrictEqual(suggestions, getOriginalOmniboxSuggestions(sqlite, 'needle'))
+  assert.deepStrictEqual(suggestions, [
+    {
+      problemId: 'candidate',
+      title: 'Unrelated title',
+      platform: 'codeforces',
+      platformProblemId: 'candidate',
+      url: 'https://example.test/history/needle',
+      lastVisitedAt: 0,
+      source: 'history',
+    },
+  ])
+})
+
+test('keeps empty parent and null visit IDs with numeric read-only suggestions in the Electron SQLite ABI', () => {
+  const sqlite = getDbForTest()
+  const insertProblem = sqlite.prepare(
+    `INSERT INTO problems
+      (id, platform, platform_problem_id, canonical_url, title, first_seen_at, last_visited_at, created_at, updated_at)
+     VALUES (?, 'codeforces', ?, 'https://example.test/unrelated', NULL, 0, NULL, 0, 0)`,
+  )
+  const insertHistory = sqlite.prepare(
+    `INSERT INTO problem_visits
+      (id, problem_id, platform, url, entered_at, created_at, updated_at)
+     VALUES (?, ?, 'codeforces', ?, ?, 0, 0)`,
+  )
+  insertProblem.run('', 'empty-key')
+  insertProblem.run('millis', 'millis-key')
+  insertProblem.run(null, 'nullable-parent')
+  insertHistory.run(null, '', 'https://example.test/history/native-only-zero', 0)
+  insertHistory.run(
+    'millis-visit',
+    'millis',
+    'https://example.test/history/native-only-millis',
+    1768443630123,
+  )
+  const problemsBefore = sqlite.prepare('SELECT * FROM problems ORDER BY rowid').all()
+  const visitsBefore = sqlite.prepare('SELECT * FROM problem_visits ORDER BY rowid').all()
+  const events: DataChangedPayload[] = []
+  const dispose = subscribeDataChanges((payload) => events.push(payload))
+  sqlite.pragma('query_only = ON')
+  try {
+    const suggestions = getOmniboxSuggestions('native-only')
+    assert.deepStrictEqual(suggestions, getOriginalOmniboxSuggestions(sqlite, 'native-only'))
+    assert.deepStrictEqual(suggestions, [
+      {
+        problemId: 'millis',
+        title: null,
+        platform: 'codeforces',
+        platformProblemId: 'millis-key',
+        url: 'https://example.test/history/native-only-millis',
+        lastVisitedAt: 1768443630123,
+        source: 'history',
+      },
+      {
+        problemId: '',
+        title: null,
+        platform: 'codeforces',
+        platformProblemId: 'empty-key',
+        url: 'https://example.test/history/native-only-zero',
+        lastVisitedAt: 0,
+        source: 'history',
+      },
+    ])
+    for (const suggestion of suggestions) {
+      assert.strictEqual(typeof suggestion.lastVisitedAt, 'number')
+    }
+    assert.deepStrictEqual(
+      sqlite.prepare('SELECT * FROM problems ORDER BY rowid').all(),
+      problemsBefore,
+    )
+    assert.deepStrictEqual(
+      sqlite.prepare('SELECT * FROM problem_visits ORDER BY rowid').all(),
+      visitsBefore,
+    )
+    assert.deepStrictEqual(events, [])
+    assert.strictEqual(
+      sqlite.prepare("SELECT name FROM sqlite_schema WHERE name = '__drizzle_migrations'").get(),
+      undefined,
+    )
+  } finally {
+    sqlite.pragma('query_only = OFF')
+    dispose()
+  }
 })
 
 test('preserves bound-null upsert notifications and integer time writes with the Electron SQLite ABI', () => {

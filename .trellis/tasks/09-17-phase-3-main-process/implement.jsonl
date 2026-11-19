@@ -25,3 +25,4 @@
 {"file": ".trellis/spec/project/release-evidence.md", "reason": "Keep published release/tag/evidence immutable; builds must not publish"}
 {"file": ".trellis/tasks/09-17-phase-3-main-process/research/release-hardening-sync-design.md", "reason": "Reviewed format1 compatibility and composite Drizzle checkpoint/recovery synchronization contract"}
 {"file": ".trellis/tasks/09-17-phase-3-main-process/research/a2d-problem-delete.md", "reason": "Reviewed A2d raw-instant UNION, deletion/transaction and post-inner-transaction statistics equivalence"}
+{"file": ".trellis/tasks/09-17-phase-3-main-process/research/a2e-problem-reads.md", "reason": "A2e complete recent-visit candidate CTE, equality-proven non-null FK projection, preserved horizon and deferred DTO policy"}

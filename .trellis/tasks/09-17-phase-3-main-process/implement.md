@@ -20,7 +20,7 @@
 - [x] PR #8目标已恢复dev（发行合并自动删除dev曾导致改向master），仍draft；同步PR须保留祖先。
 - 不在这片修改题目删除/DTO政策、目录布局、版本、已发布tag或Release；不把整个阶段3标完成。
 
-## 当前切片 A2d：题目删除（2026-11-17）
+## 已验收切片 A2d：题目删除（2026-11-19）
 
 安全同步已合入Drizzle，独立设计预检通过`research/a2d-problem-delete.md`。
 在C工作树`codex/drizzle-problem-delete`基于`317cd9f`实施；原D工作树不动。
@@ -34,7 +34,29 @@
 - [x] 最小生产改写与原SQL差分回归，覆盖非法时间/NULL/空ID/缺父行/实际commit与savepoint/后续日期统计失败。
 - [x] 独立复核、上海/纽约各41删除用例、test:db30文件341用例/native17、
   test:all206文件2005用例/UI11及build:check通过。
-- [ ] 正常hooks提交/立即推送，独立PR回Drizzle并跟CI，PR8仍draft，不发版。
+- [x] 正常hooks提交dcd8991并立即推送；PR16 CI44049450301全绿，
+  2026-11-19 squash85b95dc合回Drizzle；PR8集成CI44505395427全绿。
+  PR8仍draft/base dev，dev/master及已发布版本不变。
+
+## 当前切片 A2e：Omnibox最近访问候选（2026-11-19）
+
+最小缺口：`listRecentVisitCandidates`仍为一条native CTE/INNER JOIN及手写row断言。
+只转换这一条完整查询，不提前决定其余DTO的nullable-ID政策。研究见
+`research/a2e-problem-reads.md`；实施前先独立预检，按同一边界实施/复核。
+
+- 归属：`problem/omnibox.ts`的第二候选管线；现有omnibox测试的当前schema毫秒fixture、
+  独立旧SQL/排序oracle及差分回归；native repositories用例；README/spec/验收记录。
+- 用相同INNER JOIN证明非空FK与旧parent ID相等，投影`recent_visits.problem_id`；
+  不加过滤、cast、假泛型、不修ID、不改schema/DTO/IPC或第一候选管线和最终排序去重。
+- 保留64条最近访问窗口在JOIN/查询匹配之前，只有entered_at DESC，无新tie-break；
+  原LIKE转义、父/visit墓碑、raw数字毫秒、query_only及生命周期行为不变。
+- [x] 独立设计预检通过（`research/a2e-problem-reads-review.md`），允许第二管线实施。
+- [x] 第二管线Drizzle查询与冻结原完整函数oracle完成，第一管线/排序去重不变。
+- [x] 差分覆盖64范围、匹配/转义、tombstones、null/empty IDs、0/null毫秒、
+  只读/事务可见性/关闭重开/无通知；保留当前函数未转换部分的NULL ID行为。
+- [x] 独立代码复核无新增问题，focused60/60、typecheck/lint及test:db374/native19通过。
+- [x] test:all206文件2038用例、UI11/native19、架构/打包/docs/安全/性能全门及build:check通过。
+- [ ] 正常hooks提交并立即推送，独立PR合回Drizzle并跟两层CI；不发版、不归档阶段3。
 
 ## 启动切片 A0（2026-11-07）
 
@@ -95,19 +117,8 @@
 - [x] build:win通过，包含NSIS和真实打包双实例/资源台账。
 - [x] 提交`2bba47e`已推送，CI `42381032242`两项全绿；最新build:win/打包资源和UI门通过。
 
-验收记录：[A2c题目Upsert](./a2c-verification-2026-11-07.md)。后续delete/DTO读查询/omnibox仍未完成。
-
-## 下一候选 A2d：题目删除（尚未实施）
-
-- [ ] 仅转换deleteProblem的受影响日期UNION与四条DELETE，保留原native transaction及外层
-  withDataChangeTransaction，不改变实际提交边界、删除顺序或统计重算所在阶段。
-- [ ] UNION的instant使用一致别名的原始数值SQL投影，保留toLocalDay对非法/小数时间的拒绝；
-  不让Date decoder悄悄截断小数。保留UNION去重、epoch0、本地日Set及first_solved非空过滤。
-- [ ] 不添加tombstone过滤、不扩大删表范围；缺父行仍删children但返回false/不通知/不重算。
-  成功删父行才排队topics；统计失败在commit后记录warning并仍返回true，先完成的日期不回滚。
-- [ ] 扩展deleteProblem.test原SQL对照、原始数值/本地午夜/epoch0、缺父orphan、空/引号ID、
-  final-delete/真实COMMIT失败、savepoint及第二天统计失败的部分成功语义；接入test:db与原生用例。
-- [ ] 实施前补细化设计并独立复核，之后运行完整门/提交推送/CI；不牵涉nullableID DTO政策。
+验收记录：[A2c题目Upsert](./a2c-verification-2026-11-07.md)。A2d删除已完成，
+见本页顶部和[A2d验收](./a2d-verification-2026-11-17.md)；DTO读查询/omnibox仍待独立切片。
 
 原生tab-drag诊断已单独交付；`research/a1-pre-push-drag-incident.md`保留未定位的瞬时
 失败证据，不能以复测通过宣称根因已修。若再次失败先读取新增附件，再决定后续修正。

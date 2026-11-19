@@ -118,6 +118,27 @@ schema code and emits SQL/snapshots; `pull` is the introspection command.
   including actual deferred-FK COMMIT failures, savepoints and outer rollback. A
   mocked transaction throw is not evidence that post-commit notification is correct.
 
+### A2e Recent-Visit Candidate Equivalence
+
+- Scope is only the second omnibox candidate pipeline, not the whole public
+  `getOmniboxSuggestions(rawQuery: string): OmniboxSuggestion[]` implementation.
+  Preserve the first pipeline and final rank/dedup/limit control flow unchanged.
+- The existing equality INNER JOIN on baseline TEXT/BINARY columns proves each
+  returned parent ID equals the NOT NULL visit `problem_id`. Select that FK for
+  truthful string inference; empty IDs remain empty. This does not solve nullable
+  IDs in the first pipeline. Do not filter, coerce, assert or narrow that nullable
+  parent column using a false SQL generic, nor change shared DTO/schema policy.
+- Select the 64 most recent active visits before parent/tombstone/query filtering.
+  Keep only `entered_at DESC`, with no new tie-break or wider search. Keep all five
+  matching fields, title COALESCE, NOCASE, bound contains pattern and exactly one
+  backslash ESCAPE character; `%`, `_` and backslash stay literal input characters.
+- Give the CTE's raw entered-at scalar its explicit alias. Do not attach a Date
+  decoder, normalize invalid storage or lose epoch zero; supported current rows
+  return numeric milliseconds. Diagnostic corrupt/fractional values retain old
+  behavior, not a newly promised supported data format.
+- Reads use the lifecycle-owned native connection and stay synchronous, read-only
+  and notification-free. Database errors propagate; no empty-result fallback.
+
 ## 4. Validation & Error Matrix
 
 | Case                                                            | Required behavior                                                         |
@@ -149,6 +170,10 @@ schema code and emits SQL/snapshots; `pull` is the introspection command.
 | Matched null-ID upsert on query_only connection                 | Throw before notification; early-return is not equivalent                 |
 | Update retains title/contest/index                              | Keep the columns in SET and preserve UPDATE OF trigger behavior           |
 | Upsert outer transaction/savepoint/COMMIT fails                 | Roll back its facts and discard its buffered topics                       |
+| Omnibox recent visit falls outside the first 64 active visits    | Remains absent even when it is the only URL match                         |
+| Recent visit has NULL visit PK and empty joined problem ID      | Keep the joined empty problem ID and raw millisecond value                |
+| First omnibox pipeline returns a NULL parent ID                 | Preserve existing behavior; do not silently decide the deferred DTO policy |
+| Read-only omnibox connection or database error                  | Reads succeed without writes/events; errors propagate synchronously       |
 
 ## 5. Good / Base / Bad Cases
 
@@ -210,6 +235,14 @@ schema code and emits SQL/snapshots; `pull` is the introspection command.
   second-day stats failure and close/reinitialize. Register deletion and existing
   notification tests in test:db and retain native Electron deletion cases.
 
+- A2e freezes the complete original omnibox implementation in a test-only oracle.
+  Compare full ordered outputs and actual thrown errors, not just generated SQL.
+  Cover both 24/64 candidate horizons, URL-only matches, escaped input, timestamp
+  ties, tombstones, null/empty IDs and raw zero/fractional instants. Confirm
+  query_only/no writes/no events, transaction visibility and close/reinitialize.
+  Native Electron coverage must exercise the 64-row horizon and joined empty IDs
+  with NULL visit primary keys; node:sqlite feasibility alone is insufficient.
+
 ## 7. Wrong vs Correct
 
 ```ts
@@ -218,6 +251,10 @@ id: text("id").primaryKey();
 // Correct: mirror nullability with a table-level key and verify SQLite behavior.
 id: text("id");
 // extraConfig: primaryKey({ columns: [table.id] })
+
+// Wrong: sql<string>`${problems.id}` to hide a nullable primary key.
+// Correct only after the unchanged equality INNER JOIN: select the NOT NULL visit FK.
+// Leave unmatched nullable-ID output policy to a separately approved DTO change.
 
 // Wrong: leaking a Date into a public numeric DTO by assertion.
 // Correct: row.created_at.getTime(), with explicit null handling if nullable.
