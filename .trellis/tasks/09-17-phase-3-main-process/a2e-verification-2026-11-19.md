@@ -1,8 +1,7 @@
 # A2e recent-visit omnibox candidates: verification
 
-Status: implementation, independent review, focused tests and database/native gates
-passed, together with full validation and build check. Normal commit/push and
-remote integration pending.
+Status: implementation, independent review, local/full/build gates and remote
+integration passed. Merged into Drizzle on 2026-11-19.
 No release or whole-phase completion is implied.
 
 ## Boundary
@@ -73,3 +72,15 @@ claim that the existing runtime/DTO mismatch is resolved.
   master/dev/public v2.0.1 refs remain unchanged. Frozen migrations, baseline,
   schema, queries.ts, mutation paths, shared DTOs and version/lockfile are untouched.
 - Logs:`algo-electron/tmp/drizzle-a2e-{all,build}.log`.
+
+## Remote integration
+
+- Work commit `82a016397c1dd7134d730d97065123478f4ed396` passed normal commit
+  hooks and immediate push with full pre-push `test:ci`2038/UI11. No bypasses.
+- PR17 CI `44521575932` passed both required jobs; manual jobs skipped by design.
+- PR17 squash `09272131a54b4d0f2a544a425099dfb0e7171955` merged only into
+  `refactor/drizzle`; its tree equals the tested work commit.
+- PR8 integration CI `44522362714` passed. PR8 remains draft/base dev. Released
+  dev ancestry is reachable; public master/dev/tag/assets are unchanged.
+- Product work is complete for this slice. Subsequent journal/archive metadata
+  commits use their own normal hooks and CI; they do not constitute a release.
