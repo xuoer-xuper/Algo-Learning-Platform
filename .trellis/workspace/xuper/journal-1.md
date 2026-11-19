@@ -580,3 +580,44 @@ Drizzle基础、安全基线/资源/备份接管和题目总览四条只读查�
 ### Next Steps
 
 - 将发行加固按边界同步Drizzle/PR8；为下个版本重新评审baseline和版本号，不改已发tag。
+
+
+## Session 18: Drizzle安全同步与A2d/A2e验收交接
+<!-- trellis-session: v=2 fp=40cb14118b138def -->
+
+**Date**: 2026-11-19
+**Task**: Drizzle安全同步与A2d/A2e验收交接
+**Branch**: `refactor/drizzle`
+
+### Summary
+
+发布加固同步保留祖先和恢复协议；题目删除及最近访问候选切片合回Drizzle，两层CI全绿。归档已完成的发行加固任务，阶段3继续。
+
+### Main Changes
+
+- PR15同步v2.0.1安全机制；PR16删除与PR17最近访问候选通过独立复核并合回Drizzle，PR8保持draft/base dev。
+- 归档release-upgrade-safety的28份材料，保留原research证据；阶段3和父计划不归档，不改已发tag/资产。原D62个dirty文件及HEAD保持。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `57690f6` | chore(db): 合并2.0.1加固并接入Drizzle恢复协议 |
+| `317cd9f` | chore(db): 同步2.0.1加固到Drizzle并保留恢复兼容 |
+| `dcd8991` | refactor(db): 将题目删除迁移到Drizzle并保持事务行为 |
+| `85b95dc` | refactor(db): 将题目删除迁移到Drizzle并保持事务行为 (#16) |
+| `82a0163` | refactor(db): 将地址栏最近访问候选迁移到Drizzle |
+| `0927213` | refactor(db): 将地址栏最近访问候选迁移到Drizzle (#17) |
+
+### Testing
+
+- [OK] A2e test:all206文件2038用例、UI11/native19、test:db374、build:check通过；A2d上海/纽约各41及全量2005/UI11通过。
+- [OK] PR15CI44025304964/PR8CI44025992234，PR16CI44049450301/PR8CI44505395427，PR17CI44521575932/PR8CI44522362714全部通过。
+
+### Status
+
+[OK] **本轮切片及发行交接完成；阶段3仍in_progress。**
+
+### Next Steps
+
+- 先评审剩余problem/omnibox第一管线的nullable-ID输出政策；不得静默丢行、强转或收紧schema。后续其他域/目录工作继续独立切片，未来发版另行确认。

@@ -48,7 +48,8 @@
       2026-11-09独立复核无遗留问题，最终index与dev `3702f01`相同；只是补齐master祖先关系。
       基线`pnpm test:all`通过：192个Vitest文件/1563用例、原生套件和11个Playwright用例；
       详细证据见`research/s1-integration-validation.md`，不代表后续加固或发行验收完成。
-- [ ] 同步PR保留merge祖先关系；独立复核与完整门通过后合入dev。普通加固提交按功能PR规则。
+- [x] 同步提交c340c16保留master祖先；PR9在独立复核/完整门及CI43996785911通过后，
+  以merge e1171b2合入dev，后续dev CI43997371383通过。
 
 ## S2 数据库恢复点与失败处理
 
@@ -138,9 +139,9 @@ PR #12修复pnpm入口，PR #13合入master `de89ce4`，最终全门/构建及ho
   format1兼容+format2组合恢复、双真实强杀矩阵、206文件1967测试/UI11/build:win及
   PR15 CI44025304964、PR8集成CI44025992234全绿；原D工作树未变。
   详见阶段3`research/release-hardening-sync-validation.md`。
-- [ ] 完成独立加固任务后记录会话；不归档阶段3或整个对齐计划，不预设3.0.0。
-      前轮工程与安装验收为Session16，正式发行Session17；本轮同步技术交接已完成，
-      后续只需记录会话/归档加固任务，不归档阶段3或父计划。
+- [x] 2026-11-19归档独立加固任务；前轮工程/安装验收为Session16，正式发行Session17。
+  同步技术交接与A2d/A2e以本轮会话记录收尾，相关代码和CI证据归阶段3。
+  阶段3及父计划保持原状态，不预设3.0.0；已公开tag/资产不改。
 
 ## Stop Conditions
 

@@ -38,7 +38,7 @@
   2026-11-19 squash85b95dc合回Drizzle；PR8集成CI44505395427全绿。
   PR8仍draft/base dev，dev/master及已发布版本不变。
 
-## 当前切片 A2e：Omnibox最近访问候选（2026-11-19）
+## 已验收切片 A2e：Omnibox最近访问候选（2026-11-19）
 
 最小缺口：`listRecentVisitCandidates`仍为一条native CTE/INNER JOIN及手写row断言。
 只转换这一条完整查询，不提前决定其余DTO的nullable-ID政策。研究见
@@ -56,7 +56,17 @@
   只读/事务可见性/关闭重开/无通知；保留当前函数未转换部分的NULL ID行为。
 - [x] 独立代码复核无新增问题，focused60/60、typecheck/lint及test:db374/native19通过。
 - [x] test:all206文件2038用例、UI11/native19、架构/打包/docs/安全/性能全门及build:check通过。
-- [ ] 正常hooks提交并立即推送，独立PR合回Drizzle并跟两层CI；不发版、不归档阶段3。
+- [x] 正常hooks提交82a0163并立即推送，PR17 CI44521575932全绿后squash0927213合回Drizzle；
+  PR8集成CI44522362714全绿。PR8保持draft/base dev，不发版、不归档阶段3。
+
+## 下一切片：Nullable-ID输出政策（实施前决策）
+
+- 剩余problem列表/详情/访问DTO和Omnibox第一候选管线均可遇到legacy nullable TEXT主键，
+  与现有string-only DTO不一致。A2e只用既有INNER JOIN的非空FK安全投影，并未解决此问题。
+- 下一步先形成明确的兼容/修复设计及旧数据样本证明；不可用cast、sql<string>假标注、
+  schema NOT NULL、静默丢行或伪造ID继续推进。无损保留原库，错误/缺失展示政策需独立评审。
+- 若政策尚未确定，可按研究中的独立备选先做stats.getProblemVisitStats聚合；需明确调序，
+  不用它把problem域或PR8标成完成。目录迁移、其他域、后续阶段及最终版本号仍未完成。
 
 ## 启动切片 A0（2026-11-07）
 

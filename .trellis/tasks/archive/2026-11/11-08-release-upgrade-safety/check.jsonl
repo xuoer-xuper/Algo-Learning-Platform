@@ -7,6 +7,6 @@
 {"file":".trellis/spec/project/release-evidence.md","reason":"Check release tool behavior against executable evidence and authorization contract"}
 {"file":".trellis/spec/project/upgrade-recovery.md","reason":"Check durable block, independent target verification, legacy association and current-data preservation"}
 {"file":".trellis/spec/project/regression-checks.md","reason":"Native/UI serial execution and regression gate discipline"}
-{"file":".trellis/tasks/11-08-release-upgrade-safety/research/standards-and-policy.md","reason":"No mandatory arbitrary downgrade and no patch exception as acceptance substitute"}
-{"file":".trellis/tasks/11-08-release-upgrade-safety/research/upgrade-recovery-gaps.md","reason":"Failure/interruption/config assertions"}
-{"file":".trellis/tasks/11-08-release-upgrade-safety/research/release-201-tooling.md","reason":"Release no-bump/no-commit, artifacts and isolation traps"}
+{"file":".trellis/tasks/archive/2026-11/11-08-release-upgrade-safety/research/standards-and-policy.md","reason":"No mandatory arbitrary downgrade and no patch exception as acceptance substitute"}
+{"file":".trellis/tasks/archive/2026-11/11-08-release-upgrade-safety/research/upgrade-recovery-gaps.md","reason":"Failure/interruption/config assertions"}
+{"file":".trellis/tasks/archive/2026-11/11-08-release-upgrade-safety/research/release-201-tooling.md","reason":"Release no-bump/no-commit, artifacts and isolation traps"}
