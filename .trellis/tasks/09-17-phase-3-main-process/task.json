@@ -21,6 +21,6 @@
   "children": [],
   "parent": "09-17-spec-alignment",
   "relatedFiles": [],
-  "notes": "A0/A1/A2a-A2c和安全同步PR15 merge317cd9f已完成且CI通过。A2d题目删除在C工作树codex/drizzle-problem-delete实现并独立复核，上海/纽约各41测试，DB341/native17，全量2005/UI11/build:check通过；提交推送/CI待办。原D62dirty文件保持，PR8仍draft/base dev，不归档阶段3。",
+  "notes": "A0/A1/A2a-A2d及安全同步PR15 merge317cd9f完成。A2d PR16 squash85b95dc、PR16 CI44049450301及PR8 CI44505395427全绿。A2e在C工作树codex/drizzle-problem-reads转换omnibox最近访问候选一条CTE；独立复核通过，focused60/DB374/native19通过，全量2038/UI11及build:check通过，提交推送CI待办。第一候选管线与其nullable-ID DTO政策不变。原D62dirty文件保持；PR8仍draft/base dev，不归档阶段3、不发版。",
   "meta": {}
 }

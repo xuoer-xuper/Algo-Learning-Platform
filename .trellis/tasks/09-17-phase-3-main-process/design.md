@@ -46,6 +46,19 @@ drizzle-kit0.31.11，安装后按实际API和Electron ABI验证，不采用beta�
 
 ## 1. 目标目录
 
+### A2e Omnibox最近访问候选（A2d集成后）
+
+完整设计见`research/a2e-problem-reads.md`。只替换`listRecentVisitCandidates`一条
+CTE/INNER JOIN查询，沿用当前连接创建typed adapter。原`p.id = recent_visits.problem_id`
+INNER JOIN让输出ID必然等于NOT NULL的访问FK，直接选后者获得诚实string推断；
+这不解决第一候选管线可输出NULL问题，不得加filter/coercion/assertion悄悄改变政策。
+
+先取所有活跃访问按entered_at DESC的64条窗口，再JOIN活跃parent并匹配四字段或visit URL；
+不把匹配/parent过滤推入CTE，不改tie排序。时间投影用raw scalar，避免Date截断/隐式转换。
+原第一管线、trim/256截断、match参数、最终rank/recency/source/ID/URL排序、去重/8条上限不变。
+冻结完整旧函数作为独立oracle，比对公开输出和实际异常；正常当前schema fixture改数字毫秒，
+不改历史迁移fixture。native ABI补范围与空ID/NULL visit ID/epoch0；完整门与CI后再合Drizzle。
+
 ### A2d 题目删除（发行安全同步验收后）
 
 依据`research/a2d-problem-delete.md`及独立预检，只替换四分支UNION和四次DELETE。

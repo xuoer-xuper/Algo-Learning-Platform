@@ -1,4 +1,7 @@
+import { and, desc, eq, isNull, or, sql } from 'drizzle-orm'
 import { getDb } from '../../connection'
+import { createDrizzleClient } from '../../../../src/main/db/client'
+import { problems, problemVisits } from '../../../../src/main/db/schema'
 import type { OmniboxSuggestion } from '../../../../src/shared/types/problem'
 
 export const OMNIBOX_SUGGESTION_LIMIT = 8
@@ -137,40 +140,47 @@ function listRecentVisitCandidates(
   query: string,
   params: ReturnType<typeof createMatchParams>,
 ): OmniboxCandidateRow[] {
-  const db = getDb()
+  const db = createDrizzleClient(getDb())
+  const recentVisits = db.$with('recent_visits').as(
+    db
+      .select({
+        id: problemVisits.id,
+        problem_id: problemVisits.problem_id,
+        url: problemVisits.url,
+        entered_at: sql<number>`${problemVisits.entered_at}`.as('entered_at'),
+      })
+      .from(problemVisits)
+      .where(isNull(problemVisits.deleted_at))
+      .orderBy(desc(problemVisits.entered_at))
+      .limit(RECENT_VISIT_CANDIDATE_LIMIT),
+  )
   const visitMatch = query
-    ? `AND (${FIELD_MATCH_SQL} OR recent_visits.url COLLATE NOCASE LIKE @contains ESCAPE '\\')`
-    : ''
+    ? or(
+        sql`coalesce(${problems.title}, '') collate nocase like ${params.contains} escape ${'\\'}`,
+        sql`${problems.platform_problem_id} collate nocase like ${params.contains} escape ${'\\'}`,
+        sql`${problems.platform} collate nocase like ${params.contains} escape ${'\\'}`,
+        sql`${problems.canonical_url} collate nocase like ${params.contains} escape ${'\\'}`,
+        sql`${recentVisits.url} collate nocase like ${params.contains} escape ${'\\'}`,
+      )
+    : undefined
 
   return db
-    .prepare(
-      `
-    WITH recent_visits AS (
-      SELECT pv.id, pv.problem_id, pv.url, pv.entered_at
-      FROM problem_visits pv
-      WHERE pv.deleted_at IS NULL
-      ORDER BY pv.entered_at DESC
-      LIMIT @recentVisitCandidateLimit
-    )
-    SELECT
-      p.id AS problem_id,
-      p.title,
-      p.platform,
-      p.platform_problem_id,
-      p.canonical_url,
-      recent_visits.url AS suggestion_url,
-      recent_visits.entered_at AS suggestion_last_visited_at,
-      'history' AS source
-    FROM recent_visits
-    JOIN problems p ON p.id = recent_visits.problem_id
-    WHERE p.deleted_at IS NULL
-      ${visitMatch}
-  `,
-    )
-    .all({
-      ...params,
-      recentVisitCandidateLimit: RECENT_VISIT_CANDIDATE_LIMIT,
-    }) as OmniboxCandidateRow[]
+    .with(recentVisits)
+    .select({
+      // The unchanged equality INNER JOIN proves this non-null FK equals the parent ID.
+      problem_id: recentVisits.problem_id,
+      title: problems.title,
+      platform: problems.platform,
+      platform_problem_id: problems.platform_problem_id,
+      canonical_url: problems.canonical_url,
+      suggestion_url: recentVisits.url,
+      suggestion_last_visited_at: recentVisits.entered_at,
+      source: sql<'history'>`'history'`,
+    })
+    .from(recentVisits)
+    .innerJoin(problems, eq(problems.id, recentVisits.problem_id))
+    .where(and(isNull(problems.deleted_at), visitMatch))
+    .all()
 }
 
 function createMatchParams(query: string): { exact: string; prefix: string; contains: string } {

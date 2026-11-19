@@ -7,15 +7,19 @@
 > Plan and evidence: `.trellis/tasks/archive/2026-09/00-bootstrap-guidelines/research/spec-alignment-plan.md`,
 > `spec-alignment-report.md`, `reinvented-wheels-audit.md`.
 
-Last reviewed: 2026-11-17. Released v2.0.1 at `de89ce4` has passed final validation and
+Last reviewed: 2026-11-19. Released v2.0.1 at `de89ce4` has passed final validation and
 publication. Phase 3 A0/A1/A2a-A2c remain on the Drizzle branch: schema/client, migration
 coordinator and bounded problem queries are implemented. The current synchronization
 slice combines released durable recovery with Drizzle adoption; independent review,
 206 files/1967 tests, native crash matrices, UI11 and Windows packaged build passed.
 PR15 merge317cd9f preserves release ancestry; PR15 and PR8 CI passed. This
-unpublished build is not v2.0.1. A2d deletion has passed local differential/native/full gates and build check;
-its separate PR integration is pending.
-Other queries and main-process layout work remain separate later slices.
+unpublished build is not v2.0.1. A2d deletion passed local differential/native/full gates
+and build check; PR16 squash85b95dc merged into Drizzle with PR16 CI44049450301 and
+PR8 integration CI44505395427 green. PR8 remains draft against dev.
+A2e converts only the recent-visit omnibox candidate CTE, retaining the first pipeline
+and nullable-ID policy. Independent review, full2038/UI11/native19 and build check
+passed locally; its commit/PR integration remains pending. Other queries and
+main-process layout work remain separate later slices.
 
 ---
 
@@ -42,7 +46,7 @@ Other queries and main-process layout work remain separate later slices.
 | Logging | ✅ 1.1（2026-11-01）：**electron-log 5.4.4**，`logger.scope()` + 脱敏 hook（原 regex 全量迁移 + `cookie=`）；RUN_AS_NODE 下文件 transport 关闭 | 同左 | 1.2 |
 | Config | ✅ 1.1（2026-11-01）：**electron-store 12**（原子存储层）+ zod 单层校验（`.default()`/`.catch()` 取代 normalizers）；conf 16 的 schema 校验会"坏文件即拒启"，与不清空红线冲突——故 schema 不传给 electron-store | 同左 | 1.3 |
 | Dev/prod isolation | ✅ 1.1（2026-11-01）：`envSetup.ts` 为 main.ts 首个 import（架构守卫强制），非打包且无冒烟 env 时 userData 加 `-dev`；冒烟覆盖优先 | 同左 | 1.3 |
-| Database | Drizzle0.45.4/Kit0.31.11 schema/client, trusted resources and legacy/baseline coordinator in `src/main/db`; A2a-A2c convert problem overview, platform-key lookup and upsert. Released 2.0.1 recovery is combined with versioned legacy/Drizzle checkpoints, snapshots and bounded explicit resolution; full/build gates and branch-sync CI pass; PR15 merge317cd9f preserves release ancestry. A2d deletion passes local differential/native/full gates; separate PR integration pending. | Validate integrated legacy/Drizzle lifecycle first, then continue bounded query conversion and main layout | 3.1; `11-08-release-upgrade-safety` |
+| Database | Drizzle0.45.4/Kit0.31.11 schema/client, trusted resources and legacy/baseline coordinator in `src/main/db`; A2a-A2c convert problem overview, platform-key lookup and upsert. Released 2.0.1 recovery is combined with versioned legacy/Drizzle checkpoints, snapshots and bounded explicit resolution; full/build gates and branch-sync CI pass; PR15 merge317cd9f preserves release ancestry. A2d deletion is merged via PR16 squash85b95dc; local differential/native/full gates, PR16 and PR8 integration CI pass. | Validate integrated legacy/Drizzle lifecycle first, then continue bounded query conversion and main layout | 3.1; `11-08-release-upgrade-safety` |
 | Timestamps | R5: 82 INTEGER Unix-ms columns, numeric live writers/IPC/shared schemas, display-only Intl; strict history-derived local/UTC+8/SQLite `.0` conversion. Reconstructed 21/24/29 and isolated actual 24/29 copies pass; original user DBs unchanged. | Numeric timestamp target reached; future Drizzle uses timestamp_ms. See `unix-millisecond-time.md`. | 2.5 |
 | Result shape | ✅ 1.1（2026-11-01）：20 处真正的 IPC 返回统一为 `createOutputSchema()` 判别联合（6 个封闭 `code`）；34 处 `{ok:}` 经复核确认是内部校验器/运行时协议形状、不跨 IPC 边界，不转换 | 同左 | 1.4 |
 | Event bus | 9 hand-written `Set<callback>` buses + 3 `EventEmitter` | typed `EventEmitter` wrapper | 3.6 |
