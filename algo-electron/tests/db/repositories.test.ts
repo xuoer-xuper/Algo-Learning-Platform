@@ -8,6 +8,10 @@ import { getOriginalOmniboxSuggestions } from './omnibox-suggestions-oracle'
 import { getOriginalProblemDetail, getOriginalProblemVisits } from './problem-reads-oracle'
 import { getOriginalRecentProblems } from './problem-recent-oracle'
 import { runOriginalSubmissionUpsert } from './submission-upsert-oracle'
+import {
+  runOriginalUpdateFirstAc,
+  runOriginalRecomputeProblemSubmissionState,
+} from './submission-first-ac-oracle'
 import type { SubmissionData } from '../../electron/shared/types'
 import {
   getOriginalFirstAcByProblemIds,
@@ -46,6 +50,7 @@ import {
   getSubmissionsByProblem,
   getSubmissionsByProblemAsc,
   updateFirstAc,
+  recomputeProblemSubmissionState,
   upsertSubmission,
 } from '../../electron/db/repositories/submissionRepository.ts'
 import {
@@ -2041,6 +2046,500 @@ test('Submission upsert native constraints/read-only and caller COMMIT failures 
       return result
     })
   }
+})
+
+type NativeFirstAcScenario = {
+  db: Database.Database
+  update: typeof updateFirstAc
+  recompute: typeof recomputeProblemSubmissionState
+  events: DataChangedPayload[]
+  trace: string[]
+}
+
+function compareNativeFirstAc(run: (scenario: NativeFirstAcScenario) => unknown): void {
+  const results = []
+  const originalNow = Date.now
+  try {
+    for (const original of [true, false]) {
+      closeDb()
+      const db = initDbAtPath(':memory:')
+      const trace: string[] = []
+      let clockCalls = 0
+      Date.now = () => {
+        clockCalls++
+        return 1.75
+      }
+      const events: DataChangedPayload[] = []
+      const transactionStates: boolean[] = []
+      const unsubscribe = subscribeDataChanges((event) => {
+        events.push(event)
+        transactionStates.push(db.inTransaction)
+        trace.push('event')
+      })
+      try {
+        const result = run({
+          db,
+          events,
+          trace,
+          update: original ? (id) => runOriginalUpdateFirstAc(db, id) : updateFirstAc,
+          recompute: original
+            ? (ids) => runOriginalRecomputeProblemSubmissionState(db, ids)
+            : recomputeProblemSubmissionState,
+        })
+        results.push({
+          result,
+          events,
+          trace,
+          clockCalls,
+          transactionStates,
+          problems: db.prepare('SELECT * FROM problems ORDER BY rowid').all(),
+          submissions: db.prepare('SELECT * FROM submissions ORDER BY rowid').all(),
+          inTransaction: db.inTransaction,
+        })
+      } finally {
+        unsubscribe()
+        closeDb()
+      }
+    }
+  } finally {
+    Date.now = originalNow
+  }
+  assert.deepStrictEqual(results[1], results[0])
+}
+
+function seedNativeFirstAc(
+  db: Database.Database,
+  id = 'first-ac',
+  previous: number | string | null = null,
+  submitted: number | string | null = 0,
+  verdict = 'AC',
+  childId: string | null = id,
+): void {
+  db.prepare(
+    `INSERT INTO problems
+    (id,platform,platform_problem_id,canonical_url,status,first_solved_at,first_seen_at,created_at,updated_at,deleted_at)
+    VALUES (?,'test',?,'https://example.invalid/first-ac','unknown',?,0,0,12,0)`,
+  ).run(id, id, previous)
+  if (submitted !== null)
+    db.prepare(
+      `INSERT INTO submissions
+    (id,problem_id,platform,platform_submission_id,verdict,submitted_at,created_at,updated_at,deleted_at)
+    VALUES (?,?,'test',?,?,?,0,0,0)`,
+    ).run(childId, id, id, verdict, submitted)
+}
+
+function nativeFirstAcState(db: Database.Database, id = 'first-ac') {
+  return db
+    .prepare<
+      [string],
+      { status: string; first_solved_at: number | string | null; updated_at: number }
+    >('SELECT status,first_solved_at,updated_at FROM problems WHERE id = ?')
+    .get(id)
+}
+
+function traceNativeFirstAc(db: Database.Database, trace: string[]) {
+  const descriptor = Object.getOwnPropertyDescriptor(db, 'prepare')
+  const prepare = db.prepare.bind(db)
+  let nativeError: unknown
+  Object.defineProperty(db, 'prepare', {
+    configurable: true,
+    writable: true,
+    value: (query: string) => {
+      const kind = /^\s*update/i.test(query)
+        ? 'update'
+        : /count\(\*\)/i.test(query)
+          ? 'aggregate'
+          : /from ["`]?submissions/i.test(query)
+            ? 'ac'
+            : 'parent'
+      trace.push(`prepare:${kind}`)
+      try {
+        const statement = prepare(query)
+        for (const method of ['get', 'run'] as const) {
+          const execute = statement[method].bind(statement)
+          Object.defineProperty(statement, method, {
+            configurable: true,
+            value: (...bindings: unknown[]) => {
+              const normalized = kind === 'ac' ? bindings.slice(0, 1) : bindings
+              trace.push(`${method}:${kind}:${JSON.stringify(normalized)}`)
+              try {
+                return execute(...bindings)
+              } catch (error) {
+                nativeError = error
+                throw error
+              }
+            },
+          })
+        }
+        return statement
+      } catch (error) {
+        nativeError = error
+        throw error
+      }
+    },
+  })
+  return {
+    failure: () => nativeError,
+    restore: () => {
+      if (descriptor) Object.defineProperty(db, 'prepare', descriptor)
+      else Reflect.deleteProperty(db, 'prepare')
+    },
+  }
+}
+
+function nativeFirstAcIterable(trace: string[], ids: string[], failure?: Error): Iterable<string> {
+  return {
+    get [Symbol.iterator]() {
+      trace.push('iterator:get')
+      return function* () {
+        trace.push('iterator:start')
+        for (const id of ids) {
+          trace.push(`iterator:yield:${id}`)
+          yield id
+        }
+        if (failure) throw failure
+        trace.push('iterator:end')
+      }
+    },
+  }
+}
+
+test('First-AC writes preserve native raw scalars, nullable child IDs, tombstones and exact ID bindings', () => {
+  for (const mode of ['append', 'recompute']) {
+    compareNativeFirstAc(({ db, update, recompute, events }) => {
+      const instants = [
+        0,
+        -1,
+        1.75,
+        8640000000000001,
+        Number.MAX_SAFE_INTEGER + 1,
+        'text-diagnostic',
+      ]
+      const dates: string[][] = []
+      for (const [index, instant] of instants.entries()) {
+        const id = `raw-${index}`
+        seedNativeFirstAc(db, id, null, instant, 'AC', index === 0 ? null : id)
+        dates.push(mode === 'append' ? update(id) : recompute([id]))
+        assert.deepStrictEqual(nativeFirstAcState(db, id), {
+          status: 'solved',
+          first_solved_at: instant,
+          updated_at: 1.75,
+        })
+        assert.deepStrictEqual(
+          dates.at(-1),
+          instant === 0 || instant === -1 ? [toLocalDay(instant)] : [],
+        )
+      }
+      for (const id of ['', "literal'_%\\\u2603", '\u0000first-ac', '\ud800']) {
+        seedNativeFirstAc(db, id, null, 0)
+        dates.push(mode === 'append' ? update(id) : recompute([id]))
+        assert.deepStrictEqual(nativeFirstAcState(db, id), {
+          status: 'solved',
+          first_solved_at: 0,
+          updated_at: 1.75,
+        })
+      }
+      seedNativeFirstAc(db, 'wrong-case', 0, 1, 'ac', null)
+      dates.push(mode === 'append' ? update('wrong-case') : recompute(['wrong-case']))
+      assert.deepStrictEqual(
+        nativeFirstAcState(db, 'wrong-case'),
+        mode === 'append'
+          ? { status: 'unknown', first_solved_at: 0, updated_at: 12 }
+          : { status: 'attempted', first_solved_at: null, updated_at: 1.75 },
+      )
+      assert.strictEqual(events.length, mode === 'append' ? 10 : 11)
+      return {
+        dates,
+        storage: db
+          .prepare(
+            'SELECT typeof(first_solved_at) AS first_ac, typeof(updated_at) AS updated FROM problems ORDER BY rowid',
+          )
+          .all(),
+      }
+    })
+  }
+})
+
+test('First-AC native preparation precedes complete iteration and preserves native damaged-column error identity', () => {
+  for (const column of ['first_solved_at', 'submitted_at', 'updated_at']) {
+    for (const mode of ['append', 'recompute']) {
+      compareNativeFirstAc(({ db, update, recompute, trace, events }) => {
+        seedNativeFirstAc(db)
+        db.exec(
+          `ALTER TABLE ${column === 'submitted_at' ? 'submissions' : 'problems'} RENAME COLUMN ${column} TO damaged_column`,
+        )
+        const tracking = traceNativeFirstAc(db, trace)
+        let caught: unknown
+        try {
+          mode === 'append' ? update('first-ac') : recompute(nativeFirstAcIterable(trace, []))
+        } catch (error) {
+          caught = error
+        } finally {
+          tracking.restore()
+        }
+        assert.strictEqual(caught, tracking.failure())
+        assert.ok(caught instanceof Error)
+        assert.strictEqual(caught.name, 'SqliteError')
+        assert.match(caught.message, /^no such column:/)
+        assert.ok(caught.message.includes(column))
+        assert.ok('code' in caught)
+        assert.strictEqual(caught.code, 'SQLITE_ERROR')
+        assert.ok(!trace.includes('iterator:get'))
+        assert.ok(!trace.some((entry) => entry.startsWith('run:')))
+        assert.deepStrictEqual(events, [])
+        return { name: caught.name, code: caught.code }
+      })
+    }
+  }
+  for (const fails of [false, true]) {
+    compareNativeFirstAc(({ db, recompute, trace, events }) => {
+      seedNativeFirstAc(db)
+      const failure = new Error('iterator sentinel')
+      const tracking = traceNativeFirstAc(db, trace)
+      let result: unknown
+      try {
+        if (fails) {
+          try {
+            recompute(nativeFirstAcIterable(trace, ['first-ac'], failure))
+          } catch (error) {
+            assert.strictEqual(error, failure)
+            result = error.message
+          }
+        } else {
+          db.pragma('query_only = ON')
+          result = recompute(nativeFirstAcIterable(trace, []))
+        }
+      } finally {
+        tracking.restore()
+      }
+      assert.deepStrictEqual(trace.slice(0, 5), [
+        'prepare:parent',
+        'prepare:aggregate',
+        'prepare:update',
+        'iterator:get',
+        'iterator:start',
+      ])
+      assert.ok(!trace.some((entry) => entry.startsWith('get:') || entry.startsWith('run:')))
+      assert.deepStrictEqual(events, [])
+      assert.strictEqual(nativeFirstAcState(db)?.first_solved_at, null)
+      return result
+    })
+  }
+})
+
+test('First-AC native no-AC bypasses unused UPDATE while actual readonly no-op and orphan UPDATE fail', () => {
+  compareNativeFirstAc(({ db, update, trace, events }) => {
+    seedNativeFirstAc(db, 'first-ac', 0, null)
+    db.exec('ALTER TABLE problems RENAME COLUMN updated_at TO unused_updated_at')
+    db.pragma('query_only = ON')
+    const tracking = traceNativeFirstAc(db, trace)
+    let dates
+    try {
+      dates = update('first-ac')
+    } finally {
+      tracking.restore()
+    }
+    assert.deepStrictEqual(dates, [toLocalDay(0)])
+    assert.deepStrictEqual(trace, [
+      'prepare:parent',
+      'get:parent:["first-ac"]',
+      'prepare:ac',
+      'get:ac:["first-ac"]',
+    ])
+    assert.deepStrictEqual(events, [])
+    return dates
+  })
+  for (const mode of ['append', 'recompute', 'orphan']) {
+    compareNativeFirstAc(({ db, update, recompute, trace, events }) => {
+      seedNativeFirstAc(db, 'first-ac', 0, 0)
+      if (mode === 'orphan') {
+        db.pragma('foreign_keys = OFF')
+        db.exec('DELETE FROM problems')
+        db.pragma('foreign_keys = ON')
+      }
+      db.pragma('query_only = ON')
+      const tracking = traceNativeFirstAc(db, trace)
+      let caught: unknown
+      try {
+        mode === 'recompute' ? recompute(['first-ac']) : update('first-ac')
+      } catch (error) {
+        caught = error
+      } finally {
+        tracking.restore()
+      }
+      assert.strictEqual(caught, tracking.failure())
+      assert.ok(caught instanceof Error)
+      assert.strictEqual(caught.name, 'SqliteError')
+      assert.strictEqual(caught.message, 'attempt to write a readonly database')
+      assert.ok('code' in caught)
+      assert.strictEqual(caught.code, 'SQLITE_READONLY')
+      assert.ok(trace.includes('prepare:update'))
+      assert.ok(trace.some((entry) => entry.startsWith('run:update:')))
+      assert.deepStrictEqual(events, [])
+      return { name: caught.name, message: caught.message, code: caught.code }
+    })
+  }
+})
+
+test('First-AC native triggers observe exactly three SET targets and preserve IGNORE, FAIL and ABORT effects', () => {
+  for (const mode of ['append', 'recompute']) {
+    for (const action of ['audit', 'IGNORE', 'FAIL', 'ABORT']) {
+      compareNativeFirstAc(({ db, update, recompute, events }) => {
+        seedNativeFirstAc(db, 'first-ac', 86400000, 0)
+        db.exec(`CREATE TABLE state_audit (phase TEXT, status TEXT, first_ac INTEGER, updated_at INTEGER);
+          CREATE TRIGGER state_before BEFORE UPDATE ON problems BEGIN
+            INSERT INTO state_audit VALUES ('before',NEW.status,NEW.first_solved_at,NEW.updated_at);
+            ${action === 'audit' ? '' : action === 'IGNORE' ? 'SELECT RAISE(IGNORE);' : `SELECT RAISE(${action},'native state rejected');`}
+          END;
+          CREATE TRIGGER state_after AFTER UPDATE ON problems BEGIN
+            INSERT INTO state_audit VALUES ('after',NEW.status,NEW.first_solved_at,NEW.updated_at);
+          END;`)
+        for (const column of ['status', 'first_solved_at', 'updated_at', 'title']) {
+          db.exec(`CREATE TRIGGER state_of_${column} AFTER UPDATE OF ${column} ON problems BEGIN
+            INSERT INTO state_audit VALUES ('${column}',NEW.status,NEW.first_solved_at,NEW.updated_at);
+          END;`)
+        }
+        const result = submissionReadOutcome(() =>
+          mode === 'append' ? update('first-ac') : recompute(['first-ac']),
+        )
+        const audit = db.prepare('SELECT * FROM state_audit ORDER BY rowid').all()
+        assert.strictEqual(audit.length, action === 'audit' ? 5 : action === 'ABORT' ? 0 : 1)
+        assert.deepStrictEqual(
+          events,
+          action === 'audit' ? [{ tables: ['problems', 'stats'] }] : [],
+        )
+        if (action === 'FAIL' || action === 'ABORT')
+          assert.deepStrictEqual(result, {
+            error: {
+              name: 'SqliteError',
+              message: 'native state rejected',
+              code: 'SQLITE_CONSTRAINT_TRIGGER',
+            },
+          })
+        else
+          assert.deepStrictEqual(result, {
+            rows: [...new Set([toLocalDay(86400000), toLocalDay(0)])],
+          })
+        assert.strictEqual(
+          nativeFirstAcState(db)?.first_solved_at,
+          action === 'audit' ? 0 : 86400000,
+        )
+        return { result, audit }
+      })
+    }
+  }
+})
+
+test('First-AC native caller transactions preserve savepoints and suppress notifications on real COMMIT failure', () => {
+  for (const mode of ['append', 'recompute']) {
+    for (const action of ['commit', 'rollback', 'inner-rollback', 'commit-failure']) {
+      compareNativeFirstAc(({ db, update, recompute, events }) => {
+        seedNativeFirstAc(db)
+        seedNativeFirstAc(db, 'nested')
+        if (action === 'commit-failure')
+          db.exec(`CREATE TRIGGER deferred_state AFTER UPDATE ON problems BEGIN
+          INSERT INTO submissions (id,problem_id,platform,platform_submission_id,verdict,submitted_at,created_at,updated_at)
+          VALUES ('deferred-' || NEW.id,'missing','deferred',NEW.id,'WA',0,0,0);
+        END;`)
+        let callbackFinished = false
+        const result = submissionReadOutcome(() =>
+          withDataChangeTransaction(() =>
+            db.transaction(() => {
+              if (action === 'commit-failure') db.pragma('defer_foreign_keys = ON')
+              mode === 'append' ? update('first-ac') : recompute(['first-ac'])
+              assert.deepStrictEqual(events, [])
+              const nested = () =>
+                withDataChangeTransaction(() =>
+                  db.transaction(() => {
+                    mode === 'append' ? update('nested') : recompute(['nested'])
+                    if (action === 'inner-rollback') throw new Error('inner rollback')
+                  })(),
+                )
+              if (action === 'inner-rollback') assert.throws(nested, /inner rollback/)
+              else nested()
+              assert.deepStrictEqual(events, [])
+              if (action === 'rollback') throw new Error('outer rollback')
+              callbackFinished = true
+            })(),
+          ),
+        )
+        const commits = action === 'commit' || action === 'inner-rollback'
+        assert.strictEqual(nativeFirstAcState(db)?.first_solved_at, commits ? 0 : null)
+        assert.strictEqual(
+          nativeFirstAcState(db, 'nested')?.first_solved_at,
+          action === 'commit' ? 0 : null,
+        )
+        assert.deepStrictEqual(events, commits ? [{ tables: ['problems', 'stats'] }] : [])
+        assert.strictEqual(db.inTransaction, false)
+        if (action === 'commit-failure') {
+          assert.strictEqual(callbackFinished, true)
+          assert.deepStrictEqual(result, {
+            error: {
+              name: 'SqliteError',
+              message: 'FOREIGN KEY constraint failed',
+              code: 'SQLITE_CONSTRAINT_FOREIGNKEY',
+            },
+          })
+          assert.strictEqual(db.prepare('SELECT * FROM submissions').all().length, 2)
+        }
+        return { result, callbackFinished }
+      })
+    }
+  }
+})
+
+test('First-AC native autocommit preserves partial failure and synchronous reentrant day snapshots', () => {
+  compareNativeFirstAc(({ db, recompute, events, trace }) => {
+    seedNativeFirstAc(db, 'first-ac', 86400000, 0)
+    seedNativeFirstAc(db, 'next', 172800000, 86400000)
+    const observed: unknown[] = []
+    const unsubscribe = subscribeDataChanges(() => {
+      observed.push(nativeFirstAcState(db))
+      if (events.length === 1) {
+        db.exec(
+          "UPDATE problems SET first_solved_at = 172800000 WHERE id='first-ac'; UPDATE submissions SET submitted_at=0 WHERE problem_id='next'",
+        )
+        trace.push('listener')
+      }
+    })
+    try {
+      const dates = recompute(['first-ac', 'next', 'first-ac'])
+      assert.deepStrictEqual(dates, [
+        ...new Set([toLocalDay(86400000), toLocalDay(0), toLocalDay(172800000)]),
+      ])
+      assert.strictEqual(nativeFirstAcState(db, 'next')?.first_solved_at, 0)
+      assert.deepStrictEqual(events, [
+        { tables: ['problems', 'stats'] },
+        { tables: ['problems', 'stats'] },
+      ])
+      return { dates, observed }
+    } finally {
+      unsubscribe()
+    }
+  })
+  compareNativeFirstAc(({ db, recompute, events }) => {
+    seedNativeFirstAc(db)
+    seedNativeFirstAc(db, 'bad')
+    db.exec(`CREATE TABLE partial_state_audit (id TEXT);
+      CREATE TRIGGER partial_state BEFORE UPDATE ON problems BEGIN
+        INSERT INTO partial_state_audit VALUES (NEW.id);
+        SELECT CASE WHEN NEW.id='bad' THEN RAISE(FAIL,'later state rejected') END;
+      END;`)
+    const result = submissionReadOutcome(() => recompute(['first-ac', 'bad']))
+    assert.deepStrictEqual(result, {
+      error: {
+        name: 'SqliteError',
+        message: 'later state rejected',
+        code: 'SQLITE_CONSTRAINT_TRIGGER',
+      },
+    })
+    assert.strictEqual(nativeFirstAcState(db)?.first_solved_at, 0)
+    assert.strictEqual(nativeFirstAcState(db, 'bad')?.first_solved_at, null)
+    assert.deepStrictEqual(events, [{ tables: ['problems', 'stats'] }])
+    const audit = db.prepare('SELECT * FROM partial_state_audit ORDER BY rowid').all()
+    assert.deepStrictEqual(audit, [{ id: 'first-ac' }, { id: 'bad' }])
+    return { result, audit }
+  })
 })
 
 let dbForTest: Database.Database | null = null

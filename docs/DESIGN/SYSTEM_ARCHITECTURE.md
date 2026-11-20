@@ -371,6 +371,10 @@ A3a提交读取保留全部16个字段与raw数值时间，SubmissionRow由schem
 A3b1提交去重插入按冻结030物理表/default0与NULL定义兼容范围；ORM列举16列与旧14列的差异不隐瞒为任意改表等价。
 lookup/INSERT先prepare后读参数，UUID只在miss且INSERT准备成功后生成；成功IGNORE的旧true/通知行为保留，事务仍由调用者拥有。
 
+A3b2首次AC双写入使用Drizzle并保留raw时间、原条件和调用者事务：追加路径有AC时执行真实UPDATE，无AC不准备更新；
+导入重算先准备三个语句再完整消费去重输入，COUNT(*)保留NULL提交ID。只在changes>0通知，随后按旧/新顺序收集有效日期；
+不把无变化短路、迭代流式写入或新的事务缓冲混入查询迁移。发布migration030及统计重算实现保持不动。
+
 ### 6.4 提交后的数据刷新
 
 `data:changed` 仅广播 `{ tables }`，八个逻辑域为 `problems/submissions/notes/stats/sites/scripts/credentials/coach`，不携带记录、凭据、Cookie 或本地路径。account/rating 写入映射到 `stats`，访问记录映射到 `problems` 和 `stats`。

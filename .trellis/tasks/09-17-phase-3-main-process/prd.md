@@ -44,6 +44,24 @@ read-only timeline submission ID output to allow already-returned null; keep
 request/problem IDs, metric outputs and LLM privacy allowlist unchanged. Empty
 first-AC batches must still acquire no database. Submission writes remain separate.
 
+### A4a Basic-statistics acceptance boundary (2026-11-20)
+
+After A3 acceptance, convert only platform distribution, single-problem visit
+aggregates and latest activity time. Keep existing signatures, exact scalar values,
+NULL-duration AVG semantics, native SUM overflow and raw latest timestamps. No
+new output/nullability/UI decision, filters, date calculations or transaction is
+needed. Trends, streak, insight lists and migration-coupled recompute are separate.
+
+### A3b2 First-AC acceptance boundary (2026-11-20)
+
+Convert only the two first-AC state mutations, preserving raw values, original
+status transitions, affected-day ordering, actual UPDATE execution, native
+failures and caller-owned transaction/notification semantics. Recompute must
+prepare all three statements before consuming any iterable, including empty or
+throwing inputs. No changes to imports/batch orchestration, read queries, schemas,
+migrations, time validation or public outputs. Parent accepts the independent
+A3b2 precheck after A3b1 local acceptance; implementation waits for its integration.
+
 ### A3b1 Supported-schema acceptance boundary (2026-11-20)
 
 Submission INSERT conversion preserves current frozen030 data/default behavior,

@@ -44,6 +44,71 @@ drizzle-kit0.31.11，安装后按实际API和Electron ABI验证，不采用beta�
 - 当前规模：25表、electron321个TS文件、250处prepare；排除迁移222处，repository162处。
   main1164/TabManager2494/CoachOrchestrator1474行，仅作分批规划，不硬套旧计数。
 
+## A4a Basic Statistics Read Contract (2026-11-20)
+
+Parent accepts the independently reviewed three-function boundary in
+`research/a4a-stats-basic-review.md`, after A3's integrated acceptance. Only
+getPlatformDistribution/getProblemVisitStats/getLastActiveTime in insights.ts
+and independent oracle/tests change. Existing signatures/callers stay unchanged.
+
+- Wrap the lifecycle-owned current handle for each call; no new connection,
+  cache, clock, transaction, events, migrations, validation or catches.
+- Distribution retains COUNT(*) of active parents, exact platform grouping and
+  descending count only. NULL IDs count; deleted_at0 is deleted; no new tie-sort.
+- Visit stats retain exact problem_id equality, COUNT(*) and raw SQL COALESCE of
+  SUM(duration), SUM(active), AVG(duration). Include NULL IDs/tombstones/orphans;
+  AVG ignores NULL inputs rather than dividing by total visits. SUM integer
+  overflow still throws. Helper sum/avg attach String decoders and are unsuitable.
+- Real no-GROUP aggregate yields one row; preserve truthful optional type via
+  explicit invariant throw only. Do not cast/assert/fabricate zero results.
+- Latest returns raw occurred_at from descending row LIMIT1, with ??null. No MAX
+  rewrite/overview delegation, Date/Number/String decoder, tombstone filter or
+  fallback-to-now; epoch0/fraction/extreme diagnostic scalars remain native.
+- Supported fixtures retain scalar keys/types/errors. Damaged qualified-column
+  spelling may differ outside accepted schema, but failure stage/passthrough
+  remains; no altered schema validation or universal arbitrary DDL promise.
+
+Independent frozen three-function oracle and decisive native INTEGER-overflow/
+NULL-AVG/raw-time cases must accompany the conversion. No other stats functions,
+types, shared/IPC/preload/renderer/AI/privacy/overview/schema or layout changes.
+
+## A3b2 First-AC Mutation Contract (2026-11-20)
+
+Parent accepts `research/a3b-first-ac-review.md` and the corresponding original
+function research. This is the two-function firstAc.ts slice on the frozen030
+supported schema, not arbitrary modified DDL/view parity. It changes neither the
+schema nor startup validation, and preserves the exported FirstAcRow facade.
+
+- getDb then one nowMillis, same native handle, no cached adapter/transaction.
+  updateFirstAc reads old parent time before earliest exact AC (even no parent).
+  Raw projections bypass Date decoding; no filters/tie-breaks are added.
+- Without AC do not construct/prepare/run UPDATE. With AC always execute the
+  real conditional UPDATE even if parent missing or JS predicts no change.
+  Same three SET targets and four bindings: AC, now, problemId, AC. Fixed solved
+  literal and SQL-wrapped timestamp placeholders retain raw values and prepare
+  ordering. Preserve synchronous errors; changes>0 alone emits problems/stats.
+- After successful SQL/event, return old then new valid days via the unchanged
+  helper and ordered Set. No-op still contributes dates; listener reentrancy
+  must not cause earlier snapshots to be reread or events to move after dates.
+- recompute prepares parent SELECT, aggregate SELECT and UPDATE, in that order,
+  before Symbol.iterator access. Then eagerly new Set(problemIds), consuming all
+  before writes and keeping first occurrences. Missing parents skip aggregation.
+- Aggregate COUNT(*) and raw MIN(CASE exact AC) with no GROUP BY/decoder retain
+  nullable child IDs/tombstones. Explicit throw for impossible undefined result
+  is allowed; no cast, assertion, fabricated defaults or silent skip.
+- Derive solved/attempted/unknown/visited exactly. SQL-wrap dynamic SET values;
+  preserve six bindings and real null-safe IS NOT predicates, including no-op
+  attempts. After each changed row emit, then append valid old/new dates. Keep
+  partial autocommit failures, native FAIL effects, IGNORE changes0/no event,
+  guarded listeners and caller-owned savepoint/real-COMMIT notification scopes.
+- Qualified damaged-column wording may differ; native failure stage/passthrough
+  remains. No retries/new validation/notification scheduling/DDL promises.
+
+Implementation owns only firstAc.ts, independent frozen dual-function oracle,
+differential tests, native repository cases and runner registration. Parent owns
+task/spec/docs and serial native/full/build/Git. No mutation/read query/DTO/day
+helper/event bus/import/batch/renderer/layout or release changes.
+
 ## A3b1 Submission Insert Contract (2026-11-20)
 
 Parent explicitly accepts the independently reviewed frozen030 table scope in

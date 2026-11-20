@@ -59,6 +59,46 @@
 - [x] 正常hooks提交82a0163并立即推送，PR17 CI44521575932全绿后squash0927213合回Drizzle；
   PR8集成CI44522362714全绿。PR8保持draft/base dev，不发版、不归档阶段3。
 
+## A4a Execution Boundary (2026-11-20)
+
+- Start after A3b2 integrated acceptance, on a new branch from refactor/drizzle.
+- Gap: three basic stats reads still use native queries/manual assertions. Keep
+  existing behavior, public signatures and caller ownership; no query consolidation.
+- Implementer owns only three functions/imports in stats/insights.ts, independent
+  stats-basic-reads-oracle.ts, stats-basic-reads.test.ts, native repository cases
+  and DB runner registration. Parent owns spec/docs/task/Git and serial gates.
+- [x] Full A4 inventory and independent A4a precheck approved; parent records
+  raw aggregate/time, native overflow and unchanged public contract before coding.
+- [ ] Implement and compare full keys/scalars/ordering/errors/read-only state with
+  frozen SQL. Seed INTEGER overflow by exact SQL literals, not rounded JS numbers.
+- [ ] Independent full-diff review, both typechecks/scoped lint/focused regressions.
+- [ ] Serial test:db/native, test:all/UI, build:check, stable source/D hashes.
+- [ ] Normal hooks/immediate push, feature PR CI/squash and PR8 integration CI.
+
+A4b nullable daily keys, A4c nullable insight IDs and A4d historical migration-aware
+recompute remain separately designed work; no silent scope expansion.
+
+## A3b2 Execution Boundary (2026-11-20)
+
+- Branch: `codex/drizzle-first-ac`, created from merged A3b1 integration.
+- Gap: two firstAc.ts mutations still use native SQL/manual row assertions.
+  Convert using real Drizzle SELECT/UPDATE without changing the accepted state,
+  prepare/iteration, native-error, day or notification contracts.
+- Implementer owns firstAc.ts, frozen original first-AC oracle, new differential
+  suite, native repository cases and DB runner registration. Parent owns metadata,
+  spec/docs, serial global/native/UI/build gates and Git; reviewer owns evidence.
+- [x] Independent A3b2 design approved; parent records explicit accepted boundary
+  before implementation. A3b1 must finish feature/integration CI first.
+- [x] Two mutations implemented;77 frozen-oracle differential cases and6 native
+  groups cover status/day/raw-value/iterator/prepare/trigger/transaction branches.
+- [x] Independent complete-diff review no findings/fixes; both typechecks/scoped
+  lint and6files175 focused/caller tests pass; oracle AST/SQL verified.
+- [x] Serial test:db634/native36, test:all2321/UI14 and build:check pass;800
+  source hashes/D62dirty stable. Real deferred-FK COMMIT and UTC/NewYork77 each pass.
+- [ ] Normal commit/hooks/immediate push, feature PR CI/squash and PR8 CI green.
+
+A4 statistics and later domains/layout remain unfinished. Do not archive phase3.
+
 ## A3b1 Execution Boundary (2026-11-20)
 
 - Branch: `codex/drizzle-submission-upsert`, based on A3a squash001e23a.
@@ -77,7 +117,8 @@
   typechecks/scoped lint and oracle/trace/caller-focused regressions pass.
 - [x] Parent test:db557/native30, test:all2244/UI14, build:check pass; all798
   product/test hashes and original D62dirty preserved.
-- [ ] Normal hooks/immediate push, feature CI/squash and PR8 integration CI green.
+- [x] Work6674920 normal hooks/immediate push; PR23CI44684516349 green,
+  squash1a39af0 into Drizzle; tested tree identical and PR8CI44685222637 green.
 
 A3b2 updateFirstAc/recompute and later domains/layout remain unfinished.
 

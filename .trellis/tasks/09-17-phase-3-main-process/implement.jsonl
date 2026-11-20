@@ -36,3 +36,7 @@
 {"file": ".trellis/tasks/09-17-phase-3-main-process/research/a3b-submission-writes.md", "reason": "A3b1 supported030 INSERT16vs14 limits, original prepare/getter/UUID order, raw placeholders, IGNORE and transaction events"}
 {"file": ".trellis/tasks/09-17-phase-3-main-process/research/a3b-submission-writes-review.md", "reason": "Approved A3b1 bounded schema scope; prepared duplicate lookup before getters and qualified damaged-schema diagnostic limitation"}
 {"file": ".trellis/spec/project/drizzle-submission-writes.md", "reason": "A3b1 accepted030 scope, prepared lookup/INSERT ordering, raw parameters and native/event/transaction matrix"}
+{"file": ".trellis/tasks/09-17-phase-3-main-process/research/a3b-first-ac-review.md", "reason": "Approved A3b2: eager three prepares before Set iterator, exact raw-time state/date/event ordering and native trigger/COMMIT contracts"}
+{"file": ".trellis/tasks/09-17-phase-3-main-process/research/a4-stats-queries.md", "reason": "Stats inventory with separate nullable daily/list policies and migration030-coupled recompute warning"}
+{"file": ".trellis/tasks/09-17-phase-3-main-process/research/a4a-stats-basic-review.md", "reason": "Approved three-read A4a: raw numeric aggregate/AVG NULL/native SUM overflow/latest-time and lifecycle contracts"}
+{"file": ".trellis/spec/project/drizzle-stats-reads.md", "reason": "Executable A4a read contracts, required native overflow and no write/schema/interface changes"}
