@@ -21,6 +21,6 @@
   "children": [],
   "parent": "09-17-spec-alignment",
   "relatedFiles": [],
-  "notes": "A0/A1/A2a-A2e及安全同步已合回Drizzle。A2f在C工作树codex/drizzle-problem-read-contract基于6b66ad5实施：独立设计/代码评审及全量2104/UI11/native22/build:check通过，转换detail/visits/omnibox第一管线并如实声明可达nullable输出；recent-list须单独评审UI操作政策。原D交接审计：9份规划内容均已在远端保存或被新决策替代，62个dirty文件保持原样；.zcode为平台配置且有机器绝对路径，未盲目提交。PR8仍draft/base dev，阶段3/父任务未完成，不发版。",
+  "notes": "A0/A1/A2a-A2f及安全同步完成。A2f工作4cef9ea，经独立设计/代码评审及全量2104/UI11/native22/build:check，PR19CI44657463867绿后squash2112734合回Drizzle；PR8集成CI44658098990全绿。detail/visits/omnibox完成且三个nullable输出如实声明；下一步recent-list UI操作政策及原LIMIT行为，再做submission/stats等域。C分支codex/drizzle-a2f-handoff收尾，阶段3/父任务仍未完成。D9份规划已由远端保存/替代，62dirty保持；.zcode机器路径不盲目提交。PR8仍draft/base dev，不发版、不改2.0.1。",
   "meta": {}
 }
