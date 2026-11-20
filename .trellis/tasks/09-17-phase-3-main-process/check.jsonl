@@ -3,3 +3,35 @@
 {"file": ".trellis/spec/project/domain-rules.md", "reason": "红线不得回退"}
 {"file": ".trellis/spec/backend/index.md", "reason": "后端核心规则"}
 {"file": ".trellis/spec/backend/database.md", "reason": "DB 检查"}
+{"file": ".trellis/spec/project/drizzle-adoption.md", "reason": "No side effects, exact physical schema and Date/number contracts"}
+{"file": ".trellis/tasks/09-17-phase-3-main-process/research/a2-problem-queries.md", "reason": "A2a query equivalence, unchanged tombstone filters and count nullable-ID semantics"}
+{"file": ".trellis/tasks/09-17-phase-3-main-process/research/a2c-problem-upsert.md", "reason": "A2c original-SQL oracle, null-ID no-op errors/events and actual-commit behavior"}
+{"file": ".trellis/tasks/09-17-phase-3-main-process/research/a1-migration-protocol.md", "reason": "A1 safety test matrix and explicit override compatibility"}
+{"file": ".trellis/tasks/09-17-phase-3-main-process/research/drizzle-installed-contract.md", "reason": "Do not trust upstream max timestamp as whole-ledger validation"}
+{"file": ".trellis/tasks/09-17-phase-3-main-process/research/start-readiness.md", "reason": "A0 exact post030 schema and no-startup-side-effect boundary"}
+{"file": ".trellis/spec/project/unix-millisecond-time.md", "reason": "82 integer instants and Date/number conversion safety"}
+{"file": ".trellis/spec/project/data-refresh.md", "reason": "Synchronous transaction and notification compatibility"}
+{"file": ".trellis/spec/project/regression-checks.md", "reason": "No scanner blind spots when new main path is introduced"}
+{"file": ".trellis/spec/project/upgrade-recovery.md", "reason": "Preserve released verified checkpoints, legacy resolution and fail-closed recovery while adopting Drizzle"}
+{"file": ".trellis/spec/project/config-normalization-protection.md", "reason": "Preserve released raw configuration protection"}
+{"file": ".trellis/spec/project/release-evidence.md", "reason": "Keep published release/tag/evidence immutable; builds must not publish"}
+{"file": ".trellis/tasks/09-17-phase-3-main-process/research/release-hardening-sync-design.md", "reason": "Reviewed format1 compatibility and composite Drizzle checkpoint/recovery synchronization contract"}
+{"file": ".trellis/tasks/09-17-phase-3-main-process/research/a2d-problem-delete.md", "reason": "Reviewed A2d raw-instant UNION, deletion/transaction and post-inner-transaction statistics equivalence"}
+{"file": ".trellis/tasks/09-17-phase-3-main-process/research/a2e-problem-reads.md", "reason": "A2e complete recent-visit candidate CTE, equality-proven non-null FK projection, preserved horizon and deferred DTO policy"}
+{"file": ".trellis/tasks/09-17-phase-3-main-process/research/a2f-nullable-contract.md", "reason": "A2f truthful nullable outputs, equality-proven detail identity, full-row raw-scalar parity and explicitly deferred recent-list UI policy"}
+{"file": ".trellis/tasks/09-17-phase-3-main-process/research/a2f-nullable-contract-review.md", "reason": "Approved A2f design; native bound-string identity vs JS Unicode normalization, selected output schema correction and fixed query invariants"}
+{"file": ".trellis/tasks/09-17-phase-3-main-process/research/a2g-recent-problems.md", "reason": "A2g query and caller research, typed LIMIT placeholder and nullable recent output"}
+{"file": ".trellis/tasks/09-17-phase-3-main-process/research/a2g-recent-problems-review.md", "reason": "Approved bounded A2g design: exact shared ID predicate, retained URL navigation, disabled actions with visible accessible reason and stable tuple keys"}
+{"file": ".trellis/tasks/09-17-phase-3-main-process/research/a3-submission-queries.md", "reason": "A3a four submission reads, truthful schema-derived full rows, nullable timeline output and preserved privacy/callers"}
+{"file": ".trellis/tasks/09-17-phase-3-main-process/research/a3-submission-queries-review.md", "reason": "Approved A3a: fixed AC SQL literal preserves native bind count; empty aggregate short circuit, raw MIN, internal nullable map only"}
+{"file": ".trellis/spec/project/drizzle-submission-reads.md", "reason": "A3a executable full-row/raw-time/native-limit/caller contracts, split to avoid context truncation"}
+{"file": ".trellis/tasks/09-17-phase-3-main-process/research/a3b-submission-writes.md", "reason": "A3b1 supported030 INSERT16vs14 limits, original prepare/getter/UUID order, raw placeholders, IGNORE and transaction events"}
+{"file": ".trellis/tasks/09-17-phase-3-main-process/research/a3b-submission-writes-review.md", "reason": "Approved A3b1 bounded schema scope; prepared duplicate lookup before getters and qualified damaged-schema diagnostic limitation"}
+{"file": ".trellis/spec/project/drizzle-submission-writes.md", "reason": "A3b1 accepted030 scope, prepared lookup/INSERT ordering, raw parameters and native/event/transaction matrix"}
+{"file": ".trellis/tasks/09-17-phase-3-main-process/research/a3b-first-ac-review.md", "reason": "Approved A3b2: eager three prepares before Set iterator, exact raw-time state/date/event ordering and native trigger/COMMIT contracts"}
+{"file": ".trellis/tasks/09-17-phase-3-main-process/research/a4-stats-queries.md", "reason": "Stats inventory with separate nullable daily/list policies and migration030-coupled recompute warning"}
+{"file": ".trellis/tasks/09-17-phase-3-main-process/research/a4a-stats-basic-review.md", "reason": "Approved three-read A4a: raw numeric aggregate/AVG NULL/native SUM overflow/latest-time and lifecycle contracts"}
+{"file": ".trellis/spec/project/drizzle-stats-reads.md", "reason": "Executable A4a read contracts, required native overflow and no write/schema/interface changes"}
+{"file": ".trellis/tasks/09-17-phase-3-main-process/research/a4b-daily-reads-contract.md", "reason": "A4b1 exact four-query/raw-null/clock contracts and chart selector evidence; A4b2 excluded"}
+{"file": ".trellis/tasks/09-17-phase-3-main-process/research/a4b-daily-reads-review.md", "reason": "Independent A4b1 approval conditions: nullable shared shape and both ordinal chart/Tooltip correction"}
+{"file": ".trellis/spec/project/drizzle-daily-reads.md", "reason": "Accepted A4b1 executable query/types/chart boundary and native/UI tests"}

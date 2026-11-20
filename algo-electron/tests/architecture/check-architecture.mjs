@@ -125,6 +125,33 @@ check('src/shared stays process-neutral (no electron imports)', () => {
   ])
 })
 
+check('database modules and native bindings stay main-only', () => {
+  const files = sourceFiles().filter((file) => {
+    const name = relative(file)
+    return (name.startsWith('src/') && !name.startsWith('src/main/')) || /preload\.ts$/i.test(name)
+  })
+  const failures = []
+  for (const file of files) {
+    const imports = read(file).matchAll(
+      /\b(?:from\s+|import\s*\(\s*|require\s*\(\s*|import\s+)['"]([^'"]+)['"]/g,
+    )
+    for (const [, imported] of imports) {
+      const resolved = imported.startsWith('.')
+        ? relative(path.resolve(path.dirname(file), imported))
+        : imported
+      if (
+        /^(?:better-sqlite3|drizzle-orm)(?:\/|$)/.test(imported) ||
+        /^(?:src\/main\/db|electron\/db|@main\/db)(?:\/|$)/.test(resolved)
+      ) {
+        failures.push(
+          `${relative(file)}: database import ${imported} is restricted to the main process`,
+        )
+      }
+    }
+  }
+  if (failures.length > 0) throw new Error(failures.join('\n'))
+})
+
 check('exported type declarations have a single source', () => {
   const duplicates = findDuplicateExportedTypes(
     sourceFiles()

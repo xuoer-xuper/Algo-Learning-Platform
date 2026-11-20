@@ -16,9 +16,11 @@ import {
   coachMetricsBundleSchema,
   coachFeedbackRecordSchema,
   problemVisitPointSchema,
+  timelineSubmissionPointSchema,
   problemTimelineDataSchema,
   problemAcStatusSchema,
 } from '../../src/shared/types/coach'
+import { getProblemTimelineInput } from '../../src/shared/types/ipc/coach'
 import { cookieSafeDomainSummarySchema } from '../../src/shared/types/cookies'
 import { credentialSummarySchema } from '../../src/shared/types/credentials'
 import { noteRecordSchema } from '../../src/shared/types/notes'
@@ -69,6 +71,7 @@ const instantFields: Record<string, z.ZodType> = {
   'feedback.created': coachFeedbackRecordSchema.shape.created_at,
   'visit.entered': problemVisitPointSchema.shape.entered_at,
   'visit.left': problemVisitPointSchema.shape.left_at,
+  'timelineSubmission.submitted': timelineSubmissionPointSchema.shape.submitted_at,
   'problemTimeline.firstAc': problemTimelineDataSchema.shape.first_ac_at,
   'acStatus.firstAc': problemAcStatusSchema.shape.first_ac_at,
 }
@@ -92,5 +95,30 @@ describe('cross-process instant schemas', () => {
     expect(credentialSummarySchema.shape.lastUsedAt.safeParse(null).success).toBe(true)
     expect(problemDetailRecordSchema.shape.first_seen_at.safeParse(undefined).success).toBe(true)
     expect(noteRecordSchema.shape.updated_at.safeParse(null).success).toBe(false)
+  })
+})
+
+describe('nullable read output IDs', () => {
+  it.each([
+    ['embedded submission', submissionRecordSchema.shape.id],
+    ['timeline visit', problemVisitPointSchema.shape.visit_id],
+    ['timeline submission', timelineSubmissionPointSchema.shape.submission_id],
+    ['omnibox candidate', omniboxSuggestionSchema.shape.problemId],
+    ['recent problem', problemRecordSchema.shape.id],
+  ])('represents existing nullable %s IDs without allowing non-text IDs', (_name, schema) => {
+    for (const id of [null, '', 'record-id']) expect(schema.safeParse(id).success).toBe(true)
+    for (const id of [0, {}, undefined]) expect(schema.safeParse(id).success).toBe(false)
+  })
+
+  it('keeps addressable parent IDs and all timestamp contracts strict', () => {
+    expect(problemDetailRecordSchema.shape.id.safeParse(null).success).toBe(false)
+    expect(problemTimelineDataSchema.shape.problem_id.safeParse(null).success).toBe(false)
+    expect(problemVisitPointSchema.shape.entered_at.safeParse(0.5).success).toBe(false)
+    expect(timelineSubmissionPointSchema.shape.submitted_at.safeParse(0.5).success).toBe(false)
+    expect(problemAcStatusSchema.shape.problem_id.safeParse(null).success).toBe(false)
+    for (const problemId of [null, '', 0, {}, undefined]) {
+      expect(getProblemTimelineInput[0].safeParse(problemId).success).toBe(false)
+    }
+    expect(getProblemTimelineInput[0].safeParse('problem-1').success).toBe(true)
   })
 })

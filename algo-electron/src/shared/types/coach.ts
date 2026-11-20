@@ -218,7 +218,7 @@ export const coachMetricsSnapshotSchema = z.object({
 export type CoachMetricsSnapshot = z.infer<typeof coachMetricsSnapshotSchema>
 
 export const problemVisitPointSchema = z.object({
-  visit_id: z.string(),
+  visit_id: z.string().nullable(),
   entered_at: z.number().int(),
   left_at: z.number().int().nullable(),
   duration_seconds: z.number().nullable(),
@@ -231,7 +231,7 @@ export const problemVisitPointSchema = z.object({
 export type ProblemVisitPoint = z.infer<typeof problemVisitPointSchema>
 
 export const timelineSubmissionPointSchema = z.object({
-  submission_id: z.string(),
+  submission_id: z.string().nullable(),
   submitted_at: z.number().int(),
   verdict: z.string(),
   language: z.string().nullable(),

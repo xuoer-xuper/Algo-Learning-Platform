@@ -2,7 +2,14 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { createHash, randomUUID } from 'node:crypto'
 import { z } from 'zod'
-import { databaseStateSchema, legacyLedgerSchema } from '../../../db/legacy-ledger-validation'
+import {
+  compositeDatabaseStateSchema,
+  assertLegacyLedgerEquals,
+  databaseStateSchema,
+  legacyLedgerSchema,
+} from '../../../db/legacy-ledger-validation'
+import { assertDrizzlePrefix, drizzleLedgerSchema } from '../../../db/drizzle-ledger'
+import type { KnownDrizzleMigration } from '../../../db/migration-resources'
 import { retainMigrationDiagnostic } from '../../../db/migration-diagnostics'
 
 const basenameSchema = z
@@ -22,31 +29,63 @@ export const recoverySetSchema = z
   .strict()
 export type RecoverySet = z.infer<typeof recoverySetSchema>
 
+const checkpointFields = {
+  attemptId: z.uuid(),
+  databasePath: z.string().min(1),
+  backupDirectory: z.string().min(1),
+  backupBasename: basenameSchema,
+  backupSha256: z.string().regex(/^[a-f0-9]{64}$/),
+  targetLedger: legacyLedgerSchema,
+  state: z.enum([
+    'prepared',
+    'restoring',
+    'restored',
+    'restore-failed',
+    'completed',
+    'resolved-keep-current',
+    'resolved-retry-source',
+  ]),
+  createdAt: z.number().int().nonnegative().safe(),
+  updatedAt: z.number().int().nonnegative().safe(),
+  recovery: recoverySetSchema.optional(),
+}
 export const migrationCheckpointSchema = z
-  .object({
-    formatVersion: z.literal(1),
-    attemptId: z.uuid(),
-    databasePath: z.string().min(1),
-    backupDirectory: z.string().min(1),
-    backupBasename: basenameSchema,
-    backupSha256: z.string().regex(/^[a-f0-9]{64}$/),
-    source: databaseStateSchema,
-    targetLedger: legacyLedgerSchema,
-    state: z.enum([
-      'prepared',
-      'restoring',
-      'restored',
-      'restore-failed',
-      'completed',
-      'resolved-keep-current',
-      'resolved-retry-source',
-    ]),
-    createdAt: z.number().int().nonnegative().safe(),
-    updatedAt: z.number().int().nonnegative().safe(),
-    recovery: recoverySetSchema.optional(),
-  })
-  .strict()
+  .discriminatedUnion('formatVersion', [
+    z
+      .object({ ...checkpointFields, formatVersion: z.literal(1), source: databaseStateSchema })
+      .strict(),
+    z
+      .object({
+        ...checkpointFields,
+        formatVersion: z.literal(2),
+        source: compositeDatabaseStateSchema,
+        targetDrizzle: drizzleLedgerSchema.min(1),
+      })
+      .strict(),
+  ])
   .superRefine((record, context) => {
+    if (record.formatVersion === 2) {
+      const source = record.source.drizzleLedger ?? []
+      if (
+        source.length > record.targetDrizzle.length ||
+        source.some((entry, index) => {
+          const target = record.targetDrizzle[index]
+          return (
+            !target ||
+            entry.tag !== target.tag ||
+            entry.when !== target.when ||
+            entry.sha256 !== target.sha256
+          )
+        }) ||
+        (source.length === record.targetDrizzle.length &&
+          record.source.ledger.length === record.targetLedger.length)
+      ) {
+        context.addIssue({
+          code: 'custom',
+          message: 'Composite target must advance its source histories',
+        })
+      }
+    }
     if (record.updatedAt < record.createdAt) {
       context.addIssue({ code: 'custom', message: 'Invalid checkpoint chronology' })
     }
@@ -64,6 +103,46 @@ export const migrationCheckpointSchema = z
     }
   })
 export type MigrationCheckpoint = z.infer<typeof migrationCheckpointSchema>
+
+export function validateCheckpointHistory(
+  record: MigrationCheckpoint,
+  knownLegacy: ReadonlyArray<{ version: number; name: string }>,
+  knownDrizzle?: readonly KnownDrizzleMigration[],
+): void {
+  const known = knownLegacy.map(({ version, name }) => ({ version, name }))
+  assertLegacyLedgerEquals(record.source.ledger, known.slice(0, record.source.ledger.length))
+  assertLegacyLedgerEquals(record.targetLedger, known.slice(0, record.targetLedger.length))
+  if (record.formatVersion === 1) {
+    if (record.targetLedger.length <= record.source.ledger.length)
+      throw new Error('The recorded target must extend its verified source history.')
+    return
+  }
+  if (
+    !knownDrizzle ||
+    record.targetLedger.length !== known.length ||
+    (record.source.drizzleLedger !== null && record.source.ledger.length !== known.length)
+  ) {
+    throw new Error(
+      'Composite recovery requires the known completed legacy baseline and trusted resources.',
+    )
+  }
+  assertDrizzlePrefix(record.source.drizzleLedger ?? [], knownDrizzle)
+  assertDrizzlePrefix(record.targetDrizzle, knownDrizzle)
+  assertDrizzlePrefix(record.source.drizzleLedger ?? [], record.targetDrizzle)
+}
+
+export function checkpointPendingKeys(checkpoint: MigrationCheckpoint): string[] {
+  return [
+    ...checkpoint.targetLedger
+      .slice(checkpoint.source.ledger.length)
+      .map(({ version }) => `legacy:${version}`),
+    ...(checkpoint.formatVersion === 2
+      ? checkpoint.targetDrizzle
+          .slice(checkpoint.source.drizzleLedger?.length ?? 0)
+          .map(({ tag }) => `drizzle:${tag}`)
+      : []),
+  ]
+}
 
 export class MigrationRetryBlockedError extends Error {
   constructor(

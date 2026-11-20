@@ -24,6 +24,7 @@ export default defineConfig({
       'tests/db/dailyStatsPerformance.test.ts',
       'tests/db/migrationSafety.test.ts',
       'tests/db/migrationInterruption.test.ts',
+      'tests/db/drizzleMigrationInterruption.test.ts',
       'tests/db/repositories.test.ts',
       'tests/electron/ojSubmissionBridgeSmoke.test.ts',
       'tests/electron/startupSmoke.test.ts',
@@ -75,7 +76,7 @@ export default defineConfig({
       // （实测 64.47/60.09/61.66/67.20）→ 现在这档。每次都是补完测试就把门跟上，
       // 因为留着空隙会让"覆盖率掉了"变成看不见的事，和棘轮预算高于实际同类。
       //
-      // 留 2 点而不是更多：这个数字是**下界**——9 个真实 Electron 套件不在
+      // 留 2 点而不是更多：这个数字是**下界**——真实 Electron 套件不在
       // Vitest 里（见上面 exclude 的说明与 QUALITY_HARDENING_PLAN.md §10.1），
       // 所以余量只需吸收重构噪声，不需要替那部分留位置。
       thresholds: {

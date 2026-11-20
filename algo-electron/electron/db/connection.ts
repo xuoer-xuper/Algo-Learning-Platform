@@ -3,6 +3,17 @@ import path from 'node:path'
 import fs from 'node:fs'
 import { randomUUID } from 'node:crypto'
 import { createRequire } from 'node:module'
+import {
+  loadApplicationMigrationResources,
+  resolveMigrationFolder,
+  type KnownDrizzleMigration,
+} from '../../src/main/db/migration-resources'
+import {
+  assertDrizzleLedgerEquals,
+  drizzleIdentities,
+  readDrizzleLedger,
+} from '../../src/main/db/drizzle-ledger'
+import { applyDrizzleMigrations, inspectMigrationState } from '../../src/main/db/migrate'
 import { logger as baseLogger, type Logger } from '../shared/logger'
 import { closeOrphanProblemVisits } from '../tracking/orphanProblemVisits'
 import {
@@ -48,11 +59,16 @@ import {
   assertDatabaseIntegrity,
   assertLegacyLedgerEquals,
   readDatabaseState,
+  readCompositeDatabaseState,
+  isCompositeDatabaseState,
+  type RecoveryDatabaseState,
   validateLegacyLedger,
 } from '../../src/main/db/legacy-ledger-validation'
 import { reportMigrationDiagnostic } from '../../src/main/db/migration-diagnostics'
 import {
   canonicalPath,
+  checkpointPendingKeys,
+  validateCheckpointHistory,
   readMigrationCheckpoint,
   sha256File,
   writeMigrationCheckpoint,
@@ -112,7 +128,9 @@ export async function initDb(): Promise<Database.Database> {
   if (db) return db
   if (dbInitialization) return dbInitialization
 
-  const electron = require('electron') as { app?: { getPath: (name: string) => string } }
+  const electron = require('electron') as {
+    app?: { getPath: (name: string) => string; getAppPath: () => string; isPackaged: boolean }
+  }
   if (!electron.app) {
     throw new Error('Electron app is not available. Use initDbAtPath() in Node tests.')
   }
@@ -121,12 +139,22 @@ export async function initDb(): Promise<Database.Database> {
   const dataDir = path.join(userDataDir, 'data')
   const dbPath = path.join(dataDir, 'algo-learning.sqlite')
   const backupDir = path.join(userDataDir, 'backups')
-  const initialization = initDbAtPathWithMigrationSafety(dbPath, { backupDir })
+  const initialization = initDbAtPathWithMigrationSafety(dbPath, {
+    backupDir,
+    drizzle: {
+      folder: resolveMigrationFolder({
+        packaged: electron.app.isPackaged,
+        appRoot: electron.app.getAppPath(),
+        resourcesPath: process.resourcesPath,
+      }),
+    },
+  })
   dbInitialization = initialization
   void initialization.then(clearDatabaseInitialization, clearDatabaseInitialization)
   return initialization
 }
 
+/** Legacy-only synchronous test helper; production uses the backed-up async initializer. */
 export function initDbAtPath(dbPath: string): Database.Database {
   if (db) return db
   if (dbInitialization) throw new Error('Database initialization is already in progress.')
@@ -152,6 +180,7 @@ export function initDbAtPath(dbPath: string): Database.Database {
 export interface SafeDatabaseInitializationOptions {
   backupDir: string
   migrations?: readonly Migration[]
+  drizzle?: { folder: string; expected?: readonly KnownDrizzleMigration[] }
   logger?: Logger
   now?: () => Date
 }
@@ -164,13 +193,23 @@ export async function initDbAtPathWithMigrationSafety(
   const logger = options.logger ?? baseLogger
   const migrations = options.migrations ?? allMigrations
   assertMigrationRetryAllowed(options.backupDir, dbPath)
+  // An explicit legacy override (including []) does not activate Drizzle resources.
+  const resources =
+    options.migrations !== undefined ? null : loadApplicationMigrationResources(options.drizzle)
+  const previous = readMigrationCheckpoint(dbPath, options.backupDir)
+  if (previous?.formatVersion === 2 && resources) {
+    validateCheckpointHistory(previous, allMigrations, resources.migrations)
+  }
   const database = openDatabase(dbPath, logger)
   let checkpoint: MigrationCheckpoint | null = null
   try {
     if (options.migrations === undefined) validateLegacyLedger(database, allMigrations)
-    const source = readDatabaseState(database)
-    const pendingMigrations = getPendingMigrations(database, migrations)
-    if (pendingMigrations.length > 0) {
+    const plan = resources ? inspectMigrationState(database, resources, allMigrations) : null
+    const source: RecoveryDatabaseState = resources
+      ? readCompositeDatabaseState(database, resources.migrations)
+      : readDatabaseState(database)
+    const pendingMigrations = plan?.pendingLegacy ?? getPendingMigrations(database, migrations)
+    if (pendingMigrations.length > 0 || (plan?.pendingKeys.length ?? 0) > 0) {
       const backupPath = await createPreMigrationBackup(
         database,
         dbPath,
@@ -178,31 +217,46 @@ export async function initDbAtPathWithMigrationSafety(
         options.now?.() ?? new Date(),
         source,
       )
-      const prepared: MigrationCheckpoint = {
-        formatVersion: 1,
+      const fields = {
         attemptId: randomUUID(),
         databasePath: canonicalPath(dbPath),
         backupDirectory: canonicalPath(options.backupDir),
         backupBasename: path.basename(backupPath),
         backupSha256: sha256File(backupPath),
-        source,
         targetLedger: [
           ...source.ledger,
           ...pendingMigrations.map(({ version, name }) => ({ version, name })),
         ].sort((left, right) => left.version - right.version),
-        state: 'prepared',
+        state: 'prepared' as const,
         createdAt: Date.now(),
         updatedAt: Date.now(),
       }
+      const prepared: MigrationCheckpoint =
+        resources && isCompositeDatabaseState(source)
+          ? {
+              ...fields,
+              formatVersion: 2,
+              source,
+              targetDrizzle: drizzleIdentities(resources.migrations),
+            }
+          : { ...fields, formatVersion: 1, source }
       archiveResolvedMigrationFailureMarker(options.backupDir, dbPath)
       writeMigrationCheckpoint(dbPath, options.backupDir, prepared)
       checkpoint = prepared
       logger.info('db.pre-migration-backup-completed', {
         backupPath,
         pendingVersions: pendingMigrations.map((migration) => migration.version),
+        ...(plan ? { pendingMigrationKeys: plan.pendingKeys } : {}),
       })
       runMigrations(database, migrations, logger)
+      if (resources) applyDrizzleMigrations(database, resources, allMigrations)
       assertLegacyLedgerEquals(readDatabaseState(database).ledger, prepared.targetLedger)
+      if (prepared.formatVersion === 2) {
+        assertDrizzleLedgerEquals(
+          readDrizzleLedger(database, prepared.targetDrizzle),
+          prepared.targetDrizzle,
+        )
+      }
     }
     closeStartupOrphans(database, logger)
     if (checkpoint) {
@@ -273,6 +327,7 @@ function recoverFailedInitialization(
 ): void {
   let checkpoint = prepared
   let hasRestoreFailure = !isClosed
+  let restoreError: unknown
   const backupPath = path.join(backupDirectory, prepared.backupBasename)
   if (isClosed) {
     try {
@@ -287,6 +342,7 @@ function recoverFailedInitialization(
       })
     } catch (error) {
       hasRestoreFailure = true
+      restoreError = error
       reportMigrationDiagnostic(primary, 'db.migration-backup-restore-failed', error, logger)
     }
   }
@@ -308,9 +364,17 @@ function recoverFailedInitialization(
       pendingMigrations: prepared.targetLedger.filter(
         (entry) => !prepared.source.ledger.some((source) => source.version === entry.version),
       ),
-      error: 'Database initialization failed; original error retained in startup diagnostics.',
+      ...(prepared.formatVersion === 2
+        ? { pendingMigrationKeys: checkpointPendingKeys(prepared) }
+        : {}),
+      error: primary instanceof Error ? primary.message : String(primary),
       ...(hasRestoreFailure
-        ? { restoreError: 'Recovery did not complete. Preserve all recovery files.' }
+        ? {
+            restoreError:
+              restoreError instanceof Error
+                ? restoreError.message
+                : 'Recovery did not complete. Preserve all recovery files.',
+          }
         : {}),
     })
   } catch (error) {

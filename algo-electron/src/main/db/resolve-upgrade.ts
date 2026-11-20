@@ -17,6 +17,8 @@ import { closeOrphanProblemVisits } from '../../../electron/tracking/orphanProbl
 import {
   assertNoPathLinks,
   canonicalPath,
+  checkpointPendingKeys,
+  validateCheckpointHistory,
   readMigrationCheckpoint,
   recoverySetSchema,
   sha256File,
@@ -44,10 +46,20 @@ import {
   assertDatabaseIntegrity,
   assertLegacyLedgerEquals,
   readDatabaseState,
+  readCompositeDatabaseState,
+  isCompositeDatabaseState,
   validateDatabaseState,
   validateLegacyLedger,
-  type DatabaseState,
+  type RecoveryDatabaseState,
 } from './legacy-ledger-validation'
+import { assertDrizzleLedgerEquals } from './drizzle-ledger'
+import { applyDrizzleMigrations, inspectMigrationState } from './migrate'
+import {
+  loadApplicationMigrationResources,
+  stageMigrationPrefix,
+  type MigrationResourceOptions,
+  type MigrationResources,
+} from './migration-resources'
 import { retainMigrationDiagnostic } from './migration-diagnostics'
 
 export class UpgradeResolutionError extends Error {
@@ -102,28 +114,40 @@ function withDatabase<T>(
   return result.value
 }
 
+export interface UpgradeRecoveryOptions {
+  drizzle?: MigrationResourceOptions
+}
+
 function verifyKnownSource(
   backupPath: string,
-  expected?: DatabaseState,
+  expected?: RecoveryDatabaseState,
   hash?: string,
-): DatabaseState {
+  resources?: MigrationResources,
+): RecoveryDatabaseState {
   const source = verifyMigrationBackup(backupPath, expected, hash)
-  withDatabase(backupPath, true, (database) => validateLegacyLedger(database, getKnownMigrations()))
-  if (source.ledger.length >= getKnownMigrations().length) {
-    refuse(
-      'SOURCE_HISTORY',
-      'The recovery point is not a known earlier upgrade source. Preserve it for local support review; no resolution was authorized.',
-    )
-  }
-  return source
+  return withDatabase(backupPath, true, (database) => {
+    validateLegacyLedger(database, getKnownMigrations())
+    if (resources) {
+      inspectMigrationState(database, resources, getKnownMigrations())
+      return readCompositeDatabaseState(database, resources.migrations)
+    }
+    if (source.ledger.length >= getKnownMigrations().length) {
+      refuse(
+        'SOURCE_HISTORY',
+        'The recovery point is not a known earlier legacy upgrade source. Preserve it for local support review.',
+      )
+    }
+    return source
+  })
 }
 
 interface RecoveryContext {
   checkpoint: MigrationCheckpoint
+  resources?: MigrationResources
   legacy?: { marker: MigrationFailureMarker; bytes: Buffer; markerHash: string }
 }
 
-function inspectRecovery(userData: string): RecoveryContext {
+function inspectRecovery(userData: string, options: UpgradeRecoveryOptions): RecoveryContext {
   const { databasePath, backupDirectory } = profilePaths(userData)
   const checkpoint = readMigrationCheckpoint(databasePath, backupDirectory)
   const failure = readMigrationFailureMarker(backupDirectory, databasePath, checkpoint)
@@ -134,36 +158,58 @@ function inspectRecovery(userData: string): RecoveryContext {
     )
     const markerHash = createHash('sha256').update(bytes).digest('hex')
     const attemptId = legacyAttemptId(databasePath, markerHash)
-    const source = verifyKnownSource(failure.backupPath)
+    const hasDrizzle =
+      failure.pendingMigrationKeys?.some((key) => key.startsWith('drizzle:')) ?? false
+    const resources = hasDrizzle ? loadApplicationMigrationResources(options.drizzle) : undefined
+    const source = verifyKnownSource(failure.backupPath, undefined, undefined, resources)
     const targetLedger = [...source.ledger, ...failure.pendingMigrations]
-    if (failure.pendingMigrations.length === 0)
+    if (failure.pendingMigrations.length === 0 && !hasDrizzle)
       refuse('TARGET_HISTORY', 'The legacy failure does not identify a pending upgrade.')
     assertLegacyLedgerEquals(targetLedger, knownLedger().slice(0, targetLedger.length))
-    const associated: MigrationCheckpoint = {
-      formatVersion: 1,
+    const fields = {
       attemptId,
       databasePath: canonicalPath(databasePath),
       backupDirectory: canonicalPath(backupDirectory),
       backupBasename: path.basename(failure.backupPath),
       backupSha256: sha256File(failure.backupPath),
-      source,
       targetLedger,
-      state: 'prepared',
+      state: 'prepared' as const,
       createdAt: Date.parse(failure.failedAt),
       updatedAt: Date.parse(failure.failedAt),
     }
+    const drizzleCount =
+      failure.pendingMigrationKeys?.filter((key) => key.startsWith('drizzle:')).length ?? 0
+    const associated: MigrationCheckpoint =
+      resources && isCompositeDatabaseState(source)
+        ? {
+            ...fields,
+            formatVersion: 2,
+            source,
+            targetDrizzle: resources.migrations
+              .slice(0, (source.drizzleLedger?.length ?? 0) + drizzleCount)
+              .map(({ tag, when, sha256 }) => ({ tag, when, sha256 })),
+          }
+        : { ...fields, formatVersion: 1, source }
+    validateCheckpointHistory(associated, getKnownMigrations(), resources?.migrations)
+    assertFailureMarkerMatchesCheckpoint(failure, associated)
     if (
       checkpoint &&
       (checkpoint.attemptId !== attemptId ||
         checkpoint.backupSha256 !== associated.backupSha256 ||
-        JSON.stringify(checkpoint.source) !== JSON.stringify(source))
+        JSON.stringify(checkpoint.source) !== JSON.stringify(source) ||
+        JSON.stringify(checkpointPendingKeys(checkpoint)) !==
+          JSON.stringify(checkpointPendingKeys(associated)))
     ) {
       refuse(
         'LEGACY_ASSOCIATION',
         'The legacy marker cannot be associated with the current attempt. Preserve all evidence for local review.',
       )
     }
-    return { checkpoint: checkpoint ?? associated, legacy: { marker: failure, bytes, markerHash } }
+    return {
+      checkpoint: checkpoint ?? associated,
+      resources,
+      legacy: { marker: failure, bytes, markerHash },
+    }
   }
   if (!checkpoint)
     refuse(
@@ -171,11 +217,17 @@ function inspectRecovery(userData: string): RecoveryContext {
       'No verifiable upgrade attempt exists in this profile. Do not create or delete a marker to bypass startup checks.',
     )
   verifyLegacyFailureAudit(checkpoint, failure)
-  return { checkpoint }
+  const resources =
+    checkpoint.formatVersion === 2 ? loadApplicationMigrationResources(options.drizzle) : undefined
+  validateCheckpointHistory(checkpoint, getKnownMigrations(), resources?.migrations)
+  return { checkpoint, resources }
 }
 
-export function inspectUpgradeRecovery(userData: string): string {
-  const { checkpoint } = inspectRecovery(userData)
+export function inspectUpgradeRecovery(
+  userData: string,
+  options: UpgradeRecoveryOptions = {},
+): string {
+  const { checkpoint } = inspectRecovery(userData, options)
   return upgradeResolutionInstructions(checkpoint.attemptId)
 }
 
@@ -247,7 +299,10 @@ function verifyRecoverySet(checkpoint: MigrationCheckpoint): void {
   }
 }
 
-function expectedTarget(checkpoint: MigrationCheckpoint): DatabaseState {
+function expectedTarget(
+  checkpoint: MigrationCheckpoint,
+  resources?: MigrationResources,
+): RecoveryDatabaseState {
   const backupPath = path.join(checkpoint.backupDirectory, checkpoint.backupBasename)
   const temporaryDirectory = path.join(
     checkpoint.backupDirectory,
@@ -258,14 +313,30 @@ function expectedTarget(checkpoint: MigrationCheckpoint): DatabaseState {
   const candidate = path.join(temporaryDirectory, 'candidate.sqlite')
   fs.copyFileSync(backupPath, candidate, fs.constants.COPYFILE_EXCL)
   verifyMigrationBackup(candidate, checkpoint.source, checkpoint.backupSha256)
+  const bounded =
+    checkpoint.formatVersion === 2 && resources
+      ? stageMigrationPrefix(
+          resources,
+          checkpoint.targetDrizzle.length,
+          path.join(temporaryDirectory, 'drizzle'),
+        )
+      : undefined
   const state = withDatabase(candidate, false, (database) => {
     database.pragma('foreign_keys = ON')
     runMigrations(
       database,
       getKnownMigrations().slice(checkpoint.source.ledger.length, checkpoint.targetLedger.length),
     )
+    if (bounded) applyDrizzleMigrations(database, bounded, getKnownMigrations())
     assertDatabaseIntegrity(database)
-    const target = readDatabaseState(database)
+    const target: RecoveryDatabaseState = bounded
+      ? readCompositeDatabaseState(database, bounded.migrations)
+      : readDatabaseState(database)
+    if (checkpoint.formatVersion === 2) {
+      if (!isCompositeDatabaseState(target))
+        refuse('TARGET_HISTORY', 'Missing composite replay resources.')
+      assertDrizzleLedgerEquals(target.drizzleLedger, checkpoint.targetDrizzle)
+    }
     assertLegacyLedgerEquals(target.ledger, checkpoint.targetLedger)
     return target
   })
@@ -288,9 +359,10 @@ function resolutionDirectory(checkpoint: MigrationCheckpoint): string {
 export async function resolveUpgrade(
   userData: string,
   input: UpgradeMaintenanceRequest,
+  options: UpgradeRecoveryOptions = {},
 ): Promise<string> {
   const request = upgradeMaintenanceRequestSchema.parse(input)
-  const context = inspectRecovery(userData)
+  const context = inspectRecovery(userData, options)
   const checkpoint = context.checkpoint
   if (request.attemptId !== checkpoint.attemptId) {
     refuse(
@@ -311,17 +383,14 @@ export async function resolveUpgrade(
       'This attempt already has a different verified resolution. Do not change its audit history.',
     )
   }
-  if (checkpoint.targetLedger.length <= checkpoint.source.ledger.length)
-    refuse('TARGET_HISTORY', 'The recorded target must extend its verified source history.')
-  assertLegacyLedgerEquals(
-    checkpoint.targetLedger,
-    knownLedger().slice(0, checkpoint.targetLedger.length),
-  )
+  validateCheckpointHistory(checkpoint, getKnownMigrations(), context.resources?.migrations)
   const backupPath = path.join(checkpoint.backupDirectory, checkpoint.backupBasename)
-  verifyKnownSource(backupPath, checkpoint.source, checkpoint.backupSha256)
+  verifyKnownSource(backupPath, checkpoint.source, checkpoint.backupSha256, context.resources)
   verifyRecoverySet(checkpoint)
   const expected =
-    request.resolution === 'keep-current' ? expectedTarget(checkpoint) : checkpoint.source
+    request.resolution === 'keep-current'
+      ? expectedTarget(checkpoint, context.resources)
+      : checkpoint.source
   withDatabase(checkpoint.databasePath, true, (database) =>
     validateDatabaseState(database, expected),
   )
@@ -358,7 +427,7 @@ export async function resolveUpgrade(
       expected,
     )
     const audit = resolutionAuditSchema.parse({
-      formatVersion: 1,
+      formatVersion: checkpoint.formatVersion,
       attemptId: checkpoint.attemptId,
       resolution: request.resolution,
       state: 'prepared',

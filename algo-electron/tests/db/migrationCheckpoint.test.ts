@@ -6,6 +6,7 @@ import {
   assertNoUnresolvedMigrationCheckpoint,
   canonicalPath,
   getMigrationCheckpointPath,
+  migrationCheckpointSchema,
   MigrationRetryBlockedError,
   readMigrationCheckpoint,
   writeDurableJson,
@@ -134,4 +135,29 @@ it('rejects junctions rather than writing records into an unexpected directory',
   } finally {
     fs.unlinkSync(link)
   }
+})
+
+it('round-trips strict format-2 source absence/empty history and rejects unchanged, regressed or unversioned composite records', () => {
+  const { record } = setup()
+  const baseline = { tag: '0000_baseline', when: 1, sha256: '1'.repeat(64) }
+  for (const drizzleLedger of [null, []]) {
+    const composite = {
+      ...record,
+      formatVersion: 2,
+      source: { ...record.source, drizzleLedger },
+      targetDrizzle: [baseline],
+    }
+    expect(migrationCheckpointSchema.parse(composite)).toEqual(composite)
+  }
+  const unchanged = {
+    ...record,
+    formatVersion: 2,
+    source: { ...record.source, drizzleLedger: [baseline] },
+    targetLedger: [],
+    targetDrizzle: [baseline],
+  }
+  expect(() => migrationCheckpointSchema.parse(unchanged)).toThrow()
+  expect(() => migrationCheckpointSchema.parse({ ...unchanged, targetDrizzle: [] })).toThrow()
+  expect(() => migrationCheckpointSchema.parse({ ...unchanged, formatVersion: 1 })).toThrow()
+  expect(migrationCheckpointSchema.parse(record)).toEqual(record)
 })

@@ -19,6 +19,9 @@
 - `llmConfigStore.test.ts`：API Key 加密保存失败、成功写入和旧明文迁移/清除。
 - `coachPetWindowFollow.test.ts`：桌宠切换到最近完整壳 parent、旧 parent 监听解绑，以及父壳关闭前解除归属。
 
+- `coachOrchestratorLifecycle.test.ts`：真实Coach时间轴保留NULL/空/字符串提交ID并通过shared schema；指标保持string题目ID和epoch0首次AC。测试使用隔离的合成数据库，不访问用户库。
+- `contextGatherer.test.ts`：完整16字段提交fixture验证最后10条顺序及敏感字段白名单不泄漏；新增nullable ID不改变LLM上下文。
+
 ## 3. 关键文件
 
 - 纯逻辑测试由 Vitest 直接发现；`tests/verify.mjs` 的 `coach` suite 额外启动依赖 Electron `safeStorage` 的配置存储测试。
@@ -26,7 +29,7 @@
 
 ## 4. 边界规则
 
-- 测试不依赖真实数据库，使用 fakeDb 或内存模拟。
+- 测试使用fakeDb、内存模拟或隔离的合成临时数据库，不读取或修改用户数据库。
 - ConstraintParser 测试含 20 道样例题面准确率验证。
 - 测试覆盖必须随新增规则同步更新。
 

@@ -1,5 +1,6 @@
 import type { WebContentsView } from 'electron'
 import type { InternalPage } from '../../src/shared/types/browser'
+import { isInternalPageId } from '../../src/shared/internal-page-id'
 
 const SIMPLE_INTERNAL_PAGES = new Set<InternalPage['type']>([
   'home',
@@ -19,33 +20,16 @@ function hasOnlyKeys(value: Record<string, unknown>, keys: string[]): boolean {
   return actualKeys.length === keys.length && actualKeys.every((key) => keys.includes(key))
 }
 
-function hasWhitespaceOrControl(value: string): boolean {
-  return [...value].some((character) => {
-    const codePoint = character.codePointAt(0) ?? 0
-    return /\s/u.test(character) || codePoint < 32 || codePoint === 127
-  })
-}
-
-function isNonEmptyId(value: unknown): value is string {
-  return (
-    typeof value === 'string' &&
-    value.length > 0 &&
-    value.length <= 200 &&
-    value.trim() === value &&
-    !hasWhitespaceOrControl(value)
-  )
-}
-
 export function isInternalPage(value: unknown): value is InternalPage {
   if (!isRecord(value) || typeof value.type !== 'string') return false
   if (SIMPLE_INTERNAL_PAGES.has(value.type as InternalPage['type'])) {
     return hasOnlyKeys(value, ['type'])
   }
   if (value.type === 'problem-detail' || value.type === 'notes') {
-    return hasOnlyKeys(value, ['type', 'problemId']) && isNonEmptyId(value.problemId)
+    return hasOnlyKeys(value, ['type', 'problemId']) && isInternalPageId(value.problemId)
   }
   if (value.type === 'script-install') {
-    return hasOnlyKeys(value, ['type', 'installId']) && isNonEmptyId(value.installId)
+    return hasOnlyKeys(value, ['type', 'installId']) && isInternalPageId(value.installId)
   }
   return false
 }

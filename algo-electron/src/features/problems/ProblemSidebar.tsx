@@ -1,9 +1,12 @@
 import { useState, useEffect, useRef } from 'react'
 import { PLATFORM_LABELS, STATUS_COLORS } from '../../shared/display'
+import { isInternalPageId } from '../../shared/internal-page-id'
 import { Empty, IconButton, ListRow, Select, Skeleton } from '../../components/ui'
 import { useIpcQuery } from '../../hooks/useIpcQuery'
 import { useIpcQueryError } from '../../hooks/useIpcQueryError'
 import { loadRecentProblems, setProblemSidebarWidth } from './problemsApi'
+
+const UNADDRESSABLE_REASON = '题目 ID 无效，无法打开笔记或详情；仍可访问原网站。'
 
 interface Props {
   onNavigate: (url: string) => void
@@ -141,47 +144,59 @@ export function ProblemSidebar({ onNavigate, onShowDetail, onShowNotes, onWidthC
             </Empty>
           )
         ) : (
-          problems.map((p) => (
-            /*
-             * 行本身不再可点：主操作收进 ListRow（键盘可达），两个图标按钮作为
-             * 兄弟节点留在外面。这样 role="button" 里不含可交互元素，ARIA 合法，
-             * 也不必再用 stopPropagation 去拦冒泡——没有父级 onClick 可拦了。
-             */
-            <div key={p.id} className="sidebar-item">
-              <ListRow
-                className="sidebar-item-main"
-                onActivate={() => onNavigate(p.canonical_url)}
-                label={`打开 ${p.title || p.platform_problem_id}`}
+          problems.map((p) => {
+            const problemId = p.id
+            const canOpenInternal = isInternalPageId(problemId)
+            const label = `打开 ${p.title || p.platform_problem_id}`
+            return (
+              <div
+                key={JSON.stringify([p.platform, p.platform_problem_id])}
+                className={
+                  canOpenInternal ? 'sidebar-item' : 'sidebar-item sidebar-item-unaddressable'
+                }
               >
-                <span
-                  className="sidebar-item-dot"
-                  style={{ backgroundColor: STATUS_COLORS[p.status] || STATUS_COLORS.unknown }}
+                {/* Keep site navigation separate from the sibling internal-action buttons. */}
+                <ListRow
+                  className="sidebar-item-main"
+                  onActivate={() => onNavigate(p.canonical_url)}
+                  label={canOpenInternal ? label : `${label}；${UNADDRESSABLE_REASON}`}
+                >
+                  <span
+                    className="sidebar-item-dot"
+                    style={{ backgroundColor: STATUS_COLORS[p.status] || STATUS_COLORS.unknown }}
+                  />
+                  <span className="sidebar-item-platform">
+                    {PLATFORM_LABELS[p.platform] || p.platform}
+                  </span>
+                  <span className="sidebar-item-id">{p.title || p.platform_problem_id}</span>
+                </ListRow>
+                {p.submission_count ? (
+                  <span className="sidebar-item-count">{p.submission_count}</span>
+                ) : null}
+                <IconButton
+                  icon="edit"
+                  size={13}
+                  className="sidebar-item-notes"
+                  title="本地笔记"
+                  disabled={!canOpenInternal}
+                  onClick={() => {
+                    if (isInternalPageId(problemId)) onShowNotes(problemId)
+                  }}
                 />
-                <span className="sidebar-item-platform">
-                  {PLATFORM_LABELS[p.platform] || p.platform}
-                </span>
-                <span className="sidebar-item-id">{p.title || p.platform_problem_id}</span>
-              </ListRow>
-              {p.submission_count ? (
-                <span className="sidebar-item-count">{p.submission_count}</span>
-              ) : null}
-              {/* IconButton 的 title 必填并同时写 aria-label：原来只有 title，读屏取不到名字 */}
-              <IconButton
-                icon="edit"
-                size={13}
-                className="sidebar-item-notes"
-                title="本地笔记"
-                onClick={() => onShowNotes(p.id)}
-              />
-              <IconButton
-                icon="more"
-                size={14}
-                className="sidebar-item-detail"
-                title="查看详情"
-                onClick={() => onShowDetail(p.id)}
-              />
-            </div>
-          ))
+                <IconButton
+                  icon="more"
+                  size={14}
+                  className="sidebar-item-detail"
+                  title="查看详情"
+                  disabled={!canOpenInternal}
+                  onClick={() => {
+                    if (isInternalPageId(problemId)) onShowDetail(problemId)
+                  }}
+                />
+                {!canOpenInternal && <p className="sidebar-item-reason">{UNADDRESSABLE_REASON}</p>}
+              </div>
+            )
+          })
         )}
       </div>
     </div>

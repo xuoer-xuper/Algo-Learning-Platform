@@ -126,4 +126,3 @@ No new external retrieval was performed. This review uses the previously retriev
 - Source is still being edited by other owners. Final accepted SHA must revalidate all assertions and wording; this report must not be inserted unchanged as a passed final-master gate.
 - No final public-API commitment requiring permanent v1 output, arbitrary same-major storage downgrade, current final-artifact installer result, real credential continuity, or complete seven-site acceptance was found in this review. Unknown evidence is not a pass or an automatic version-major requirement.
 - No version, CHANGELOG, code, spec, user profile, Git state or release state was changed by this researcher.
-

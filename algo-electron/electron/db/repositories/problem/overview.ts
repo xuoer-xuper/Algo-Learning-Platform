@@ -1,55 +1,53 @@
+import { and, count, countDistinct, desc, gte, isNull, lt } from 'drizzle-orm'
 import { getDb } from '../../connection'
 import { nowMillis, toLocalDay, localDayBounds } from '../../../shared/time'
+import { createDrizzleClient } from '../../../../src/main/db/client'
+import { activityEvents, problems, problemVisits } from '../../../../src/main/db/schema'
 import type { OverviewStats, PlatformDistributionRow } from '../../../../src/shared/types/stats'
 
 export function getProblemCount(): number {
-  const db = getDb()
-  const row = db
-    .prepare('SELECT COUNT(*) as count FROM problems WHERE deleted_at IS NULL')
-    .get() as { count: number }
-  return row.count
+  const db = createDrizzleClient(getDb())
+  const row = db.select({ count: count() }).from(problems).where(isNull(problems.deleted_at)).get()
+  return row?.count ?? 0
 }
 
 export function getPlatformDistribution(): PlatformDistributionRow[] {
-  const db = getDb()
+  const db = createDrizzleClient(getDb())
   return db
-    .prepare(
-      `
-    SELECT platform, COUNT(*) as count
-    FROM problems WHERE deleted_at IS NULL
-    GROUP BY platform ORDER BY count DESC
-  `,
-    )
-    .all() as PlatformDistributionRow[]
+    .select({ platform: problems.platform, count: count() })
+    .from(problems)
+    .where(isNull(problems.deleted_at))
+    .groupBy(problems.platform)
+    .orderBy(desc(count()))
+    .all()
 }
 
 export function getTodayVisitedCount(): number {
-  const db = getDb()
+  const db = createDrizzleClient(getDb())
   const today = toLocalDay(nowMillis())
   const { start, end } = localDayBounds(today)
   const row = db
-    .prepare(
-      `
-    SELECT COUNT(DISTINCT problem_id) as count
-    FROM problem_visits
-    WHERE entered_at >= ? AND entered_at < ?
-  `,
+    .select({ count: countDistinct(problemVisits.problem_id) })
+    .from(problemVisits)
+    .where(
+      and(
+        gte(problemVisits.entered_at, new Date(start)),
+        lt(problemVisits.entered_at, new Date(end)),
+      ),
     )
-    .get(start, end) as { count: number }
-  return row.count
+    .get()
+  return row?.count ?? 0
 }
 
 export function getLastActiveTime(): number | null {
-  const db = getDb()
+  const db = createDrizzleClient(getDb())
   const row = db
-    .prepare(
-      `
-    SELECT occurred_at FROM activity_events
-    ORDER BY occurred_at DESC LIMIT 1
-  `,
-    )
-    .get() as { occurred_at: number } | undefined
-  return row?.occurred_at ?? null
+    .select({ occurred_at: activityEvents.occurred_at })
+    .from(activityEvents)
+    .orderBy(desc(activityEvents.occurred_at))
+    .limit(1)
+    .get()
+  return row?.occurred_at.getTime() ?? null
 }
 
 export function getOverviewStats(): OverviewStats {

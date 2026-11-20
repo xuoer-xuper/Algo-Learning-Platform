@@ -48,7 +48,8 @@
       2026-11-09独立复核无遗留问题，最终index与dev `3702f01`相同；只是补齐master祖先关系。
       基线`pnpm test:all`通过：192个Vitest文件/1563用例、原生套件和11个Playwright用例；
       详细证据见`research/s1-integration-validation.md`，不代表后续加固或发行验收完成。
-- [ ] 同步PR保留merge祖先关系；独立复核与完整门通过后合入dev。普通加固提交按功能PR规则。
+- [x] 同步提交c340c16保留master祖先；PR9在独立复核/完整门及CI43996785911通过后，
+  以merge e1171b2合入dev，后续dev CI43997371383通过。
 
 ## S2 数据库恢复点与失败处理
 
@@ -127,16 +128,20 @@
 
 PR #12修复pnpm入口，PR #13合入master `de89ce4`，最终全门/构建及hosted26步均通过。
 正常check/draft/verify/publish已完成，v2.0.1于11:43:55正式公开并验证为verified-public。
-验收SHA、资产hash、CI及人工边界见`research/publication-2.0.1.md`。以下Drizzle同步继续保留待办。
+验收SHA、资产hash、CI及人工边界见`research/publication-2.0.1.md`。Drizzle同步于同日通过PR15完成，技术交接不再阻塞。
 
 ## Commit / Handoff
 
 - [x] 本轮工程提交前读Git规范、正常钩子；原子中文conventional commit，提交后及时推送。
 - [x] 本轮pre-push `pnpm test:ci`通过；CI用`gh run watch --exit-status`跟到结果，不靠重复重跑碰绿。
 - [x] 检查无发布阻塞、征得恢复发行确认后，才进入dev→master PR/tag/Release操作。
-- [ ] 将加固修复按祖先/冲突边界同步到原Drizzle分支，避免覆盖其安全迁移接管代码。
-- [ ] 完成独立加固任务后记录会话；不归档阶段3或整个对齐计划，不预设3.0.0。
-      前轮工程与安装验收为Session16；本轮发行会话另记，Drizzle同步未完成，因此不归档任务。
+- [x] 将加固修复按祖先/冲突边界同步到Drizzle：PR15 merge317cd9f保留dev祖先；
+  format1兼容+format2组合恢复、双真实强杀矩阵、206文件1967测试/UI11/build:win及
+  PR15 CI44025304964、PR8集成CI44025992234全绿；原D工作树未变。
+  详见阶段3`research/release-hardening-sync-validation.md`。
+- [x] 2026-11-19归档独立加固任务；前轮工程/安装验收为Session16，正式发行Session17。
+  同步技术交接与A2d/A2e以本轮会话记录收尾，相关代码和CI证据归阶段3。
+  阶段3及父计划保持原状态，不预设3.0.0；已公开tag/资产不改。
 
 ## Stop Conditions
 

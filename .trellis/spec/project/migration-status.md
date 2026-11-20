@@ -7,11 +7,45 @@
 > Plan and evidence: `.trellis/tasks/archive/2026-09/00-bootstrap-guidelines/research/spec-alignment-plan.md`,
 > `spec-alignment-report.md`, `reinvented-wheels-audit.md`.
 
-Last reviewed: 2026-11-10. Phase 2 PR6/PR7 are merged into `dev` as `d9f5583`/`b74773b`;
-dev CI `42224226176` passed. Phase 2 is archived. The separate release-hardening
-worktree adds bounded DB/config safety helpers and release tooling; its full installer
-and publication acceptance is still pending. Phase 3 Drizzle work is excluded from
-this candidate; these helpers do not complete that phase or move the query layer.
+Last reviewed: 2026-11-20. Released v2.0.1 at `de89ce4` has passed final validation and
+publication. Phase 3 A0/A1/A2a-A2c remain on the Drizzle branch: schema/client, migration
+coordinator and bounded problem queries are implemented. The current synchronization
+slice combines released durable recovery with Drizzle adoption; independent review,
+206 files/1967 tests, native crash matrices, UI11 and Windows packaged build passed.
+PR15 merge317cd9f preserves release ancestry; PR15 and PR8 CI passed. This
+unpublished build is not v2.0.1. A2d deletion passed local differential/native/full gates
+and build check; PR16 squash85b95dc merged into Drizzle with PR16 CI44049450301 and
+PR8 integration CI44505395427 green. PR8 remains draft against dev.
+A2e converts only the recent-visit omnibox candidate CTE, retaining the first pipeline
+and nullable-ID policy. Independent review, full2038/UI11/native19 and build check
+passed; PR17 squash0927213, PR17 CI44521575932 and PR8 CI44522362714 passed. Other queries and
+main-process layout work remain separate later slices.
+A2f completes detail/visits and the first omnibox candidate pipeline, with explicit
+nullable output IDs rather than filtering/casts. Independent review, full2104/UI11/
+native22 and build check passed; PR19CI44657463867 passed and squash2112734
+merged into Drizzle; PR8CI44658098990 passed. Integration evidence is in phase3's
+`a2f-verification-2026-11-20.md`.
+A2g finishes the remaining recent problem query and the reviewed invalid-ID action
+policy: retain all rows/site navigation, disable only notes/detail with visible
+accessible explanation and share the unchanged route predicate. Native LIMIT and
+nullable recent output are preserved; detail ID stays string. Independent review,
+full2157/UI14/native23 and build check passed; PR21CI44675893865 and squash6c42a38
+merged into Drizzle, then PR8CI44676609924 passed.
+Evidence: phase3 `a2g-verification-2026-11-20.md`.
+A3a converts all4 submission reads, preserving full raw rows/native limits and
+correcting read-only nullable timeline IDs. Independent review, full2204/UI14/
+native26 and build check passed; PR22CI44680385928 green, squash001e23a into
+Drizzle and PR8CI44681049295 green. A3b1 upsert passes full2244/UI14/native30/
+build and independent review with explicit frozen030 scope/argument ordering;
+PR23CI44684516349 green, squash1a39af0 into Drizzle and PR8CI44685222637 green.
+A3b2 first-AC passes independent review/full2321/UI14/native36/build and UTC/
+NewYork77 each; PR24CI44691480140, squashfa13260 and PR8CI44692300627 green.
+All submission queries/writes are converted. A4a basic reads pass independent
+review, corrected DB677/native40, full2364/UI14 and build; remote gates pending.
+A4b1 nullable daily/chart safety is explicitly accepted design only; later stats/
+domain/layout work remains incomplete.
+See phase3 a3a/a3b1/a3b2 verification artifacts; PR8 stays draft.
+
 
 ---
 
@@ -28,7 +62,7 @@ this candidate; these helpers do not complete that phase or move the query layer
 | TypeScript | 7.0.2, babel eslint parser, no path alias | 6.0.3 (last stable before 6.1; fallback 5.9.3), typescript-eslint, `@shared` alias in tsconfig + vite + vitest | 0.3, 0.4, 0.8 |
 | Formatting | `.editorconfig` only | prettier + `.editorconfig` | 0.5 |
 | Commit gates | none locally | husky + commitlint + lint-staged | 0.6 |
-| Versioning | Candidate tooling separates prepare/build/check/draft/verify/publish, refuses automatic bump/commit/upload and verifies source/merge/assets/evidence. Publication is paused; final installer/manual/CI acceptance remains pending. Historical tag/CHANGELOG inconsistencies remain. | Prepared version/changelog then annotated master merge tag; version by declared compatibility contracts, not internal migration alone; independently verified upgrade/recovery gates | 0.10, 6.3; `11-08-release-upgrade-safety` |
+| Versioning | Candidate tooling separates prepare/build/check/draft/verify/publish, refuses automatic bump/commit/upload and verifies source/merge/assets/evidence. v2.0.1 is public and verified at master merge `de89ce4`; later versions need renewed explicit source, safety, installer and publication gates. Historical tag/CHANGELOG inconsistencies remain. | Prepared version/changelog then annotated master merge tag; version by declared compatibility contracts, not internal migration alone; independently verified upgrade/recovery gates | 0.10, 6.3; `11-08-release-upgrade-safety` |
 
 ## Infrastructure libraries
 
@@ -38,7 +72,7 @@ this candidate; these helpers do not complete that phase or move the query layer
 | Logging | ✅ 1.1（2026-11-01）：**electron-log 5.4.4**，`logger.scope()` + 脱敏 hook（原 regex 全量迁移 + `cookie=`）；RUN_AS_NODE 下文件 transport 关闭 | 同左 | 1.2 |
 | Config | ✅ 1.1（2026-11-01）：**electron-store 12**（原子存储层）+ zod 单层校验（`.default()`/`.catch()` 取代 normalizers）；conf 16 的 schema 校验会"坏文件即拒启"，与不清空红线冲突——故 schema 不传给 electron-store | 同左 | 1.3 |
 | Dev/prod isolation | ✅ 1.1（2026-11-01）：`envSetup.ts` 为 main.ts 首个 import（架构守卫强制），非打包且无冒烟 env 时 userData 加 `-dev`；冒烟覆盖优先 | 同左 | 1.3 |
-| Database | better-sqlite3 with repositories and frozen migrations 001-030. Candidate safety helpers in `src/main/db/` and `src/main/services/backup/lib/` verify ledgers, backups, durable attempts and explicit recovery; legacy connection/backup adapters retain lifecycle ownership. No Drizzle is included in this candidate. | **Drizzle ORM** schema + `drizzle-kit` migrations; 001-030 baseline; preserve backup safety | 3.1; `11-08-release-upgrade-safety` |
+| Database | Drizzle0.45.4/Kit0.31.11 schema/client and trusted legacy/baseline coordinator; released2.0.1 recovery synchronized with preserved ancestry. A2a-A2g problem queries are converted, including reviewed nullable outputs/invalid actions. Full2157/UI14/native23/build pass; PR21 squash6c42a38 and PR21/PR8 CI green. | Submission reads/writes integrated through PR24; A4a stats basics in progress, later domains/layout remain | 3.1; archived release-upgrade-safety |
 | Timestamps | R5: 82 INTEGER Unix-ms columns, numeric live writers/IPC/shared schemas, display-only Intl; strict history-derived local/UTC+8/SQLite `.0` conversion. Reconstructed 21/24/29 and isolated actual 24/29 copies pass; original user DBs unchanged. | Numeric timestamp target reached; future Drizzle uses timestamp_ms. See `unix-millisecond-time.md`. | 2.5 |
 | Result shape | ✅ 1.1（2026-11-01）：20 处真正的 IPC 返回统一为 `createOutputSchema()` 判别联合（6 个封闭 `code`）；34 处 `{ok:}` 经复核确认是内部校验器/运行时协议形状、不跨 IPC 边界，不转换 | 同左 | 1.4 |
 | Event bus | 9 hand-written `Set<callback>` buses + 3 `EventEmitter` | typed `EventEmitter` wrapper | 3.6 |

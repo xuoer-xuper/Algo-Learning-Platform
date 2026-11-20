@@ -15,6 +15,7 @@
 - 弹窗接管：`window.open` / `target=_blank` 创建的 Chromium `webContents` 会被原样接管为受管标签，保留 about:blank、POST、OAuth 和 opener 语义；后台标签不会抢占活动标签。
 - 导航边界：生产环境只允许 HTTPS 和受控 about:blank；开发与 smoke 额外允许 localhost/loopback HTTP，未知协议默认拒绝并通过 `ui:command` 通知壳层。
 - Omnibox 纯逻辑：canonical `algo://` 内部页、HTTPS/开发 loopback URL 与搜索严格三分流；显式危险协议、生产 HTTP 和 URL userinfo 固定阻断，不降级为搜索。搜索默认 Bing，可选 Google/Baidu，custom 模板只接受无 userinfo、恰好一个字面量 `{query}` 且无其他占位符的 HTTPS URL。
+- 内部路由 ID：`tabManagerTypes.ts` 与侧栏共享纯 `src/shared/internal-page-id.ts` 校验，notes/problem-detail/script-install 的既有 ID 规则和字段白名单不变；列表不可寻址记录不会借此放宽主进程路由。
 - 会话快照：`tabSessionSnapshot.ts` 对版本、字段白名单、标签顺序、活动项、内部页和可恢复 URL 做整份严格校验；拒绝 userinfo、敏感 query/hash、控制字符和未知字段，不部分抢救损坏数据，也不序列化 favicon、加载/崩溃状态、表单、密码或脚本源码。
 - 会话恢复：正常启动由应用级快照恢复全部合法完整壳，按稳定 windowId、窗口 normal bounds/maximized、标签顺序和 activeTabId 重建；最近窗口优先创建并激活，其余窗口静默显示。旧 `browser-session.json` 与 `browser-window-state.json` 只在首次缺少应用快照时作为一次性迁移输入。任一窗口恢复失败会记录诊断并继续恢复其余窗口，全部失败时回退内部 home。
 - 会话文件：`applicationSessionStore.ts` 使用同目录临时文件执行 write + fsync + close + rename，失败时清理临时文件并保留旧目标；`ApplicationSessionPersistence` 对任意标签、窗口 bounds/maximized 和最近窗口变化做 250ms 防抖，只保存最新全应用快照，临时空 transfer 壳不落盘。窗口 `close` 与 `before-quit` 在最终 flush 完成后继续关闭，startup smoke 禁用持久化；`TabSessionStore` 仅保留为旧单窗口快照的迁移输入。

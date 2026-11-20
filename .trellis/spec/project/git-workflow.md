@@ -201,8 +201,9 @@ Use `.github/pull_request_template.md` (Chinese). In addition to the template's 
   failure/interruption recovery, and final-artifact validation. Fix forward after successful use;
   any controlled restoration preserves the current state and declares the recovery point's limits.
   No arbitrary lossless downgrade is promised, and no disclaimer/"version exception" replaces
-  safety checks. The accepted direction and pending implementation plan live in
-  `.trellis/tasks/11-08-release-upgrade-safety/`; this policy is not evidence those gates passed.
+  safety checks. The completed release task and acceptance evidence live in
+  `.trellis/tasks/archive/2026-11/11-08-release-upgrade-safety/`; policy prose alone
+  is not evidence that a later release has passed its gates.
 - Tag only the `--no-ff` merge commit on `master`. Hotfixes for a shipped line go on
   `release/<major.minor>` branches.
 - Future versions must increase from the actual published version, not a planned milestone.

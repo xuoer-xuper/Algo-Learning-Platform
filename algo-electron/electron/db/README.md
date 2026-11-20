@@ -11,22 +11,22 @@
 - 数据库引擎：`better-sqlite3`。
 - 数据库位置：`app.getPath('userData')/data/algo-learning.sqlite`。
 - 连接配置：启用 WAL、foreign keys、`busy_timeout = 5000`。
-- 迁移系统：`schema_migrations` 表记录已执行版本；迁移在事务内执行。
-- 当前迁移版本：001 到 030；030将显式清单中的82个时间点列改为INTEGER毫秒，日历键保持字符串。
-- 应用启动使用异步初始化：检测到 pending migration 时先用 SQLite backup API 写入 `userData/backups`，只保留最近 3 份。
+- 迁移系统：冻结的 legacy 001–030 使用 `schema_migrations`；`src/main/db/` 安全协调器接管 Drizzle 基线及后续迁移，使用 `__drizzle_migrations`。
+- 当前结构：030将显式清单中的82个时间点列改为INTEGER毫秒，日历键保持字符串；完整结构验证后登记 `0000_baseline`，不重复建表。
+- 应用启动使用异步初始化：检测到 legacy、基线或后续 Drizzle pending 时先用 SQLite backup API 写入 `userData/backups`，只保留最近 3 份。
 - 迁移失败会关闭连接、恢复迁移前备份、写 failure marker；同一 pending migration 下次启动不会自动重试。
 - 启动完成会把未正常结束的 `problem_visits` 按 `entered_at` 安全封闭，并标记 `startup_recovery`。
 - Repository 覆盖：账号/rating、AI 上下文快照、AI 输出、Cookie 元数据、题目、站点配置、统计、提交、带稳定身份和运行时地基的用户脚本。
 - `site_credentials` 已建立版本化 envelope 数据地基；B4.2 `CredentialVault` 已接入异步 safeStorage 和脱敏摘要，B4.3 通过 migration 028 将登录 pattern/selector 收敛进 `site_configs`，B4.4 通过 migration 029 增加可选脱敏显示名；自动填充仍由主进程经 OJ 隔离 preload 只填充不提交。
 
-数据库结构的权威契约仍是`docs/DESIGN/DATABASE_SCHEMA.md`。
+数据库结构以 `src/main/db/schema.ts` 和版本控制迁移资源为准，表说明见 `docs/DESIGN/DATABASE_SCHEMA.md`。
 
 ## 3. 文件职责
 
 - `connection.ts`：数据库生命周期。
-- `migrate.ts`：迁移执行器。
+- `migrate.ts`：冻结 legacy 迁移执行器；新迁移协调器位于 `src/main/db/migrate.ts`。
 - `timestampColumns.ts`、`legacy-ai-context.ts`：已知时间列策略和版本化AI JSON定向转换；不递归处理任意用户JSON。
-- `migrations/`：按版本追加的 schema/data migration。
+- `migrations/`：冻结的 001–030 schema/data migration，不再追加或修改。
 - `repositories/`：按业务域拆分的数据库访问函数。
 - `repositories/aiContextSnapshot/`：每日 AI 上下文快照创建、读取、列表和 JSON context 解析实现。
 - `repositories/aiOutput/`：AI 输出保存、读取、列表、更新、删除和元信息序列化实现。
@@ -44,9 +44,9 @@
 
 `connection.ts`：
 
-- `initDb()`：异步创建数据目录，打开 SQLite，设置 pragma，执行迁移安全备份、迁移和启动清理。
-- `initDbAtPath(dbPath)`：打开指定 SQLite 文件并运行同一组迁移，供临时数据库测试使用。
-- `initDbAtPathWithMigrationSafety(dbPath, options)`：供生产启动和迁移恢复集成测试使用的异步安全初始化入口。
+- `initDb()`：先验证开发/打包迁移资源，再打开 SQLite、设置 pragma，执行统一安全备份、legacy/Drizzle 迁移和启动清理。
+- `initDbAtPath(dbPath)`：仅运行 legacy 001–030，不登记 Drizzle 基线，供临时数据库测试使用。
+- `initDbAtPathWithMigrationSafety(dbPath, options)`：生产与迁移恢复集成测试的异步安全入口；显式 `options.migrations`（含空数组）保留 legacy-only 测试注入语义。
 - `getDb()`：返回已初始化连接；未初始化时抛错。
 - `getDbPath()`：返回当前 SQLite 文件路径，供备份服务使用。
 - `closeDb()`：关闭连接并清空模块内单例。
@@ -54,7 +54,7 @@
 使用规则：
 
 - 应用启动阶段必须 `await initDb()`，数据库就绪前不得创建依赖 repository 的服务。
-- 自动测试必须使用 `initDbAtPath(dbPath)` 指向临时目录，不能写入用户真实 `userData`。
+- 自动测试必须使用指向临时目录的初始化入口，不能写入用户真实 `userData`；Drizzle 迁移测试必须使用异步安全入口。
 - 业务代码不要自己 new `Database`。
 - 长生命周期服务通过 repository 或明确封装访问数据库。
 - 退出阶段调用 `closeDb()`。
@@ -66,16 +66,17 @@
 - `runMigrations(db, migrations)`：创建 `schema_migrations`，跳过已执行版本，对每个新 migration 开事务运行 `up()`，成功后写入版本记录；每个开始、完成和失败事件写入主进程滚动日志，失败仍原样抛回启动链。
 - `getPendingMigrations(db, migrations)`：只读检查待执行版本，确保迁移前备份发生在任何 schema 写入之前。
 
-迁移失败 marker 位于 `userData/backups/algo-learning.sqlite.migration-failure.json`。marker 中记录待迁移版本、备份路径和错误摘要；只要失败版本仍 pending，启动会直接失败并交由主进程致命错误链退出，避免反复改写同一数据库。数据库已由人工/新版迁移处理且失败版本不再 pending 时，成功启动会清理 marker。
+迁移失败 marker 位于 `userData/backups/algo-learning.sqlite.migration-failure.json`。marker 保留旧待迁移版本列表，并用可选 `pendingMigrationKeys` 记录 `legacy:<version>` / `drizzle:<tag>`；只要同一逻辑迁移仍 pending，启动就直接失败，修复 SQL hash 也不会绕过重试阻断。数据库已由人工/新版迁移处理且失败项不再 pending 时，通过全部检查的启动才清理 marker。损坏 marker 拒绝启动。
 
-Migration 文件约定：
+Legacy migration 文件约定（001–030 保持冻结）：
 
 - 文件名使用三位版本前缀，例如 `018_normalize_codeforces_submission_ids.ts`。
 - 每个 migration 导出对应常量，例如 `migration018`。
 - `version` 必须唯一且递增。
 - `name` 应描述实际动作。
 - `up(db)` 必须可在事务中执行。
-- 新增 migration 后必须加入 `connection.ts` 的迁移列表，并同步 `docs/DESIGN/DATABASE_SCHEMA.md`。
+
+后续 schema 变更编辑 `src/main/db/schema.ts`，用 `pnpm db:generate` 生成并审查 SQL/journal，显式更新可信资源身份和对应版本结构验证契约。不得重新生成基线、直接改用户台账或用 Drizzle push 修改用户库；同步维护 `docs/DESIGN/DATABASE_SCHEMA.md` 和升级/恢复测试。
 
 ## 6. Repository 分层
 

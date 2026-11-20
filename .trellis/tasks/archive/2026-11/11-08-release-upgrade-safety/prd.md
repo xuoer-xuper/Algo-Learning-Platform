@@ -86,7 +86,8 @@
 R3附件/脚本/配置/合成密文保留及实际安装版keep-current恢复已完成，见
 `research/hosted-installer-validation.md`。维护者随后完成本机最终人工验收并重新授权公开，
 见`research/maintainer-release-acceptance.md`；最终master全部门通过并已正式公开，
-详见`research/publication-2.0.1.md`。后续仅Drizzle同步交接，不把本次发行等同整个主线完成。
+详见`research/publication-2.0.1.md`。Drizzle同步交接已通过PR15 merge317cd9f及PR8 CI完成，
+见阶段3`research/release-hardening-sync-validation.md`；本次发行不等同整个主线完成。
 
 ## Out of Scope
 

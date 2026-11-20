@@ -5,6 +5,7 @@ import { createServer, type Server } from 'node:http'
 import type { AddressInfo } from 'node:net'
 import os from 'node:os'
 import path from 'node:path'
+import { loadMigrationResources } from '../../src/main/db/migration-resources'
 
 const projectRoot = process.cwd()
 const tmpRoot = path.join(projectRoot, 'tmp')
@@ -48,6 +49,23 @@ function runEsbuild(input: string, outfile: string, format: 'esm' | 'cjs' = 'esm
   )
 }
 
+function writeSmokeAppResources(): void {
+  fs.writeFileSync(
+    path.join(buildDir, 'package.json'),
+    JSON.stringify({ name: 'algo-electron-startup-smoke', type: 'module', main: 'main.mjs' }),
+  )
+  const resources = loadMigrationResources(path.join(projectRoot, 'drizzle'))
+  const destination = path.join(buildDir, 'drizzle')
+  fs.mkdirSync(path.join(destination, 'meta'), { recursive: true })
+  fs.copyFileSync(
+    path.join(resources.folder, 'meta', '_journal.json'),
+    path.join(destination, 'meta', '_journal.json'),
+  )
+  for (const { tag } of resources.migrations) {
+    fs.copyFileSync(path.join(resources.folder, `${tag}.sql`), path.join(destination, `${tag}.sql`))
+  }
+}
+
 async function runSmokeElectron(userDataDir: string): Promise<void> {
   writeSmokePage(path.join('dist', 'index.html'), 'Smoke Renderer', '<h1>renderer-ready</h1>')
   writeSmokePage('legacy-home.html', 'Smoke OJ', '<h1>legacy-home-ready</h1>')
@@ -69,8 +87,9 @@ async function runSmokeElectron(userDataDir: string): Promise<void> {
   let stdout = ''
   let stderr = ''
   try {
-    const child = spawn(electronBin, [mainBundle], {
-      cwd: projectRoot,
+    const child = spawn(electronBin, [buildDir], {
+      cwd: userDataDir,
+      windowsHide: true,
       env: {
         ...process.env,
         ALGO_ELECTRON_SMOKE: '1',
@@ -261,7 +280,10 @@ async function removeDirectoryWithRetry(directory: string): Promise<void> {
 }
 
 if (fs.existsSync(buildDir)) {
-  assert.ok(buildDir.startsWith(tmpRoot), 'Refusing to clean a directory outside tmp')
+  assert.ok(
+    path.resolve(buildDir).startsWith(`${path.resolve(tmpRoot)}${path.sep}`),
+    'Refusing to clean a directory outside tmp',
+  )
   fs.rmSync(buildDir, { recursive: true, force: true })
 }
 fs.mkdirSync(buildDir, { recursive: true })
@@ -273,12 +295,13 @@ try {
   runEsbuild('src/preload/index.ts', preloadBundle, 'cjs')
   runEsbuild('electron/browser/ojPreload.ts', ojPreloadBundle, 'cjs')
   runEsbuild('electron/scripts/userscriptBootstrapPreload.ts', userscriptPreloadBundle, 'cjs')
+  writeSmokeAppResources()
   await runSmokeElectron(userDataDir)
 
   console.log('[PASS] Electron startup smoke test')
 } finally {
   assert.ok(
-    userDataDir.startsWith(os.tmpdir()),
+    path.resolve(userDataDir).startsWith(`${path.resolve(os.tmpdir())}${path.sep}`),
     'Refusing to clean a directory outside os.tmpdir()',
   )
   await removeDirectoryWithRetry(userDataDir)

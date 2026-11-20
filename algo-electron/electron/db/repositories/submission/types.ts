@@ -1,19 +1,16 @@
-export interface SubmissionRow {
-  id: string
-  problem_id: string | null
-  platform: string
-  platform_submission_id: string
-  verdict: string
-  raw_verdict: string | null
-  language: string | null
+import type { submissions } from '../../../../src/main/db/schema'
+
+export type SubmissionRow = Omit<
+  typeof submissions.$inferSelect,
+  'submitted_at' | 'created_at' | 'updated_at' | 'deleted_at'
+> & {
   submitted_at: number
-  runtime_ms: number | null
-  memory_kb: number | null
-  source_url: string | null
-  raw_json: string | null
   created_at: number
   updated_at: number
+  deleted_at: number | null
 }
+
+export type ProblemFirstAcRow = Pick<SubmissionRow, 'problem_id'> & { first_ac_at: number }
 
 export interface FirstAcRow {
   submitted_at: number

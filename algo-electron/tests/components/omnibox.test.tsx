@@ -203,6 +203,29 @@ describe('Omnibox', () => {
     expect(screen.queryByRole('listbox')).toBeNull()
   })
 
+  it.each(['keyboard', 'pointer'])(
+    'navigates a nullable-ID suggestion by URL with %s input',
+    async (inputKind) => {
+      const nullableSuggestion: OmniboxSuggestion = { ...problemSuggestion, problemId: null }
+      shellApi.getBrowserOmniboxSuggestions.mockResolvedValue([nullableSuggestion])
+      const onNavigate = vi.fn()
+      render(<Harness onNavigate={onNavigate} />)
+      const input = screen.getByRole('combobox')
+      fireEvent.focus(input)
+      await advanceDebounce()
+      const suggestion = screen.getByRole('option', { name: /Shortest Path/ })
+      if (inputKind === 'keyboard') {
+        fireEvent.keyDown(input, { key: 'ArrowDown' })
+        fireEvent.keyDown(input, { key: 'Enter' })
+      } else {
+        fireEvent.pointerDown(suggestion, { button: 0 })
+      }
+      expect(onNavigate).toHaveBeenCalledExactlyOnceWith(nullableSuggestion.url)
+      expect(screen.queryByRole('listbox')).toBeNull()
+      expect(shellApi.setBrowserOmniboxOpen).toHaveBeenLastCalledWith(false)
+    },
+  )
+
   it('focuses and selects from the Ctrl+L UI command and clears main state on unmount', () => {
     const { unmount } = render(<Harness />)
     const input = screen.getByRole('combobox') as HTMLInputElement

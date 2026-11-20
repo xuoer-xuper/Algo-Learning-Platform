@@ -354,6 +354,30 @@ window.api.data.onChanged(({ tables }) => refreshMatchingQueries(tables))
 
 IPC 类型定义放在 `src/shared/types/`；通道常量统一由 `src/shared/constants/channels.ts` 导出，避免字符串散落。
 
+阶段3 A2f保持题目查询实际返回数据，同时修正已可达的nullable输出：
+`OmniboxSuggestion.problemId`、详情内嵌`SubmissionRecord.id`和
+`ProblemVisitPoint.visit_id`允许null；它们分别用于URL建议、提交展示和只读时间点。
+这不是ID修复或丢行策略，也不放宽输入/内部路由校验。详情父ID仍由原字符串等值查询证明，
+通过SQL绑定投影保持native编码后的同值，不用原始JS输入覆盖结果；数值时间和额外行字段保留。
+A2g最近题目列表保留nullable ID与原始时间，详情父ID仍明确为string，不将preload断言当作输出验证。
+侧栏与主进程共用原有ID校验：不可寻址记录仍显示、仍可打开网站，只禁用笔记/详情并显示原因，
+可访问名称包含相同说明；不修复ID或放宽内部路由。侧栏及首页使用平台/题号元组作为React key。
+查询通过Drizzle命名placeholder保留原生LIMIT绑定与错误，仍先LIMIT再执行既有status过滤。
+
+A3a提交读取保留全部16个字段与raw数值时间，SubmissionRow由schema推导，详情提交类型复用它。
+只读时间轴submission_id允许null；公开指标仍由string题目ID构造，LLM上下文的字段白名单与最后10条顺序不变。
+首次AC空数组不获取数据库；非空IN保留重复绑定和原生变量上限，固定AC字面量不增加参数，MIN不经Date/String解码。
+
+A3b1提交去重插入按冻结030物理表/default0与NULL定义兼容范围；ORM列举16列与旧14列的差异不隐瞒为任意改表等价。
+lookup/INSERT先prepare后读参数，UUID只在miss且INSERT准备成功后生成；成功IGNORE的旧true/通知行为保留，事务仍由调用者拥有。
+
+A3b2首次AC双写入使用Drizzle并保留raw时间、原条件和调用者事务：追加路径有AC时执行真实UPDATE，无AC不准备更新；
+导入重算先准备三个语句再完整消费去重输入，COUNT(*)保留NULL提交ID。只在changes>0通知，随后按旧/新顺序收集有效日期；
+不把无变化短路、迭代流式写入或新的事务缓冲混入查询迁移。发布migration030及统计重算实现保持不动。
+
+A4a统计基础读取保留原生数值聚合：平台分布COUNT(*)，单题访问SUM/AVG与NULL分母、INTEGER溢出错误，最后活跃时间raw首行。
+每次使用当前连接，不复用题目overview的Date解码，不增加写入或事件。趋势/洞察列表/重算及migration030依赖核心仍独立处理。
+
 ### 6.4 提交后的数据刷新
 
 `data:changed` 仅广播 `{ tables }`，八个逻辑域为 `problems/submissions/notes/stats/sites/scripts/credentials/coach`，不携带记录、凭据、Cookie 或本地路径。account/rating 写入映射到 `stats`，访问记录映射到 `problems` 和 `stats`。

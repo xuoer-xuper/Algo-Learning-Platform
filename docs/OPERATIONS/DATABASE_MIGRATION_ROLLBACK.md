@@ -9,8 +9,8 @@
 - 引擎：SQLite
 - 访问库：`better-sqlite3`
 - 数据库路径：`app.getPath('userData')/data/algo-learning.sqlite`
-- 迁移记录表：`schema_migrations`
-- 迁移执行入口：`electron/db/connection.ts` 和 `electron/db/migrate.ts`
+- 迁移记录表：legacy `schema_migrations` 与 Drizzle `__drizzle_migrations`
+- 迁移执行入口：`electron/db/connection.ts` 管生命周期和备份；legacy执行器及 `src/main/db/` 安全Drizzle协调器
 
 ## 2. 基本原则
 
@@ -131,6 +131,17 @@ ORDER BY version;
 
 ### 6.3 当前升级尝试与受控解除
 
+已发布2.0.1采用format-1（legacy台账与schema摘要）。Drizzle同步开发分支对涉及
+Drizzle的尝试使用format-2：保留legacy源/目标，同时记录`source.drizzleLedger`和
+`targetDrizzle`的精确有序`tag/when/sha256`。`null`表示源库没有Drizzle台账，`[]`
+表示存在空台账；不可混同。legacy源和目标都为030仍可能有baseline adoption或
+Drizzle-only pending，同样先备份、持久化prepared，再开始写入。
+
+备份的`.verified.json`旁文件与resolution audit也按相同版本保留完整源状态。
+format-1旧记录不自动补写Drizzle字段，不因新版本运行而改写；实际2.0.0的028→029
+恢复仍只处理原目标。format-2至少一种台账须前进，任何未知hash、时间、顺序或目标
+都保持阻断。schema未改变的纯数据迁移也必须验证Drizzle台账，不能只比030或schema摘要。
+
 新版本在首次迁移写入前记录 `<userData>/data/algo-learning.sqlite.migration-attempt.json`，
 绑定数据库身份、尝试 UUID、源/目标台账、源 schema 摘要和已验证备份 SHA256。
 `prepared`、`restoring`、`restored`、`restore-failed` 都会阻止正常启动，包括目标迁移已提交、
@@ -149,6 +160,9 @@ ORDER BY version;
 
 - `keep-current`：用于目标迁移已完整提交，但完成记录未落盘。它在源备份的临时副本上重放
   已知迁移，得到独立目标 schema，核对当前库台账、schema、外键和完整性；先保护当前库，
+  format-2先验证当前安装的完整可信资源，再在独占临时目录暂存记录目标所需的SQL与
+  journal前缀，调用官方Drizzle migrator；不会顺带重放当前新版本认识的更后续迁移。
+  记录不得提供SQL或资源路径。失败的临时重放材料保留以便排查；仅删除已验证的临时副本。
   当前目标已达本版 schema 时再清理孤立访问并复验，持久化 `resolved-keep-current`。
   历史目标仍低于本版 schema 时不执行新版清理，下次正常启动先建立新恢复点升级。
   不会将旧库覆盖到当前库。
@@ -170,6 +184,11 @@ ORDER BY version;
 原字节审计、关联记录和升级记录，再给保留的 marker 加关联 ID。单纯启动不会自动改写
 这些材料。关联中断可重新验证；缺失、损坏或来源不明的旧材料需要在隔离副本上排查，
 不能补一个空 marker 或借用其他数据库的备份强行通过。
+
+旧Drizzle marker的`pendingMigrationKeys`是证据，不是按“本次key是否重叠”决定
+能否启动的开关。即使pending legacy为空或资源已修复，也一律阻断；只有独立验证
+源备份与有序keys能精确证明已知Drizzle目标时，明确恢复才关联format-2记录，保留
+原marker原字节审计。keys未知、重复、乱序、缺失或与legacy后缀不符时不猜测目标。
 
 旧记录按当时目标验证：2.0.0 只认识001–029，其失败 marker 不会列出030。恢复工具以
 已验证源台账加原 pending 列表核对已知连续前缀，并只重放该段。确认旧源或旧目标后，
@@ -264,6 +283,20 @@ migration 027 扩展 `user_scripts` metadata，并从存量源码重新拆分旧
 
 ## 10. 验证命令
 
+### Drizzle 接管后的恢复边界
+
+- 资源tag/journal/SQL hash在打开目标数据库之前校验。完整legacy台账和030结构验证后才能
+  登记基线，禁止直接把MAX(version)=30当作可信。
+- 即使legacy没有pending，Drizzle基线登记或后续迁移也需要备份。一次SQLite一致备份覆盖
+  legacy升级、基线登记及后续Drizzle事务；后一步失败仍恢复整个尝试之前的数据库。
+- failure marker保留旧`pendingMigrations`数组，并增加可选`pendingMigrationKeys`，格式
+  `legacy:<version>`/`drizzle:<tag>`。同一逻辑迁移失败后改SQL hash不能自动绕过重试闸门。
+- 没有failure marker是正常状态；已有marker损坏、跳号/未知/重复/未来Drizzle记录或结构漂移均拒绝，不清空数据继续启动。
+- 生产走默认异步安全入口。同步`initDbAtPath`及显式`migrations`（含空列表）只是已约定的
+  legacy测试注入路径，不用于绕过生产基线校验。迁移资源不允许通过环境变量随意替换。
+- 打包仅带SQL及journal；`extraResources`的resources/drizzle必须存在且与编译hash匹配。
+  恢复时使用受保护备份，不编辑台账伪造已升级，不运行Drizzle push直接改用户库。
+
 ### migration 030 的恢复边界
 
 030 将既有 25 张表的 82 个时间点列转换为 INTEGER 毫秒，包含迁移台账。
@@ -334,3 +367,12 @@ schema 变更后还要人工核对：
 - 禁止在 renderer 或 preload 中执行迁移。
 - 禁止 migration 读取 Cookie、浏览器 session 或远程网页。
 - 禁止在迁移日志、文档或测试 fixture 中写入 Cookie、用户源码或完整请求体。
+
+### Drizzle 同步回归范围
+
+当前同步分支的定向检查包括`migrationCheckpoint`、`sqliteMigrationBackup`、
+`drizzleMigrationSafety`、`drizzleMigrationValidation`、`drizzleMigrationResources`、
+`databaseInitialization`与`resolve-upgrade` Vitest测试。覆盖format-1保持兼容、
+format-2缺失/空/baseline源、两个明确恢复动作、纯数据同schema迁移、旧目标有界
+重放、备份/目标/审计篡改以及旧Drizzle marker可证明关联。原生强杀/打包/NSIS
+分别验收；上述单元与隔离SQLite测试不替代真实安装验收，也不改变已发布2.0.1证据。

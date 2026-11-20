@@ -19,10 +19,17 @@ const electronBin =
 const suites = new Set(['core', 'ai', 'db', 'electron', 'coach', 'all'])
 
 const dbVitestFiles = [
+  'tests/db/drizzleSchema.test.ts',
+  'tests/db/drizzleClient.test.ts',
+  'tests/db/drizzleMigrationSafety.test.ts',
+  'tests/db/drizzleMigrationValidation.test.ts',
+  'tests/db/drizzleMigrationResources.test.ts',
   'tests/db/codeforcesSubmissionIdMigration.test.ts',
   'tests/db/credentialExport.test.ts',
   'tests/db/credentialRepository.test.ts',
   'tests/db/databaseInitialization.test.ts',
+  'tests/db/deleteProblem.test.ts',
+  'tests/db/dataChangeNotifications.test.ts',
   'tests/db/historicalUpgradePath.test.ts',
   'tests/db/migrationCheckpoint.test.ts',
   'tests/db/migration030.test.ts',
@@ -30,12 +37,21 @@ const dbVitestFiles = [
   'tests/db/migrateLogging.test.ts',
   'tests/db/omniboxSuggestions.test.ts',
   'tests/db/problemContextMigration.test.ts',
+  'tests/db/problemLookup.test.ts',
+  'tests/db/problemOverview.test.ts',
+  'tests/db/problemReads.test.ts',
+  'tests/db/problem-recent.test.ts',
+  'tests/db/problemUpsert.test.ts',
   'tests/db/resolve-upgrade.test.ts',
   'tests/db/sqliteMigrationBackup.test.ts',
   'tests/db/siteCredentialMigration.test.ts',
   'tests/db/siteLoginAutofillMigration.test.ts',
   'tests/db/siteCredentialLabelMigration.test.ts',
   'tests/db/statsDate.test.ts',
+  'tests/db/stats-basic-reads.test.ts',
+  'tests/db/submission-reads.test.ts',
+  'tests/db/submission-upsert.test.ts',
+  'tests/db/submission-first-ac.test.ts',
   'tests/db/userScriptRuntimeMigration.test.ts',
   'tests/db/userScriptRuntimeRepository.test.ts',
   'tests/tracking/orphanProblemVisits.test.ts',
@@ -161,6 +177,10 @@ function runDbElectronTests() {
     'db-migrationInterruption',
   )
   runElectronNodeTest(
+    path.join('tests', 'db', 'drizzleMigrationInterruption.test.ts'),
+    'db-drizzleMigrationInterruption',
+  )
+  runElectronNodeTest(
     path.join('tests', 'db', 'dailyStatsPerformance.test.ts'),
     'db-dailyStatsPerformance',
   )
@@ -231,7 +251,7 @@ function runCoreSuite() {
   // tests/submissions、tests/shared、tests/diagnostics、tests/shortcuts、
   // tests/tracking 与 4 个 tests/security 文件一直在名单外，加进来才发现漏了。
   // 代价是墙钟从 9.9s 到 11.3s（实测），不足以换"门是假的"。
-  // 真实 Electron 那 9 个文件由 vitest.config.ts 的 exclude 挡掉，各自有专属 suite。
+  // 真实 Electron 文件由 vitest.config.ts 的 exclude 挡掉，各自有专属 suite。
   runVitest()
 }
 

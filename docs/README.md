@@ -147,6 +147,7 @@
 | main services | [src/main/services/README](../algo-electron/src/main/services/README.md) |
 | backup safety | [src/main/services/backup/README](../algo-electron/src/main/services/backup/README.md) |
 | backup helpers | [src/main/services/backup/lib/README](../algo-electron/src/main/services/backup/lib/README.md) |
+| Drizzle candidate migrations | [drizzle/README](../algo-electron/drizzle/README.md) |
 | ipc input schemas | [src/shared/types/ipc/README](../algo-electron/src/shared/types/ipc/README.md) |
 | renderer shared | [src/shared/README](../algo-electron/src/shared/README.md) |
 | build | [build/README](../algo-electron/build/README.md) |

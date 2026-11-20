@@ -1,11 +1,13 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import Database from 'better-sqlite3'
+import { createHash } from 'node:crypto'
 import { afterEach, expect, it, vi } from 'vitest'
 import {
   closeDb,
   getDb,
   getKnownMigrations,
+  initDbAtPath,
   initDbAtPathWithMigrationSafety,
 } from '../../electron/db/connection'
 import { runMigrations } from '../../electron/db/migrate'
@@ -13,14 +15,25 @@ import {
   getMigrationFailureMarkerPath,
   restoreDatabaseFromBackup,
   writeMigrationFailureMarker,
+  verifyMigrationBackup,
+  assertMigrationRetryAllowed,
+  retainNewestMigrationBackups,
 } from '../../electron/backup/sqliteMigrationBackup'
 import {
   getMigrationCheckpointPath,
+  checkpointPendingKeys,
   readMigrationCheckpoint,
   writeMigrationCheckpoint,
   type MigrationCheckpoint,
 } from '../../src/main/services/backup/lib/migration-checkpoint'
 import { inspectUpgradeRecovery, resolveUpgrade } from '../../src/main/db/resolve-upgrade'
+import { CREATE_DRIZZLE_LEDGER, drizzleIdentities } from '../../src/main/db/drizzle-ledger'
+import {
+  readDatabaseState,
+  readCompositeDatabaseState,
+  validateDatabaseState,
+} from '../../src/main/db/legacy-ledger-validation'
+import { resourceFixture, quietLogger } from './drizzle-migration-test-helpers'
 import { parseUpgradeMaintenanceCommand } from '../../src/main/services/backup/lib/upgrade-maintenance-command'
 
 const root = path.resolve('tmp/upgrade-resolution-tests')
@@ -47,7 +60,9 @@ async function preparedTarget() {
     "CREATE TABLE custom_records (value TEXT); INSERT INTO custom_records VALUES ('source'); CREATE VIEW custom_view AS SELECT * FROM custom_records",
   )
   source.close()
+  // The released format-1 contract allows custom objects; Drizzle adoption is a separate strict check.
   const database = await initDbAtPathWithMigrationSafety(databasePath, {
+    migrations: getKnownMigrations(),
     backupDir: backupDirectory,
   })
   database.exec("INSERT INTO custom_records VALUES ('post-upgrade')")
@@ -211,7 +226,10 @@ for (const mismatch of ['empty', 'gap', 'wrong-name', 'future'] as const) {
 it('keeps a fully committed current database, preserves post-upgrade data/custom objects and allows restart', async () => {
   const { userData, databasePath, backupDirectory, checkpoint } = await preparedTarget()
   await expect(
-    initDbAtPathWithMigrationSafety(databasePath, { backupDir: backupDirectory }),
+    initDbAtPathWithMigrationSafety(databasePath, {
+      backupDir: backupDirectory,
+      migrations: getKnownMigrations(),
+    }),
   ).rejects.toThrow('verified recovery')
   await expect(
     resolveUpgrade(userData, { attemptId: checkpoint.attemptId, resolution: 'keep-current' }),
@@ -236,6 +254,7 @@ it('keeps a fully committed current database, preserves post-upgrade data/custom
   ).resolves.toContain('already verified')
   const reopened = await initDbAtPathWithMigrationSafety(databasePath, {
     backupDir: backupDirectory,
+    migrations: getKnownMigrations(),
   })
   expect(reopened.prepare('SELECT count(*) AS count FROM custom_records').get()).toEqual({
     count: 2,
@@ -266,7 +285,10 @@ it('verifies restored source and authorizes a new protected attempt without migr
   await expect(
     resolveUpgrade(userData, { attemptId: checkpoint.attemptId, resolution: 'retry-source' }),
   ).resolves.toContain('already verified')
-  await initDbAtPathWithMigrationSafety(databasePath, { backupDir: backupDirectory })
+  await initDbAtPathWithMigrationSafety(databasePath, {
+    backupDir: backupDirectory,
+    migrations: getKnownMigrations(),
+  })
   expect(readMigrationCheckpoint(databasePath, backupDirectory)?.attemptId).not.toBe(
     checkpoint.attemptId,
   )
@@ -320,7 +342,10 @@ for (const failure of [
     ).rejects.toThrow()
     expect(readMigrationCheckpoint(databasePath, backupDirectory)?.state).toBe('prepared')
     await expect(
-      initDbAtPathWithMigrationSafety(databasePath, { backupDir: backupDirectory }),
+      initDbAtPathWithMigrationSafety(databasePath, {
+        backupDir: backupDirectory,
+        migrations: getKnownMigrations(),
+      }),
     ).rejects.toThrow('verified recovery')
   })
 }
@@ -370,11 +395,17 @@ for (const mismatch of ['backup', 'pending']) {
     await resolveUpgrade(userData, { attemptId: checkpoint.attemptId, resolution: 'keep-current' })
     writeMigrationFailureMarker(backupDirectory, databasePath, mismatched)
     await expect(
-      initDbAtPathWithMigrationSafety(databasePath, { backupDir: backupDirectory }),
+      initDbAtPathWithMigrationSafety(databasePath, {
+        backupDir: backupDirectory,
+        migrations: getKnownMigrations(),
+      }),
     ).rejects.toThrow('verified recovery')
     expect(() => getDb()).toThrow('not initialized')
     writeMigrationFailureMarker(backupDirectory, databasePath, marker)
-    await initDbAtPathWithMigrationSafety(databasePath, { backupDir: backupDirectory })
+    await initDbAtPathWithMigrationSafety(databasePath, {
+      backupDir: backupDirectory,
+      migrations: getKnownMigrations(),
+    })
   })
 }
 
@@ -397,7 +428,10 @@ for (const damage of ['missing', 'corrupt', 'prepared', 'snapshot']) {
       fs.appendFileSync(path.join(directory, snapshot), Buffer.from([1]))
     }
     await expect(
-      initDbAtPathWithMigrationSafety(databasePath, { backupDir: backupDirectory }),
+      initDbAtPathWithMigrationSafety(databasePath, {
+        backupDir: backupDirectory,
+        migrations: getKnownMigrations(),
+      }),
     ).rejects.toThrow('verified recovery')
     expect(() => getDb()).toThrow('not initialized')
     expect(readMigrationCheckpoint(databasePath, backupDirectory)?.state).toBe(
@@ -440,7 +474,10 @@ it('associates a valid legacy marker deterministically, preserves its exact orig
   await expect(
     resolveUpgrade(userData, { attemptId, resolution: 'keep-current' }),
   ).resolves.toContain('already verified')
-  await initDbAtPathWithMigrationSafety(databasePath, { backupDir: backupDirectory })
+  await initDbAtPathWithMigrationSafety(databasePath, {
+    backupDir: backupDirectory,
+    migrations: getKnownMigrations(),
+  })
 })
 
 it('resumes a verified legacy source retry when failure archival completed before checkpoint replacement failed', async () => {
@@ -469,7 +506,10 @@ it('resumes a verified legacy source retry when failure archival completed befor
     rename(from, to)
   })
   await expect(
-    initDbAtPathWithMigrationSafety(databasePath, { backupDir: backupDirectory }),
+    initDbAtPathWithMigrationSafety(databasePath, {
+      backupDir: backupDirectory,
+      migrations: getKnownMigrations(),
+    }),
   ).rejects.toThrow('new checkpoint replacement interrupted')
   expect(() => getDb()).toThrow('not initialized')
   expect(fs.existsSync(markerPath)).toBe(false)
@@ -481,7 +521,10 @@ it('resumes a verified legacy source retry when failure archival completed befor
   await expect(
     resolveUpgrade(userData, { attemptId, resolution: 'retry-source' }),
   ).resolves.toContain('already verified')
-  await initDbAtPathWithMigrationSafety(databasePath, { backupDir: backupDirectory })
+  await initDbAtPathWithMigrationSafety(databasePath, {
+    backupDir: backupDirectory,
+    migrations: getKnownMigrations(),
+  })
   expect(readMigrationCheckpoint(databasePath, backupDirectory)?.state).toBe('completed')
   expect(readMigrationCheckpoint(databasePath, backupDirectory)?.attemptId).not.toBe(attemptId)
 })
@@ -521,7 +564,10 @@ it('repeats interrupted legacy association safely and never accepts a missing or
     resolveUpgrade(userData, { attemptId, resolution: 'keep-current' }),
   ).rejects.toThrow()
   await expect(
-    initDbAtPathWithMigrationSafety(databasePath, { backupDir: backupDirectory }),
+    initDbAtPathWithMigrationSafety(databasePath, {
+      backupDir: backupDirectory,
+      migrations: getKnownMigrations(),
+    }),
   ).rejects.toThrow('verified recovery')
 })
 
@@ -548,4 +594,326 @@ it('strictly parses maintenance UUID, action, duplicates, unsupported flags and 
     ['--resolution=keep-current'],
   ])
     expect(parseUpgradeMaintenanceCommand(flags).kind).toBe('invalid')
+})
+
+async function compositeAttempt(sourceKind: 'absent' | 'empty' | 'baseline' = 'baseline') {
+  const userData = fs.mkdtempSync(path.join(root, 'composite-'))
+  directories.push(userData)
+  const databasePath = path.join(userData, 'data', 'algo-learning.sqlite')
+  const backupDirectory = path.join(userData, 'backups')
+  if (sourceKind === 'baseline') {
+    await initDbAtPathWithMigrationSafety(databasePath, {
+      backupDir: backupDirectory,
+      logger: quietLogger,
+    })
+  } else {
+    const initial = initDbAtPath(databasePath)
+    if (sourceKind === 'empty') initial.exec(CREATE_DRIZZLE_LEDGER)
+  }
+  getDb()
+    .prepare('INSERT INTO notes(id,title,file_path,created_at,updated_at) VALUES (?,?,?,?,?)')
+    .run('composite-note', 'source', 'synthetic.md', 0, 0)
+  closeDb()
+  const drizzle = resourceFixture(userData, "UPDATE notes SET title='migrated';")
+  const target = await initDbAtPathWithMigrationSafety(databasePath, {
+    backupDir: backupDirectory,
+    drizzle,
+    logger: quietLogger,
+  })
+  target
+    .prepare('INSERT INTO notes(id,title,file_path,created_at,updated_at) VALUES (?,?,?,?,?)')
+    .run('later-note', 'later user data', 'later.md', 0, 0)
+  closeDb()
+  const completed = readMigrationCheckpoint(databasePath, backupDirectory)
+  if (!completed || completed.formatVersion !== 2) throw new Error('Expected composite checkpoint')
+  const checkpoint: typeof completed = { ...completed, state: 'prepared' }
+  writeMigrationCheckpoint(databasePath, backupDirectory, checkpoint)
+  return { userData, databasePath, backupDirectory, checkpoint, drizzle }
+}
+
+for (const kind of ['absent', 'empty', 'baseline'] as const) {
+  for (const resolution of ['keep-current', 'retry-source'] as const) {
+    it(`resolves composite ${kind} source with ${resolution}, preserving exact history and format-2 evidence`, async () => {
+      const { userData, databasePath, backupDirectory, checkpoint, drizzle } =
+        await compositeAttempt(kind)
+      expect(checkpoint.source.ledger).toEqual(checkpoint.targetLedger)
+      expect(checkpoint.source.drizzleLedger).toEqual(
+        kind === 'absent'
+          ? null
+          : drizzleIdentities(drizzle.expected.slice(0, kind === 'empty' ? 0 : 1)),
+      )
+      const backupPath = path.join(backupDirectory, checkpoint.backupBasename)
+      expect(JSON.parse(fs.readFileSync(`${backupPath}.verified.json`, 'utf8'))).toMatchObject({
+        formatVersion: 2,
+        source: checkpoint.source,
+      })
+      expect(verifyMigrationBackup(backupPath, checkpoint.source, checkpoint.backupSha256)).toEqual(
+        checkpoint.source,
+      )
+      if (kind === 'baseline') {
+        const target = open(databasePath, true)
+        expect(readDatabaseState(target).schemaHash).toBe(checkpoint.source.schemaHash)
+        target.close()
+      }
+      await expect(
+        initDbAtPathWithMigrationSafety(databasePath, {
+          backupDir: backupDirectory,
+          drizzle,
+          logger: quietLogger,
+        }),
+      ).rejects.toThrow('verified recovery')
+      await expect(
+        initDbAtPathWithMigrationSafety(databasePath, {
+          backupDir: backupDirectory,
+          migrations: [],
+          drizzle: { folder: 'missing' },
+        }),
+      ).rejects.toThrow('verified recovery')
+      if (resolution === 'retry-source') {
+        restoreDatabaseFromBackup(backupPath, databasePath, {
+          attemptId: checkpoint.attemptId,
+          expectedSource: checkpoint.source,
+          expectedSha256: checkpoint.backupSha256,
+          beforeDisplace: (recovery) =>
+            writeMigrationCheckpoint(databasePath, backupDirectory, {
+              ...checkpoint,
+              state: 'restoring',
+              recovery,
+            }),
+        })
+      }
+      const request = { attemptId: checkpoint.attemptId, resolution }
+      await expect(resolveUpgrade(userData, request, { drizzle })).resolves.toContain(
+        resolution === 'keep-current' ? 'retained' : 'did not run migrations',
+      )
+      const current = open(databasePath, true)
+      expect(readCompositeDatabaseState(current, drizzle.expected).drizzleLedger).toEqual(
+        resolution === 'keep-current' ? checkpoint.targetDrizzle : checkpoint.source.drizzleLedger,
+      )
+      expect(current.prepare('SELECT title FROM notes ORDER BY id').all()).toEqual(
+        resolution === 'keep-current'
+          ? [{ title: 'migrated' }, { title: 'later user data' }]
+          : [{ title: 'source' }],
+      )
+      current.close()
+      const auditPath = path.join(
+        backupDirectory,
+        'resolutions',
+        `${checkpoint.attemptId}.${resolution}.json`,
+      )
+      const audit = JSON.parse(fs.readFileSync(auditPath, 'utf8'))
+      expect(audit.formatVersion).toBe(2)
+      expect(audit.source.drizzleLedger).toEqual(
+        resolution === 'keep-current' ? checkpoint.targetDrizzle : checkpoint.source.drizzleLedger,
+      )
+      expect(() => assertMigrationRetryAllowed(backupDirectory, databasePath)).not.toThrow()
+      await expect(resolveUpgrade(userData, request, { drizzle })).resolves.toContain(
+        'already verified',
+      )
+      const reopened = await initDbAtPathWithMigrationSafety(databasePath, {
+        backupDir: backupDirectory,
+        drizzle,
+        logger: quietLogger,
+      })
+      expect(readCompositeDatabaseState(reopened, drizzle.expected).drizzleLedger).toEqual(
+        checkpoint.targetDrizzle,
+      )
+      expect(() => retainNewestMigrationBackups(backupDirectory, databasePath, 1)).not.toThrow()
+    })
+  }
+}
+
+it('replays only an older recorded Drizzle target under newer trusted resources', async () => {
+  const { userData, databasePath, backupDirectory, checkpoint, drizzle } = await compositeAttempt()
+  const sql =
+    "CREATE TABLE forbidden_newer_target(value TEXT);\n--> statement-breakpoint\nUPDATE notes SET title='must not run';"
+  const next = {
+    tag: '0002_newer',
+    when: drizzle.expected[1].when + 1,
+    sha256: createHash('sha256').update(sql).digest('hex'),
+  }
+  drizzle.expected.push(next)
+  fs.writeFileSync(path.join(drizzle.folder, `${next.tag}.sql`), sql)
+  fs.writeFileSync(
+    path.join(drizzle.folder, 'meta', '_journal.json'),
+    JSON.stringify({
+      version: '7',
+      dialect: 'sqlite',
+      entries: drizzle.expected.map(({ tag, when }, idx) => ({
+        idx,
+        version: '6',
+        tag,
+        when,
+        breakpoints: true,
+      })),
+    }),
+  )
+  await expect(
+    resolveUpgrade(
+      userData,
+      { attemptId: checkpoint.attemptId, resolution: 'keep-current' },
+      { drizzle },
+    ),
+  ).resolves.toContain('retained')
+  const current = open(databasePath, true)
+  expect(readCompositeDatabaseState(current, drizzle.expected).drizzleLedger).toEqual(
+    checkpoint.targetDrizzle,
+  )
+  expect(
+    current.prepare("SELECT name FROM sqlite_schema WHERE name='forbidden_newer_target'").get(),
+  ).toBeUndefined()
+  current.close()
+  const later = await initDbAtPathWithMigrationSafety(databasePath, {
+    backupDir: backupDirectory,
+    drizzle,
+    logger: quietLogger,
+  })
+  expect(
+    later.prepare("SELECT name FROM sqlite_schema WHERE name='forbidden_newer_target'").get(),
+  ).toBeDefined()
+  expect(readMigrationCheckpoint(databasePath, backupDirectory)?.attemptId).not.toBe(
+    checkpoint.attemptId,
+  )
+})
+
+it.each(['source', 'target', 'current-hash', 'current-time', 'resource'] as const)(
+  'refuses composite %s tampering even for a data-only same-schema migration',
+  async (mismatch) => {
+    const { userData, databasePath, backupDirectory, checkpoint, drizzle } =
+      await compositeAttempt()
+    if (mismatch === 'source' || mismatch === 'target') {
+      const rows =
+        mismatch === 'source' ? checkpoint.source.drizzleLedger : checkpoint.targetDrizzle
+      if (!rows?.[0]) throw new Error('Missing fixture identity')
+      rows[0].sha256 = '0'.repeat(64)
+      fs.writeFileSync(getMigrationCheckpointPath(databasePath), JSON.stringify(checkpoint))
+    } else if (mismatch === 'resource') {
+      fs.appendFileSync(path.join(drizzle.folder, '0001_future.sql'), '\n-- tampered')
+    } else {
+      const database = open(databasePath)
+      database.exec(
+        mismatch === 'current-hash'
+          ? "UPDATE __drizzle_migrations SET hash='unknown' WHERE created_at=(SELECT MAX(created_at) FROM __drizzle_migrations)"
+          : 'UPDATE __drizzle_migrations SET created_at=created_at+50 WHERE created_at=(SELECT MAX(created_at) FROM __drizzle_migrations)',
+      )
+      expect(readDatabaseState(database).schemaHash).toBe(checkpoint.source.schemaHash)
+      database.close()
+    }
+    await expect(
+      resolveUpgrade(
+        userData,
+        { attemptId: checkpoint.attemptId, resolution: 'keep-current' },
+        { drizzle },
+      ),
+    ).rejects.toThrow()
+    expect(() => assertMigrationRetryAllowed(backupDirectory, databasePath)).toThrow()
+  },
+)
+
+it.each(['state', 'version', 'source-history', 'snapshot-history'] as const)(
+  'rejects tampered format-2 resolution %s on ordinary startup',
+  async (mismatch) => {
+    const { userData, databasePath, backupDirectory, checkpoint, drizzle } =
+      await compositeAttempt()
+    await resolveUpgrade(
+      userData,
+      { attemptId: checkpoint.attemptId, resolution: 'keep-current' },
+      { drizzle },
+    )
+    const auditPath = path.join(
+      backupDirectory,
+      'resolutions',
+      `${checkpoint.attemptId}.keep-current.json`,
+    )
+    const audit = JSON.parse(fs.readFileSync(auditPath, 'utf8'))
+    if (mismatch === 'state') audit.state = 'prepared'
+    if (mismatch === 'version') audit.formatVersion = 1
+    if (mismatch === 'source-history') audit.source.drizzleLedger[1].sha256 = '0'.repeat(64)
+    if (mismatch === 'snapshot-history') {
+      const snapshot = open(path.join(backupDirectory, 'resolutions', audit.backupBasename))
+      snapshot.exec(
+        'DELETE FROM __drizzle_migrations WHERE created_at=(SELECT MAX(created_at) FROM __drizzle_migrations)',
+      )
+      snapshot.close()
+    }
+    fs.writeFileSync(auditPath, JSON.stringify(audit))
+    await expect(
+      initDbAtPathWithMigrationSafety(databasePath, {
+        backupDir: backupDirectory,
+        drizzle,
+        logger: quietLogger,
+      }),
+    ).rejects.toThrow('verified recovery')
+  },
+)
+
+it('associates a pre-checkpoint Drizzle-only marker by exact keys and retains its original bytes', async () => {
+  const { userData, databasePath, backupDirectory, checkpoint, drizzle } = await compositeAttempt()
+  fs.unlinkSync(getMigrationCheckpointPath(databasePath))
+  const markerPath = writeMigrationFailureMarker(backupDirectory, databasePath, {
+    databasePath,
+    backupPath: path.join(backupDirectory, checkpoint.backupBasename),
+    failedAt: new Date().toISOString(),
+    pendingMigrations: [],
+    pendingMigrationKeys: checkpointPendingKeys(checkpoint),
+    error: 'synthetic interruption',
+  })
+  const original = fs.readFileSync(markerPath)
+  const match = inspectUpgradeRecovery(userData, { drizzle }).match(/Upgrade attempt: ([a-f0-9-]+)/)
+  if (!match) throw new Error('Missing deterministic attempt ID')
+  await resolveUpgrade(userData, { attemptId: match[1], resolution: 'keep-current' }, { drizzle })
+  const associated = readMigrationCheckpoint(databasePath, backupDirectory)
+  expect(associated?.formatVersion).toBe(2)
+  expect(associated?.attemptId[14]).toBe('5')
+  const audit = fs
+    .readdirSync(backupDirectory)
+    .find((name) => name.startsWith('algo-learning.sqlite.legacy-marker-'))
+  if (!audit) throw new Error('Missing original marker')
+  expect(fs.readFileSync(path.join(backupDirectory, audit))).toEqual(original)
+  expect(() => assertMigrationRetryAllowed(backupDirectory, databasePath)).not.toThrow()
+})
+
+it.each([
+  { keys: [] },
+  { keys: ['drizzle:0002_unknown'] },
+  { keys: ['drizzle:0001_future', 'drizzle:0001_future'] },
+  { keys: ['legacy:30', 'drizzle:0001_future'] },
+])('refuses an unprovable pre-checkpoint Drizzle marker %j', async ({ keys }) => {
+  const { userData, databasePath, backupDirectory, checkpoint, drizzle } = await compositeAttempt()
+  fs.unlinkSync(getMigrationCheckpointPath(databasePath))
+  const markerPath = writeMigrationFailureMarker(backupDirectory, databasePath, {
+    databasePath,
+    backupPath: path.join(backupDirectory, checkpoint.backupBasename),
+    failedAt: new Date().toISOString(),
+    pendingMigrations: [],
+    pendingMigrationKeys: keys,
+    error: 'synthetic unknown target',
+  })
+  const bytes = fs.readFileSync(markerPath)
+  expect(() => inspectUpgradeRecovery(userData, { drizzle })).toThrow()
+  expect(fs.readFileSync(markerPath)).toEqual(bytes)
+  expect(fs.existsSync(getMigrationCheckpointPath(databasePath))).toBe(false)
+})
+
+it('validates exact composite backup rows without silently dropping state during restore verification', async () => {
+  const { backupDirectory, checkpoint, drizzle } = await compositeAttempt()
+  const backupPath = path.join(backupDirectory, checkpoint.backupBasename)
+  const database = open(backupPath)
+  const before = readDatabaseState(database)
+  database.exec('DELETE FROM __drizzle_migrations')
+  expect(readDatabaseState(database)).toEqual(before)
+  expect(() => validateDatabaseState(database, checkpoint.source)).toThrow(/Drizzle/)
+  database.close()
+  expect(() => verifyMigrationBackup(backupPath, checkpoint.source)).toThrow(/Drizzle/)
+  expect(drizzle.expected).toHaveLength(2)
+})
+
+it('keeps v1 fingerprint semantics while composite schema detects non-reserved sqlitex objects', async () => {
+  const { databasePath, drizzle } = await compositeAttempt()
+  const database = open(databasePath)
+  const legacy = readDatabaseState(database)
+  const composite = readCompositeDatabaseState(database, drizzle.expected)
+  database.exec('CREATE TABLE sqlitex_unexpected(value TEXT)')
+  expect(readDatabaseState(database)).toEqual(legacy)
+  expect(() => validateDatabaseState(database, composite)).toThrow(/schema/)
 })

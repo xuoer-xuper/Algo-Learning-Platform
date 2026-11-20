@@ -111,7 +111,10 @@ name/version/main，资产与 asar 必须匹配 build.json 哈希。其他 exe/b
 - 白名单仅 renderer/main 构建、package.json、生产依赖，排除 tests/tmp/release、数据库、日志和 `.env`。
 - better-sqlite3 native 可加载。真实 executable 的 fuses 由 `test:packaged-app` 验证：runAsNode、
   NodeOptions、CLI inspect、file 特权关闭，Cookie 加密、ASAR integrity、onlyLoadAppFromAsar 开启。
-- win-unpacked 用隔离临时 userData 验证真实启动、迁移及双实例；失败实例不写共享日志。
+- win-unpacked 用同一隔离临时 userData 验证真实启动、迁移及双实例；共享日志保留第二实例被拒绝的诊断，不运行失败实例的数据库初始化。
+- Drizzle 集成后的候选通过 extraResources 将运行资源复制到 resources/drizzle，只包含 SQL 与 meta/_journal.json；生成 snapshot、测试 fixture 和数据库文件不能进入该目录。这不表示已发布 2.0.1 包含 Drizzle。
+- Drizzle packaged app 从非仓库 cwd 启动，核对实际 resources/drizzle 的 journal/SQL 编译身份及隔离库 legacy 1–30/Drizzle 基线台账，不依赖开发目录资源。
+- test:packaged-app 的坏资源检查只在全新临时副本上调用生产 loader/安全初始化器，要求创建数据库前拒绝；不修改原始打包资源，不将其冒称损坏安装包启动验收，生产 RunAsNode fuse 保持关闭。
 - **NSIS 必须在可用 Windows VM/Sandbox 或专用隔离账户验收**：全新安装、从 2.0.0 升级、
   启动与数据保留、失败/中断恢复、卸载保留数据、重装。仅发现 WindowsSandbox.exe 不算完成。
 
