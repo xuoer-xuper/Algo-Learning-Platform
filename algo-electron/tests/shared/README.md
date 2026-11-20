@@ -10,6 +10,7 @@
 
 ## 当前实现
 
+- `internal-page-id.test.ts`：独立冻结原校验，比对共享 ID 谓词及三类内部页，包括 NULL、空白/控制字符、UTF-16 长度和原本接受的非常规 Unicode 文本。
 - `logger.test.ts`：验证脱敏 hook（URL 查询/锚点、敏感键、Bearer/Basic、`password=`、
   `cookie=`）、Error/循环引用序列化、scope → 点分事件名还原、轮转恰好保留 3 份归档。
 - `time.test.ts`：验证显式 UTC+8 时间格式不依赖宿主系统时区。

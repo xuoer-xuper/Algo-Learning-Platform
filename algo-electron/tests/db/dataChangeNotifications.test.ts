@@ -120,6 +120,7 @@ describe('committed repository invalidations', () => {
     upsertProblem(identity)
     const problem = getRecentProblems(1)[0]
     expect(problem).toBeDefined()
+    if (typeof problem.id !== 'string') throw new Error('Expected seeded problem ID')
     observed.length = 0
     const input = {
       platform: 'codeforces',
@@ -280,6 +281,7 @@ describe('committed repository invalidations', () => {
   it('should retain notifications for committed submissions when a later batch insert fails', () => {
     upsertProblem(identity)
     const problemId = getRecentProblems(1)[0].id
+    if (typeof problemId !== 'string') throw new Error('Expected seeded problem ID')
     observed.length = 0
     getDb().exec(`CREATE TRIGGER reject_batch_second BEFORE INSERT ON submissions
       WHEN NEW.platform_submission_id = 'second'

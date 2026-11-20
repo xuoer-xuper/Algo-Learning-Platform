@@ -40,6 +40,7 @@ const dbVitestFiles = [
   'tests/db/problemLookup.test.ts',
   'tests/db/problemOverview.test.ts',
   'tests/db/problemReads.test.ts',
+  'tests/db/problem-recent.test.ts',
   'tests/db/problemUpsert.test.ts',
   'tests/db/resolve-upgrade.test.ts',
   'tests/db/sqliteMigrationBackup.test.ts',

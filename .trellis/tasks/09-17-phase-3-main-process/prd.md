@@ -27,6 +27,15 @@
 - `initDbAtPathWithMigrationSafety` 的备份 + failure marker 包住 `migrate()`。
 - `drizzle.config.ts`；`pnpm db:generate` / `db:migrate` 脚本；`DATABASE_SCHEMA.md` 改为"schema.ts 为准 + 表说明"。
 
+### A2g Recent-list acceptance clarification (2026-11-20)
+
+The final problem-query migration retains all rows and original-site navigation.
+Nullable or otherwise route-invalid IDs must not offer working notes/detail
+buttons: disable only those actions with a visible accessible reason, using the
+existing main route ID policy unchanged. Recent output types reflect null IDs;
+detail parent IDs remain string. This bounded compatibility correction is not
+permission for the phase-4 renderer redesign, data repair or broader route changes.
+
 ### R2 目录迁移（D2、D3）
 - `src/main/index.ts`（< 150 行）：`import './env-setup'` → `bootstrapServices()` → `registerIpc()` → `createShellWindow()`；22 个模块级 `let` 收进 `AppContext` 对象由 `bootstrapServices` 返回。
 - `src/main/services/{problem,submission,tracking,stats,ai,notes,backup,site,user-script,credential,cookie,coach,browser,window,download,rating,diagnostics}/{types.ts, procedures/, lib/}`：

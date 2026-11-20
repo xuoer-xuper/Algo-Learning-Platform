@@ -359,7 +359,10 @@ IPC 类型定义放在 `src/shared/types/`；通道常量统一由 `src/shared/c
 `ProblemVisitPoint.visit_id`允许null；它们分别用于URL建议、提交展示和只读时间点。
 这不是ID修复或丢行策略，也不放宽输入/内部路由校验。详情父ID仍由原字符串等值查询证明，
 通过SQL绑定投影保持native编码后的同值，不用原始JS输入覆盖结果；数值时间和额外行字段保留。
-最近题目列表的nullable ID侧栏操作政策仍待单独评审，不将preload的类型断言当作输出验证。
+A2g最近题目列表保留nullable ID与原始时间，详情父ID仍明确为string，不将preload断言当作输出验证。
+侧栏与主进程共用原有ID校验：不可寻址记录仍显示、仍可打开网站，只禁用笔记/详情并显示原因，
+可访问名称包含相同说明；不修复ID或放宽内部路由。侧栏及首页使用平台/题号元组作为React key。
+查询通过Drizzle命名placeholder保留原生LIMIT绑定与错误，仍先LIMIT再执行既有status过滤。
 
 ### 6.4 提交后的数据刷新
 

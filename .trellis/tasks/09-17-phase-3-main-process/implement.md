@@ -59,16 +59,31 @@
 - [x] 正常hooks提交82a0163并立即推送，PR17 CI44521575932全绿后squash0927213合回Drizzle；
   PR8集成CI44522362714全绿。PR8保持draft/base dev，不发版、不归档阶段3。
 
-## 剩余切片：最近题目列表的ID操作政策
+## A2g Execution Boundary (2026-11-20)
 
-- A2f已明确并实现detail/visits/Omnibox的兼容输出政策；这三处不再是设计阻塞。
-- `getRecentProblems`仍可返回legacy NULL ID与null last_visited_at，而侧栏详情/笔记
-  操作进入仅接受有效字符串ID的内部路由。下一切片先评审如何展示不可寻址记录的操作，
-  不能静默丢行、生成ID、强转或修改数据库NOT NULL约束。
-- 未来查询转换保留LIMIT在JS status过滤之前、墓碑计数与原始时间；额外验证
-  caller-supplied负数/NaN/小数LIMIT的原生行为，不能直接信任Drizzle.limit(limit)。
-- 闭环这条查询后再按problem→submission→stats继续逐域转换；目录迁移、主进程拆分、
-  后续阶段及最终版本号仍未完成。不能把A2f或PR19当作整个problem域/PR8完成。
+- Branch: `codex/drizzle-recent-problems`, based on `32cd84d` in the C worktree.
+- Gap: recent SQL/type declarations hide nullable IDs and the sidebar offers
+  internal actions the existing main route predicate rejects. Preserve query
+  results and site navigation; explicitly disable only unaddressable actions.
+- DB implementer owns problem queries/types and shared problem output schema,
+  independent recent SQL oracle/differential tests, native repository cases and
+  DB suite registration. No other domain or schema/migration changes.
+- UI implementer owns pure shared ID helper, unchanged main reuse, sidebar/home
+  keys and invalid actions, minimal local CSS, focused component/browser tests
+  and affected local READMEs. No generic widget or input-route changes.
+- Parent owns task/spec/architecture docs, serial global/native/UI/build gates,
+  Git integration and handoff. Workers must not revert each other's edits.
+- [x] Research and independent design precheck establish typed LIMIT placeholders,
+  exact route-predicate sharing, persistent accessible explanation and tuple keys.
+- [x] Implement bounded DB/output-type and UI/helper changes with independent tests.
+- [x] Independent full-diff check: no findings; both typechecks/lint and9 files161 tests pass.
+- [x] Parent test:db474/native23, test:all2157/UI14, build:check pass; responsive
+  invalid-ID screenshots inspected. Original D62 dirty hashes unchanged.
+- [ ] Normal hooks commit/immediate push, feature PR CI, squash into Drizzle and
+  PR8 integration CI green. PR8 remains draft/base dev; no release or phase archive.
+
+Then continue submission and stats queries using separately reviewed boundaries.
+The remaining main-layout/splits and later phases are not completed by A2g.
 
 ## A2f Execution Boundary (2026-11-20)
 
@@ -95,7 +110,7 @@
 - [x] PR19 merged into Drizzle; PR8 remains draft/base dev. Session19 and this
   handoff record bounded completion without archiving phase3 or changing v2.0.1.
 
-Recent-list nullable-ID UI actions remain a separate reviewed policy decision.
+A2f deferred recent-list nullable-ID actions; the A2g boundary above now governs them.
 No active phase is complete merely because this slice is accepted.
 
 ## 启动切片 A0（2026-11-07）

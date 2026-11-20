@@ -5,6 +5,7 @@ import path from 'node:path'
 import type Database from 'better-sqlite3'
 import { getOriginalOmniboxSuggestions } from './omnibox-suggestions-oracle'
 import { getOriginalProblemDetail, getOriginalProblemVisits } from './problem-reads-oracle'
+import { getOriginalRecentProblems } from './problem-recent-oracle'
 import { eq } from 'drizzle-orm'
 import { createDrizzleClient } from '../../src/main/db/client'
 import { notes as ormNotes, userScriptResources as ormResources } from '../../src/main/db/schema'
@@ -1426,6 +1427,118 @@ test('Omnibox first pipeline preserves native null parent and latest-visit fallb
       source: 'problem',
     },
   ])
+})
+
+test('Recent problems preserve native LIMIT bindings, nullable rows and status horizon', () => {
+  const sqlite = getDbForTest()
+  const insertParent = sqlite.prepare(`INSERT INTO problems
+    (id, platform, platform_problem_id, canonical_url, title, status,
+     first_seen_at, last_visited_at, created_at, updated_at, deleted_at)
+    VALUES (?, ?, ?, 'https://example.test/recent', NULL, ?, 0, ?, 0, 0, ?)`)
+  insertParent.run('new', 'codeforces', 'new', 'visited', 3, null)
+  insertParent.run('old', 'codeforces', 'old', 'visited', 2, null)
+  insertParent.run('', "O'Reilly%_", 'empty', 'custom', -0.5, null)
+  insertParent.run(null, 'codeforces', 'null-zero', 'legacy', 0, null)
+  insertParent.run(null, 'codeforces', 'null-time', 'legacy', null, null)
+  insertParent.run('deleted', 'codeforces', 'deleted', 'visited', 10, 0)
+  const insertChild = sqlite.prepare(`INSERT INTO submissions
+    (id, problem_id, platform, platform_submission_id, verdict, submitted_at,
+     created_at, updated_at, deleted_at)
+    VALUES (?, ?, 'codeforces', ?, ?, 0, 0, 0, ?)`)
+  insertChild.run('wa', 'new', 'wa', 'WA', null)
+  insertChild.run(null, 'old', 'ac', 'AC', 0)
+
+  const outcome = (run: () => unknown) => {
+    try {
+      return { rows: run() }
+    } catch (error) {
+      assert.ok(error instanceof Error)
+      return {
+        error: {
+          name: error.name,
+          message: error.message,
+          ...('code' in error ? { code: error.code } : {}),
+        },
+      }
+    }
+  }
+  for (const limit of [
+    -3,
+    -1,
+    -0,
+    0,
+    1,
+    2,
+    3,
+    50,
+    NaN,
+    Infinity,
+    -Infinity,
+    1.5,
+    -1.5,
+    Number.MAX_SAFE_INTEGER,
+    2 ** 63 - 1024,
+    2 ** 63,
+    Number.MAX_VALUE,
+  ]) {
+    assert.deepStrictEqual(
+      outcome(() => getRecentProblems(limit)),
+      outcome(() => getOriginalRecentProblems(sqlite, limit)),
+      `native LIMIT ${limit}`,
+    )
+  }
+  assert.deepStrictEqual(getRecentProblems(), getOriginalRecentProblems(sqlite))
+  assert.deepStrictEqual(
+    getRecentProblems().map((row) => row.id),
+    ['new', 'old', null, '', null],
+  )
+  assert.strictEqual(getRecentProblems()[1]?.submission_count, 1)
+  assert.strictEqual(getRecentProblems()[1]?.status, 'solved')
+  assert.strictEqual(getRecentProblems()[3]?.last_visited_at, -0.5)
+  assert.strictEqual(getRecentProblems()[4]?.last_visited_at, null)
+  for (const platform of [undefined, '', 'codeforces', 'Codeforces', "O'Reilly%_", "' OR 1=1 --"]) {
+    for (const status of [undefined, '', 'solved', 'attempted', 'unknown']) {
+      assert.deepStrictEqual(
+        getRecentProblems(2, platform, status),
+        getOriginalRecentProblems(sqlite, 2, platform, status),
+      )
+    }
+  }
+  assert.deepStrictEqual(getRecentProblems(1, 'codeforces', 'solved'), [])
+  assert.deepStrictEqual(
+    getRecentProblems(2, 'codeforces', 'solved').map((row) => row.id),
+    ['old'],
+  )
+
+  const observed: DataChangedPayload[] = []
+  const unsubscribe = subscribeDataChanges((event) => observed.push(event))
+  const before = sqlite.prepare('SELECT total_changes() AS count').get()
+  try {
+    sqlite.pragma('query_only = ON')
+    assert.deepStrictEqual(getRecentProblems(-1), getOriginalRecentProblems(sqlite, -1))
+    assert.deepStrictEqual(sqlite.prepare('SELECT total_changes() AS count').get(), before)
+    assert.strictEqual(sqlite.inTransaction, false)
+    sqlite.pragma('query_only = OFF')
+    assert.throws(
+      () =>
+        sqlite.transaction(() => {
+          insertParent.run('uncommitted', 'codeforces', 'uncommitted', 'visited', 100, null)
+          assert.deepStrictEqual(getRecentProblems(), getOriginalRecentProblems(sqlite))
+          assert.strictEqual(getRecentProblems()[0]?.id, 'uncommitted')
+          assert.strictEqual(sqlite.inTransaction, true)
+          throw new Error('rollback recent fixture')
+        })(),
+      /rollback recent fixture/,
+    )
+    assert.strictEqual(
+      getRecentProblems().some((row) => row.id === 'uncommitted'),
+      false,
+    )
+    assert.deepStrictEqual(observed, [])
+  } finally {
+    sqlite.pragma('query_only = OFF')
+    unsubscribe()
+  }
 })
 
 let dbForTest: Database.Database | null = null

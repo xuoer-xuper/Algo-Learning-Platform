@@ -5,30 +5,39 @@ import { problems, problemVisits, submissions } from '../../../../src/main/db/sc
 import type { ProblemDetail, ProblemVisitRow, RecentProblem } from './types'
 
 export function getRecentProblems(limit = 50, platform?: string, status?: string): RecentProblem[] {
-  const db = getDb()
-  let sql = `
-    SELECT
-      p.id, p.platform, p.platform_problem_id, p.canonical_url, p.title, p.last_visited_at,
-      CASE
-        WHEN EXISTS (SELECT 1 FROM submissions s WHERE s.problem_id = p.id AND s.verdict = 'AC') THEN 'solved'
-        WHEN EXISTS (SELECT 1 FROM submissions s WHERE s.problem_id = p.id) THEN 'attempted'
-        ELSE p.status
-      END as status,
-      (SELECT COUNT(*) FROM submissions s WHERE s.problem_id = p.id) as submission_count
-    FROM problems p
-    WHERE p.deleted_at IS NULL
-  `
-  const params: Array<string | number> = []
-
-  if (platform) {
-    sql += ' AND p.platform = ?'
-    params.push(platform)
-  }
-
-  sql += ' ORDER BY p.last_visited_at DESC LIMIT ?'
-  params.push(limit)
-
-  const rows = db.prepare(sql).all(...params) as RecentProblem[]
+  const db = createDrizzleClient(getDb())
+  const matchingSubmissions = eq(submissions.problem_id, problems.id)
+  const rows = db
+    .select({
+      id: problems.id,
+      platform: problems.platform,
+      platform_problem_id: problems.platform_problem_id,
+      canonical_url: problems.canonical_url,
+      title: problems.title,
+      last_visited_at: sql<number | null>`${problems.last_visited_at}`,
+      status: sql<string>`CASE
+        WHEN ${exists(
+          db
+            .select({ value: sql`1` })
+            .from(submissions)
+            .where(and(matchingSubmissions, eq(submissions.verdict, 'AC'))),
+        )} THEN 'solved'
+        WHEN ${exists(
+          db
+            .select({ value: sql`1` })
+            .from(submissions)
+            .where(matchingSubmissions),
+        )} THEN 'attempted'
+        ELSE ${problems.status}
+      END`,
+      submission_count: sql<number>`(${db.select({ value: count() }).from(submissions).where(matchingSubmissions)})`,
+    })
+    .from(problems)
+    .where(and(isNull(problems.deleted_at), platform ? eq(problems.platform, platform) : undefined))
+    .orderBy(desc(problems.last_visited_at))
+    // A placeholder preserves native LIMIT errors; numeric NaN would omit LIMIT.
+    .limit(sql.placeholder('limit'))
+    .all({ limit })
 
   return status ? rows.filter((row) => row.status === status) : rows
 }

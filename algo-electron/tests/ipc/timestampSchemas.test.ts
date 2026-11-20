@@ -100,6 +100,7 @@ describe('nullable read output IDs', () => {
     ['embedded submission', submissionRecordSchema.shape.id],
     ['timeline visit', problemVisitPointSchema.shape.visit_id],
     ['omnibox candidate', omniboxSuggestionSchema.shape.problemId],
+    ['recent problem', problemRecordSchema.shape.id],
   ])('represents existing nullable %s IDs without allowing non-text IDs', (_name, schema) => {
     for (const id of [null, '', 'record-id']) expect(schema.safeParse(id).success).toBe(true)
     for (const id of [0, {}, undefined]) expect(schema.safeParse(id).success).toBe(false)
@@ -108,7 +109,6 @@ describe('nullable read output IDs', () => {
   it('keeps addressable parent IDs and all timestamp contracts strict', () => {
     expect(problemDetailRecordSchema.shape.id.safeParse(null).success).toBe(false)
     expect(problemTimelineDataSchema.shape.problem_id.safeParse(null).success).toBe(false)
-    expect(problemRecordSchema.shape.id.safeParse(null).success).toBe(false)
     expect(problemVisitPointSchema.shape.entered_at.safeParse(0.5).success).toBe(false)
   })
 })
