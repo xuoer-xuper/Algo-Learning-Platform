@@ -1707,6 +1707,7 @@ test('单题时间轴把四张表合到一起，first_ac 与最近活动按真�
     durationSeconds: 1800,
   })
   const problemId = getRecentProblems(1)[0].id
+  assert.ok(typeof problemId === 'string', 'Expected seeded problem ID')
 
   upsertSubmission({
     platform: 'codeforces',
@@ -2333,6 +2334,7 @@ test('免责声明本会话内只弹一次；未开始的访问与未 AC 的题�
     localDay: '2026-08-31',
   })
   const problemId = getRecentProblems(1)[0].id
+  assert.ok(typeof problemId === 'string', 'Expected seeded problem ID')
   upsertSubmission({
     platform: 'codeforces',
     platformSubmissionId: 's-wa',

@@ -1,10 +1,10 @@
-# Renderer Shared 模块说明
+# Shared 模块说明
 
 ## 1. 职责
 
-`src/shared/` 存放 renderer 侧跨 feature 共享的纯展示常量和轻量工具。
+`src/shared/` 存放跨进程共享类型、纯工具和 renderer 跨 feature 的展示常量。
 
-本目录不访问 `window.api`，不保存 React state，不包含主进程业务规则。
+本目录不访问 `window.api`，不保存 React state，不依赖 Node/Electron 或主进程服务。
 
 ## 2. 当前内容
 
@@ -19,6 +19,7 @@
   - `CHART_COLORS`：统计图表通用颜色序列。
 - `errors.ts`
   - `errorMessage(error: unknown)`：把未知 reject 原因转成可展示文案。各面板原先各写一遍 `e instanceof Error ? e.message : String(e)`，对主进程返回的普通对象会得到 `[object Object]`；这里补上对象与空 message 分支，作为唯一入口。
+- `internal-page-id.ts`：`isInternalPageId` 复用原主进程内部路由的 ID 校验，供路由与侧栏操作一致使用；保留 UTF-16 长度、trim、空白/控制字符规则，不修复或规范化输入。
 - `time.ts`：纯Unix毫秒、local_day边界和展示函数，主进程与renderer共用；日期键按日历推进，epoch0有效，无Node/Electron依赖。
 
 ## 3. 边界规则

@@ -371,13 +371,14 @@ function createApiMock(): typeof window.api {
         if (!problem) return null
         return {
           ...problem,
+          id: problemId,
           submission_count: problem.submission_count ?? 0,
           ac_count: problem.status === 'solved' ? 1 : 0,
           first_seen_at: now,
           submissions: [
             {
               id: 'submission-1',
-              problem_id: problem.id,
+              problem_id: problemId,
               platform: problem.platform,
               verdict: problem.status === 'solved' ? 'AC' : 'WA',
               language: 'GNU C++23',

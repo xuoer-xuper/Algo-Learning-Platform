@@ -44,6 +44,37 @@ drizzle-kit0.31.11，安装后按实际API和Electron ABI验证，不采用beta�
 - 当前规模：25表、electron321个TS文件、250处prepare；排除迁移222处，repository162处。
   main1164/TabManager2494/CoachOrchestrator1474行，仅作分批规划，不硬套旧计数。
 
+## A2g Recent List Contract (2026-11-20)
+
+Design precheck approved `research/a2g-recent-problems-review.md`. Convert only
+the final problem query, `getRecentProblems`, and explicitly make its existing
+sidebar actions safe for unaddressable legacy IDs. This UI policy is intentional,
+not a claim of SQL-only runtime equivalence. Keep every row and original-site
+navigation; never repair/filter IDs, change stored constraints or weaken routes.
+
+- Preserve platform truthiness, bound equality, original status CASE/COUNT(*)
+  including tombstoned/NULL-ID children, active parents and last-visit DESC only.
+  SQL LIMIT remains before the existing JS status filter. Use the typed installed
+  API `.limit(sql.placeholder('limit')).all({ limit })` to forward all numeric
+  values, including NaN/fractions/infinities, to native SQLite unchanged.
+- Recent output ID and last-visit scalars are nullable; shared detail ID remains
+  explicitly string. No new output parsing, Date decoding, fallback or coercion.
+- Extract the exact main predicate to pure `src/shared/internal-page-id.ts` as
+  `isInternalPageId`; main notes/detail/script-install and sidebar reuse it.
+  Preserve UTF-16 length, trim, whitespace/control rules and all accepted values.
+- Invalid sidebar IDs disable only notes/detail, with persistent ordinary text
+  explaining why and that site navigation remains available. Include the reason
+  in ListRow's existing accessible label, not only a disabled-button tooltip.
+  Keep generic widgets and callback/route input types unchanged; narrow handlers.
+- Both recent-list consumers use `JSON.stringify([platform, platform_problem_id])`
+  as stable React identity, never as a replacement database ID.
+- Freeze original SQL independently. Compare whole rows/errors, limits, status
+  horizon, lifecycle/transactions/read-only/no-events; verify native Electron,
+  schema distinction, predicate parity and valid/invalid UI actions plus layout.
+
+No migrations, schema, release/version, unrelated queries, route shapes, generic
+UI redesign, directory relocation or later-stage refactor belongs in this slice.
+
 ## A2f Nullable Read Contract (2026-11-20)
 
 Independent precheck approved this bounded change; it converts the complete
@@ -64,10 +95,9 @@ raw millisecond scalar, original aggregate/tombstone policy, and both query limi
 The omnibox comparator must retain legacy JS null/string comparison, not introduce
 new null ordering. Freeze the original SQL as an independent differential oracle.
 
-Recent-list conversion remains separate: nullable IDs reach string-only sidebar
-actions and internal routes. Widening only a repository type while retaining the
-preload's false string contract does not resolve that policy. Do not alter or
-claim completion of this query, later domains, main layout, or the whole phase.
+A2f deferred recent-list conversion because nullable IDs reach string-only
+sidebar actions and internal routes. The later A2g contract above resolves that
+policy; A2f alone never claimed this query, later domains or whole-phase completion.
 
 ## 1. 目标目录
 

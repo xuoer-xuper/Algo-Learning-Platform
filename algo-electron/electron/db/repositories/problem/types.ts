@@ -17,14 +17,16 @@ export type ProblemRow = Omit<
   deleted_at: number | null
 }
 
-export interface RecentProblem {
-  id: string
-  platform: string
-  platform_problem_id: string
-  canonical_url: string
-  title: string | null
-  last_visited_at: number
-  status: string
+export type RecentProblem = Pick<
+  ProblemRow,
+  | 'id'
+  | 'platform'
+  | 'platform_problem_id'
+  | 'canonical_url'
+  | 'title'
+  | 'last_visited_at'
+  | 'status'
+> & {
   submission_count: number
 }
 

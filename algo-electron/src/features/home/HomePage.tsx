@@ -204,7 +204,7 @@ export function HomePage({ onNavigate }: Props) {
           <div className="home-recent">
             {recent.map((p) => (
               <ListRow
-                key={p.id}
+                key={JSON.stringify([p.platform, p.platform_problem_id])}
                 className="home-recent-item"
                 onActivate={() => onNavigate(p.canonical_url)}
                 label={`打开 ${p.title || p.platform_problem_id}`}

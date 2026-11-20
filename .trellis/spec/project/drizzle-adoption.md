@@ -36,6 +36,10 @@ upsertProblem(identity: ProblemIdentity): void
 getProblemDetail(problemId: string): ProblemDetail | null
 listProblemVisitsByProblem(problemId: string): ProblemVisitRow[]
 getOmniboxSuggestions(rawQuery: string): OmniboxSuggestion[]
+// A2g keeps native LIMIT before status filtering and permits nullable recent IDs.
+getRecentProblems(limit?: number, platform?: string, status?: string): RecentProblem[]
+// Pure route/action policy shared by main and renderer.
+isInternalPageId(value: unknown): value is string
 ```
 
 Pinned A0 versions: drizzle-orm 0.45.4 and drizzle-kit 0.31.11. `db:generate` reads
@@ -171,11 +175,41 @@ schema code and emits SQL/snapshots; `pull` is the introspection command.
   equality and uses canonical URL/source fallback. The second horizon64 and
   final sorting/dedup/limit8 remain unchanged. NULL is one Set dedup key; explicit
   null comparisons preserve JS abstract relational coercion, not null-first/last.
-- `getRecentProblems` and its shared string-only ID contract remain an explicit
-  unresolved policy, not a solved part of A2f. Its sidebar routes require a
-  separate invalid-ID action decision. Future migration must also preserve the
-  native error for fractional/NaN limits: Drizzle omits negative/NaN numeric
-  limits, so directly calling `.limit(limit)` is not a complete parity proof.
+- A2f intentionally deferred the recent-list action policy; the reviewed A2g
+  contract below resolves it without changing detail or route input guarantees.
+
+### A2g Recent List And Internal Actions
+
+- Preserve the complete recent query: active parents, truthy optional platform
+  equality, AC/any-submission/stored status priority, COUNT(*) including NULL-ID
+  and tombstoned children, only last_visited_at DESC, SQL LIMIT before JS status
+  filtering. Raw nullable time and ID are emitted unchanged; no row dropping,
+  repair, Date decoder, output parser, new transaction or notification.
+- Drizzle0.45.4's typed limit accepts number or Placeholder, not SQL. Use
+  `.limit(sql.placeholder('limit')).all({ limit })` for caller-supplied limits.
+  This retains native LIMIT binding/errors for NaN, fractions, infinities and
+  numeric boundaries; direct `.limit(limit)` drops negative/NaN LIMIT clauses.
+  Do not cast SQL into a numeric limit or clamp/normalize arguments.
+- Recent `ProblemRecord.id` and repository ID/time are nullable. Override
+  `problemDetailRecordSchema.id` explicitly to string, preserving the existing
+  equality-proven detail parent contract. Input schemas stay unchanged.
+- The pure shared `isInternalPageId` is the exact extracted main predicate:
+  string UTF-16 length1..200, unchanged by trim, no whitespace anywhere or code
+  points below32/DEL127. Both main branches (including script-install) and
+  sidebar action availability share it; do not tighten Unicode acceptance.
+- Every recent row and its original-site navigation stays available. Invalid-ID
+  notes/detail actions are disabled with persistent visible explanatory text and
+  the reason in ListRow's existing accessible label; disabled-button tooltips
+  alone are insufficient. Handlers narrow IDs; callbacks/routes remain string.
+  This is a reviewed UI behavior correction, not SQL-only equivalence.
+- Sidebar and home use `JSON.stringify([platform, platform_problem_id])` for
+  stable collision-free keys over the supported unique text tuple. These keys
+  are rendering identity only, never database or route ID replacements.
+- Required evidence: frozen independent SQL whole-row/error comparisons;
+  limit/filter/status horizon/null/tombstone and connection lifecycle coverage;
+  real Electron limits; exact old/shared predicate parity; nullable list versus
+  string detail schema; visible accessible invalid rows, retained URL actions,
+  suppressed invalid callbacks, valid callbacks, tuple-key reorder and layout.
 
 ## 4. Validation & Error Matrix
 
@@ -216,6 +250,11 @@ schema code and emits SQL/snapshots; `pull` is the introspection command.
 | Detail bound Unicode, NUL or empty ID | Match native binding/result representation; no JS ID replacement |
 | Omnibox NULL parent / selected NULL visit ID | Preserve null dedup key / canonical source fallback |
 | Selected output ID null / number | Shared schema accepts null and rejects non-string numbers |
+| Recent LIMIT NaN / fraction / infinity | Same native errors as bound SQL, not omitted/clamped LIMIT |
+| Recent limit followed by status filter | Filter only the already-limited rows, never refill the page |
+| Recent unaddressable ID | Keep row/site action; disabled notes/detail with visible accessible reason |
+| Recent list nullable ID versus detail ID | List accepts null; detail still rejects null |
+| Multiple NULL-ID rows / reordered lists | Stable platform/key tuple identity, no fabricated route IDs |
 
 ## 5. Good / Base / Bad Cases
 
@@ -223,6 +262,10 @@ schema code and emits SQL/snapshots; `pull` is the introspection command.
   its complete metadata plus constraint behavior with a production 0-to-30 database.
 - Good: expose an already-returned nullable output honestly while preserving rows;
   a detail-only equality proof does not permit narrowing unrelated list IDs.
+- Good: retain a legacy recent row and its URL while disabling only ID-based
+  actions using the exact shared route policy and a visible accessible reason.
+- Bad: call `.limit(NaN)` and accept its omitted SQL clause, cast an SQL expression
+  to a numeric API, or hide invalid-ID records to silence a TypeScript error.
 - Base: repositories continue using the existing native connection until their
   bounded conversion is complete.
 - Bad: silently add NOT NULL/defaults, treat generated SQL as already applied, open
@@ -296,9 +339,21 @@ schema code and emits SQL/snapshots; `pull` is the introspection command.
   NULL parent dedup and selected NULL visit fallback, literal matching, all output
   schemas and URL-only UI behavior. Retain integer timestamp and string input gates.
 
+A2g additionally compares recent rows/errors to `problem-recent-oracle.ts`,
+including the original LIMIT-before-status horizon, and tests the exact shared
+ID predicate, retained URL navigation, disabled invalid actions, detail schema
+string override, tuple-key identity and responsive explanatory text.
+
 ## 7. Wrong vs Correct
 
 ```ts
+// Wrong: .limit(limit) silently omits NaN in Drizzle0.45.4.
+// Correct for legacy bound LIMIT: .limit(sql.placeholder('limit')).all({ limit })
+
+// Wrong: hide null-ID rows or enable notes/detail using Boolean(id).
+// Correct: keep rows/URLs, use unchanged isInternalPageId for internal actions,
+// and provide a persistent accessible explanation for disabled actions.
+
 // Wrong when the legacy table permits a null TEXT primary key:
 id: text("id").primaryKey();
 // Correct: mirror nullability with a table-level key and verify SQLite behavior.
@@ -307,7 +362,7 @@ id: text("id");
 
 // Wrong: sql<string>`${problems.id}` to hide a nullable primary key.
 // Correct only after the unchanged equality INNER JOIN: select the NOT NULL visit FK.
-// A2f explicitly widens unmatched omnibox IDs; recent-list policy stays deferred.
+// A2f widens unmatched omnibox IDs; A2g separately reviews recent-list actions.
 
 // Wrong: row.id = originalInput after reading a normalized native result.
 // Correct only with WHERE problems.id = input: project sql<string>`${input}`

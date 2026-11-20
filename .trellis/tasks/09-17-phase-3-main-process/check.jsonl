@@ -20,3 +20,5 @@
 {"file": ".trellis/tasks/09-17-phase-3-main-process/research/a2e-problem-reads.md", "reason": "A2e complete recent-visit candidate CTE, equality-proven non-null FK projection, preserved horizon and deferred DTO policy"}
 {"file": ".trellis/tasks/09-17-phase-3-main-process/research/a2f-nullable-contract.md", "reason": "A2f truthful nullable outputs, equality-proven detail identity, full-row raw-scalar parity and explicitly deferred recent-list UI policy"}
 {"file": ".trellis/tasks/09-17-phase-3-main-process/research/a2f-nullable-contract-review.md", "reason": "Approved A2f design; native bound-string identity vs JS Unicode normalization, selected output schema correction and fixed query invariants"}
+{"file": ".trellis/tasks/09-17-phase-3-main-process/research/a2g-recent-problems.md", "reason": "A2g query and caller research, typed LIMIT placeholder and nullable recent output"}
+{"file": ".trellis/tasks/09-17-phase-3-main-process/research/a2g-recent-problems-review.md", "reason": "Approved bounded A2g design: exact shared ID predicate, retained URL navigation, disabled actions with visible accessible reason and stable tuple keys"}
