@@ -8,7 +8,7 @@ import { z } from 'zod'
  */
 
 export const submissionRecordSchema = z.object({
-  id: z.string(),
+  id: z.string().nullable(),
   problem_id: z.string().optional(),
   platform: z.string().optional(),
   verdict: z.string(),

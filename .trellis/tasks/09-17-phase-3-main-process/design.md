@@ -44,6 +44,31 @@ drizzle-kit0.31.11，安装后按实际API和Electron ABI验证，不采用beta�
 - 当前规模：25表、electron321个TS文件、250处prepare；排除迁移222处，repository162处。
   main1164/TabManager2494/CoachOrchestrator1474行，仅作分批规划，不硬套旧计数。
 
+## A2f Nullable Read Contract (2026-11-20)
+
+Independent precheck approved this bounded change; it converts the complete
+omnibox problem-candidate pipeline, problem detail (parent and submissions), and
+problem visits. Research: `research/a2f-nullable-contract.md`. Preserve actual
+legacy results; widen only reachable nullable output IDs, including the shared
+omnibox, embedded-submission and coach visit schemas. No row filtering, ID repair,
+new validation, schema migration, or renderer behavior change belongs here.
+
+The detail parent equality on the baseline TEXT/BINARY ID proves its returned ID
+equals the string parameter. A bound-parameter projection can express that proof
+without asserting a nullable column is a string. Do not replace the ID with the
+original JS input after querying: native UTF-8 round trips may normalize text.
+Use the existing detail-only `submissionRecordSchema.id.nullable()` rather than
+adding a duplicate detail schema. Review: `research/a2f-nullable-contract-review.md`.
+Keep every baseline row field,
+raw millisecond scalar, original aggregate/tombstone policy, and both query limits.
+The omnibox comparator must retain legacy JS null/string comparison, not introduce
+new null ordering. Freeze the original SQL as an independent differential oracle.
+
+Recent-list conversion remains separate: nullable IDs reach string-only sidebar
+actions and internal routes. Widening only a repository type while retaining the
+preload's false string contract does not resolve that policy. Do not alter or
+claim completion of this query, later domains, main layout, or the whole phase.
+
 ## 1. 目标目录
 
 ### A2e Omnibox最近访问候选（A2d集成后）

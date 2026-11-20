@@ -4,6 +4,7 @@ import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { subscribeDataChanges } from '../../electron/shared/dataEvents'
 import type { DataChangedPayload } from '../../src/shared/types/data'
+import { omniboxSuggestionSchema } from '../../src/shared/types/problem'
 import { getOriginalOmniboxSuggestions } from './omnibox-suggestions-oracle'
 import { closeDb, getDb, initDbAtPath } from '../../electron/db/connection'
 import {
@@ -523,7 +524,7 @@ describe('Omnibox recent-visit Drizzle parity', () => {
     for (let index = 0; index < 70; index += 1) expectOriginal(`equal-time-route-${index}`)
   })
 
-  it('should keep the latest-visit ID tie break only in the untouched first pipeline', () => {
+  it('should keep the latest-visit ID tie break only in the first pipeline', () => {
     insertProblem({ id: 'ties', title: 'parent-match', lastVisitedAt: 20 })
     insertVisit({ id: 'z', problemId: 'ties', url: 'z-route', enteredAt: 20 })
     insertVisit({ id: 'a', problemId: 'ties', url: 'a-route', enteredAt: 20 })
@@ -672,6 +673,205 @@ describe('Omnibox recent-visit Drizzle parity', () => {
       const expected = readError(() => getOriginalOmniboxSuggestions(db, 'error'))
       expect(readError(() => getOmniboxSuggestions('error'))).toEqual(expected)
       expect(expected.message).toMatch(/no such column/i)
+    } finally {
+      spy.mockRestore()
+    }
+  })
+})
+
+describe('Omnibox problem-candidate Drizzle parity', () => {
+  it.each(['title', 'platform', 'platformProblemId', 'canonicalUrl'] as const)(
+    'should match %s without visits or a last-visited instant',
+    (field) => {
+      insertProblem({
+        id: null,
+        title: field === 'title' ? 'Start NeEdLe End' : null,
+        platform: field === 'platform' ? 'NeEdLe' : 'codeforces',
+        platformProblemId: field === 'platformProblemId' ? 'NeEdLe' : 'plain-key',
+        canonicalUrl: field === 'canonicalUrl' ? 'https://example.test/NeEdLe' : 'plain-canonical',
+        lastVisitedAt: null,
+      })
+      expect(expectOriginal('')).toEqual([])
+      expect(expectOriginal('needle')).toEqual([
+        expect.objectContaining({ problemId: null, source: 'problem', lastVisitedAt: null }),
+      ])
+    },
+  )
+
+  it.each(['100%', 'A_B', '\\', "' OR 1=1 --", '中文', 'Ä'])(
+    'should keep first-pipeline matching literal for %s',
+    (query) => {
+      insertProblem({ id: 'literal', title: `prefix ${query} suffix`, lastVisitedAt: null })
+      insertProblem({ id: 'decoy', title: 'prefix AXB 1000 ä suffix', lastVisitedAt: null })
+      expect(expectOriginal(query).map((row) => row.problemId)).toEqual(['literal'])
+      if (query === 'Ä') expect(expectOriginal('ä').map((row) => row.problemId)).toEqual(['decoy'])
+    },
+  )
+
+  it.each([-123456789, -0.5, 0, 123456789, 8640000000000001])(
+    'should retain raw parent instant %s in both query branches',
+    (instant) => {
+      insertProblem({ id: null, title: 'raw-parent', lastVisitedAt: instant })
+      for (const query of ['', 'raw-parent']) {
+        expect(expectOriginal(query)).toEqual([
+          expect.objectContaining({ problemId: null, lastVisitedAt: instant, source: 'problem' }),
+        ])
+      }
+    },
+  )
+
+  it.each(['', 'horizon'])(
+    'should keep candidate 24 but exclude 25 before joining and final dedup for %j',
+    (query) => {
+      for (let index = 0; index < 23; index += 1) {
+        insertProblem({
+          id: null,
+          platformProblemId: `null-horizon-${index}`,
+          canonicalUrl: `https://example.test/null-horizon/${index}`,
+          title: 'horizon',
+          lastVisitedAt: 1000 + index,
+        })
+      }
+      insertProblem({ id: 'candidate-24', title: 'horizon', lastVisitedAt: 200 })
+      insertProblem({ id: 'candidate-25', title: 'horizon', lastVisitedAt: 100 })
+      insertVisit({
+        id: 'visit-24',
+        problemId: 'candidate-24',
+        url: 'joined-24-route',
+        enteredAt: 1200,
+      })
+      insertVisit({
+        id: 'visit-25',
+        problemId: 'candidate-25',
+        url: 'joined-25-route',
+        enteredAt: 1500,
+      })
+      // Fill the second pipeline with visits whose parent is filtered only after its horizon.
+      insertProblem({ id: 'hidden', deletedAt: 0 })
+      for (let index = 0; index < 64; index += 1) {
+        insertVisit({
+          id: `hidden-${index}`,
+          problemId: 'hidden',
+          url: 'hidden',
+          enteredAt: 2000 + index,
+        })
+      }
+      const result = expectOriginal(query)
+      expect(result).toHaveLength(2)
+      expect(result.map((row) => row.problemId)).toEqual(['candidate-24', null])
+      expect(result[0]).toMatchObject({
+        url: 'joined-24-route',
+        lastVisitedAt: 1200,
+        source: 'history',
+      })
+    },
+  )
+
+  it('should keep canonical fallback when the latest matching visit has a null ID', () => {
+    insertProblem({
+      id: 'fallback',
+      title: 'fallback-match',
+      canonicalUrl: 'canonical-fallback',
+      lastVisitedAt: 50.25,
+    })
+    insertVisit({ id: 'older', problemId: 'fallback', url: 'older-visit', enteredAt: 399 })
+    insertVisit({ id: null, problemId: 'fallback', url: 'null-id-visit', enteredAt: 400.5 })
+    insertProblem({ id: 'hidden', deletedAt: 0 })
+    for (let index = 0; index < 64; index += 1) {
+      insertVisit({
+        id: `hidden-${index}`,
+        problemId: 'hidden',
+        url: 'hidden',
+        enteredAt: 2000 + index,
+      })
+    }
+    expect(expectOriginal('fallback-match')).toEqual([
+      expect.objectContaining({
+        problemId: 'fallback',
+        url: 'canonical-fallback',
+        lastVisitedAt: 50.25,
+        source: 'problem',
+      }),
+    ])
+  })
+
+  it('should preserve raw latest-visit time selected by the correlated first pipeline', () => {
+    insertProblem({ id: 'fractional', title: 'fractional-match', lastVisitedAt: 0 })
+    insertVisit({
+      id: 'fractional-visit',
+      problemId: 'fractional',
+      url: 'fractional-route',
+      enteredAt: -0.5,
+    })
+    expect(expectOriginal('fractional-match')).toEqual([
+      expect.objectContaining({
+        problemId: 'fractional',
+        url: 'fractional-route',
+        lastVisitedAt: -0.5,
+        source: 'history',
+      }),
+    ])
+  })
+
+  it.each(['', ' ', '0', '-0', '-1', '1', '01', '0x10', 'Infinity', 'NaN', 'abc'])(
+    'should preserve null and %j ID tie comparison and one null dedup key',
+    (id) => {
+      insertProblem({
+        id: null,
+        platformProblemId: 'null-a',
+        canonicalUrl: 'null-a-route',
+        title: 'tie',
+        lastVisitedAt: 0,
+      })
+      insertProblem({
+        id,
+        platformProblemId: 'string-id',
+        canonicalUrl: 'string-route',
+        title: 'tie',
+        lastVisitedAt: 0,
+      })
+      insertProblem({
+        id: null,
+        platformProblemId: 'null-b',
+        canonicalUrl: 'null-b-route',
+        title: 'tie',
+        lastVisitedAt: 0,
+      })
+      const result = expectOriginal('tie')
+      expect(result).toHaveLength(2)
+      expect(result.filter((row) => row.problemId === null)).toHaveLength(1)
+      expect(result.some((row) => row.problemId === id)).toBe(true)
+    },
+  )
+
+  it('should represent existing nullable IDs in the shared output contract without weakening types', () => {
+    insertProblem({ id: null, title: 'null-output', lastVisitedAt: 0 })
+    const result = expectOriginal('null-output')
+    expect(result).toHaveLength(1)
+    expect(omniboxSuggestionSchema.parse(result[0])).toEqual(result[0])
+    expect(omniboxSuggestionSchema.safeParse({ ...result[0], problemId: 42 }).success).toBe(false)
+    expect(omniboxSuggestionSchema.safeParse({ ...result[0], lastVisitedAt: 0.5 }).success).toBe(
+      false,
+    )
+    expect(
+      omniboxSuggestionSchema.safeParse({ ...result[0], lastVisitedAt: new Date(0) }).success,
+    ).toBe(false)
+  })
+
+  it('should propagate a first-pipeline native error without preparing the second query', () => {
+    const db = getDb()
+    const prepare = db.prepare.bind(db)
+    const spy = vi.spyOn(db, 'prepare').mockImplementation((query) => {
+      if (/with ["']?candidates/i.test(query))
+        return prepare('SELECT unavailable_column FROM problems')
+      return prepare(query)
+    })
+    try {
+      const expected = readError(() => getOriginalOmniboxSuggestions(db, 'error'))
+      expect(readError(() => getOmniboxSuggestions('error'))).toEqual(expected)
+      expect(expected.message).toMatch(/no such column/i)
+      expect(spy.mock.calls).toHaveLength(2)
+      expect(spy.mock.calls.every(([query]) => /with ["']?candidates/i.test(query))).toBe(true)
     } finally {
       spy.mockRestore()
     }

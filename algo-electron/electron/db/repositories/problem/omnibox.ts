@@ -1,4 +1,5 @@
-import { and, desc, eq, isNull, or, sql } from 'drizzle-orm'
+import { and, asc, desc, eq, isNotNull, isNull, or, sql } from 'drizzle-orm'
+import { alias } from 'drizzle-orm/sqlite-core'
 import { getDb } from '../../connection'
 import { createDrizzleClient } from '../../../../src/main/db/client'
 import { problems, problemVisits } from '../../../../src/main/db/schema'
@@ -11,7 +12,7 @@ const RECENT_VISIT_CANDIDATE_LIMIT = 64
 const MAX_OMNIBOX_QUERY_LENGTH = 256
 
 interface OmniboxCandidateRow {
-  problem_id: string
+  problem_id: string | null
   title: string | null
   platform: string
   platform_problem_id: string
@@ -25,29 +26,6 @@ interface OmniboxCandidate extends OmniboxSuggestion {
   canonicalUrl: string
 }
 
-const FIELD_MATCH_SQL = `
-  COALESCE(p.title, '') COLLATE NOCASE LIKE @contains ESCAPE '\\'
-  OR p.platform_problem_id COLLATE NOCASE LIKE @contains ESCAPE '\\'
-  OR p.platform COLLATE NOCASE LIKE @contains ESCAPE '\\'
-  OR p.canonical_url COLLATE NOCASE LIKE @contains ESCAPE '\\'
-`
-
-const FIELD_RANK_SQL = `
-  CASE
-    WHEN COALESCE(p.title, '') = @exact COLLATE NOCASE
-      OR p.platform_problem_id = @exact COLLATE NOCASE
-      OR p.platform = @exact COLLATE NOCASE
-      OR p.canonical_url = @exact COLLATE NOCASE
-      THEN 0
-    WHEN COALESCE(p.title, '') COLLATE NOCASE LIKE @prefix ESCAPE '\\'
-      OR p.platform_problem_id COLLATE NOCASE LIKE @prefix ESCAPE '\\'
-      OR p.platform COLLATE NOCASE LIKE @prefix ESCAPE '\\'
-      OR p.canonical_url COLLATE NOCASE LIKE @prefix ESCAPE '\\'
-      THEN 1
-    ELSE 2
-  END
-`
-
 export function getOmniboxSuggestions(rawQuery: string): OmniboxSuggestion[] {
   const query = rawQuery.trim().slice(0, MAX_OMNIBOX_QUERY_LENGTH)
   const params = createMatchParams(query)
@@ -58,7 +36,7 @@ export function getOmniboxSuggestions(rawQuery: string): OmniboxSuggestion[] {
 
   candidates.sort((left, right) => compareCandidates(left, right, query))
 
-  const seenProblemIds = new Set<string>()
+  const seenProblemIds = new Set<string | null>()
   const seenUrls = new Set<string>()
   const suggestions: OmniboxSuggestion[] = []
 
@@ -86,54 +64,76 @@ function listProblemCandidates(
   query: string,
   params: ReturnType<typeof createMatchParams>,
 ): OmniboxCandidateRow[] {
-  const db = getDb()
-  const where = query
-    ? `p.deleted_at IS NULL AND (${FIELD_MATCH_SQL})`
-    : 'p.deleted_at IS NULL AND p.last_visited_at IS NOT NULL'
-  const rank = query ? FIELD_RANK_SQL : '2'
-  const orderBy = query
-    ? 'match_rank ASC, p.last_visited_at DESC, p.id ASC'
-    : 'p.last_visited_at DESC, p.id ASC'
+  const db = createDrizzleClient(getDb())
+  const fieldMatch = sql`(
+    COALESCE(${problems.title}, '') COLLATE NOCASE LIKE ${params.contains} ESCAPE '\\'
+    OR ${problems.platform_problem_id} COLLATE NOCASE LIKE ${params.contains} ESCAPE '\\'
+    OR ${problems.platform} COLLATE NOCASE LIKE ${params.contains} ESCAPE '\\'
+    OR ${problems.canonical_url} COLLATE NOCASE LIKE ${params.contains} ESCAPE '\\'
+  )`
+  const rank = (
+    query
+      ? sql<number>`CASE
+        WHEN COALESCE(${problems.title}, '') = ${params.exact} COLLATE NOCASE
+          OR ${problems.platform_problem_id} = ${params.exact} COLLATE NOCASE
+          OR ${problems.platform} = ${params.exact} COLLATE NOCASE
+          OR ${problems.canonical_url} = ${params.exact} COLLATE NOCASE
+          THEN 0
+        WHEN COALESCE(${problems.title}, '') COLLATE NOCASE LIKE ${params.prefix} ESCAPE '\\'
+          OR ${problems.platform_problem_id} COLLATE NOCASE LIKE ${params.prefix} ESCAPE '\\'
+          OR ${problems.platform} COLLATE NOCASE LIKE ${params.prefix} ESCAPE '\\'
+          OR ${problems.canonical_url} COLLATE NOCASE LIKE ${params.prefix} ESCAPE '\\'
+          THEN 1
+        ELSE 2
+      END`
+      : sql<number>`2`
+  ).as('match_rank')
+  const candidates = db.$with('candidates').as(
+    db
+      .select({
+        problem_id: problems.id,
+        title: problems.title,
+        platform: problems.platform,
+        platform_problem_id: problems.platform_problem_id,
+        canonical_url: problems.canonical_url,
+        last_visited_at: sql<number | null>`${problems.last_visited_at}`.as('last_visited_at'),
+        match_rank: rank,
+      })
+      .from(problems)
+      .where(
+        and(isNull(problems.deleted_at), query ? fieldMatch : isNotNull(problems.last_visited_at)),
+      )
+      .orderBy(...(query ? [asc(rank)] : []), desc(problems.last_visited_at), asc(problems.id))
+      .limit(PROBLEM_CANDIDATE_LIMIT),
+  )
+  const latestVisit = alias(problemVisits, 'latest_visit')
+  const recent = alias(problemVisits, 'recent')
+  const latestVisitId = db
+    .select({ id: recent.id })
+    .from(recent)
+    .where(and(eq(recent.problem_id, candidates.problem_id), isNull(recent.deleted_at)))
+    .orderBy(desc(recent.entered_at), asc(recent.id))
+    .limit(1)
 
   return db
-    .prepare(
-      `
-    WITH candidates AS (
-      SELECT
-        p.id AS problem_id,
-        p.title,
-        p.platform,
-        p.platform_problem_id,
-        p.canonical_url,
-        p.last_visited_at,
-        ${rank} AS match_rank
-      FROM problems p
-      WHERE ${where}
-      ORDER BY ${orderBy}
-      LIMIT @problemCandidateLimit
-    )
-    SELECT
-      candidates.problem_id,
-      candidates.title,
-      candidates.platform,
-      candidates.platform_problem_id,
-      candidates.canonical_url,
-      COALESCE(latest_visit.url, candidates.canonical_url) AS suggestion_url,
-      COALESCE(latest_visit.entered_at, candidates.last_visited_at) AS suggestion_last_visited_at,
-      CASE WHEN latest_visit.id IS NULL THEN 'problem' ELSE 'history' END AS source
-    FROM candidates
-    LEFT JOIN problem_visits latest_visit
-      ON latest_visit.id = (
-        SELECT recent.id
-        FROM problem_visits recent
-        WHERE recent.problem_id = candidates.problem_id
-          AND recent.deleted_at IS NULL
-        ORDER BY recent.entered_at DESC, recent.id ASC
-        LIMIT 1
-      )
-  `,
-    )
-    .all({ ...params, problemCandidateLimit: PROBLEM_CANDIDATE_LIMIT }) as OmniboxCandidateRow[]
+    .with(candidates)
+    .select({
+      problem_id: candidates.problem_id,
+      title: candidates.title,
+      platform: candidates.platform,
+      platform_problem_id: candidates.platform_problem_id,
+      canonical_url: candidates.canonical_url,
+      suggestion_url: sql<string>`COALESCE(${latestVisit.url}, ${candidates.canonical_url})`,
+      suggestion_last_visited_at: sql<
+        number | null
+      >`COALESCE(${latestVisit.entered_at}, ${candidates.last_visited_at})`,
+      source: sql<
+        'problem' | 'history'
+      >`CASE WHEN ${latestVisit.id} IS NULL THEN 'problem' ELSE 'history' END`,
+    })
+    .from(candidates)
+    .leftJoin(latestVisit, eq(latestVisit.id, latestVisitId))
+    .all()
 }
 
 function listRecentVisitCandidates(
@@ -245,7 +245,10 @@ function normalizeUrlKey(value: string): string {
   }
 }
 
-function compareText(left: string, right: string): number {
+function compareText(left: string | null, right: string | null): number {
   if (left === right) return 0
+  // Legacy comparison coerces a null ID to zero, not to a first/last sort key.
+  if (left === null) return 0 < Number(right) ? -1 : 1
+  if (right === null) return Number(left) < 0 ? -1 : 1
   return left < right ? -1 : 1
 }

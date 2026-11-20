@@ -68,6 +68,33 @@
 - 若政策尚未确定，可按研究中的独立备选先做stats.getProblemVisitStats聚合；需明确调序，
   不用它把problem域或PR8标成完成。目录迁移、其他域、后续阶段及最终版本号仍未完成。
 
+## A2f Execution Boundary (2026-11-20)
+
+- Branch: `codex/drizzle-problem-read-contract`, based on `6b66ad5` in the C worktree.
+- Gap: remaining native detail/visits/omnibox queries hide reachable nullable IDs.
+  Replace those complete query boundaries and make their output types truthful.
+- Production ownership: `problem/queries.ts`, `problem/omnibox.ts`,
+  `problem/types.ts`; shared problem/submission/coach output schemas only for the
+  nullable IDs actually emitted. Preserve recent-list implementation, other
+  queries, renderer behavior, input validation and connection ownership.
+- Test ownership: independent original-SQL oracle; focused detail/visit and
+  omnibox differential cases; real Electron repository coverage; DB suite list,
+  affected README and contract tests. Parent owns task/spec/docs and full gates.
+- [x] Independent design precheck approved; SQL-bound identity projection is
+  required (not JS input replacement), and existing embedded submission ID schema
+  becomes nullable. See `research/a2f-nullable-contract-review.md`.
+- [x] Implement and compare raw rows/errors/events, null/empty/literal IDs,
+  tombstones, ordering/limits, raw instants and lifecycle against frozen SQL.
+- [x] Independent code check found no actionable issues; both typechecks/lint,
+  independent focused156 and native22 passed. `test:db`31 files433 tests passed.
+- [x] Parent `test:db`433/native22, `test:all`2104/UI11, `build:check` passed.
+- [ ] Normal commit/push hooks and bounded PR CI.
+- [ ] Merge bounded PR into Drizzle; verify PR8 remains draft/base dev; record
+  honest handoff without archiving phase3 or changing public v2.0.1.
+
+Recent-list nullable-ID UI actions remain a separate reviewed policy decision.
+No active phase is complete merely because this slice is accepted.
+
 ## 启动切片 A0（2026-11-07）
 
 用户已授权合并阶段2并继续后续任务；阶段2的dev CI通过。先在`refactor/drizzle`执行A0，

@@ -10,7 +10,7 @@
 
 - `types.ts`：题目列表、详情、提交行、平台分布和概览返回类型。
 - `mutations.ts`：upsert 的查找/更新/插入使用 Drizzle，保留抓取标题质量判断和已有有效标题；删除的原始数值 UNION 与四次 DELETE 也使用同连接 Drizzle，native transaction 与统计重算边界不变。
-- `queries.ts`：平台/题目键查 ID 使用 Drizzle；最近题目列表、详情和访问记录仍保留原查询，状态根据 submissions 实时计算。
+- `queries.ts`：平台/题目键查 ID、详情和访问记录使用 Drizzle；最近题目列表仍保留原查询，nullable ID 的侧栏操作政策单独评审。状态根据 submissions 实时计算。
 - `omnibox.ts`：从本地题目与最近访问生成最多 8 条建议。先限制题目/访问候选，再按现有时间索引补最近 URL，不对整张 `problem_visits` 做分组或窗口扫描。
 - `overview.ts`：题目总数、今日访问、平台分布、最近活跃时间和概览聚合。四条只读查询使用 Drizzle 包装当前 SQLite 连接，仍同步返回 number/null，不缓存连接。
 - `../problemRepository.ts`：兼容导出口，外部调用方继续从原路径 import。
@@ -32,8 +32,11 @@
 - 按 submissions → problem_visits → activity_events → problems 顺序删除；父行不存在仍删除匹配 children，但返回 false、不发通知/重算。空字符串/引号 ID 精确绑定，nullable parent ID 不匹配；notes 不删，UI 侧仍应先处理笔记确认。
 - native transaction 的实际调用仍处于 `withDataChangeTransaction` 内，COMMIT 失败或 savepoint 回滚丢弃对应事件。统计在本函数内层 transaction 返回后逐个排序日期重算：顶层较早日期已提交，第二日失败仅 warning 并仍返回 true；嵌套调用的重算仍受外层事务回滚约束，不能改成通用 after-commit 调度。
 - Omnibox 仅查询本地 `problems`/`problem_visits`；输入按参数绑定，并把 `%`、`_`、`\` 作为 LIKE 字面量处理。结果过滤软删除行，同时按 problem 与 URL 去重。
-- Omnibox第二候选管线通过Drizzle CTE取最近64条活跃访问，再JOIN活跃题目并匹配；不得将父行/搜索过滤提前到窗口内或新增同分排序。INNER JOIN相等条件下投影非空visit.problem_id，与原parent ID相等，空ID保持；第一管线可返回NULL ID的遗留DTO政策未在本片更改。
-- 第二管线时间使用显式别名的原始scalar投影，保持整数毫秒/epoch0，不由Date转换改变诊断数据；只读不发事件。第一管线及最终排序、去重、8条上限不变，查询异常同步抛出。
+- Omnibox第二候选管线通过Drizzle CTE取最近64条活跃访问，再JOIN活跃题目并匹配；不得将父行/搜索过滤提前到窗口内或新增同分排序。INNER JOIN相等条件下投影非空visit.problem_id，与原parent ID相等，空ID保持；第一管线可返回NULL ID，A2f输出契约明确允许null，不丢行、不伪造ID。
+- 第二管线时间使用显式别名的原始scalar投影，保持整数毫秒/epoch0，不由Date转换改变诊断数据；只读不发事件。第一管线也用Drizzle，最终排序、去重、8条上限的运行行为不变，查询异常同步抛出。
+- 第一候选CTE先取24条，再按最近访问ID做相关LEFT JOIN；最新访问ID为NULL时仍无法连接并回退canonical URL，不可改成按problem_id连接。NULL题目ID仍是一个Set去重键，比较器保留JS抽象关系比较，不改为null-first/null-last。
+- 详情父行的`id = ?`等值条件证明ID等于SQL绑定字符串；直接投影绑定参数，不在JS中用原输入替换ID（native Unicode编码可能归一化）。保留完整父行/提交字段、COUNT(*)包含NULL-ID与墓碑、100条提交上限和无父行时不读提交的短路。
+- 访问列表保留十个字段、墓碑与孤儿行、entered_at升序、无上限。详情和访问的时间投影保留raw数值/null，不经Date截断。提交ID与访问ID可为NULL，shared嵌套提交/Coach访问点schema同步允许null；输入校验与renderer行为不变。
 - 高频建议查询不得对整张 `problem_visits` 使用 `GROUP BY` 或窗口函数；继续复用 `idx_problems_last_visited`、`idx_pv_entered` 和 `idx_pv_problem_time`。
 - 总览沿用各查询原有过滤：题目总数/平台分布排除已软删除题目，按行计数（包括 nullable TEXT 主键）；今日访问按本地日 `[start,end)` 统计 distinct problem_id，不排除软删除访问或关联已删除题目的访问；最近活跃时间也保留软删除事件。
 - Drizzle 的 timestamp_ms 参数使用 Date 编码，输出显式转回毫秒数并保留 epoch 0/null。总览读取不写库、不运行迁移、不发 R4 通知；平台分布只按数量降序，不新增同分排序保证。
@@ -61,4 +64,6 @@ pnpm test:db
 `omniboxSuggestions.test.ts` 使用数字毫秒的当前schema fixture，与独立冻结的
 `omnibox-suggestions-oracle.ts` 比较完整有序结果/异常；覆盖候选窗口、转义、时间同分、
 null/空ID、墓碑、只读无通知及连接生命周期。native repository用例另验真实Electron ABI；
-完整omnibox和列表/详情/访问DTO迁移仍待nullable-ID政策决策，不以本片完成代称全部迁移。
+A2f补第一管线24条窗口、nullable输出契约、原始时间与错误传播；最近题目列表仍待nullable-ID操作政策，不以本片完成代称全部迁移。
+
+`problemReads.test.ts` 与冻结`problem-reads-oracle.ts`对照详情完整行和访问十字段、nullable子ID、墓碑、原始时间、顺序/上限、错误阶段和连接生命周期；真实Electron另验Unicode/NUL绑定与相同查询行为。
