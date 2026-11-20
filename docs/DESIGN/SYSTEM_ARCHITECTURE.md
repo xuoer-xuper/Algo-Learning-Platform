@@ -375,6 +375,9 @@ A3b2首次AC双写入使用Drizzle并保留raw时间、原条件和调用者事�
 导入重算先准备三个语句再完整消费去重输入，COUNT(*)保留NULL提交ID。只在changes>0通知，随后按旧/新顺序收集有效日期；
 不把无变化短路、迭代流式写入或新的事务缓冲混入查询迁移。发布migration030及统计重算实现保持不动。
 
+A4a统计基础读取保留原生数值聚合：平台分布COUNT(*)，单题访问SUM/AVG与NULL分母、INTEGER溢出错误，最后活跃时间raw首行。
+每次使用当前连接，不复用题目overview的Date解码，不增加写入或事件。趋势/洞察列表/重算及migration030依赖核心仍独立处理。
+
 ### 6.4 提交后的数据刷新
 
 `data:changed` 仅广播 `{ tables }`，八个逻辑域为 `problems/submissions/notes/stats/sites/scripts/credentials/coach`，不携带记录、凭据、Cookie 或本地路径。account/rating 写入映射到 `stats`，访问记录映射到 `problems` 和 `stats`。

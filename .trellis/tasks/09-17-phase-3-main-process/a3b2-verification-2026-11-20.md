@@ -43,7 +43,10 @@ No query/types/schema/migrations/validators/timehelpers/orchestration changes.
 Independent complete-diff review found no actionable issue and made no product/
 test changes: both typechecks/scoped lint and6files175tests pass. Two normalized
 oracle ASTs and six exact SQL literals match originals. See research/a3b-first-ac-
-review.md implementation section. Normal commit/hooks/immediate push, feature PR
-CI/squash and PR8 integration CI will be recorded after completion.
+review.md implementation section. Workeb5103faa9c223224ece4c4a3c8cc6a70e5f7f2a
+passed normal commit hooks and immediate full-pre-push test:ci. PR24CI44691480140
+passed; squashfa132605f937d49359de74f5c55cefa68e01220a merged into Drizzle with
+identical tested tree. PR8 integration CI44692300627 passed. Source800 hashes
+still match after hooks; D62dirty and stable release refs are unchanged.
 A4a basic reads have an approved design only; A4b/c nullable policy and A4d
 migration-coupled recompute remain separate. Phase3 in_progress, PR8 draft/base dev.

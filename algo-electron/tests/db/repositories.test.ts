@@ -7,6 +7,11 @@ import type Database from 'better-sqlite3'
 import { getOriginalOmniboxSuggestions } from './omnibox-suggestions-oracle'
 import { getOriginalProblemDetail, getOriginalProblemVisits } from './problem-reads-oracle'
 import { getOriginalRecentProblems } from './problem-recent-oracle'
+import {
+  getOriginalStatsPlatformDistribution,
+  getOriginalStatsProblemVisits,
+  getOriginalStatsLastActive,
+} from './stats-basic-reads-oracle'
 import { runOriginalSubmissionUpsert } from './submission-upsert-oracle'
 import {
   runOriginalUpdateFirstAc,
@@ -33,7 +38,7 @@ import {
 } from '../../electron/db/repositories/userScriptRuntimeRepository.ts'
 import type { DataChangedPayload } from '../../src/shared/types/data.ts'
 import { localDayBounds, shiftLocalDay, toLocalDay } from '../../src/shared/time.ts'
-import { closeDb, initDbAtPath } from '../../electron/db/connection.ts'
+import { closeDb, getDb, initDbAtPath } from '../../electron/db/connection.ts'
 import {
   deleteProblem,
   findProblemIdByPlatformKey,
@@ -55,6 +60,9 @@ import {
 } from '../../electron/db/repositories/submissionRepository.ts'
 import {
   getVisitedTrend,
+  getPlatformDistribution as getStatsPlatformDistribution,
+  getProblemVisitStats,
+  getLastActiveTime as getStatsLastActiveTime,
   recomputeDailyStats,
 } from '../../electron/db/repositories/statsRepository.ts'
 import {
@@ -2539,6 +2547,352 @@ test('First-AC native autocommit preserves partial failure and synchronous reent
     const audit = db.prepare('SELECT * FROM partial_state_audit ORDER BY rowid').all()
     assert.deepStrictEqual(audit, [{ id: 'first-ac' }, { id: 'bad' }])
     return { result, audit }
+  })
+})
+
+type NativeStatsReads = {
+  distribution: typeof getStatsPlatformDistribution
+  visits: typeof getProblemVisitStats
+  latest: typeof getStatsLastActiveTime
+}
+
+function nativeStatsSnapshot(db: Database.Database, omitMigrationClock = false) {
+  const tables = db
+    .prepare<[], { name: string }>(
+      "SELECT name FROM sqlite_schema WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name",
+    )
+    .all()
+  return {
+    changes: db.prepare('SELECT total_changes() AS count').get(),
+    schema: db.prepare('SELECT * FROM sqlite_schema ORDER BY type,name').all(),
+    tables: tables.map(({ name }) => ({
+      name,
+      rows: db
+        .prepare(
+          name === 'schema_migrations' && omitMigrationClock
+            ? 'SELECT version, name FROM schema_migrations ORDER BY rowid'
+            : `SELECT * FROM "${name.replaceAll('"', '""')}" ORDER BY rowid`,
+        )
+        .all(),
+    })),
+    inTransaction: db.inTransaction,
+  }
+}
+
+function compareNativeStatsReads(
+  run: (db: Database.Database, reads: NativeStatsReads) => unknown,
+): void {
+  const results = []
+  const originalNow = Date.now
+  try {
+    Date.now = () => 1768443630123
+    for (const original of [true, false]) {
+      closeDb()
+      const db = initDbAtPath(':memory:')
+      const events: DataChangedPayload[] = []
+      const unsubscribe = subscribeDataChanges((event) => events.push(event))
+      function checked<T>(read: () => T): T {
+        let current: Database.Database | undefined
+        try {
+          current = getDb()
+        } catch {
+          /* Uninitialized calls are checked as well. */
+        }
+        const before = current?.open ? nativeStatsSnapshot(current) : undefined
+        const now = Date.now
+        Date.now = () => {
+          throw new Error('Stats read must not capture a clock')
+        }
+        try {
+          return read()
+        } finally {
+          Date.now = now
+          if (before && current) assert.deepStrictEqual(nativeStatsSnapshot(current), before)
+          assert.deepStrictEqual(events, [])
+        }
+      }
+      const reads: NativeStatsReads = {
+        distribution: () =>
+          checked(() =>
+            original
+              ? getOriginalStatsPlatformDistribution(getDb())
+              : getStatsPlatformDistribution(),
+          ),
+        visits: (id) =>
+          checked(() =>
+            original ? getOriginalStatsProblemVisits(getDb(), id) : getProblemVisitStats(id),
+          ),
+        latest: () =>
+          checked(() =>
+            original ? getOriginalStatsLastActive(getDb()) : getStatsLastActiveTime(),
+          ),
+      }
+      try {
+        // Separate initializations use legacy clocks; checked() still compares every ledger field.
+        results.push({ result: run(db, reads), state: nativeStatsSnapshot(getDb(), true), events })
+      } finally {
+        unsubscribe()
+        closeDb()
+      }
+    }
+  } finally {
+    Date.now = originalNow
+  }
+  assert.deepStrictEqual(results[1], results[0])
+}
+
+function seedNativeStatsProblem(
+  db: Database.Database,
+  id: string | null,
+  platform = 'test',
+  key = id ?? 'null-parent',
+  deletedAt: number | null = null,
+) {
+  db.prepare(
+    `INSERT INTO problems(id,platform,platform_problem_id,canonical_url,first_seen_at,created_at,updated_at,deleted_at)
+    VALUES (?,?,?,'https://example.invalid/stats',0,1,2,?)`,
+  ).run(id, platform, key, deletedAt)
+}
+
+function seedNativeStatsVisit(
+  db: Database.Database,
+  problemId: string,
+  duration: number | string | null,
+  active: number | string | null,
+  id: string | null = null,
+  deletedAt: number | null = null,
+) {
+  db.prepare(
+    `INSERT INTO problem_visits(id,problem_id,platform,url,entered_at,duration_seconds,active_seconds,created_at,updated_at,deleted_at)
+    VALUES (?,?,'test','https://example.invalid/stats',1.75,?,?,0,0,?)`,
+  ).run(id, problemId, duration, active, deletedAt)
+}
+
+function seedNativeStatsEvent(
+  db: Database.Database,
+  instant: number | string,
+  id: string | null = null,
+  deletedAt: number | null = null,
+) {
+  db.prepare(
+    `INSERT INTO activity_events(id,event_type,occurred_at,local_day,created_at,updated_at,deleted_at)
+    VALUES (?,'diagnostic-event',?,'2026-01-15',0,0,?)`,
+  ).run(id, instant, deletedAt)
+}
+
+test('Basic statistics native reads retain COUNT(*) grouping and independent NULL aggregate denominators', () => {
+  compareNativeStatsReads((db, reads) => {
+    assert.deepStrictEqual(reads.distribution(), [])
+    assert.deepStrictEqual(reads.visits('missing'), {
+      total_visits: 0,
+      total_duration: 0,
+      total_active: 0,
+      avg_duration: 0,
+    })
+    assert.strictEqual(reads.latest(), null)
+    seedNativeStatsProblem(db, null, 'most', 'null-1')
+    seedNativeStatsProblem(db, null, 'most', 'null-2')
+    seedNativeStatsProblem(db, '', 'most')
+    seedNativeStatsProblem(db, 'deleted', 'most', 'deleted', 0)
+    for (const [index, platform] of [
+      'Case',
+      'case',
+      "literal'_%\\",
+      '\u4e2d\u6587',
+      'with\0nul',
+    ].entries())
+      seedNativeStatsProblem(db, `p${index}`, platform)
+    seedNativeStatsVisit(db, 'deleted', 10, null, null, 0)
+    seedNativeStatsVisit(db, 'deleted', null, 7)
+    seedNativeStatsVisit(db, 'deleted', 20, null, '')
+    const distribution = reads.distribution()
+    assert.deepStrictEqual(distribution[0], { platform: 'most', count: 3 })
+    assert.strictEqual(distribution.length, 6)
+    for (const row of distribution) assert.deepStrictEqual(Object.keys(row), ['platform', 'count'])
+    const visits = reads.visits('deleted')
+    assert.deepStrictEqual(visits, {
+      total_visits: 3,
+      total_duration: 30,
+      total_active: 7,
+      avg_duration: 15,
+    })
+    assert.deepStrictEqual(Object.keys(visits), [
+      'total_visits',
+      'total_duration',
+      'total_active',
+      'avg_duration',
+    ])
+    db.pragma('foreign_keys = OFF')
+    seedNativeStatsVisit(db, 'orphan', -2.5, 1.25, null, 0)
+    seedNativeStatsVisit(db, 'orphan', 4, -2)
+    db.pragma('foreign_keys = ON')
+    assert.deepStrictEqual(reads.visits('orphan'), {
+      total_visits: 2,
+      total_duration: 1.5,
+      total_active: -0.75,
+      avg_duration: 0.75,
+    })
+    db.pragma('query_only = ON')
+    return {
+      distribution: reads.distribution(),
+      visits: reads.visits('deleted'),
+      orphan: reads.visits('orphan'),
+      latest: reads.latest(),
+    }
+  })
+})
+
+test('Basic statistics native reads preserve literal keys, raw latest scalar classes and tombstones', () => {
+  compareNativeStatsReads((db, reads) => {
+    const visits = []
+    for (const key of ['', "literal'_%\\", 'Case', 'case', '\u4e2d\u6587', 'with\0nul', '\ud800']) {
+      seedNativeStatsProblem(db, key)
+      seedNativeStatsVisit(db, key, 1.75, null, null, 0)
+      const row = reads.visits(key)
+      assert.deepStrictEqual(row, {
+        total_visits: 1,
+        total_duration: 1.75,
+        total_active: 0,
+        avg_duration: 1.75,
+      })
+      visits.push(row)
+    }
+    const latest = []
+    for (const instant of [
+      0,
+      -1,
+      1.75,
+      -0.5,
+      8640000000000001,
+      Number.MAX_SAFE_INTEGER + 1,
+      'diagnostic-time',
+    ]) {
+      db.exec('DELETE FROM activity_events')
+      seedNativeStatsEvent(db, -100, 'older')
+      seedNativeStatsEvent(db, instant, null, 0)
+      seedNativeStatsEvent(db, instant, 'tie', 0)
+      const value = reads.latest()
+      assert.strictEqual(value, instant)
+      assert.strictEqual(typeof value, typeof instant)
+      latest.push(value)
+    }
+    return { visits, latest }
+  })
+})
+
+test('Basic statistics native INTEGER SUM overflow propagates from actual stepping without fallback', () => {
+  for (const column of ['duration_seconds', 'active_seconds'])
+    compareNativeStatsReads((db, reads) => {
+      seedNativeStatsProblem(db, 'overflow')
+      db.exec(`INSERT INTO problem_visits(id,problem_id,platform,url,entered_at,${column},created_at,updated_at)
+      VALUES ('max','overflow','test','https://example.invalid/stats',0,9223372036854775807,0,0),
+             ('one','overflow','test','https://example.invalid/stats',0,1,0,0)`)
+      assert.deepStrictEqual(
+        db.prepare(`SELECT typeof(${column}) AS storage FROM problem_visits ORDER BY rowid`).all(),
+        [{ storage: 'integer' }, { storage: 'integer' }],
+      )
+      const descriptor = Object.getOwnPropertyDescriptor(db, 'prepare')
+      const prepare = db.prepare.bind(db)
+      const trace: string[] = []
+      let nativeError: unknown
+      Object.defineProperty(db, 'prepare', {
+        configurable: true,
+        value: (query: string) => {
+          const statement = prepare(query)
+          if (!/avg\(/i.test(query)) return statement
+          trace.push('prepare')
+          const get = statement.get.bind(statement)
+          Object.defineProperty(statement, 'get', {
+            configurable: true,
+            value: (...bindings: unknown[]) => {
+              trace.push('get')
+              try {
+                return get(...bindings)
+              } catch (error) {
+                nativeError = error
+                throw error
+              }
+            },
+          })
+          return statement
+        },
+      })
+      let caught: unknown
+      try {
+        reads.visits('overflow')
+      } catch (error) {
+        caught = error
+      } finally {
+        if (descriptor) Object.defineProperty(db, 'prepare', descriptor)
+        else Reflect.deleteProperty(db, 'prepare')
+      }
+      assert.strictEqual(caught, nativeError)
+      assert.ok(caught instanceof Error)
+      assert.ok('code' in caught)
+      const result = { name: caught.name, message: caught.message, code: caught.code }
+      assert.deepStrictEqual(result, {
+        name: 'SqliteError',
+        message: 'integer overflow',
+        code: 'SQLITE_ERROR',
+      })
+      assert.deepStrictEqual(trace, ['prepare', 'get'])
+      return result
+    })
+})
+
+test('Basic statistics native reads follow transaction and connection ownership through rollback and reopen', () => {
+  compareNativeStatsReads((db, reads) => {
+    const observed: unknown[] = []
+    assert.throws(
+      () =>
+        db.transaction(() => {
+          seedNativeStatsProblem(db, 'pending')
+          seedNativeStatsVisit(db, 'pending', 10, 2)
+          seedNativeStatsEvent(db, 1.75)
+          observed.push([reads.distribution(), reads.visits('pending'), reads.latest()])
+          assert.strictEqual(db.inTransaction, true)
+          assert.throws(
+            () =>
+              db.transaction(() => {
+                seedNativeStatsVisit(db, 'pending', 20, null, 'nested')
+                observed.push(reads.visits('pending'))
+                throw new Error('inner rollback')
+              })(),
+            /inner rollback/,
+          )
+          assert.strictEqual(reads.visits('pending').total_visits, 1)
+          throw new Error('outer rollback')
+        })(),
+      /outer rollback/,
+    )
+    assert.deepStrictEqual(reads.distribution(), [])
+    assert.deepStrictEqual(reads.visits('pending'), {
+      total_visits: 0,
+      total_duration: 0,
+      total_active: 0,
+      avg_duration: 0,
+    })
+    assert.strictEqual(reads.latest(), null)
+    closeDb()
+    const failures = [
+      submissionReadOutcome(reads.distribution),
+      submissionReadOutcome(() => reads.visits('pending')),
+      submissionReadOutcome(reads.latest),
+    ]
+    for (const result of failures)
+      assert.deepStrictEqual(result, {
+        error: { name: 'Error', message: 'Database not initialized. Call initDb() first.' },
+      })
+    const next = initDbAtPath(':memory:')
+    seedNativeStatsProblem(next, 'new', 'other')
+    seedNativeStatsVisit(next, 'new', 3.5, 1)
+    seedNativeStatsEvent(next, 0, null, 0)
+    next.pragma('query_only = ON')
+    return {
+      observed,
+      failures,
+      current: [reads.distribution(), reads.visits('new'), reads.latest()],
+    }
   })
 })
 

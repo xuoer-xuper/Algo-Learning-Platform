@@ -80,3 +80,14 @@ Both typechecks/scoped lint/focused tests and parent serial native/full/build/CI
 // Wrong: max(activityEvents.occurred_at) invokes Date decoding.
 // Correct: select raw occurred_at, order DESC, limit1, then use ?? null.
 ```
+
+## Native Differential Fixture Clocks
+
+Two separately migrated native databases need not share schema_migrations.applied_at.
+Frozen legacy clocks may construct new Date directly, so replacing Date.now alone
+is not full clock control (unlike Vitest fake Date). For read-only verification,
+compare every table/schema/ledger field before and after EACH read on its own DB.
+Only the cross-fixture equivalence snapshot may omit initialization-only applied_at,
+retaining version/name/order and all other fields. Never remove ledger immutability
+checks, alter historical clocks, normalize production rows, or mistake different
+fixture creation times for a query regression. Re-run the native suite after fixes.

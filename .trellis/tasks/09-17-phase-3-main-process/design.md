@@ -44,6 +44,40 @@ drizzle-kit0.31.11，安装后按实际API和Electron ABI验证，不采用beta�
 - 当前规模：25表、electron321个TS文件、250处prepare；排除迁移222处，repository162处。
   main1164/TabManager2494/CoachOrchestrator1474行，仅作分批规划，不硬套旧计数。
 
+## A4b1 Daily Reads And Ordinal Chart Contract (2026-11-20)
+
+Parent accepts research/a4b-daily-reads-contract.md and independent review's
+A4b1 policy after A4a acceptance. Actual baseline allows multiple NULL daily
+primary keys. Preserve their data, not narrow away null or invent sentinel days.
+
+- Four trends.ts reads use current connection/public builders and schema column
+  local_day:string|null. Daily/submission LIMIT uses named placeholders; keep
+  negative/NaN/fraction/native errors and original DESC/ASC with no tie-break.
+- Visited/AC branch remains if(days), including all-time0/-0/NaN; prepare before
+  localDateDaysAgo then bind cutoff. Keep lexical >=, clock/error order,
+  solved_problem_count for AC, no added filtering/time repair/normalization.
+- Shared DailyActiveStats/TrendPoint/SubmissionTrendPoint allow string|null only
+  for local_day. Preserve exported DailyActiveStat as shared type alias; AI
+  daily_stats reuses same seven-field shape. No runtime exporter/loader/snapshot/
+  period/IPC/preload change, input widening, or broad nullable day alias.
+- Both TrendPanel charts retain arrays/metrics/ranges/layout/style; XAxis is
+  type=category WITHOUT local_day dataKey, producing row ordinal positions.
+  Tick and Tooltip label formatters map numeric CATEGORY (not callback index) to
+  that same chart array. Narrow unknown to nonnegative integer with existing row,
+  else empty label; no any/coercion/payload/secondary-index guesses.
+- NULL alone displays 日期缺失; nonnull strings retain tick.slice(5) and full raw
+  Tooltip labels, including empty/malformed text. Never change DTO/JSON/DB days or
+  copy/merge/filter chart rows. A literal equal to that label still has its own slot.
+- Intentional correction of proven NULL misassociation requires real component/
+  Electron point-to-date and Tooltip assertions for both charts, allNULL/mixed/
+  empty/malformed, All/finite ranges and viewports; selector probes are insufficient.
+- No streak/dayDiff/recompute-core/030, input/writer/instant validators, privacy,
+  event/transaction, CSS/widget/UI redesign or connection changes.
+
+DB worker owns four reads/oracle/differential/native groups/DB runner. Contract/UI
+worker owns selected types, TrendPanel and schema/AI/loader/component/UI regression
+files. Parent owns docs/spec/task/global gates. Nonoverlapping ownership required.
+
 ## A4a Basic Statistics Read Contract (2026-11-20)
 
 Parent accepts the independently reviewed three-function boundary in

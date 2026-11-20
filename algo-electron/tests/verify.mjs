@@ -48,6 +48,7 @@ const dbVitestFiles = [
   'tests/db/siteLoginAutofillMigration.test.ts',
   'tests/db/siteCredentialLabelMigration.test.ts',
   'tests/db/statsDate.test.ts',
+  'tests/db/stats-basic-reads.test.ts',
   'tests/db/submission-reads.test.ts',
   'tests/db/submission-upsert.test.ts',
   'tests/db/submission-first-ac.test.ts',

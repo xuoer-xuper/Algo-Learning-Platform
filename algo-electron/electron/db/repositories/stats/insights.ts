@@ -1,3 +1,6 @@
+import { count, desc, eq, isNull, sql } from 'drizzle-orm'
+import { createDrizzleClient } from '../../../../src/main/db/client'
+import { activityEvents, problems, problemVisits } from '../../../../src/main/db/schema'
 import { getDb } from '../../connection'
 import { nowMillis, toLocalDay, localDayBounds } from '../../../shared/time'
 import { dayDiff, localDateDaysAgo } from './date'
@@ -11,33 +14,30 @@ import type {
 import type { PlatformDistributionRow, TimelineEvent } from '../../../../src/shared/types/stats'
 
 export function getPlatformDistribution(): PlatformDistributionRow[] {
-  const db = getDb()
+  const db = createDrizzleClient(getDb())
   return db
-    .prepare(
-      `
-    SELECT platform, COUNT(*) as count
-    FROM problems WHERE deleted_at IS NULL
-    GROUP BY platform ORDER BY count DESC
-  `,
-    )
-    .all() as PlatformDistributionRow[]
+    .select({ platform: problems.platform, count: count() })
+    .from(problems)
+    .where(isNull(problems.deleted_at))
+    .groupBy(problems.platform)
+    .orderBy(desc(count()))
+    .all()
 }
 
 export function getProblemVisitStats(problemId: string): ProblemVisitStat {
-  const db = getDb()
-  return db
-    .prepare(
-      `
-    SELECT
-      COUNT(*) as total_visits,
-      COALESCE(SUM(duration_seconds), 0) as total_duration,
-      COALESCE(SUM(active_seconds), 0) as total_active,
-      COALESCE(AVG(duration_seconds), 0) as avg_duration
-    FROM problem_visits
-    WHERE problem_id = ?
-  `,
-    )
-    .get(problemId) as ProblemVisitStat
+  const db = createDrizzleClient(getDb())
+  const row = db
+    .select({
+      total_visits: count(),
+      total_duration: sql<number>`COALESCE(SUM(${problemVisits.duration_seconds}), 0)`,
+      total_active: sql<number>`COALESCE(SUM(${problemVisits.active_seconds}), 0)`,
+      avg_duration: sql<number>`COALESCE(AVG(${problemVisits.duration_seconds}), 0)`,
+    })
+    .from(problemVisits)
+    .where(eq(problemVisits.problem_id, problemId))
+    .get()
+  if (row === undefined) throw new Error('Visit aggregate unexpectedly returned no row')
+  return row
 }
 
 export function getTimeline(limit = 50): TimelineEvent[] {
@@ -55,15 +55,13 @@ export function getTimeline(limit = 50): TimelineEvent[] {
 }
 
 export function getLastActiveTime(): number | null {
-  const db = getDb()
+  const db = createDrizzleClient(getDb())
   const row = db
-    .prepare(
-      `
-    SELECT occurred_at FROM activity_events
-    ORDER BY occurred_at DESC LIMIT 1
-  `,
-    )
-    .get() as { occurred_at: number } | undefined
+    .select({ occurred_at: sql<number>`${activityEvents.occurred_at}` })
+    .from(activityEvents)
+    .orderBy(desc(activityEvents.occurred_at))
+    .limit(1)
+    .get()
   return row?.occurred_at ?? null
 }
 
