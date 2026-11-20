@@ -38,9 +38,12 @@ native26 and build check passed; PR22CI44680385928 green, squash001e23a into
 Drizzle and PR8CI44681049295 green. A3b1 upsert passes full2244/UI14/native30/
 build and independent review with explicit frozen030 scope/argument ordering;
 PR23CI44684516349 green, squash1a39af0 into Drizzle and PR8CI44685222637 green.
-A3b2 first-AC passes independent review and local full2321/UI14/native36/build,
-plus UTC/NewYork77 each; remote acceptance pending. A4a basic-read design is
-approved but not implemented. Later stats/domain/layout work remains incomplete.
+A3b2 first-AC passes independent review/full2321/UI14/native36/build and UTC/
+NewYork77 each; PR24CI44691480140, squashfa13260 and PR8CI44692300627 green.
+All submission queries/writes are converted. A4a basic reads pass independent
+review, corrected DB677/native40, full2364/UI14 and build; remote gates pending.
+A4b1 nullable daily/chart safety is explicitly accepted design only; later stats/
+domain/layout work remains incomplete.
 See phase3 a3a/a3b1/a3b2 verification artifacts; PR8 stays draft.
 
 
@@ -69,7 +72,7 @@ See phase3 a3a/a3b1/a3b2 verification artifacts; PR8 stays draft.
 | Logging | ✅ 1.1（2026-11-01）：**electron-log 5.4.4**，`logger.scope()` + 脱敏 hook（原 regex 全量迁移 + `cookie=`）；RUN_AS_NODE 下文件 transport 关闭 | 同左 | 1.2 |
 | Config | ✅ 1.1（2026-11-01）：**electron-store 12**（原子存储层）+ zod 单层校验（`.default()`/`.catch()` 取代 normalizers）；conf 16 的 schema 校验会"坏文件即拒启"，与不清空红线冲突——故 schema 不传给 electron-store | 同左 | 1.3 |
 | Dev/prod isolation | ✅ 1.1（2026-11-01）：`envSetup.ts` 为 main.ts 首个 import（架构守卫强制），非打包且无冒烟 env 时 userData 加 `-dev`；冒烟覆盖优先 | 同左 | 1.3 |
-| Database | Drizzle0.45.4/Kit0.31.11 schema/client and trusted legacy/baseline coordinator; released2.0.1 recovery synchronized with preserved ancestry. A2a-A2g problem queries are converted, including reviewed nullable outputs/invalid actions. Full2157/UI14/native23/build pass; PR21 squash6c42a38 and PR21/PR8 CI green. | A3a/A3b1 integrated; A3b2 locally accepted, remote gates pending; stats and later domains/layout remain | 3.1; archived release-upgrade-safety |
+| Database | Drizzle0.45.4/Kit0.31.11 schema/client and trusted legacy/baseline coordinator; released2.0.1 recovery synchronized with preserved ancestry. A2a-A2g problem queries are converted, including reviewed nullable outputs/invalid actions. Full2157/UI14/native23/build pass; PR21 squash6c42a38 and PR21/PR8 CI green. | Submission reads/writes integrated through PR24; A4a stats basics in progress, later domains/layout remain | 3.1; archived release-upgrade-safety |
 | Timestamps | R5: 82 INTEGER Unix-ms columns, numeric live writers/IPC/shared schemas, display-only Intl; strict history-derived local/UTC+8/SQLite `.0` conversion. Reconstructed 21/24/29 and isolated actual 24/29 copies pass; original user DBs unchanged. | Numeric timestamp target reached; future Drizzle uses timestamp_ms. See `unix-millisecond-time.md`. | 2.5 |
 | Result shape | ✅ 1.1（2026-11-01）：20 处真正的 IPC 返回统一为 `createOutputSchema()` 判别联合（6 个封闭 `code`）；34 处 `{ok:}` 经复核确认是内部校验器/运行时协议形状、不跨 IPC 边界，不转换 | 同左 | 1.4 |
 | Event bus | 9 hand-written `Set<callback>` buses + 3 `EventEmitter` | typed `EventEmitter` wrapper | 3.6 |

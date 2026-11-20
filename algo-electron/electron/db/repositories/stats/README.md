@@ -28,11 +28,20 @@
 - 查询函数返回普通对象数组，不向调用方暴露 `better-sqlite3` statement 或连接对象。
 - Schema 变化必须先写 migration，再更新本目录 SQL 和测试。
 
+- A4a将平台分布、单题访问和最后活跃时间迁移到Drizzle；其余趋势/洞察/重算另行处理。
+- 每次包装当前连接，不缓存、不新建事务、不写入或通知。平台分布保留active父行COUNT(*)及count倒序，NULL ID也计数。
+- 单题访问保留COUNT(*)和原生COALESCE(SUM/AVG,0)，墓碑/孤立访问仍计入，AVG忽略NULL时长；INTEGER SUM溢出仍抛错，不转字符串或返回零。
+- 最后活跃时间保留raw occurred_at倒序首行及空值回退，epoch0和诊断小数/极值不经Date解码；不改成MAX或委托题目overview。
+- 历史migration030调用recompute-core.ts；本批不改该依赖路径，也不改变任何schema/输入/IPC类型。
+
 ## 5. 验证入口
 
 ```powershell
 cd algo-electron
-node node_modules\typescript\bin\tsc --noEmit
-node node_modules\esbuild\bin\esbuild tests\db\repositories.test.ts --bundle --platform=node --format=esm --external:better-sqlite3 --external:electron --outfile=tmp\db-repositories.test.mjs
-$env:ELECTRON_RUN_AS_NODE='1'; node_modules\.bin\electron.cmd tmp\db-repositories.test.mjs
+pnpm typecheck
+pnpm typecheck:tests
+pnpm run test:unit tests/db/stats-basic-reads.test.ts
+pnpm test:db
 ```
+
+原生测试由统一runner运行真实Electron/better-sqlite3并检查退出状态，不以单独GUI进程启动成功代替验收。

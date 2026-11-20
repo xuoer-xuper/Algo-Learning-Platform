@@ -44,6 +44,22 @@ read-only timeline submission ID output to allow already-returned null; keep
 request/problem IDs, metric outputs and LLM privacy allowlist unchanged. Empty
 first-AC batches must still acquire no database. Submission writes remain separate.
 
+### A4b1 Daily-read and chart safety acceptance (2026-11-20)
+
+Parent explicitly accepts the independently reviewed nullable daily-read output
+policy and narrow chart consumer correction. Preserve every existing row, raw
+day string/null, count, order, limit, cutoff, loader and AI JSON behavior. Both
+trend charts must give each row its own categorical position so NULL dates
+cannot steal real-date coordinates. NULL displays only as "日期缺失"; nonnull
+strings retain existing tick/full-tooltip formatting. This is an intentional fix
+of a demonstrated chart bug, not a claim of identical old UI behavior.
+
+This limited phase3 renderer-consumer safety exception is not phase4 redesign.
+Only four trend reads, corresponding read types/shared AI shape and the two chart
+axes/labels change. No schema/data repair, writer/input/time validation, loader,
+privacy/export version, broad UI/layout or historical migration changes. Streak,
+insight lists and recomputation remain separately accepted slices.
+
 ### A4a Basic-statistics acceptance boundary (2026-11-20)
 
 After A3 acceptance, convert only platform distribution, single-problem visit
@@ -121,7 +137,7 @@ separate. This scope is explicitly accepted after independent design review.
 
 ## Out of Scope
 
-- 渲染层（阶段 4）；测试目录重排（阶段 5，但本阶段搬源码时**同步移动**对应测试文件到 `tests/unit/services/{domain}/` 的临时位置，避免 import 断裂）。
+- 广泛渲染层重构（阶段4）；已明确批准的A2g无效ID操作及A4b1日期图表consumer-safety切片除外。测试目录重排（阶段 5，但本阶段搬源码时**同步移动**对应测试文件到 `tests/unit/services/{domain}/` 的临时位置，避免 import 断裂）。
 
 ## Notes
 

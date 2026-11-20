@@ -21,6 +21,6 @@
   "children": [],
   "parent": "09-17-spec-alignment",
   "relatedFiles": [],
-  "notes": "A2g/PR21、A3a/PR22、A3b1/PR23已合Drizzle且两级CI绿。当前C分支codex/drizzle-first-ac完成A3b2双函数/77差分/6native组；独立复核无问题，DB634/native36/full2321/UI14/build与UTC/NewYork77均绿，800源文件与D62dirty稳定，待正常hooks及远端验收。A4a设计批准未实施；A4b/c/d研究保留，nullable策略与历史核心冻结仍需独立接受。后续领域/布局/拆分未完成。PR8draft/base dev，不归档阶段3、不发版、不改2.0.1。",
+  "notes": "A2g/PR21、A3a/PR22、A3b1/PR23、A3b2/PR24均合Drizzle两级CI绿。当前C分支codex/drizzle-stats-basic完成A4a三项基础读取/43差分/4native组。独立review修复native跨fixture迁移时钟误报(每读取前后完整ledger仍验证)，重跑DB677/native40/full2364/UI14/build绿，802源文件/D62dirty稳定，待正常hooks与远端验收。A4b1空日期read/type和有限图表修正已明确批准，DB/UIworker准备未实施；A4b2/A4c/A4d仍分开，后续领域/布局/拆分未完成。PR8draft/base dev、不归档阶段3、不发版。",
   "meta": {}
 }

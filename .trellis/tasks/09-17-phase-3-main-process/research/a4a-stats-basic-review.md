@@ -213,3 +213,128 @@ while implementing these three reads. Preserve A3 files and review artifacts.
 - Lint/native/UI/global/build tests: not run for this research-only review.
 - Wrote only research/a4a-stats-basic-review.md; no product/test/spec/task metadata,
   Git/original D-worktree changes or subagents. No A3 acceptance or release claim.
+
+## A4a Implementation Review (2026-11-20)
+
+Independent COMPLETE diff review against HEADfa13260: three functions, frozen
+oracle, all43 focused cases, all4 native groups and runner registration. The
+parent explicitly released the freeze once for the native test-fixture fix
+below. The five product/test files are now FROZEN again; no further source
+changes are planned. Parent can immediately resnapshot and run serial gates.
+
+### Verdict
+
+No product implementation issue found. One native fixture mismatch was fixed
+with authorization. Both typechecks, scoped lint, formatting and reviewer focused
+regressions pass after the fix. Approve code/test scope pending parent rerun of
+DB/native/full/build and normal remote/integration gates. The first native gate
+failed; no rerun pass or native acceptance is claimed by this reviewer.
+
+Only three insights.ts functions/imports change in product code. Five remaining
+stats functions are programmatically verified unchanged against fa13260. No
+stats types/shared/IPC/preload/renderer/AI/overview/schema/migration/date-helper/
+recompute change. A4b1 planning acceptance is now separate, not implementation;
+A4b2/A4c/A4d and phase3 remain open.
+
+### Findings Fixed
+
+File: algo-electron/tests/db/repositories.test.ts, nativeStatsSnapshot and
+compareNativeStatsReads.
+
+The first parent test:db failed all4 new native groups at cross-fixture snapshot
+equality; retained log: algo-electron/tmp/drizzle-a4a-db.log. Independently created
+original/candidate databases have different legacy schema_migrations.applied_at
+values. nowBeijing uses new Date(), so Date.now override does not fix that native
+initialization clock. Migration030 preserves these distinct instants. Vitest's
+fake Date hid this fixture distinction. This was not a product read regression.
+
+Fix: nativeStatsSnapshot remains complete by default. Every checked() read still
+compares ALL tables/schema/ledger fields INCLUDING applied_at before/after, plus
+total_changes/inTransaction and no event/clock assertions. Only final independent
+fixture-to-fixture snapshots omit schema_migrations.applied_at by selecting its
+version/name. Migration identity/count/order, sqlite_schema, other tables and
+Drizzle ledger, total_changes, transaction state/results/events stay compared.
+No database/ledger/clock or production code was changed to force equivalence.
+
+An in-memory execution of the actual updated helper confirms cross-fixture
+initial-clock differences are ignored, while an applied_at UPDATE still changes
+the full local ledger snapshot AND total_changes. Migration identity changes
+still fail cross-fixture comparison and Drizzle ledger values remain present.
+This helper probe is not the required actual Electron native rerun.
+
+Only this authorized test-file fix changes the implementer's5-file freeze.
+Parent was informed before editing and given re-freeze approval. Parent owns
+native/global/UI/build reruns and added the fixture-clock lesson to the spec.
+
+### Product And Oracle Review
+
+- Distribution selects only platform/count(), active parent filter, GROUP BY
+  platform and descending count only. COUNT(*) includes NULL/empty IDs; no cap,
+  normalization, extra status filter/order or repository redirection.
+- Visits use exact bound ID, COUNT(*), raw COALESCE SUM(duration)/SUM(active)/
+  AVG(duration), no join/group/filter. NULL-ID/deleted/orphan visits count; AVG
+  retains the nonnull denominator and native numeric/fractional/TEXT-affinity
+  behavior. No sum/avg String decoder, JS reduction or per-row null replacement.
+- Aggregate optional get is narrowed by explicit impossible-state throw. Real
+  successful SQLite no-GROUP aggregate returns one row even for no visits; no
+  fabricated zero fallback/assertion. Exact INTEGER SUM overflow propagates.
+- Latest selects raw occurred_at, DESC and fixed LIMIT1, then ??null. Epoch0 and
+  fractional/extreme/TEXT diagnostics stay raw. No Date/Number/String decoder,
+  MAX, horizon/filter/tie-break, clock or overview delegation.
+- Public SELECT builders execute synchronously on current lifecycle handle;
+  no cache/second connection/write/event/transaction. Typed native session errors
+  pass through rather than generic ORM raw error wrapping. Supported native
+  identity/details and accepted damaged-column wording boundaries are retained.
+- Programmatic AST comparison against git show fa13260 matches all3 original
+  oracle bodies after type erasure/rename/DB injection. Visit oracle also changes
+  direct return to temporary row plus explicit unreachable undefined guard;
+  normalize ONLY that guard/return refactor. All3 SQL literals match byte-for-byte.
+  Independent oracle interfaces do not import production result derivation.
+
+### Test Strength And Verification
+
+Read all43 focused cases and4 native groups. Tests compare whole rows, exact key
+order/runtime scalar shapes, complete schema/ledger/data/read-only state and
+failure outcomes; positive anchors cover real semantics, not lengths alone.
+Coverage includes count(NULL-ID), ties and65 groups, NULL AVG denominator/allNULL,
+independent active sums, tombstones/orphans, literal/Unicode/NUL/lone-surrogate
+keys, raw latest epoch0/fraction/extreme/TEXT and no horizon, real readonly file,
+query_only, external transaction/savepoint visibility/rollback, close/reinit,
+missing table/column and prepare/step error identity. No hidden output schema or
+input change. Static latest LIMIT1 bind is the sole normalized trace parameter.
+
+Both overflow columns use SQL integer literals9223372036854775807 and1, with
+explicit typeof=integer on both rows. Tests capture the error at native get,
+assert same thrown object and exact SqliteError/integer overflow/SQLITE_ERROR,
+not merely a mocked throw or floating-point sum. Native groups repeat decisive
+COUNT/AVG/raw latest/overflow/lifecycle behavior. Per-read snapshots remain fully
+strict after the fixture fix.
+
+Independently run using Node22.23.2 after the fix:
+
+- Main tsc --noEmit: PASS.
+- Test tsc -p tsconfig.tests.json --noEmit: PASS.
+- ESLint all5 owned product/test paths, unused-disable/max-warnings0: PASS.
+- Prettier repositories.test.ts --check: PASS.
+- Focused Vitest5files103tests: stats-basic43, problemOverview8, statsDate2,
+  timestampSchemas39, dataEvents11: PASS.
+- AST bodies3/3, exact SQL literals3/3, untouched other stats functions5/5: PASS.
+- Snapshot normalization/mutation-detection probe: PASS.
+- git diff --check: PASS (only normal Windows CRLF informational warnings).
+
+Reviewer ran no native/global/UI/build suites or dependency rebuilds. Parent's
+first DB failure remains evidence; await corrected serial rerun. No native/full
+pass is inferred from focused tests. Product/test code is frozen and ready now.
+
+### Documentation And Remaining Findings
+
+No uncorrected A4a product issue/design blocker found. Parent stats README/spec/
+architecture changes reflect the exact three-read contract and do not complete
+all stats. A3b2 integration documentation names PR24CI44691480140 and PR8CI44692300627;
+local git proves eb5103f and squashfa13260 have identical tree3b83bac0a6f03a46bd2bf0a45b7686b0ca9677f5.
+Remote gate status is parent evidence, not independently rerun here. A4b1 docs are
+planning-only acceptance; no A4b/c/d product changes were reviewed as A4a.
+
+Durable reviewer changes: authorized native-test fixture fix and this appendix
+only. No Git/spec/task/other-agent/D-worktree edits. Implementation gate reruns,
+commit/push/CI and final integration remain parent-owned.

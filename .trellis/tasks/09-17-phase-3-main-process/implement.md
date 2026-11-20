@@ -59,9 +59,27 @@
 - [x] 正常hooks提交82a0163并立即推送，PR17 CI44521575932全绿后squash0927213合回Drizzle；
   PR8集成CI44522362714全绿。PR8保持draft/base dev，不发版、不归档阶段3。
 
+## A4b1 Execution Boundary (2026-11-20)
+
+- Begin after A4a integrated acceptance on a new branch from refactor/drizzle.
+- [x] Independent precheck and explicit parent acceptance of nullable read types
+  and limited chart safety exception, not full old-UI equivalence.
+- [ ] DB worker: trends.ts four reads, frozen oracle/differential suite, native
+  repository groups and verify.mjs DB registration; exact clock/prepare retained.
+- [ ] Contract/UI worker: three local_day output schemas, DailyActiveStat alias/
+  AI shared type, ordinal TrendPanel axes/labels and schema/AI/loader/component/
+  real UI regressions. No loader/runtime exporter/privacy rewrite.
+- [ ] Independent full cross-layer review, both typechecks/lint/focused regressions.
+- [ ] Parent serial native/full/build, chart point/Tooltip UI assertions and visual
+  screenshot inspection, stable source/D hashes. Preserve data/inputs/versions.
+- [ ] Normal hooks/immediate push, feature CI/squash and PR8 integration CI green.
+
+Streak A4b2, list A4c and historical-aware recompute A4d remain separate. This
+boundary does not approve their implementation or complete the parent phase.
+
 ## A4a Execution Boundary (2026-11-20)
 
-- Start after A3b2 integrated acceptance, on a new branch from refactor/drizzle.
+- Branch codex/drizzle-stats-basic, based on A3b2 squashfa13260 after both CI gates.
 - Gap: three basic stats reads still use native queries/manual assertions. Keep
   existing behavior, public signatures and caller ownership; no query consolidation.
 - Implementer owns only three functions/imports in stats/insights.ts, independent
@@ -69,10 +87,12 @@
   and DB runner registration. Parent owns spec/docs/task/Git and serial gates.
 - [x] Full A4 inventory and independent A4a precheck approved; parent records
   raw aggregate/time, native overflow and unchanged public contract before coding.
-- [ ] Implement and compare full keys/scalars/ordering/errors/read-only state with
-  frozen SQL. Seed INTEGER overflow by exact SQL literals, not rounded JS numbers.
-- [ ] Independent full-diff review, both typechecks/scoped lint/focused regressions.
-- [ ] Serial test:db/native, test:all/UI, build:check, stable source/D hashes.
+- [x] Three reads implemented with43 independent differential and4 native groups;
+  INTEGER overflow seeds exact literals/typeof. Per-read full state/ledger checked.
+- [x] Independent review fixes native fixture-only migration-clock comparison;
+  no product findings. Both typechecks/lint and5files103 focused tests pass.
+- [x] Corrected test:db677/native40, test:all2364/UI14 and build:check pass;
+ 802product/config/test hashes and original D62dirty unchanged.
 - [ ] Normal hooks/immediate push, feature PR CI/squash and PR8 integration CI.
 
 A4b nullable daily keys, A4c nullable insight IDs and A4d historical migration-aware
@@ -95,7 +115,8 @@ recompute remain separately designed work; no silent scope expansion.
   lint and6files175 focused/caller tests pass; oracle AST/SQL verified.
 - [x] Serial test:db634/native36, test:all2321/UI14 and build:check pass;800
   source hashes/D62dirty stable. Real deferred-FK COMMIT and UTC/NewYork77 each pass.
-- [ ] Normal commit/hooks/immediate push, feature PR CI/squash and PR8 CI green.
+- [x] Workeb5103f normal hooks/immediate push, PR24CI44691480140 green;
+  squashfa13260 same tested tree; PR8CI44692300627 green.
 
 A4 statistics and later domains/layout remain unfinished. Do not archive phase3.
 
