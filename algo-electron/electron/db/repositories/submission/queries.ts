@@ -1,15 +1,25 @@
+import { and, asc, desc, eq, getTableColumns, inArray, sql } from 'drizzle-orm'
 import { getDb } from '../../connection'
-import type { SubmissionRow } from './types'
+import { createDrizzleClient } from '../../../../src/main/db/client'
+import { submissions } from '../../../../src/main/db/schema'
+import type { ProblemFirstAcRow, SubmissionRow } from './types'
+
+const submissionColumns = {
+  ...getTableColumns(submissions),
+  submitted_at: sql<number>`${submissions.submitted_at}`,
+  created_at: sql<number>`${submissions.created_at}`,
+  updated_at: sql<number>`${submissions.updated_at}`,
+  deleted_at: sql<number | null>`${submissions.deleted_at}`,
+}
 
 export function getSubmissionsByProblem(problemId: string): SubmissionRow[] {
-  const db = getDb()
+  const db = createDrizzleClient(getDb())
   return db
-    .prepare(
-      `
-    SELECT * FROM submissions WHERE problem_id = ? ORDER BY submitted_at DESC
-  `,
-    )
-    .all(problemId) as SubmissionRow[]
+    .select(submissionColumns)
+    .from(submissions)
+    .where(eq(submissions.problem_id, problemId))
+    .orderBy(desc(submissions.submitted_at))
+    .all()
 }
 
 /**
@@ -17,25 +27,27 @@ export function getSubmissionsByProblem(problemId: string): SubmissionRow[] {
  * 与 getSubmissionsByProblem 的区别仅在排序方向，便于时间轴顺序渲染。
  */
 export function getSubmissionsByProblemAsc(problemId: string): SubmissionRow[] {
-  const db = getDb()
+  const db = createDrizzleClient(getDb())
   return db
-    .prepare(
-      `
-    SELECT * FROM submissions WHERE problem_id = ? ORDER BY submitted_at ASC
-  `,
-    )
-    .all(problemId) as SubmissionRow[]
+    .select(submissionColumns)
+    .from(submissions)
+    .where(eq(submissions.problem_id, problemId))
+    .orderBy(asc(submissions.submitted_at))
+    .all()
 }
 
 export function getSubmissionsByPlatform(platform: string, limit = 50): SubmissionRow[] {
-  const db = getDb()
-  return db
-    .prepare(
-      `
-    SELECT * FROM submissions WHERE platform = ? ORDER BY submitted_at DESC LIMIT ?
-  `,
-    )
-    .all(platform, limit) as SubmissionRow[]
+  const db = createDrizzleClient(getDb())
+  return (
+    db
+      .select(submissionColumns)
+      .from(submissions)
+      .where(eq(submissions.platform, platform))
+      .orderBy(desc(submissions.submitted_at))
+      // Preserve native LIMIT binding/errors, including NaN and negative fractions.
+      .limit(sql.placeholder('limit'))
+      .all({ limit })
+  )
 }
 
 /**
@@ -46,18 +58,19 @@ export function getSubmissionsByPlatform(platform: string, limit = 50): Submissi
  * @param problemIds 需要查询的 problem_id 列表（来自 coach_interventions）
  * @returns 每道题的 { problem_id, first_ac_at }，无 AC 的题目不返回
  */
-export function getFirstAcByProblemIds(
-  problemIds: string[],
-): { problem_id: string; first_ac_at: number }[] {
+export function getFirstAcByProblemIds(problemIds: string[]): ProblemFirstAcRow[] {
   if (problemIds.length === 0) return []
-  const db = getDb()
-  const placeholders = problemIds.map(() => '?').join(',')
-  return db
-    .prepare(
-      `SELECT problem_id, MIN(submitted_at) AS first_ac_at
-       FROM submissions
-       WHERE verdict = 'AC' AND problem_id IN (${placeholders})
-       GROUP BY problem_id`,
-    )
-    .all(...problemIds) as { problem_id: string; first_ac_at: number }[]
+  const db = createDrizzleClient(getDb())
+  return (
+    db
+      .select({
+        problem_id: submissions.problem_id,
+        first_ac_at: sql<number>`MIN(${submissions.submitted_at})`,
+      })
+      .from(submissions)
+      // AC stays a literal so only input IDs count toward SQLite's bind limit.
+      .where(and(sql`${submissions.verdict} = 'AC'`, inArray(submissions.problem_id, problemIds)))
+      .groupBy(submissions.problem_id)
+      .all()
+  )
 }

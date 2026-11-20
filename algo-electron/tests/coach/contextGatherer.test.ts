@@ -78,6 +78,8 @@ function submissionRow(overrides: Partial<SubmissionRow> = {}): SubmissionRow {
     raw_json: '{"cookie":"JSESSIONID=abc; auth=SENTINEL_COOKIE_VALUE","handle":"SENTINEL_HANDLE"}',
     created_at: Date.parse('2026-08-31 10:00:01'),
     updated_at: Date.parse('2026-08-31 10:00:02'),
+    is_first_ac: 1,
+    deleted_at: 4_242_424_242_424,
     ...overrides,
   }
 }
@@ -194,6 +196,12 @@ test('提交行只有 verdict/语言/耗时/时间进上下文，raw_json 与 so
   // 正向锚点：这一行确实被采到并拼进了外发文本，说明闸门开着、下面的负向断言不是空转。
   assert.deepEqual(repo.submissionCalls, ['problem-1'], '应按 session.problem_id 查提交')
   assert.equal(ctx.submissions.length, 1)
+  assert.deepEqual(Object.keys(ctx.submissions[0]).sort(), [
+    'language',
+    'runtime_ms',
+    'submitted_at',
+    'verdict',
+  ])
   assert.match(outbound, /总提交次数: 1/)
   assert.match(outbound, /最近 verdict: WA/)
   assert.match(outbound, /语言: C\+\+17/)
@@ -208,6 +216,7 @@ test('提交行只有 verdict/语言/耗时/时间进上下文，raw_json 与 so
   assert.doesNotMatch(outbound, /SENTINEL_COOKIE_VALUE/)
   assert.doesNotMatch(outbound, /SENTINEL_HANDLE/)
   assert.doesNotMatch(outbound, /65536/, 'memory_kb 未纳入白名单')
+  assert.doesNotMatch(outbound, /4242424242424/, 'deleted_at is not an outbound field')
 })
 
 test('题目详情只取 title 与 canonical_url，附带的 100 条提交整行不外发', () => {

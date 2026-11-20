@@ -44,6 +44,39 @@ drizzle-kit0.31.11，安装后按实际API和Electron ABI验证，不采用beta�
 - 当前规模：25表、electron321个TS文件、250处prepare；排除迁移222处，repository162处。
   main1164/TabManager2494/CoachOrchestrator1474行，仅作分批规划，不硬套旧计数。
 
+## A3a Submission Read Contract (2026-11-20)
+
+After A2g, convert all four `submission/queries.ts` reads as one bounded slice.
+Research and independent approval: `research/a3-submission-queries.md` and
+`research/a3-submission-queries-review.md`. Mutations/first-AC writes remain A3b.
+
+- Full-row readers preserve all16 baseline fields, nullable IDs/problem IDs,
+  tombstones/orphans, exact bound equality and submitted_at direction only.
+  Derive authoritative SubmissionRow from schema with four raw numeric time
+  overrides; ProblemSubmissionRow becomes a type-only alias. Reuse a small
+  module-local full-row projection; do not rewrite other problem queries.
+- Platform LIMIT remains native bound default50 via named Placeholder; no clamp,
+  validation, deduplication, Date/String decoder, catches or new ordering.
+- Empty first-AC input returns[] before getDb/builder/prepare. Otherwise use one
+  IN bind per original element, GROUP BY problem_id and raw numeric MIN. Keep
+  verdict='AC' as a fixed SQL literal: binding AC would add a variable and shift
+  the original native parameter-limit error boundary. No chunking/deduplication.
+- Aggregate key stays schema-inferred string|null; only the internal Coach Map
+  key widens. Public metrics derive string problem IDs from the existing input.
+  TimelineSubmissionPoint.submission_id allows null, read-only end-to-end; no
+  renderer action or key change. Other inputs/output times remain strict.
+- ContextGatherer keeps its last10 ascending allowlist exactly; no extra fields
+  leak to prompts. Known fixtures add both newly exposed baseline fields.
+- Same getDb-owned connection, synchronous methods/errors, no adapter cache,
+  transaction/writes/events/schema or lifecycle changes. Freeze all4 original
+  SQL functions independently and compare rows/keys/error name/message/code.
+
+Native tests must pin LIMIT and aggregate parameter-count boundary including
+one-over-limit duplicates, NULL/time/tombstone semantics and lifecycle. Coach
+integration covers nullable timeline IDs, string metrics IDs and zero minima;
+existing LLM privacy/order tests stay intact. This is not a renderer redesign,
+submission mutation migration, main layout change or release.
+
 ## A2g Recent List Contract (2026-11-20)
 
 Design precheck approved `research/a2g-recent-problems-review.md`. Convert only

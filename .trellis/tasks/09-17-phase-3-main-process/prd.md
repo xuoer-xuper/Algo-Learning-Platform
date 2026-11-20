@@ -36,6 +36,14 @@ existing main route ID policy unchanged. Recent output types reflect null IDs;
 detail parent IDs remain string. This bounded compatibility correction is not
 permission for the phase-4 renderer redesign, data repair or broader route changes.
 
+### A3a Submission-read acceptance clarification (2026-11-20)
+
+Preserve all existing submission read results and errors, including all baseline
+fields, nullable IDs, raw timestamps and native parameter limits. Correct the
+read-only timeline submission ID output to allow already-returned null; keep
+request/problem IDs, metric outputs and LLM privacy allowlist unchanged. Empty
+first-AC batches must still acquire no database. Submission writes remain separate.
+
 ### R2 目录迁移（D2、D3）
 - `src/main/index.ts`（< 150 行）：`import './env-setup'` → `bootstrapServices()` → `registerIpc()` → `createShellWindow()`；22 个模块级 `let` 收进 `AppContext` 对象由 `bootstrapServices` 返回。
 - `src/main/services/{problem,submission,tracking,stats,ai,notes,backup,site,user-script,credential,cookie,coach,browser,window,download,rating,diagnostics}/{types.ts, procedures/, lib/}`：

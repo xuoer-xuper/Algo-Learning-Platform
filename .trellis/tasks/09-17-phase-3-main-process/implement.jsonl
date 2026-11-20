@@ -30,3 +30,6 @@
 {"file": ".trellis/tasks/09-17-phase-3-main-process/research/a2f-nullable-contract-review.md", "reason": "Approved A2f design; native bound-string identity vs JS Unicode normalization, selected output schema correction and fixed query invariants"}
 {"file": ".trellis/tasks/09-17-phase-3-main-process/research/a2g-recent-problems.md", "reason": "A2g query and caller research, typed LIMIT placeholder and nullable recent output"}
 {"file": ".trellis/tasks/09-17-phase-3-main-process/research/a2g-recent-problems-review.md", "reason": "Approved bounded A2g design: exact shared ID predicate, retained URL navigation, disabled actions with visible accessible reason and stable tuple keys"}
+{"file": ".trellis/tasks/09-17-phase-3-main-process/research/a3-submission-queries.md", "reason": "A3a four submission reads, truthful schema-derived full rows, nullable timeline output and preserved privacy/callers"}
+{"file": ".trellis/tasks/09-17-phase-3-main-process/research/a3-submission-queries-review.md", "reason": "Approved A3a: fixed AC SQL literal preserves native bind count; empty aggregate short circuit, raw MIN, internal nullable map only"}
+{"file": ".trellis/spec/project/drizzle-submission-reads.md", "reason": "A3a executable full-row/raw-time/native-limit/caller contracts, split to avoid context truncation"}

@@ -17,6 +17,7 @@
 - `deleteProblem.test.ts` / `problem-delete-oracle.ts`：A2d四分支raw instant UNION和四条DELETE与冻结原SQL对照；保持非法时间拒绝、NULL/空/字面量ID、tombstone、孤儿false返回、notes、实际COMMIT/savepoint/外层回滚、第二日统计失败及事件时序。`test:db`同时注册删除与R4通知回归，原生repository套件另验成功删除和真实deferred-FK COMMIT失败。
 - `problemReads.test.ts` / `problem-reads-oracle.ts`：A2f详情和访问Drizzle查询对照冻结原SQL完整行，保留nullable子ID、所有额外列、墓碑、COUNT(*)、100条提交上限、访问升序、raw毫秒、只读/事务/无通知及连接生命周期。原生repository用例另验绑定ID（包括Unicode/NUL）与nullable输出；共享输出schema测试覆盖允许null但拒绝错误类型，输入约束不放宽。
 - `problem-recent.test.ts` / `problem-recent-oracle.ts`：A2g最近题目Drizzle查询与冻结原SQL逐行/异常对照，包含17种LIMIT数值、先LIMIT后status筛选、平台字面量、NULL/空ID、墓碑COUNT(*)、raw/null时间、只读/事务/无通知和生命周期；原生repository同步验证LIMIT绑定与相同nullable输出。
+- `submission-reads.test.ts` / `submission-reads-oracle.ts`：A3a四项提交读取对照独立旧SQL，完整16字段、nullable ID、raw时间、双向排序、17种LIMIT和首次AC空数组/重复IN/原生最大变量边界；保留墓碑、只读/事务/无通知及生命周期，真实Electron另验绑定和MIN无解码。
 - `codeforcesSubmissionIdMigration.test.ts`：Codeforces 提交 ID migration 兼容。
 - `problemContextMigration.test.ts`：题目上下文字段 migration 兼容。
 - `backupImport.test.ts`：SQLite 备份、学习数据 JSON 导出/导入、冲突检测和 Cookie/`raw_json` 排除。

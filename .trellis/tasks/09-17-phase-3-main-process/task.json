@@ -21,6 +21,6 @@
   "children": [],
   "parent": "09-17-spec-alignment",
   "relatedFiles": [],
-  "notes": "A0/A1/A2a-A2f及安全同步已合Drizzle。A2g在C分支codex/drizzle-recent-problems完成最终recent查询、nullable列表输出及无效ID侧栏禁用/可见说明；独立复核无问题，full2157/UI14/native23/test:db474/build:check通过，待正常hooks与远端CI合并。A3a四项submission读取研究/预检就绪，尚未实施；后续stats等域/布局/拆分仍待做。D62dirty基线保持，9份规划已远端保存/替代，.zcode机器路径不盲目提交。PR8仍draft/base dev，不发版、不改2.0.1、不归档阶段3。",
+  "notes": "A2g正常推送377cf4f，PR21CI44675893865绿后squash6c42a38合Drizzle；PR8CI44676609924绿。A3a在C分支codex/drizzle-submission-reads完成四项读取、schema全行类型/nullable时间轴/内部Map；独立复核无问题，full2204/UI14/test:db517/native26/build:check均绿，待正常hooks推送与PR集成。A3b写入研究完成，INSERT16vs14/prepare-before-UUID需独立明确baseline范围；后续stats等域/布局/拆分未做。D62dirty保持。PR8draft/base dev，阶段3不归档、不发版、不改2.0.1。",
   "meta": {}
 }

@@ -8,9 +8,9 @@
 
 ## 2. 当前实现程度
 
-- `types.ts`：提交行和首次 AC 查询行类型。
+- `types.ts`：从Drizzle schema推导完整16字段提交行，四个时间字段以raw number/null输出；首次AC聚合键保留schema的nullable类型。
 - `mutations.ts`：按 `(platform, platform_submission_id)` 去重写入提交。
-- `queries.ts`：按题目和平台查询提交，均按提交时间倒序。
+- `queries.ts`：Drizzle按题目查询升序/倒序完整提交、按平台倒序限量查询，以及批量查询首次AC；顺序只按原submitted_at，不新增tie-break。
 - `firstAc.ts`：根据最早 AC 提交更新 `problems.status` 和 `first_solved_at`。
 - `recomputeProblemSubmissionState()`：导入覆盖后按最终提交重建状态和首次 AC，返回新旧首次 AC 日期。
 - `../submissionRepository.ts`：兼容导出口，外部调用方继续从原路径 import。
@@ -18,7 +18,7 @@
 ## 3. 封装函数
 
 - 写入：`upsertSubmission(data)`。
-- 查询：`getSubmissionsByProblem(problemId)`、`getSubmissionsByPlatform(platform, limit?)`。
+- 查询：`getSubmissionsByProblem(problemId)`、`getSubmissionsByProblemAsc(problemId)`、`getSubmissionsByPlatform(platform, limit?)`、`getFirstAcByProblemIds(problemIds)`。
 - 题目元数据刷新：`updateFirstAc(problemId)`。
 - 覆盖导入重建：`recomputeProblemSubmissionState(problemIds)`，由导入事务调用，返回需要重算统计的首次 AC 日期。
 
@@ -31,6 +31,11 @@
 - 所有批量写入应通过 `SubmissionBatchWriter`，由它统一处理题目关联、首次 AC 和统计刷新。
 - 不记录 Cookie、用户源码、完整请求体或可复用登录态。
 - Schema 变化必须先写 migration，再同步 `docs/DESIGN/DATABASE_SCHEMA.md` 和本目录 SQL。
+
+- 读取保留墓碑、NULL提交ID、完整字段和raw数值时间，不新增过滤/事务/通知；ProblemSubmissionRow仅为本域SubmissionRow的类型别名。
+- 平台LIMIT用typed placeholder保持原生错误；首次AC空数组在getDb前返回，非空数组每项绑定一次（包括重复值），固定AC字面量不占绑定参数，保留原生最大变量边界。
+- 首次AC用raw MIN，避免Date截断/String解码；Coach内部Map允许nullable键但公开指标仍以输入string题目ID构造。只读时间轴submission_id允许null，不改请求/路由或LLM最后10条的字段白名单。
+- A3a只转换四个读取；去重插入与首次AC更新/导入重算留待独立写入切片。
 
 ## 5. 验证入口
 

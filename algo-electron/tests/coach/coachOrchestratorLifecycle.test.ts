@@ -39,7 +39,7 @@ import { AppWindow } from '../../electron/windows/AppWindow.ts'
 import { setEnabledSitesFetcher } from '../../electron/parsers/registry.ts'
 import type { CoachPetWindow } from '../../electron/coach/CoachPetWindow.ts'
 import type { CoachBubblePayload, CoachPetState } from '@shared/types/coach'
-import { problemTimelineDataSchema } from '@shared/types/coach'
+import { coachMetricsBundleSchema, problemTimelineDataSchema } from '@shared/types/coach'
 import type { TrackingService } from '../../electron/tracking/TrackingService.ts'
 import type { RealtimeSubmissionService } from '../../electron/submissions/RealtimeSubmissionService.ts'
 import type { SubmissionNotification } from '../../electron/submissions/SubmissionWatcherCore.ts'
@@ -1835,6 +1835,100 @@ test('timeline preserves a nullable legacy visit ID without changing the address
   assert.equal(timeline.visits[0].entered_at, 0)
   assert.equal(timeline.last_activity_at, 123)
   assert.equal(problemTimelineDataSchema.safeParse(timeline).success, true)
+  h.coach.stop()
+})
+
+test('timeline retains null, empty and string submission IDs with the original ordered values', () => {
+  const h = harness()
+  const db = getDb()
+  const problemId = 'nullable-submission-parent'
+  db.prepare(
+    `INSERT INTO problems
+    (id, platform, platform_problem_id, canonical_url, first_seen_at, created_at, updated_at)
+    VALUES (?, 'codeforces', 'submission-id-fixture', ?, 0, 0, 0)`,
+  ).run(problemId, CF_PROBLEM_A)
+  const insert = db.prepare(
+    `INSERT INTO submissions
+    (id, problem_id, platform, platform_submission_id, verdict, language,
+     submitted_at, runtime_ms, is_first_ac, created_at, updated_at, deleted_at)
+    VALUES (?, ?, 'codeforces', ?, ?, ?, ?, ?, ?, 0, 0, ?)`,
+  )
+  insert.run('string-submission', problemId, 'later-ac', 'AC', 'C++17', 200, 25, 0, null)
+  insert.run(null, problemId, 'epoch-ac', 'AC', null, 0, 0, 1, 0)
+  insert.run('', problemId, 'middle-wa', 'WA', 'Python', 100, null, 0, null)
+
+  const timeline = h.coach.getProblemTimeline(problemId)
+  assert.ok(timeline)
+  assert.equal(timeline.problem_id, problemId)
+  assert.deepEqual(timeline.submissions, [
+    { submission_id: null, submitted_at: 0, verdict: 'AC', language: null, runtime_ms: 0 },
+    { submission_id: '', submitted_at: 100, verdict: 'WA', language: 'Python', runtime_ms: null },
+    {
+      submission_id: 'string-submission',
+      submitted_at: 200,
+      verdict: 'AC',
+      language: 'C++17',
+      runtime_ms: 25,
+    },
+  ])
+  assert.equal(timeline.first_ac_at, 0)
+  assert.equal(timeline.last_activity_at, 200)
+  assert.equal(problemTimelineDataSchema.safeParse(timeline).success, true)
+  h.coach.stop()
+})
+
+test('metrics retain string problem IDs and epoch-zero AC minima without exposing null keys', () => {
+  const h = harness()
+  const db = getDb()
+  const insertProblem = db.prepare(
+    `INSERT INTO problems
+    (id, platform, platform_problem_id, canonical_url, first_seen_at, created_at, updated_at)
+    VALUES (?, 'codeforces', ?, ?, 0, 0, 0)`,
+  )
+  for (const problemId of ['epoch-ac', '', 'without-ac']) {
+    insertProblem.run(problemId, `metrics-${problemId}`, CF_PROBLEM_A)
+  }
+  const insertSubmission = db.prepare(
+    `INSERT INTO submissions
+    (id, problem_id, platform, platform_submission_id, verdict, submitted_at,
+     created_at, updated_at, deleted_at)
+    VALUES (NULL, ?, 'codeforces', ?, ?, ?, 0, 0, ?)`,
+  )
+  insertSubmission.run('epoch-ac', 'epoch', 'AC', 0, 0)
+  insertSubmission.run('epoch-ac', 'later', 'AC', 100, null)
+  insertSubmission.run('epoch-ac', 'earlier-wa', 'WA', -1, null)
+  insertSubmission.run('', 'empty-key-ac', 'AC', 25, null)
+  insertSubmission.run('without-ac', 'only-wa', 'WA', 0, null)
+  insertSubmission.run(null, 'null-key-ac', 'AC', -100, null)
+  for (const problemId of ['epoch-ac', 'epoch-ac', '', 'without-ac', null]) {
+    insertCoachIntervention(
+      buildCoachIntervention({
+        trigger_reason: 'multiple_wrong',
+        intervention_level: 2,
+        source_type: 'local_hint',
+        message: 'Synthetic metrics fixture',
+        problem_id: problemId,
+        platform: 'codeforces',
+      }),
+    )
+  }
+
+  const bundle = h.coach.getMetricsBundle()
+  assert.equal(bundle.interventions.length, 5)
+  assert.equal(bundle.problem_ac_status.length, 3)
+  assert.equal(
+    bundle.problem_ac_status.every((row) => typeof row.problem_id === 'string'),
+    true,
+  )
+  assert.deepEqual(
+    new Map(bundle.problem_ac_status.map((row) => [row.problem_id, row.first_ac_at])),
+    new Map([
+      ['epoch-ac', 0],
+      ['', 25],
+      ['without-ac', null],
+    ]),
+  )
+  assert.equal(coachMetricsBundleSchema.safeParse(bundle).success, true)
   h.coach.stop()
 })
 

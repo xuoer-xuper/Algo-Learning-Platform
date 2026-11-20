@@ -59,6 +59,30 @@
 - [x] 正常hooks提交82a0163并立即推送，PR17 CI44521575932全绿后squash0927213合回Drizzle；
   PR8集成CI44522362714全绿。PR8保持draft/base dev，不发版、不归档阶段3。
 
+## A3a Execution Boundary (2026-11-20)
+
+- Branch: `codex/drizzle-submission-reads`, based on A2g squash `6c42a38`.
+- Gap: four submission reads still use native SQL/manual rows; SELECT* returns16
+  fields and NULL IDs while the14-field type and timeline schema deny them.
+- DB implementer owns submission queries/types, problem row type alias, frozen
+  SQL oracle/new differential suite, native repository cases and DB registration.
+- Cross-layer implementer owns Coach internal Map type, timeline output schema,
+  known ContextGatherer fixture additions, timeline/metrics/schema tests. No
+  renderer or ContextGatherer production change; no query/mutation changes.
+- Parent owns specs/task/README/architecture docs, serial full/native/UI/build
+  gates, Git and handoff. Workers preserve other owned edits; no recursive agents.
+- [x] Research and independent precheck approve all4 reads; fixed AC literal must
+  preserve the exact original aggregate parameter count and native failure limit.
+- [x] Implement four reads, schema-derived full rows/alias, nullable timeline and
+  internal Map policy; independent43-case SQL oracle and native3 new cases.
+- [x] Independent full-diff check found no issues;5 files192 focused tests and
+  both typechecks/scoped lint pass. No product/test changes during final gates.
+- [x] Parent test:db517/native26, test:all2204/UI14, build:check serially pass;
+  all796 product/test hashes and original D62dirty baseline unchanged.
+- [ ] Normal hooks/immediate push, feature CI/squash into Drizzle and PR8 CI pass.
+
+No A3b writes, later domain queries, main-layout/splits or release work in A3a.
+
 ## A2g Execution Boundary (2026-11-20)
 
 - Branch: `codex/drizzle-recent-problems`, based on `32cd84d` in the C worktree.
@@ -79,8 +103,8 @@
 - [x] Independent full-diff check: no findings; both typechecks/lint and9 files161 tests pass.
 - [x] Parent test:db474/native23, test:all2157/UI14, build:check pass; responsive
   invalid-ID screenshots inspected. Original D62 dirty hashes unchanged.
-- [ ] Normal hooks commit/immediate push, feature PR CI, squash into Drizzle and
-  PR8 integration CI green. PR8 remains draft/base dev; no release or phase archive.
+- [x] Work377cf4f normal hooks/immediate push; PR21CI44675893865 green, squash
+  6c42a38 into Drizzle. PR8CI44676609924 green; draft/base dev, no release/archive.
 
 Then continue submission and stats queries using separately reviewed boundaries.
 The remaining main-layout/splits and later phases are not completed by A2g.
