@@ -213,7 +213,9 @@ schema code and emits SQL/snapshots; `pull` is the introspection command.
   suppressed invalid callbacks, valid callbacks, tuple-key reorder and layout.
 
 A3a submission read contracts and acceptance matrix are in
-[Drizzle Submission Reads](./drizzle-submission-reads.md).
+[Drizzle Submission Reads](./drizzle-submission-reads.md). A3b1 insertion uses
+[Drizzle Submission Writes](./drizzle-submission-writes.md) with explicit frozen030
+schema scope and original prepared-argument ordering.
 
 ## 4. Validation & Error Matrix
 

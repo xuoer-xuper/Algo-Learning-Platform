@@ -44,6 +44,16 @@ read-only timeline submission ID output to allow already-returned null; keep
 request/problem IDs, metric outputs and LLM privacy allowlist unchanged. Empty
 first-AC batches must still acquire no database. Submission writes remain separate.
 
+### A3b1 Supported-schema acceptance boundary (2026-11-20)
+
+Submission INSERT conversion preserves current frozen030 data/default behavior,
+notifications, statement ordering and raw/native values. It does not promise
+equivalence after arbitrary manual DDL changes to omitted columns/defaults/views.
+Do not weaken startup validation or silently claim per-write schema checks. Keep
+damaged-schema failures native and synchronous, without requiring identical
+qualified-column wording. Only upsertSubmission changes; first-AC writes remain
+separate. This scope is explicitly accepted after independent design review.
+
 ### R2 目录迁移（D2、D3）
 - `src/main/index.ts`（< 150 行）：`import './env-setup'` → `bootstrapServices()` → `registerIpc()` → `createShellWindow()`；22 个模块级 `let` 收进 `AppContext` 对象由 `bootstrapServices` 返回。
 - `src/main/services/{problem,submission,tracking,stats,ai,notes,backup,site,user-script,credential,cookie,coach,browser,window,download,rating,diagnostics}/{types.ts, procedures/, lib/}`：

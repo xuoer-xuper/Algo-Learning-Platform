@@ -33,3 +33,6 @@
 {"file": ".trellis/tasks/09-17-phase-3-main-process/research/a3-submission-queries.md", "reason": "A3a four submission reads, truthful schema-derived full rows, nullable timeline output and preserved privacy/callers"}
 {"file": ".trellis/tasks/09-17-phase-3-main-process/research/a3-submission-queries-review.md", "reason": "Approved A3a: fixed AC SQL literal preserves native bind count; empty aggregate short circuit, raw MIN, internal nullable map only"}
 {"file": ".trellis/spec/project/drizzle-submission-reads.md", "reason": "A3a executable full-row/raw-time/native-limit/caller contracts, split to avoid context truncation"}
+{"file": ".trellis/tasks/09-17-phase-3-main-process/research/a3b-submission-writes.md", "reason": "A3b1 supported030 INSERT16vs14 limits, original prepare/getter/UUID order, raw placeholders, IGNORE and transaction events"}
+{"file": ".trellis/tasks/09-17-phase-3-main-process/research/a3b-submission-writes-review.md", "reason": "Approved A3b1 bounded schema scope; prepared duplicate lookup before getters and qualified damaged-schema diagnostic limitation"}
+{"file": ".trellis/spec/project/drizzle-submission-writes.md", "reason": "A3b1 accepted030 scope, prepared lookup/INSERT ordering, raw parameters and native/event/transaction matrix"}

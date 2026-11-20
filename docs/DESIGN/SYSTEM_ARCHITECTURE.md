@@ -368,6 +368,9 @@ A3a提交读取保留全部16个字段与raw数值时间，SubmissionRow由schem
 只读时间轴submission_id允许null；公开指标仍由string题目ID构造，LLM上下文的字段白名单与最后10条顺序不变。
 首次AC空数组不获取数据库；非空IN保留重复绑定和原生变量上限，固定AC字面量不增加参数，MIN不经Date/String解码。
 
+A3b1提交去重插入按冻结030物理表/default0与NULL定义兼容范围；ORM列举16列与旧14列的差异不隐瞒为任意改表等价。
+lookup/INSERT先prepare后读参数，UUID只在miss且INSERT准备成功后生成；成功IGNORE的旧true/通知行为保留，事务仍由调用者拥有。
+
 ### 6.4 提交后的数据刷新
 
 `data:changed` 仅广播 `{ tables }`，八个逻辑域为 `problems/submissions/notes/stats/sites/scripts/credentials/coach`，不携带记录、凭据、Cookie 或本地路径。account/rating 写入映射到 `stats`，访问记录映射到 `problems` 和 `stats`。

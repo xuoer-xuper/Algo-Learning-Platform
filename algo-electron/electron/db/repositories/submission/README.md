@@ -35,7 +35,10 @@
 - 读取保留墓碑、NULL提交ID、完整字段和raw数值时间，不新增过滤/事务/通知；ProblemSubmissionRow仅为本域SubmissionRow的类型别名。
 - 平台LIMIT用typed placeholder保持原生错误；首次AC空数组在getDb前返回，非空数组每项绑定一次（包括重复值），固定AC字面量不占绑定参数，保留原生最大变量边界。
 - 首次AC用raw MIN，避免Date截断/String解码；Coach内部Map允许nullable键但公开指标仍以输入string题目ID构造。只读时间轴submission_id允许null，不改请求/路由或LLM最后10条的字段白名单。
-- A3a只转换四个读取；去重插入与首次AC更新/导入重算留待独立写入切片。
+- A3a转换四个读取；A3b1仅转换去重插入，首次AC更新/导入重算仍保留原实现。
+- 插入兼容范围是冻结030表结构/default0与NULL；Drizzle列举16列而旧SQL仅14列，不承诺改省略列/default或替换view后仍等价。启动校验只在已完成legacy且Drizzle账本<=1时精确比对，不是每次写入重验；校验器不放宽。
+- lookup和INSERT均先prepare，再按原顺序读取参数/生成UUID。存在行即false（包括NULL/空ID/墓碑），不准备INSERT或通知；miss后平台/题号按原逻辑再次读取，raw时间不经Date转换。
+- INSERT成功即true并通知，即使诊断IGNORE触发器导致changes0；失败保留原生异常/语句副作用，不新增事务或重试。任意受损结构的限定列错误措辞可能不同，不改写错误制造等价。
 
 ## 5. 验证入口
 

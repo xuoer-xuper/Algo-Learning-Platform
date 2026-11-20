@@ -1,4 +1,5 @@
 import assert from 'node:assert'
+import crypto from 'node:crypto'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -6,6 +7,8 @@ import type Database from 'better-sqlite3'
 import { getOriginalOmniboxSuggestions } from './omnibox-suggestions-oracle'
 import { getOriginalProblemDetail, getOriginalProblemVisits } from './problem-reads-oracle'
 import { getOriginalRecentProblems } from './problem-recent-oracle'
+import { runOriginalSubmissionUpsert } from './submission-upsert-oracle'
+import type { SubmissionData } from '../../electron/shared/types'
 import {
   getOriginalFirstAcByProblemIds,
   getOriginalSubmissionsByPlatform,
@@ -15,7 +18,10 @@ import {
 import { eq } from 'drizzle-orm'
 import { createDrizzleClient } from '../../src/main/db/client'
 import { notes as ormNotes, userScriptResources as ormResources } from '../../src/main/db/schema'
-import { subscribeDataChanges } from '../../electron/shared/dataEvents.ts'
+import {
+  subscribeDataChanges,
+  withDataChangeTransaction,
+} from '../../electron/shared/dataEvents.ts'
 import { runUserScriptTransaction } from '../../electron/db/repositories/userScript/mutations.ts'
 import {
   getUserScriptValue,
@@ -1790,6 +1796,250 @@ test('Submission reads retain native read-only, transaction, empty batch and con
     const expected = submissionReadOutcome(original)
     assert.ok('error' in expected)
     assert.deepStrictEqual(submissionReadOutcome(current), expected)
+  }
+})
+
+function compareNativeSubmissionUpsert(
+  run: (
+    db: Database.Database,
+    upsert: (data: SubmissionData) => boolean,
+    events: DataChangedPayload[],
+    trace: string[],
+  ) => unknown,
+): void {
+  const results = []
+  const originalUuid = crypto.randomUUID
+  const originalNow = Date.now
+  try {
+    for (const original of [true, false]) {
+      closeDb()
+      const db = initDbAtPath(':memory:')
+      const trace: string[] = []
+      let sequence = 0
+      crypto.randomUUID = () => {
+        trace.push('uuid')
+        return `00000000-0000-4000-8000-${String(++sequence).padStart(12, '0')}`
+      }
+      Date.now = () => 1.75
+      const events: DataChangedPayload[] = []
+      const transactionStates: boolean[] = []
+      const unsubscribe = subscribeDataChanges((event) => {
+        events.push(event)
+        transactionStates.push(db.inTransaction)
+      })
+      try {
+        const value = run(
+          db,
+          original ? (data) => runOriginalSubmissionUpsert(db, data) : upsertSubmission,
+          events,
+          trace,
+        )
+        results.push({
+          value,
+          rows: db.prepare('SELECT * FROM submissions ORDER BY rowid').all(),
+          events,
+          transactionStates,
+          trace,
+          sequence,
+        })
+      } finally {
+        unsubscribe()
+        closeDb()
+      }
+    }
+  } finally {
+    crypto.randomUUID = originalUuid
+    Date.now = originalNow
+  }
+  assert.deepStrictEqual(results[1], results[0])
+}
+
+function nativeSubmissionInput(overrides: Partial<SubmissionData> = {}): SubmissionData {
+  return {
+    platform: 'codeforces',
+    platformSubmissionId: 'native-upsert',
+    verdict: 'AC',
+    submittedAt: 1.75,
+    ...overrides,
+  }
+}
+
+test('Submission upsert preserves native raw defaults, literal bindings and null-ID duplicate short circuit', () => {
+  compareNativeSubmissionUpsert((db, upsert, events, trace) => {
+    for (const [index, value] of [
+      '',
+      "quoted'%_\\",
+      '\u4e2d\u6587',
+      '\0tail',
+      '\ud800',
+    ].entries()) {
+      assert.strictEqual(
+        upsert(
+          nativeSubmissionInput({
+            platform: value,
+            platformSubmissionId: String(index),
+            rawVerdict: '',
+            language: '',
+            runtimeMs: 0,
+            memoryKb: 0,
+            sourceUrl: '',
+            rawJson: '',
+          }),
+        ),
+        true,
+      )
+    }
+    const stored = db.prepare('SELECT * FROM submissions ORDER BY rowid').all()
+    assert.strictEqual(stored.length, 5)
+    const raw = db
+      .prepare<
+        [],
+        {
+          submitted_at: number
+          created_at: number
+          updated_at: number
+          is_first_ac: number
+          deleted_at: number | null
+        }
+      >('SELECT submitted_at,created_at,updated_at,is_first_ac,deleted_at FROM submissions LIMIT 1')
+      .get()
+    assert.deepStrictEqual(raw, {
+      submitted_at: 1.75,
+      created_at: 1.75,
+      updated_at: 1.75,
+      is_first_ac: 0,
+      deleted_at: null,
+    })
+    db.exec(`INSERT INTO submissions (id,platform,platform_submission_id,verdict,submitted_at,created_at,updated_at,deleted_at)
+      VALUES (NULL,'codeforces','native-upsert','WA',0,0,0,0);
+      ALTER TABLE submissions RENAME COLUMN source_url TO unused_source_url`)
+    events.length = 0
+    trace.length = 0
+    db.pragma('query_only = ON')
+    assert.strictEqual(upsert(nativeSubmissionInput()), false)
+    assert.deepStrictEqual(trace, [])
+    assert.deepStrictEqual(events, [])
+    return stored
+  })
+})
+
+test('Submission upsert prepares natively before getters and UUID, preserving failure stage', () => {
+  compareNativeSubmissionUpsert((db, upsert, events, trace) => {
+    db.exec('ALTER TABLE submissions RENAME COLUMN source_url TO absent_source_url')
+    const data: SubmissionData = {
+      get platform() {
+        trace.push('platform')
+        return 'codeforces'
+      },
+      get platformSubmissionId() {
+        trace.push('key')
+        return 'native-upsert'
+      },
+      get verdict() {
+        trace.push('verdict')
+        return 'AC' as const
+      },
+      get submittedAt() {
+        trace.push('time')
+        return 0
+      },
+    }
+    const result = submissionReadOutcome(() => upsert(data))
+    assert.deepStrictEqual(result, {
+      error: {
+        name: 'SqliteError',
+        message: 'table submissions has no column named source_url',
+        code: 'SQLITE_ERROR',
+      },
+    })
+    assert.deepStrictEqual(trace, ['platform', 'key'])
+    assert.deepStrictEqual(events, [])
+    return result
+  })
+})
+
+test('Submission upsert retains native IGNORE, FAIL and ABORT side effects and exact notification outcomes', () => {
+  for (const mode of ['IGNORE', 'FAIL', 'ABORT', 'audit']) {
+    compareNativeSubmissionUpsert((db, upsert, events) => {
+      db.exec(`CREATE TABLE insert_audit (first_ac INTEGER, deleted_at INTEGER, instant INTEGER);
+        CREATE TRIGGER observe_insert BEFORE INSERT ON submissions BEGIN
+        INSERT INTO insert_audit VALUES (NEW.is_first_ac, NEW.deleted_at, NEW.submitted_at);
+        ${mode === 'audit' ? '' : mode === 'IGNORE' ? 'SELECT RAISE(IGNORE);' : `SELECT RAISE(${mode}, 'native rejected');`} END`)
+      const result = submissionReadOutcome(() => upsert(nativeSubmissionInput()))
+      const audit = db.prepare('SELECT * FROM insert_audit').all()
+      assert.deepStrictEqual(
+        audit,
+        mode === 'ABORT' ? [] : [{ first_ac: 0, deleted_at: null, instant: 1.75 }],
+      )
+      assert.deepStrictEqual(
+        events,
+        mode === 'audit' || mode === 'IGNORE'
+          ? [{ tables: ['submissions', 'problems', 'stats'] }]
+          : [],
+      )
+      if (mode === 'audit' || mode === 'IGNORE') assert.deepStrictEqual(result, { rows: true })
+      else
+        assert.deepStrictEqual(result, {
+          error: {
+            name: 'SqliteError',
+            message: 'native rejected',
+            code: `SQLITE_CONSTRAINT_TRIGGER`,
+          },
+        })
+      return { result, audit }
+    })
+  }
+})
+
+test('Submission upsert native constraints/read-only and caller COMMIT failures preserve data/events', () => {
+  for (const mode of [
+    'readonly',
+    'foreign-key',
+    'unique',
+    'commit',
+    'rollback',
+    'commit-failure',
+  ]) {
+    compareNativeSubmissionUpsert((db, upsert, events) => {
+      if (mode === 'readonly') db.pragma('query_only = ON')
+      if (mode === 'unique')
+        db.exec(`INSERT INTO submissions (id,platform,platform_submission_id,verdict,submitted_at,created_at,updated_at)
+        VALUES ('00000000-0000-4000-8000-000000000001','other','other','WA',0,0,0)`)
+      let result
+      if (['commit', 'rollback', 'commit-failure'].includes(mode)) {
+        result = submissionReadOutcome(() =>
+          withDataChangeTransaction(() =>
+            db.transaction(() => {
+              assert.strictEqual(upsert(nativeSubmissionInput()), true)
+              assert.deepStrictEqual(events, [])
+              withDataChangeTransaction(() =>
+                db.transaction(() => {
+                  upsert(nativeSubmissionInput({ platformSubmissionId: 'nested' }))
+                })(),
+              )
+              assert.deepStrictEqual(events, [])
+              if (mode === 'rollback') throw new Error('callback rollback')
+              if (mode === 'commit-failure') {
+                db.pragma('defer_foreign_keys = ON')
+                upsert(
+                  nativeSubmissionInput({ platformSubmissionId: 'deferred', problemId: 'missing' }),
+                )
+              }
+            })(),
+          ),
+        )
+      } else
+        result = submissionReadOutcome(() =>
+          upsert(nativeSubmissionInput(mode === 'foreign-key' ? { problemId: 'missing' } : {})),
+        )
+      if (mode !== 'commit') assert.ok('error' in result)
+      assert.deepStrictEqual(
+        events,
+        mode === 'commit' ? [{ tables: ['submissions', 'problems', 'stats'] }] : [],
+      )
+      assert.strictEqual(db.inTransaction, false)
+      return result
+    })
   }
 })
 

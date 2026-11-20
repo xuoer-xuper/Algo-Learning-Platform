@@ -47,7 +47,15 @@ All4 frozen SQL templates match base6c42a38; both typechecks/scoped lint and
 independent5 files192 tests passed. Review evidence:
 `research/a3-submission-queries-review.md`.
 
-## Pending Remote Gates
+## Remote Acceptance
 
-Normal hooks/push/feature+PR8 integration CI are recorded when complete. A3b write research is separate and not implementation.
-Phase3 remains in_progress; PR8 remains draft/base dev; no incomplete task archive.
+- Work1e4673253c1e4155ed9e2a1d2a061f5be4f0bba4 passed normal commit hooks and
+  immediate push's test:ci2204/UI14. No bypass. Hook README line-ending/stat
+  normalization had identical Git blobs; no product/test changes occurred.
+- PR22CI44680385928 passed both required jobs. Squash001e23a8b77d2f937322f5b8ea3cc34d8efa9715
+  merged only into refactor/drizzle; its tree equals tested work. PR8 integration
+  CI44681049295 then passed. Manual installer/full CI jobs skipped as intended.
+- PR8 remains draft/base dev; master/dev/public2.0.1 unchanged. A3b1 insertion
+  continues separately with independently approved frozen030 scope and explicit
+ 16-vs14-column/prepare-order limits. A3b2 and later domains/layout remain undone.
+  Phase3 remains in_progress; no incomplete task archive or release declaration.

@@ -44,6 +44,44 @@ drizzle-kit0.31.11，安装后按实际API和Electron ABI验证，不采用beta�
 - 当前规模：25表、electron321个TS文件、250处prepare；排除迁移222处，repository162处。
   main1164/TabManager2494/CoachOrchestrator1474行，仅作分批规划，不硬套旧计数。
 
+## A3b1 Submission Insert Contract (2026-11-20)
+
+Parent explicitly accepts the independently reviewed frozen030 table scope in
+`research/a3b-submission-writes{,-review}.md`. Convert only upsertSubmission,
+not first-AC updates/recompute. Supported compatibility is complete rows/events,
+argument/prepare order and native errors on the exact030 table/default0/NULL,
+plus ordinary audit/IGNORE/FAIL/ABORT diagnostic triggers. This is not universal
+parity after arbitrary DDL: generated INSERT names16 columns versus legacy14;
+altered omitted defaults/renamed columns/view replacements provably differ.
+
+- Do not weaken the validator or add per-write checks. Physical validation runs
+  at startup/adoption with complete legacy and Drizzle count<=1; later histories
+  use integrity checks. Open handles/test overrides are not per-write validation.
+  Reassess later schema migrations, not silently rely on this scope forever.
+- getDb/now ordering remains; prepared named-placeholder lookup selects only ID.
+  Prepare BEFORE reading platform/key getters, then get with values in original
+  order. Any existing row, including null/empty ID/tombstone, returnsfalse without
+  UUID, INSERT preparation or notification. Do not cache insertion's second reads.
+- On miss prepare typed INSERT BEFORE UUID/other input getters. Named placeholders
+  cover original14 supplied values; raw SQL wraps timestamps to bypass Date
+  encoding. Preserve property order, ??null, one captured now and delayed UUID.
+  No conflict-upsert/RETURNING, new validation, decoder, transaction or cache.
+- Successful native run always emit submissions/problems/stats and returntrue,
+  including RAISE(IGNORE) changes0; errors propagate without events. Preserve
+  partial trigger FAIL effects and caller-owned transaction/savepoint/COMMIT
+  notification semantics; no rollback/retry/aftercommit scheduling is introduced.
+- Damaged-schema failures still propagate natively in original stage/order, but
+  qualified builder identifiers may change error message spelling (for example
+  submissions.platform). No blanket exact-message claim outside supported schema
+  and no error rewriting to manufacture parity.
+
+Freeze original function independently, inject deterministic UUID/clock only via
+test seams, compare whole DB/events/outcomes and getter/prepare traces. Native
+coverage includes duplicates/query_only, defaults/raw instants/nulls, INSERT
+IGNORE/FAIL/ABORT and FK/unique/readonly errors, transaction/COMMIT failure. Pin
+validator rejection for excluded default/column/view drift as boundary evidence,
+not claim arbitrary schema equivalence. A3b2 remains separately reviewed later.
+
 ## A3a Submission Read Contract (2026-11-20)
 
 After A2g, convert all four `submission/queries.ts` reads as one bounded slice.

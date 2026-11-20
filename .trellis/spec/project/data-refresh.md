@@ -45,6 +45,10 @@ window.api.data.onChanged(handler: (payload: DataChangedPayload) => void): () =>
   a nullable stored ID makes `WHERE id = ?` with bound null match nothing. Preserve
   that notification and real statement/error execution; do not generalize it to
   new no-op mutations. Outer rollback/COMMIT failure still discards those topics.
+- Submission insertion has another narrow legacy exception: successful INSERT
+  run emits `submissions`/`problems`/`stats` and returns true even if an ordinary
+  diagnostic BEFORE INSERT RAISE(IGNORE) produces changes0. Preserve native
+  success/error and caller transaction behavior; do not generalize to new code.
 - Wrap the synchronous **transaction invocation**, including commit, in
   `withDataChangeTransaction`. Successful nested scopes merge into the parent;
   failed scopes discard their own changes and rethrow. The outermost successful
