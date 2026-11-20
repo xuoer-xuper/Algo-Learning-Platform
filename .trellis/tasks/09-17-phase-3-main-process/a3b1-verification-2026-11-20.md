@@ -42,8 +42,12 @@ Full-diff reviewer found no actionable issues and made no product/test fixes.
 Oracle AST/INSERT SQL matches original; both typechecks, scoped lint and focused
 regressions passed. See research/a3b-submission-writes-review.md for exact counts.
 
-## Pending Remote Gates
+## Remote Acceptance
 
-Normal hooks/immediate push, feature CI/squash and PR8 integration CI are recorded
-when complete. A3b2 has a separately approved design but no implementation in this
-slice. Phase3 stays in_progress and PR8 draft/base dev; no release/archive.
+Work66749201dd06f7ad1dd23fd30856fcaed83a0f94 passed normal commit hooks and the
+full pre-push test:ci. PR23CI44684516349 passed; PR23 squash merged as
+1a39af0e362cd7fef7a2770f7d65e1103eb84942 on refactor/drizzle. Fetched merge tree
+is identical to the tested feature tree. PR8 integration CI44685222637 passed.
+Original D62dirty remains unchanged; stable dev/master/release refs untouched.
+A3b2 follows as a separately approved first-AC slice. Phase3 remains in_progress
+and PR8 draft/base dev; no release/archive or installer acceptance is claimed.

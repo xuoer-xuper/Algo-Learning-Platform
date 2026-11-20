@@ -3,8 +3,9 @@
 ## 1. Scope / Trigger
 
 A3b1 converts only upsertSubmission after independently reviewed acceptance of
-exact frozen030 physical table/default semantics. A3b2 first-AC writes are not
-covered as implemented. General ownership remains in Drizzle Adoption and data
+exact frozen030 physical table/default semantics. Section8 records the separately
+approved A3b2 first-AC boundary; implementation evidence lives in the task.
+General ownership remains in Drizzle Adoption and data
 refresh specs. No schema/migrations, recovery, new transaction, directory or
 release change. Native diagnostic tests may add ordinary table triggers.
 
@@ -20,6 +21,8 @@ qualified column names may differ. Reassess compatibility on future migrations.
 
 ```ts
 upsertSubmission(data: SubmissionData): boolean
+updateFirstAc(problemId: string): string[]
+recomputeProblemSubmissionState(problemIds: Iterable<string>): string[]
 // Existing bus payload contains topics only.
 emitDataChanged(['submissions', 'problems', 'stats'])
 ```
@@ -91,4 +94,66 @@ hide excluded differences. Full typechecks/lint/test:db/test:all/build and CI ap
 // Correct: submitted_at: sql`${sql.placeholder('submittedAt')}` preserves raw values.
 // Wrong: if (result.changes === 0) return false.
 // Correct: preserve successful INSERT run -> emit -> true, even diagnostic IGNORE.
+```
+
+## 8. First-AC State Mutations (A3b2)
+
+`updateFirstAc` and `recomputeProblemSubmissionState` keep their string[] API,
+raw values, original first-solve/status transitions and caller-owned transactions.
+Both acquire the current native handle and capture one now before querying.
+
+- Append-only update reads previous first solve, then exact AC ordered by raw
+  submitted_at ASC LIMIT1 even if the parent is missing. Without AC it never
+  prepares an UPDATE. With AC it always executes the three-target UPDATE with
+  original null-or-greater predicate, four bindings and raw time placeholders.
+- Recompute eagerly prepares parent, COUNT(*)/raw MIN(CASE exact AC), then UPDATE
+  before even reading Symbol.iterator. Only then consume new Set(problemIds)
+  fully. Never stream the input or skip preparation on an empty iterable.
+- Missing parent skips aggregate/update. A real aggregate without GROUP BY always
+  yields a row; narrow its optional type with explicit invariant throw, not an
+  assertion, fallback or cast. COUNT(*) retains NULL-ID submissions/tombstones.
+- Recompute retains solved if first_ac !== null, attempted if total>0, otherwise
+  preserves unknown or chooses visited. Real UPDATE uses original null-safe
+  status IS NOT / first_solved_at IS NOT predicates and six binding order. All
+  dynamic SET values are SQL-wrapped public placeholders, no Date conversion.
+- Both emit problems/stats only for changes>0, unlike upsertSubmission's legacy
+  successful-IGNORE exception. Events precede old/new day conversion; preserve
+  ordered dedup/no-op dates, invalid-day omission and synchronous reentrant reads.
+- No added transaction/buffer: earlier autocommit writes/events survive later
+  failures. FAIL effects differ from ABORT; IGNORE0 emits nothing. Caller-owned
+  savepoint/withDataChangeTransaction covers actual COMMIT and rollback correctly.
+- Preserve existing FirstAcRow export/facade, validators, immutable migrations,
+  raw-time helpers and batch/import orchestration. Qualified damaged-DDL error
+  wording is outside exact parity; native synchronous stage/passthrough remains.
+
+Required evidence: separately frozen original bodies; full raw state/events/dates
+and prepare/iterator traces; noAC/missing/orphan parent, zero/no-op/earlier/later/
+cleared first solve, nullable child IDs, case-sensitive AC, invalid raw instants,
+throwing iterable, eager empty preparation failures; native UPDATE OF triggers,
+IGNORE/FAIL/ABORT/read-only, savepoints and real deferred-FK COMMIT failure. Keep
+existing batch/import and validator regressions. Native/full/build/CI required.
+
+### First-AC Failure Matrix
+
+| Case | Required behavior |
+| --- | --- |
+| No AC, broken unused UPDATE target | No UPDATE preparation; return valid prior day |
+| AC exists, missing parent or apparent no-op | Real UPDATE still attempted; readonly error stays observable |
+| Empty/throwing recompute iterable | Three prepares first; consume all input before processing any ID |
+| NULL child ID, tombstone or raw epoch0 | COUNT(*)/exact AC/raw times preserved; no truthiness shortcut |
+| UPDATE IGNORE changes0 | No event; old/new valid dates still returned |
+| Later ID fails after earlier autocommit | Earlier state/events remain; no partial date result |
+| Deferred-FK actual COMMIT failure | Caller rollback; buffered topics discarded |
+
+Good: prepared typed UPDATE preserves native predicates. Base: unchanged caller
+transaction owns atomicity. Bad: JS no-op shortcut hides readonly errors, or lazy
+iteration processes a prefix before a later iterator failure.
+
+```ts
+// Wrong: for (const id of problemIds) { /* stream writes before iteration ends */ }
+// Correct: prepare all three statements, then iterate new Set(problemIds).
+// Wrong: min(submissions.submitted_at) uses the timestamp column decoder.
+// Correct: raw sql<number | null> MIN(CASE WHEN exact AC THEN submitted_at END).
+// Wrong: return aggregate.get(params) ?? { total: 0, first_ac: null }.
+// Correct: explicitly reject the impossible undefined aggregate result.
 ```

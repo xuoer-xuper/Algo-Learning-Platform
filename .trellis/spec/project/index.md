@@ -26,7 +26,8 @@ which today.
 | [unix-millisecond-time.md](./unix-millisecond-time.md) | Migration 030, strict legacy time compatibility, numeric IPC and safe import/statistics contracts | When changing any stored or cross-process instant |
 | [drizzle-adoption.md](./drizzle-adoption.md) | Incremental ORM adoption, physical schema parity and existing connection ownership | Before phase 3 schema, client or migration changes |
 | [drizzle-submission-reads.md](./drizzle-submission-reads.md) | A3a full-row/raw-time/nullability, native LIMIT and exact aggregate bind-count contracts | Before submission read or caller-contract changes |
-| [drizzle-submission-writes.md](./drizzle-submission-writes.md) | A3b1 bounded INSERT parity, prepare/getter/UUID order and transaction notifications | Before submission insertion changes |
+| [drizzle-submission-writes.md](./drizzle-submission-writes.md) | A3b bounded INSERT/first-AC parity, prepare/iterator order and transaction notifications | Before submission write changes |
+| [drizzle-stats-reads.md](./drizzle-stats-reads.md) | A4a native scalar/NULL aggregate/overflow and raw latest-time contracts | Before basic statistics read changes |
 | [config-normalization-protection.md](./config-normalization-protection.md) | Verified raw config backup, staged automatic normalization and safe failure diagnostics | When changing config load/writeback or its backup helper |
 | [release-evidence.md](./release-evidence.md) | Release identity, artifact evidence and guarded publication lifecycle | When changing release scripts, packaging or publication gates |
 | [upgrade-recovery.md](./upgrade-recovery.md) | Verified migration checkpoints, interruption and explicit resolution | When changing database initialization, backup, restore or maintenance startup |
