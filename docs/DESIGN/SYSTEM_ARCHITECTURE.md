@@ -364,6 +364,10 @@ A2g最近题目列表保留nullable ID与原始时间，详情父ID仍明确为s
 可访问名称包含相同说明；不修复ID或放宽内部路由。侧栏及首页使用平台/题号元组作为React key。
 查询通过Drizzle命名placeholder保留原生LIMIT绑定与错误，仍先LIMIT再执行既有status过滤。
 
+A3a提交读取保留全部16个字段与raw数值时间，SubmissionRow由schema推导，详情提交类型复用它。
+只读时间轴submission_id允许null；公开指标仍由string题目ID构造，LLM上下文的字段白名单与最后10条顺序不变。
+首次AC空数组不获取数据库；非空IN保留重复绑定和原生变量上限，固定AC字面量不增加参数，MIN不经Date/String解码。
+
 ### 6.4 提交后的数据刷新
 
 `data:changed` 仅广播 `{ tables }`，八个逻辑域为 `problems/submissions/notes/stats/sites/scripts/credentials/coach`，不携带记录、凭据、Cookie 或本地路径。account/rating 写入映射到 `stats`，访问记录映射到 `problems` 和 `stats`。

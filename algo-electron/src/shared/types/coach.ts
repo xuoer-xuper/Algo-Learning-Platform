@@ -231,7 +231,7 @@ export const problemVisitPointSchema = z.object({
 export type ProblemVisitPoint = z.infer<typeof problemVisitPointSchema>
 
 export const timelineSubmissionPointSchema = z.object({
-  submission_id: z.string(),
+  submission_id: z.string().nullable(),
   submitted_at: z.number().int(),
   verdict: z.string(),
   language: z.string().nullable(),

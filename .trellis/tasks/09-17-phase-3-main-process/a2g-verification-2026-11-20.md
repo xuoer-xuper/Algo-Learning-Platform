@@ -51,9 +51,15 @@ or release acceptance. Original D worktree and published2.0.1 remain unchanged.
   HEAD20ee62c and all62 dirty file hashes match the preserved baseline; frozen
   schema/migrations/baseline, dependency/version and dev/master/tag are unchanged.
 
-## Pending Before Integration
+## Remote Acceptance
 
-Normal commit/push hooks and feature/integration CI are recorded after they
-actually complete. PR8 remains
-draft against dev. A3a research/precheck is ready, but no submission implementation
-is part of this slice. Main layout/splits and later phases still remain.
+- Work commit377cf4f23aa67ceaad79d9fcb74654f730dc66a3 passed normal hooks and
+  immediate push's full test:ci2157/UI14; no bypass. Hook normalization changed
+  only line endings in the screenshot harness; its Git blob remained identical.
+- PR21 CI44675893865 passed both required jobs; manual jobs skipped by design.
+  Squash6c42a381e5256ba1ccfc69414bc6dbd57a8f6306 merged into refactor/drizzle;
+  its tree equals the tested feature commit. PR8 CI44676609924 then passed.
+- PR8 remains draft/base dev; dev/master/public2.0.1 untouched. No installer or
+  release is claimed. A3a research/precheck is ready and implementation continues
+  separately on codex/drizzle-submission-reads. Remaining main-layout/splits and
+  later phases are still incomplete, so the phase3 task is not archived.

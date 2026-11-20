@@ -6,6 +6,12 @@ import type Database from 'better-sqlite3'
 import { getOriginalOmniboxSuggestions } from './omnibox-suggestions-oracle'
 import { getOriginalProblemDetail, getOriginalProblemVisits } from './problem-reads-oracle'
 import { getOriginalRecentProblems } from './problem-recent-oracle'
+import {
+  getOriginalFirstAcByProblemIds,
+  getOriginalSubmissionsByPlatform,
+  getOriginalSubmissionsByProblem,
+  getOriginalSubmissionsByProblemAsc,
+} from './submission-reads-oracle'
 import { eq } from 'drizzle-orm'
 import { createDrizzleClient } from '../../src/main/db/client'
 import { notes as ormNotes, userScriptResources as ormResources } from '../../src/main/db/schema'
@@ -29,8 +35,10 @@ import {
   upsertProblem,
 } from '../../electron/db/repositories/problemRepository.ts'
 import {
+  getFirstAcByProblemIds,
   getSubmissionsByPlatform,
   getSubmissionsByProblem,
+  getSubmissionsByProblemAsc,
   updateFirstAc,
   upsertSubmission,
 } from '../../electron/db/repositories/submissionRepository.ts'
@@ -1538,6 +1546,250 @@ test('Recent problems preserve native LIMIT bindings, nullable rows and status h
   } finally {
     sqlite.pragma('query_only = OFF')
     unsubscribe()
+  }
+})
+
+function submissionReadOutcome(run: () => unknown) {
+  try {
+    return { rows: run() }
+  } catch (error) {
+    assert.ok(error instanceof Error)
+    return {
+      error: {
+        name: error.name,
+        message: error.message,
+        ...('code' in error ? { code: error.code } : {}),
+      },
+    }
+  }
+}
+
+test('Submission reads preserve native full rows, text binding, raw minima and LIMIT values', () => {
+  const sqlite = getDbForTest()
+  const insertParent = sqlite.prepare(`INSERT INTO problems
+    (id, platform, platform_problem_id, canonical_url, first_seen_at, created_at, updated_at, deleted_at)
+    VALUES (?, 'codeforces', ?, 'https://example.test/submission', 0, 0, 0, 0)`)
+  const insertSubmission = sqlite.prepare(`INSERT INTO submissions
+    (id, problem_id, platform, platform_submission_id, verdict, raw_verdict, language,
+     submitted_at, is_first_ac, runtime_ms, memory_kb, source_url, raw_json, created_at, updated_at, deleted_at)
+    VALUES (?, ?, ?, ?, ?, 'Accepted', '', ?, 7, 0, 0, '', '{"fixture":true}', 0.25, 8640000000000001, 0)`)
+  const keys = [
+    '',
+    "O'Reilly",
+    "' OR 1=1 --",
+    '%_\\',
+    ' spaced ',
+    '中文',
+    'emoji-😀',
+    'with\0nul',
+    '\ud800',
+  ]
+  for (const [index, key] of keys.entries()) {
+    insertParent.run(key, `parent-${index}`)
+    insertSubmission.run(null, key, key, `remote-${index}`, 'AC', -0.5)
+    insertSubmission.run(`later-${index}`, key, key, `later-${index}`, 'AC', 0)
+    assert.deepStrictEqual(
+      getSubmissionsByProblem(key),
+      getOriginalSubmissionsByProblem(sqlite, key),
+    )
+    assert.deepStrictEqual(
+      getSubmissionsByProblemAsc(key),
+      getOriginalSubmissionsByProblemAsc(sqlite, key),
+    )
+    assert.deepStrictEqual(
+      getSubmissionsByPlatform(key),
+      getOriginalSubmissionsByPlatform(sqlite, key),
+    )
+    assert.deepStrictEqual(
+      getFirstAcByProblemIds([key, key]),
+      getOriginalFirstAcByProblemIds(sqlite, [key, key]),
+    )
+    const earliest = getSubmissionsByProblemAsc(key)[0]
+    assert.strictEqual(Object.keys(earliest).length, 16)
+    assert.strictEqual(earliest.id, null)
+    assert.strictEqual(earliest.submitted_at, -0.5)
+    assert.strictEqual(earliest.is_first_ac, 7)
+    assert.strictEqual(earliest.created_at, 0.25)
+    assert.strictEqual(earliest.updated_at, 8_640_000_000_000_001)
+    assert.strictEqual(earliest.deleted_at, 0)
+    assert.strictEqual(getFirstAcByProblemIds([key])[0]?.first_ac_at, -0.5)
+  }
+  insertSubmission.run('', null, 'limits', 'empty-id', 'AC', 0)
+  insertSubmission.run(null, null, 'limits', 'null-id', 'ac', 1)
+  for (const limit of [
+    -3,
+    -1,
+    -0,
+    0,
+    1,
+    2,
+    3,
+    50,
+    NaN,
+    Infinity,
+    -Infinity,
+    1.5,
+    -1.5,
+    Number.MAX_SAFE_INTEGER,
+    2 ** 63 - 1024,
+    2 ** 63,
+    Number.MAX_VALUE,
+  ]) {
+    assert.deepStrictEqual(
+      submissionReadOutcome(() => getSubmissionsByPlatform('limits', limit)),
+      submissionReadOutcome(() => getOriginalSubmissionsByPlatform(sqlite, 'limits', limit)),
+      `native submission LIMIT ${limit}`,
+    )
+  }
+  assert.deepStrictEqual(
+    getSubmissionsByPlatform('limits').map((row) => row.problem_id),
+    [null, null],
+  )
+  insertParent.run('zero', 'zero')
+  insertSubmission.run('zero', 'zero', 'limits', 'zero', 'AC', 0)
+  insertParent.run('wrong-case', 'wrong-case')
+  insertSubmission.run('wrong-case', 'wrong-case', 'limits', 'wrong-case', 'ac', -9)
+  assert.deepStrictEqual(getFirstAcByProblemIds(['zero', 'wrong-case', 'zero', 'missing']), [
+    { problem_id: 'zero', first_ac_at: 0 },
+  ])
+  sqlite.pragma('foreign_keys = OFF')
+  insertSubmission.run('orphan', 'orphan', 'limits', 'orphan', 'AC', -1)
+  sqlite.pragma('foreign_keys = ON')
+  assert.deepStrictEqual(
+    getSubmissionsByProblem('orphan'),
+    getOriginalSubmissionsByProblem(sqlite, 'orphan'),
+  )
+  assert.deepStrictEqual(getFirstAcByProblemIds(['orphan']), [
+    { problem_id: 'orphan', first_ac_at: -1 },
+  ])
+})
+
+test('First-AC aggregate preserves native maximum bind count and duplicate overflow', () => {
+  const sqlite = getDbForTest()
+  const option = sqlite
+    .prepare<[], { compile_options: string }>('PRAGMA compile_options')
+    .all()
+    .find((row) => row.compile_options.startsWith('MAX_VARIABLE_NUMBER='))
+  assert.ok(option, 'Native SQLite must report its compiled variable maximum')
+  const maximum = Number(option.compile_options.split('=')[1])
+  assert.ok(Number.isInteger(maximum) && maximum > 0)
+  sqlite.exec(`INSERT INTO problems
+    (id, platform, platform_problem_id, canonical_url, first_seen_at, created_at, updated_at)
+    VALUES ('boundary', 'codeforces', 'boundary', 'https://example.test/boundary', 0, 0, 0);
+    INSERT INTO submissions (id, problem_id, platform, platform_submission_id, verdict, submitted_at, created_at, updated_at)
+    VALUES (NULL, 'boundary', 'codeforces', 'boundary', 'AC', 0, 0, 0)`)
+  const ids = Array<string>(maximum).fill('boundary')
+  const expected = getOriginalFirstAcByProblemIds(sqlite, ids)
+  assert.deepStrictEqual(expected, [{ problem_id: 'boundary', first_ac_at: 0 }])
+  assert.deepStrictEqual(getFirstAcByProblemIds(ids), expected)
+  ids.push('boundary')
+  const error = submissionReadOutcome(() => getOriginalFirstAcByProblemIds(sqlite, ids))
+  assert.deepStrictEqual(error, {
+    error: { name: 'SqliteError', message: 'too many SQL variables', code: 'SQLITE_ERROR' },
+  })
+  assert.deepStrictEqual(
+    submissionReadOutcome(() => getFirstAcByProblemIds(ids)),
+    error,
+  )
+})
+
+test('Submission reads retain native read-only, transaction, empty batch and connection lifecycle', () => {
+  const sqlite = getDbForTest()
+  sqlite.exec(`INSERT INTO problems
+    (id, platform, platform_problem_id, canonical_url, first_seen_at, created_at, updated_at)
+    VALUES ('parent', 'codeforces', 'parent', 'https://example.test/parent', 0, 0, 0)`)
+  const insert = sqlite.prepare(`INSERT INTO submissions
+    (id, problem_id, platform, platform_submission_id, verdict, submitted_at, created_at, updated_at)
+    VALUES (?, 'parent', 'codeforces', ?, 'AC', ?, 0, 0)`)
+  insert.run(null, 'initial', 0)
+  const observed: DataChangedPayload[] = []
+  const unsubscribe = subscribeDataChanges((event) => observed.push(event))
+  const before = sqlite.prepare('SELECT total_changes() AS count').get()
+  try {
+    sqlite.pragma('query_only = ON')
+    assert.deepStrictEqual(
+      getSubmissionsByProblem('parent'),
+      getOriginalSubmissionsByProblem(sqlite, 'parent'),
+    )
+    assert.deepStrictEqual(
+      getSubmissionsByProblemAsc('parent'),
+      getOriginalSubmissionsByProblemAsc(sqlite, 'parent'),
+    )
+    assert.deepStrictEqual(
+      getSubmissionsByPlatform('codeforces'),
+      getOriginalSubmissionsByPlatform(sqlite, 'codeforces'),
+    )
+    assert.deepStrictEqual(
+      getFirstAcByProblemIds(['parent']),
+      getOriginalFirstAcByProblemIds(sqlite, ['parent']),
+    )
+    assert.strictEqual(sqlite.inTransaction, false)
+    assert.deepStrictEqual(sqlite.prepare('SELECT total_changes() AS count').get(), before)
+    sqlite.pragma('query_only = OFF')
+    assert.throws(
+      () =>
+        sqlite.transaction(() => {
+          insert.run('pending', 'pending', -1)
+          assert.deepStrictEqual(
+            getSubmissionsByProblem('parent'),
+            getOriginalSubmissionsByProblem(sqlite, 'parent'),
+          )
+          assert.deepStrictEqual(
+            getSubmissionsByProblemAsc('parent'),
+            getOriginalSubmissionsByProblemAsc(sqlite, 'parent'),
+          )
+          assert.deepStrictEqual(
+            getSubmissionsByPlatform('codeforces'),
+            getOriginalSubmissionsByPlatform(sqlite, 'codeforces'),
+          )
+          assert.deepStrictEqual(getFirstAcByProblemIds(['parent']), [
+            { problem_id: 'parent', first_ac_at: -1 },
+          ])
+          assert.strictEqual(sqlite.inTransaction, true)
+          throw new Error('rollback submission fixture')
+        })(),
+      /rollback submission fixture/,
+    )
+    assert.deepStrictEqual(getFirstAcByProblemIds(['parent']), [
+      { problem_id: 'parent', first_ac_at: 0 },
+    ])
+    assert.deepStrictEqual(observed, [])
+  } finally {
+    sqlite.pragma('query_only = OFF')
+    unsubscribe()
+  }
+  closeDb()
+  assert.deepStrictEqual(getFirstAcByProblemIds([]), [])
+  assert.deepStrictEqual(getOriginalFirstAcByProblemIds(sqlite, []), [])
+  assert.throws(() => getSubmissionsByProblem('parent'), /Database not initialized/)
+  const reopened = initDbAtPath(':memory:')
+  assert.deepStrictEqual(getSubmissionsByProblem('parent'), [])
+  assert.deepStrictEqual(getSubmissionsByProblemAsc('parent'), [])
+  assert.deepStrictEqual(getSubmissionsByPlatform('codeforces'), [])
+  assert.deepStrictEqual(getFirstAcByProblemIds(['parent']), [])
+  reopened.exec('DROP TABLE submissions')
+  assert.deepStrictEqual(getFirstAcByProblemIds([]), [])
+  for (const [original, current] of [
+    [
+      () => getOriginalSubmissionsByProblem(reopened, 'parent'),
+      () => getSubmissionsByProblem('parent'),
+    ],
+    [
+      () => getOriginalSubmissionsByProblemAsc(reopened, 'parent'),
+      () => getSubmissionsByProblemAsc('parent'),
+    ],
+    [
+      () => getOriginalSubmissionsByPlatform(reopened, 'codeforces'),
+      () => getSubmissionsByPlatform('codeforces'),
+    ],
+    [
+      () => getOriginalFirstAcByProblemIds(reopened, ['parent']),
+      () => getFirstAcByProblemIds(['parent']),
+    ],
+  ]) {
+    const expected = submissionReadOutcome(original)
+    assert.ok('error' in expected)
+    assert.deepStrictEqual(submissionReadOutcome(current), expected)
   }
 })
 

@@ -40,6 +40,7 @@ getOmniboxSuggestions(rawQuery: string): OmniboxSuggestion[]
 getRecentProblems(limit?: number, platform?: string, status?: string): RecentProblem[]
 // Pure route/action policy shared by main and renderer.
 isInternalPageId(value: unknown): value is string
+
 ```
 
 Pinned A0 versions: drizzle-orm 0.45.4 and drizzle-kit 0.31.11. `db:generate` reads
@@ -210,6 +211,9 @@ schema code and emits SQL/snapshots; `pull` is the introspection command.
   real Electron limits; exact old/shared predicate parity; nullable list versus
   string detail schema; visible accessible invalid rows, retained URL actions,
   suppressed invalid callbacks, valid callbacks, tuple-key reorder and layout.
+
+A3a submission read contracts and acceptance matrix are in
+[Drizzle Submission Reads](./drizzle-submission-reads.md).
 
 ## 4. Validation & Error Matrix
 

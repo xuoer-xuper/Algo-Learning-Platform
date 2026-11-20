@@ -1,4 +1,5 @@
-import type { problems, problemVisits, submissions } from '../../../../src/main/db/schema'
+import type { problems, problemVisits } from '../../../../src/main/db/schema'
+import type { SubmissionRow } from '../submission/types'
 
 export type ProblemRow = Omit<
   typeof problems.$inferSelect,
@@ -30,15 +31,7 @@ export type RecentProblem = Pick<
   submission_count: number
 }
 
-export type ProblemSubmissionRow = Omit<
-  typeof submissions.$inferSelect,
-  'submitted_at' | 'created_at' | 'updated_at' | 'deleted_at'
-> & {
-  submitted_at: number
-  created_at: number
-  updated_at: number
-  deleted_at: number | null
-}
+export type ProblemSubmissionRow = SubmissionRow
 
 export type ProblemDetail = Omit<ProblemRow, 'id'> & {
   id: string

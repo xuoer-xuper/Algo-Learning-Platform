@@ -872,7 +872,7 @@ export class CoachOrchestrator {
       new Set(interventions.map((i) => i.problem_id).filter((id): id is string => id !== null)),
     )
     const firstAcRows = getFirstAcByProblemIds(problemIds)
-    const firstAcMap = new Map<string, number>()
+    const firstAcMap = new Map<string | null, number>()
     for (const r of firstAcRows) firstAcMap.set(r.problem_id, r.first_ac_at)
     const problemAcStatus: ProblemAcStatus[] = problemIds.map((id) => ({
       problem_id: id,
