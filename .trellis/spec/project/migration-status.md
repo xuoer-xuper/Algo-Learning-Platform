@@ -22,7 +22,8 @@ passed; PR17 squash0927213, PR17 CI44521575932 and PR8 CI44522362714 passed. Oth
 main-process layout work remain separate later slices.
 A2f completes detail/visits and the first omnibox candidate pipeline, with explicit
 nullable output IDs rather than filtering/casts. Independent review, full2104/UI11/
-native22 and build check passed locally; remote acceptance is in phase3's
+native22 and build check passed; PR19CI44657463867 passed and squash2112734
+merged into Drizzle; PR8CI44658098990 passed. Integration evidence is in phase3's
 `a2f-verification-2026-11-20.md`. Recent-list nullable-ID UI actions remain a
 separate policy decision, and phase3/PR8 are not ready for whole-phase completion.
 

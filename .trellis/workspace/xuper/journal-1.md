@@ -621,3 +621,41 @@ Drizzle基础、安全基线/资源/备份接管和题目总览四条只读查�
 ### Next Steps
 
 - 先评审剩余problem/omnibox第一管线的nullable-ID输出政策；不得静默丢行、强转或收紧schema。后续其他域/目录工作继续独立切片，未来发版另行确认。
+
+
+## Session 19: Drizzle A2f查询迁移与nullable输出验收交接
+<!-- trellis-session: v=2 fp=1ea86173d685996e -->
+
+**Date**: 2026-11-20
+**Task**: Drizzle A2f查询迁移与nullable输出验收交接
+**Branch**: `refactor/drizzle`
+
+### Summary
+
+完成题目详情、访问记录及Omnibox第一候选管线Drizzle迁移；共享输出如实允许既有NULL ID，保持实际数据行为。独立复核、全量2104/UI11/native22/build及PR19/PR8 CI全绿。阶段3仍未完成，不归档、不发版。
+
+### Main Changes
+
+- 详情/访问/Omnibox完整查询边界迁移；保留全行、墓碑、计数/上限、raw时间、native绑定与错误，冻结旧SQL差分。
+- D盘交接审计：9份规划均已由远端保存或替代；62dirty文件保持。53份.zcode为Trellis平台配置，机器绝对路径需单独决定，不盲目提交。
+- 仅三个既有nullable输出契约变更；输入、路由、renderer行为、数据库schema、恢复协议及已发布2.0.1不改。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `4cef9ea` | refactor(db): 迁移详情访问和地址栏查询并如实声明空ID |
+| `2112734` | refactor(db): 迁移详情访问和地址栏查询并如实声明空ID |
+
+### Testing
+
+- [OK] 独立focused156、test:db31文件433/native22、test:all207文件2104/UI11、build:check、正常commit/pre-push hooks通过。
+- [OK] PR19CI44657463867通过，squash2112734合回Drizzle；PR8集成CI44658098990全绿。
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- 先评审recent-list不可寻址ID的侧栏操作政策与原生LIMIT行为，禁止静默丢行/伪造ID/强转；其后继续submission/stats等域、主进程布局/拆分和后续阶段。PR8仍draft/base dev。

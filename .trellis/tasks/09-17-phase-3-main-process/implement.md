@@ -59,14 +59,16 @@
 - [x] 正常hooks提交82a0163并立即推送，PR17 CI44521575932全绿后squash0927213合回Drizzle；
   PR8集成CI44522362714全绿。PR8保持draft/base dev，不发版、不归档阶段3。
 
-## 下一切片：Nullable-ID输出政策（实施前决策）
+## 剩余切片：最近题目列表的ID操作政策
 
-- 剩余problem列表/详情/访问DTO和Omnibox第一候选管线均可遇到legacy nullable TEXT主键，
-  与现有string-only DTO不一致。A2e只用既有INNER JOIN的非空FK安全投影，并未解决此问题。
-- 下一步先形成明确的兼容/修复设计及旧数据样本证明；不可用cast、sql<string>假标注、
-  schema NOT NULL、静默丢行或伪造ID继续推进。无损保留原库，错误/缺失展示政策需独立评审。
-- 若政策尚未确定，可按研究中的独立备选先做stats.getProblemVisitStats聚合；需明确调序，
-  不用它把problem域或PR8标成完成。目录迁移、其他域、后续阶段及最终版本号仍未完成。
+- A2f已明确并实现detail/visits/Omnibox的兼容输出政策；这三处不再是设计阻塞。
+- `getRecentProblems`仍可返回legacy NULL ID与null last_visited_at，而侧栏详情/笔记
+  操作进入仅接受有效字符串ID的内部路由。下一切片先评审如何展示不可寻址记录的操作，
+  不能静默丢行、生成ID、强转或修改数据库NOT NULL约束。
+- 未来查询转换保留LIMIT在JS status过滤之前、墓碑计数与原始时间；额外验证
+  caller-supplied负数/NaN/小数LIMIT的原生行为，不能直接信任Drizzle.limit(limit)。
+- 闭环这条查询后再按problem→submission→stats继续逐域转换；目录迁移、主进程拆分、
+  后续阶段及最终版本号仍未完成。不能把A2f或PR19当作整个problem域/PR8完成。
 
 ## A2f Execution Boundary (2026-11-20)
 
@@ -88,9 +90,10 @@
 - [x] Independent code check found no actionable issues; both typechecks/lint,
   independent focused156 and native22 passed. `test:db`31 files433 tests passed.
 - [x] Parent `test:db`433/native22, `test:all`2104/UI11, `build:check` passed.
-- [ ] Normal commit/push hooks and bounded PR CI.
-- [ ] Merge bounded PR into Drizzle; verify PR8 remains draft/base dev; record
-  honest handoff without archiving phase3 or changing public v2.0.1.
+- [x] Work4cef9ea正常hooks立即推送；PR19CI44657463867通过，squash2112734
+  合回Drizzle。PR8集成CI44658098990全绿。
+- [x] PR19 merged into Drizzle; PR8 remains draft/base dev. Session19 and this
+  handoff record bounded completion without archiving phase3 or changing v2.0.1.
 
 Recent-list nullable-ID UI actions remain a separate reviewed policy decision.
 No active phase is complete merely because this slice is accepted.

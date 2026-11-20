@@ -1,7 +1,8 @@
 # A2f Nullable Problem Read Verification
 
 Date: 2026-11-20. Status: implementation, independent review and all local gates passed.
-Remote acceptance is recorded separately; no whole-phase completion is implied.
+PR19 merged into Drizzle; integration CI is recorded below. No whole-phase
+completion or release is implied.
 
 ## Boundary
 
@@ -74,3 +75,16 @@ No new NSIS installer or installation/release acceptance is claimed by this slic
   remain unchanged. D planning handoffs contain no unpushed unique accepted work;
   machine-specific `.zcode` hook configuration was not blindly recommitted.
 - Logs: `algo-electron/tmp/drizzle-a2f-{db,all,build,docs}.log`.
+
+## Remote Work Acceptance
+
+- Work commit `4cef9ea7fe1ae6fc199fb32371c38335d559b56b` passed normal commit
+  hooks and immediate push with full pre-push `test:ci`2104/UI11. No bypasses.
+- PR19 CI `44657463867` passed both required jobs; manual jobs skipped by design.
+- PR19 squash `21127343e29de7726dcae096b9c5610763a22d2a` merged only into
+  `refactor/drizzle` on 2026-11-20. Its tree equals the tested work commit.
+- PR8 integration CI `44658098990` passed both required jobs; manual jobs skipped
+  as intended. PR8 remains draft/base dev at head2112734. master/dev/release stay
+  unchanged; the Drizzle integration is not a release.
+- A follow-up handoff records these remote facts and Session19; it contains no
+  product changes. No incomplete task is archived merely to run finish-work.

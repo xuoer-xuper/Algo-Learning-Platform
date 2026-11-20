@@ -210,7 +210,7 @@ schema code and emits SQL/snapshots; `pull` is the introspection command.
 | Upsert outer transaction/savepoint/COMMIT fails                 | Roll back its facts and discard its buffered topics                       |
 | Omnibox recent visit falls outside the first 64 active visits    | Remains absent even when it is the only URL match                         |
 | Recent visit has NULL visit PK and empty joined problem ID      | Keep the joined empty problem ID and raw millisecond value                |
-| First omnibox pipeline returns a NULL parent ID                 | Preserve existing behavior; do not silently decide the deferred DTO policy |
+| First omnibox pipeline returns a NULL parent ID                 | Preserve null result/dedup; A2f explicitly allows null in its output schema |
 | Read-only omnibox connection or database error                  | Reads succeed without writes/events; errors propagate synchronously       |
 | Detail NULL child ID / missing parent | Preserve child null / return null without child query |
 | Detail bound Unicode, NUL or empty ID | Match native binding/result representation; no JS ID replacement |
