@@ -59,6 +59,28 @@
 - [x] 正常hooks提交82a0163并立即推送，PR17 CI44521575932全绿后squash0927213合回Drizzle；
   PR8集成CI44522362714全绿。PR8保持draft/base dev，不发版、不归档阶段3。
 
+## A3b1 Execution Boundary (2026-11-20)
+
+- Branch: `codex/drizzle-submission-upsert`, based on A3a squash001e23a.
+- Gap: submission duplicate lookup/INSERT still native/manual assertion. Convert
+  this one mutation with explicit frozen030 compatibility scope; do not touch
+  firstAc.ts, read queries, orchestration, schema or runtime validation.
+- Implementer owns submission/mutations.ts, independent original function oracle,
+  submission-upsert differential tests, native repository cases and DB suite list.
+- Parent owns accepted boundary/task/spec/README, serial gates, Git/handoff.
+- [x] Research and independent precheck approved supported030 scope; parent
+  explicitly accepts it and records excluded DDL/view differences, startup/count
+  guard limits and damaged-column diagnostic spelling differences before coding.
+- [x] Prepared lookup/INSERT and original ordering/raw-time/duplicate/IGNORE
+  semantics implemented with independent40 differential and4 native cases.
+- [x] Independent full-diff check: no actionable issues or product fixes; both
+  typechecks/scoped lint and oracle/trace/caller-focused regressions pass.
+- [x] Parent test:db557/native30, test:all2244/UI14, build:check pass; all798
+  product/test hashes and original D62dirty preserved.
+- [ ] Normal hooks/immediate push, feature CI/squash and PR8 integration CI green.
+
+A3b2 updateFirstAc/recompute and later domains/layout remain unfinished.
+
 ## A3a Execution Boundary (2026-11-20)
 
 - Branch: `codex/drizzle-submission-reads`, based on A2g squash `6c42a38`.
@@ -79,7 +101,8 @@
   both typechecks/scoped lint pass. No product/test changes during final gates.
 - [x] Parent test:db517/native26, test:all2204/UI14, build:check serially pass;
   all796 product/test hashes and original D62dirty baseline unchanged.
-- [ ] Normal hooks/immediate push, feature CI/squash into Drizzle and PR8 CI pass.
+- [x] Work1e46732 normal hooks/immediate push; PR22CI44680385928 green and
+  squash001e23a into Drizzle. PR8CI44681049295 green, draft/base dev unchanged.
 
 No A3b writes, later domain queries, main-layout/splits or release work in A3a.
 
