@@ -4,6 +4,7 @@ import os from 'node:os'
 import path from 'node:path'
 import type Database from 'better-sqlite3'
 import { getOriginalOmniboxSuggestions } from './omnibox-suggestions-oracle'
+import { getOriginalProblemDetail, getOriginalProblemVisits } from './problem-reads-oracle'
 import { eq } from 'drizzle-orm'
 import { createDrizzleClient } from '../../src/main/db/client'
 import { notes as ormNotes, userScriptResources as ormResources } from '../../src/main/db/schema'
@@ -23,6 +24,7 @@ import {
   getOverviewStats,
   getProblemDetail,
   getRecentProblems,
+  listProblemVisitsByProblem,
   upsertProblem,
 } from '../../electron/db/repositories/problemRepository.ts'
 import {
@@ -1285,6 +1287,145 @@ test('manages built-in and imported site configs without overwriting protected r
   assert.strictEqual(getSiteById('codeforces')?.name, builtinName, '内置站点名不应被改写')
   assert.strictEqual(getSiteById('codeforces')?.homeUrl, 'https://codeforces.com')
   assert.strictEqual(getSiteById('codeforces')?.isBuiltin, true)
+})
+
+test('Problem detail and visits preserve native binding, nullable IDs, raw times and full rows', () => {
+  const sqlite = getDbForTest()
+  const insertParent = sqlite.prepare(`INSERT INTO problems
+    (id, platform, platform_problem_id, canonical_url, title, difficulty, tags_json, extra_json,
+     first_seen_at, last_visited_at, created_at, updated_at)
+    VALUES (?, 'codeforces', ?, 'https://example.test/detail', NULL, 'hard', '["dp"]', '{}', -0.5, 0, 0, 0)`)
+  const insertSubmission = sqlite.prepare(`INSERT INTO submissions
+    (id, problem_id, platform, platform_submission_id, verdict, submitted_at, is_first_ac,
+     created_at, updated_at, deleted_at)
+    VALUES (NULL, ?, 'codeforces', ?, 'AC', 8640000000000001, 1, 0, 0, 0)`)
+  const insertVisit = sqlite.prepare(`INSERT INTO problem_visits
+    (id, problem_id, platform, url, entered_at, left_at, created_at, updated_at, deleted_at)
+    VALUES (NULL, ?, 'codeforces', 'https://example.test/visit', -0.5, 0, 0, 0, 0)`)
+
+  for (const [index, id] of [
+    '',
+    "O'Reilly",
+    "' OR 1=1 --",
+    '中文',
+    'emoji-😀',
+    'with\0nul',
+    '\ud800',
+  ].entries()) {
+    insertParent.run(id, `native-key-${index}`)
+    insertSubmission.run(id, `native-submission-${index}`)
+    insertVisit.run(id)
+    const detail = getProblemDetail(id)
+    assert.deepStrictEqual(detail, getOriginalProblemDetail(sqlite, id))
+    assert.ok(detail)
+    assert.strictEqual(detail.first_seen_at, -0.5)
+    assert.strictEqual(detail.status, 'solved')
+    assert.strictEqual(detail.submission_count, 1)
+    assert.strictEqual(detail.submissions[0]?.id, null)
+    assert.strictEqual(detail.submissions[0]?.submitted_at, 8640000000000001)
+    assert.strictEqual(detail.submissions[0]?.deleted_at, 0)
+    assert.strictEqual(detail.difficulty, 'hard')
+    assert.deepStrictEqual(listProblemVisitsByProblem(id), getOriginalProblemVisits(sqlite, id))
+    assert.strictEqual(listProblemVisitsByProblem(id)[0]?.id, null)
+  }
+  const before = sqlite.prepare('SELECT total_changes() AS count').get()
+  const observed: DataChangedPayload[] = []
+  const unsubscribe = subscribeDataChanges((event) => observed.push(event))
+  try {
+    sqlite.pragma('query_only = ON')
+    assert.deepStrictEqual(getProblemDetail(''), getOriginalProblemDetail(sqlite, ''))
+    assert.deepStrictEqual(listProblemVisitsByProblem(''), getOriginalProblemVisits(sqlite, ''))
+    assert.deepStrictEqual(sqlite.prepare('SELECT total_changes() AS count').get(), before)
+    assert.deepStrictEqual(observed, [])
+  } finally {
+    sqlite.pragma('query_only = OFF')
+    unsubscribe()
+  }
+})
+
+test('Problem detail and visit native errors preserve the missing-parent short circuit', () => {
+  const sqlite = getDbForTest()
+  sqlite
+    .prepare(
+      `INSERT INTO problems
+    (id, platform, platform_problem_id, canonical_url, first_seen_at, created_at, updated_at)
+    VALUES ('parent', 'codeforces', 'parent', 'https://example.test/parent', 0, 0, 0)`,
+    )
+    .run()
+  sqlite
+    .prepare(
+      `INSERT INTO submissions
+    (id, problem_id, platform, platform_submission_id, verdict, submitted_at, created_at, updated_at)
+    VALUES (NULL, 'parent', 'codeforces', 'first', 'WA', 0, 0, 0)`,
+    )
+    .run()
+  sqlite.exec(`ALTER TABLE submissions RENAME TO fixture_submissions;
+    CREATE VIEW submissions AS SELECT id, problem_id, platform, platform_submission_id, verdict,
+    raw_verdict, json_extract('invalid JSON', '$') AS language, submitted_at, is_first_ac,
+    runtime_ms, memory_kb, source_url, raw_json, created_at, updated_at, deleted_at
+    FROM fixture_submissions`)
+  assert.strictEqual(getOriginalProblemDetail(sqlite, 'missing'), null)
+  assert.strictEqual(getProblemDetail('missing'), null)
+  assert.throws(() => getOriginalProblemDetail(sqlite, 'parent'), /malformed JSON/)
+  assert.throws(() => getProblemDetail('parent'), /malformed JSON/)
+})
+
+test('Omnibox first pipeline preserves native null parent and latest-visit fallback', () => {
+  const sqlite = getDbForTest()
+  sqlite
+    .prepare(
+      `INSERT INTO problems
+    (id, platform, platform_problem_id, canonical_url, title, first_seen_at, last_visited_at, created_at, updated_at)
+    VALUES (?, 'codeforces', ?, ?, 'match', 0, 0, 0, 0)`,
+    )
+    .run(null, 'null-parent', 'https://example.test/null-parent')
+  sqlite
+    .prepare(
+      `INSERT INTO problems
+    (id, platform, platform_problem_id, canonical_url, title, first_seen_at, last_visited_at, created_at, updated_at)
+    VALUES ('parent', 'codeforces', 'parent', 'https://example.test/canonical', 'match', 0, 0, 0, 0)`,
+    )
+    .run()
+  sqlite
+    .prepare(
+      `INSERT INTO problem_visits
+    (id, problem_id, platform, url, entered_at, created_at, updated_at)
+    VALUES (NULL, 'parent', 'codeforces', 'https://example.test/history', 0, 0, 0)`,
+    )
+    .run()
+  for (const query of ['', 'match', 'null-parent', 'canonical']) {
+    assert.deepStrictEqual(
+      getOmniboxSuggestions(query),
+      getOriginalOmniboxSuggestions(sqlite, query),
+    )
+  }
+  assert.ok(getOmniboxSuggestions('match').some((row) => row.problemId === null))
+  sqlite
+    .prepare(
+      `INSERT INTO problems
+    (id, platform, platform_problem_id, canonical_url, first_seen_at, created_at, updated_at, deleted_at)
+    VALUES ('horizon-blocker', 'codeforces', 'blocker', 'https://example.test/blocker', 0, 0, 0, 0)`,
+    )
+    .run()
+  const blockerVisit = sqlite.prepare(`INSERT INTO problem_visits
+    (id, problem_id, platform, url, entered_at, created_at, updated_at)
+    VALUES (?, 'horizon-blocker', 'codeforces', 'https://example.test/blocker-visit', ?, 0, 0)`)
+  for (let index = 0; index < 64; index++) blockerVisit.run(`blocker-${index}`, index + 1)
+  assert.deepStrictEqual(
+    getOmniboxSuggestions('canonical'),
+    getOriginalOmniboxSuggestions(sqlite, 'canonical'),
+  )
+  assert.deepStrictEqual(getOmniboxSuggestions('canonical'), [
+    {
+      problemId: 'parent',
+      title: 'match',
+      platform: 'codeforces',
+      platformProblemId: 'parent',
+      url: 'https://example.test/canonical',
+      lastVisitedAt: 0,
+      source: 'problem',
+    },
+  ])
 })
 
 let dbForTest: Database.Database | null = null

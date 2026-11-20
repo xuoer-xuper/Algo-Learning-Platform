@@ -7,7 +7,7 @@
 > Plan and evidence: `.trellis/tasks/archive/2026-09/00-bootstrap-guidelines/research/spec-alignment-plan.md`,
 > `spec-alignment-report.md`, `reinvented-wheels-audit.md`.
 
-Last reviewed: 2026-11-19. Released v2.0.1 at `de89ce4` has passed final validation and
+Last reviewed: 2026-11-20. Released v2.0.1 at `de89ce4` has passed final validation and
 publication. Phase 3 A0/A1/A2a-A2c remain on the Drizzle branch: schema/client, migration
 coordinator and bounded problem queries are implemented. The current synchronization
 slice combines released durable recovery with Drizzle adoption; independent review,
@@ -20,6 +20,12 @@ A2e converts only the recent-visit omnibox candidate CTE, retaining the first pi
 and nullable-ID policy. Independent review, full2038/UI11/native19 and build check
 passed; PR17 squash0927213, PR17 CI44521575932 and PR8 CI44522362714 passed. Other queries and
 main-process layout work remain separate later slices.
+A2f completes detail/visits and the first omnibox candidate pipeline, with explicit
+nullable output IDs rather than filtering/casts. Independent review, full2104/UI11/
+native22 and build check passed locally; remote acceptance is in phase3's
+`a2f-verification-2026-11-20.md`. Recent-list nullable-ID UI actions remain a
+separate policy decision, and phase3/PR8 are not ready for whole-phase completion.
+
 
 ---
 

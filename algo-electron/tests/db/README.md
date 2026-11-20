@@ -15,6 +15,7 @@
 - `problemLookup.test.ts`：A2b平台题号查ID与原SQL对照，保留大小写/空白/字面量绑定、NULL/空ID和deleted_at=0语义，验证只读、无通知、事务及关闭重开和数据库异常传播；原生Electron另验字面量、大小写、NULL/空ID和软删除边界。
 - `problemUpsert.test.ts` / `problem-upsert-oracle.ts`：A2c与冻结原三条SQL对照完整行/事件，覆盖bound-null实际UPDATE、六列SET触发语义、标题/字段/时间/软删除，以及语句失败、外层回滚/真实COMMIT失败、savepoint和partial autocommit；原生Electron另验null-ID通知和数值时间。
 - `deleteProblem.test.ts` / `problem-delete-oracle.ts`：A2d四分支raw instant UNION和四条DELETE与冻结原SQL对照；保持非法时间拒绝、NULL/空/字面量ID、tombstone、孤儿false返回、notes、实际COMMIT/savepoint/外层回滚、第二日统计失败及事件时序。`test:db`同时注册删除与R4通知回归，原生repository套件另验成功删除和真实deferred-FK COMMIT失败。
+- `problemReads.test.ts` / `problem-reads-oracle.ts`：A2f详情和访问Drizzle查询对照冻结原SQL完整行，保留nullable子ID、所有额外列、墓碑、COUNT(*)、100条提交上限、访问升序、raw毫秒、只读/事务/无通知及连接生命周期。原生repository用例另验绑定ID（包括Unicode/NUL）与nullable输出；共享输出schema测试覆盖允许null但拒绝错误类型，输入约束不放宽。
 - `codeforcesSubmissionIdMigration.test.ts`：Codeforces 提交 ID migration 兼容。
 - `problemContextMigration.test.ts`：题目上下文字段 migration 兼容。
 - `backupImport.test.ts`：SQLite 备份、学习数据 JSON 导出/导入、冲突检测和 Cookie/`raw_json` 排除。
@@ -23,7 +24,7 @@
 - `drizzleMigrationInterruption.test.ts`：独立 native format-2 强杀矩阵；既有030登记基线与 Drizzle-only 数据迁移分别在 durable prepared（写入前）和全部台账提交但 checkpoint 未完成后暂停，由父进程 SIGKILL 并等待 close。默认、`migrations: []` 和显式资源重启均阻断，无 catch marker 也不能绕过；验证复合源备份、错误恢复方向拒绝、源态 `retry-source` 新尝试、目标态 `keep-current` 及保护副本保留新增行/epoch0/毫秒精度。Drizzle-only 不改物理 schema，证明恢复不能只比较 legacy/schema。
 - `databaseInitialization.test.ts`、`sqliteMigrationBackup.test.ts`：用 test double 覆盖异步初始化和备份恢复纯逻辑，纳入全仓覆盖率统计。
 - `dailyStatsPerformance.test.ts`：两年事实数据下的单日统计重算基准，硬门槛 `<50ms`。
-- `omniboxSuggestions.test.ts`：Omnibox 本地题目/访问建议的固定上限、字段匹配、稳定排序、LIKE 字面量转义、软删除过滤与去重。
+- `omniboxSuggestions.test.ts`：Omnibox两个Drizzle候选管线对照冻结完整函数oracle，覆盖24/64候选上限、字段匹配、LIKE字面量转义、NULL parent/最新visit ID、原生JS null比较、raw时间、软删除与去重。
 - `statsDate.test.ts`：日期范围边界和 timestamp 日期提取。
 - `historicalUpgradePath.test.ts`：按固定历史 Git 源码重建的文本 schema 加合成数据，验证 21/24/29 → 30 → Drizzle基线的真实 SQLite 安全升级、82列数值时间、关系/约束、备份、幂等与失败恢复；不依赖 CI Git 历史。来源和再生步骤见 `fixtures/README.md`。
 - `migration030.test.ts`：外键事务使用边界、rowid/view/trigger保留、AI JSON精确转换、晚期非法值回滚、SQLite数值毫秒TEXT及旧伪日期桶兼容，其他错误继续拒绝。

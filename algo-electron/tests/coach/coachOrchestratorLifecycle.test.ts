@@ -9,7 +9,7 @@ import {
   ipcMain,
   resetElectronMock,
 } from '../electron/electronMock'
-import { closeDb, initDbAtPath } from '../../electron/db/connection.ts'
+import { closeDb, getDb, initDbAtPath } from '../../electron/db/connection.ts'
 import {
   buildCoachEvent,
   insertCoachEvent,
@@ -39,6 +39,7 @@ import { AppWindow } from '../../electron/windows/AppWindow.ts'
 import { setEnabledSitesFetcher } from '../../electron/parsers/registry.ts'
 import type { CoachPetWindow } from '../../electron/coach/CoachPetWindow.ts'
 import type { CoachBubblePayload, CoachPetState } from '@shared/types/coach'
+import { problemTimelineDataSchema } from '@shared/types/coach'
 import type { TrackingService } from '../../electron/tracking/TrackingService.ts'
 import type { RealtimeSubmissionService } from '../../electron/submissions/RealtimeSubmissionService.ts'
 import type { SubmissionNotification } from '../../electron/submissions/SubmissionWatcherCore.ts'
@@ -1809,6 +1810,30 @@ test('单题时间轴把四张表合到一起，first_ac 与最近活动按真�
     [{ problem_id: problemId, first_ac_at: Date.parse('2026-08-30T09:25:00.000') }],
     'bundle 应把有干预的题目与它的首次 AC 对齐，供 renderer 算转化率',
   )
+  h.coach.stop()
+})
+
+test('timeline preserves a nullable legacy visit ID without changing the addressable parent', () => {
+  const h = harness()
+  const db = getDb()
+  db.prepare(
+    `INSERT INTO problems
+    (id, platform, platform_problem_id, canonical_url, first_seen_at, created_at, updated_at)
+    VALUES ('nullable-visit-parent', 'codeforces', '1A', ?, 0, 0, 0)`,
+  ).run(CF_PROBLEM_A)
+  db.prepare(
+    `INSERT INTO problem_visits
+    (id, problem_id, platform, url, entered_at, left_at, created_at, updated_at, deleted_at)
+    VALUES (NULL, 'nullable-visit-parent', 'codeforces', ?, 0, 123, 0, 0, 0)`,
+  ).run(CF_PROBLEM_A)
+  const timeline = h.coach.getProblemTimeline('nullable-visit-parent')
+  assert.ok(timeline)
+  assert.equal(timeline.problem_id, 'nullable-visit-parent')
+  assert.equal(timeline.visits.length, 1)
+  assert.equal(timeline.visits[0].visit_id, null)
+  assert.equal(timeline.visits[0].entered_at, 0)
+  assert.equal(timeline.last_activity_at, 123)
+  assert.equal(problemTimelineDataSchema.safeParse(timeline).success, true)
   h.coach.stop()
 })
 

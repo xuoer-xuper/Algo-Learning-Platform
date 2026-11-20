@@ -21,6 +21,6 @@
   "children": [],
   "parent": "09-17-spec-alignment",
   "relatedFiles": [],
-  "notes": "A0/A1/A2a-A2e及安全同步完成。PR15 merge317cd9f保留发行祖先；A2d PR16 squash85b95dc/CI44049450301+PR8CI44505395427绿；A2e工作82a0163、PR17 squash0927213/CI44521575932+PR8CI44522362714绿。A2e全量2038/UI11/native19/build:check通过。下一步先评审剩余problem/omnibox nullable-ID输出政策，不静默丢行/强转/改schema。C工作树codex/drizzle-session-record做交接，原D62dirty文件不动；PR8仍draft/base dev，阶段3/父任务不归档、不发版。",
+  "notes": "A0/A1/A2a-A2e及安全同步已合回Drizzle。A2f在C工作树codex/drizzle-problem-read-contract基于6b66ad5实施：独立设计/代码评审及全量2104/UI11/native22/build:check通过，转换detail/visits/omnibox第一管线并如实声明可达nullable输出；recent-list须单独评审UI操作政策。原D交接审计：9份规划内容均已在远端保存或被新决策替代，62个dirty文件保持原样；.zcode为平台配置且有机器绝对路径，未盲目提交。PR8仍draft/base dev，阶段3/父任务未完成，不发版。",
   "meta": {}
 }

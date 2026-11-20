@@ -354,6 +354,13 @@ window.api.data.onChanged(({ tables }) => refreshMatchingQueries(tables))
 
 IPC 类型定义放在 `src/shared/types/`；通道常量统一由 `src/shared/constants/channels.ts` 导出，避免字符串散落。
 
+阶段3 A2f保持题目查询实际返回数据，同时修正已可达的nullable输出：
+`OmniboxSuggestion.problemId`、详情内嵌`SubmissionRecord.id`和
+`ProblemVisitPoint.visit_id`允许null；它们分别用于URL建议、提交展示和只读时间点。
+这不是ID修复或丢行策略，也不放宽输入/内部路由校验。详情父ID仍由原字符串等值查询证明，
+通过SQL绑定投影保持native编码后的同值，不用原始JS输入覆盖结果；数值时间和额外行字段保留。
+最近题目列表的nullable ID侧栏操作政策仍待单独评审，不将preload的类型断言当作输出验证。
+
 ### 6.4 提交后的数据刷新
 
 `data:changed` 仅广播 `{ tables }`，八个逻辑域为 `problems/submissions/notes/stats/sites/scripts/credentials/coach`，不携带记录、凭据、Cookie 或本地路径。account/rating 写入映射到 `stats`，访问记录映射到 `problems` 和 `stats`。

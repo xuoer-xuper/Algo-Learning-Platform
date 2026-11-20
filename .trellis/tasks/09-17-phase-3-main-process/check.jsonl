@@ -18,3 +18,5 @@
 {"file": ".trellis/tasks/09-17-phase-3-main-process/research/release-hardening-sync-design.md", "reason": "Reviewed format1 compatibility and composite Drizzle checkpoint/recovery synchronization contract"}
 {"file": ".trellis/tasks/09-17-phase-3-main-process/research/a2d-problem-delete.md", "reason": "Reviewed A2d raw-instant UNION, deletion/transaction and post-inner-transaction statistics equivalence"}
 {"file": ".trellis/tasks/09-17-phase-3-main-process/research/a2e-problem-reads.md", "reason": "A2e complete recent-visit candidate CTE, equality-proven non-null FK projection, preserved horizon and deferred DTO policy"}
+{"file": ".trellis/tasks/09-17-phase-3-main-process/research/a2f-nullable-contract.md", "reason": "A2f truthful nullable outputs, equality-proven detail identity, full-row raw-scalar parity and explicitly deferred recent-list UI policy"}
+{"file": ".trellis/tasks/09-17-phase-3-main-process/research/a2f-nullable-contract-review.md", "reason": "Approved A2f design; native bound-string identity vs JS Unicode normalization, selected output schema correction and fixed query invariants"}

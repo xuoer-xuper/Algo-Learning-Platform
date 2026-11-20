@@ -32,6 +32,10 @@ getOverviewStats(): OverviewStats
 findProblemIdByPlatformKey(platform: string, platformProblemId: string): string | null
 // A2c remains a synchronous mutation over the existing connection.
 upsertProblem(identity: ProblemIdentity): void
+// A2f preserves runtime read results and corrects selected nullable output IDs.
+getProblemDetail(problemId: string): ProblemDetail | null
+listProblemVisitsByProblem(problemId: string): ProblemVisitRow[]
+getOmniboxSuggestions(rawQuery: string): OmniboxSuggestion[]
 ```
 
 Pinned A0 versions: drizzle-orm 0.45.4 and drizzle-kit 0.31.11. `db:generate` reads
@@ -139,6 +143,40 @@ schema code and emits SQL/snapshots; `pull` is the introspection command.
 - Reads use the lifecycle-owned native connection and stay synchronous, read-only
   and notification-free. Database errors propagate; no empty-result fallback.
 
+### A2f Nullable Read Output Equivalence
+
+- The detail, visit and first omnibox candidate queries preserve actual rows,
+  while their reachable nullable IDs become honest in repository and shared
+  output schemas. `OmniboxSuggestion.problemId`, embedded `SubmissionRecord.id`,
+  and `ProblemVisitPoint.visit_id` allow null. This expands output validation
+  acceptance, not input schemas or the stored database. Existing IPC has no new
+  output parser, and no renderer action or filtering changes here.
+- Detail's existing `problems.id = bound string` on baseline TEXT/BINARY columns
+  proves its returned parent ID is the SQL-bound string. Project the parameter
+  through SQL; never cast the nullable column or replace the ID with the original
+  JS input afterward. Native UTF-8 encoding/result decoding may normalize lone
+  surrogates or other text, so a JS replacement is not an equivalent proof.
+- Preserve every baseline field selected by parent/submission `*`, computed
+  solved/attempted priority, and COUNT(*) including NULL-ID/tombstoned submissions.
+  Parent absence short-circuits before the child SELECT. Children order only by
+  submitted_at DESC with LIMIT100; no transaction or extra snapshot is introduced.
+  Visits keep ten selected fields, tombstones/orphans, entered_at ASC and no cap.
+- All outward time scalars remain raw numbers/null with no Date/Number decoder.
+  Preserve diagnostic fractional/extreme values without promising them as valid
+  shared integer timestamps. Closed/broken connections and SQL failures still
+  propagate; wrapping the current connection must not add writes or events.
+- First omnibox CTE limits24 before the correlated latest-visit LEFT JOIN. Keep
+  exact/prefix/contains ranking and the empty-query predicate, then join on the
+  chosen latest visit ID (not problem ID). A chosen NULL visit ID still fails
+  equality and uses canonical URL/source fallback. The second horizon64 and
+  final sorting/dedup/limit8 remain unchanged. NULL is one Set dedup key; explicit
+  null comparisons preserve JS abstract relational coercion, not null-first/last.
+- `getRecentProblems` and its shared string-only ID contract remain an explicit
+  unresolved policy, not a solved part of A2f. Its sidebar routes require a
+  separate invalid-ID action decision. Future migration must also preserve the
+  native error for fractional/NaN limits: Drizzle omits negative/NaN numeric
+  limits, so directly calling `.limit(limit)` is not a complete parity proof.
+
 ## 4. Validation & Error Matrix
 
 | Case                                                            | Required behavior                                                         |
@@ -174,11 +212,17 @@ schema code and emits SQL/snapshots; `pull` is the introspection command.
 | Recent visit has NULL visit PK and empty joined problem ID      | Keep the joined empty problem ID and raw millisecond value                |
 | First omnibox pipeline returns a NULL parent ID                 | Preserve existing behavior; do not silently decide the deferred DTO policy |
 | Read-only omnibox connection or database error                  | Reads succeed without writes/events; errors propagate synchronously       |
+| Detail NULL child ID / missing parent | Preserve child null / return null without child query |
+| Detail bound Unicode, NUL or empty ID | Match native binding/result representation; no JS ID replacement |
+| Omnibox NULL parent / selected NULL visit ID | Preserve null dedup key / canonical source fallback |
+| Selected output ID null / number | Shared schema accepts null and rejects non-string numbers |
 
 ## 5. Good / Base / Bad Cases
 
 - Good: generate SQL into test resources, create a temporary database and compare
   its complete metadata plus constraint behavior with a production 0-to-30 database.
+- Good: expose an already-returned nullable output honestly while preserving rows;
+  a detail-only equality proof does not permit narrowing unrelated list IDs.
 - Base: repositories continue using the existing native connection until their
   bounded conversion is complete.
 - Bad: silently add NOT NULL/defaults, treat generated SQL as already applied, open
@@ -243,6 +287,15 @@ schema code and emits SQL/snapshots; `pull` is the introspection command.
   Native Electron coverage must exercise the 64-row horizon and joined empty IDs
   with NULL visit primary keys; node:sqlite feasibility alone is insufficient.
 
+- A2f compares whole detail/submission rows and ten-field visits to independent
+  frozen SQL; test all extra keys, NULL/empty child IDs, tombstones, 101+ children,
+  order ties, raw instants, missing-parent short circuit, SQL failures, query-only,
+  transaction visibility, no events and reinitialization. Real Electron cases
+  include bound Unicode/NUL/surrogate IDs rather than only JS/native substitutes.
+- Keep the frozen full omnibox oracle independent. Pin24/25 candidate boundaries,
+  NULL parent dedup and selected NULL visit fallback, literal matching, all output
+  schemas and URL-only UI behavior. Retain integer timestamp and string input gates.
+
 ## 7. Wrong vs Correct
 
 ```ts
@@ -254,7 +307,11 @@ id: text("id");
 
 // Wrong: sql<string>`${problems.id}` to hide a nullable primary key.
 // Correct only after the unchanged equality INNER JOIN: select the NOT NULL visit FK.
-// Leave unmatched nullable-ID output policy to a separately approved DTO change.
+// A2f explicitly widens unmatched omnibox IDs; recent-list policy stays deferred.
+
+// Wrong: row.id = originalInput after reading a normalized native result.
+// Correct only with WHERE problems.id = input: project sql<string>`${input}`
+// through the same native binding/result path as the original selected ID.
 
 // Wrong: leaking a Date into a public numeric DTO by assertion.
 // Correct: row.created_at.getTime(), with explicit null handling if nullable.
