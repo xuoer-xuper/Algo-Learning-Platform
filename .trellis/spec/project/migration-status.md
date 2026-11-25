@@ -7,7 +7,7 @@
 > Plan and evidence: `.trellis/tasks/archive/2026-09/00-bootstrap-guidelines/research/spec-alignment-plan.md`,
 > `spec-alignment-report.md`, `reinvented-wheels-audit.md`.
 
-Last reviewed: 2026-11-20. Released v2.0.1 at `de89ce4` has passed final validation and
+Last reviewed: 2026-11-25. Released v2.0.1 at `de89ce4` has passed final validation and
 publication. Phase 3 A0/A1/A2a-A2c remain on the Drizzle branch: schema/client, migration
 coordinator and bounded problem queries are implemented. The current synchronization
 slice combines released durable recovery with Drizzle adoption; independent review,
@@ -41,9 +41,13 @@ PR23CI44684516349 green, squash1a39af0 into Drizzle and PR8CI44685222637 green.
 A3b2 first-AC passes independent review/full2321/UI14/native36/build and UTC/
 NewYork77 each; PR24CI44691480140, squashfa13260 and PR8CI44692300627 green.
 All submission queries/writes are converted. A4a basic reads pass independent
-review, corrected DB677/native40, full2364/UI14 and build; remote gates pending.
-A4b1 nullable daily/chart safety is explicitly accepted design only; later stats/
-domain/layout work remains incomplete.
+review, corrected DB677/native40, full2364/UI14 and build; PR25CI44725568294,
+squashac7478d and PR8CI44728103063 passed. Transient prepush rename EPERM has
+no proven cause; isolated3x49 and normal fullhook retry pass, no source workaround.
+A4b1 daily reads/nullable outputs/ordinal charts and a bounded router lifecycle
+fix pass local full2490/native44/UI16/build with808stable hashes; final independent
+review and remote integration are being completed. Later stats/domain/layout
+work remains incomplete.
 See phase3 a3a/a3b1/a3b2 verification artifacts; PR8 stays draft.
 
 

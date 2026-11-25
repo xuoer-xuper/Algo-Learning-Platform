@@ -96,3 +96,58 @@ dates, shared fallback category strings, or only guarding tick.slice.
 // Wrong: calculate cutoff before constructing the query.
 // Correct: prepare first, then evaluate localDateDaysAgo in bound arguments.
 ```
+
+## 8. Native Pointer Test Boundary
+
+Real Electron CDP pointer events can retain fractional coordinates while the
+corresponding MouseEvent truncates them. At a chart with fractional viewport
+left260.666687, first dot cx37 has viewport center297.666687; mouse clientX297
+becomes rounded chartX36, outside Recharts' plot minimum37. The actual DOM hit
+can still be the dot while the Tooltip is correctly inactive. Captured trusted
+mouse/pointer events and installed range checks, not sleeps, establish this case.
+
+For synthetic native hover tests, choose an integer viewport pixel toward the
+chart interior, verify it stays inside the actual dot bounds, then perform one
+real mouse move and retain visibility/full-label/count assertions. Cover both
+ends and zero values. Do not alter production margins/animation, dispatch fake
+React events, remove hover assertions or increase retries/timeouts to mask it.
+Full Electron tests and screenshots still determine acceptance.
+
+## 9. Separate Streak Slice (A4b2)
+
+After A4b1 acceptance, getStreakDays retains numeric current/longest and original
+loops, exact qualifying OR thresholds, DESC nullable local_day, tombstones,
+longest-before-one-now/current loop and today-only anchor. No eager validation,
+filtering, new grace period, fallback or changed calendar helper.
+
+Only stats-local dayDiff widens two parameters to string|null. Check later NULL
+before its existing localDayBounds, then earlier NULL before its existing bounds.
+Throw TypeError('Invalid local day') at those positions. A combined upfront guard
+incorrectly replaces later9999-12-31 RangeError with earlierNULL TypeError.
+Singleton NULL/bad still yields current0/longest1 after one clock; empty yields0/0
+without clock; twoNULL fail before clock. Preserve Date.parse calendar ordinals,
+not elapsed local milliseconds across23/25h DST. Shared time API stays string.
+
+Freeze original streak loop AND original dayDiff behavior separately for oracle.
+Test actual baseline multipleNULL, thresholds/metrics/tombstones, bad/single/pair,
+clock injection/error priority, today/yesterday/future, UTC/Shanghai/NewYork/Apia
+range/DST/skipped-day cases, no write/event and native lifecycle/errors. Only
+insights.ts streak and stats/date.ts helper production change; no A4b1 overwrite.
+
+## 10. Router Lifecycle Blocker Exception
+
+Actual A4b1 native UI diagnostics also expose an existing ShellRouter rapid-tab
+flushSync inside useEffect. The approved prerequisite is deliberately narrow:
+burst/no-native-API updates call setRenderTab directly; only actual asynchronous
+View Transition snapshot callbacks use flushSync. Private maybeTransition passes
+nativeSnapshot:boolean (false synchronous fallback, true native callback). Check
+transitionVersion before choosing the update; stale callbacks must never flush.
+Keep200ms threshold/clock calls, skip/version order, promise handling and identity
+settlement; do not add scheduler timing, fallback cancellation or router redesign.
+
+Regression assertions must fail against original source for burst/fallback
+console errors. Queued native-like mocks deliver skipped callbacks, verify newest
+route and commit-before-callback-return, and retain old-settlement/rejection tests.
+Exact native daily tests keep zero-console/hover/label/count/range assertions.
+Good: direct effect state update and bounded native flush. Bad: flush around stale
+callbacks, console filtering, sleeps or removing the native snapshot flush.

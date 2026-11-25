@@ -44,6 +44,25 @@ read-only timeline submission ID output to allow already-returned null; keep
 request/problem IDs, metric outputs and LLM privacy allowlist unchanged. Empty
 first-AC batches must still acquire no database. Submission writes remain separate.
 
+### A4b1 Native UI blocker acceptance (2026-11-23)
+
+Actual Electron diagnostics prove the existing shell router's rapid-tab effect
+calls flushSync during React rendering. Parent accepts a bounded prerequisite
+fix so native acceptance is console-clean rather than suppressing the warning:
+non-transition updates remain direct, while a genuine native View Transition
+callback still commits the new route before snapshot capture. Preserve tab
+selection, burst threshold, stale-callback protection and animation behavior.
+This permits ShellRouter.tsx and its transition regression tests only, not a
+phase4 router redesign. Native trend assertions remain unchanged.
+
+### A4b2 Streak acceptance boundary (2026-11-20)
+
+Parent accepts the independent daily-read precheck's separate streak scope after
+A4b1: preserve current/longest numeric outputs, qualification thresholds, loops,
+clock and invalid-day failure timing. Single NULL/invalid rows and paired invalid
+rows retain their different existing outcomes. Only streak SELECT and stats-local
+dayDiff nullable narrowing change; shared calendar inputs/outputs stay untouched.
+
 ### A4b1 Daily-read and chart safety acceptance (2026-11-20)
 
 Parent explicitly accepts the independently reviewed nullable daily-read output
@@ -137,7 +156,7 @@ separate. This scope is explicitly accepted after independent design review.
 
 ## Out of Scope
 
-- 广泛渲染层重构（阶段4）；已明确批准的A2g无效ID操作及A4b1日期图表consumer-safety切片除外。测试目录重排（阶段 5，但本阶段搬源码时**同步移动**对应测试文件到 `tests/unit/services/{domain}/` 的临时位置，避免 import 断裂）。
+- 广泛渲染层重构（阶段4）；已明确批准的A2g无效ID操作、A4b1日期图表consumer-safety及其原生验收发现的局部路由生命周期修复除外。测试目录重排（阶段 5，但本阶段搬源码时**同步移动**对应测试文件到 `tests/unit/services/{domain}/` 的临时位置，避免 import 断裂）。
 
 ## Notes
 

@@ -89,16 +89,16 @@ let transitionVersion = 0
  *      是预期行为；漏一个就成 unhandled rejection 冒到 window 上变成页面错误。
  *   3. finished 落地后清掉 liveTransition，别把已完成的过渡留在模块变量里。
  */
-function maybeTransition(callback: () => void) {
+function maybeTransition(callback: (nativeSnapshot: boolean) => void) {
   if (typeof document.startViewTransition !== 'function') {
-    callback()
+    callback(false)
     return
   }
 
   liveTransition?.skipTransition()
 
   const transition = document.startViewTransition(() => {
-    callback()
+    callback(true)
   })
   liveTransition = transition
 
@@ -150,15 +150,13 @@ export function ShellRouter({
       liveTransition?.skipTransition()
       liveTransition = null
       transitionVersion += 1 // 取消所有挂起的过渡回调
-      flushSync(() => {
-        setRenderTab(activeTab)
-      })
+      setRenderTab(activeTab)
       return
     }
 
     transitionVersion += 1 // 取消之前的过渡回调
     const currentVersion = transitionVersion
-    maybeTransition(() => {
+    maybeTransition((nativeSnapshot) => {
       // 检查版本号，如果过时则不执行
       if (currentVersion !== transitionVersion) {
         return
@@ -169,9 +167,13 @@ export function ShellRouter({
        * 拍了第二张快照，那棵 `::view-transition` 顶层伪元素树就不会正常落幕，一直盖在
        * 整页之上吞掉输入（连开一批标签后界面点不动、标签拖不动，就是这个）。
        */
-      flushSync(() => {
+      if (nativeSnapshot) {
+        flushSync(() => {
+          setRenderTab(activeTab)
+        })
+      } else {
         setRenderTab(activeTab)
-      })
+      }
     })
   }, [activeTab])
 

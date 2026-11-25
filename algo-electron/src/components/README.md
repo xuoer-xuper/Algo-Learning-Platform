@@ -14,6 +14,7 @@
 - `ShellRouter.tsx`
   - 按活动 `TabInfo` 渲染首页、设置、统计、脚本、Coach 指标、题目详情和笔记等内部标签。
   - 保留现有 feature 文件名与 lazy chunk 边界；健康 web 标签返回空 DOM，崩溃 web 标签渲染恢复操作。
+  - 快速切页和无 View Transition API 的分支直接更新状态；仅浏览器原生异步快照回调使用 flushSync，先检查过渡版本，避免 effect 内同步刷新警告及过期回调覆盖。
 - `BrowserToolbar.tsx`
   - 顶部浏览器工具栏 UI。
   - 保留首页、前进后退、刷新、当前页提交抓取和同步消息；原四个全局入口收敛为一个调用原生应用菜单的 more 按钮。

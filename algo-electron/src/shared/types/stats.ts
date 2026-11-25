@@ -1,11 +1,9 @@
 import { z } from 'zod'
 
 /*
- * 统计域的跨进程类型（阶段 2 R2 从 electron-env.d.ts 收口）。
- * 行形状的权威定义在 electron/db/repositories/stats/types.ts（DailyActiveStat、
- * RevisitStat 等）——仓库行名与 IPC 投影名刻意不同（如 RevisitStat vs
- * RevisitStatsItem），这里的 Item 后缀名是渲染层消费的 wire 形状。
- * local_day 保持字符串：它是本地日期分组键（YYYY-MM-DD），R5 毫秒迁移后仍保留。
+ * 统计域跨进程读取类型以这里的 schema 为准；repository 可复用相同形状。
+ * 有效日期写入/请求仍使用 YYYY-MM-DD；历史 daily cache 读取保留原始字符串和 NULL。
+ * 仓库行名与 IPC 投影名保持兼容（如 RevisitStat vs RevisitStatsItem）。
  */
 
 /** 平台分布的一行（problem/stats 两个仓库共用，收口前是两份同名重复）。 */
@@ -26,7 +24,7 @@ export const overviewStatsSchema = z.object({
 export type OverviewStats = z.infer<typeof overviewStatsSchema>
 
 export const dailyActiveStatsSchema = z.object({
-  local_day: z.string(),
+  local_day: z.string().nullable(),
   active_seconds: z.number(),
   duration_seconds: z.number(),
   visited: z.number(),
@@ -39,7 +37,7 @@ export const dailyActiveStatsSchema = z.object({
 export type DailyActiveStats = z.infer<typeof dailyActiveStatsSchema>
 
 export const trendPointSchema = z.object({
-  local_day: z.string(),
+  local_day: z.string().nullable(),
   count: z.number(),
 })
 
@@ -47,7 +45,7 @@ export const trendPointSchema = z.object({
 export type TrendPoint = z.infer<typeof trendPointSchema>
 
 export const submissionTrendPointSchema = z.object({
-  local_day: z.string(),
+  local_day: z.string().nullable(),
   total: z.number(),
   ac: z.number(),
 })

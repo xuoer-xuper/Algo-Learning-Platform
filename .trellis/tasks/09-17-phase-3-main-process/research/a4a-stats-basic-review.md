@@ -338,3 +338,29 @@ planning-only acceptance; no A4b/c/d product changes were reviewed as A4a.
 Durable reviewer changes: authorized native-test fixture fix and this appendix
 only. No Git/spec/task/other-agent/D-worktree edits. Implementation gate reruns,
 commit/push/CI and final integration remain parent-owned.
+
+## Pre-Push Rename Incident (2026-11-20)
+
+Read-only diagnosis; no source/test/recovery/Git/deletion changes or concurrent
+gate. Normal A4a commite98da9b succeeded, but its immediate push hook failed:
+tmp/drizzle-a4a-push.log records1 failed/2363 passed tests across214files.
+resolve-upgrade.test.ts:216 failed BEFORE wrong-history rejection assertions,
+while replacing its fixture marker via writeDurableJson at migration-checkpoint.ts:274.
+The unique profile was shipped-legacy-NvOyA7; temporary marker UUID was
+aaa1cc38-3971-4880-aea7-e59b596e7a9a. OS error: EPERM rename to existing marker.
+
+Fixture isolation uses mkdtemp, awaited backup and explicit DB close. Cases are
+sequential. Durable write opens wx, writes/fsyncs and closes before rename;
+write/close failures throw earlier. No deterministic shared-path collision or
+owned unclosed marker descriptor was identified. Do not unlink the old durable
+record or swallow this failure. Existing afterEach removed the failed fixture;
+parent confirms no manual cleanup. Marker bytes/attributes are unavailable;
+the retained log is evidence, not proof of an external file holder.
+
+Parent reports three serial isolated49/49 passes,802source hashes unchanged.
+This fits transient Windows rename/sharing/access failure, but exact cause and
+external process remain UNKNOWN. Reruns do not prove a root-cause fix. No product
+fix recommended. Parent retries one normal push with full hooks, no bypass.
+If it repeats, stop blind retries and collect OS access/holder traces and both
+marker files before cleanup under a separately scoped diagnosis. No retry or
+unlink fallback, weaker recovery semantics or automatic source change approved.

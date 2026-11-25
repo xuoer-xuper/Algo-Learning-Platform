@@ -44,6 +44,49 @@ drizzle-kit0.31.11，安装后按实际API和Electron ABI验证，不采用beta�
 - 当前规模：25表、electron321个TS文件、250处prepare；排除迁移222处，repository162处。
   main1164/TabManager2494/CoachOrchestrator1474行，仅作分批规划，不硬套旧计数。
 
+## A4b1 Router Lifecycle Prerequisite (2026-11-23)
+
+Parent accepts the independent reviewer recommendation after actual native CDP
+stacks map all four warnings to the existing ShellRouter burst-effect flushSync.
+Only ShellRouter.tsx and tests/components/transitions.test.tsx may change here.
+
+- Burst branch uses direct setRenderTab; preserve skip/live-null/version order.
+- Private maybeTransition callback receives nativeSnapshot:boolean: fallback
+  invokes false synchronously, actual startViewTransition callback invokes true.
+- Version guard runs before either update or flush. Direct fallback setRenderTab
+  must not flush in the effect; native callback retains flushSync so the route
+  wrapper is committed before Chromium captures its new state.
+- Preserve clock calls,200ms threshold, same-ID path, promise rejection handling
+  and identity-guarded settlement. No timers/microtasks/scheduler abstraction,
+  added fallback cancellation, mount/unmount redesign, CSS or route API changes.
+- Native-like test mocks queue callbacks and can deliver skipped stale callbacks.
+  Test no-console burst/fallback (old-source mutation must fail), newest route,
+  commit-before-native-callback-return, older settlement and handled rejections.
+- Native daily test keeps zero-console and all data/hover/range checks. Screenshot
+  readiness waits for actual Recharts line animation stroke-dasharray removal,
+  not fixed delays or disabled production animations.
+
+## A4b2 Streak And Ordered Day Validation (2026-11-20)
+
+Parent accepts A4b2 from research/a4b-daily-reads-review.md as separate work after
+A4b1 integration. Only getStreakDays SELECT/imports and stats/date.ts dayDiff
+signature/ordered NULL guards change. Preserve all loops, today/clock timing,
+thresholds (active>=300 OR submissions>0 OR solved>0), DESC day, tombstones and
+no-grace-yesterday behavior. Schema-inferred nullable day is not filtered/coerced.
+
+- dayDiff(later:string|null, earlier:string|null) checks later NULL immediately
+  before existing localDayBounds(later), then checks earlier NULL immediately
+  before existing localDayBounds(earlier). NULL raises TypeError Invalid local day.
+- Never combine guards at entry: later9999-12-31 range failure must precede
+  earlierNULL. Never prevalidate the full list or rows. Empty/onebad/twobad and
+  clock failure outcomes stay distinct. Calendar UTC-ordinal arithmetic unchanged.
+- No shared time helper or public request widening, UI/output/type/schema/030/
+  recompute or other insight changes. Frozen oracle must freeze old dayDiff
+  behavior independently, not import the newly modified helper on both sides.
+- Required evidence: qualification edge299/300, NULL/single/pairs/invalid ranges,
+  longest-before-clock/current pass, today/yesterday/future/gaps, no notifications,
+  readonly/currenthandle and host UTC/Shanghai/NewYork/Apia calendar errors.
+
 ## A4b1 Daily Reads And Ordinal Chart Contract (2026-11-20)
 
 Parent accepts research/a4b-daily-reads-contract.md and independent review's
