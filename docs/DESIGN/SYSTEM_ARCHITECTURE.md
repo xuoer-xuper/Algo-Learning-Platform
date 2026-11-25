@@ -376,7 +376,13 @@ A3b2首次AC双写入使用Drizzle并保留raw时间、原条件和调用者事�
 不把无变化短路、迭代流式写入或新的事务缓冲混入查询迁移。发布migration030及统计重算实现保持不动。
 
 A4a统计基础读取保留原生数值聚合：平台分布COUNT(*)，单题访问SUM/AVG与NULL分母、INTEGER溢出错误，最后活跃时间raw首行。
-每次使用当前连接，不复用题目overview的Date解码，不增加写入或事件。趋势/洞察列表/重算及migration030依赖核心仍独立处理。
+每次使用当前连接，不复用题目overview的Date解码，不增加写入或事件。连续活跃/洞察列表/重算及migration030依赖核心仍独立处理。
+
+A4b1每日趋势读取保留每一行的nullable local_day、原始计数与排序；LIMIT命名绑定保留原生数值错误，有限窗口先prepare后求本地cutoff。
+三个只读日期输出允许null，AI与repository复用shared每日类型，输入/loader/exporter不变。
+两张趋势图不再以local_day合并类别，而按各自原数组的行位置定位；刻度和Tooltip由同一类别位置查回日期，只有null显示“日期缺失”。
+此显示修复防止多个NULL行占用真实日期的坐标，不过滤数据、伪造日期、改变数量或扩大到阶段4界面重构。
+原生验收同时定位现有路由器在effect内调用flushSync的生命周期问题：快速切页/无API分支直接更新，真正View Transition回调仍在版本检查后同步提交快照；200ms阈值、过期回调和过渡清理行为保持。
 
 ### 6.4 提交后的数据刷新
 

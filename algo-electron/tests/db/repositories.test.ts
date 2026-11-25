@@ -12,6 +12,12 @@ import {
   getOriginalStatsProblemVisits,
   getOriginalStatsLastActive,
 } from './stats-basic-reads-oracle'
+import {
+  getOriginalAcTrend,
+  getOriginalDailyActiveStats,
+  getOriginalSubmissionTrend,
+  getOriginalVisitedTrend,
+} from './stats-daily-reads-oracle'
 import { runOriginalSubmissionUpsert } from './submission-upsert-oracle'
 import {
   runOriginalUpdateFirstAc,
@@ -59,6 +65,9 @@ import {
   upsertSubmission,
 } from '../../electron/db/repositories/submissionRepository.ts'
 import {
+  getAcTrend,
+  getDailyActiveStats,
+  getSubmissionTrend,
   getVisitedTrend,
   getPlatformDistribution as getStatsPlatformDistribution,
   getProblemVisitStats,
@@ -2893,6 +2902,415 @@ test('Basic statistics native reads follow transaction and connection ownership 
       failures,
       current: [reads.distribution(), reads.visits('new'), reads.latest()],
     }
+  })
+})
+
+type NativeDailyReads = {
+  daily: typeof getDailyActiveStats
+  visited: typeof getVisitedTrend
+  ac: typeof getAcTrend
+  submissions: typeof getSubmissionTrend
+}
+
+function seedNativeDaily(
+  db: Database.Database,
+  day: string | null,
+  base = 0,
+  deletedAt: number | null = null,
+) {
+  db.prepare(
+    `INSERT INTO user_daily_stats
+    (local_day,active_seconds,duration_seconds,visited_problem_count,solved_problem_count,
+     submission_count,ac_submission_count,recomputed_at,created_at,updated_at,deleted_at)
+    VALUES (?,?,?,?,?,?,?,1.75,0,2,?)`,
+  ).run(day, base + 1, base + 2, base + 3, base + 4, base + 5, base + 6, deletedAt)
+}
+
+function compareNativeDailyReads(
+  run: (scenario: {
+    db: Database.Database
+    reads: NativeDailyReads
+    trace: string[]
+    setClock: (instant: number) => void
+    failClock: (error: Error) => void
+  }) => unknown,
+): void {
+  const results = []
+  const originalNow = Date.now
+  try {
+    for (const original of [true, false]) {
+      Date.now = () => new Date(2026, 10, 20, 0, 30).getTime()
+      closeDb()
+      const db = initDbAtPath(':memory:')
+      const trace: string[] = []
+      const events: DataChangedPayload[] = []
+      const unsubscribe = subscribeDataChanges((event) => events.push(event))
+      let instant = new Date(2026, 10, 20, 0, 30).getTime()
+      let clockFailure: Error | undefined
+      Date.now = () => {
+        trace.push('clock')
+        if (clockFailure) throw clockFailure
+        return instant
+      }
+      function checked<T>(read: () => T): T {
+        let current: Database.Database | undefined
+        try {
+          current = getDb()
+        } catch {
+          /* Closed connection failures are part of this comparison. */
+        }
+        const before = current?.open ? nativeStatsSnapshot(current) : undefined
+        try {
+          return read()
+        } finally {
+          if (before && current) assert.deepStrictEqual(nativeStatsSnapshot(current), before)
+          assert.deepStrictEqual(events, [])
+        }
+      }
+      const reads: NativeDailyReads = {
+        daily: (days) =>
+          checked(() =>
+            original ? getOriginalDailyActiveStats(getDb(), days) : getDailyActiveStats(days),
+          ),
+        visited: (days) =>
+          checked(() =>
+            original ? getOriginalVisitedTrend(getDb(), days) : getVisitedTrend(days),
+          ),
+        ac: (days) =>
+          checked(() => (original ? getOriginalAcTrend(getDb(), days) : getAcTrend(days))),
+        submissions: (days) =>
+          checked(() =>
+            original ? getOriginalSubmissionTrend(getDb(), days) : getSubmissionTrend(days),
+          ),
+      }
+      try {
+        const result = run({
+          db,
+          reads,
+          trace,
+          setClock: (value) => {
+            instant = value
+          },
+          failClock: (error) => {
+            clockFailure = error
+          },
+        })
+        // Only independent initialization clocks differ; checked() includes the whole ledger.
+        results.push({ result, trace, state: nativeStatsSnapshot(getDb(), true), events })
+      } finally {
+        unsubscribe()
+        closeDb()
+      }
+    }
+  } finally {
+    Date.now = originalNow
+  }
+  assert.deepStrictEqual(results[1], results[0])
+}
+
+function traceNativeDaily(db: Database.Database, trace: string[]) {
+  const descriptor = Object.getOwnPropertyDescriptor(db, 'prepare')
+  const prepare = db.prepare.bind(db)
+  let nativeError: unknown
+  Object.defineProperty(db, 'prepare', {
+    configurable: true,
+    value: (query: string) => {
+      if (!/from ["`]?user_daily_stats/i.test(query) || !/order by .*local_day/i.test(query))
+        return prepare(query)
+      const kind = /active_seconds/i.test(query)
+        ? 'daily'
+        : /ac_submission_count/i.test(query)
+          ? 'submissions'
+          : /visited_problem_count/i.test(query)
+            ? 'visited'
+            : 'ac'
+      trace.push(`prepare:${kind}`)
+      try {
+        const statement = prepare(query)
+        const all = statement.all.bind(statement)
+        Object.defineProperty(statement, 'all', {
+          configurable: true,
+          value: (...bindings: unknown[]) => {
+            const text = bindings
+              .map((value) =>
+                typeof value === 'number'
+                  ? Object.is(value, -0)
+                    ? '-0'
+                    : String(value)
+                  : JSON.stringify(value),
+              )
+              .join(',')
+            trace.push(`all:${kind}:[${text}]`)
+            try {
+              return all(...bindings)
+            } catch (error) {
+              nativeError = error
+              throw error
+            }
+          },
+        })
+        return statement
+      } catch (error) {
+        nativeError = error
+        throw error
+      }
+    },
+  })
+  return {
+    failure: () => nativeError,
+    restore: () => {
+      if (descriptor) Object.defineProperty(db, 'prepare', descriptor)
+      else Reflect.deleteProperty(db, 'prepare')
+    },
+  }
+}
+
+test('Daily native reads preserve multiple NULL keys, raw metrics, tombstones, aliases and row limits', () => {
+  compareNativeDailyReads(({ db, reads, trace, failClock }) => {
+    assert.deepStrictEqual(
+      [reads.daily(), reads.visited(), reads.ac(), reads.submissions()],
+      [[], [], [], []],
+    )
+    const days = [null, null, '', '2026-02-30', '2026-11-19', '2026-11-20', '2026-11-21', 'zzz']
+    for (const [index, day] of days.entries()) seedNativeDaily(db, day, index * 10 - 0.25, 0)
+    assert.throws(() => seedNativeDaily(db, '2026-11-20'), /UNIQUE constraint failed/)
+    failClock(new Error('uncapped reads must not capture a clock'))
+    const result = {
+      daily: reads.daily(-1),
+      visited: reads.visited(),
+      ac: reads.ac(),
+      submissions: reads.submissions(-1),
+    }
+    assert.deepStrictEqual(
+      result.visited.map((row) => row.local_day),
+      days,
+    )
+    assert.deepStrictEqual(
+      result.daily.map((row) => row.local_day),
+      ['zzz', '2026-11-21', '2026-11-20', '2026-11-19', '2026-02-30', '', null, null],
+    )
+    assert.deepStrictEqual(
+      result.daily.find((row) => row.local_day === '2026-11-20'),
+      {
+        local_day: '2026-11-20',
+        active_seconds: 50.75,
+        duration_seconds: 51.75,
+        visited: 52.75,
+        solved: 53.75,
+        submissions: 54.75,
+        ac: 55.75,
+      },
+    )
+    assert.strictEqual(result.ac.find((row) => row.local_day === '2026-11-20')?.count, 53.75)
+    for (const row of result.daily)
+      assert.deepStrictEqual(Object.keys(row), [
+        'local_day',
+        'active_seconds',
+        'duration_seconds',
+        'visited',
+        'solved',
+        'submissions',
+        'ac',
+      ])
+    for (const row of result.submissions)
+      assert.deepStrictEqual(Object.keys(row), ['local_day', 'total', 'ac'])
+    for (let index = 0; index < 35; index++) seedNativeDaily(db, `raw-${index}`, index)
+    assert.strictEqual(reads.daily().length, 30)
+    assert.strictEqual(reads.submissions().length, 30)
+    assert.strictEqual(reads.visited().length, 43)
+    assert.deepStrictEqual(trace, [])
+    return result
+  })
+})
+
+test('Daily native LIMIT bindings retain zero, negative, fractional, NaN and infinity behavior', () => {
+  compareNativeDailyReads(({ db, reads, trace, failClock }) => {
+    seedNativeDaily(db, null)
+    seedNativeDaily(db, null, 10)
+    seedNativeDaily(db, '2026-11-20', 20)
+    failClock(new Error('LIMIT reads must not capture a clock'))
+    const results = []
+    const tracking = traceNativeDaily(db, trace)
+    try {
+      for (const query of ['daily', 'submissions'] as const) {
+        for (const days of [
+          undefined,
+          0,
+          -0,
+          1,
+          -1,
+          -5,
+          1.25,
+          -1.25,
+          NaN,
+          Infinity,
+          -Infinity,
+          Number.MAX_SAFE_INTEGER,
+        ]) {
+          const result = submissionReadOutcome(() => reads[query](days))
+          results.push(result)
+          if (days === 0) assert.deepStrictEqual(result.rows, [])
+          if (days === -1 || days === -5) {
+            assert.ok(Array.isArray(result.rows))
+            assert.strictEqual(result.rows.length, 3)
+          }
+          if (days !== undefined && (!Number.isFinite(days) || !Number.isInteger(days))) {
+            assert.deepStrictEqual(result.error, {
+              name: 'SqliteError',
+              message: 'datatype mismatch',
+              code: 'SQLITE_MISMATCH',
+            })
+          }
+        }
+      }
+      let caught: unknown
+      try {
+        reads.daily(NaN)
+      } catch (error) {
+        caught = error
+      }
+      assert.strictEqual(caught, tracking.failure())
+    } finally {
+      tracking.restore()
+    }
+    assert.ok(!trace.includes('clock'))
+    assert.ok(trace.includes('all:daily:[NaN]'))
+    assert.ok(trace.includes('all:submissions:[-0]'))
+    return results
+  })
+})
+
+test('Daily native truthy cutoff keeps lexical inclusion, prepare-before-clock and exact errors', () => {
+  compareNativeDailyReads(({ db, reads, trace, setClock, failClock }) => {
+    const days = [null, null, '', '2026-02-30', '2026-11-19', '2026-11-20', '2026-11-21', 'zzz']
+    for (const [index, day] of days.entries()) seedNativeDaily(db, day, index * 10, 0)
+    const tracking = traceNativeDaily(db, trace)
+    const results = []
+    try {
+      for (const query of ['visited', 'ac'] as const) {
+        for (const value of [undefined, 0, -0, NaN]) {
+          const start = trace.length
+          const rows = reads[query](value)
+          assert.deepStrictEqual(
+            rows.map((row) => row.local_day),
+            days,
+          )
+          assert.deepStrictEqual(trace.slice(start), [`prepare:${query}`, `all:${query}:[]`])
+          results.push(rows)
+        }
+        for (const value of [1, -1, 1.5, Infinity]) {
+          const start = trace.length
+          const result = submissionReadOutcome(() => reads[query](value))
+          assert.deepStrictEqual(trace.slice(start, start + 2), [`prepare:${query}`, 'clock'])
+          if (value === 1 || value === -1) {
+            const rows = reads[query](value)
+            assert.deepStrictEqual(
+              rows.map((row) => row.local_day),
+              value === 1
+                ? ['2026-11-19', '2026-11-20', '2026-11-21', 'zzz']
+                : ['2026-11-21', 'zzz'],
+            )
+          } else {
+            assert.deepStrictEqual(result.error, {
+              name: 'TypeError',
+              message: 'Day shift must be an integer',
+            })
+            assert.strictEqual(trace.length, start + 2)
+          }
+          results.push(result)
+        }
+      }
+      setClock(new Date(2026, 10, 19, 23, 59, 59, 999).getTime())
+      reads.visited(1)
+      assert.strictEqual(trace.at(-1), 'all:visited:["2026-11-18"]')
+      setClock(new Date(2026, 10, 20, 0, 0).getTime())
+      reads.visited(1)
+      assert.strictEqual(trace.at(-1), 'all:visited:["2026-11-19"]')
+      const clockFailure = new Error('native clock sentinel')
+      failClock(clockFailure)
+      assert.throws(
+        () => reads.ac(1),
+        (error: unknown) => error === clockFailure,
+      )
+      db.exec('DROP TABLE user_daily_stats')
+      for (const query of ['visited', 'ac'] as const) {
+        const start = trace.length
+        let caught: unknown
+        try {
+          reads[query](1.5)
+        } catch (error) {
+          caught = error
+        }
+        assert.strictEqual(caught, tracking.failure())
+        const result = submissionReadOutcome(() => {
+          throw caught
+        })
+        assert.deepStrictEqual(result.error, {
+          name: 'SqliteError',
+          message: 'no such table: user_daily_stats',
+          code: 'SQLITE_ERROR',
+        })
+        assert.deepStrictEqual(trace.slice(start), [`prepare:${query}`])
+        results.push(result)
+      }
+    } finally {
+      tracking.restore()
+    }
+    return results
+  })
+})
+
+test('Daily native reads retain query-only, caller savepoints, rollback and current-handle lifecycle', () => {
+  compareNativeDailyReads(({ db, reads }) => {
+    seedNativeDaily(db, null, 10, 0)
+    seedNativeDaily(db, '2026-11-20', 20, 0)
+    db.pragma('query_only = ON')
+    const initial = [reads.daily(-1), reads.visited(), reads.ac(1), reads.submissions(-1)]
+    db.pragma('query_only = OFF')
+    const pending: unknown[] = []
+    assert.throws(
+      () =>
+        db.transaction(() => {
+          seedNativeDaily(db, '2026-11-21', 30)
+          pending.push(reads.daily(-1), reads.visited(), reads.ac(1), reads.submissions(-1))
+          assert.strictEqual(db.inTransaction, true)
+          assert.throws(
+            () =>
+              db.transaction(() => {
+                seedNativeDaily(db, null, 40)
+                pending.push(reads.visited())
+                assert.strictEqual(reads.ac().length, 4)
+                throw new Error('daily nested rollback')
+              })(),
+            /daily nested rollback/,
+          )
+          assert.strictEqual(reads.visited().length, 3)
+          throw new Error('daily outer rollback')
+        })(),
+      /daily outer rollback/,
+    )
+    assert.strictEqual(db.inTransaction, false)
+    assert.deepStrictEqual(
+      [reads.daily(-1), reads.visited(), reads.ac(1), reads.submissions(-1)],
+      initial,
+    )
+    closeDb()
+    const failures = [
+      submissionReadOutcome(() => reads.daily()),
+      submissionReadOutcome(() => reads.visited(1.5)),
+      submissionReadOutcome(() => reads.ac(Infinity)),
+      submissionReadOutcome(() => reads.submissions()),
+    ]
+    for (const result of failures)
+      assert.deepStrictEqual(result, {
+        error: { name: 'Error', message: 'Database not initialized. Call initDb() first.' },
+      })
+    const next = initDbAtPath(':memory:')
+    seedNativeDaily(next, null, -2.75)
+    next.pragma('query_only = ON')
+    const current = [reads.daily(-1), reads.visited(), reads.ac(), reads.submissions(-1)]
+    assert.ok(current.every((rows) => rows.length === 1 && rows[0].local_day === null))
+    return { initial, pending, failures, current }
   })
 })
 

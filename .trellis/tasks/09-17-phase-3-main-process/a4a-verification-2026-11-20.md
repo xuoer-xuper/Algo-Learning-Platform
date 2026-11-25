@@ -39,5 +39,11 @@ failure log remains tmp/drizzle-a4a-db.log; correction is spec-documented.
   deprecation/transition notices remain non-failing; no new installer was built.
 - All802 product/config/test hashes unchanged after fixed DB/full/build gates;
   D62dirty unchanged. Original migration/core/schema/deps/version untouched.
-- Normal commit/hooks/push, feature/integration CI remain pending. No release or
-  installer acceptance claimed. PR8 stays draft/base dev, phase3 in_progress.
+- Worke98da9b619e798537750276ed40f3a5346413a04 passed normal commit hooks.
+  Initial immediate push hit unrelated native Windows EPERM marker rename in
+  resolve-upgrade.test.ts before assertions. Exact cause unknown, no source fix,
+  retries/unlink fallback or bypass added. Three isolated49/49 suites passed;
+  one normal push retry ran full test:ci2364/UI14 green and uploaded same source.
+- PR25CI44725568294 passed, squashac7478d8c80d67df36eeb106eed7a60e91dd86f9
+  integrated with identical tested tree. PR8CI44728103063 passed.802hashes and
+  D62dirty stable. No release/installer claim; PR8 draft/base dev, phase3 in_progress.

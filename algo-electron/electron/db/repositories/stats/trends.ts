@@ -1,90 +1,76 @@
+import { asc, desc, gte, sql } from 'drizzle-orm'
+import { createDrizzleClient } from '../../../../src/main/db/client'
+import { userDailyStats } from '../../../../src/main/db/schema'
 import { getDb } from '../../connection'
 import type { DailyActiveStat } from './types'
 import { localDateDaysAgo } from './date'
 import type { SubmissionTrendPoint, TrendPoint } from '../../../../src/shared/types/stats'
 
 export function getDailyActiveStats(days = 30): DailyActiveStat[] {
-  const db = getDb()
+  const db = createDrizzleClient(getDb())
   return db
-    .prepare(
-      `
-    SELECT
-      local_day,
-      active_seconds,
-      duration_seconds,
-      visited_problem_count as visited,
-      solved_problem_count as solved,
-      submission_count as submissions,
-      ac_submission_count as ac
-    FROM user_daily_stats
-    ORDER BY local_day DESC
-    LIMIT ?
-  `,
-    )
-    .all(days) as DailyActiveStat[]
+    .select({
+      local_day: userDailyStats.local_day,
+      active_seconds: userDailyStats.active_seconds,
+      duration_seconds: userDailyStats.duration_seconds,
+      visited: userDailyStats.visited_problem_count,
+      solved: userDailyStats.solved_problem_count,
+      submissions: userDailyStats.submission_count,
+      ac: userDailyStats.ac_submission_count,
+    })
+    .from(userDailyStats)
+    .orderBy(desc(userDailyStats.local_day))
+    .limit(sql.placeholder('days'))
+    .all({ days })
 }
 
 export function getVisitedTrend(days?: number): TrendPoint[] {
-  const db = getDb()
+  const db = createDrizzleClient(getDb())
   if (days) {
-    // local_day stores Beijing-local yyyy-mm-dd text, so cutoff must not use UTC ISO dates.
-    return db
-      .prepare(
-        `
-      SELECT local_day, visited_problem_count as count
-      FROM user_daily_stats
-      WHERE local_day >= ?
-      ORDER BY local_day ASC
-    `,
-      )
-      .all(localDateDaysAgo(days)) as TrendPoint[]
+    // The cutoff is a host-local calendar day, not a UTC ISO date.
+    const statement = db
+      .select({ local_day: userDailyStats.local_day, count: userDailyStats.visited_problem_count })
+      .from(userDailyStats)
+      .where(gte(userDailyStats.local_day, sql.placeholder('cutoff')))
+      .orderBy(asc(userDailyStats.local_day))
+      .prepare()
+    return statement.all({ cutoff: localDateDaysAgo(days) })
   }
   return db
-    .prepare(
-      `
-    SELECT local_day, visited_problem_count as count
-    FROM user_daily_stats
-    ORDER BY local_day ASC
-  `,
-    )
-    .all() as TrendPoint[]
+    .select({ local_day: userDailyStats.local_day, count: userDailyStats.visited_problem_count })
+    .from(userDailyStats)
+    .orderBy(asc(userDailyStats.local_day))
+    .all()
 }
 
 export function getAcTrend(days?: number): TrendPoint[] {
-  const db = getDb()
+  const db = createDrizzleClient(getDb())
   if (days) {
-    return db
-      .prepare(
-        `
-      SELECT local_day, solved_problem_count as count
-      FROM user_daily_stats
-      WHERE local_day >= ?
-      ORDER BY local_day ASC
-    `,
-      )
-      .all(localDateDaysAgo(days)) as TrendPoint[]
+    const statement = db
+      .select({ local_day: userDailyStats.local_day, count: userDailyStats.solved_problem_count })
+      .from(userDailyStats)
+      .where(gte(userDailyStats.local_day, sql.placeholder('cutoff')))
+      .orderBy(asc(userDailyStats.local_day))
+      .prepare()
+    return statement.all({ cutoff: localDateDaysAgo(days) })
   }
   return db
-    .prepare(
-      `
-    SELECT local_day, solved_problem_count as count
-    FROM user_daily_stats
-    ORDER BY local_day ASC
-  `,
-    )
-    .all() as TrendPoint[]
+    .select({ local_day: userDailyStats.local_day, count: userDailyStats.solved_problem_count })
+    .from(userDailyStats)
+    .orderBy(asc(userDailyStats.local_day))
+    .all()
 }
 
 export function getSubmissionTrend(days = 30): SubmissionTrendPoint[] {
-  const db = getDb()
+  const db = createDrizzleClient(getDb())
   return db
-    .prepare(
-      `
-    SELECT local_day, submission_count as total, ac_submission_count as ac
-    FROM user_daily_stats
-    ORDER BY local_day DESC
-    LIMIT ?
-  `,
-    )
-    .all(days) as SubmissionTrendPoint[]
+    .select({
+      local_day: userDailyStats.local_day,
+      total: userDailyStats.submission_count,
+      ac: userDailyStats.ac_submission_count,
+    })
+    .from(userDailyStats)
+    .orderBy(desc(userDailyStats.local_day))
+    .limit(sql.placeholder('days'))
+    .all({ days })
 }

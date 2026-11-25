@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { render } from './renderWithDataRefresh'
-import { cleanup, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, screen, waitFor } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import React from 'react'
 import { ShellRouter } from '../../src/components/ShellRouter'
@@ -104,208 +104,264 @@ async function waitForSettingsPage(): Promise<void> {
   })
 }
 
+function deferredTransitionPromise() {
+  let resolve = () => {}
+  let reject = (_reason: unknown) => {}
+  const promise = new Promise<void>((onResolve, onReject) => {
+    resolve = onResolve
+    reject = onReject
+  })
+  return { promise, resolve, reject }
+}
+
+function queuedNativeTransitions() {
+  const queued: {
+    skip: ReturnType<typeof vi.fn<() => void>>
+    run: (beforeReturn?: () => void) => void
+    finish: () => void
+    reject: () => void
+  }[] = []
+  const start = vi.fn<typeof document.startViewTransition>((options) => {
+    const update = typeof options === 'function' ? options : options?.update
+    const ready = deferredTransitionPromise()
+    const updated = deferredTransitionPromise()
+    const finished = deferredTransitionPromise()
+    const skip = vi.fn<() => void>()
+    queued.push({
+      skip,
+      run(beforeReturn) {
+        update?.()
+        beforeReturn?.()
+        updated.resolve()
+        ready.resolve()
+      },
+      finish() {
+        ready.resolve()
+        updated.resolve()
+        finished.resolve()
+      },
+      reject() {
+        const error = new DOMException('Transition was skipped', 'AbortError')
+        ready.reject(error)
+        updated.reject(error)
+        finished.reject(error)
+      },
+    })
+    return {
+      ready: ready.promise,
+      updateCallbackDone: updated.promise,
+      finished: finished.promise,
+      types: new Set<string>(),
+      skipTransition: skip,
+    }
+  })
+  document.startViewTransition = start
+  return { start, queued }
+}
+
+const homeTab = () => internalTab({ id: 'home', page: { type: 'home' }, url: 'algo://home' })
+function router(tab: TabStripTabInfo | null) {
+  return (
+    <ShellRouter
+      activeTab={tab}
+      onNavigate={vi.fn()}
+      onCloseActiveTab={vi.fn()}
+      onReloadActiveTab={vi.fn()}
+    />
+  )
+}
+
+async function waitForDashboard(): Promise<void> {
+  await vi.dynamicImportSettled()
+  expect(await screen.findByRole('heading', { name: '学习统计', level: 2 })).toBeTruthy()
+  await waitFor(() => {
+    expect(screen.queryByLabelText('总题数加载中')).toBeNull()
+    expect(window.api.stats.getVisitedTrend).toHaveBeenCalledWith(30)
+    expect(window.api.ai.getWeaknessAnalysis).toHaveBeenCalledWith(8)
+  })
+}
+
+function DeliverStaleCallback({ deliver }: { deliver: () => void }) {
+  React.useEffect(deliver, [deliver])
+  return null
+}
+
 describe('View Transitions（B5.3）', () => {
-  let originalStartViewTransition: typeof document.startViewTransition | undefined
+  let native: ReturnType<typeof queuedNativeTransitions>
+  let originalDescriptor: PropertyDescriptor | undefined
 
   beforeEach(() => {
-    originalStartViewTransition = document.startViewTransition
+    originalDescriptor = Object.getOwnPropertyDescriptor(document, 'startViewTransition')
+    native = queuedNativeTransitions()
   })
 
-  afterEach(() => {
-    if (originalStartViewTransition) {
-      document.startViewTransition = originalStartViewTransition
-    } else {
-      // @ts-expect-error: 恢复未定义状态
-      delete document.startViewTransition
-    }
-  })
-
-  it('能力检测：支持 startViewTransition 时用它包裹切换', async () => {
-    const mockTransition = vi.fn((callback: () => void) => {
-      callback()
-      return {
-        finished: Promise.resolve(),
-        ready: Promise.resolve(),
-        updateCallbackDone: Promise.resolve(),
-        skipTransition: () => {},
-      }
+  afterEach(async () => {
+    cleanup()
+    await act(async () => {
+      for (const item of native.queued) item.finish()
     })
-    document.startViewTransition = mockTransition as unknown as typeof document.startViewTransition
+    if (originalDescriptor)
+      Object.defineProperty(document, 'startViewTransition', originalDescriptor)
+    else Reflect.deleteProperty(document, 'startViewTransition')
+    vi.restoreAllMocks()
+    vi.unstubAllGlobals()
+  })
 
-    const dashboardTab = internalTab()
-    const settingsTab = internalTab({
-      id: 'tab-2',
+  it('native callback commits the route wrapper before snapshot callback returns', async () => {
+    vi.spyOn(performance, 'now').mockReturnValue(1000)
+    const { container, rerender } = render(router(internalTab()))
+    await waitForDashboard()
+    const settings = internalTab({
+      id: 'settings',
       page: { type: 'settings' },
-      title: '设置',
       url: 'algo://settings',
     })
-
-    const { rerender } = render(
-      <ShellRouter
-        activeTab={dashboardTab}
-        onNavigate={vi.fn()}
-        onCloseActiveTab={vi.fn()}
-        onReloadActiveTab={vi.fn()}
-      />,
-    )
-
-    expect(mockTransition).not.toHaveBeenCalled()
-
-    rerender(
-      <ShellRouter
-        activeTab={settingsTab}
-        onNavigate={vi.fn()}
-        onCloseActiveTab={vi.fn()}
-        onReloadActiveTab={vi.fn()}
-      />,
-    )
-
-    await waitFor(() => {
-      expect(mockTransition).toHaveBeenCalledTimes(1)
-    })
-    await waitForSettingsPage()
-  })
-
-  it('能力检测：不支持时仍能正常切换（降级分支）', async () => {
-    // @ts-expect-error: 删除 API 模拟不支持
-    delete document.startViewTransition
-
-    const dashboardTab = internalTab()
-    const settingsTab = internalTab({
-      id: 'tab-2',
-      page: { type: 'settings' },
-      title: '设置',
-      url: 'algo://settings',
-    })
-
-    const { rerender, container } = render(
-      <ShellRouter
-        activeTab={dashboardTab}
-        onNavigate={vi.fn()}
-        onCloseActiveTab={vi.fn()}
-        onReloadActiveTab={vi.fn()}
-      />,
-    )
-
-    // startViewTransition 不存在时，仍能正常切换页面（降级到同步更新）
+    rerender(router(settings))
+    expect(native.start).toHaveBeenCalledTimes(1)
     expect(container.querySelector('.shell-route-dashboard')).toBeTruthy()
-
-    rerender(
-      <ShellRouter
-        activeTab={settingsTab}
-        onNavigate={vi.fn()}
-        onCloseActiveTab={vi.fn()}
-        onReloadActiveTab={vi.fn()}
-      />,
-    )
-
-    await waitFor(() => {
-      expect(container.querySelector('.shell-route-settings')).toBeTruthy()
+    await act(async () => {
+      native.queued[0].run(() => {
+        expect(container.querySelector('.shell-route-settings')).toBeTruthy()
+        expect(container.querySelector('.shell-route-dashboard')).toBeNull()
+      })
     })
     await waitForSettingsPage()
   })
 
-  it('过渡被跳过时不产生 unhandled rejection', async () => {
-    /*
-     * 连续换页时浏览器会跳过前一次过渡，被跳过那次的 ready/finished 以 AbortError 拒绝。
-     * 没接住就会冒成页面错误——Playwright 的 pageerror 断言曾因此红过三条。
-     */
-    const rejections: unknown[] = []
-    // jsdom 里未接住的 rejection 落到 process 而不是 window，所以监听点在 process 上。
-    const onUnhandled = (reason: unknown) => {
-      rejections.push(reason)
-    }
-    process.on('unhandledRejection', onUnhandled)
-
-    document.startViewTransition = ((callback: () => void) => {
-      callback()
-      const skipped = Promise.reject(new DOMException('Transition was skipped', 'AbortError'))
-      return {
-        ready: skipped,
-        finished: skipped,
-        updateCallbackDone: Promise.resolve(),
-        skipTransition: () => {},
-      }
-    }) as unknown as typeof document.startViewTransition
-
-    const dashboardTab = internalTab()
-    const settingsTab = internalTab({
-      id: 'tab-2',
-      page: { type: 'settings' },
-      title: '设置',
-      url: 'algo://settings',
-    })
-
-    const { rerender, container } = render(
-      <ShellRouter
-        activeTab={dashboardTab}
-        onNavigate={vi.fn()}
-        onCloseActiveTab={vi.fn()}
-        onReloadActiveTab={vi.fn()}
-      />,
-    )
-
-    rerender(
-      <ShellRouter
-        activeTab={settingsTab}
-        onNavigate={vi.fn()}
-        onCloseActiveTab={vi.fn()}
-        onReloadActiveTab={vi.fn()}
-      />,
-    )
-
-    try {
-      await waitForSettingsPage()
-      expect(container.querySelector('.shell-route-settings')).toBeTruthy()
-    } finally {
-      process.off('unhandledRejection', onUnhandled)
-    }
-    expect(rejections).toEqual([])
+  it('no native API updates directly without lifecycle console errors', async () => {
+    Reflect.deleteProperty(document, 'startViewTransition')
+    vi.spyOn(performance, 'now').mockReturnValue(1000)
+    const errors = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const { container, rerender } = render(router(homeTab()))
+    rerender(router(internalTab()))
+    expect(container.querySelector('.shell-route-dashboard')).toBeTruthy()
+    await waitForDashboard()
+    expect(native.start).not.toHaveBeenCalled()
+    expect(errors.mock.calls).toEqual([])
   })
 
-  it('同一标签不触发过渡（避免无意义的动画）', async () => {
-    const mockTransition = vi.fn((callback: () => void) => {
-      callback()
-      return {
-        finished: Promise.resolve(),
-        ready: Promise.resolve(),
-        updateCallbackDone: Promise.resolve(),
-        skipTransition: () => {},
-      }
-    })
-    document.startViewTransition = mockTransition as unknown as typeof document.startViewTransition
+  it('initial sub-200ms burst updates directly without lifecycle console errors', async () => {
+    vi.spyOn(performance, 'now').mockReturnValue(199)
+    const errors = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const { container, rerender } = render(router(homeTab()))
+    rerender(router(internalTab()))
+    expect(container.querySelector('.shell-route-dashboard')).toBeTruthy()
+    await waitForDashboard()
+    expect(native.start).not.toHaveBeenCalled()
+    expect(errors.mock.calls).toEqual([])
+  })
 
-    const dashboardTab = internalTab()
+  it.each([199, 200])(
+    'preserves the exact %sms burst boundary and rejects skipped stale callbacks',
+    async (elapsed) => {
+      const clock = vi.spyOn(performance, 'now').mockReturnValue(1000)
+      const errors = vi.spyOn(console, 'error').mockImplementation(() => {})
+      const { container, rerender } = render(router(homeTab()))
+      rerender(router(internalTab()))
+      expect(native.start).toHaveBeenCalledTimes(1)
+      clock.mockReturnValue(1000 + elapsed)
+      rerender(router(homeTab()))
+      expect(native.queued[0].skip).toHaveBeenCalledTimes(1)
+      expect(native.start).toHaveBeenCalledTimes(elapsed === 199 ? 1 : 2)
+      if (elapsed === 200)
+        await act(async () => {
+          native.queued[1].run()
+        })
+      expect(container.querySelector('.shell-route-home')).toBeTruthy()
+      // A skipped native transition still delivers its update callback. Running it
+      // inside an effect also detects any flush placed before the version guard.
+      render(<DeliverStaleCallback deliver={() => native.queued[0].run()} />)
+      await vi.dynamicImportSettled()
+      expect(container.querySelector('.shell-route-home')).toBeTruthy()
+      expect(container.querySelector('.shell-route-dashboard')).toBeNull()
+      expect(errors.mock.calls).toEqual([])
+    },
+  )
 
-    const { rerender } = render(
-      <ShellRouter
-        activeTab={dashboardTab}
-        onNavigate={vi.fn()}
-        onCloseActiveTab={vi.fn()}
-        onReloadActiveTab={vi.fn()}
-      />,
-    )
-
-    mockTransition.mockClear()
-
-    rerender(
-      <ShellRouter
-        activeTab={{ ...dashboardTab, title: 'Dashboard（已修改）' }}
-        onNavigate={vi.fn()}
-        onCloseActiveTab={vi.fn()}
-        onReloadActiveTab={vi.fn()}
-      />,
-    )
-
+  it('no-API fallback invalidates an older callback without adding cancellation', async () => {
+    const clock = vi.spyOn(performance, 'now').mockReturnValue(1000)
+    const errors = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const { container, rerender } = render(router(homeTab()))
+    rerender(router(internalTab()))
+    Reflect.deleteProperty(document, 'startViewTransition')
+    clock.mockReturnValue(2000)
+    rerender(router(homeTab()))
+    expect(native.start).toHaveBeenCalledTimes(1)
+    expect(native.queued[0].skip).not.toHaveBeenCalled()
+    render(<DeliverStaleCallback deliver={() => native.queued[0].run()} />)
     await vi.dynamicImportSettled()
-    expect(await screen.findByRole('heading', { name: '学习统计', level: 2 })).toBeTruthy()
-    await waitFor(() => {
-      expect(screen.queryByLabelText('总题数加载中')).toBeNull()
-      expect(window.api.stats.getVisitedTrend).toHaveBeenCalledWith(30)
-      expect(window.api.ai.getWeaknessAnalysis).toHaveBeenCalledWith(8)
+    expect(container.querySelector('.shell-route-home')).toBeTruthy()
+    expect(container.querySelector('.shell-route-dashboard')).toBeNull()
+    expect(errors.mock.calls).toEqual([])
+  })
+
+  it.each(['finish', 'reject'] as const)(
+    'older %s cannot clear a newer live transition and all rejection branches are handled',
+    async (settle) => {
+      const clock = vi.spyOn(performance, 'now').mockReturnValue(1000)
+      const errors = vi.spyOn(console, 'error').mockImplementation(() => {})
+      const unhandled: unknown[] = []
+      const onUnhandled = (reason: unknown) => {
+        unhandled.push(reason)
+      }
+      process.on('unhandledRejection', onUnhandled)
+      try {
+        const { container, rerender } = render(router(homeTab()))
+        rerender(router(internalTab()))
+        clock.mockReturnValue(2000)
+        rerender(router(homeTab()))
+        await act(async () => {
+          native.queued[0][settle]()
+        })
+        clock.mockReturnValue(3000)
+        rerender(router(internalTab({ id: 'newest-dashboard' })))
+        expect(native.queued[1].skip).toHaveBeenCalledTimes(1)
+        await act(async () => {
+          native.queued[2].run(() =>
+            expect(container.querySelector('.shell-route-dashboard')).toBeTruthy(),
+          )
+          native.queued[0].run()
+          native.queued[1].run()
+          native.queued[1].reject()
+        })
+        await waitForDashboard()
+        await new Promise<void>((resolve) => setImmediate(resolve))
+        expect(container.querySelector('.shell-route-dashboard')).toBeTruthy()
+        expect(unhandled).toEqual([])
+        expect(errors.mock.calls).toEqual([])
+      } finally {
+        process.off('unhandledRejection', onUnhandled)
+      }
+    },
+  )
+
+  it('same tab metadata updates without a transition', async () => {
+    vi.spyOn(performance, 'now').mockReturnValue(1000)
+    const errors = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const tab = internalTab()
+    const { container, rerender } = render(router(tab))
+    await waitForDashboard()
+    rerender(router({ ...tab, title: 'Updated dashboard' }))
+    expect(native.start).not.toHaveBeenCalled()
+    expect(container.querySelectorAll('.shell-route')).toHaveLength(1)
+    expect(errors.mock.calls).toEqual([])
+  })
+
+  it('retains the Date clock fallback at the 200ms nonburst boundary', async () => {
+    const { container, rerender } = render(router(homeTab()))
+    vi.stubGlobal('performance', undefined)
+    const clock = vi.spyOn(Date, 'now').mockReturnValue(200)
+    const calls = clock.mock.calls.length
+    rerender(router(internalTab()))
+    expect(clock.mock.calls.length - calls).toBe(1)
+    expect(native.start).toHaveBeenCalledTimes(1)
+    await act(async () => {
+      native.queued[0].run(() =>
+        expect(container.querySelector('.shell-route-dashboard')).toBeTruthy(),
+      )
     })
-    expect(screen.getAllByTestId('shell-route')).toHaveLength(1)
-    expect(mockTransition).not.toHaveBeenCalled()
+    vi.unstubAllGlobals()
+    await waitForDashboard()
   })
 })
 

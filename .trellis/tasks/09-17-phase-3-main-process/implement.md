@@ -59,18 +59,38 @@
 - [x] 正常hooks提交82a0163并立即推送，PR17 CI44521575932全绿后squash0927213合回Drizzle；
   PR8集成CI44522362714全绿。PR8保持draft/base dev，不发版、不归档阶段3。
 
+## A4b2 Execution Boundary (2026-11-20)
+
+- Begin after A4b1 integrated acceptance, separate branch from refactor/drizzle.
+- [x] Independent precheck approved; parent accepts unchanged streak output and
+  exact per-argument day validation/clock order with stats-local nullable guards.
+- [ ] Implement only streak SELECT and dayDiff; independent old loop/helper
+  oracle, differential/native cases and DB runner registration; no other helpers.
+- [ ] Independent review, both typechecks/scoped lint and focused caller tests.
+- [ ] Serial native/full/build and four-zone date/error tests, source/D unchanged.
+- [ ] Normal hooks/immediate push, feature CI/squash and PR8 integration CI green.
+
+## A4b1 Native UI Blocker (2026-11-23)
+
+- [x] Actual CDP stacks and independent review identify router burst-effect misuse;
+  parent approves bounded direct-update/native-snapshot split, not warning filters.
+- [x] Implement only ShellRouter lifecycle fix and transition tests; original-source
+  regression proof, both typechecks and scopedlint, independent review.
+- [x] Re-run exact native daily spec with final line-animation screenshots, then
+  full/native/build gates with fresh source snapshot before ordinary commit/push.
+
 ## A4b1 Execution Boundary (2026-11-20)
 
-- Begin after A4a integrated acceptance on a new branch from refactor/drizzle.
+- Branch codex/drizzle-daily-trends, baseA4a squashac7478d after both CI gates.
 - [x] Independent precheck and explicit parent acceptance of nullable read types
   and limited chart safety exception, not full old-UI equivalence.
-- [ ] DB worker: trends.ts four reads, frozen oracle/differential suite, native
+- [x] DB worker: trends.ts four reads, frozen oracle/differential suite, native
   repository groups and verify.mjs DB registration; exact clock/prepare retained.
-- [ ] Contract/UI worker: three local_day output schemas, DailyActiveStat alias/
+- [x] Contract/UI worker: three local_day output schemas, DailyActiveStat alias/
   AI shared type, ordinal TrendPanel axes/labels and schema/AI/loader/component/
   real UI regressions. No loader/runtime exporter/privacy rewrite.
-- [ ] Independent full cross-layer review, both typechecks/lint/focused regressions.
-- [ ] Parent serial native/full/build, chart point/Tooltip UI assertions and visual
+- [x] Independent full cross-layer review, both typechecks/lint/focused regressions.
+- [x] Parent serial native/full/build, chart point/Tooltip UI assertions and visual
   screenshot inspection, stable source/D hashes. Preserve data/inputs/versions.
 - [ ] Normal hooks/immediate push, feature CI/squash and PR8 integration CI green.
 
@@ -93,7 +113,9 @@ boundary does not approve their implementation or complete the parent phase.
   no product findings. Both typechecks/lint and5files103 focused tests pass.
 - [x] Corrected test:db677/native40, test:all2364/UI14 and build:check pass;
  802product/config/test hashes and original D62dirty unchanged.
-- [ ] Normal hooks/immediate push, feature PR CI/squash and PR8 integration CI.
+- [x] Worke98da9b normal hooks; initial prepush Windows EPERM investigated without
+  source change,3x49focused and fullhook retry green. PR25CI44725568294/squash
+  ac7478d/PR8CI44728103063 green; tested trees identical.
 
 A4b nullable daily keys, A4c nullable insight IDs and A4d historical migration-aware
 recompute remain separately designed work; no silent scope expansion.
