@@ -40,6 +40,8 @@
 - `siteCredentialLabelMigration.test.ts`：migration 029 的凭据可选显示名字段和幂等升级。
 - `auditDataIntegrity.repro.ts`：2026-09-11 审计证据，包含备份附件、笔记双写、导入路径/删除标记/冲突/负时长、题库筛选和回滚对照；断言当前异常，不属于默认回归集合。
 
+- `stats-streak.test.ts`：A4b2独立冻结SQL、双循环及旧dayDiff，对照阈值、nullable/raw日期、先后校验与时钟、UTC/上海/纽约/Apia日历边界；原生repository补只读/事务/连接及无写入通知契约。
+
 ## 3. 运行方式
 
 ```powershell

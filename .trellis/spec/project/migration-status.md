@@ -45,9 +45,12 @@ review, corrected DB677/native40, full2364/UI14 and build; PR25CI44725568294,
 squashac7478d and PR8CI44728103063 passed. Transient prepush rename EPERM has
 no proven cause; isolated3x49 and normal fullhook retry pass, no source workaround.
 A4b1 daily reads/nullable outputs/ordinal charts and a bounded router lifecycle
-fix pass local full2490/native44/UI16/build with808stable hashes; final independent
-review and remote integration are being completed. Later stats/domain/layout
-work remains incomplete.
+fix pass independent review/full2490/native44/UI16/build with808stable hashes.
+Work66760b6 passed normal hooks; PR26CI45606492783 passed, squash4d60368 has
+the same tested tree, and PR8CI45608688612 passed. A4b2 streak implementation
+starts from that integrated base. A4b2 local gates pass DB854/native48,
+full219files2568/UI16 and build:check with810 stable source hashes. Independent
+review has no findings/fixes; remote integration is pending. Later stats/domain/layout remain incomplete.
 See phase3 a3a/a3b1/a3b2 verification artifacts; PR8 stays draft.
 
 
@@ -76,7 +79,7 @@ See phase3 a3a/a3b1/a3b2 verification artifacts; PR8 stays draft.
 | Logging | ✅ 1.1（2026-11-01）：**electron-log 5.4.4**，`logger.scope()` + 脱敏 hook（原 regex 全量迁移 + `cookie=`）；RUN_AS_NODE 下文件 transport 关闭 | 同左 | 1.2 |
 | Config | ✅ 1.1（2026-11-01）：**electron-store 12**（原子存储层）+ zod 单层校验（`.default()`/`.catch()` 取代 normalizers）；conf 16 的 schema 校验会"坏文件即拒启"，与不清空红线冲突——故 schema 不传给 electron-store | 同左 | 1.3 |
 | Dev/prod isolation | ✅ 1.1（2026-11-01）：`envSetup.ts` 为 main.ts 首个 import（架构守卫强制），非打包且无冒烟 env 时 userData 加 `-dev`；冒烟覆盖优先 | 同左 | 1.3 |
-| Database | Drizzle0.45.4/Kit0.31.11 schema/client and trusted legacy/baseline coordinator; released2.0.1 recovery synchronized with preserved ancestry. A2a-A2g problem queries are converted, including reviewed nullable outputs/invalid actions. Full2157/UI14/native23/build pass; PR21 squash6c42a38 and PR21/PR8 CI green. | Submission reads/writes integrated through PR24; A4a stats basics in progress, later domains/layout remain | 3.1; archived release-upgrade-safety |
+| Database | Drizzle0.45.4/Kit0.31.11 schema/client and trusted legacy/baseline coordinator; released2.0.1 recovery synchronized with preserved ancestry. Problem/submission queries and A4a/A4b1 stats reads integrated through PR26, full2490/UI16/native44/build and both CI gates pass. | A4b2 streak in progress; insight lists, recomputation, later domains/layout remain | 3.1; archived release-upgrade-safety |
 | Timestamps | R5: 82 INTEGER Unix-ms columns, numeric live writers/IPC/shared schemas, display-only Intl; strict history-derived local/UTC+8/SQLite `.0` conversion. Reconstructed 21/24/29 and isolated actual 24/29 copies pass; original user DBs unchanged. | Numeric timestamp target reached; future Drizzle uses timestamp_ms. See `unix-millisecond-time.md`. | 2.5 |
 | Result shape | ✅ 1.1（2026-11-01）：20 处真正的 IPC 返回统一为 `createOutputSchema()` 判别联合（6 个封闭 `code`）；34 处 `{ok:}` 经复核确认是内部校验器/运行时协议形状、不跨 IPC 边界，不转换 | 同左 | 1.4 |
 | Event bus | 9 hand-written `Set<callback>` buses + 3 `EventEmitter` | typed `EventEmitter` wrapper | 3.6 |

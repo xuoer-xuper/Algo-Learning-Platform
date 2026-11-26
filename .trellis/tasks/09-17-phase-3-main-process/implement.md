@@ -62,12 +62,16 @@
 ## A4b2 Execution Boundary (2026-11-20)
 
 - Begin after A4b1 integrated acceptance, separate branch from refactor/drizzle.
+- Active branch codex/drizzle-streak starts at squash4d60368; A4b1 feature and
+  PR8 integration CI passed before implementation GO on2026-11-25.
 - [x] Independent precheck approved; parent accepts unchanged streak output and
   exact per-argument day validation/clock order with stats-local nullable guards.
-- [ ] Implement only streak SELECT and dayDiff; independent old loop/helper
-  oracle, differential/native cases and DB runner registration; no other helpers.
-- [ ] Independent review, both typechecks/scoped lint and focused caller tests.
-- [ ] Serial native/full/build and four-zone date/error tests, source/D unchanged.
+- [x] Implement only streak SELECT and dayDiff; independent old loop/helper
+  oracle,78 differential cases/four native groups and DB runner registration.
+- [x] Independent full-slice review has no findings/fixes; both types/lint/format,
+  UTC8files280 and other three zones80 each pass; original AST/SQL confirmed.
+- [x] DB854/native48, full219files2568/UI16 and build:check pass; four-zone
+  streak78 each,810 source hashes and original D62dirty unchanged.
 - [ ] Normal hooks/immediate push, feature CI/squash and PR8 integration CI green.
 
 ## A4b1 Native UI Blocker (2026-11-23)
@@ -92,7 +96,8 @@
 - [x] Independent full cross-layer review, both typechecks/lint/focused regressions.
 - [x] Parent serial native/full/build, chart point/Tooltip UI assertions and visual
   screenshot inspection, stable source/D hashes. Preserve data/inputs/versions.
-- [ ] Normal hooks/immediate push, feature CI/squash and PR8 integration CI green.
+- [x] Work66760b6 normal hooks/immediate push; PR26CI45606492783 passed,
+  squash4d60368 has the same tested tree; PR8CI45608688612 passed.
 
 Streak A4b2, list A4c and historical-aware recompute A4d remain separate. This
 boundary does not approve their implementation or complete the parent phase.
