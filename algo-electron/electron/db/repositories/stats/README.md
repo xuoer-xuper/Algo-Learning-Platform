@@ -28,7 +28,7 @@
 - 查询函数返回普通对象数组，不向调用方暴露 `better-sqlite3` statement 或连接对象。
 - Schema 变化必须先写 migration，再更新本目录 SQL 和测试。
 
-- A4a将平台分布、单题访问和最后活跃时间迁移到Drizzle；A4b1迁移四个每日趋势读取；A4b2迁移连续活跃SELECT。其余洞察列表/重算另行处理。
+- A4a将平台分布、单题访问和最后活跃时间迁移到Drizzle；A4b1迁移四个每日趋势读取；A4b2迁移连续活跃SELECT；A4c迁移剩余四个洞察列表。历史迁移关联的重算另行处理。
 - 每次包装当前连接，不缓存、不新建事务、不写入或通知。平台分布保留active父行COUNT(*)及count倒序，NULL ID也计数。
 - 单题访问保留COUNT(*)和原生COALESCE(SUM/AVG,0)，墓碑/孤立访问仍计入，AVG忽略NULL时长；INTEGER SUM溢出仍抛错，不转字符串或返回零。
 - 最后活跃时间保留raw occurred_at倒序首行及空值回退，epoch0和诊断小数/极值不经Date解码；不改成MAX或委托题目overview。
@@ -37,6 +37,8 @@
 - 两张趋势图按原始数组的位置分别映射刻度和Tooltip；仅null显示“日期缺失”，不合并/过滤行，也不向DTO写入显示占位符。
 - 连续活跃保留active>=300或submission/solved>0的阈值、DESC原始日期和两轮循环；仅今日起算current，无昨日宽限，不新增墓碑过滤。
 - stats局部dayDiff仅在各自原localDayBounds前依次拒绝NULL，保留后日期越界优先于前日期NULL、单坏行/双坏行和时钟调用顺序；共享日期API不放宽。
+- 洞察列表保留命名LIMIT、raw时间和原排序；复访COUNT(visit.id)/MAX区分匿名行，错题排除任意精确AC（含墓碑）。未复习先prepare再依次读取两个时钟，days_since仍由SQL截断计算。
+- 时间线/未复习输出ID允许NULL，错题ID保守声明nullable但JOIN不产生NULL；复访投影JOIN中非空访问FK。Dashboard仅调整key，所有原站URL操作保留，AI隐私白名单不变。
 - 历史migration030调用recompute-core.ts；本批不改该依赖路径，也不改变任何schema、写入或IPC输入。
 
 ## 5. 验证入口
@@ -47,6 +49,7 @@ pnpm typecheck
 pnpm typecheck:tests
 pnpm run test:unit tests/db/stats-basic-reads.test.ts
 pnpm run test:unit tests/db/stats-streak.test.ts
+pnpm run test:unit tests/db/stats-insight-lists.test.ts
 pnpm run test:unit tests/db/stats-daily-reads.test.ts tests/ipc/daily-read-schemas.test.ts tests/components/daily-trends.test.tsx tests/ai/daily-read-context.test.ts
 pnpm test:db
 node tests/ui/runPlaywright.mjs daily-trends.pw.spec.ts

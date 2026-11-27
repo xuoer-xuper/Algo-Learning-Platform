@@ -1,6 +1,13 @@
 import type { ReviewRecommendation } from '@shared/types/ai'
 import type { PlatformAccount } from '@shared/types/rating'
-import type { OverviewStats, TrendPoint } from '@shared/types/stats'
+import type {
+  OverviewStats,
+  RevisitStatsItem,
+  TimelineEvent,
+  TrendPoint,
+  UnreviewedProblemItem,
+  WrongProblemItem,
+} from '@shared/types/stats'
 
 /*
  * Dashboard 的视图模型。收口前本文件手抄了 TrendPoint / ReviewRecommendation /
@@ -9,24 +16,24 @@ import type { OverviewStats, TrendPoint } from '@shared/types/stats'
  */
 
 export interface DashboardTimelineEvent {
-  id?: string | number
+  id?: TimelineEvent['id']
   event_type: string
   platform?: string | null
   occurred_at?: number | null
 }
 
 export interface DashboardProblemListItem {
-  id: string | number
+  id: (WrongProblemItem | UnreviewedProblemItem)['id']
   platform: string
   title?: string | null
-  platform_problem_id?: string | null
+  platform_problem_id: (WrongProblemItem | UnreviewedProblemItem)['platform_problem_id']
   canonical_url: string
   wrong_count?: number
   days_since?: number
 }
 
 export interface DashboardRevisitItem {
-  problem_id: string | number
+  problem_id: RevisitStatsItem['problem_id']
   platform: string
   title?: string | null
   platform_problem_id?: string | null

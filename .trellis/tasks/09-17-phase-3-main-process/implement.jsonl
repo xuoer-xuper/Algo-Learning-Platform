@@ -44,3 +44,5 @@
 {"file": ".trellis/tasks/09-17-phase-3-main-process/research/a4b-daily-reads-review.md", "reason": "Independent A4b1 approval conditions: nullable shared shape and both ordinal chart/Tooltip correction"}
 {"file": ".trellis/spec/project/drizzle-daily-reads.md", "reason": "Accepted A4b1 executable query/types/chart boundary and native/UI tests"}
 {"file": ".trellis/tasks/09-17-phase-3-main-process/research/a4b1-implementation-review.md", "reason": "A4b1 independent implementation and native pointer/router blocker evidence; bounded lifecycle fix approved"}
+{"file": ".trellis/tasks/09-17-phase-3-main-process/research/a4c-insight-lists-contract-review.md", "reason": "Approved A4c four-query nullable output/key policy, COUNT child ID/raw MAX/native LIMIT and prepare/two-clock contracts"}
+{"file": ".trellis/spec/project/drizzle-insight-lists.md", "reason": "Executable A4c query/consumer/privacy/error and independent regression contracts"}

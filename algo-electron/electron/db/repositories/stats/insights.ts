@@ -1,9 +1,11 @@
-import { count, desc, eq, gt, gte, isNull, or, sql } from 'drizzle-orm'
+import { and, asc, count, desc, eq, gt, gte, isNull, lt, ne, notExists, or, sql } from 'drizzle-orm'
+import { alias } from 'drizzle-orm/sqlite-core'
 import { createDrizzleClient } from '../../../../src/main/db/client'
 import {
   activityEvents,
   problems,
   problemVisits,
+  submissions,
   userDailyStats,
 } from '../../../../src/main/db/schema'
 import { getDb } from '../../connection'
@@ -46,17 +48,20 @@ export function getProblemVisitStats(problemId: string): ProblemVisitStat {
 }
 
 export function getTimeline(limit = 50): TimelineEvent[] {
-  const db = getDb()
+  const db = createDrizzleClient(getDb())
   return db
-    .prepare(
-      `
-    SELECT id, event_type, occurred_at, platform, url, problem_id
-    FROM activity_events
-    ORDER BY occurred_at DESC
-    LIMIT ?
-  `,
-    )
-    .all(limit) as TimelineEvent[]
+    .select({
+      id: activityEvents.id,
+      event_type: activityEvents.event_type,
+      occurred_at: sql<number>`${activityEvents.occurred_at}`,
+      platform: activityEvents.platform,
+      url: activityEvents.url,
+      problem_id: activityEvents.problem_id,
+    })
+    .from(activityEvents)
+    .orderBy(desc(activityEvents.occurred_at))
+    .limit(sql.placeholder('limit'))
+    .all({ limit })
 }
 
 export function getLastActiveTime(): number | null {
@@ -71,28 +76,26 @@ export function getLastActiveTime(): number | null {
 }
 
 export function getRevisitStats(limit = 50): RevisitStat[] {
-  const db = getDb()
+  const db = createDrizzleClient(getDb())
   return db
-    .prepare(
-      `
-    SELECT
-      p.id as problem_id,
-      p.platform,
-      p.platform_problem_id,
-      p.title,
-      p.canonical_url,
-      COUNT(pv.id) as visit_count,
-      MAX(pv.entered_at) as last_visit
-    FROM problems p
-    JOIN problem_visits pv ON pv.problem_id = p.id
-    WHERE p.deleted_at IS NULL
-    GROUP BY p.id
-    HAVING visit_count > 1
-    ORDER BY visit_count DESC
-    LIMIT ?
-  `,
-    )
-    .all(limit) as RevisitStat[]
+    .select({
+      // The unchanged equality join proves this NOT NULL visit FK equals the parent ID.
+      problem_id: problemVisits.problem_id,
+      platform: problems.platform,
+      platform_problem_id: problems.platform_problem_id,
+      title: problems.title,
+      canonical_url: problems.canonical_url,
+      visit_count: count(problemVisits.id),
+      last_visit: sql<number>`MAX(${problemVisits.entered_at})`,
+    })
+    .from(problems)
+    .innerJoin(problemVisits, eq(problemVisits.problem_id, problems.id))
+    .where(isNull(problems.deleted_at))
+    .groupBy(problems.id)
+    .having(gt(count(problemVisits.id), sql`1`))
+    .orderBy(desc(count(problemVisits.id)))
+    .limit(sql.placeholder('limit'))
+    .all({ limit })
 }
 
 export function getStreakDays(): StreakDays {
@@ -141,54 +144,64 @@ export function getStreakDays(): StreakDays {
 }
 
 export function getWrongProblems(limit = 50): WrongProblem[] {
-  const db = getDb()
+  const db = createDrizzleClient(getDb())
+  const accepted = alias(submissions, 's2')
   return db
-    .prepare(
-      `
-    SELECT
-      p.id,
-      p.platform,
-      p.platform_problem_id,
-      p.title,
-      p.canonical_url,
-      COUNT(s.id) as wrong_count,
-      MAX(s.submitted_at) as last_attempt
-    FROM problems p
-    JOIN submissions s ON s.problem_id = p.id
-    WHERE p.deleted_at IS NULL
-      AND s.verdict != 'AC'
-      AND NOT EXISTS (
-        SELECT 1 FROM submissions s2
-        WHERE s2.problem_id = p.id AND s2.verdict = 'AC'
-      )
-    GROUP BY p.id
-    ORDER BY last_attempt DESC
-    LIMIT ?
-  `,
+    .select({
+      id: problems.id,
+      platform: problems.platform,
+      platform_problem_id: problems.platform_problem_id,
+      title: problems.title,
+      canonical_url: problems.canonical_url,
+      wrong_count: count(submissions.id),
+      last_attempt: sql<number>`MAX(${submissions.submitted_at})`,
+    })
+    .from(problems)
+    .innerJoin(submissions, eq(submissions.problem_id, problems.id))
+    .where(
+      and(
+        isNull(problems.deleted_at),
+        ne(submissions.verdict, sql`'AC'`),
+        notExists(
+          db
+            .select({ one: sql`1` })
+            .from(accepted)
+            .where(and(eq(accepted.problem_id, problems.id), eq(accepted.verdict, sql`'AC'`))),
+        ),
+      ),
     )
-    .all(limit) as WrongProblem[]
+    .groupBy(problems.id)
+    .orderBy(desc(sql`MAX(${submissions.submitted_at})`))
+    .limit(sql.placeholder('limit'))
+    .all({ limit })
 }
 
 export function getUnreviewedProblems(days = 30, limit = 50): UnreviewedProblem[] {
-  const db = getDb()
-  return db
-    .prepare(
-      `
-    SELECT
-      id,
-      platform,
-      platform_problem_id,
-      title,
-      canonical_url,
-      last_visited_at,
-      CAST((? - last_visited_at) / 86400000 AS INTEGER) as days_since
-    FROM problems
-    WHERE deleted_at IS NULL
-      AND last_visited_at < ?
-      AND status != 'visited'
-    ORDER BY last_visited_at ASC
-    LIMIT ?
-  `,
+  const db = createDrizzleClient(getDb())
+  const statement = db
+    .select({
+      id: problems.id,
+      platform: problems.platform,
+      platform_problem_id: problems.platform_problem_id,
+      title: problems.title,
+      canonical_url: problems.canonical_url,
+      last_visited_at: sql<number>`${problems.last_visited_at}`,
+      days_since: sql<number>`CAST((${sql.placeholder('now')} - ${problems.last_visited_at}) / 86400000 AS INTEGER)`,
+    })
+    .from(problems)
+    .where(
+      and(
+        isNull(problems.deleted_at),
+        lt(problems.last_visited_at, sql`${sql.placeholder('cutoff')}`),
+        ne(problems.status, sql`'visited'`),
+      ),
     )
-    .all(nowMillis(), localDayBounds(localDateDaysAgo(days)).start, limit) as UnreviewedProblem[]
+    .orderBy(asc(problems.last_visited_at))
+    .limit(sql.placeholder('limit'))
+    .prepare()
+  return statement.all({
+    now: nowMillis(),
+    cutoff: localDayBounds(localDateDaysAgo(days)).start,
+    limit,
+  })
 }

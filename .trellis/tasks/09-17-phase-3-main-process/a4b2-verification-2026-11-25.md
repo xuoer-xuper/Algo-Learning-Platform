@@ -41,6 +41,21 @@ reconfirmed on2026-11-26 before full acceptance.
 - Coverage: statements76.34/branches70.39/functions73.67/lines79.51 percent.
 - Source810 hashes unchanged through final full/build/review; D62dirty unchanged.
 - Duplication gate1.77 percent passed.
-- Normal commit/push, feature CI/squash and PR8 integration CI: pending.
+- Normal commit/push, feature CI/squash and PR8 integration CI: completed below.
 
 No release, installer or whole-phase completion is claimed by this slice.
+
+## Commit And Remote Integration (2026-11-27)
+
+Workc45e86fb4937378d42343286f1da3d3e64ff49ac passed normal commit hooks.
+First prepush failed one wide daily Tooltip assertion after visibility succeeded;
+review and preserved diagnostics establish no root cause or causal code fix.
+See research/a4b2-prepush-ui-review.md; original/diagnostic artifacts live under
+tmp/drizzle-a4b2-prepush-ui-failure and tmp/drizzle-a4b2-ui-diagnostic-*.
+A single unchanged normal retry passed full test:ci2568/UI16 and pushed the branch.
+No source/timeout/retry/assertion changes;810 hashes remain identical.
+
+PR27 feature CI45955883109 passed. Squash93c0df29655492fcb9182aa073a8d68e6c537a23
+merged into refactor/drizzle; git diff proves the same tested tree. PR8 integration
+CI45958456569 passed on the same squash head. New codex/drizzle-insight-lists
+starts from this base; parent authorized A4c GO after integration. PR8 stays draft/base dev; phase3 remains in_progress.

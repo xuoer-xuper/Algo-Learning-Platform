@@ -44,6 +44,22 @@ read-only timeline submission ID output to allow already-returned null; keep
 request/problem IDs, metric outputs and LLM privacy allowlist unchanged. Empty
 first-AC batches must still acquire no database. Submission writes remain separate.
 
+### A4c Insight List Acceptance (2026-11-27)
+
+Parent accepts the independently reviewed four-list scope after A4b2 integration.
+Preserve timeline/revisit/wrong/unreviewed rows, raw values, native limits,
+ordering and original clock/error behavior. Timeline/unreviewed read IDs allow
+NULL. Wrong IDs become conservatively nullable in types although their equality
+join excludes NULL at runtime; revisit remains string using the existing joined
+NOT NULL visit FK. No schema repair or request widening.
+
+Dashboard keeps every canonical-URL action and existing loading/empty states.
+Wrong/unreviewed row identity uses the required unique platform/problem tuple;
+timeline identified and anonymous keys use separate tagged domains. Anonymous
+identity remains positional. This bounded key correction preserves data and
+navigation; it does not approve broader phase4 work or a stable anonymous-ID
+model. AI/export privacy projections stay unchanged. Recompute remains separate.
+
 ### A4b1 Native UI blocker acceptance (2026-11-23)
 
 Actual Electron diagnostics prove the existing shell router's rapid-tab effect
@@ -156,7 +172,7 @@ separate. This scope is explicitly accepted after independent design review.
 
 ## Out of Scope
 
-- 广泛渲染层重构（阶段4）；已明确批准的A2g无效ID操作、A4b1日期图表consumer-safety及其原生验收发现的局部路由生命周期修复除外。测试目录重排（阶段 5，但本阶段搬源码时**同步移动**对应测试文件到 `tests/unit/services/{domain}/` 的临时位置，避免 import 断裂）。
+- 广泛渲染层重构（阶段4）；已明确批准的A2g无效ID操作、A4b1日期图表consumer-safety及其原生验收发现的局部路由生命周期修复、A4c洞察输出/key消费者边界除外。测试目录重排（阶段 5，但本阶段搬源码时**同步移动**对应测试文件到 `tests/unit/services/{domain}/` 的临时位置，避免 import 断裂）。
 
 ## Notes
 

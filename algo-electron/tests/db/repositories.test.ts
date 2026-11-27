@@ -19,6 +19,12 @@ import {
   getOriginalVisitedTrend,
 } from './stats-daily-reads-oracle'
 import { getOriginalStreakDays, invokeOriginalDayDiff } from './stats-streak-oracle'
+import {
+  getOriginalTimeline,
+  getOriginalRevisitStats,
+  getOriginalWrongProblems,
+  getOriginalUnreviewedProblems,
+} from './stats-insight-lists-oracle'
 import { dayDiff } from '../../electron/db/repositories/stats/date'
 import { runOriginalSubmissionUpsert } from './submission-upsert-oracle'
 import {
@@ -72,6 +78,10 @@ import {
   getSubmissionTrend,
   getVisitedTrend,
   getStreakDays,
+  getTimeline,
+  getRevisitStats,
+  getWrongProblems,
+  getUnreviewedProblems,
   getPlatformDistribution as getStatsPlatformDistribution,
   getProblemVisitStats,
   getLastActiveTime as getStatsLastActiveTime,
@@ -3576,6 +3586,383 @@ test('Streak native read-only, savepoint, rollback, current-handle and prepare e
     assert.match(caught.message, /^no such column: .*active_seconds/)
     assert.deepStrictEqual(trace.slice(start), ['prepare:daily'])
     return { initial, closed, failure: { name: caught.name, code: caught.code } }
+  })
+})
+
+type NativeInsightReads = {
+  timeline: typeof getTimeline
+  revisit: typeof getRevisitStats
+  wrong: typeof getWrongProblems
+  unreviewed: typeof getUnreviewedProblems
+}
+const nativeInsightQueries = ['timeline', 'revisit', 'wrong', 'unreviewed'] as const
+
+function nativeInsightLimit(
+  reads: NativeInsightReads,
+  query: (typeof nativeInsightQueries)[number],
+  limit?: number,
+) {
+  return query === 'unreviewed' ? reads.unreviewed(undefined, limit) : reads[query](limit)
+}
+
+function compareNativeInsights(
+  run: (scenario: {
+    db: Database.Database
+    reads: NativeInsightReads
+    trace: string[]
+    setClocks: (...values: number[]) => void
+  }) => unknown,
+) {
+  const originalNow = Date.now
+  const results = []
+  try {
+    for (const original of [true, false]) {
+      const now = new Date(2026, 10, 20, 0, 30, 0, 123).getTime()
+      Date.now = () => now
+      closeDb()
+      const db = initDbAtPath(':memory:')
+      const events: DataChangedPayload[] = [],
+        trace: string[] = []
+      const unsubscribe = subscribeDataChanges((event) => events.push(event))
+      let clocks = [now]
+      Date.now = () => {
+        trace.push('clock')
+        return clocks.length > 1 ? clocks.splice(0, 1)[0] : clocks[0]
+      }
+      function checked<T>(read: () => T): T {
+        let current: Database.Database | undefined
+        try {
+          current = getDb()
+        } catch {
+          /* Closed access is also compared. */
+        }
+        const before = current?.open ? nativeStatsSnapshot(current) : undefined
+        try {
+          return read()
+        } finally {
+          if (before && current) assert.deepStrictEqual(nativeStatsSnapshot(current), before)
+          assert.deepStrictEqual(events, [])
+        }
+      }
+      const reads: NativeInsightReads = {
+        timeline: (limit) =>
+          checked(() => (original ? getOriginalTimeline(getDb(), limit) : getTimeline(limit))),
+        revisit: (limit) =>
+          checked(() =>
+            original ? getOriginalRevisitStats(getDb(), limit) : getRevisitStats(limit),
+          ),
+        wrong: (limit) =>
+          checked(() =>
+            original ? getOriginalWrongProblems(getDb(), limit) : getWrongProblems(limit),
+          ),
+        unreviewed: (days, limit) =>
+          checked(() =>
+            original
+              ? getOriginalUnreviewedProblems(getDb(), days, limit)
+              : getUnreviewedProblems(days, limit),
+          ),
+      }
+      try {
+        const result = run({
+          db,
+          reads,
+          trace,
+          setClocks: (...values) => {
+            clocks = values
+          },
+        })
+        // Each read keeps all ledger fields; only independent setup clocks differ here.
+        results.push({ result, trace, state: nativeStatsSnapshot(getDb(), true), events })
+      } finally {
+        unsubscribe()
+        closeDb()
+      }
+    }
+  } finally {
+    Date.now = originalNow
+  }
+  assert.deepStrictEqual(results[1], results[0])
+}
+
+function seedNativeInsightSubmission(
+  db: Database.Database,
+  parent: string | null,
+  id: string | null,
+  key: string,
+  verdict = 'WA',
+  time: number | string = 0,
+  deleted: number | null = null,
+) {
+  db.prepare(
+    `INSERT INTO submissions(id,problem_id,platform,platform_submission_id,verdict,submitted_at,created_at,updated_at,deleted_at)
+    VALUES (?,?,'test',?,?,?,0,0,?)`,
+  ).run(id, parent, key, verdict, time, deleted)
+}
+
+function seedNativeInsightLists(db: Database.Database, count = 3) {
+  for (let i = 0; i < count; i++) {
+    const id = `insight-${i}`
+    seedNativeStatsProblem(db, id)
+    db.prepare('UPDATE problems SET last_visited_at=? WHERE id=?').run(i, id)
+    seedNativeStatsVisit(db, id, 0, 0, `${id}-v1`)
+    seedNativeStatsVisit(db, id, 0, 0, `${id}-v2`, 0)
+    seedNativeInsightSubmission(db, id, `${id}-s`, id, 'WA', i + 0.75)
+    seedNativeStatsEvent(db, i, `${id}-event`, 0)
+  }
+}
+
+function traceNativeInsights(db: Database.Database, trace: string[]) {
+  const descriptor = Object.getOwnPropertyDescriptor(db, 'prepare'),
+    prepare = db.prepare.bind(db)
+  let nativeError: unknown
+  Object.defineProperty(db, 'prepare', {
+    configurable: true,
+    value: (query: string) => {
+      if (!/order by/i.test(query) || !/limit/i.test(query)) return prepare(query)
+      trace.push('prepare')
+      try {
+        const statement = prepare(query),
+          all = statement.all.bind(statement)
+        Object.defineProperty(statement, 'all', {
+          configurable: true,
+          value: (...bindings: unknown[]) => {
+            trace.push(
+              `all:[${bindings.map((value) => (typeof value === 'number' ? (Object.is(value, -0) ? '-0' : String(value)) : JSON.stringify(value))).join(',')}]`,
+            )
+            try {
+              return all(...bindings)
+            } catch (error) {
+              nativeError = error
+              throw error
+            }
+          },
+        })
+        return statement
+      } catch (error) {
+        nativeError = error
+        throw error
+      }
+    },
+  })
+  return {
+    error: () => nativeError,
+    restore: () => {
+      if (descriptor) Object.defineProperty(db, 'prepare', descriptor)
+      else Reflect.deleteProperty(db, 'prepare')
+    },
+  }
+}
+
+test('Insight native lists preserve NULL IDs, COUNT child IDs, raw MAX and tombstoned anti-AC', () => {
+  compareNativeInsights(({ db, reads }) => {
+    seedNativeInsightLists(db, 1)
+    for (const key of ['null-a', 'null-b']) {
+      seedNativeStatsProblem(db, null, 'test', key)
+      seedNativeStatsEvent(db, 99.75, null, 0)
+    }
+    db.exec('UPDATE problems SET last_visited_at=0 WHERE id IS NULL')
+    seedNativeStatsVisit(db, 'insight-0', 0, 0, null, 0)
+    db.exec('UPDATE problem_visits SET entered_at=99.75 WHERE id IS NULL')
+    seedNativeStatsProblem(db, 'one-visit')
+    seedNativeStatsVisit(db, 'one-visit', 0, 0, 'only')
+    seedNativeStatsVisit(db, 'one-visit', 0, 0, null)
+    seedNativeStatsProblem(db, 'anonymous-submission')
+    seedNativeInsightSubmission(db, 'anonymous-submission', null, 'null-wa', 'TESTING', 50.25, 0)
+    seedNativeStatsProblem(db, 'accepted')
+    seedNativeInsightSubmission(db, 'accepted', 'wa', 'accepted-wa', 'WA', 100)
+    seedNativeInsightSubmission(db, 'accepted', null, 'accepted-ac', 'AC', 0, 0)
+    seedNativeInsightSubmission(db, 'insight-0', 'lowercase', 'lowercase', 'ac', 3.25)
+    const result = {
+      timeline: reads.timeline(-1),
+      revisit: reads.revisit(-1),
+      wrong: reads.wrong(-1),
+      unreviewed: reads.unreviewed(),
+    }
+    assert.strictEqual(result.timeline.filter((row) => row.id === null).length, 2)
+    for (const row of result.timeline)
+      assert.deepStrictEqual(Object.keys(row), [
+        'id',
+        'event_type',
+        'occurred_at',
+        'platform',
+        'url',
+        'problem_id',
+      ])
+    assert.deepStrictEqual(
+      result.revisit.map((row) => [row.problem_id, row.visit_count, row.last_visit]),
+      [['insight-0', 2, 99.75]],
+    )
+    assert.deepStrictEqual(
+      result.wrong.map((row) => [row.id, row.wrong_count, row.last_attempt]),
+      [
+        ['anonymous-submission', 0, 50.25],
+        ['insight-0', 2, 3.25],
+      ],
+    )
+    assert.strictEqual(result.unreviewed.filter((row) => row.id === null).length, 2)
+    return result
+  })
+})
+
+test('Insight native LIMIT bindings preserve negative, NaN, fractional, infinite and default boundaries', () => {
+  compareNativeInsights(({ db, reads, trace }) => {
+    seedNativeInsightLists(db, 55)
+    const tracking = traceNativeInsights(db, trace),
+      results = []
+    try {
+      for (const query of nativeInsightQueries) {
+        for (const limit of [
+          undefined,
+          0,
+          -0,
+          1,
+          50,
+          -1,
+          -5,
+          1.25,
+          -1.25,
+          NaN,
+          Infinity,
+          -Infinity,
+          Number.MAX_SAFE_INTEGER,
+          Number.MAX_SAFE_INTEGER + 1,
+        ]) {
+          const result = submissionReadOutcome(() => nativeInsightLimit(reads, query, limit))
+          const effective = limit === undefined ? 50 : limit
+          if (Number.isFinite(effective) && Number.isInteger(effective)) {
+            assert.ok(
+              'rows' in result && Array.isArray(result.rows),
+              `${query} LIMIT ${String(limit)}: ${JSON.stringify(result)}`,
+            )
+            const expectedLength =
+              effective === 0 ? 0 : effective < 0 ? 55 : Math.min(effective, 55)
+            assert.strictEqual(result.rows.length, expectedLength)
+          } else
+            assert.deepStrictEqual(result, {
+              error: { name: 'SqliteError', message: 'datatype mismatch', code: 'SQLITE_MISMATCH' },
+            })
+          results.push(result)
+        }
+      }
+      let caught: unknown
+      try {
+        reads.timeline(NaN)
+      } catch (error) {
+        caught = error
+      }
+      assert.strictEqual(caught, tracking.error())
+      assert.ok(trace.includes('all:[NaN]'))
+      assert.ok(trace.includes('all:[-0]'))
+      return results
+    } finally {
+      tracking.restore()
+    }
+  })
+})
+
+test('Insight native unreviewed preserves prepare/two-clock/bind order and strict midnight cutoff', () => {
+  compareNativeInsights(({ db, reads, trace, setClocks }) => {
+    seedNativeStatsProblem(db, null, 'test', 'included')
+    seedNativeStatsProblem(db, 'boundary')
+    const first = new Date(2026, 10, 20, 23, 59, 59, 999).getTime(),
+      second = new Date(2026, 10, 21, 0).getTime()
+    const cutoff = new Date(2026, 10, 20, 0).getTime()
+    db.prepare('UPDATE problems SET last_visited_at=? WHERE id IS NULL').run(
+      new Date(2026, 10, 19, 0).getTime(),
+    )
+    db.prepare('UPDATE problems SET last_visited_at=? WHERE id=?').run(cutoff, 'boundary')
+    setClocks(first, second)
+    const tracking = traceNativeInsights(db, trace),
+      results = []
+    try {
+      const rows = reads.unreviewed(1, -1)
+      assert.deepStrictEqual(
+        rows.map((row) => [row.id, row.days_since]),
+        [[null, 1]],
+      )
+      assert.deepStrictEqual(trace, ['prepare', 'clock', 'clock', `all:[${first},${cutoff},-1]`])
+      results.push(rows)
+      for (const days of [0, -0, -1, 0.5, NaN, Infinity, -Infinity]) {
+        const start = trace.length,
+          result = submissionReadOutcome(() => reads.unreviewed(days))
+        assert.deepStrictEqual(trace.slice(start, start + 3), ['prepare', 'clock', 'clock'])
+        if (!Number.isInteger(days))
+          assert.deepStrictEqual(result, {
+            error: { name: 'TypeError', message: 'Day shift must be an integer' },
+          })
+        results.push(result)
+      }
+      return results
+    } finally {
+      tracking.restore()
+    }
+  })
+})
+
+test('Insight native reads preserve query-only, savepoints, full ledger and current-handle errors', () => {
+  compareNativeInsights(({ db, reads, trace }) => {
+    seedNativeInsightLists(db, 1)
+    db.pragma('query_only = ON')
+    const initial = nativeInsightQueries.map((query) => nativeInsightLimit(reads, query))
+    db.pragma('query_only = OFF')
+    assert.throws(
+      () =>
+        db.transaction(() => {
+          seedNativeStatsEvent(db, 99, null)
+          assert.strictEqual(reads.timeline().length, 2)
+          assert.throws(
+            () =>
+              db.transaction(() => {
+                seedNativeStatsProblem(db, null)
+                db.exec('UPDATE problems SET last_visited_at=0 WHERE id IS NULL')
+                assert.strictEqual(reads.unreviewed().length, 2)
+                throw new Error('insight nested rollback')
+              })(),
+            /insight nested rollback/,
+          )
+          assert.strictEqual(reads.unreviewed().length, 1)
+          throw new Error('insight outer rollback')
+        })(),
+      /insight outer rollback/,
+    )
+    assert.deepStrictEqual(
+      nativeInsightQueries.map((query) => nativeInsightLimit(reads, query)),
+      initial,
+    )
+    closeDb()
+    const start = trace.length
+    const errors = nativeInsightQueries.map((query) =>
+      submissionReadOutcome(() => nativeInsightLimit(reads, query)),
+    )
+    for (const result of errors)
+      assert.deepStrictEqual(result, {
+        error: { name: 'Error', message: 'Database not initialized. Call initDb() first.' },
+      })
+    assert.deepStrictEqual(trace.slice(start), [])
+    const next = initDbAtPath(':memory:')
+    seedNativeStatsEvent(next, 0, null)
+    assert.deepStrictEqual(
+      reads.timeline().map((row) => row.id),
+      [null],
+    )
+    const tracking = traceNativeInsights(next, trace),
+      errorStart = trace.length
+    next.pragma('foreign_keys = OFF')
+    next.exec('DROP TABLE problems')
+    let caught: unknown
+    try {
+      reads.unreviewed(1.25)
+    } catch (error) {
+      caught = error
+    } finally {
+      tracking.restore()
+    }
+    assert.strictEqual(caught, tracking.error())
+    assert.ok(caught instanceof Error && 'code' in caught)
+    assert.strictEqual(caught.code, 'SQLITE_ERROR')
+    assert.match(caught.message, /^no such table:/)
+    assert.deepStrictEqual(trace.slice(errorStart), ['prepare'])
+    return { initial, errors }
   })
 })
 

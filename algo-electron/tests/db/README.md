@@ -42,6 +42,8 @@
 
 - `stats-streak.test.ts`：A4b2独立冻结SQL、双循环及旧dayDiff，对照阈值、nullable/raw日期、先后校验与时钟、UTC/上海/纽约/Apia日历边界；原生repository补只读/事务/连接及无写入通知契约。
 
+- `stats-insight-lists.test.ts`：四个洞察查询的冻结旧SQL对照，覆盖COUNT(id)/raw MAX、墓碑精确AC排除、nullable ID、native LIMIT和prepare后双时钟顺序；原生repository补绑定、异常、只读/事务/连接及账本不变。
+
 ## 3. 运行方式
 
 ```powershell

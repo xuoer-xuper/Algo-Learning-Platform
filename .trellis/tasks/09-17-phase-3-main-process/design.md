@@ -44,6 +44,44 @@ drizzle-kit0.31.11，安装后按实际API和Electron ABI验证，不采用beta�
 - 当前规模：25表、electron321个TS文件、250处prepare；排除迁移222处，repository162处。
   main1164/TabManager2494/CoachOrchestrator1474行，仅作分批规划，不硬套旧计数。
 
+## A4c Insight Lists And Consumer Identity (2026-11-27)
+
+Parent accepts research/a4c-insight-lists-contract-review.md after A4b2. Convert
+only getTimeline/getRevisitStats/getWrongProblems/getUnreviewedProblems plus
+corresponding output ID contracts and Dashboard row keys. All four use the
+current lifecycle-owned handle, public builders and named LIMIT placeholders.
+No new connection/cache/transaction/write/event/catch or output parser.
+
+- Timeline selects the original six columns, raw occurred_at, all tombstones,
+  nullable/empty IDs, occurred_at DESC only/default50. No joins or extra fields.
+- Revisit projects problemVisits.problem_id as the existing joined NOT NULL
+  equality witness; GROUP BY parent id, COUNT(visit.id), raw MAX(entered_at),
+  HAVING count>1 and count DESC only. Anonymous visits affect MAX but not count.
+- Wrong keeps active parents, all nonexact-AC children, correlated NOT EXISTS
+  any exact AC including tombstones/NULL-ID rows, COUNT(child.id), raw MAX and
+  original descending order. Use a public alias for the correlated table and
+  fixed AC literals. Conservative nullable output is not a claim of NULL rows.
+- Unreviewed keeps strict cutoff/status predicates, oldest-first/native limit,
+  SQL CAST elapsed-day division. Prepare before first nowMillis, helper's second
+  nowMillis and localDayBounds; bind [now,cutoff,limit] in original order. No
+  precomputed or shared clock, timestamp Date decoder or calendar-day rewrite.
+- Three shared output-ID schemas permit string|null; internal wrong/unreviewed
+  follow. Request/instant/import/snapshot schemas and revisit string remain.
+- Dashboard affected IDs use indexed authoritative shared types; problem-list
+  platform_problem_id becomes required string. Wrong/unreviewed keys serialize
+  [platform,platform_problem_id]; revisit retains string problem_id. Timeline
+  serializes ['anonymous',index] for nullish IDs and ['id',id] otherwise, including
+  empty string. Anonymous identity is explicitly positional across reorders.
+- Keep URL click/Enter/Space actions, arrays, layout, loading-null/empty states
+  and exact AI allowlist/count/time behavior. No loader/preload/IPC/exporter or
+  period-summary runtime changes, generic widgets or styling changes.
+
+DB worker owns four reads/imports, internal two ID types, independent original
+SQL oracle/focused tests, native groups and DB runner. Consumer worker owns
+three shared ID schemas, bounded analytics models/keys and three new IPC/UI/AI
+regression files. Parent owns specs/docs/task/serial gates/Git. Independent review
+follows both workers' freeze. No A4b2 overwrite or migration030/recompute edits.
+
 ## A4b1 Router Lifecycle Prerequisite (2026-11-23)
 
 Parent accepts the independent reviewer recommendation after actual native CDP
