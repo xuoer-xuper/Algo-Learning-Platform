@@ -21,6 +21,6 @@
   "children": [],
   "parent": "09-17-spec-alignment",
   "relatedFiles": [],
-  "notes": "A4d on codex/drizzle-stats-recompute from accepted A4c squashaacbff0: runtime53/fourzones, historyguard8, independent250+60/NY53/types/lint, DB1046/native60, full2789/UI16/build pass; warmed0.97ms<50ms,819source stable. Runtime-only helper; frozen030/core/time paths/bytes, INSERT12/frozen030, lateNULL/legacy events; R2 relocation separately gated. Normal hooks/push/featureCI/integrationCI pending. A5notes research only, not approved implementation. Cap3; D62dirty unchanged; PR8draft/base dev; no release/archive.",
+  "notes": "A4d complete: work78f33b9/PR29CI45989652010/squashfb0dd45/PR8CI45991420238 pass, same testedtree; runtime53/fourzones, guard8, independent250+60/NY53, DB1046/native60, full2789/UI16/build; warmed0.97ms<50ms,819source stable. Frozen030/core/time; R2 relocation separately gated. A5notes inventory+independent A5a precheck complete, future/notapproved; next persist helper row/explicitDB, damagedDDL diagnostic and realapp nativeharness contracts before GO. Cap3; D62dirty unchanged; PR8draft/base dev; phase3 unfinished, no release/archive.",
   "meta": {}
 }

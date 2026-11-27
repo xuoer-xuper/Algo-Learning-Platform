@@ -62,7 +62,10 @@ PR8CI45979282462 pass with identical tested tree. A4d runtime-only recompute
 passes independent review, DB41files1046/native60, full225files2789/UI16 and
 build; all819 source hashes stay stable. The unchanged warmed benchmark is
 0.97ms<50ms. Historical paths/bytes remain frozen, with a separate later R2
-relocation gate. Normal hooks/push and feature/integration CI remain pending.
+relocation gate. Work78f33b9 passes normal hooks/immediate push;
+PR29CI45989652010/squashfb0dd45 and PR8CI45991420238 pass with the same tested
+tree. Notes research/precheck recommends a bounded four-file-path-read slice;
+its governing approval and implementation are still pending.
 Later domain/layout work remains incomplete.
 See phase3 a3a/a3b1/a3b2 verification artifacts; PR8 stays draft.
 
@@ -92,7 +95,7 @@ See phase3 a3a/a3b1/a3b2 verification artifacts; PR8 stays draft.
 | Logging | ✅ 1.1（2026-11-01）：**electron-log 5.4.4**，`logger.scope()` + 脱敏 hook（原 regex 全量迁移 + `cookie=`）；RUN_AS_NODE 下文件 transport 关闭 | 同左 | 1.2 |
 | Config | ✅ 1.1（2026-11-01）：**electron-store 12**（原子存储层）+ zod 单层校验（`.default()`/`.catch()` 取代 normalizers）；conf 16 的 schema 校验会"坏文件即拒启"，与不清空红线冲突——故 schema 不传给 electron-store | 同左 | 1.3 |
 | Dev/prod isolation | ✅ 1.1（2026-11-01）：`envSetup.ts` 为 main.ts 首个 import（架构守卫强制），非打包且无冒烟 env 时 userData 加 `-dev`；冒烟覆盖优先 | 同左 | 1.3 |
-| Database | Drizzle0.45.4/Kit0.31.11 schema/client and trusted legacy/baseline coordinator; released2.0.1 recovery synchronized with preserved ancestry. Problem/submission/stats reads integrated through PR28. A4d runtime recompute passes local independent/full2789/UI16/native60/build gates; remote integration pending. | Frozen historical branch; later domains/layout remain | 3.1; archived release-upgrade-safety |
+| Database | Drizzle0.45.4/Kit0.31.11 schema/client and trusted legacy/baseline coordinator; released2.0.1 recovery synchronized with preserved ancestry. Problem/submission/stats runtime queries integrated through PR29. A4d passes independent/full2789/UI16/native60/build and both CI gates. | Frozen historical branch; notes planning, later domains/layout remain | 3.1; archived release-upgrade-safety |
 | Timestamps | R5: 82 INTEGER Unix-ms columns, numeric live writers/IPC/shared schemas, display-only Intl; strict history-derived local/UTC+8/SQLite `.0` conversion. Reconstructed 21/24/29 and isolated actual 24/29 copies pass; original user DBs unchanged. | Numeric timestamp target reached; future Drizzle uses timestamp_ms. See `unix-millisecond-time.md`. | 2.5 |
 | Result shape | ✅ 1.1（2026-11-01）：20 处真正的 IPC 返回统一为 `createOutputSchema()` 判别联合（6 个封闭 `code`）；34 处 `{ok:}` 经复核确认是内部校验器/运行时协议形状、不跨 IPC 边界，不转换 | 同左 | 1.4 |
 | Event bus | 9 hand-written `Set<callback>` buses + 3 `EventEmitter` | typed `EventEmitter` wrapper | 3.6 |

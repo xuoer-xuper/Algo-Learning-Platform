@@ -659,3 +659,88 @@ Drizzle基础、安全基线/资源/备份接管和题目总览四条只读查�
 ### Next Steps
 
 - 先评审recent-list不可寻址ID的侧栏操作政策与原生LIMIT行为，禁止静默丢行/伪造ID/强转；其后继续submission/stats等域、主进程布局/拆分和后续阶段。PR8仍draft/base dev。
+
+
+## Session 20: Drizzle A2g至A4c集成验收与重算安全边界交接
+<!-- trellis-session: v=2 fp=ee820b6ad6d98386 -->
+
+**Date**: 2026-11-27
+**Task**: Drizzle A2g至A4c集成验收与重算安全边界交接
+**Branch**: `refactor/drizzle`
+
+### Summary
+
+近期题目列表、提交读取/写入与全部统计读取切片按独立审查及双层CI合入Drizzle。A4c全量2728/native52/UI16/build通过；继续A4d运行时重算，冻结历史升级分支。阶段3仍未完成。
+
+### Main Changes
+
+- A2g至A4c以PR21至PR28逐片集成，保留原始数据/事务/时间行为；nullable输出与有限consumer修正均先评审后实施。
+- A4b1修复已证实ShellRouter effect flushSync问题；A4b2另一次Tooltip事件根因未明，保留证据与禁止盲重试约束，不宣称已修复。
+- A4c四个洞察查询及行key完成；独立检查仅修两处native断言（rows字段、负零长度），生产代码无审查修复。A4d范围与未来R2搬迁门已独立评审。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `6c42a38` | fix(db): 迁移最近题目查询并保护无效ID操作 (#21) |
+| `001e23a` | refactor(db): 迁移提交读取并保留原生查询契约 (#22) |
+| `1a39af0` | refactor(db): 迁移提交去重插入并保持准备与通知顺序 (#23) |
+| `fa13260` | refactor(db): 迁移首次AC状态更新并保留原生事务语义 (#24) |
+| `ac7478d` | refactor(db): 迁移基础统计读取并保留原生聚合语义 (#25) |
+| `4d60368` | fix(db): 迁移每日趋势读取并修正空日期图表与路由刷新 (#26) |
+| `93c0df2` | refactor(db): 迁移连续活跃统计并保留日期校验顺序 (#27) |
+| `aacbff0` | fix(db): 迁移洞察列表查询并保留空ID行与导航 |
+
+### Testing
+
+- [OK] A4c test:db39文件985/native52，test:all223文件2728/UI16，build:check及正常hooks全通过；815源码哈希稳定。
+- [OK] A4c独立UTC409/纽约131、实现者四时区各131与consumer56/旧key预期失败证明；PR28CI45978229533、PR8CI45979282462全绿且squash树与测试一致。
+- [OK] 原D工作树62dirty及HEAD20ee62c保持；dev/master/v2.0.1不变，总并发不超过3。
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- 继续已批准A4d：新runtime核心与历史hash/依赖守卫分别实施，完整独立/原生/全量/build通过后推送集成；R2搬迁与后续领域/阶段仍独立验收，PR8保持draft/base dev。
+
+
+## Session 21: Drizzle统计重算集成验收与笔记查询边界交接
+<!-- trellis-session: v=2 fp=f519ffafcaa083db -->
+
+**Date**: 2026-11-27
+**Task**: Drizzle统计重算集成验收与笔记查询边界交接
+**Branch**: `refactor/drizzle`
+
+### Summary
+
+A4d运行时重算及历史保护完成独立审查、原生/全量/build和双层CI后合入Drizzle；A5notes研究与四filepath预审完成但尚未GO，阶段3继续。
+
+### Main Changes
+
+- 新增Drizzle显式DB重算，live wrapper仅改import；冻结030/core/time原路径字节，保留晚期NULL、prepare/JSON和事务通知语义。
+- 显式safe-integer句柄使用raw COUNT，不经Number解码；53差分/8历史守卫/8新增native组，既有native声明均未改。
+- A5notes仅研究：推荐先转4个file_path lookup，完整读取的nullable ID/任意note_type/UI及FS写入问题仍分片决策，不混入本次代码。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `78f33b9` | refactor(db): 迁移运行时统计重算并冻结历史升级分支 |
+| `fb0dd45` | refactor(db): 迁移运行时统计重算并冻结历史升级分支 (#29) |
+
+### Testing
+
+- [OK] 独立UTC250+调用者60/纽约53；实现者四时区各53；两份TypeScript/lint/format通过，无独立review生产或测试修复。
+- [OK] test:db41文件1046/native60，test:all225文件2789/UI16/native60，build:check和真实历史升级/强杀恢复通过；原50ms门实测0.97ms，819源码哈希稳定。
+- [OK] 正常hooks立即push；PR29CI45989652010、squashfb0dd45、PR8CI45991420238通过且测试树一致；原D62dirty、dev/master/v2.0.1不变。
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- 先将A5a独立预审的显式DB行返回helper、damaged-DDL原生诊断例外及隔离real-app文件测试/runner/预算归属写入governing artifacts，再给GO实施；并发总数不超过3。
+- PR8保持draft/base dev；后续领域、布局、拆分和阶段4–6未完成，不归档阶段3、不自动发布。旧A4b2 Tooltip偶发仍无根因，复发先保留可信事件与同时状态。

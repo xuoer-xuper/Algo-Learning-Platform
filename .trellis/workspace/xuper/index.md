@@ -8,8 +8,8 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 19
-- **Last Active**: 2026-11-20
+- **Total Sessions**: 21
+- **Last Active**: 2026-11-27
 <!-- @@@/auto:current-status -->
 
 ---
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~661 | Active |
+| `journal-1.md` | ~746 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,8 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 21 | 2026-11-27 | Drizzle统计重算集成验收与笔记查询边界交接 | `78f33b9`, `fb0dd45` | `refactor/drizzle` |
+| 20 | 2026-11-27 | Drizzle A2g至A4c集成验收与重算安全边界交接 | `6c42a38`, `001e23a`, `1a39af0`, `fa13260`, `ac7478d`, `4d60368`, `93c0df2`, `aacbff0` | `refactor/drizzle` |
 | 19 | 2026-11-20 | Drizzle A2f查询迁移与nullable输出验收交接 | `4cef9ea`, `2112734` | `refactor/drizzle` |
 | 18 | 2026-11-19 | Drizzle安全同步与A2d/A2e验收交接 | `57690f6`, `317cd9f`, `dcd8991`, `85b95dc`, `82a0163`, `0927213` | `refactor/drizzle` |
 | 17 | 2026-11-17 | 2.0.1正式发行与最终证据闭环 | `aed30aa`, `94bb9b7`, `a172a92`, `de89ce4` | `codex/release-201-records` |
