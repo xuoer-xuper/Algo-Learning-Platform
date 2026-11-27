@@ -4,6 +4,25 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import type Database from 'better-sqlite3'
+import NativeDatabase from 'better-sqlite3'
+import {
+  originalRecomputeDailyStatsAt,
+  originalRecomputeAllDailyStatsAt,
+  originalRecomputeDailyStats,
+  originalRecomputeDailyStatsForDates,
+  originalRecomputeAllDailyStats,
+} from './stats-recompute-oracle'
+import {
+  recomputeDailyStatsAt as runtimeRecomputeDailyStatsAt,
+  recomputeAllDailyStatsAt as runtimeRecomputeAllDailyStatsAt,
+} from '../../electron/db/repositories/stats/recompute-runtime'
+import {
+  recomputeDailyStatsForDates,
+  recomputeAllDailyStats,
+} from '../../electron/db/repositories/stats/recompute'
+import { getKnownMigrations } from '../../electron/db/connection'
+import { applyDrizzleMigrations } from '../../src/main/db/migrate'
+import { loadMigrationResources } from '../../src/main/db/migration-resources'
 import { getOriginalOmniboxSuggestions } from './omnibox-suggestions-oracle'
 import { getOriginalProblemDetail, getOriginalProblemVisits } from './problem-reads-oracle'
 import { getOriginalRecentProblems } from './problem-recent-oracle'
@@ -3963,6 +3982,664 @@ test('Insight native reads preserve query-only, savepoints, full ledger and curr
     assert.match(caught.message, /^no such table:/)
     assert.deepStrictEqual(trace.slice(errorStart), ['prepare'])
     return { initial, errors }
+  })
+})
+
+const NATIVE_RECOMPUTE_DAY = '2026-03-08'
+const NATIVE_RECOMPUTE_NEXT = '2026-03-09'
+const NATIVE_RECOMPUTE_NOW = 1768443630123
+
+type NativeRecompute = {
+  db: Database.Database
+  daily: typeof recomputeDailyStats
+  selected: typeof recomputeDailyStatsForDates
+  all: typeof recomputeAllDailyStats
+  at: typeof runtimeRecomputeDailyStatsAt
+  allAt: typeof runtimeRecomputeAllDailyStatsAt
+  events: DataChangedPayload[]
+  trace: string[]
+  clocks: (...values: number[]) => void
+}
+
+function recomputeLedger(db: Database.Database) {
+  return [
+    db.prepare('SELECT * FROM schema_migrations ORDER BY rowid').all(),
+    db.prepare('SELECT * FROM __drizzle_migrations ORDER BY rowid').all(),
+  ]
+}
+function compareNativeRecompute(run: (context: NativeRecompute) => unknown) {
+  const results = [],
+    originalNow = Date.now
+  try {
+    for (const original of [true, false]) {
+      Date.now = () => NATIVE_RECOMPUTE_NOW
+      closeDb()
+      const db = initDbAtPath(':memory:')
+      applyDrizzleMigrations(
+        db,
+        loadMigrationResources(path.resolve('drizzle')),
+        getKnownMigrations(),
+      )
+      const ledger = recomputeLedger(db)
+      const events: DataChangedPayload[] = [],
+        trace: string[] = []
+      let clocks = [NATIVE_RECOMPUTE_NOW]
+      Date.now = () => {
+        trace.push('clock')
+        const now = clocks.length > 1 ? clocks.shift() : clocks[0]
+        assert.notStrictEqual(now, undefined)
+        return now ?? NATIVE_RECOMPUTE_NOW
+      }
+      const unsubscribe = subscribeDataChanges((event) => {
+        events.push(event)
+        trace.push(`event:${getDb().inTransaction}`)
+      })
+      try {
+        const result = run({
+          db,
+          events,
+          trace,
+          clocks: (...values) => {
+            clocks = values
+          },
+          daily: original ? originalRecomputeDailyStats : recomputeDailyStats,
+          selected: original ? originalRecomputeDailyStatsForDates : recomputeDailyStatsForDates,
+          all: original ? originalRecomputeAllDailyStats : recomputeAllDailyStats,
+          at: original ? originalRecomputeDailyStatsAt : runtimeRecomputeDailyStatsAt,
+          allAt: original ? originalRecomputeAllDailyStatsAt : runtimeRecomputeAllDailyStatsAt,
+        })
+        if (db.open) assert.deepStrictEqual(recomputeLedger(db), ledger)
+        // Preserve full ledgers during each operation; only independent setup clocks are excluded.
+        results.push({ result, events, trace, state: nativeStatsSnapshot(getDb(), true) })
+      } finally {
+        unsubscribe()
+        closeDb()
+      }
+    }
+  } finally {
+    Date.now = originalNow
+  }
+  assert.deepStrictEqual(results[1], results[0])
+}
+function seedNativeRecomputeCache(
+  db: Database.Database,
+  day: string | null = NATIVE_RECOMPUTE_DAY,
+) {
+  db.prepare(
+    `INSERT INTO user_daily_stats(local_day,active_seconds,duration_seconds,created_at,updated_at,deleted_at)
+    VALUES (?,91,92,2,3,0)`,
+  ).run(day)
+}
+function nativeRecomputeRows(db: Database.Database) {
+  return db.prepare('SELECT * FROM user_daily_stats ORDER BY rowid').all()
+}
+function traceNativeRecompute(
+  db: Database.Database,
+  trace: string[],
+  failPrepare = 0,
+  failure = new Error('native prepare sentinel'),
+) {
+  const prepare = db.prepare.bind(db),
+    stringify = JSON.stringify
+  const descriptor = Object.getOwnPropertyDescriptor(db, 'prepare')
+  const queries: string[] = [],
+    bindings: unknown[][] = []
+  let nativeError: unknown
+  Object.defineProperty(db, 'prepare', {
+    configurable: true,
+    value: (query: string) => {
+      queries.push(query)
+      const normalized = query.toLowerCase().replaceAll('"', '')
+      const kind = normalized.startsWith('insert')
+        ? 'write'
+        : normalized.includes('union')
+          ? 'facts'
+          : normalized.includes('group by')
+            ? 'platforms'
+            : normalized.includes('from user_daily_stats')
+              ? 'cache'
+              : normalized.includes('from problem_visits')
+                ? 'visits'
+                : normalized.includes('from submissions')
+                  ? 'submissions'
+                  : 'solved'
+      trace.push(`prepare:${kind}`)
+      if (queries.length === failPrepare) throw failure
+      let statement: Database.Statement
+      try {
+        statement = prepare(query)
+      } catch (error) {
+        nativeError = error
+        throw error
+      }
+      for (const method of ['get', 'all', 'run'] as const) {
+        const native = statement[method].bind(statement)
+        Object.defineProperty(statement, method, {
+          configurable: true,
+          value: (...values: unknown[]) => {
+            trace.push(
+              `${method}:${kind}:${stringify(values, (_key, value: unknown) => (typeof value === 'bigint' ? `${value}n` : value))}`,
+            )
+            bindings.push(values)
+            try {
+              return native(...values)
+            } catch (error) {
+              nativeError = error
+              throw error
+            }
+          },
+        })
+      }
+      return statement
+    },
+  })
+  return {
+    queries,
+    bindings,
+    error: () => nativeError,
+    restore: () => {
+      if (descriptor) Object.defineProperty(db, 'prepare', descriptor)
+      else Reflect.deleteProperty(db, 'prepare')
+    },
+  }
+}
+
+test('Recompute native safe-integer handles retain BigInt counts and late JSON failure', () => {
+  for (const nonempty of [false, true])
+    compareNativeRecompute(({ db, at, trace }) => {
+      if (nonempty) {
+        seedNativeStatsProblem(db, 'safe-integer')
+        seedNativeStatsVisit(db, 'safe-integer', 1, 1)
+        db.prepare('UPDATE problem_visits SET entered_at=?').run(
+          localDayBounds(NATIVE_RECOMPUTE_DAY).start,
+        )
+      }
+      db.defaultSafeIntegers(true)
+      const tracking = traceNativeRecompute(db, trace)
+      let result
+      try {
+        result = submissionReadOutcome(() => at(db, NATIVE_RECOMPUTE_DAY, NATIVE_RECOMPUTE_NOW))
+      } finally {
+        tracking.restore()
+        db.defaultSafeIntegers(false)
+      }
+      assert.strictEqual(tracking.queries.length, 5)
+      if (nonempty) {
+        assert.deepStrictEqual(result, {
+          error: { name: 'TypeError', message: 'Do not know how to serialize a BigInt' },
+        })
+        assert.deepStrictEqual(nativeRecomputeRows(db), [])
+      } else {
+        assert.deepStrictEqual(tracking.bindings[4], [
+          NATIVE_RECOMPUTE_DAY,
+          0n,
+          0n,
+          0n,
+          0n,
+          0n,
+          0n,
+          null,
+          NATIVE_RECOMPUTE_NOW,
+          NATIVE_RECOMPUTE_NOW,
+          NATIVE_RECOMPUTE_NOW,
+        ])
+        assert.deepStrictEqual(result, { rows: undefined })
+      }
+      return result
+    })
+})
+
+test('Recompute native aggregates preserve raw metrics, exact eleven binds and cache metadata', () => {
+  for (const now of [0, 1.75, 8640000000000001])
+    compareNativeRecompute(({ db, at, events, trace }) => {
+      const { start, end } = localDayBounds(NATIVE_RECOMPUTE_DAY)
+      db.pragma('foreign_keys=OFF')
+      seedNativeStatsProblem(db, 'p')
+      seedNativeStatsProblem(db, '')
+      seedNativeStatsProblem(db, null)
+      seedNativeStatsProblem(db, 'deleted', 'test', 'deleted', 0)
+      db.prepare('UPDATE problems SET first_solved_at=?').run(start)
+      seedNativeStatsVisit(db, 'p', null, null, null, 0)
+      seedNativeStatsVisit(db, '', 1.25, -2.5, 'fraction')
+      seedNativeStatsVisit(db, 'orphan', -3, 'text', 'text')
+      db.prepare('UPDATE problem_visits SET entered_at=?').run(start)
+      db.exec(`INSERT INTO submissions (id,problem_id,platform,platform_submission_id,verdict,submitted_at,created_at,updated_at,deleted_at)
+      VALUES (NULL,NULL,'test','null','AC',${start},0,0,0),('s','p','test','s','ac',${end - 1},0,0,NULL),('out','p','test','out','AC',${end},0,0,NULL)`)
+      const tracking = traceNativeRecompute(db, trace)
+      try {
+        at(db, NATIVE_RECOMPUTE_DAY, now)
+      } finally {
+        tracking.restore()
+      }
+      assert.deepStrictEqual(tracking.bindings, [
+        ...Array.from({ length: 4 }, () => [start, end]),
+        [
+          NATIVE_RECOMPUTE_DAY,
+          -2.5,
+          -1.75,
+          3,
+          3,
+          2,
+          1,
+          '[{"platform":"test","count":3}]',
+          now,
+          now,
+          now,
+        ],
+      ])
+      const fresh = db
+        .prepare('SELECT created_at,updated_at,recomputed_at,deleted_at FROM user_daily_stats')
+        .get()
+      assert.deepStrictEqual(fresh, {
+        created_at: now,
+        updated_at: now,
+        recomputed_at: now,
+        deleted_at: null,
+      })
+      db.exec('UPDATE user_daily_stats SET created_at=3.5,deleted_at=0')
+      at(db, NATIVE_RECOMPUTE_DAY, now)
+      assert.deepStrictEqual(
+        db.prepare('SELECT created_at,deleted_at FROM user_daily_stats').get(),
+        { created_at: 3.5, deleted_at: 0 },
+      )
+      assert.deepStrictEqual(events, [])
+      return db
+        .prepare(
+          'SELECT typeof(active_seconds) AS active,typeof(duration_seconds) AS duration,typeof(recomputed_at) AS clock FROM user_daily_stats',
+        )
+        .get()
+    })
+})
+
+test('Recompute native UPSERT preserves all nine UPDATE OF targets and fresh/conflict trigger effects', () => {
+  compareNativeRecompute(({ db, daily, events }) => {
+    seedNativeRecomputeCache(db)
+    db.exec('CREATE TABLE recompute_update_audit (name TEXT)')
+    const targets = [
+      'active_seconds',
+      'duration_seconds',
+      'visited_problem_count',
+      'solved_problem_count',
+      'submission_count',
+      'ac_submission_count',
+      'platform_distribution_json',
+      'recomputed_at',
+      'updated_at',
+    ]
+    for (const name of [...targets, 'created_at', 'deleted_at', 'local_day'])
+      db.exec(
+        `CREATE TRIGGER recompute_${name} AFTER UPDATE OF ${name} ON user_daily_stats BEGIN INSERT INTO recompute_update_audit VALUES ('${name}'); END;`,
+      )
+    daily(NATIVE_RECOMPUTE_DAY)
+    assert.deepStrictEqual(
+      db.prepare('SELECT name FROM recompute_update_audit ORDER BY name').all(),
+      targets.sort().map((name) => ({ name })),
+    )
+    assert.deepStrictEqual(events, [{ tables: ['stats'] }])
+  })
+  for (const conflict of [false, true])
+    for (const mode of ['IGNORE', 'FAIL', 'ABORT'])
+      compareNativeRecompute(({ db, daily, events }) => {
+        if (conflict) seedNativeRecomputeCache(db)
+        db.exec(`CREATE TABLE recompute_trigger_audit (phase TEXT);
+      CREATE TRIGGER recompute_reject BEFORE ${conflict ? 'UPDATE' : 'INSERT'} ON user_daily_stats BEGIN
+        INSERT INTO recompute_trigger_audit VALUES ('before');
+        SELECT RAISE(${mode}${mode === 'IGNORE' ? '' : ",'recompute rejected'"});
+      END;`)
+        const result = submissionReadOutcome(() => daily(NATIVE_RECOMPUTE_DAY))
+        assert.deepStrictEqual(events, mode === 'IGNORE' ? [{ tables: ['stats'] }] : [])
+        assert.deepStrictEqual(
+          db.prepare('SELECT * FROM recompute_trigger_audit').all(),
+          mode === 'ABORT' ? [] : [{ phase: 'before' }],
+        )
+        assert.strictEqual(nativeRecomputeRows(db).length, conflict ? 1 : 0)
+        return result
+      })
+})
+
+test('Recompute native overflow precedes broken INSERT and serialization follows native preparation', () => {
+  compareNativeRecompute(({ db, daily, trace, events }) => {
+    seedNativeStatsProblem(db, 'p')
+    seedNativeStatsVisit(db, 'p', 0, 0, 'a')
+    seedNativeStatsVisit(db, 'p', 0, 0, 'b')
+    db.prepare('UPDATE problem_visits SET entered_at=?').run(
+      localDayBounds(NATIVE_RECOMPUTE_DAY).start,
+    )
+    db.exec(
+      "UPDATE problem_visits SET duration_seconds=CASE id WHEN 'a' THEN 9223372036854775807 ELSE 1 END; DROP TABLE user_daily_stats",
+    )
+    assert.deepStrictEqual(
+      db.prepare('SELECT typeof(duration_seconds) AS type FROM problem_visits').all(),
+      [{ type: 'integer' }, { type: 'integer' }],
+    )
+    const tracking = traceNativeRecompute(db, trace)
+    let caught: unknown
+    try {
+      daily(NATIVE_RECOMPUTE_DAY)
+    } catch (error) {
+      caught = error
+    } finally {
+      tracking.restore()
+    }
+    assert.strictEqual(caught, tracking.error())
+    assert.ok(caught instanceof Error && 'code' in caught)
+    assert.deepStrictEqual(
+      { name: caught.name, message: caught.message, code: caught.code },
+      { name: 'SqliteError', message: 'integer overflow', code: 'SQLITE_ERROR' },
+    )
+    assert.strictEqual(tracking.queries.length, 1)
+    assert.deepStrictEqual(events, [])
+  })
+  for (const broken of [false, true])
+    compareNativeRecompute(({ db, daily, trace }) => {
+      seedNativeStatsProblem(db, 'p')
+      seedNativeStatsVisit(db, 'p', 0, 0)
+      db.prepare('UPDATE problem_visits SET entered_at=?').run(
+        localDayBounds(NATIVE_RECOMPUTE_DAY).start,
+      )
+      if (broken) db.exec('DROP TABLE user_daily_stats')
+      const tracking = traceNativeRecompute(db, trace),
+        stringify = JSON.stringify,
+        sentinel = new Error('native serialization sentinel')
+      JSON.stringify = (value: unknown) => {
+        if (Array.isArray(value)) {
+          trace.push('json')
+          throw sentinel
+        }
+        return stringify(value)
+      }
+      let caught: unknown
+      try {
+        daily(NATIVE_RECOMPUTE_DAY)
+      } catch (error) {
+        caught = error
+      } finally {
+        JSON.stringify = stringify
+        tracking.restore()
+      }
+      assert.strictEqual(caught, broken ? tracking.error() : sentinel)
+      assert.deepStrictEqual(trace.slice(-1), broken ? ['prepare:write'] : ['json'])
+      assert.strictEqual(tracking.queries.length, 5)
+    })
+  for (const step of [1, 2, 3, 4, 5])
+    compareNativeRecompute(({ db, daily, trace, events }) => {
+      const sentinel = new Error('native prepare sentinel'),
+        tracking = traceNativeRecompute(db, trace, step, sentinel)
+      let caught: unknown
+      try {
+        daily(NATIVE_RECOMPUTE_DAY)
+      } catch (error) {
+        caught = error
+      } finally {
+        tracking.restore()
+      }
+      assert.strictEqual(caught, sentinel)
+      assert.strictEqual(tracking.queries.length, step)
+      assert.deepStrictEqual(events, [])
+    })
+})
+
+test('Recompute native all-days materializes UNION and preserves NULL/invalid fact failure stages', () => {
+  compareNativeRecompute(({ db, all, trace, events }) => {
+    const instant = localDayBounds(NATIVE_RECOMPUTE_DAY).start
+    seedNativeRecomputeCache(db, NATIVE_RECOMPUTE_NEXT)
+    seedNativeRecomputeCache(db)
+    seedNativeStatsProblem(db, 'p')
+    seedNativeStatsVisit(db, 'p', 0, 0)
+    db.prepare('UPDATE problems SET first_solved_at=?').run(instant)
+    db.prepare('UPDATE problem_visits SET entered_at=?').run(instant)
+    seedNativeStatsEvent(db, instant, null, 0)
+    db.prepare(
+      `INSERT INTO submissions (platform,platform_submission_id,verdict,submitted_at,created_at,updated_at) VALUES ('test','s','AC',?,0,0)`,
+    ).run(instant)
+    const tracking = traceNativeRecompute(db, trace)
+    try {
+      assert.strictEqual(all(), 2)
+    } finally {
+      tracking.restore()
+    }
+    assert.strictEqual(tracking.queries.filter((q) => /union/i.test(q)).length, 1)
+    assert.strictEqual((tracking.queries[1].match(/union/gi) ?? []).length, 3)
+    assert.deepStrictEqual(
+      tracking.bindings.filter((b) => b.length === 11).map((b) => b[0]),
+      [NATIVE_RECOMPUTE_DAY, NATIVE_RECOMPUTE_NEXT],
+    )
+    assert.deepStrictEqual(events, [{ tables: ['stats'] }])
+  })
+  for (const reverse of [false, true])
+    compareNativeRecompute(({ db, all, events }) => {
+      seedNativeRecomputeCache(db, null)
+      seedNativeRecomputeCache(db)
+      if (reverse) db.pragma('reverse_unordered_selects=ON')
+      const result = submissionReadOutcome(all)
+      assert.deepStrictEqual(result, { error: { name: 'TypeError', message: 'Invalid local day' } })
+      assert.deepStrictEqual(
+        db
+          .prepare('SELECT updated_at FROM user_daily_stats WHERE local_day=?')
+          .get(NATIVE_RECOMPUTE_DAY),
+        { updated_at: reverse ? NATIVE_RECOMPUTE_NOW : 3 },
+      )
+      assert.deepStrictEqual(events, [])
+    })
+  for (const invalid of [1.75, 'invalid', 9007199254740992, 8640000000000001, 8640000000000000])
+    compareNativeRecompute(({ db, all, events, trace }) => {
+      seedNativeRecomputeCache(db)
+      seedNativeStatsEvent(db, invalid)
+      const before = nativeStatsSnapshot(db),
+        tracking = traceNativeRecompute(db, trace)
+      let result
+      try {
+        result = submissionReadOutcome(all)
+      } finally {
+        tracking.restore()
+      }
+      if (invalid === 8640000000000000)
+        assert.deepStrictEqual(db.prepare('SELECT updated_at FROM user_daily_stats').get(), {
+          updated_at: NATIVE_RECOMPUTE_NOW,
+        })
+      else {
+        assert.deepStrictEqual(nativeStatsSnapshot(db), before)
+        assert.strictEqual(tracking.queries.length, 2)
+      }
+      assert.deepStrictEqual(events, [])
+      return result
+    })
+})
+
+test('Recompute native wrappers retain midnight clocks, eager iterables and legacy partial notifications', () => {
+  compareNativeRecompute(({ db, daily, selected, all, trace, events, clocks }) => {
+    assert.strictEqual(all(), 0)
+    assert.deepStrictEqual(trace, ['clock'])
+    trace.length = 0
+    const midnight = localDayBounds(NATIVE_RECOMPUTE_NEXT).start
+    clocks(midnight - 1, midnight)
+    daily()
+    assert.deepStrictEqual(db.prepare('SELECT local_day,created_at FROM user_daily_stats').all(), [
+      { local_day: NATIVE_RECOMPUTE_DAY, created_at: midnight },
+    ])
+    assert.deepStrictEqual(trace, ['clock', 'clock', 'event:false'])
+    trace.length = 0
+    clocks(NATIVE_RECOMPUTE_NOW)
+    const iterable: Iterable<string> = {
+      *[Symbol.iterator]() {
+        trace.push('start')
+        yield NATIVE_RECOMPUTE_NEXT
+        yield NATIVE_RECOMPUTE_DAY
+        yield NATIVE_RECOMPUTE_NEXT
+        trace.push('end')
+      },
+    }
+    assert.strictEqual(selected(iterable), 2)
+    assert.deepStrictEqual(trace, ['start', 'end', 'clock', 'event:false', 'clock', 'event:false'])
+    const late = submissionReadOutcome(() => selected(['zz-invalid', NATIVE_RECOMPUTE_DAY]))
+    assert.strictEqual(events.length, 4)
+    closeDb()
+    trace.length = 0
+    assert.strictEqual(selected([]), 0)
+    assert.deepStrictEqual(trace, [])
+    const sentinel = new Error('native iterable sentinel'),
+      throwing: Iterable<string> = {
+        *[Symbol.iterator]() {
+          yield NATIVE_RECOMPUTE_DAY
+          throw sentinel
+        },
+      }
+    let caught: unknown
+    try {
+      selected(throwing)
+    } catch (error) {
+      caught = error
+    }
+    assert.strictEqual(caught, sentinel)
+    assert.deepStrictEqual(trace, [])
+    const missing = submissionReadOutcome(() => daily())
+    assert.deepStrictEqual(trace, [])
+    initDbAtPath(':memory:')
+    daily(NATIVE_RECOMPUTE_DAY)
+    return { late, missing }
+  })
+  compareNativeRecompute(({ db, daily, events }) => {
+    let reentered = false
+    const offThrow = subscribeDataChanges(() => {
+      throw new Error('recompute listener sentinel')
+    })
+    const offReenter = subscribeDataChanges(() => {
+      if (!reentered) {
+        reentered = true
+        daily(NATIVE_RECOMPUTE_NEXT)
+      }
+    })
+    try {
+      daily(NATIVE_RECOMPUTE_DAY)
+    } finally {
+      offThrow()
+      offReenter()
+    }
+    assert.strictEqual(nativeRecomputeRows(db).length, 2)
+    assert.deepStrictEqual(events, [{ tables: ['stats'] }, { tables: ['stats'] }])
+  })
+})
+
+test('Recompute native real COMMIT, rollback, savepoint and deferred FK failure own notification scope', () => {
+  for (const mode of ['commit', 'rollback', 'inner-rollback', 'commit-failure'])
+    compareNativeRecompute(({ db, daily, events }) => {
+      if (mode === 'commit-failure')
+        db.exec(`CREATE TRIGGER recompute_deferred_fk AFTER INSERT ON user_daily_stats BEGIN
+      INSERT INTO submissions (id,problem_id,platform,platform_submission_id,verdict,submitted_at,created_at,updated_at)
+      VALUES (NEW.local_day,'missing-parent','fixture',NEW.local_day,'WA',0,0,0);
+    END;`)
+      let callbackFinished = false
+      const result = submissionReadOutcome(() =>
+        withDataChangeTransaction(() =>
+          db.transaction(() => {
+            if (mode === 'commit-failure') db.pragma('defer_foreign_keys=ON')
+            daily(NATIVE_RECOMPUTE_DAY)
+            assert.strictEqual(nativeRecomputeRows(db).length, 1)
+            assert.deepStrictEqual(events, [])
+            const nested = () =>
+              withDataChangeTransaction(() =>
+                db.transaction(() => {
+                  daily(NATIVE_RECOMPUTE_NEXT)
+                  if (mode === 'inner-rollback') throw new Error('inner rollback')
+                })(),
+              )
+            if (mode === 'inner-rollback') assert.throws(nested, /inner rollback/)
+            else nested()
+            assert.deepStrictEqual(events, [])
+            if (mode === 'rollback') throw new Error('outer rollback')
+            callbackFinished = true
+          })(),
+        ),
+      )
+      const committed = mode === 'commit' || mode === 'inner-rollback'
+      assert.deepStrictEqual(events, committed ? [{ tables: ['stats'] }] : [])
+      assert.strictEqual(
+        nativeRecomputeRows(db).length,
+        mode === 'commit' ? 2 : mode === 'inner-rollback' ? 1 : 0,
+      )
+      assert.strictEqual(db.inTransaction, false)
+      if (mode === 'commit-failure') {
+        assert.strictEqual(callbackFinished, true)
+        assert.deepStrictEqual(result, {
+          error: {
+            name: 'SqliteError',
+            message: 'FOREIGN KEY constraint failed',
+            code: 'SQLITE_CONSTRAINT_FOREIGNKEY',
+          },
+        })
+        assert.deepStrictEqual(db.prepare('SELECT * FROM submissions').all(), [])
+      }
+      return { result, callbackFinished }
+    })
+})
+
+test('Recompute native explicit handles, readonly/query-only errors and calendar boundaries remain independent', () => {
+  compareNativeRecompute(({ db, daily, at, events, trace }) => {
+    db.pragma('query_only=ON')
+    const before = nativeStatsSnapshot(db),
+      tracking = traceNativeRecompute(db, trace)
+    let caught: unknown
+    try {
+      daily(NATIVE_RECOMPUTE_DAY)
+    } catch (error) {
+      caught = error
+    } finally {
+      tracking.restore()
+    }
+    assert.strictEqual(caught, tracking.error())
+    assert.ok(caught instanceof Error && 'code' in caught)
+    assert.strictEqual(caught.code, 'SQLITE_READONLY')
+    assert.deepStrictEqual(nativeStatsSnapshot(db), before)
+    assert.deepStrictEqual(events, [])
+    db.pragma('query_only=OFF')
+    const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'algo-recompute-native-')),
+      target = path.join(directory, 'readonly.sqlite')
+    const other = new NativeDatabase(':memory:')
+    const errors = []
+    try {
+      for (const { sql } of db
+        .prepare<[], { sql: string }>(
+          "SELECT sql FROM sqlite_schema WHERE type='table' AND name IN ('problems','problem_visits','submissions','user_daily_stats')",
+        )
+        .all())
+        other.exec(sql)
+      at(other, NATIVE_RECOMPUTE_DAY, 1.75)
+      assert.strictEqual(nativeRecomputeRows(other).length, 1)
+      assert.strictEqual(nativeRecomputeRows(db).length, 0)
+      db.prepare('VACUUM INTO ?').run(target)
+      const readonly = new NativeDatabase(target, { readonly: true })
+      try {
+        errors.push(submissionReadOutcome(() => at(readonly, NATIVE_RECOMPUTE_DAY, 0)))
+      } finally {
+        readonly.close()
+      }
+      errors.push(submissionReadOutcome(() => at(readonly, NATIVE_RECOMPUTE_DAY, 0)))
+    } finally {
+      other.close()
+      assert.ok(
+        path
+          .resolve(directory)
+          .startsWith(`${path.resolve(os.tmpdir())}${path.sep}algo-recompute-native-`),
+      )
+      fs.rmSync(directory, { recursive: true, force: true })
+    }
+    for (const day of ['2026-03-08', '2026-11-01', '2024-02-29', '2025-12-31']) {
+      const { start, end } = localDayBounds(day)
+      seedNativeStatsProblem(db, day)
+      for (const [index, instant] of [start - 1, start, end - 1, end].entries()) {
+        const id = `${day}:${index}`
+        seedNativeStatsVisit(db, day, 10, 2, id)
+        db.prepare('UPDATE problem_visits SET entered_at=? WHERE id=?').run(instant, id)
+      }
+      at(db, day, NATIVE_RECOMPUTE_NOW)
+      assert.deepStrictEqual(
+        db
+          .prepare('SELECT duration_seconds,active_seconds FROM user_daily_stats WHERE local_day=?')
+          .get(day),
+        { duration_seconds: 20, active_seconds: 4 },
+      )
+    }
+    return errors
   })
 })
 

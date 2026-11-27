@@ -44,6 +44,8 @@
 
 - `stats-insight-lists.test.ts`：四个洞察查询的冻结旧SQL对照，覆盖COUNT(id)/raw MAX、墓碑精确AC排除、nullable ID、native LIMIT和prepare后双时钟顺序；原生repository补绑定、异常、只读/事务/连接及账本不变。
 
+- `stats-recompute.test.ts` / `stats-recompute-oracle.ts`：A4d独立冻结旧两核心/三包装器，53用例对照运行时聚合、raw BigInt/JSON/prepare顺序、UPSERT字段、NULL晚期失败、时钟、partial autocommit与真实事务通知；`stats-recompute-history.test.ts` 的8用例固定已接受源码哈希和030依赖分支，防止历史路径转发到新ORM。两项注册DB门，原生repository另增8组；四时区定向、独立审查及完整DB/全量测试通过，构建与集成状态见阶段3验收记录。
+
 ## 3. 运行方式
 
 ```powershell

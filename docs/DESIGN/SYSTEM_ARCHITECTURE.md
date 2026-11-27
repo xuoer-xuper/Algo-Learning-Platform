@@ -390,11 +390,15 @@ stats局部dayDiff按原参数校验顺序收窄NULL，先验证later日期再�
 A4c洞察四列表使用Drizzle保留COUNT(child.id)、raw MAX、命名LIMIT和未复习查询prepare后的双时钟顺序。
 时间线/未复习ID如实允许NULL，错题ID保守nullable，复访通过JOIN非空FK证明string；Dashboard元组/带标签key保留每行URL操作，匿名事件只使用位置身份，AI字段白名单不变。
 
+A4d按已评审边界实施运行时重算拆分：仅live wrapper改为导入recompute-runtime，历史030仍直接执行冻结recompute-core。
+原聚合/UNION/时钟/序列化及失败顺序不变；INSERT12与旧11的兼容仅限冻结030结构/defaults。A4d/R1冻结当前路径，后续R2历史分支迁移仍需独立方案批准和历史/恢复等价验收，不豁免最终目录目标。
+
 ### 6.4 提交后的数据刷新
 
 `data:changed` 仅广播 `{ tables }`，八个逻辑域为 `problems/submissions/notes/stats/sites/scripts/credentials/coach`，不携带记录、凭据、Cookie 或本地路径。account/rating 写入映射到 `stats`，访问记录映射到 `problems` 和 `stats`。
 
 - repository 在成功写入后标记变化；已有同步事务由 `withDataChangeTransaction` 包住整个事务调用，嵌套回滚丢弃当前层事件，最外层提交成功才发布。非事务批量写入部分成功后即使后续失败，已提交变化仍须刷新。
+- ORM迁移保留统计重算既有窄例外：单日成功含IGNORE0仍通知；全量仅完整成功且日期数大于0时通知，晚期失败可保留已提交行但不发事件；选定日期逐日成功即通知。事务回滚/实际COMMIT失败仍丢弃scope内事件，不把例外推广到新写入。
 - `dataRefreshBridge` 用固定 50ms 窗口合并去重，通过 `WindowManager.sendToAll` 发送给完整壳窗口，退出时清理计时器和订阅。
 - Cookie safe-summary 查询本身会刷新 metadata，因此这些 metadata 写入不发送 `credentials` 事件，避免查询与刷新构成无限循环。
 - `DataRefreshProvider` 管理壳内订阅，`useIpcQuery` 按依赖和逻辑域自动重读；初载显示骨架，后台 refetch 保留已加载内容，旧请求不能覆盖新 key 的结果。列表刷新不覆盖笔记或设置草稿。

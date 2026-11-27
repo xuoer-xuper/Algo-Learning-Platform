@@ -49,6 +49,16 @@ window.api.data.onChanged(handler: (payload: DataChangedPayload) => void): () =>
   run emits `submissions`/`problems`/`stats` and returns true even if an ordinary
   diagnostic BEFORE INSERT RAISE(IGNORE) produces changes0. Preserve native
   success/error and caller transaction behavior; do not generalize to new code.
+- Runtime statistics recompute has two existing preservation-only exceptions.
+  Single-day wrapper success always emits `stats`, including diagnostic IGNORE0;
+  a thrown core emits none. All-days emits once only after complete success with
+  a positive attempted-date count (even all IGNORE), and none on zero or throw.
+  Thus late all-days failure can leave earlier autocommit writes without an
+  event. Selected sorted unique dates instead emit per successful single-day
+  invocation before a later failure. Do not silently fix this asymmetry in ORM
+  conversion, add buffering around autocommit, or generalize it to new mutations.
+  Existing caller notification scopes still discard topics on rollback/COMMIT
+  failure. See drizzle-stats-recompute.md for the historical/runtime boundary.
 - Wrap the synchronous **transaction invocation**, including commit, in
   `withDataChangeTransaction`. Successful nested scopes merge into the parent;
   failed scopes discard their own changes and rethrow. The outermost successful
@@ -111,6 +121,9 @@ window.api.data.onChanged(handler: (payload: DataChangedPayload) => void): () =>
 | Successful standalone mutation | Publish its logical topics |
 | No-op mutation or duplicate insert rejected | No mutation notification |
 | Legacy problem upsert with a matching null-ID row | Run the bound-null UPDATE; retain its successful post-statement notification, but none on failure/rollback |
+| Legacy single-day recompute succeeds, including IGNORE0 | Emit stats once, subject to the existing caller scope |
+| Legacy all-days recompute returns positive / zero / throws late | One stats event / none / none; earlier autocommit effects can remain on late failure |
+| Legacy selected-date recompute later fails | Earlier successful single-day calls retain their scoped events/effects |
 | Outer transaction fails or commit throws | Publish none of that scope's topics |
 | Inner rollback caught, outer commit succeeds | Publish only successful outer topics |
 | Earlier autocommit succeeds, later batch item fails | Preserve notification for earlier commit |

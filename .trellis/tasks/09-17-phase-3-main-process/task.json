@@ -21,6 +21,6 @@
   "children": [],
   "parent": "09-17-spec-alignment",
   "relatedFiles": [],
-  "notes": "A4c implementation/review/local gates pass on codex/drizzle-insight-lists at93c0df2: DB985/native52, full223files2728/UI16/build, source815 stable. Reviewer fixed two native assertion defects, no product issue. DB131x4zones and consumer old-key proof pass. Normal hooks/push/featureCI/squash/PR8CI pending. A4d reconciliation independently reviewed but governing acceptance/GO pending. D62dirty unchanged; cap3; PR8draft/base dev; no release/archive.",
+  "notes": "A4d on codex/drizzle-stats-recompute from accepted A4c squashaacbff0: runtime53/fourzones, historyguard8, independent250+60/NY53/types/lint, DB1046/native60, full2789/UI16/build pass; warmed0.97ms<50ms,819source stable. Runtime-only helper; frozen030/core/time paths/bytes, INSERT12/frozen030, lateNULL/legacy events; R2 relocation separately gated. Normal hooks/push/featureCI/integrationCI pending. A5notes research only, not approved implementation. Cap3; D62dirty unchanged; PR8draft/base dev; no release/archive.",
   "meta": {}
 }

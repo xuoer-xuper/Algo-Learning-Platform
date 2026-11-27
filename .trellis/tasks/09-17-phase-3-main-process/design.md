@@ -44,6 +44,44 @@ drizzle-kit0.31.11，安装后按实际API和Electron ABI验证，不采用beta�
 - 当前规模：25表、electron321个TS文件、250处prepare；排除迁移222处，repository162处。
   main1164/TabManager2494/CoachOrchestrator1474行，仅作分批规划，不硬套旧计数。
 
+## A4d Runtime / Historical Recompute Split (2026-11-27)
+
+Parent accepts research/a4d-stats-recompute-design.md and its independent review,
+plus research/a4d-boundary-reconciliation-review.md. A4c squash
+aacbff0c2c1afe9df4fa2bda5698450f0d76e608 is the concrete accepted baseline; both
+feature and integration CI pass before GO. Executable contracts live in
+project/drizzle-stats-recompute.md and the narrow data-refresh.md exceptions.
+
+- Add stats/recompute-runtime.ts exporting the two existing explicit-DB helper
+  signatures. Only recompute.ts import changes; all three wrapper bodies remain.
+  Current raw aggregate/range/UNION/order/JSON/UPSERT behavior is preserved.
+- Keep recompute-core.ts,030 and shared time bytes and the030 direct execution
+  branch unchanged. No global DB, runtime ORM/schema import, delegate or shared
+  algorithm extraction enters the historical branch. Pin hashes and graph to
+  aacbff0, not dynamic HEAD or self-derived current expectations.
+- Generated INSERT12 versus original11 is accepted only on frozen030 physical
+  columns/defaults. The deleted_at DEFAULT7 counterexample remains excluded;
+  startup validators are unchanged and do not provide per-write guarantees.
+- All facts convert before per-day writes. Narrow nullable cache keys only at
+  their original late failure point, preserving earlier partial effects.
+- Preserve prepare-before-JSON and original11 bindings/9 conflict UPDATE targets,
+  native INTEGER overflow, no-order platform JSON and caller transaction ownership.
+  Single success emits evenIGNORE0; all-days positive full success emits once,
+  zero/throw emits none; selected dates emit per successful wrapper invocation.
+- Exact-path freeze is an A4d/R1 constraint, not a perpetual R2 layout exception.
+  A later historical-island move needs its own plan approval and exact path-map,
+  import-graph/algorithm/history/recovery proof. Changed import bytes require
+  explicit new evidence, not a false unchanged-hash claim. No relocation is
+  approved now, no guard budget weakens and final electron/ removal remains.
+
+Runtime implementer owns new runtime helper, wrapper import, independent frozen
+core/wrapper oracle, differential tests, native groups and verify.mjs registration.
+Historical-guard implementer owns only tests/db/stats-recompute-history.test.ts;
+parent owns README/spec/task/docs/Git. Guard registration belongs to runtime
+implementer. Both work directly without delegation, within total concurrency3.
+Parent runs serial native/full/build/performance/recovery; independent full-slice
+review follows freeze. Frozen030/history fixtures are not regenerated or repaired.
+
 ## A4c Insight Lists And Consumer Identity (2026-11-27)
 
 Parent accepts research/a4c-insight-lists-contract-review.md after A4b2. Convert

@@ -59,6 +59,27 @@
 - [x] 正常hooks提交82a0163并立即推送，PR17 CI44521575932全绿后squash0927213合回Drizzle；
   PR8集成CI44522362714全绿。PR8保持draft/base dev，不发版、不归档阶段3。
 
+## A4d Execution Boundary (2026-11-27)
+
+- Branch codex/drizzle-stats-recompute starts at A4c squashaacbff0 after
+  PR28CI45978229533 and PR8CI45979282462 pass. Parent GO2026-11-27.
+- [x] Independent design/reconciliation review and explicit parent acceptance of
+  runtime frozen030 compatibility, late NULL failure, notification exceptions
+  and A4d/R1 exact-path freeze with a separate future R2 relocation gate.
+- [x] Runtime worker: new recompute-runtime.ts, import-only recompute.ts change,
+  frozen independent old cores/wrappers oracle, focused differential/native tests
+  and verify.mjs registrations for both focused and historical guard files.
+- [x] Historical-guard worker: stats-recompute-history.test.ts pins accepted-base
+  bytes/direct execution graph and migration-only explicit-DB independence.
+- [x] Independent complete review, both typechecks/lint and caller regressions.
+- [x] Parent serial DB41files1046/native60, full225files2789/UI16 and build pass;
+  unchanged warmed benchmark0.97ms<50ms, history/recovery and819source/D hashes.
+- [ ] Normal hooks/immediate push, feature CI/squash and PR8 integration CI.
+
+R2 entry requires a separately approved historical-island relocation plan; exit
+requires exact change accounting, graph/history/recovery equivalence and final
+layout acceptance. Neither permission nor waiver is inferred from A4d.
+
 ## A4c Execution Boundary (2026-11-27)
 
 - Branch codex/drizzle-insight-lists starts at squash93c0df2 after A4b2
@@ -73,9 +94,10 @@
   two native-test assertion defects fixed without changing production behavior.
 - [x] Parent serial DB985/native52, full223files2728/UI16 and build pass;
   all815 source hashes plus original D62dirty/schema/030 unchanged.
-- [ ] Normal hooks/immediate push, feature CI/squash and PR8 integration CI.
+- [x] Work54f0c25 normal hooks/immediate push; PR28CI45978229533 passes,
+  squashaacbff0 has the same tested tree; PR8CI45979282462 passes.
 
-Recompute A4d remains unapproved pending explicit historical-path/layout decision.
+Recompute A4d follows its separately accepted boundary above. Phase3 stays active.
 
 ## A4b2 Execution Boundary (2026-11-20)
 
