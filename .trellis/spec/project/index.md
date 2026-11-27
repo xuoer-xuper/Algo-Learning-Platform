@@ -30,6 +30,7 @@ which today.
 | [drizzle-stats-reads.md](./drizzle-stats-reads.md) | A4a native scalar/NULL aggregate/overflow and raw latest-time contracts | Before basic statistics read changes |
 | [drizzle-daily-reads.md](./drizzle-daily-reads.md) | A4b daily read/chart safety and ordered streak validation | Before daily trend, streak or chart changes |
 | [drizzle-insight-lists.md](./drizzle-insight-lists.md) | A4c nullable list outputs, native aggregates/limits/clocks and Dashboard row identity | Before insight list or consumer changes |
+| [drizzle-stats-recompute.md](./drizzle-stats-recompute.md) | A4d runtime-only writes, frozen historical branch, native effects and explicit refresh exceptions | Before runtime recompute or later historical relocation planning |
 | [config-normalization-protection.md](./config-normalization-protection.md) | Verified raw config backup, staged automatic normalization and safe failure diagnostics | When changing config load/writeback or its backup helper |
 | [release-evidence.md](./release-evidence.md) | Release identity, artifact evidence and guarded publication lifecycle | When changing release scripts, packaging or publication gates |
 | [upgrade-recovery.md](./upgrade-recovery.md) | Verified migration checkpoints, interruption and explicit resolution | When changing database initialization, backup, restore or maintenance startup |

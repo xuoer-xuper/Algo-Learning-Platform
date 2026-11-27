@@ -16,7 +16,7 @@ within total concurrency3, reviews/gates/Git and leaves original D62dirty intact
 
 - DB implementation: frozen; 131 differential cases pass in each of UTC,
   Shanghai, New York and Apia; associated UTC five files/353 tests, both
-  typechecks and six-file lint/format pass. Four native groups await parent run.
+  typechecks and six-file lint/format pass. Four native groups pass below.
 - Consumer implementation: frozen; both typechecks, six-file lint/format and
   seven focused files/56 tests pass. New schema21/component6/AI2 cases cover
   nullable outputs, row identity, URL actions and unchanged privacy/counts.
@@ -46,11 +46,21 @@ within total concurrency3, reviews/gates/Git and leaves original D62dirty intact
   external-native guard. All815 source hashes remain unchanged through the final
   gates; original D62dirty/HEAD and schema/030/shared time remain unchanged.
   Logs tmp/drizzle-a4c-build.log/.exit and drizzle-a4c-gate-source.json.
-- Normal hooks/push/feature CI/squash/integration CI: pending.
+- Normal hooks/push/feature CI/squash/integration CI: complete below.
 
 A4b2 prepush Tooltip incident remains documented without a proven root cause;
 if it recurs, preserve trusted input/geometry/simultaneous Tooltip evidence before
 changing code or rerunning. No release or whole-phase completion claimed.
+
+## Commit And Remote Integration
+
+Work54f0c25d71ed7a60c5f6a7d1c97d442e693c29f4 passes normal pre-commit and
+immediate pre-push/test:ci2728/UI16 without retries or source changes. PR28
+featureCI45978229533 passes; squashaacbff0c2c1afe9df4fa2bda5698450f0d76e608
+merges into refactor/drizzle with the identical tested tree. PR8 integration
+CI45979282462 passes on that squash. PR8 remains draft/base dev; dev/master/tag
+unchanged. Branch codex/drizzle-stats-recompute starts from the integrated base.
+No installer/release or whole-phase completion follows from this slice.
 
 ## Native Test Retrospective
 

@@ -44,6 +44,26 @@ read-only timeline submission ID output to allow already-returned null; keep
 request/problem IDs, metric outputs and LLM privacy allowlist unchanged. Empty
 first-AC batches must still acquire no database. Submission writes remain separate.
 
+### A4d Runtime Recompute Acceptance (2026-11-27)
+
+After A4c integration, parent accepts the independently reviewed runtime-only
+recompute conversion. Preserve daily/all/selected results, native effects and
+failures, clocks, ordering and existing notification behavior. Keep migration030
+and its historical recompute dependency at their exact paths and bytes during
+A4d/R1. No historical forwarding shim, shared rewrite, schema or public API change.
+
+Runtime INSERT compatibility is limited to the unchanged frozen030 physical
+schema/defaults, not arbitrary altered defaults or intermediate historical DDL.
+Preserve late NULL-cache failure after fact conversion. Existing single-day
+success emits even IGNORE0; all-days late failure can retain earlier autocommit
+writes without an event. Selected dates retain per-success emission. These are
+narrow preservation exceptions, not a new notification policy.
+
+The exact-location freeze applies to A4d/R1, superseding only a perpetual-location
+reading of earlier research. R2/R5 still requires electron/ removal. Historical
+relocation needs a separate approved plan and graph/history/recovery-equivalence
+acceptance; it is not authorized now. If that proof fails, R2 stays incomplete.
+
 ### A4c Insight List Acceptance (2026-11-27)
 
 Parent accepts the independently reviewed four-list scope after A4b2 integration.

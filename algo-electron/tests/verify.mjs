@@ -52,6 +52,8 @@ const dbVitestFiles = [
   'tests/db/stats-daily-reads.test.ts',
   'tests/db/stats-streak.test.ts',
   'tests/db/stats-insight-lists.test.ts',
+  'tests/db/stats-recompute.test.ts',
+  'tests/db/stats-recompute-history.test.ts',
   'tests/db/submission-reads.test.ts',
   'tests/db/submission-upsert.test.ts',
   'tests/db/submission-first-ac.test.ts',

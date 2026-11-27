@@ -38,3 +38,7 @@
 {"file": ".trellis/tasks/09-17-phase-3-main-process/research/a4b1-implementation-review.md", "reason": "A4b1 independent implementation and native pointer/router blocker evidence; bounded lifecycle fix approved"}
 {"file": ".trellis/tasks/09-17-phase-3-main-process/research/a4c-insight-lists-contract-review.md", "reason": "Approved A4c four-query nullable output/key policy, COUNT child ID/raw MAX/native LIMIT and prepare/two-clock contracts"}
 {"file": ".trellis/spec/project/drizzle-insight-lists.md", "reason": "Executable A4c query/consumer/privacy/error and independent regression contracts"}
+{"file": ".trellis/tasks/09-17-phase-3-main-process/research/a4d-stats-recompute-design.md", "reason": "A4d complete runtime/native query and frozen historical split design"}
+{"file": ".trellis/tasks/09-17-phase-3-main-process/research/a4d-stats-recompute-review.md", "reason": "Independent INSERT12, late NULL, actual COMMIT, notification and historical branch review"}
+{"file": ".trellis/tasks/09-17-phase-3-main-process/research/a4d-boundary-reconciliation-review.md", "reason": "Independent temporal A4d/R1 freeze versus future R2 relocation gate reconciliation"}
+{"file": ".trellis/spec/project/drizzle-stats-recompute.md", "reason": "Accepted executable A4d runtime/history/default/clock/event and verification boundary"}
