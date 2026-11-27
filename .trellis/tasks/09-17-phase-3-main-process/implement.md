@@ -74,11 +74,19 @@
 - [x] Independent complete review, both typechecks/lint and caller regressions.
 - [x] Parent serial DB41files1046/native60, full225files2789/UI16 and build pass;
   unchanged warmed benchmark0.97ms<50ms, history/recovery and819source/D hashes.
-- [ ] Normal hooks/immediate push, feature CI/squash and PR8 integration CI.
+- [x] Work78f33b9 passes normal hooks/immediate push; PR29CI45989652010 passes,
+  squashfb0dd45 has the same tested tree; PR8CI45991420238 passes.
 
 R2 entry requires a separately approved historical-island relocation plan; exit
 requires exact change accounting, graph/history/recovery equivalence and final
 layout acceptance. Neither permission nor waiver is inferred from A4d.
+
+Next proposed A5a converts only four notes file_path reads. The notes inventory
+and independent precheck are in research/a5-notes-queries.md and
+research/a5a-notes-file-path-review.md. Before GO, persist the explicit-handle
+row-returning helper, damaged-DDL diagnostic qualification and isolated real-app
+native harness/runner/ratchet ownership in governing artifacts. Full-note reads,
+nullable list/UI policy and writes remain separately approved work.
 
 ## A4c Execution Boundary (2026-11-27)
 

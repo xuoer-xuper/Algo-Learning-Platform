@@ -24,7 +24,7 @@ Parent owns docs/spec/task and serial gates/Git. Total concurrency stays3.
 - Historical guard implementation and independent review: pass/frozen.
 - Independent full-slice review, focused/types/lint: pass; evidence recorded.
 - Parent native/full/build/performance/history/recovery/source gates: pass.
-- Normal hooks/push/feature CI/squash/PR8 integration CI: pending.
+- Normal hooks/push/feature CI/squash/PR8 integration CI: pass.
 
 Accepted-base hashes independently verified by parent:
 
@@ -133,3 +133,22 @@ tmp/drizzle-a4d-build.log/.exit. No installer or release is produced.
 The earlier A4b2 Tooltip incident does not recur in this run. This pass does not
 establish its original root cause or claim a fix. Preserve the prior evidence
 and stop for trusted-event/simultaneous-state capture if it recurs.
+
+## Integration Closure
+
+Work78f33b9e171be53b46ac51ebf820ccec28597b7d passes normal pre-commit and
+immediate pre-push/test:ci hooks. PR29 feature CI45989652010 passes both required
+jobs, then squashfb0dd45e16827117c4f3e4cb697e76105e40da34 integrates into
+refactor/drizzle. The squash tree is byte-identical to the tested work commit.
+PR8 integration CI45991420238 also passes both required jobs. PR8 remains
+draft/open with base dev. dev/master and v2.0.1 are unchanged; no release.
+
+Evidence: tmp/drizzle-a4d-{commit,push,feature-ci,integration-ci}.log/.exit.
+All819 source hashes still match after hooks and integration. Original D remains
+HEAD20ee62c with the same62 dirty-file hashes. Phase3 and its parent stay active.
+
+Next-domain research a5-notes-queries.md and independent precheck
+a5a-notes-file-path-review.md recommend a four-file-path-read slice. They are
+future planning only: exact helper location, damaged-column native diagnostic
+qualification and a real-app/native filesystem harness still need governing
+artifact sync and parent GO. No notes code or budget changes are part of A4d.
