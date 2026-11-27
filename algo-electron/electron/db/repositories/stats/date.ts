@@ -20,9 +20,11 @@ export function localDayFromTimestamp(timestamp: number): string | null {
   }
 }
 
-export function dayDiff(laterDay: string, earlierDay: string): number {
+export function dayDiff(laterDay: string | null, earlierDay: string | null): number {
   // Calendar ordinals avoid 23/25-hour DST days changing a streak.
+  if (laterDay === null) throw new TypeError('Invalid local day')
   localDayBounds(laterDay)
+  if (earlierDay === null) throw new TypeError('Invalid local day')
   localDayBounds(earlierDay)
   return (Date.parse(`${laterDay}T00:00:00Z`) - Date.parse(`${earlierDay}T00:00:00Z`)) / 86_400_000
 }

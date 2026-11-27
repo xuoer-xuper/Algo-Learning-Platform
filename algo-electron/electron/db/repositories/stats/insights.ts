@@ -1,6 +1,11 @@
-import { count, desc, eq, isNull, sql } from 'drizzle-orm'
+import { count, desc, eq, gt, gte, isNull, or, sql } from 'drizzle-orm'
 import { createDrizzleClient } from '../../../../src/main/db/client'
-import { activityEvents, problems, problemVisits } from '../../../../src/main/db/schema'
+import {
+  activityEvents,
+  problems,
+  problemVisits,
+  userDailyStats,
+} from '../../../../src/main/db/schema'
 import { getDb } from '../../connection'
 import { nowMillis, toLocalDay, localDayBounds } from '../../../shared/time'
 import { dayDiff, localDateDaysAgo } from './date'
@@ -91,16 +96,19 @@ export function getRevisitStats(limit = 50): RevisitStat[] {
 }
 
 export function getStreakDays(): StreakDays {
-  const db = getDb()
+  const db = createDrizzleClient(getDb())
   const rows = db
-    .prepare(
-      `
-    SELECT local_day FROM user_daily_stats
-    WHERE active_seconds >= 300 OR submission_count > 0 OR solved_problem_count > 0
-    ORDER BY local_day DESC
-  `,
+    .select({ local_day: userDailyStats.local_day })
+    .from(userDailyStats)
+    .where(
+      or(
+        gte(userDailyStats.active_seconds, sql`300`),
+        gt(userDailyStats.submission_count, sql`0`),
+        gt(userDailyStats.solved_problem_count, sql`0`),
+      ),
     )
-    .all() as { local_day: string }[]
+    .orderBy(desc(userDailyStats.local_day))
+    .all()
 
   if (rows.length === 0) return { current: 0, longest: 0 }
 

@@ -18,6 +18,8 @@ import {
   getOriginalSubmissionTrend,
   getOriginalVisitedTrend,
 } from './stats-daily-reads-oracle'
+import { getOriginalStreakDays, invokeOriginalDayDiff } from './stats-streak-oracle'
+import { dayDiff } from '../../electron/db/repositories/stats/date'
 import { runOriginalSubmissionUpsert } from './submission-upsert-oracle'
 import {
   runOriginalUpdateFirstAc,
@@ -69,6 +71,7 @@ import {
   getDailyActiveStats,
   getSubmissionTrend,
   getVisitedTrend,
+  getStreakDays,
   getPlatformDistribution as getStatsPlatformDistribution,
   getProblemVisitStats,
   getLastActiveTime as getStatsLastActiveTime,
@@ -3311,6 +3314,268 @@ test('Daily native reads retain query-only, caller savepoints, rollback and curr
     const current = [reads.daily(-1), reads.visited(), reads.ac(), reads.submissions(-1)]
     assert.ok(current.every((rows) => rows.length === 1 && rows[0].local_day === null))
     return { initial, pending, failures, current }
+  })
+})
+
+function seedNativeStreak(
+  db: Database.Database,
+  day: string | null,
+  active = 300,
+  submissions = 0,
+  solved = 0,
+  deletedAt: number | null = null,
+) {
+  db.prepare(
+    `INSERT INTO user_daily_stats
+    (local_day,active_seconds,duration_seconds,visited_problem_count,solved_problem_count,
+     submission_count,ac_submission_count,recomputed_at,created_at,updated_at,deleted_at)
+    VALUES (?,?,10000,10000,?,?,10000,1.75,0,2,?)`,
+  ).run(day, active, solved, submissions, deletedAt)
+}
+
+function compareNativeStreak(
+  run: (scenario: {
+    db: Database.Database
+    read: typeof getStreakDays
+    trace: string[]
+    setClock: (instant: number) => void
+    failClock: (error: Error | undefined) => void
+  }) => unknown,
+) {
+  const results = []
+  const originalNow = Date.now
+  try {
+    for (const original of [true, false]) {
+      Date.now = () => new Date(2026, 10, 20, 0, 30).getTime()
+      closeDb()
+      const db = initDbAtPath(':memory:')
+      const trace: string[] = []
+      const events: DataChangedPayload[] = []
+      const unsubscribe = subscribeDataChanges((event) => events.push(event))
+      let instant = new Date(2026, 10, 20, 0, 30).getTime()
+      let clockFailure: Error | undefined
+      Date.now = () => {
+        trace.push('clock')
+        if (clockFailure) throw clockFailure
+        return instant
+      }
+      function read() {
+        let current: Database.Database | undefined
+        try {
+          current = getDb()
+        } catch {
+          /* Uninitialized reads must fail without a clock or cached handle. */
+        }
+        const before = current?.open ? nativeStatsSnapshot(current) : undefined
+        try {
+          return original ? getOriginalStreakDays(getDb()) : getStreakDays()
+        } finally {
+          if (before && current) assert.deepStrictEqual(nativeStatsSnapshot(current), before)
+          assert.deepStrictEqual(events, [])
+        }
+      }
+      try {
+        const result = run({
+          db,
+          read,
+          trace,
+          setClock: (value) => {
+            instant = value
+          },
+          failClock: (error) => {
+            clockFailure = error
+          },
+        })
+        // Per-read snapshots include every ledger field; only independent setup clocks differ.
+        results.push({ result, trace, state: nativeStatsSnapshot(getDb(), true), events })
+      } finally {
+        unsubscribe()
+        closeDb()
+      }
+    }
+  } finally {
+    Date.now = originalNow
+  }
+  assert.deepStrictEqual(results[1], results[0])
+}
+
+test('Streak native thresholds, DESC anchoring and tombstones preserve numeric results without writes', () => {
+  compareNativeStreak(({ db, read, trace, failClock }) => {
+    failClock(new Error('empty cannot read the clock'))
+    assert.deepStrictEqual(read(), { current: 0, longest: 0 })
+    seedNativeStreak(db, '2026-11-20', 299)
+    seedNativeStreak(db, null, -1, -1, -1)
+    assert.deepStrictEqual(read(), { current: 0, longest: 0 })
+    assert.deepStrictEqual(trace, [])
+    failClock(undefined)
+    db.prepare(
+      'UPDATE user_daily_stats SET active_seconds=300, deleted_at=0 WHERE local_day=?',
+    ).run('2026-11-20')
+    seedNativeStreak(db, '2026-11-19', 0, 1)
+    seedNativeStreak(db, '2026-11-18', 0, 0, 0.25)
+    seedNativeStreak(db, '2026-11-16', 300)
+    db.pragma('reverse_unordered_selects = ON')
+    const tracking = traceNativeDaily(db, trace)
+    let result
+    try {
+      result = read()
+      assert.deepStrictEqual(result, { current: 3, longest: 3 })
+      assert.deepStrictEqual(trace, ['prepare:daily', 'all:daily:[]', 'clock'])
+    } finally {
+      tracking.restore()
+    }
+    seedNativeStreak(db, '2026-11-21')
+    assert.deepStrictEqual(read(), { current: 0, longest: 4 })
+    db.exec("DELETE FROM user_daily_stats WHERE local_day >= '2026-11-20'")
+    assert.deepStrictEqual(read(), { current: 0, longest: 2 })
+    return result
+  })
+})
+
+test('Streak native singleton NULL and malformed days differ from paired validation before clock', () => {
+  compareNativeStreak(({ db, read, trace, failClock }) => {
+    const results = []
+    for (const day of [null, '', 'bad', '2026-02-30', '9999-12-31']) {
+      db.exec('DELETE FROM user_daily_stats')
+      seedNativeStreak(db, day)
+      const start = trace.length
+      assert.deepStrictEqual(read(), { current: 0, longest: 1 })
+      assert.deepStrictEqual(trace.slice(start), ['clock'])
+      const sentinel = new Error('streak clock sentinel')
+      failClock(sentinel)
+      let caught: unknown
+      try {
+        read()
+      } catch (error) {
+        caught = error
+      }
+      assert.strictEqual(caught, sentinel)
+      failClock(undefined)
+    }
+    for (const days of [
+      [null, null],
+      ['2026-11-20', null],
+      ['9999-12-31', null],
+      ['2026-11-20', 'bad'],
+    ]) {
+      db.exec('DELETE FROM user_daily_stats')
+      for (const day of days) seedNativeStreak(db, day)
+      failClock(new Error('paired validation must win'))
+      const start = trace.length
+      const result = submissionReadOutcome(read)
+      assert.deepStrictEqual(result, {
+        error: days.includes('9999-12-31')
+          ? { name: 'RangeError', message: 'Local day is outside the supported calendar range' }
+          : { name: 'TypeError', message: 'Invalid local day' },
+      })
+      assert.deepStrictEqual(trace.slice(start), [])
+      results.push(result)
+    }
+    return results
+  })
+})
+
+test('Streak native helper retains ordered range failures, leap/year, DST and skipped-day calendars', () => {
+  for (const [later, earlier] of [
+    ['2026-03-09', '2026-03-08'],
+    ['2026-11-02', '2026-11-01'],
+    ['2024-03-01', '2024-02-29'],
+    ['2026-01-01', '2025-12-31'],
+    ['2011-12-31', '2011-12-30'],
+    ['2011-12-31', '2011-12-29'],
+    ['9999-12-31', null],
+    [null, '9999-12-31'],
+  ]) {
+    assert.deepStrictEqual(
+      submissionReadOutcome(() => dayDiff(later, earlier)),
+      submissionReadOutcome(() => invokeOriginalDayDiff(later, earlier)),
+    )
+  }
+  compareNativeStreak(({ db, read, trace, setClock }) => {
+    seedNativeStreak(db, '2026-03-09')
+    seedNativeStreak(db, '2026-03-08')
+    setClock(new Date(2026, 2, 9, 0, 30).getTime())
+    const nativeParse = Date.parse
+    Date.parse = (value) => {
+      trace.push(`parse:${value}`)
+      return nativeParse(value)
+    }
+    try {
+      const result = read()
+      assert.deepStrictEqual(result, { current: 2, longest: 2 })
+      const pair = ['parse:2026-03-09T00:00:00Z', 'parse:2026-03-08T00:00:00Z']
+      assert.deepStrictEqual(trace, [...pair, 'clock', ...pair])
+      setClock(NaN)
+      assert.deepStrictEqual(submissionReadOutcome(read), {
+        error: { name: 'TypeError', message: 'Timestamp must be integer milliseconds' },
+      })
+      return result
+    } finally {
+      Date.parse = nativeParse
+    }
+  })
+})
+
+test('Streak native read-only, savepoint, rollback, current-handle and prepare errors preserve ownership', () => {
+  compareNativeStreak(({ db, read, trace, failClock }) => {
+    seedNativeStreak(db, '2026-11-20')
+    db.pragma('query_only = ON')
+    const initial = read()
+    assert.deepStrictEqual(initial, { current: 1, longest: 1 })
+    db.pragma('query_only = OFF')
+    assert.throws(
+      () =>
+        db.transaction(() => {
+          seedNativeStreak(db, '2026-11-19')
+          assert.deepStrictEqual(read(), { current: 2, longest: 2 })
+          assert.strictEqual(db.inTransaction, true)
+          assert.throws(
+            () =>
+              db.transaction(() => {
+                seedNativeStreak(db, '2026-11-18')
+                assert.deepStrictEqual(read(), { current: 3, longest: 3 })
+                throw new Error('streak nested rollback')
+              })(),
+            /streak nested rollback/,
+          )
+          assert.deepStrictEqual(read(), { current: 2, longest: 2 })
+          throw new Error('streak outer rollback')
+        })(),
+      /streak outer rollback/,
+    )
+    assert.strictEqual(db.inTransaction, false)
+    assert.deepStrictEqual(read(), initial)
+    closeDb()
+    const closedStart = trace.length
+    const closed = submissionReadOutcome(read)
+    assert.deepStrictEqual(closed, {
+      error: { name: 'Error', message: 'Database not initialized. Call initDb() first.' },
+    })
+    assert.deepStrictEqual(trace.slice(closedStart), [])
+    const next = initDbAtPath(':memory:')
+    seedNativeStreak(next, null)
+    next.pragma('query_only = ON')
+    assert.deepStrictEqual(read(), { current: 0, longest: 1 })
+    next.pragma('query_only = OFF')
+    next.exec('ALTER TABLE user_daily_stats RENAME COLUMN active_seconds TO damaged_column')
+    failClock(new Error('prepare must win'))
+    const tracking = traceNativeDaily(next, trace)
+    const start = trace.length
+    let caught: unknown
+    try {
+      read()
+    } catch (error) {
+      caught = error
+    } finally {
+      tracking.restore()
+    }
+    assert.strictEqual(caught, tracking.failure())
+    assert.ok(caught instanceof Error && 'code' in caught)
+    assert.strictEqual(caught.name, 'SqliteError')
+    assert.strictEqual(caught.code, 'SQLITE_ERROR')
+    assert.match(caught.message, /^no such column: .*active_seconds/)
+    assert.deepStrictEqual(trace.slice(start), ['prepare:daily'])
+    return { initial, closed, failure: { name: caught.name, code: caught.code } }
   })
 })
 

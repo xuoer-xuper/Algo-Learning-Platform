@@ -21,6 +21,6 @@
   "children": [],
   "parent": "09-17-spec-alignment",
   "relatedFiles": [],
-  "notes": "A2g/PR21至A4a/PR25均合Drizzle且两级CI绿。A4b1当前C分支codex/drizzle-daily-trends：四趋势Drizzle查询、nullable输出/共享AI类型、两图ordinal坐标与Tooltip，原生验收额外定位并限定修复ShellRouter effect内flushSync。full218files2490/native44/UI16/build通过，808hash稳定；最终独立复核和正常hooks/PR集成待完成。A4b2已批准，待A4b1集成再实施；A4c/A4d仅设计，后续领域/布局/拆分未完。并发总上限3含主会话。D62dirty保持，PR8draft/base dev、不发版、不归档阶段3。",
+  "notes": "A4b1 integrated squash4d60368, PR26CI45606492783 and PR8CI45608688612 green. A4b2 codex/drizzle-streak local acceptance PASS: DB854/native48/full2568/UI16/build, independent review no findings;810source/D62dirty unchanged. Normal commit/push/feature and integration CI pending. A4c/A4d design only. Concurrency limit3 including parent; PR8draft/base dev; no release/phase3 archive.",
   "meta": {}
 }

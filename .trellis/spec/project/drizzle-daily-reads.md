@@ -120,6 +120,13 @@ loops, exact qualifying OR thresholds, DESC nullable local_day, tombstones,
 longest-before-one-now/current loop and today-only anchor. No eager validation,
 filtering, new grace period, fallback or changed calendar helper.
 
+The signatures remain getStreakDays(): StreakDays with numeric current/longest,
+and stats-local dayDiff(laterDay: string|null, earlierDay: string|null): number.
+Qualification is active_seconds>=300 OR submission_count>0 OR
+solved_problem_count>0; visits, duration and ac_submission_count alone do not
+qualify. No deleted_at predicate is added. The SELECT returns the inferred
+nullable schema column directly, with local_day DESC and no secondary ordering.
+
 Only stats-local dayDiff widens two parameters to string|null. Check later NULL
 before its existing localDayBounds, then earlier NULL before its existing bounds.
 Throw TypeError('Invalid local day') at those positions. A combined upfront guard
@@ -127,6 +134,22 @@ incorrectly replaces later9999-12-31 RangeError with earlierNULL TypeError.
 Singleton NULL/bad still yields current0/longest1 after one clock; empty yields0/0
 without clock; twoNULL fail before clock. Preserve Date.parse calendar ordinals,
 not elapsed local milliseconds across23/25h DST. Shared time API stays string.
+
+| Streak input/state | Required outcome and timing |
+| --- | --- |
+| No qualifying rows | current0/longest0, no clock |
+| Singleton NULL or malformed text | current0/longest1, one clock |
+| Two NULL or paired invalid rows | Original pairwise error before clock |
+| later9999-12-31 with earlierNULL | Later bounds RangeError before NULL TypeError |
+| Valid streak ending yesterday/future | current0, original longest, no grace period |
+| New York spring/fall adjacent civil dates | Difference1 despite23/25-hour local days |
+| Apia skipped civil day | Original localDayBounds error; no normalization |
+| Closed/current/query-only handle | Native failure or readonly result, no events |
+
+Wrong: one combined NULL guard, eager whole-list validation, date filtering or
+elapsed-local-milliseconds subtraction. Correct: check each NULL immediately
+before that argument's unchanged localDayBounds, then retain UTC ordinal math
+and both existing loops. The longest pass must finish before the today clock.
 
 Freeze original streak loop AND original dayDiff behavior separately for oracle.
 Test actual baseline multipleNULL, thresholds/metrics/tombstones, bad/single/pair,

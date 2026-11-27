@@ -384,6 +384,9 @@ A4b1每日趋势读取保留每一行的nullable local_day、原始计数与排�
 此显示修复防止多个NULL行占用真实日期的坐标，不过滤数据、伪造日期、改变数量或扩大到阶段4界面重构。
 原生验收同时定位现有路由器在effect内调用flushSync的生命周期问题：快速切页/无API分支直接更新，真正View Transition回调仍在版本检查后同步提交快照；200ms阈值、过期回调和过渡清理行为保持。
 
+A4b2连续活跃读取仅将SELECT迁移到Drizzle；原active/submission/solved阈值、DESC原始日期、最长/当前双循环及今日锚点保留。
+stats局部dayDiff按原参数校验顺序收窄NULL，先验证later日期再验证earlier日期，不改变共享日历API、DST日历序号、异常优先级或时钟调用。
+
 ### 6.4 提交后的数据刷新
 
 `data:changed` 仅广播 `{ tables }`，八个逻辑域为 `problems/submissions/notes/stats/sites/scripts/credentials/coach`，不携带记录、凭据、Cookie 或本地路径。account/rating 写入映射到 `stats`，访问记录映射到 `problems` 和 `stats`。

@@ -50,6 +50,7 @@ const dbVitestFiles = [
   'tests/db/statsDate.test.ts',
   'tests/db/stats-basic-reads.test.ts',
   'tests/db/stats-daily-reads.test.ts',
+  'tests/db/stats-streak.test.ts',
   'tests/db/submission-reads.test.ts',
   'tests/db/submission-upsert.test.ts',
   'tests/db/submission-first-ac.test.ts',
