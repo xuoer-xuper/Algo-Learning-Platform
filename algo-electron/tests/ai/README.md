@@ -8,6 +8,8 @@
 
 ## 2. 当前覆盖
 
+- `insight-list-context.test.ts`：洞察列表保留AI投影的允许字段、计数和时间，排除本地ID/URL/payload等私有哨兵；周期摘要计数保持。
+
 - `recommendationRules.test.ts`：覆盖标签 JSON 解析、复习建议评分、薄弱标签评分、证据文案、复习计划优先级、预估时间和计划天数归一化。
 - `traceability.test.ts`：使用临时 SQLite 数据库验证复习建议、薄弱标签、复习计划能回查到本地题目/提交/访问/标签统计依据，并确认 AI context 与建议产物不泄漏 Cookie header、源码路径或 `raw_json`。
 

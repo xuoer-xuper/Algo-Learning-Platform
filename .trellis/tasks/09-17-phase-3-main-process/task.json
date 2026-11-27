@@ -21,6 +21,6 @@
   "children": [],
   "parent": "09-17-spec-alignment",
   "relatedFiles": [],
-  "notes": "A4b1 integrated squash4d60368, PR26CI45606492783 and PR8CI45608688612 green. A4b2 codex/drizzle-streak local acceptance PASS: DB854/native48/full2568/UI16/build, independent review no findings;810source/D62dirty unchanged. Normal commit/push/feature and integration CI pending. A4c/A4d design only. Concurrency limit3 including parent; PR8draft/base dev; no release/phase3 archive.",
+  "notes": "A4c implementation/review/local gates pass on codex/drizzle-insight-lists at93c0df2: DB985/native52, full223files2728/UI16/build, source815 stable. Reviewer fixed two native assertion defects, no product issue. DB131x4zones and consumer old-key proof pass. Normal hooks/push/featureCI/squash/PR8CI pending. A4d reconciliation independently reviewed but governing acceptance/GO pending. D62dirty unchanged; cap3; PR8draft/base dev; no release/archive.",
   "meta": {}
 }

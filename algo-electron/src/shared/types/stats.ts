@@ -64,7 +64,7 @@ export const problemVisitStatsSchema = z.object({
 export type ProblemVisitStats = z.infer<typeof problemVisitStatsSchema>
 
 export const timelineEventSchema = z.object({
-  id: z.string(),
+  id: z.string().nullable(),
   event_type: z.string(),
   occurred_at: z.number().int(),
   platform: z.string().nullable(),
@@ -89,7 +89,7 @@ export const revisitStatsItemSchema = z.object({
 export type RevisitStatsItem = z.infer<typeof revisitStatsItemSchema>
 
 export const wrongProblemItemSchema = z.object({
-  id: z.string(),
+  id: z.string().nullable(),
   platform: z.string(),
   platform_problem_id: z.string(),
   title: z.string().nullable(),
@@ -102,7 +102,7 @@ export const wrongProblemItemSchema = z.object({
 export type WrongProblemItem = z.infer<typeof wrongProblemItemSchema>
 
 export const unreviewedProblemItemSchema = z.object({
-  id: z.string(),
+  id: z.string().nullable(),
   platform: z.string(),
   platform_problem_id: z.string(),
   title: z.string().nullable(),

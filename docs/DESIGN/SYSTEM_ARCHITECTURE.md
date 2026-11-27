@@ -387,6 +387,9 @@ A4b1每日趋势读取保留每一行的nullable local_day、原始计数与排�
 A4b2连续活跃读取仅将SELECT迁移到Drizzle；原active/submission/solved阈值、DESC原始日期、最长/当前双循环及今日锚点保留。
 stats局部dayDiff按原参数校验顺序收窄NULL，先验证later日期再验证earlier日期，不改变共享日历API、DST日历序号、异常优先级或时钟调用。
 
+A4c洞察四列表使用Drizzle保留COUNT(child.id)、raw MAX、命名LIMIT和未复习查询prepare后的双时钟顺序。
+时间线/未复习ID如实允许NULL，错题ID保守nullable，复访通过JOIN非空FK证明string；Dashboard元组/带标签key保留每行URL操作，匿名事件只使用位置身份，AI字段白名单不变。
+
 ### 6.4 提交后的数据刷新
 
 `data:changed` 仅广播 `{ tables }`，八个逻辑域为 `problems/submissions/notes/stats/sites/scripts/credentials/coach`，不携带记录、凭据、Cookie 或本地路径。account/rating 写入映射到 `stats`，访问记录映射到 `problems` 和 `stats`。

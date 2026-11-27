@@ -113,6 +113,15 @@ ends and zero values. Do not alter production margins/animation, dispatch fake
 React events, remove hover assertions or increase retries/timeouts to mask it.
 Full Electron tests and screenshots still determine acceptance.
 
+A later successful visibility assertion followed by an empty label does not prove
+that visible and empty coexisted. Recharts can clear both label/payload after a
+leave or out-of-plot event. Test-only traces without browser snapshots/trusted
+input cannot establish the cause. Preserve the failure, then capture mouse/
+pointer/leave/focus/scroll plus simultaneous Tooltip visibility/label/payload,
+hit geometry and interaction state before choosing a code repair. Passing bounded
+diagnostics establish non-reproduction, not a fix. Do not infer animation, stale
+formatter or the earlier fractional-coordinate cause without new evidence.
+
 ## 9. Separate Streak Slice (A4b2)
 
 After A4b1 acceptance, getStreakDays retains numeric current/longest and original

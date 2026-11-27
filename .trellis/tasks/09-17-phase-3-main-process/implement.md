@@ -59,6 +59,24 @@
 - [x] 正常hooks提交82a0163并立即推送，PR17 CI44521575932全绿后squash0927213合回Drizzle；
   PR8集成CI44522362714全绿。PR8保持draft/base dev，不发版、不归档阶段3。
 
+## A4c Execution Boundary (2026-11-27)
+
+- Branch codex/drizzle-insight-lists starts at squash93c0df2 after A4b2
+  featureCI45955883109 and PR8CI45958456569 pass. Parent GO2026-11-27.
+- [x] Independent precheck and explicit parent acceptance of nullable outputs,
+  joined revisit ID witness and bounded Dashboard key/URL-action policy.
+- [x] DB: four reads/internal types, frozen SQL oracle/differential suite,
+  native repository groups and DB runner registration.
+- [x] Consumer: three output ID schemas, indexed dashboard types/required tuple,
+  tagged keys and focused schema/component/AI regressions.
+- [x] Independent full-slice review, both typechecks/lint and focused callers;
+  two native-test assertion defects fixed without changing production behavior.
+- [x] Parent serial DB985/native52, full223files2728/UI16 and build pass;
+  all815 source hashes plus original D62dirty/schema/030 unchanged.
+- [ ] Normal hooks/immediate push, feature CI/squash and PR8 integration CI.
+
+Recompute A4d remains unapproved pending explicit historical-path/layout decision.
+
 ## A4b2 Execution Boundary (2026-11-20)
 
 - Begin after A4b1 integrated acceptance, separate branch from refactor/drizzle.
@@ -72,7 +90,9 @@
   UTC8files280 and other three zones80 each pass; original AST/SQL confirmed.
 - [x] DB854/native48, full219files2568/UI16 and build:check pass; four-zone
   streak78 each,810 source hashes and original D62dirty unchanged.
-- [ ] Normal hooks/immediate push, feature CI/squash and PR8 integration CI green.
+- [x] Workc45e86f passed normal hooks; bounded UI incident investigation then one
+  unchanged push retry green. PR27CI45955883109/squash93c0df2 and PR8CI45958456569
+  pass; tested tree identical. See A4b2 verification and prepush incident review.
 
 ## A4b1 Native UI Blocker (2026-11-23)
 

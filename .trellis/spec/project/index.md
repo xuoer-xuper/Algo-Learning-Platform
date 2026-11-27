@@ -28,7 +28,8 @@ which today.
 | [drizzle-submission-reads.md](./drizzle-submission-reads.md) | A3a full-row/raw-time/nullability, native LIMIT and exact aggregate bind-count contracts | Before submission read or caller-contract changes |
 | [drizzle-submission-writes.md](./drizzle-submission-writes.md) | A3b bounded INSERT/first-AC parity, prepare/iterator order and transaction notifications | Before submission write changes |
 | [drizzle-stats-reads.md](./drizzle-stats-reads.md) | A4a native scalar/NULL aggregate/overflow and raw latest-time contracts | Before basic statistics read changes |
-| [drizzle-daily-reads.md](./drizzle-daily-reads.md) | A4b1 truthful nullable cache reads and ordinal chart/Tooltip safety | Before daily trend read or chart changes |
+| [drizzle-daily-reads.md](./drizzle-daily-reads.md) | A4b daily read/chart safety and ordered streak validation | Before daily trend, streak or chart changes |
+| [drizzle-insight-lists.md](./drizzle-insight-lists.md) | A4c nullable list outputs, native aggregates/limits/clocks and Dashboard row identity | Before insight list or consumer changes |
 | [config-normalization-protection.md](./config-normalization-protection.md) | Verified raw config backup, staged automatic normalization and safe failure diagnostics | When changing config load/writeback or its backup helper |
 | [release-evidence.md](./release-evidence.md) | Release identity, artifact evidence and guarded publication lifecycle | When changing release scripts, packaging or publication gates |
 | [upgrade-recovery.md](./upgrade-recovery.md) | Verified migration checkpoints, interruption and explicit resolution | When changing database initialization, backup, restore or maintenance startup |

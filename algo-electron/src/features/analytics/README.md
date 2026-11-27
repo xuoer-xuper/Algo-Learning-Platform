@@ -32,6 +32,7 @@
 
 - 统计口径以主进程 repository 和 service 为准，renderer 不重新推导事实数据。
 - AI 建议在本 feature 中只能展示和降级，不能修改核心数据。
+- A4c洞察列表保留nullable ID和原站URL操作；错题/未复习key使用必需的平台/题号元组，时间线区分真实ID和匿名位置key。匿名事件位置身份不承诺跨重排稳定；不以显示key替代数据库ID。
 - 图表必须在截图测试中保持可绘制，避免动画导致 headless 截图为空；平台分布使用固定网格和独立图例，避免饼图 label 挤压或裁剪。
 - 新增统计数据优先扩展 `analyticsApi.ts` 和 `types.ts`，不要在面板组件里散落 `window.api`。
 

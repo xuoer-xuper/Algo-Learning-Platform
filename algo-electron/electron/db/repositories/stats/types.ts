@@ -25,7 +25,7 @@ export interface StreakDays {
 }
 
 export interface WrongProblem {
-  id: string
+  id: string | null
   platform: string
   platform_problem_id: string
   title: string | null
@@ -35,7 +35,7 @@ export interface WrongProblem {
 }
 
 export interface UnreviewedProblem {
-  id: string
+  id: string | null
   platform: string
   platform_problem_id: string
   title: string | null
