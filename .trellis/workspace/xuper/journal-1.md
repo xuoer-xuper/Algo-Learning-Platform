@@ -744,3 +744,41 @@ A4d运行时重算及历史保护完成独立审查、原生/全量/build和双�
 
 - 先将A5a独立预审的显式DB行返回helper、damaged-DDL原生诊断例外及隔离real-app文件测试/runner/预算归属写入governing artifacts，再给GO实施；并发总数不超过3。
 - PR8保持draft/base dev；后续领域、布局、拆分和阶段4–6未完成，不归档阶段3、不自动发布。旧A4b2 Tooltip偶发仍无根因，复发先保留可信事件与同时状态。
+
+
+## Session 22: Drizzle笔记路径查询集成与标题类型迁移交接
+<!-- trellis-session: v=2 fp=ae749d38c0438fd1 -->
+
+**Date**: 2026-11-28
+**Task**: Drizzle笔记路径查询集成与标题类型迁移交接
+**Branch**: `refactor/drizzle`
+
+### Summary
+
+A5a四个文件路径查询通过独立审查、原生存储、全量与build验收，并经PR31及PR8集成CI合入Drizzle；A5b研究及独立预审准备就绪，尚待单独批准实施边界。
+
+### Main Changes
+
+- 四处lookup仅替换查询，保留行存在性、原生NULL绑定、文件/时钟/写入/事件顺序和其余8条SQL。
+- 真实Electron测试采用notes专用split ESM，父进程在子进程退出后清理受检工作区临时根；coach runner不变。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `0e4054a` | refactor(db): 迁移笔记文件路径查询并验证真实存储边界 |
+| `eafbed7` | refactor(db): 迁移笔记文件路径查询并验证真实存储边界 (#31) |
+
+### Testing
+
+- [OK] 独立UTC164/两份typecheck/lint；DB42文件1109/native65/realapp21，全量226文件2852/UI16，build:check通过。
+- [OK] 正常hooks立即push；PR31CI46099297905、squasheafbed7及PR8CI46099803141通过且测试树一致，823源码/53保护路径/D62dirty保持。
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- 批准并实施A5b两条UPDATE：显式DB、双SET原始占位符、原生RunResult与changes/event/changes顺序；实际驱动差分验收，不能用node:sqlite探针代替。
+- 并发总数不超过3，PR8保持draft/base dev；阶段3及父任务继续，不归档、不自动发布；旧Tooltip偶发复发先保留可信证据。

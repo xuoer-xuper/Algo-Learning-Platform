@@ -2,8 +2,8 @@
 
 Started: 2026-11-27; final local gates: 2026-11-28. Branch
 codex/drizzle-notes-file-path, accepted integrated base
-299b0e327d994bbe030807389644a443101e8144. Local gates pass; Git integration
-remains pending until its separate closure record.
+299b0e327d994bbe030807389644a443101e8144. Local gates and both integration CI
+levels pass; closure is recorded below.
 Phase3 and its parent remain active. No release, installer or schema change.
 
 ## Boundary And Implementation
@@ -114,3 +114,20 @@ paths match integrated299b0e3, original D62dirty/HEAD20ee62c are unchanged.
 Evidence: tmp/drizzle-a5a-{db,all,build}.log/.exit and gate-source.json.
 The old A4b2 Tooltip incident does not recur; this is not proof of its root cause
 or a repair. Preserve trusted-event/simultaneous-state requirements on recurrence.
+
+## Integration Closure (2026-11-28)
+
+Work0e4054a614e178a2569e6b5f2cce2d4bef805422 passes normal pre-commit and
+immediate pre-push/test:ci hooks without bypass or retry. PR31 feature
+CI46099297905 passes required jobs, then squasheafbed786b6619b015b8f9afa9e4fcd867f59f8b
+integrates into refactor/drizzle. The squash tree equals the tested work tree.
+PR8 integration CI46099803141 passes; PR8 stays draft/open with base dev.
+All823source hashes remain stable through hooks/integration. dev/master/v2.0.1
+and original D worktree are unchanged; no release or task archive.
+Evidence: tmp/drizzle-a5a-{commit,push,feature-ci,integration-ci}.log/.exit.
+
+Future A5b research and independent precheck cover only title/type UPDATEs.
+Both SET values need raw SQL-wrapped named placeholders to preserve undefined
+binding and avoid Date encoding. The alternate node:sqlite probe is not native
+acceptance; actual better-sqlite3 binds undefined as NULL. A5b governing approval,
+implementation and full acceptance remain pending; no other notes slice is GO.
