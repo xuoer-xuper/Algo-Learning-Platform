@@ -44,6 +44,52 @@ drizzle-kit0.31.11，安装后按实际API和Electron ABI验证，不采用beta�
 - 当前规模：25表、electron321个TS文件、250处prepare；排除迁移222处，repository162处。
   main1164/TabManager2494/CoachOrchestrator1474行，仅作分批规划，不硬套旧计数。
 
+## A5a Notes File-Path Reads (2026-11-27)
+
+Parent accepts research/a5-notes-queries.md and the independent
+research/a5a-notes-file-path-review.md for this four-read slice only. A4d PR29
+and handoff PR30 are integrated; base299b0e3 and PR8CI45994240435 pass before GO.
+The executable contract is project/drizzle-notes-file-path.md.
+
+- Add query-only electron/db/repositories/notes/file-path.ts, exporting
+  findNoteFilePath(db: Database.Database, noteId: string). Schema/query-derived
+  row return preserves empty file_path as found. Public builder selects only
+  file_path with one bound equality and get; no filters/cache/global lifecycle.
+- Replace only four lookup expressions/assertions and add one import. Each
+  caller keeps getDb and every method tail, including content SELECT outside
+  try and actual runtime NULL-ID equality through the unchanged batch list.
+- Explicit supplied-handle use is the documented narrow repository exception;
+  callers retain acquisition. Damaged-DDL errors retain native stage/class/code/
+  injected identity; quoted missing-column wording may differ. No translation.
+- Parent owns a dedicated runNotesStorageTest, only notes native external/
+  RUN_AS_NODE removal, DB suite registration and
+  Vitest exclusion, plus exact NoteService bare-SQL ratchet12-to8.
+- Native harness investigation proves single-file ESM bundling hoists transitive
+  external imports past local dynamic init wrappers. Parent approves notes-only
+  splitting:true, output .mjs chunks under its own tmp/electron-tests subdirectory;
+  bundleTest defaultfalse and all prior caller arguments/behavior stay unchanged.
+- First actual native run passes21 behavior groups but root cleanup before app
+  exit fails EPERM; only Chromium session stores remain. Independent reviewer
+  accepts runner-owned workspace notes-storage-* mkdtemp and required test-only
+  ALGO_NOTES_TEST_ROOT; child validates containment/nonsymlink, owns resource
+  teardown, parent checks lexical/real ownership and cleans after child exit.
+  Preserve primary child errors if cleanup also fails; no live-root deletion or
+  blind retry. Restore generic runElectronAppTest exactly, rather than extend its
+  options for one caller. The rejected system-temp cleanup is not retried.
+- Native app harness isolates userData/session/log paths before deferred imports,
+  uses no window/bootstrap, checks containment for destructive work, and closes/
+  unsubscribes/unregisters before cleanup with truthful exit. Protocol, if tested,
+  uses real privilege-before-ready/handler-after-ready/fetch. Vitest mock setPath
+  is not isolation; real-FS focused tests must override getPath explicitly.
+
+Worker1 owns helper, four substitutions/import, frozen independent lookup/four
+methods/batch oracle, focused differential tests and appended native repository
+groups. Worker2 owns only tests/electron/notes-file-path-storage.test.ts and may
+consume worker1's agreed oracle interface, never edit it. Parent owns all docs,
+runner/config/ratchet, serial native/global/build gates and Git. Concurrency3 total;
+workers do not delegate or revert each other's edits. Independent full review
+follows freeze. All remaining notes/full-read/UI/write decisions remain pending.
+
 ## A4d Runtime / Historical Recompute Split (2026-11-27)
 
 Parent accepts research/a4d-stats-recompute-design.md and its independent review,

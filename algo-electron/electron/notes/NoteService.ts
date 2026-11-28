@@ -1,6 +1,7 @@
 import { emitDataChanged } from '../shared/dataEvents'
 import crypto from 'node:crypto'
 import { getDb } from '../db/connection'
+import { findNoteFilePath } from '../db/repositories/notes/file-path'
 import { nowMillis } from '../shared/time'
 import {
   createNoteFile,
@@ -167,8 +168,7 @@ export function updateNoteTitle(noteId: string, title: string): boolean {
 // 更新笔记内容（同时写文件和 DB 缓存）
 export function updateNoteContent(noteId: string, content: string): boolean {
   const db = getDb()
-  const note = db.prepare(`SELECT file_path FROM notes WHERE id = ?`).get(noteId) as
-    { file_path: string } | undefined
+  const note = findNoteFilePath(db, noteId)
   if (!note) return false
 
   try {
@@ -194,16 +194,14 @@ export function saveNoteImage(
   data: ArrayBuffer | Uint8Array,
 ): SaveNoteImageResult {
   const db = getDb()
-  const note = db.prepare(`SELECT file_path FROM notes WHERE id = ?`).get(noteId) as
-    { file_path: string } | undefined
+  const note = findNoteFilePath(db, noteId)
   if (!note) throw new Error('笔记不存在')
   return saveNoteImageAsset(note.file_path, noteId, fileName, mimeType, data)
 }
 
 export function resolveNoteAssetPath(noteId: string, relativeUrl: string): string | null {
   const db = getDb()
-  const note = db.prepare(`SELECT file_path FROM notes WHERE id = ?`).get(noteId) as
-    { file_path: string } | undefined
+  const note = findNoteFilePath(db, noteId)
   if (!note) return null
 
   return resolveNoteAssetPathFromFile(note.file_path, noteId, relativeUrl)
@@ -227,8 +225,7 @@ export function updateNoteType(noteId: string, noteType: NoteType): boolean {
 // 删除笔记（DB 记录 + 文件）
 export function deleteNote(noteId: string): boolean {
   const db = getDb()
-  const note = db.prepare(`SELECT file_path FROM notes WHERE id = ?`).get(noteId) as
-    { file_path: string } | undefined
+  const note = findNoteFilePath(db, noteId)
   if (!note) return false
 
   deleteNoteFiles(note.file_path, noteId)

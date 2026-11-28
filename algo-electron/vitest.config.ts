@@ -26,6 +26,7 @@ export default defineConfig({
       'tests/db/migrationInterruption.test.ts',
       'tests/db/drizzleMigrationInterruption.test.ts',
       'tests/db/repositories.test.ts',
+      'tests/electron/notes-file-path-storage.test.ts',
       'tests/electron/ojSubmissionBridgeSmoke.test.ts',
       'tests/electron/startupSmoke.test.ts',
       'tests/electron/userScriptRuntimeSmoke.test.ts',

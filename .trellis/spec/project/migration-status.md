@@ -64,8 +64,13 @@ build; all819 source hashes stay stable. The unchanged warmed benchmark is
 0.97ms<50ms. Historical paths/bytes remain frozen, with a separate later R2
 relocation gate. Work78f33b9 passes normal hooks/immediate push;
 PR29CI45989652010/squashfb0dd45 and PR8CI45991420238 pass with the same tested
-tree. Notes research/precheck recommends a bounded four-file-path-read slice;
-its governing approval and implementation are still pending.
+tree. A5a notes research/precheck is accepted in governing artifacts after
+handoff PR30/squash299b0e3 and PR8CI45994240435. Only four explicit-handle
+file-path reads are converted with original service tails and8otherSQL unchanged.
+Independent review/focused164, DB42files1109/native65/realapp21, full226files2852/
+UI16 and build pass on2026-11-28;823source hashes stable. The test runner uses
+notes-only split ESM and parent-owned cleanup after actual child exit. Git/CI
+integration remains pending; later notes reads/types/writes are separate.
 Later domain/layout work remains incomplete.
 See phase3 a3a/a3b1/a3b2 verification artifacts; PR8 stays draft.
 

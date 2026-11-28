@@ -35,6 +35,7 @@ const dbVitestFiles = [
   'tests/db/migration030.test.ts',
   'tests/shared/legacyTimestamp.test.ts',
   'tests/db/migrateLogging.test.ts',
+  'tests/db/notes-file-path-reads.test.ts',
   'tests/db/omniboxSuggestions.test.ts',
   'tests/db/problemContextMigration.test.ts',
   'tests/db/problemLookup.test.ts',
@@ -76,9 +77,12 @@ function run(command, args, env = {}) {
   }
 }
 
-function bundleTest(testFile, outputName, externals = []) {
+function bundleTest(testFile, outputName, externals = [], splitting = false) {
   fs.mkdirSync(tmpDir, { recursive: true })
-  const outfile = path.join(tmpDir, `${outputName}.mjs`)
+  const outdir = path.join(tmpDir, outputName)
+  const outfile = splitting
+    ? path.join(outdir, `${path.basename(testFile, path.extname(testFile))}.mjs`)
+    : path.join(tmpDir, `${outputName}.mjs`)
   run(process.execPath, [
     esbuildBin,
     testFile,
@@ -86,7 +90,9 @@ function bundleTest(testFile, outputName, externals = []) {
     '--platform=node',
     '--format=esm',
     ...externals.map((external) => `--external:${external}`),
-    `--outfile=${outfile}`,
+    ...(splitting
+      ? ['--splitting', `--outdir=${outdir}`, '--out-extension:.js=.mjs']
+      : [`--outfile=${outfile}`]),
   ])
   return outfile
 }
@@ -101,6 +107,50 @@ function runElectronNodeTest(testFile, outputName) {
 function runElectronAppTest(testFile, outputName) {
   const outfile = bundleTest(testFile, outputName, ['electron', 'electron-log'])
   run(electronBin, [outfile])
+}
+
+function runNotesStorageTest() {
+  // Split imports keep native/logging initialization after the child's path isolation.
+  const outfile = bundleTest(
+    path.join('tests', 'electron', 'notes-file-path-storage.test.ts'),
+    'notes-file-path-storage',
+    ['electron', 'electron-log', 'better-sqlite3'],
+    true,
+  )
+  const ownedRoot = fs.mkdtempSync(path.join(tmpDir, 'notes-storage-'))
+  let failed = false
+  let primary
+  try {
+    run(electronBin, [outfile], {
+      ELECTRON_RUN_AS_NODE: undefined,
+      ALGO_NOTES_TEST_ROOT: ownedRoot,
+    })
+  } catch (error) {
+    failed = true
+    primary = error
+  }
+  // A live Chromium session still owns its files; cleanup belongs after child exit.
+  try {
+    const target = path.resolve(ownedRoot)
+    const parent = fs.realpathSync(tmpDir)
+    const actual = fs.realpathSync(target)
+    if (
+      path.dirname(target) !== path.resolve(tmpDir) ||
+      !path.basename(target).startsWith('notes-storage-') ||
+      fs.lstatSync(target).isSymbolicLink() ||
+      path.dirname(actual) !== parent
+    ) {
+      throw new Error(`Refusing notes test cleanup outside its owned directory: ${target}`)
+    }
+    fs.rmSync(target, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 })
+  } catch (error) {
+    if (failed) console.error('Notes test cleanup failed; preserving the child failure:', error)
+    else {
+      failed = true
+      primary = error
+    }
+  }
+  if (failed) throw primary
 }
 
 function bundleElectronPreload(testFile, outputName) {
@@ -190,6 +240,7 @@ function runDbElectronTests() {
     'db-dailyStatsPerformance',
   )
   runElectronNodeTest(path.join('tests', 'db', 'repositories.test.ts'), 'db-repositories')
+  runNotesStorageTest()
 }
 
 function runCoachElectronTests() {
