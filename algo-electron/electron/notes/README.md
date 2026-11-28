@@ -24,7 +24,8 @@
 - 支持保存图片附件并返回 Markdown 相对路径。
 - 支持安全解析附件路径。
 - 支持删除单条笔记或题目关联笔记。
-- 正文、图片、附件解析、删除的文件路径读取共用 `db/repositories/notes/file-path.ts`；标题/类型更新委托 `db/repositories/notes/title-type.ts`，最终删除委托 `db/repositories/notes/delete.ts`。service 保留原连接、时钟、文件顺序和两次 `changes` 判断，剩余五处原生 SQL 分别迁移。
+- 正文、图片、附件解析、删除的文件路径读取共用 `db/repositories/notes/file-path.ts`；标题/类型更新委托 `db/repositories/notes/title-type.ts`，最终删除委托 `db/repositories/notes/delete.ts`。这些写入保留原连接、时钟、文件顺序及两次 `changes` 判断。
+- 正文更新委托 `db/repositories/notes/content.ts`，单行 CTE 保留四个原始绑定；路径查询仍在 catch 外，文件、时钟、字数、SQL 和通知顺序不变。正文不读 `changes`，成功的零变更仍通知并返回 true。剩余四处原生 SQL 为创建和三个完整读取。
 - 标题/类型只更新 DB 元数据，不改 Markdown 或附件的路径、内容；保留原生绑定、错误与调用方事务语义。
 
 `noteAssetProtocol.ts`：
@@ -100,6 +101,7 @@ pnpm test:all
 `tests/db/notes-file-path-reads.test.ts` 覆盖查询、调用顺序和异常；
 `tests/db/notes-title-type-writes.test.ts` 以独立原 SQL 对照标题/类型更新、原生结果和事件顺序；
 `tests/db/notes-delete-writes.test.ts` 复用原删除编排 oracle，验证单条原生删除、文件先行、NULL 列表及批量部分成功；
+`tests/db/notes-content-writes.test.ts` 以独立原 UPDATE 和不变的正文编排 oracle 验证四个绑定、原生结果、catch 边界及文件先行语义；
 `tests/electron/notes-file-path-storage.test.ts` 由 DB 门启动真实应用，不运行于 Vitest 的 Electron double。
 真实应用测试同时验证标题/类型更新不改 Markdown 和附件。数据库事务回滚不恢复已写入或删除的文件；现有双存储部分成功和保存结果问题不属于这些查询迁移的修复范围。
 涉及文件读写时仍需手测创建、编辑、插图、删除和外部打开目录。

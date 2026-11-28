@@ -51,3 +51,6 @@
 {"file": ".trellis/spec/project/drizzle-notes-delete.md", "reason": "Approved A5c DELETE-only explicit-handle raw result and original files/batch/events executable contract"}
 {"file": ".trellis/tasks/09-17-phase-3-main-process/research/a5c-notes-content-delete.md", "reason": "Delete-only candidate; content schema-order bind differences and unapproved alternatives"}
 {"file": ".trellis/tasks/09-17-phase-3-main-process/research/a5c-notes-delete-review.md", "reason": "Independent delete-only precheck accepted by parent; content remains deferred"}
+{"file": ".trellis/spec/project/drizzle-notes-content.md", "reason": "Accepted A5d executable binding/service/native/protected-test boundaries"}
+{"file": ".trellis/tasks/09-17-phase-3-main-process/research/a5d-content-design-review.md", "reason": "Independent content-only precheck and required unchanged assertions/AST accounting"}
+{"file": ".trellis/tasks/09-17-phase-3-main-process/research/a5d-content-native-feasibility.md", "reason": "Actual-native feasibility, independent raw oracle and known evidence limits, not formal acceptance"}

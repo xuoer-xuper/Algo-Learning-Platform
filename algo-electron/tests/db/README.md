@@ -48,6 +48,7 @@
 - `notes-file-path-reads.test.ts` / `notes-file-path-oracle.ts`：A5a四处文件路径查询与独立旧SQL/编排对照，保留空路径行、NULL等值、原错误/文件/时钟/通知顺序；原生repository追加query-only覆盖。DB门还运行 `tests/electron/notes-file-path-storage.test.ts` 的真实隔离应用存储测试，不将全mock文件操作当作原生证明。
 - `notes-title-type-writes.test.ts` / `notes-title-type-oracle.ts`：A5b标题/类型两条更新与独立原SQL对照，验证原始绑定、两列SET、原生结果、时钟与两次changes读取、触发器及真实COMMIT；原生repository和隔离应用另验实际驱动行为及元数据更新不改文件。
 - `notes-delete-writes.test.ts` / `notes-delete-oracle.ts`：A5c单条DELETE与原生SQL对照，复用不变的A5a删除/批量编排oracle；验证单参数、原生结果和两次changes读取、files-first失败、NULL列表、部分autocommit、savepoint及真实COMMIT，不把数据库回滚当作文件恢复。
+- `notes-content-writes.test.ts` / `notes-content-oracle.ts`：A5d单行CTE正文更新与独立原SQL对照，复用不变的A5a正文编排oracle；保留四个原始绑定、原生结果、文件/时钟/字数/SQL顺序与catch边界，成功零变更仍通知且不读changes。旧focused/原生应用观察器仅增加固定CTE识别，原断言和故障注入不变。
 
 ## 3. 运行方式
 

@@ -21,6 +21,6 @@
   "children": [],
   "parent": "09-17-spec-alignment",
   "relatedFiles": [],
-  "notes": "A5b/A5c integrated2026-11-28: PR33/squash26be448/PR8CI46106465603; workdbc50d7/PR34CI46108945322/squashf1a5d5d/PR8CI46109392717 pass, same testedtrees. A5c final DB1254/native75/realapp34/full2997/UI16/build;829source stable,59protected exact+1authorized A5a observer/D62dirty. Only5notesSQL remain. Next scope NOTGO: content rawbinding/schemaorder/CTE requires native feasibility+independentreview then governing approval; create/fullreads nullable/type/UI remain separate. Cap3;PR8draft/base dev;no release/archive,phase3 incomplete.",
+  "notes": "A5d content-only local accepted2026-11-28 base48ba2c0: publicCTE preserves raw4binds and original service effects. Independent review nofindings/fixes,UTC352/bothtypes/lint;DB45files1297/native81/realapp36/full229files3040/UI16/build pass first run.832source stable,62protectedexact+1preciseexception retains63originalhashes;D62dirty. Normal commit/push/featureCI/integration pending. NextA5e create researchonlyNOTGO: eagerprepare/getters/9bind10fields requires nativeproof+precheck. Cap3;PR8draft/base dev;no release/archive,phase3 incomplete.",
   "meta": {}
 }

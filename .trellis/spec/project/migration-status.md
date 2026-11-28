@@ -84,8 +84,15 @@ both types/lint, DB44files1254/native75/realapp34, full228files2997/UI16/build.
 All829source hashes stable;59protected exact+1approved A5a observer qualifier
 correction. Workdbc50d7 normal hooks/immediatepush, PR34CI46108945322/
 squashf1a5d5d and PR8CI46109392717 pass with identical tested tree.
-Content binding order needs its own decision,
-and later notes reads/types/writes remain separate.
+A5c handoff PR35/squash48ba2c0 and PR8CI46110868010 pass. A5d parent GO accepts
+the independently reviewed public scalar-CTE content UPDATE, backed by actual
+native92 feasibility checks, preserving raw4binds/file-first catch/ignored result
+and legacy successful-zero notification. Exactly two fixed-prefix test observer
+additions are approved without weaker assertions. Independent review has no
+findings/fixes; both types/lint/UTC352, DB45files1297/native81/realapp36,
+full229files3040/UI16 and build pass first run. All832source hashes and63original
+protected hashes (62exact+1precise exception file) remain stable. Git/CI closure
+is pending; creation, full reads/types and UI remain separately reviewed work.
 Later domain/layout work remains incomplete.
 See phase3 a3a/a3b1/a3b2 verification artifacts; PR8 stays draft.
 

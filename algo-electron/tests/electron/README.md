@@ -13,6 +13,7 @@
 - `notes-file-path-storage.test.ts`：无窗口的真实 Electron/SQLite/Markdown/附件验收；隔离 userData/session/log 后才延迟加载 service 和存储。此调用单独使用 split ESM，防止单文件 bundle 把间接 native/logging external import 提到初始化前；外置 `better-sqlite3` 并清除继承的 `ELECTRON_RUN_AS_NODE`，原 coach runner 默认不变；由 `test:db` / `test:all` 注册，Vitest 排除该文件。
 - 笔记应用套件也验证标题/类型元数据更新：成功、原生失败、回滚及真实COMMIT失败时，Markdown/附件的路径和字节都保持不变，通知仍由原有调用方事务控制。
 - 删除迁移继续复用原有文件先行、清理失败、NULL列表、批量部分成功和事务回滚场景，仅补未覆盖的原生行为；数据库回滚不应恢复已删除的文件。
+- 正文迁移复用既有文件先行、晚失败、IGNORE和事务场景；观察器只新增固定单行CTE识别，原trace断言不变。补充原生FAIL审计等缺口，不把数据库回滚等同于恢复Markdown，不改变runner生命周期。
 
 笔记 runner 在工作区 `tmp/electron-tests/notes-storage-*` 创建独占目录，通过
 `ALGO_NOTES_TEST_ROOT` 交给子进程，确认绝对路径/归属且拒绝符号链接。子进程关闭 DB、

@@ -216,6 +216,12 @@ function statementKind(query: string): StatementKind | undefined {
   if (normalized.startsWith('select file_path from notes')) return 'lookup'
   if (normalized.startsWith('select * from notes where problem_id')) return 'list'
   if (normalized.startsWith('update notes set content')) return 'update'
+  if (
+    normalized.startsWith(
+      'with note_write_values as (select ? as content, ? as word_count, ? as updated_at, ? as note_id from (select 1)) update notes set ',
+    )
+  )
+    return 'update'
   if (/^delete from notes where (?:notes\.)?id\b/.test(normalized)) return 'delete'
   return undefined
 }

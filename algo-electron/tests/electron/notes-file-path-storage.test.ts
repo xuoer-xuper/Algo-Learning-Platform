@@ -160,6 +160,12 @@ function statementKind(source: string): string {
   if (/^select file_path from notes /.test(normalized)) return 'lookup'
   if (/^select \* from notes /.test(normalized)) return 'list'
   if (/^update notes /.test(normalized)) return 'update'
+  if (
+    normalized.startsWith(
+      'with note_write_values as (select ? as content, ? as word_count, ? as updated_at, ? as note_id from (select 1)) update notes set ',
+    )
+  )
+    return 'update'
   if (/^delete from notes /.test(normalized)) return 'delete'
   return normalized.split(' ')[0]
 }
@@ -1149,6 +1155,135 @@ async function runTests(noteProtocol: NoteProtocol): Promise<void> {
       results.push([...h.trace])
     }
     assert.deepEqual(results[1], results[0])
+  })
+
+  const originalContent = oracleModule.createNotesFilePathOracle({
+    getDb: currentConnection().getDb,
+    nowMillis: () => Date.now(),
+    emitDataChanged: dataEvents.emitDataChanged,
+    writeNoteContent: storage.writeNoteContent,
+    deleteNoteFiles: storage.deleteNoteFiles,
+    saveNoteImageAsset: storage.saveNoteImageAsset,
+    resolveNoteAssetPathFromFile: storage.resolveNoteAssetPathFromFile,
+  }).updateNoteContent
+
+  await test('content native FAIL preserves file-first bytes and trigger audit without publishing success', (h) => {
+    h.db.exec('CREATE TABLE content_fail_audit(note_id TEXT)')
+    const results = []
+    for (const update of [originalContent, service.updateNoteContent]) {
+      h.db.exec('DELETE FROM notes; DELETE FROM content_fail_audit')
+      const fixture = seed(h, 'note')
+      const asset = addAsset(h, fixture)
+      h.trace.length = 0
+      h.events.length = 0
+      h.db.exec(
+        "CREATE TRIGGER content_fail BEFORE UPDATE OF content ON notes BEGIN INSERT INTO content_fail_audit VALUES (OLD.id); SELECT RAISE(FAIL, 'content rejected'); END",
+      )
+      observed(h, () => assert.equal(update(fixture.id, CONTENT), false))
+      assert.equal(fs.readFileSync(fixture.filePath, 'utf8'), CONTENT)
+      assert.deepEqual(fs.readFileSync(asset), Buffer.from([1, 2, 3]))
+      assert.deepEqual(noteState(h, fixture.id), {
+        content: initialBody,
+        word_count: 2,
+        updated_at: 1,
+        deleted_at: null,
+      })
+      assert.deepEqual(h.db.prepare('SELECT * FROM content_fail_audit').all(), [
+        { note_id: 'note' },
+      ])
+      assert.deepEqual(h.events, [])
+      ordered(h.trace, [
+        'prepare:lookup',
+        'get:lookup:',
+        'fs:writeFileSync:',
+        'clock',
+        'prepare:update',
+        'run:update:',
+      ])
+      assert.equal(h.trace.filter((entry) => entry === 'clock').length, 1)
+      assert.ok(!h.trace.includes('uuid'))
+      results.push({ trace: [...h.trace], state: noteState(h, fixture.id) })
+      h.db.exec('DROP TRIGGER content_fail')
+    }
+    assert.deepEqual(results[1], results[0])
+  })
+
+  await test('content ignores native result properties and notifies when the row disappears after lookup', (h) => {
+    for (const mode of ['throwing-changes', 'undefined-result', 'disappeared'] as const) {
+      const results = []
+      for (const update of [originalContent, service.updateNoteContent]) {
+        h.db.exec('DELETE FROM notes')
+        const fixture = seed(h, 'note')
+        const asset = addAsset(h, fixture)
+        h.trace.length = 0
+        h.events.length = 0
+        const descriptor = Object.getOwnPropertyDescriptor(h.db, 'prepare')
+        const prepare = h.db.prepare
+        let changesReads = 0
+        let nativeChanges: number | undefined
+        Object.defineProperty(h.db, 'prepare', {
+          configurable: true,
+          value: (source: string) => {
+            const statement: Database.Statement = Reflect.apply(prepare, h.db, [source])
+            if (statementKind(source) === 'update') {
+              const run = statement.run
+              Object.defineProperty(statement, 'run', {
+                configurable: true,
+                value: (...parameters: unknown[]) => {
+                  if (mode === 'disappeared') {
+                    const remove: Database.Statement = Reflect.apply(prepare, h.db, [
+                      'DELETE FROM notes WHERE id=?',
+                    ])
+                    remove.run(fixture.id)
+                  }
+                  const result: Database.RunResult = Reflect.apply(run, statement, parameters)
+                  nativeChanges = result.changes
+                  if (mode === 'undefined-result') return undefined
+                  Object.defineProperty(result, 'changes', {
+                    get: () => {
+                      changesReads++
+                      throw new Error('Content service must ignore native result')
+                    },
+                  })
+                  return result
+                },
+              })
+            }
+            return statement
+          },
+        })
+        try {
+          observed(h, () => assert.equal(update(fixture.id, CONTENT), true))
+        } finally {
+          if (descriptor) Object.defineProperty(h.db, 'prepare', descriptor)
+          else Reflect.deleteProperty(h.db, 'prepare')
+        }
+        assert.equal(changesReads, 0)
+        assert.equal(nativeChanges, mode === 'disappeared' ? 0 : 1)
+        assert.equal(fs.readFileSync(fixture.filePath, 'utf8'), CONTENT)
+        assert.deepEqual(fs.readFileSync(asset), Buffer.from([1, 2, 3]))
+        assert.deepEqual(h.events, [{ tables: ['notes'] }])
+        assert.deepEqual(
+          noteState(h, fixture.id),
+          mode === 'disappeared'
+            ? undefined
+            : { content: CONTENT, word_count: 4, updated_at: NOW, deleted_at: null },
+        )
+        ordered(h.trace, [
+          'prepare:lookup',
+          'get:lookup:',
+          'fs:writeFileSync:',
+          'clock',
+          'prepare:update',
+          'run:update:',
+          'event:',
+        ])
+        assert.equal(h.trace.filter((entry) => entry === 'clock').length, 1)
+        assert.ok(!h.trace.includes('uuid'))
+        results.push({ trace: [...h.trace], state: noteState(h, fixture.id), nativeChanges })
+      }
+      assert.deepEqual(results[1], results[0])
+    }
   })
 
   console.log(`[PASS] notes native Electron storage: ${passed}/${caseNumber} groups`)
