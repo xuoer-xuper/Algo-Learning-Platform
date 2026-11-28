@@ -21,6 +21,6 @@
   "children": [],
   "parent": "09-17-spec-alignment",
   "relatedFiles": [],
-  "notes": "A5e local acceptance2026-11-28 on4fe73b3: nativefeasibility197+review; eager public9bind/10column INSERTSELECT create-only. Independent implementation review fixes test getter annotation only; both types/lint/UTC439 pass. DB46files1372/native88/realapp44/full231files3127/UI16/build firstpass.836source stable,66originalprotected hashes retained;D62dirty preserved. Commit/push/featureCI/squash/PR8CI pending.Three notes full reads remain;A5f research notGO. Cap3;PR8draft/base dev;no release/archive;phase3 incomplete.",
+  "notes": "A5e integrated2026-11-28: work8e02ad3/PR38CI46152514921/squashf27cb67/PR8CI46153057040 pass,same testedtree3129dc17. Review fixes one test getter annotation;types/lint/UTC439,DB1372/native88/app44/full3127/UI16/build pass.836source stable,66protected original hashes retained,D62dirty.Three notes reads remain. NextA5f NOTGO research/precheck: prefer coherent3reads after nativeproof+nullable-read/string-create,UI actions/keys/type-label,batchNULL-beforeguard,lookupbinder and precise3observers+type-slot approvals. Cap3;PR8draft/base dev;no release/archive;phase3 incomplete.",
   "meta": {}
 }

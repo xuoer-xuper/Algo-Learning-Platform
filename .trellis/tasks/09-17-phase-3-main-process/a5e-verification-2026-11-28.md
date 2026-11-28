@@ -2,7 +2,7 @@
 
 Started2026-11-28. Branch codex/drizzle-notes-create, integrated base
 4fe73b30b7a12def3838c034b4806011d5aaa95d. Implementation/independent review and
-DB/full/build gates pass; CI acceptance remains pending. Phase3 and parent
+DB/full/build and both CI levels pass; the create slice is integrated. Phase3 and parent
 remain active; no release or archive authorization is inferred.
 
 ## Entry And Governing Approval
@@ -86,5 +86,19 @@ Original D62dirty/HEAD20ee62c and dev/master/v2.0.1 remain unchanged.
 
 ## Integration Status
 
-Not committed/pushed/merged yet. PR8 remains draft/base dev; no release or
-installer acceptance claimed. Final source/protected/D/ref checks are pending.
+Work8e02ad3f03737da5f4973eaca102bf086e14756b passes ordinary precommit and
+immediate prepush/test:ci, without bypass or retry. PR38CI46152514921 passes;
+squashf27cb6738a7549aa5e393a5409dd84b2b077f673 merges into refactor/drizzle.
+Work/squash both have tested tree3129dc1719a70c9d70cd96d9c17133b850e1edea.
+PR8 integration CI46153057040 passes. Logs tmp/drizzle-a5e-{commit,push,
+feature-ci,integration-ci}.log/.exit retain actual status0. All836source hashes
+remain unchanged across hooks/integration; PR8 stays draft/open/base dev.
+No release/installer acceptance or phase completion is claimed.
+
+Next A5f remains NOTGO. Research evaluates all three full-row reads with honest
+nullable-ID/string-type read output separated from string-ID create, one raw
+binding for detail, unchanged file fallback and batch NULL lookup semantics.
+Full migration requires separately accepted UI/action/key/type-label policy,
+precise old observer/type exceptions and actual native proof. The smaller
+getAllNotes-only alternative remains documented; no future change is authorized
+by this completed slice. Follow-up handoff records the final review and session.

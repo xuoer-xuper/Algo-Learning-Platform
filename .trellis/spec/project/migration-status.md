@@ -101,9 +101,11 @@ frozen030 ten-column/default and create-specific IGNORE0 qualifications are
 explicit, with measured trigger spool/cost disclosed. Independent implementation
 review fixes only a test getter annotation; both full types/lint/UTC439 pass.
 DB46files1372/native88/realapp44, full231files3127/UI16 and build pass first run;
-836source and66protected originals preserved. Normal hooks/CI integration is
-pending. Three full reads/types/UI remain separately reviewed work; no new
-old-observer exception is approved.
+836source and66protected originals preserved. Work8e02ad3 normal hooks/immediate
+push, PR38CI46152514921/squashf27cb67 and PR8CI46153057040 pass with identical
+testedtree3129dc17. Three full reads/types/UI remain separately reviewed work;
+A5f research/precheck is NOTGO pending explicit consumer/batch/protected-type
+and observer decisions plus native proof. No future exception is approved.
 Later domain/layout work remains incomplete.
 See phase3 a3a/a3b1/a3b2 verification artifacts; PR8 stays draft.
 

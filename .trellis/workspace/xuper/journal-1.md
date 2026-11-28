@@ -860,3 +860,41 @@ A5b标题类型和A5c删除独立实施、复核、完整验收并经PR33/34及P
 
 - A5e尚未GO：先实际原生验证publicCTE INSERTSELECT/eagerprepare，保留prepare前后及event后三次getter；单独批准9bind10列frozen030和IGNORE0语义，再实施。
 - 阶段3及父任务继续，PR8draft/base dev，不发布不归档，并发最多3；旧Tooltip偶发复发先保留可信事件/同时状态。
+
+
+## Session 25: Drizzle笔记创建迁移集成验收与完整读取边界交接
+<!-- trellis-session: v=2 fp=a3d6c6abd53f604a -->
+
+**Date**: 2026-11-28
+**Task**: Drizzle笔记创建迁移集成验收与完整读取边界交接
+**Branch**: `refactor/drizzle`
+
+### Summary
+
+创建笔记以公开CTE与立即prepare工厂保留九绑定及原文件/输入/事件顺序，通过独立复核和全量验收，经PR38与PR8集成CI合入Drizzle；剩余三个读取已完成研究预审，尚待明确边界及原生证明。
+
+### Main Changes
+
+- 只新增创建helper并替换一条INSERT/import；保留三次输入读取、文件先行和忽略结果语义，原生SQL从4降到3。
+- 旧197native/50app-top/43app-runTests语句及66保护原始哈希保留，无新观察器例外；当前030结构与触发器开销限制已记录。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `8e02ad3` | refactor(db): 迁移笔记创建并保留原生绑定与文件顺序 |
+| `f27cb67` | refactor(db): 迁移笔记创建并保留原生绑定与文件顺序 |
+
+### Testing
+
+- [OK] 独立审查仅修一处测试getter类型注解；UTC439/两份typecheck/lint通过，DB46文件1372/native88/realapp44/full231文件3127/UI16/build首次通过。
+- [OK] 正常hooks立即push，PR38CI46152514921/squashf27cb67与PR8CI46153057040通过且测试树一致；836源码及D62dirty保持稳定。
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- A5f仍NOTGO：倾向一次完成三读取，先批准nullable read/string create、列表可操作性/keys/未知类型、batch NULL查找顺序及精确observer/type变更，再原生验证并实施。
+- 阶段3及父任务继续，PR8draft/base dev，不发布不归档；并发上限3。旧Tooltip偶发复发先保留可信事件与同时状态。
