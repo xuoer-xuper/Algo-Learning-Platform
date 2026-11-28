@@ -21,6 +21,6 @@
   "children": [],
   "parent": "09-17-spec-alignment",
   "relatedFiles": [],
-  "notes": "A5a complete2026-11-28: work0e4054a/PR31CI46099297905/squasheafbed7/PR8CI46099803141 pass, testedtree identical. Exact4filepath reads;8notesSQL remain. Independent focused164/both types/lint, DB1109/native65/realapp21, full2852/UI16/build;823source/53protected stable. Native harness split imports and parent-after-exit cleanup reviewed/fixed. A5b title/type research+independent precheck ready FUTURE/NOTGO; next persist explicitDB write/rawbothSET/RunResult/twochangesread/native-driver tests before implementation. Cap3; original D62dirty unchanged; PR8draft/base dev; no release/archive, phase3 unfinished.",
+  "notes": "A5b local accepted2026-11-28: only2title/type UPDATEs, explicitDB/rawbothSET/nativeRunResult/twochanges unchanged. Independent review fixes2test typings only; both types/lint/UTC261 pass. Final DB43files1206/native71/realapp32, full227files2949/UI16/build pass;826source/57protected stable. Base41ef2e6 after PR32/PR8CI46101370107; commit/push/featureCI/integration pending. Future A5c research recommends delete-only6->5; content bind-order needs separate decision. Cap3/D62dirty unchanged/PR8draft/base dev/no release/archive; phase3 incomplete.",
   "meta": {}
 }

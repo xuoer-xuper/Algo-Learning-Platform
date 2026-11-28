@@ -59,6 +59,29 @@
 - [x] 正常hooks提交82a0163并立即推送，PR17 CI44521575932全绿后squash0927213合回Drizzle；
   PR8集成CI44522362714全绿。PR8保持draft/base dev，不发版、不归档阶段3。
 
+## A5b Execution Boundary (2026-11-28)
+
+- Branch codex/drizzle-notes-title-type starts at handoff squash41ef2e6.
+- Gap: title/type metadata UPDATEs still use native SQL. Convert only query
+  construction, preserving native bindings/results and all service orchestration.
+- [x] Independent research/precheck accepted; parent persists explicit-DB write
+  exception, raw BOTH SET placeholders, RunResult/two-changes-read contracts,
+  disjoint test ownership and actual-driver acceptance before implementation.
+- [x] Handoff PR8CI46101370107 passes; parent GO2026-11-28, cap3 total.
+- [x] Worker1: explicit helpers/two substitutions, independent old oracle and
+  focused differential suite. Worker2: native/app additions only, preserving
+  previous groups and existing isolated runner lifecycle.
+- [x] Parent: focused DB registration, exact8-to6 SQL ratchet and README/spec sync.
+- [x] Independent full-diff review fixes two test typings; both types/lint/format
+  and UTC7files261 pass. No production finding; prior native/app ASTs preserved.
+- [x] Parent final DB43files1206/native71/realapp32, full227files2949/UI16 and
+  build pass. All826source/57protected hashes and original D62dirty preserved.
+- [ ] Normal hooks/commit/immediate push; featureCI/squash to Drizzle/PR8CI.
+
+No other notes/full-read/IPC/UI/storage repair, release or phase archive. A5a
+handoff work6189c5a/PR32CI46100897809/squash41ef2e6 has identical tested tree.
+Phase3 and parent remain in_progress; PR8 stays draft/base dev.
+
 ## A5a Execution Boundary (2026-11-27)
 
 - Branch codex/drizzle-notes-file-path starts at integrated299b0e3, after PR30

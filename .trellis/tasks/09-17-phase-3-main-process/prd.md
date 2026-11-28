@@ -44,6 +44,18 @@ read-only timeline submission ID output to allow already-returned null; keep
 request/problem IDs, metric outputs and LLM privacy allowlist unchanged. Empty
 first-AC batches must still acquire no database. Submission writes remain separate.
 
+### A5b Notes Title/Type Acceptance (2026-11-28)
+
+After A5a integration, parent accepts the independently reviewed two-UPDATE
+slice: title and type metadata only. Preserve raw binding, original native
+result/error semantics, clock/acquisition order, both changes reads and existing
+caller transaction/events. Markdown/assets must remain untouched on success
+and failure. No public union/IPC/UI/schema/history or other notes query change.
+
+An explicit caller-owned handle is approved for these two write helpers. Actual
+better-sqlite3 differential and isolated real-app acceptance are required; the
+alternate-driver research probe alone cannot certify malformed binding behavior.
+
 ### A5a Notes File-Path Read Acceptance (2026-11-27)
 
 After A4d and its handoff integration, parent accepts the independently reviewed

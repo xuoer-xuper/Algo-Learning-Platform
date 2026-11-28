@@ -44,6 +44,36 @@ drizzle-kit0.31.11，安装后按实际API和Electron ABI验证，不采用beta�
 - 当前规模：25表、electron321个TS文件、250处prepare；排除迁移222处，repository162处。
   main1164/TabManager2494/CoachOrchestrator1474行，仅作分批规划，不硬套旧计数。
 
+## A5b Notes Title/Type Writes (2026-11-28)
+
+Parent accepts research/a5b-notes-title-type.md and its independent precheck.
+A5a PR31/squasheafbed7 and PR8CI46099803141 pass; handoff PR32/squash41ef2e6
+is the branch base. PR8CI46101370107 passes before parent GO2026-11-28.
+Executable contract: project/drizzle-notes-title-type.md.
+
+- Add notes/title-type.ts with explicit updateNoteTitleRow/updateNoteTypeRow
+  functions returning untouched Database.RunResult; wrap the supplied handle.
+  Type parameter derives from notes.$inferSelect, not a service import.
+- Two SET targets, three original-order binds [value, now, noteId]. Both text
+  and timestamp assignments use raw SQL-wrapped named placeholders. This keeps
+  undefined targets and bypasses Date encoding, not SQL interpolation.
+- Only two NoteService prepare/run expressions/import change. Keep getDb,
+  nowMillis and changes -> conditional event -> changes in place, no caching.
+  Missing/same/NULL IDs still execute. No filesystem/transaction/validation work.
+- Actual native driver determines malformed-input outcomes. Preserve query_only,
+  readonly, native errors/trigger effects, caller COMMIT/savepoint scopes and
+  listener/reentrant behavior. Damaged-DDL wording qualification matches A5a.
+- Public NoteType/IPC/preload/UI, six remaining SQLs, schema/history/storage and
+  A5a oracle/runner stay unchanged. No arbitrary patch API or storage repair.
+
+Worker1 owns helper, two substitutions, separate frozen oracle/focused tests.
+Worker2 exclusively owns append-only tests/db/repositories.test.ts and bounded
+additions to tests/electron/notes-file-path-storage.test.ts. Parent owns docs/spec/
+context, focused registration, exact8-to6 ratchet, serial native/full/build and
+Git. Cap3 total; no recursive workers, ABI rebuilds or reverting other edits.
+Independent full review follows writer freeze; existing native/app cases and
+unmodified service methods must retain structural equivalence.
+
 ## A5a Notes File-Path Reads (2026-11-27)
 
 Parent accepts research/a5-notes-queries.md and the independent

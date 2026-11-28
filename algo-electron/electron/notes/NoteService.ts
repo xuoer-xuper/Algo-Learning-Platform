@@ -2,6 +2,7 @@ import { emitDataChanged } from '../shared/dataEvents'
 import crypto from 'node:crypto'
 import { getDb } from '../db/connection'
 import { findNoteFilePath } from '../db/repositories/notes/file-path'
+import { updateNoteTitleRow, updateNoteTypeRow } from '../db/repositories/notes/title-type'
 import { nowMillis } from '../shared/time'
 import {
   createNoteFile,
@@ -154,13 +155,7 @@ export function getNoteWithContent(noteId: string): NoteWithContent | null {
 export function updateNoteTitle(noteId: string, title: string): boolean {
   const db = getDb()
   const now = nowMillis()
-  const result = db
-    .prepare(
-      `
-    UPDATE notes SET title = ?, updated_at = ? WHERE id = ?
-  `,
-    )
-    .run(title, now, noteId)
+  const result = updateNoteTitleRow(db, noteId, title, now)
   if (result.changes > 0) emitDataChanged(['notes'])
   return result.changes > 0
 }
@@ -211,13 +206,7 @@ export function resolveNoteAssetPath(noteId: string, relativeUrl: string): strin
 export function updateNoteType(noteId: string, noteType: NoteType): boolean {
   const db = getDb()
   const now = nowMillis()
-  const result = db
-    .prepare(
-      `
-    UPDATE notes SET note_type = ?, updated_at = ? WHERE id = ?
-  `,
-    )
-    .run(noteType, now, noteId)
+  const result = updateNoteTypeRow(db, noteId, noteType, now)
   if (result.changes > 0) emitDataChanged(['notes'])
   return result.changes > 0
 }
