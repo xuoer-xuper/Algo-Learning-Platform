@@ -88,11 +88,25 @@
 - [x] Parent serial DB46files1372/native88/realapp44, full231files3127/UI16 and
   build:check pass first run. All836source and66protected originals preserved;
   D62dirty/HEAD20ee62c and dev/master/v2.0.1 unchanged. No installer acceptance.
-- [ ] Normal commit/immediatepush, feature CI, squash into Drizzle and PR8 CI.
+- [x] Work8e02ad3 normal hooks/immediatepush; PR38CI46152514921 passes,
+  squashf27cb67 matches testedtree3129dc17 and PR8CI46153057040 passes.
+  PR8 stays draft/base dev; no release/archive.
 
 Cap3 total. A5d remains frozen; retain original protected hashes and their two
 historical observer exceptions, adding three exact A5d helper/oracle/test hashes.
 No success claim or compatibility qualification is inferred from mock execution.
+
+### Next A5f Full Reads: NOT GO
+
+Research/a5f-notes-full-reads.md evaluates all three remaining SELECTs together:
+raw full-row projections, truthful nullable read versus string-ID create types,
+exact one-bind detail and unchanged file fallback. Coherent all-three is the
+preferred next candidate, not an approved production scope. Independent precheck
+must enumerate UI invalid-ID/key/unknown-type policy, batch NULL lookup-before-
+guard handling and precise protected observer/type adjustments. Actual public
+query/native proof and governing approval precede implementation. The smaller
+getAllNotes-only alternative stays available; no NULL filter/cast/extra binding,
+storage repair or changed request policy is implied. Phase3 remains in_progress.
 
 ## A5d Execution Boundary (2026-11-28)
 
