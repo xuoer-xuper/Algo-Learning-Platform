@@ -76,12 +76,25 @@
   UTC9files352 pass. Protected62exact+1authorized file retains original hashes.
 - [x] Parent serial DB45files1297/native81/realapp36, full229files3040/UI16 and
   build:check pass first run;832source hashes/protected/D62dirty preserved.
-- [ ] Normal commit/immediate push, featureCI/squash into Drizzle then PR8CI;
-  verify tested-tree equality. PR8 stays draft/base dev, no release/archive.
+- [x] Work640c557 normal commit/immediate push; PR36CI46131000311 passes,
+  squashf169848 matches tested tree and PR8CI46131596412 passes. PR8 stays
+  draft/base dev, no release/archive.
 
 Create and three full-row reads remain; no public type/IPC/UI/schema/history or
 dual-store repair. Earlier A5c NOTGO is superseded only for this reviewed content
 slice, not broader notes work. Phase3 and its parent remain in_progress.
+
+### Next A5e Candidate: NOT GO
+
+Research/a5e-notes-create-feasibility.md and independent preliminary precheck
+recommend actual-native proof of a public nine-parameter CTE/ten-column INSERT
+SELECT with an eager prepareCreateNoteInsert(db).run facade. Construction-only
+capture is not native acceptance. Preserve preparation before second parent/title
+getters, third getters after event and all file effects. Explicit frozen030
+omitted-deleted_at qualification and a separate create IGNORE0 exception require
+parent acceptance after actual proof. Do not begin production work, weaken traces
+or broaden full-row/nullability/UI/storage policy. All four native boundaries
+remain until a separately approved implementation is validated and integrated.
 
 ## A5c Execution Boundary (2026-11-28)
 

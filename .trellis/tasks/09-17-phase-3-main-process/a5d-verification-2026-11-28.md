@@ -2,7 +2,7 @@
 
 Started: 2026-11-28. Branch codex/drizzle-notes-content, accepted base
 48ba2c04f2f13940b10da513b403d3e0990187db. Independent review and final local
-gates pass; Git/CI closure pending.
+gates and both CI levels pass; content migration is integrated into Drizzle.
 Phase3/parent remain active; no release or schema/history/public API change.
 
 ## Entry And Accepted Boundary
@@ -72,5 +72,17 @@ Original D62dirty/HEAD20ee62c and dev/master/v2.0.1 remain unchanged.
 
 ## Integration Closure
 
-Pending ordinary commit/immediate push, featureCI/squash into refactor/drizzle,
-same-tested-tree proof and PR8CI. Do not archive phase3 or merge PR8 into dev.
+Work640c557bd231b860b5d3535a1995e93a9a200f38 passes normal precommit and
+immediate prepush/test:ci without bypass or retry. PR36CI46131000311 passes;
+squashf16984884202794841b874d93eac0a03b243d759 integrates into refactor/drizzle.
+Both trees equal ec308008c5bb7012803496b8dd3dcc5ecd89dc1e. PR8 integration
+CI46131596412 passes; PR8 remains draft/open/base dev. All832source hashes
+remain stable after hooks/integration. Logs tmp/drizzle-a5d-{commit,push,
+feature-ci,integration-ci}.log/.exit retain actual status0. No release/archive.
+
+Next A5e is NOT GO: construction-only public INSERT SELECT and independent
+preliminary review identify eager preparation before second input getters,
+third getters after event, nine binds/ten projected columns and separately
+accepted frozen030/default and IGNORE0 boundaries. Actual-native feasibility,
+then governing approval, must precede production changes. Three full-row reads
+and public nullable/type/UI policies remain separate. Four SQL boundaries remain.
