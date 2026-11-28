@@ -11,6 +11,7 @@
 - `ojSubmissionBridgeSmoke.test.ts`：bundle 真实 `ojPreload`，在 `sandbox: true` 的窗口里通过 per-session `protocol.handle('https', ...)` 提供合成 https 页面（全局 `ignore-certificate-errors` 项目禁用），验证 document token 由 preload 主动 pull 而非 main 推送：document-start 直接调用暴露的 `reportSubmission`、同窗口 `postMessage`、子 frame 向 `window.top` 的 `postMessage` 都能送达，真实导航后 token 保持稳定（旧的 did-navigate 推送方案在此处会丢 token），未注册的 webContents 与 http 文档一律不发放 token。
 - `electronDouble.test.ts`：Vitest 下的 Electron test-double 冒烟，覆盖命令行开关、BrowserWindow/WebContentsView 生命周期和 view bounds；`electronMock.ts` 还模拟可取消 `close`→`closed`、Chromium 预创建 popup `webContents` 及销毁后失效引用，真实 Electron ABI 仍由 `startupSmoke.test.ts` 覆盖。
 - `notes-file-path-storage.test.ts`：无窗口的真实 Electron/SQLite/Markdown/附件验收；隔离 userData/session/log 后才延迟加载 service 和存储。此调用单独使用 split ESM，防止单文件 bundle 把间接 native/logging external import 提到初始化前；外置 `better-sqlite3` 并清除继承的 `ELECTRON_RUN_AS_NODE`，原 coach runner 默认不变；由 `test:db` / `test:all` 注册，Vitest 排除该文件。
+- 笔记应用套件也验证标题/类型元数据更新：成功、原生失败、回滚及真实COMMIT失败时，Markdown/附件的路径和字节都保持不变，通知仍由原有调用方事务控制。
 
 笔记 runner 在工作区 `tmp/electron-tests/notes-storage-*` 创建独占目录，通过
 `ALGO_NOTES_TEST_ROOT` 交给子进程，确认绝对路径/归属且拒绝符号链接。子进程关闭 DB、

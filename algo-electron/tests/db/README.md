@@ -46,6 +46,7 @@
 
 - `stats-recompute.test.ts` / `stats-recompute-oracle.ts`：A4d独立冻结旧两核心/三包装器，53用例对照运行时聚合、raw BigInt/JSON/prepare顺序、UPSERT字段、NULL晚期失败、时钟、partial autocommit与真实事务通知；`stats-recompute-history.test.ts` 的8用例固定已接受源码哈希和030依赖分支，防止历史路径转发到新ORM。两项注册DB门，原生repository另增8组；四时区定向、独立审查及完整DB/全量测试通过，构建与集成状态见阶段3验收记录。
 - `notes-file-path-reads.test.ts` / `notes-file-path-oracle.ts`：A5a四处文件路径查询与独立旧SQL/编排对照，保留空路径行、NULL等值、原错误/文件/时钟/通知顺序；原生repository追加query-only覆盖。DB门还运行 `tests/electron/notes-file-path-storage.test.ts` 的真实隔离应用存储测试，不将全mock文件操作当作原生证明。
+- `notes-title-type-writes.test.ts` / `notes-title-type-oracle.ts`：A5b标题/类型两条更新与独立原SQL对照，验证原始绑定、两列SET、原生结果、时钟与两次changes读取、触发器及真实COMMIT；原生repository和隔离应用另验实际驱动行为及元数据更新不改文件。
 
 ## 3. 运行方式
 

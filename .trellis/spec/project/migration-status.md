@@ -7,7 +7,7 @@
 > Plan and evidence: `.trellis/tasks/archive/2026-09/00-bootstrap-guidelines/research/spec-alignment-plan.md`,
 > `spec-alignment-report.md`, `reinvented-wheels-audit.md`.
 
-Last reviewed: 2026-11-27. Released v2.0.1 at `de89ce4` has passed final validation and
+Last reviewed: 2026-11-28. Released v2.0.1 at `de89ce4` has passed final validation and
 publication. Phase 3 A0/A1/A2a-A2c remain on the Drizzle branch: schema/client, migration
 coordinator and bounded problem queries are implemented. The current synchronization
 slice combines released durable recovery with Drizzle adoption; independent review,
@@ -71,9 +71,14 @@ Independent review/focused164, DB42files1109/native65/realapp21, full226files285
 UI16 and build pass on2026-11-28;823source hashes stable. The test runner uses
 notes-only split ESM and parent-owned cleanup after actual child exit. Work0e4054a
 passes normal hooks/immediatepush; PR31CI46099297905/squasheafbed7 and
-PR8CI46099803141 pass, with identical tested tree. A5b title/type research and
-independent precheck are ready but governing approval/implementation remain
-pending; later notes reads/types/writes are separate.
+PR8CI46099803141 pass, with identical tested tree. Handoff PR32CI46100897809/
+squash41ef2e6 and PR8CI46101370107 pass. A5b title/type independent precheck
+is accepted in governing artifacts; parent GO2026-11-28 authorizes only the two
+explicit-handle metadata UPDATEs with raw placeholders/native result semantics.
+Independent review fixes two test typings only; both types/lint/UTC261,
+DB43files1206/native71/realapp32, full227files2949/UI16 and build pass.
+All826source/57protected hashes are stable; A5b Git/CI integration remains
+pending. Later notes reads/types/writes are separate.
 Later domain/layout work remains incomplete.
 See phase3 a3a/a3b1/a3b2 verification artifacts; PR8 stays draft.
 

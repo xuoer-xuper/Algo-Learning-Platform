@@ -315,7 +315,7 @@ const BARE_SQL_BUDGET = {
   // 泛表导出/导入，34 处按表展开的 SELECT/INSERT。搬迁需要先设计
   // "按表清单批量读写"的 repository 接口，单独一块做。
   'electron/backup/learningDataExport.ts': 34,
-  'electron/notes/NoteService.ts': 8,
+  'electron/notes/NoteService.ts': 6,
   'electron/ai/contextExporter.ts': 2,
   'electron/ai/contextTagStats.ts': 1,
   'electron/ai/recommendations/reviewPlanner.ts': 1,

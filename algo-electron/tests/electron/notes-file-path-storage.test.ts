@@ -280,6 +280,77 @@ function actionSet(id: string): Array<() => unknown> {
   ]
 }
 
+function metadataFiles(h: Harness) {
+  const directory = contained(h.directory, path.join(h.directory, 'notes'))
+  const files: Array<{ name: string; bytes: Buffer }> = []
+  function visit(current: string): void {
+    for (const entry of fs
+      .readdirSync(current, { withFileTypes: true })
+      .sort((a, b) => a.name.localeCompare(b.name))) {
+      const target = contained(directory, path.join(current, entry.name))
+      assert.equal(entry.isSymbolicLink(), false)
+      if (entry.isDirectory()) visit(target)
+      else files.push({ name: path.relative(directory, target), bytes: fs.readFileSync(target) })
+    }
+  }
+  if (fs.existsSync(directory)) visit(directory)
+  return files
+}
+
+function metadataState(h: Harness, id: string) {
+  return h.db.prepare('SELECT title,note_type,updated_at FROM notes WHERE id=?').get(id)
+}
+
+function observeMetadataStorage(h: Harness): () => void {
+  const notesRoot = path.join(h.directory, 'notes')
+  const restore: Array<() => void> = []
+  for (const method of [
+    'readFileSync',
+    'writeFileSync',
+    'renameSync',
+    'mkdirSync',
+    'unlinkSync',
+    'rmSync',
+    'existsSync',
+  ] as const) {
+    const descriptor = Object.getOwnPropertyDescriptor(fs, method)
+    assert.ok(descriptor)
+    const original = fs[method]
+    Object.defineProperty(fs, method, {
+      ...descriptor,
+      value: (...args: unknown[]) => {
+        const paths = method === 'renameSync' ? args.slice(0, 2) : args.slice(0, 1)
+        if (
+          paths.some(
+            (value) =>
+              typeof value === 'string' &&
+              (path.resolve(value) === notesRoot ||
+                path.resolve(value).startsWith(`${notesRoot}${path.sep}`)),
+          )
+        ) {
+          h.trace.push(`metadata-fs:${method}`)
+        }
+        return Reflect.apply(original, fs, args)
+      },
+    })
+    restore.push(() => Object.defineProperty(fs, method, descriptor))
+  }
+  return () => restore.reverse().forEach((undo) => undo())
+}
+
+function assertMetadataOnlyTrace(trace: string[]): void {
+  assert.ok(
+    trace.every(
+      (entry) =>
+        entry === 'clock' ||
+        entry === 'prepare:update' ||
+        entry.startsWith('run:update:') ||
+        entry.startsWith('event:'),
+    ),
+    `Metadata write touched storage or issued an unexpected query: ${JSON.stringify(trace)}`,
+  )
+}
+
 async function runTests(noteProtocol: NoteProtocol): Promise<void> {
   await app.whenReady()
   connection = await import('../../electron/db/connection')
@@ -736,6 +807,232 @@ async function runTests(noteProtocol: NoteProtocol): Promise<void> {
     assert.equal(fs.existsSync(fixture.filePath), false)
     assert.equal(fs.existsSync(fixture.assetsDir), false)
     assert.deepEqual(h.events, [])
+  })
+
+  const metadataOracle = await import('../db/notes-title-type-oracle')
+  const metadataDifferential: unknown[] = []
+  for (const old of [true, false]) {
+    await test(`${old ? 'frozen original' : 'Drizzle'} title/type metadata never rewrites markdown or assets`, (h) => {
+      const fixture = seed(h, 'note', { deleted: true })
+      addAsset(h, fixture)
+      assertFixture(h, fixture)
+      const beforeFiles = metadataFiles(h)
+      const methods = old
+        ? metadataOracle.createNotesTitleTypeOracle({
+            getDb: currentConnection().getDb,
+            nowMillis: () => Date.now(),
+            emitDataChanged: dataEvents.emitDataChanged,
+          })
+        : service
+      observed(h, () => {
+        assert.equal(methods.updateNoteTitle(fixture.id, 'Changed title'), true)
+        assert.equal(methods.updateNoteTitle(fixture.id, 'Changed title'), true)
+        for (const type of ['solution', 'review', 'summary'] as const) {
+          assert.equal(methods.updateNoteType(fixture.id, type), true)
+        }
+        assert.equal(methods.updateNoteTitle('missing', 'Ignored'), false)
+        assert.equal(methods.updateNoteType('missing', 'review'), false)
+        assert.equal(Reflect.apply(methods.updateNoteTitle, undefined, [null, 'Ignored']), false)
+        assert.equal(Reflect.apply(methods.updateNoteType, undefined, [undefined, 'review']), false)
+        assert.equal(
+          Reflect.apply(methods.updateNoteTitle, undefined, ['missing', undefined]),
+          false,
+        )
+        assert.equal(
+          Reflect.apply(methods.updateNoteType, undefined, ['missing', undefined]),
+          false,
+        )
+        sqliteError(
+          () => Reflect.apply(methods.updateNoteTitle, undefined, [fixture.id, undefined]),
+          'SQLITE_CONSTRAINT_NOTNULL',
+        )
+        sqliteError(
+          () => Reflect.apply(methods.updateNoteType, undefined, [fixture.id, undefined]),
+          'SQLITE_CONSTRAINT_NOTNULL',
+        )
+      })
+      assertMetadataOnlyTrace(h.trace)
+      assert.equal(h.trace.filter((entry) => entry === 'clock').length, 13)
+      assert.equal(h.trace.filter((entry) => entry === 'prepare:update').length, 13)
+      assert.equal(h.trace.filter((entry) => entry.startsWith('run:update:')).length, 13)
+      assert.deepEqual(
+        h.events,
+        Array.from({ length: 5 }, () => ({ tables: ['notes'] })),
+      )
+      assert.deepEqual(metadataState(h, fixture.id), {
+        title: 'Changed title',
+        note_type: 'summary',
+        updated_at: NOW,
+      })
+      assert.deepEqual(metadataFiles(h), beforeFiles)
+      assert.equal(fs.readFileSync(fixture.filePath, 'utf8'), '# Title\n\nold body')
+      metadataDifferential.push({
+        trace: h.trace,
+        events: h.events,
+        state: metadataState(h, fixture.id),
+        files: beforeFiles,
+      })
+    })
+  }
+  assert.deepEqual(metadataDifferential[1], metadataDifferential[0])
+
+  for (const mode of ['query-only', 'IGNORE', 'FAIL', 'ABORT'] as const) {
+    await test(`metadata ${mode} keeps markdown/assets unchanged and preserves no-success notifications`, (h) => {
+      const fixture = seed(h, 'note')
+      addAsset(h, fixture)
+      const beforeFiles = metadataFiles(h)
+      const beforeState = metadataState(h, fixture.id)
+      h.db.exec('CREATE TABLE metadata_audit(kind TEXT)')
+      if (mode === 'query-only') h.db.pragma('query_only=ON')
+      else
+        for (const kind of ['title', 'note_type']) {
+          h.db.exec(`CREATE TRIGGER metadata_${kind} BEFORE UPDATE OF ${kind} ON notes BEGIN
+          INSERT INTO metadata_audit VALUES ('${kind}');
+          SELECT RAISE(${mode === 'IGNORE' ? mode : `${mode}, 'metadata rejected'`}); END`)
+        }
+      observed(h, () => {
+        for (const action of [
+          () => service.updateNoteTitle(fixture.id, 'New title'),
+          () => service.updateNoteType(fixture.id, 'review'),
+        ]) {
+          if (mode === 'IGNORE') assert.equal(action(), false)
+          else
+            sqliteError(
+              action,
+              mode === 'query-only' ? 'SQLITE_READONLY' : 'SQLITE_CONSTRAINT_TRIGGER',
+            )
+        }
+        if (mode === 'query-only') {
+          sqliteError(() => service.updateNoteTitle('missing', 'New title'), 'SQLITE_READONLY')
+          sqliteError(() => service.updateNoteType('missing', 'review'), 'SQLITE_READONLY')
+        }
+      })
+      assertMetadataOnlyTrace(h.trace)
+      assert.deepEqual(h.events, [])
+      assert.deepEqual(metadataState(h, fixture.id), beforeState)
+      assert.deepEqual(metadataFiles(h), beforeFiles)
+      assert.deepEqual(
+        h.db.prepare('SELECT * FROM metadata_audit').all(),
+        mode === 'IGNORE' || mode === 'FAIL' ? [{ kind: 'title' }, { kind: 'note_type' }] : [],
+      )
+    })
+  }
+
+  await test('metadata damaged-column preparation failures occur after clock and before any file access', (h) => {
+    const fixture = seed(h, 'note')
+    addAsset(h, fixture)
+    const beforeFiles = metadataFiles(h)
+    h.db.exec('ALTER TABLE notes RENAME COLUMN updated_at TO removed_updated_at')
+    observed(h, () => {
+      sqliteError(() => service.updateNoteTitle(fixture.id, 'Changed'))
+      sqliteError(() => service.updateNoteType(fixture.id, 'review'))
+    })
+    assert.deepEqual(h.trace, ['clock', 'prepare:update', 'clock', 'prepare:update'])
+    assert.deepEqual(h.events, [])
+    assert.deepEqual(metadataFiles(h), beforeFiles)
+  })
+
+  for (const mode of ['rollback', 'commit-failure', 'inner-rollback'] as const) {
+    await test(`metadata caller ${mode} preserves SQL/events without touching file storage`, (h) => {
+      const fixture = seed(h, 'note')
+      addAsset(h, fixture)
+      const beforeFiles = metadataFiles(h)
+      const beforeState = metadataState(h, fixture.id)
+      h.db.exec(
+        'CREATE TABLE metadata_commit(note_id TEXT REFERENCES notes(id) DEFERRABLE INITIALLY DEFERRED)',
+      )
+      let callbackFinished = false
+      const action = () =>
+        dataEvents.withDataChangeTransaction(() =>
+          h.db.transaction(() => {
+            assert.equal(service.updateNoteTitle(fixture.id, 'Outer title'), true)
+            assert.deepEqual(h.events, [])
+            if (mode === 'inner-rollback') {
+              assert.throws(
+                () =>
+                  dataEvents.withDataChangeTransaction(() =>
+                    h.db.transaction(() => {
+                      assert.equal(service.updateNoteType(fixture.id, 'review'), true)
+                      throw new Error('inner rollback')
+                    })(),
+                  ),
+                /inner rollback/,
+              )
+            } else {
+              assert.equal(service.updateNoteType(fixture.id, 'review'), true)
+              if (mode === 'rollback') throw new Error('outer rollback')
+              h.db.prepare('INSERT INTO metadata_commit VALUES (?)').run('absent')
+            }
+            callbackFinished = true
+            assert.deepEqual(h.events, [])
+          })(),
+        )
+      const restoreClock = observeClock(h)
+      const restoreFiles = observeMetadataStorage(h)
+      try {
+        if (mode === 'rollback') assert.throws(action, /outer rollback/)
+        else if (mode === 'commit-failure') sqliteError(action, 'SQLITE_CONSTRAINT_FOREIGNKEY')
+        else action()
+      } finally {
+        restoreFiles()
+        restoreClock()
+      }
+      assert.ok(!h.trace.some((entry) => entry.startsWith('metadata-fs:')))
+      assert.equal(callbackFinished, mode !== 'rollback')
+      assert.equal(h.db.inTransaction, false)
+      assert.deepEqual(h.events, mode === 'inner-rollback' ? [{ tables: ['notes'] }] : [])
+      assert.deepEqual(
+        metadataState(h, fixture.id),
+        mode === 'inner-rollback'
+          ? { title: 'Outer title', note_type: 'solution', updated_at: NOW }
+          : beforeState,
+      )
+      assert.deepEqual(h.db.prepare('SELECT * FROM metadata_commit').all(), [])
+      assert.deepEqual(metadataFiles(h), beforeFiles)
+    })
+  }
+
+  await test('metadata earlier autocommit and reentrant listener writes survive a later failure without changing files', (h) => {
+    const fixture = seed(h, 'note')
+    addAsset(h, fixture)
+    const beforeFiles = metadataFiles(h)
+    const visible: unknown[] = []
+    let reentered = false
+    const off = dataEvents.subscribeDataChanges(() => {
+      visible.push(metadataState(h, fixture.id))
+      if (!reentered) {
+        reentered = true
+        assert.equal(service.updateNoteType(fixture.id, 'review'), true)
+      }
+    })
+    const offThrow = dataEvents.subscribeDataChanges(() => {
+      throw new Error('isolated metadata listener')
+    })
+    const restoreClock = observeClock(h)
+    const restoreFiles = observeMetadataStorage(h)
+    try {
+      assert.equal(service.updateNoteTitle(fixture.id, 'Committed title'), true)
+      h.db.exec(
+        "CREATE TRIGGER metadata_reject BEFORE UPDATE OF title ON notes BEGIN SELECT RAISE(ABORT, 'late failure'); END",
+      )
+      sqliteError(
+        () => service.updateNoteTitle(fixture.id, 'Rejected title'),
+        'SQLITE_CONSTRAINT_TRIGGER',
+      )
+      assert.deepEqual(visible, [
+        { title: 'Committed title', note_type: 'solution', updated_at: NOW },
+        { title: 'Committed title', note_type: 'review', updated_at: NOW },
+      ])
+      assert.deepEqual(h.events, [{ tables: ['notes'] }, { tables: ['notes'] }])
+      assert.deepEqual(metadataState(h, fixture.id), visible[1])
+    } finally {
+      restoreFiles()
+      restoreClock()
+      offThrow()
+      off()
+    }
+    assert.ok(!h.trace.some((entry) => entry.startsWith('metadata-fs:') || entry === 'uuid'))
+    assert.deepEqual(metadataFiles(h), beforeFiles)
   })
 
   console.log(`[PASS] notes native Electron storage: ${passed}/${caseNumber} groups`)

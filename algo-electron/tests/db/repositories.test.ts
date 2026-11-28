@@ -8,6 +8,11 @@ import NativeDatabase from 'better-sqlite3'
 import { findNoteFilePath } from '../../electron/db/repositories/notes/file-path'
 import { oldFindNoteFilePath } from './notes-file-path-oracle'
 import {
+  updateNoteTitleRow,
+  updateNoteTypeRow,
+} from '../../electron/db/repositories/notes/title-type'
+import { oldUpdateNoteTitleRow, oldUpdateNoteTypeRow } from './notes-title-type-oracle'
+import {
   originalRecomputeDailyStatsAt,
   originalRecomputeAllDailyStatsAt,
   originalRecomputeDailyStats,
@@ -4934,6 +4939,448 @@ test('Notes native damaged-DDL errors retain prepare stage and code with explici
       db.close()
     }
   }
+})
+
+type NativeNoteMetadataWrite = typeof updateNoteTitleRow
+type NativeNoteMetadataKind = 'title' | 'note_type'
+
+function compareNativeNoteMetadata(
+  run: (
+    db: Database.Database,
+    write: NativeNoteMetadataWrite,
+    kind: NativeNoteMetadataKind,
+  ) => unknown,
+): void {
+  const definition = getDbForTest()
+    .prepare<[], { sql: string }>("SELECT sql FROM sqlite_schema WHERE name='notes'")
+    .get()
+  assert.ok(definition)
+  for (const [kind, old, current] of [
+    ['title', oldUpdateNoteTitleRow, updateNoteTitleRow],
+    ['note_type', oldUpdateNoteTypeRow, updateNoteTypeRow],
+  ] as const) {
+    const results = []
+    for (const write of [old, current]) {
+      const db = new NativeDatabase(':memory:')
+      const events: DataChangedPayload[] = []
+      const off = subscribeDataChanges((event) => events.push(event))
+      try {
+        db.pragma('foreign_keys=ON')
+        db.exec(definition.sql)
+        results.push({ result: run(db, write, kind), state: nativeStatsSnapshot(db), events })
+        assert.deepStrictEqual(events, [], 'Explicit metadata helpers must not publish events')
+      } finally {
+        off()
+        db.close()
+      }
+    }
+    assert.deepStrictEqual(results[1], results[0], kind)
+  }
+}
+
+function traceNativeNoteMetadata(
+  db: Database.Database,
+  failure?: { stage: 'prepare' | 'run'; value: unknown },
+) {
+  const descriptor = Object.getOwnPropertyDescriptor(db, 'prepare')
+  const prepare = db.prepare.bind(db)
+  const queries: string[] = []
+  const bindings: unknown[][] = []
+  const stages: string[] = []
+  let thrown: unknown
+  let nativeResult: Database.RunResult | undefined
+  Object.defineProperty(db, 'prepare', {
+    configurable: true,
+    value: (query: string) => {
+      queries.push(query)
+      stages.push('prepare')
+      if (failure?.stage === 'prepare') {
+        thrown = failure.value
+        throw thrown
+      }
+      try {
+        const statement = prepare(query)
+        const run = statement.run.bind(statement)
+        Object.defineProperty(statement, 'run', {
+          configurable: true,
+          value: (...values: unknown[]) => {
+            bindings.push(values)
+            stages.push('run')
+            if (failure?.stage === 'run') {
+              thrown = failure.value
+              throw thrown
+            }
+            try {
+              nativeResult = run(...values)
+              return nativeResult
+            } catch (error) {
+              thrown = error
+              throw error
+            }
+          },
+        })
+        return statement
+      } catch (error) {
+        thrown = error
+        throw error
+      }
+    },
+  })
+  return {
+    queries,
+    bindings,
+    stages,
+    error: () => thrown,
+    result: () => nativeResult,
+    restore: () => {
+      if (descriptor) Object.defineProperty(db, 'prepare', descriptor)
+      else Reflect.deleteProperty(db, 'prepare')
+    },
+  }
+}
+
+test('Notes metadata native builders retain two targets, three raw bindings and original RunResult identity', () => {
+  compareNativeNoteMetadata((db, write, kind) => {
+    const outcomes = []
+    for (const [index, id] of ['', 'note', "literal_%'", '\u4e2d\u6587', null].entries()) {
+      seedNativeNotePath(db, id, 'unchanged/path')
+      const value =
+        kind === 'title' ? `title-${index}` : ['solution', 'review', 'summary'][index % 3]
+      const instant = [0, 1.75, 1768443630123, 9e15, 'raw-time'][index]
+      const tracking = traceNativeNoteMetadata(db)
+      let result
+      try {
+        result = Reflect.apply(write, undefined, [db, id, value, instant])
+        assert.strictEqual(result, tracking.result())
+        assert.deepStrictEqual(tracking.stages, ['prepare', 'run'])
+        assert.deepStrictEqual(tracking.bindings, [[value, instant, id]])
+        assert.strictEqual(tracking.queries.length, 1)
+        assert.strictEqual(
+          tracking.queries[0]
+            ?.replaceAll('"', '')
+            .replaceAll('notes.id', 'id')
+            .replace(/\s+/g, ' ')
+            .trim()
+            .toLowerCase(),
+          `update notes set ${kind} = ?, updated_at = ? where id = ?`,
+        )
+      } finally {
+        tracking.restore()
+      }
+      assert.ok(result)
+      assert.strictEqual(result.changes, id === null ? 0 : 1)
+      outcomes.push(result)
+    }
+    const sameValue = kind === 'title' ? 'title-1' : 'review'
+    outcomes.push(write(db, 'note', sameValue, 1.75))
+    assert.strictEqual(outcomes.at(-1)?.changes, 1)
+    assert.strictEqual(write(db, 'missing', 'review', 0).changes, 0)
+    assert.deepStrictEqual(db.prepare('SELECT DISTINCT file_path FROM notes').all(), [
+      { file_path: 'unchanged/path' },
+    ])
+    return outcomes
+  })
+})
+
+test('Notes metadata native malformed inputs use actual undefined NULL and array/object binding semantics', () => {
+  compareNativeNoteMetadata((db, write) => {
+    seedNativeNotePath(db, 'note', 'unchanged/path')
+    seedNativeNotePath(db, null, 'anonymous/path')
+    const cases: Array<[unknown, unknown, unknown]> = [
+      ['note', undefined, 0],
+      ['missing', undefined, 0],
+      ['note', null, 0],
+      [null, 'review', 0],
+      [undefined, 'review', 0],
+      ['note', ['review'], 0],
+      ['note', [], 0],
+      ['note', ['review', 9], 0],
+      ['note', {}, 0],
+      ['note', { unused: 'review' }, 0],
+      ['note', Buffer.from([0, 128, 255]), 0],
+      ['note', true, 0],
+      ['note', Symbol('invalid'), 0],
+      ['note', new Date(0), 0],
+      ['note', 'review', undefined],
+      ['missing', 'review', undefined],
+      ['note', 'review', null],
+      ['note', 'review', [1.25]],
+      ['note', 'review', {}],
+      ['note', 'review', 9e15],
+      ['note', 'review', 'raw-time'],
+      [['note'], 'review', 0],
+      [{ unused: 'note' }, 'review', 0],
+      [[], 'review', 0],
+    ]
+    return cases.map(([id, value, instant], index) => {
+      db.prepare(
+        "UPDATE notes SET title='Synthetic note',note_type='solution',updated_at=1.75",
+      ).run()
+      const tracking = traceNativeNoteMetadata(db)
+      let result
+      try {
+        result = submissionReadOutcome(() =>
+          Reflect.apply(write, undefined, [db, id, value, instant]),
+        )
+        assert.deepStrictEqual(tracking.stages, ['prepare', 'run'])
+        assert.deepStrictEqual(tracking.bindings, [[value, instant, id]])
+      } finally {
+        tracking.restore()
+      }
+      if (index === 0) assert.strictEqual(result.error?.code, 'SQLITE_CONSTRAINT_NOTNULL')
+      if (index === 1 || index === 3 || index === 4 || index === 15) {
+        assert.ok(result.rows && typeof result.rows === 'object' && 'changes' in result.rows)
+        assert.strictEqual(result.rows.changes, 0)
+      }
+      return { result, state: nativeStatsSnapshot(db) }
+    })
+  })
+})
+
+test('Notes metadata native UPDATE OF and IGNORE FAIL ABORT effects match original statements', () => {
+  compareNativeNoteMetadata((db, write, kind) => {
+    seedNativeNotePath(db, 'note', 'unchanged/path')
+    db.exec('CREATE TABLE metadata_targets(name TEXT); CREATE TABLE metadata_effects(name TEXT)')
+    for (const target of [
+      'id',
+      'title',
+      'note_type',
+      'updated_at',
+      'content',
+      'file_path',
+      'word_count',
+      'created_at',
+      'deleted_at',
+      'problem_id',
+    ]) {
+      db.exec(
+        `CREATE TRIGGER target_${target} AFTER UPDATE OF ${target} ON notes BEGIN INSERT INTO metadata_targets VALUES ('${target}'); END`,
+      )
+    }
+    assert.strictEqual(
+      write(db, 'note', kind === 'title' ? 'Synthetic note' : 'solution', 1.75).changes,
+      1,
+    )
+    assert.deepStrictEqual(
+      db.prepare('SELECT name FROM metadata_targets ORDER BY name').all(),
+      [kind, 'updated_at'].sort().map((name) => ({ name })),
+    )
+    const outcomes = []
+    for (const mode of ['IGNORE', 'FAIL', 'ABORT'] as const) {
+      db.exec(`CREATE TRIGGER metadata_probe BEFORE UPDATE OF ${kind} ON notes BEGIN
+        INSERT INTO metadata_effects VALUES ('${mode}');
+        SELECT RAISE(${mode === 'IGNORE' ? mode : `${mode}, 'metadata rejected'`}); END`)
+      const result = submissionReadOutcome(() => write(db, 'note', 'review', 42))
+      if (mode === 'IGNORE') {
+        assert.ok(result.rows && typeof result.rows === 'object' && 'changes' in result.rows)
+        assert.strictEqual(result.rows.changes, 0)
+      } else assert.strictEqual(result.error?.code, 'SQLITE_CONSTRAINT_TRIGGER')
+      outcomes.push({ result, audit: db.prepare('SELECT * FROM metadata_effects').all() })
+      db.exec('DROP TRIGGER metadata_probe')
+    }
+    assert.deepStrictEqual(db.prepare('SELECT * FROM metadata_effects').all(), [
+      { name: 'IGNORE' },
+      { name: 'FAIL' },
+    ])
+    return outcomes
+  })
+})
+
+test('Notes metadata native failures preserve identity and prepare/run stages including missing-row readonly attempts', () => {
+  compareNativeNoteMetadata((db, write) => {
+    seedNativeNotePath(db, 'note', 'unchanged/path')
+    for (const stage of ['prepare', 'run'] as const) {
+      const sentinel = { stage }
+      const tracking = traceNativeNoteMetadata(db, { stage, value: sentinel })
+      let caught: unknown
+      try {
+        write(db, 'note', 'review', 0)
+      } catch (error) {
+        caught = error
+      } finally {
+        tracking.restore()
+      }
+      assert.strictEqual(caught, sentinel)
+      assert.strictEqual(caught, tracking.error())
+      assert.deepStrictEqual(
+        tracking.stages,
+        stage === 'prepare' ? ['prepare'] : ['prepare', 'run'],
+      )
+    }
+    db.pragma('query_only=ON')
+    const outcomes = []
+    for (const id of ['note', 'missing', null]) {
+      const tracking = traceNativeNoteMetadata(db)
+      let result
+      try {
+        result = submissionReadOutcome(() => Reflect.apply(write, undefined, [db, id, 'review', 0]))
+        assert.deepStrictEqual(tracking.stages, ['prepare', 'run'])
+        assert.ok(tracking.error() instanceof Error)
+      } finally {
+        tracking.restore()
+      }
+      assert.strictEqual(result.error?.code, 'SQLITE_READONLY')
+      outcomes.push(result)
+    }
+    db.pragma('query_only=OFF')
+    return outcomes
+  })
+  for (const damage of ['table', 'title', 'note_type', 'updated_at'] as const) {
+    const db = new NativeDatabase(':memory:')
+    try {
+      if (damage !== 'table')
+        db.exec(
+          `CREATE TABLE notes(id TEXT, ${['title', 'note_type', 'updated_at']
+            .filter((column) => column !== damage)
+            .map((column) => `${column} TEXT`)
+            .join(',')})`,
+        )
+      for (const [old, current] of [
+        [oldUpdateNoteTitleRow, updateNoteTitleRow],
+        [oldUpdateNoteTypeRow, updateNoteTypeRow],
+      ]) {
+        if (
+          (damage === 'title' && old === oldUpdateNoteTypeRow) ||
+          (damage === 'note_type' && old === oldUpdateNoteTitleRow)
+        )
+          continue
+        const errors = []
+        for (const write of [old, current]) {
+          assert.ok(write)
+          const tracking = traceNativeNoteMetadata(db)
+          let caught: unknown
+          try {
+            write(db, 'missing', 'review', 0)
+          } catch (error) {
+            caught = error
+          } finally {
+            tracking.restore()
+          }
+          assert.strictEqual(caught, tracking.error())
+          assert.ok(caught instanceof Error && 'code' in caught)
+          assert.deepStrictEqual(tracking.stages, ['prepare'])
+          errors.push({ constructor: caught.constructor, name: caught.name, code: caught.code })
+        }
+        assert.deepStrictEqual(errors[1], errors[0])
+        assert.strictEqual(errors[0]?.code, 'SQLITE_ERROR')
+      }
+    } finally {
+      db.close()
+    }
+  }
+})
+
+test('Notes metadata explicit handles retain native bigint results, readonly/closed failures and reinitialization independence', () => {
+  compareNativeNoteMetadata((db, write) => {
+    seedNativeNotePath(db, 'note', 'unchanged/path')
+    db.defaultSafeIntegers(true)
+    const tracking = traceNativeNoteMetadata(db)
+    let result
+    try {
+      result = write(db, 'note', 'review', 0)
+      assert.strictEqual(result, tracking.result())
+      assert.strictEqual(typeof result.lastInsertRowid, 'bigint')
+    } finally {
+      tracking.restore()
+    }
+    return result
+  })
+  const source = getDbForTest()
+  seedNativeNotePath(source, 'note', 'source/path')
+  const definition = source
+    .prepare<[], { sql: string }>("SELECT sql FROM sqlite_schema WHERE name='notes'")
+    .get()
+  assert.ok(definition)
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'algo-notes-metadata-native-'))
+  const target = path.join(directory, 'readonly.sqlite')
+  source.prepare('VACUUM INTO ?').run(target)
+  const readonly = new NativeDatabase(target, { readonly: true })
+  const other = new NativeDatabase(':memory:')
+  try {
+    for (const id of ['note', 'missing']) {
+      for (const [old, current] of [
+        [oldUpdateNoteTitleRow, updateNoteTitleRow],
+        [oldUpdateNoteTypeRow, updateNoteTypeRow],
+      ] as const) {
+        const expected = submissionReadOutcome(() => old(readonly, id, 'review', 0))
+        assert.strictEqual(expected.error?.code, 'SQLITE_READONLY')
+        assert.deepStrictEqual(
+          submissionReadOutcome(() => current(readonly, id, 'review', 0)),
+          expected,
+        )
+      }
+    }
+    other.exec(definition.sql)
+    seedNativeNotePath(other, 'note', 'other/path')
+    closeDb()
+    assert.throws(getDb, /Database not initialized/)
+    assert.strictEqual(updateNoteTitleRow(other, 'note', 'other title', 0).changes, 1)
+    for (const [old, current] of [
+      [oldUpdateNoteTitleRow, updateNoteTitleRow],
+      [oldUpdateNoteTypeRow, updateNoteTypeRow],
+    ] as const) {
+      assert.deepStrictEqual(
+        submissionReadOutcome(() => current(source, 'note', 'review', 0)),
+        submissionReadOutcome(() => old(source, 'note', 'review', 0)),
+      )
+    }
+    const next = initDbAtPath(':memory:')
+    seedNativeNotePath(next, 'note', 'next/path')
+    assert.strictEqual(updateNoteTypeRow(next, 'note', 'summary', 0).changes, 1)
+    assert.deepStrictEqual(other.prepare('SELECT title,note_type,file_path FROM notes').get(), {
+      title: 'other title',
+      note_type: 'solution',
+      file_path: 'other/path',
+    })
+  } finally {
+    other.close()
+    readonly.close()
+    assert.ok(
+      path
+        .resolve(directory)
+        .startsWith(`${path.resolve(os.tmpdir())}${path.sep}algo-notes-metadata-native-`),
+    )
+    fs.rmSync(directory, { recursive: true, force: true })
+  }
+})
+
+test('Notes metadata native writes preserve caller savepoints and actual deferred COMMIT failure', () => {
+  compareNativeNoteMetadata((db, write, kind) => {
+    seedNativeNotePath(db, 'note', 'unchanged/path')
+    db.transaction(() => {
+      assert.strictEqual(write(db, 'note', 'outer', 0).changes, 1)
+      assert.throws(
+        () =>
+          db.transaction(() => {
+            write(db, 'note', 'inner', 1)
+            throw new Error('inner rollback')
+          })(),
+        /inner rollback/,
+      )
+      assert.deepStrictEqual(
+        db.prepare(`SELECT ${kind} AS value FROM notes WHERE id='note'`).get(),
+        { value: 'outer' },
+      )
+    })()
+    db.exec(
+      'CREATE TABLE metadata_commit(note_id TEXT REFERENCES notes(id) DEFERRABLE INITIALLY DEFERRED)',
+    )
+    const before = db.prepare('SELECT * FROM notes').all()
+    let callbackFinished = false
+    const result = submissionReadOutcome(() =>
+      db.transaction(() => {
+        write(db, 'note', 'uncommitted', 2)
+        db.prepare('INSERT INTO metadata_commit VALUES (?)').run('absent')
+        callbackFinished = true
+      })(),
+    )
+    assert.strictEqual(callbackFinished, true)
+    assert.strictEqual(result.error?.code, 'SQLITE_CONSTRAINT_FOREIGNKEY')
+    assert.strictEqual(db.inTransaction, false)
+    assert.deepStrictEqual(db.prepare('SELECT * FROM notes').all(), before)
+    assert.deepStrictEqual(db.prepare('SELECT * FROM metadata_commit').all(), [])
+    return result
+  })
 })
 
 let dbForTest: Database.Database | null = null
