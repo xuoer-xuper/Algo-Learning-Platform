@@ -50,3 +50,6 @@
 {"file": ".trellis/tasks/09-17-phase-3-main-process/research/a4d-stats-recompute-review.md", "reason": "Independent INSERT12, late NULL, actual COMMIT, notification and historical branch review"}
 {"file": ".trellis/tasks/09-17-phase-3-main-process/research/a4d-boundary-reconciliation-review.md", "reason": "Independent temporal A4d/R1 freeze versus future R2 relocation gate reconciliation"}
 {"file": ".trellis/spec/project/drizzle-stats-recompute.md", "reason": "Accepted executable A4d runtime/history/default/clock/event and verification boundary"}
+{"file": ".trellis/tasks/09-17-phase-3-main-process/research/a5-notes-queries.md", "reason": "Notes inventory, actual storage/callers and native harness hazards; only A5a is now approved"}
+{"file": ".trellis/tasks/09-17-phase-3-main-process/research/a5a-notes-file-path-review.md", "reason": "Independent A5a explicit-handle/query/error/native-app boundary precheck accepted by parent"}
+{"file": ".trellis/spec/project/drizzle-notes-file-path.md", "reason": "Approved A5a four-read executable contracts, disjoint ownership and acceptance matrix"}

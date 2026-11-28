@@ -5,6 +5,8 @@ import os from 'node:os'
 import path from 'node:path'
 import type Database from 'better-sqlite3'
 import NativeDatabase from 'better-sqlite3'
+import { findNoteFilePath } from '../../electron/db/repositories/notes/file-path'
+import { oldFindNoteFilePath } from './notes-file-path-oracle'
 import {
   originalRecomputeDailyStatsAt,
   originalRecomputeAllDailyStatsAt,
@@ -4641,6 +4643,297 @@ test('Recompute native explicit handles, readonly/query-only errors and calendar
     }
     return errors
   })
+})
+
+function seedNativeNotePath(db: Database.Database, id: string | null, filePath: unknown) {
+  db.prepare(
+    `INSERT INTO notes(id,title,file_path,created_at,updated_at,deleted_at)
+    VALUES (?,'Synthetic note',?,0,1.75,0)`,
+  ).run(id, filePath)
+}
+
+function traceNativeNotePath(
+  db: Database.Database,
+  failure?: { stage: 'prepare' | 'get'; value: unknown },
+) {
+  const descriptor = Object.getOwnPropertyDescriptor(db, 'prepare')
+  const prepare = db.prepare.bind(db)
+  const queries: string[] = []
+  const bindings: unknown[][] = []
+  const stages: string[] = []
+  let thrown: unknown
+  Object.defineProperty(db, 'prepare', {
+    configurable: true,
+    value: (query: string) => {
+      queries.push(query)
+      stages.push('prepare')
+      if (failure?.stage === 'prepare') {
+        thrown = failure.value
+        throw thrown
+      }
+      try {
+        const statement = prepare(query)
+        const get = statement.get.bind(statement)
+        Object.defineProperty(statement, 'get', {
+          configurable: true,
+          value: (...values: unknown[]) => {
+            bindings.push(values)
+            stages.push('get')
+            if (failure?.stage === 'get') {
+              thrown = failure.value
+              throw thrown
+            }
+            try {
+              return get(...values)
+            } catch (error) {
+              thrown = error
+              throw error
+            }
+          },
+        })
+        return statement
+      } catch (error) {
+        thrown = error
+        throw error
+      }
+    },
+  })
+  return {
+    queries,
+    bindings,
+    stages,
+    error: () => thrown,
+    restore: () => {
+      if (descriptor) Object.defineProperty(db, 'prepare', descriptor)
+      else Reflect.deleteProperty(db, 'prepare')
+    },
+  }
+}
+
+test('Notes native file-path reads preserve one-field one-bind equality and raw empty/NUL/surrogate paths', () => {
+  const db = getDbForTest()
+  const events: DataChangedPayload[] = []
+  const off = subscribeDataChanges((event) => events.push(event))
+  try {
+    for (const [index, id] of [
+      '',
+      'Case',
+      'case',
+      ' spaced ',
+      "' OR 1=1 --",
+      '%_\\',
+      '\u4e2d\u6587',
+      'emoji-\ud83d\ude00',
+      'with\0nul',
+      '\ud800',
+      'x'.repeat(201),
+    ].entries()) {
+      const rawPath = ['', ' raw/path ', 'path\0tail', '\ud800', '\u4e2d\u6587/\ud83d\ude00'][
+        index % 5
+      ]
+      seedNativeNotePath(db, id, rawPath)
+      const expected = oldFindNoteFilePath(db, id)
+      const before = nativeStatsSnapshot(db)
+      const tracking = traceNativeNotePath(db)
+      let actual
+      try {
+        actual = findNoteFilePath(db, id)
+        assert.deepStrictEqual(tracking.stages, ['prepare', 'get'])
+        assert.deepStrictEqual(tracking.bindings, [[id]])
+        assert.strictEqual(tracking.queries.length, 1)
+        assert.strictEqual(
+          tracking.queries[0],
+          'select "file_path" from "notes" where "notes"."id" = ?',
+        )
+      } finally {
+        tracking.restore()
+      }
+      assert.deepStrictEqual(actual, expected)
+      assert.deepStrictEqual(Object.keys(actual ?? {}), ['file_path'])
+      assert.deepStrictEqual(nativeStatsSnapshot(db), before)
+    }
+    seedNativeNotePath(db, null, 'anonymous1')
+    seedNativeNotePath(db, null, 'anonymous2')
+    seedNativeNotePath(db, 'blob-path', Buffer.from([0, 128, 255]))
+    for (const id of [null, 'missing', 'blob-path']) {
+      const expected = Reflect.apply(oldFindNoteFilePath, undefined, [db, id])
+      const before = nativeStatsSnapshot(db)
+      const tracking = traceNativeNotePath(db)
+      let actual
+      try {
+        actual = Reflect.apply(findNoteFilePath, undefined, [db, id])
+        assert.deepStrictEqual(tracking.bindings, [[id]])
+        assert.deepStrictEqual(tracking.stages, ['prepare', 'get'])
+      } finally {
+        tracking.restore()
+      }
+      assert.deepStrictEqual(actual, expected)
+      assert.deepStrictEqual(nativeStatsSnapshot(db), before)
+    }
+    assert.deepStrictEqual(events, [])
+  } finally {
+    off()
+  }
+})
+
+test('Notes native query-only and readonly reads use explicit handles without global initialization or caching', () => {
+  const db = getDbForTest()
+  seedNativeNotePath(db, 'note', 'original/path')
+  db.pragma('query_only=ON')
+  const before = nativeStatsSnapshot(db)
+  assert.deepStrictEqual(findNoteFilePath(db, 'note'), oldFindNoteFilePath(db, 'note'))
+  assert.deepStrictEqual(nativeStatsSnapshot(db), before)
+  db.pragma('query_only=OFF')
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'algo-notes-native-'))
+  const target = path.join(directory, 'readonly.sqlite')
+  db.prepare('VACUUM INTO ?').run(target)
+  const readonly = new NativeDatabase(target, { readonly: true })
+  const other = new NativeDatabase(':memory:')
+  try {
+    assert.strictEqual(readonly.readonly, true)
+    assert.deepStrictEqual(findNoteFilePath(readonly, 'note'), { file_path: 'original/path' })
+    const definition = db
+      .prepare<[], { sql: string }>("SELECT sql FROM sqlite_schema WHERE name='notes'")
+      .get()
+    assert.ok(definition)
+    other.exec(definition.sql)
+    seedNativeNotePath(other, 'note', 'independent/path')
+    closeDb()
+    assert.throws(getDb, /Database not initialized/)
+    assert.deepStrictEqual(findNoteFilePath(other, 'note'), { file_path: 'independent/path' })
+    assert.deepStrictEqual(
+      submissionReadOutcome(() => findNoteFilePath(db, 'note')),
+      submissionReadOutcome(() => oldFindNoteFilePath(db, 'note')),
+    )
+    const next = initDbAtPath(':memory:')
+    seedNativeNotePath(next, 'note', 'next/path')
+    assert.deepStrictEqual(findNoteFilePath(next, 'note'), { file_path: 'next/path' })
+    assert.deepStrictEqual(findNoteFilePath(other, 'note'), { file_path: 'independent/path' })
+  } finally {
+    other.close()
+    readonly.close()
+    assert.ok(
+      path
+        .resolve(directory)
+        .startsWith(`${path.resolve(os.tmpdir())}${path.sep}algo-notes-native-`),
+    )
+    fs.rmSync(directory, { recursive: true, force: true })
+  }
+})
+
+test('Notes native file-path lookups expose caller transaction/savepoint visibility without read effects', () => {
+  const db = getDbForTest()
+  const events: DataChangedPayload[] = []
+  const off = subscribeDataChanges((event) => events.push(event))
+  const read = () => {
+    const before = nativeStatsSnapshot(db)
+    const actual = findNoteFilePath(db, 'note')
+    assert.deepStrictEqual(actual, oldFindNoteFilePath(db, 'note'))
+    assert.deepStrictEqual(nativeStatsSnapshot(db), before)
+    return actual
+  }
+  try {
+    assert.throws(
+      () =>
+        db.transaction(() => {
+          seedNativeNotePath(db, 'note', 'outer/path')
+          assert.deepStrictEqual(read(), { file_path: 'outer/path' })
+          assert.throws(
+            () =>
+              db.transaction(() => {
+                db.prepare('UPDATE notes SET file_path=? WHERE id=?').run('', 'note')
+                assert.deepStrictEqual(read(), { file_path: '' })
+                throw new Error('inner rollback')
+              })(),
+            /inner rollback/,
+          )
+          assert.deepStrictEqual(read(), { file_path: 'outer/path' })
+          throw new Error('outer rollback')
+        })(),
+      /outer rollback/,
+    )
+    assert.strictEqual(read(), undefined)
+    assert.deepStrictEqual(events, [])
+    assert.strictEqual(db.inTransaction, false)
+  } finally {
+    off()
+  }
+})
+
+test('Notes native prepare/get errors retain identity and invalid binding failures still reach native get', () => {
+  const db = getDbForTest()
+  seedNativeNotePath(db, 'note', 'file')
+  for (const stage of ['prepare', 'get'] as const) {
+    const sentinel = { stage, message: 'native read sentinel' }
+    for (const read of [oldFindNoteFilePath, findNoteFilePath]) {
+      const tracking = traceNativeNotePath(db, { stage, value: sentinel })
+      let caught: unknown
+      try {
+        read(db, 'note')
+      } catch (error) {
+        caught = error
+      } finally {
+        tracking.restore()
+      }
+      assert.strictEqual(caught, sentinel)
+      assert.strictEqual(caught, tracking.error())
+      assert.deepStrictEqual(
+        tracking.stages,
+        stage === 'prepare' ? ['prepare'] : ['prepare', 'get'],
+      )
+    }
+  }
+  for (const id of [undefined, { bad: true }, Symbol('invalid')]) {
+    const results = []
+    for (const read of [oldFindNoteFilePath, findNoteFilePath]) {
+      const tracking = traceNativeNotePath(db)
+      let result
+      try {
+        result = submissionReadOutcome(() => Reflect.apply(read, undefined, [db, id]))
+        assert.deepStrictEqual(tracking.stages, ['prepare', 'get'])
+      } finally {
+        tracking.restore()
+      }
+      results.push(result)
+    }
+    assert.deepStrictEqual(results[1], results[0])
+  }
+})
+
+test('Notes native damaged-DDL errors retain prepare stage and code with explicit quoted-column spelling qualification', () => {
+  for (const damage of ['table', 'column'] as const) {
+    const db = new NativeDatabase(':memory:')
+    try {
+      if (damage === 'column') db.exec('CREATE TABLE notes(id TEXT PRIMARY KEY)')
+      const messages: string[] = []
+      for (const read of [oldFindNoteFilePath, findNoteFilePath]) {
+        const tracking = traceNativeNotePath(db)
+        let caught: unknown
+        try {
+          Reflect.apply(read, undefined, [db, null])
+        } catch (error) {
+          caught = error
+        } finally {
+          tracking.restore()
+        }
+        assert.strictEqual(caught, tracking.error())
+        assert.ok(caught instanceof Error && 'code' in caught)
+        assert.strictEqual(caught.name, 'SqliteError')
+        assert.strictEqual(caught.code, 'SQLITE_ERROR')
+        assert.deepStrictEqual(tracking.stages, ['prepare'])
+        messages.push(caught.message)
+      }
+      if (damage === 'table')
+        assert.deepStrictEqual(messages, ['no such table: notes', 'no such table: notes'])
+      else {
+        assert.strictEqual(messages[0], 'no such column: file_path')
+        assert.match(messages[1] ?? '', /^no such column:.*file_path/)
+        console.log(`Notes native missing-column diagnostics: ${JSON.stringify(messages)}`)
+      }
+    } finally {
+      db.close()
+    }
+  }
 })
 
 let dbForTest: Database.Database | null = null

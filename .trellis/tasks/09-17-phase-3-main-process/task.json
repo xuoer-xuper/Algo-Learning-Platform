@@ -21,6 +21,6 @@
   "children": [],
   "parent": "09-17-spec-alignment",
   "relatedFiles": [],
-  "notes": "A4d complete: work78f33b9/PR29CI45989652010/squashfb0dd45/PR8CI45991420238 pass, same testedtree; runtime53/fourzones, guard8, independent250+60/NY53, DB1046/native60, full2789/UI16/build; warmed0.97ms<50ms,819source stable. Frozen030/core/time; R2 relocation separately gated. A5notes inventory+independent A5a precheck complete, future/notapproved; next persist helper row/explicitDB, damagedDDL diagnostic and realapp nativeharness contracts before GO. Cap3; D62dirty unchanged; PR8draft/base dev; phase3 unfinished, no release/archive.",
+  "notes": "A5a on codex/drizzle-notes-file-path/base299b0e3: four notes filepath reads complete, exact service tails/8otherSQL preserved. Independent review no product findings; focused164/both types/lint, DB42files1109/native65/realapp21, full226files2852/UI16/build pass2026-11-28;823source/53protected stable. Native harness split externals and parent-after-exit cleanup corrected/reviewed. Commit/push/feature+integrationCI pending. A5b title/type research future only. Cap3; original D62dirty unchanged; PR8draft/base dev, no release/archive; phase3 unfinished.",
   "meta": {}
 }

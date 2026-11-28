@@ -24,6 +24,7 @@
 - 支持保存图片附件并返回 Markdown 相对路径。
 - 支持安全解析附件路径。
 - 支持删除单条笔记或题目关联笔记。
+- 正文、图片、附件解析、删除的文件路径读取共用 `db/repositories/notes/file-path.ts`；service 保留原连接获取位置和后续编排，剩余八处原生 SQL 分别迁移。
 
 `noteAssetProtocol.ts`：
 
@@ -87,11 +88,15 @@ DB 中的 `content` 是正文缓存；Markdown 文件是外部编辑器可直接
 
 ## 6. 测试入口
 
-当前没有独立 notes 单元测试。修改后至少运行：
+文件路径查询以独立旧 SQL/orchestration oracle 对照；真实 Electron 应用测试验证隔离 SQLite、Markdown 和附件，不以 mock 文件系统代替原生验收：
 
 ```powershell
 cd algo-electron
-node node_modules\typescript\bin\tsc --noEmit
+pnpm test:db
+pnpm test:all
 ```
 
-涉及文件读写时需要手测创建、编辑、插图、删除和外部打开目录。
+`tests/db/notes-file-path-reads.test.ts` 覆盖查询、调用顺序和异常；
+`tests/electron/notes-file-path-storage.test.ts` 由 DB 门启动真实应用，不运行于 Vitest 的 Electron double。
+数据库事务回滚不恢复已写入或删除的文件；现有双存储部分成功和保存结果问题不属于本次只读迁移的修复范围。
+涉及文件读写时仍需手测创建、编辑、插图、删除和外部打开目录。

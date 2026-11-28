@@ -44,6 +44,19 @@ read-only timeline submission ID output to allow already-returned null; keep
 request/problem IDs, metric outputs and LLM privacy allowlist unchanged. Empty
 first-AC batches must still acquire no database. Submission writes remain separate.
 
+### A5a Notes File-Path Read Acceptance (2026-11-27)
+
+After A4d and its handoff integration, parent accepts the independently reviewed
+four-read notes slice. Preserve file-path row presence, native equality/errors,
+original read/FS/write/clock/event order and caller-owned transactions. No other
+notes query, write, storage, IPC/UI/nullability policy or schema changes.
+
+The query helper uses an explicit caller-owned handle. Damaged-DDL parity covers
+native class/code/identity and failure stage, not identical quoted identifier
+wording. Isolated actual Electron/SQLite/storage acceptance must accompany the
+conversion; mocked storage alone is insufficient. Existing dual-store partial
+effects remain documented, not silently repaired. Later notes work stays separate.
+
 ### A4d Runtime Recompute Acceptance (2026-11-27)
 
 After A4c integration, parent accepts the independently reviewed runtime-only

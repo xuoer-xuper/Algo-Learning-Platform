@@ -59,6 +59,32 @@
 - [x] 正常hooks提交82a0163并立即推送，PR17 CI44521575932全绿后squash0927213合回Drizzle；
   PR8集成CI44522362714全绿。PR8保持draft/base dev，不发版、不归档阶段3。
 
+## A5a Execution Boundary (2026-11-27)
+
+- Branch codex/drizzle-notes-file-path starts at integrated299b0e3, after PR30
+  featureCI45993272623 and PR8CI45994240435 pass. Parent GO2026-11-27.
+- Gap: four identical native file-path lookups still require handwritten row
+  assertions; convert only those reads to a shared public-builder query.
+- [x] Inventory and independent precheck accepted; governing docs/spec persist
+  explicit-handle row return, damaged-DDL diagnostic qualification, real-app
+  native harness and parent-owned runner/config/ratchet decisions before GO.
+- [x] Worker1: helper/four call sites, frozen old lookup/method/batch oracle,
+  focused differential regression and append-only native query groups.
+- [x] Worker2: isolated actual Electron/SQLite/storage/protocol test; only the new
+  notes-file-path-storage.test.ts file, coordinated oracle imports if needed.
+- [x] Parent: dedicated notes runner with split ESM to defer transitive externals
+  and checked workspace cleanup after child exit; unchanged coach, DB registrations, exact
+  Vitest exclusion/ratchet12-to8 and repository/notes/test READMEs.
+- [x] Independent full review; both typechecks/lint and UTC6files164 focused/
+  callers pass, original AST/native preservation and runner ownership verified.
+- [x] Parent serial native65/realapp21, DB42files1109, full226files2852/UI16 and
+  build pass;823source hashes and53protected paths stable, original D62dirty intact.
+- [ ] Normal hooks/commit/immediate push; featureCI, squash to refactor/drizzle
+  and PR8 integration CI. Keep PR8draft/base dev, no release or phase archive.
+
+No full-row/type/IPC/UI/other notes writes or dual-store fixes in A5a. Later
+notes slices still require bounded design review; phase3 remains in_progress.
+
 ## A4d Execution Boundary (2026-11-27)
 
 - Branch codex/drizzle-stats-recompute starts at A4c squashaacbff0 after
@@ -81,12 +107,9 @@ R2 entry requires a separately approved historical-island relocation plan; exit
 requires exact change accounting, graph/history/recovery equivalence and final
 layout acceptance. Neither permission nor waiver is inferred from A4d.
 
-Next proposed A5a converts only four notes file_path reads. The notes inventory
-and independent precheck are in research/a5-notes-queries.md and
-research/a5a-notes-file-path-review.md. Before GO, persist the explicit-handle
-row-returning helper, damaged-DDL diagnostic qualification and isolated real-app
-native harness/runner/ratchet ownership in governing artifacts. Full-note reads,
-nullable list/UI policy and writes remain separately approved work.
+A5a now follows its separately approved boundary above. The prior inventory and
+precheck retain their historical future/not-approved status; governing approval
+is this plan/design/PRD and project/drizzle-notes-file-path.md, not research alone.
 
 ## A4c Execution Boundary (2026-11-27)
 
