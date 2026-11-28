@@ -17,6 +17,11 @@ import { oldDeleteNoteRow } from './notes-delete-oracle'
 import { updateNoteContentRow } from '../../electron/db/repositories/notes/content'
 import { oldUpdateNoteContentRow } from './notes-content-oracle'
 import {
+  prepareCreateNoteInsert,
+  type CreateNoteValues,
+} from '../../electron/db/repositories/notes/create'
+import { oldPrepareCreateNoteInsert } from './notes-create-oracle'
+import {
   originalRecomputeDailyStatsAt,
   originalRecomputeAllDailyStatsAt,
   originalRecomputeDailyStats,
@@ -6044,6 +6049,509 @@ test('Notes content native savepoint and deferred COMMIT failure preserve earlie
     assert.strictEqual(db.inTransaction, false)
     assert.deepStrictEqual(db.prepare('SELECT * FROM notes').all(), before)
     assert.deepStrictEqual(db.prepare('SELECT * FROM content_commit').all(), [])
+    return result
+  })
+})
+
+function nativeNoteCreateValues(): CreateNoteValues {
+  return {
+    id: 'note',
+    problemId: 'orphan-parent',
+    title: 'Title',
+    filePath: 'synthetic/path',
+    noteType: 'solution',
+    content: 'body',
+    wordCount: 1,
+    now: 17,
+  }
+}
+
+function nativeNoteCreateSchema(): string {
+  return getDbForTest()
+    .prepare<[], { sql: string }>(
+      "SELECT sql FROM sqlite_schema WHERE tbl_name='notes' AND sql IS NOT NULL ORDER BY CASE type WHEN 'table' THEN 0 ELSE 1 END,name",
+    )
+    .all()
+    .map(({ sql: definition }) => definition)
+    .join(';')
+}
+
+function compareNativeNoteCreate(
+  run: (db: Database.Database, prepare: typeof prepareCreateNoteInsert) => unknown,
+): void {
+  const definition = nativeNoteCreateSchema()
+  const results = []
+  for (const prepare of [oldPrepareCreateNoteInsert, prepareCreateNoteInsert]) {
+    const db = new NativeDatabase(':memory:')
+    const events: DataChangedPayload[] = []
+    const off = subscribeDataChanges((event) => events.push(event))
+    try {
+      db.pragma('foreign_keys=ON')
+      db.exec(definition)
+      results.push({ result: run(db, prepare), state: nativeStatsSnapshot(db), events })
+      assert.deepStrictEqual(events, [], 'Explicit creation helper must not publish events')
+    } finally {
+      off()
+      db.close()
+    }
+  }
+  assert.deepStrictEqual(results[1], results[0])
+}
+
+test('Notes create native carrier retains nine raw bindings, native results and array-order negative control', () => {
+  compareNativeNoteCreate((db, prepare) => {
+    const patches: object[] = [
+      {},
+      { id: null, problemId: null, content: '', wordCount: 0, now: 0 },
+      { id: undefined, problemId: undefined, now: 1.75 },
+      { id: '', problemId: '', now: 9e15 },
+      { id: "literal_%'", problemId: '\u4e2d\u6587', now: -1 },
+      { id: Buffer.from('id'), problemId: Buffer.from('parent'), content: Buffer.from([0, 255]) },
+      { id: 42, title: 7, filePath: 9, noteType: 3, wordCount: '4.5', now: 'raw-time' },
+      { wordCount: 2n, now: 9007199254740993n },
+      { wordCount: -Infinity, now: Infinity },
+      { wordCount: NaN },
+      { now: NaN },
+      { content: ['body', 'count-injected', 41], wordCount: 7, now: [] },
+      { id: ['note'], content: ['body'], wordCount: [2], now: [3] },
+      { content: [] },
+      { content: {} },
+      { title: {}, content: {} },
+      { title: Symbol('title'), now: 2n ** 63n },
+      { title: 2n ** 63n, now: Symbol('now') },
+      { now: true },
+      { now: new Date(0) },
+      { content: () => 'body' },
+    ]
+    const results = patches.map((patch) => {
+      db.exec('DELETE FROM notes')
+      const values = { ...nativeNoteCreateValues(), ...patch }
+      const tracking = traceNativeNoteMetadata(db)
+      const originalNow = Date.now
+      const originalUuid = crypto.randomUUID
+      let result
+      try {
+        Date.now = () => {
+          throw new Error('Create helper must not read clock')
+        }
+        crypto.randomUUID = () => {
+          throw new Error('Create helper must not generate IDs')
+        }
+        const prepared = prepare(db)
+        assert.deepStrictEqual(tracking.stages, ['prepare'])
+        assert.deepStrictEqual(tracking.bindings, [])
+        result = submissionReadOutcome(() => {
+          try {
+            const native: unknown = Reflect.apply(prepared.run, prepared, [values])
+            assert.strictEqual(native, tracking.result())
+            return native
+          } catch (error) {
+            assert.strictEqual(error, tracking.error())
+            throw error
+          }
+        })
+        assert.deepStrictEqual(tracking.stages, ['prepare', 'run'])
+        assert.deepStrictEqual(tracking.bindings, [
+          [
+            values.id,
+            values.problemId,
+            values.title,
+            values.filePath,
+            values.noteType,
+            values.content,
+            values.wordCount,
+            values.now,
+            values.now,
+          ],
+        ])
+        assert.strictEqual(tracking.bindings[0]?.[7], values.now)
+        assert.strictEqual(tracking.bindings[0]?.[8], values.now)
+        assert.strictEqual(tracking.queries.length, 1)
+        assert.strictEqual(tracking.queries[0]?.match(/\?/g)?.length, 9)
+        if (prepare === prepareCreateNoteInsert) {
+          const query = tracking.queries[0]?.replaceAll('"', '').toLowerCase()
+          assert.ok(query?.startsWith('with note_create_values as (select ? as id,'))
+          assert.ok(query.includes('null as deleted_at'))
+          assert.ok(!query.includes('returning') && !query.includes('on conflict'))
+        }
+      } finally {
+        Date.now = originalNow
+        crypto.randomUUID = originalUuid
+        tracking.restore()
+      }
+      if (typeof values.title === 'symbol') assert.strictEqual(result.error?.name, 'TypeError')
+      if (typeof values.title === 'bigint') assert.strictEqual(result.error?.name, 'RangeError')
+      return {
+        result,
+        rows: db
+          .prepare(
+            'SELECT *,typeof(id) AS id_type,typeof(problem_id) AS parent_type,typeof(content) AS content_type,typeof(word_count) AS count_type,typeof(created_at) AS time_type FROM notes',
+          )
+          .safeIntegers(true)
+          .all(),
+      }
+    })
+    db.exec('DELETE FROM notes')
+    const malformed = {
+      ...nativeNoteCreateValues(),
+      content: ['body', 'count-injected', 41],
+      wordCount: 7,
+      now: [],
+    }
+    Reflect.apply(prepare(db).run, undefined, [malformed])
+    const expected = {
+      content: 'body',
+      word_count: 'count-injected',
+      created_at: 41,
+      updated_at: 7,
+    }
+    const selection = 'SELECT content,word_count,created_at,updated_at FROM notes'
+    assert.deepStrictEqual(db.prepare(selection).get(), expected)
+    db.exec('DELETE FROM notes')
+    createDrizzleClient(db)
+      .insert(ormNotes)
+      .values({
+        id: sql`${sql.placeholder('id')}`,
+        problem_id: sql`${sql.placeholder('problemId')}`,
+        title: sql`${sql.placeholder('title')}`,
+        file_path: sql`${sql.placeholder('filePath')}`,
+        note_type: sql`${sql.placeholder('noteType')}`,
+        content: sql`${sql.placeholder('content')}`,
+        word_count: sql`${sql.placeholder('wordCount')}`,
+        created_at: sql`${sql.placeholder('now')}`,
+        updated_at: sql`${sql.placeholder('now')}`,
+      })
+      .prepare()
+      .run(malformed)
+    const reordered = db.prepare(selection).get()
+    assert.deepStrictEqual(reordered, {
+      content: '41.0',
+      word_count: 7,
+      created_at: 'body',
+      updated_at: 'count-injected',
+    })
+    assert.notDeepStrictEqual(reordered, expected)
+    return results
+  })
+})
+
+test('Notes create native factory prepares before payload getters and preserves failure identities and stages', () => {
+  compareNativeNoteCreate((db, prepare) => {
+    for (const stage of ['success', 'prepare', 'parent', 'title', 'run'] as const) {
+      db.exec('DELETE FROM notes')
+      const sentinel = { stage }
+      const tracking = traceNativeNoteMetadata(
+        db,
+        stage === 'prepare' || stage === 'run' ? { stage, value: sentinel } : undefined,
+      )
+      const input = {
+        get problemId() {
+          tracking.stages.push('parent')
+          if (stage === 'parent') throw sentinel
+          return 'parent'
+        },
+        get title() {
+          tracking.stages.push('title')
+          if (stage === 'title') throw sentinel
+          return 'Title'
+        },
+      }
+      let caught: unknown
+      try {
+        const result = prepare(db).run({
+          ...nativeNoteCreateValues(),
+          problemId: input.problemId,
+          title: input.title,
+        })
+        assert.strictEqual(result, tracking.result())
+      } catch (error) {
+        caught = error
+      } finally {
+        tracking.restore()
+      }
+      assert.strictEqual(caught, stage === 'success' ? undefined : sentinel)
+      const full = ['prepare', 'parent', 'title', 'run']
+      const end = stage === 'success' ? full.length : full.indexOf(stage) + 1
+      assert.deepStrictEqual(tracking.stages, full.slice(0, end))
+      if (stage === 'prepare' || stage === 'run') assert.strictEqual(caught, tracking.error())
+    }
+  })
+  for (const missing of ['table', 'title', 'content', 'created_at']) {
+    const db = new NativeDatabase(':memory:')
+    try {
+      if (missing !== 'table') {
+        db.exec(nativeNoteCreateSchema())
+        db.exec(`ALTER TABLE notes RENAME COLUMN ${missing} TO removed_column`)
+      }
+      for (const prepare of [oldPrepareCreateNoteInsert, prepareCreateNoteInsert]) {
+        const tracking = traceNativeNoteMetadata(db)
+        let caught: unknown
+        try {
+          prepare(db)
+        } catch (error) {
+          caught = error
+        } finally {
+          tracking.restore()
+        }
+        assert.strictEqual(caught, tracking.error())
+        assert.ok(caught instanceof Error && 'code' in caught)
+        assert.strictEqual(caught.name, 'SqliteError')
+        assert.strictEqual(caught.code, 'SQLITE_ERROR')
+        assert.deepStrictEqual(tracking.stages, ['prepare'])
+      }
+    } finally {
+      db.close()
+    }
+  }
+})
+
+test('Notes create native frozen defaults and combined constraints retain physical priority before uniqueness', () => {
+  compareNativeNoteCreate((db, prepare) => {
+    const columns = db
+      .prepare<[], { name: string; dflt_value: unknown }>('PRAGMA table_info(notes)')
+      .all()
+    assert.strictEqual(columns.find(({ name }) => name === 'deleted_at')?.dflt_value, null)
+    prepare(db).run(nativeNoteCreateValues())
+    assert.deepStrictEqual(db.prepare('SELECT deleted_at FROM notes').get(), { deleted_at: null })
+    const keys = ['title', 'filePath', 'noteType', 'now', 'content', 'wordCount'] as const
+    const physical = ['title', 'file_path', 'note_type', 'created_at', 'content', 'word_count']
+    const results = []
+    for (const value of [null, undefined]) {
+      for (let mask = 1; mask < 64; mask++) {
+        const payload: Record<string, unknown> = { ...nativeNoteCreateValues() }
+        keys.forEach((key, index) => {
+          if (mask & (1 << index)) payload[key] = value
+        })
+        const result = submissionReadOutcome(() =>
+          Reflect.apply(prepare(db).run, undefined, [payload]),
+        )
+        assert.strictEqual(result.error?.code, 'SQLITE_CONSTRAINT_NOTNULL')
+        const first = keys.findIndex((_, index) => (mask & (1 << index)) !== 0)
+        assert.strictEqual(
+          result.error?.message,
+          `NOT NULL constraint failed: notes.${physical[first]}`,
+        )
+        results.push(result)
+      }
+    }
+    const duplicate = submissionReadOutcome(() => prepare(db).run(nativeNoteCreateValues()))
+    assert.strictEqual(duplicate.error?.code, 'SQLITE_CONSTRAINT_PRIMARYKEY')
+    for (const id of [null, undefined, '', Buffer.from('note')]) {
+      db.exec('DELETE FROM notes')
+      const payload = { ...nativeNoteCreateValues(), id }
+      const first = submissionReadOutcome(() =>
+        Reflect.apply(prepare(db).run, undefined, [payload]),
+      )
+      const second = submissionReadOutcome(() =>
+        Reflect.apply(prepare(db).run, undefined, [payload]),
+      )
+      if (id == null) assert.ok(!second.error)
+      else assert.strictEqual(second.error?.code, 'SQLITE_CONSTRAINT_PRIMARYKEY')
+      results.push({ first, second, rows: db.prepare('SELECT * FROM notes').all() })
+    }
+    return { results, duplicate }
+  })
+})
+
+test('Notes create native triggers retain NEW fields, rowids and IGNORE FAIL ABORT audit effects', () => {
+  compareNativeNoteCreate((db, prepare) => {
+    db.exec(
+      'CREATE TABLE create_values(stage TEXT,id,parent,title,path,type,content,count,created,updated,deleted); CREATE TABLE create_rowids(stage TEXT,new_rowid,last_rowid); CREATE TABLE create_effects(mode TEXT)',
+    )
+    for (const stage of ['BEFORE', 'AFTER']) {
+      db.exec(`CREATE TRIGGER create_values_${stage} ${stage} INSERT ON notes BEGIN
+        INSERT INTO create_values VALUES ('${stage}',NEW.id,NEW.problem_id,NEW.title,NEW.file_path,NEW.note_type,NEW.content,NEW.word_count,NEW.created_at,NEW.updated_at,NEW.deleted_at); END`)
+      db.exec(`CREATE TRIGGER create_rowids_${stage} ${stage} INSERT ON notes BEGIN
+        INSERT INTO create_rowids VALUES ('${stage}',NEW.rowid,last_insert_rowid()); END`)
+    }
+    assert.deepStrictEqual(prepare(db).run(nativeNoteCreateValues()), {
+      changes: 1,
+      lastInsertRowid: 1,
+    })
+    assert.deepStrictEqual(prepare(db).run({ ...nativeNoteCreateValues(), id: 'second' }), {
+      changes: 1,
+      lastInsertRowid: 2,
+    })
+    assert.deepStrictEqual(db.prepare('SELECT * FROM create_rowids').all(), [
+      { stage: 'BEFORE', new_rowid: -1, last_rowid: 0 },
+      { stage: 'AFTER', new_rowid: 1, last_rowid: 1 },
+      { stage: 'BEFORE', new_rowid: -1, last_rowid: 1 },
+      { stage: 'AFTER', new_rowid: 2, last_rowid: 2 },
+    ])
+    const expected = {
+      id: 'note',
+      parent: 'orphan-parent',
+      title: 'Title',
+      path: 'synthetic/path',
+      type: 'solution',
+      content: 'body',
+      count: 1,
+      created: 17,
+      updated: 17,
+      deleted: null,
+    }
+    assert.deepStrictEqual(db.prepare("SELECT * FROM create_values WHERE id='note'").all(), [
+      { stage: 'BEFORE', ...expected },
+      { stage: 'AFTER', ...expected },
+    ])
+    db.exec(
+      'DROP TRIGGER create_values_BEFORE; DROP TRIGGER create_values_AFTER; DROP TRIGGER create_rowids_BEFORE; DROP TRIGGER create_rowids_AFTER',
+    )
+    const results = []
+    for (const timing of ['BEFORE', 'AFTER']) {
+      for (const mode of ['IGNORE', 'FAIL', 'ABORT']) {
+        const id = `${timing}-${mode}`
+        db.exec(`CREATE TRIGGER create_probe ${timing} INSERT ON notes BEGIN
+          INSERT INTO create_effects VALUES ('${id}'); SELECT RAISE(${mode === 'IGNORE' ? mode : `${mode}, 'create rejected'`}); END`)
+        const result = submissionReadOutcome(() =>
+          prepare(db).run({ ...nativeNoteCreateValues(), id }),
+        )
+        if (mode === 'IGNORE') {
+          assert.ok(result.rows && typeof result.rows === 'object' && 'changes' in result.rows)
+          assert.strictEqual(result.rows.changes, timing === 'BEFORE' ? 0 : 1)
+        } else assert.strictEqual(result.error?.code, 'SQLITE_CONSTRAINT_TRIGGER')
+        results.push({ result, state: nativeStatsSnapshot(db) })
+        db.exec('DROP TRIGGER create_probe')
+      }
+    }
+    assert.deepStrictEqual(db.prepare('SELECT * FROM create_effects').all(), [
+      { mode: 'BEFORE-IGNORE' },
+      { mode: 'BEFORE-FAIL' },
+      { mode: 'AFTER-IGNORE' },
+      { mode: 'AFTER-FAIL' },
+    ])
+    return results
+  })
+})
+
+test('Notes create native safe-integer results and multibyte payloads remain unencoded', () => {
+  compareNativeNoteCreate((db, prepare) => {
+    seedNativeNotePath(db, 'existing', 'existing/path')
+    db.exec('UPDATE notes SET rowid=9007199254740992')
+    db.defaultSafeIntegers(true)
+    const content = '\u4e2d'.repeat(1_398_101) + 'x'
+    assert.strictEqual(Buffer.byteLength(content), 4 * 1024 * 1024)
+    const tracking = traceNativeNoteMetadata(db)
+    let result
+    try {
+      result = prepare(db).run({ ...nativeNoteCreateValues(), content, now: 1.75 })
+      assert.strictEqual(result, tracking.result())
+      assert.strictEqual(result.lastInsertRowid, 9007199254740993n)
+    } finally {
+      tracking.restore()
+    }
+    assert.deepStrictEqual(
+      db
+        .prepare("SELECT content,created_at,updated_at,deleted_at FROM notes WHERE id='note'")
+        .get(),
+      { content, created_at: 1.75, updated_at: 1.75, deleted_at: null },
+    )
+    return result
+  })
+})
+
+test('Notes create native explicit handles preserve readonly closed and reinitialized connection independence', () => {
+  compareNativeNoteCreate((db, prepare) => {
+    db.pragma('query_only=ON')
+    const tracking = traceNativeNoteMetadata(db)
+    let result
+    try {
+      result = submissionReadOutcome(() => prepare(db).run(nativeNoteCreateValues()))
+      assert.deepStrictEqual(tracking.stages, ['prepare', 'run'])
+      assert.strictEqual(result.error?.code, 'SQLITE_READONLY')
+    } finally {
+      tracking.restore()
+      db.pragma('query_only=OFF')
+    }
+    return result
+  })
+  const source = getDbForTest()
+  const definition = nativeNoteCreateSchema()
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'algo-notes-create-native-'))
+  const target = path.join(directory, 'readonly.sqlite')
+  source.prepare('VACUUM INTO ?').run(target)
+  const readonly = new NativeDatabase(target, { readonly: true })
+  const other = new NativeDatabase(':memory:')
+  try {
+    const expected = submissionReadOutcome(() =>
+      oldPrepareCreateNoteInsert(readonly).run(nativeNoteCreateValues()),
+    )
+    assert.strictEqual(expected.error?.code, 'SQLITE_READONLY')
+    assert.deepStrictEqual(
+      submissionReadOutcome(() => prepareCreateNoteInsert(readonly).run(nativeNoteCreateValues())),
+      expected,
+    )
+    other.exec(definition)
+    const oldPrepared = oldPrepareCreateNoteInsert(source)
+    const prepared = prepareCreateNoteInsert(source)
+    closeDb()
+    assert.throws(getDb, /Database not initialized/)
+    assert.strictEqual(prepareCreateNoteInsert(other).run(nativeNoteCreateValues()).changes, 1)
+    assert.deepStrictEqual(
+      submissionReadOutcome(() => prepareCreateNoteInsert(source)),
+      submissionReadOutcome(() => oldPrepareCreateNoteInsert(source)),
+    )
+    assert.deepStrictEqual(
+      submissionReadOutcome(() => prepared.run(nativeNoteCreateValues())),
+      submissionReadOutcome(() => oldPrepared.run(nativeNoteCreateValues())),
+    )
+    const next = initDbAtPath(':memory:')
+    assert.strictEqual(
+      prepareCreateNoteInsert(next).run({ ...nativeNoteCreateValues(), title: 'New connection' })
+        .changes,
+      1,
+    )
+    assert.deepStrictEqual(other.prepare('SELECT title FROM notes').all(), [{ title: 'Title' }])
+    assert.deepStrictEqual(next.prepare('SELECT title FROM notes').all(), [
+      { title: 'New connection' },
+    ])
+  } finally {
+    other.close()
+    readonly.close()
+    const absolute = path.resolve(directory)
+    assert.strictEqual(path.dirname(absolute), path.resolve(os.tmpdir()))
+    assert.ok(path.basename(absolute).startsWith('algo-notes-create-native-'))
+    assert.strictEqual(fs.lstatSync(absolute).isSymbolicLink(), false)
+    assert.strictEqual(path.dirname(fs.realpathSync(absolute)), fs.realpathSync(os.tmpdir()))
+    fs.rmSync(directory, { recursive: true, force: true })
+  }
+})
+
+test('Notes create native savepoints and actual deferred COMMIT failures retain earlier autocommit rows', () => {
+  compareNativeNoteCreate((db, prepare) => {
+    prepare(db).run({ ...nativeNoteCreateValues(), id: 'committed' })
+    db.transaction(() => {
+      prepare(db).run({ ...nativeNoteCreateValues(), id: 'outer' })
+      assert.throws(
+        () =>
+          db.transaction(() => {
+            prepare(db).run({ ...nativeNoteCreateValues(), id: 'inner' })
+            throw new Error('inner rollback')
+          })(),
+        /inner rollback/,
+      )
+      assert.deepStrictEqual(db.prepare('SELECT id FROM notes ORDER BY id').all(), [
+        { id: 'committed' },
+        { id: 'outer' },
+      ])
+    })()
+    const before = db.prepare('SELECT * FROM notes ORDER BY rowid').all()
+    db.exec(
+      'CREATE TABLE create_commit(note_id TEXT REFERENCES notes(id) DEFERRABLE INITIALLY DEFERRED)',
+    )
+    let callbackFinished = false
+    const result = submissionReadOutcome(() =>
+      db.transaction(() => {
+        prepare(db).run({ ...nativeNoteCreateValues(), id: 'uncommitted' })
+        db.prepare('INSERT INTO create_commit VALUES (?)').run('missing')
+        callbackFinished = true
+      })(),
+    )
+    assert.strictEqual(callbackFinished, true)
+    assert.strictEqual(result.error?.code, 'SQLITE_CONSTRAINT_FOREIGNKEY')
+    assert.strictEqual(db.inTransaction, false)
+    assert.deepStrictEqual(db.prepare('SELECT * FROM notes ORDER BY rowid').all(), before)
+    assert.deepStrictEqual(db.prepare('SELECT * FROM create_commit').all(), [])
     return result
   })
 })

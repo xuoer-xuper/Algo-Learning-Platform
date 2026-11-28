@@ -59,6 +59,41 @@
 - [x] 正常hooks提交82a0163并立即推送，PR17 CI44521575932全绿后squash0927213合回Drizzle；
   PR8集成CI44522362714全绿。PR8保持draft/base dev，不发版、不归档阶段3。
 
+## A5e Execution Boundary (2026-11-28)
+
+- Branch codex/drizzle-notes-create starts at integrated handoff4fe73b3 after
+  PR37 and PR8CI46133166016 pass. Original D62dirty/HEAD20ee62c is preserved.
+- Smallest gap: createNote's one INSERT remains native. Convert only its query
+  construction, preserving original9bindings, eager prepare before second input
+  getters, third getters after event, native result identity and file-first effects.
+- Parent GO accepts actual-native197 and independent design review. Public CTE
+  INSERT SELECT needs an aliased literal NULL for deleted_at; initial candidate
+  TS2769 is retained, corrected strict candidate types pass. Implementation
+  acceptance is still pending, not established by the research-only probe.
+- Expected core scope: notes/create.ts, one service expression/import, tiny old
+  INSERT and create-only service oracle, one focused suite. Native worker appends
+  cases to the existing native/app suites; old statements/assertions stay intact.
+  Parent owns spec/task/context/docs, one DB registration, exact4-to3 ratchet,
+  protected accounting, serial gates and Git. No old observer change is approved.
+- Explicit non-goals: all three full reads, public types/IPC/UI behavior, physical
+  schema/history, storage compensation, directory move, release and phase archive.
+- [x] Actual-native matrix197/zero differences, corrected strict candidate types
+  and independent review; disclosed trigger spool/cost accepted without cache.
+- [x] Parent frozen030/IGNORE0/factory contracts and implementation GO persisted.
+- [x] Disjoint implementation: core75+IPC12, six-suite338 pass; native88/realapp44
+  first run pass; source freeze836. Only one expression/import changes service.
+- [x] Independent review fixes one test getter return annotation after TS2322;
+  both full types/lint/format and UTC11files439 pass. No runtime/assertion fix.
+  Old197native/50app-top/43app-runTests ASTs and66protected originals retained.
+- [x] Parent serial DB46files1372/native88/realapp44, full231files3127/UI16 and
+  build:check pass first run. All836source and66protected originals preserved;
+  D62dirty/HEAD20ee62c and dev/master/v2.0.1 unchanged. No installer acceptance.
+- [ ] Normal commit/immediatepush, feature CI, squash into Drizzle and PR8 CI.
+
+Cap3 total. A5d remains frozen; retain original protected hashes and their two
+historical observer exceptions, adding three exact A5d helper/oracle/test hashes.
+No success claim or compatibility qualification is inferred from mock execution.
+
 ## A5d Execution Boundary (2026-11-28)
 
 - Branch codex/drizzle-notes-content starts at integrated handoff48ba2c0.
@@ -84,7 +119,7 @@ Create and three full-row reads remain; no public type/IPC/UI/schema/history or
 dual-store repair. Earlier A5c NOTGO is superseded only for this reviewed content
 slice, not broader notes work. Phase3 and its parent remain in_progress.
 
-### Next A5e Candidate: NOT GO
+### Earlier A5e Candidate: Construction-Only NOT GO
 
 Research/a5e-notes-create-feasibility.md and independent preliminary precheck
 recommend actual-native proof of a public nine-parameter CTE/ten-column INSERT
@@ -95,6 +130,8 @@ omitted-deleted_at qualification and a separate create IGNORE0 exception require
 parent acceptance after actual proof. Do not begin production work, weaken traces
 or broaden full-row/nullability/UI/storage policy. All four native boundaries
 remain until a separately approved implementation is validated and integrated.
+The later A5e execution section supersedes this research-only NOTGO after actual
+native proof, independent review and governing approval; acceptance is pending.
 
 ## A5c Execution Boundary (2026-11-28)
 

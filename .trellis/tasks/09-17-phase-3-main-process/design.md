@@ -44,6 +44,36 @@ drizzle-kit0.31.11，安装后按实际API和Electron ABI验证，不采用beta�
 - 当前规模：25表、electron321个TS文件、250处prepare；排除迁移222处，repository162处。
   main1164/TabManager2494/CoachOrchestrator1474行，仅作分批规划，不硬套旧计数。
 
+## A5e Notes Creation (2026-11-28)
+
+Parent accepts research/a5e-create-native-feasibility.md and independent
+research/a5e-create-design-review.md on integrated4fe73b3. Governing executable
+contract is project/drizzle-notes-create.md; earlier construction/precheck NOTGO
+is superseded only for this one INSERT, after corrected strict types/native197.
+
+- Add an eager prepareCreateNoteInsert(db) typed run facade in notes/create.ts.
+  Public nine-placeholder CTE plus ten-field INSERT SELECT preserves original
+  arguments. Literal deleted_at NULL must use its public SQL alias. No private
+  API, fake table, raw INSERT, schema reorder, Date encoder or lifecycle/cache.
+- Change exactly one service receiver/run expression and import. Preserve files,
+  count, prepare before second getters and event before third getters. Return
+  remains constructed, errors propagate and native result is entirely ignored.
+- Explicitly accept frozen030 omitted-column equivalence and create-specific
+  successful-IGNORE0 event preservation. Arbitrary changed defaults/views are
+  excluded, guards unchanged; existing handles are not per-write validation.
+- Accept disclosed small-query construction overhead and trigger-only source
+  materialization; no timing/peak-memory guarantee. Do not expand to unproved
+  scalar-subquery alternatives or cache solely to optimize diagnostic triggers.
+- Core owns helper, substitution, tiny create oracles/focused suite and optional
+  narrow create IPC mapping/callback test (no handler change). Native worker
+  owns append-only native/app cases. Parent owns spec/context/docs, one focused
+  DB registration, exact4-to3 ratchet, protected accounting, serial gates/Git.
+
+No existing observer/test/assertion edits are approved. Preserve original66
+protected hashes and historical exceptions, native/app ASTs and service tails.
+Cap3 total, no recursive delegation. Full reads/nullability/type/UI/storage and
+later domains/layout remain separate; no release or phase archive.
+
 ## A5d Notes Content UPDATE (2026-11-28)
 
 Parent accepts the actual-native scalar-CTE evidence and independent

@@ -357,6 +357,68 @@ function assertMetadataOnlyTrace(trace: string[]): void {
   )
 }
 
+type CreateObservation = {
+  prepareError?: unknown
+  runError?: unknown
+  result?: (native: Database.RunResult) => unknown
+}
+
+function observeCreateDatabase(h: Harness, options: CreateObservation): () => void {
+  const descriptor = Object.getOwnPropertyDescriptor(h.db, 'prepare')
+  const prepare = h.db.prepare
+  Object.defineProperty(h.db, 'prepare', {
+    configurable: true,
+    value: (source: string) => {
+      const normalized = source.replace(/"/g, '').replace(/\s+/g, ' ').trim().toLowerCase()
+      const isCreate =
+        /^insert into notes\s*\(/.test(normalized) ||
+        normalized.startsWith('with note_create_values as (select ? as id,')
+      const kind = isCreate ? 'create' : normalized.split(' ')[0]
+      h.trace.push(`prepare:${kind}`)
+      if (isCreate && options.prepareError !== undefined) throw options.prepareError
+      const statement: Database.Statement = Reflect.apply(prepare, h.db, [source])
+      if (isCreate) {
+        const run = statement.run
+        Object.defineProperty(statement, 'run', {
+          configurable: true,
+          value: (...parameters: unknown[]) => {
+            h.trace.push(`run:create:${JSON.stringify(parameters)}`)
+            if (options.runError !== undefined) throw options.runError
+            const result: Database.RunResult = Reflect.apply(run, statement, parameters)
+            return options.result ? options.result(result) : result
+          },
+        })
+      }
+      return statement
+    },
+  })
+  return () => {
+    if (descriptor) Object.defineProperty(h.db, 'prepare', descriptor)
+    else Reflect.deleteProperty(h.db, 'prepare')
+  }
+}
+
+function observedCreate<T>(h: Harness, action: () => T, options: CreateObservation = {}): T {
+  const restoreDb = observeCreateDatabase(h, options)
+  const restoreFiles = observeFiles(h)
+  const restoreClock = observeClock(h)
+  try {
+    return action()
+  } finally {
+    restoreClock()
+    restoreFiles()
+    restoreDb()
+  }
+}
+
+function createdFixture(h: Harness, parent = '_standalone', id = UUID): Fixture {
+  assert.match(parent, /^[a-z_-]+$/)
+  assert.match(id, /^[a-z0-9-]+$/)
+  const filePath = contained(h.directory, path.join(h.directory, 'notes', parent, `${id}.md`))
+  const assetsDir = contained(h.directory, path.join(path.dirname(filePath), 'assets', id))
+  return { id, filePath, assetsDir }
+}
+
 async function runTests(noteProtocol: NoteProtocol): Promise<void> {
   await app.whenReady()
   connection = await import('../../electron/db/connection')
@@ -1281,6 +1343,517 @@ async function runTests(noteProtocol: NoteProtocol): Promise<void> {
         assert.equal(h.trace.filter((entry) => entry === 'clock').length, 1)
         assert.ok(!h.trace.includes('uuid'))
         results.push({ trace: [...h.trace], state: noteState(h, fixture.id), nativeChanges })
+      }
+      assert.deepEqual(results[1], results[0])
+    }
+  })
+
+  const createOracleModule = await import('../db/notes-create-oracle')
+  const originalCreate = createOracleModule.createNotesCreateOracle({
+    getDb: currentConnection().getDb,
+    nowMillis: () => Date.now(),
+    randomUUID: () => crypto.randomUUID(),
+    emitDataChanged: dataEvents.emitDataChanged,
+    createNoteFile: storage.createNoteFile,
+  }).createNote
+
+  await test('creation keeps standalone orphan paths, all note types, headers and constructed return fields', (h) => {
+    const inputs: Array<Parameters<Service['createNote']>[0]> = [
+      { title: 'Default title' },
+      { problem_id: null, title: '', content: '', note_type: 'solution' },
+      { problem_id: 'orphan-parent', title: 'Review', content: CONTENT, note_type: 'review' },
+      {
+        problem_id: 'orphan-parent',
+        title: 'Summary',
+        content: 'line one\nline two',
+        note_type: 'summary',
+      },
+    ]
+    for (const input of inputs) {
+      const results = []
+      for (const create of [originalCreate, service.createNote]) {
+        h.db.exec('DELETE FROM notes')
+        h.events.length = 0
+        h.trace.length = 0
+        const note = observedCreate(h, () => create(input))
+        const fixture = createdFixture(h, input.problem_id ?? '_standalone')
+        const content = input.content ?? ''
+        const count = oracleModule.originalCountWords(content)
+        const expected = {
+          id: UUID,
+          problem_id: input.problem_id ?? null,
+          title: input.title,
+          file_path: fixture.filePath,
+          note_type: input.note_type ?? 'solution',
+          content,
+          word_count: count,
+          created_at: NOW,
+          updated_at: NOW,
+        }
+        assert.deepEqual(note, expected)
+        assert.deepEqual(Object.keys(note), Object.keys(expected))
+        assert.deepEqual(h.db.prepare('SELECT * FROM notes').get(), {
+          ...expected,
+          deleted_at: null,
+        })
+        assert.equal(fs.readFileSync(fixture.filePath, 'utf8'), `# ${input.title}\n\n${content}`)
+        assert.deepEqual(h.events, [{ tables: ['notes'] }])
+        assert.deepEqual(
+          h.trace.filter((entry) => entry.startsWith('run:create:')),
+          [
+            `run:create:${JSON.stringify([UUID, input.problem_id ?? null, input.title, fixture.filePath, input.note_type ?? 'solution', content, count, NOW, NOW])}`,
+          ],
+        )
+        ordered(h.trace, [
+          'clock',
+          'uuid',
+          'fs:mkdirSync:',
+          'fs:writeFileSync:',
+          'prepare:create',
+          'run:create:',
+          'event:',
+        ])
+        assert.equal(h.trace.filter((entry) => entry === 'clock').length, 1)
+        assert.equal(h.trace.filter((entry) => entry === 'uuid').length, 1)
+        assert.equal(h.trace.filter((entry) => entry.startsWith('prepare:')).length, 1)
+        results.push({ note, trace: [...h.trace], files: metadataFiles(h) })
+      }
+      assert.deepEqual(results[1], results[0])
+    }
+  })
+
+  await test('creation retains three independent parent/title reads across file prepare and listener stages', (h) => {
+    const results = []
+    for (const create of [originalCreate, service.createNote]) {
+      h.db.exec('DELETE FROM notes')
+      h.events.length = 0
+      h.trace.length = 0
+      let parents = 0
+      let titles = 0
+      let emitted = false
+      const input = {
+        get problem_id() {
+          h.trace.push(`parent:${++parents}`)
+          return parents === 1
+            ? 'file-parent'
+            : parents === 2
+              ? 'db-parent'
+              : emitted
+                ? 'event-parent'
+                : 'wrong-parent'
+        },
+        get title() {
+          h.trace.push(`title:${++titles}`)
+          return titles === 1
+            ? 'File title'
+            : titles === 2
+              ? 'DB title'
+              : emitted
+                ? 'Event title'
+                : 'Wrong title'
+        },
+        get note_type() {
+          h.trace.push('type')
+          return 'review' as const
+        },
+        get content() {
+          h.trace.push('content')
+          return CONTENT
+        },
+      }
+      const off = dataEvents.subscribeDataChanges(() => {
+        emitted = true
+        h.trace.push('listener')
+      })
+      let note
+      try {
+        note = observedCreate(h, () => create(input))
+      } finally {
+        off()
+      }
+      const fixture = createdFixture(h, 'file-parent')
+      assert.equal(fs.readFileSync(fixture.filePath, 'utf8'), `# File title\n\n${CONTENT}`)
+      assert.deepEqual(h.db.prepare('SELECT problem_id,title FROM notes').get(), {
+        problem_id: 'db-parent',
+        title: 'DB title',
+      })
+      assert.equal(note.problem_id, 'event-parent')
+      assert.equal(note.title, 'Event title')
+      assert.equal(note.file_path, fixture.filePath)
+      assert.equal(parents, 3)
+      assert.equal(titles, 3)
+      ordered(h.trace, [
+        'clock',
+        'uuid',
+        'parent:1',
+        'type',
+        'content',
+        'title:1',
+        'fs:writeFileSync:',
+        'prepare:create',
+        'parent:2',
+        'title:2',
+        'run:create:',
+        'event:',
+        'listener',
+        'parent:3',
+        'title:3',
+      ])
+      results.push({ note, trace: [...h.trace] })
+    }
+    assert.deepEqual(results[1], results[0])
+  })
+
+  await test('creation late prepare getter and run failures retain files and only post-run errors retain events', (h) => {
+    const fixture = createdFixture(h)
+    const asset = addAsset(h, fixture)
+    for (const stage of ['prepare', 'parent:2', 'title:2', 'run', 'parent:3', 'title:3'] as const) {
+      const results = []
+      for (const create of [originalCreate, service.createNote]) {
+        h.db.exec('DELETE FROM notes')
+        h.events.length = 0
+        h.trace.length = 0
+        const sentinel = { stage }
+        let parents = 0
+        let titles = 0
+        const input = {
+          get problem_id() {
+            const label = `parent:${++parents}`
+            h.trace.push(label)
+            if (stage === label) throw sentinel
+            return null
+          },
+          get title() {
+            const label = `title:${++titles}`
+            h.trace.push(label)
+            if (stage === label) throw sentinel
+            return 'Created title'
+          },
+          content: CONTENT,
+        }
+        let caught: unknown
+        try {
+          observedCreate(h, () => create(input), {
+            ...(stage === 'prepare' ? { prepareError: sentinel } : {}),
+            ...(stage === 'run' ? { runError: sentinel } : {}),
+          })
+        } catch (error) {
+          caught = error
+        }
+        assert.equal(caught, sentinel)
+        const committed = stage === 'parent:3' || stage === 'title:3'
+        assert.deepEqual(h.events, committed ? [{ tables: ['notes'] }] : [])
+        assert.deepEqual(h.db.prepare('SELECT count(*) AS count FROM notes').get(), {
+          count: committed ? 1 : 0,
+        })
+        assert.equal(fs.readFileSync(fixture.filePath, 'utf8'), `# Created title\n\n${CONTENT}`)
+        assert.deepEqual(fs.readFileSync(asset), Buffer.from([1, 2, 3]))
+        const sequence = [
+          'clock',
+          'uuid',
+          'parent:1',
+          'title:1',
+          'fs:mkdirSync:',
+          'fs:writeFileSync:',
+          'prepare:create',
+          'parent:2',
+          'title:2',
+          'run:create:',
+          'event:',
+          'parent:3',
+          'title:3',
+        ]
+        const stopped =
+          stage === 'prepare' ? 'prepare:create' : stage === 'run' ? 'run:create:' : stage
+        ordered(h.trace, sequence.slice(0, sequence.indexOf(stopped) + 1))
+        assert.ok(h.trace.at(-1)?.startsWith(stopped))
+        results.push({ trace: [...h.trace], row: h.db.prepare('SELECT * FROM notes').get() })
+      }
+      assert.deepEqual(results[1], results[0])
+    }
+  })
+
+  await test('creation UUID collision overwrites Markdown before native uniqueness failure without touching assets', (h) => {
+    const results = []
+    for (const create of [originalCreate, service.createNote]) {
+      h.db.exec('DELETE FROM notes')
+      const first = observedCreate(h, () => create({ title: 'Original', content: initialBody }))
+      const fixture = createdFixture(h)
+      const asset = addAsset(h, fixture)
+      const before = h.db.prepare('SELECT * FROM notes').get()
+      h.events.length = 0
+      h.trace.length = 0
+      const error = observedCreate(h, () =>
+        sqliteError(
+          () => create({ title: 'Replacement', content: CONTENT }),
+          'SQLITE_CONSTRAINT_PRIMARYKEY',
+        ),
+      )
+      assert.equal(first.file_path, fixture.filePath)
+      assert.equal(fs.readFileSync(fixture.filePath, 'utf8'), `# Replacement\n\n${CONTENT}`)
+      assert.deepEqual(fs.readFileSync(asset), Buffer.from([1, 2, 3]))
+      assert.deepEqual(h.db.prepare('SELECT * FROM notes').get(), before)
+      assert.deepEqual(h.events, [])
+      ordered(h.trace, ['clock', 'uuid', 'fs:writeFileSync:', 'prepare:create', 'run:create:'])
+      results.push({
+        error: { name: error.name, message: error.message },
+        trace: [...h.trace],
+        row: before,
+      })
+    }
+    assert.deepEqual(results[1], results[0])
+  })
+
+  await test('creation trigger IGNORE FAIL and ABORT retain native audit rows and file-first notification outcomes', (h) => {
+    h.db.exec('CREATE TABLE create_audit(timing TEXT,mode TEXT,note_id TEXT,deleted_at)')
+    const fixture = createdFixture(h)
+    const asset = addAsset(h, fixture)
+    for (const timing of ['BEFORE', 'AFTER']) {
+      for (const mode of ['IGNORE', 'FAIL', 'ABORT']) {
+        const results = []
+        for (const create of [originalCreate, service.createNote]) {
+          h.db.exec('DELETE FROM notes; DELETE FROM create_audit')
+          h.db.exec(
+            `CREATE TRIGGER create_reject ${timing} INSERT ON notes BEGIN INSERT INTO create_audit VALUES ('${timing}','${mode}',NEW.id,NEW.deleted_at); SELECT RAISE(${mode === 'IGNORE' ? mode : `${mode}, 'create rejected'`}); END`,
+          )
+          h.events.length = 0
+          h.trace.length = 0
+          let outcome
+          try {
+            outcome = observedCreate(h, () => {
+              if (mode === 'IGNORE') return create({ title: 'Created', content: CONTENT })
+              const error = sqliteError(
+                () => create({ title: 'Created', content: CONTENT }),
+                'SQLITE_CONSTRAINT_TRIGGER',
+              )
+              return { name: error.name, message: error.message }
+            })
+          } finally {
+            h.db.exec('DROP TRIGGER create_reject')
+          }
+          assert.equal(fs.readFileSync(fixture.filePath, 'utf8'), `# Created\n\n${CONTENT}`)
+          assert.deepEqual(fs.readFileSync(asset), Buffer.from([1, 2, 3]))
+          assert.deepEqual(h.events, mode === 'IGNORE' ? [{ tables: ['notes'] }] : [])
+          const rowSurvives = timing === 'AFTER' && mode !== 'ABORT'
+          assert.deepEqual(
+            h.db.prepare('SELECT id FROM notes').all(),
+            rowSurvives ? [{ id: UUID }] : [],
+          )
+          const audit = h.db.prepare('SELECT * FROM create_audit').all()
+          assert.deepEqual(
+            audit,
+            mode === 'ABORT' ? [] : [{ timing, mode, note_id: UUID, deleted_at: null }],
+          )
+          ordered(h.trace, ['clock', 'uuid', 'fs:writeFileSync:', 'prepare:create', 'run:create:'])
+          if (mode === 'IGNORE') {
+            assert.ok('id' in outcome)
+            assert.equal(outcome.id, UUID)
+            assert.equal(outcome.file_path, fixture.filePath)
+            assert.equal(h.trace.at(-1), 'event:{"tables":["notes"]}')
+          }
+          results.push({
+            outcome,
+            audit,
+            trace: [...h.trace],
+            rows: h.db.prepare('SELECT * FROM notes').all(),
+          })
+        }
+        assert.deepEqual(results[1], results[0])
+      }
+    }
+  })
+
+  await test('creation ignores every native result property and listener mutations do not rewrite the returned cache', (h) => {
+    for (const mode of ['throwing-properties', 'undefined-result', 'reentrant-listener'] as const) {
+      const results = []
+      for (const create of [originalCreate, service.createNote]) {
+        h.db.exec('DELETE FROM notes')
+        h.events.length = 0
+        h.trace.length = 0
+        let reads = 0
+        let listenerCalls = 0
+        const input = { title: 'Created', content: CONTENT, problem_id: 'orphan-parent' }
+        const off = dataEvents.subscribeDataChanges(() => {
+          if (mode !== 'reentrant-listener' || listenerCalls++ > 0) return
+          input.title = 'Listener title'
+          input.problem_id = 'listener-parent'
+          service.updateNoteTitle(UUID, 'Reentrant database title')
+        })
+        let note
+        try {
+          note = observedCreate(h, () => create(input), {
+            result: (result) => {
+              assert.equal(result.changes, 1)
+              if (mode === 'undefined-result') return undefined
+              for (const key of ['changes', 'lastInsertRowid']) {
+                Object.defineProperty(result, key, {
+                  get: () => {
+                    reads++
+                    throw new Error('Create service must ignore native result')
+                  },
+                })
+              }
+              return result
+            },
+          })
+        } finally {
+          off()
+        }
+        const fixture = createdFixture(h, 'orphan-parent')
+        assert.equal(reads, 0)
+        assert.equal(note.title, mode === 'reentrant-listener' ? 'Listener title' : 'Created')
+        assert.equal(
+          note.problem_id,
+          mode === 'reentrant-listener' ? 'listener-parent' : 'orphan-parent',
+        )
+        assert.equal(note.content, CONTENT)
+        assert.equal(note.file_path, fixture.filePath)
+        assert.equal(fs.readFileSync(fixture.filePath, 'utf8'), `# Created\n\n${CONTENT}`)
+        assert.deepEqual(h.db.prepare('SELECT title,problem_id FROM notes').get(), {
+          title: mode === 'reentrant-listener' ? 'Reentrant database title' : 'Created',
+          problem_id: 'orphan-parent',
+        })
+        assert.deepEqual(
+          h.events,
+          Array.from({ length: mode === 'reentrant-listener' ? 2 : 1 }, () => ({
+            tables: ['notes'],
+          })),
+        )
+        results.push({ note, trace: [...h.trace] })
+      }
+      assert.deepEqual(results[1], results[0])
+    }
+  })
+
+  await test('creation native prepare and readonly errors follow real file creation with no success event', (h) => {
+    const fixture = createdFixture(h)
+    const asset = addAsset(h, fixture)
+    for (const mode of ['readonly', 'missing-column'] as const) {
+      if (mode === 'readonly') h.db.pragma('query_only=ON')
+      else h.db.exec('ALTER TABLE notes RENAME COLUMN title TO removed_title')
+      try {
+        const results = []
+        for (const create of [originalCreate, service.createNote]) {
+          h.trace.length = 0
+          h.events.length = 0
+          const error = observedCreate(h, () =>
+            sqliteError(
+              () => create({ title: 'Native rejected', content: CONTENT }),
+              mode === 'readonly' ? 'SQLITE_READONLY' : 'SQLITE_ERROR',
+            ),
+          )
+          assert.equal(fs.readFileSync(fixture.filePath, 'utf8'), `# Native rejected\n\n${CONTENT}`)
+          assert.deepEqual(fs.readFileSync(asset), Buffer.from([1, 2, 3]))
+          assert.deepEqual(h.events, [])
+          assert.deepEqual(h.db.prepare('SELECT id FROM notes').all(), [])
+          ordered(h.trace, ['clock', 'uuid', 'fs:writeFileSync:', 'prepare:create'])
+          assert.equal(
+            h.trace.some((entry) => entry.startsWith('run:create:')),
+            mode === 'readonly',
+          )
+          results.push({ name: error.name, code: Reflect.get(error, 'code'), trace: [...h.trace] })
+        }
+        assert.deepEqual(results[1], results[0])
+      } finally {
+        if (mode === 'readonly') h.db.pragma('query_only=OFF')
+        else h.db.exec('ALTER TABLE notes RENAME COLUMN removed_title TO title')
+      }
+    }
+  })
+
+  await test('creation rollback savepoints and actual failed COMMIT discard scoped topics but retain Markdown', (h) => {
+    h.db.exec(
+      'CREATE TABLE create_commit(note_id TEXT REFERENCES notes(id) DEFERRABLE INITIALLY DEFERRED)',
+    )
+    const fixture = createdFixture(h)
+    const asset = addAsset(h, fixture)
+    for (const mode of [
+      'rollback',
+      'return-getter',
+      'commit-failure',
+      'savepoint',
+      'commit',
+    ] as const) {
+      const results = []
+      for (const create of [originalCreate, service.createNote]) {
+        h.db.exec('DELETE FROM create_commit; DELETE FROM notes')
+        const existing = seed(h, 'existing')
+        h.trace.length = 0
+        h.events.length = 0
+        const sentinel = new Error('creation caller rollback')
+        let titles = 0
+        let callbackFinished = false
+        let nativeError: Error | undefined
+        const input = {
+          get title() {
+            if (++titles === 3 && mode === 'return-getter') throw sentinel
+            return 'Transactional title'
+          },
+          content: CONTENT,
+        }
+        const invoke = () =>
+          dataEvents.withDataChangeTransaction(() =>
+            h.db.transaction(() => {
+              if (mode === 'savepoint') {
+                assert.throws(
+                  () =>
+                    dataEvents.withDataChangeTransaction(() =>
+                      h.db.transaction(() => {
+                        create(input)
+                        assert.deepEqual(h.events, [])
+                        throw sentinel
+                      })(),
+                    ),
+                  (error) => error === sentinel,
+                )
+                assert.equal(service.updateNoteTitle(existing.id, 'Outer committed title'), true)
+              } else {
+                create(input)
+                assert.deepEqual(h.events, [])
+                if (mode === 'rollback') throw sentinel
+                if (mode === 'commit-failure')
+                  h.db.prepare('INSERT INTO create_commit VALUES (?)').run('missing')
+              }
+              callbackFinished = true
+            })(),
+          )
+        observedCreate(h, () => {
+          if (mode === 'rollback' || mode === 'return-getter')
+            assert.throws(invoke, (error) => error === sentinel)
+          else if (mode === 'commit-failure')
+            nativeError = sqliteError(invoke, 'SQLITE_CONSTRAINT_FOREIGNKEY')
+          else invoke()
+        })
+        assert.equal(
+          callbackFinished,
+          mode === 'commit-failure' || mode === 'savepoint' || mode === 'commit',
+        )
+        assert.equal(h.db.inTransaction, false)
+        assert.deepEqual(h.db.prepare('SELECT * FROM create_commit').all(), [])
+        assert.deepEqual(
+          h.db.prepare('SELECT id FROM notes WHERE id=?').all(UUID),
+          mode === 'commit' ? [{ id: UUID }] : [],
+        )
+        assert.deepEqual(h.db.prepare('SELECT title FROM notes WHERE id=?').get(existing.id), {
+          title: mode === 'savepoint' ? 'Outer committed title' : 'Title',
+        })
+        assert.deepEqual(
+          h.events,
+          mode === 'savepoint' || mode === 'commit' ? [{ tables: ['notes'] }] : [],
+        )
+        assert.equal(
+          fs.readFileSync(fixture.filePath, 'utf8'),
+          `# Transactional title\n\n${CONTENT}`,
+        )
+        assert.equal(fs.readFileSync(existing.filePath, 'utf8'), '# Title\n\nold body')
+        assert.deepEqual(fs.readFileSync(asset), Buffer.from([1, 2, 3]))
+        results.push({
+          trace: [...h.trace],
+          rows: h.db.prepare('SELECT * FROM notes ORDER BY id').all(),
+          error: nativeError
+            ? { name: nativeError.name, code: Reflect.get(nativeError, 'code') }
+            : undefined,
+        })
       }
       assert.deepEqual(results[1], results[0])
     }

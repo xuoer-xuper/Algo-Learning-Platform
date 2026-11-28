@@ -49,6 +49,7 @@
 - `notes-title-type-writes.test.ts` / `notes-title-type-oracle.ts`：A5b标题/类型两条更新与独立原SQL对照，验证原始绑定、两列SET、原生结果、时钟与两次changes读取、触发器及真实COMMIT；原生repository和隔离应用另验实际驱动行为及元数据更新不改文件。
 - `notes-delete-writes.test.ts` / `notes-delete-oracle.ts`：A5c单条DELETE与原生SQL对照，复用不变的A5a删除/批量编排oracle；验证单参数、原生结果和两次changes读取、files-first失败、NULL列表、部分autocommit、savepoint及真实COMMIT，不把数据库回滚当作文件恢复。
 - `notes-content-writes.test.ts` / `notes-content-oracle.ts`：A5d单行CTE正文更新与独立原SQL对照，复用不变的A5a正文编排oracle；保留四个原始绑定、原生结果、文件/时钟/字数/SQL顺序与catch边界，成功零变更仍通知且不读changes。旧focused/原生应用观察器仅增加固定CTE识别，原断言和故障注入不变。
+- `notes-create-writes.test.ts` / `notes-create-oracle.ts`：A5e立即准备的CTE/INSERT SELECT工厂，以独立原INSERT和创建编排对照九个绑定、三次输入读取、文件先行及忽略结果语义。原生和真实应用套件追加约束/触发器/事务及实际创建文件回归，不改旧观察器；显式NULL只按030结构验收，不把SQL回滚当作文件恢复。
 
 ## 3. 运行方式
 

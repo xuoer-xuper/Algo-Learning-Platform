@@ -21,6 +21,6 @@
   "children": [],
   "parent": "09-17-spec-alignment",
   "relatedFiles": [],
-  "notes": "A5d integrated2026-11-28: work640c557/PR36CI46131000311/squashf169848/PR8CI46131596412 pass,same testedtree. Independent review nofindings/fixes,UTC352/bothtypes/lint;DB1297/native81/realapp36/full3040/UI16/build firstpass.832source stable,62protectedexact+1preciseexception retains63originalhashes;D62dirty. FournotesSQLremain. NextA5e NOTGO: publicCTE INSERTSELECT eagerprepare factory needs actualnative proof,9bind10columns frozen030 and separateIGNORE0/gettersequence approval; research+precheck present. Cap3;PR8draft/base dev;no release/archive,phase3 incomplete.",
+  "notes": "A5e local acceptance2026-11-28 on4fe73b3: nativefeasibility197+review; eager public9bind/10column INSERTSELECT create-only. Independent implementation review fixes test getter annotation only; both types/lint/UTC439 pass. DB46files1372/native88/realapp44/full231files3127/UI16/build firstpass.836source stable,66originalprotected hashes retained;D62dirty preserved. Commit/push/featureCI/squash/PR8CI pending.Three notes full reads remain;A5f research notGO. Cap3;PR8draft/base dev;no release/archive;phase3 incomplete.",
   "meta": {}
 }

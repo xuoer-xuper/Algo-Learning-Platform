@@ -93,10 +93,17 @@ findings/fixes; both types/lint/UTC352, DB45files1297/native81/realapp36,
 full229files3040/UI16 and build pass first run. All832source hashes and63original
 protected hashes (62exact+1precise exception file) remain stable. Work640c557
 passes normal hooks/immediatepush; PR36CI46131000311/squashf169848 and
-PR8CI46131596412 pass with identical tested tree. Four notesSQL remain. A5e
-creation has construction-only research/precheck but remains NOTGO pending
-actual-native proof and explicit getter/schema/event acceptance; full reads/types
-and UI remain separately reviewed work.
+PR8CI46131596412 pass with identical tested tree. Handoff PR37/squash4fe73b3
+and PR8CI46133166016 pass. A5e create-only implementation GO accepts actual
+native197/zero differences, corrected aliasedNULL strict candidate and independent
+review. Eager preparation preserves nine binds and all three input getter stages;
+frozen030 ten-column/default and create-specific IGNORE0 qualifications are
+explicit, with measured trigger spool/cost disclosed. Independent implementation
+review fixes only a test getter annotation; both full types/lint/UTC439 pass.
+DB46files1372/native88/realapp44, full231files3127/UI16 and build pass first run;
+836source and66protected originals preserved. Normal hooks/CI integration is
+pending. Three full reads/types/UI remain separately reviewed work; no new
+old-observer exception is approved.
 Later domain/layout work remains incomplete.
 See phase3 a3a/a3b1/a3b2 verification artifacts; PR8 stays draft.
 

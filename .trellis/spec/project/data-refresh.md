@@ -65,6 +65,12 @@ window.api.data.onChanged(handler: (payload: DataChangedPayload) => void): () =>
   errors propagate outside its catch; inner errors return false with no event.
   Earlier file writes can survive SQL failure/rollback. Keep actual caller COMMIT
   scope, not new compensation or a changes predicate; see drizzle-notes-content.md.
+- Notes creation has its own preservation-only exception: successful INSERT run
+  emits `notes` before constructing the return object, including diagnostic
+  IGNORE0. The result is ignored; third input getters may fail after the write
+  and event. Caller rollback/actual COMMIT failure discards scoped topics, not
+  previously written Markdown. No new transaction, compensation or general
+  no-op rule is introduced; see drizzle-notes-create.md.
 - Wrap the synchronous **transaction invocation**, including commit, in
   `withDataChangeTransaction`. Successful nested scopes merge into the parent;
   failed scopes discard their own changes and rethrow. The outermost successful
@@ -131,6 +137,7 @@ window.api.data.onChanged(handler: (payload: DataChangedPayload) => void): () =>
 | Legacy all-days recompute returns positive / zero / throws late | One stats event / none / none; earlier autocommit effects can remain on late failure |
 | Legacy selected-date recompute later fails | Earlier successful single-day calls retain their scoped events/effects |
 | Legacy content UPDATE succeeds, including IGNORE0 or post-lookup disappearance | Emit notes and return true without reading changes; caller rollback still discards topics |
+| Legacy create INSERT succeeds, including IGNORE0 | Emit notes before return getters; ignored result, earlier file effects survive SQL rollback |
 | Outer transaction fails or commit throws | Publish none of that scope's topics |
 | Inner rollback caught, outer commit succeeds | Publish only successful outer topics |
 | Earlier autocommit succeeds, later batch item fails | Preserve notification for earlier commit |
