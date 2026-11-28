@@ -1035,6 +1035,122 @@ async function runTests(noteProtocol: NoteProtocol): Promise<void> {
     assert.deepEqual(metadataFiles(h), beforeFiles)
   })
 
+  const originalDelete = oracleModule.createNotesFilePathOracle({
+    getDb: currentConnection().getDb,
+    nowMillis: () => Date.now(),
+    emitDataChanged: dataEvents.emitDataChanged,
+    writeNoteContent: storage.writeNoteContent,
+    deleteNoteFiles: storage.deleteNoteFiles,
+    saveNoteImageAsset: storage.saveNoteImageAsset,
+    resolveNoteAssetPathFromFile: storage.resolveNoteAssetPathFromFile,
+  }).deleteNote
+
+  await test('native DELETE FAIL retains trigger audit after file removal, matching the frozen original', (h) => {
+    h.db.exec('CREATE TABLE delete_fail_audit(note_id TEXT)')
+    const results = []
+    for (const remove of [originalDelete, service.deleteNote]) {
+      h.db.exec('DELETE FROM notes; DELETE FROM delete_fail_audit')
+      const fixture = seed(h, 'note')
+      addAsset(h, fixture)
+      assertFixture(h, fixture)
+      h.events.length = 0
+      h.trace.length = 0
+      h.db.exec(
+        "CREATE TRIGGER delete_fail BEFORE DELETE ON notes BEGIN INSERT INTO delete_fail_audit VALUES (OLD.id); SELECT RAISE(FAIL, 'delete rejected'); END",
+      )
+      const error = observed(h, () =>
+        sqliteError(() => remove(fixture.id), 'SQLITE_CONSTRAINT_TRIGGER'),
+      )
+      assert.equal(fs.existsSync(fixture.filePath), false)
+      assert.equal(fs.existsSync(fixture.assetsDir), false)
+      assert.ok(noteState(h, fixture.id))
+      assert.deepEqual(h.events, [])
+      assert.deepEqual(h.db.prepare('SELECT * FROM delete_fail_audit').all(), [{ note_id: 'note' }])
+      ordered(h.trace, [
+        'prepare:lookup',
+        'get:lookup:',
+        'fs:unlinkSync:',
+        'fs:rmSync:',
+        'prepare:delete',
+        'run:delete:',
+      ])
+      assert.ok(!h.trace.some((entry) => entry === 'clock' || entry === 'uuid'))
+      results.push({
+        name: error.name,
+        message: error.message,
+        trace: [...h.trace],
+        row: h.db.prepare('SELECT * FROM notes').get(),
+      })
+      h.db.exec('DROP TRIGGER delete_fail')
+    }
+    assert.deepEqual(results[1], results[0])
+  })
+
+  await test('actual file-first DELETE retains changes event changes order and the uncached return predicate', (h) => {
+    const results = []
+    for (const remove of [originalDelete, service.deleteNote]) {
+      const fixture = seed(h, 'note')
+      addAsset(h, fixture)
+      assertFixture(h, fixture)
+      h.events.length = 0
+      h.trace.length = 0
+      const descriptor = Object.getOwnPropertyDescriptor(h.db, 'prepare')
+      const prepare = h.db.prepare
+      let reads = 0
+      Object.defineProperty(h.db, 'prepare', {
+        configurable: true,
+        value: (source: string) => {
+          const statement: Database.Statement = Reflect.apply(prepare, h.db, [source])
+          if (statementKind(source) === 'delete') {
+            const run = statement.run
+            Object.defineProperty(statement, 'run', {
+              configurable: true,
+              value: (...parameters: unknown[]) => {
+                const result: Database.RunResult = Reflect.apply(run, statement, parameters)
+                assert.equal(result.changes, 1)
+                Object.defineProperty(result, 'changes', {
+                  get: () => {
+                    h.trace.push(`changes:${++reads}`)
+                    return reads === 1 ? 1 : 0
+                  },
+                })
+                return result
+              },
+            })
+          }
+          return statement
+        },
+      })
+      try {
+        observed(h, () => assert.equal(remove(fixture.id), false))
+      } finally {
+        if (descriptor) Object.defineProperty(h.db, 'prepare', descriptor)
+        else Reflect.deleteProperty(h.db, 'prepare')
+      }
+      assert.equal(reads, 2)
+      assert.deepEqual(h.events, [{ tables: ['notes'] }])
+      assert.deepEqual(
+        h.trace.filter((entry) => entry.startsWith('changes:') || entry.startsWith('event:')),
+        ['changes:1', 'event:{"tables":["notes"]}', 'changes:2'],
+      )
+      ordered(h.trace, [
+        'fs:unlinkSync:',
+        'fs:rmSync:',
+        'prepare:delete',
+        'run:delete:',
+        'changes:1',
+        'event:',
+        'changes:2',
+      ])
+      assert.ok(!h.trace.some((entry) => entry === 'clock' || entry === 'uuid'))
+      assert.equal(noteState(h, fixture.id), undefined)
+      assert.equal(fs.existsSync(fixture.filePath), false)
+      assert.equal(fs.existsSync(fixture.assetsDir), false)
+      results.push([...h.trace])
+    }
+    assert.deepEqual(results[1], results[0])
+  })
+
   console.log(`[PASS] notes native Electron storage: ${passed}/${caseNumber} groups`)
 }
 

@@ -2,7 +2,8 @@
 
 Started: 2026-11-28. Branch codex/drizzle-notes-title-type, base
 41ef2e69746f8ea39a404172d9f47e90ea124a52. Independent review and final local
-gates pass; Git/CI integration remains pending. Phase3 and parent remain active.
+gates and both CI levels pass. Integration closure is recorded below.
+Phase3 and parent remain active.
 No release, installer, schema/history or public API change.
 
 ## Entry And Governing Boundary
@@ -69,3 +70,16 @@ trusted pointer/mouse/leave/focus/scroll events plus simultaneous visibility,
 label/payload, geometry/hit target and interaction state before any retry or fix.
 No sleeps, forced focus, repeated hover or weaker assertions. Later green gates
 alone cannot establish a root cause or repair.
+
+## Integration Closure
+
+Work8a32133d0ae53336f20921f491ff35f9042c77ef passes normal pre-commit and
+immediate pre-push/test:ci hooks without bypass/retry. PR33CI46105693154 passes,
+squash26be44865c0cb2aca046602e39482464ab7872cb integrates into refactor/drizzle
+with the exact tested tree. PR8CI46106465603 passes; PR8 remains draft/base dev.
+All826source hashes remain unchanged after hooks/integration. No release/archive.
+Evidence: tmp/drizzle-a5b-{commit,push,feature-ci,integration-ci}.log/.exit.
+
+Future content research discovers schema-order binding changes; parent accepts
+only the independently reviewed next DELETE6-to5 boundary after this integration.
+Content remains separate; no CTE acceptance or weakened trace test is inferred.

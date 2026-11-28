@@ -59,6 +59,27 @@
 - [x] 正常hooks提交82a0163并立即推送，PR17 CI44521575932全绿后squash0927213合回Drizzle；
   PR8集成CI44522362714全绿。PR8保持draft/base dev，不发版、不归档阶段3。
 
+## A5c Execution Boundary (2026-11-28)
+
+- Branch codex/drizzle-notes-delete starts at A5b squash26be448.
+- Gap: final notes DELETE remains native; convert only this statement, preserving
+  lookup/missing short-circuit, files-first effects and native results/events.
+- [x] Research/independent precheck accepted; explicit-handle DELETE and original
+  service/batch/native semantics persisted. Content remains separately deferred.
+- [x] PR8CI46106465603 passes; parent GO2026-11-28, cap3 total.
+- [x] Worker1 helper/substitution/tiny independent oracle/focused suite; worker2
+  native/app additions only, reusing previous deletion cases and unchanged runner.
+- [x] Parent focused registration, exact6-to5 ratchet and README/spec/context sync;
+  scoped runner lint/format, docs and architecture22/22 pass.
+- [x] Independent review fixes only authorized A5a DELETE observer qualifier;
+  UTC8files309/both types/lint/format pass; prior native/app ASTs preserved.
+- [x] Final DB44files1254/native75/realapp34, full228files2997/UI16/build pass;
+ 829source hashes stable,59protected exact+1approved observer/D62dirty preserved.
+- [ ] Normal hooks/commit/immediatepush; featureCI/squash/PR8integrationCI.
+
+Only DELETE is GO after prerequisites; no content/create/full reads, IPC/UI,
+schema/history/storage repair, release or phase archive. Phase3 remains active.
+
 ## A5b Execution Boundary (2026-11-28)
 
 - Branch codex/drizzle-notes-title-type starts at handoff squash41ef2e6.
@@ -76,7 +97,8 @@
   and UTC7files261 pass. No production finding; prior native/app ASTs preserved.
 - [x] Parent final DB43files1206/native71/realapp32, full227files2949/UI16 and
   build pass. All826source/57protected hashes and original D62dirty preserved.
-- [ ] Normal hooks/commit/immediate push; featureCI/squash to Drizzle/PR8CI.
+- [x] Work8a32133 normal hooks/immediatepush; PR33CI46105693154 green,
+  squash26be448 same tested tree; PR8CI46106465603 green.
 
 No other notes/full-read/IPC/UI/storage repair, release or phase archive. A5a
 handoff work6189c5a/PR32CI46100897809/squash41ef2e6 has identical tested tree.

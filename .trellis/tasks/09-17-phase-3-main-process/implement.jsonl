@@ -56,3 +56,6 @@
 {"file": ".trellis/spec/project/drizzle-notes-title-type.md", "reason": "Approved A5b explicit-handle metadata writes, raw BOTH SET bindings, native result/error/event and test ownership contracts"}
 {"file": ".trellis/tasks/09-17-phase-3-main-process/research/a5b-notes-title-type.md", "reason": "A5b installed-library evidence; alternate-driver probe is not native acceptance"}
 {"file": ".trellis/tasks/09-17-phase-3-main-process/research/a5b-notes-title-type-review.md", "reason": "Independent A5b design precheck accepted by parent; exact signatures, two changes reads and actual-driver matrix"}
+{"file": ".trellis/spec/project/drizzle-notes-delete.md", "reason": "Approved A5c DELETE-only explicit-handle raw result and original files/batch/events executable contract"}
+{"file": ".trellis/tasks/09-17-phase-3-main-process/research/a5c-notes-content-delete.md", "reason": "Delete-only candidate; content schema-order bind differences and unapproved alternatives"}
+{"file": ".trellis/tasks/09-17-phase-3-main-process/research/a5c-notes-delete-review.md", "reason": "Independent delete-only precheck accepted by parent; content remains deferred"}

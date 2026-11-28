@@ -37,6 +37,7 @@ const dbVitestFiles = [
   'tests/db/migrateLogging.test.ts',
   'tests/db/notes-file-path-reads.test.ts',
   'tests/db/notes-title-type-writes.test.ts',
+  'tests/db/notes-delete-writes.test.ts',
   'tests/db/omniboxSuggestions.test.ts',
   'tests/db/problemContextMigration.test.ts',
   'tests/db/problemLookup.test.ts',

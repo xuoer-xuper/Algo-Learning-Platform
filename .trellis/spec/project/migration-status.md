@@ -77,8 +77,13 @@ is accepted in governing artifacts; parent GO2026-11-28 authorizes only the two
 explicit-handle metadata UPDATEs with raw placeholders/native result semantics.
 Independent review fixes two test typings only; both types/lint/UTC261,
 DB43files1206/native71/realapp32, full227files2949/UI16 and build pass.
-All826source/57protected hashes are stable; A5b Git/CI integration remains
-pending. Later notes reads/types/writes are separate.
+All826source/57protected hashes are stable. Work8a32133 normal hooks/immediate
+push, PR33CI46105693154/squash26be448 and PR8CI46106465603 pass with identical
+tested tree. A5c DELETE-only6-to5 local acceptance passes independentUTC309/
+both types/lint, DB44files1254/native75/realapp34, full228files2997/UI16/build.
+All829source hashes stable;59protected exact+1approved A5a observer qualifier
+correction. A5c Git/CI pending. Content binding order needs its own decision,
+and later notes reads/types/writes remain separate.
 Later domain/layout work remains incomplete.
 See phase3 a3a/a3b1/a3b2 verification artifacts; PR8 stays draft.
 
@@ -108,7 +113,7 @@ See phase3 a3a/a3b1/a3b2 verification artifacts; PR8 stays draft.
 | Logging | ✅ 1.1（2026-11-01）：**electron-log 5.4.4**，`logger.scope()` + 脱敏 hook（原 regex 全量迁移 + `cookie=`）；RUN_AS_NODE 下文件 transport 关闭 | 同左 | 1.2 |
 | Config | ✅ 1.1（2026-11-01）：**electron-store 12**（原子存储层）+ zod 单层校验（`.default()`/`.catch()` 取代 normalizers）；conf 16 的 schema 校验会"坏文件即拒启"，与不清空红线冲突——故 schema 不传给 electron-store | 同左 | 1.3 |
 | Dev/prod isolation | ✅ 1.1（2026-11-01）：`envSetup.ts` 为 main.ts 首个 import（架构守卫强制），非打包且无冒烟 env 时 userData 加 `-dev`；冒烟覆盖优先 | 同左 | 1.3 |
-| Database | Drizzle0.45.4/Kit0.31.11 schema/client and trusted legacy/baseline coordinator; released2.0.1 recovery synchronized with preserved ancestry. Problem/submission/stats plus notes4file-path reads integrated through PR31. A5a passes independent/full2852/UI16/native65/realapp21/build and both CI gates. | Frozen historical branch; notes8queries/title-type planning, later domains/layout remain | 3.1; archived release-upgrade-safety |
+| Database | Drizzle0.45.4/Kit0.31.11 schema/client and trusted legacy/baseline coordinator; released2.0.1 recovery synchronized with preserved ancestry. Problem/submission/stats plus notes4file-path reads and2metadata writes integrated through PR33. A5b passes independent/full2949/UI16/native71/realapp32/build and both CI gates. | Frozen historical branch; notes6queries/delete-only next, later domains/layout remain | 3.1; archived release-upgrade-safety |
 | Timestamps | R5: 82 INTEGER Unix-ms columns, numeric live writers/IPC/shared schemas, display-only Intl; strict history-derived local/UTC+8/SQLite `.0` conversion. Reconstructed 21/24/29 and isolated actual 24/29 copies pass; original user DBs unchanged. | Numeric timestamp target reached; future Drizzle uses timestamp_ms. See `unix-millisecond-time.md`. | 2.5 |
 | Result shape | ✅ 1.1（2026-11-01）：20 处真正的 IPC 返回统一为 `createOutputSchema()` 判别联合（6 个封闭 `code`）；34 处 `{ok:}` 经复核确认是内部校验器/运行时协议形状、不跨 IPC 边界，不转换 | 同左 | 1.4 |
 | Event bus | 9 hand-written `Set<callback>` buses + 3 `EventEmitter` | typed `EventEmitter` wrapper | 3.6 |

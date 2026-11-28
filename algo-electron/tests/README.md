@@ -28,7 +28,7 @@
   - OJ 提交 bridge 和 postMessage 转发。
 - `db/`
   - 数据迁移辅助逻辑和 repository 临时数据库读写测试。
-  - 笔记路径查询及标题/类型更新以独立旧 SQL 差分验证；原生 repository 门补充实际绑定、触发器和事务行为。
+  - 笔记路径查询、标题/类型更新及删除以独立旧 SQL 差分验证；原生 repository 门补充实际绑定、触发器和事务行为。
 - `docs/`
   - Markdown 相对链接、README 覆盖、README 内容质量、总索引覆盖和 `npm run` 脚本引用一致性检查。
 - `electron/`

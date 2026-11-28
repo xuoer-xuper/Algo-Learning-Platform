@@ -44,6 +44,15 @@ read-only timeline submission ID output to allow already-returned null; keep
 request/problem IDs, metric outputs and LLM privacy allowlist unchanged. Empty
 first-AC batches must still acquire no database. Submission writes remain separate.
 
+### A5c Notes Deletion Acceptance (2026-11-28)
+
+After A5b integration, parent accepts the independent DELETE-only precheck.
+Preserve one raw binding/native result, original lookup and files-first effects,
+both changes reads, NULL-list/batch partial success and caller transaction/events.
+SQL rollback must not be described as restoring files. No content/create/full-row
+read or public contract/schema/storage repair is included. The content builder's
+changed parameter order requires separate acceptance, not weaker trace tests.
+
 ### A5b Notes Title/Type Acceptance (2026-11-28)
 
 After A5a integration, parent accepts the independently reviewed two-UPDATE

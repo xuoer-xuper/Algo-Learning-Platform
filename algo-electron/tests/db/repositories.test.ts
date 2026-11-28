@@ -12,6 +12,8 @@ import {
   updateNoteTypeRow,
 } from '../../electron/db/repositories/notes/title-type'
 import { oldUpdateNoteTitleRow, oldUpdateNoteTypeRow } from './notes-title-type-oracle'
+import { deleteNoteRow } from '../../electron/db/repositories/notes/delete'
+import { oldDeleteNoteRow } from './notes-delete-oracle'
 import {
   originalRecomputeDailyStatsAt,
   originalRecomputeAllDailyStatsAt,
@@ -5379,6 +5381,270 @@ test('Notes metadata native writes preserve caller savepoints and actual deferre
     assert.strictEqual(db.inTransaction, false)
     assert.deepStrictEqual(db.prepare('SELECT * FROM notes').all(), before)
     assert.deepStrictEqual(db.prepare('SELECT * FROM metadata_commit').all(), [])
+    return result
+  })
+})
+
+function compareNativeNoteDelete(
+  run: (db: Database.Database, remove: typeof deleteNoteRow) => unknown,
+): void {
+  const definition = getDbForTest()
+    .prepare<[], { sql: string }>("SELECT sql FROM sqlite_schema WHERE name='notes'")
+    .get()
+  assert.ok(definition)
+  const results = []
+  for (const remove of [oldDeleteNoteRow, deleteNoteRow]) {
+    const db = new NativeDatabase(':memory:')
+    const events: DataChangedPayload[] = []
+    const off = subscribeDataChanges((event) => events.push(event))
+    try {
+      db.pragma('foreign_keys=ON')
+      db.exec(definition.sql)
+      results.push({ result: run(db, remove), state: nativeStatsSnapshot(db), events })
+      assert.deepStrictEqual(events, [], 'Explicit DELETE helper must not publish events')
+    } finally {
+      off()
+      db.close()
+    }
+  }
+  assert.deepStrictEqual(results[1], results[0])
+}
+
+test('Notes DELETE native helper preserves one raw bind, untouched result and actual container diagnostics', () => {
+  compareNativeNoteDelete((db, remove) => {
+    const ids = ['note', '', 'Case', 'case', "literal_%'", '\u4e2d\u6587', 'with\0nul', null]
+    const inputs: unknown[] = [
+      ...ids,
+      'missing',
+      undefined,
+      ['note'],
+      ['note', 'extra'],
+      [],
+      {},
+      { noteId: 'note' },
+      Buffer.from('note'),
+      Symbol('invalid'),
+      true,
+      new Date(0),
+    ]
+    return inputs.map((id) => {
+      db.exec('DELETE FROM notes')
+      for (const stored of ids) seedNativeNotePath(db, stored, 'unchanged/path')
+      const tracking = traceNativeNoteMetadata(db)
+      const originalNow = Date.now
+      const originalUuid = crypto.randomUUID
+      let result
+      try {
+        Date.now = () => {
+          throw new Error('DELETE helper must not read the clock')
+        }
+        crypto.randomUUID = () => {
+          throw new Error('DELETE helper must not create an ID')
+        }
+        result = submissionReadOutcome(() => {
+          const native: unknown = Reflect.apply(remove, undefined, [db, id])
+          assert.strictEqual(native, tracking.result())
+          return native
+        })
+        assert.deepStrictEqual(tracking.stages, ['prepare', 'run'])
+        assert.deepStrictEqual(tracking.bindings, [[id]])
+        assert.strictEqual(tracking.queries.length, 1)
+        assert.strictEqual(
+          tracking.queries[0]
+            ?.replaceAll('"', '')
+            .replaceAll('notes.id', 'id')
+            .trim()
+            .toLowerCase(),
+          'delete from notes where id = ?',
+        )
+      } finally {
+        Date.now = originalNow
+        crypto.randomUUID = originalUuid
+        tracking.restore()
+      }
+      if (id === null || id === undefined || id === 'missing') {
+        assert.ok(result.rows && typeof result.rows === 'object' && 'changes' in result.rows)
+        assert.strictEqual(result.rows.changes, 0)
+      }
+      return { result, state: nativeStatsSnapshot(db) }
+    })
+  })
+})
+
+test('Notes DELETE native helper preserves trigger effects, readonly attempts and injected failure identities', () => {
+  compareNativeNoteDelete((db, remove) => {
+    seedNativeNotePath(db, 'note', 'unchanged/path')
+    db.exec('CREATE TABLE delete_audit(mode TEXT)')
+    const outcomes = []
+    for (const mode of ['IGNORE', 'FAIL', 'ABORT'] as const) {
+      db.exec(`CREATE TRIGGER delete_probe BEFORE DELETE ON notes BEGIN
+        INSERT INTO delete_audit VALUES ('${mode}');
+        SELECT RAISE(${mode === 'IGNORE' ? mode : `${mode}, 'delete rejected'`}); END`)
+      const result = submissionReadOutcome(() => remove(db, 'note'))
+      if (mode === 'IGNORE') {
+        assert.ok(result.rows && typeof result.rows === 'object' && 'changes' in result.rows)
+        assert.strictEqual(result.rows.changes, 0)
+      } else assert.strictEqual(result.error?.code, 'SQLITE_CONSTRAINT_TRIGGER')
+      outcomes.push({ result, audit: db.prepare('SELECT * FROM delete_audit').all() })
+      assert.ok(db.prepare("SELECT id FROM notes WHERE id='note'").get())
+      db.exec('DROP TRIGGER delete_probe')
+    }
+    assert.deepStrictEqual(db.prepare('SELECT * FROM delete_audit').all(), [
+      { mode: 'IGNORE' },
+      { mode: 'FAIL' },
+    ])
+    for (const stage of ['prepare', 'run'] as const) {
+      const sentinel = { stage }
+      const tracking = traceNativeNoteMetadata(db, { stage, value: sentinel })
+      let caught: unknown
+      try {
+        remove(db, 'note')
+      } catch (error) {
+        caught = error
+      } finally {
+        tracking.restore()
+      }
+      assert.strictEqual(caught, sentinel)
+      assert.strictEqual(caught, tracking.error())
+      assert.deepStrictEqual(
+        tracking.stages,
+        stage === 'prepare' ? ['prepare'] : ['prepare', 'run'],
+      )
+    }
+    db.pragma('query_only=ON')
+    for (const id of ['note', 'missing', null, undefined]) {
+      const tracking = traceNativeNoteMetadata(db)
+      let result
+      try {
+        result = submissionReadOutcome(() => Reflect.apply(remove, undefined, [db, id]))
+        assert.deepStrictEqual(tracking.stages, ['prepare', 'run'])
+      } finally {
+        tracking.restore()
+      }
+      assert.strictEqual(result.error?.code, 'SQLITE_READONLY')
+      outcomes.push({ result, audit: db.prepare('SELECT * FROM delete_audit').all() })
+    }
+    db.pragma('query_only=OFF')
+    return outcomes
+  })
+})
+
+test('Notes DELETE native result keeps bigint and explicit handles stay independent across readonly close and reinit', () => {
+  compareNativeNoteDelete((db, remove) => {
+    seedNativeNotePath(db, 'note', 'unchanged/path')
+    db.defaultSafeIntegers(true)
+    const tracking = traceNativeNoteMetadata(db)
+    try {
+      const result = remove(db, 'note')
+      assert.strictEqual(result, tracking.result())
+      assert.strictEqual(typeof result.lastInsertRowid, 'bigint')
+      return result
+    } finally {
+      tracking.restore()
+    }
+  })
+  const source = getDbForTest()
+  seedNativeNotePath(source, 'note', 'source/path')
+  const definition = source
+    .prepare<[], { sql: string }>("SELECT sql FROM sqlite_schema WHERE name='notes'")
+    .get()
+  assert.ok(definition)
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'algo-notes-delete-native-'))
+  const target = path.join(directory, 'readonly.sqlite')
+  source.prepare('VACUUM INTO ?').run(target)
+  const readonly = new NativeDatabase(target, { readonly: true })
+  const other = new NativeDatabase(':memory:')
+  try {
+    for (const id of ['note', 'missing']) {
+      const expected = submissionReadOutcome(() => oldDeleteNoteRow(readonly, id))
+      assert.strictEqual(expected.error?.code, 'SQLITE_READONLY')
+      assert.deepStrictEqual(
+        submissionReadOutcome(() => deleteNoteRow(readonly, id)),
+        expected,
+      )
+    }
+    other.exec(definition.sql)
+    seedNativeNotePath(other, 'note', 'other/path')
+    closeDb()
+    assert.throws(getDb, /Database not initialized/)
+    assert.strictEqual(deleteNoteRow(other, 'note').changes, 1)
+    assert.deepStrictEqual(
+      submissionReadOutcome(() => deleteNoteRow(source, 'note')),
+      submissionReadOutcome(() => oldDeleteNoteRow(source, 'note')),
+    )
+    const next = initDbAtPath(':memory:')
+    seedNativeNotePath(next, 'note', 'next/path')
+    assert.strictEqual(deleteNoteRow(next, 'note').changes, 1)
+    assert.strictEqual(deleteNoteRow(other, 'note').changes, 0)
+  } finally {
+    other.close()
+    readonly.close()
+    assert.ok(
+      path
+        .resolve(directory)
+        .startsWith(`${path.resolve(os.tmpdir())}${path.sep}algo-notes-delete-native-`),
+    )
+    fs.rmSync(directory, { recursive: true, force: true })
+  }
+})
+
+test('Notes DELETE native damaged schema fails at prepare while savepoints and actual COMMIT remain caller-owned', () => {
+  for (const tableExists of [false, true]) {
+    const db = new NativeDatabase(':memory:')
+    try {
+      if (tableExists) db.exec('CREATE TABLE notes(removed_id TEXT)')
+      const errors = []
+      for (const remove of [oldDeleteNoteRow, deleteNoteRow]) {
+        const tracking = traceNativeNoteMetadata(db)
+        let caught: unknown
+        try {
+          remove(db, 'missing')
+        } catch (error) {
+          caught = error
+        } finally {
+          tracking.restore()
+        }
+        assert.strictEqual(caught, tracking.error())
+        assert.ok(caught instanceof Error && 'code' in caught)
+        assert.deepStrictEqual(tracking.stages, ['prepare'])
+        assert.strictEqual(caught.code, 'SQLITE_ERROR')
+        errors.push({ constructor: caught.constructor, name: caught.name, code: caught.code })
+      }
+      assert.deepStrictEqual(errors[1], errors[0])
+    } finally {
+      db.close()
+    }
+  }
+  compareNativeNoteDelete((db, remove) => {
+    seedNativeNotePath(db, 'outer', 'outer/path')
+    seedNativeNotePath(db, 'inner', 'inner/path')
+    db.transaction(() => {
+      assert.strictEqual(remove(db, 'outer').changes, 1)
+      assert.throws(
+        () =>
+          db.transaction(() => {
+            remove(db, 'inner')
+            throw new Error('inner rollback')
+          })(),
+        /inner rollback/,
+      )
+      assert.deepStrictEqual(db.prepare('SELECT id FROM notes').all(), [{ id: 'inner' }])
+    })()
+    db.exec(
+      'CREATE TABLE delete_commit(note_id TEXT REFERENCES notes(id) DEFERRABLE INITIALLY DEFERRED)',
+    )
+    db.prepare('INSERT INTO delete_commit VALUES (?)').run('inner')
+    let callbackFinished = false
+    const result = submissionReadOutcome(() =>
+      db.transaction(() => {
+        assert.strictEqual(remove(db, 'inner').changes, 1)
+        callbackFinished = true
+      })(),
+    )
+    assert.strictEqual(callbackFinished, true)
+    assert.strictEqual(result.error?.code, 'SQLITE_CONSTRAINT_FOREIGNKEY')
+    assert.strictEqual(db.inTransaction, false)
+    assert.deepStrictEqual(db.prepare('SELECT id FROM notes').all(), [{ id: 'inner' }])
     return result
   })
 })
