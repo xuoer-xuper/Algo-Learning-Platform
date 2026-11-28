@@ -8,8 +8,8 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 21
-- **Last Active**: 2026-11-27
+- **Total Sessions**: 22
+- **Last Active**: 2026-11-28
 <!-- @@@/auto:current-status -->
 
 ---
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~746 | Active |
+| `journal-1.md` | ~784 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 22 | 2026-11-28 | Drizzle笔记路径查询集成与标题类型迁移交接 | `0e4054a`, `eafbed7` | `refactor/drizzle` |
 | 21 | 2026-11-27 | Drizzle统计重算集成验收与笔记查询边界交接 | `78f33b9`, `fb0dd45` | `refactor/drizzle` |
 | 20 | 2026-11-27 | Drizzle A2g至A4c集成验收与重算安全边界交接 | `6c42a38`, `001e23a`, `1a39af0`, `fa13260`, `ac7478d`, `4d60368`, `93c0df2`, `aacbff0` | `refactor/drizzle` |
 | 19 | 2026-11-20 | Drizzle A2f查询迁移与nullable输出验收交接 | `4cef9ea`, `2112734` | `refactor/drizzle` |

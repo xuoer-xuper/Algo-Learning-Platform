@@ -79,11 +79,17 @@
   callers pass, original AST/native preservation and runner ownership verified.
 - [x] Parent serial native65/realapp21, DB42files1109, full226files2852/UI16 and
   build pass;823source hashes and53protected paths stable, original D62dirty intact.
-- [ ] Normal hooks/commit/immediate push; featureCI, squash to refactor/drizzle
-  and PR8 integration CI. Keep PR8draft/base dev, no release or phase archive.
+- [x] Work0e4054a passes normal hooks/immediate push; PR31CI46099297905 passes,
+  squasheafbed7 has the same tested tree, PR8CI46099803141 passes. Keep PR8draft/
+  base dev, no release or phase archive.
 
 No full-row/type/IPC/UI/other notes writes or dual-store fixes in A5a. Later
 notes slices still require bounded design review; phase3 remains in_progress.
+Next A5b research/a5b-notes-title-type.md and independent precheck
+research/a5b-notes-title-type-review.md recommend exactly title/type UPDATEs;
+parent must persist explicit-handle write/raw-placeholder/native-result/error
+and test ownership contracts before GO. Alternate-driver probes are not native
+acceptance. No A5b production code is included in this handoff.
 
 ## A4d Execution Boundary (2026-11-27)
 
