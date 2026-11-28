@@ -21,6 +21,6 @@
   "children": [],
   "parent": "09-17-spec-alignment",
   "relatedFiles": [],
-  "notes": "A5d content-only local accepted2026-11-28 base48ba2c0: publicCTE preserves raw4binds and original service effects. Independent review nofindings/fixes,UTC352/bothtypes/lint;DB45files1297/native81/realapp36/full229files3040/UI16/build pass first run.832source stable,62protectedexact+1preciseexception retains63originalhashes;D62dirty. Normal commit/push/featureCI/integration pending. NextA5e create researchonlyNOTGO: eagerprepare/getters/9bind10fields requires nativeproof+precheck. Cap3;PR8draft/base dev;no release/archive,phase3 incomplete.",
+  "notes": "A5d integrated2026-11-28: work640c557/PR36CI46131000311/squashf169848/PR8CI46131596412 pass,same testedtree. Independent review nofindings/fixes,UTC352/bothtypes/lint;DB1297/native81/realapp36/full3040/UI16/build firstpass.832source stable,62protectedexact+1preciseexception retains63originalhashes;D62dirty. FournotesSQLremain. NextA5e NOTGO: publicCTE INSERTSELECT eagerprepare factory needs actualnative proof,9bind10columns frozen030 and separateIGNORE0/gettersequence approval; research+precheck present. Cap3;PR8draft/base dev;no release/archive,phase3 incomplete.",
   "meta": {}
 }

@@ -822,3 +822,41 @@ A5b标题类型和A5c删除独立实施、复核、完整验收并经PR33/34及P
 
 - 下一scope尚未GO：先实际验证content参数载体CTE的原生绑定/错误/触发器/性能并独立评审，或单独批准full-row nullable ID/任意type/消费者政策；不弱化现有trace。
 - 阶段3及父任务继续，PR8保持draft/base dev，不发版不归档；并发最多3。旧Tooltip偶发仍未定位，复发先保留可信事件/同时状态。
+
+
+## Session 24: Drizzle笔记正文迁移集成验收与创建边界交接
+<!-- trellis-session: v=2 fp=65abb3438359a376 -->
+
+**Date**: 2026-11-28
+**Task**: Drizzle笔记正文迁移集成验收与创建边界交接
+**Branch**: `refactor/drizzle`
+
+### Summary
+
+正文单行CTE保留原始绑定和文件先行语义，通过独立复核及全量原生验收，经PR36与PR8集成CI合入Drizzle；创建笔记候选已研究预审，仍待原生可行性与独立批准。
+
+### Main Changes
+
+- 仅新增显式正文helper并替换一条UPDATE；路径查询/catch/文件时钟字数通知顺序不变，完全忽略原生结果，5条原生SQL降至4条。
+- 固定CTE测试识别的两处增量精确授权，旧断言/oracle和187native/40app语句结构保留；未改公共接口、历史schema或双存储。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `640c557` | refactor(db): 迁移笔记正文更新并保留原生绑定与文件语义 |
+| `f169848` | refactor(db): 迁移笔记正文更新并保留原生绑定与文件语义 (#36) |
+
+### Testing
+
+- [OK] 独立UTC352/两份typecheck/lint无修正；DB45文件1297/native81/realapp36/full229文件3040/UI16/build均首次通过。
+- [OK] 正常hooks立即push；PR36CI46131000311/squashf169848与PR8CI46131596412通过且树一致，832源码哈希及D62dirty稳定。
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- A5e尚未GO：先实际原生验证publicCTE INSERTSELECT/eagerprepare，保留prepare前后及event后三次getter；单独批准9bind10列frozen030和IGNORE0语义，再实施。
+- 阶段3及父任务继续，PR8draft/base dev，不发布不归档，并发最多3；旧Tooltip偶发复发先保留可信事件/同时状态。

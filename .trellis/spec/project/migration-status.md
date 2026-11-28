@@ -91,8 +91,12 @@ and legacy successful-zero notification. Exactly two fixed-prefix test observer
 additions are approved without weaker assertions. Independent review has no
 findings/fixes; both types/lint/UTC352, DB45files1297/native81/realapp36,
 full229files3040/UI16 and build pass first run. All832source hashes and63original
-protected hashes (62exact+1precise exception file) remain stable. Git/CI closure
-is pending; creation, full reads/types and UI remain separately reviewed work.
+protected hashes (62exact+1precise exception file) remain stable. Work640c557
+passes normal hooks/immediatepush; PR36CI46131000311/squashf169848 and
+PR8CI46131596412 pass with identical tested tree. Four notesSQL remain. A5e
+creation has construction-only research/precheck but remains NOTGO pending
+actual-native proof and explicit getter/schema/event acceptance; full reads/types
+and UI remain separately reviewed work.
 Later domain/layout work remains incomplete.
 See phase3 a3a/a3b1/a3b2 verification artifacts; PR8 stays draft.
 
