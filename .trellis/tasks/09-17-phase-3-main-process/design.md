@@ -44,6 +44,37 @@ drizzle-kit0.31.11，安装后按实际API和Electron ABI验证，不采用beta�
 - 当前规模：25表、electron321个TS文件、250处prepare；排除迁移222处，repository162处。
   main1164/TabManager2494/CoachOrchestrator1474行，仅作分批规划，不硬套旧计数。
 
+## A5d Notes Content UPDATE (2026-11-28)
+
+Parent accepts the actual-native scalar-CTE evidence and independent
+research/a5d-content-design-review.md on base48ba2c0, after PR35 and
+PR8CI46110868010 pass. Executable contract: project/drizzle-notes-content.md.
+
+- content.ts exports updateNoteContentRow(db, noteId, content, wordCount, now):
+  Database.RunResult. Public single-row note_write_values CTE carries raw named
+  placeholders in original order; scalar SET/WHERE references keep four native
+  binds and one prepare/run. No Date mapping, lifecycle/cache or service logic.
+- Only one service prepare/run expression/import changes. Lookup remains outside
+  catch; file -> clock -> count -> UPDATE -> event -> true remains inside. Result
+  is entirely ignored, including IGNORE0/disappearance. Data-refresh exception
+  is explicitly accepted; no false-save UI or dual-store compensation change.
+- Normal SET failed actual array-container parity. Public UPDATE-FROM also passes
+  native comparisons but materializes the update payload; prefer scalar CTE's
+  measured indexed constant-coroutine plan. Small-input overhead and bounded
+  ASCII/CJK samples are disclosed, not a latency/peak-memory guarantee. No cache.
+- Approve exactly the fixed carrier-prefix branch in the two statementKind
+  functions named in the spec. Retain direct branches, all tests/assertions/raw
+  binds/injections and prior DELETE exception. Keep original protected hashes;
+  record exact additions rather than resetting baselines.
+- Reuse unchanged A5a service oracle plus tiny independent UPDATE oracle. Preserve
+  prior native/app test ASTs except those classifiers; add only missing coverage.
+
+Worker1 owns helper/substitution/tiny oracle/focused suite and approved focused
+classifier. Worker2 owns appended native/app cases and approved app classifier.
+Parent owns docs/spec/context, one DB registration, exact5-to4 ratchet, serial
+gates and Git. Cap3 total, no recursive delegation. Creation/full reads/nullable
+type/UI/schema/history/storage/layout remain separate; phase3 is not complete.
+
 ## A5c Notes Deletion (2026-11-28)
 
 Parent accepts research/a5c-notes-content-delete.md and the independent

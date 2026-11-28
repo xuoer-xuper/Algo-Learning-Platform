@@ -44,6 +44,16 @@ read-only timeline submission ID output to allow already-returned null; keep
 request/problem IDs, metric outputs and LLM privacy allowlist unchanged. Empty
 first-AC batches must still acquire no database. Submission writes remain separate.
 
+### A5d Notes Content Acceptance (2026-11-28)
+
+After A5c integration/handoff, parent accepts the independently reviewed
+content-only conversion backed by actual-native feasibility92 checks. Preserve
+four original raw arguments, file/clock/count/write ordering, lookup outside the
+catch and ignored native result. Successful zero-change run still emits/returns
+true; this is a preservation exception, not a new notification policy. Files are
+not restored by SQL rollback. Creation/full reads/public types/IPC/UI/schema and
+dual-store repair remain excluded. No weaker old assertions or bind-order waiver.
+
 ### A5c Notes Deletion Acceptance (2026-11-28)
 
 After A5b integration, parent accepts the independent DELETE-only precheck.

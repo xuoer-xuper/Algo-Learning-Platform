@@ -59,6 +59,30 @@
 - [x] 正常hooks提交82a0163并立即推送，PR17 CI44521575932全绿后squash0927213合回Drizzle；
   PR8集成CI44522362714全绿。PR8保持draft/base dev，不发版、不归档阶段3。
 
+## A5d Execution Boundary (2026-11-28)
+
+- Branch codex/drizzle-notes-content starts at integrated handoff48ba2c0.
+- Gap: one content UPDATE remains native; preserve original four raw binds and
+  file-first service behavior using a public scalar CTE, not plain reordered SET.
+- [x] Actual-native feasibility92, candidate strict types and independent design
+  precheck accepted; explicit helper/event/catch and two observer exceptions
+  persisted. PR8CI46110868010 passes; parent GO2026-11-28, cap3 total.
+- [x] Worker1 helper/one substitution/tiny oracle/focused tests+approved observer;
+  worker2 append-only native/app cases+approved observer, unchanged runner.
+- [x] Parent one focused registration, exact5-to4 ratchet, README/context sync;
+  scoped lint/format, docs/architecture22 and initial native81/realapp36 pass.
+- [x] Independent complete review finds no issues/fixes; prior187native/40app AST
+  statements retained except approved classifiers; both types/lint/format and
+  UTC9files352 pass. Protected62exact+1authorized file retains original hashes.
+- [x] Parent serial DB45files1297/native81/realapp36, full229files3040/UI16 and
+  build:check pass first run;832source hashes/protected/D62dirty preserved.
+- [ ] Normal commit/immediate push, featureCI/squash into Drizzle then PR8CI;
+  verify tested-tree equality. PR8 stays draft/base dev, no release/archive.
+
+Create and three full-row reads remain; no public type/IPC/UI/schema/history or
+dual-store repair. Earlier A5c NOTGO is superseded only for this reviewed content
+slice, not broader notes work. Phase3 and its parent remain in_progress.
+
 ## A5c Execution Boundary (2026-11-28)
 
 - Branch codex/drizzle-notes-delete starts at A5b squash26be448.

@@ -1,6 +1,7 @@
 import { emitDataChanged } from '../shared/dataEvents'
 import crypto from 'node:crypto'
 import { getDb } from '../db/connection'
+import { updateNoteContentRow } from '../db/repositories/notes/content'
 import { deleteNoteRow } from '../db/repositories/notes/delete'
 import { findNoteFilePath } from '../db/repositories/notes/file-path'
 import { updateNoteTitleRow, updateNoteTypeRow } from '../db/repositories/notes/title-type'
@@ -171,11 +172,7 @@ export function updateNoteContent(noteId: string, content: string): boolean {
     writeNoteContent(note.file_path, content)
     const now = nowMillis()
     const wordCount = countWords(content)
-    db.prepare(
-      `
-      UPDATE notes SET content = ?, word_count = ?, updated_at = ? WHERE id = ?
-    `,
-    ).run(content, wordCount, now, noteId)
+    updateNoteContentRow(db, noteId, content, wordCount, now)
     emitDataChanged(['notes'])
     return true
   } catch {
