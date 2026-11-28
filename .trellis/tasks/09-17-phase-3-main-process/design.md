@@ -44,6 +44,40 @@ drizzle-kit0.31.11，安装后按实际API和Electron ABI验证，不采用beta�
 - 当前规模：25表、electron321个TS文件、250处prepare；排除迁移222处，repository162处。
   main1164/TabManager2494/CoachOrchestrator1474行，仅作分批规划，不硬套旧计数。
 
+## A5c Notes Deletion (2026-11-28)
+
+Parent accepts research/a5c-notes-content-delete.md and the independent
+research/a5c-notes-delete-review.md for DELETE ONLY. Base26be448 follows A5b
+PR33CI46105693154 and squash integration; PR8CI46106465603 passes before GO.
+Executable contract: project/drizzle-notes-delete.md.
+
+- notes/delete.ts exports deleteNoteRow(db: Database.Database, noteId: string):
+  Database.RunResult. Public delete/where with raw named placeholder, prepare,
+  run once; return untouched result with no other lifecycle or service work.
+- NoteService changes only final DELETE initializer/import. Preserve existing
+  lookup/missing stop/cleanup/prepare/run/changes/event/changes. Direct helper
+  no-match still runs; service no-match does not. Runtime NULL batch still looks
+  up with equality. Never prepare before files or cache the two result predicates.
+- Existing swallowed cleanup, files-first SQL failure, IGNORE/FAIL/ABORT effects,
+  partial autocommit, actual COMMIT/savepoints and listener behavior stay intact.
+  No bulk delete, compensation, new transaction or content write conversion.
+- Reuse unchanged A5a old service oracle plus tiny independent DELETE oracle;
+  preserve A5a/B focused/native/app coverage and parent-owned runner lifecycle.
+- Review finds six A5a cases bypass their DELETE observer because its recognizer
+  accepts WHERE id but not builder WHERE notes.id. Parent approves one optional
+  notes. qualifier in that test-only classifier; preserve all bodies/assertions/
+  traces/error injections and content matching. Protected accounting is59exact
+  hashes plus this explicitly authorized one-line difference from the old hash.
+- Content remains separate: public normal SET follows schema order, changing
+  original bindings. Do not reorder shared schema/weaken exact trace or promote
+  a construction-only CTE experiment to native compatibility proof.
+
+Worker1 owns helper/one service substitution/tiny oracle/new focused tests.
+Worker2 owns only append-only native groups and bounded existing real-app additions.
+Parent owns docs/spec/context/one DB entry/exact6-to5 budget, serial gates and Git.
+Cap3 total; no recursive delegation or edits to other owners' files. Independent
+full review follows writer freeze. No phase archive or release is authorized.
+
 ## A5b Notes Title/Type Writes (2026-11-28)
 
 Parent accepts research/a5b-notes-title-type.md and its independent precheck.

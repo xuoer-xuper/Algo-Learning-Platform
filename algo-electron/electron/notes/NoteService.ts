@@ -1,6 +1,7 @@
 import { emitDataChanged } from '../shared/dataEvents'
 import crypto from 'node:crypto'
 import { getDb } from '../db/connection'
+import { deleteNoteRow } from '../db/repositories/notes/delete'
 import { findNoteFilePath } from '../db/repositories/notes/file-path'
 import { updateNoteTitleRow, updateNoteTypeRow } from '../db/repositories/notes/title-type'
 import { nowMillis } from '../shared/time'
@@ -220,7 +221,7 @@ export function deleteNote(noteId: string): boolean {
   deleteNoteFiles(note.file_path, noteId)
 
   // 删除 DB 记录
-  const result = db.prepare(`DELETE FROM notes WHERE id = ?`).run(noteId)
+  const result = deleteNoteRow(db, noteId)
   if (result.changes > 0) emitDataChanged(['notes'])
   return result.changes > 0
 }

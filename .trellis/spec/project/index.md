@@ -33,6 +33,7 @@ which today.
 | [drizzle-stats-recompute.md](./drizzle-stats-recompute.md) | A4d runtime-only writes, frozen historical branch, native effects and explicit refresh exceptions | Before runtime recompute or later historical relocation planning |
 | [drizzle-notes-file-path.md](./drizzle-notes-file-path.md) | A5a explicit-handle file-path reads, original storage/error ordering and isolated native-app evidence | Before notes file-path queries or their test harness changes |
 | [drizzle-notes-title-type.md](./drizzle-notes-title-type.md) | A5b explicit-handle metadata writes, raw bindings, native results and unchanged file storage | Before notes title/type updates |
+| [drizzle-notes-delete.md](./drizzle-notes-delete.md) | A5c explicit-handle DELETE, files-first effects, native results and batch/transaction ordering | Before notes deletion changes |
 | [config-normalization-protection.md](./config-normalization-protection.md) | Verified raw config backup, staged automatic normalization and safe failure diagnostics | When changing config load/writeback or its backup helper |
 | [release-evidence.md](./release-evidence.md) | Release identity, artifact evidence and guarded publication lifecycle | When changing release scripts, packaging or publication gates |
 | [upgrade-recovery.md](./upgrade-recovery.md) | Verified migration checkpoints, interruption and explicit resolution | When changing database initialization, backup, restore or maintenance startup |
