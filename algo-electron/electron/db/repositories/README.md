@@ -18,7 +18,7 @@
 - `submission/`：提交行类型、去重写入、按题目/平台查询和首次 AC 更新。
 - `statsRepository.ts`：统计 repository 兼容导出口；实际实现位于 `stats/`。
 - `stats/`：趋势查询、平台分布、时间线、复访、错题、未复习、连续活跃和日统计重算。
-- `notes/`：四处文件路径查询、标题/类型两条元数据更新、正文更新，以及单条笔记删除；创建和三个完整读取暂留 service。
+- `notes/`：四处文件路径查询、标题/类型两条元数据更新、正文更新、单条笔记删除和创建写入；三个完整读取暂留 service。
 - `siteRepository.ts`：站点配置 repository 兼容导出口；实际实现位于 `site/`。
 - `site/`：站点配置 CRUD、内置站点 seed、导入导出预览和确认。
 - `userScriptRepository.ts`：用户脚本 repository 兼容导出口；实际实现位于 `userScript/`。
@@ -57,6 +57,7 @@
 - A5b 同样批准 `notes/title-type.ts` 接受显式连接完成标题/类型两条元数据更新：只返回原生 `RunResult`，不获取连接、读时钟、发通知或操作文件；service 保留两次 `changes` 判断及事件顺序。
 - A5c 的 `notes/delete.ts` 也接受显式连接并返回原生结果；service 仍先查询路径、清理文件，再执行删除和两次 `changes` 判断，helper 不接管文件或事务。
 - A5d 的 `notes/content.ts` 用公开单行 CTE 保留正文、字数、时间、ID 的原生绑定顺序；只包装显式连接，service 保留先写文件再更新数据库及既有 catch/通知行为，完全不读取原生结果。成功但零变更仍通知属于保留旧行为，不是新写入规则。
+- A5e 的 `notes/create.ts` 提供立即准备的窄类型 `run` 工厂：公开 CTE/INSERT SELECT 保留原始九个绑定，语句准备仍先于第二次输入读取，通知先于第三次读取。显式 `deleted_at=NULL` 只按当前 030 物理结构验证，不承诺任意改动默认值后的等价性；成功零变更仍通知，文件先行的部分成功不作补偿。
 - Schema 变化必须先写 migration，再更新 repository。
 - 不在 repository 中发网络请求、执行浏览器脚本或读取 Electron session。
 - 不记录 Cookie 明文、用户源码或完整请求体。

@@ -44,6 +44,20 @@ read-only timeline submission ID output to allow already-returned null; keep
 request/problem IDs, metric outputs and LLM privacy allowlist unchanged. Empty
 first-AC batches must still acquire no database. Submission writes remain separate.
 
+### A5e Notes Creation Acceptance (2026-11-28)
+
+After A5d/handoff integration4fe73b3 and green PR8CI46133166016, parent accepts
+actual-native197 feasibility and independent create-only design review. Preserve
+nine raw bindings with the public CTE INSERT SELECT and an eager typed prepare
+factory. Keep all three parent/title reads at their original file/prepare/event
+stages and ignore the native result, including successful IGNORE0. Accept the
+explicit ten-column versus old nine-column omission only on frozen030 (nullable
+deleted_at without default), not arbitrary altered DDL. Startup guards remain.
+Measured trigger spool/small-construction cost is disclosed, not performance
+equality. No old observer exception, three full reads, public API/UI, schema,
+history or dual-store repair is included. Formal service/native/app/full gates
+remain required before acceptance; this is implementation GO only.
+
 ### A5d Notes Content Acceptance (2026-11-28)
 
 After A5c integration/handoff, parent accepts the independently reviewed

@@ -2,6 +2,7 @@ import { emitDataChanged } from '../shared/dataEvents'
 import crypto from 'node:crypto'
 import { getDb } from '../db/connection'
 import { updateNoteContentRow } from '../db/repositories/notes/content'
+import { prepareCreateNoteInsert } from '../db/repositories/notes/create'
 import { deleteNoteRow } from '../db/repositories/notes/delete'
 import { findNoteFilePath } from '../db/repositories/notes/file-path'
 import { updateNoteTitleRow, updateNoteTypeRow } from '../db/repositories/notes/title-type'
@@ -91,12 +92,16 @@ export function createNote(input: CreateNoteInput): Note {
   // DB 缓存的实际正文（不含标题行，标题由 title 字段管理）
   const wordCount = countWords(content)
 
-  db.prepare(
-    `
-    INSERT INTO notes (id, problem_id, title, file_path, note_type, content, word_count, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `,
-  ).run(id, input.problem_id ?? null, input.title, filePath, noteType, content, wordCount, now, now)
+  prepareCreateNoteInsert(db).run({
+    id,
+    problemId: input.problem_id ?? null,
+    title: input.title,
+    filePath,
+    noteType,
+    content,
+    wordCount,
+    now,
+  })
 
   emitDataChanged(['notes'])
   return {

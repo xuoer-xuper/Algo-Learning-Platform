@@ -28,12 +28,12 @@
   - OJ 提交 bridge 和 postMessage 转发。
 - `db/`
   - 数据迁移辅助逻辑和 repository 临时数据库读写测试。
-  - 笔记路径查询、标题/类型更新及删除以独立旧 SQL 差分验证；原生 repository 门补充实际绑定、触发器和事务行为。
+  - 笔记路径查询、标题/类型/正文更新、删除及创建以独立旧 SQL 差分验证；原生 repository 门补充实际绑定、触发器和事务行为。
 - `docs/`
   - Markdown 相对链接、README 覆盖、README 内容质量、总索引覆盖和 `npm run` 脚本引用一致性检查。
 - `electron/`
   - Electron 应用启动 smoke test，以及 Vitest Electron test-double 的薄壳契约测试。
-  - 隔离的真实笔记存储测试覆盖文件路径编排，并证明标题/类型元数据更新不修改 Markdown 或附件；沿用受检临时目录和退出后父进程清理。
+  - 隔离的真实笔记存储测试覆盖文件路径编排、正文/创建的文件先行与事务部分效果，并证明标题/类型元数据更新不修改 Markdown 或附件；沿用受检临时目录和退出后父进程清理。
 - `downloads/`
   - 受控下载路径、DownloadManager 结果状态和 `.user.js` 安装请求路由。
 - `diagnostics/`
