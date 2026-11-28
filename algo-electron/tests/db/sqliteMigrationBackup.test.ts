@@ -279,3 +279,45 @@ it('fails closed for legacy failure records regardless of pending overlap, and n
   )
   expect(readMigrationCheckpoint(dbPath, backupDir)).toBeNull()
 })
+
+it('blocks Drizzle markers regardless of pending keys or repaired resource hashes', () => {
+  const { dbPath, backupDir } = paths()
+  writeMigrationFailureMarker(backupDir, dbPath, {
+    databasePath: dbPath,
+    backupPath: path.join(backupDir, 'backup.sqlite'),
+    failedAt: new Date().toISOString(),
+    pendingMigrations: [],
+    pendingMigrationKeys: ['drizzle:0001_future'],
+    error: 'failed',
+  })
+  for (const keys of [[], ['drizzle:0001_future'], ['drizzle:0002_other']]) {
+    expect(() => assertMigrationRetryAllowed(backupDir, dbPath, [], keys)).toThrow(
+      MigrationRetryBlockedError,
+    )
+  }
+})
+
+it.each([
+  {},
+  { pendingMigrationKeys: ['drizzle:../outside'] },
+  { pendingMigrationKeys: [123] },
+  { pendingMigrationKeys: 'drizzle:0000_baseline' },
+  { pendingMigrations: [{ version: '30', name: 'wrong-type' }] },
+])('fails closed on malformed marker fields: %j', (corrupt) => {
+  const { dbPath, backupDir } = paths()
+  const markerPath = writeMigrationFailureMarker(backupDir, dbPath, {
+    databasePath: dbPath,
+    backupPath: path.join(backupDir, 'backup.sqlite'),
+    failedAt: new Date().toISOString(),
+    pendingMigrations: [],
+    error: 'failed',
+  })
+  const valid: Record<string, unknown> = JSON.parse(fs.readFileSync(markerPath, 'utf8'))
+  fs.writeFileSync(
+    markerPath,
+    JSON.stringify(Object.keys(corrupt).length ? { ...valid, ...corrupt } : corrupt),
+  )
+  expect(() => assertMigrationRetryAllowed(backupDir, dbPath, [])).toThrow(
+    MigrationRetryBlockedError,
+  )
+})

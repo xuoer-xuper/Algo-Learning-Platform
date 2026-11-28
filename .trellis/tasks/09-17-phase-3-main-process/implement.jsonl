@@ -1,13 +1,71 @@
 {"file": ".trellis/spec/shared/code-quality.md", "reason": "强制规则：无 !、无 any、命名、错误处理"}
 {"file": ".trellis/spec/project/domain-rules.md", "reason": "不可放松的产品/安全红线"}
 {"file": ".trellis/spec/project/migration-status.md", "reason": "当前位置与目标位置对照"}
+{"file": ".trellis/tasks/09-17-phase-3-main-process/research/start-readiness.md", "reason": "Post030 inventory and bounded A0 scope, schema/Date/backup compatibility"}
+{"file": ".trellis/spec/project/unix-millisecond-time.md", "reason": "Preserve numeric IPC and legacy030 contracts through ORM Date mapping"}
+{"file": ".trellis/spec/project/data-refresh.md", "reason": "Transactions and committed-write notifications must remain correct"}
+{"file": ".trellis/spec/project/regression-checks.md", "reason": "Guard coverage and real-runner mutation tests"}
 {"file": ".trellis/tasks/archive/2026-09/00-bootstrap-guidelines/research/spec-alignment-plan.md", "reason": "本阶段步骤与决策编号"}
 {"file": ".trellis/spec/backend/directory-structure.md", "reason": "services/{domain} 布局"}
 {"file": ".trellis/spec/backend/api-module.md", "reason": "procedure 形状"}
 {"file": ".trellis/spec/backend/api-patterns.md", "reason": "反模式"}
 {"file": ".trellis/spec/backend/database.md", "reason": "Drizzle client/schema/migrate"}
+{"file": ".trellis/spec/project/drizzle-adoption.md", "reason": "A0 schema equivalence and ownership boundaries"}
+{"file": ".trellis/tasks/09-17-phase-3-main-process/research/a2-problem-queries.md", "reason": "A2a overview-only behavior, Date encoding, null/zero and native ABI tests"}
+{"file": ".trellis/tasks/09-17-phase-3-main-process/research/a2c-problem-upsert.md", "reason": "A2c exact bound-null UPDATE, SET-list triggers, title/time and transaction notification parity"}
+{"file": ".trellis/tasks/09-17-phase-3-main-process/research/a1-migration-protocol.md", "reason": "A1 resources, ledger/schema validation, backup/marker and packaging protocol"}
+{"file": ".trellis/tasks/09-17-phase-3-main-process/research/drizzle-installed-contract.md", "reason": "Installed Drizzle migrator actual ledger and transaction behavior"}
 {"file": ".trellis/spec/backend/quality.md", "reason": "import 路径与 BARE SQL"}
 {"file": ".trellis/spec/guides/code-reuse-thinking-guide.md", "reason": "收敛项"}
 {"file": ".trellis/spec/guides/transaction-consistency-guide.md", "reason": "事务"}
 {"file": ".trellis/tasks/archive/2026-09/00-bootstrap-guidelines/research/backend-audit.md", "reason": "主进程审计证据"}
 {"file": ".trellis/tasks/archive/2026-09/00-bootstrap-guidelines/research/reinvented-wheels-audit.md", "reason": "A3/A6/A9/A12/B 类"}
+{"file": ".trellis/spec/project/upgrade-recovery.md", "reason": "Preserve released verified checkpoints, legacy resolution and fail-closed recovery while adopting Drizzle"}
+{"file": ".trellis/spec/project/config-normalization-protection.md", "reason": "Preserve released raw configuration protection"}
+{"file": ".trellis/spec/project/release-evidence.md", "reason": "Keep published release/tag/evidence immutable; builds must not publish"}
+{"file": ".trellis/tasks/09-17-phase-3-main-process/research/release-hardening-sync-design.md", "reason": "Reviewed format1 compatibility and composite Drizzle checkpoint/recovery synchronization contract"}
+{"file": ".trellis/tasks/09-17-phase-3-main-process/research/a2d-problem-delete.md", "reason": "Reviewed A2d raw-instant UNION, deletion/transaction and post-inner-transaction statistics equivalence"}
+{"file": ".trellis/tasks/09-17-phase-3-main-process/research/a2e-problem-reads.md", "reason": "A2e complete recent-visit candidate CTE, equality-proven non-null FK projection, preserved horizon and deferred DTO policy"}
+{"file": ".trellis/tasks/09-17-phase-3-main-process/research/a2f-nullable-contract.md", "reason": "A2f truthful nullable outputs, equality-proven detail identity, full-row raw-scalar parity and explicitly deferred recent-list UI policy"}
+{"file": ".trellis/tasks/09-17-phase-3-main-process/research/a2f-nullable-contract-review.md", "reason": "Approved A2f design; native bound-string identity vs JS Unicode normalization, selected output schema correction and fixed query invariants"}
+{"file": ".trellis/tasks/09-17-phase-3-main-process/research/a2g-recent-problems.md", "reason": "A2g query and caller research, typed LIMIT placeholder and nullable recent output"}
+{"file": ".trellis/tasks/09-17-phase-3-main-process/research/a2g-recent-problems-review.md", "reason": "Approved bounded A2g design: exact shared ID predicate, retained URL navigation, disabled actions with visible accessible reason and stable tuple keys"}
+{"file": ".trellis/tasks/09-17-phase-3-main-process/research/a3-submission-queries.md", "reason": "A3a four submission reads, truthful schema-derived full rows, nullable timeline output and preserved privacy/callers"}
+{"file": ".trellis/tasks/09-17-phase-3-main-process/research/a3-submission-queries-review.md", "reason": "Approved A3a: fixed AC SQL literal preserves native bind count; empty aggregate short circuit, raw MIN, internal nullable map only"}
+{"file": ".trellis/spec/project/drizzle-submission-reads.md", "reason": "A3a executable full-row/raw-time/native-limit/caller contracts, split to avoid context truncation"}
+{"file": ".trellis/tasks/09-17-phase-3-main-process/research/a3b-submission-writes.md", "reason": "A3b1 supported030 INSERT16vs14 limits, original prepare/getter/UUID order, raw placeholders, IGNORE and transaction events"}
+{"file": ".trellis/tasks/09-17-phase-3-main-process/research/a3b-submission-writes-review.md", "reason": "Approved A3b1 bounded schema scope; prepared duplicate lookup before getters and qualified damaged-schema diagnostic limitation"}
+{"file": ".trellis/spec/project/drizzle-submission-writes.md", "reason": "A3b1 accepted030 scope, prepared lookup/INSERT ordering, raw parameters and native/event/transaction matrix"}
+{"file": ".trellis/tasks/09-17-phase-3-main-process/research/a3b-first-ac-review.md", "reason": "Approved A3b2: eager three prepares before Set iterator, exact raw-time state/date/event ordering and native trigger/COMMIT contracts"}
+{"file": ".trellis/tasks/09-17-phase-3-main-process/research/a4-stats-queries.md", "reason": "Stats inventory with separate nullable daily/list policies and migration030-coupled recompute warning"}
+{"file": ".trellis/tasks/09-17-phase-3-main-process/research/a4a-stats-basic-review.md", "reason": "Approved three-read A4a: raw numeric aggregate/AVG NULL/native SUM overflow/latest-time and lifecycle contracts"}
+{"file": ".trellis/spec/project/drizzle-stats-reads.md", "reason": "Executable A4a read contracts, required native overflow and no write/schema/interface changes"}
+{"file": ".trellis/tasks/09-17-phase-3-main-process/research/a4b-daily-reads-contract.md", "reason": "A4b1 exact four-query/raw-null/clock contracts and chart selector evidence; A4b2 excluded"}
+{"file": ".trellis/tasks/09-17-phase-3-main-process/research/a4b-daily-reads-review.md", "reason": "Independent A4b1 approval conditions: nullable shared shape and both ordinal chart/Tooltip correction"}
+{"file": ".trellis/spec/project/drizzle-daily-reads.md", "reason": "Accepted A4b1 executable query/types/chart boundary and native/UI tests"}
+{"file": ".trellis/tasks/09-17-phase-3-main-process/research/a4b1-implementation-review.md", "reason": "A4b1 independent implementation and native pointer/router blocker evidence; bounded lifecycle fix approved"}
+{"file": ".trellis/tasks/09-17-phase-3-main-process/research/a4c-insight-lists-contract-review.md", "reason": "Approved A4c four-query nullable output/key policy, COUNT child ID/raw MAX/native LIMIT and prepare/two-clock contracts"}
+{"file": ".trellis/spec/project/drizzle-insight-lists.md", "reason": "Executable A4c query/consumer/privacy/error and independent regression contracts"}
+{"file": ".trellis/tasks/09-17-phase-3-main-process/research/a4d-stats-recompute-design.md", "reason": "A4d complete runtime/native query and frozen historical split design"}
+{"file": ".trellis/tasks/09-17-phase-3-main-process/research/a4d-stats-recompute-review.md", "reason": "Independent INSERT12, late NULL, actual COMMIT, notification and historical branch review"}
+{"file": ".trellis/tasks/09-17-phase-3-main-process/research/a4d-boundary-reconciliation-review.md", "reason": "Independent temporal A4d/R1 freeze versus future R2 relocation gate reconciliation"}
+{"file": ".trellis/spec/project/drizzle-stats-recompute.md", "reason": "Accepted executable A4d runtime/history/default/clock/event and verification boundary"}
+{"file": ".trellis/tasks/09-17-phase-3-main-process/research/a5-notes-queries.md", "reason": "Notes inventory, actual storage/callers and native harness hazards; only A5a is now approved"}
+{"file": ".trellis/tasks/09-17-phase-3-main-process/research/a5a-notes-file-path-review.md", "reason": "Independent A5a explicit-handle/query/error/native-app boundary precheck accepted by parent"}
+{"file": ".trellis/spec/project/drizzle-notes-file-path.md", "reason": "Approved A5a four-read executable contracts, disjoint ownership and acceptance matrix"}
+{"file": ".trellis/spec/project/drizzle-notes-title-type.md", "reason": "Approved A5b explicit-handle metadata writes, raw BOTH SET bindings, native result/error/event and test ownership contracts"}
+{"file": ".trellis/tasks/09-17-phase-3-main-process/research/a5b-notes-title-type.md", "reason": "A5b installed-library evidence; alternate-driver probe is not native acceptance"}
+{"file": ".trellis/tasks/09-17-phase-3-main-process/research/a5b-notes-title-type-review.md", "reason": "Independent A5b design precheck accepted by parent; exact signatures, two changes reads and actual-driver matrix"}
+{"file": ".trellis/spec/project/drizzle-notes-delete.md", "reason": "Approved A5c DELETE-only explicit-handle raw result and original files/batch/events executable contract"}
+{"file": ".trellis/tasks/09-17-phase-3-main-process/research/a5c-notes-content-delete.md", "reason": "Delete-only candidate; content schema-order bind differences and unapproved alternatives"}
+{"file": ".trellis/tasks/09-17-phase-3-main-process/research/a5c-notes-delete-review.md", "reason": "Independent delete-only precheck accepted by parent; content remains deferred"}
+{"file": ".trellis/spec/project/drizzle-notes-content.md", "reason": "Accepted A5d public CTE exact raw4binds, ignored-result/catch/event and precise two observer exceptions"}
+{"file": ".trellis/tasks/09-17-phase-3-main-process/research/a5d-content-design-review.md", "reason": "Independent content-only precheck, public alternative/cost/native evidence and exact observers"}
+{"file": ".trellis/tasks/09-17-phase-3-main-process/research/a5d-content-native-feasibility.md", "reason": "Actual-native92 evidence for public content CTE, original-bind negative control and bounded performance limits"}
+{"file": ".trellis/tasks/09-17-phase-3-main-process/research/a5e-notes-create-feasibility.md", "reason": "Historical construction-only candidate; superseded by native feasibility/review and governing create spec, not independent native evidence"}
+{"file": ".trellis/tasks/09-17-phase-3-main-process/research/a5e-notes-create-precheck.md", "reason": "Historical preliminary NOTGO and sequencing inventory; superseded only by later actual-evidence review and governing create spec"}
+{"file": ".trellis/spec/project/drizzle-notes-create.md", "reason": "Accepted A5e eager factory/raw9binds/frozen030/getter-event-file contracts and disclosed cost; no new observer exception"}
+{"file": ".trellis/tasks/09-17-phase-3-main-process/research/a5e-create-native-feasibility.md", "reason": "Actual-native197 parity and strict aliasedNULL candidate evidence; bounded cost and explicit altered-default divergence"}
+{"file": ".trellis/tasks/09-17-phase-3-main-process/research/a5e-create-design-review.md", "reason": "Independent actual-evidence design review accepted by parent; implementation/service/real-app gates remain"}
+{"file": ".trellis/tasks/09-17-phase-3-main-process/research/a5f-notes-full-reads.md", "reason": "Future NOTGO three-read inventory, truthful read/create output and exact native/raw/file/batch/consumer proof boundaries"}
+{"file": ".trellis/tasks/09-17-phase-3-main-process/research/a5f-notes-full-reads-precheck.md", "reason": "Independent NOTGO full-read precheck: explicit UI/batch/lookupbinder and precise protected observer/type decisions needed before nativeproof/GO"}

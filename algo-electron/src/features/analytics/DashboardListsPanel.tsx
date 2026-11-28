@@ -89,7 +89,10 @@ export function DashboardListsPanel({
         ) : (
           <div className="dashboard-timeline">
             {timeline.map((event, index) => (
-              <div key={event.id ?? index} className="dashboard-timeline-item">
+              <div
+                key={JSON.stringify(event.id == null ? ['anonymous', index] : ['id', event.id])}
+                className="dashboard-timeline-item"
+              >
                 <div className="dashboard-timeline-dot" />
                 <div className="dashboard-timeline-content">
                   <span className="dashboard-timeline-type">{event.event_type}</span>
@@ -107,7 +110,7 @@ export function DashboardListsPanel({
       <ProblemListSection
         title="错题（未 AC）"
         items={wrongProblems}
-        getKey={(item) => item.id}
+        getKey={(item) => JSON.stringify([item.platform, item.platform_problem_id])}
         getCountLabel={(item) => `${item.wrong_count ?? 0} 次`}
         onNavigate={onNavigate}
       />
@@ -115,7 +118,7 @@ export function DashboardListsPanel({
       <ProblemListSection
         title="30 天未复习"
         items={unreviewed}
-        getKey={(item) => item.id}
+        getKey={(item) => JSON.stringify([item.platform, item.platform_problem_id])}
         getCountLabel={(item) => `${item.days_since ?? 0} 天前`}
         onNavigate={onNavigate}
       />

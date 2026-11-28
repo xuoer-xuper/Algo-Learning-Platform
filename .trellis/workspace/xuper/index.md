@@ -8,8 +8,8 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 17
-- **Last Active**: 2026-11-17
+- **Total Sessions**: 25
+- **Last Active**: 2026-11-28
 <!-- @@@/auto:current-status -->
 
 ---
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~512 | Active |
+| `journal-1.md` | ~900 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,8 +29,18 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 25 | 2026-11-28 | Drizzle笔记创建迁移集成验收与完整读取边界交接 | `8e02ad3`, `f27cb67` | `refactor/drizzle` |
+| 24 | 2026-11-28 | Drizzle笔记正文迁移集成验收与创建边界交接 | `640c557`, `f169848` | `refactor/drizzle` |
+| 23 | 2026-11-28 | Drizzle笔记元数据与删除迁移集成验收 | `8a32133`, `26be448`, `dbc50d7`, `f1a5d5d` | `refactor/drizzle` |
+| 22 | 2026-11-28 | Drizzle笔记路径查询集成与标题类型迁移交接 | `0e4054a`, `eafbed7` | `refactor/drizzle` |
+| 21 | 2026-11-27 | Drizzle统计重算集成验收与笔记查询边界交接 | `78f33b9`, `fb0dd45` | `refactor/drizzle` |
+| 20 | 2026-11-27 | Drizzle A2g至A4c集成验收与重算安全边界交接 | `6c42a38`, `001e23a`, `1a39af0`, `fa13260`, `ac7478d`, `4d60368`, `93c0df2`, `aacbff0` | `refactor/drizzle` |
+| 19 | 2026-11-20 | Drizzle A2f查询迁移与nullable输出验收交接 | `4cef9ea`, `2112734` | `refactor/drizzle` |
+| 18 | 2026-11-19 | Drizzle安全同步与A2d/A2e验收交接 | `57690f6`, `317cd9f`, `dcd8991`, `85b95dc`, `82a0163`, `0927213` | `refactor/drizzle` |
 | 17 | 2026-11-17 | 2.0.1正式发行与最终证据闭环 | `aed30aa`, `94bb9b7`, `a172a92`, `de89ce4` | `codex/release-201-records` |
 | 16 | 2026-11-10 | 发布加固工程完成并通过真实隔离安装验收 | `c340c16`, `f23c6aa`, `efdf573`, `982cf7d`, `8e9dbe2`, `e952f01`, `58f1e5c`, `5e98409`, `9b30e9b`, `54265bc`, `717eda6` | `fix/release-upgrade-safety` |
+| 15 | 2026-11-07 | 阶段3完成 A2b/A2c 与原生UI失败诊断 | `a8f093e`, `5b13d85`, `2bba47e` | `refactor/drizzle` |
+| 14 | 2026-11-07 | 阶段3 A0/A1迁移接管与A2a总览查询完成并推送 | `e1e3ae0`, `1ba968b`, `3869fe2` | `refactor/drizzle` |
 | 13 | 2026-11-06 | 阶段 2 合并归档：PR6/7 入 dev，开启阶段 3 | `d9f5583`, `b74773b` | `dev` |
 | 12 | 2026-11-06 | 阶段 2 R5 完成并推送：030 毫秒迁移、真实副本验收与 CI 全绿 | `6891812`, `4f7eaa5`, `e789841`, `682231d` | `feat/db-unix-ms-timestamps` |
 | 11 | 2026-11-04 | 阶段 2 R1-R4 收口推送，R5 保留迁移安全门 | `c0c6cc3`, `a12c09b` | `refactor/phase-2-ipc-contract` |

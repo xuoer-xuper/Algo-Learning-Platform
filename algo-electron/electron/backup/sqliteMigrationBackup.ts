@@ -6,9 +6,11 @@ import { z } from 'zod'
 import {
   assertDatabaseIntegrity,
   databaseStateSchema,
+  compositeDatabaseStateSchema,
+  readCompositeDatabaseState,
   readDatabaseState,
   validateDatabaseState,
-  type DatabaseState,
+  type RecoveryDatabaseState,
 } from '../../src/main/db/legacy-ledger-validation'
 import { retainMigrationDiagnostic } from '../../src/main/db/migration-diagnostics'
 import {
@@ -35,14 +37,22 @@ import {
 export { MigrationRetryBlockedError }
 export { migrationFailureMarkerSchema, type MigrationFailureMarker }
 
-const verifiedBackupSchema = z
-  .object({
-    formatVersion: z.literal(1),
-    databasePath: z.string(),
-    sha256: z.string().regex(/^[a-f0-9]{64}$/),
-    source: databaseStateSchema,
-  })
-  .strict()
+const verifiedBackupFields = {
+  databasePath: z.string(),
+  sha256: z.string().regex(/^[a-f0-9]{64}$/),
+}
+const verifiedBackupSchema = z.discriminatedUnion('formatVersion', [
+  z
+    .object({ ...verifiedBackupFields, formatVersion: z.literal(1), source: databaseStateSchema })
+    .strict(),
+  z
+    .object({
+      ...verifiedBackupFields,
+      formatVersion: z.literal(2),
+      source: compositeDatabaseStateSchema,
+    })
+    .strict(),
+])
 
 export function getMigrationFailureMarkerPath(backupDir: string, databasePath: string): string {
   return path.join(backupDir, `${path.basename(databasePath)}.migration-failure.json`)
@@ -81,6 +91,7 @@ export function assertMigrationRetryAllowed(
   backupDir: string,
   databasePath: string,
   _pendingMigrations: ReadonlyArray<{ version: number; name: string }> = [],
+  _pendingMigrationKeys: readonly string[] = [],
 ): void {
   assertNoUnresolvedMigrationCheckpoint(databasePath, backupDir)
   const markerPath = getMigrationFailureMarkerPath(backupDir, databasePath)
@@ -134,9 +145,9 @@ export function archiveResolvedMigrationFailureMarker(
 
 export function verifyMigrationBackup(
   backupPath: string,
-  expected?: DatabaseState,
+  expected?: RecoveryDatabaseState,
   expectedSha256?: string,
-): DatabaseState {
+): RecoveryDatabaseState {
   assertNoPathLinks(backupPath)
   assertNoPathLinks(`${backupPath}-wal`)
   assertNoPathLinks(`${backupPath}-shm`)
@@ -148,11 +159,17 @@ export function verifyMigrationBackup(
     throw new Error('Recovery point checksum mismatch')
   }
   const database = new Database(backupPath, { readonly: true, fileMustExist: true })
-  let result: { success: true; state: DatabaseState } | { success: false; error: unknown }
+  let result: { success: true; state: RecoveryDatabaseState } | { success: false; error: unknown }
   try {
     if (expected) validateDatabaseState(database, expected)
     else assertDatabaseIntegrity(database)
-    result = { success: true, state: readDatabaseState(database) }
+    result = {
+      success: true,
+      state:
+        expected && 'drizzleLedger' in expected
+          ? readCompositeDatabaseState(database, expected.drizzleLedger ?? [])
+          : readDatabaseState(database),
+    }
   } catch (error) {
     result = { success: false, error }
   }
@@ -171,7 +188,7 @@ export async function createPreMigrationBackup(
   databasePath: string,
   backupDir: string,
   now: Date = new Date(),
-  expectedSource: DatabaseState = readDatabaseState(database),
+  expectedSource: RecoveryDatabaseState = readDatabaseState(database),
 ): Promise<string> {
   assertNoPathLinks(backupDir)
   fs.mkdirSync(backupDir, { recursive: true })
@@ -186,7 +203,7 @@ export async function createPreMigrationBackup(
   syncFile(partialPath)
   fs.renameSync(partialPath, backupPath)
   writeDurableJson(`${backupPath}.verified.json`, {
-    formatVersion: 1,
+    formatVersion: 'drizzleLedger' in expectedSource ? 2 : 1,
     databasePath: canonicalPath(databasePath),
     sha256: sha256File(backupPath),
     source: expectedSource,
@@ -245,7 +262,7 @@ export function retainNewestMigrationBackups(
 
 export interface RestoreDatabaseOptions {
   attemptId?: string
-  expectedSource?: DatabaseState
+  expectedSource?: RecoveryDatabaseState
   expectedSha256?: string
   beforeDisplace?: (recovery: RecoverySet) => void
 }

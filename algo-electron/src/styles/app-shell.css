@@ -636,6 +636,24 @@
   background-color: var(--color-accent-soft);
 }
 
+.sidebar-item-unaddressable {
+  flex-wrap: wrap;
+}
+
+.sidebar-item-unaddressable .ui-icon-btn:disabled {
+  opacity: 0.45;
+}
+
+.sidebar-item-reason {
+  flex-basis: 100%;
+  min-width: 0;
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 11px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
 .sidebar-pagination {
   display: flex;
   align-items: center;

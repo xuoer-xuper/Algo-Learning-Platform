@@ -18,6 +18,14 @@ interface TrendPanelProps {
   onTrendRangeChange: (range: number | undefined) => void
 }
 
+function formatTrendCategory(category: unknown, points: TrendPoint[], short: boolean): string {
+  if (typeof category !== 'number' || !Number.isInteger(category) || category < 0) return ''
+  const point = points[category]
+  if (!point) return ''
+  if (point.local_day === null) return '日期缺失'
+  return short ? point.local_day.slice(5) : point.local_day
+}
+
 export function TrendPanel({
   visitedTrend,
   acTrend,
@@ -59,9 +67,9 @@ export function TrendPanel({
             <LineChart data={visitedTrend}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--border-light)" />
               <XAxis
-                dataKey="local_day"
+                type="category"
                 stroke="var(--border-light)"
-                tickFormatter={(d) => d.slice(5)}
+                tickFormatter={(category) => formatTrendCategory(category, visitedTrend, true)}
                 tick={{ fontSize: 12, fill: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}
               />
               <YAxis
@@ -70,7 +78,9 @@ export function TrendPanel({
                 allowDecimals={false}
                 tick={{ fontSize: 12, fill: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}
               />
-              <Tooltip />
+              <Tooltip
+                labelFormatter={(category) => formatTrendCategory(category, visitedTrend, false)}
+              />
               {/* 「访问」实体固定占槽位 0 */}
               <Line
                 type="monotone"
@@ -91,9 +101,9 @@ export function TrendPanel({
             <LineChart data={acTrend}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--border-light)" />
               <XAxis
-                dataKey="local_day"
+                type="category"
                 stroke="var(--border-light)"
-                tickFormatter={(d) => d.slice(5)}
+                tickFormatter={(category) => formatTrendCategory(category, acTrend, true)}
                 tick={{ fontSize: 12, fill: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}
               />
               <YAxis
@@ -102,7 +112,9 @@ export function TrendPanel({
                 allowDecimals={false}
                 tick={{ fontSize: 12, fill: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}
               />
-              <Tooltip />
+              <Tooltip
+                labelFormatter={(category) => formatTrendCategory(category, acTrend, false)}
+              />
               {/* 「AC」实体固定占槽位 2（低对比槽，由小节标题 + Tooltip 补救） */}
               <Line
                 type="monotone"

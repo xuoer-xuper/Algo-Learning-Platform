@@ -137,6 +137,7 @@ function seed(userData: string, version: 28 | 29): void {
 function checkpoint(userData: string) {
   const state = readMigrationCheckpoint(paths(userData).db, paths(userData).backups)
   assert.ok(state, 'Durable prepared checkpoint must survive a forced child termination')
+  assert.equal(state.formatVersion, 1, 'This matrix preserves the released legacy-only contract')
   return state
 }
 function writeRendezvous(
@@ -343,7 +344,11 @@ async function childMain(point: CrashPoint, userData: string): Promise<void> {
       }
     }
   }
-  await initDbAtPathWithMigrationSafety(db, { backupDir: backups, logger: new CrashLogger() })
+  await initDbAtPathWithMigrationSafety(db, {
+    backupDir: backups,
+    migrations: getKnownMigrations(),
+    logger: new CrashLogger(),
+  })
   throw new Error('Crash child unexpectedly completed')
 }
 
@@ -418,6 +423,7 @@ for (const point of POINTS) {
     closeDb()
     await initDbAtPathWithMigrationSafety(paths(userData).db, {
       backupDir: paths(userData).backups,
+      migrations: getKnownMigrations(),
       logger,
     })
     assert.equal(databaseLedger(userData), 30)
@@ -442,6 +448,7 @@ for (const point of POINTS) {
       .filter((file) => file.endsWith('.sqlite'))
     await initDbAtPathWithMigrationSafety(paths(userData).db, {
       backupDir: paths(userData).backups,
+      migrations: getKnownMigrations(),
       logger,
     })
     assert.equal(databaseLedger(userData), 30)
@@ -474,6 +481,7 @@ test('committed target keep-current preserves data written after migration and l
   await resolveKeepCurrent(userData)
   await initDbAtPathWithMigrationSafety(paths(userData).db, {
     backupDir: paths(userData).backups,
+    migrations: getKnownMigrations(),
     logger,
   })
   assert.equal(
@@ -490,6 +498,7 @@ test('committed target keep-current preserves data written after migration and l
   assert.deepEqual(checkpoint(userData), resolved)
   await initDbAtPathWithMigrationSafety(paths(userData).db, {
     backupDir: paths(userData).backups,
+    migrations: getKnownMigrations(),
     logger,
   })
   getDb()
@@ -509,6 +518,7 @@ test('committed target keep-current preserves data written after migration and l
   await assert.rejects(
     initDbAtPathWithMigrationSafety(paths(userData).db, {
       backupDir: paths(userData).backups,
+      migrations: getKnownMigrations(),
       logger,
     }),
     /synthetic forward startup failure/,
@@ -548,6 +558,7 @@ test('committed target keep-current preserves data written after migration and l
   }
   await initDbAtPathWithMigrationSafety(paths(userData).db, {
     backupDir: paths(userData).backups,
+    migrations: getKnownMigrations(),
     logger,
   })
   assert.equal(

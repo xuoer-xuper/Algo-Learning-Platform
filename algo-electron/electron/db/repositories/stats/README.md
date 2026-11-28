@@ -12,14 +12,15 @@
 - `date.ts`：本地日期字符串和连续天数计算 helper。
 - `trends.ts`：每日活跃、刷题、AC、提交趋势。
 - `insights.ts`：平台分布、单题访问、时间线、连续活跃、复访、错题和未复习列表。
-- `recompute.ts`：从 `problem_visits`、`submissions`、`problems`、`activity_events` 重算 `user_daily_stats`。
+- `recompute.ts`：保留单日、选定日期和全部日期重算的时钟、迭代与通知入口。
+- `recompute-runtime.ts`：A4d运行时Drizzle显式DB聚合，独立审查、定向/原生/全量测试通过；`recompute-core.ts` 保留为030直接调用的冻结历史实现，构建与集成状态见任务记录。
 - `../statsRepository.ts`：兼容导出口，不承载 SQL 细节。
 
 ## 3. 封装函数
 
 - 趋势：`getDailyActiveStats`、`getVisitedTrend`、`getAcTrend`、`getSubmissionTrend`。
 - 洞察：`getPlatformDistribution`、`getProblemVisitStats`、`getTimeline`、`getLastActiveTime`、`getRevisitStats`、`getStreakDays`、`getWrongProblems`、`getUnreviewedProblems`。
-- 重算：`recomputeDailyStats`、`recomputeAllDailyStats`。
+- 重算：`recomputeDailyStats`、`recomputeDailyStatsForDates`、`recomputeAllDailyStats`。
 
 ## 4. 边界规则
 
@@ -28,11 +29,35 @@
 - 查询函数返回普通对象数组，不向调用方暴露 `better-sqlite3` statement 或连接对象。
 - Schema 变化必须先写 migration，再更新本目录 SQL 和测试。
 
+- A4a将平台分布、单题访问和最后活跃时间迁移到Drizzle；A4b1迁移四个每日趋势读取；A4b2迁移连续活跃SELECT；A4c迁移剩余四个洞察列表；A4d仅迁移运行时重算，历史迁移直接依赖保持冻结。
+- 只读查询每次包装当前连接，不缓存、不新建事务、不写入或通知。平台分布保留active父行COUNT(*)及count倒序，NULL ID也计数。
+- 单题访问保留COUNT(*)和原生COALESCE(SUM/AVG,0)，墓碑/孤立访问仍计入，AVG忽略NULL时长；INTEGER SUM溢出仍抛错，不转字符串或返回零。
+- 最后活跃时间保留raw occurred_at倒序首行及空值回退，epoch0和诊断小数/极值不经Date解码；不改成MAX或委托题目overview。
+- 每日趋势保留nullable local_day、原始字符串、所有行和原有排序；daily/submission使用命名LIMIT参数，visited/AC保留if(days)和先prepare后算cutoff的顺序。
+- 三个每日只读输出的local_day允许null；DailyActiveStat和AI每日数据复用shared DailyActiveStats，不放宽日期输入或修改loader/exporter。
+- 两张趋势图按原始数组的位置分别映射刻度和Tooltip；仅null显示“日期缺失”，不合并/过滤行，也不向DTO写入显示占位符。
+- 连续活跃保留active>=300或submission/solved>0的阈值、DESC原始日期和两轮循环；仅今日起算current，无昨日宽限，不新增墓碑过滤。
+- stats局部dayDiff仅在各自原localDayBounds前依次拒绝NULL，保留后日期越界优先于前日期NULL、单坏行/双坏行和时钟调用顺序；共享日期API不放宽。
+- 洞察列表保留命名LIMIT、raw时间和原排序；复访COUNT(visit.id)/MAX区分匿名行，错题排除任意精确AC（含墓碑）。未复习先prepare再依次读取两个时钟，days_since仍由SQL截断计算。
+- 时间线/未复习输出ID允许NULL，错题ID保守声明nullable但JOIN不产生NULL；复访投影JOIN中非空访问FK。Dashboard仅调整key，所有原站URL操作保留，AI隐私白名单不变。
+- 历史migration030直接调用recompute-core.ts；A4d/R1不改两者路径、字节或依赖分支。后续R2搬迁必须独立批准并证明历史/恢复等价，不以旧路径转发或放宽守卫偷渡。
+- 运行时重算保持四次读取后准备UPSERT，再序列化平台JSON；原11个绑定、9个冲突更新字段和raw聚合/时间不变。生成INSERT列举12列只承诺冻结030默认值等价，不承诺任意改表。
+- 全量重算先完成事实时间转换，再按原Set顺序处理缓存日期；NULL在原逐日位置失败，可能保留较早的autocommit结果，不预先修复或过滤坏日期。
+- 保留既有通知例外：单日成功即通知（含IGNORE0）；全量仅全部成功且日期数大于0时通知，晚期失败可能已有写入而无通知；选定日期每成功一日通知。已有事务仍在实际COMMIT后释放，回滚丢弃。
+
 ## 5. 验证入口
 
 ```powershell
 cd algo-electron
-node node_modules\typescript\bin\tsc --noEmit
-node node_modules\esbuild\bin\esbuild tests\db\repositories.test.ts --bundle --platform=node --format=esm --external:better-sqlite3 --external:electron --outfile=tmp\db-repositories.test.mjs
-$env:ELECTRON_RUN_AS_NODE='1'; node_modules\.bin\electron.cmd tmp\db-repositories.test.mjs
+pnpm typecheck
+pnpm typecheck:tests
+pnpm run test:unit tests/db/stats-basic-reads.test.ts
+pnpm run test:unit tests/db/stats-streak.test.ts
+pnpm run test:unit tests/db/stats-insight-lists.test.ts
+pnpm run test:unit tests/db/stats-recompute.test.ts tests/db/stats-recompute-history.test.ts
+pnpm run test:unit tests/db/stats-daily-reads.test.ts tests/ipc/daily-read-schemas.test.ts tests/components/daily-trends.test.tsx tests/ai/daily-read-context.test.ts
+pnpm test:db
+node tests/ui/runPlaywright.mjs daily-trends.pw.spec.ts
 ```
+
+原生测试由统一runner运行真实Electron/better-sqlite3并检查退出状态，不以单独GUI进程启动成功代替验收。

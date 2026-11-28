@@ -24,6 +24,18 @@ which today.
 | [data-refresh.md](./data-refresh.md) | Committed-write notifications, transaction scopes, query invalidation and live snapshot races | When changing persisted writes, refresh subscriptions or query hooks |
 | [historical-database-fixtures.md](./historical-database-fixtures.md) | Pinned-source schema reconstruction, evidence provenance and historical time-writer contracts | When validating upgrades without an original old user database |
 | [unix-millisecond-time.md](./unix-millisecond-time.md) | Migration 030, strict legacy time compatibility, numeric IPC and safe import/statistics contracts | When changing any stored or cross-process instant |
+| [drizzle-adoption.md](./drizzle-adoption.md) | Incremental ORM adoption, physical schema parity and existing connection ownership | Before phase 3 schema, client or migration changes |
+| [drizzle-submission-reads.md](./drizzle-submission-reads.md) | A3a full-row/raw-time/nullability, native LIMIT and exact aggregate bind-count contracts | Before submission read or caller-contract changes |
+| [drizzle-submission-writes.md](./drizzle-submission-writes.md) | A3b bounded INSERT/first-AC parity, prepare/iterator order and transaction notifications | Before submission write changes |
+| [drizzle-stats-reads.md](./drizzle-stats-reads.md) | A4a native scalar/NULL aggregate/overflow and raw latest-time contracts | Before basic statistics read changes |
+| [drizzle-daily-reads.md](./drizzle-daily-reads.md) | A4b daily read/chart safety and ordered streak validation | Before daily trend, streak or chart changes |
+| [drizzle-insight-lists.md](./drizzle-insight-lists.md) | A4c nullable list outputs, native aggregates/limits/clocks and Dashboard row identity | Before insight list or consumer changes |
+| [drizzle-stats-recompute.md](./drizzle-stats-recompute.md) | A4d runtime-only writes, frozen historical branch, native effects and explicit refresh exceptions | Before runtime recompute or later historical relocation planning |
+| [drizzle-notes-file-path.md](./drizzle-notes-file-path.md) | A5a explicit-handle file-path reads, original storage/error ordering and isolated native-app evidence | Before notes file-path queries or their test harness changes |
+| [drizzle-notes-title-type.md](./drizzle-notes-title-type.md) | A5b explicit-handle metadata writes, raw bindings, native results and unchanged file storage | Before notes title/type updates |
+| [drizzle-notes-delete.md](./drizzle-notes-delete.md) | A5c explicit-handle DELETE, files-first effects, native results and batch/transaction ordering | Before notes deletion changes |
+| [drizzle-notes-content.md](./drizzle-notes-content.md) | A5d single-row CTE preserving content bind order, ignored results and file-first catch/event semantics | Before notes content updates |
+| [drizzle-notes-create.md](./drizzle-notes-create.md) | A5e eager INSERT factory, original nine bindings, getter/file/event sequencing and frozen030 qualification | Before notes creation changes |
 | [config-normalization-protection.md](./config-normalization-protection.md) | Verified raw config backup, staged automatic normalization and safe failure diagnostics | When changing config load/writeback or its backup helper |
 | [release-evidence.md](./release-evidence.md) | Release identity, artifact evidence and guarded publication lifecycle | When changing release scripts, packaging or publication gates |
 | [upgrade-recovery.md](./upgrade-recovery.md) | Verified migration checkpoints, interruption and explicit resolution | When changing database initialization, backup, restore or maintenance startup |

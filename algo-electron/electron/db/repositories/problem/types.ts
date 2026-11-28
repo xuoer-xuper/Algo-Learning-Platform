@@ -1,52 +1,40 @@
-export interface ProblemRow {
-  id: string
-  platform: string
-  platform_problem_id: string
-  canonical_url: string
-  title: string | null
-  status: string
-  contest_id: string | null
-  problem_index: string | null
-  source_platform?: string | null
-  source_problem_id?: string | null
-  first_seen_at?: number
-  last_visited_at?: number
-  first_solved_at?: number | null
-  created_at?: number
-  updated_at?: number
-  deleted_at?: number | null
+import type { problems, problemVisits } from '../../../../src/main/db/schema'
+import type { SubmissionRow } from '../submission/types'
+
+export type ProblemRow = Omit<
+  typeof problems.$inferSelect,
+  | 'first_seen_at'
+  | 'last_visited_at'
+  | 'first_solved_at'
+  | 'created_at'
+  | 'updated_at'
+  | 'deleted_at'
+> & {
+  first_seen_at: number
+  last_visited_at: number | null
+  first_solved_at: number | null
+  created_at: number
+  updated_at: number
+  deleted_at: number | null
 }
 
-export interface RecentProblem {
-  id: string
-  platform: string
-  platform_problem_id: string
-  canonical_url: string
-  title: string | null
-  last_visited_at: number
-  status: string
+export type RecentProblem = Pick<
+  ProblemRow,
+  | 'id'
+  | 'platform'
+  | 'platform_problem_id'
+  | 'canonical_url'
+  | 'title'
+  | 'last_visited_at'
+  | 'status'
+> & {
   submission_count: number
 }
 
-export interface ProblemSubmissionRow {
-  id: string
-  problem_id: string | null
-  platform: string
-  platform_submission_id: string
-  verdict: string
-  raw_verdict?: string | null
-  language?: string | null
-  submitted_at: number
-  runtime_ms?: number | null
-  memory_kb?: number | null
-  source_url?: string | null
-  raw_json?: string | null
-  created_at?: number
-  updated_at?: number
-}
+export type ProblemSubmissionRow = SubmissionRow
 
-export type ProblemDetail = ProblemRow & {
-  status: string
+export type ProblemDetail = Omit<ProblemRow, 'id'> & {
+  id: string
   submission_count: number
   ac_count: number
   submissions: ProblemSubmissionRow[]
@@ -56,15 +44,17 @@ export type ProblemDetail = ProblemRow & {
  * 单次题目访问记录（problem_visits 表的内存表示）。
  * 阶段 4 时间轴复盘只读取，不新增采集。
  */
-export interface ProblemVisitRow {
-  id: string
-  problem_id: string
-  session_id: string | null
-  platform: string
-  url: string
+export type ProblemVisitRow = Pick<
+  typeof problemVisits.$inferSelect,
+  | 'id'
+  | 'problem_id'
+  | 'session_id'
+  | 'platform'
+  | 'url'
+  | 'duration_seconds'
+  | 'active_seconds'
+  | 'leave_reason'
+> & {
   entered_at: number
   left_at: number | null
-  duration_seconds: number | null
-  active_seconds: number | null
-  leave_reason: string | null
 }

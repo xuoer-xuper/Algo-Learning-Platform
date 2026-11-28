@@ -125,6 +125,33 @@ check('src/shared stays process-neutral (no electron imports)', () => {
   ])
 })
 
+check('database modules and native bindings stay main-only', () => {
+  const files = sourceFiles().filter((file) => {
+    const name = relative(file)
+    return (name.startsWith('src/') && !name.startsWith('src/main/')) || /preload\.ts$/i.test(name)
+  })
+  const failures = []
+  for (const file of files) {
+    const imports = read(file).matchAll(
+      /\b(?:from\s+|import\s*\(\s*|require\s*\(\s*|import\s+)['"]([^'"]+)['"]/g,
+    )
+    for (const [, imported] of imports) {
+      const resolved = imported.startsWith('.')
+        ? relative(path.resolve(path.dirname(file), imported))
+        : imported
+      if (
+        /^(?:better-sqlite3|drizzle-orm)(?:\/|$)/.test(imported) ||
+        /^(?:src\/main\/db|electron\/db|@main\/db)(?:\/|$)/.test(resolved)
+      ) {
+        failures.push(
+          `${relative(file)}: database import ${imported} is restricted to the main process`,
+        )
+      }
+    }
+  }
+  if (failures.length > 0) throw new Error(failures.join('\n'))
+})
+
 check('exported type declarations have a single source', () => {
   const duplicates = findDuplicateExportedTypes(
     sourceFiles()
@@ -288,7 +315,7 @@ const BARE_SQL_BUDGET = {
   // 泛表导出/导入，34 处按表展开的 SELECT/INSERT。搬迁需要先设计
   // "按表清单批量读写"的 repository 接口，单独一块做。
   'electron/backup/learningDataExport.ts': 34,
-  'electron/notes/NoteService.ts': 12,
+  'electron/notes/NoteService.ts': 3,
   'electron/ai/contextExporter.ts': 2,
   'electron/ai/contextTagStats.ts': 1,
   'electron/ai/recommendations/reviewPlanner.ts': 1,

@@ -1,7 +1,11 @@
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { subscribeDataChanges } from '../../electron/shared/dataEvents'
+import type { DataChangedPayload } from '../../src/shared/types/data'
+import { omniboxSuggestionSchema } from '../../src/shared/types/problem'
+import { getOriginalOmniboxSuggestions } from './omnibox-suggestions-oracle'
 import { closeDb, getDb, initDbAtPath } from '../../electron/db/connection'
 import {
   getOmniboxSuggestions,
@@ -21,28 +25,29 @@ afterEach(() => {
 })
 
 interface ProblemFixture {
-  id: string
+  id: string | null
   platform?: string
   platformProblemId?: string
   canonicalUrl?: string
   title?: string | null
-  lastVisitedAt?: string | null
-  deletedAt?: string | null
+  lastVisitedAt?: number | null
+  deletedAt?: number | null
 }
 
 interface VisitFixture {
-  id: string
+  id: string | null
   problemId: string
   url: string
-  enteredAt: string
-  deletedAt?: string | null
+  enteredAt: number
+  deletedAt?: number | null
 }
 
 function insertProblem(fixture: ProblemFixture): void {
   const platform = fixture.platform ?? 'codeforces'
-  const platformProblemId = fixture.platformProblemId ?? fixture.id
+  const platformProblemId = fixture.platformProblemId ?? fixture.id ?? 'nullable-id'
   const canonicalUrl = fixture.canonicalUrl ?? `https://example.com/problems/${fixture.id}`
-  const timestamp = fixture.lastVisitedAt ?? Date.parse('2026-07-03T10:00:00+08:00')
+  const timestamp = Date.parse('2026-07-03T10:00:00+08:00')
+  const lastVisitedAt = fixture.lastVisitedAt === undefined ? timestamp : fixture.lastVisitedAt
   getDb()
     .prepare(
       `
@@ -57,9 +62,9 @@ function insertProblem(fixture: ProblemFixture): void {
       platform,
       platformProblemId,
       canonicalUrl,
-      fixture.title ?? fixture.id,
+      fixture.title === undefined ? fixture.id : fixture.title,
       timestamp,
-      timestamp,
+      lastVisitedAt,
       timestamp,
       timestamp,
       fixture.deletedAt ?? null,
@@ -86,8 +91,10 @@ function insertVisit(fixture: VisitFixture): void {
     )
 }
 
-function timestamp(hour: number, minute = 0): string {
-  return `2026-07-03T${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}:00+08:00`
+function timestamp(hour: number, minute = 0): number {
+  return Date.parse(
+    `2026-07-03T${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}:00+08:00`,
+  )
 }
 
 describe('getOmniboxSuggestions', () => {
@@ -282,5 +289,591 @@ describe('getOmniboxSuggestions', () => {
       suggestions.length,
     )
     expect(new Set(suggestions.map((suggestion) => suggestion.url)).size).toBe(suggestions.length)
+  })
+})
+
+function expectOriginal(query: string): ReturnType<typeof getOmniboxSuggestions> {
+  const expected = getOriginalOmniboxSuggestions(getDb(), query)
+  const actual = getOmniboxSuggestions(query)
+  expect(actual).toEqual(expected)
+  return actual
+}
+
+function readError(run: () => unknown): { name: string; message: string; code?: unknown } {
+  try {
+    run()
+  } catch (error) {
+    if (error instanceof Error) {
+      return {
+        name: error.name,
+        message: error.message,
+        ...('code' in error ? { code: error.code } : {}),
+      }
+    }
+    throw error
+  }
+  throw new Error('Expected the query to fail')
+}
+
+describe('Omnibox recent-visit Drizzle parity', () => {
+  it('should return empty results for empty, whitespace and unmatched queries', () => {
+    for (const query of ['', '  \t\n', 'not found']) expect(expectOriginal(query)).toEqual([])
+  })
+
+  it.each(['title', 'platform', 'platformProblemId', 'canonicalUrl', 'visitUrl'] as const)(
+    'should preserve case-insensitive substring matching through %s',
+    (field) => {
+      insertProblem({
+        id: 'match',
+        title: field === 'title' ? 'Start NeEdLe End' : null,
+        platform: field === 'platform' ? 'NeEdLe' : 'codeforces',
+        platformProblemId: field === 'platformProblemId' ? 'NeEdLe' : 'plain-key',
+        canonicalUrl: field === 'canonicalUrl' ? 'https://example.test/NeEdLe' : 'plain-canonical',
+        lastVisitedAt: null,
+      })
+      insertVisit({
+        id: null,
+        problemId: 'match',
+        url: field === 'visitUrl' ? 'https://example.test/NeEdLe' : 'plain-history',
+        enteredAt: 123,
+      })
+      expect(expectOriginal('needle')).toEqual([
+        expect.objectContaining({ problemId: 'match', source: 'history', lastVisitedAt: 123 }),
+      ])
+    },
+  )
+
+  it.each(['100%', 'A_B', '\\', "' OR 1=1 --", '中文', 'Ä'])(
+    'should preserve literal history URL matches for %s',
+    (query) => {
+      insertProblem({ id: 'literal', title: null, lastVisitedAt: null })
+      insertProblem({ id: 'decoy', title: null, lastVisitedAt: null })
+      insertVisit({ id: null, problemId: 'literal', url: `prefix ${query} suffix`, enteredAt: 0 })
+      insertVisit({
+        id: 'decoy-visit',
+        problemId: 'decoy',
+        url: 'prefix AXB 1000 ä suffix',
+        enteredAt: 1,
+      })
+      expect(expectOriginal(query).map((row) => row.problemId)).toEqual(['literal'])
+      if (query === 'Ä') expect(expectOriginal('ä').map((row) => row.problemId)).toEqual(['decoy'])
+    },
+  )
+
+  it('should trim before truncating a direct query to 256 code units', () => {
+    const prefix = 'q'.repeat(256)
+    insertProblem({ id: 'long', title: null, lastVisitedAt: null })
+    insertVisit({ id: null, problemId: 'long', url: `${prefix}tail`, enteredAt: 0 })
+    expect(expectOriginal(`  ${prefix}ignored  `).map((row) => row.problemId)).toEqual(['long'])
+    expect(expectOriginal('   ')).toHaveLength(1)
+  })
+
+  it('should preserve integer fixture storage, explicit nulls and epoch zero', () => {
+    insertProblem({ id: 'zero', title: '', lastVisitedAt: 0 })
+    insertProblem({ id: 'null-time', title: null, lastVisitedAt: null })
+    insertVisit({ id: null, problemId: 'null-time', url: '', enteredAt: 0 })
+    expect(
+      getDb()
+        .prepare(
+          `
+      SELECT id, title, typeof(first_seen_at) AS first_type, typeof(last_visited_at) AS last_type,
+             typeof(created_at) AS created_type, typeof(updated_at) AS updated_type
+      FROM problems ORDER BY id
+    `,
+        )
+        .all(),
+    ).toEqual([
+      {
+        id: 'null-time',
+        title: null,
+        first_type: 'integer',
+        last_type: 'null',
+        created_type: 'integer',
+        updated_type: 'integer',
+      },
+      {
+        id: 'zero',
+        title: '',
+        first_type: 'integer',
+        last_type: 'integer',
+        created_type: 'integer',
+        updated_type: 'integer',
+      },
+    ])
+    expect(getDb().prepare('SELECT typeof(entered_at) AS kind FROM problem_visits').get()).toEqual({
+      kind: 'integer',
+    })
+    const result = expectOriginal('')
+    expect(result).toHaveLength(2)
+    expect(result.every((row) => row.lastVisitedAt === 0)).toBe(true)
+    expect(result.find((row) => row.problemId === 'null-time')).toMatchObject({
+      title: null,
+      url: '',
+      source: 'history',
+    })
+  })
+
+  it.each([-123456789, -0.5, 0, 123456789, 8640000000000001])(
+    'should preserve the raw visit instant %s instead of applying a Date decoder',
+    (instant) => {
+      insertProblem({ id: 'instant', title: null, lastVisitedAt: null })
+      insertVisit({ id: null, problemId: 'instant', url: 'instant-only', enteredAt: instant })
+      const result = expectOriginal('instant-only')
+      expect(result).toEqual([
+        expect.objectContaining({ lastVisitedAt: instant, source: 'history' }),
+      ])
+      expect(typeof result[0]?.lastVisitedAt).toBe('number')
+    },
+  )
+
+  it('should apply the 64-visit horizon before URL matching', () => {
+    insertProblem({ id: 'boundary', title: null, lastVisitedAt: null })
+    for (let index = 0; index < 65; index += 1) {
+      insertVisit({
+        id: `visit-${index}`,
+        problemId: 'boundary',
+        url: `history-only-${index}-route`,
+        enteredAt: index,
+      })
+    }
+    expect(expectOriginal('history-only-0-route')).toEqual([])
+    expect(expectOriginal('history-only-1-route')).toEqual([
+      expect.objectContaining({ lastVisitedAt: 1 }),
+    ])
+  })
+
+  it.each(['deleted-parent', 'missing-parent'] as const)(
+    'should count %s visits in the horizon before the parent join',
+    (kind) => {
+      insertProblem({ id: 'target', title: null, lastVisitedAt: null })
+      insertVisit({ id: null, problemId: 'target', url: 'target-history-only', enteredAt: 0 })
+      if (kind === 'deleted-parent') insertProblem({ id: 'filler', deletedAt: 0 })
+      const db = getDb()
+      if (kind === 'missing-parent') db.pragma('foreign_keys = OFF')
+      try {
+        for (let index = 1; index <= 64; index += 1) {
+          insertVisit({
+            id: `filler-${index}`,
+            problemId: 'filler',
+            url: `filler-${index}`,
+            enteredAt: index,
+          })
+        }
+      } finally {
+        if (kind === 'missing-parent') db.pragma('foreign_keys = ON')
+      }
+      expect(expectOriginal('target-history-only')).toEqual([])
+      expect(db.pragma('foreign_keys', { simple: true })).toBe(1)
+    },
+  )
+
+  it('should exclude deleted visits before the 64-visit horizon', () => {
+    insertProblem({ id: 'target', title: null, lastVisitedAt: null })
+    insertVisit({ id: null, problemId: 'target', url: 'target-history-only', enteredAt: 0 })
+    for (let index = 1; index <= 70; index += 1) {
+      insertVisit({
+        id: `deleted-${index}`,
+        problemId: 'target',
+        url: 'deleted-route',
+        enteredAt: index,
+        deletedAt: 0,
+      })
+    }
+    expect(expectOriginal('target-history-only')).toEqual([
+      expect.objectContaining({ lastVisitedAt: 0 }),
+    ])
+    expect(expectOriginal('deleted-route')).toEqual([])
+  })
+
+  it('should retain the untouched 24-problem horizon and eight-result cap', () => {
+    for (let index = 0; index < 25; index += 1) {
+      insertProblem({ id: `problem-${index}`, title: `query ${index}`, lastVisitedAt: index })
+    }
+    insertVisit({
+      id: 'outside-latest',
+      problemId: 'problem-0',
+      url: 'promoted-route',
+      enteredAt: 1000,
+    })
+    insertProblem({ id: 'hidden-filler', deletedAt: 0 })
+    for (let index = 0; index < 64; index += 1) {
+      insertVisit({
+        id: `filler-${index}`,
+        problemId: 'hidden-filler',
+        url: 'filler',
+        enteredAt: 2000 + index,
+      })
+    }
+    const result = expectOriginal('query')
+    expect(result).toHaveLength(8)
+    expect(result.map((row) => row.problemId)).toEqual(
+      Array.from({ length: 8 }, (_, index) => `problem-${24 - index}`),
+    )
+  })
+
+  it('should preserve SQLite-selected ties at the 64-visit cutoff without adding ID order', () => {
+    insertProblem({ id: 'ties', title: null, lastVisitedAt: null })
+    for (let index = 0; index < 70; index += 1) {
+      insertVisit({
+        id: `tie-${70 - index}`,
+        problemId: 'ties',
+        url: `equal-time-route-${index}`,
+        enteredAt: 20,
+      })
+    }
+    for (let index = 0; index < 70; index += 1) expectOriginal(`equal-time-route-${index}`)
+  })
+
+  it('should keep the latest-visit ID tie break only in the first pipeline', () => {
+    insertProblem({ id: 'ties', title: 'parent-match', lastVisitedAt: 20 })
+    insertVisit({ id: 'z', problemId: 'ties', url: 'z-route', enteredAt: 20 })
+    insertVisit({ id: 'a', problemId: 'ties', url: 'a-route', enteredAt: 20 })
+    expect(expectOriginal('parent-match')).toEqual([expect.objectContaining({ url: 'a-route' })])
+    expect(expectOriginal('z-route')).toEqual([expect.objectContaining({ url: 'z-route' })])
+  })
+
+  it('should preserve nullable parents in the first pipeline and empty IDs in the recent pipeline', () => {
+    insertProblem({ id: null, platformProblemId: 'null-one', title: null, lastVisitedAt: 10 })
+    insertProblem({
+      id: null,
+      platformProblemId: 'null-two',
+      title: 'second-null',
+      lastVisitedAt: 9,
+    })
+    insertProblem({ id: '', platformProblemId: 'empty', title: '', lastVisitedAt: null })
+    insertVisit({ id: null, problemId: '', url: 'empty-history-route', enteredAt: 0 })
+    const result = expectOriginal('')
+    expect(result).toHaveLength(2)
+    expect(result.map((row) => row.problemId)).toEqual([null, ''])
+    expect(expectOriginal('empty-history-route')).toEqual([
+      expect.objectContaining({ problemId: '', lastVisitedAt: 0, source: 'history' }),
+    ])
+  })
+
+  it('should preserve abstract nullable ID comparisons without imposing a new order', () => {
+    for (const [index, id] of [null, '-1', '1', '', 'abc'].entries()) {
+      insertProblem({ id, platformProblemId: `nullable-tie-${index}`, lastVisitedAt: 0 })
+    }
+    expectOriginal('')
+  })
+
+  it('should preserve history priority, URL normalization and invalid-URL trimming', () => {
+    insertProblem({
+      id: 'history',
+      title: 'shared',
+      lastVisitedAt: 10,
+      canonicalUrl: 'https://example.test/path',
+    })
+    insertVisit({
+      id: null,
+      problemId: 'history',
+      url: 'https://EXAMPLE.TEST:443/path',
+      enteredAt: 10,
+    })
+    insertProblem({
+      id: 'invalid-new',
+      title: 'shared',
+      lastVisitedAt: null,
+      canonicalUrl: '  invalid path  ',
+    })
+    insertProblem({
+      id: 'invalid-old',
+      title: 'shared',
+      lastVisitedAt: null,
+      canonicalUrl: 'invalid path',
+    })
+    insertVisit({ id: null, problemId: 'invalid-new', url: '  invalid path  ', enteredAt: 9 })
+    insertVisit({ id: null, problemId: 'invalid-old', url: 'invalid path', enteredAt: 8 })
+    const result = expectOriginal('shared')
+    expect(result.map((row) => row.problemId)).toEqual(['history', 'invalid-new'])
+    expect(result[0]).toMatchObject({ source: 'history', url: 'https://EXAMPLE.TEST:443/path' })
+  })
+
+  it('should execute two read-only statements on the current connection without events or writes', () => {
+    insertProblem({ id: 'readonly', title: null, lastVisitedAt: null })
+    insertVisit({ id: null, problemId: 'readonly', url: 'readonly-route', enteredAt: 0 })
+    const db = getDb()
+    const events: DataChangedPayload[] = []
+    const unsubscribe = subscribeDataChanges((payload) => events.push(payload))
+    db.pragma('query_only = ON')
+    const before = db.serialize()
+    const changes = db.prepare('SELECT total_changes() AS count').get()
+    const prepare = vi.spyOn(db, 'prepare')
+    try {
+      expect(getOmniboxSuggestions('readonly-route')).toHaveLength(1)
+      expect(prepare.mock.calls).toHaveLength(2)
+      expect(prepare.mock.calls.every(([query]) => /^\s*with\b/i.test(query))).toBe(true)
+    } finally {
+      prepare.mockRestore()
+      unsubscribe()
+    }
+    expect(getDb()).toBe(db)
+    expect(db.inTransaction).toBe(false)
+    expect(db.serialize()).toEqual(before)
+    expect(db.prepare('SELECT total_changes() AS count').get()).toEqual(changes)
+    expect(db.pragma('query_only', { simple: true })).toBe(1)
+    expect(events).toEqual([])
+    expectOriginal('readonly-route')
+  })
+
+  it('should see uncommitted visits without committing or notifying', () => {
+    const db = getDb()
+    const events: DataChangedPayload[] = []
+    const unsubscribe = subscribeDataChanges((payload) => events.push(payload))
+    try {
+      expect(() =>
+        db.transaction(() => {
+          insertProblem({ id: 'transaction', title: null, lastVisitedAt: null })
+          insertVisit({
+            id: null,
+            problemId: 'transaction',
+            url: 'transaction-route',
+            enteredAt: 0,
+          })
+          expect(expectOriginal('transaction-route')).toHaveLength(1)
+          expect(db.inTransaction).toBe(true)
+          throw new Error('rollback query fixture')
+        })(),
+      ).toThrow('rollback query fixture')
+      expect(expectOriginal('transaction-route')).toEqual([])
+      expect(events).toEqual([])
+    } finally {
+      unsubscribe()
+    }
+  })
+
+  it('should use the reopened lifecycle connection and propagate closed-owner errors', () => {
+    const first = getDb()
+    insertProblem({ id: 'first', title: null, lastVisitedAt: null })
+    insertVisit({ id: null, problemId: 'first', url: 'lifecycle-route', enteredAt: 0 })
+    expect(expectOriginal('lifecycle-route')).toHaveLength(1)
+    closeDb()
+    expect(first.open).toBe(false)
+    expect(() => getOmniboxSuggestions('lifecycle-route')).toThrow('Database not initialized')
+    const second = initDbAtPath(':memory:')
+    expect(second).not.toBe(first)
+    expect(expectOriginal('lifecycle-route')).toEqual([])
+    insertProblem({ id: 'second', title: null, lastVisitedAt: null })
+    insertVisit({ id: null, problemId: 'second', url: 'lifecycle-route', enteredAt: 0 })
+    expect(expectOriginal('lifecycle-route')).toEqual([
+      expect.objectContaining({ problemId: 'second' }),
+    ])
+  })
+
+  it('should propagate a recent-pipeline SQLite error with its original name, message and code', () => {
+    // Inject a native prepare failure only when the second candidate query is prepared.
+    const db = getDb()
+    const prepare = db.prepare.bind(db)
+    const spy = vi.spyOn(db, 'prepare').mockImplementation((query) => {
+      if (/with ["']?recent_visits/i.test(query))
+        return prepare('SELECT unavailable_column FROM problem_visits')
+      return prepare(query)
+    })
+    try {
+      const expected = readError(() => getOriginalOmniboxSuggestions(db, 'error'))
+      expect(readError(() => getOmniboxSuggestions('error'))).toEqual(expected)
+      expect(expected.message).toMatch(/no such column/i)
+    } finally {
+      spy.mockRestore()
+    }
+  })
+})
+
+describe('Omnibox problem-candidate Drizzle parity', () => {
+  it.each(['title', 'platform', 'platformProblemId', 'canonicalUrl'] as const)(
+    'should match %s without visits or a last-visited instant',
+    (field) => {
+      insertProblem({
+        id: null,
+        title: field === 'title' ? 'Start NeEdLe End' : null,
+        platform: field === 'platform' ? 'NeEdLe' : 'codeforces',
+        platformProblemId: field === 'platformProblemId' ? 'NeEdLe' : 'plain-key',
+        canonicalUrl: field === 'canonicalUrl' ? 'https://example.test/NeEdLe' : 'plain-canonical',
+        lastVisitedAt: null,
+      })
+      expect(expectOriginal('')).toEqual([])
+      expect(expectOriginal('needle')).toEqual([
+        expect.objectContaining({ problemId: null, source: 'problem', lastVisitedAt: null }),
+      ])
+    },
+  )
+
+  it.each(['100%', 'A_B', '\\', "' OR 1=1 --", '中文', 'Ä'])(
+    'should keep first-pipeline matching literal for %s',
+    (query) => {
+      insertProblem({ id: 'literal', title: `prefix ${query} suffix`, lastVisitedAt: null })
+      insertProblem({ id: 'decoy', title: 'prefix AXB 1000 ä suffix', lastVisitedAt: null })
+      expect(expectOriginal(query).map((row) => row.problemId)).toEqual(['literal'])
+      if (query === 'Ä') expect(expectOriginal('ä').map((row) => row.problemId)).toEqual(['decoy'])
+    },
+  )
+
+  it.each([-123456789, -0.5, 0, 123456789, 8640000000000001])(
+    'should retain raw parent instant %s in both query branches',
+    (instant) => {
+      insertProblem({ id: null, title: 'raw-parent', lastVisitedAt: instant })
+      for (const query of ['', 'raw-parent']) {
+        expect(expectOriginal(query)).toEqual([
+          expect.objectContaining({ problemId: null, lastVisitedAt: instant, source: 'problem' }),
+        ])
+      }
+    },
+  )
+
+  it.each(['', 'horizon'])(
+    'should keep candidate 24 but exclude 25 before joining and final dedup for %j',
+    (query) => {
+      for (let index = 0; index < 23; index += 1) {
+        insertProblem({
+          id: null,
+          platformProblemId: `null-horizon-${index}`,
+          canonicalUrl: `https://example.test/null-horizon/${index}`,
+          title: 'horizon',
+          lastVisitedAt: 1000 + index,
+        })
+      }
+      insertProblem({ id: 'candidate-24', title: 'horizon', lastVisitedAt: 200 })
+      insertProblem({ id: 'candidate-25', title: 'horizon', lastVisitedAt: 100 })
+      insertVisit({
+        id: 'visit-24',
+        problemId: 'candidate-24',
+        url: 'joined-24-route',
+        enteredAt: 1200,
+      })
+      insertVisit({
+        id: 'visit-25',
+        problemId: 'candidate-25',
+        url: 'joined-25-route',
+        enteredAt: 1500,
+      })
+      // Fill the second pipeline with visits whose parent is filtered only after its horizon.
+      insertProblem({ id: 'hidden', deletedAt: 0 })
+      for (let index = 0; index < 64; index += 1) {
+        insertVisit({
+          id: `hidden-${index}`,
+          problemId: 'hidden',
+          url: 'hidden',
+          enteredAt: 2000 + index,
+        })
+      }
+      const result = expectOriginal(query)
+      expect(result).toHaveLength(2)
+      expect(result.map((row) => row.problemId)).toEqual(['candidate-24', null])
+      expect(result[0]).toMatchObject({
+        url: 'joined-24-route',
+        lastVisitedAt: 1200,
+        source: 'history',
+      })
+    },
+  )
+
+  it('should keep canonical fallback when the latest matching visit has a null ID', () => {
+    insertProblem({
+      id: 'fallback',
+      title: 'fallback-match',
+      canonicalUrl: 'canonical-fallback',
+      lastVisitedAt: 50.25,
+    })
+    insertVisit({ id: 'older', problemId: 'fallback', url: 'older-visit', enteredAt: 399 })
+    insertVisit({ id: null, problemId: 'fallback', url: 'null-id-visit', enteredAt: 400.5 })
+    insertProblem({ id: 'hidden', deletedAt: 0 })
+    for (let index = 0; index < 64; index += 1) {
+      insertVisit({
+        id: `hidden-${index}`,
+        problemId: 'hidden',
+        url: 'hidden',
+        enteredAt: 2000 + index,
+      })
+    }
+    expect(expectOriginal('fallback-match')).toEqual([
+      expect.objectContaining({
+        problemId: 'fallback',
+        url: 'canonical-fallback',
+        lastVisitedAt: 50.25,
+        source: 'problem',
+      }),
+    ])
+  })
+
+  it('should preserve raw latest-visit time selected by the correlated first pipeline', () => {
+    insertProblem({ id: 'fractional', title: 'fractional-match', lastVisitedAt: 0 })
+    insertVisit({
+      id: 'fractional-visit',
+      problemId: 'fractional',
+      url: 'fractional-route',
+      enteredAt: -0.5,
+    })
+    expect(expectOriginal('fractional-match')).toEqual([
+      expect.objectContaining({
+        problemId: 'fractional',
+        url: 'fractional-route',
+        lastVisitedAt: -0.5,
+        source: 'history',
+      }),
+    ])
+  })
+
+  it.each(['', ' ', '0', '-0', '-1', '1', '01', '0x10', 'Infinity', 'NaN', 'abc'])(
+    'should preserve null and %j ID tie comparison and one null dedup key',
+    (id) => {
+      insertProblem({
+        id: null,
+        platformProblemId: 'null-a',
+        canonicalUrl: 'null-a-route',
+        title: 'tie',
+        lastVisitedAt: 0,
+      })
+      insertProblem({
+        id,
+        platformProblemId: 'string-id',
+        canonicalUrl: 'string-route',
+        title: 'tie',
+        lastVisitedAt: 0,
+      })
+      insertProblem({
+        id: null,
+        platformProblemId: 'null-b',
+        canonicalUrl: 'null-b-route',
+        title: 'tie',
+        lastVisitedAt: 0,
+      })
+      const result = expectOriginal('tie')
+      expect(result).toHaveLength(2)
+      expect(result.filter((row) => row.problemId === null)).toHaveLength(1)
+      expect(result.some((row) => row.problemId === id)).toBe(true)
+    },
+  )
+
+  it('should represent existing nullable IDs in the shared output contract without weakening types', () => {
+    insertProblem({ id: null, title: 'null-output', lastVisitedAt: 0 })
+    const result = expectOriginal('null-output')
+    expect(result).toHaveLength(1)
+    expect(omniboxSuggestionSchema.parse(result[0])).toEqual(result[0])
+    expect(omniboxSuggestionSchema.safeParse({ ...result[0], problemId: 42 }).success).toBe(false)
+    expect(omniboxSuggestionSchema.safeParse({ ...result[0], lastVisitedAt: 0.5 }).success).toBe(
+      false,
+    )
+    expect(
+      omniboxSuggestionSchema.safeParse({ ...result[0], lastVisitedAt: new Date(0) }).success,
+    ).toBe(false)
+  })
+
+  it('should propagate a first-pipeline native error without preparing the second query', () => {
+    const db = getDb()
+    const prepare = db.prepare.bind(db)
+    const spy = vi.spyOn(db, 'prepare').mockImplementation((query) => {
+      if (/with ["']?candidates/i.test(query))
+        return prepare('SELECT unavailable_column FROM problems')
+      return prepare(query)
+    })
+    try {
+      const expected = readError(() => getOriginalOmniboxSuggestions(db, 'error'))
+      expect(readError(() => getOmniboxSuggestions('error'))).toEqual(expected)
+      expect(expected.message).toMatch(/no such column/i)
+      expect(spy.mock.calls).toHaveLength(2)
+      expect(spy.mock.calls.every(([query]) => /with ["']?candidates/i.test(query))).toBe(true)
+    } finally {
+      spy.mockRestore()
+    }
   })
 })

@@ -1,6 +1,8 @@
 import { createHash } from 'node:crypto'
 import type Database from 'better-sqlite3'
 import { z } from 'zod'
+import { assertDrizzleLedgerEquals, drizzleLedgerSchema, readDrizzleLedger } from './drizzle-ledger'
+import type { KnownDrizzleMigration } from './migration-resources'
 
 export const legacyLedgerEntrySchema = z
   .object({
@@ -24,6 +26,30 @@ export const databaseStateSchema = z
   })
   .strict()
 export type DatabaseState = z.infer<typeof databaseStateSchema>
+export const compositeDatabaseStateSchema = databaseStateSchema
+  .extend({
+    drizzleLedger: drizzleLedgerSchema.nullable(),
+  })
+  .strict()
+export type CompositeDatabaseState = z.infer<typeof compositeDatabaseStateSchema>
+export type RecoveryDatabaseState = DatabaseState | CompositeDatabaseState
+
+export function isCompositeDatabaseState(
+  state: RecoveryDatabaseState,
+): state is CompositeDatabaseState {
+  return 'drizzleLedger' in state
+}
+
+export function readCompositeDatabaseState(
+  database: Database.Database,
+  known: readonly KnownDrizzleMigration[],
+): CompositeDatabaseState {
+  return {
+    ledger: readLegacyLedger(database),
+    schemaHash: schemaFingerprint(database, true),
+    drizzleLedger: readDrizzleLedger(database, known),
+  }
+}
 
 export function readLegacyLedger(database: Database.Database): LegacyLedger {
   const table = database
@@ -72,17 +98,20 @@ export function assertDatabaseIntegrity(database: Database.Database): void {
   }
 }
 
-export function readDatabaseState(database: Database.Database): DatabaseState {
-  // Hash the exact source schema, including optional user views/triggers, without storing SQL.
+function schemaFingerprint(database: Database.Database, composite: boolean): string {
+  // Keep the released v1 LIKE fingerprint byte-compatible; v2 excludes only sqlite_ names.
   const schema: unknown = database
     .prepare(
-      "SELECT type, name, tbl_name, sql FROM sqlite_schema WHERE name NOT LIKE 'sqlite_%' ORDER BY type, name",
+      composite
+        ? "SELECT type, name, tbl_name, sql FROM sqlite_schema WHERE name NOT GLOB 'sqlite_*' ORDER BY type, name"
+        : "SELECT type, name, tbl_name, sql FROM sqlite_schema WHERE name NOT LIKE 'sqlite_%' ORDER BY type, name",
     )
     .all()
-  return {
-    ledger: readLegacyLedger(database),
-    schemaHash: createHash('sha256').update(JSON.stringify(schema)).digest('hex'),
-  }
+  return createHash('sha256').update(JSON.stringify(schema)).digest('hex')
+}
+
+export function readDatabaseState(database: Database.Database): DatabaseState {
+  return { ledger: readLegacyLedger(database), schemaHash: schemaFingerprint(database, false) }
 }
 
 export function assertLegacyLedgerEquals(actual: LegacyLedger, expected: LegacyLedger): void {
@@ -91,9 +120,21 @@ export function assertLegacyLedgerEquals(actual: LegacyLedger, expected: LegacyL
   }
 }
 
-export function validateDatabaseState(database: Database.Database, expected: DatabaseState): void {
+export function validateDatabaseState(
+  database: Database.Database,
+  expected: RecoveryDatabaseState,
+): void {
   assertDatabaseIntegrity(database)
-  const actual = readDatabaseState(database)
+  if ('drizzleLedger' in expected) {
+    assertDrizzleLedgerEquals(
+      readDrizzleLedger(database, expected.drizzleLedger ?? []),
+      expected.drizzleLedger,
+    )
+  }
+  const actual =
+    'drizzleLedger' in expected
+      ? readCompositeDatabaseState(database, expected.drizzleLedger ?? [])
+      : readDatabaseState(database)
   assertLegacyLedgerEquals(actual.ledger, expected.ledger)
   if (actual.schemaHash !== expected.schemaHash) {
     throw new Error('Database schema does not match the recovery checkpoint')

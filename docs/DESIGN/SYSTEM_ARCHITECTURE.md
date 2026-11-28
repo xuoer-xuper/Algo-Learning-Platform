@@ -354,11 +354,51 @@ window.api.data.onChanged(({ tables }) => refreshMatchingQueries(tables))
 
 IPC 类型定义放在 `src/shared/types/`；通道常量统一由 `src/shared/constants/channels.ts` 导出，避免字符串散落。
 
+阶段3 A2f保持题目查询实际返回数据，同时修正已可达的nullable输出：
+`OmniboxSuggestion.problemId`、详情内嵌`SubmissionRecord.id`和
+`ProblemVisitPoint.visit_id`允许null；它们分别用于URL建议、提交展示和只读时间点。
+这不是ID修复或丢行策略，也不放宽输入/内部路由校验。详情父ID仍由原字符串等值查询证明，
+通过SQL绑定投影保持native编码后的同值，不用原始JS输入覆盖结果；数值时间和额外行字段保留。
+A2g最近题目列表保留nullable ID与原始时间，详情父ID仍明确为string，不将preload断言当作输出验证。
+侧栏与主进程共用原有ID校验：不可寻址记录仍显示、仍可打开网站，只禁用笔记/详情并显示原因，
+可访问名称包含相同说明；不修复ID或放宽内部路由。侧栏及首页使用平台/题号元组作为React key。
+查询通过Drizzle命名placeholder保留原生LIMIT绑定与错误，仍先LIMIT再执行既有status过滤。
+
+A3a提交读取保留全部16个字段与raw数值时间，SubmissionRow由schema推导，详情提交类型复用它。
+只读时间轴submission_id允许null；公开指标仍由string题目ID构造，LLM上下文的字段白名单与最后10条顺序不变。
+首次AC空数组不获取数据库；非空IN保留重复绑定和原生变量上限，固定AC字面量不增加参数，MIN不经Date/String解码。
+
+A3b1提交去重插入按冻结030物理表/default0与NULL定义兼容范围；ORM列举16列与旧14列的差异不隐瞒为任意改表等价。
+lookup/INSERT先prepare后读参数，UUID只在miss且INSERT准备成功后生成；成功IGNORE的旧true/通知行为保留，事务仍由调用者拥有。
+
+A3b2首次AC双写入使用Drizzle并保留raw时间、原条件和调用者事务：追加路径有AC时执行真实UPDATE，无AC不准备更新；
+导入重算先准备三个语句再完整消费去重输入，COUNT(*)保留NULL提交ID。只在changes>0通知，随后按旧/新顺序收集有效日期；
+不把无变化短路、迭代流式写入或新的事务缓冲混入查询迁移。发布migration030及统计重算实现保持不动。
+
+A4a统计基础读取保留原生数值聚合：平台分布COUNT(*)，单题访问SUM/AVG与NULL分母、INTEGER溢出错误，最后活跃时间raw首行。
+每次使用当前连接，不复用题目overview的Date解码，不增加写入或事件。连续活跃/洞察列表/重算及migration030依赖核心仍独立处理。
+
+A4b1每日趋势读取保留每一行的nullable local_day、原始计数与排序；LIMIT命名绑定保留原生数值错误，有限窗口先prepare后求本地cutoff。
+三个只读日期输出允许null，AI与repository复用shared每日类型，输入/loader/exporter不变。
+两张趋势图不再以local_day合并类别，而按各自原数组的行位置定位；刻度和Tooltip由同一类别位置查回日期，只有null显示“日期缺失”。
+此显示修复防止多个NULL行占用真实日期的坐标，不过滤数据、伪造日期、改变数量或扩大到阶段4界面重构。
+原生验收同时定位现有路由器在effect内调用flushSync的生命周期问题：快速切页/无API分支直接更新，真正View Transition回调仍在版本检查后同步提交快照；200ms阈值、过期回调和过渡清理行为保持。
+
+A4b2连续活跃读取仅将SELECT迁移到Drizzle；原active/submission/solved阈值、DESC原始日期、最长/当前双循环及今日锚点保留。
+stats局部dayDiff按原参数校验顺序收窄NULL，先验证later日期再验证earlier日期，不改变共享日历API、DST日历序号、异常优先级或时钟调用。
+
+A4c洞察四列表使用Drizzle保留COUNT(child.id)、raw MAX、命名LIMIT和未复习查询prepare后的双时钟顺序。
+时间线/未复习ID如实允许NULL，错题ID保守nullable，复访通过JOIN非空FK证明string；Dashboard元组/带标签key保留每行URL操作，匿名事件只使用位置身份，AI字段白名单不变。
+
+A4d按已评审边界实施运行时重算拆分：仅live wrapper改为导入recompute-runtime，历史030仍直接执行冻结recompute-core。
+原聚合/UNION/时钟/序列化及失败顺序不变；INSERT12与旧11的兼容仅限冻结030结构/defaults。A4d/R1冻结当前路径，后续R2历史分支迁移仍需独立方案批准和历史/恢复等价验收，不豁免最终目录目标。
+
 ### 6.4 提交后的数据刷新
 
 `data:changed` 仅广播 `{ tables }`，八个逻辑域为 `problems/submissions/notes/stats/sites/scripts/credentials/coach`，不携带记录、凭据、Cookie 或本地路径。account/rating 写入映射到 `stats`，访问记录映射到 `problems` 和 `stats`。
 
 - repository 在成功写入后标记变化；已有同步事务由 `withDataChangeTransaction` 包住整个事务调用，嵌套回滚丢弃当前层事件，最外层提交成功才发布。非事务批量写入部分成功后即使后续失败，已提交变化仍须刷新。
+- ORM迁移保留统计重算既有窄例外：单日成功含IGNORE0仍通知；全量仅完整成功且日期数大于0时通知，晚期失败可保留已提交行但不发事件；选定日期逐日成功即通知。事务回滚/实际COMMIT失败仍丢弃scope内事件，不把例外推广到新写入。
 - `dataRefreshBridge` 用固定 50ms 窗口合并去重，通过 `WindowManager.sendToAll` 发送给完整壳窗口，退出时清理计时器和订阅。
 - Cookie safe-summary 查询本身会刷新 metadata，因此这些 metadata 写入不发送 `credentials` 事件，避免查询与刷新构成无限循环。
 - `DataRefreshProvider` 管理壳内订阅，`useIpcQuery` 按依赖和逻辑域自动重读；初载显示骨架，后台 refetch 保留已加载内容，旧请求不能覆盖新 key 的结果。列表刷新不覆盖笔记或设置草稿。

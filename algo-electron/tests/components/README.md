@@ -6,6 +6,10 @@ renderer 基础 UI 组件及壳层共享组件的 jsdom 测试：渲染结构、
 
 ## 当前实现
 
+`dashboard-insight-lists.test.tsx` 验证统计列表nullable/空ID、平台元组key碰撞/重排焦点、URL点击/回车/空格、时间线匿名位置与真实ID命名空间以及加载/空态。
+
+`recent-problem-actions.test.tsx` 保留空/非法 ID 行与原站导航，验证禁用内部动作的可见说明、有效 ID 回调及两种列表的元组 key 重排/ID 变化不丢焦点；不同元组不因分隔符拼接而冲突。
+
 `searchEnginePanel.test.tsx` 覆盖搜索引擎读取、自定义模板行内校验、主进程返回配置回填和保存错误。
 
 `noteTabIsolation.test.tsx` 通过真实路由、笔记面板和编辑器保存逻辑，覆盖跨题笔记标签、同标签更换题目、同题不同标签的状态隔离，切换前标题和正文的防抖 flush、旧读取迟到，以及同标签元数据更新保留编辑器；只在 Crepe 和数据 API 边界使用替身。

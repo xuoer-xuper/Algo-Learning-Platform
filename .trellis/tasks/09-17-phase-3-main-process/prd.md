@@ -6,12 +6,200 @@
 
 ## Requirements
 
+> **2026-11-07 启动评审**：阶段2已合入dev并归档。当前schema为25表（24个应用表和迁移
+> 台账）、82个INTEGER时间列；旧计数只作历史估计。新基础代码位于`src/main/db/`，既有
+> `electron/`生命周期与repository暂留原位，不同时做目录迁移。用户已授权继续后续阶段。
+
+### 首个可验收切片 A0：Drizzle schema 与客户端
+
+- 固定并验证兼容的`drizzle-orm`/`drizzle-kit`，完整映射030之后的表、列、空值、默认值、
+  唯一/部分索引、CHECK、FK和BLOB；时间列采用timestamp_ms，外部接口仍是整数毫秒。
+- 客户端封装现有better-sqlite3连接，不打开第二连接、不在import时初始化数据库或读userData。
+- 使用临时库验证schema元数据等价、Date/数字边界、epoch0/null、BLOB与事务回滚；
+  既有IPC结果、备份/failure marker和R4提交后通知不变。
+- 此切片不启用Drizzle迁移器、不写`__drizzle_migrations`基线、不重写业务查询；生成配置
+  仅供后续显式schema生成。A0通过后进入A1迁移基线及安全装配，再逐域查询替换。
+
 ### R1 Drizzle ORM + drizzle-kit（D12，A3）
-- `src/main/db/client.ts`（`drizzle(sqlite, { schema })`，pragma WAL/foreign_keys/busy_timeout 保留）、`schema.ts`（21 张表，时间列 `integer({ mode: 'timestamp_ms' })`，与阶段 2 的毫秒列一致）、`migrate.ts`（`migrate(db, { migrationsFolder })`）。
-- 历史 001–030 作为**基线**：`drizzle/0000_baseline.sql` = 030 之后的完整 schema；`__drizzle_migrations` 表在已有库上通过检测 `schema_migrations.version === 30` 直接标记基线已应用（自定义一次性引导逻辑，写在 `migrate.ts`，有测试）。旧迁移文件移到 `src/main/db/legacy-migrations/` 只供新库从零建时按序执行到 030，再交给 drizzle。
+- `src/main/db/client.ts`（`drizzle(sqlite, { schema })`，pragma WAL/foreign_keys/busy_timeout 保留）、`schema.ts`（实测25张表，时间列 `integer({ mode: 'timestamp_ms' })`，与阶段2毫秒列一致）、`migrate.ts`（安全装配后使用Drizzle migrator）。
+- 历史 001–030 作为**基线**：`drizzle/0000_baseline.sql` = 030 之后的完整 schema；已有库必须验证可信资源、连续版本/名称台账及完整物理结构，安全备份后才登记Drizzle基线，不能只检查version最大值。旧迁移保持冻结，目录迁移时移到 `src/main/db/legacy-migrations/`，供新库及未到030的旧库升级，再交给Drizzle。
 - 249 处 `prepare()` 改 Drizzle query builder；114 处 `as Row` 由 `$inferSelect` 消除；`userScript/mutations.ts` 动态 SET 用 `.set(partial)`。
 - `initDbAtPathWithMigrationSafety` 的备份 + failure marker 包住 `migrate()`。
 - `drizzle.config.ts`；`pnpm db:generate` / `db:migrate` 脚本；`DATABASE_SCHEMA.md` 改为"schema.ts 为准 + 表说明"。
+
+### A2g Recent-list acceptance clarification (2026-11-20)
+
+The final problem-query migration retains all rows and original-site navigation.
+Nullable or otherwise route-invalid IDs must not offer working notes/detail
+buttons: disable only those actions with a visible accessible reason, using the
+existing main route ID policy unchanged. Recent output types reflect null IDs;
+detail parent IDs remain string. This bounded compatibility correction is not
+permission for the phase-4 renderer redesign, data repair or broader route changes.
+
+### A3a Submission-read acceptance clarification (2026-11-20)
+
+Preserve all existing submission read results and errors, including all baseline
+fields, nullable IDs, raw timestamps and native parameter limits. Correct the
+read-only timeline submission ID output to allow already-returned null; keep
+request/problem IDs, metric outputs and LLM privacy allowlist unchanged. Empty
+first-AC batches must still acquire no database. Submission writes remain separate.
+
+### A5e Notes Creation Acceptance (2026-11-28)
+
+After A5d/handoff integration4fe73b3 and green PR8CI46133166016, parent accepts
+actual-native197 feasibility and independent create-only design review. Preserve
+nine raw bindings with the public CTE INSERT SELECT and an eager typed prepare
+factory. Keep all three parent/title reads at their original file/prepare/event
+stages and ignore the native result, including successful IGNORE0. Accept the
+explicit ten-column versus old nine-column omission only on frozen030 (nullable
+deleted_at without default), not arbitrary altered DDL. Startup guards remain.
+Measured trigger spool/small-construction cost is disclosed, not performance
+equality. No old observer exception, three full reads, public API/UI, schema,
+history or dual-store repair is included. Formal service/native/app/full gates
+remain required before acceptance; this is implementation GO only.
+
+### A5d Notes Content Acceptance (2026-11-28)
+
+After A5c integration/handoff, parent accepts the independently reviewed
+content-only conversion backed by actual-native feasibility92 checks. Preserve
+four original raw arguments, file/clock/count/write ordering, lookup outside the
+catch and ignored native result. Successful zero-change run still emits/returns
+true; this is a preservation exception, not a new notification policy. Files are
+not restored by SQL rollback. Creation/full reads/public types/IPC/UI/schema and
+dual-store repair remain excluded. No weaker old assertions or bind-order waiver.
+
+### A5c Notes Deletion Acceptance (2026-11-28)
+
+After A5b integration, parent accepts the independent DELETE-only precheck.
+Preserve one raw binding/native result, original lookup and files-first effects,
+both changes reads, NULL-list/batch partial success and caller transaction/events.
+SQL rollback must not be described as restoring files. No content/create/full-row
+read or public contract/schema/storage repair is included. The content builder's
+changed parameter order requires separate acceptance, not weaker trace tests.
+
+### A5b Notes Title/Type Acceptance (2026-11-28)
+
+After A5a integration, parent accepts the independently reviewed two-UPDATE
+slice: title and type metadata only. Preserve raw binding, original native
+result/error semantics, clock/acquisition order, both changes reads and existing
+caller transaction/events. Markdown/assets must remain untouched on success
+and failure. No public union/IPC/UI/schema/history or other notes query change.
+
+An explicit caller-owned handle is approved for these two write helpers. Actual
+better-sqlite3 differential and isolated real-app acceptance are required; the
+alternate-driver research probe alone cannot certify malformed binding behavior.
+
+### A5a Notes File-Path Read Acceptance (2026-11-27)
+
+After A4d and its handoff integration, parent accepts the independently reviewed
+four-read notes slice. Preserve file-path row presence, native equality/errors,
+original read/FS/write/clock/event order and caller-owned transactions. No other
+notes query, write, storage, IPC/UI/nullability policy or schema changes.
+
+The query helper uses an explicit caller-owned handle. Damaged-DDL parity covers
+native class/code/identity and failure stage, not identical quoted identifier
+wording. Isolated actual Electron/SQLite/storage acceptance must accompany the
+conversion; mocked storage alone is insufficient. Existing dual-store partial
+effects remain documented, not silently repaired. Later notes work stays separate.
+
+### A4d Runtime Recompute Acceptance (2026-11-27)
+
+After A4c integration, parent accepts the independently reviewed runtime-only
+recompute conversion. Preserve daily/all/selected results, native effects and
+failures, clocks, ordering and existing notification behavior. Keep migration030
+and its historical recompute dependency at their exact paths and bytes during
+A4d/R1. No historical forwarding shim, shared rewrite, schema or public API change.
+
+Runtime INSERT compatibility is limited to the unchanged frozen030 physical
+schema/defaults, not arbitrary altered defaults or intermediate historical DDL.
+Preserve late NULL-cache failure after fact conversion. Existing single-day
+success emits even IGNORE0; all-days late failure can retain earlier autocommit
+writes without an event. Selected dates retain per-success emission. These are
+narrow preservation exceptions, not a new notification policy.
+
+The exact-location freeze applies to A4d/R1, superseding only a perpetual-location
+reading of earlier research. R2/R5 still requires electron/ removal. Historical
+relocation needs a separate approved plan and graph/history/recovery-equivalence
+acceptance; it is not authorized now. If that proof fails, R2 stays incomplete.
+
+### A4c Insight List Acceptance (2026-11-27)
+
+Parent accepts the independently reviewed four-list scope after A4b2 integration.
+Preserve timeline/revisit/wrong/unreviewed rows, raw values, native limits,
+ordering and original clock/error behavior. Timeline/unreviewed read IDs allow
+NULL. Wrong IDs become conservatively nullable in types although their equality
+join excludes NULL at runtime; revisit remains string using the existing joined
+NOT NULL visit FK. No schema repair or request widening.
+
+Dashboard keeps every canonical-URL action and existing loading/empty states.
+Wrong/unreviewed row identity uses the required unique platform/problem tuple;
+timeline identified and anonymous keys use separate tagged domains. Anonymous
+identity remains positional. This bounded key correction preserves data and
+navigation; it does not approve broader phase4 work or a stable anonymous-ID
+model. AI/export privacy projections stay unchanged. Recompute remains separate.
+
+### A4b1 Native UI blocker acceptance (2026-11-23)
+
+Actual Electron diagnostics prove the existing shell router's rapid-tab effect
+calls flushSync during React rendering. Parent accepts a bounded prerequisite
+fix so native acceptance is console-clean rather than suppressing the warning:
+non-transition updates remain direct, while a genuine native View Transition
+callback still commits the new route before snapshot capture. Preserve tab
+selection, burst threshold, stale-callback protection and animation behavior.
+This permits ShellRouter.tsx and its transition regression tests only, not a
+phase4 router redesign. Native trend assertions remain unchanged.
+
+### A4b2 Streak acceptance boundary (2026-11-20)
+
+Parent accepts the independent daily-read precheck's separate streak scope after
+A4b1: preserve current/longest numeric outputs, qualification thresholds, loops,
+clock and invalid-day failure timing. Single NULL/invalid rows and paired invalid
+rows retain their different existing outcomes. Only streak SELECT and stats-local
+dayDiff nullable narrowing change; shared calendar inputs/outputs stay untouched.
+
+### A4b1 Daily-read and chart safety acceptance (2026-11-20)
+
+Parent explicitly accepts the independently reviewed nullable daily-read output
+policy and narrow chart consumer correction. Preserve every existing row, raw
+day string/null, count, order, limit, cutoff, loader and AI JSON behavior. Both
+trend charts must give each row its own categorical position so NULL dates
+cannot steal real-date coordinates. NULL displays only as "日期缺失"; nonnull
+strings retain existing tick/full-tooltip formatting. This is an intentional fix
+of a demonstrated chart bug, not a claim of identical old UI behavior.
+
+This limited phase3 renderer-consumer safety exception is not phase4 redesign.
+Only four trend reads, corresponding read types/shared AI shape and the two chart
+axes/labels change. No schema/data repair, writer/input/time validation, loader,
+privacy/export version, broad UI/layout or historical migration changes. Streak,
+insight lists and recomputation remain separately accepted slices.
+
+### A4a Basic-statistics acceptance boundary (2026-11-20)
+
+After A3 acceptance, convert only platform distribution, single-problem visit
+aggregates and latest activity time. Keep existing signatures, exact scalar values,
+NULL-duration AVG semantics, native SUM overflow and raw latest timestamps. No
+new output/nullability/UI decision, filters, date calculations or transaction is
+needed. Trends, streak, insight lists and migration-coupled recompute are separate.
+
+### A3b2 First-AC acceptance boundary (2026-11-20)
+
+Convert only the two first-AC state mutations, preserving raw values, original
+status transitions, affected-day ordering, actual UPDATE execution, native
+failures and caller-owned transaction/notification semantics. Recompute must
+prepare all three statements before consuming any iterable, including empty or
+throwing inputs. No changes to imports/batch orchestration, read queries, schemas,
+migrations, time validation or public outputs. Parent accepts the independent
+A3b2 precheck after A3b1 local acceptance; implementation waits for its integration.
+
+### A3b1 Supported-schema acceptance boundary (2026-11-20)
+
+Submission INSERT conversion preserves current frozen030 data/default behavior,
+notifications, statement ordering and raw/native values. It does not promise
+equivalence after arbitrary manual DDL changes to omitted columns/defaults/views.
+Do not weaken startup validation or silently claim per-write schema checks. Keep
+damaged-schema failures native and synchronous, without requiring identical
+qualified-column wording. Only upsertSubmission changes; first-AC writes remain
+separate. This scope is explicitly accepted after independent design review.
 
 ### R2 目录迁移（D2、D3）
 - `src/main/index.ts`（< 150 行）：`import './env-setup'` → `bootstrapServices()` → `registerIpc()` → `createShellWindow()`；22 个模块级 `let` 收进 `AppContext` 对象由 `bootstrapServices` 返回。
@@ -51,7 +239,7 @@
 ## Acceptance Criteria
 
 - [ ] `algo-electron/electron/` 目录不存在；`src/main/` 结构与 `backend/directory-structure.md` 一致（每个域有 `types.ts` + `procedures/`）。
-- [ ] `grep -rn "\.prepare(" src/main` = 0（除 `db/client.ts` pragma）；`grep -rn " as .*Row" src/main` = 0。
+- [ ] 应用查询不再使用裸`prepare`或手抄`as Row`；冻结legacy migration、schema校验、pragma和迁移恢复基础设施为明确且测试覆盖的例外，不用全局grep=0迫使改写历史迁移。
 - [ ] 新库从零启动：legacy 001–030 → drizzle 基线 → 后续 drizzle 迁移；旧库（rc.1 + 030）启动：直接识别基线；两条路径各有测试。
 - [ ] `src/main/index.ts` < 150 行；`tab-manager.ts` < 600；`coach-orchestrator.ts` < 400；全项目无 > 700 行的非注入脚本 TS 文件（注入脚本模板与 `.d.ts` 例外清单写在守卫）。
 - [ ] 每个 `ipc/*.handler.ts` 的 handler 体 ≤ 5 行（守卫统计）。
@@ -62,7 +250,7 @@
 
 ## Out of Scope
 
-- 渲染层（阶段 4）；测试目录重排（阶段 5，但本阶段搬源码时**同步移动**对应测试文件到 `tests/unit/services/{domain}/` 的临时位置，避免 import 断裂）。
+- 广泛渲染层重构（阶段4）；已明确批准的A2g无效ID操作、A4b1日期图表consumer-safety及其原生验收发现的局部路由生命周期修复、A4c洞察输出/key消费者边界除外。测试目录重排（阶段 5，但本阶段搬源码时**同步移动**对应测试文件到 `tests/unit/services/{domain}/` 的临时位置，避免 import 断裂）。
 
 ## Notes
 

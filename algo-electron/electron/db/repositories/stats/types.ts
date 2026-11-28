@@ -1,12 +1,6 @@
-export interface DailyActiveStat {
-  local_day: string
-  active_seconds: number
-  duration_seconds: number
-  visited: number
-  solved: number
-  submissions: number
-  ac: number
-}
+import type { DailyActiveStats } from '../../../../src/shared/types/stats'
+
+export type DailyActiveStat = DailyActiveStats
 
 export interface ProblemVisitStat {
   total_visits: number
@@ -31,7 +25,7 @@ export interface StreakDays {
 }
 
 export interface WrongProblem {
-  id: string
+  id: string | null
   platform: string
   platform_problem_id: string
   title: string | null
@@ -41,7 +35,7 @@ export interface WrongProblem {
 }
 
 export interface UnreviewedProblem {
-  id: string
+  id: string | null
   platform: string
   platform_problem_id: string
   title: string | null

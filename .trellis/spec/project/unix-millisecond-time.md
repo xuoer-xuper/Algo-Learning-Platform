@@ -123,3 +123,12 @@ if (timestamp) render(timestamp)
 // Correct:
 if (timestamp !== null && timestamp !== undefined) render(formatForDisplay(timestamp))
 ```
+
+## Raw Daily Cache Read Exception (A4b1)
+
+Valid-day creation/input/calendar contracts remain YYYY-MM-DD strings. The
+historical user_daily_stats schema nevertheless allows NULL and unvalidated text
+keys; its read outputs preserve those values as string|null rather than repairing,
+filtering or coercing them. This narrow read exception does not widen snapshots,
+period keys, instant schemas, writer/recompute inputs, migrations or IPC requests.
+See drizzle-daily-reads.md for ordinal chart labels and unchanged AI/backup formats.

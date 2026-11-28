@@ -24,6 +24,7 @@
 
 ## 4. 边界规则
 
+- 最近访问保留所有记录并按原 URL 导航；React key 使用 `JSON.stringify([platform, platform_problem_id])`，支持多个空 ID，不生成替代数据库 ID。
 - 首页展示的统计口径不得在 renderer 内重算。
 - 事件订阅必须在 effect cleanup 中取消。
 - 首页导航通过父级传入的 `onNavigate(url)` 完成，不直接管理浏览器标签状态。

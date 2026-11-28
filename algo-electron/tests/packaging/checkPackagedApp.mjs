@@ -4,6 +4,7 @@ import { spawn, spawnSync } from 'node:child_process'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
+import { listPackage } from '@electron/asar'
 
 const projectRoot = process.cwd()
 const packageJson = JSON.parse(fs.readFileSync(path.join(projectRoot, 'package.json'), 'utf8'))
@@ -45,6 +46,76 @@ function assertProductionFuses() {
 }
 
 assertProductionFuses()
+
+function assertResourcesAreExternal() {
+  const entries = listPackage(path.join(releaseDir, 'resources', 'app.asar'), { isPack: false })
+  assert.ok(
+    !entries.some((entry) =>
+      /^(?:dist-electron\/)?drizzle(?:\/|$)/.test(entry.replaceAll('\\', '/').replace(/^\/+/, '')),
+    ),
+    'Migration SQL/journal must come from resources/drizzle, not a source-tree copy in app.asar',
+  )
+  assert.strictEqual(fs.existsSync(path.join(releaseDir, 'drizzle')), false)
+}
+
+assertResourcesAreExternal()
+
+function checkMigrationResources(databasePath, scratchRoot) {
+  const tmpDir = path.join(projectRoot, 'tmp')
+  fs.mkdirSync(tmpDir, { recursive: true })
+  const helperDir = fs.mkdtempSync(path.join(tmpDir, 'packaged-migrations-'))
+  const helperBundle = path.join(helperDir, 'verify-migration-resources.mjs')
+  try {
+    const bundle = spawnSync(
+      process.execPath,
+      [
+        path.join(projectRoot, 'node_modules', 'esbuild', 'bin', 'esbuild'),
+        'tests/packaging/verify-migration-resources.ts',
+        '--bundle',
+        '--platform=node',
+        '--format=esm',
+        '--external:better-sqlite3',
+        '--external:electron',
+        '--external:electron-log',
+        `--outfile=${helperBundle}`,
+      ],
+      { cwd: projectRoot, encoding: 'utf8', windowsHide: true, timeout: 30_000 },
+    )
+    assert.ifError(bundle.error)
+    assert.strictEqual(
+      bundle.status,
+      0,
+      `Failed to bundle the migration verifier\nSTDOUT:\n${bundle.stdout}\nSTDERR:\n${bundle.stderr}`,
+    )
+    // The shipped executable keeps RunAsNode disabled. Inspect only the isolated
+    // smoke database with development Electron after the packaged app has exited.
+    const verify = spawnSync(
+      path.join(projectRoot, 'node_modules', 'electron', 'dist', 'electron.exe'),
+      [helperBundle, path.join(releaseDir, 'resources'), databasePath, scratchRoot],
+      {
+        cwd: projectRoot,
+        env: { ...process.env, ELECTRON_RUN_AS_NODE: '1' },
+        encoding: 'utf8',
+        windowsHide: true,
+        timeout: 30_000,
+      },
+    )
+    assert.ifError(verify.error)
+    assert.strictEqual(
+      verify.status,
+      0,
+      `Packaged migration verification failed\nSTDOUT:\n${verify.stdout}\nSTDERR:\n${verify.stderr}`,
+    )
+    assert.match(verify.stdout, /\[PASS\] Packaged SQL\/journal match the compiled history/)
+    console.log(verify.stdout.trim())
+  } finally {
+    assert.ok(
+      path.resolve(helperDir).startsWith(`${path.resolve(tmpDir)}${path.sep}`),
+      'Refusing to clean a migration helper outside the workspace tmp directory',
+    )
+    fs.rmSync(helperDir, { recursive: true, force: true })
+  }
+}
 
 function writeSmokePages(webRoot, rendererDist) {
   fs.mkdirSync(webRoot, { recursive: true })
@@ -131,9 +202,9 @@ function delay(ms) {
   })
 }
 
-function startPackagedApp(env, timeoutMs = 45_000) {
+function startPackagedApp(env, workingDirectory, timeoutMs = 45_000) {
   const child = spawn(executable, [], {
-    cwd: releaseDir,
+    cwd: workingDirectory,
     env,
     windowsHide: true,
     stdio: ['ignore', 'pipe', 'pipe'],
@@ -211,9 +282,12 @@ function startPackagedApp(env, timeoutMs = 45_000) {
 async function main() {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'alp-packaged-smoke-'))
   const userDataDir = path.join(tempRoot, 'user-data')
+  const workingDirectory = path.join(tempRoot, 'unrelated-working-directory')
   const webRoot = path.join(tempRoot, 'web')
   const rendererDist = path.join(tempRoot, 'renderer-dist')
   fs.mkdirSync(userDataDir)
+  fs.mkdirSync(path.join(workingDirectory, 'drizzle', 'meta'), { recursive: true })
+  fs.writeFileSync(path.join(workingDirectory, 'drizzle', 'meta', '_journal.json'), '{invalid-json')
   writeSmokePages(webRoot, rendererDist)
   const { server, origin, requests, releaseLegacyHome } = await startSmokeServer(webRoot)
   const legacyHomeUrl = `${origin}/legacy-home.html`
@@ -238,7 +312,8 @@ async function main() {
       VITE_DEV_SERVER_URL: '',
     }
 
-    primary = startPackagedApp(smokeEnv)
+    // A cwd-based migration fallback must fail against this deliberately invalid journal.
+    primary = startPackagedApp(smokeEnv, workingDirectory)
     await primary.waitForOutput('[startup-smoke] step shell-loaded')
     assert.strictEqual(
       primary.child.exitCode,
@@ -251,7 +326,7 @@ async function main() {
       'Primary packaged app was terminated before the second launch',
     )
 
-    secondary = startPackagedApp(smokeEnv, 10_000)
+    secondary = startPackagedApp(smokeEnv, workingDirectory, 10_000)
     const secondaryResult = await secondary.result
     assert.ifError(secondaryResult.error)
     assert.strictEqual(
@@ -338,16 +413,17 @@ async function main() {
       'Packaged app did not create its isolated SQLite database',
     )
     assert.ok(fs.statSync(databasePath).size > 0, 'Packaged app created an empty SQLite database')
+    checkMigrationResources(databasePath, path.join(tempRoot, 'migration-resource-copies'))
 
     console.log(
-      '[PASS] Packaged win-unpacked app enforces one instance, focuses the primary window, and loads SQLite',
+      '[PASS] Packaged win-unpacked app enforces one instance, focuses the primary window, and adopts packaged migrations from an unrelated cwd',
     )
   } finally {
     releaseLegacyHome()
     await Promise.allSettled([primary?.stop(), secondary?.stop()].filter(Boolean))
     await new Promise((resolve) => server.close(() => resolve()))
     assert.ok(
-      tempRoot.startsWith(os.tmpdir()),
+      path.resolve(tempRoot).startsWith(`${path.resolve(os.tmpdir())}${path.sep}`),
       'Refusing to clean outside the system temp directory',
     )
     fs.rmSync(tempRoot, { recursive: true, force: true })

@@ -48,7 +48,6 @@
 - 阶段 0.5 prettier（含全仓一次性格式化单独 commit），随后 0.6 husky/commitlint/lint-staged、0.7 jscpd、0.8 @shared alias、0.9 release-it、0.1 分支保护与 dev 触发、0.10 COMMIT_RULES
 - 0.4 的两条遗留：tests/** 规则升级（94 处 any 等）与 runElectronAppTest 的 ESM/electron 互操作问题，前者随阶段 5、后者已记入 0.10/阶段 5 待办
 
-
 ## Session 2: 修复 userscript 烟测失效竞态并合并 v2.0.0 正式版
 <!-- trellis-session: v=2 fp=e87fbcfb0aecb4aa -->
 
@@ -70,7 +69,6 @@
 ### Status
 
 [OK] **Completed**
-
 
 ## Session 3: 阶段 0.5 prettier 接入与源码守卫的格式适配
 <!-- trellis-session: v=2 fp=088598938e83547a -->
@@ -103,7 +101,6 @@
 
 - 下一节 0.6 husky+commitlint+lint-staged(注意 design §6 的 release-it 与 master 提交互斥问题需选方案)；随后 0.7 jscpd、0.8 @shared alias、0.9 release-it、0.1 ci.yml 加 dev、0.10 COMMIT_RULES。当前会话到 0.5 收口为止，0.6 起待后续会话。
 
-
 ## Session 4: CI 连红根因排查与修复：json5 守卫误炸 + transitions 夹具时序，推送纪律定案
 <!-- trellis-session: v=2 fp=a3a374bf65307528 -->
 
@@ -133,7 +130,6 @@
 ### Next Steps
 
 - 0.6 已彻底收口（含 pre-push 抖动治标 29dbece 与本次两修复）。下节 0.7 jscpd（派发已被打断，重新派发）；0.7 起所有推送执行新推送纪律。husky commit-msg 门已实战拦截过一次非法 scope（packaging 不在词表）。
-
 
 ## Session 5: 阶段 0 收官：0.7-0.10 四节完成、CI 合理性审查、spec 同步
 <!-- trellis-session: v=2 fp=9cd801ec9ba443f2 -->
@@ -169,7 +165,6 @@
 
 - 阶段 0 十节全部落地。PR #4 待用户 squash 合入 dev；合入后 AC1（push dev 触发 CI）用 gh run watch 验证；阶段收口门（test:all+build:win+装包冒烟）中 test:all 受 coach 夹具既有红阻塞（阶段 5 范围），建议与用户确认处理口径后再 archive。
 
-
 ## Session 6: 标签 favicon 三层缺陷修复(10-31-tab-favicon):CSP/兜底/Referer,用户实测通过并归档
 <!-- trellis-session: v=2 fp=242538efdad5c956 -->
 
@@ -199,7 +194,6 @@
 
 - 阶段 0 剩:用户 squash 合入 PR #4(现含本修复,建议标题加注)→ 验 AC1(push dev 触发 CI)→ 阶段 0 archive。
 
-
 ## Session 7: 阶段 0 收官:PR #4 squash 合入 dev(ff47377),AC1 实证,任务归档
 <!-- trellis-session: v=2 fp=32a431db185f552a -->
 
@@ -228,7 +222,6 @@
 ### Next Steps
 
 - 阶段 0 完结。下一任务:阶段 1 基础设施换库(09-17-phase-1-infra-libraries,planning)——启动前走 1.4 评审;另记:favicon 的 Fix 4(主进程代理)仅在 AcWing 回归时升格。
-
 
 ## Session 8: 阶段 1 基础设施换库完成:R1-R5 五节落地,收口门两连击修复,PR #5 就绪
 <!-- trellis-session: v=2 fp=5cdc8190cce32a89 -->
@@ -264,7 +257,6 @@
 
 - PR #5 待用户 squash 合入 dev;合入后阶段 1 归档,下一任务阶段 2 IPC 契约与共享层。注意:阶段 2 需处理 shared→electron 常量 import 方向(复核 MEDIUM 发现)。
 
-
 ## Session 9: 阶段 1 收官:PR #5 squash 合入 dev(30ffea8),dev CI 绿,任务归档
 <!-- trellis-session: v=2 fp=c2050edcc6a376b8 -->
 
@@ -293,7 +285,6 @@
 ### Next Steps
 
 - 下一任务:阶段 2 IPC 契约与共享层(09-17-phase-2-ipc-contract,planning)——启动评审时一并处理 shared→electron 常量 import 方向(复核 MEDIUM 发现:常量下沉 shared 或加守卫)。
-
 
 ## Session 10: 阶段 2 前三节完成(R1 channel 常量/R2 类型单一来源/R3 window.api),用户指示 R3 后暂停
 <!-- trellis-session: v=2 fp=ccecd34a2ab7bdeb -->
@@ -326,7 +317,6 @@
 
 - 继续 R4(数据刷新订阅,重启时按 implement.md 清单重做,channels.ts 的 DATA.CHANGED 需重加)→ R5(时间戳毫秒,独立分支)→ 两道收口门 → PR #6 squash 合入。
 
-
 ## Session 11: 阶段 2 R1-R4 收口推送，R5 保留迁移安全门
 <!-- trellis-session: v=2 fp=11acf5026e3f6f27 -->
 
@@ -356,7 +346,6 @@
 ### Next Steps
 
 - 提供或定位真实v1.0.0/schema1-21备份，确认现有两份库的验收资格；修订R5时区/非法值/FK重建/统计策略后另开独立分支。当前任务不归档，PR6未合并。
-
 
 ## Session 12: 阶段 2 R5 完成并推送：030 毫秒迁移、真实副本验收与 CI 全绿
 <!-- trellis-session: v=2 fp=284835c53fcf2f6c -->
@@ -390,7 +379,6 @@
 
 - 按授权处理PR6→dev，再调整/集成依赖PR7；合入后归档阶段2并对阶段3做启动评审。当前无需追加代码，原有.zcode保持未跟踪。
 
-
 ## Session 13: 阶段 2 合并归档：PR6/7 入 dev，开启阶段 3
 <!-- trellis-session: v=2 fp=325a47c3603bb60c -->
 
@@ -421,6 +409,89 @@
 
 - 阶段3启动评审：更新25表/SQL统计、固定Drizzle版本、第一块PR-A0建立schema/client与等价测试，迁移runner及逐域改写后续独立验证。
 
+## Session 14: 阶段3 A0/A1迁移接管与A2a总览查询完成并推送
+<!-- trellis-session: v=2 fp=ea3f10f224543dbd -->
+
+**Date**: 2026-11-07
+**Task**: 阶段3 A0/A1迁移接管与A2a总览查询完成并推送
+**Branch**: `refactor/drizzle`
+
+### Summary
+
+Drizzle基础、安全基线/资源/备份接管和题目总览四条只读查询已验收；PR8仍draft，阶段3不归档。
+
+### Main Changes
+
+- 固定25表82个timestamp_ms映射；开库前可信资源验证，连续台账和完整物理结构检查，统一backup/restore/稳定tag重试。
+- A2a保留同步计数、nullable ID、tombstone和本地日边界；Date只在内部，外部整数毫秒/epoch0/null不变。
+- 未碰用户原库，冻结001–030与baseline/meta未改，保留无关.zcode。初次pre-push一次拖拽瞬时失败已记录，10次诊断+5次原测试及完整复测/CI通过，不宣称已定位根因。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `e1e3ae0` | refactor(db): 建立 Drizzle schema 与客户端基础 |
+| `1ba968b` | feat(db): 安全接管 Drizzle 迁移与打包资源 |
+| `3869fe2` | refactor(db): 将题目总览查询迁移到 Drizzle |
+
+### Testing
+
+- [OK] 最新test:all198文件/1673用例，UI11/11，test:db24文件/158用例，原生repositories13/13。
+- [OK] A1专用80/80；A2a总览8/8并在纽约23小时DST日期通过，独立复核无遗留发现。
+- [OK] typecheck两次/lint/architecture22/22/packaging9/9/docs通过；jscpd1.76%；最新build:win及真实打包双实例/资源台账通过。
+- [OK] A0 CI42337708058、A1 CI42373778745、A2a CI42375070997全绿；每次正常hook提交/推送，无绕过。
+
+### Status
+
+[OK] **本次 A0/A1/A2a 切片已完成；阶段 3 仍 in_progress，未归档。**
+
+### Next Steps
+
+- 先做A2b findProblemIdByPlatformKey单条查询，再逐域转换读写；nullable ID DTO/upsert兼容策略必须明确，不收紧schema偷渡。
+- PR8仍draft，不自动合并或发布；目录迁移/拆分及阶段4–6仍未完成。
+- 单独补native tab-drag失败pointer/capture/finishDrag诊断，不以sleep/重试/直接reorder掩盖。
+
+## Session 15: 阶段3完成 A2b/A2c 与原生UI失败诊断
+<!-- trellis-session: v=2 fp=4f1528c7e9210442 -->
+
+**Date**: 2026-11-07
+**Task**: 阶段3完成 A2b/A2c 与原生UI失败诊断
+**Branch**: `refactor/drizzle`
+
+### Summary
+
+三块独立交付均已正常推送并CI全绿；补推上轮7d35ed0，PR8保持draft，阶段3不归档。
+
+### Main Changes
+
+- 测试侧有界记录pointer/capture/finishDrag及失败窗口状态，15个单测和一次真实跨进程错误身份/附件验证；不改原生输入动作、断言或重试，不宣称已修复历史瞬时失败根因。
+- A2b将平台题号单条查找改Drizzle，14个原SQL对照保持精确绑定、大小写/空白、NULL/空ID、deleted0、只读/生命周期/异常。
+- A2c将upsert三条语句改Drizzle；35个oracle回归保持真实bound-null UPDATE及原通知、六列SET/触发语义、标题/字段/时间/tombstone、实际commit/savepoint/partial-autocommit。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `a8f093e` | test(ui): 补充原生输入失败诊断 |
+| `5b13d85` | refactor(db): 将题目键查找迁移到 Drizzle |
+| `2bba47e` | refactor(db): 将题目写入迁移到 Drizzle |
+
+### Testing
+
+- [OK] test:all201文件1737用例，UI11/11，test:db26文件207用例，原生repositories15/15。
+- [OK] A2c独立复核11文件88用例；两次typecheck/full lint/architecture22/packaging9/docs通过，jscpd1.76%。
+- [OK] build:win NSIS、native external、生产fuses及真实打包双实例/迁移资源/台账通过；仅临时数据。
+- [OK] UI CI42378532852、A2b CI42379159788、A2c CI42381032242两项全绿，全部正常hooks，冻结001–030及baseline/meta不变。
+
+### Status
+
+[OK] **本轮 A2b/A2c 与 UI 诊断已完成；阶段 3 仍 in_progress，未归档。**
+
+### Next Steps
+
+- A2d细化题目删除：原始数值UNION、四表删除顺序、提交后通知、postcommit统计部分失败；尚未实施。
+- 后续DTO读查询/omnibox/其他域及目录迁移待完成，nullableID返回策略不偷改。
+- 保持PR8 draft，不自动合并/发布/tag，保留用户.zcode不动。
 
 ## Session 16: 发布加固工程完成并通过真实隔离安装验收
 <!-- trellis-session: v=2 fp=418c07d22abc2b37 -->
@@ -474,7 +545,6 @@
 
 - 完成七站/同步/核心页面验收、评审PR9集成及最终master资产验收；恢复发行须另行确认，保留PR8和阶段3工作。
 
-
 ## Session 17: 2.0.1正式发行与最终证据闭环
 <!-- trellis-session: v=2 fp=00a3aad6c1b0d56f -->
 
@@ -510,3 +580,321 @@
 ### Next Steps
 
 - 将发行加固按边界同步Drizzle/PR8；为下个版本重新评审baseline和版本号，不改已发tag。
+
+
+## Session 18: Drizzle安全同步与A2d/A2e验收交接
+<!-- trellis-session: v=2 fp=40cb14118b138def -->
+
+**Date**: 2026-11-19
+**Task**: Drizzle安全同步与A2d/A2e验收交接
+**Branch**: `refactor/drizzle`
+
+### Summary
+
+发布加固同步保留祖先和恢复协议；题目删除及最近访问候选切片合回Drizzle，两层CI全绿。归档已完成的发行加固任务，阶段3继续。
+
+### Main Changes
+
+- PR15同步v2.0.1安全机制；PR16删除与PR17最近访问候选通过独立复核并合回Drizzle，PR8保持draft/base dev。
+- 归档release-upgrade-safety的28份材料，保留原research证据；阶段3和父计划不归档，不改已发tag/资产。原D62个dirty文件及HEAD保持。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `57690f6` | chore(db): 合并2.0.1加固并接入Drizzle恢复协议 |
+| `317cd9f` | chore(db): 同步2.0.1加固到Drizzle并保留恢复兼容 |
+| `dcd8991` | refactor(db): 将题目删除迁移到Drizzle并保持事务行为 |
+| `85b95dc` | refactor(db): 将题目删除迁移到Drizzle并保持事务行为 (#16) |
+| `82a0163` | refactor(db): 将地址栏最近访问候选迁移到Drizzle |
+| `0927213` | refactor(db): 将地址栏最近访问候选迁移到Drizzle (#17) |
+
+### Testing
+
+- [OK] A2e test:all206文件2038用例、UI11/native19、test:db374、build:check通过；A2d上海/纽约各41及全量2005/UI11通过。
+- [OK] PR15CI44025304964/PR8CI44025992234，PR16CI44049450301/PR8CI44505395427，PR17CI44521575932/PR8CI44522362714全部通过。
+
+### Status
+
+[OK] **本轮切片及发行交接完成；阶段3仍in_progress。**
+
+### Next Steps
+
+- 先评审剩余problem/omnibox第一管线的nullable-ID输出政策；不得静默丢行、强转或收紧schema。后续其他域/目录工作继续独立切片，未来发版另行确认。
+
+
+## Session 19: Drizzle A2f查询迁移与nullable输出验收交接
+<!-- trellis-session: v=2 fp=1ea86173d685996e -->
+
+**Date**: 2026-11-20
+**Task**: Drizzle A2f查询迁移与nullable输出验收交接
+**Branch**: `refactor/drizzle`
+
+### Summary
+
+完成题目详情、访问记录及Omnibox第一候选管线Drizzle迁移；共享输出如实允许既有NULL ID，保持实际数据行为。独立复核、全量2104/UI11/native22/build及PR19/PR8 CI全绿。阶段3仍未完成，不归档、不发版。
+
+### Main Changes
+
+- 详情/访问/Omnibox完整查询边界迁移；保留全行、墓碑、计数/上限、raw时间、native绑定与错误，冻结旧SQL差分。
+- D盘交接审计：9份规划均已由远端保存或替代；62dirty文件保持。53份.zcode为Trellis平台配置，机器绝对路径需单独决定，不盲目提交。
+- 仅三个既有nullable输出契约变更；输入、路由、renderer行为、数据库schema、恢复协议及已发布2.0.1不改。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `4cef9ea` | refactor(db): 迁移详情访问和地址栏查询并如实声明空ID |
+| `2112734` | refactor(db): 迁移详情访问和地址栏查询并如实声明空ID |
+
+### Testing
+
+- [OK] 独立focused156、test:db31文件433/native22、test:all207文件2104/UI11、build:check、正常commit/pre-push hooks通过。
+- [OK] PR19CI44657463867通过，squash2112734合回Drizzle；PR8集成CI44658098990全绿。
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- 先评审recent-list不可寻址ID的侧栏操作政策与原生LIMIT行为，禁止静默丢行/伪造ID/强转；其后继续submission/stats等域、主进程布局/拆分和后续阶段。PR8仍draft/base dev。
+
+
+## Session 20: Drizzle A2g至A4c集成验收与重算安全边界交接
+<!-- trellis-session: v=2 fp=ee820b6ad6d98386 -->
+
+**Date**: 2026-11-27
+**Task**: Drizzle A2g至A4c集成验收与重算安全边界交接
+**Branch**: `refactor/drizzle`
+
+### Summary
+
+近期题目列表、提交读取/写入与全部统计读取切片按独立审查及双层CI合入Drizzle。A4c全量2728/native52/UI16/build通过；继续A4d运行时重算，冻结历史升级分支。阶段3仍未完成。
+
+### Main Changes
+
+- A2g至A4c以PR21至PR28逐片集成，保留原始数据/事务/时间行为；nullable输出与有限consumer修正均先评审后实施。
+- A4b1修复已证实ShellRouter effect flushSync问题；A4b2另一次Tooltip事件根因未明，保留证据与禁止盲重试约束，不宣称已修复。
+- A4c四个洞察查询及行key完成；独立检查仅修两处native断言（rows字段、负零长度），生产代码无审查修复。A4d范围与未来R2搬迁门已独立评审。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `6c42a38` | fix(db): 迁移最近题目查询并保护无效ID操作 (#21) |
+| `001e23a` | refactor(db): 迁移提交读取并保留原生查询契约 (#22) |
+| `1a39af0` | refactor(db): 迁移提交去重插入并保持准备与通知顺序 (#23) |
+| `fa13260` | refactor(db): 迁移首次AC状态更新并保留原生事务语义 (#24) |
+| `ac7478d` | refactor(db): 迁移基础统计读取并保留原生聚合语义 (#25) |
+| `4d60368` | fix(db): 迁移每日趋势读取并修正空日期图表与路由刷新 (#26) |
+| `93c0df2` | refactor(db): 迁移连续活跃统计并保留日期校验顺序 (#27) |
+| `aacbff0` | fix(db): 迁移洞察列表查询并保留空ID行与导航 |
+
+### Testing
+
+- [OK] A4c test:db39文件985/native52，test:all223文件2728/UI16，build:check及正常hooks全通过；815源码哈希稳定。
+- [OK] A4c独立UTC409/纽约131、实现者四时区各131与consumer56/旧key预期失败证明；PR28CI45978229533、PR8CI45979282462全绿且squash树与测试一致。
+- [OK] 原D工作树62dirty及HEAD20ee62c保持；dev/master/v2.0.1不变，总并发不超过3。
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- 继续已批准A4d：新runtime核心与历史hash/依赖守卫分别实施，完整独立/原生/全量/build通过后推送集成；R2搬迁与后续领域/阶段仍独立验收，PR8保持draft/base dev。
+
+
+## Session 21: Drizzle统计重算集成验收与笔记查询边界交接
+<!-- trellis-session: v=2 fp=f519ffafcaa083db -->
+
+**Date**: 2026-11-27
+**Task**: Drizzle统计重算集成验收与笔记查询边界交接
+**Branch**: `refactor/drizzle`
+
+### Summary
+
+A4d运行时重算及历史保护完成独立审查、原生/全量/build和双层CI后合入Drizzle；A5notes研究与四filepath预审完成但尚未GO，阶段3继续。
+
+### Main Changes
+
+- 新增Drizzle显式DB重算，live wrapper仅改import；冻结030/core/time原路径字节，保留晚期NULL、prepare/JSON和事务通知语义。
+- 显式safe-integer句柄使用raw COUNT，不经Number解码；53差分/8历史守卫/8新增native组，既有native声明均未改。
+- A5notes仅研究：推荐先转4个file_path lookup，完整读取的nullable ID/任意note_type/UI及FS写入问题仍分片决策，不混入本次代码。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `78f33b9` | refactor(db): 迁移运行时统计重算并冻结历史升级分支 |
+| `fb0dd45` | refactor(db): 迁移运行时统计重算并冻结历史升级分支 (#29) |
+
+### Testing
+
+- [OK] 独立UTC250+调用者60/纽约53；实现者四时区各53；两份TypeScript/lint/format通过，无独立review生产或测试修复。
+- [OK] test:db41文件1046/native60，test:all225文件2789/UI16/native60，build:check和真实历史升级/强杀恢复通过；原50ms门实测0.97ms，819源码哈希稳定。
+- [OK] 正常hooks立即push；PR29CI45989652010、squashfb0dd45、PR8CI45991420238通过且测试树一致；原D62dirty、dev/master/v2.0.1不变。
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- 先将A5a独立预审的显式DB行返回helper、damaged-DDL原生诊断例外及隔离real-app文件测试/runner/预算归属写入governing artifacts，再给GO实施；并发总数不超过3。
+- PR8保持draft/base dev；后续领域、布局、拆分和阶段4–6未完成，不归档阶段3、不自动发布。旧A4b2 Tooltip偶发仍无根因，复发先保留可信事件与同时状态。
+
+
+## Session 22: Drizzle笔记路径查询集成与标题类型迁移交接
+<!-- trellis-session: v=2 fp=ae749d38c0438fd1 -->
+
+**Date**: 2026-11-28
+**Task**: Drizzle笔记路径查询集成与标题类型迁移交接
+**Branch**: `refactor/drizzle`
+
+### Summary
+
+A5a四个文件路径查询通过独立审查、原生存储、全量与build验收，并经PR31及PR8集成CI合入Drizzle；A5b研究及独立预审准备就绪，尚待单独批准实施边界。
+
+### Main Changes
+
+- 四处lookup仅替换查询，保留行存在性、原生NULL绑定、文件/时钟/写入/事件顺序和其余8条SQL。
+- 真实Electron测试采用notes专用split ESM，父进程在子进程退出后清理受检工作区临时根；coach runner不变。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `0e4054a` | refactor(db): 迁移笔记文件路径查询并验证真实存储边界 |
+| `eafbed7` | refactor(db): 迁移笔记文件路径查询并验证真实存储边界 (#31) |
+
+### Testing
+
+- [OK] 独立UTC164/两份typecheck/lint；DB42文件1109/native65/realapp21，全量226文件2852/UI16，build:check通过。
+- [OK] 正常hooks立即push；PR31CI46099297905、squasheafbed7及PR8CI46099803141通过且测试树一致，823源码/53保护路径/D62dirty保持。
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- 批准并实施A5b两条UPDATE：显式DB、双SET原始占位符、原生RunResult与changes/event/changes顺序；实际驱动差分验收，不能用node:sqlite探针代替。
+- 并发总数不超过3，PR8保持draft/base dev；阶段3及父任务继续，不归档、不自动发布；旧Tooltip偶发复发先保留可信证据。
+
+
+## Session 23: Drizzle笔记元数据与删除迁移集成验收
+<!-- trellis-session: v=2 fp=140599e4621af3c8 -->
+
+**Date**: 2026-11-28
+**Task**: Drizzle笔记元数据与删除迁移集成验收
+**Branch**: `refactor/drizzle`
+
+### Summary
+
+A5b标题类型和A5c删除独立实施、复核、完整验收并经PR33/34及PR8集成CI合入Drizzle；notes原生SQL从8降到5，正文绑定顺序与完整读取政策仍分开评审。
+
+### Main Changes
+
+- 元数据保留双SET原始绑定和原生RunResult；DELETE保留文件先行、两次changes与批量/COMMIT事件语义，未修改其他SQL或公共接口。
+- 两处测试类型错误及一处旧A5a观察器限定名修正均独立复核；原断言/oracle保留，60原保护哈希按59exact+1批准差异记录。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `8a32133` | refactor(db): 迁移笔记标题类型更新并保留原生写入语义 |
+| `26be448` | refactor(db): 迁移笔记标题类型更新并保留原生写入语义 (#33) |
+| `dbc50d7` | refactor(db): 迁移笔记删除并保留文件先行与事务语义 |
+| `f1a5d5d` | refactor(db): 迁移笔记删除并保留文件先行与事务语义 (#34) |
+
+### Testing
+
+- [OK] A5b独立261、DB1206/native71/realapp32/full2949/UI16/build；A5c独立309、DB1254/native75/realapp34/full2997/UI16/build均通过。
+- [OK] PR33CI46105693154/PR8CI46106465603、PR34CI46108945322/PR8CI46109392717全绿，正常hooks立即push且squash树等于测试树；最终829源码哈希及D62dirty稳定。
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- 下一scope尚未GO：先实际验证content参数载体CTE的原生绑定/错误/触发器/性能并独立评审，或单独批准full-row nullable ID/任意type/消费者政策；不弱化现有trace。
+- 阶段3及父任务继续，PR8保持draft/base dev，不发版不归档；并发最多3。旧Tooltip偶发仍未定位，复发先保留可信事件/同时状态。
+
+
+## Session 24: Drizzle笔记正文迁移集成验收与创建边界交接
+<!-- trellis-session: v=2 fp=65abb3438359a376 -->
+
+**Date**: 2026-11-28
+**Task**: Drizzle笔记正文迁移集成验收与创建边界交接
+**Branch**: `refactor/drizzle`
+
+### Summary
+
+正文单行CTE保留原始绑定和文件先行语义，通过独立复核及全量原生验收，经PR36与PR8集成CI合入Drizzle；创建笔记候选已研究预审，仍待原生可行性与独立批准。
+
+### Main Changes
+
+- 仅新增显式正文helper并替换一条UPDATE；路径查询/catch/文件时钟字数通知顺序不变，完全忽略原生结果，5条原生SQL降至4条。
+- 固定CTE测试识别的两处增量精确授权，旧断言/oracle和187native/40app语句结构保留；未改公共接口、历史schema或双存储。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `640c557` | refactor(db): 迁移笔记正文更新并保留原生绑定与文件语义 |
+| `f169848` | refactor(db): 迁移笔记正文更新并保留原生绑定与文件语义 (#36) |
+
+### Testing
+
+- [OK] 独立UTC352/两份typecheck/lint无修正；DB45文件1297/native81/realapp36/full229文件3040/UI16/build均首次通过。
+- [OK] 正常hooks立即push；PR36CI46131000311/squashf169848与PR8CI46131596412通过且树一致，832源码哈希及D62dirty稳定。
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- A5e尚未GO：先实际原生验证publicCTE INSERTSELECT/eagerprepare，保留prepare前后及event后三次getter；单独批准9bind10列frozen030和IGNORE0语义，再实施。
+- 阶段3及父任务继续，PR8draft/base dev，不发布不归档，并发最多3；旧Tooltip偶发复发先保留可信事件/同时状态。
+
+
+## Session 25: Drizzle笔记创建迁移集成验收与完整读取边界交接
+<!-- trellis-session: v=2 fp=a3d6c6abd53f604a -->
+
+**Date**: 2026-11-28
+**Task**: Drizzle笔记创建迁移集成验收与完整读取边界交接
+**Branch**: `refactor/drizzle`
+
+### Summary
+
+创建笔记以公开CTE与立即prepare工厂保留九绑定及原文件/输入/事件顺序，通过独立复核和全量验收，经PR38与PR8集成CI合入Drizzle；剩余三个读取已完成研究预审，尚待明确边界及原生证明。
+
+### Main Changes
+
+- 只新增创建helper并替换一条INSERT/import；保留三次输入读取、文件先行和忽略结果语义，原生SQL从4降到3。
+- 旧197native/50app-top/43app-runTests语句及66保护原始哈希保留，无新观察器例外；当前030结构与触发器开销限制已记录。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `8e02ad3` | refactor(db): 迁移笔记创建并保留原生绑定与文件顺序 |
+| `f27cb67` | refactor(db): 迁移笔记创建并保留原生绑定与文件顺序 |
+
+### Testing
+
+- [OK] 独立审查仅修一处测试getter类型注解；UTC439/两份typecheck/lint通过，DB46文件1372/native88/realapp44/full231文件3127/UI16/build首次通过。
+- [OK] 正常hooks立即push，PR38CI46152514921/squashf27cb67与PR8CI46153057040通过且测试树一致；836源码及D62dirty保持稳定。
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- A5f仍NOTGO：倾向一次完成三读取，先批准nullable read/string create、列表可操作性/keys/未知类型、batch NULL查找顺序及精确observer/type变更，再原生验证并实施。
+- 阶段3及父任务继续，PR8draft/base dev，不发布不归档；并发上限3。旧Tooltip偶发复发先保留可信事件与同时状态。

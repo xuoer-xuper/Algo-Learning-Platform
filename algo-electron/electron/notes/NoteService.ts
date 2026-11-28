@@ -1,6 +1,11 @@
 import { emitDataChanged } from '../shared/dataEvents'
 import crypto from 'node:crypto'
 import { getDb } from '../db/connection'
+import { updateNoteContentRow } from '../db/repositories/notes/content'
+import { prepareCreateNoteInsert } from '../db/repositories/notes/create'
+import { deleteNoteRow } from '../db/repositories/notes/delete'
+import { findNoteFilePath } from '../db/repositories/notes/file-path'
+import { updateNoteTitleRow, updateNoteTypeRow } from '../db/repositories/notes/title-type'
 import { nowMillis } from '../shared/time'
 import {
   createNoteFile,
@@ -87,12 +92,16 @@ export function createNote(input: CreateNoteInput): Note {
   // DB 缓存的实际正文（不含标题行，标题由 title 字段管理）
   const wordCount = countWords(content)
 
-  db.prepare(
-    `
-    INSERT INTO notes (id, problem_id, title, file_path, note_type, content, word_count, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `,
-  ).run(id, input.problem_id ?? null, input.title, filePath, noteType, content, wordCount, now, now)
+  prepareCreateNoteInsert(db).run({
+    id,
+    problemId: input.problem_id ?? null,
+    title: input.title,
+    filePath,
+    noteType,
+    content,
+    wordCount,
+    now,
+  })
 
   emitDataChanged(['notes'])
   return {
@@ -153,13 +162,7 @@ export function getNoteWithContent(noteId: string): NoteWithContent | null {
 export function updateNoteTitle(noteId: string, title: string): boolean {
   const db = getDb()
   const now = nowMillis()
-  const result = db
-    .prepare(
-      `
-    UPDATE notes SET title = ?, updated_at = ? WHERE id = ?
-  `,
-    )
-    .run(title, now, noteId)
+  const result = updateNoteTitleRow(db, noteId, title, now)
   if (result.changes > 0) emitDataChanged(['notes'])
   return result.changes > 0
 }
@@ -167,19 +170,14 @@ export function updateNoteTitle(noteId: string, title: string): boolean {
 // 更新笔记内容（同时写文件和 DB 缓存）
 export function updateNoteContent(noteId: string, content: string): boolean {
   const db = getDb()
-  const note = db.prepare(`SELECT file_path FROM notes WHERE id = ?`).get(noteId) as
-    { file_path: string } | undefined
+  const note = findNoteFilePath(db, noteId)
   if (!note) return false
 
   try {
     writeNoteContent(note.file_path, content)
     const now = nowMillis()
     const wordCount = countWords(content)
-    db.prepare(
-      `
-      UPDATE notes SET content = ?, word_count = ?, updated_at = ? WHERE id = ?
-    `,
-    ).run(content, wordCount, now, noteId)
+    updateNoteContentRow(db, noteId, content, wordCount, now)
     emitDataChanged(['notes'])
     return true
   } catch {
@@ -194,16 +192,14 @@ export function saveNoteImage(
   data: ArrayBuffer | Uint8Array,
 ): SaveNoteImageResult {
   const db = getDb()
-  const note = db.prepare(`SELECT file_path FROM notes WHERE id = ?`).get(noteId) as
-    { file_path: string } | undefined
+  const note = findNoteFilePath(db, noteId)
   if (!note) throw new Error('笔记不存在')
   return saveNoteImageAsset(note.file_path, noteId, fileName, mimeType, data)
 }
 
 export function resolveNoteAssetPath(noteId: string, relativeUrl: string): string | null {
   const db = getDb()
-  const note = db.prepare(`SELECT file_path FROM notes WHERE id = ?`).get(noteId) as
-    { file_path: string } | undefined
+  const note = findNoteFilePath(db, noteId)
   if (!note) return null
 
   return resolveNoteAssetPathFromFile(note.file_path, noteId, relativeUrl)
@@ -213,13 +209,7 @@ export function resolveNoteAssetPath(noteId: string, relativeUrl: string): strin
 export function updateNoteType(noteId: string, noteType: NoteType): boolean {
   const db = getDb()
   const now = nowMillis()
-  const result = db
-    .prepare(
-      `
-    UPDATE notes SET note_type = ?, updated_at = ? WHERE id = ?
-  `,
-    )
-    .run(noteType, now, noteId)
+  const result = updateNoteTypeRow(db, noteId, noteType, now)
   if (result.changes > 0) emitDataChanged(['notes'])
   return result.changes > 0
 }
@@ -227,14 +217,13 @@ export function updateNoteType(noteId: string, noteType: NoteType): boolean {
 // 删除笔记（DB 记录 + 文件）
 export function deleteNote(noteId: string): boolean {
   const db = getDb()
-  const note = db.prepare(`SELECT file_path FROM notes WHERE id = ?`).get(noteId) as
-    { file_path: string } | undefined
+  const note = findNoteFilePath(db, noteId)
   if (!note) return false
 
   deleteNoteFiles(note.file_path, noteId)
 
   // 删除 DB 记录
-  const result = db.prepare(`DELETE FROM notes WHERE id = ?`).run(noteId)
+  const result = deleteNoteRow(db, noteId)
   if (result.changes > 0) emitDataChanged(['notes'])
   return result.changes > 0
 }

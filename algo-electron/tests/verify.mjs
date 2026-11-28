@@ -19,23 +19,49 @@ const electronBin =
 const suites = new Set(['core', 'ai', 'db', 'electron', 'coach', 'all'])
 
 const dbVitestFiles = [
+  'tests/db/drizzleSchema.test.ts',
+  'tests/db/drizzleClient.test.ts',
+  'tests/db/drizzleMigrationSafety.test.ts',
+  'tests/db/drizzleMigrationValidation.test.ts',
+  'tests/db/drizzleMigrationResources.test.ts',
   'tests/db/codeforcesSubmissionIdMigration.test.ts',
   'tests/db/credentialExport.test.ts',
   'tests/db/credentialRepository.test.ts',
   'tests/db/databaseInitialization.test.ts',
+  'tests/db/deleteProblem.test.ts',
+  'tests/db/dataChangeNotifications.test.ts',
   'tests/db/historicalUpgradePath.test.ts',
   'tests/db/migrationCheckpoint.test.ts',
   'tests/db/migration030.test.ts',
   'tests/shared/legacyTimestamp.test.ts',
   'tests/db/migrateLogging.test.ts',
+  'tests/db/notes-file-path-reads.test.ts',
+  'tests/db/notes-title-type-writes.test.ts',
+  'tests/db/notes-delete-writes.test.ts',
+  'tests/db/notes-content-writes.test.ts',
+  'tests/db/notes-create-writes.test.ts',
   'tests/db/omniboxSuggestions.test.ts',
   'tests/db/problemContextMigration.test.ts',
+  'tests/db/problemLookup.test.ts',
+  'tests/db/problemOverview.test.ts',
+  'tests/db/problemReads.test.ts',
+  'tests/db/problem-recent.test.ts',
+  'tests/db/problemUpsert.test.ts',
   'tests/db/resolve-upgrade.test.ts',
   'tests/db/sqliteMigrationBackup.test.ts',
   'tests/db/siteCredentialMigration.test.ts',
   'tests/db/siteLoginAutofillMigration.test.ts',
   'tests/db/siteCredentialLabelMigration.test.ts',
   'tests/db/statsDate.test.ts',
+  'tests/db/stats-basic-reads.test.ts',
+  'tests/db/stats-daily-reads.test.ts',
+  'tests/db/stats-streak.test.ts',
+  'tests/db/stats-insight-lists.test.ts',
+  'tests/db/stats-recompute.test.ts',
+  'tests/db/stats-recompute-history.test.ts',
+  'tests/db/submission-reads.test.ts',
+  'tests/db/submission-upsert.test.ts',
+  'tests/db/submission-first-ac.test.ts',
   'tests/db/userScriptRuntimeMigration.test.ts',
   'tests/db/userScriptRuntimeRepository.test.ts',
   'tests/tracking/orphanProblemVisits.test.ts',
@@ -55,9 +81,12 @@ function run(command, args, env = {}) {
   }
 }
 
-function bundleTest(testFile, outputName, externals = []) {
+function bundleTest(testFile, outputName, externals = [], splitting = false) {
   fs.mkdirSync(tmpDir, { recursive: true })
-  const outfile = path.join(tmpDir, `${outputName}.mjs`)
+  const outdir = path.join(tmpDir, outputName)
+  const outfile = splitting
+    ? path.join(outdir, `${path.basename(testFile, path.extname(testFile))}.mjs`)
+    : path.join(tmpDir, `${outputName}.mjs`)
   run(process.execPath, [
     esbuildBin,
     testFile,
@@ -65,7 +94,9 @@ function bundleTest(testFile, outputName, externals = []) {
     '--platform=node',
     '--format=esm',
     ...externals.map((external) => `--external:${external}`),
-    `--outfile=${outfile}`,
+    ...(splitting
+      ? ['--splitting', `--outdir=${outdir}`, '--out-extension:.js=.mjs']
+      : [`--outfile=${outfile}`]),
   ])
   return outfile
 }
@@ -80,6 +111,50 @@ function runElectronNodeTest(testFile, outputName) {
 function runElectronAppTest(testFile, outputName) {
   const outfile = bundleTest(testFile, outputName, ['electron', 'electron-log'])
   run(electronBin, [outfile])
+}
+
+function runNotesStorageTest() {
+  // Split imports keep native/logging initialization after the child's path isolation.
+  const outfile = bundleTest(
+    path.join('tests', 'electron', 'notes-file-path-storage.test.ts'),
+    'notes-file-path-storage',
+    ['electron', 'electron-log', 'better-sqlite3'],
+    true,
+  )
+  const ownedRoot = fs.mkdtempSync(path.join(tmpDir, 'notes-storage-'))
+  let failed = false
+  let primary
+  try {
+    run(electronBin, [outfile], {
+      ELECTRON_RUN_AS_NODE: undefined,
+      ALGO_NOTES_TEST_ROOT: ownedRoot,
+    })
+  } catch (error) {
+    failed = true
+    primary = error
+  }
+  // A live Chromium session still owns its files; cleanup belongs after child exit.
+  try {
+    const target = path.resolve(ownedRoot)
+    const parent = fs.realpathSync(tmpDir)
+    const actual = fs.realpathSync(target)
+    if (
+      path.dirname(target) !== path.resolve(tmpDir) ||
+      !path.basename(target).startsWith('notes-storage-') ||
+      fs.lstatSync(target).isSymbolicLink() ||
+      path.dirname(actual) !== parent
+    ) {
+      throw new Error(`Refusing notes test cleanup outside its owned directory: ${target}`)
+    }
+    fs.rmSync(target, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 })
+  } catch (error) {
+    if (failed) console.error('Notes test cleanup failed; preserving the child failure:', error)
+    else {
+      failed = true
+      primary = error
+    }
+  }
+  if (failed) throw primary
 }
 
 function bundleElectronPreload(testFile, outputName) {
@@ -161,10 +236,15 @@ function runDbElectronTests() {
     'db-migrationInterruption',
   )
   runElectronNodeTest(
+    path.join('tests', 'db', 'drizzleMigrationInterruption.test.ts'),
+    'db-drizzleMigrationInterruption',
+  )
+  runElectronNodeTest(
     path.join('tests', 'db', 'dailyStatsPerformance.test.ts'),
     'db-dailyStatsPerformance',
   )
   runElectronNodeTest(path.join('tests', 'db', 'repositories.test.ts'), 'db-repositories')
+  runNotesStorageTest()
 }
 
 function runCoachElectronTests() {
@@ -231,7 +311,7 @@ function runCoreSuite() {
   // tests/submissions、tests/shared、tests/diagnostics、tests/shortcuts、
   // tests/tracking 与 4 个 tests/security 文件一直在名单外，加进来才发现漏了。
   // 代价是墙钟从 9.9s 到 11.3s（实测），不足以换"门是假的"。
-  // 真实 Electron 那 9 个文件由 vitest.config.ts 的 exclude 挡掉，各自有专属 suite。
+  // 真实 Electron 文件由 vitest.config.ts 的 exclude 挡掉，各自有专属 suite。
   runVitest()
 }
 

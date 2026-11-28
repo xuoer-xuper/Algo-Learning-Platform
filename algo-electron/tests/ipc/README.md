@@ -6,6 +6,8 @@
 
 ## 2. 当前覆盖
 
+- `insight-list-schemas.test.ts`：三种洞察输出ID的string/null边界、复访string约束、整数时间和原请求校验保持。
+
 - `channels.test.ts`：`IPC_CHANNELS`（`src/shared/constants/channels.ts`）的**值快照**。
   阶段 2 R1 把散落在 electron/ 的 channel 字面量收口为共享常量之前，先按四个口径实测
   （`ipcMain.(handle|on)`、`ipcRenderer.(invoke|send|on|off)`、`.(send|sendToAll)`、

@@ -5,9 +5,17 @@ import { z } from 'zod'
 import {
   assertLegacyLedgerEquals,
   databaseStateSchema,
+  compositeDatabaseStateSchema,
   legacyLedgerSchema,
 } from '../../../db/legacy-ledger-validation'
-import { assertNoPathLinks, canonicalPath, type MigrationCheckpoint } from './migration-checkpoint'
+import {
+  assertNoPathLinks,
+  canonicalPath,
+  checkpointPendingKeys,
+  type MigrationCheckpoint,
+} from './migration-checkpoint'
+
+import { assertDrizzleLedgerEquals } from '../../../db/drizzle-ledger'
 
 export const migrationFailureMarkerSchema = z
   .object({
@@ -15,6 +23,9 @@ export const migrationFailureMarkerSchema = z
     backupPath: z.string().min(1),
     failedAt: z.iso.datetime(),
     pendingMigrations: legacyLedgerSchema,
+    pendingMigrationKeys: z
+      .array(z.string().regex(/^(?:legacy:[1-9]\d*|drizzle:\d{4}_[a-zA-Z0-9_-]+)$/))
+      .optional(),
     error: z.string(),
     restoreError: z.string().optional(),
     attemptId: z.uuid().optional(),
@@ -22,18 +33,26 @@ export const migrationFailureMarkerSchema = z
   .strict()
 export type MigrationFailureMarker = z.infer<typeof migrationFailureMarkerSchema>
 
-export const resolutionAuditSchema = z
-  .object({
-    formatVersion: z.literal(1),
-    attemptId: z.uuid(),
-    resolution: z.enum(['keep-current', 'retry-source']),
-    state: z.enum(['prepared', 'verified']),
-    databasePath: z.string(),
-    backupBasename: z.string().regex(/^[A-Za-z0-9._-]+\.sqlite$/),
-    backupSha256: z.string().regex(/^[a-f0-9]{64}$/),
-    source: databaseStateSchema,
-  })
-  .strict()
+const resolutionAuditFields = {
+  attemptId: z.uuid(),
+  resolution: z.enum(['keep-current', 'retry-source']),
+  state: z.enum(['prepared', 'verified']),
+  databasePath: z.string(),
+  backupBasename: z.string().regex(/^[A-Za-z0-9._-]+\.sqlite$/),
+  backupSha256: z.string().regex(/^[a-f0-9]{64}$/),
+}
+export const resolutionAuditSchema = z.discriminatedUnion('formatVersion', [
+  z
+    .object({ ...resolutionAuditFields, formatVersion: z.literal(1), source: databaseStateSchema })
+    .strict(),
+  z
+    .object({
+      ...resolutionAuditFields,
+      formatVersion: z.literal(2),
+      source: compositeDatabaseStateSchema,
+    })
+    .strict(),
+])
 export type ResolutionAudit = z.infer<typeof resolutionAuditSchema>
 
 const legacyAssociationSchema = z
@@ -89,6 +108,13 @@ export function assertFailureMarkerMatchesCheckpoint(
   ) {
     throw new Error('The failure marker and upgrade record identify different recovery evidence.')
   }
+  if (
+    (checkpoint.formatVersion === 2 || marker.pendingMigrationKeys !== undefined) &&
+    JSON.stringify(marker.pendingMigrationKeys) !==
+      JSON.stringify(checkpointPendingKeys(checkpoint))
+  ) {
+    throw new Error('Failure marker keys do not match the recovery checkpoint')
+  }
   assertLegacyLedgerEquals(
     marker.pendingMigrations,
     checkpoint.targetLedger.slice(checkpoint.source.ledger.length),
@@ -139,6 +165,7 @@ export function readVerifiedResolutionAudit(checkpoint: MigrationCheckpoint): Re
     ),
   )
   if (
+    audit.formatVersion !== checkpoint.formatVersion ||
     audit.state !== 'verified' ||
     audit.attemptId !== checkpoint.attemptId ||
     audit.resolution !== resolution ||
@@ -150,6 +177,12 @@ export function readVerifiedResolutionAudit(checkpoint: MigrationCheckpoint): Re
     audit.source.ledger,
     resolution === 'keep-current' ? checkpoint.targetLedger : checkpoint.source.ledger,
   )
+  if (checkpoint.formatVersion === 2 && audit.formatVersion === 2) {
+    assertDrizzleLedgerEquals(
+      audit.source.drizzleLedger,
+      resolution === 'keep-current' ? checkpoint.targetDrizzle : checkpoint.source.drizzleLedger,
+    )
+  }
   if (resolution === 'retry-source' && audit.source.schemaHash !== checkpoint.source.schemaHash)
     throw new Error('The retry resolution audit does not match the verified source schema.')
   return audit

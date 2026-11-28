@@ -1,7 +1,7 @@
 import { getDb } from '../../connection'
 import { nowMillis, toLocalDay } from '../../../shared/time'
 import { emitDataChanged } from '../../../shared/dataEvents'
-import { recomputeDailyStatsAt, recomputeAllDailyStatsAt } from './recompute-core'
+import { recomputeDailyStatsAt, recomputeAllDailyStatsAt } from './recompute-runtime'
 
 export function recomputeDailyStats(date?: string): void {
   recomputeDailyStatsAt(getDb(), date ?? toLocalDay(nowMillis()), nowMillis())

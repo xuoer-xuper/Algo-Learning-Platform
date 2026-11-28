@@ -98,6 +98,7 @@
 | db submission | [electron/db/repositories/submission/README](../algo-electron/electron/db/repositories/submission/README.md) |
 | db site | [electron/db/repositories/site/README](../algo-electron/electron/db/repositories/site/README.md) |
 | db stats | [electron/db/repositories/stats/README](../algo-electron/electron/db/repositories/stats/README.md) |
+| db notes | [electron/db/repositories/notes/README](../algo-electron/electron/db/repositories/notes/README.md) |
 | db user script | [electron/db/repositories/userScript/README](../algo-electron/electron/db/repositories/userScript/README.md) |
 | ipc | [electron/ipc/README](../algo-electron/electron/ipc/README.md) |
 | shortcuts | [electron/shortcuts/README](../algo-electron/electron/shortcuts/README.md) |
@@ -147,6 +148,7 @@
 | main services | [src/main/services/README](../algo-electron/src/main/services/README.md) |
 | backup safety | [src/main/services/backup/README](../algo-electron/src/main/services/backup/README.md) |
 | backup helpers | [src/main/services/backup/lib/README](../algo-electron/src/main/services/backup/lib/README.md) |
+| Drizzle candidate migrations | [drizzle/README](../algo-electron/drizzle/README.md) |
 | ipc input schemas | [src/shared/types/ipc/README](../algo-electron/src/shared/types/ipc/README.md) |
 | renderer shared | [src/shared/README](../algo-electron/src/shared/README.md) |
 | build | [build/README](../algo-electron/build/README.md) |

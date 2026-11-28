@@ -13,7 +13,7 @@ import { submissionRecordSchema } from './submission'
  */
 
 export const problemRecordSchema = z.object({
-  id: z.string(),
+  id: z.string().nullable(),
   platform: z.string(),
   platform_problem_id: z.string(),
   canonical_url: z.string(),
@@ -28,6 +28,7 @@ export const problemRecordSchema = z.object({
 export type ProblemRecord = z.infer<typeof problemRecordSchema>
 
 export const problemDetailRecordSchema = problemRecordSchema.extend({
+  id: z.string(),
   submission_count: z.number(),
   ac_count: z.number(),
   first_seen_at: z.number().int().nullable().optional(),
@@ -38,7 +39,7 @@ export const problemDetailRecordSchema = problemRecordSchema.extend({
 export type ProblemDetailRecord = z.infer<typeof problemDetailRecordSchema>
 
 export const omniboxSuggestionSchema = z.object({
-  problemId: z.string(),
+  problemId: z.string().nullable(),
   title: z.string().nullable(),
   platform: z.string(),
   platformProblemId: z.string(),

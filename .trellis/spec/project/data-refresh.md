@@ -40,6 +40,37 @@ window.api.data.onChanged(handler: (payload: DataChangedPayload) => void): () =>
 - Emit only after the statement succeeds, and skip operations that changed no
   rows. Payloads contain topic names only, never records, IDs, credentials, cookie
   values, URLs, or local paths.
+- Narrow legacy-compatibility exception during ORM adoption: `upsertProblem` has
+  always emitted `problems`/`stats` after a successful existing-row UPDATE even if
+  a nullable stored ID makes `WHERE id = ?` with bound null match nothing. Preserve
+  that notification and real statement/error execution; do not generalize it to
+  new no-op mutations. Outer rollback/COMMIT failure still discards those topics.
+- Submission insertion has another narrow legacy exception: successful INSERT
+  run emits `submissions`/`problems`/`stats` and returns true even if an ordinary
+  diagnostic BEFORE INSERT RAISE(IGNORE) produces changes0. Preserve native
+  success/error and caller transaction behavior; do not generalize to new code.
+- Runtime statistics recompute has two existing preservation-only exceptions.
+  Single-day wrapper success always emits `stats`, including diagnostic IGNORE0;
+  a thrown core emits none. All-days emits once only after complete success with
+  a positive attempted-date count (even all IGNORE), and none on zero or throw.
+  Thus late all-days failure can leave earlier autocommit writes without an
+  event. Selected sorted unique dates instead emit per successful single-day
+  invocation before a later failure. Do not silently fix this asymmetry in ORM
+  conversion, add buffering around autocommit, or generalize it to new mutations.
+  Existing caller notification scopes still discard topics on rollback/COMMIT
+  failure. See drizzle-stats-recompute.md for the historical/runtime boundary.
+- Notes content has a narrow preservation-only exception: after a found path,
+  successful UPDATE run always emits `notes` and returns true, including IGNORE0
+  or a row removed after lookup. The service ignores the native result. Lookup
+  errors propagate outside its catch; inner errors return false with no event.
+  Earlier file writes can survive SQL failure/rollback. Keep actual caller COMMIT
+  scope, not new compensation or a changes predicate; see drizzle-notes-content.md.
+- Notes creation has its own preservation-only exception: successful INSERT run
+  emits `notes` before constructing the return object, including diagnostic
+  IGNORE0. The result is ignored; third input getters may fail after the write
+  and event. Caller rollback/actual COMMIT failure discards scoped topics, not
+  previously written Markdown. No new transaction, compensation or general
+  no-op rule is introduced; see drizzle-notes-create.md.
 - Wrap the synchronous **transaction invocation**, including commit, in
   `withDataChangeTransaction`. Successful nested scopes merge into the parent;
   failed scopes discard their own changes and rethrow. The outermost successful
@@ -101,6 +132,12 @@ window.api.data.onChanged(handler: (payload: DataChangedPayload) => void): () =>
 | --- | --- |
 | Successful standalone mutation | Publish its logical topics |
 | No-op mutation or duplicate insert rejected | No mutation notification |
+| Legacy problem upsert with a matching null-ID row | Run the bound-null UPDATE; retain its successful post-statement notification, but none on failure/rollback |
+| Legacy single-day recompute succeeds, including IGNORE0 | Emit stats once, subject to the existing caller scope |
+| Legacy all-days recompute returns positive / zero / throws late | One stats event / none / none; earlier autocommit effects can remain on late failure |
+| Legacy selected-date recompute later fails | Earlier successful single-day calls retain their scoped events/effects |
+| Legacy content UPDATE succeeds, including IGNORE0 or post-lookup disappearance | Emit notes and return true without reading changes; caller rollback still discards topics |
+| Legacy create INSERT succeeds, including IGNORE0 | Emit notes before return getters; ignored result, earlier file effects survive SQL rollback |
 | Outer transaction fails or commit throws | Publish none of that scope's topics |
 | Inner rollback caught, outer commit succeeds | Publish only successful outer topics |
 | Earlier autocommit succeeds, later batch item fails | Preserve notification for earlier commit |

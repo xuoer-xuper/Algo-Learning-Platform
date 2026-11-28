@@ -23,6 +23,10 @@ R5 的所有时间点（包含诊断、下载、待安装与 Coach 快照）采�
 `z.number().int()` 并保留原 optional/nullability。`local_day` 等日历键仍为字符串，时长维持
 各自声明的单位；renderer 只在展示边界调用 `@shared/time` 格式化，不解析旧时间字符串。
 
+A2f按真实既有输出允许三个nullable ID：`OmniboxSuggestion.problemId`、
+详情内嵌`SubmissionRecord.id`、`ProblemVisitPoint.visit_id`。不放宽输入或内部路由，
+不新增输出解析，也不丢弃或伪造数据库记录；最近题目列表的ID操作政策仍独立待评审。
+
 ## 3. 边界与维护规则
 
 - 类型文件零 electron 运行时依赖（可以 `import type` 引 electron 侧类型，但不得引入会在渲染层打包的 electron 运行时模块）。

@@ -7,7 +7,8 @@ Provide narrow local protection helpers used by the existing main-process config
 ## Current implementation / 当前实现
 
 - `lib/config-normalization-backup.ts` protects original config bytes before automatic normalization, verifies staged output and refuses unsafe paths or in-place write fallback.
-- `lib/migration-checkpoint.ts` contains typed local migration-attempt records. Its database lifecycle integration and recovery acceptance are still in progress; the helper's presence is not release approval.
+- `lib/migration-checkpoint.ts` retains released format-1 legacy attempts and adds format-2 composite legacy/Drizzle attempts. The current Drizzle synchronization is separately validated; the v2.0.1 acceptance does not certify this unpublished branch.
+- `lib/upgrade-resolution-audit.ts` validates versioned current-data backups, explicit resolution and preserved original-marker associations. Normal startup rechecks this evidence rather than trusting a resolved state label.
 
 ## Entry points / 入口
 

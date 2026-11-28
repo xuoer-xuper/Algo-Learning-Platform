@@ -1,3 +1,5 @@
+import type { DailyActiveStats } from '../../src/shared/types/stats'
+
 export interface AIContextExport {
   schema_version: number
   exported_at: number
@@ -12,15 +14,7 @@ export interface AIContextExport {
     streak: { current: number; longest: number }
   }
   trends: {
-    daily_stats: {
-      local_day: string
-      active_seconds: number
-      duration_seconds: number
-      visited: number
-      solved: number
-      submissions: number
-      ac: number
-    }[]
+    daily_stats: DailyActiveStats[]
     platform_distribution: { platform: string; count: number }[]
   }
   wrong_problems: {

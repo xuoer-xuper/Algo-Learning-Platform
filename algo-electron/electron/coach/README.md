@@ -33,8 +33,8 @@
 
 ### 阶段 4：过程复盘 + 答辩数据
 
-- `CoachOrchestrator.getProblemTimeline()`：合并四表数据生成时间轴。
-- `CoachOrchestrator.getMetricsBundle()`：聚合 30 天窗口指标。
+- `CoachOrchestrator.getProblemTimeline()`：合并四表数据生成时间轴。访问/提交点ID保留legacy null，只读展示不修复或丢行；父题目ID仍为可寻址string。
+- `CoachOrchestrator.getMetricsBundle()`：聚合 30 天窗口指标。首次AC内部Map接受schema推导的nullable键，公开指标仍从原string题目列表构造，epoch0不视作缺失。
 
 ## 3. 封装入口与关键文件
 

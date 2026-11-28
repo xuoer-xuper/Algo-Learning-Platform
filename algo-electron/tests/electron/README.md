@@ -10,6 +10,16 @@
 - `userScriptRuntimeSmoke.test.ts`：bundle 真实 userscript catalog/bootstrap preload 和一个普通 preload，使用一次性 localhost 页面验证 `document-start` 早于页面内联脚本、`document-end`/`document-idle` 真实阶段、页面无法捕获私有端口、SPA 重匹配，以及延迟 load 中的 generation 刷新不执行旧 end/idle 脚本；同时固定记录 Electron 43 普通 iframe 不触发 session frame preload、普通 preload 先于 userscript preload 的 best-effort 边界。
 - `ojSubmissionBridgeSmoke.test.ts`：bundle 真实 `ojPreload`，在 `sandbox: true` 的窗口里通过 per-session `protocol.handle('https', ...)` 提供合成 https 页面（全局 `ignore-certificate-errors` 项目禁用），验证 document token 由 preload 主动 pull 而非 main 推送：document-start 直接调用暴露的 `reportSubmission`、同窗口 `postMessage`、子 frame 向 `window.top` 的 `postMessage` 都能送达，真实导航后 token 保持稳定（旧的 did-navigate 推送方案在此处会丢 token），未注册的 webContents 与 http 文档一律不发放 token。
 - `electronDouble.test.ts`：Vitest 下的 Electron test-double 冒烟，覆盖命令行开关、BrowserWindow/WebContentsView 生命周期和 view bounds；`electronMock.ts` 还模拟可取消 `close`→`closed`、Chromium 预创建 popup `webContents` 及销毁后失效引用，真实 Electron ABI 仍由 `startupSmoke.test.ts` 覆盖。
+- `notes-file-path-storage.test.ts`：无窗口的真实 Electron/SQLite/Markdown/附件验收；隔离 userData/session/log 后才延迟加载 service 和存储。此调用单独使用 split ESM，防止单文件 bundle 把间接 native/logging external import 提到初始化前；外置 `better-sqlite3` 并清除继承的 `ELECTRON_RUN_AS_NODE`，原 coach runner 默认不变；由 `test:db` / `test:all` 注册，Vitest 排除该文件。
+- 笔记应用套件也验证标题/类型元数据更新：成功、原生失败、回滚及真实COMMIT失败时，Markdown/附件的路径和字节都保持不变，通知仍由原有调用方事务控制。
+- 删除迁移继续复用原有文件先行、清理失败、NULL列表、批量部分成功和事务回滚场景，仅补未覆盖的原生行为；数据库回滚不应恢复已删除的文件。
+- 正文迁移复用既有文件先行、晚失败、IGNORE和事务场景；观察器只新增固定单行CTE识别，原trace断言不变。补充原生FAIL审计等缺口，不把数据库回滚等同于恢复Markdown，不改变runner生命周期。
+
+笔记 runner 在工作区 `tmp/electron-tests/notes-storage-*` 创建独占目录，通过
+`ALGO_NOTES_TEST_ROOT` 交给子进程，确认绝对路径/归属且拒绝符号链接。子进程关闭 DB、
+订阅和协议后退出，由父进程在真实退出后检查归属再清理；不能在 Chromium session
+仍存活时递归删除 userData，`closeAllConnections()` 不是销毁 session。
+子进程失败与清理失败分开报告，清理不得掩盖原错误。
 
 `electronMock.ts` 里有两处专为 preload 模块级测试存在，改动时别当冗余删掉：
 
@@ -25,6 +35,8 @@
 ```powershell
 cd algo-electron
 pnpm run test:electron
+# 笔记真实存储验收由数据库门执行
+pnpm run test:db
 ```
 
 ## 4. 新增规则
