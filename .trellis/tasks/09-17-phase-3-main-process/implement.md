@@ -75,10 +75,14 @@
   UTC8files309/both types/lint/format pass; prior native/app ASTs preserved.
 - [x] Final DB44files1254/native75/realapp34, full228files2997/UI16/build pass;
  829source hashes stable,59protected exact+1approved observer/D62dirty preserved.
-- [ ] Normal hooks/commit/immediatepush; featureCI/squash/PR8integrationCI.
+- [x] Workdbc50d7 normal hooks/immediatepush; PR34CI46108945322 passes,
+  squashf1a5d5d same tested tree; PR8CI46109392717 passes.
 
-Only DELETE is GO after prerequisites; no content/create/full reads, IPC/UI,
+DELETE is integrated; no content/create/full reads, IPC/UI,
 schema/history/storage repair, release or phase archive. Phase3 remains active.
+Next scope is NOT GO: content raw-binding/CTE feasibility needs actual-native
+and independent design review, or separately review full-row nullable/type/UI
+contracts. Do not weaken existing trace tests or infer broad notes approval.
 
 ## A5b Execution Boundary (2026-11-28)
 

@@ -94,6 +94,10 @@ lifecycle. Public IDs remain string; malformed-input diagnostics do not widen IP
 - Cover literal/empty/Unicode/NULL/undefined/native-container inputs query-only;
   readonly/query_only, IGNORE/FAIL/ABORT, injected lookup/storage/prepare/run
   errors, lifecycle, savepoints/actual COMMIT and listener/reentrant behavior.
+- Limit no-clock/no-query observations to the tested operation. Reinitialization
+  runs historical migrations with legitimate clocks: assert the prior operation,
+  initialize, then clear setup observations before the next operation. Never
+  clear calls after a delete or filter away unexpected operational clock reads.
 - Append helper-only native cases; never import real NoteService under RUN_AS_NODE.
   Keep previous native/app statements in order and reuse existing delete/NULL/
   batch/rollback real-file groups. Add uncovered real-app behaviors safely.

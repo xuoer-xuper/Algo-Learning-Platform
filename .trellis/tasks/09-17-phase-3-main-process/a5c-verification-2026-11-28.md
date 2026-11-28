@@ -2,7 +2,7 @@
 
 Started: 2026-11-28. Branch codex/drizzle-notes-delete; accepted base
 26be44865c0cb2aca046602e39482464ab7872cb. Independent review and final local
-gates pass; Git/CI integration pending. Phase3/parent stay active; no release,
+gates and both CI levels pass. Phase3/parent stay active; no release,
 schema/history/public API change.
 
 ## Entry And Boundary
@@ -38,7 +38,7 @@ Parent actual initial native75/75 and realapp34/34 pass first run, status0.
 Existing71native/32app plus4newnative/2newapp pass; FAIL audit/files-first and
 stateful changes/event/changes add only missing cases. No runner/lifecycle edit.
 Evidence: tmp/drizzle-a5c-initial-native.log/.exit and initial-app.log/.exit.
-Independent review and final local gates pass as detailed below; CI remains pending.
+Independent review, final local gates and integration closure pass as detailed below.
 
 ## Independent Observer Finding
 
@@ -73,4 +73,20 @@ Protected accounting retains60original hashes:59current files equal base26be448,
 plus only the approved observer replacement. Original D62dirty/HEAD20ee62c and
 dev/master/v2.0.1 remain unchanged. No final native/full/build retry or runner
 change. Evidence: tmp/drizzle-a5c-{db,all,build}.log/.exit, gate-source.json and
-protected-source.json. Normal hooks, featureCI and integration closure pending.
+protected-source.json. Integration closure follows.
+
+## Integration Closure
+
+Workdbc50d7e49d389c2fc63207f32bd8581757bdd35 passes normal pre-commit and
+immediate pre-push/test:ci without bypass/retry. PR34CI46108945322 passes;
+squashf1a5d5d8ff004a6fd56c32d2a51ddabd2c3a7e4b integrates into refactor/drizzle
+with the exact tested tree. PR8CI46109392717 passes; PR8 stays draft/base dev.
+All829source hashes remain stable after hooks/integration. Original D62dirty and
+dev/master/v2.0.1 unchanged; no release or phase archive. Logs:
+tmp/drizzle-a5c-{commit,push,feature-ci,integration-ci}.log/.exit.
+
+The next notes scope is NOT GO. Content normal builder changes bind order;
+research records a public CTE candidate with construction-only evidence. Native
+feasibility/error/trigger/performance acceptance and independent design review
+must precede any governing approval. Alternatively review full-row nullable-ID/
+arbitrary-note_type consumer contracts separately. Five SQL boundaries remain.

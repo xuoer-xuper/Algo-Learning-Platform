@@ -782,3 +782,43 @@ A5a四个文件路径查询通过独立审查、原生存储、全量与build验
 
 - 批准并实施A5b两条UPDATE：显式DB、双SET原始占位符、原生RunResult与changes/event/changes顺序；实际驱动差分验收，不能用node:sqlite探针代替。
 - 并发总数不超过3，PR8保持draft/base dev；阶段3及父任务继续，不归档、不自动发布；旧Tooltip偶发复发先保留可信证据。
+
+
+## Session 23: Drizzle笔记元数据与删除迁移集成验收
+<!-- trellis-session: v=2 fp=140599e4621af3c8 -->
+
+**Date**: 2026-11-28
+**Task**: Drizzle笔记元数据与删除迁移集成验收
+**Branch**: `refactor/drizzle`
+
+### Summary
+
+A5b标题类型和A5c删除独立实施、复核、完整验收并经PR33/34及PR8集成CI合入Drizzle；notes原生SQL从8降到5，正文绑定顺序与完整读取政策仍分开评审。
+
+### Main Changes
+
+- 元数据保留双SET原始绑定和原生RunResult；DELETE保留文件先行、两次changes与批量/COMMIT事件语义，未修改其他SQL或公共接口。
+- 两处测试类型错误及一处旧A5a观察器限定名修正均独立复核；原断言/oracle保留，60原保护哈希按59exact+1批准差异记录。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `8a32133` | refactor(db): 迁移笔记标题类型更新并保留原生写入语义 |
+| `26be448` | refactor(db): 迁移笔记标题类型更新并保留原生写入语义 (#33) |
+| `dbc50d7` | refactor(db): 迁移笔记删除并保留文件先行与事务语义 |
+| `f1a5d5d` | refactor(db): 迁移笔记删除并保留文件先行与事务语义 (#34) |
+
+### Testing
+
+- [OK] A5b独立261、DB1206/native71/realapp32/full2949/UI16/build；A5c独立309、DB1254/native75/realapp34/full2997/UI16/build均通过。
+- [OK] PR33CI46105693154/PR8CI46106465603、PR34CI46108945322/PR8CI46109392717全绿，正常hooks立即push且squash树等于测试树；最终829源码哈希及D62dirty稳定。
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- 下一scope尚未GO：先实际验证content参数载体CTE的原生绑定/错误/触发器/性能并独立评审，或单独批准full-row nullable ID/任意type/消费者政策；不弱化现有trace。
+- 阶段3及父任务继续，PR8保持draft/base dev，不发版不归档；并发最多3。旧Tooltip偶发仍未定位，复发先保留可信事件/同时状态。
